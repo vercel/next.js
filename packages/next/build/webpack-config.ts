@@ -87,7 +87,7 @@ const BABEL_CONFIG_FILES = [
 ]
 
 const rscSharedRegex =
-  /(node_modules[\\/]react\/|[\\/]shared[\\/]lib[\\/](head-manager-context|router-context|server-inserted-html)\.js|node_modules[\\/]styled-jsx[\\/])/
+  /next[\\/]dist[\\/]compiled[\\/](react|react-dom)|([\\/]shared[\\/]lib[\\/](head-manager-context|router-context|server-inserted-html)\.js|node_modules[\\/]styled-jsx[\\/])/
 
 // Support for NODE_PATH
 const nodePathList = (process.env.NODE_PATH || '')
@@ -1035,6 +1035,7 @@ export default async function getBaseWebpackConfig(
     // Special internal modules that must be bundled for Server Components.
     if (layer === WEBPACK_LAYERS.server) {
       if (
+        request.startsWith('next/dist/compiled/react') ||
         request === 'react' ||
         request === 'react/jsx-runtime' ||
         request ===
@@ -1552,24 +1553,29 @@ export default async function getBaseWebpackConfig(
 
                   return true
                 },
-                resolve: process.env.__NEXT_REACT_CHANNEL
-                  ? {
-                      conditionNames: ['react-server', 'node', 'require'],
-                      // alias: {
-                      //   react: `react-${process.env.__NEXT_REACT_CHANNEL}`,
-                      //   'react-dom': `react-dom-${process.env.__NEXT_REACT_CHANNEL}`,
-                      // },
-                    }
-                  : {
-                      conditionNames: ['react-server', 'node', 'require'],
-                      // alias: {
-                      //   // If missing the alias override here, the default alias will be used which aliases
-                      //   // react to the direct file path, not the package name. In that case the condition
-                      //   // will be ignored completely.
-                      //   react: 'react',
-                      //   'react-dom': 'react-dom',
-                      // },
+                resolve:
+                  // process.env.__NEXT_REACT_CHANNEL
+                  //   ? {
+                  //       conditionNames: ['react-server', 'node', 'require'],
+                  //       // alias: {
+                  //       //   react: `react-${process.env.__NEXT_REACT_CHANNEL}`,
+                  //       //   'react-dom': `react-dom-${process.env.__NEXT_REACT_CHANNEL}`,
+                  //       // },
+                  //     }
+                  // :
+                  {
+                    conditionNames: ['react-server', 'node', 'require'],
+                    alias: {
+                      react: 'next/dist/compiled/react',
+                      'react-dom': 'next/dist/compiled/react-dom',
                     },
+                    //   // If missing the alias override here, the default alias will be used which aliases
+                    //   // react to the direct file path, not the package name. In that case the condition
+                    //   // will be ignored completely.
+                    //   react: 'react',
+                    //   'react-dom': 'react-dom',
+                    // },
+                  },
               },
             ]
           : []),
@@ -1591,17 +1597,14 @@ export default async function getBaseWebpackConfig(
           ? [
               {
                 test: codeCondition.test,
-                include: [appDir, dir],
+                include: [appDir, dir, NEXT_PROJECT_ROOT, /node_modules/],
                 resolve: {
                   alias: {
-                    [require.resolve('next/dynamic')]:
-                      'next/dist/client/components/dynamic',
-                    [require.resolve('react')]: require.resolve(
-                      'next/dist/compiled/react'
+                    [require.resolve('next/dynamic')]: require.resolve(
+                      'next/dist/client/components/dynamic'
                     ),
-                    [require.resolve('react-dom')]: require.resolve(
-                      'next/dist/compiled/react-dom'
-                    ),
+                    'react-dom': 'next/dist/compiled/react-dom',
+                    react: 'next/dist/compiled/react',
                   },
                 },
               },

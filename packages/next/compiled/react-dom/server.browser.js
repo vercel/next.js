@@ -1,4 +1,10 @@
-(()=>{"use strict";var e={681:(e,r,o)=>{
+/******/ (() => { // webpackBootstrap
+/******/ 	"use strict";
+/******/ 	var __webpack_modules__ = ({
+
+/***/ 681:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
 /**
  * @license React
  * react-dom-server-legacy.browser.development.js
@@ -8,7 +14,7405 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  */
-if(process.env.NODE_ENV!=="production"){(function(){"use strict";var e=o(89);var a="18.3.0-experimental-cb5084d1c-20220924";var i=e.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;function warn(e){{{for(var r=arguments.length,o=new Array(r>1?r-1:0),a=1;a<r;a++){o[a-1]=arguments[a]}printWarning("warn",e,o)}}}function error(e){{{for(var r=arguments.length,o=new Array(r>1?r-1:0),a=1;a<r;a++){o[a-1]=arguments[a]}printWarning("error",e,o)}}}function printWarning(e,r,o){{var a=i.ReactDebugCurrentFrame;var s=a.getStackAddendum();if(s!==""){r+="%s";o=o.concat([s])}var l=o.map((function(e){return String(e)}));l.unshift("Warning: "+r);Function.prototype.apply.call(console[e],console,l)}}function scheduleWork(e){e()}function beginWriting(e){}function writeChunk(e,r){writeChunkAndReturn(e,r)}function writeChunkAndReturn(e,r){return e.push(r)}function completeWriting(e){}function close(e){e.push(null)}function stringToChunk(e){return e}function stringToPrecomputedChunk(e){return e}function closeWithError(e,r){e.destroy(r)}function typeName(e){{var r=typeof Symbol==="function"&&Symbol.toStringTag;var o=r&&e[Symbol.toStringTag]||e.constructor.name||"Object";return o}}function willCoercionThrow(e){{try{testStringCoercion(e);return false}catch(e){return true}}}function testStringCoercion(e){return""+e}function checkAttributeStringCoercion(e,r){{if(willCoercionThrow(e)){error("The provided `%s` attribute is an unsupported type %s."+" This value must be coerced to a string before before using it here.",r,typeName(e));return testStringCoercion(e)}}}function checkCSSPropertyStringCoercion(e,r){{if(willCoercionThrow(e)){error("The provided `%s` CSS property is an unsupported type %s."+" This value must be coerced to a string before before using it here.",r,typeName(e));return testStringCoercion(e)}}}function checkHtmlStringCoercion(e){{if(willCoercionThrow(e)){error("The provided HTML markup uses a value of unsupported type %s."+" This value must be coerced to a string before before using it here.",typeName(e));return testStringCoercion(e)}}}var s=true;var l=Object.prototype.hasOwnProperty;var c=0;var d=1;var p=2;var f=3;var h=4;var g=5;var b=6;var S=":A-Z_a-z\\u00C0-\\u00D6\\u00D8-\\u00F6\\u00F8-\\u02FF\\u0370-\\u037D\\u037F-\\u1FFF\\u200C-\\u200D\\u2070-\\u218F\\u2C00-\\u2FEF\\u3001-\\uD7FF\\uF900-\\uFDCF\\uFDF0-\\uFFFD";var w=S+"\\-.0-9\\u00B7\\u0300-\\u036F\\u203F-\\u2040";var E=new RegExp("^["+S+"]["+w+"]*$");var P={};var F={};function isAttributeNameSafe(e){if(l.call(F,e)){return true}if(l.call(P,e)){return false}if(E.test(e)){F[e]=true;return true}P[e]=true;{error("Invalid attribute name: `%s`",e)}return false}function shouldRemoveAttributeWithWarning(e,r,o,a){if(o!==null&&o.type===c){return false}switch(typeof r){case"function":case"symbol":return true;case"boolean":{if(a){return false}if(o!==null){return!o.acceptsBooleans}else{var i=e.toLowerCase().slice(0,5);return i!=="data-"&&i!=="aria-"}}default:return false}}function getPropertyInfo(e){return _.hasOwnProperty(e)?_[e]:null}function PropertyInfoRecord(e,r,o,a,i,s,l){this.acceptsBooleans=r===p||r===f||r===h;this.attributeName=a;this.attributeNamespace=i;this.mustUseProperty=o;this.propertyName=e;this.type=r;this.sanitizeURL=s;this.removeEmptyString=l}var _={};var N=["children","dangerouslySetInnerHTML","defaultValue","defaultChecked","innerHTML","suppressContentEditableWarning","suppressHydrationWarning","style"];{N.push("innerText","textContent")}N.forEach((function(e){_[e]=new PropertyInfoRecord(e,c,false,e,null,false,false)}));[["acceptCharset","accept-charset"],["className","class"],["htmlFor","for"],["httpEquiv","http-equiv"]].forEach((function(e){var r=e[0],o=e[1];_[r]=new PropertyInfoRecord(r,d,false,o,null,false,false)}));["contentEditable","draggable","spellCheck","value"].forEach((function(e){_[e]=new PropertyInfoRecord(e,p,false,e.toLowerCase(),null,false,false)}));["autoReverse","externalResourcesRequired","focusable","preserveAlpha"].forEach((function(e){_[e]=new PropertyInfoRecord(e,p,false,e,null,false,false)}));["allowFullScreen","async","autoFocus","autoPlay","controls","default","defer","disabled","disablePictureInPicture","disableRemotePlayback","formNoValidate","hidden","loop","noModule","noValidate","open","playsInline","readOnly","required","reversed","scoped","seamless","itemScope"].forEach((function(e){_[e]=new PropertyInfoRecord(e,f,false,e.toLowerCase(),null,false,false)}));["checked","multiple","muted","selected"].forEach((function(e){_[e]=new PropertyInfoRecord(e,f,true,e,null,false,false)}));["capture","download"].forEach((function(e){_[e]=new PropertyInfoRecord(e,h,false,e,null,false,false)}));["cols","rows","size","span"].forEach((function(e){_[e]=new PropertyInfoRecord(e,b,false,e,null,false,false)}));["rowSpan","start"].forEach((function(e){_[e]=new PropertyInfoRecord(e,g,false,e.toLowerCase(),null,false,false)}));var M=/[\-\:]([a-z])/g;var capitalize=function(e){return e[1].toUpperCase()};["accent-height","alignment-baseline","arabic-form","baseline-shift","cap-height","clip-path","clip-rule","color-interpolation","color-interpolation-filters","color-profile","color-rendering","dominant-baseline","enable-background","fill-opacity","fill-rule","flood-color","flood-opacity","font-family","font-size","font-size-adjust","font-stretch","font-style","font-variant","font-weight","glyph-name","glyph-orientation-horizontal","glyph-orientation-vertical","horiz-adv-x","horiz-origin-x","image-rendering","letter-spacing","lighting-color","marker-end","marker-mid","marker-start","overline-position","overline-thickness","paint-order","panose-1","pointer-events","rendering-intent","shape-rendering","stop-color","stop-opacity","strikethrough-position","strikethrough-thickness","stroke-dasharray","stroke-dashoffset","stroke-linecap","stroke-linejoin","stroke-miterlimit","stroke-opacity","stroke-width","text-anchor","text-decoration","text-rendering","underline-position","underline-thickness","unicode-bidi","unicode-range","units-per-em","v-alphabetic","v-hanging","v-ideographic","v-mathematical","vector-effect","vert-adv-y","vert-origin-x","vert-origin-y","word-spacing","writing-mode","xmlns:xlink","x-height"].forEach((function(e){var r=e.replace(M,capitalize);_[r]=new PropertyInfoRecord(r,d,false,e,null,false,false)}));["xlink:actuate","xlink:arcrole","xlink:role","xlink:show","xlink:title","xlink:type"].forEach((function(e){var r=e.replace(M,capitalize);_[r]=new PropertyInfoRecord(r,d,false,e,"http://www.w3.org/1999/xlink",false,false)}));["xml:base","xml:lang","xml:space"].forEach((function(e){var r=e.replace(M,capitalize);_[r]=new PropertyInfoRecord(r,d,false,e,"http://www.w3.org/XML/1998/namespace",false,false)}));["tabIndex","crossOrigin"].forEach((function(e){_[e]=new PropertyInfoRecord(e,d,false,e.toLowerCase(),null,false,false)}));var O="xlinkHref";_[O]=new PropertyInfoRecord("xlinkHref",d,false,"xlink:href","http://www.w3.org/1999/xlink",true,false);["src","href","action","formAction"].forEach((function(e){_[e]=new PropertyInfoRecord(e,d,false,e.toLowerCase(),null,true,true)}));var j={animationIterationCount:true,aspectRatio:true,borderImageOutset:true,borderImageSlice:true,borderImageWidth:true,boxFlex:true,boxFlexGroup:true,boxOrdinalGroup:true,columnCount:true,columns:true,flex:true,flexGrow:true,flexPositive:true,flexShrink:true,flexNegative:true,flexOrder:true,gridArea:true,gridRow:true,gridRowEnd:true,gridRowSpan:true,gridRowStart:true,gridColumn:true,gridColumnEnd:true,gridColumnSpan:true,gridColumnStart:true,fontWeight:true,lineClamp:true,lineHeight:true,opacity:true,order:true,orphans:true,tabSize:true,widows:true,zIndex:true,zoom:true,fillOpacity:true,floodOpacity:true,stopOpacity:true,strokeDasharray:true,strokeDashoffset:true,strokeMiterlimit:true,strokeOpacity:true,strokeWidth:true};function prefixKey(e,r){return e+r.charAt(0).toUpperCase()+r.substring(1)}var $=["Webkit","ms","Moz","O"];Object.keys(j).forEach((function(e){$.forEach((function(r){j[prefixKey(r,e)]=j[e]}))}));var G={button:true,checkbox:true,image:true,hidden:true,radio:true,reset:true,submit:true};function checkControlledValueProps(e,r){{if(!(G[r.type]||r.onChange||r.onInput||r.readOnly||r.disabled||r.value==null)){error("You provided a `value` prop to a form field without an "+"`onChange` handler. This will render a read-only field. If "+"the field should be mutable use `defaultValue`. Otherwise, "+"set either `onChange` or `readOnly`.")}if(!(r.onChange||r.readOnly||r.disabled||r.checked==null)){error("You provided a `checked` prop to a form field without an "+"`onChange` handler. This will render a read-only field. If "+"the field should be mutable use `defaultChecked`. Otherwise, "+"set either `onChange` or `readOnly`.")}}}function isCustomComponent(e,r){if(e.indexOf("-")===-1){return typeof r.is==="string"}switch(e){case"annotation-xml":case"color-profile":case"font-face":case"font-face-src":case"font-face-uri":case"font-face-format":case"font-face-name":case"missing-glyph":return false;default:return true}}var ee={"aria-current":0,"aria-description":0,"aria-details":0,"aria-disabled":0,"aria-hidden":0,"aria-invalid":0,"aria-keyshortcuts":0,"aria-label":0,"aria-roledescription":0,"aria-autocomplete":0,"aria-checked":0,"aria-expanded":0,"aria-haspopup":0,"aria-level":0,"aria-modal":0,"aria-multiline":0,"aria-multiselectable":0,"aria-orientation":0,"aria-placeholder":0,"aria-pressed":0,"aria-readonly":0,"aria-required":0,"aria-selected":0,"aria-sort":0,"aria-valuemax":0,"aria-valuemin":0,"aria-valuenow":0,"aria-valuetext":0,"aria-atomic":0,"aria-busy":0,"aria-live":0,"aria-relevant":0,"aria-dropeffect":0,"aria-grabbed":0,"aria-activedescendant":0,"aria-colcount":0,"aria-colindex":0,"aria-colspan":0,"aria-controls":0,"aria-describedby":0,"aria-errormessage":0,"aria-flowto":0,"aria-labelledby":0,"aria-owns":0,"aria-posinset":0,"aria-rowcount":0,"aria-rowindex":0,"aria-rowspan":0,"aria-setsize":0};var te={};var re=new RegExp("^(aria)-["+w+"]*$");var ne=new RegExp("^(aria)[A-Z]["+w+"]*$");function validateProperty(e,r){{if(l.call(te,r)&&te[r]){return true}if(ne.test(r)){var o="aria-"+r.slice(4).toLowerCase();var a=ee.hasOwnProperty(o)?o:null;if(a==null){error("Invalid ARIA attribute `%s`. ARIA attributes follow the pattern aria-* and must be lowercase.",r);te[r]=true;return true}if(r!==a){error("Invalid ARIA attribute `%s`. Did you mean `%s`?",r,a);te[r]=true;return true}}if(re.test(r)){var i=r.toLowerCase();var s=ee.hasOwnProperty(i)?i:null;if(s==null){te[r]=true;return false}if(r!==s){error("Unknown ARIA attribute `%s`. Did you mean `%s`?",r,s);te[r]=true;return true}}}return true}function warnInvalidARIAProps(e,r){{var o=[];for(var a in r){var i=validateProperty(e,a);if(!i){o.push(a)}}var s=o.map((function(e){return"`"+e+"`"})).join(", ");if(o.length===1){error("Invalid aria prop %s on <%s> tag. "+"For details, see https://reactjs.org/link/invalid-aria-props",s,e)}else if(o.length>1){error("Invalid aria props %s on <%s> tag. "+"For details, see https://reactjs.org/link/invalid-aria-props",s,e)}}}function validateProperties(e,r){if(isCustomComponent(e,r)){return}warnInvalidARIAProps(e,r)}var oe=false;function validateProperties$1(e,r){{if(e!=="input"&&e!=="textarea"&&e!=="select"){return}if(r!=null&&r.value===null&&!oe){oe=true;if(e==="select"&&r.multiple){error("`value` prop on `%s` should not be null. "+"Consider using an empty array when `multiple` is set to `true` "+"to clear the component or `undefined` for uncontrolled components.",e)}else{error("`value` prop on `%s` should not be null. "+"Consider using an empty string to clear the component or `undefined` "+"for uncontrolled components.",e)}}}}var ae={accept:"accept",acceptcharset:"acceptCharset","accept-charset":"acceptCharset",accesskey:"accessKey",action:"action",allowfullscreen:"allowFullScreen",alt:"alt",as:"as",async:"async",autocapitalize:"autoCapitalize",autocomplete:"autoComplete",autocorrect:"autoCorrect",autofocus:"autoFocus",autoplay:"autoPlay",autosave:"autoSave",capture:"capture",cellpadding:"cellPadding",cellspacing:"cellSpacing",challenge:"challenge",charset:"charSet",checked:"checked",children:"children",cite:"cite",class:"className",classid:"classID",classname:"className",cols:"cols",colspan:"colSpan",content:"content",contenteditable:"contentEditable",contextmenu:"contextMenu",controls:"controls",controlslist:"controlsList",coords:"coords",crossorigin:"crossOrigin",dangerouslysetinnerhtml:"dangerouslySetInnerHTML",data:"data",datetime:"dateTime",default:"default",defaultchecked:"defaultChecked",defaultvalue:"defaultValue",defer:"defer",dir:"dir",disabled:"disabled",disablepictureinpicture:"disablePictureInPicture",disableremoteplayback:"disableRemotePlayback",download:"download",draggable:"draggable",enctype:"encType",enterkeyhint:"enterKeyHint",for:"htmlFor",form:"form",formmethod:"formMethod",formaction:"formAction",formenctype:"formEncType",formnovalidate:"formNoValidate",formtarget:"formTarget",frameborder:"frameBorder",headers:"headers",height:"height",hidden:"hidden",high:"high",href:"href",hreflang:"hrefLang",htmlfor:"htmlFor",httpequiv:"httpEquiv","http-equiv":"httpEquiv",icon:"icon",id:"id",imagesizes:"imageSizes",imagesrcset:"imageSrcSet",innerhtml:"innerHTML",inputmode:"inputMode",integrity:"integrity",is:"is",itemid:"itemID",itemprop:"itemProp",itemref:"itemRef",itemscope:"itemScope",itemtype:"itemType",keyparams:"keyParams",keytype:"keyType",kind:"kind",label:"label",lang:"lang",list:"list",loop:"loop",low:"low",manifest:"manifest",marginwidth:"marginWidth",marginheight:"marginHeight",max:"max",maxlength:"maxLength",media:"media",mediagroup:"mediaGroup",method:"method",min:"min",minlength:"minLength",multiple:"multiple",muted:"muted",name:"name",nomodule:"noModule",nonce:"nonce",novalidate:"noValidate",open:"open",optimum:"optimum",pattern:"pattern",placeholder:"placeholder",playsinline:"playsInline",poster:"poster",preload:"preload",profile:"profile",radiogroup:"radioGroup",readonly:"readOnly",referrerpolicy:"referrerPolicy",rel:"rel",required:"required",reversed:"reversed",role:"role",rows:"rows",rowspan:"rowSpan",sandbox:"sandbox",scope:"scope",scoped:"scoped",scrolling:"scrolling",seamless:"seamless",selected:"selected",shape:"shape",size:"size",sizes:"sizes",span:"span",spellcheck:"spellCheck",src:"src",srcdoc:"srcDoc",srclang:"srcLang",srcset:"srcSet",start:"start",step:"step",style:"style",summary:"summary",tabindex:"tabIndex",target:"target",title:"title",type:"type",usemap:"useMap",value:"value",width:"width",wmode:"wmode",wrap:"wrap",about:"about",accentheight:"accentHeight","accent-height":"accentHeight",accumulate:"accumulate",additive:"additive",alignmentbaseline:"alignmentBaseline","alignment-baseline":"alignmentBaseline",allowreorder:"allowReorder",alphabetic:"alphabetic",amplitude:"amplitude",arabicform:"arabicForm","arabic-form":"arabicForm",ascent:"ascent",attributename:"attributeName",attributetype:"attributeType",autoreverse:"autoReverse",azimuth:"azimuth",basefrequency:"baseFrequency",baselineshift:"baselineShift","baseline-shift":"baselineShift",baseprofile:"baseProfile",bbox:"bbox",begin:"begin",bias:"bias",by:"by",calcmode:"calcMode",capheight:"capHeight","cap-height":"capHeight",clip:"clip",clippath:"clipPath","clip-path":"clipPath",clippathunits:"clipPathUnits",cliprule:"clipRule","clip-rule":"clipRule",color:"color",colorinterpolation:"colorInterpolation","color-interpolation":"colorInterpolation",colorinterpolationfilters:"colorInterpolationFilters","color-interpolation-filters":"colorInterpolationFilters",colorprofile:"colorProfile","color-profile":"colorProfile",colorrendering:"colorRendering","color-rendering":"colorRendering",contentscripttype:"contentScriptType",contentstyletype:"contentStyleType",cursor:"cursor",cx:"cx",cy:"cy",d:"d",datatype:"datatype",decelerate:"decelerate",descent:"descent",diffuseconstant:"diffuseConstant",direction:"direction",display:"display",divisor:"divisor",dominantbaseline:"dominantBaseline","dominant-baseline":"dominantBaseline",dur:"dur",dx:"dx",dy:"dy",edgemode:"edgeMode",elevation:"elevation",enablebackground:"enableBackground","enable-background":"enableBackground",end:"end",exponent:"exponent",externalresourcesrequired:"externalResourcesRequired",fill:"fill",fillopacity:"fillOpacity","fill-opacity":"fillOpacity",fillrule:"fillRule","fill-rule":"fillRule",filter:"filter",filterres:"filterRes",filterunits:"filterUnits",floodopacity:"floodOpacity","flood-opacity":"floodOpacity",floodcolor:"floodColor","flood-color":"floodColor",focusable:"focusable",fontfamily:"fontFamily","font-family":"fontFamily",fontsize:"fontSize","font-size":"fontSize",fontsizeadjust:"fontSizeAdjust","font-size-adjust":"fontSizeAdjust",fontstretch:"fontStretch","font-stretch":"fontStretch",fontstyle:"fontStyle","font-style":"fontStyle",fontvariant:"fontVariant","font-variant":"fontVariant",fontweight:"fontWeight","font-weight":"fontWeight",format:"format",from:"from",fx:"fx",fy:"fy",g1:"g1",g2:"g2",glyphname:"glyphName","glyph-name":"glyphName",glyphorientationhorizontal:"glyphOrientationHorizontal","glyph-orientation-horizontal":"glyphOrientationHorizontal",glyphorientationvertical:"glyphOrientationVertical","glyph-orientation-vertical":"glyphOrientationVertical",glyphref:"glyphRef",gradienttransform:"gradientTransform",gradientunits:"gradientUnits",hanging:"hanging",horizadvx:"horizAdvX","horiz-adv-x":"horizAdvX",horizoriginx:"horizOriginX","horiz-origin-x":"horizOriginX",ideographic:"ideographic",imagerendering:"imageRendering","image-rendering":"imageRendering",in2:"in2",in:"in",inlist:"inlist",intercept:"intercept",k1:"k1",k2:"k2",k3:"k3",k4:"k4",k:"k",kernelmatrix:"kernelMatrix",kernelunitlength:"kernelUnitLength",kerning:"kerning",keypoints:"keyPoints",keysplines:"keySplines",keytimes:"keyTimes",lengthadjust:"lengthAdjust",letterspacing:"letterSpacing","letter-spacing":"letterSpacing",lightingcolor:"lightingColor","lighting-color":"lightingColor",limitingconeangle:"limitingConeAngle",local:"local",markerend:"markerEnd","marker-end":"markerEnd",markerheight:"markerHeight",markermid:"markerMid","marker-mid":"markerMid",markerstart:"markerStart","marker-start":"markerStart",markerunits:"markerUnits",markerwidth:"markerWidth",mask:"mask",maskcontentunits:"maskContentUnits",maskunits:"maskUnits",mathematical:"mathematical",mode:"mode",numoctaves:"numOctaves",offset:"offset",opacity:"opacity",operator:"operator",order:"order",orient:"orient",orientation:"orientation",origin:"origin",overflow:"overflow",overlineposition:"overlinePosition","overline-position":"overlinePosition",overlinethickness:"overlineThickness","overline-thickness":"overlineThickness",paintorder:"paintOrder","paint-order":"paintOrder",panose1:"panose1","panose-1":"panose1",pathlength:"pathLength",patterncontentunits:"patternContentUnits",patterntransform:"patternTransform",patternunits:"patternUnits",pointerevents:"pointerEvents","pointer-events":"pointerEvents",points:"points",pointsatx:"pointsAtX",pointsaty:"pointsAtY",pointsatz:"pointsAtZ",prefix:"prefix",preservealpha:"preserveAlpha",preserveaspectratio:"preserveAspectRatio",primitiveunits:"primitiveUnits",property:"property",r:"r",radius:"radius",refx:"refX",refy:"refY",renderingintent:"renderingIntent","rendering-intent":"renderingIntent",repeatcount:"repeatCount",repeatdur:"repeatDur",requiredextensions:"requiredExtensions",requiredfeatures:"requiredFeatures",resource:"resource",restart:"restart",result:"result",results:"results",rotate:"rotate",rx:"rx",ry:"ry",scale:"scale",security:"security",seed:"seed",shaperendering:"shapeRendering","shape-rendering":"shapeRendering",slope:"slope",spacing:"spacing",specularconstant:"specularConstant",specularexponent:"specularExponent",speed:"speed",spreadmethod:"spreadMethod",startoffset:"startOffset",stddeviation:"stdDeviation",stemh:"stemh",stemv:"stemv",stitchtiles:"stitchTiles",stopcolor:"stopColor","stop-color":"stopColor",stopopacity:"stopOpacity","stop-opacity":"stopOpacity",strikethroughposition:"strikethroughPosition","strikethrough-position":"strikethroughPosition",strikethroughthickness:"strikethroughThickness","strikethrough-thickness":"strikethroughThickness",string:"string",stroke:"stroke",strokedasharray:"strokeDasharray","stroke-dasharray":"strokeDasharray",strokedashoffset:"strokeDashoffset","stroke-dashoffset":"strokeDashoffset",strokelinecap:"strokeLinecap","stroke-linecap":"strokeLinecap",strokelinejoin:"strokeLinejoin","stroke-linejoin":"strokeLinejoin",strokemiterlimit:"strokeMiterlimit","stroke-miterlimit":"strokeMiterlimit",strokewidth:"strokeWidth","stroke-width":"strokeWidth",strokeopacity:"strokeOpacity","stroke-opacity":"strokeOpacity",suppresscontenteditablewarning:"suppressContentEditableWarning",suppresshydrationwarning:"suppressHydrationWarning",surfacescale:"surfaceScale",systemlanguage:"systemLanguage",tablevalues:"tableValues",targetx:"targetX",targety:"targetY",textanchor:"textAnchor","text-anchor":"textAnchor",textdecoration:"textDecoration","text-decoration":"textDecoration",textlength:"textLength",textrendering:"textRendering","text-rendering":"textRendering",to:"to",transform:"transform",typeof:"typeof",u1:"u1",u2:"u2",underlineposition:"underlinePosition","underline-position":"underlinePosition",underlinethickness:"underlineThickness","underline-thickness":"underlineThickness",unicode:"unicode",unicodebidi:"unicodeBidi","unicode-bidi":"unicodeBidi",unicoderange:"unicodeRange","unicode-range":"unicodeRange",unitsperem:"unitsPerEm","units-per-em":"unitsPerEm",unselectable:"unselectable",valphabetic:"vAlphabetic","v-alphabetic":"vAlphabetic",values:"values",vectoreffect:"vectorEffect","vector-effect":"vectorEffect",version:"version",vertadvy:"vertAdvY","vert-adv-y":"vertAdvY",vertoriginx:"vertOriginX","vert-origin-x":"vertOriginX",vertoriginy:"vertOriginY","vert-origin-y":"vertOriginY",vhanging:"vHanging","v-hanging":"vHanging",videographic:"vIdeographic","v-ideographic":"vIdeographic",viewbox:"viewBox",viewtarget:"viewTarget",visibility:"visibility",vmathematical:"vMathematical","v-mathematical":"vMathematical",vocab:"vocab",widths:"widths",wordspacing:"wordSpacing","word-spacing":"wordSpacing",writingmode:"writingMode","writing-mode":"writingMode",x1:"x1",x2:"x2",x:"x",xchannelselector:"xChannelSelector",xheight:"xHeight","x-height":"xHeight",xlinkactuate:"xlinkActuate","xlink:actuate":"xlinkActuate",xlinkarcrole:"xlinkArcrole","xlink:arcrole":"xlinkArcrole",xlinkhref:"xlinkHref","xlink:href":"xlinkHref",xlinkrole:"xlinkRole","xlink:role":"xlinkRole",xlinkshow:"xlinkShow","xlink:show":"xlinkShow",xlinktitle:"xlinkTitle","xlink:title":"xlinkTitle",xlinktype:"xlinkType","xlink:type":"xlinkType",xmlbase:"xmlBase","xml:base":"xmlBase",xmllang:"xmlLang","xml:lang":"xmlLang",xmlns:"xmlns","xml:space":"xmlSpace",xmlnsxlink:"xmlnsXlink","xmlns:xlink":"xmlnsXlink",xmlspace:"xmlSpace",y1:"y1",y2:"y2",y:"y",ychannelselector:"yChannelSelector",z:"z",zoomandpan:"zoomAndPan"};var validateProperty$1=function(){};{var ie={};var se=/^on./;var ue=/^on[^A-Z]/;var le=new RegExp("^(aria)-["+w+"]*$");var ce=new RegExp("^(aria)[A-Z]["+w+"]*$");validateProperty$1=function(e,r,o,a){if(l.call(ie,r)&&ie[r]){return true}var i=r.toLowerCase();if(i==="onfocusin"||i==="onfocusout"){error("React uses onFocus and onBlur instead of onFocusIn and onFocusOut. "+"All React events are normalized to bubble, so onFocusIn and onFocusOut "+"are not needed/supported by React.");ie[r]=true;return true}if(a!=null){var s=a.registrationNameDependencies,d=a.possibleRegistrationNames;if(s.hasOwnProperty(r)){return true}var p=d.hasOwnProperty(i)?d[i]:null;if(p!=null){error("Invalid event handler property `%s`. Did you mean `%s`?",r,p);ie[r]=true;return true}if(se.test(r)){error("Unknown event handler property `%s`. It will be ignored.",r);ie[r]=true;return true}}else if(se.test(r)){if(ue.test(r)){error("Invalid event handler property `%s`. "+"React events use the camelCase naming convention, for example `onClick`.",r)}ie[r]=true;return true}if(le.test(r)||ce.test(r)){return true}if(i==="innerhtml"){error("Directly setting property `innerHTML` is not permitted. "+"For more information, lookup documentation on `dangerouslySetInnerHTML`.");ie[r]=true;return true}if(i==="aria"){error("The `aria` attribute is reserved for future use in React. "+"Pass individual `aria-` attributes instead.");ie[r]=true;return true}if(i==="is"&&o!==null&&o!==undefined&&typeof o!=="string"){error("Received a `%s` for a string attribute `is`. If this is expected, cast "+"the value to a string.",typeof o);ie[r]=true;return true}if(typeof o==="number"&&isNaN(o)){error("Received NaN for the `%s` attribute. If this is expected, cast "+"the value to a string.",r);ie[r]=true;return true}var h=getPropertyInfo(r);var g=h!==null&&h.type===c;if(ae.hasOwnProperty(i)){var b=ae[i];if(b!==r){error("Invalid DOM property `%s`. Did you mean `%s`?",r,b);ie[r]=true;return true}}else if(!g&&r!==i){error("React does not recognize the `%s` prop on a DOM element. If you "+"intentionally want it to appear in the DOM as a custom "+"attribute, spell it as lowercase `%s` instead. "+"If you accidentally passed it from a parent component, remove "+"it from the DOM element.",r,i);ie[r]=true;return true}if(typeof o==="boolean"&&shouldRemoveAttributeWithWarning(r,o,h,false)){if(o){error("Received `%s` for a non-boolean attribute `%s`.\n\n"+"If you want to write it to the DOM, pass a string instead: "+'%s="%s" or %s={value.toString()}.',o,r,r,o,r)}else{error("Received `%s` for a non-boolean attribute `%s`.\n\n"+"If you want to write it to the DOM, pass a string instead: "+'%s="%s" or %s={value.toString()}.\n\n'+"If you used to conditionally omit it with %s={condition && value}, "+"pass %s={condition ? value : undefined} instead.",o,r,r,o,r,r,r)}ie[r]=true;return true}if(g){return true}if(shouldRemoveAttributeWithWarning(r,o,h,false)){ie[r]=true;return false}if((o==="false"||o==="true")&&h!==null&&h.type===f){error("Received the string `%s` for the boolean attribute `%s`. "+"%s "+"Did you mean %s={%s}?",o,r,o==="false"?"The browser will interpret it as a truthy value.":'Although this works, it will not work as expected if you pass the string "false".',r,o);ie[r]=true;return true}return true}}var warnUnknownProperties=function(e,r,o){{var a=[];for(var i in r){var s=validateProperty$1(e,i,r[i],o);if(!s){a.push(i)}}var l=a.map((function(e){return"`"+e+"`"})).join(", ");if(a.length===1){error("Invalid value for prop %s on <%s> tag. Either remove it from the element, "+"or pass a string or number value to keep it in the DOM. "+"For details, see https://reactjs.org/link/attribute-behavior ",l,e)}else if(a.length>1){error("Invalid values for props %s on <%s> tag. Either remove them from the element, "+"or pass a string or number value to keep them in the DOM. "+"For details, see https://reactjs.org/link/attribute-behavior ",l,e)}}};function validateProperties$2(e,r,o){if(isCustomComponent(e,r)){return}warnUnknownProperties(e,r,o)}var warnValidStyle=function(){};{var de=/^(?:webkit|moz|o)[A-Z]/;var pe=/^-ms-/;var fe=/-(.)/g;var he=/;\s*$/;var me={};var ge={};var ve=false;var ye=false;var camelize=function(e){return e.replace(fe,(function(e,r){return r.toUpperCase()}))};var warnHyphenatedStyleName=function(e){if(me.hasOwnProperty(e)&&me[e]){return}me[e]=true;error("Unsupported style property %s. Did you mean %s?",e,camelize(e.replace(pe,"ms-")))};var warnBadVendoredStyleName=function(e){if(me.hasOwnProperty(e)&&me[e]){return}me[e]=true;error("Unsupported vendor-prefixed style property %s. Did you mean %s?",e,e.charAt(0).toUpperCase()+e.slice(1))};var warnStyleValueWithSemicolon=function(e,r){if(ge.hasOwnProperty(r)&&ge[r]){return}ge[r]=true;error("Style property values shouldn't contain a semicolon. "+'Try "%s: %s" instead.',e,r.replace(he,""))};var warnStyleValueIsNaN=function(e,r){if(ve){return}ve=true;error("`NaN` is an invalid value for the `%s` css style property.",e)};var warnStyleValueIsInfinity=function(e,r){if(ye){return}ye=true;error("`Infinity` is an invalid value for the `%s` css style property.",e)};warnValidStyle=function(e,r){if(e.indexOf("-")>-1){warnHyphenatedStyleName(e)}else if(de.test(e)){warnBadVendoredStyleName(e)}else if(he.test(r)){warnStyleValueWithSemicolon(e,r)}if(typeof r==="number"){if(isNaN(r)){warnStyleValueIsNaN(e,r)}else if(!isFinite(r)){warnStyleValueIsInfinity(e,r)}}}}var be=warnValidStyle;var ke=/["'&<>]/;function escapeHtml(e){{checkHtmlStringCoercion(e)}var r=""+e;var o=ke.exec(r);if(!o){return r}var a;var i="";var s;var l=0;for(s=o.index;s<r.length;s++){switch(r.charCodeAt(s)){case 34:a="&quot;";break;case 38:a="&amp;";break;case 39:a="&#x27;";break;case 60:a="&lt;";break;case 62:a="&gt;";break;default:continue}if(l!==s){i+=r.substring(l,s)}l=s+1;i+=a}return l!==s?i+r.substring(l,s):i}function escapeTextForBrowser(e){if(typeof e==="boolean"||typeof e==="number"){return""+e}return escapeHtml(e)}var Ce=/([A-Z])/g;var Se=/^ms-/;function hyphenateStyleName(e){return e.replace(Ce,"-$1").toLowerCase().replace(Se,"-ms-")}var we=/^[\u0000-\u001F ]*j[\r\n\t]*a[\r\n\t]*v[\r\n\t]*a[\r\n\t]*s[\r\n\t]*c[\r\n\t]*r[\r\n\t]*i[\r\n\t]*p[\r\n\t]*t[\r\n\t]*\:/i;var xe=false;function sanitizeURL(e){{if(!xe&&we.test(e)){xe=true;error("A future version of React will block javascript: URLs as a security precaution. "+"Use event handlers instead if you can. If you need to generate unsafe HTML try "+"using dangerouslySetInnerHTML instead. React was passed %s.",JSON.stringify(e))}}}var Te=Array.isArray;function isArray(e){return Te(e)}var Ee=stringToPrecomputedChunk("<script>");var Re=stringToPrecomputedChunk("<\/script>");var Pe=stringToPrecomputedChunk('<script src="');var Ie=stringToPrecomputedChunk('<script type="module" src="');var Fe=stringToPrecomputedChunk('" integrity="');var _e=stringToPrecomputedChunk('" async=""><\/script>');function escapeBootstrapScriptContent(e){{checkHtmlStringCoercion(e)}return(""+e).replace(De,scriptReplacer)}var De=/(<\/|<)(s)(cript)/gi;var scriptReplacer=function(e,r,o,a){return""+r+(o==="s"?"\\u0073":"\\u0053")+a};function createResponseState(e,r,o,a,i){var s=e===undefined?"":e;var l=r===undefined?Ee:stringToPrecomputedChunk('<script nonce="'+escapeTextForBrowser(r)+'">');var c=[];if(o!==undefined){c.push(l,stringToChunk(escapeBootstrapScriptContent(o)),Re)}if(a!==undefined){for(var d=0;d<a.length;d++){var p=a[d];var f=typeof p==="string"?p:p.src;var h=typeof p==="string"?undefined:p.integrity;c.push(Pe,stringToChunk(escapeTextForBrowser(f)));if(h){c.push(Fe,stringToChunk(escapeTextForBrowser(h)))}c.push(_e)}}if(i!==undefined){for(var g=0;g<i.length;g++){var b=i[g];var S=typeof b==="string"?b:b.src;var w=typeof b==="string"?undefined:b.integrity;c.push(Ie,stringToChunk(escapeTextForBrowser(S)));if(w){c.push(Fe,stringToChunk(escapeTextForBrowser(w)))}c.push(_e)}}return{bootstrapChunks:c,startInlineScript:l,placeholderPrefix:stringToPrecomputedChunk(s+"P:"),segmentPrefix:stringToPrecomputedChunk(s+"S:"),boundaryPrefix:s+"B:",idPrefix:s,nextSuspenseID:0,sentCompleteSegmentFunction:false,sentCompleteBoundaryFunction:false,sentClientRenderFunction:false}}var Ae=0;var Ne=1;var Me=2;var Be=3;var Oe=4;var Le=5;var Ve=6;var je=7;function createFormatContext(e,r){return{insertionMode:e,selectedValue:r}}function getChildFormatContext(e,r,o){switch(r){case"select":return createFormatContext(Ne,o.value!=null?o.value:o.defaultValue);case"svg":return createFormatContext(Me,null);case"math":return createFormatContext(Be,null);case"foreignObject":return createFormatContext(Ne,null);case"table":return createFormatContext(Oe,null);case"thead":case"tbody":case"tfoot":return createFormatContext(Le,null);case"colgroup":return createFormatContext(je,null);case"tr":return createFormatContext(Ve,null)}if(e.insertionMode>=Oe){return createFormatContext(Ne,null)}if(e.insertionMode===Ae){return createFormatContext(Ne,null)}return e}var $e=null;function assignSuspenseBoundaryID(e){var r=e.nextSuspenseID++;return stringToPrecomputedChunk(e.boundaryPrefix+r.toString(16))}function makeId(e,r,o){var a=e.idPrefix;var i=":"+a+"R"+r;if(o>0){i+="H"+o.toString(32)}return i+":"}function encodeHTMLTextNode(e){return escapeTextForBrowser(e)}var He=stringToPrecomputedChunk("\x3c!-- --\x3e");function pushTextInstance(e,r,o,a){if(r===""){return a}if(a){e.push(He)}e.push(stringToChunk(encodeHTMLTextNode(r)));return true}function pushSegmentFinale(e,r,o,a){if(o&&a){e.push(He)}}var Ue=new Map;function processStyleName(e){var r=Ue.get(e);if(r!==undefined){return r}var o=stringToPrecomputedChunk(escapeTextForBrowser(hyphenateStyleName(e)));Ue.set(e,o);return o}var We=stringToPrecomputedChunk(' style="');var ze=stringToPrecomputedChunk(":");var qe=stringToPrecomputedChunk(";");function pushStyle(e,r,o){if(typeof o!=="object"){throw new Error("The `style` prop expects a mapping from style properties to values, "+"not a string. For example, style={{marginRight: spacing + 'em'}} when "+"using JSX.")}var a=true;for(var i in o){if(!l.call(o,i)){continue}var s=o[i];if(s==null||typeof s==="boolean"||s===""){continue}var c=void 0;var d=void 0;var p=i.indexOf("--")===0;if(p){c=stringToChunk(escapeTextForBrowser(i));{checkCSSPropertyStringCoercion(s,i)}d=stringToChunk(escapeTextForBrowser((""+s).trim()))}else{{be(i,s)}c=processStyleName(i);if(typeof s==="number"){if(s!==0&&!l.call(j,i)){d=stringToChunk(s+"px")}else{d=stringToChunk(""+s)}}else{{checkCSSPropertyStringCoercion(s,i)}d=stringToChunk(escapeTextForBrowser((""+s).trim()))}}if(a){a=false;e.push(We,c,ze,d)}else{e.push(qe,c,ze,d)}}if(!a){e.push(Xe)}}var Ye=stringToPrecomputedChunk(" ");var Ze=stringToPrecomputedChunk('="');var Xe=stringToPrecomputedChunk('"');var Je=stringToPrecomputedChunk('=""');function pushAttribute(e,r,o,a){switch(o){case"style":{pushStyle(e,r,a);return}case"defaultValue":case"defaultChecked":case"innerHTML":case"suppressContentEditableWarning":case"suppressHydrationWarning":return}if(o.length>2&&(o[0]==="o"||o[0]==="O")&&(o[1]==="n"||o[1]==="N")){return}var i=getPropertyInfo(o);if(i!==null){switch(typeof a){case"function":case"symbol":return;case"boolean":{if(!i.acceptsBooleans){return}}}var s=i.attributeName;var l=stringToChunk(s);switch(i.type){case f:if(a){e.push(Ye,l,Je)}return;case h:if(a===true){e.push(Ye,l,Je)}else if(a===false);else{e.push(Ye,l,Ze,stringToChunk(escapeTextForBrowser(a)),Xe)}return;case g:if(!isNaN(a)){e.push(Ye,l,Ze,stringToChunk(escapeTextForBrowser(a)),Xe)}break;case b:if(!isNaN(a)&&a>=1){e.push(Ye,l,Ze,stringToChunk(escapeTextForBrowser(a)),Xe)}break;default:if(i.sanitizeURL){{checkAttributeStringCoercion(a,s)}a=""+a;sanitizeURL(a)}e.push(Ye,l,Ze,stringToChunk(escapeTextForBrowser(a)),Xe)}}else if(isAttributeNameSafe(o)){switch(typeof a){case"function":case"symbol":return;case"boolean":{var c=o.toLowerCase().slice(0,5);if(c!=="data-"&&c!=="aria-"){return}}}e.push(Ye,stringToChunk(o),Ze,stringToChunk(escapeTextForBrowser(a)),Xe)}}var Ke=stringToPrecomputedChunk(">");var Ge=stringToPrecomputedChunk("/>");function pushInnerHTML(e,r,o){if(r!=null){if(o!=null){throw new Error("Can only set one of `children` or `props.dangerouslySetInnerHTML`.")}if(typeof r!=="object"||!("__html"in r)){throw new Error("`props.dangerouslySetInnerHTML` must be in the form `{__html: ...}`. "+"Please visit https://reactjs.org/link/dangerously-set-inner-html "+"for more information.")}var a=r.__html;if(a!==null&&a!==undefined){{checkHtmlStringCoercion(a)}e.push(stringToChunk(""+a))}}}var Qe=false;var et=false;var tt=false;var rt=false;var nt=false;var ot=false;var at=false;function checkSelectProp(e,r){{var o=e[r];if(o!=null){var a=isArray(o);if(e.multiple&&!a){error("The `%s` prop supplied to <select> must be an array if "+"`multiple` is true.",r)}else if(!e.multiple&&a){error("The `%s` prop supplied to <select> must be a scalar "+"value if `multiple` is false.",r)}}}}function pushStartSelect(e,r,o){{checkControlledValueProps("select",r);checkSelectProp(r,"value");checkSelectProp(r,"defaultValue");if(r.value!==undefined&&r.defaultValue!==undefined&&!tt){error("Select elements must be either controlled or uncontrolled "+"(specify either the value prop, or the defaultValue prop, but not "+"both). Decide between using a controlled or uncontrolled select "+"element and remove one of these props. More info: "+"https://reactjs.org/link/controlled-components");tt=true}}e.push(startChunkForTag("select"));var a=null;var i=null;for(var s in r){if(l.call(r,s)){var c=r[s];if(c==null){continue}switch(s){case"children":a=c;break;case"dangerouslySetInnerHTML":i=c;break;case"defaultValue":case"value":break;default:pushAttribute(e,o,s,c);break}}}e.push(Ke);pushInnerHTML(e,i,a);return a}function flattenOptionChildren(r){var o="";e.Children.forEach(r,(function(e){if(e==null){return}o+=e;{if(!nt&&typeof e!=="string"&&typeof e!=="number"){nt=true;error("Cannot infer the option value of complex children. "+"Pass a `value` prop or use a plain string as children to <option>.")}}}));return o}var it=stringToPrecomputedChunk(' selected=""');function pushStartOption(e,r,o,a){var i=a.selectedValue;e.push(startChunkForTag("option"));var s=null;var c=null;var d=null;var p=null;for(var f in r){if(l.call(r,f)){var h=r[f];if(h==null){continue}switch(f){case"children":s=h;break;case"selected":d=h;{if(!at){error("Use the `defaultValue` or `value` props on <select> instead of "+"setting `selected` on <option>.");at=true}}break;case"dangerouslySetInnerHTML":p=h;break;case"value":c=h;default:pushAttribute(e,o,f,h);break}}}if(i!=null){var g;if(c!==null){{checkAttributeStringCoercion(c,"value")}g=""+c}else{{if(p!==null){if(!ot){ot=true;error("Pass a `value` prop if you set dangerouslyInnerHTML so React knows "+"which value should be selected.")}}}g=flattenOptionChildren(s)}if(isArray(i)){for(var b=0;b<i.length;b++){{checkAttributeStringCoercion(i[b],"value")}var S=""+i[b];if(S===g){e.push(it);break}}}else{{checkAttributeStringCoercion(i,"select.value")}if(""+i===g){e.push(it)}}}else if(d){e.push(it)}e.push(Ke);pushInnerHTML(e,p,s);return s}function pushInput(e,r,o){{checkControlledValueProps("input",r);if(r.checked!==undefined&&r.defaultChecked!==undefined&&!et){error("%s contains an input of type %s with both checked and defaultChecked props. "+"Input elements must be either controlled or uncontrolled "+"(specify either the checked prop, or the defaultChecked prop, but not "+"both). Decide between using a controlled or uncontrolled input "+"element and remove one of these props. More info: "+"https://reactjs.org/link/controlled-components","A component",r.type);et=true}if(r.value!==undefined&&r.defaultValue!==undefined&&!Qe){error("%s contains an input of type %s with both value and defaultValue props. "+"Input elements must be either controlled or uncontrolled "+"(specify either the value prop, or the defaultValue prop, but not "+"both). Decide between using a controlled or uncontrolled input "+"element and remove one of these props. More info: "+"https://reactjs.org/link/controlled-components","A component",r.type);Qe=true}}e.push(startChunkForTag("input"));var a=null;var i=null;var s=null;var c=null;for(var d in r){if(l.call(r,d)){var p=r[d];if(p==null){continue}switch(d){case"children":case"dangerouslySetInnerHTML":throw new Error("input"+" is a self-closing tag and must neither have `children` nor "+"use `dangerouslySetInnerHTML`.");case"defaultChecked":c=p;break;case"defaultValue":i=p;break;case"checked":s=p;break;case"value":a=p;break;default:pushAttribute(e,o,d,p);break}}}if(s!==null){pushAttribute(e,o,"checked",s)}else if(c!==null){pushAttribute(e,o,"checked",c)}if(a!==null){pushAttribute(e,o,"value",a)}else if(i!==null){pushAttribute(e,o,"value",i)}e.push(Ge);return null}function pushStartTextArea(e,r,o){{checkControlledValueProps("textarea",r);if(r.value!==undefined&&r.defaultValue!==undefined&&!rt){error("Textarea elements must be either controlled or uncontrolled "+"(specify either the value prop, or the defaultValue prop, but not "+"both). Decide between using a controlled or uncontrolled textarea "+"and remove one of these props. More info: "+"https://reactjs.org/link/controlled-components");rt=true}}e.push(startChunkForTag("textarea"));var a=null;var i=null;var s=null;for(var c in r){if(l.call(r,c)){var d=r[c];if(d==null){continue}switch(c){case"children":s=d;break;case"value":a=d;break;case"defaultValue":i=d;break;case"dangerouslySetInnerHTML":throw new Error("`dangerouslySetInnerHTML` does not make sense on <textarea>.");default:pushAttribute(e,o,c,d);break}}}if(a===null&&i!==null){a=i}e.push(Ke);if(s!=null){{error("Use the `defaultValue` or `value` props instead of setting "+"children on <textarea>.")}if(a!=null){throw new Error("If you supply `defaultValue` on a <textarea>, do not pass children.")}if(isArray(s)){if(s.length>1){throw new Error("<textarea> can only have at most one child.")}{checkHtmlStringCoercion(s[0])}a=""+s[0]}{checkHtmlStringCoercion(s)}a=""+s}if(typeof a==="string"&&a[0]==="\n"){e.push(st)}if(a!==null){{checkAttributeStringCoercion(a,"value")}e.push(stringToChunk(encodeHTMLTextNode(""+a)))}return null}function pushLink(e,r,o){var a=r.rel==="stylesheet";e.push(startChunkForTag("link"));for(var i in r){if(l.call(r,i)){var s=r[i];if(s==null){continue}switch(i){case"children":case"dangerouslySetInnerHTML":throw new Error("link"+" is a self-closing tag and must neither have `children` nor "+"use `dangerouslySetInnerHTML`.");case"precedence":{if(a){if(s===true||typeof s==="string"){pushAttribute(e,o,"data-rprec",s)}else{throw new Error('the "precedence" prop for links to stylesheets expects to receive a string but received something of type "'+typeof s+'" instead.')}break}}default:pushAttribute(e,o,i,s);break}}}e.push(Ge);return null}function pushSelfClosing(e,r,o,a){e.push(startChunkForTag(o));for(var i in r){if(l.call(r,i)){var s=r[i];if(s==null){continue}switch(i){case"children":case"dangerouslySetInnerHTML":throw new Error(o+" is a self-closing tag and must neither have `children` nor "+"use `dangerouslySetInnerHTML`.");default:pushAttribute(e,a,i,s);break}}}e.push(Ge);return null}function pushStartMenuItem(e,r,o){e.push(startChunkForTag("menuitem"));for(var a in r){if(l.call(r,a)){var i=r[a];if(i==null){continue}switch(a){case"children":case"dangerouslySetInnerHTML":throw new Error("menuitems cannot have `children` nor `dangerouslySetInnerHTML`.");default:pushAttribute(e,o,a,i);break}}}e.push(Ke);return null}function pushStartTitle(e,r,o){e.push(startChunkForTag("title"));var a=null;for(var i in r){if(l.call(r,i)){var s=r[i];if(s==null){continue}switch(i){case"children":a=s;break;case"dangerouslySetInnerHTML":throw new Error("`dangerouslySetInnerHTML` does not make sense on <title>.");default:pushAttribute(e,o,i,s);break}}}e.push(Ke);{var c=Array.isArray(a)&&a.length<2?a[0]||null:a;if(Array.isArray(a)&&a.length>1){error("A title element received an array with more than 1 element as children. "+"In browsers title Elements can only have Text Nodes as children. If "+"the children being rendered output more than a single text node in aggregate the browser "+"will display markup and comments as text in the title and hydration will likely fail and "+"fall back to client rendering")}else if(c!=null&&c.$$typeof!=null){error("A title element received a React element for children. "+"In the browser title Elements can only have Text Nodes as children. If "+"the children being rendered output more than a single text node in aggregate the browser "+"will display markup and comments as text in the title and hydration will likely fail and "+"fall back to client rendering")}else if(c!=null&&typeof c!=="string"&&typeof c!=="number"){error("A title element received a value that was not a string or number for children. "+"In the browser title Elements can only have Text Nodes as children. If "+"the children being rendered output more than a single text node in aggregate the browser "+"will display markup and comments as text in the title and hydration will likely fail and "+"fall back to client rendering")}}return a}function pushStartHead(e,r,o,a,i){e=r;return pushStartGenericElement(e,o,a,i)}function pushStartHtml(e,r,o,a,i,s){e=r;if(i.insertionMode===Ae){e.push(ct)}return pushStartGenericElement(e,o,a,s)}function pushStartGenericElement(e,r,o,a){e.push(startChunkForTag(o));var i=null;var s=null;for(var c in r){if(l.call(r,c)){var d=r[c];if(d==null){continue}switch(c){case"children":i=d;break;case"dangerouslySetInnerHTML":s=d;break;default:pushAttribute(e,a,c,d);break}}}e.push(Ke);pushInnerHTML(e,s,i);if(typeof i==="string"){e.push(stringToChunk(encodeHTMLTextNode(i)));return null}return i}function pushStartCustomElement(e,r,o,a){e.push(startChunkForTag(o));var i=null;var s=null;for(var c in r){if(l.call(r,c)){var d=r[c];if(d==null){continue}if(typeof d==="function"||typeof d==="object"){continue}if(d===false){continue}if(d===true){d=""}if(c==="className"){c="class"}switch(c){case"children":i=d;break;case"dangerouslySetInnerHTML":s=d;break;case"style":pushStyle(e,a,d);break;case"suppressContentEditableWarning":case"suppressHydrationWarning":break;default:if(isAttributeNameSafe(c)&&typeof d!=="function"&&typeof d!=="symbol"){e.push(Ye,stringToChunk(c),Ze,stringToChunk(escapeTextForBrowser(d)),Xe)}break}}}e.push(Ke);pushInnerHTML(e,s,i);return i}var st=stringToPrecomputedChunk("\n");function pushStartPreformattedElement(e,r,o,a){e.push(startChunkForTag(o));var i=null;var s=null;for(var c in r){if(l.call(r,c)){var d=r[c];if(d==null){continue}switch(c){case"children":i=d;break;case"dangerouslySetInnerHTML":s=d;break;default:pushAttribute(e,a,c,d);break}}}e.push(Ke);if(s!=null){if(i!=null){throw new Error("Can only set one of `children` or `props.dangerouslySetInnerHTML`.")}if(typeof s!=="object"||!("__html"in s)){throw new Error("`props.dangerouslySetInnerHTML` must be in the form `{__html: ...}`. "+"Please visit https://reactjs.org/link/dangerously-set-inner-html "+"for more information.")}var p=s.__html;if(p!==null&&p!==undefined){if(typeof p==="string"&&p.length>0&&p[0]==="\n"){e.push(st,stringToChunk(p))}else{{checkHtmlStringCoercion(p)}e.push(stringToChunk(""+p))}}}if(typeof i==="string"&&i[0]==="\n"){e.push(st)}return i}var ut=/^[a-zA-Z][a-zA-Z:_\.\-\d]*$/;var lt=new Map;function startChunkForTag(e){var r=lt.get(e);if(r===undefined){if(!ut.test(e)){throw new Error("Invalid tag: "+e)}r=stringToPrecomputedChunk("<"+e);lt.set(e,r)}return r}var ct=stringToPrecomputedChunk("<!DOCTYPE html>");function pushStartInstance(e,r,o,a,i,s){{validateProperties(o,a);validateProperties$1(o,a);validateProperties$2(o,a,null);if(!a.suppressContentEditableWarning&&a.contentEditable&&a.children!=null){error("A component is `contentEditable` and contains `children` managed by "+"React. It is now your responsibility to guarantee that none of "+"those nodes are unexpectedly modified or duplicated. This is "+"probably not intentional.")}if(s.insertionMode!==Me&&s.insertionMode!==Be){if(o.indexOf("-")===-1&&typeof a.is!=="string"&&o.toLowerCase()!==o){error("<%s /> is using incorrect casing. "+"Use PascalCase for React components, "+"or lowercase for HTML elements.",o)}}}switch(o){case"select":return pushStartSelect(e,a,i);case"option":return pushStartOption(e,a,i,s);case"textarea":return pushStartTextArea(e,a,i);case"input":return pushInput(e,a,i);case"menuitem":return pushStartMenuItem(e,a,i);case"title":return pushStartTitle(e,a,i);case"link":return pushLink(e,a,i);case"listing":case"pre":{return pushStartPreformattedElement(e,a,o,i)}case"area":case"base":case"br":case"col":case"embed":case"hr":case"img":case"keygen":case"meta":case"param":case"source":case"track":case"wbr":{return pushSelfClosing(e,a,o,i)}case"annotation-xml":case"color-profile":case"font-face":case"font-face-src":case"font-face-uri":case"font-face-format":case"font-face-name":case"missing-glyph":{return pushStartGenericElement(e,a,o,i)}case"head":return pushStartHead(e,r,a,o,i);case"html":{return pushStartHtml(e,r,a,o,s,i)}default:{if(o.indexOf("-")===-1&&typeof a.is!=="string"){return pushStartGenericElement(e,a,o,i)}else{return pushStartCustomElement(e,a,o,i)}}}}var dt=stringToPrecomputedChunk("</");var pt=stringToPrecomputedChunk(">");function pushEndInstance(e,r,o,a){switch(o){case"area":case"base":case"br":case"col":case"embed":case"hr":case"img":case"input":case"keygen":case"link":case"meta":case"param":case"source":case"track":case"wbr":{break}case"body":case"html":e=r;default:{e.push(dt,stringToChunk(o),pt)}}}function writeCompletedRoot(e,r){var o=r.bootstrapChunks;var a=0;for(;a<o.length-1;a++){writeChunk(e,o[a])}if(a<o.length){return writeChunkAndReturn(e,o[a])}return true}var ft=stringToPrecomputedChunk('<template id="');var ht=stringToPrecomputedChunk('"></template>');function writePlaceholder(e,r,o){writeChunk(e,ft);writeChunk(e,r.placeholderPrefix);var a=stringToChunk(o.toString(16));writeChunk(e,a);return writeChunkAndReturn(e,ht)}var mt=stringToPrecomputedChunk("\x3c!--$--\x3e");var gt=stringToPrecomputedChunk('\x3c!--$?--\x3e<template id="');var vt=stringToPrecomputedChunk('"></template>');var yt=stringToPrecomputedChunk("\x3c!--$!--\x3e");var bt=stringToPrecomputedChunk("\x3c!--/$--\x3e");var kt=stringToPrecomputedChunk("<template");var Ct=stringToPrecomputedChunk('"');var St=stringToPrecomputedChunk(' data-dgst="');var wt=stringToPrecomputedChunk(' data-msg="');var xt=stringToPrecomputedChunk(' data-stck="');var Tt=stringToPrecomputedChunk("></template>");function writeStartCompletedSuspenseBoundary(e,r){return writeChunkAndReturn(e,mt)}function writeStartPendingSuspenseBoundary(e,r,o){writeChunk(e,gt);if(o===null){throw new Error("An ID must have been assigned before we can complete the boundary.")}writeChunk(e,o);return writeChunkAndReturn(e,vt)}function writeStartClientRenderedSuspenseBoundary(e,r,o,a,i){var s;s=writeChunkAndReturn(e,yt);writeChunk(e,kt);if(o){writeChunk(e,St);writeChunk(e,stringToChunk(escapeTextForBrowser(o)));writeChunk(e,Ct)}{if(a){writeChunk(e,wt);writeChunk(e,stringToChunk(escapeTextForBrowser(a)));writeChunk(e,Ct)}if(i){writeChunk(e,xt);writeChunk(e,stringToChunk(escapeTextForBrowser(i)));writeChunk(e,Ct)}}s=writeChunkAndReturn(e,Tt);return s}function writeEndCompletedSuspenseBoundary(e,r){return writeChunkAndReturn(e,bt)}function writeEndPendingSuspenseBoundary(e,r){return writeChunkAndReturn(e,bt)}function writeEndClientRenderedSuspenseBoundary(e,r){return writeChunkAndReturn(e,bt)}var Et=stringToPrecomputedChunk('<div hidden id="');var Rt=stringToPrecomputedChunk('">');var Pt=stringToPrecomputedChunk("</div>");var It=stringToPrecomputedChunk('<svg aria-hidden="true" style="display:none" id="');var Ft=stringToPrecomputedChunk('">');var _t=stringToPrecomputedChunk("</svg>");var Dt=stringToPrecomputedChunk('<math aria-hidden="true" style="display:none" id="');var At=stringToPrecomputedChunk('">');var Nt=stringToPrecomputedChunk("</math>");var Mt=stringToPrecomputedChunk('<table hidden id="');var Bt=stringToPrecomputedChunk('">');var Ot=stringToPrecomputedChunk("</table>");var Lt=stringToPrecomputedChunk('<table hidden><tbody id="');var Vt=stringToPrecomputedChunk('">');var jt=stringToPrecomputedChunk("</tbody></table>");var $t=stringToPrecomputedChunk('<table hidden><tr id="');var Ht=stringToPrecomputedChunk('">');var Ut=stringToPrecomputedChunk("</tr></table>");var Wt=stringToPrecomputedChunk('<table hidden><colgroup id="');var zt=stringToPrecomputedChunk('">');var qt=stringToPrecomputedChunk("</colgroup></table>");function writeStartSegment(e,r,o,a){switch(o.insertionMode){case Ae:case Ne:{writeChunk(e,Et);writeChunk(e,r.segmentPrefix);writeChunk(e,stringToChunk(a.toString(16)));return writeChunkAndReturn(e,Rt)}case Me:{writeChunk(e,It);writeChunk(e,r.segmentPrefix);writeChunk(e,stringToChunk(a.toString(16)));return writeChunkAndReturn(e,Ft)}case Be:{writeChunk(e,Dt);writeChunk(e,r.segmentPrefix);writeChunk(e,stringToChunk(a.toString(16)));return writeChunkAndReturn(e,At)}case Oe:{writeChunk(e,Mt);writeChunk(e,r.segmentPrefix);writeChunk(e,stringToChunk(a.toString(16)));return writeChunkAndReturn(e,Bt)}case Le:{writeChunk(e,Lt);writeChunk(e,r.segmentPrefix);writeChunk(e,stringToChunk(a.toString(16)));return writeChunkAndReturn(e,Vt)}case Ve:{writeChunk(e,$t);writeChunk(e,r.segmentPrefix);writeChunk(e,stringToChunk(a.toString(16)));return writeChunkAndReturn(e,Ht)}case je:{writeChunk(e,Wt);writeChunk(e,r.segmentPrefix);writeChunk(e,stringToChunk(a.toString(16)));return writeChunkAndReturn(e,zt)}default:{throw new Error("Unknown insertion mode. This is a bug in React.")}}}function writeEndSegment(e,r){switch(r.insertionMode){case Ae:case Ne:{return writeChunkAndReturn(e,Pt)}case Me:{return writeChunkAndReturn(e,_t)}case Be:{return writeChunkAndReturn(e,Nt)}case Oe:{return writeChunkAndReturn(e,Ot)}case Le:{return writeChunkAndReturn(e,jt)}case Ve:{return writeChunkAndReturn(e,Ut)}case je:{return writeChunkAndReturn(e,qt)}default:{throw new Error("Unknown insertion mode. This is a bug in React.")}}}var Yt="function $RS(a,b){a=document.getElementById(a);b=document.getElementById(b);for(a.parentNode.removeChild(a);a.firstChild;)b.parentNode.insertBefore(a.firstChild,b);b.parentNode.removeChild(b)}";var Zt='function $RC(a,b){a=document.getElementById(a);b=document.getElementById(b);b.parentNode.removeChild(b);if(a){a=a.previousSibling;var f=a.parentNode,c=a.nextSibling,e=0;do{if(c&&8===c.nodeType){var d=c.data;if("/$"===d)if(0===e)break;else e--;else"$"!==d&&"$?"!==d&&"$!"!==d||e++}d=c.nextSibling;f.removeChild(c);c=d}while(c);for(;b.firstChild;)f.insertBefore(b.firstChild,c);a.data="$";a._reactRetry&&a._reactRetry()}}';var Xt='function $RX(b,c,d,e){var a=document.getElementById(b);a&&(b=a.previousSibling,b.data="$!",a=a.dataset,c&&(a.dgst=c),d&&(a.msg=d),e&&(a.stck=e),b._reactRetry&&b._reactRetry())}';var Jt=stringToPrecomputedChunk(Yt+';$RS("');var Kt=stringToPrecomputedChunk('$RS("');var Gt=stringToPrecomputedChunk('","');var Qt=stringToPrecomputedChunk('")<\/script>');function writeCompletedSegmentInstruction(e,r,o){writeChunk(e,r.startInlineScript);if(!r.sentCompleteSegmentFunction){r.sentCompleteSegmentFunction=true;writeChunk(e,Jt)}else{writeChunk(e,Kt)}writeChunk(e,r.segmentPrefix);var a=stringToChunk(o.toString(16));writeChunk(e,a);writeChunk(e,Gt);writeChunk(e,r.placeholderPrefix);writeChunk(e,a);return writeChunkAndReturn(e,Qt)}var er=stringToPrecomputedChunk(Zt+';$RC("');var tr=stringToPrecomputedChunk('$RC("');var rr=stringToPrecomputedChunk('","');var nr=stringToPrecomputedChunk('")<\/script>');function writeCompletedBoundaryInstruction(e,r,o,a){writeChunk(e,r.startInlineScript);if(!r.sentCompleteBoundaryFunction){r.sentCompleteBoundaryFunction=true;writeChunk(e,er)}else{writeChunk(e,tr)}if(o===null){throw new Error("An ID must have been assigned before we can complete the boundary.")}var i=stringToChunk(a.toString(16));writeChunk(e,o);writeChunk(e,rr);writeChunk(e,r.segmentPrefix);writeChunk(e,i);return writeChunkAndReturn(e,nr)}var or=stringToPrecomputedChunk(Xt+';$RX("');var ar=stringToPrecomputedChunk('$RX("');var ir=stringToPrecomputedChunk('"');var sr=stringToPrecomputedChunk(")<\/script>");var ur=stringToPrecomputedChunk(",");function writeClientRenderBoundaryInstruction(e,r,o,a,i,s){writeChunk(e,r.startInlineScript);if(!r.sentClientRenderFunction){r.sentClientRenderFunction=true;writeChunk(e,or)}else{writeChunk(e,ar)}if(o===null){throw new Error("An ID must have been assigned before we can complete the boundary.")}writeChunk(e,o);writeChunk(e,ir);if(a||i||s){writeChunk(e,ur);writeChunk(e,stringToChunk(escapeJSStringsForInstructionScripts(a||"")))}if(i||s){writeChunk(e,ur);writeChunk(e,stringToChunk(escapeJSStringsForInstructionScripts(i||"")))}if(s){writeChunk(e,ur);writeChunk(e,stringToChunk(escapeJSStringsForInstructionScripts(s)))}return writeChunkAndReturn(e,sr)}var lr=/[<\u2028\u2029]/g;function escapeJSStringsForInstructionScripts(e){var r=JSON.stringify(e);return r.replace(lr,(function(e){switch(e){case"<":return"\\u003c";case"\u2028":return"\\u2028";case"\u2029":return"\\u2029";default:{throw new Error("escapeJSStringsForInstructionScripts encountered a match it does not know how to replace. this means the match regex and the replacement characters are no longer in sync. This is a bug in React")}}}))}function createResponseState$1(e,r){var o=createResponseState(r,undefined);return{bootstrapChunks:o.bootstrapChunks,startInlineScript:o.startInlineScript,placeholderPrefix:o.placeholderPrefix,segmentPrefix:o.segmentPrefix,boundaryPrefix:o.boundaryPrefix,idPrefix:o.idPrefix,nextSuspenseID:o.nextSuspenseID,sentCompleteSegmentFunction:o.sentCompleteSegmentFunction,sentCompleteBoundaryFunction:o.sentCompleteBoundaryFunction,sentClientRenderFunction:o.sentClientRenderFunction,generateStaticMarkup:e}}function createRootFormatContext(){return{insertionMode:Ne,selectedValue:null}}function pushTextInstance$1(e,r,o,a){if(o.generateStaticMarkup){e.push(stringToChunk(escapeTextForBrowser(r)));return false}else{return pushTextInstance(e,r,o,a)}}function pushSegmentFinale$1(e,r,o,a){if(r.generateStaticMarkup){return}else{return pushSegmentFinale(e,r,o,a)}}function writeStartCompletedSuspenseBoundary$1(e,r){if(r.generateStaticMarkup){return true}return writeStartCompletedSuspenseBoundary(e)}function writeStartClientRenderedSuspenseBoundary$1(e,r,o,a,i){if(r.generateStaticMarkup){return true}return writeStartClientRenderedSuspenseBoundary(e,r,o,a,i)}function writeEndCompletedSuspenseBoundary$1(e,r){if(r.generateStaticMarkup){return true}return writeEndCompletedSuspenseBoundary(e)}function writeEndClientRenderedSuspenseBoundary$1(e,r){if(r.generateStaticMarkup){return true}return writeEndClientRenderedSuspenseBoundary(e)}var cr=Object.assign;var dr=Symbol.for("react.element");var pr=Symbol.for("react.portal");var fr=Symbol.for("react.fragment");var hr=Symbol.for("react.strict_mode");var mr=Symbol.for("react.profiler");var gr=Symbol.for("react.provider");var vr=Symbol.for("react.context");var yr=Symbol.for("react.server_context");var br=Symbol.for("react.forward_ref");var kr=Symbol.for("react.suspense");var Cr=Symbol.for("react.suspense_list");var Sr=Symbol.for("react.memo");var wr=Symbol.for("react.lazy");var xr=Symbol.for("react.scope");var Tr=Symbol.for("react.debug_trace_mode");var Er=Symbol.for("react.offscreen");var Rr=Symbol.for("react.legacy_hidden");var Pr=Symbol.for("react.cache");var Ir=Symbol.for("react.default_value");var Fr=Symbol.iterator;var _r="@@iterator";function getIteratorFn(e){if(e===null||typeof e!=="object"){return null}var r=Fr&&e[Fr]||e[_r];if(typeof r==="function"){return r}return null}function getWrappedName(e,r,o){var a=e.displayName;if(a){return a}var i=r.displayName||r.name||"";return i!==""?o+"("+i+")":o}function getContextName(e){return e.displayName||"Context"}function getComponentNameFromType(e){if(e==null){return null}{if(typeof e.tag==="number"){error("Received an unexpected object in getComponentNameFromType(). "+"This is likely a bug in React. Please file an issue.")}}if(typeof e==="function"){return e.displayName||e.name||null}if(typeof e==="string"){return e}switch(e){case fr:return"Fragment";case pr:return"Portal";case mr:return"Profiler";case hr:return"StrictMode";case kr:return"Suspense";case Cr:return"SuspenseList";case Pr:{return"Cache"}}if(typeof e==="object"){switch(e.$$typeof){case vr:var r=e;return getContextName(r)+".Consumer";case gr:var o=e;return getContextName(o._context)+".Provider";case br:return getWrappedName(e,e.render,"ForwardRef");case Sr:var a=e.displayName||null;if(a!==null){return a}return getComponentNameFromType(e.type)||"Memo";case wr:{var i=e;var s=i._payload;var l=i._init;try{return getComponentNameFromType(l(s))}catch(e){return null}}case yr:{var c=e;return(c.displayName||c._globalName)+".Provider"}}}return null}var Dr=0;var Ar;var Nr;var Mr;var Br;var Or;var Lr;var Vr;function disabledLog(){}disabledLog.__reactDisabledLog=true;function disableLogs(){{if(Dr===0){Ar=console.log;Nr=console.info;Mr=console.warn;Br=console.error;Or=console.group;Lr=console.groupCollapsed;Vr=console.groupEnd;var e={configurable:true,enumerable:true,value:disabledLog,writable:true};Object.defineProperties(console,{info:e,log:e,warn:e,error:e,group:e,groupCollapsed:e,groupEnd:e})}Dr++}}function reenableLogs(){{Dr--;if(Dr===0){var e={configurable:true,enumerable:true,writable:true};Object.defineProperties(console,{log:cr({},e,{value:Ar}),info:cr({},e,{value:Nr}),warn:cr({},e,{value:Mr}),error:cr({},e,{value:Br}),group:cr({},e,{value:Or}),groupCollapsed:cr({},e,{value:Lr}),groupEnd:cr({},e,{value:Vr})})}if(Dr<0){error("disabledDepth fell below zero. "+"This is a bug in React. Please file an issue.")}}}var jr=i.ReactCurrentDispatcher;var $r;function describeBuiltInComponentFrame(e,r,o){{if($r===undefined){try{throw Error()}catch(e){var a=e.stack.trim().match(/\n( *(at )?)/);$r=a&&a[1]||""}}return"\n"+$r+e}}var Hr=false;var Ur;{var Wr=typeof WeakMap==="function"?WeakMap:Map;Ur=new Wr}function describeNativeComponentFrame(e,r){if(!e||Hr){return""}{var o=Ur.get(e);if(o!==undefined){return o}}var a;Hr=true;var i=Error.prepareStackTrace;Error.prepareStackTrace=undefined;var s;{s=jr.current;jr.current=null;disableLogs()}try{if(r){var Fake=function(){throw Error()};Object.defineProperty(Fake.prototype,"props",{set:function(){throw Error()}});if(typeof Reflect==="object"&&Reflect.construct){try{Reflect.construct(Fake,[])}catch(e){a=e}Reflect.construct(e,[],Fake)}else{try{Fake.call()}catch(e){a=e}e.call(Fake.prototype)}}else{try{throw Error()}catch(e){a=e}e()}}catch(r){if(r&&a&&typeof r.stack==="string"){var l=r.stack.split("\n");var c=a.stack.split("\n");var d=l.length-1;var p=c.length-1;while(d>=1&&p>=0&&l[d]!==c[p]){p--}for(;d>=1&&p>=0;d--,p--){if(l[d]!==c[p]){if(d!==1||p!==1){do{d--;p--;if(p<0||l[d]!==c[p]){var f="\n"+l[d].replace(" at new "," at ");if(e.displayName&&f.includes("<anonymous>")){f=f.replace("<anonymous>",e.displayName)}{if(typeof e==="function"){Ur.set(e,f)}}return f}}while(d>=1&&p>=0)}break}}}}finally{Hr=false;{jr.current=s;reenableLogs()}Error.prepareStackTrace=i}var h=e?e.displayName||e.name:"";var g=h?describeBuiltInComponentFrame(h):"";{if(typeof e==="function"){Ur.set(e,g)}}return g}function describeClassComponentFrame(e,r,o){{return describeNativeComponentFrame(e,true)}}function describeFunctionComponentFrame(e,r,o){{return describeNativeComponentFrame(e,false)}}function shouldConstruct(e){var r=e.prototype;return!!(r&&r.isReactComponent)}function describeUnknownElementTypeFrameInDEV(e,r,o){if(e==null){return""}if(typeof e==="function"){{return describeNativeComponentFrame(e,shouldConstruct(e))}}if(typeof e==="string"){return describeBuiltInComponentFrame(e)}switch(e){case kr:return describeBuiltInComponentFrame("Suspense");case Cr:return describeBuiltInComponentFrame("SuspenseList")}if(typeof e==="object"){switch(e.$$typeof){case br:return describeFunctionComponentFrame(e.render);case Sr:return describeUnknownElementTypeFrameInDEV(e.type,r,o);case wr:{var a=e;var i=a._payload;var s=a._init;try{return describeUnknownElementTypeFrameInDEV(s(i),r,o)}catch(e){}}}}return""}var zr={};var qr=i.ReactDebugCurrentFrame;function setCurrentlyValidatingElement(e){{if(e){var r=e._owner;var o=describeUnknownElementTypeFrameInDEV(e.type,e._source,r?r.type:null);qr.setExtraStackFrame(o)}else{qr.setExtraStackFrame(null)}}}function checkPropTypes(e,r,o,a,i){{var s=Function.call.bind(l);for(var c in e){if(s(e,c)){var d=void 0;try{if(typeof e[c]!=="function"){var p=Error((a||"React class")+": "+o+" type `"+c+"` is invalid; "+"it must be a function, usually from the `prop-types` package, but received `"+typeof e[c]+"`."+"This often happens because of typos such as `PropTypes.function` instead of `PropTypes.func`.");p.name="Invariant Violation";throw p}d=e[c](r,c,a,o,null,"SECRET_DO_NOT_PASS_THIS_OR_YOU_WILL_BE_FIRED")}catch(e){d=e}if(d&&!(d instanceof Error)){setCurrentlyValidatingElement(i);error("%s: type specification of %s"+" `%s` is invalid; the type checker "+"function must return `null` or an `Error` but returned a %s. "+"You may have forgotten to pass an argument to the type checker "+"creator (arrayOf, instanceOf, objectOf, oneOf, oneOfType, and "+"shape all require an argument).",a||"React class",o,c,typeof d);setCurrentlyValidatingElement(null)}if(d instanceof Error&&!(d.message in zr)){zr[d.message]=true;setCurrentlyValidatingElement(i);error("Failed %s type: %s",o,d.message);setCurrentlyValidatingElement(null)}}}}}var Yr;{Yr={}}var Zr={};{Object.freeze(Zr)}function getMaskedContext(e,r){{var o=e.contextTypes;if(!o){return Zr}var a={};for(var i in o){a[i]=r[i]}{var s=getComponentNameFromType(e)||"Unknown";checkPropTypes(o,a,"context",s)}return a}}function processChildContext(e,r,o,a){{if(typeof e.getChildContext!=="function"){{var i=getComponentNameFromType(r)||"Unknown";if(!Yr[i]){Yr[i]=true;error("%s.childContextTypes is specified but there is no getChildContext() method "+"on the instance. You can either define getChildContext() on %s or remove "+"childContextTypes from it.",i,i)}}return o}var s=e.getChildContext();for(var l in s){if(!(l in a)){throw new Error((getComponentNameFromType(r)||"Unknown")+'.getChildContext(): key "'+l+'" is not defined in childContextTypes.')}}{var c=getComponentNameFromType(r)||"Unknown";checkPropTypes(a,s,"child context",c)}return cr({},o,s)}}var Xr;{Xr={}}var Jr=null;var Kr=null;function popNode(e){{e.context._currentValue2=e.parentValue}}function pushNode(e){{e.context._currentValue2=e.value}}function popToNearestCommonAncestor(e,r){if(e===r);else{popNode(e);var o=e.parent;var a=r.parent;if(o===null){if(a!==null){throw new Error("The stacks must reach the root at the same time. This is a bug in React.")}}else{if(a===null){throw new Error("The stacks must reach the root at the same time. This is a bug in React.")}popToNearestCommonAncestor(o,a)}pushNode(r)}}function popAllPrevious(e){popNode(e);var r=e.parent;if(r!==null){popAllPrevious(r)}}function pushAllNext(e){var r=e.parent;if(r!==null){pushAllNext(r)}pushNode(e)}function popPreviousToCommonLevel(e,r){popNode(e);var o=e.parent;if(o===null){throw new Error("The depth must equal at least at zero before reaching the root. This is a bug in React.")}if(o.depth===r.depth){popToNearestCommonAncestor(o,r)}else{popPreviousToCommonLevel(o,r)}}function popNextToCommonLevel(e,r){var o=r.parent;if(o===null){throw new Error("The depth must equal at least at zero before reaching the root. This is a bug in React.")}if(e.depth===o.depth){popToNearestCommonAncestor(e,o)}else{popNextToCommonLevel(e,o)}pushNode(r)}function switchContext(e){var r=Kr;var o=e;if(r!==o){if(r===null){pushAllNext(o)}else if(o===null){popAllPrevious(r)}else if(r.depth===o.depth){popToNearestCommonAncestor(r,o)}else if(r.depth>o.depth){popPreviousToCommonLevel(r,o)}else{popNextToCommonLevel(r,o)}Kr=o}}function pushProvider(e,r){var o;{o=e._currentValue2;e._currentValue2=r;{if(e._currentRenderer2!==undefined&&e._currentRenderer2!==null&&e._currentRenderer2!==Xr){error("Detected multiple renderers concurrently rendering the "+"same context provider. This is currently unsupported.")}e._currentRenderer2=Xr}}var a=Kr;var i={parent:a,depth:a===null?0:a.depth+1,context:e,parentValue:o,value:r};Kr=i;return i}function popProvider(e){var r=Kr;if(r===null){throw new Error("Tried to pop a Context at the root of the app. This is a bug in React.")}{if(r.context!==e){error("The parent context is not the expected context. This is probably a bug in React.")}}{var o=r.parentValue;if(o===Ir){r.context._currentValue2=r.context._defaultValue}else{r.context._currentValue2=o}{if(e._currentRenderer2!==undefined&&e._currentRenderer2!==null&&e._currentRenderer2!==Xr){error("Detected multiple renderers concurrently rendering the "+"same context provider. This is currently unsupported.")}e._currentRenderer2=Xr}}return Kr=r.parent}function getActiveContext(){return Kr}function readContext(e){var r=e._currentValue2;return r}function get(e){return e._reactInternals}function set(e,r){e._reactInternals=r}var Gr={};var Qr={};var en;var tn;var rn;var nn;var on;var an;var sn;var un;var ln;{en=new Set;tn=new Set;rn=new Set;sn=new Set;nn=new Set;un=new Set;ln=new Set;var cn=new Set;an=function(e,r){if(e===null||typeof e==="function"){return}var o=r+"_"+e;if(!cn.has(o)){cn.add(o);error("%s(...): Expected the last optional `callback` argument to be a "+"function. Instead received: %s.",r,e)}};on=function(e,r){if(r===undefined){var o=getComponentNameFromType(e)||"Component";if(!nn.has(o)){nn.add(o);error("%s.getDerivedStateFromProps(): A valid state object (or null) must be returned. "+"You have returned undefined.",o)}}}}function warnNoop(e,r){{var o=e.constructor;var a=o&&getComponentNameFromType(o)||"ReactClass";var i=a+"."+r;if(Gr[i]){return}error("%s(...): Can only update a mounting component. "+"This usually means you called %s() outside componentWillMount() on the server. "+"This is a no-op.\n\nPlease check the code for the %s component.",r,r,a);Gr[i]=true}}var dn={isMounted:function(e){return false},enqueueSetState:function(e,r,o){var a=get(e);if(a.queue===null){warnNoop(e,"setState")}else{a.queue.push(r);{if(o!==undefined&&o!==null){an(o,"setState")}}}},enqueueReplaceState:function(e,r,o){var a=get(e);a.replace=true;a.queue=[r];{if(o!==undefined&&o!==null){an(o,"setState")}}},enqueueForceUpdate:function(e,r){var o=get(e);if(o.queue===null){warnNoop(e,"forceUpdate")}else{{if(r!==undefined&&r!==null){an(r,"setState")}}}}};function applyDerivedStateFromProps(e,r,o,a,i){var s=o(i,a);{on(r,s)}var l=s===null||s===undefined?a:cr({},a,s);return l}function constructClassInstance(e,r,o){var a=Zr;var i=e.contextType;{if("contextType"in e){var s=i===null||i!==undefined&&i.$$typeof===vr&&i._context===undefined;if(!s&&!ln.has(e)){ln.add(e);var l="";if(i===undefined){l=" However, it is set to undefined. "+"This can be caused by a typo or by mixing up named and default imports. "+"This can also happen due to a circular dependency, so "+"try moving the createContext() call to a separate file."}else if(typeof i!=="object"){l=" However, it is set to a "+typeof i+"."}else if(i.$$typeof===gr){l=" Did you accidentally pass the Context.Provider instead?"}else if(i._context!==undefined){l=" Did you accidentally pass the Context.Consumer instead?"}else{l=" However, it is set to an object with keys {"+Object.keys(i).join(", ")+"}."}error("%s defines an invalid contextType. "+"contextType should point to the Context object returned by React.createContext().%s",getComponentNameFromType(e)||"Component",l)}}}if(typeof i==="object"&&i!==null){a=readContext(i)}else{a=o}var c=new e(r,a);{if(typeof e.getDerivedStateFromProps==="function"&&(c.state===null||c.state===undefined)){var d=getComponentNameFromType(e)||"Component";if(!en.has(d)){en.add(d);error("`%s` uses `getDerivedStateFromProps` but its initial state is "+"%s. This is not recommended. Instead, define the initial state by "+"assigning an object to `this.state` in the constructor of `%s`. "+"This ensures that `getDerivedStateFromProps` arguments have a consistent shape.",d,c.state===null?"null":"undefined",d)}}if(typeof e.getDerivedStateFromProps==="function"||typeof c.getSnapshotBeforeUpdate==="function"){var p=null;var f=null;var h=null;if(typeof c.componentWillMount==="function"&&c.componentWillMount.__suppressDeprecationWarning!==true){p="componentWillMount"}else if(typeof c.UNSAFE_componentWillMount==="function"){p="UNSAFE_componentWillMount"}if(typeof c.componentWillReceiveProps==="function"&&c.componentWillReceiveProps.__suppressDeprecationWarning!==true){f="componentWillReceiveProps"}else if(typeof c.UNSAFE_componentWillReceiveProps==="function"){f="UNSAFE_componentWillReceiveProps"}if(typeof c.componentWillUpdate==="function"&&c.componentWillUpdate.__suppressDeprecationWarning!==true){h="componentWillUpdate"}else if(typeof c.UNSAFE_componentWillUpdate==="function"){h="UNSAFE_componentWillUpdate"}if(p!==null||f!==null||h!==null){var g=getComponentNameFromType(e)||"Component";var b=typeof e.getDerivedStateFromProps==="function"?"getDerivedStateFromProps()":"getSnapshotBeforeUpdate()";if(!rn.has(g)){rn.add(g);error("Unsafe legacy lifecycles will not be called for components using new component APIs.\n\n"+"%s uses %s but also contains the following legacy lifecycles:%s%s%s\n\n"+"The above lifecycles should be removed. Learn more about this warning here:\n"+"https://reactjs.org/link/unsafe-component-lifecycles",g,b,p!==null?"\n  "+p:"",f!==null?"\n  "+f:"",h!==null?"\n  "+h:"")}}}}return c}function checkClassInstance(e,r,o){{var a=getComponentNameFromType(r)||"Component";var i=e.render;if(!i){if(r.prototype&&typeof r.prototype.render==="function"){error("%s(...): No `render` method found on the returned component "+"instance: did you accidentally return an object from the constructor?",a)}else{error("%s(...): No `render` method found on the returned component "+"instance: you may have forgotten to define `render`.",a)}}if(e.getInitialState&&!e.getInitialState.isReactClassApproved&&!e.state){error("getInitialState was defined on %s, a plain JavaScript class. "+"This is only supported for classes created using React.createClass. "+"Did you mean to define a state property instead?",a)}if(e.getDefaultProps&&!e.getDefaultProps.isReactClassApproved){error("getDefaultProps was defined on %s, a plain JavaScript class. "+"This is only supported for classes created using React.createClass. "+"Use a static property to define defaultProps instead.",a)}if(e.propTypes){error("propTypes was defined as an instance property on %s. Use a static "+"property to define propTypes instead.",a)}if(e.contextType){error("contextType was defined as an instance property on %s. Use a static "+"property to define contextType instead.",a)}{if(e.contextTypes){error("contextTypes was defined as an instance property on %s. Use a static "+"property to define contextTypes instead.",a)}if(r.contextType&&r.contextTypes&&!un.has(r)){un.add(r);error("%s declares both contextTypes and contextType static properties. "+"The legacy contextTypes property will be ignored.",a)}}if(typeof e.componentShouldUpdate==="function"){error("%s has a method called "+"componentShouldUpdate(). Did you mean shouldComponentUpdate()? "+"The name is phrased as a question because the function is "+"expected to return a value.",a)}if(r.prototype&&r.prototype.isPureReactComponent&&typeof e.shouldComponentUpdate!=="undefined"){error("%s has a method called shouldComponentUpdate(). "+"shouldComponentUpdate should not be used when extending React.PureComponent. "+"Please extend React.Component if shouldComponentUpdate is used.",getComponentNameFromType(r)||"A pure component")}if(typeof e.componentDidUnmount==="function"){error("%s has a method called "+"componentDidUnmount(). But there is no such lifecycle method. "+"Did you mean componentWillUnmount()?",a)}if(typeof e.componentDidReceiveProps==="function"){error("%s has a method called "+"componentDidReceiveProps(). But there is no such lifecycle method. "+"If you meant to update the state in response to changing props, "+"use componentWillReceiveProps(). If you meant to fetch data or "+"run side-effects or mutations after React has updated the UI, use componentDidUpdate().",a)}if(typeof e.componentWillRecieveProps==="function"){error("%s has a method called "+"componentWillRecieveProps(). Did you mean componentWillReceiveProps()?",a)}if(typeof e.UNSAFE_componentWillRecieveProps==="function"){error("%s has a method called "+"UNSAFE_componentWillRecieveProps(). Did you mean UNSAFE_componentWillReceiveProps()?",a)}var s=e.props!==o;if(e.props!==undefined&&s){error("%s(...): When calling super() in `%s`, make sure to pass "+"up the same props that your component's constructor was passed.",a,a)}if(e.defaultProps){error("Setting defaultProps as an instance property on %s is not supported and will be ignored."+" Instead, define defaultProps as a static property on %s.",a,a)}if(typeof e.getSnapshotBeforeUpdate==="function"&&typeof e.componentDidUpdate!=="function"&&!tn.has(r)){tn.add(r);error("%s: getSnapshotBeforeUpdate() should be used with componentDidUpdate(). "+"This component defines getSnapshotBeforeUpdate() only.",getComponentNameFromType(r))}if(typeof e.getDerivedStateFromProps==="function"){error("%s: getDerivedStateFromProps() is defined as an instance method "+"and will be ignored. Instead, declare it as a static method.",a)}if(typeof e.getDerivedStateFromError==="function"){error("%s: getDerivedStateFromError() is defined as an instance method "+"and will be ignored. Instead, declare it as a static method.",a)}if(typeof r.getSnapshotBeforeUpdate==="function"){error("%s: getSnapshotBeforeUpdate() is defined as a static method "+"and will be ignored. Instead, declare it as an instance method.",a)}var l=e.state;if(l&&(typeof l!=="object"||isArray(l))){error("%s.state: must be set to an object or null",a)}if(typeof e.getChildContext==="function"&&typeof r.childContextTypes!=="object"){error("%s.getChildContext(): childContextTypes must be defined in order to "+"use getChildContext().",a)}}}function callComponentWillMount(e,r){var o=r.state;if(typeof r.componentWillMount==="function"){{if(r.componentWillMount.__suppressDeprecationWarning!==true){var a=getComponentNameFromType(e)||"Unknown";if(!Qr[a]){warn("componentWillMount has been renamed, and is not recommended for use. "+"See https://reactjs.org/link/unsafe-component-lifecycles for details.\n\n"+"* Move code from componentWillMount to componentDidMount (preferred in most cases) "+"or the constructor.\n"+"\nPlease update the following components: %s",a);Qr[a]=true}}}r.componentWillMount()}if(typeof r.UNSAFE_componentWillMount==="function"){r.UNSAFE_componentWillMount()}if(o!==r.state){{error("%s.componentWillMount(): Assigning directly to this.state is "+"deprecated (except inside a component's "+"constructor). Use setState instead.",getComponentNameFromType(e)||"Component")}dn.enqueueReplaceState(r,r.state,null)}}function processUpdateQueue(e,r,o,a){if(e.queue!==null&&e.queue.length>0){var i=e.queue;var s=e.replace;e.queue=null;e.replace=false;if(s&&i.length===1){r.state=i[0]}else{var l=s?i[0]:r.state;var c=true;for(var d=s?1:0;d<i.length;d++){var p=i[d];var f=typeof p==="function"?p.call(r,l,o,a):p;if(f!=null){if(c){c=false;l=cr({},l,f)}else{cr(l,f)}}}r.state=l}}else{e.queue=null}}function mountClassInstance(e,r,o,a){{checkClassInstance(e,r,o)}var i=e.state!==undefined?e.state:null;e.updater=dn;e.props=o;e.state=i;var s={queue:[],replace:false};set(e,s);var l=r.contextType;if(typeof l==="object"&&l!==null){e.context=readContext(l)}else{e.context=a}{if(e.state===o){var c=getComponentNameFromType(r)||"Component";if(!sn.has(c)){sn.add(c);error("%s: It is not recommended to assign props directly to state "+"because updates to props won't be reflected in state. "+"In most cases, it is better to use props directly.",c)}}}var d=r.getDerivedStateFromProps;if(typeof d==="function"){e.state=applyDerivedStateFromProps(e,r,d,i,o)}if(typeof r.getDerivedStateFromProps!=="function"&&typeof e.getSnapshotBeforeUpdate!=="function"&&(typeof e.UNSAFE_componentWillMount==="function"||typeof e.componentWillMount==="function")){callComponentWillMount(r,e);processUpdateQueue(s,e,o,a)}}var pn={id:1,overflow:""};function getTreeId(e){var r=e.overflow;var o=e.id;var a=o&~getLeadingBit(o);return a.toString(32)+r}function pushTreeContext(e,r,o){var a=e.id;var i=e.overflow;var s=getBitLength(a)-1;var l=a&~(1<<s);var c=o+1;var d=getBitLength(r)+s;if(d>30){var p=s-s%5;var f=(1<<p)-1;var h=(l&f).toString(32);var g=l>>p;var b=s-p;var S=getBitLength(r)+b;var w=c<<b;var E=w|g;var P=h+i;return{id:1<<S|E,overflow:P}}else{var F=c<<s;var _=F|l;var N=i;return{id:1<<d|_,overflow:N}}}function getBitLength(e){return 32-fn(e)}function getLeadingBit(e){return 1<<getBitLength(e)-1}var fn=Math.clz32?Math.clz32:clz32Fallback;var hn=Math.log;var mn=Math.LN2;function clz32Fallback(e){var r=e>>>0;if(r===0){return 32}return 31-(hn(r)/mn|0)|0}function createThenableState(){return[]}function trackSuspendedWakeable(e){var r=e;switch(r.status){case"fulfilled":case"rejected":break;default:{if(typeof r.status==="string"){break}var o=r;o.status="pending";o.then((function(e){if(r.status==="pending"){var o=r;o.status="fulfilled";o.value=e}}),(function(e){if(r.status==="pending"){var o=r;o.status="rejected";o.reason=e}}));break}}}function trackUsedThenable(e,r,o){e[o]=r}function getPreviouslyUsedThenableAtIndex(e,r){if(e!==null){var o=e[r];if(o!==undefined){return o}}return null}function is(e,r){return e===r&&(e!==0||1/e===1/r)||e!==e&&r!==r}var gn=typeof Object.is==="function"?Object.is:is;var vn=null;var yn=null;var bn=null;var kn=null;var Cn=false;var Sn=false;var wn=0;var xn=0;var Tn=null;var En=null;var Rn=0;var Pn=25;var In=false;var Fn;function resolveCurrentlyRenderingComponent(){if(vn===null){throw new Error("Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for"+" one of the following reasons:\n"+"1. You might have mismatching versions of React and the renderer (such as React DOM)\n"+"2. You might be breaking the Rules of Hooks\n"+"3. You might have more than one copy of React in the same app\n"+"See https://reactjs.org/link/invalid-hook-call for tips about how to debug and fix this problem.")}{if(In){error("Do not call Hooks inside useEffect(...), useMemo(...), or other built-in Hooks. "+"You can only call Hooks at the top level of your React function. "+"For more information, see "+"https://reactjs.org/link/rules-of-hooks")}}return vn}function areHookInputsEqual(e,r){if(r===null){{error("%s received a final argument during this render, but not during "+"the previous render. Even though the final argument is optional, "+"its type cannot change between renders.",Fn)}return false}{if(e.length!==r.length){error("The final argument passed to %s changed size between renders. The "+"order and size of this array must remain constant.\n\n"+"Previous: %s\n"+"Incoming: %s",Fn,"["+e.join(", ")+"]","["+r.join(", ")+"]")}}for(var o=0;o<r.length&&o<e.length;o++){if(gn(e[o],r[o])){continue}return false}return true}function createHook(){if(Rn>0){throw new Error("Rendered more hooks than during the previous render")}return{memoizedState:null,queue:null,next:null}}function createWorkInProgressHook(){if(kn===null){if(bn===null){Cn=false;bn=kn=createHook()}else{Cn=true;kn=bn}}else{if(kn.next===null){Cn=false;kn=kn.next=createHook()}else{Cn=true;kn=kn.next}}return kn}function prepareToUseHooks(e,r,o){vn=r;yn=e;{In=false}wn=0;xn=0;Tn=o}function finishHooks(e,r,o,a){while(Sn){Sn=false;wn=0;xn=0;Rn+=1;kn=null;o=e(r,a)}resetHooksState();return o}function getThenableStateAfterSuspending(){var e=Tn;Tn=null;return e}function checkDidRenderIdHook(){var e=wn!==0;return e}function resetHooksState(){{In=false}vn=null;yn=null;Sn=false;bn=null;Rn=0;En=null;kn=null}function getCacheForType(e){throw new Error("Not implemented.")}function readContext$1(e){{if(In){error("Context can only be read while React is rendering. "+"In classes, you can read it in the render method or getDerivedStateFromProps. "+"In function components, you can read it directly in the function body, but not "+"inside Hooks like useReducer() or useMemo().")}}return readContext(e)}function useContext(e){{Fn="useContext"}resolveCurrentlyRenderingComponent();return readContext(e)}function basicStateReducer(e,r){return typeof r==="function"?r(e):r}function useState(e){{Fn="useState"}return useReducer(basicStateReducer,e)}function useReducer(e,r,o){{if(e!==basicStateReducer){Fn="useReducer"}}vn=resolveCurrentlyRenderingComponent();kn=createWorkInProgressHook();if(Cn){var a=kn.queue;var i=a.dispatch;if(En!==null){var s=En.get(a);if(s!==undefined){En.delete(a);var l=kn.memoizedState;var c=s;do{var d=c.action;{In=true}l=e(l,d);{In=false}c=c.next}while(c!==null);kn.memoizedState=l;return[l,i]}}return[kn.memoizedState,i]}else{{In=true}var p;if(e===basicStateReducer){p=typeof r==="function"?r():r}else{p=o!==undefined?o(r):r}{In=false}kn.memoizedState=p;var f=kn.queue={last:null,dispatch:null};var h=f.dispatch=dispatchAction.bind(null,vn,f);return[kn.memoizedState,h]}}function useMemo(e,r){vn=resolveCurrentlyRenderingComponent();kn=createWorkInProgressHook();var o=r===undefined?null:r;if(kn!==null){var a=kn.memoizedState;if(a!==null){if(o!==null){var i=a[1];if(areHookInputsEqual(o,i)){return a[0]}}}}{In=true}var s=e();{In=false}kn.memoizedState=[s,o];return s}function useRef(e){vn=resolveCurrentlyRenderingComponent();kn=createWorkInProgressHook();var r=kn.memoizedState;if(r===null){var o={current:e};{Object.seal(o)}kn.memoizedState=o;return o}else{return r}}function useLayoutEffect(e,r){{Fn="useLayoutEffect";error("useLayoutEffect does nothing on the server, because its effect cannot "+"be encoded into the server renderer's output format. This will lead "+"to a mismatch between the initial, non-hydrated UI and the intended "+"UI. To avoid this, useLayoutEffect should only be used in "+"components that render exclusively on the client. "+"See https://reactjs.org/link/uselayouteffect-ssr for common fixes.")}}function dispatchAction(e,r,o){if(Rn>=Pn){throw new Error("Too many re-renders. React limits the number of renders to prevent "+"an infinite loop.")}if(e===vn){Sn=true;var a={action:o,next:null};if(En===null){En=new Map}var i=En.get(r);if(i===undefined){En.set(r,a)}else{var s=i;while(s.next!==null){s=s.next}s.next=a}}}function useCallback(e,r){return useMemo((function(){return e}),r)}function useMutableSource(e,r,o){resolveCurrentlyRenderingComponent();return r(e._source)}function useSyncExternalStore(e,r,o){if(o===undefined){throw new Error("Missing getServerSnapshot, which is required for "+"server-rendered content. Will revert to client rendering.")}return o()}function useDeferredValue(e){resolveCurrentlyRenderingComponent();return e}function unsupportedStartTransition(){throw new Error("startTransition cannot be called during server rendering.")}function useTransition(){resolveCurrentlyRenderingComponent();return[false,unsupportedStartTransition]}function useId(){var e=yn;var r=getTreeId(e.treeContext);var o=Dn;if(o===null){throw new Error("Invalid hook call. Hooks can only be called inside of the body of a function component.")}var a=wn++;return makeId(o,r,a)}function use(e){if(e!==null&&typeof e==="object"){if(typeof e.then==="function"){var r=e;var o=xn;xn+=1;switch(r.status){case"fulfilled":{var a=r.value;return a}case"rejected":{var i=r.reason;throw i}default:{var s=getPreviouslyUsedThenableAtIndex(Tn,o);if(s!==null){switch(s.status){case"fulfilled":{var l=s.value;return l}case"rejected":{var c=s.reason;throw c}default:{throw s}}}else{if(Tn===null){Tn=createThenableState()}trackUsedThenable(Tn,r,o);throw r}}}}else if(e.$$typeof===vr||e.$$typeof===yr){var d=e;return readContext$1(d)}}throw new Error("An unsupported type was passed to use(): "+String(e))}function unsupportedRefresh(){throw new Error("Cache cannot be refreshed during server rendering.")}function useCacheRefresh(){return unsupportedRefresh}function useMemoCache(e){return new Array(e)}function noop(){}var _n={readContext:readContext$1,useContext:useContext,useMemo:useMemo,useReducer:useReducer,useRef:useRef,useState:useState,useInsertionEffect:noop,useLayoutEffect:useLayoutEffect,useCallback:useCallback,useImperativeHandle:noop,useEffect:noop,useDebugValue:noop,useDeferredValue:useDeferredValue,useTransition:useTransition,useId:useId,useMutableSource:useMutableSource,useSyncExternalStore:useSyncExternalStore};{_n.getCacheForType=getCacheForType;_n.useCacheRefresh=useCacheRefresh}{_n.useMemoCache=useMemoCache}{_n.use=use}var Dn=null;function setCurrentResponseState(e){Dn=e}function getStackByComponentStackNode(e){try{var r="";var o=e;do{switch(o.tag){case 0:r+=describeBuiltInComponentFrame(o.type,null,null);break;case 1:r+=describeFunctionComponentFrame(o.type,null,null);break;case 2:r+=describeClassComponentFrame(o.type,null,null);break}o=o.parent}while(o);return r}catch(e){return"\nError generating stack: "+e.message+"\n"+e.stack}}var An=i.ReactCurrentDispatcher;var Nn=i.ReactDebugCurrentFrame;var Mn=0;var Bn=1;var On=2;var Ln=3;var Vn=4;var jn=0;var $n=1;var Hn=2;var Un=12800;function defaultErrorHandler(e){console["error"](e);return null}function noop$1(){}function createRequest(e,r,o,a,i,s,l,c,d){var p=[];var f=new Set;var h={destination:null,responseState:r,progressiveChunkSize:a===undefined?Un:a,status:jn,fatalError:null,nextSegmentId:0,allPendingTasks:0,pendingRootTasks:0,completedRootSegment:null,abortableTasks:f,pingedTasks:p,clientRenderedBoundaries:[],completedBoundaries:[],partialBoundaries:[],preamble:[],postamble:[],onError:i===undefined?defaultErrorHandler:i,onAllReady:s===undefined?noop$1:s,onShellReady:l===undefined?noop$1:l,onShellError:c===undefined?noop$1:c,onFatalError:d===undefined?noop$1:d};var g=createPendingSegment(h,0,null,o,false,false);g.parentFlushed=true;var b=createTask(h,null,e,null,g,f,Zr,Jr,pn);p.push(b);return h}function pingTask(e,r){var o=e.pingedTasks;o.push(r);if(o.length===1){scheduleWork((function(){return performWork(e)}))}}function createSuspenseBoundary(e,r){return{id:$e,rootSegmentID:-1,parentFlushed:false,pendingTasks:0,forceClientRender:false,completedSegments:[],byteSize:0,fallbackAbortableTasks:r,errorDigest:null}}function createTask(e,r,o,a,i,s,l,c,d){e.allPendingTasks++;if(a===null){e.pendingRootTasks++}else{a.pendingTasks++}var p={node:o,ping:function(){return pingTask(e,p)},blockedBoundary:a,blockedSegment:i,abortSet:s,legacyContext:l,context:c,treeContext:d,thenableState:r};{p.componentStack=null}s.add(p);return p}function createPendingSegment(e,r,o,a,i,s){return{status:Mn,id:-1,index:r,parentFlushed:false,chunks:[],children:[],formatContext:a,boundary:o,lastPushedText:i,textEmbedded:s}}var Wn=null;function getCurrentStackInDEV(){{if(Wn===null||Wn.componentStack===null){return""}return getStackByComponentStackNode(Wn.componentStack)}}function pushBuiltInComponentStackInDEV(e,r){{e.componentStack={tag:0,parent:e.componentStack,type:r}}}function pushFunctionComponentStackInDEV(e,r){{e.componentStack={tag:1,parent:e.componentStack,type:r}}}function pushClassComponentStackInDEV(e,r){{e.componentStack={tag:2,parent:e.componentStack,type:r}}}function popComponentStackInDEV(e){{if(e.componentStack===null){error("Unexpectedly popped too many stack frames. This is a bug in React.")}else{e.componentStack=e.componentStack.parent}}}var zn=null;function captureBoundaryErrorDetailsDev(e,r){{var o;if(typeof r==="string"){o=r}else if(r&&typeof r.message==="string"){o=r.message}else{o=String(r)}var a=zn||getCurrentStackInDEV();zn=null;e.errorMessage=o;e.errorComponentStack=a}}function logRecoverableError(e,r){var o=e.onError(r);if(o!=null&&typeof o!=="string"){throw new Error('onError returned something with a type other than "string". onError should return a string and may return null or undefined but must not return anything else. It received something of type "'+typeof o+'" instead')}return o}function fatalError(e,r){var o=e.onShellError;o(r);var a=e.onFatalError;a(r);if(e.destination!==null){e.status=Hn;closeWithError(e.destination,r)}else{e.status=$n;e.fatalError=r}}function renderSuspenseBoundary(e,r,o){pushBuiltInComponentStackInDEV(r,"Suspense");var a=r.blockedBoundary;var i=r.blockedSegment;var s=o.fallback;var l=o.children;var c=new Set;var d=createSuspenseBoundary(e,c);var p=i.chunks.length;var f=createPendingSegment(e,p,d,i.formatContext,false,false);i.children.push(f);i.lastPushedText=false;var h=createPendingSegment(e,0,null,i.formatContext,false,false);h.parentFlushed=true;r.blockedBoundary=d;r.blockedSegment=h;try{renderNode(e,r,l);pushSegmentFinale$1(h.chunks,e.responseState,h.lastPushedText,h.textEmbedded);h.status=Bn;queueCompletedSegment(d,h);if(d.pendingTasks===0){popComponentStackInDEV(r);return}}catch(r){h.status=Vn;d.forceClientRender=true;d.errorDigest=logRecoverableError(e,r);{captureBoundaryErrorDetailsDev(d,r)}}finally{r.blockedBoundary=a;r.blockedSegment=i}var g=createTask(e,null,s,a,f,c,r.legacyContext,r.context,r.treeContext);{g.componentStack=r.componentStack}e.pingedTasks.push(g);popComponentStackInDEV(r)}function renderHostElement(e,r,o,a){pushBuiltInComponentStackInDEV(r,o);var i=r.blockedSegment;var s=pushStartInstance(i.chunks,e.preamble,o,a,e.responseState,i.formatContext);i.lastPushedText=false;var l=i.formatContext;i.formatContext=getChildFormatContext(l,o,a);renderNode(e,r,s);i.formatContext=l;pushEndInstance(i.chunks,e.postamble,o);i.lastPushedText=false;popComponentStackInDEV(r)}function shouldConstruct$1(e){return e.prototype&&e.prototype.isReactComponent}function renderWithHooks(e,r,o,a,i,s){var l={};prepareToUseHooks(r,l,o);var c=a(i,s);return finishHooks(a,i,c,s)}function finishClassComponent(e,r,o,a,i){var s=o.render();{if(o.props!==i){if(!Jn){error("It looks like %s is reassigning its own `this.props` while rendering. "+"This is not supported and can lead to confusing bugs.",getComponentNameFromType(a)||"a component")}Jn=true}}{var l=a.childContextTypes;if(l!==null&&l!==undefined){var c=r.legacyContext;var d=processChildContext(o,a,c,l);r.legacyContext=d;renderNodeDestructive(e,r,null,s);r.legacyContext=c;return}}renderNodeDestructive(e,r,null,s)}function renderClassComponent(e,r,o,a){pushClassComponentStackInDEV(r,o);var i=getMaskedContext(o,r.legacyContext);var s=constructClassInstance(o,a,i);mountClassInstance(s,o,a,i);finishClassComponent(e,r,s,o,a);popComponentStackInDEV(r)}var qn={};var Yn={};var Zn={};var Xn={};var Jn=false;var Kn=false;var Gn=false;var Qn=false;function renderIndeterminateComponent(e,r,o,a,i){var s;{s=getMaskedContext(a,r.legacyContext)}pushFunctionComponentStackInDEV(r,a);{if(a.prototype&&typeof a.prototype.render==="function"){var l=getComponentNameFromType(a)||"Unknown";if(!qn[l]){error("The <%s /> component appears to have a render method, but doesn't extend React.Component. "+"This is likely to cause errors. Change %s to extend React.Component instead.",l,l);qn[l]=true}}}var c=renderWithHooks(e,r,o,a,i,s);var d=checkDidRenderIdHook();{if(typeof c==="object"&&c!==null&&typeof c.render==="function"&&c.$$typeof===undefined){var p=getComponentNameFromType(a)||"Unknown";if(!Yn[p]){error("The <%s /> component appears to be a function component that returns a class instance. "+"Change %s to a class that extends React.Component instead. "+"If you can't use a class try assigning the prototype on the function as a workaround. "+"`%s.prototype = React.Component.prototype`. Don't use an arrow function since it "+"cannot be called with `new` by React.",p,p,p);Yn[p]=true}}}if(typeof c==="object"&&c!==null&&typeof c.render==="function"&&c.$$typeof===undefined){{var f=getComponentNameFromType(a)||"Unknown";if(!Yn[f]){error("The <%s /> component appears to be a function component that returns a class instance. "+"Change %s to a class that extends React.Component instead. "+"If you can't use a class try assigning the prototype on the function as a workaround. "+"`%s.prototype = React.Component.prototype`. Don't use an arrow function since it "+"cannot be called with `new` by React.",f,f,f);Yn[f]=true}}mountClassInstance(c,a,i,s);finishClassComponent(e,r,c,a,i)}else{{validateFunctionComponentInDev(a)}if(d){var h=r.treeContext;var g=1;var b=0;r.treeContext=pushTreeContext(h,g,b);try{renderNodeDestructive(e,r,null,c)}finally{r.treeContext=h}}else{renderNodeDestructive(e,r,null,c)}}popComponentStackInDEV(r)}function validateFunctionComponentInDev(e){{if(e){if(e.childContextTypes){error("%s(...): childContextTypes cannot be defined on a function component.",e.displayName||e.name||"Component")}}if(typeof e.getDerivedStateFromProps==="function"){var r=getComponentNameFromType(e)||"Unknown";if(!Xn[r]){error("%s: Function components do not support getDerivedStateFromProps.",r);Xn[r]=true}}if(typeof e.contextType==="object"&&e.contextType!==null){var o=getComponentNameFromType(e)||"Unknown";if(!Zn[o]){error("%s: Function components do not support contextType.",o);Zn[o]=true}}}}function resolveDefaultProps(e,r){if(e&&e.defaultProps){var o=cr({},r);var a=e.defaultProps;for(var i in a){if(o[i]===undefined){o[i]=a[i]}}return o}return r}function renderForwardRef(e,r,o,a,i,s){pushFunctionComponentStackInDEV(r,a.render);var l=renderWithHooks(e,r,o,a.render,i,s);var c=checkDidRenderIdHook();if(c){var d=r.treeContext;var p=1;var f=0;r.treeContext=pushTreeContext(d,p,f);try{renderNodeDestructive(e,r,null,l)}finally{r.treeContext=d}}else{renderNodeDestructive(e,r,null,l)}popComponentStackInDEV(r)}function renderMemo(e,r,o,a,i,s){var l=a.type;var c=resolveDefaultProps(l,i);renderElement(e,r,o,l,c,s)}function renderContextConsumer(e,r,o,a){{if(o._context===undefined){if(o!==o.Consumer){if(!Qn){Qn=true;error("Rendering <Context> directly is not supported and will be removed in "+"a future major release. Did you mean to render <Context.Consumer> instead?")}}}else{o=o._context}}var i=a.children;{if(typeof i!=="function"){error("A context consumer was rendered with multiple children, or a child "+"that isn't a function. A context consumer expects a single child "+"that is a function. If you did pass a function, make sure there "+"is no trailing or leading whitespace around it.")}}var s=readContext(o);var l=i(s);renderNodeDestructive(e,r,null,l)}function renderContextProvider(e,r,o,a){var i=o._context;var s=a.value;var l=a.children;var c;{c=r.context}r.context=pushProvider(i,s);renderNodeDestructive(e,r,null,l);r.context=popProvider(i);{if(c!==r.context){error("Popping the context provider did not return back to the original snapshot. This is a bug in React.")}}}function renderLazyComponent(e,r,o,a,i,s){pushBuiltInComponentStackInDEV(r,"Lazy");var l=a._payload;var c=a._init;var d=c(l);var p=resolveDefaultProps(d,i);renderElement(e,r,o,d,p,s);popComponentStackInDEV(r)}function renderOffscreen(e,r,o){var a=o.mode;if(a==="hidden");else{renderNodeDestructive(e,r,null,o.children)}}function renderElement(e,r,o,a,i,s){if(typeof a==="function"){if(shouldConstruct$1(a)){renderClassComponent(e,r,a,i);return}else{renderIndeterminateComponent(e,r,o,a,i);return}}if(typeof a==="string"){renderHostElement(e,r,a,i);return}switch(a){case Rr:case Tr:case hr:case mr:case fr:{renderNodeDestructive(e,r,null,i.children);return}case Er:{renderOffscreen(e,r,i);return}case Cr:{pushBuiltInComponentStackInDEV(r,"SuspenseList");renderNodeDestructive(e,r,null,i.children);popComponentStackInDEV(r);return}case xr:{throw new Error("ReactDOMServer does not yet support scope components.")}case kr:{{renderSuspenseBoundary(e,r,i)}return}}if(typeof a==="object"&&a!==null){switch(a.$$typeof){case br:{renderForwardRef(e,r,o,a,i,s);return}case Sr:{renderMemo(e,r,o,a,i,s);return}case gr:{renderContextProvider(e,r,a,i);return}case vr:{renderContextConsumer(e,r,a,i);return}case wr:{renderLazyComponent(e,r,o,a,i);return}}}var l="";{if(a===undefined||typeof a==="object"&&a!==null&&Object.keys(a).length===0){l+=" You likely forgot to export your component from the file "+"it's defined in, or you might have mixed up default and "+"named imports."}}throw new Error("Element type is invalid: expected a string (for built-in "+"components) or a class/function (for composite components) "+("but got: "+(a==null?a:typeof a)+"."+l))}function validateIterable(e,r){{if(typeof Symbol==="function"&&e[Symbol.toStringTag]==="Generator"){if(!Kn){error("Using Generators as children is unsupported and will likely yield "+"unexpected results because enumerating a generator mutates it. "+"You may convert it to an array with `Array.from()` or the "+"`[...spread]` operator before rendering. Keep in mind "+"you might need to polyfill these features for older browsers.")}Kn=true}if(e.entries===r){if(!Gn){error("Using Maps as children is not supported. "+"Use an array of keyed ReactElements instead.")}Gn=true}}}function renderNodeDestructive(e,r,o,a){{try{return renderNodeDestructiveImpl(e,r,o,a)}catch(e){if(typeof e==="object"&&e!==null&&typeof e.then==="function");else{zn=zn!==null?zn:getCurrentStackInDEV()}throw e}}}function renderNodeDestructiveImpl(e,r,o,a){r.node=a;if(typeof a==="object"&&a!==null){switch(a.$$typeof){case dr:{var i=a;var s=i.type;var l=i.props;var c=i.ref;renderElement(e,r,o,s,l,c);return}case pr:throw new Error("Portals are not currently supported by the server renderer. "+"Render them conditionally so that they only appear on the client render.");case wr:{var d=a;var p=d._payload;var f=d._init;var h;{try{h=f(p)}catch(e){if(typeof e==="object"&&e!==null&&typeof e.then==="function"){pushBuiltInComponentStackInDEV(r,"Lazy")}throw e}}renderNodeDestructive(e,r,null,h);return}}if(isArray(a)){renderChildrenArray(e,r,a);return}var g=getIteratorFn(a);if(g){{validateIterable(a,g)}var b=g.call(a);if(b){var S=b.next();if(!S.done){var w=[];do{w.push(S.value);S=b.next()}while(!S.done);renderChildrenArray(e,r,w);return}return}}var E=Object.prototype.toString.call(a);throw new Error("Objects are not valid as a React child (found: "+(E==="[object Object]"?"object with keys {"+Object.keys(a).join(", ")+"}":E)+"). "+"If you meant to render a collection of children, use an array "+"instead.")}if(typeof a==="string"){var P=r.blockedSegment;P.lastPushedText=pushTextInstance$1(r.blockedSegment.chunks,a,e.responseState,P.lastPushedText);return}if(typeof a==="number"){var F=r.blockedSegment;F.lastPushedText=pushTextInstance$1(r.blockedSegment.chunks,""+a,e.responseState,F.lastPushedText);return}{if(typeof a==="function"){error("Functions are not valid as a React child. This may happen if "+"you return a Component instead of <Component /> from render. "+"Or maybe you meant to call this function rather than return it.")}}}function renderChildrenArray(e,r,o){var a=o.length;for(var i=0;i<a;i++){var s=r.treeContext;r.treeContext=pushTreeContext(s,a,i);try{renderNode(e,r,o[i])}finally{r.treeContext=s}}}function spawnNewSuspendedTask(e,r,o,a){var i=r.blockedSegment;var s=i.chunks.length;var l=createPendingSegment(e,s,null,i.formatContext,i.lastPushedText,true);i.children.push(l);i.lastPushedText=false;var c=createTask(e,o,r.node,r.blockedBoundary,l,r.abortSet,r.legacyContext,r.context,r.treeContext);trackSuspendedWakeable(a);{if(r.componentStack!==null){c.componentStack=r.componentStack.parent}}var d=c.ping;a.then(d,d)}function renderNode(e,r,o){var a=r.blockedSegment.formatContext;var i=r.legacyContext;var s=r.context;var l=null;{l=r.componentStack}try{return renderNodeDestructive(e,r,null,o)}catch(o){resetHooksState();if(typeof o==="object"&&o!==null&&typeof o.then==="function"){var c=getThenableStateAfterSuspending();spawnNewSuspendedTask(e,r,c,o);r.blockedSegment.formatContext=a;r.legacyContext=i;r.context=s;switchContext(s);{r.componentStack=l}return}else{r.blockedSegment.formatContext=a;r.legacyContext=i;r.context=s;switchContext(s);{r.componentStack=l}throw o}}}function erroredTask(e,r,o,a){var i=logRecoverableError(e,a);if(r===null){fatalError(e,a)}else{r.pendingTasks--;if(!r.forceClientRender){r.forceClientRender=true;r.errorDigest=i;{captureBoundaryErrorDetailsDev(r,a)}if(r.parentFlushed){e.clientRenderedBoundaries.push(r)}}}e.allPendingTasks--;if(e.allPendingTasks===0){var s=e.onAllReady;s()}}function abortTaskSoft(e){var r=this;var o=e.blockedBoundary;var a=e.blockedSegment;a.status=Ln;finishedTask(r,o,a)}function abortTask(e,r,o){var a=e.blockedBoundary;var i=e.blockedSegment;i.status=Ln;if(a===null){r.allPendingTasks--;if(r.status!==$n&&r.status!==Hn){logRecoverableError(r,o);fatalError(r,o)}}else{a.pendingTasks--;if(!a.forceClientRender){a.forceClientRender=true;a.errorDigest=r.onError(o);{var s="The server did not finish this Suspense boundary: ";var l;if(o&&typeof o.message==="string"){l=s+o.message}else{l=s+String(o)}var c=Wn;Wn=e;try{captureBoundaryErrorDetailsDev(a,l)}finally{Wn=c}}if(a.parentFlushed){r.clientRenderedBoundaries.push(a)}}a.fallbackAbortableTasks.forEach((function(e){return abortTask(e,r,o)}));a.fallbackAbortableTasks.clear();r.allPendingTasks--;if(r.allPendingTasks===0){var d=r.onAllReady;d()}}}function queueCompletedSegment(e,r){if(r.chunks.length===0&&r.children.length===1&&r.children[0].boundary===null){var o=r.children[0];o.id=r.id;o.parentFlushed=true;if(o.status===Bn){queueCompletedSegment(e,o)}}else{var a=e.completedSegments;a.push(r)}}function finishedTask(e,r,o){if(r===null){if(o.parentFlushed){if(e.completedRootSegment!==null){throw new Error("There can only be one root segment. This is a bug in React.")}e.completedRootSegment=o}e.pendingRootTasks--;if(e.pendingRootTasks===0){e.onShellError=noop$1;var a=e.onShellReady;a()}}else{r.pendingTasks--;if(r.forceClientRender);else if(r.pendingTasks===0){if(o.parentFlushed){if(o.status===Bn){queueCompletedSegment(r,o)}}if(r.parentFlushed){e.completedBoundaries.push(r)}r.fallbackAbortableTasks.forEach(abortTaskSoft,e);r.fallbackAbortableTasks.clear()}else{if(o.parentFlushed){if(o.status===Bn){queueCompletedSegment(r,o);var i=r.completedSegments;if(i.length===1){if(r.parentFlushed){e.partialBoundaries.push(r)}}}}}}e.allPendingTasks--;if(e.allPendingTasks===0){var s=e.onAllReady;s()}}function retryTask(e,r){var o=r.blockedSegment;if(o.status!==Mn){return}switchContext(r.context);var a=null;{a=Wn;Wn=r}try{var i=r.thenableState;r.thenableState=null;renderNodeDestructive(e,r,i,r.node);pushSegmentFinale$1(o.chunks,e.responseState,o.lastPushedText,o.textEmbedded);r.abortSet.delete(r);o.status=Bn;finishedTask(e,r.blockedBoundary,o)}catch(a){resetHooksState();if(typeof a==="object"&&a!==null&&typeof a.then==="function"){var s=r.ping;a.then(s,s);var l=a;trackSuspendedWakeable(l);r.thenableState=getThenableStateAfterSuspending()}else{r.abortSet.delete(r);o.status=Vn;erroredTask(e,r.blockedBoundary,o,a)}}finally{{Wn=a}}}function performWork(e){if(e.status===Hn){return}var r=getActiveContext();var o=An.current;An.current=_n;var a;{a=Nn.getCurrentStack;Nn.getCurrentStack=getCurrentStackInDEV}var i=Dn;setCurrentResponseState(e.responseState);try{var s=e.pingedTasks;var l;for(l=0;l<s.length;l++){var c=s[l];retryTask(e,c)}s.splice(0,l);if(e.destination!==null){flushCompletedQueues(e,e.destination)}}catch(r){logRecoverableError(e,r);fatalError(e,r)}finally{setCurrentResponseState(i);An.current=o;{Nn.getCurrentStack=a}if(o===_n){switchContext(r)}}}function flushSubtree(e,r,o){o.parentFlushed=true;switch(o.status){case Mn:{var a=o.id=e.nextSegmentId++;o.lastPushedText=false;o.textEmbedded=false;return writePlaceholder(r,e.responseState,a)}case Bn:{o.status=On;var i=true;var s=o.chunks;var l=0;var c=o.children;for(var d=0;d<c.length;d++){var p=c[d];for(;l<p.index;l++){writeChunk(r,s[l])}i=flushSegment(e,r,p)}for(;l<s.length-1;l++){writeChunk(r,s[l])}if(l<s.length){i=writeChunkAndReturn(r,s[l])}return i}default:{throw new Error("Aborted, errored or already flushed boundaries should not be flushed again. This is a bug in React.")}}}function flushSegment(e,r,o){var a=o.boundary;if(a===null){return flushSubtree(e,r,o)}a.parentFlushed=true;if(a.forceClientRender){writeStartClientRenderedSuspenseBoundary$1(r,e.responseState,a.errorDigest,a.errorMessage,a.errorComponentStack);flushSubtree(e,r,o);return writeEndClientRenderedSuspenseBoundary$1(r,e.responseState)}else if(a.pendingTasks>0){a.rootSegmentID=e.nextSegmentId++;if(a.completedSegments.length>0){e.partialBoundaries.push(a)}var i=a.id=assignSuspenseBoundaryID(e.responseState);writeStartPendingSuspenseBoundary(r,e.responseState,i);flushSubtree(e,r,o);return writeEndPendingSuspenseBoundary(r,e.responseState)}else if(a.byteSize>e.progressiveChunkSize){a.rootSegmentID=e.nextSegmentId++;e.completedBoundaries.push(a);writeStartPendingSuspenseBoundary(r,e.responseState,a.id);flushSubtree(e,r,o);return writeEndPendingSuspenseBoundary(r,e.responseState)}else{writeStartCompletedSuspenseBoundary$1(r,e.responseState);var s=a.completedSegments;if(s.length!==1){throw new Error("A previously unvisited boundary must have exactly one root segment. This is a bug in React.")}var l=s[0];flushSegment(e,r,l);return writeEndCompletedSuspenseBoundary$1(r,e.responseState)}}function flushClientRenderedBoundary(e,r,o){return writeClientRenderBoundaryInstruction(r,e.responseState,o.id,o.errorDigest,o.errorMessage,o.errorComponentStack)}function flushSegmentContainer(e,r,o){writeStartSegment(r,e.responseState,o.formatContext,o.id);flushSegment(e,r,o);return writeEndSegment(r,o.formatContext)}function flushCompletedBoundary(e,r,o){var a=o.completedSegments;var i=0;for(;i<a.length;i++){var s=a[i];flushPartiallyCompletedSegment(e,r,o,s)}a.length=0;return writeCompletedBoundaryInstruction(r,e.responseState,o.id,o.rootSegmentID)}function flushPartialBoundary(e,r,o){var a=o.completedSegments;var i=0;for(;i<a.length;i++){var s=a[i];if(!flushPartiallyCompletedSegment(e,r,o,s)){i++;a.splice(0,i);return false}}a.splice(0,i);return true}function flushPartiallyCompletedSegment(e,r,o,a){if(a.status===On){return true}var i=a.id;if(i===-1){var s=a.id=o.rootSegmentID;if(s===-1){throw new Error("A root segment ID must have been assigned by now. This is a bug in React.")}return flushSegmentContainer(e,r,a)}else{flushSegmentContainer(e,r,a);return writeCompletedSegmentInstruction(r,e.responseState,i)}}function flushCompletedQueues(e,r){try{var o;var a=e.completedRootSegment;if(a!==null){if(e.pendingRootTasks===0){if(s){var i=e.preamble;for(o=0;o<i.length;o++){writeChunk(r,i[o])}}flushSegment(e,r,a);e.completedRootSegment=null;writeCompletedRoot(r,e.responseState)}else{return}}var l=e.clientRenderedBoundaries;for(o=0;o<l.length;o++){var c=l[o];if(!flushClientRenderedBoundary(e,r,c)){e.destination=null;o++;l.splice(0,o);return}}l.splice(0,o);var d=e.completedBoundaries;for(o=0;o<d.length;o++){var p=d[o];if(!flushCompletedBoundary(e,r,p)){e.destination=null;o++;d.splice(0,o);return}}d.splice(0,o);completeWriting(r);beginWriting(r);var f=e.partialBoundaries;for(o=0;o<f.length;o++){var h=f[o];if(!flushPartialBoundary(e,r,h)){e.destination=null;o++;f.splice(0,o);return}}f.splice(0,o);var g=e.completedBoundaries;for(o=0;o<g.length;o++){var b=g[o];if(!flushCompletedBoundary(e,r,b)){e.destination=null;o++;g.splice(0,o);return}}g.splice(0,o)}finally{if(e.allPendingTasks===0&&e.pingedTasks.length===0&&e.clientRenderedBoundaries.length===0&&e.completedBoundaries.length===0){{var S=e.postamble;for(var w=0;w<S.length;w++){writeChunk(r,S[w])}}{if(e.abortableTasks.size!==0){error("There was still abortable task at the root when we closed. This is a bug in React.")}}close(r)}}}function startWork(e){scheduleWork((function(){return performWork(e)}))}function startFlowing(e,r){if(e.status===$n){e.status=Hn;closeWithError(r,e.fatalError);return}if(e.status===Hn){return}if(e.destination!==null){return}e.destination=r;try{flushCompletedQueues(e,r)}catch(r){logRecoverableError(e,r);fatalError(e,r)}}function abort(e,r){try{var o=e.abortableTasks;if(o.size>0){var a=r===undefined?new Error("The render was aborted by the server without a reason."):r;o.forEach((function(r){return abortTask(r,e,a)}));o.clear()}if(e.destination!==null){flushCompletedQueues(e,e.destination)}}catch(r){logRecoverableError(e,r);fatalError(e,r)}}function onError(){}function renderToStringImpl(e,r,o,a){var i=false;var s=null;var l="";var c={push:function(e){if(e!==null){l+=e}return true},destroy:function(e){i=true;s=e}};var d=false;function onShellReady(){d=true}var p=createRequest(e,createResponseState$1(o,r?r.identifierPrefix:undefined),createRootFormatContext(),Infinity,onError,undefined,onShellReady,undefined,undefined);startWork(p);abort(p,a);startFlowing(p,c);if(i&&s!==a){throw s}if(!d){throw new Error("A component suspended while responding to synchronous input. This "+"will cause the UI to be replaced with a loading indicator. To fix, "+"updates that suspend should be wrapped with startTransition.")}return l}function renderToString(e,r){return renderToStringImpl(e,r,false,'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToReadableStream" which supports Suspense on the server')}function renderToStaticMarkup(e,r){return renderToStringImpl(e,r,true,'The server used "renderToStaticMarkup" which does not support Suspense. If you intended to have the server wait for the suspended component please switch to "renderToReadableStream" which supports Suspense on the server')}function renderToNodeStream(){throw new Error("ReactDOMServer.renderToNodeStream(): The streaming API is not available "+"in the browser. Use ReactDOMServer.renderToString() instead.")}function renderToStaticNodeStream(){throw new Error("ReactDOMServer.renderToStaticNodeStream(): The streaming API is not available "+"in the browser. Use ReactDOMServer.renderToStaticMarkup() instead.")}r.renderToNodeStream=renderToNodeStream;r.renderToStaticMarkup=renderToStaticMarkup;r.renderToStaticNodeStream=renderToStaticNodeStream;r.renderToString=renderToString;r.version=a})()}},536:(e,r,o)=>{
+
+
+
+if (process.env.NODE_ENV !== "production") {
+  (function() {
+'use strict';
+
+var React = __nccwpck_require__(533);
+
+var ReactVersion = '18.3.0-experimental-cb5084d1c-20220924';
+
+var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
+
+// by calls to these methods by a Babel plugin.
+//
+// In PROD (or in packages without access to React internals),
+// they are left as they are instead.
+
+function warn(format) {
+  {
+    {
+      for (var _len = arguments.length, args = new Array(_len > 1 ? _len - 1 : 0), _key = 1; _key < _len; _key++) {
+        args[_key - 1] = arguments[_key];
+      }
+
+      printWarning('warn', format, args);
+    }
+  }
+}
+function error(format) {
+  {
+    {
+      for (var _len2 = arguments.length, args = new Array(_len2 > 1 ? _len2 - 1 : 0), _key2 = 1; _key2 < _len2; _key2++) {
+        args[_key2 - 1] = arguments[_key2];
+      }
+
+      printWarning('error', format, args);
+    }
+  }
+}
+
+function printWarning(level, format, args) {
+  // When changing this logic, you might want to also
+  // update consoleWithStackDev.www.js as well.
+  {
+    var ReactDebugCurrentFrame = ReactSharedInternals.ReactDebugCurrentFrame;
+    var stack = ReactDebugCurrentFrame.getStackAddendum();
+
+    if (stack !== '') {
+      format += '%s';
+      args = args.concat([stack]);
+    } // eslint-disable-next-line react-internal/safe-string-coercion
+
+
+    var argsWithFormat = args.map(function (item) {
+      return String(item);
+    }); // Careful: RN currently depends on this prefix
+
+    argsWithFormat.unshift('Warning: ' + format); // We intentionally don't use spread (or .apply) directly because it
+    // breaks IE9: https://github.com/facebook/react/issues/13610
+    // eslint-disable-next-line react-internal/no-production-logging
+
+    Function.prototype.apply.call(console[level], console, argsWithFormat);
+  }
+}
+
+function scheduleWork(callback) {
+  callback();
+}
+function beginWriting(destination) {}
+function writeChunk(destination, chunk) {
+  writeChunkAndReturn(destination, chunk);
+}
+function writeChunkAndReturn(destination, chunk) {
+  return destination.push(chunk);
+}
+function completeWriting(destination) {}
+function close(destination) {
+  destination.push(null);
+}
+function stringToChunk(content) {
+  return content;
+}
+function stringToPrecomputedChunk(content) {
+  return content;
+}
+function closeWithError(destination, error) {
+  // $FlowFixMe: This is an Error object or the destination accepts other types.
+  destination.destroy(error);
+}
+
+/*
+ * The `'' + value` pattern (used in in perf-sensitive code) throws for Symbol
+ * and Temporal.* types. See https://github.com/facebook/react/pull/22064.
+ *
+ * The functions in this module will throw an easier-to-understand,
+ * easier-to-debug exception with a clear errors message message explaining the
+ * problem. (Instead of a confusing exception thrown inside the implementation
+ * of the `value` object).
+ */
+// $FlowFixMe only called in DEV, so void return is not possible.
+function typeName(value) {
+  {
+    // toStringTag is needed for namespaced types like Temporal.Instant
+    var hasToStringTag = typeof Symbol === 'function' && Symbol.toStringTag;
+    var type = hasToStringTag && value[Symbol.toStringTag] || value.constructor.name || 'Object'; // $FlowFixMe
+
+    return type;
+  }
+} // $FlowFixMe only called in DEV, so void return is not possible.
+
+
+function willCoercionThrow(value) {
+  {
+    try {
+      testStringCoercion(value);
+      return false;
+    } catch (e) {
+      return true;
+    }
+  }
+}
+
+function testStringCoercion(value) {
+  // If you ended up here by following an exception call stack, here's what's
+  // happened: you supplied an object or symbol value to React (as a prop, key,
+  // DOM attribute, CSS property, string ref, etc.) and when React tried to
+  // coerce it to a string using `'' + value`, an exception was thrown.
+  //
+  // The most common types that will cause this exception are `Symbol` instances
+  // and Temporal objects like `Temporal.Instant`. But any object that has a
+  // `valueOf` or `[Symbol.toPrimitive]` method that throws will also cause this
+  // exception. (Library authors do this to prevent users from using built-in
+  // numeric operators like `+` or comparison operators like `>=` because custom
+  // methods are needed to perform accurate arithmetic or comparison.)
+  //
+  // To fix the problem, coerce this object or symbol value to a string before
+  // passing it to React. The most reliable way is usually `String(value)`.
+  //
+  // To find which value is throwing, check the browser or debugger console.
+  // Before this exception was thrown, there should be `console.error` output
+  // that shows the type (Symbol, Temporal.PlainDate, etc.) that caused the
+  // problem and how that type was used: key, atrribute, input value prop, etc.
+  // In most cases, this console output also shows the component and its
+  // ancestor components where the exception happened.
+  //
+  // eslint-disable-next-line react-internal/safe-string-coercion
+  return '' + value;
+}
+
+function checkAttributeStringCoercion(value, attributeName) {
+  {
+    if (willCoercionThrow(value)) {
+      error('The provided `%s` attribute is an unsupported type %s.' + ' This value must be coerced to a string before before using it here.', attributeName, typeName(value));
+
+      return testStringCoercion(value); // throw (to help callers find troubleshooting comments)
+    }
+  }
+}
+function checkCSSPropertyStringCoercion(value, propName) {
+  {
+    if (willCoercionThrow(value)) {
+      error('The provided `%s` CSS property is an unsupported type %s.' + ' This value must be coerced to a string before before using it here.', propName, typeName(value));
+
+      return testStringCoercion(value); // throw (to help callers find troubleshooting comments)
+    }
+  }
+}
+function checkHtmlStringCoercion(value) {
+  {
+    if (willCoercionThrow(value)) {
+      error('The provided HTML markup uses a value of unsupported type %s.' + ' This value must be coerced to a string before before using it here.', typeName(value));
+
+      return testStringCoercion(value); // throw (to help callers find troubleshooting comments)
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+var enableFloat = true;
+
+var hasOwnProperty = Object.prototype.hasOwnProperty;
+
+// A reserved attribute.
+// It is handled by React separately and shouldn't be written to the DOM.
+var RESERVED = 0; // A simple string attribute.
+// Attributes that aren't in the filter are presumed to have this type.
+
+var STRING = 1; // A string attribute that accepts booleans in React. In HTML, these are called
+// "enumerated" attributes with "true" and "false" as possible values.
+// When true, it should be set to a "true" string.
+// When false, it should be set to a "false" string.
+
+var BOOLEANISH_STRING = 2; // A real boolean attribute.
+// When true, it should be present (set either to an empty string or its name).
+// When false, it should be omitted.
+
+var BOOLEAN = 3; // An attribute that can be used as a flag as well as with a value.
+// When true, it should be present (set either to an empty string or its name).
+// When false, it should be omitted.
+// For any other value, should be present with that value.
+
+var OVERLOADED_BOOLEAN = 4; // An attribute that must be numeric or parse as a numeric.
+// When falsy, it should be removed.
+
+var NUMERIC = 5; // An attribute that must be positive numeric or parse as a positive numeric.
+// When falsy, it should be removed.
+
+var POSITIVE_NUMERIC = 6;
+
+/* eslint-disable max-len */
+var ATTRIBUTE_NAME_START_CHAR = ":A-Z_a-z\\u00C0-\\u00D6\\u00D8-\\u00F6\\u00F8-\\u02FF\\u0370-\\u037D\\u037F-\\u1FFF\\u200C-\\u200D\\u2070-\\u218F\\u2C00-\\u2FEF\\u3001-\\uD7FF\\uF900-\\uFDCF\\uFDF0-\\uFFFD";
+/* eslint-enable max-len */
+
+var ATTRIBUTE_NAME_CHAR = ATTRIBUTE_NAME_START_CHAR + "\\-.0-9\\u00B7\\u0300-\\u036F\\u203F-\\u2040";
+var VALID_ATTRIBUTE_NAME_REGEX = new RegExp('^[' + ATTRIBUTE_NAME_START_CHAR + '][' + ATTRIBUTE_NAME_CHAR + ']*$');
+var illegalAttributeNameCache = {};
+var validatedAttributeNameCache = {};
+function isAttributeNameSafe(attributeName) {
+  if (hasOwnProperty.call(validatedAttributeNameCache, attributeName)) {
+    return true;
+  }
+
+  if (hasOwnProperty.call(illegalAttributeNameCache, attributeName)) {
+    return false;
+  }
+
+  if (VALID_ATTRIBUTE_NAME_REGEX.test(attributeName)) {
+    validatedAttributeNameCache[attributeName] = true;
+    return true;
+  }
+
+  illegalAttributeNameCache[attributeName] = true;
+
+  {
+    error('Invalid attribute name: `%s`', attributeName);
+  }
+
+  return false;
+}
+function shouldRemoveAttributeWithWarning(name, value, propertyInfo, isCustomComponentTag) {
+  if (propertyInfo !== null && propertyInfo.type === RESERVED) {
+    return false;
+  }
+
+  switch (typeof value) {
+    case 'function': // $FlowFixMe symbol is perfectly valid here
+
+    case 'symbol':
+      // eslint-disable-line
+      return true;
+
+    case 'boolean':
+      {
+        if (isCustomComponentTag) {
+          return false;
+        }
+
+        if (propertyInfo !== null) {
+          return !propertyInfo.acceptsBooleans;
+        } else {
+          var prefix = name.toLowerCase().slice(0, 5);
+          return prefix !== 'data-' && prefix !== 'aria-';
+        }
+      }
+
+    default:
+      return false;
+  }
+}
+function getPropertyInfo(name) {
+  return properties.hasOwnProperty(name) ? properties[name] : null;
+}
+
+function PropertyInfoRecord(name, type, mustUseProperty, attributeName, attributeNamespace, sanitizeURL, removeEmptyString) {
+  this.acceptsBooleans = type === BOOLEANISH_STRING || type === BOOLEAN || type === OVERLOADED_BOOLEAN;
+  this.attributeName = attributeName;
+  this.attributeNamespace = attributeNamespace;
+  this.mustUseProperty = mustUseProperty;
+  this.propertyName = name;
+  this.type = type;
+  this.sanitizeURL = sanitizeURL;
+  this.removeEmptyString = removeEmptyString;
+} // When adding attributes to this list, be sure to also add them to
+// the `possibleStandardNames` module to ensure casing and incorrect
+// name warnings.
+
+
+var properties = {}; // These props are reserved by React. They shouldn't be written to the DOM.
+
+var reservedProps = ['children', 'dangerouslySetInnerHTML', // TODO: This prevents the assignment of defaultValue to regular
+// elements (not just inputs). Now that ReactDOMInput assigns to the
+// defaultValue property -- do we need this?
+'defaultValue', 'defaultChecked', 'innerHTML', 'suppressContentEditableWarning', 'suppressHydrationWarning', 'style'];
+
+{
+  reservedProps.push('innerText', 'textContent');
+}
+
+reservedProps.forEach(function (name) {
+  properties[name] = new PropertyInfoRecord(name, RESERVED, false, // mustUseProperty
+  name, // attributeName
+  null, // attributeNamespace
+  false, // sanitizeURL
+  false);
+}); // A few React string attributes have a different name.
+// This is a mapping from React prop names to the attribute names.
+
+[['acceptCharset', 'accept-charset'], ['className', 'class'], ['htmlFor', 'for'], ['httpEquiv', 'http-equiv']].forEach(function (_ref) {
+  var name = _ref[0],
+      attributeName = _ref[1];
+  properties[name] = new PropertyInfoRecord(name, STRING, false, // mustUseProperty
+  attributeName, // attributeName
+  null, // attributeNamespace
+  false, // sanitizeURL
+  false);
+}); // These are "enumerated" HTML attributes that accept "true" and "false".
+// In React, we let users pass `true` and `false` even though technically
+// these aren't boolean attributes (they are coerced to strings).
+
+['contentEditable', 'draggable', 'spellCheck', 'value'].forEach(function (name) {
+  properties[name] = new PropertyInfoRecord(name, BOOLEANISH_STRING, false, // mustUseProperty
+  name.toLowerCase(), // attributeName
+  null, // attributeNamespace
+  false, // sanitizeURL
+  false);
+}); // These are "enumerated" SVG attributes that accept "true" and "false".
+// In React, we let users pass `true` and `false` even though technically
+// these aren't boolean attributes (they are coerced to strings).
+// Since these are SVG attributes, their attribute names are case-sensitive.
+
+['autoReverse', 'externalResourcesRequired', 'focusable', 'preserveAlpha'].forEach(function (name) {
+  properties[name] = new PropertyInfoRecord(name, BOOLEANISH_STRING, false, // mustUseProperty
+  name, // attributeName
+  null, // attributeNamespace
+  false, // sanitizeURL
+  false);
+}); // These are HTML boolean attributes.
+
+['allowFullScreen', 'async', // Note: there is a special case that prevents it from being written to the DOM
+// on the client side because the browsers are inconsistent. Instead we call focus().
+'autoFocus', 'autoPlay', 'controls', 'default', 'defer', 'disabled', 'disablePictureInPicture', 'disableRemotePlayback', 'formNoValidate', 'hidden', 'loop', 'noModule', 'noValidate', 'open', 'playsInline', 'readOnly', 'required', 'reversed', 'scoped', 'seamless', // Microdata
+'itemScope'].forEach(function (name) {
+  properties[name] = new PropertyInfoRecord(name, BOOLEAN, false, // mustUseProperty
+  name.toLowerCase(), // attributeName
+  null, // attributeNamespace
+  false, // sanitizeURL
+  false);
+}); // These are the few React props that we set as DOM properties
+// rather than attributes. These are all booleans.
+
+['checked', // Note: `option.selected` is not updated if `select.multiple` is
+// disabled with `removeAttribute`. We have special logic for handling this.
+'multiple', 'muted', 'selected' // NOTE: if you add a camelCased prop to this list,
+// you'll need to set attributeName to name.toLowerCase()
+// instead in the assignment below.
+].forEach(function (name) {
+  properties[name] = new PropertyInfoRecord(name, BOOLEAN, true, // mustUseProperty
+  name, // attributeName
+  null, // attributeNamespace
+  false, // sanitizeURL
+  false);
+}); // These are HTML attributes that are "overloaded booleans": they behave like
+// booleans, but can also accept a string value.
+
+['capture', 'download' // NOTE: if you add a camelCased prop to this list,
+// you'll need to set attributeName to name.toLowerCase()
+// instead in the assignment below.
+].forEach(function (name) {
+  properties[name] = new PropertyInfoRecord(name, OVERLOADED_BOOLEAN, false, // mustUseProperty
+  name, // attributeName
+  null, // attributeNamespace
+  false, // sanitizeURL
+  false);
+}); // These are HTML attributes that must be positive numbers.
+
+['cols', 'rows', 'size', 'span' // NOTE: if you add a camelCased prop to this list,
+// you'll need to set attributeName to name.toLowerCase()
+// instead in the assignment below.
+].forEach(function (name) {
+  properties[name] = new PropertyInfoRecord(name, POSITIVE_NUMERIC, false, // mustUseProperty
+  name, // attributeName
+  null, // attributeNamespace
+  false, // sanitizeURL
+  false);
+}); // These are HTML attributes that must be numbers.
+
+['rowSpan', 'start'].forEach(function (name) {
+  properties[name] = new PropertyInfoRecord(name, NUMERIC, false, // mustUseProperty
+  name.toLowerCase(), // attributeName
+  null, // attributeNamespace
+  false, // sanitizeURL
+  false);
+});
+var CAMELIZE = /[\-\:]([a-z])/g;
+
+var capitalize = function (token) {
+  return token[1].toUpperCase();
+}; // This is a list of all SVG attributes that need special casing, namespacing,
+// or boolean value assignment. Regular attributes that just accept strings
+// and have the same names are omitted, just like in the HTML attribute filter.
+// Some of these attributes can be hard to find. This list was created by
+// scraping the MDN documentation.
+
+
+['accent-height', 'alignment-baseline', 'arabic-form', 'baseline-shift', 'cap-height', 'clip-path', 'clip-rule', 'color-interpolation', 'color-interpolation-filters', 'color-profile', 'color-rendering', 'dominant-baseline', 'enable-background', 'fill-opacity', 'fill-rule', 'flood-color', 'flood-opacity', 'font-family', 'font-size', 'font-size-adjust', 'font-stretch', 'font-style', 'font-variant', 'font-weight', 'glyph-name', 'glyph-orientation-horizontal', 'glyph-orientation-vertical', 'horiz-adv-x', 'horiz-origin-x', 'image-rendering', 'letter-spacing', 'lighting-color', 'marker-end', 'marker-mid', 'marker-start', 'overline-position', 'overline-thickness', 'paint-order', 'panose-1', 'pointer-events', 'rendering-intent', 'shape-rendering', 'stop-color', 'stop-opacity', 'strikethrough-position', 'strikethrough-thickness', 'stroke-dasharray', 'stroke-dashoffset', 'stroke-linecap', 'stroke-linejoin', 'stroke-miterlimit', 'stroke-opacity', 'stroke-width', 'text-anchor', 'text-decoration', 'text-rendering', 'underline-position', 'underline-thickness', 'unicode-bidi', 'unicode-range', 'units-per-em', 'v-alphabetic', 'v-hanging', 'v-ideographic', 'v-mathematical', 'vector-effect', 'vert-adv-y', 'vert-origin-x', 'vert-origin-y', 'word-spacing', 'writing-mode', 'xmlns:xlink', 'x-height' // NOTE: if you add a camelCased prop to this list,
+// you'll need to set attributeName to name.toLowerCase()
+// instead in the assignment below.
+].forEach(function (attributeName) {
+  var name = attributeName.replace(CAMELIZE, capitalize);
+  properties[name] = new PropertyInfoRecord(name, STRING, false, // mustUseProperty
+  attributeName, null, // attributeNamespace
+  false, // sanitizeURL
+  false);
+}); // String SVG attributes with the xlink namespace.
+
+['xlink:actuate', 'xlink:arcrole', 'xlink:role', 'xlink:show', 'xlink:title', 'xlink:type' // NOTE: if you add a camelCased prop to this list,
+// you'll need to set attributeName to name.toLowerCase()
+// instead in the assignment below.
+].forEach(function (attributeName) {
+  var name = attributeName.replace(CAMELIZE, capitalize);
+  properties[name] = new PropertyInfoRecord(name, STRING, false, // mustUseProperty
+  attributeName, 'http://www.w3.org/1999/xlink', false, // sanitizeURL
+  false);
+}); // String SVG attributes with the xml namespace.
+
+['xml:base', 'xml:lang', 'xml:space' // NOTE: if you add a camelCased prop to this list,
+// you'll need to set attributeName to name.toLowerCase()
+// instead in the assignment below.
+].forEach(function (attributeName) {
+  var name = attributeName.replace(CAMELIZE, capitalize);
+  properties[name] = new PropertyInfoRecord(name, STRING, false, // mustUseProperty
+  attributeName, 'http://www.w3.org/XML/1998/namespace', false, // sanitizeURL
+  false);
+}); // These attribute exists both in HTML and SVG.
+// The attribute name is case-sensitive in SVG so we can't just use
+// the React name like we do for attributes that exist only in HTML.
+
+['tabIndex', 'crossOrigin'].forEach(function (attributeName) {
+  properties[attributeName] = new PropertyInfoRecord(attributeName, STRING, false, // mustUseProperty
+  attributeName.toLowerCase(), // attributeName
+  null, // attributeNamespace
+  false, // sanitizeURL
+  false);
+}); // These attributes accept URLs. These must not allow javascript: URLS.
+// These will also need to accept Trusted Types object in the future.
+
+var xlinkHref = 'xlinkHref';
+properties[xlinkHref] = new PropertyInfoRecord('xlinkHref', STRING, false, // mustUseProperty
+'xlink:href', 'http://www.w3.org/1999/xlink', true, // sanitizeURL
+false);
+['src', 'href', 'action', 'formAction'].forEach(function (attributeName) {
+  properties[attributeName] = new PropertyInfoRecord(attributeName, STRING, false, // mustUseProperty
+  attributeName.toLowerCase(), // attributeName
+  null, // attributeNamespace
+  true, // sanitizeURL
+  true);
+});
+
+/**
+ * CSS properties which accept numbers but are not in units of "px".
+ */
+var isUnitlessNumber = {
+  animationIterationCount: true,
+  aspectRatio: true,
+  borderImageOutset: true,
+  borderImageSlice: true,
+  borderImageWidth: true,
+  boxFlex: true,
+  boxFlexGroup: true,
+  boxOrdinalGroup: true,
+  columnCount: true,
+  columns: true,
+  flex: true,
+  flexGrow: true,
+  flexPositive: true,
+  flexShrink: true,
+  flexNegative: true,
+  flexOrder: true,
+  gridArea: true,
+  gridRow: true,
+  gridRowEnd: true,
+  gridRowSpan: true,
+  gridRowStart: true,
+  gridColumn: true,
+  gridColumnEnd: true,
+  gridColumnSpan: true,
+  gridColumnStart: true,
+  fontWeight: true,
+  lineClamp: true,
+  lineHeight: true,
+  opacity: true,
+  order: true,
+  orphans: true,
+  tabSize: true,
+  widows: true,
+  zIndex: true,
+  zoom: true,
+  // SVG-related properties
+  fillOpacity: true,
+  floodOpacity: true,
+  stopOpacity: true,
+  strokeDasharray: true,
+  strokeDashoffset: true,
+  strokeMiterlimit: true,
+  strokeOpacity: true,
+  strokeWidth: true
+};
+/**
+ * @param {string} prefix vendor-specific prefix, eg: Webkit
+ * @param {string} key style name, eg: transitionDuration
+ * @return {string} style name prefixed with `prefix`, properly camelCased, eg:
+ * WebkitTransitionDuration
+ */
+
+function prefixKey(prefix, key) {
+  return prefix + key.charAt(0).toUpperCase() + key.substring(1);
+}
+/**
+ * Support style names that may come passed in prefixed by adding permutations
+ * of vendor prefixes.
+ */
+
+
+var prefixes = ['Webkit', 'ms', 'Moz', 'O']; // Using Object.keys here, or else the vanilla for-in loop makes IE8 go into an
+// infinite loop, because it iterates over the newly added props too.
+
+Object.keys(isUnitlessNumber).forEach(function (prop) {
+  prefixes.forEach(function (prefix) {
+    isUnitlessNumber[prefixKey(prefix, prop)] = isUnitlessNumber[prop];
+  });
+});
+
+var hasReadOnlyValue = {
+  button: true,
+  checkbox: true,
+  image: true,
+  hidden: true,
+  radio: true,
+  reset: true,
+  submit: true
+};
+function checkControlledValueProps(tagName, props) {
+  {
+    if (!(hasReadOnlyValue[props.type] || props.onChange || props.onInput || props.readOnly || props.disabled || props.value == null)) {
+      error('You provided a `value` prop to a form field without an ' + '`onChange` handler. This will render a read-only field. If ' + 'the field should be mutable use `defaultValue`. Otherwise, ' + 'set either `onChange` or `readOnly`.');
+    }
+
+    if (!(props.onChange || props.readOnly || props.disabled || props.checked == null)) {
+      error('You provided a `checked` prop to a form field without an ' + '`onChange` handler. This will render a read-only field. If ' + 'the field should be mutable use `defaultChecked`. Otherwise, ' + 'set either `onChange` or `readOnly`.');
+    }
+  }
+}
+
+function isCustomComponent(tagName, props) {
+  if (tagName.indexOf('-') === -1) {
+    return typeof props.is === 'string';
+  }
+
+  switch (tagName) {
+    // These are reserved SVG and MathML elements.
+    // We don't mind this list too much because we expect it to never grow.
+    // The alternative is to track the namespace in a few places which is convoluted.
+    // https://w3c.github.io/webcomponents/spec/custom/#custom-elements-core-concepts
+    case 'annotation-xml':
+    case 'color-profile':
+    case 'font-face':
+    case 'font-face-src':
+    case 'font-face-uri':
+    case 'font-face-format':
+    case 'font-face-name':
+    case 'missing-glyph':
+      return false;
+
+    default:
+      return true;
+  }
+}
+
+var ariaProperties = {
+  'aria-current': 0,
+  // state
+  'aria-description': 0,
+  'aria-details': 0,
+  'aria-disabled': 0,
+  // state
+  'aria-hidden': 0,
+  // state
+  'aria-invalid': 0,
+  // state
+  'aria-keyshortcuts': 0,
+  'aria-label': 0,
+  'aria-roledescription': 0,
+  // Widget Attributes
+  'aria-autocomplete': 0,
+  'aria-checked': 0,
+  'aria-expanded': 0,
+  'aria-haspopup': 0,
+  'aria-level': 0,
+  'aria-modal': 0,
+  'aria-multiline': 0,
+  'aria-multiselectable': 0,
+  'aria-orientation': 0,
+  'aria-placeholder': 0,
+  'aria-pressed': 0,
+  'aria-readonly': 0,
+  'aria-required': 0,
+  'aria-selected': 0,
+  'aria-sort': 0,
+  'aria-valuemax': 0,
+  'aria-valuemin': 0,
+  'aria-valuenow': 0,
+  'aria-valuetext': 0,
+  // Live Region Attributes
+  'aria-atomic': 0,
+  'aria-busy': 0,
+  'aria-live': 0,
+  'aria-relevant': 0,
+  // Drag-and-Drop Attributes
+  'aria-dropeffect': 0,
+  'aria-grabbed': 0,
+  // Relationship Attributes
+  'aria-activedescendant': 0,
+  'aria-colcount': 0,
+  'aria-colindex': 0,
+  'aria-colspan': 0,
+  'aria-controls': 0,
+  'aria-describedby': 0,
+  'aria-errormessage': 0,
+  'aria-flowto': 0,
+  'aria-labelledby': 0,
+  'aria-owns': 0,
+  'aria-posinset': 0,
+  'aria-rowcount': 0,
+  'aria-rowindex': 0,
+  'aria-rowspan': 0,
+  'aria-setsize': 0
+};
+
+var warnedProperties = {};
+var rARIA = new RegExp('^(aria)-[' + ATTRIBUTE_NAME_CHAR + ']*$');
+var rARIACamel = new RegExp('^(aria)[A-Z][' + ATTRIBUTE_NAME_CHAR + ']*$');
+
+function validateProperty(tagName, name) {
+  {
+    if (hasOwnProperty.call(warnedProperties, name) && warnedProperties[name]) {
+      return true;
+    }
+
+    if (rARIACamel.test(name)) {
+      var ariaName = 'aria-' + name.slice(4).toLowerCase();
+      var correctName = ariaProperties.hasOwnProperty(ariaName) ? ariaName : null; // If this is an aria-* attribute, but is not listed in the known DOM
+      // DOM properties, then it is an invalid aria-* attribute.
+
+      if (correctName == null) {
+        error('Invalid ARIA attribute `%s`. ARIA attributes follow the pattern aria-* and must be lowercase.', name);
+
+        warnedProperties[name] = true;
+        return true;
+      } // aria-* attributes should be lowercase; suggest the lowercase version.
+
+
+      if (name !== correctName) {
+        error('Invalid ARIA attribute `%s`. Did you mean `%s`?', name, correctName);
+
+        warnedProperties[name] = true;
+        return true;
+      }
+    }
+
+    if (rARIA.test(name)) {
+      var lowerCasedName = name.toLowerCase();
+      var standardName = ariaProperties.hasOwnProperty(lowerCasedName) ? lowerCasedName : null; // If this is an aria-* attribute, but is not listed in the known DOM
+      // DOM properties, then it is an invalid aria-* attribute.
+
+      if (standardName == null) {
+        warnedProperties[name] = true;
+        return false;
+      } // aria-* attributes should be lowercase; suggest the lowercase version.
+
+
+      if (name !== standardName) {
+        error('Unknown ARIA attribute `%s`. Did you mean `%s`?', name, standardName);
+
+        warnedProperties[name] = true;
+        return true;
+      }
+    }
+  }
+
+  return true;
+}
+
+function warnInvalidARIAProps(type, props) {
+  {
+    var invalidProps = [];
+
+    for (var key in props) {
+      var isValid = validateProperty(type, key);
+
+      if (!isValid) {
+        invalidProps.push(key);
+      }
+    }
+
+    var unknownPropString = invalidProps.map(function (prop) {
+      return '`' + prop + '`';
+    }).join(', ');
+
+    if (invalidProps.length === 1) {
+      error('Invalid aria prop %s on <%s> tag. ' + 'For details, see https://reactjs.org/link/invalid-aria-props', unknownPropString, type);
+    } else if (invalidProps.length > 1) {
+      error('Invalid aria props %s on <%s> tag. ' + 'For details, see https://reactjs.org/link/invalid-aria-props', unknownPropString, type);
+    }
+  }
+}
+
+function validateProperties(type, props) {
+  if (isCustomComponent(type, props)) {
+    return;
+  }
+
+  warnInvalidARIAProps(type, props);
+}
+
+var didWarnValueNull = false;
+function validateProperties$1(type, props) {
+  {
+    if (type !== 'input' && type !== 'textarea' && type !== 'select') {
+      return;
+    }
+
+    if (props != null && props.value === null && !didWarnValueNull) {
+      didWarnValueNull = true;
+
+      if (type === 'select' && props.multiple) {
+        error('`value` prop on `%s` should not be null. ' + 'Consider using an empty array when `multiple` is set to `true` ' + 'to clear the component or `undefined` for uncontrolled components.', type);
+      } else {
+        error('`value` prop on `%s` should not be null. ' + 'Consider using an empty string to clear the component or `undefined` ' + 'for uncontrolled components.', type);
+      }
+    }
+  }
+}
+
+// When adding attributes to the HTML or SVG allowed attribute list, be sure to
+// also add them to this module to ensure casing and incorrect name
+// warnings.
+var possibleStandardNames = {
+  // HTML
+  accept: 'accept',
+  acceptcharset: 'acceptCharset',
+  'accept-charset': 'acceptCharset',
+  accesskey: 'accessKey',
+  action: 'action',
+  allowfullscreen: 'allowFullScreen',
+  alt: 'alt',
+  as: 'as',
+  async: 'async',
+  autocapitalize: 'autoCapitalize',
+  autocomplete: 'autoComplete',
+  autocorrect: 'autoCorrect',
+  autofocus: 'autoFocus',
+  autoplay: 'autoPlay',
+  autosave: 'autoSave',
+  capture: 'capture',
+  cellpadding: 'cellPadding',
+  cellspacing: 'cellSpacing',
+  challenge: 'challenge',
+  charset: 'charSet',
+  checked: 'checked',
+  children: 'children',
+  cite: 'cite',
+  class: 'className',
+  classid: 'classID',
+  classname: 'className',
+  cols: 'cols',
+  colspan: 'colSpan',
+  content: 'content',
+  contenteditable: 'contentEditable',
+  contextmenu: 'contextMenu',
+  controls: 'controls',
+  controlslist: 'controlsList',
+  coords: 'coords',
+  crossorigin: 'crossOrigin',
+  dangerouslysetinnerhtml: 'dangerouslySetInnerHTML',
+  data: 'data',
+  datetime: 'dateTime',
+  default: 'default',
+  defaultchecked: 'defaultChecked',
+  defaultvalue: 'defaultValue',
+  defer: 'defer',
+  dir: 'dir',
+  disabled: 'disabled',
+  disablepictureinpicture: 'disablePictureInPicture',
+  disableremoteplayback: 'disableRemotePlayback',
+  download: 'download',
+  draggable: 'draggable',
+  enctype: 'encType',
+  enterkeyhint: 'enterKeyHint',
+  for: 'htmlFor',
+  form: 'form',
+  formmethod: 'formMethod',
+  formaction: 'formAction',
+  formenctype: 'formEncType',
+  formnovalidate: 'formNoValidate',
+  formtarget: 'formTarget',
+  frameborder: 'frameBorder',
+  headers: 'headers',
+  height: 'height',
+  hidden: 'hidden',
+  high: 'high',
+  href: 'href',
+  hreflang: 'hrefLang',
+  htmlfor: 'htmlFor',
+  httpequiv: 'httpEquiv',
+  'http-equiv': 'httpEquiv',
+  icon: 'icon',
+  id: 'id',
+  imagesizes: 'imageSizes',
+  imagesrcset: 'imageSrcSet',
+  innerhtml: 'innerHTML',
+  inputmode: 'inputMode',
+  integrity: 'integrity',
+  is: 'is',
+  itemid: 'itemID',
+  itemprop: 'itemProp',
+  itemref: 'itemRef',
+  itemscope: 'itemScope',
+  itemtype: 'itemType',
+  keyparams: 'keyParams',
+  keytype: 'keyType',
+  kind: 'kind',
+  label: 'label',
+  lang: 'lang',
+  list: 'list',
+  loop: 'loop',
+  low: 'low',
+  manifest: 'manifest',
+  marginwidth: 'marginWidth',
+  marginheight: 'marginHeight',
+  max: 'max',
+  maxlength: 'maxLength',
+  media: 'media',
+  mediagroup: 'mediaGroup',
+  method: 'method',
+  min: 'min',
+  minlength: 'minLength',
+  multiple: 'multiple',
+  muted: 'muted',
+  name: 'name',
+  nomodule: 'noModule',
+  nonce: 'nonce',
+  novalidate: 'noValidate',
+  open: 'open',
+  optimum: 'optimum',
+  pattern: 'pattern',
+  placeholder: 'placeholder',
+  playsinline: 'playsInline',
+  poster: 'poster',
+  preload: 'preload',
+  profile: 'profile',
+  radiogroup: 'radioGroup',
+  readonly: 'readOnly',
+  referrerpolicy: 'referrerPolicy',
+  rel: 'rel',
+  required: 'required',
+  reversed: 'reversed',
+  role: 'role',
+  rows: 'rows',
+  rowspan: 'rowSpan',
+  sandbox: 'sandbox',
+  scope: 'scope',
+  scoped: 'scoped',
+  scrolling: 'scrolling',
+  seamless: 'seamless',
+  selected: 'selected',
+  shape: 'shape',
+  size: 'size',
+  sizes: 'sizes',
+  span: 'span',
+  spellcheck: 'spellCheck',
+  src: 'src',
+  srcdoc: 'srcDoc',
+  srclang: 'srcLang',
+  srcset: 'srcSet',
+  start: 'start',
+  step: 'step',
+  style: 'style',
+  summary: 'summary',
+  tabindex: 'tabIndex',
+  target: 'target',
+  title: 'title',
+  type: 'type',
+  usemap: 'useMap',
+  value: 'value',
+  width: 'width',
+  wmode: 'wmode',
+  wrap: 'wrap',
+  // SVG
+  about: 'about',
+  accentheight: 'accentHeight',
+  'accent-height': 'accentHeight',
+  accumulate: 'accumulate',
+  additive: 'additive',
+  alignmentbaseline: 'alignmentBaseline',
+  'alignment-baseline': 'alignmentBaseline',
+  allowreorder: 'allowReorder',
+  alphabetic: 'alphabetic',
+  amplitude: 'amplitude',
+  arabicform: 'arabicForm',
+  'arabic-form': 'arabicForm',
+  ascent: 'ascent',
+  attributename: 'attributeName',
+  attributetype: 'attributeType',
+  autoreverse: 'autoReverse',
+  azimuth: 'azimuth',
+  basefrequency: 'baseFrequency',
+  baselineshift: 'baselineShift',
+  'baseline-shift': 'baselineShift',
+  baseprofile: 'baseProfile',
+  bbox: 'bbox',
+  begin: 'begin',
+  bias: 'bias',
+  by: 'by',
+  calcmode: 'calcMode',
+  capheight: 'capHeight',
+  'cap-height': 'capHeight',
+  clip: 'clip',
+  clippath: 'clipPath',
+  'clip-path': 'clipPath',
+  clippathunits: 'clipPathUnits',
+  cliprule: 'clipRule',
+  'clip-rule': 'clipRule',
+  color: 'color',
+  colorinterpolation: 'colorInterpolation',
+  'color-interpolation': 'colorInterpolation',
+  colorinterpolationfilters: 'colorInterpolationFilters',
+  'color-interpolation-filters': 'colorInterpolationFilters',
+  colorprofile: 'colorProfile',
+  'color-profile': 'colorProfile',
+  colorrendering: 'colorRendering',
+  'color-rendering': 'colorRendering',
+  contentscripttype: 'contentScriptType',
+  contentstyletype: 'contentStyleType',
+  cursor: 'cursor',
+  cx: 'cx',
+  cy: 'cy',
+  d: 'd',
+  datatype: 'datatype',
+  decelerate: 'decelerate',
+  descent: 'descent',
+  diffuseconstant: 'diffuseConstant',
+  direction: 'direction',
+  display: 'display',
+  divisor: 'divisor',
+  dominantbaseline: 'dominantBaseline',
+  'dominant-baseline': 'dominantBaseline',
+  dur: 'dur',
+  dx: 'dx',
+  dy: 'dy',
+  edgemode: 'edgeMode',
+  elevation: 'elevation',
+  enablebackground: 'enableBackground',
+  'enable-background': 'enableBackground',
+  end: 'end',
+  exponent: 'exponent',
+  externalresourcesrequired: 'externalResourcesRequired',
+  fill: 'fill',
+  fillopacity: 'fillOpacity',
+  'fill-opacity': 'fillOpacity',
+  fillrule: 'fillRule',
+  'fill-rule': 'fillRule',
+  filter: 'filter',
+  filterres: 'filterRes',
+  filterunits: 'filterUnits',
+  floodopacity: 'floodOpacity',
+  'flood-opacity': 'floodOpacity',
+  floodcolor: 'floodColor',
+  'flood-color': 'floodColor',
+  focusable: 'focusable',
+  fontfamily: 'fontFamily',
+  'font-family': 'fontFamily',
+  fontsize: 'fontSize',
+  'font-size': 'fontSize',
+  fontsizeadjust: 'fontSizeAdjust',
+  'font-size-adjust': 'fontSizeAdjust',
+  fontstretch: 'fontStretch',
+  'font-stretch': 'fontStretch',
+  fontstyle: 'fontStyle',
+  'font-style': 'fontStyle',
+  fontvariant: 'fontVariant',
+  'font-variant': 'fontVariant',
+  fontweight: 'fontWeight',
+  'font-weight': 'fontWeight',
+  format: 'format',
+  from: 'from',
+  fx: 'fx',
+  fy: 'fy',
+  g1: 'g1',
+  g2: 'g2',
+  glyphname: 'glyphName',
+  'glyph-name': 'glyphName',
+  glyphorientationhorizontal: 'glyphOrientationHorizontal',
+  'glyph-orientation-horizontal': 'glyphOrientationHorizontal',
+  glyphorientationvertical: 'glyphOrientationVertical',
+  'glyph-orientation-vertical': 'glyphOrientationVertical',
+  glyphref: 'glyphRef',
+  gradienttransform: 'gradientTransform',
+  gradientunits: 'gradientUnits',
+  hanging: 'hanging',
+  horizadvx: 'horizAdvX',
+  'horiz-adv-x': 'horizAdvX',
+  horizoriginx: 'horizOriginX',
+  'horiz-origin-x': 'horizOriginX',
+  ideographic: 'ideographic',
+  imagerendering: 'imageRendering',
+  'image-rendering': 'imageRendering',
+  in2: 'in2',
+  in: 'in',
+  inlist: 'inlist',
+  intercept: 'intercept',
+  k1: 'k1',
+  k2: 'k2',
+  k3: 'k3',
+  k4: 'k4',
+  k: 'k',
+  kernelmatrix: 'kernelMatrix',
+  kernelunitlength: 'kernelUnitLength',
+  kerning: 'kerning',
+  keypoints: 'keyPoints',
+  keysplines: 'keySplines',
+  keytimes: 'keyTimes',
+  lengthadjust: 'lengthAdjust',
+  letterspacing: 'letterSpacing',
+  'letter-spacing': 'letterSpacing',
+  lightingcolor: 'lightingColor',
+  'lighting-color': 'lightingColor',
+  limitingconeangle: 'limitingConeAngle',
+  local: 'local',
+  markerend: 'markerEnd',
+  'marker-end': 'markerEnd',
+  markerheight: 'markerHeight',
+  markermid: 'markerMid',
+  'marker-mid': 'markerMid',
+  markerstart: 'markerStart',
+  'marker-start': 'markerStart',
+  markerunits: 'markerUnits',
+  markerwidth: 'markerWidth',
+  mask: 'mask',
+  maskcontentunits: 'maskContentUnits',
+  maskunits: 'maskUnits',
+  mathematical: 'mathematical',
+  mode: 'mode',
+  numoctaves: 'numOctaves',
+  offset: 'offset',
+  opacity: 'opacity',
+  operator: 'operator',
+  order: 'order',
+  orient: 'orient',
+  orientation: 'orientation',
+  origin: 'origin',
+  overflow: 'overflow',
+  overlineposition: 'overlinePosition',
+  'overline-position': 'overlinePosition',
+  overlinethickness: 'overlineThickness',
+  'overline-thickness': 'overlineThickness',
+  paintorder: 'paintOrder',
+  'paint-order': 'paintOrder',
+  panose1: 'panose1',
+  'panose-1': 'panose1',
+  pathlength: 'pathLength',
+  patterncontentunits: 'patternContentUnits',
+  patterntransform: 'patternTransform',
+  patternunits: 'patternUnits',
+  pointerevents: 'pointerEvents',
+  'pointer-events': 'pointerEvents',
+  points: 'points',
+  pointsatx: 'pointsAtX',
+  pointsaty: 'pointsAtY',
+  pointsatz: 'pointsAtZ',
+  prefix: 'prefix',
+  preservealpha: 'preserveAlpha',
+  preserveaspectratio: 'preserveAspectRatio',
+  primitiveunits: 'primitiveUnits',
+  property: 'property',
+  r: 'r',
+  radius: 'radius',
+  refx: 'refX',
+  refy: 'refY',
+  renderingintent: 'renderingIntent',
+  'rendering-intent': 'renderingIntent',
+  repeatcount: 'repeatCount',
+  repeatdur: 'repeatDur',
+  requiredextensions: 'requiredExtensions',
+  requiredfeatures: 'requiredFeatures',
+  resource: 'resource',
+  restart: 'restart',
+  result: 'result',
+  results: 'results',
+  rotate: 'rotate',
+  rx: 'rx',
+  ry: 'ry',
+  scale: 'scale',
+  security: 'security',
+  seed: 'seed',
+  shaperendering: 'shapeRendering',
+  'shape-rendering': 'shapeRendering',
+  slope: 'slope',
+  spacing: 'spacing',
+  specularconstant: 'specularConstant',
+  specularexponent: 'specularExponent',
+  speed: 'speed',
+  spreadmethod: 'spreadMethod',
+  startoffset: 'startOffset',
+  stddeviation: 'stdDeviation',
+  stemh: 'stemh',
+  stemv: 'stemv',
+  stitchtiles: 'stitchTiles',
+  stopcolor: 'stopColor',
+  'stop-color': 'stopColor',
+  stopopacity: 'stopOpacity',
+  'stop-opacity': 'stopOpacity',
+  strikethroughposition: 'strikethroughPosition',
+  'strikethrough-position': 'strikethroughPosition',
+  strikethroughthickness: 'strikethroughThickness',
+  'strikethrough-thickness': 'strikethroughThickness',
+  string: 'string',
+  stroke: 'stroke',
+  strokedasharray: 'strokeDasharray',
+  'stroke-dasharray': 'strokeDasharray',
+  strokedashoffset: 'strokeDashoffset',
+  'stroke-dashoffset': 'strokeDashoffset',
+  strokelinecap: 'strokeLinecap',
+  'stroke-linecap': 'strokeLinecap',
+  strokelinejoin: 'strokeLinejoin',
+  'stroke-linejoin': 'strokeLinejoin',
+  strokemiterlimit: 'strokeMiterlimit',
+  'stroke-miterlimit': 'strokeMiterlimit',
+  strokewidth: 'strokeWidth',
+  'stroke-width': 'strokeWidth',
+  strokeopacity: 'strokeOpacity',
+  'stroke-opacity': 'strokeOpacity',
+  suppresscontenteditablewarning: 'suppressContentEditableWarning',
+  suppresshydrationwarning: 'suppressHydrationWarning',
+  surfacescale: 'surfaceScale',
+  systemlanguage: 'systemLanguage',
+  tablevalues: 'tableValues',
+  targetx: 'targetX',
+  targety: 'targetY',
+  textanchor: 'textAnchor',
+  'text-anchor': 'textAnchor',
+  textdecoration: 'textDecoration',
+  'text-decoration': 'textDecoration',
+  textlength: 'textLength',
+  textrendering: 'textRendering',
+  'text-rendering': 'textRendering',
+  to: 'to',
+  transform: 'transform',
+  typeof: 'typeof',
+  u1: 'u1',
+  u2: 'u2',
+  underlineposition: 'underlinePosition',
+  'underline-position': 'underlinePosition',
+  underlinethickness: 'underlineThickness',
+  'underline-thickness': 'underlineThickness',
+  unicode: 'unicode',
+  unicodebidi: 'unicodeBidi',
+  'unicode-bidi': 'unicodeBidi',
+  unicoderange: 'unicodeRange',
+  'unicode-range': 'unicodeRange',
+  unitsperem: 'unitsPerEm',
+  'units-per-em': 'unitsPerEm',
+  unselectable: 'unselectable',
+  valphabetic: 'vAlphabetic',
+  'v-alphabetic': 'vAlphabetic',
+  values: 'values',
+  vectoreffect: 'vectorEffect',
+  'vector-effect': 'vectorEffect',
+  version: 'version',
+  vertadvy: 'vertAdvY',
+  'vert-adv-y': 'vertAdvY',
+  vertoriginx: 'vertOriginX',
+  'vert-origin-x': 'vertOriginX',
+  vertoriginy: 'vertOriginY',
+  'vert-origin-y': 'vertOriginY',
+  vhanging: 'vHanging',
+  'v-hanging': 'vHanging',
+  videographic: 'vIdeographic',
+  'v-ideographic': 'vIdeographic',
+  viewbox: 'viewBox',
+  viewtarget: 'viewTarget',
+  visibility: 'visibility',
+  vmathematical: 'vMathematical',
+  'v-mathematical': 'vMathematical',
+  vocab: 'vocab',
+  widths: 'widths',
+  wordspacing: 'wordSpacing',
+  'word-spacing': 'wordSpacing',
+  writingmode: 'writingMode',
+  'writing-mode': 'writingMode',
+  x1: 'x1',
+  x2: 'x2',
+  x: 'x',
+  xchannelselector: 'xChannelSelector',
+  xheight: 'xHeight',
+  'x-height': 'xHeight',
+  xlinkactuate: 'xlinkActuate',
+  'xlink:actuate': 'xlinkActuate',
+  xlinkarcrole: 'xlinkArcrole',
+  'xlink:arcrole': 'xlinkArcrole',
+  xlinkhref: 'xlinkHref',
+  'xlink:href': 'xlinkHref',
+  xlinkrole: 'xlinkRole',
+  'xlink:role': 'xlinkRole',
+  xlinkshow: 'xlinkShow',
+  'xlink:show': 'xlinkShow',
+  xlinktitle: 'xlinkTitle',
+  'xlink:title': 'xlinkTitle',
+  xlinktype: 'xlinkType',
+  'xlink:type': 'xlinkType',
+  xmlbase: 'xmlBase',
+  'xml:base': 'xmlBase',
+  xmllang: 'xmlLang',
+  'xml:lang': 'xmlLang',
+  xmlns: 'xmlns',
+  'xml:space': 'xmlSpace',
+  xmlnsxlink: 'xmlnsXlink',
+  'xmlns:xlink': 'xmlnsXlink',
+  xmlspace: 'xmlSpace',
+  y1: 'y1',
+  y2: 'y2',
+  y: 'y',
+  ychannelselector: 'yChannelSelector',
+  z: 'z',
+  zoomandpan: 'zoomAndPan'
+};
+
+var validateProperty$1 = function () {};
+
+{
+  var warnedProperties$1 = {};
+  var EVENT_NAME_REGEX = /^on./;
+  var INVALID_EVENT_NAME_REGEX = /^on[^A-Z]/;
+  var rARIA$1 = new RegExp('^(aria)-[' + ATTRIBUTE_NAME_CHAR + ']*$');
+  var rARIACamel$1 = new RegExp('^(aria)[A-Z][' + ATTRIBUTE_NAME_CHAR + ']*$');
+
+  validateProperty$1 = function (tagName, name, value, eventRegistry) {
+    if (hasOwnProperty.call(warnedProperties$1, name) && warnedProperties$1[name]) {
+      return true;
+    }
+
+    var lowerCasedName = name.toLowerCase();
+
+    if (lowerCasedName === 'onfocusin' || lowerCasedName === 'onfocusout') {
+      error('React uses onFocus and onBlur instead of onFocusIn and onFocusOut. ' + 'All React events are normalized to bubble, so onFocusIn and onFocusOut ' + 'are not needed/supported by React.');
+
+      warnedProperties$1[name] = true;
+      return true;
+    } // We can't rely on the event system being injected on the server.
+
+
+    if (eventRegistry != null) {
+      var registrationNameDependencies = eventRegistry.registrationNameDependencies,
+          possibleRegistrationNames = eventRegistry.possibleRegistrationNames;
+
+      if (registrationNameDependencies.hasOwnProperty(name)) {
+        return true;
+      }
+
+      var registrationName = possibleRegistrationNames.hasOwnProperty(lowerCasedName) ? possibleRegistrationNames[lowerCasedName] : null;
+
+      if (registrationName != null) {
+        error('Invalid event handler property `%s`. Did you mean `%s`?', name, registrationName);
+
+        warnedProperties$1[name] = true;
+        return true;
+      }
+
+      if (EVENT_NAME_REGEX.test(name)) {
+        error('Unknown event handler property `%s`. It will be ignored.', name);
+
+        warnedProperties$1[name] = true;
+        return true;
+      }
+    } else if (EVENT_NAME_REGEX.test(name)) {
+      // If no event plugins have been injected, we are in a server environment.
+      // So we can't tell if the event name is correct for sure, but we can filter
+      // out known bad ones like `onclick`. We can't suggest a specific replacement though.
+      if (INVALID_EVENT_NAME_REGEX.test(name)) {
+        error('Invalid event handler property `%s`. ' + 'React events use the camelCase naming convention, for example `onClick`.', name);
+      }
+
+      warnedProperties$1[name] = true;
+      return true;
+    } // Let the ARIA attribute hook validate ARIA attributes
+
+
+    if (rARIA$1.test(name) || rARIACamel$1.test(name)) {
+      return true;
+    }
+
+    if (lowerCasedName === 'innerhtml') {
+      error('Directly setting property `innerHTML` is not permitted. ' + 'For more information, lookup documentation on `dangerouslySetInnerHTML`.');
+
+      warnedProperties$1[name] = true;
+      return true;
+    }
+
+    if (lowerCasedName === 'aria') {
+      error('The `aria` attribute is reserved for future use in React. ' + 'Pass individual `aria-` attributes instead.');
+
+      warnedProperties$1[name] = true;
+      return true;
+    }
+
+    if (lowerCasedName === 'is' && value !== null && value !== undefined && typeof value !== 'string') {
+      error('Received a `%s` for a string attribute `is`. If this is expected, cast ' + 'the value to a string.', typeof value);
+
+      warnedProperties$1[name] = true;
+      return true;
+    }
+
+    if (typeof value === 'number' && isNaN(value)) {
+      error('Received NaN for the `%s` attribute. If this is expected, cast ' + 'the value to a string.', name);
+
+      warnedProperties$1[name] = true;
+      return true;
+    }
+
+    var propertyInfo = getPropertyInfo(name);
+    var isReserved = propertyInfo !== null && propertyInfo.type === RESERVED; // Known attributes should match the casing specified in the property config.
+
+    if (possibleStandardNames.hasOwnProperty(lowerCasedName)) {
+      var standardName = possibleStandardNames[lowerCasedName];
+
+      if (standardName !== name) {
+        error('Invalid DOM property `%s`. Did you mean `%s`?', name, standardName);
+
+        warnedProperties$1[name] = true;
+        return true;
+      }
+    } else if (!isReserved && name !== lowerCasedName) {
+      // Unknown attributes should have lowercase casing since that's how they
+      // will be cased anyway with server rendering.
+      error('React does not recognize the `%s` prop on a DOM element. If you ' + 'intentionally want it to appear in the DOM as a custom ' + 'attribute, spell it as lowercase `%s` instead. ' + 'If you accidentally passed it from a parent component, remove ' + 'it from the DOM element.', name, lowerCasedName);
+
+      warnedProperties$1[name] = true;
+      return true;
+    }
+
+    if (typeof value === 'boolean' && shouldRemoveAttributeWithWarning(name, value, propertyInfo, false)) {
+      if (value) {
+        error('Received `%s` for a non-boolean attribute `%s`.\n\n' + 'If you want to write it to the DOM, pass a string instead: ' + '%s="%s" or %s={value.toString()}.', value, name, name, value, name);
+      } else {
+        error('Received `%s` for a non-boolean attribute `%s`.\n\n' + 'If you want to write it to the DOM, pass a string instead: ' + '%s="%s" or %s={value.toString()}.\n\n' + 'If you used to conditionally omit it with %s={condition && value}, ' + 'pass %s={condition ? value : undefined} instead.', value, name, name, value, name, name, name);
+      }
+
+      warnedProperties$1[name] = true;
+      return true;
+    } // Now that we've validated casing, do not validate
+    // data types for reserved props
+
+
+    if (isReserved) {
+      return true;
+    } // Warn when a known attribute is a bad type
+
+
+    if (shouldRemoveAttributeWithWarning(name, value, propertyInfo, false)) {
+      warnedProperties$1[name] = true;
+      return false;
+    } // Warn when passing the strings 'false' or 'true' into a boolean prop
+
+
+    if ((value === 'false' || value === 'true') && propertyInfo !== null && propertyInfo.type === BOOLEAN) {
+      error('Received the string `%s` for the boolean attribute `%s`. ' + '%s ' + 'Did you mean %s={%s}?', value, name, value === 'false' ? 'The browser will interpret it as a truthy value.' : 'Although this works, it will not work as expected if you pass the string "false".', name, value);
+
+      warnedProperties$1[name] = true;
+      return true;
+    }
+
+    return true;
+  };
+}
+
+var warnUnknownProperties = function (type, props, eventRegistry) {
+  {
+    var unknownProps = [];
+
+    for (var key in props) {
+      var isValid = validateProperty$1(type, key, props[key], eventRegistry);
+
+      if (!isValid) {
+        unknownProps.push(key);
+      }
+    }
+
+    var unknownPropString = unknownProps.map(function (prop) {
+      return '`' + prop + '`';
+    }).join(', ');
+
+    if (unknownProps.length === 1) {
+      error('Invalid value for prop %s on <%s> tag. Either remove it from the element, ' + 'or pass a string or number value to keep it in the DOM. ' + 'For details, see https://reactjs.org/link/attribute-behavior ', unknownPropString, type);
+    } else if (unknownProps.length > 1) {
+      error('Invalid values for props %s on <%s> tag. Either remove them from the element, ' + 'or pass a string or number value to keep them in the DOM. ' + 'For details, see https://reactjs.org/link/attribute-behavior ', unknownPropString, type);
+    }
+  }
+};
+
+function validateProperties$2(type, props, eventRegistry) {
+  if (isCustomComponent(type, props)) {
+    return;
+  }
+
+  warnUnknownProperties(type, props, eventRegistry);
+}
+
+var warnValidStyle = function () {};
+
+{
+  // 'msTransform' is correct, but the other prefixes should be capitalized
+  var badVendoredStyleNamePattern = /^(?:webkit|moz|o)[A-Z]/;
+  var msPattern = /^-ms-/;
+  var hyphenPattern = /-(.)/g; // style values shouldn't contain a semicolon
+
+  var badStyleValueWithSemicolonPattern = /;\s*$/;
+  var warnedStyleNames = {};
+  var warnedStyleValues = {};
+  var warnedForNaNValue = false;
+  var warnedForInfinityValue = false;
+
+  var camelize = function (string) {
+    return string.replace(hyphenPattern, function (_, character) {
+      return character.toUpperCase();
+    });
+  };
+
+  var warnHyphenatedStyleName = function (name) {
+    if (warnedStyleNames.hasOwnProperty(name) && warnedStyleNames[name]) {
+      return;
+    }
+
+    warnedStyleNames[name] = true;
+
+    error('Unsupported style property %s. Did you mean %s?', name, // As Andi Smith suggests
+    // (http://www.andismith.com/blog/2012/02/modernizr-prefixed/), an `-ms` prefix
+    // is converted to lowercase `ms`.
+    camelize(name.replace(msPattern, 'ms-')));
+  };
+
+  var warnBadVendoredStyleName = function (name) {
+    if (warnedStyleNames.hasOwnProperty(name) && warnedStyleNames[name]) {
+      return;
+    }
+
+    warnedStyleNames[name] = true;
+
+    error('Unsupported vendor-prefixed style property %s. Did you mean %s?', name, name.charAt(0).toUpperCase() + name.slice(1));
+  };
+
+  var warnStyleValueWithSemicolon = function (name, value) {
+    if (warnedStyleValues.hasOwnProperty(value) && warnedStyleValues[value]) {
+      return;
+    }
+
+    warnedStyleValues[value] = true;
+
+    error("Style property values shouldn't contain a semicolon. " + 'Try "%s: %s" instead.', name, value.replace(badStyleValueWithSemicolonPattern, ''));
+  };
+
+  var warnStyleValueIsNaN = function (name, value) {
+    if (warnedForNaNValue) {
+      return;
+    }
+
+    warnedForNaNValue = true;
+
+    error('`NaN` is an invalid value for the `%s` css style property.', name);
+  };
+
+  var warnStyleValueIsInfinity = function (name, value) {
+    if (warnedForInfinityValue) {
+      return;
+    }
+
+    warnedForInfinityValue = true;
+
+    error('`Infinity` is an invalid value for the `%s` css style property.', name);
+  };
+
+  warnValidStyle = function (name, value) {
+    if (name.indexOf('-') > -1) {
+      warnHyphenatedStyleName(name);
+    } else if (badVendoredStyleNamePattern.test(name)) {
+      warnBadVendoredStyleName(name);
+    } else if (badStyleValueWithSemicolonPattern.test(value)) {
+      warnStyleValueWithSemicolon(name, value);
+    }
+
+    if (typeof value === 'number') {
+      if (isNaN(value)) {
+        warnStyleValueIsNaN(name, value);
+      } else if (!isFinite(value)) {
+        warnStyleValueIsInfinity(name, value);
+      }
+    }
+  };
+}
+
+var warnValidStyle$1 = warnValidStyle;
+
+// code copied and modified from escape-html
+var matchHtmlRegExp = /["'&<>]/;
+/**
+ * Escapes special characters and HTML entities in a given html string.
+ *
+ * @param  {string} string HTML string to escape for later insertion
+ * @return {string}
+ * @public
+ */
+
+function escapeHtml(string) {
+  {
+    checkHtmlStringCoercion(string);
+  }
+
+  var str = '' + string;
+  var match = matchHtmlRegExp.exec(str);
+
+  if (!match) {
+    return str;
+  }
+
+  var escape;
+  var html = '';
+  var index;
+  var lastIndex = 0;
+
+  for (index = match.index; index < str.length; index++) {
+    switch (str.charCodeAt(index)) {
+      case 34:
+        // "
+        escape = '&quot;';
+        break;
+
+      case 38:
+        // &
+        escape = '&amp;';
+        break;
+
+      case 39:
+        // '
+        escape = '&#x27;'; // modified from escape-html; used to be '&#39'
+
+        break;
+
+      case 60:
+        // <
+        escape = '&lt;';
+        break;
+
+      case 62:
+        // >
+        escape = '&gt;';
+        break;
+
+      default:
+        continue;
+    }
+
+    if (lastIndex !== index) {
+      html += str.substring(lastIndex, index);
+    }
+
+    lastIndex = index + 1;
+    html += escape;
+  }
+
+  return lastIndex !== index ? html + str.substring(lastIndex, index) : html;
+} // end code copied and modified from escape-html
+
+/**
+ * Escapes text to prevent scripting attacks.
+ *
+ * @param {*} text Text value to escape.
+ * @return {string} An escaped string.
+ */
+
+
+function escapeTextForBrowser(text) {
+  if (typeof text === 'boolean' || typeof text === 'number') {
+    // this shortcircuit helps perf for types that we know will never have
+    // special characters, especially given that this function is used often
+    // for numeric dom ids.
+    return '' + text;
+  }
+
+  return escapeHtml(text);
+}
+
+var uppercasePattern = /([A-Z])/g;
+var msPattern$1 = /^ms-/;
+/**
+ * Hyphenates a camelcased CSS property name, for example:
+ *
+ *   > hyphenateStyleName('backgroundColor')
+ *   < "background-color"
+ *   > hyphenateStyleName('MozTransition')
+ *   < "-moz-transition"
+ *   > hyphenateStyleName('msTransition')
+ *   < "-ms-transition"
+ *
+ * As Modernizr suggests (http://modernizr.com/docs/#prefixed), an `ms` prefix
+ * is converted to `-ms-`.
+ */
+
+function hyphenateStyleName(name) {
+  return name.replace(uppercasePattern, '-$1').toLowerCase().replace(msPattern$1, '-ms-');
+}
+
+// and any newline or tab are filtered out as if they're not part of the URL.
+// https://url.spec.whatwg.org/#url-parsing
+// Tab or newline are defined as \r\n\t:
+// https://infra.spec.whatwg.org/#ascii-tab-or-newline
+// A C0 control is a code point in the range \u0000 NULL to \u001F
+// INFORMATION SEPARATOR ONE, inclusive:
+// https://infra.spec.whatwg.org/#c0-control-or-space
+
+/* eslint-disable max-len */
+
+var isJavaScriptProtocol = /^[\u0000-\u001F ]*j[\r\n\t]*a[\r\n\t]*v[\r\n\t]*a[\r\n\t]*s[\r\n\t]*c[\r\n\t]*r[\r\n\t]*i[\r\n\t]*p[\r\n\t]*t[\r\n\t]*\:/i;
+var didWarn = false;
+
+function sanitizeURL(url) {
+  {
+    if (!didWarn && isJavaScriptProtocol.test(url)) {
+      didWarn = true;
+
+      error('A future version of React will block javascript: URLs as a security precaution. ' + 'Use event handlers instead if you can. If you need to generate unsafe HTML try ' + 'using dangerouslySetInnerHTML instead. React was passed %s.', JSON.stringify(url));
+    }
+  }
+}
+
+var isArrayImpl = Array.isArray; // eslint-disable-next-line no-redeclare
+
+function isArray(a) {
+  return isArrayImpl(a);
+}
+
+var startInlineScript = stringToPrecomputedChunk('<script>');
+var endInlineScript = stringToPrecomputedChunk('</script>');
+var startScriptSrc = stringToPrecomputedChunk('<script src="');
+var startModuleSrc = stringToPrecomputedChunk('<script type="module" src="');
+var scriptIntegirty = stringToPrecomputedChunk('" integrity="');
+var endAsyncScript = stringToPrecomputedChunk('" async=""></script>');
+/**
+ * This escaping function is designed to work with bootstrapScriptContent only.
+ * because we know we are escaping the entire script. We can avoid for instance
+ * escaping html comment string sequences that are valid javascript as well because
+ * if there are no sebsequent <script sequences the html parser will never enter
+ * script data double escaped state (see: https://www.w3.org/TR/html53/syntax.html#script-data-double-escaped-state)
+ *
+ * While untrusted script content should be made safe before using this api it will
+ * ensure that the script cannot be early terminated or never terminated state
+ */
+
+function escapeBootstrapScriptContent(scriptText) {
+  {
+    checkHtmlStringCoercion(scriptText);
+  }
+
+  return ('' + scriptText).replace(scriptRegex, scriptReplacer);
+}
+
+var scriptRegex = /(<\/|<)(s)(cript)/gi;
+
+var scriptReplacer = function (match, prefix, s, suffix) {
+  return "" + prefix + (s === 's' ? "\\u0073" : "\\u0053") + suffix;
+};
+
+// Allows us to keep track of what we've already written so we can refer back to it.
+function createResponseState(identifierPrefix, nonce, bootstrapScriptContent, bootstrapScripts, bootstrapModules) {
+  var idPrefix = identifierPrefix === undefined ? '' : identifierPrefix;
+  var inlineScriptWithNonce = nonce === undefined ? startInlineScript : stringToPrecomputedChunk('<script nonce="' + escapeTextForBrowser(nonce) + '">');
+  var bootstrapChunks = [];
+
+  if (bootstrapScriptContent !== undefined) {
+    bootstrapChunks.push(inlineScriptWithNonce, stringToChunk(escapeBootstrapScriptContent(bootstrapScriptContent)), endInlineScript);
+  }
+
+  if (bootstrapScripts !== undefined) {
+    for (var i = 0; i < bootstrapScripts.length; i++) {
+      var scriptConfig = bootstrapScripts[i];
+      var src = typeof scriptConfig === 'string' ? scriptConfig : scriptConfig.src;
+      var integrity = typeof scriptConfig === 'string' ? undefined : scriptConfig.integrity;
+      bootstrapChunks.push(startScriptSrc, stringToChunk(escapeTextForBrowser(src)));
+
+      if (integrity) {
+        bootstrapChunks.push(scriptIntegirty, stringToChunk(escapeTextForBrowser(integrity)));
+      }
+
+      bootstrapChunks.push(endAsyncScript);
+    }
+  }
+
+  if (bootstrapModules !== undefined) {
+    for (var _i = 0; _i < bootstrapModules.length; _i++) {
+      var _scriptConfig = bootstrapModules[_i];
+
+      var _src = typeof _scriptConfig === 'string' ? _scriptConfig : _scriptConfig.src;
+
+      var _integrity = typeof _scriptConfig === 'string' ? undefined : _scriptConfig.integrity;
+
+      bootstrapChunks.push(startModuleSrc, stringToChunk(escapeTextForBrowser(_src)));
+
+      if (_integrity) {
+        bootstrapChunks.push(scriptIntegirty, stringToChunk(escapeTextForBrowser(_integrity)));
+      }
+
+      bootstrapChunks.push(endAsyncScript);
+    }
+  }
+
+  return {
+    bootstrapChunks: bootstrapChunks,
+    startInlineScript: inlineScriptWithNonce,
+    placeholderPrefix: stringToPrecomputedChunk(idPrefix + 'P:'),
+    segmentPrefix: stringToPrecomputedChunk(idPrefix + 'S:'),
+    boundaryPrefix: idPrefix + 'B:',
+    idPrefix: idPrefix,
+    nextSuspenseID: 0,
+    sentCompleteSegmentFunction: false,
+    sentCompleteBoundaryFunction: false,
+    sentClientRenderFunction: false
+  };
+} // Constants for the insertion mode we're currently writing in. We don't encode all HTML5 insertion
+// modes. We only include the variants as they matter for the sake of our purposes.
+// We don't actually provide the namespace therefore we use constants instead of the string.
+
+var ROOT_HTML_MODE = 0; // Used for the root most element tag.
+
+var HTML_MODE = 1;
+var SVG_MODE = 2;
+var MATHML_MODE = 3;
+var HTML_TABLE_MODE = 4;
+var HTML_TABLE_BODY_MODE = 5;
+var HTML_TABLE_ROW_MODE = 6;
+var HTML_COLGROUP_MODE = 7; // We have a greater than HTML_TABLE_MODE check elsewhere. If you add more cases here, make sure it
+// still makes sense
+
+function createFormatContext(insertionMode, selectedValue) {
+  return {
+    insertionMode: insertionMode,
+    selectedValue: selectedValue
+  };
+}
+function getChildFormatContext(parentContext, type, props) {
+  switch (type) {
+    case 'select':
+      return createFormatContext(HTML_MODE, props.value != null ? props.value : props.defaultValue);
+
+    case 'svg':
+      return createFormatContext(SVG_MODE, null);
+
+    case 'math':
+      return createFormatContext(MATHML_MODE, null);
+
+    case 'foreignObject':
+      return createFormatContext(HTML_MODE, null);
+    // Table parents are special in that their children can only be created at all if they're
+    // wrapped in a table parent. So we need to encode that we're entering this mode.
+
+    case 'table':
+      return createFormatContext(HTML_TABLE_MODE, null);
+
+    case 'thead':
+    case 'tbody':
+    case 'tfoot':
+      return createFormatContext(HTML_TABLE_BODY_MODE, null);
+
+    case 'colgroup':
+      return createFormatContext(HTML_COLGROUP_MODE, null);
+
+    case 'tr':
+      return createFormatContext(HTML_TABLE_ROW_MODE, null);
+  }
+
+  if (parentContext.insertionMode >= HTML_TABLE_MODE) {
+    // Whatever tag this was, it wasn't a table parent or other special parent, so we must have
+    // entered plain HTML again.
+    return createFormatContext(HTML_MODE, null);
+  }
+
+  if (parentContext.insertionMode === ROOT_HTML_MODE) {
+    // We've emitted the root and is now in plain HTML mode.
+    return createFormatContext(HTML_MODE, null);
+  }
+
+  return parentContext;
+}
+var UNINITIALIZED_SUSPENSE_BOUNDARY_ID = null;
+function assignSuspenseBoundaryID(responseState) {
+  var generatedID = responseState.nextSuspenseID++;
+  return stringToPrecomputedChunk(responseState.boundaryPrefix + generatedID.toString(16));
+}
+function makeId(responseState, treeId, localId) {
+  var idPrefix = responseState.idPrefix;
+  var id = ':' + idPrefix + 'R' + treeId; // Unless this is the first id at this level, append a number at the end
+  // that represents the position of this useId hook among all the useId
+  // hooks for this fiber.
+
+  if (localId > 0) {
+    id += 'H' + localId.toString(32);
+  }
+
+  return id + ':';
+}
+
+function encodeHTMLTextNode(text) {
+  return escapeTextForBrowser(text);
+}
+
+var textSeparator = stringToPrecomputedChunk('<!-- -->');
+function pushTextInstance(target, text, responseState, textEmbedded) {
+  if (text === '') {
+    // Empty text doesn't have a DOM node representation and the hydration is aware of this.
+    return textEmbedded;
+  }
+
+  if (textEmbedded) {
+    target.push(textSeparator);
+  }
+
+  target.push(stringToChunk(encodeHTMLTextNode(text)));
+  return true;
+} // Called when Fizz is done with a Segment. Currently the only purpose is to conditionally
+// emit a text separator when we don't know for sure it is safe to omit
+
+function pushSegmentFinale(target, responseState, lastPushedText, textEmbedded) {
+  if (lastPushedText && textEmbedded) {
+    target.push(textSeparator);
+  }
+}
+var styleNameCache = new Map();
+
+function processStyleName(styleName) {
+  var chunk = styleNameCache.get(styleName);
+
+  if (chunk !== undefined) {
+    return chunk;
+  }
+
+  var result = stringToPrecomputedChunk(escapeTextForBrowser(hyphenateStyleName(styleName)));
+  styleNameCache.set(styleName, result);
+  return result;
+}
+
+var styleAttributeStart = stringToPrecomputedChunk(' style="');
+var styleAssign = stringToPrecomputedChunk(':');
+var styleSeparator = stringToPrecomputedChunk(';');
+
+function pushStyle(target, responseState, style) {
+  if (typeof style !== 'object') {
+    throw new Error('The `style` prop expects a mapping from style properties to values, ' + "not a string. For example, style={{marginRight: spacing + 'em'}} when " + 'using JSX.');
+  }
+
+  var isFirst = true;
+
+  for (var styleName in style) {
+    if (!hasOwnProperty.call(style, styleName)) {
+      continue;
+    } // If you provide unsafe user data here they can inject arbitrary CSS
+    // which may be problematic (I couldn't repro this):
+    // https://www.owasp.org/index.php/XSS_Filter_Evasion_Cheat_Sheet
+    // http://www.thespanner.co.uk/2007/11/26/ultimate-xss-css-injection/
+    // This is not an XSS hole but instead a potential CSS injection issue
+    // which has lead to a greater discussion about how we're going to
+    // trust URLs moving forward. See #2115901
+
+
+    var styleValue = style[styleName];
+
+    if (styleValue == null || typeof styleValue === 'boolean' || styleValue === '') {
+      // TODO: We used to set empty string as a style with an empty value. Does that ever make sense?
+      continue;
+    }
+
+    var nameChunk = void 0;
+    var valueChunk = void 0;
+    var isCustomProperty = styleName.indexOf('--') === 0;
+
+    if (isCustomProperty) {
+      nameChunk = stringToChunk(escapeTextForBrowser(styleName));
+
+      {
+        checkCSSPropertyStringCoercion(styleValue, styleName);
+      }
+
+      valueChunk = stringToChunk(escapeTextForBrowser(('' + styleValue).trim()));
+    } else {
+      {
+        warnValidStyle$1(styleName, styleValue);
+      }
+
+      nameChunk = processStyleName(styleName);
+
+      if (typeof styleValue === 'number') {
+        if (styleValue !== 0 && !hasOwnProperty.call(isUnitlessNumber, styleName)) {
+          valueChunk = stringToChunk(styleValue + 'px'); // Presumes implicit 'px' suffix for unitless numbers
+        } else {
+          valueChunk = stringToChunk('' + styleValue);
+        }
+      } else {
+        {
+          checkCSSPropertyStringCoercion(styleValue, styleName);
+        }
+
+        valueChunk = stringToChunk(escapeTextForBrowser(('' + styleValue).trim()));
+      }
+    }
+
+    if (isFirst) {
+      isFirst = false; // If it's first, we don't need any separators prefixed.
+
+      target.push(styleAttributeStart, nameChunk, styleAssign, valueChunk);
+    } else {
+      target.push(styleSeparator, nameChunk, styleAssign, valueChunk);
+    }
+  }
+
+  if (!isFirst) {
+    target.push(attributeEnd);
+  }
+}
+
+var attributeSeparator = stringToPrecomputedChunk(' ');
+var attributeAssign = stringToPrecomputedChunk('="');
+var attributeEnd = stringToPrecomputedChunk('"');
+var attributeEmptyString = stringToPrecomputedChunk('=""');
+
+function pushAttribute(target, responseState, name, value) {
+  switch (name) {
+    case 'style':
+      {
+        pushStyle(target, responseState, value);
+        return;
+      }
+
+    case 'defaultValue':
+    case 'defaultChecked': // These shouldn't be set as attributes on generic HTML elements.
+
+    case 'innerHTML': // Must use dangerouslySetInnerHTML instead.
+
+    case 'suppressContentEditableWarning':
+    case 'suppressHydrationWarning':
+      // Ignored. These are built-in to React on the client.
+      return;
+  }
+
+  if ( // shouldIgnoreAttribute
+  // We have already filtered out null/undefined and reserved words.
+  name.length > 2 && (name[0] === 'o' || name[0] === 'O') && (name[1] === 'n' || name[1] === 'N')) {
+    return;
+  }
+
+  var propertyInfo = getPropertyInfo(name);
+
+  if (propertyInfo !== null) {
+    // shouldRemoveAttribute
+    switch (typeof value) {
+      case 'function': // $FlowFixMe symbol is perfectly valid here
+
+      case 'symbol':
+        // eslint-disable-line
+        return;
+
+      case 'boolean':
+        {
+          if (!propertyInfo.acceptsBooleans) {
+            return;
+          }
+        }
+    }
+
+    var attributeName = propertyInfo.attributeName;
+    var attributeNameChunk = stringToChunk(attributeName); // TODO: If it's known we can cache the chunk.
+
+    switch (propertyInfo.type) {
+      case BOOLEAN:
+        if (value) {
+          target.push(attributeSeparator, attributeNameChunk, attributeEmptyString);
+        }
+
+        return;
+
+      case OVERLOADED_BOOLEAN:
+        if (value === true) {
+          target.push(attributeSeparator, attributeNameChunk, attributeEmptyString);
+        } else if (value === false) ; else {
+          target.push(attributeSeparator, attributeNameChunk, attributeAssign, stringToChunk(escapeTextForBrowser(value)), attributeEnd);
+        }
+
+        return;
+
+      case NUMERIC:
+        if (!isNaN(value)) {
+          target.push(attributeSeparator, attributeNameChunk, attributeAssign, stringToChunk(escapeTextForBrowser(value)), attributeEnd);
+        }
+
+        break;
+
+      case POSITIVE_NUMERIC:
+        if (!isNaN(value) && value >= 1) {
+          target.push(attributeSeparator, attributeNameChunk, attributeAssign, stringToChunk(escapeTextForBrowser(value)), attributeEnd);
+        }
+
+        break;
+
+      default:
+        if (propertyInfo.sanitizeURL) {
+          {
+            checkAttributeStringCoercion(value, attributeName);
+          }
+
+          value = '' + value;
+          sanitizeURL(value);
+        }
+
+        target.push(attributeSeparator, attributeNameChunk, attributeAssign, stringToChunk(escapeTextForBrowser(value)), attributeEnd);
+    }
+  } else if (isAttributeNameSafe(name)) {
+    // shouldRemoveAttribute
+    switch (typeof value) {
+      case 'function': // $FlowFixMe symbol is perfectly valid here
+
+      case 'symbol':
+        // eslint-disable-line
+        return;
+
+      case 'boolean':
+        {
+          var prefix = name.toLowerCase().slice(0, 5);
+
+          if (prefix !== 'data-' && prefix !== 'aria-') {
+            return;
+          }
+        }
+    }
+
+    target.push(attributeSeparator, stringToChunk(name), attributeAssign, stringToChunk(escapeTextForBrowser(value)), attributeEnd);
+  }
+}
+
+var endOfStartTag = stringToPrecomputedChunk('>');
+var endOfStartTagSelfClosing = stringToPrecomputedChunk('/>');
+
+function pushInnerHTML(target, innerHTML, children) {
+  if (innerHTML != null) {
+    if (children != null) {
+      throw new Error('Can only set one of `children` or `props.dangerouslySetInnerHTML`.');
+    }
+
+    if (typeof innerHTML !== 'object' || !('__html' in innerHTML)) {
+      throw new Error('`props.dangerouslySetInnerHTML` must be in the form `{__html: ...}`. ' + 'Please visit https://reactjs.org/link/dangerously-set-inner-html ' + 'for more information.');
+    }
+
+    var html = innerHTML.__html;
+
+    if (html !== null && html !== undefined) {
+      {
+        checkHtmlStringCoercion(html);
+      }
+
+      target.push(stringToChunk('' + html));
+    }
+  }
+} // TODO: Move these to ResponseState so that we warn for every request.
+// It would help debugging in stateful servers (e.g. service worker).
+
+
+var didWarnDefaultInputValue = false;
+var didWarnDefaultChecked = false;
+var didWarnDefaultSelectValue = false;
+var didWarnDefaultTextareaValue = false;
+var didWarnInvalidOptionChildren = false;
+var didWarnInvalidOptionInnerHTML = false;
+var didWarnSelectedSetOnOption = false;
+
+function checkSelectProp(props, propName) {
+  {
+    var value = props[propName];
+
+    if (value != null) {
+      var array = isArray(value);
+
+      if (props.multiple && !array) {
+        error('The `%s` prop supplied to <select> must be an array if ' + '`multiple` is true.', propName);
+      } else if (!props.multiple && array) {
+        error('The `%s` prop supplied to <select> must be a scalar ' + 'value if `multiple` is false.', propName);
+      }
+    }
+  }
+}
+
+function pushStartSelect(target, props, responseState) {
+  {
+    checkControlledValueProps('select', props);
+    checkSelectProp(props, 'value');
+    checkSelectProp(props, 'defaultValue');
+
+    if (props.value !== undefined && props.defaultValue !== undefined && !didWarnDefaultSelectValue) {
+      error('Select elements must be either controlled or uncontrolled ' + '(specify either the value prop, or the defaultValue prop, but not ' + 'both). Decide between using a controlled or uncontrolled select ' + 'element and remove one of these props. More info: ' + 'https://reactjs.org/link/controlled-components');
+
+      didWarnDefaultSelectValue = true;
+    }
+  }
+
+  target.push(startChunkForTag('select'));
+  var children = null;
+  var innerHTML = null;
+
+  for (var propKey in props) {
+    if (hasOwnProperty.call(props, propKey)) {
+      var propValue = props[propKey];
+
+      if (propValue == null) {
+        continue;
+      }
+
+      switch (propKey) {
+        case 'children':
+          children = propValue;
+          break;
+
+        case 'dangerouslySetInnerHTML':
+          // TODO: This doesn't really make sense for select since it can't use the controlled
+          // value in the innerHTML.
+          innerHTML = propValue;
+          break;
+
+        case 'defaultValue':
+        case 'value':
+          // These are set on the Context instead and applied to the nested options.
+          break;
+
+        default:
+          pushAttribute(target, responseState, propKey, propValue);
+          break;
+      }
+    }
+  }
+
+  target.push(endOfStartTag);
+  pushInnerHTML(target, innerHTML, children);
+  return children;
+}
+
+function flattenOptionChildren(children) {
+  var content = ''; // Flatten children and warn if they aren't strings or numbers;
+  // invalid types are ignored.
+
+  React.Children.forEach(children, function (child) {
+    if (child == null) {
+      return;
+    }
+
+    content += child;
+
+    {
+      if (!didWarnInvalidOptionChildren && typeof child !== 'string' && typeof child !== 'number') {
+        didWarnInvalidOptionChildren = true;
+
+        error('Cannot infer the option value of complex children. ' + 'Pass a `value` prop or use a plain string as children to <option>.');
+      }
+    }
+  });
+  return content;
+}
+
+var selectedMarkerAttribute = stringToPrecomputedChunk(' selected=""');
+
+function pushStartOption(target, props, responseState, formatContext) {
+  var selectedValue = formatContext.selectedValue;
+  target.push(startChunkForTag('option'));
+  var children = null;
+  var value = null;
+  var selected = null;
+  var innerHTML = null;
+
+  for (var propKey in props) {
+    if (hasOwnProperty.call(props, propKey)) {
+      var propValue = props[propKey];
+
+      if (propValue == null) {
+        continue;
+      }
+
+      switch (propKey) {
+        case 'children':
+          children = propValue;
+          break;
+
+        case 'selected':
+          // ignore
+          selected = propValue;
+
+          {
+            // TODO: Remove support for `selected` in <option>.
+            if (!didWarnSelectedSetOnOption) {
+              error('Use the `defaultValue` or `value` props on <select> instead of ' + 'setting `selected` on <option>.');
+
+              didWarnSelectedSetOnOption = true;
+            }
+          }
+
+          break;
+
+        case 'dangerouslySetInnerHTML':
+          innerHTML = propValue;
+          break;
+        // eslint-disable-next-line-no-fallthrough
+
+        case 'value':
+          value = propValue;
+        // We intentionally fallthrough to also set the attribute on the node.
+        // eslint-disable-next-line-no-fallthrough
+
+        default:
+          pushAttribute(target, responseState, propKey, propValue);
+          break;
+      }
+    }
+  }
+
+  if (selectedValue != null) {
+    var stringValue;
+
+    if (value !== null) {
+      {
+        checkAttributeStringCoercion(value, 'value');
+      }
+
+      stringValue = '' + value;
+    } else {
+      {
+        if (innerHTML !== null) {
+          if (!didWarnInvalidOptionInnerHTML) {
+            didWarnInvalidOptionInnerHTML = true;
+
+            error('Pass a `value` prop if you set dangerouslyInnerHTML so React knows ' + 'which value should be selected.');
+          }
+        }
+      }
+
+      stringValue = flattenOptionChildren(children);
+    }
+
+    if (isArray(selectedValue)) {
+      // multiple
+      for (var i = 0; i < selectedValue.length; i++) {
+        {
+          checkAttributeStringCoercion(selectedValue[i], 'value');
+        }
+
+        var v = '' + selectedValue[i];
+
+        if (v === stringValue) {
+          target.push(selectedMarkerAttribute);
+          break;
+        }
+      }
+    } else {
+      {
+        checkAttributeStringCoercion(selectedValue, 'select.value');
+      }
+
+      if ('' + selectedValue === stringValue) {
+        target.push(selectedMarkerAttribute);
+      }
+    }
+  } else if (selected) {
+    target.push(selectedMarkerAttribute);
+  }
+
+  target.push(endOfStartTag);
+  pushInnerHTML(target, innerHTML, children);
+  return children;
+}
+
+function pushInput(target, props, responseState) {
+  {
+    checkControlledValueProps('input', props);
+
+    if (props.checked !== undefined && props.defaultChecked !== undefined && !didWarnDefaultChecked) {
+      error('%s contains an input of type %s with both checked and defaultChecked props. ' + 'Input elements must be either controlled or uncontrolled ' + '(specify either the checked prop, or the defaultChecked prop, but not ' + 'both). Decide between using a controlled or uncontrolled input ' + 'element and remove one of these props. More info: ' + 'https://reactjs.org/link/controlled-components', 'A component', props.type);
+
+      didWarnDefaultChecked = true;
+    }
+
+    if (props.value !== undefined && props.defaultValue !== undefined && !didWarnDefaultInputValue) {
+      error('%s contains an input of type %s with both value and defaultValue props. ' + 'Input elements must be either controlled or uncontrolled ' + '(specify either the value prop, or the defaultValue prop, but not ' + 'both). Decide between using a controlled or uncontrolled input ' + 'element and remove one of these props. More info: ' + 'https://reactjs.org/link/controlled-components', 'A component', props.type);
+
+      didWarnDefaultInputValue = true;
+    }
+  }
+
+  target.push(startChunkForTag('input'));
+  var value = null;
+  var defaultValue = null;
+  var checked = null;
+  var defaultChecked = null;
+
+  for (var propKey in props) {
+    if (hasOwnProperty.call(props, propKey)) {
+      var propValue = props[propKey];
+
+      if (propValue == null) {
+        continue;
+      }
+
+      switch (propKey) {
+        case 'children':
+        case 'dangerouslySetInnerHTML':
+          throw new Error('input' + " is a self-closing tag and must neither have `children` nor " + 'use `dangerouslySetInnerHTML`.');
+        // eslint-disable-next-line-no-fallthrough
+
+        case 'defaultChecked':
+          defaultChecked = propValue;
+          break;
+
+        case 'defaultValue':
+          defaultValue = propValue;
+          break;
+
+        case 'checked':
+          checked = propValue;
+          break;
+
+        case 'value':
+          value = propValue;
+          break;
+
+        default:
+          pushAttribute(target, responseState, propKey, propValue);
+          break;
+      }
+    }
+  }
+
+  if (checked !== null) {
+    pushAttribute(target, responseState, 'checked', checked);
+  } else if (defaultChecked !== null) {
+    pushAttribute(target, responseState, 'checked', defaultChecked);
+  }
+
+  if (value !== null) {
+    pushAttribute(target, responseState, 'value', value);
+  } else if (defaultValue !== null) {
+    pushAttribute(target, responseState, 'value', defaultValue);
+  }
+
+  target.push(endOfStartTagSelfClosing);
+  return null;
+}
+
+function pushStartTextArea(target, props, responseState) {
+  {
+    checkControlledValueProps('textarea', props);
+
+    if (props.value !== undefined && props.defaultValue !== undefined && !didWarnDefaultTextareaValue) {
+      error('Textarea elements must be either controlled or uncontrolled ' + '(specify either the value prop, or the defaultValue prop, but not ' + 'both). Decide between using a controlled or uncontrolled textarea ' + 'and remove one of these props. More info: ' + 'https://reactjs.org/link/controlled-components');
+
+      didWarnDefaultTextareaValue = true;
+    }
+  }
+
+  target.push(startChunkForTag('textarea'));
+  var value = null;
+  var defaultValue = null;
+  var children = null;
+
+  for (var propKey in props) {
+    if (hasOwnProperty.call(props, propKey)) {
+      var propValue = props[propKey];
+
+      if (propValue == null) {
+        continue;
+      }
+
+      switch (propKey) {
+        case 'children':
+          children = propValue;
+          break;
+
+        case 'value':
+          value = propValue;
+          break;
+
+        case 'defaultValue':
+          defaultValue = propValue;
+          break;
+
+        case 'dangerouslySetInnerHTML':
+          throw new Error('`dangerouslySetInnerHTML` does not make sense on <textarea>.');
+        // eslint-disable-next-line-no-fallthrough
+
+        default:
+          pushAttribute(target, responseState, propKey, propValue);
+          break;
+      }
+    }
+  }
+
+  if (value === null && defaultValue !== null) {
+    value = defaultValue;
+  }
+
+  target.push(endOfStartTag); // TODO (yungsters): Remove support for children content in <textarea>.
+
+  if (children != null) {
+    {
+      error('Use the `defaultValue` or `value` props instead of setting ' + 'children on <textarea>.');
+    }
+
+    if (value != null) {
+      throw new Error('If you supply `defaultValue` on a <textarea>, do not pass children.');
+    }
+
+    if (isArray(children)) {
+      if (children.length > 1) {
+        throw new Error('<textarea> can only have at most one child.');
+      } // TODO: remove the coercion and the DEV check below because it will
+      // always be overwritten by the coercion several lines below it. #22309
+
+
+      {
+        checkHtmlStringCoercion(children[0]);
+      }
+
+      value = '' + children[0];
+    }
+
+    {
+      checkHtmlStringCoercion(children);
+    }
+
+    value = '' + children;
+  }
+
+  if (typeof value === 'string' && value[0] === '\n') {
+    // text/html ignores the first character in these tags if it's a newline
+    // Prefer to break application/xml over text/html (for now) by adding
+    // a newline specifically to get eaten by the parser. (Alternately for
+    // textareas, replacing "^\n" with "\r\n" doesn't get eaten, and the first
+    // \r is normalized out by HTMLTextAreaElement#value.)
+    // See: <http://www.w3.org/TR/html-polyglot/#newlines-in-textarea-and-pre>
+    // See: <http://www.w3.org/TR/html5/syntax.html#element-restrictions>
+    // See: <http://www.w3.org/TR/html5/syntax.html#newlines>
+    // See: Parsing of "textarea" "listing" and "pre" elements
+    //  from <http://www.w3.org/TR/html5/syntax.html#parsing-main-inbody>
+    target.push(leadingNewline);
+  } // ToString and push directly instead of recurse over children.
+  // We don't really support complex children in the value anyway.
+  // This also currently avoids a trailing comment node which breaks textarea.
+
+
+  if (value !== null) {
+    {
+      checkAttributeStringCoercion(value, 'value');
+    }
+
+    target.push(stringToChunk(encodeHTMLTextNode('' + value)));
+  }
+
+  return null;
+}
+
+function pushLink(target, props, responseState) {
+  var isStylesheet = props.rel === 'stylesheet';
+  target.push(startChunkForTag('link'));
+
+  for (var propKey in props) {
+    if (hasOwnProperty.call(props, propKey)) {
+      var propValue = props[propKey];
+
+      if (propValue == null) {
+        continue;
+      }
+
+      switch (propKey) {
+        case 'children':
+        case 'dangerouslySetInnerHTML':
+          throw new Error('link' + " is a self-closing tag and must neither have `children` nor " + 'use `dangerouslySetInnerHTML`.');
+
+        case 'precedence':
+          {
+            if (isStylesheet) {
+              if (propValue === true || typeof propValue === 'string') {
+                pushAttribute(target, responseState, 'data-rprec', propValue);
+              } else {
+                throw new Error("the \"precedence\" prop for links to stylesheets expects to receive a string but received something of type \"" + typeof propValue + "\" instead.");
+              }
+
+              break;
+            } // intentionally fall through
+
+          }
+        // eslint-disable-next-line-no-fallthrough
+
+        default:
+          pushAttribute(target, responseState, propKey, propValue);
+          break;
+      }
+    }
+  }
+
+  target.push(endOfStartTagSelfClosing);
+  return null;
+}
+
+function pushSelfClosing(target, props, tag, responseState) {
+  target.push(startChunkForTag(tag));
+
+  for (var propKey in props) {
+    if (hasOwnProperty.call(props, propKey)) {
+      var propValue = props[propKey];
+
+      if (propValue == null) {
+        continue;
+      }
+
+      switch (propKey) {
+        case 'children':
+        case 'dangerouslySetInnerHTML':
+          throw new Error(tag + " is a self-closing tag and must neither have `children` nor " + 'use `dangerouslySetInnerHTML`.');
+        // eslint-disable-next-line-no-fallthrough
+
+        default:
+          pushAttribute(target, responseState, propKey, propValue);
+          break;
+      }
+    }
+  }
+
+  target.push(endOfStartTagSelfClosing);
+  return null;
+}
+
+function pushStartMenuItem(target, props, responseState) {
+  target.push(startChunkForTag('menuitem'));
+
+  for (var propKey in props) {
+    if (hasOwnProperty.call(props, propKey)) {
+      var propValue = props[propKey];
+
+      if (propValue == null) {
+        continue;
+      }
+
+      switch (propKey) {
+        case 'children':
+        case 'dangerouslySetInnerHTML':
+          throw new Error('menuitems cannot have `children` nor `dangerouslySetInnerHTML`.');
+        // eslint-disable-next-line-no-fallthrough
+
+        default:
+          pushAttribute(target, responseState, propKey, propValue);
+          break;
+      }
+    }
+  }
+
+  target.push(endOfStartTag);
+  return null;
+}
+
+function pushStartTitle(target, props, responseState) {
+  target.push(startChunkForTag('title'));
+  var children = null;
+
+  for (var propKey in props) {
+    if (hasOwnProperty.call(props, propKey)) {
+      var propValue = props[propKey];
+
+      if (propValue == null) {
+        continue;
+      }
+
+      switch (propKey) {
+        case 'children':
+          children = propValue;
+          break;
+
+        case 'dangerouslySetInnerHTML':
+          throw new Error('`dangerouslySetInnerHTML` does not make sense on <title>.');
+        // eslint-disable-next-line-no-fallthrough
+
+        default:
+          pushAttribute(target, responseState, propKey, propValue);
+          break;
+      }
+    }
+  }
+
+  target.push(endOfStartTag);
+
+  {
+    var child = Array.isArray(children) && children.length < 2 ? children[0] || null : children;
+
+    if (Array.isArray(children) && children.length > 1) {
+      error('A title element received an array with more than 1 element as children. ' + 'In browsers title Elements can only have Text Nodes as children. If ' + 'the children being rendered output more than a single text node in aggregate the browser ' + 'will display markup and comments as text in the title and hydration will likely fail and ' + 'fall back to client rendering');
+    } else if (child != null && child.$$typeof != null) {
+      error('A title element received a React element for children. ' + 'In the browser title Elements can only have Text Nodes as children. If ' + 'the children being rendered output more than a single text node in aggregate the browser ' + 'will display markup and comments as text in the title and hydration will likely fail and ' + 'fall back to client rendering');
+    } else if (child != null && typeof child !== 'string' && typeof child !== 'number') {
+      error('A title element received a value that was not a string or number for children. ' + 'In the browser title Elements can only have Text Nodes as children. If ' + 'the children being rendered output more than a single text node in aggregate the browser ' + 'will display markup and comments as text in the title and hydration will likely fail and ' + 'fall back to client rendering');
+    }
+  }
+
+  return children;
+}
+
+function pushStartHead(target, preamble, props, tag, responseState) {
+  // Preamble type is nullable for feature off cases but is guaranteed when feature is on
+  target =  preamble ;
+  return pushStartGenericElement(target, props, tag, responseState);
+}
+
+function pushStartHtml(target, preamble, props, tag, formatContext, responseState) {
+  // Preamble type is nullable for feature off cases but is guaranteed when feature is on
+  target =  preamble ;
+
+  if (formatContext.insertionMode === ROOT_HTML_MODE) {
+    // If we're rendering the html tag and we're at the root (i.e. not in foreignObject)
+    // then we also emit the DOCTYPE as part of the root content as a convenience for
+    // rendering the whole document.
+    target.push(DOCTYPE);
+  }
+
+  return pushStartGenericElement(target, props, tag, responseState);
+}
+
+function pushStartGenericElement(target, props, tag, responseState) {
+  target.push(startChunkForTag(tag));
+  var children = null;
+  var innerHTML = null;
+
+  for (var propKey in props) {
+    if (hasOwnProperty.call(props, propKey)) {
+      var propValue = props[propKey];
+
+      if (propValue == null) {
+        continue;
+      }
+
+      switch (propKey) {
+        case 'children':
+          children = propValue;
+          break;
+
+        case 'dangerouslySetInnerHTML':
+          innerHTML = propValue;
+          break;
+
+        default:
+          pushAttribute(target, responseState, propKey, propValue);
+          break;
+      }
+    }
+  }
+
+  target.push(endOfStartTag);
+  pushInnerHTML(target, innerHTML, children);
+
+  if (typeof children === 'string') {
+    // Special case children as a string to avoid the unnecessary comment.
+    // TODO: Remove this special case after the general optimization is in place.
+    target.push(stringToChunk(encodeHTMLTextNode(children)));
+    return null;
+  }
+
+  return children;
+}
+
+function pushStartCustomElement(target, props, tag, responseState) {
+  target.push(startChunkForTag(tag));
+  var children = null;
+  var innerHTML = null;
+
+  for (var propKey in props) {
+    if (hasOwnProperty.call(props, propKey)) {
+      var propValue = props[propKey];
+
+      if (propValue == null) {
+        continue;
+      }
+
+      if ( (typeof propValue === 'function' || typeof propValue === 'object')) {
+        // It is normal to render functions and objects on custom elements when
+        // client rendering, but when server rendering the output isn't useful,
+        // so skip it.
+        continue;
+      }
+
+      if ( propValue === false) {
+        continue;
+      }
+
+      if ( propValue === true) {
+        propValue = '';
+      }
+
+      if ( propKey === 'className') {
+        // className gets rendered as class on the client, so it should be
+        // rendered as class on the server.
+        propKey = 'class';
+      }
+
+      switch (propKey) {
+        case 'children':
+          children = propValue;
+          break;
+
+        case 'dangerouslySetInnerHTML':
+          innerHTML = propValue;
+          break;
+
+        case 'style':
+          pushStyle(target, responseState, propValue);
+          break;
+
+        case 'suppressContentEditableWarning':
+        case 'suppressHydrationWarning':
+          // Ignored. These are built-in to React on the client.
+          break;
+
+        default:
+          if (isAttributeNameSafe(propKey) && typeof propValue !== 'function' && typeof propValue !== 'symbol') {
+            target.push(attributeSeparator, stringToChunk(propKey), attributeAssign, stringToChunk(escapeTextForBrowser(propValue)), attributeEnd);
+          }
+
+          break;
+      }
+    }
+  }
+
+  target.push(endOfStartTag);
+  pushInnerHTML(target, innerHTML, children);
+  return children;
+}
+
+var leadingNewline = stringToPrecomputedChunk('\n');
+
+function pushStartPreformattedElement(target, props, tag, responseState) {
+  target.push(startChunkForTag(tag));
+  var children = null;
+  var innerHTML = null;
+
+  for (var propKey in props) {
+    if (hasOwnProperty.call(props, propKey)) {
+      var propValue = props[propKey];
+
+      if (propValue == null) {
+        continue;
+      }
+
+      switch (propKey) {
+        case 'children':
+          children = propValue;
+          break;
+
+        case 'dangerouslySetInnerHTML':
+          innerHTML = propValue;
+          break;
+
+        default:
+          pushAttribute(target, responseState, propKey, propValue);
+          break;
+      }
+    }
+  }
+
+  target.push(endOfStartTag); // text/html ignores the first character in these tags if it's a newline
+  // Prefer to break application/xml over text/html (for now) by adding
+  // a newline specifically to get eaten by the parser. (Alternately for
+  // textareas, replacing "^\n" with "\r\n" doesn't get eaten, and the first
+  // \r is normalized out by HTMLTextAreaElement#value.)
+  // See: <http://www.w3.org/TR/html-polyglot/#newlines-in-textarea-and-pre>
+  // See: <http://www.w3.org/TR/html5/syntax.html#element-restrictions>
+  // See: <http://www.w3.org/TR/html5/syntax.html#newlines>
+  // See: Parsing of "textarea" "listing" and "pre" elements
+  //  from <http://www.w3.org/TR/html5/syntax.html#parsing-main-inbody>
+  // TODO: This doesn't deal with the case where the child is an array
+  // or component that returns a string.
+
+  if (innerHTML != null) {
+    if (children != null) {
+      throw new Error('Can only set one of `children` or `props.dangerouslySetInnerHTML`.');
+    }
+
+    if (typeof innerHTML !== 'object' || !('__html' in innerHTML)) {
+      throw new Error('`props.dangerouslySetInnerHTML` must be in the form `{__html: ...}`. ' + 'Please visit https://reactjs.org/link/dangerously-set-inner-html ' + 'for more information.');
+    }
+
+    var html = innerHTML.__html;
+
+    if (html !== null && html !== undefined) {
+      if (typeof html === 'string' && html.length > 0 && html[0] === '\n') {
+        target.push(leadingNewline, stringToChunk(html));
+      } else {
+        {
+          checkHtmlStringCoercion(html);
+        }
+
+        target.push(stringToChunk('' + html));
+      }
+    }
+  }
+
+  if (typeof children === 'string' && children[0] === '\n') {
+    target.push(leadingNewline);
+  }
+
+  return children;
+} // We accept any tag to be rendered but since this gets injected into arbitrary
+// HTML, we want to make sure that it's a safe tag.
+// http://www.w3.org/TR/REC-xml/#NT-Name
+
+
+var VALID_TAG_REGEX = /^[a-zA-Z][a-zA-Z:_\.\-\d]*$/; // Simplified subset
+
+var validatedTagCache = new Map();
+
+function startChunkForTag(tag) {
+  var tagStartChunk = validatedTagCache.get(tag);
+
+  if (tagStartChunk === undefined) {
+    if (!VALID_TAG_REGEX.test(tag)) {
+      throw new Error("Invalid tag: " + tag);
+    }
+
+    tagStartChunk = stringToPrecomputedChunk('<' + tag);
+    validatedTagCache.set(tag, tagStartChunk);
+  }
+
+  return tagStartChunk;
+}
+
+var DOCTYPE = stringToPrecomputedChunk('<!DOCTYPE html>');
+function pushStartInstance(target, preamble, type, props, responseState, formatContext) {
+  {
+    validateProperties(type, props);
+    validateProperties$1(type, props);
+    validateProperties$2(type, props, null);
+
+    if (!props.suppressContentEditableWarning && props.contentEditable && props.children != null) {
+      error('A component is `contentEditable` and contains `children` managed by ' + 'React. It is now your responsibility to guarantee that none of ' + 'those nodes are unexpectedly modified or duplicated. This is ' + 'probably not intentional.');
+    }
+
+    if (formatContext.insertionMode !== SVG_MODE && formatContext.insertionMode !== MATHML_MODE) {
+      if (type.indexOf('-') === -1 && typeof props.is !== 'string' && type.toLowerCase() !== type) {
+        error('<%s /> is using incorrect casing. ' + 'Use PascalCase for React components, ' + 'or lowercase for HTML elements.', type);
+      }
+    }
+  }
+
+  switch (type) {
+    // Special tags
+    case 'select':
+      return pushStartSelect(target, props, responseState);
+
+    case 'option':
+      return pushStartOption(target, props, responseState, formatContext);
+
+    case 'textarea':
+      return pushStartTextArea(target, props, responseState);
+
+    case 'input':
+      return pushInput(target, props, responseState);
+
+    case 'menuitem':
+      return pushStartMenuItem(target, props, responseState);
+
+    case 'title':
+      return pushStartTitle(target, props, responseState);
+
+    case 'link':
+      return pushLink(target, props, responseState);
+    // Newline eating tags
+
+    case 'listing':
+    case 'pre':
+      {
+        return pushStartPreformattedElement(target, props, type, responseState);
+      }
+    // Omitted close tags
+
+    case 'area':
+    case 'base':
+    case 'br':
+    case 'col':
+    case 'embed':
+    case 'hr':
+    case 'img':
+    case 'keygen':
+    case 'meta':
+    case 'param':
+    case 'source':
+    case 'track':
+    case 'wbr':
+      {
+        return pushSelfClosing(target, props, type, responseState);
+      }
+    // These are reserved SVG and MathML elements, that are never custom elements.
+    // https://w3c.github.io/webcomponents/spec/custom/#custom-elements-core-concepts
+
+    case 'annotation-xml':
+    case 'color-profile':
+    case 'font-face':
+    case 'font-face-src':
+    case 'font-face-uri':
+    case 'font-face-format':
+    case 'font-face-name':
+    case 'missing-glyph':
+      {
+        return pushStartGenericElement(target, props, type, responseState);
+      }
+    // Preamble start tags
+
+    case 'head':
+      return pushStartHead(target, preamble, props, type, responseState);
+
+    case 'html':
+      {
+        return pushStartHtml(target, preamble, props, type, formatContext, responseState);
+      }
+
+    default:
+      {
+        if (type.indexOf('-') === -1 && typeof props.is !== 'string') {
+          // Generic element
+          return pushStartGenericElement(target, props, type, responseState);
+        } else {
+          // Custom element
+          return pushStartCustomElement(target, props, type, responseState);
+        }
+      }
+  }
+}
+var endTag1 = stringToPrecomputedChunk('</');
+var endTag2 = stringToPrecomputedChunk('>');
+function pushEndInstance(target, postamble, type, props) {
+  switch (type) {
+    // Omitted close tags
+    // TODO: Instead of repeating this switch we could try to pass a flag from above.
+    // That would require returning a tuple. Which might be ok if it gets inlined.
+    case 'area':
+    case 'base':
+    case 'br':
+    case 'col':
+    case 'embed':
+    case 'hr':
+    case 'img':
+    case 'input':
+    case 'keygen':
+    case 'link':
+    case 'meta':
+    case 'param':
+    case 'source':
+    case 'track':
+    case 'wbr':
+      {
+        // No close tag needed.
+        break;
+      }
+    // Postamble end tags
+
+    case 'body':
+    case 'html':
+      target =  postamble ;
+    // Intentional fallthrough
+
+    default:
+      {
+        target.push(endTag1, stringToChunk(type), endTag2);
+      }
+  }
+}
+function writeCompletedRoot(destination, responseState) {
+  var bootstrapChunks = responseState.bootstrapChunks;
+  var i = 0;
+
+  for (; i < bootstrapChunks.length - 1; i++) {
+    writeChunk(destination, bootstrapChunks[i]);
+  }
+
+  if (i < bootstrapChunks.length) {
+    return writeChunkAndReturn(destination, bootstrapChunks[i]);
+  }
+
+  return true;
+} // Structural Nodes
+// A placeholder is a node inside a hidden partial tree that can be filled in later, but before
+// display. It's never visible to users. We use the template tag because it can be used in every
+// type of parent. <script> tags also work in every other tag except <colgroup>.
+
+var placeholder1 = stringToPrecomputedChunk('<template id="');
+var placeholder2 = stringToPrecomputedChunk('"></template>');
+function writePlaceholder(destination, responseState, id) {
+  writeChunk(destination, placeholder1);
+  writeChunk(destination, responseState.placeholderPrefix);
+  var formattedID = stringToChunk(id.toString(16));
+  writeChunk(destination, formattedID);
+  return writeChunkAndReturn(destination, placeholder2);
+} // Suspense boundaries are encoded as comments.
+
+var startCompletedSuspenseBoundary = stringToPrecomputedChunk('<!--$-->');
+var startPendingSuspenseBoundary1 = stringToPrecomputedChunk('<!--$?--><template id="');
+var startPendingSuspenseBoundary2 = stringToPrecomputedChunk('"></template>');
+var startClientRenderedSuspenseBoundary = stringToPrecomputedChunk('<!--$!-->');
+var endSuspenseBoundary = stringToPrecomputedChunk('<!--/$-->');
+var clientRenderedSuspenseBoundaryError1 = stringToPrecomputedChunk('<template');
+var clientRenderedSuspenseBoundaryErrorAttrInterstitial = stringToPrecomputedChunk('"');
+var clientRenderedSuspenseBoundaryError1A = stringToPrecomputedChunk(' data-dgst="');
+var clientRenderedSuspenseBoundaryError1B = stringToPrecomputedChunk(' data-msg="');
+var clientRenderedSuspenseBoundaryError1C = stringToPrecomputedChunk(' data-stck="');
+var clientRenderedSuspenseBoundaryError2 = stringToPrecomputedChunk('></template>');
+function writeStartCompletedSuspenseBoundary(destination, responseState) {
+  return writeChunkAndReturn(destination, startCompletedSuspenseBoundary);
+}
+function writeStartPendingSuspenseBoundary(destination, responseState, id) {
+  writeChunk(destination, startPendingSuspenseBoundary1);
+
+  if (id === null) {
+    throw new Error('An ID must have been assigned before we can complete the boundary.');
+  }
+
+  writeChunk(destination, id);
+  return writeChunkAndReturn(destination, startPendingSuspenseBoundary2);
+}
+function writeStartClientRenderedSuspenseBoundary(destination, responseState, errorDigest, errorMesssage, errorComponentStack) {
+  var result;
+  result = writeChunkAndReturn(destination, startClientRenderedSuspenseBoundary);
+  writeChunk(destination, clientRenderedSuspenseBoundaryError1);
+
+  if (errorDigest) {
+    writeChunk(destination, clientRenderedSuspenseBoundaryError1A);
+    writeChunk(destination, stringToChunk(escapeTextForBrowser(errorDigest)));
+    writeChunk(destination, clientRenderedSuspenseBoundaryErrorAttrInterstitial);
+  }
+
+  {
+    if (errorMesssage) {
+      writeChunk(destination, clientRenderedSuspenseBoundaryError1B);
+      writeChunk(destination, stringToChunk(escapeTextForBrowser(errorMesssage)));
+      writeChunk(destination, clientRenderedSuspenseBoundaryErrorAttrInterstitial);
+    }
+
+    if (errorComponentStack) {
+      writeChunk(destination, clientRenderedSuspenseBoundaryError1C);
+      writeChunk(destination, stringToChunk(escapeTextForBrowser(errorComponentStack)));
+      writeChunk(destination, clientRenderedSuspenseBoundaryErrorAttrInterstitial);
+    }
+  }
+
+  result = writeChunkAndReturn(destination, clientRenderedSuspenseBoundaryError2);
+  return result;
+}
+function writeEndCompletedSuspenseBoundary(destination, responseState) {
+  return writeChunkAndReturn(destination, endSuspenseBoundary);
+}
+function writeEndPendingSuspenseBoundary(destination, responseState) {
+  return writeChunkAndReturn(destination, endSuspenseBoundary);
+}
+function writeEndClientRenderedSuspenseBoundary(destination, responseState) {
+  return writeChunkAndReturn(destination, endSuspenseBoundary);
+}
+var startSegmentHTML = stringToPrecomputedChunk('<div hidden id="');
+var startSegmentHTML2 = stringToPrecomputedChunk('">');
+var endSegmentHTML = stringToPrecomputedChunk('</div>');
+var startSegmentSVG = stringToPrecomputedChunk('<svg aria-hidden="true" style="display:none" id="');
+var startSegmentSVG2 = stringToPrecomputedChunk('">');
+var endSegmentSVG = stringToPrecomputedChunk('</svg>');
+var startSegmentMathML = stringToPrecomputedChunk('<math aria-hidden="true" style="display:none" id="');
+var startSegmentMathML2 = stringToPrecomputedChunk('">');
+var endSegmentMathML = stringToPrecomputedChunk('</math>');
+var startSegmentTable = stringToPrecomputedChunk('<table hidden id="');
+var startSegmentTable2 = stringToPrecomputedChunk('">');
+var endSegmentTable = stringToPrecomputedChunk('</table>');
+var startSegmentTableBody = stringToPrecomputedChunk('<table hidden><tbody id="');
+var startSegmentTableBody2 = stringToPrecomputedChunk('">');
+var endSegmentTableBody = stringToPrecomputedChunk('</tbody></table>');
+var startSegmentTableRow = stringToPrecomputedChunk('<table hidden><tr id="');
+var startSegmentTableRow2 = stringToPrecomputedChunk('">');
+var endSegmentTableRow = stringToPrecomputedChunk('</tr></table>');
+var startSegmentColGroup = stringToPrecomputedChunk('<table hidden><colgroup id="');
+var startSegmentColGroup2 = stringToPrecomputedChunk('">');
+var endSegmentColGroup = stringToPrecomputedChunk('</colgroup></table>');
+function writeStartSegment(destination, responseState, formatContext, id) {
+  switch (formatContext.insertionMode) {
+    case ROOT_HTML_MODE:
+    case HTML_MODE:
+      {
+        writeChunk(destination, startSegmentHTML);
+        writeChunk(destination, responseState.segmentPrefix);
+        writeChunk(destination, stringToChunk(id.toString(16)));
+        return writeChunkAndReturn(destination, startSegmentHTML2);
+      }
+
+    case SVG_MODE:
+      {
+        writeChunk(destination, startSegmentSVG);
+        writeChunk(destination, responseState.segmentPrefix);
+        writeChunk(destination, stringToChunk(id.toString(16)));
+        return writeChunkAndReturn(destination, startSegmentSVG2);
+      }
+
+    case MATHML_MODE:
+      {
+        writeChunk(destination, startSegmentMathML);
+        writeChunk(destination, responseState.segmentPrefix);
+        writeChunk(destination, stringToChunk(id.toString(16)));
+        return writeChunkAndReturn(destination, startSegmentMathML2);
+      }
+
+    case HTML_TABLE_MODE:
+      {
+        writeChunk(destination, startSegmentTable);
+        writeChunk(destination, responseState.segmentPrefix);
+        writeChunk(destination, stringToChunk(id.toString(16)));
+        return writeChunkAndReturn(destination, startSegmentTable2);
+      }
+    // TODO: For the rest of these, there will be extra wrapper nodes that never
+    // get deleted from the document. We need to delete the table too as part
+    // of the injected scripts. They are invisible though so it's not too terrible
+    // and it's kind of an edge case to suspend in a table. Totally supported though.
+
+    case HTML_TABLE_BODY_MODE:
+      {
+        writeChunk(destination, startSegmentTableBody);
+        writeChunk(destination, responseState.segmentPrefix);
+        writeChunk(destination, stringToChunk(id.toString(16)));
+        return writeChunkAndReturn(destination, startSegmentTableBody2);
+      }
+
+    case HTML_TABLE_ROW_MODE:
+      {
+        writeChunk(destination, startSegmentTableRow);
+        writeChunk(destination, responseState.segmentPrefix);
+        writeChunk(destination, stringToChunk(id.toString(16)));
+        return writeChunkAndReturn(destination, startSegmentTableRow2);
+      }
+
+    case HTML_COLGROUP_MODE:
+      {
+        writeChunk(destination, startSegmentColGroup);
+        writeChunk(destination, responseState.segmentPrefix);
+        writeChunk(destination, stringToChunk(id.toString(16)));
+        return writeChunkAndReturn(destination, startSegmentColGroup2);
+      }
+
+    default:
+      {
+        throw new Error('Unknown insertion mode. This is a bug in React.');
+      }
+  }
+}
+function writeEndSegment(destination, formatContext) {
+  switch (formatContext.insertionMode) {
+    case ROOT_HTML_MODE:
+    case HTML_MODE:
+      {
+        return writeChunkAndReturn(destination, endSegmentHTML);
+      }
+
+    case SVG_MODE:
+      {
+        return writeChunkAndReturn(destination, endSegmentSVG);
+      }
+
+    case MATHML_MODE:
+      {
+        return writeChunkAndReturn(destination, endSegmentMathML);
+      }
+
+    case HTML_TABLE_MODE:
+      {
+        return writeChunkAndReturn(destination, endSegmentTable);
+      }
+
+    case HTML_TABLE_BODY_MODE:
+      {
+        return writeChunkAndReturn(destination, endSegmentTableBody);
+      }
+
+    case HTML_TABLE_ROW_MODE:
+      {
+        return writeChunkAndReturn(destination, endSegmentTableRow);
+      }
+
+    case HTML_COLGROUP_MODE:
+      {
+        return writeChunkAndReturn(destination, endSegmentColGroup);
+      }
+
+    default:
+      {
+        throw new Error('Unknown insertion mode. This is a bug in React.');
+      }
+  }
+} // Instruction Set
+// The following code is the source scripts that we then minify and inline below,
+// with renamed function names that we hope don't collide:
+// const COMMENT_NODE = 8;
+// const SUSPENSE_START_DATA = '$';
+// const SUSPENSE_END_DATA = '/$';
+// const SUSPENSE_PENDING_START_DATA = '$?';
+// const SUSPENSE_FALLBACK_START_DATA = '$!';
+//
+// function clientRenderBoundary(suspenseBoundaryID, errorDigest, errorMsg, errorComponentStack) {
+//   // Find the fallback's first element.
+//   const suspenseIdNode = document.getElementById(suspenseBoundaryID);
+//   if (!suspenseIdNode) {
+//     // The user must have already navigated away from this tree.
+//     // E.g. because the parent was hydrated.
+//     return;
+//   }
+//   // Find the boundary around the fallback. This is always the previous node.
+//   const suspenseNode = suspenseIdNode.previousSibling;
+//   // Tag it to be client rendered.
+//   suspenseNode.data = SUSPENSE_FALLBACK_START_DATA;
+//   // assign error metadata to first sibling
+//   let dataset = suspenseIdNode.dataset;
+//   if (errorDigest) dataset.dgst = errorDigest;
+//   if (errorMsg) dataset.msg = errorMsg;
+//   if (errorComponentStack) dataset.stck = errorComponentStack;
+//   // Tell React to retry it if the parent already hydrated.
+//   if (suspenseNode._reactRetry) {
+//     suspenseNode._reactRetry();
+//   }
+// }
+//
+// function completeBoundary(suspenseBoundaryID, contentID) {
+//   // Find the fallback's first element.
+//   const suspenseIdNode = document.getElementById(suspenseBoundaryID);
+//   const contentNode = document.getElementById(contentID);
+//   // We'll detach the content node so that regardless of what happens next we don't leave in the tree.
+//   // This might also help by not causing recalcing each time we move a child from here to the target.
+//   contentNode.parentNode.removeChild(contentNode);
+//   if (!suspenseIdNode) {
+//     // The user must have already navigated away from this tree.
+//     // E.g. because the parent was hydrated. That's fine there's nothing to do
+//     // but we have to make sure that we already deleted the container node.
+//     return;
+//   }
+//   // Find the boundary around the fallback. This is always the previous node.
+//   const suspenseNode = suspenseIdNode.previousSibling;
+//
+//   // Clear all the existing children. This is complicated because
+//   // there can be embedded Suspense boundaries in the fallback.
+//   // This is similar to clearSuspenseBoundary in ReactDOMHostConfig.
+//   // TODO: We could avoid this if we never emitted suspense boundaries in fallback trees.
+//   // They never hydrate anyway. However, currently we support incrementally loading the fallback.
+//   const parentInstance = suspenseNode.parentNode;
+//   let node = suspenseNode.nextSibling;
+//   let depth = 0;
+//   do {
+//     if (node && node.nodeType === COMMENT_NODE) {
+//       const data = node.data;
+//       if (data === SUSPENSE_END_DATA) {
+//         if (depth === 0) {
+//           break;
+//         } else {
+//           depth--;
+//         }
+//       } else if (
+//         data === SUSPENSE_START_DATA ||
+//         data === SUSPENSE_PENDING_START_DATA ||
+//         data === SUSPENSE_FALLBACK_START_DATA
+//       ) {
+//         depth++;
+//       }
+//     }
+//
+//     const nextNode = node.nextSibling;
+//     parentInstance.removeChild(node);
+//     node = nextNode;
+//   } while (node);
+//
+//   const endOfBoundary = node;
+//
+//   // Insert all the children from the contentNode between the start and end of suspense boundary.
+//   while (contentNode.firstChild) {
+//     parentInstance.insertBefore(contentNode.firstChild, endOfBoundary);
+//   }
+//   suspenseNode.data = SUSPENSE_START_DATA;
+//   if (suspenseNode._reactRetry) {
+//     suspenseNode._reactRetry();
+//   }
+// }
+//
+// function completeSegment(containerID, placeholderID) {
+//   const segmentContainer = document.getElementById(containerID);
+//   const placeholderNode = document.getElementById(placeholderID);
+//   // We always expect both nodes to exist here because, while we might
+//   // have navigated away from the main tree, we still expect the detached
+//   // tree to exist.
+//   segmentContainer.parentNode.removeChild(segmentContainer);
+//   while (segmentContainer.firstChild) {
+//     placeholderNode.parentNode.insertBefore(
+//       segmentContainer.firstChild,
+//       placeholderNode,
+//     );
+//   }
+//   placeholderNode.parentNode.removeChild(placeholderNode);
+// }
+
+var completeSegmentFunction = 'function $RS(a,b){a=document.getElementById(a);b=document.getElementById(b);for(a.parentNode.removeChild(a);a.firstChild;)b.parentNode.insertBefore(a.firstChild,b);b.parentNode.removeChild(b)}';
+var completeBoundaryFunction = 'function $RC(a,b){a=document.getElementById(a);b=document.getElementById(b);b.parentNode.removeChild(b);if(a){a=a.previousSibling;var f=a.parentNode,c=a.nextSibling,e=0;do{if(c&&8===c.nodeType){var d=c.data;if("/$"===d)if(0===e)break;else e--;else"$"!==d&&"$?"!==d&&"$!"!==d||e++}d=c.nextSibling;f.removeChild(c);c=d}while(c);for(;b.firstChild;)f.insertBefore(b.firstChild,c);a.data="$";a._reactRetry&&a._reactRetry()}}';
+var clientRenderFunction = 'function $RX(b,c,d,e){var a=document.getElementById(b);a&&(b=a.previousSibling,b.data="$!",a=a.dataset,c&&(a.dgst=c),d&&(a.msg=d),e&&(a.stck=e),b._reactRetry&&b._reactRetry())}';
+var completeSegmentScript1Full = stringToPrecomputedChunk(completeSegmentFunction + ';$RS("');
+var completeSegmentScript1Partial = stringToPrecomputedChunk('$RS("');
+var completeSegmentScript2 = stringToPrecomputedChunk('","');
+var completeSegmentScript3 = stringToPrecomputedChunk('")</script>');
+function writeCompletedSegmentInstruction(destination, responseState, contentSegmentID) {
+  writeChunk(destination, responseState.startInlineScript);
+
+  if (!responseState.sentCompleteSegmentFunction) {
+    // The first time we write this, we'll need to include the full implementation.
+    responseState.sentCompleteSegmentFunction = true;
+    writeChunk(destination, completeSegmentScript1Full);
+  } else {
+    // Future calls can just reuse the same function.
+    writeChunk(destination, completeSegmentScript1Partial);
+  }
+
+  writeChunk(destination, responseState.segmentPrefix);
+  var formattedID = stringToChunk(contentSegmentID.toString(16));
+  writeChunk(destination, formattedID);
+  writeChunk(destination, completeSegmentScript2);
+  writeChunk(destination, responseState.placeholderPrefix);
+  writeChunk(destination, formattedID);
+  return writeChunkAndReturn(destination, completeSegmentScript3);
+}
+var completeBoundaryScript1Full = stringToPrecomputedChunk(completeBoundaryFunction + ';$RC("');
+var completeBoundaryScript1Partial = stringToPrecomputedChunk('$RC("');
+var completeBoundaryScript2 = stringToPrecomputedChunk('","');
+var completeBoundaryScript3 = stringToPrecomputedChunk('")</script>');
+function writeCompletedBoundaryInstruction(destination, responseState, boundaryID, contentSegmentID) {
+  writeChunk(destination, responseState.startInlineScript);
+
+  if (!responseState.sentCompleteBoundaryFunction) {
+    // The first time we write this, we'll need to include the full implementation.
+    responseState.sentCompleteBoundaryFunction = true;
+    writeChunk(destination, completeBoundaryScript1Full);
+  } else {
+    // Future calls can just reuse the same function.
+    writeChunk(destination, completeBoundaryScript1Partial);
+  }
+
+  if (boundaryID === null) {
+    throw new Error('An ID must have been assigned before we can complete the boundary.');
+  }
+
+  var formattedContentID = stringToChunk(contentSegmentID.toString(16));
+  writeChunk(destination, boundaryID);
+  writeChunk(destination, completeBoundaryScript2);
+  writeChunk(destination, responseState.segmentPrefix);
+  writeChunk(destination, formattedContentID);
+  return writeChunkAndReturn(destination, completeBoundaryScript3);
+}
+var clientRenderScript1Full = stringToPrecomputedChunk(clientRenderFunction + ';$RX("');
+var clientRenderScript1Partial = stringToPrecomputedChunk('$RX("');
+var clientRenderScript1A = stringToPrecomputedChunk('"');
+var clientRenderScript2 = stringToPrecomputedChunk(')</script>');
+var clientRenderErrorScriptArgInterstitial = stringToPrecomputedChunk(',');
+function writeClientRenderBoundaryInstruction(destination, responseState, boundaryID, errorDigest, errorMessage, errorComponentStack) {
+  writeChunk(destination, responseState.startInlineScript);
+
+  if (!responseState.sentClientRenderFunction) {
+    // The first time we write this, we'll need to include the full implementation.
+    responseState.sentClientRenderFunction = true;
+    writeChunk(destination, clientRenderScript1Full);
+  } else {
+    // Future calls can just reuse the same function.
+    writeChunk(destination, clientRenderScript1Partial);
+  }
+
+  if (boundaryID === null) {
+    throw new Error('An ID must have been assigned before we can complete the boundary.');
+  }
+
+  writeChunk(destination, boundaryID);
+  writeChunk(destination, clientRenderScript1A);
+
+  if (errorDigest || errorMessage || errorComponentStack) {
+    writeChunk(destination, clientRenderErrorScriptArgInterstitial);
+    writeChunk(destination, stringToChunk(escapeJSStringsForInstructionScripts(errorDigest || '')));
+  }
+
+  if (errorMessage || errorComponentStack) {
+    writeChunk(destination, clientRenderErrorScriptArgInterstitial);
+    writeChunk(destination, stringToChunk(escapeJSStringsForInstructionScripts(errorMessage || '')));
+  }
+
+  if (errorComponentStack) {
+    writeChunk(destination, clientRenderErrorScriptArgInterstitial);
+    writeChunk(destination, stringToChunk(escapeJSStringsForInstructionScripts(errorComponentStack)));
+  }
+
+  return writeChunkAndReturn(destination, clientRenderScript2);
+}
+var regexForJSStringsInScripts = /[<\u2028\u2029]/g;
+
+function escapeJSStringsForInstructionScripts(input) {
+  var escaped = JSON.stringify(input);
+  return escaped.replace(regexForJSStringsInScripts, function (match) {
+    switch (match) {
+      // santizing breaking out of strings and script tags
+      case '<':
+        return "\\u003c";
+
+      case "\u2028":
+        return "\\u2028";
+
+      case "\u2029":
+        return "\\u2029";
+
+      default:
+        {
+          // eslint-disable-next-line react-internal/prod-error-codes
+          throw new Error('escapeJSStringsForInstructionScripts encountered a match it does not know how to replace. this means the match regex and the replacement characters are no longer in sync. This is a bug in React');
+        }
+    }
+  });
+}
+
+function createResponseState$1(generateStaticMarkup, identifierPrefix) {
+  var responseState = createResponseState(identifierPrefix, undefined);
+  return {
+    // Keep this in sync with ReactDOMServerFormatConfig
+    bootstrapChunks: responseState.bootstrapChunks,
+    startInlineScript: responseState.startInlineScript,
+    placeholderPrefix: responseState.placeholderPrefix,
+    segmentPrefix: responseState.segmentPrefix,
+    boundaryPrefix: responseState.boundaryPrefix,
+    idPrefix: responseState.idPrefix,
+    nextSuspenseID: responseState.nextSuspenseID,
+    sentCompleteSegmentFunction: responseState.sentCompleteSegmentFunction,
+    sentCompleteBoundaryFunction: responseState.sentCompleteBoundaryFunction,
+    sentClientRenderFunction: responseState.sentClientRenderFunction,
+    // This is an extra field for the legacy renderer
+    generateStaticMarkup: generateStaticMarkup
+  };
+}
+function createRootFormatContext() {
+  return {
+    insertionMode: HTML_MODE,
+    // We skip the root mode because we don't want to emit the DOCTYPE in legacy mode.
+    selectedValue: null
+  };
+}
+function pushTextInstance$1(target, text, responseState, textEmbedded) {
+  if (responseState.generateStaticMarkup) {
+    target.push(stringToChunk(escapeTextForBrowser(text)));
+    return false;
+  } else {
+    return pushTextInstance(target, text, responseState, textEmbedded);
+  }
+}
+function pushSegmentFinale$1(target, responseState, lastPushedText, textEmbedded) {
+  if (responseState.generateStaticMarkup) {
+    return;
+  } else {
+    return pushSegmentFinale(target, responseState, lastPushedText, textEmbedded);
+  }
+}
+function writeStartCompletedSuspenseBoundary$1(destination, responseState) {
+  if (responseState.generateStaticMarkup) {
+    // A completed boundary is done and doesn't need a representation in the HTML
+    // if we're not going to be hydrating it.
+    return true;
+  }
+
+  return writeStartCompletedSuspenseBoundary(destination);
+}
+function writeStartClientRenderedSuspenseBoundary$1(destination, responseState, // flushing these error arguments are not currently supported in this legacy streaming format.
+errorDigest, errorMessage, errorComponentStack) {
+  if (responseState.generateStaticMarkup) {
+    // A client rendered boundary is done and doesn't need a representation in the HTML
+    // since we'll never hydrate it. This is arguably an error in static generation.
+    return true;
+  }
+
+  return writeStartClientRenderedSuspenseBoundary(destination, responseState, errorDigest, errorMessage, errorComponentStack);
+}
+function writeEndCompletedSuspenseBoundary$1(destination, responseState) {
+  if (responseState.generateStaticMarkup) {
+    return true;
+  }
+
+  return writeEndCompletedSuspenseBoundary(destination);
+}
+function writeEndClientRenderedSuspenseBoundary$1(destination, responseState) {
+  if (responseState.generateStaticMarkup) {
+    return true;
+  }
+
+  return writeEndClientRenderedSuspenseBoundary(destination);
+}
+
+var assign = Object.assign;
+
+// ATTENTION
+// When adding new symbols to this file,
+// Please consider also adding to 'react-devtools-shared/src/backend/ReactSymbols'
+// The Symbol used to tag the ReactElement-like types.
+var REACT_ELEMENT_TYPE = Symbol.for('react.element');
+var REACT_PORTAL_TYPE = Symbol.for('react.portal');
+var REACT_FRAGMENT_TYPE = Symbol.for('react.fragment');
+var REACT_STRICT_MODE_TYPE = Symbol.for('react.strict_mode');
+var REACT_PROFILER_TYPE = Symbol.for('react.profiler');
+var REACT_PROVIDER_TYPE = Symbol.for('react.provider');
+var REACT_CONTEXT_TYPE = Symbol.for('react.context');
+var REACT_SERVER_CONTEXT_TYPE = Symbol.for('react.server_context');
+var REACT_FORWARD_REF_TYPE = Symbol.for('react.forward_ref');
+var REACT_SUSPENSE_TYPE = Symbol.for('react.suspense');
+var REACT_SUSPENSE_LIST_TYPE = Symbol.for('react.suspense_list');
+var REACT_MEMO_TYPE = Symbol.for('react.memo');
+var REACT_LAZY_TYPE = Symbol.for('react.lazy');
+var REACT_SCOPE_TYPE = Symbol.for('react.scope');
+var REACT_DEBUG_TRACING_MODE_TYPE = Symbol.for('react.debug_trace_mode');
+var REACT_OFFSCREEN_TYPE = Symbol.for('react.offscreen');
+var REACT_LEGACY_HIDDEN_TYPE = Symbol.for('react.legacy_hidden');
+var REACT_CACHE_TYPE = Symbol.for('react.cache');
+var REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED = Symbol.for('react.default_value');
+var MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
+var FAUX_ITERATOR_SYMBOL = '@@iterator';
+function getIteratorFn(maybeIterable) {
+  if (maybeIterable === null || typeof maybeIterable !== 'object') {
+    return null;
+  }
+
+  var maybeIterator = MAYBE_ITERATOR_SYMBOL && maybeIterable[MAYBE_ITERATOR_SYMBOL] || maybeIterable[FAUX_ITERATOR_SYMBOL];
+
+  if (typeof maybeIterator === 'function') {
+    return maybeIterator;
+  }
+
+  return null;
+}
+
+function getWrappedName(outerType, innerType, wrapperName) {
+  var displayName = outerType.displayName;
+
+  if (displayName) {
+    return displayName;
+  }
+
+  var functionName = innerType.displayName || innerType.name || '';
+  return functionName !== '' ? wrapperName + "(" + functionName + ")" : wrapperName;
+} // Keep in sync with react-reconciler/getComponentNameFromFiber
+
+
+function getContextName(type) {
+  return type.displayName || 'Context';
+} // Note that the reconciler package should generally prefer to use getComponentNameFromFiber() instead.
+
+
+function getComponentNameFromType(type) {
+  if (type == null) {
+    // Host root, text node or just invalid type.
+    return null;
+  }
+
+  {
+    if (typeof type.tag === 'number') {
+      error('Received an unexpected object in getComponentNameFromType(). ' + 'This is likely a bug in React. Please file an issue.');
+    }
+  }
+
+  if (typeof type === 'function') {
+    return type.displayName || type.name || null;
+  }
+
+  if (typeof type === 'string') {
+    return type;
+  }
+
+  switch (type) {
+    case REACT_FRAGMENT_TYPE:
+      return 'Fragment';
+
+    case REACT_PORTAL_TYPE:
+      return 'Portal';
+
+    case REACT_PROFILER_TYPE:
+      return 'Profiler';
+
+    case REACT_STRICT_MODE_TYPE:
+      return 'StrictMode';
+
+    case REACT_SUSPENSE_TYPE:
+      return 'Suspense';
+
+    case REACT_SUSPENSE_LIST_TYPE:
+      return 'SuspenseList';
+
+    case REACT_CACHE_TYPE:
+      {
+        return 'Cache';
+      }
+
+  }
+
+  if (typeof type === 'object') {
+    switch (type.$$typeof) {
+      case REACT_CONTEXT_TYPE:
+        var context = type;
+        return getContextName(context) + '.Consumer';
+
+      case REACT_PROVIDER_TYPE:
+        var provider = type;
+        return getContextName(provider._context) + '.Provider';
+
+      case REACT_FORWARD_REF_TYPE:
+        return getWrappedName(type, type.render, 'ForwardRef');
+
+      case REACT_MEMO_TYPE:
+        var outerName = type.displayName || null;
+
+        if (outerName !== null) {
+          return outerName;
+        }
+
+        return getComponentNameFromType(type.type) || 'Memo';
+
+      case REACT_LAZY_TYPE:
+        {
+          var lazyComponent = type;
+          var payload = lazyComponent._payload;
+          var init = lazyComponent._init;
+
+          try {
+            return getComponentNameFromType(init(payload));
+          } catch (x) {
+            return null;
+          }
+        }
+
+      case REACT_SERVER_CONTEXT_TYPE:
+        {
+          var context2 = type;
+          return (context2.displayName || context2._globalName) + '.Provider';
+        }
+
+      // eslint-disable-next-line no-fallthrough
+    }
+  }
+
+  return null;
+}
+
+// Helpers to patch console.logs to avoid logging during side-effect free
+// replaying on render function. This currently only patches the object
+// lazily which won't cover if the log function was extracted eagerly.
+// We could also eagerly patch the method.
+var disabledDepth = 0;
+var prevLog;
+var prevInfo;
+var prevWarn;
+var prevError;
+var prevGroup;
+var prevGroupCollapsed;
+var prevGroupEnd;
+
+function disabledLog() {}
+
+disabledLog.__reactDisabledLog = true;
+function disableLogs() {
+  {
+    if (disabledDepth === 0) {
+      /* eslint-disable react-internal/no-production-logging */
+      prevLog = console.log;
+      prevInfo = console.info;
+      prevWarn = console.warn;
+      prevError = console.error;
+      prevGroup = console.group;
+      prevGroupCollapsed = console.groupCollapsed;
+      prevGroupEnd = console.groupEnd; // https://github.com/facebook/react/issues/19099
+
+      var props = {
+        configurable: true,
+        enumerable: true,
+        value: disabledLog,
+        writable: true
+      }; // $FlowFixMe Flow thinks console is immutable.
+
+      Object.defineProperties(console, {
+        info: props,
+        log: props,
+        warn: props,
+        error: props,
+        group: props,
+        groupCollapsed: props,
+        groupEnd: props
+      });
+      /* eslint-enable react-internal/no-production-logging */
+    }
+
+    disabledDepth++;
+  }
+}
+function reenableLogs() {
+  {
+    disabledDepth--;
+
+    if (disabledDepth === 0) {
+      /* eslint-disable react-internal/no-production-logging */
+      var props = {
+        configurable: true,
+        enumerable: true,
+        writable: true
+      }; // $FlowFixMe Flow thinks console is immutable.
+
+      Object.defineProperties(console, {
+        log: assign({}, props, {
+          value: prevLog
+        }),
+        info: assign({}, props, {
+          value: prevInfo
+        }),
+        warn: assign({}, props, {
+          value: prevWarn
+        }),
+        error: assign({}, props, {
+          value: prevError
+        }),
+        group: assign({}, props, {
+          value: prevGroup
+        }),
+        groupCollapsed: assign({}, props, {
+          value: prevGroupCollapsed
+        }),
+        groupEnd: assign({}, props, {
+          value: prevGroupEnd
+        })
+      });
+      /* eslint-enable react-internal/no-production-logging */
+    }
+
+    if (disabledDepth < 0) {
+      error('disabledDepth fell below zero. ' + 'This is a bug in React. Please file an issue.');
+    }
+  }
+}
+
+var ReactCurrentDispatcher = ReactSharedInternals.ReactCurrentDispatcher;
+var prefix;
+function describeBuiltInComponentFrame(name, source, ownerFn) {
+  {
+    if (prefix === undefined) {
+      // Extract the VM specific prefix used by each line.
+      try {
+        throw Error();
+      } catch (x) {
+        var match = x.stack.trim().match(/\n( *(at )?)/);
+        prefix = match && match[1] || '';
+      }
+    } // We use the prefix to ensure our stacks line up with native stack frames.
+
+
+    return '\n' + prefix + name;
+  }
+}
+var reentry = false;
+var componentFrameCache;
+
+{
+  var PossiblyWeakMap = typeof WeakMap === 'function' ? WeakMap : Map;
+  componentFrameCache = new PossiblyWeakMap();
+}
+
+function describeNativeComponentFrame(fn, construct) {
+  // If something asked for a stack inside a fake render, it should get ignored.
+  if ( !fn || reentry) {
+    return '';
+  }
+
+  {
+    var frame = componentFrameCache.get(fn);
+
+    if (frame !== undefined) {
+      return frame;
+    }
+  }
+
+  var control;
+  reentry = true;
+  var previousPrepareStackTrace = Error.prepareStackTrace; // $FlowFixMe It does accept undefined.
+
+  Error.prepareStackTrace = undefined;
+  var previousDispatcher;
+
+  {
+    previousDispatcher = ReactCurrentDispatcher.current; // Set the dispatcher in DEV because this might be call in the render function
+    // for warnings.
+
+    ReactCurrentDispatcher.current = null;
+    disableLogs();
+  }
+
+  try {
+    // This should throw.
+    if (construct) {
+      // Something should be setting the props in the constructor.
+      var Fake = function () {
+        throw Error();
+      }; // $FlowFixMe
+
+
+      Object.defineProperty(Fake.prototype, 'props', {
+        set: function () {
+          // We use a throwing setter instead of frozen or non-writable props
+          // because that won't throw in a non-strict mode function.
+          throw Error();
+        }
+      });
+
+      if (typeof Reflect === 'object' && Reflect.construct) {
+        // We construct a different control for this case to include any extra
+        // frames added by the construct call.
+        try {
+          Reflect.construct(Fake, []);
+        } catch (x) {
+          control = x;
+        }
+
+        Reflect.construct(fn, [], Fake);
+      } else {
+        try {
+          Fake.call();
+        } catch (x) {
+          control = x;
+        }
+
+        fn.call(Fake.prototype);
+      }
+    } else {
+      try {
+        throw Error();
+      } catch (x) {
+        control = x;
+      } // TODO(luna): This will currently only throw if the function component
+      // tries to access React/ReactDOM/props. We should probably make this throw
+      // in simple components too
+
+
+      fn();
+    }
+  } catch (sample) {
+    // This is inlined manually because closure doesn't do it for us.
+    if (sample && control && typeof sample.stack === 'string') {
+      // This extracts the first frame from the sample that isn't also in the control.
+      // Skipping one frame that we assume is the frame that calls the two.
+      var sampleLines = sample.stack.split('\n');
+      var controlLines = control.stack.split('\n');
+      var s = sampleLines.length - 1;
+      var c = controlLines.length - 1;
+
+      while (s >= 1 && c >= 0 && sampleLines[s] !== controlLines[c]) {
+        // We expect at least one stack frame to be shared.
+        // Typically this will be the root most one. However, stack frames may be
+        // cut off due to maximum stack limits. In this case, one maybe cut off
+        // earlier than the other. We assume that the sample is longer or the same
+        // and there for cut off earlier. So we should find the root most frame in
+        // the sample somewhere in the control.
+        c--;
+      }
+
+      for (; s >= 1 && c >= 0; s--, c--) {
+        // Next we find the first one that isn't the same which should be the
+        // frame that called our sample function and the control.
+        if (sampleLines[s] !== controlLines[c]) {
+          // In V8, the first line is describing the message but other VMs don't.
+          // If we're about to return the first line, and the control is also on the same
+          // line, that's a pretty good indicator that our sample threw at same line as
+          // the control. I.e. before we entered the sample frame. So we ignore this result.
+          // This can happen if you passed a class to function component, or non-function.
+          if (s !== 1 || c !== 1) {
+            do {
+              s--;
+              c--; // We may still have similar intermediate frames from the construct call.
+              // The next one that isn't the same should be our match though.
+
+              if (c < 0 || sampleLines[s] !== controlLines[c]) {
+                // V8 adds a "new" prefix for native classes. Let's remove it to make it prettier.
+                var _frame = '\n' + sampleLines[s].replace(' at new ', ' at '); // If our component frame is labeled "<anonymous>"
+                // but we have a user-provided "displayName"
+                // splice it in to make the stack more readable.
+
+
+                if (fn.displayName && _frame.includes('<anonymous>')) {
+                  _frame = _frame.replace('<anonymous>', fn.displayName);
+                }
+
+                {
+                  if (typeof fn === 'function') {
+                    componentFrameCache.set(fn, _frame);
+                  }
+                } // Return the line we found.
+
+
+                return _frame;
+              }
+            } while (s >= 1 && c >= 0);
+          }
+
+          break;
+        }
+      }
+    }
+  } finally {
+    reentry = false;
+
+    {
+      ReactCurrentDispatcher.current = previousDispatcher;
+      reenableLogs();
+    }
+
+    Error.prepareStackTrace = previousPrepareStackTrace;
+  } // Fallback to just using the name if we couldn't make it throw.
+
+
+  var name = fn ? fn.displayName || fn.name : '';
+  var syntheticFrame = name ? describeBuiltInComponentFrame(name) : '';
+
+  {
+    if (typeof fn === 'function') {
+      componentFrameCache.set(fn, syntheticFrame);
+    }
+  }
+
+  return syntheticFrame;
+}
+
+function describeClassComponentFrame(ctor, source, ownerFn) {
+  {
+    return describeNativeComponentFrame(ctor, true);
+  }
+}
+function describeFunctionComponentFrame(fn, source, ownerFn) {
+  {
+    return describeNativeComponentFrame(fn, false);
+  }
+}
+
+function shouldConstruct(Component) {
+  var prototype = Component.prototype;
+  return !!(prototype && prototype.isReactComponent);
+}
+
+function describeUnknownElementTypeFrameInDEV(type, source, ownerFn) {
+
+  if (type == null) {
+    return '';
+  }
+
+  if (typeof type === 'function') {
+    {
+      return describeNativeComponentFrame(type, shouldConstruct(type));
+    }
+  }
+
+  if (typeof type === 'string') {
+    return describeBuiltInComponentFrame(type);
+  }
+
+  switch (type) {
+    case REACT_SUSPENSE_TYPE:
+      return describeBuiltInComponentFrame('Suspense');
+
+    case REACT_SUSPENSE_LIST_TYPE:
+      return describeBuiltInComponentFrame('SuspenseList');
+  }
+
+  if (typeof type === 'object') {
+    switch (type.$$typeof) {
+      case REACT_FORWARD_REF_TYPE:
+        return describeFunctionComponentFrame(type.render);
+
+      case REACT_MEMO_TYPE:
+        // Memo may contain any component type so we recursively resolve it.
+        return describeUnknownElementTypeFrameInDEV(type.type, source, ownerFn);
+
+      case REACT_LAZY_TYPE:
+        {
+          var lazyComponent = type;
+          var payload = lazyComponent._payload;
+          var init = lazyComponent._init;
+
+          try {
+            // Lazy may contain any component type so we recursively resolve it.
+            return describeUnknownElementTypeFrameInDEV(init(payload), source, ownerFn);
+          } catch (x) {}
+        }
+    }
+  }
+
+  return '';
+}
+
+var loggedTypeFailures = {};
+var ReactDebugCurrentFrame = ReactSharedInternals.ReactDebugCurrentFrame;
+
+function setCurrentlyValidatingElement(element) {
+  {
+    if (element) {
+      var owner = element._owner;
+      var stack = describeUnknownElementTypeFrameInDEV(element.type, element._source, owner ? owner.type : null);
+      ReactDebugCurrentFrame.setExtraStackFrame(stack);
+    } else {
+      ReactDebugCurrentFrame.setExtraStackFrame(null);
+    }
+  }
+}
+
+function checkPropTypes(typeSpecs, values, location, componentName, element) {
+  {
+    // $FlowFixMe This is okay but Flow doesn't know it.
+    var has = Function.call.bind(hasOwnProperty);
+
+    for (var typeSpecName in typeSpecs) {
+      if (has(typeSpecs, typeSpecName)) {
+        var error$1 = void 0; // Prop type validation may throw. In case they do, we don't want to
+        // fail the render phase where it didn't fail before. So we log it.
+        // After these have been cleaned up, we'll let them throw.
+
+        try {
+          // This is intentionally an invariant that gets caught. It's the same
+          // behavior as without this statement except with a better message.
+          if (typeof typeSpecs[typeSpecName] !== 'function') {
+            // eslint-disable-next-line react-internal/prod-error-codes
+            var err = Error((componentName || 'React class') + ': ' + location + ' type `' + typeSpecName + '` is invalid; ' + 'it must be a function, usually from the `prop-types` package, but received `' + typeof typeSpecs[typeSpecName] + '`.' + 'This often happens because of typos such as `PropTypes.function` instead of `PropTypes.func`.');
+            err.name = 'Invariant Violation';
+            throw err;
+          }
+
+          error$1 = typeSpecs[typeSpecName](values, typeSpecName, componentName, location, null, 'SECRET_DO_NOT_PASS_THIS_OR_YOU_WILL_BE_FIRED');
+        } catch (ex) {
+          error$1 = ex;
+        }
+
+        if (error$1 && !(error$1 instanceof Error)) {
+          setCurrentlyValidatingElement(element);
+
+          error('%s: type specification of %s' + ' `%s` is invalid; the type checker ' + 'function must return `null` or an `Error` but returned a %s. ' + 'You may have forgotten to pass an argument to the type checker ' + 'creator (arrayOf, instanceOf, objectOf, oneOf, oneOfType, and ' + 'shape all require an argument).', componentName || 'React class', location, typeSpecName, typeof error$1);
+
+          setCurrentlyValidatingElement(null);
+        }
+
+        if (error$1 instanceof Error && !(error$1.message in loggedTypeFailures)) {
+          // Only monitor this failure once because there tends to be a lot of the
+          // same error.
+          loggedTypeFailures[error$1.message] = true;
+          setCurrentlyValidatingElement(element);
+
+          error('Failed %s type: %s', location, error$1.message);
+
+          setCurrentlyValidatingElement(null);
+        }
+      }
+    }
+  }
+}
+
+var warnedAboutMissingGetChildContext;
+
+{
+  warnedAboutMissingGetChildContext = {};
+} // $FlowFixMe[incompatible-exact]
+
+
+var emptyContextObject = {};
+
+{
+  Object.freeze(emptyContextObject);
+}
+
+function getMaskedContext(type, unmaskedContext) {
+  {
+    var contextTypes = type.contextTypes;
+
+    if (!contextTypes) {
+      return emptyContextObject;
+    }
+
+    var context = {};
+
+    for (var key in contextTypes) {
+      context[key] = unmaskedContext[key];
+    }
+
+    {
+      var name = getComponentNameFromType(type) || 'Unknown';
+      checkPropTypes(contextTypes, context, 'context', name);
+    }
+
+    return context;
+  }
+}
+function processChildContext(instance, type, parentContext, childContextTypes) {
+  {
+    // TODO (bvaughn) Replace this behavior with an invariant() in the future.
+    // It has only been added in Fiber to match the (unintentional) behavior in Stack.
+    if (typeof instance.getChildContext !== 'function') {
+      {
+        var componentName = getComponentNameFromType(type) || 'Unknown';
+
+        if (!warnedAboutMissingGetChildContext[componentName]) {
+          warnedAboutMissingGetChildContext[componentName] = true;
+
+          error('%s.childContextTypes is specified but there is no getChildContext() method ' + 'on the instance. You can either define getChildContext() on %s or remove ' + 'childContextTypes from it.', componentName, componentName);
+        }
+      }
+
+      return parentContext;
+    }
+
+    var childContext = instance.getChildContext();
+
+    for (var contextKey in childContext) {
+      if (!(contextKey in childContextTypes)) {
+        throw new Error((getComponentNameFromType(type) || 'Unknown') + ".getChildContext(): key \"" + contextKey + "\" is not defined in childContextTypes.");
+      }
+    }
+
+    {
+      var name = getComponentNameFromType(type) || 'Unknown';
+      checkPropTypes(childContextTypes, childContext, 'child context', name);
+    }
+
+    return assign({}, parentContext, childContext);
+  }
+}
+
+var rendererSigil;
+
+{
+  // Use this to detect multiple renderers using the same context
+  rendererSigil = {};
+} // Used to store the parent path of all context overrides in a shared linked list.
+// Forming a reverse tree.
+
+
+var rootContextSnapshot = null; // We assume that this runtime owns the "current" field on all ReactContext instances.
+// This global (actually thread local) state represents what state all those "current",
+// fields are currently in.
+
+var currentActiveSnapshot = null;
+
+function popNode(prev) {
+  {
+    prev.context._currentValue2 = prev.parentValue;
+  }
+}
+
+function pushNode(next) {
+  {
+    next.context._currentValue2 = next.value;
+  }
+}
+
+function popToNearestCommonAncestor(prev, next) {
+  if (prev === next) ; else {
+    popNode(prev);
+    var parentPrev = prev.parent;
+    var parentNext = next.parent;
+
+    if (parentPrev === null) {
+      if (parentNext !== null) {
+        throw new Error('The stacks must reach the root at the same time. This is a bug in React.');
+      }
+    } else {
+      if (parentNext === null) {
+        throw new Error('The stacks must reach the root at the same time. This is a bug in React.');
+      }
+
+      popToNearestCommonAncestor(parentPrev, parentNext);
+    } // On the way back, we push the new ones that weren't common.
+
+
+    pushNode(next);
+  }
+}
+
+function popAllPrevious(prev) {
+  popNode(prev);
+  var parentPrev = prev.parent;
+
+  if (parentPrev !== null) {
+    popAllPrevious(parentPrev);
+  }
+}
+
+function pushAllNext(next) {
+  var parentNext = next.parent;
+
+  if (parentNext !== null) {
+    pushAllNext(parentNext);
+  }
+
+  pushNode(next);
+}
+
+function popPreviousToCommonLevel(prev, next) {
+  popNode(prev);
+  var parentPrev = prev.parent;
+
+  if (parentPrev === null) {
+    throw new Error('The depth must equal at least at zero before reaching the root. This is a bug in React.');
+  }
+
+  if (parentPrev.depth === next.depth) {
+    // We found the same level. Now we just need to find a shared ancestor.
+    popToNearestCommonAncestor(parentPrev, next);
+  } else {
+    // We must still be deeper.
+    popPreviousToCommonLevel(parentPrev, next);
+  }
+}
+
+function popNextToCommonLevel(prev, next) {
+  var parentNext = next.parent;
+
+  if (parentNext === null) {
+    throw new Error('The depth must equal at least at zero before reaching the root. This is a bug in React.');
+  }
+
+  if (prev.depth === parentNext.depth) {
+    // We found the same level. Now we just need to find a shared ancestor.
+    popToNearestCommonAncestor(prev, parentNext);
+  } else {
+    // We must still be deeper.
+    popNextToCommonLevel(prev, parentNext);
+  }
+
+  pushNode(next);
+} // Perform context switching to the new snapshot.
+// To make it cheap to read many contexts, while not suspending, we make the switch eagerly by
+// updating all the context's current values. That way reads, always just read the current value.
+// At the cost of updating contexts even if they're never read by this subtree.
+
+
+function switchContext(newSnapshot) {
+  // The basic algorithm we need to do is to pop back any contexts that are no longer on the stack.
+  // We also need to update any new contexts that are now on the stack with the deepest value.
+  // The easiest way to update new contexts is to just reapply them in reverse order from the
+  // perspective of the backpointers. To avoid allocating a lot when switching, we use the stack
+  // for that. Therefore this algorithm is recursive.
+  // 1) First we pop which ever snapshot tree was deepest. Popping old contexts as we go.
+  // 2) Then we find the nearest common ancestor from there. Popping old contexts as we go.
+  // 3) Then we reapply new contexts on the way back up the stack.
+  var prev = currentActiveSnapshot;
+  var next = newSnapshot;
+
+  if (prev !== next) {
+    if (prev === null) {
+      // $FlowFixMe: This has to be non-null since it's not equal to prev.
+      pushAllNext(next);
+    } else if (next === null) {
+      popAllPrevious(prev);
+    } else if (prev.depth === next.depth) {
+      popToNearestCommonAncestor(prev, next);
+    } else if (prev.depth > next.depth) {
+      popPreviousToCommonLevel(prev, next);
+    } else {
+      popNextToCommonLevel(prev, next);
+    }
+
+    currentActiveSnapshot = next;
+  }
+}
+function pushProvider(context, nextValue) {
+  var prevValue;
+
+  {
+    prevValue = context._currentValue2;
+    context._currentValue2 = nextValue;
+
+    {
+      if (context._currentRenderer2 !== undefined && context._currentRenderer2 !== null && context._currentRenderer2 !== rendererSigil) {
+        error('Detected multiple renderers concurrently rendering the ' + 'same context provider. This is currently unsupported.');
+      }
+
+      context._currentRenderer2 = rendererSigil;
+    }
+  }
+
+  var prevNode = currentActiveSnapshot;
+  var newNode = {
+    parent: prevNode,
+    depth: prevNode === null ? 0 : prevNode.depth + 1,
+    context: context,
+    parentValue: prevValue,
+    value: nextValue
+  };
+  currentActiveSnapshot = newNode;
+  return newNode;
+}
+function popProvider(context) {
+  var prevSnapshot = currentActiveSnapshot;
+
+  if (prevSnapshot === null) {
+    throw new Error('Tried to pop a Context at the root of the app. This is a bug in React.');
+  }
+
+  {
+    if (prevSnapshot.context !== context) {
+      error('The parent context is not the expected context. This is probably a bug in React.');
+    }
+  }
+
+  {
+    var _value = prevSnapshot.parentValue;
+
+    if (_value === REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED) {
+      prevSnapshot.context._currentValue2 = prevSnapshot.context._defaultValue;
+    } else {
+      prevSnapshot.context._currentValue2 = _value;
+    }
+
+    {
+      if (context._currentRenderer2 !== undefined && context._currentRenderer2 !== null && context._currentRenderer2 !== rendererSigil) {
+        error('Detected multiple renderers concurrently rendering the ' + 'same context provider. This is currently unsupported.');
+      }
+
+      context._currentRenderer2 = rendererSigil;
+    }
+  }
+
+  return currentActiveSnapshot = prevSnapshot.parent;
+}
+function getActiveContext() {
+  return currentActiveSnapshot;
+}
+function readContext(context) {
+  var value =  context._currentValue2;
+  return value;
+}
+
+/**
+ * `ReactInstanceMap` maintains a mapping from a public facing stateful
+ * instance (key) and the internal representation (value). This allows public
+ * methods to accept the user facing instance as an argument and map them back
+ * to internal methods.
+ *
+ * Note that this module is currently shared and assumed to be stateless.
+ * If this becomes an actual Map, that will break.
+ */
+function get(key) {
+  return key._reactInternals;
+}
+function set(key, value) {
+  key._reactInternals = value;
+}
+
+var didWarnAboutNoopUpdateForComponent = {};
+var didWarnAboutDeprecatedWillMount = {};
+var didWarnAboutUninitializedState;
+var didWarnAboutGetSnapshotBeforeUpdateWithoutDidUpdate;
+var didWarnAboutLegacyLifecyclesAndDerivedState;
+var didWarnAboutUndefinedDerivedState;
+var warnOnUndefinedDerivedState;
+var warnOnInvalidCallback;
+var didWarnAboutDirectlyAssigningPropsToState;
+var didWarnAboutContextTypeAndContextTypes;
+var didWarnAboutInvalidateContextType;
+
+{
+  didWarnAboutUninitializedState = new Set();
+  didWarnAboutGetSnapshotBeforeUpdateWithoutDidUpdate = new Set();
+  didWarnAboutLegacyLifecyclesAndDerivedState = new Set();
+  didWarnAboutDirectlyAssigningPropsToState = new Set();
+  didWarnAboutUndefinedDerivedState = new Set();
+  didWarnAboutContextTypeAndContextTypes = new Set();
+  didWarnAboutInvalidateContextType = new Set();
+  var didWarnOnInvalidCallback = new Set();
+
+  warnOnInvalidCallback = function (callback, callerName) {
+    if (callback === null || typeof callback === 'function') {
+      return;
+    }
+
+    var key = callerName + '_' + callback;
+
+    if (!didWarnOnInvalidCallback.has(key)) {
+      didWarnOnInvalidCallback.add(key);
+
+      error('%s(...): Expected the last optional `callback` argument to be a ' + 'function. Instead received: %s.', callerName, callback);
+    }
+  };
+
+  warnOnUndefinedDerivedState = function (type, partialState) {
+    if (partialState === undefined) {
+      var componentName = getComponentNameFromType(type) || 'Component';
+
+      if (!didWarnAboutUndefinedDerivedState.has(componentName)) {
+        didWarnAboutUndefinedDerivedState.add(componentName);
+
+        error('%s.getDerivedStateFromProps(): A valid state object (or null) must be returned. ' + 'You have returned undefined.', componentName);
+      }
+    }
+  };
+}
+
+function warnNoop(publicInstance, callerName) {
+  {
+    var _constructor = publicInstance.constructor;
+    var componentName = _constructor && getComponentNameFromType(_constructor) || 'ReactClass';
+    var warningKey = componentName + '.' + callerName;
+
+    if (didWarnAboutNoopUpdateForComponent[warningKey]) {
+      return;
+    }
+
+    error('%s(...): Can only update a mounting component. ' + 'This usually means you called %s() outside componentWillMount() on the server. ' + 'This is a no-op.\n\nPlease check the code for the %s component.', callerName, callerName, componentName);
+
+    didWarnAboutNoopUpdateForComponent[warningKey] = true;
+  }
+}
+
+var classComponentUpdater = {
+  isMounted: function (inst) {
+    return false;
+  },
+  enqueueSetState: function (inst, payload, callback) {
+    var internals = get(inst);
+
+    if (internals.queue === null) {
+      warnNoop(inst, 'setState');
+    } else {
+      internals.queue.push(payload);
+
+      {
+        if (callback !== undefined && callback !== null) {
+          warnOnInvalidCallback(callback, 'setState');
+        }
+      }
+    }
+  },
+  enqueueReplaceState: function (inst, payload, callback) {
+    var internals = get(inst);
+    internals.replace = true;
+    internals.queue = [payload];
+
+    {
+      if (callback !== undefined && callback !== null) {
+        warnOnInvalidCallback(callback, 'setState');
+      }
+    }
+  },
+  enqueueForceUpdate: function (inst, callback) {
+    var internals = get(inst);
+
+    if (internals.queue === null) {
+      warnNoop(inst, 'forceUpdate');
+    } else {
+      {
+        if (callback !== undefined && callback !== null) {
+          warnOnInvalidCallback(callback, 'setState');
+        }
+      }
+    }
+  }
+};
+
+function applyDerivedStateFromProps(instance, ctor, getDerivedStateFromProps, prevState, nextProps) {
+  var partialState = getDerivedStateFromProps(nextProps, prevState);
+
+  {
+    warnOnUndefinedDerivedState(ctor, partialState);
+  } // Merge the partial state and the previous state.
+
+
+  var newState = partialState === null || partialState === undefined ? prevState : assign({}, prevState, partialState);
+  return newState;
+}
+
+function constructClassInstance(ctor, props, maskedLegacyContext) {
+  var context = emptyContextObject;
+  var contextType = ctor.contextType;
+
+  {
+    if ('contextType' in ctor) {
+      var isValid = // Allow null for conditional declaration
+      contextType === null || contextType !== undefined && contextType.$$typeof === REACT_CONTEXT_TYPE && contextType._context === undefined; // Not a <Context.Consumer>
+
+      if (!isValid && !didWarnAboutInvalidateContextType.has(ctor)) {
+        didWarnAboutInvalidateContextType.add(ctor);
+        var addendum = '';
+
+        if (contextType === undefined) {
+          addendum = ' However, it is set to undefined. ' + 'This can be caused by a typo or by mixing up named and default imports. ' + 'This can also happen due to a circular dependency, so ' + 'try moving the createContext() call to a separate file.';
+        } else if (typeof contextType !== 'object') {
+          addendum = ' However, it is set to a ' + typeof contextType + '.';
+        } else if (contextType.$$typeof === REACT_PROVIDER_TYPE) {
+          addendum = ' Did you accidentally pass the Context.Provider instead?';
+        } else if (contextType._context !== undefined) {
+          // <Context.Consumer>
+          addendum = ' Did you accidentally pass the Context.Consumer instead?';
+        } else {
+          addendum = ' However, it is set to an object with keys {' + Object.keys(contextType).join(', ') + '}.';
+        }
+
+        error('%s defines an invalid contextType. ' + 'contextType should point to the Context object returned by React.createContext().%s', getComponentNameFromType(ctor) || 'Component', addendum);
+      }
+    }
+  }
+
+  if (typeof contextType === 'object' && contextType !== null) {
+    context = readContext(contextType);
+  } else {
+    context = maskedLegacyContext;
+  }
+
+  var instance = new ctor(props, context);
+
+  {
+    if (typeof ctor.getDerivedStateFromProps === 'function' && (instance.state === null || instance.state === undefined)) {
+      var componentName = getComponentNameFromType(ctor) || 'Component';
+
+      if (!didWarnAboutUninitializedState.has(componentName)) {
+        didWarnAboutUninitializedState.add(componentName);
+
+        error('`%s` uses `getDerivedStateFromProps` but its initial state is ' + '%s. This is not recommended. Instead, define the initial state by ' + 'assigning an object to `this.state` in the constructor of `%s`. ' + 'This ensures that `getDerivedStateFromProps` arguments have a consistent shape.', componentName, instance.state === null ? 'null' : 'undefined', componentName);
+      }
+    } // If new component APIs are defined, "unsafe" lifecycles won't be called.
+    // Warn about these lifecycles if they are present.
+    // Don't warn about react-lifecycles-compat polyfilled methods though.
+
+
+    if (typeof ctor.getDerivedStateFromProps === 'function' || typeof instance.getSnapshotBeforeUpdate === 'function') {
+      var foundWillMountName = null;
+      var foundWillReceivePropsName = null;
+      var foundWillUpdateName = null;
+
+      if (typeof instance.componentWillMount === 'function' && instance.componentWillMount.__suppressDeprecationWarning !== true) {
+        foundWillMountName = 'componentWillMount';
+      } else if (typeof instance.UNSAFE_componentWillMount === 'function') {
+        foundWillMountName = 'UNSAFE_componentWillMount';
+      }
+
+      if (typeof instance.componentWillReceiveProps === 'function' && instance.componentWillReceiveProps.__suppressDeprecationWarning !== true) {
+        foundWillReceivePropsName = 'componentWillReceiveProps';
+      } else if (typeof instance.UNSAFE_componentWillReceiveProps === 'function') {
+        foundWillReceivePropsName = 'UNSAFE_componentWillReceiveProps';
+      }
+
+      if (typeof instance.componentWillUpdate === 'function' && instance.componentWillUpdate.__suppressDeprecationWarning !== true) {
+        foundWillUpdateName = 'componentWillUpdate';
+      } else if (typeof instance.UNSAFE_componentWillUpdate === 'function') {
+        foundWillUpdateName = 'UNSAFE_componentWillUpdate';
+      }
+
+      if (foundWillMountName !== null || foundWillReceivePropsName !== null || foundWillUpdateName !== null) {
+        var _componentName = getComponentNameFromType(ctor) || 'Component';
+
+        var newApiName = typeof ctor.getDerivedStateFromProps === 'function' ? 'getDerivedStateFromProps()' : 'getSnapshotBeforeUpdate()';
+
+        if (!didWarnAboutLegacyLifecyclesAndDerivedState.has(_componentName)) {
+          didWarnAboutLegacyLifecyclesAndDerivedState.add(_componentName);
+
+          error('Unsafe legacy lifecycles will not be called for components using new component APIs.\n\n' + '%s uses %s but also contains the following legacy lifecycles:%s%s%s\n\n' + 'The above lifecycles should be removed. Learn more about this warning here:\n' + 'https://reactjs.org/link/unsafe-component-lifecycles', _componentName, newApiName, foundWillMountName !== null ? "\n  " + foundWillMountName : '', foundWillReceivePropsName !== null ? "\n  " + foundWillReceivePropsName : '', foundWillUpdateName !== null ? "\n  " + foundWillUpdateName : '');
+        }
+      }
+    }
+  }
+
+  return instance;
+}
+
+function checkClassInstance(instance, ctor, newProps) {
+  {
+    var name = getComponentNameFromType(ctor) || 'Component';
+    var renderPresent = instance.render;
+
+    if (!renderPresent) {
+      if (ctor.prototype && typeof ctor.prototype.render === 'function') {
+        error('%s(...): No `render` method found on the returned component ' + 'instance: did you accidentally return an object from the constructor?', name);
+      } else {
+        error('%s(...): No `render` method found on the returned component ' + 'instance: you may have forgotten to define `render`.', name);
+      }
+    }
+
+    if (instance.getInitialState && !instance.getInitialState.isReactClassApproved && !instance.state) {
+      error('getInitialState was defined on %s, a plain JavaScript class. ' + 'This is only supported for classes created using React.createClass. ' + 'Did you mean to define a state property instead?', name);
+    }
+
+    if (instance.getDefaultProps && !instance.getDefaultProps.isReactClassApproved) {
+      error('getDefaultProps was defined on %s, a plain JavaScript class. ' + 'This is only supported for classes created using React.createClass. ' + 'Use a static property to define defaultProps instead.', name);
+    }
+
+    if (instance.propTypes) {
+      error('propTypes was defined as an instance property on %s. Use a static ' + 'property to define propTypes instead.', name);
+    }
+
+    if (instance.contextType) {
+      error('contextType was defined as an instance property on %s. Use a static ' + 'property to define contextType instead.', name);
+    }
+
+    {
+      if (instance.contextTypes) {
+        error('contextTypes was defined as an instance property on %s. Use a static ' + 'property to define contextTypes instead.', name);
+      }
+
+      if (ctor.contextType && ctor.contextTypes && !didWarnAboutContextTypeAndContextTypes.has(ctor)) {
+        didWarnAboutContextTypeAndContextTypes.add(ctor);
+
+        error('%s declares both contextTypes and contextType static properties. ' + 'The legacy contextTypes property will be ignored.', name);
+      }
+    }
+
+    if (typeof instance.componentShouldUpdate === 'function') {
+      error('%s has a method called ' + 'componentShouldUpdate(). Did you mean shouldComponentUpdate()? ' + 'The name is phrased as a question because the function is ' + 'expected to return a value.', name);
+    }
+
+    if (ctor.prototype && ctor.prototype.isPureReactComponent && typeof instance.shouldComponentUpdate !== 'undefined') {
+      error('%s has a method called shouldComponentUpdate(). ' + 'shouldComponentUpdate should not be used when extending React.PureComponent. ' + 'Please extend React.Component if shouldComponentUpdate is used.', getComponentNameFromType(ctor) || 'A pure component');
+    }
+
+    if (typeof instance.componentDidUnmount === 'function') {
+      error('%s has a method called ' + 'componentDidUnmount(). But there is no such lifecycle method. ' + 'Did you mean componentWillUnmount()?', name);
+    }
+
+    if (typeof instance.componentDidReceiveProps === 'function') {
+      error('%s has a method called ' + 'componentDidReceiveProps(). But there is no such lifecycle method. ' + 'If you meant to update the state in response to changing props, ' + 'use componentWillReceiveProps(). If you meant to fetch data or ' + 'run side-effects or mutations after React has updated the UI, use componentDidUpdate().', name);
+    }
+
+    if (typeof instance.componentWillRecieveProps === 'function') {
+      error('%s has a method called ' + 'componentWillRecieveProps(). Did you mean componentWillReceiveProps()?', name);
+    }
+
+    if (typeof instance.UNSAFE_componentWillRecieveProps === 'function') {
+      error('%s has a method called ' + 'UNSAFE_componentWillRecieveProps(). Did you mean UNSAFE_componentWillReceiveProps()?', name);
+    }
+
+    var hasMutatedProps = instance.props !== newProps;
+
+    if (instance.props !== undefined && hasMutatedProps) {
+      error('%s(...): When calling super() in `%s`, make sure to pass ' + "up the same props that your component's constructor was passed.", name, name);
+    }
+
+    if (instance.defaultProps) {
+      error('Setting defaultProps as an instance property on %s is not supported and will be ignored.' + ' Instead, define defaultProps as a static property on %s.', name, name);
+    }
+
+    if (typeof instance.getSnapshotBeforeUpdate === 'function' && typeof instance.componentDidUpdate !== 'function' && !didWarnAboutGetSnapshotBeforeUpdateWithoutDidUpdate.has(ctor)) {
+      didWarnAboutGetSnapshotBeforeUpdateWithoutDidUpdate.add(ctor);
+
+      error('%s: getSnapshotBeforeUpdate() should be used with componentDidUpdate(). ' + 'This component defines getSnapshotBeforeUpdate() only.', getComponentNameFromType(ctor));
+    }
+
+    if (typeof instance.getDerivedStateFromProps === 'function') {
+      error('%s: getDerivedStateFromProps() is defined as an instance method ' + 'and will be ignored. Instead, declare it as a static method.', name);
+    }
+
+    if (typeof instance.getDerivedStateFromError === 'function') {
+      error('%s: getDerivedStateFromError() is defined as an instance method ' + 'and will be ignored. Instead, declare it as a static method.', name);
+    }
+
+    if (typeof ctor.getSnapshotBeforeUpdate === 'function') {
+      error('%s: getSnapshotBeforeUpdate() is defined as a static method ' + 'and will be ignored. Instead, declare it as an instance method.', name);
+    }
+
+    var _state = instance.state;
+
+    if (_state && (typeof _state !== 'object' || isArray(_state))) {
+      error('%s.state: must be set to an object or null', name);
+    }
+
+    if (typeof instance.getChildContext === 'function' && typeof ctor.childContextTypes !== 'object') {
+      error('%s.getChildContext(): childContextTypes must be defined in order to ' + 'use getChildContext().', name);
+    }
+  }
+}
+
+function callComponentWillMount(type, instance) {
+  var oldState = instance.state;
+
+  if (typeof instance.componentWillMount === 'function') {
+    {
+      if ( instance.componentWillMount.__suppressDeprecationWarning !== true) {
+        var componentName = getComponentNameFromType(type) || 'Unknown';
+
+        if (!didWarnAboutDeprecatedWillMount[componentName]) {
+          warn( // keep this warning in sync with ReactStrictModeWarning.js
+          'componentWillMount has been renamed, and is not recommended for use. ' + 'See https://reactjs.org/link/unsafe-component-lifecycles for details.\n\n' + '* Move code from componentWillMount to componentDidMount (preferred in most cases) ' + 'or the constructor.\n' + '\nPlease update the following components: %s', componentName);
+
+          didWarnAboutDeprecatedWillMount[componentName] = true;
+        }
+      }
+    }
+
+    instance.componentWillMount();
+  }
+
+  if (typeof instance.UNSAFE_componentWillMount === 'function') {
+    instance.UNSAFE_componentWillMount();
+  }
+
+  if (oldState !== instance.state) {
+    {
+      error('%s.componentWillMount(): Assigning directly to this.state is ' + "deprecated (except inside a component's " + 'constructor). Use setState instead.', getComponentNameFromType(type) || 'Component');
+    }
+
+    classComponentUpdater.enqueueReplaceState(instance, instance.state, null);
+  }
+}
+
+function processUpdateQueue(internalInstance, inst, props, maskedLegacyContext) {
+  if (internalInstance.queue !== null && internalInstance.queue.length > 0) {
+    var oldQueue = internalInstance.queue;
+    var oldReplace = internalInstance.replace;
+    internalInstance.queue = null;
+    internalInstance.replace = false;
+
+    if (oldReplace && oldQueue.length === 1) {
+      inst.state = oldQueue[0];
+    } else {
+      var nextState = oldReplace ? oldQueue[0] : inst.state;
+      var dontMutate = true;
+
+      for (var i = oldReplace ? 1 : 0; i < oldQueue.length; i++) {
+        var partial = oldQueue[i];
+        var partialState = typeof partial === 'function' ? partial.call(inst, nextState, props, maskedLegacyContext) : partial;
+
+        if (partialState != null) {
+          if (dontMutate) {
+            dontMutate = false;
+            nextState = assign({}, nextState, partialState);
+          } else {
+            assign(nextState, partialState);
+          }
+        }
+      }
+
+      inst.state = nextState;
+    }
+  } else {
+    internalInstance.queue = null;
+  }
+} // Invokes the mount life-cycles on a previously never rendered instance.
+
+
+function mountClassInstance(instance, ctor, newProps, maskedLegacyContext) {
+  {
+    checkClassInstance(instance, ctor, newProps);
+  }
+
+  var initialState = instance.state !== undefined ? instance.state : null;
+  instance.updater = classComponentUpdater;
+  instance.props = newProps;
+  instance.state = initialState; // We don't bother initializing the refs object on the server, since we're not going to resolve them anyway.
+  // The internal instance will be used to manage updates that happen during this mount.
+
+  var internalInstance = {
+    queue: [],
+    replace: false
+  };
+  set(instance, internalInstance);
+  var contextType = ctor.contextType;
+
+  if (typeof contextType === 'object' && contextType !== null) {
+    instance.context = readContext(contextType);
+  } else {
+    instance.context = maskedLegacyContext;
+  }
+
+  {
+    if (instance.state === newProps) {
+      var componentName = getComponentNameFromType(ctor) || 'Component';
+
+      if (!didWarnAboutDirectlyAssigningPropsToState.has(componentName)) {
+        didWarnAboutDirectlyAssigningPropsToState.add(componentName);
+
+        error('%s: It is not recommended to assign props directly to state ' + "because updates to props won't be reflected in state. " + 'In most cases, it is better to use props directly.', componentName);
+      }
+    }
+  }
+
+  var getDerivedStateFromProps = ctor.getDerivedStateFromProps;
+
+  if (typeof getDerivedStateFromProps === 'function') {
+    instance.state = applyDerivedStateFromProps(instance, ctor, getDerivedStateFromProps, initialState, newProps);
+  } // In order to support react-lifecycles-compat polyfilled components,
+  // Unsafe lifecycles should not be invoked for components using the new APIs.
+
+
+  if (typeof ctor.getDerivedStateFromProps !== 'function' && typeof instance.getSnapshotBeforeUpdate !== 'function' && (typeof instance.UNSAFE_componentWillMount === 'function' || typeof instance.componentWillMount === 'function')) {
+    callComponentWillMount(ctor, instance); // If we had additional state updates during this life-cycle, let's
+    // process them now.
+
+    processUpdateQueue(internalInstance, instance, newProps, maskedLegacyContext);
+  }
+}
+
+// Ids are base 32 strings whose binary representation corresponds to the
+// position of a node in a tree.
+// Every time the tree forks into multiple children, we add additional bits to
+// the left of the sequence that represent the position of the child within the
+// current level of children.
+//
+//      00101       00010001011010101
+//      ╰─┬─╯       ╰───────┬───────╯
+//   Fork 5 of 20       Parent id
+//
+// The leading 0s are important. In the above example, you only need 3 bits to
+// represent slot 5. However, you need 5 bits to represent all the forks at
+// the current level, so we must account for the empty bits at the end.
+//
+// For this same reason, slots are 1-indexed instead of 0-indexed. Otherwise,
+// the zeroth id at a level would be indistinguishable from its parent.
+//
+// If a node has only one child, and does not materialize an id (i.e. does not
+// contain a useId hook), then we don't need to allocate any space in the
+// sequence. It's treated as a transparent indirection. For example, these two
+// trees produce the same ids:
+//
+// <>                          <>
+//   <Indirection>               <A />
+//     <A />                     <B />
+//   </Indirection>            </>
+//   <B />
+// </>
+//
+// However, we cannot skip any node that materializes an id. Otherwise, a parent
+// id that does not fork would be indistinguishable from its child id. For
+// example, this tree does not fork, but the parent and child must have
+// different ids.
+//
+// <Parent>
+//   <Child />
+// </Parent>
+//
+// To handle this scenario, every time we materialize an id, we allocate a
+// new level with a single slot. You can think of this as a fork with only one
+// prong, or an array of children with length 1.
+//
+// It's possible for the size of the sequence to exceed 32 bits, the max
+// size for bitwise operations. When this happens, we make more room by
+// converting the right part of the id to a string and storing it in an overflow
+// variable. We use a base 32 string representation, because 32 is the largest
+// power of 2 that is supported by toString(). We want the base to be large so
+// that the resulting ids are compact, and we want the base to be a power of 2
+// because every log2(base) bits corresponds to a single character, i.e. every
+// log2(32) = 5 bits. That means we can lop bits off the end 5 at a time without
+// affecting the final result.
+var emptyTreeContext = {
+  id: 1,
+  overflow: ''
+};
+function getTreeId(context) {
+  var overflow = context.overflow;
+  var idWithLeadingBit = context.id;
+  var id = idWithLeadingBit & ~getLeadingBit(idWithLeadingBit);
+  return id.toString(32) + overflow;
+}
+function pushTreeContext(baseContext, totalChildren, index) {
+  var baseIdWithLeadingBit = baseContext.id;
+  var baseOverflow = baseContext.overflow; // The leftmost 1 marks the end of the sequence, non-inclusive. It's not part
+  // of the id; we use it to account for leading 0s.
+
+  var baseLength = getBitLength(baseIdWithLeadingBit) - 1;
+  var baseId = baseIdWithLeadingBit & ~(1 << baseLength);
+  var slot = index + 1;
+  var length = getBitLength(totalChildren) + baseLength; // 30 is the max length we can store without overflowing, taking into
+  // consideration the leading 1 we use to mark the end of the sequence.
+
+  if (length > 30) {
+    // We overflowed the bitwise-safe range. Fall back to slower algorithm.
+    // This branch assumes the length of the base id is greater than 5; it won't
+    // work for smaller ids, because you need 5 bits per character.
+    //
+    // We encode the id in multiple steps: first the base id, then the
+    // remaining digits.
+    //
+    // Each 5 bit sequence corresponds to a single base 32 character. So for
+    // example, if the current id is 23 bits long, we can convert 20 of those
+    // bits into a string of 4 characters, with 3 bits left over.
+    //
+    // First calculate how many bits in the base id represent a complete
+    // sequence of characters.
+    var numberOfOverflowBits = baseLength - baseLength % 5; // Then create a bitmask that selects only those bits.
+
+    var newOverflowBits = (1 << numberOfOverflowBits) - 1; // Select the bits, and convert them to a base 32 string.
+
+    var newOverflow = (baseId & newOverflowBits).toString(32); // Now we can remove those bits from the base id.
+
+    var restOfBaseId = baseId >> numberOfOverflowBits;
+    var restOfBaseLength = baseLength - numberOfOverflowBits; // Finally, encode the rest of the bits using the normal algorithm. Because
+    // we made more room, this time it won't overflow.
+
+    var restOfLength = getBitLength(totalChildren) + restOfBaseLength;
+    var restOfNewBits = slot << restOfBaseLength;
+    var id = restOfNewBits | restOfBaseId;
+    var overflow = newOverflow + baseOverflow;
+    return {
+      id: 1 << restOfLength | id,
+      overflow: overflow
+    };
+  } else {
+    // Normal path
+    var newBits = slot << baseLength;
+
+    var _id = newBits | baseId;
+
+    var _overflow = baseOverflow;
+    return {
+      id: 1 << length | _id,
+      overflow: _overflow
+    };
+  }
+}
+
+function getBitLength(number) {
+  return 32 - clz32(number);
+}
+
+function getLeadingBit(id) {
+  return 1 << getBitLength(id) - 1;
+} // TODO: Math.clz32 is supported in Node 12+. Maybe we can drop the fallback.
+
+
+var clz32 = Math.clz32 ? Math.clz32 : clz32Fallback; // Count leading zeros.
+// Based on:
+// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/clz32
+
+var log = Math.log;
+var LN2 = Math.LN2;
+
+function clz32Fallback(x) {
+  var asUint = x >>> 0;
+
+  if (asUint === 0) {
+    return 32;
+  }
+
+  return 31 - (log(asUint) / LN2 | 0) | 0;
+}
+
+// Corresponds to ReactFiberWakeable and ReactFlightWakeable modules. Generally,
+// changes to one module should be reflected in the others.
+// TODO: Rename this module and the corresponding Fiber one to "Thenable"
+// instead of "Wakeable". Or some other more appropriate name.
+// TODO: Sparse arrays are bad for performance.
+function createThenableState() {
+  // The ThenableState is created the first time a component suspends. If it
+  // suspends again, we'll reuse the same state.
+  return [];
+}
+function trackSuspendedWakeable(wakeable) {
+  // If this wakeable isn't already a thenable, turn it into one now. Then,
+  // when we resume the work loop, we can check if its status is
+  // still pending.
+  // TODO: Get rid of the Wakeable type? It's superseded by UntrackedThenable.
+  var thenable = wakeable; // We use an expando to track the status and result of a thenable so that we
+  // can synchronously unwrap the value. Think of this as an extension of the
+  // Promise API, or a custom interface that is a superset of Thenable.
+  //
+  // If the thenable doesn't have a status, set it to "pending" and attach
+  // a listener that will update its status and result when it resolves.
+
+  switch (thenable.status) {
+    case 'fulfilled':
+    case 'rejected':
+      // A thenable that already resolved shouldn't have been thrown, so this is
+      // unexpected. Suggests a mistake in a userspace data library. Don't track
+      // this thenable, because if we keep trying it will likely infinite loop
+      // without ever resolving.
+      // TODO: Log a warning?
+      break;
+
+    default:
+      {
+        if (typeof thenable.status === 'string') {
+          // Only instrument the thenable if the status if not defined. If
+          // it's defined, but an unknown value, assume it's been instrumented by
+          // some custom userspace implementation. We treat it as "pending".
+          break;
+        }
+
+        var pendingThenable = thenable;
+        pendingThenable.status = 'pending';
+        pendingThenable.then(function (fulfilledValue) {
+          if (thenable.status === 'pending') {
+            var fulfilledThenable = thenable;
+            fulfilledThenable.status = 'fulfilled';
+            fulfilledThenable.value = fulfilledValue;
+          }
+        }, function (error) {
+          if (thenable.status === 'pending') {
+            var rejectedThenable = thenable;
+            rejectedThenable.status = 'rejected';
+            rejectedThenable.reason = error;
+          }
+        });
+        break;
+      }
+  }
+}
+function trackUsedThenable(thenableState, thenable, index) {
+  // This is only a separate function from trackSuspendedWakeable for symmetry
+  // with Fiber.
+  thenableState[index] = thenable;
+}
+function getPreviouslyUsedThenableAtIndex(thenableState, index) {
+  if (thenableState !== null) {
+    var thenable = thenableState[index];
+
+    if (thenable !== undefined) {
+      return thenable;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * inlined Object.is polyfill to avoid requiring consumers ship their own
+ * https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/is
+ */
+function is(x, y) {
+  return x === y && (x !== 0 || 1 / x === 1 / y) || x !== x && y !== y // eslint-disable-line no-self-compare
+  ;
+}
+
+var objectIs = typeof Object.is === 'function' ? Object.is : is;
+
+var currentlyRenderingComponent = null;
+var currentlyRenderingTask = null;
+var firstWorkInProgressHook = null;
+var workInProgressHook = null; // Whether the work-in-progress hook is a re-rendered hook
+
+var isReRender = false; // Whether an update was scheduled during the currently executing render pass.
+
+var didScheduleRenderPhaseUpdate = false; // Counts the number of useId hooks in this component
+
+var localIdCounter = 0; // Counts the number of use(thenable) calls in this component
+
+var thenableIndexCounter = 0;
+var thenableState = null; // Lazily created map of render-phase updates
+
+var renderPhaseUpdates = null; // Counter to prevent infinite loops.
+
+var numberOfReRenders = 0;
+var RE_RENDER_LIMIT = 25;
+var isInHookUserCodeInDev = false; // In DEV, this is the name of the currently executing primitive hook
+
+var currentHookNameInDev;
+
+function resolveCurrentlyRenderingComponent() {
+  if (currentlyRenderingComponent === null) {
+    throw new Error('Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for' + ' one of the following reasons:\n' + '1. You might have mismatching versions of React and the renderer (such as React DOM)\n' + '2. You might be breaking the Rules of Hooks\n' + '3. You might have more than one copy of React in the same app\n' + 'See https://reactjs.org/link/invalid-hook-call for tips about how to debug and fix this problem.');
+  }
+
+  {
+    if (isInHookUserCodeInDev) {
+      error('Do not call Hooks inside useEffect(...), useMemo(...), or other built-in Hooks. ' + 'You can only call Hooks at the top level of your React function. ' + 'For more information, see ' + 'https://reactjs.org/link/rules-of-hooks');
+    }
+  }
+
+  return currentlyRenderingComponent;
+}
+
+function areHookInputsEqual(nextDeps, prevDeps) {
+  if (prevDeps === null) {
+    {
+      error('%s received a final argument during this render, but not during ' + 'the previous render. Even though the final argument is optional, ' + 'its type cannot change between renders.', currentHookNameInDev);
+    }
+
+    return false;
+  }
+
+  {
+    // Don't bother comparing lengths in prod because these arrays should be
+    // passed inline.
+    if (nextDeps.length !== prevDeps.length) {
+      error('The final argument passed to %s changed size between renders. The ' + 'order and size of this array must remain constant.\n\n' + 'Previous: %s\n' + 'Incoming: %s', currentHookNameInDev, "[" + nextDeps.join(', ') + "]", "[" + prevDeps.join(', ') + "]");
+    }
+  }
+
+  for (var i = 0; i < prevDeps.length && i < nextDeps.length; i++) {
+    if (objectIs(nextDeps[i], prevDeps[i])) {
+      continue;
+    }
+
+    return false;
+  }
+
+  return true;
+}
+
+function createHook() {
+  if (numberOfReRenders > 0) {
+    throw new Error('Rendered more hooks than during the previous render');
+  }
+
+  return {
+    memoizedState: null,
+    queue: null,
+    next: null
+  };
+}
+
+function createWorkInProgressHook() {
+  if (workInProgressHook === null) {
+    // This is the first hook in the list
+    if (firstWorkInProgressHook === null) {
+      isReRender = false;
+      firstWorkInProgressHook = workInProgressHook = createHook();
+    } else {
+      // There's already a work-in-progress. Reuse it.
+      isReRender = true;
+      workInProgressHook = firstWorkInProgressHook;
+    }
+  } else {
+    if (workInProgressHook.next === null) {
+      isReRender = false; // Append to the end of the list
+
+      workInProgressHook = workInProgressHook.next = createHook();
+    } else {
+      // There's already a work-in-progress. Reuse it.
+      isReRender = true;
+      workInProgressHook = workInProgressHook.next;
+    }
+  }
+
+  return workInProgressHook;
+}
+
+function prepareToUseHooks(task, componentIdentity, prevThenableState) {
+  currentlyRenderingComponent = componentIdentity;
+  currentlyRenderingTask = task;
+
+  {
+    isInHookUserCodeInDev = false;
+  } // The following should have already been reset
+  // didScheduleRenderPhaseUpdate = false;
+  // firstWorkInProgressHook = null;
+  // numberOfReRenders = 0;
+  // renderPhaseUpdates = null;
+  // workInProgressHook = null;
+
+
+  localIdCounter = 0;
+  thenableIndexCounter = 0;
+  thenableState = prevThenableState;
+}
+function finishHooks(Component, props, children, refOrContext) {
+  // This must be called after every function component to prevent hooks from
+  // being used in classes.
+  while (didScheduleRenderPhaseUpdate) {
+    // Updates were scheduled during the render phase. They are stored in
+    // the `renderPhaseUpdates` map. Call the component again, reusing the
+    // work-in-progress hooks and applying the additional updates on top. Keep
+    // restarting until no more updates are scheduled.
+    didScheduleRenderPhaseUpdate = false;
+    localIdCounter = 0;
+    thenableIndexCounter = 0;
+    numberOfReRenders += 1; // Start over from the beginning of the list
+
+    workInProgressHook = null;
+    children = Component(props, refOrContext);
+  }
+
+  resetHooksState();
+  return children;
+}
+function getThenableStateAfterSuspending() {
+  var state = thenableState;
+  thenableState = null;
+  return state;
+}
+function checkDidRenderIdHook() {
+  // This should be called immediately after every finishHooks call.
+  // Conceptually, it's part of the return value of finishHooks; it's only a
+  // separate function to avoid using an array tuple.
+  var didRenderIdHook = localIdCounter !== 0;
+  return didRenderIdHook;
+} // Reset the internal hooks state if an error occurs while rendering a component
+
+function resetHooksState() {
+  {
+    isInHookUserCodeInDev = false;
+  }
+
+  currentlyRenderingComponent = null;
+  currentlyRenderingTask = null;
+  didScheduleRenderPhaseUpdate = false;
+  firstWorkInProgressHook = null;
+  numberOfReRenders = 0;
+  renderPhaseUpdates = null;
+  workInProgressHook = null;
+}
+
+function getCacheForType(resourceType) {
+  // TODO: This should silently mark this as client rendered since it's not necessarily
+  // considered an error. It needs to work for things like Flight though.
+  throw new Error('Not implemented.');
+}
+
+function readContext$1(context) {
+  {
+    if (isInHookUserCodeInDev) {
+      error('Context can only be read while React is rendering. ' + 'In classes, you can read it in the render method or getDerivedStateFromProps. ' + 'In function components, you can read it directly in the function body, but not ' + 'inside Hooks like useReducer() or useMemo().');
+    }
+  }
+
+  return readContext(context);
+}
+
+function useContext(context) {
+  {
+    currentHookNameInDev = 'useContext';
+  }
+
+  resolveCurrentlyRenderingComponent();
+  return readContext(context);
+}
+
+function basicStateReducer(state, action) {
+  // $FlowFixMe: Flow doesn't like mixed types
+  return typeof action === 'function' ? action(state) : action;
+}
+
+function useState(initialState) {
+  {
+    currentHookNameInDev = 'useState';
+  }
+
+  return useReducer(basicStateReducer, // useReducer has a special case to support lazy useState initializers
+  initialState);
+}
+function useReducer(reducer, initialArg, init) {
+  {
+    if (reducer !== basicStateReducer) {
+      currentHookNameInDev = 'useReducer';
+    }
+  }
+
+  currentlyRenderingComponent = resolveCurrentlyRenderingComponent();
+  workInProgressHook = createWorkInProgressHook();
+
+  if (isReRender) {
+    // This is a re-render. Apply the new render phase updates to the previous
+    // current hook.
+    var queue = workInProgressHook.queue;
+    var dispatch = queue.dispatch;
+
+    if (renderPhaseUpdates !== null) {
+      // Render phase updates are stored in a map of queue -> linked list
+      var firstRenderPhaseUpdate = renderPhaseUpdates.get(queue);
+
+      if (firstRenderPhaseUpdate !== undefined) {
+        renderPhaseUpdates.delete(queue);
+        var newState = workInProgressHook.memoizedState;
+        var update = firstRenderPhaseUpdate;
+
+        do {
+          // Process this render phase update. We don't have to check the
+          // priority because it will always be the same as the current
+          // render's.
+          var action = update.action;
+
+          {
+            isInHookUserCodeInDev = true;
+          }
+
+          newState = reducer(newState, action);
+
+          {
+            isInHookUserCodeInDev = false;
+          }
+
+          update = update.next;
+        } while (update !== null);
+
+        workInProgressHook.memoizedState = newState;
+        return [newState, dispatch];
+      }
+    }
+
+    return [workInProgressHook.memoizedState, dispatch];
+  } else {
+    {
+      isInHookUserCodeInDev = true;
+    }
+
+    var initialState;
+
+    if (reducer === basicStateReducer) {
+      // Special case for `useState`.
+      initialState = typeof initialArg === 'function' ? initialArg() : initialArg;
+    } else {
+      initialState = init !== undefined ? init(initialArg) : initialArg;
+    }
+
+    {
+      isInHookUserCodeInDev = false;
+    }
+
+    workInProgressHook.memoizedState = initialState;
+
+    var _queue = workInProgressHook.queue = {
+      last: null,
+      dispatch: null
+    };
+
+    var _dispatch = _queue.dispatch = dispatchAction.bind(null, currentlyRenderingComponent, _queue);
+
+    return [workInProgressHook.memoizedState, _dispatch];
+  }
+}
+
+function useMemo(nextCreate, deps) {
+  currentlyRenderingComponent = resolveCurrentlyRenderingComponent();
+  workInProgressHook = createWorkInProgressHook();
+  var nextDeps = deps === undefined ? null : deps;
+
+  if (workInProgressHook !== null) {
+    var prevState = workInProgressHook.memoizedState;
+
+    if (prevState !== null) {
+      if (nextDeps !== null) {
+        var prevDeps = prevState[1];
+
+        if (areHookInputsEqual(nextDeps, prevDeps)) {
+          return prevState[0];
+        }
+      }
+    }
+  }
+
+  {
+    isInHookUserCodeInDev = true;
+  }
+
+  var nextValue = nextCreate();
+
+  {
+    isInHookUserCodeInDev = false;
+  }
+
+  workInProgressHook.memoizedState = [nextValue, nextDeps];
+  return nextValue;
+}
+
+function useRef(initialValue) {
+  currentlyRenderingComponent = resolveCurrentlyRenderingComponent();
+  workInProgressHook = createWorkInProgressHook();
+  var previousRef = workInProgressHook.memoizedState;
+
+  if (previousRef === null) {
+    var ref = {
+      current: initialValue
+    };
+
+    {
+      Object.seal(ref);
+    }
+
+    workInProgressHook.memoizedState = ref;
+    return ref;
+  } else {
+    return previousRef;
+  }
+}
+
+function useLayoutEffect(create, inputs) {
+  {
+    currentHookNameInDev = 'useLayoutEffect';
+
+    error('useLayoutEffect does nothing on the server, because its effect cannot ' + "be encoded into the server renderer's output format. This will lead " + 'to a mismatch between the initial, non-hydrated UI and the intended ' + 'UI. To avoid this, useLayoutEffect should only be used in ' + 'components that render exclusively on the client. ' + 'See https://reactjs.org/link/uselayouteffect-ssr for common fixes.');
+  }
+}
+
+function dispatchAction(componentIdentity, queue, action) {
+  if (numberOfReRenders >= RE_RENDER_LIMIT) {
+    throw new Error('Too many re-renders. React limits the number of renders to prevent ' + 'an infinite loop.');
+  }
+
+  if (componentIdentity === currentlyRenderingComponent) {
+    // This is a render phase update. Stash it in a lazily-created map of
+    // queue -> linked list of updates. After this render pass, we'll restart
+    // and apply the stashed updates on top of the work-in-progress hook.
+    didScheduleRenderPhaseUpdate = true;
+    var update = {
+      action: action,
+      next: null
+    };
+
+    if (renderPhaseUpdates === null) {
+      renderPhaseUpdates = new Map();
+    }
+
+    var firstRenderPhaseUpdate = renderPhaseUpdates.get(queue);
+
+    if (firstRenderPhaseUpdate === undefined) {
+      renderPhaseUpdates.set(queue, update);
+    } else {
+      // Append the update to the end of the list.
+      var lastRenderPhaseUpdate = firstRenderPhaseUpdate;
+
+      while (lastRenderPhaseUpdate.next !== null) {
+        lastRenderPhaseUpdate = lastRenderPhaseUpdate.next;
+      }
+
+      lastRenderPhaseUpdate.next = update;
+    }
+  }
+}
+
+function useCallback(callback, deps) {
+  return useMemo(function () {
+    return callback;
+  }, deps);
+} // TODO Decide on how to implement this hook for server rendering.
+// If a mutation occurs during render, consider triggering a Suspense boundary
+// and falling back to client rendering.
+
+function useMutableSource(source, getSnapshot, subscribe) {
+  resolveCurrentlyRenderingComponent();
+  return getSnapshot(source._source);
+}
+
+function useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot) {
+  if (getServerSnapshot === undefined) {
+    throw new Error('Missing getServerSnapshot, which is required for ' + 'server-rendered content. Will revert to client rendering.');
+  }
+
+  return getServerSnapshot();
+}
+
+function useDeferredValue(value) {
+  resolveCurrentlyRenderingComponent();
+  return value;
+}
+
+function unsupportedStartTransition() {
+  throw new Error('startTransition cannot be called during server rendering.');
+}
+
+function useTransition() {
+  resolveCurrentlyRenderingComponent();
+  return [false, unsupportedStartTransition];
+}
+
+function useId() {
+  var task = currentlyRenderingTask;
+  var treeId = getTreeId(task.treeContext);
+  var responseState = currentResponseState;
+
+  if (responseState === null) {
+    throw new Error('Invalid hook call. Hooks can only be called inside of the body of a function component.');
+  }
+
+  var localId = localIdCounter++;
+  return makeId(responseState, treeId, localId);
+}
+
+function use(usable) {
+  if (usable !== null && typeof usable === 'object') {
+    if (typeof usable.then === 'function') {
+      // This is a thenable.
+      var thenable = usable; // Track the position of the thenable within this fiber.
+
+      var index = thenableIndexCounter;
+      thenableIndexCounter += 1;
+
+      switch (thenable.status) {
+        case 'fulfilled':
+          {
+            var fulfilledValue = thenable.value;
+            return fulfilledValue;
+          }
+
+        case 'rejected':
+          {
+            var rejectedError = thenable.reason;
+            throw rejectedError;
+          }
+
+        default:
+          {
+            var prevThenableAtIndex = getPreviouslyUsedThenableAtIndex(thenableState, index);
+
+            if (prevThenableAtIndex !== null) {
+              switch (prevThenableAtIndex.status) {
+                case 'fulfilled':
+                  {
+                    var _fulfilledValue = prevThenableAtIndex.value;
+                    return _fulfilledValue;
+                  }
+
+                case 'rejected':
+                  {
+                    var _rejectedError = prevThenableAtIndex.reason;
+                    throw _rejectedError;
+                  }
+
+                default:
+                  {
+                    // The thenable still hasn't resolved. Suspend with the same
+                    // thenable as last time to avoid redundant listeners.
+                    throw prevThenableAtIndex;
+                  }
+              }
+            } else {
+              // This is the first time something has been used at this index.
+              // Stash the thenable at the current index so we can reuse it during
+              // the next attempt.
+              if (thenableState === null) {
+                thenableState = createThenableState();
+              }
+
+              trackUsedThenable(thenableState, thenable, index); // Suspend.
+              // TODO: Throwing here is an implementation detail that allows us to
+              // unwind the call stack. But we shouldn't allow it to leak into
+              // userspace. Throw an opaque placeholder value instead of the
+              // actual thenable. If it doesn't get captured by the work loop, log
+              // a warning, because that means something in userspace must have
+              // caught it.
+
+              throw thenable;
+            }
+          }
+      }
+    } else if (usable.$$typeof === REACT_CONTEXT_TYPE || usable.$$typeof === REACT_SERVER_CONTEXT_TYPE) {
+      var context = usable;
+      return readContext$1(context);
+    }
+  } // eslint-disable-next-line react-internal/safe-string-coercion
+
+
+  throw new Error('An unsupported type was passed to use(): ' + String(usable));
+}
+
+function unsupportedRefresh() {
+  throw new Error('Cache cannot be refreshed during server rendering.');
+}
+
+function useCacheRefresh() {
+  return unsupportedRefresh;
+}
+
+function useMemoCache(size) {
+  return new Array(size);
+}
+
+function noop() {}
+
+var Dispatcher = {
+  readContext: readContext$1,
+  useContext: useContext,
+  useMemo: useMemo,
+  useReducer: useReducer,
+  useRef: useRef,
+  useState: useState,
+  useInsertionEffect: noop,
+  useLayoutEffect: useLayoutEffect,
+  useCallback: useCallback,
+  // useImperativeHandle is not run in the server environment
+  useImperativeHandle: noop,
+  // Effects are not run in the server environment.
+  useEffect: noop,
+  // Debugging effect
+  useDebugValue: noop,
+  useDeferredValue: useDeferredValue,
+  useTransition: useTransition,
+  useId: useId,
+  // Subscriptions are not setup in a server environment.
+  useMutableSource: useMutableSource,
+  useSyncExternalStore: useSyncExternalStore
+};
+
+{
+  Dispatcher.getCacheForType = getCacheForType;
+  Dispatcher.useCacheRefresh = useCacheRefresh;
+}
+
+{
+  Dispatcher.useMemoCache = useMemoCache;
+}
+
+{
+  Dispatcher.use = use;
+}
+
+var currentResponseState = null;
+function setCurrentResponseState(responseState) {
+  currentResponseState = responseState;
+}
+
+function getStackByComponentStackNode(componentStack) {
+  try {
+    var info = '';
+    var node = componentStack;
+
+    do {
+      switch (node.tag) {
+        case 0:
+          info += describeBuiltInComponentFrame(node.type, null, null);
+          break;
+
+        case 1:
+          info += describeFunctionComponentFrame(node.type, null, null);
+          break;
+
+        case 2:
+          info += describeClassComponentFrame(node.type, null, null);
+          break;
+      }
+
+      node = node.parent;
+    } while (node);
+
+    return info;
+  } catch (x) {
+    return '\nError generating stack: ' + x.message + '\n' + x.stack;
+  }
+}
+
+var ReactCurrentDispatcher$1 = ReactSharedInternals.ReactCurrentDispatcher;
+var ReactDebugCurrentFrame$1 = ReactSharedInternals.ReactDebugCurrentFrame;
+var PENDING = 0;
+var COMPLETED = 1;
+var FLUSHED = 2;
+var ABORTED = 3;
+var ERRORED = 4;
+var OPEN = 0;
+var CLOSING = 1;
+var CLOSED = 2;
+// This is a default heuristic for how to split up the HTML content into progressive
+// loading. Our goal is to be able to display additional new content about every 500ms.
+// Faster than that is unnecessary and should be throttled on the client. It also
+// adds unnecessary overhead to do more splits. We don't know if it's a higher or lower
+// end device but higher end suffer less from the overhead than lower end does from
+// not getting small enough pieces. We error on the side of low end.
+// We base this on low end 3G speeds which is about 500kbits per second. We assume
+// that there can be a reasonable drop off from max bandwidth which leaves you with
+// as little as 80%. We can receive half of that each 500ms - at best. In practice,
+// a little bandwidth is lost to processing and contention - e.g. CSS and images that
+// are downloaded along with the main content. So we estimate about half of that to be
+// the lower end throughput. In other words, we expect that you can at least show
+// about 12.5kb of content per 500ms. Not counting starting latency for the first
+// paint.
+// 500 * 1024 / 8 * .8 * 0.5 / 2
+var DEFAULT_PROGRESSIVE_CHUNK_SIZE = 12800;
+
+function defaultErrorHandler(error) {
+  console['error'](error); // Don't transform to our wrapper
+
+  return null;
+}
+
+function noop$1() {}
+
+function createRequest(children, responseState, rootFormatContext, progressiveChunkSize, onError, onAllReady, onShellReady, onShellError, onFatalError) {
+  var pingedTasks = [];
+  var abortSet = new Set();
+  var request = {
+    destination: null,
+    responseState: responseState,
+    progressiveChunkSize: progressiveChunkSize === undefined ? DEFAULT_PROGRESSIVE_CHUNK_SIZE : progressiveChunkSize,
+    status: OPEN,
+    fatalError: null,
+    nextSegmentId: 0,
+    allPendingTasks: 0,
+    pendingRootTasks: 0,
+    completedRootSegment: null,
+    abortableTasks: abortSet,
+    pingedTasks: pingedTasks,
+    clientRenderedBoundaries: [],
+    completedBoundaries: [],
+    partialBoundaries: [],
+    preamble: [],
+    postamble: [],
+    onError: onError === undefined ? defaultErrorHandler : onError,
+    onAllReady: onAllReady === undefined ? noop$1 : onAllReady,
+    onShellReady: onShellReady === undefined ? noop$1 : onShellReady,
+    onShellError: onShellError === undefined ? noop$1 : onShellError,
+    onFatalError: onFatalError === undefined ? noop$1 : onFatalError
+  }; // This segment represents the root fallback.
+
+  var rootSegment = createPendingSegment(request, 0, null, rootFormatContext, // Root segments are never embedded in Text on either edge
+  false, false); // There is no parent so conceptually, we're unblocked to flush this segment.
+
+  rootSegment.parentFlushed = true;
+  var rootTask = createTask(request, null, children, null, rootSegment, abortSet, emptyContextObject, rootContextSnapshot, emptyTreeContext);
+  pingedTasks.push(rootTask);
+  return request;
+}
+
+function pingTask(request, task) {
+  var pingedTasks = request.pingedTasks;
+  pingedTasks.push(task);
+
+  if (pingedTasks.length === 1) {
+    scheduleWork(function () {
+      return performWork(request);
+    });
+  }
+}
+
+function createSuspenseBoundary(request, fallbackAbortableTasks) {
+  return {
+    id: UNINITIALIZED_SUSPENSE_BOUNDARY_ID,
+    rootSegmentID: -1,
+    parentFlushed: false,
+    pendingTasks: 0,
+    forceClientRender: false,
+    completedSegments: [],
+    byteSize: 0,
+    fallbackAbortableTasks: fallbackAbortableTasks,
+    errorDigest: null
+  };
+}
+
+function createTask(request, thenableState, node, blockedBoundary, blockedSegment, abortSet, legacyContext, context, treeContext) {
+  request.allPendingTasks++;
+
+  if (blockedBoundary === null) {
+    request.pendingRootTasks++;
+  } else {
+    blockedBoundary.pendingTasks++;
+  }
+
+  var task = {
+    node: node,
+    ping: function () {
+      return pingTask(request, task);
+    },
+    blockedBoundary: blockedBoundary,
+    blockedSegment: blockedSegment,
+    abortSet: abortSet,
+    legacyContext: legacyContext,
+    context: context,
+    treeContext: treeContext,
+    thenableState: thenableState
+  };
+
+  {
+    task.componentStack = null;
+  }
+
+  abortSet.add(task);
+  return task;
+}
+
+function createPendingSegment(request, index, boundary, formatContext, lastPushedText, textEmbedded) {
+  return {
+    status: PENDING,
+    id: -1,
+    // lazily assigned later
+    index: index,
+    parentFlushed: false,
+    chunks: [],
+    children: [],
+    formatContext: formatContext,
+    boundary: boundary,
+    lastPushedText: lastPushedText,
+    textEmbedded: textEmbedded
+  };
+} // DEV-only global reference to the currently executing task
+
+
+var currentTaskInDEV = null;
+
+function getCurrentStackInDEV() {
+  {
+    if (currentTaskInDEV === null || currentTaskInDEV.componentStack === null) {
+      return '';
+    }
+
+    return getStackByComponentStackNode(currentTaskInDEV.componentStack);
+  }
+}
+
+function pushBuiltInComponentStackInDEV(task, type) {
+  {
+    task.componentStack = {
+      tag: 0,
+      parent: task.componentStack,
+      type: type
+    };
+  }
+}
+
+function pushFunctionComponentStackInDEV(task, type) {
+  {
+    task.componentStack = {
+      tag: 1,
+      parent: task.componentStack,
+      type: type
+    };
+  }
+}
+
+function pushClassComponentStackInDEV(task, type) {
+  {
+    task.componentStack = {
+      tag: 2,
+      parent: task.componentStack,
+      type: type
+    };
+  }
+}
+
+function popComponentStackInDEV(task) {
+  {
+    if (task.componentStack === null) {
+      error('Unexpectedly popped too many stack frames. This is a bug in React.');
+    } else {
+      task.componentStack = task.componentStack.parent;
+    }
+  }
+} // stash the component stack of an unwinding error until it is processed
+
+
+var lastBoundaryErrorComponentStackDev = null;
+
+function captureBoundaryErrorDetailsDev(boundary, error) {
+  {
+    var errorMessage;
+
+    if (typeof error === 'string') {
+      errorMessage = error;
+    } else if (error && typeof error.message === 'string') {
+      errorMessage = error.message;
+    } else {
+      // eslint-disable-next-line react-internal/safe-string-coercion
+      errorMessage = String(error);
+    }
+
+    var errorComponentStack = lastBoundaryErrorComponentStackDev || getCurrentStackInDEV();
+    lastBoundaryErrorComponentStackDev = null;
+    boundary.errorMessage = errorMessage;
+    boundary.errorComponentStack = errorComponentStack;
+  }
+}
+
+function logRecoverableError(request, error) {
+  // If this callback errors, we intentionally let that error bubble up to become a fatal error
+  // so that someone fixes the error reporting instead of hiding it.
+  var errorDigest = request.onError(error);
+
+  if (errorDigest != null && typeof errorDigest !== 'string') {
+    // eslint-disable-next-line react-internal/prod-error-codes
+    throw new Error("onError returned something with a type other than \"string\". onError should return a string and may return null or undefined but must not return anything else. It received something of type \"" + typeof errorDigest + "\" instead");
+  }
+
+  return errorDigest;
+}
+
+function fatalError(request, error) {
+  // This is called outside error handling code such as if the root errors outside
+  // a suspense boundary or if the root suspense boundary's fallback errors.
+  // It's also called if React itself or its host configs errors.
+  var onShellError = request.onShellError;
+  onShellError(error);
+  var onFatalError = request.onFatalError;
+  onFatalError(error);
+
+  if (request.destination !== null) {
+    request.status = CLOSED;
+    closeWithError(request.destination, error);
+  } else {
+    request.status = CLOSING;
+    request.fatalError = error;
+  }
+}
+
+function renderSuspenseBoundary(request, task, props) {
+  pushBuiltInComponentStackInDEV(task, 'Suspense');
+  var parentBoundary = task.blockedBoundary;
+  var parentSegment = task.blockedSegment; // Each time we enter a suspense boundary, we split out into a new segment for
+  // the fallback so that we can later replace that segment with the content.
+  // This also lets us split out the main content even if it doesn't suspend,
+  // in case it ends up generating a large subtree of content.
+
+  var fallback = props.fallback;
+  var content = props.children;
+  var fallbackAbortSet = new Set();
+  var newBoundary = createSuspenseBoundary(request, fallbackAbortSet);
+  var insertionIndex = parentSegment.chunks.length; // The children of the boundary segment is actually the fallback.
+
+  var boundarySegment = createPendingSegment(request, insertionIndex, newBoundary, parentSegment.formatContext, // boundaries never require text embedding at their edges because comment nodes bound them
+  false, false);
+  parentSegment.children.push(boundarySegment); // The parentSegment has a child Segment at this index so we reset the lastPushedText marker on the parent
+
+  parentSegment.lastPushedText = false; // This segment is the actual child content. We can start rendering that immediately.
+
+  var contentRootSegment = createPendingSegment(request, 0, null, parentSegment.formatContext, // boundaries never require text embedding at their edges because comment nodes bound them
+  false, false); // We mark the root segment as having its parent flushed. It's not really flushed but there is
+  // no parent segment so there's nothing to wait on.
+
+  contentRootSegment.parentFlushed = true; // Currently this is running synchronously. We could instead schedule this to pingedTasks.
+  // I suspect that there might be some efficiency benefits from not creating the suspended task
+  // and instead just using the stack if possible.
+  // TODO: Call this directly instead of messing with saving and restoring contexts.
+  // We can reuse the current context and task to render the content immediately without
+  // context switching. We just need to temporarily switch which boundary and which segment
+  // we're writing to. If something suspends, it'll spawn new suspended task with that context.
+
+  task.blockedBoundary = newBoundary;
+  task.blockedSegment = contentRootSegment;
+
+  try {
+    // We use the safe form because we don't handle suspending here. Only error handling.
+    renderNode(request, task, content);
+    pushSegmentFinale$1(contentRootSegment.chunks, request.responseState, contentRootSegment.lastPushedText, contentRootSegment.textEmbedded);
+    contentRootSegment.status = COMPLETED;
+    queueCompletedSegment(newBoundary, contentRootSegment);
+
+    if (newBoundary.pendingTasks === 0) {
+      // This must have been the last segment we were waiting on. This boundary is now complete.
+      // Therefore we won't need the fallback. We early return so that we don't have to create
+      // the fallback.
+      popComponentStackInDEV(task);
+      return;
+    }
+  } catch (error) {
+    contentRootSegment.status = ERRORED;
+    newBoundary.forceClientRender = true;
+    newBoundary.errorDigest = logRecoverableError(request, error);
+
+    {
+      captureBoundaryErrorDetailsDev(newBoundary, error);
+    } // We don't need to decrement any task numbers because we didn't spawn any new task.
+    // We don't need to schedule any task because we know the parent has written yet.
+    // We do need to fallthrough to create the fallback though.
+
+  } finally {
+    task.blockedBoundary = parentBoundary;
+    task.blockedSegment = parentSegment;
+  } // We create suspended task for the fallback because we don't want to actually work
+  // on it yet in case we finish the main content, so we queue for later.
+
+
+  var suspendedFallbackTask = createTask(request, null, fallback, parentBoundary, boundarySegment, fallbackAbortSet, task.legacyContext, task.context, task.treeContext);
+
+  {
+    suspendedFallbackTask.componentStack = task.componentStack;
+  } // TODO: This should be queued at a separate lower priority queue so that we only work
+  // on preparing fallbacks if we don't have any more main content to task on.
+
+
+  request.pingedTasks.push(suspendedFallbackTask);
+  popComponentStackInDEV(task);
+}
+
+function renderHostElement(request, task, type, props) {
+  pushBuiltInComponentStackInDEV(task, type);
+  var segment = task.blockedSegment;
+  var children = pushStartInstance(segment.chunks, request.preamble, type, props, request.responseState, segment.formatContext);
+  segment.lastPushedText = false;
+  var prevContext = segment.formatContext;
+  segment.formatContext = getChildFormatContext(prevContext, type, props); // We use the non-destructive form because if something suspends, we still
+  // need to pop back up and finish this subtree of HTML.
+
+  renderNode(request, task, children); // We expect that errors will fatal the whole task and that we don't need
+  // the correct context. Therefore this is not in a finally.
+
+  segment.formatContext = prevContext;
+  pushEndInstance(segment.chunks, request.postamble, type);
+  segment.lastPushedText = false;
+  popComponentStackInDEV(task);
+}
+
+function shouldConstruct$1(Component) {
+  return Component.prototype && Component.prototype.isReactComponent;
+}
+
+function renderWithHooks(request, task, prevThenableState, Component, props, secondArg) {
+  var componentIdentity = {};
+  prepareToUseHooks(task, componentIdentity, prevThenableState);
+  var result = Component(props, secondArg);
+  return finishHooks(Component, props, result, secondArg);
+}
+
+function finishClassComponent(request, task, instance, Component, props) {
+  var nextChildren = instance.render();
+
+  {
+    if (instance.props !== props) {
+      if (!didWarnAboutReassigningProps) {
+        error('It looks like %s is reassigning its own `this.props` while rendering. ' + 'This is not supported and can lead to confusing bugs.', getComponentNameFromType(Component) || 'a component');
+      }
+
+      didWarnAboutReassigningProps = true;
+    }
+  }
+
+  {
+    var childContextTypes = Component.childContextTypes;
+
+    if (childContextTypes !== null && childContextTypes !== undefined) {
+      var previousContext = task.legacyContext;
+      var mergedContext = processChildContext(instance, Component, previousContext, childContextTypes);
+      task.legacyContext = mergedContext;
+      renderNodeDestructive(request, task, null, nextChildren);
+      task.legacyContext = previousContext;
+      return;
+    }
+  }
+
+  renderNodeDestructive(request, task, null, nextChildren);
+}
+
+function renderClassComponent(request, task, Component, props) {
+  pushClassComponentStackInDEV(task, Component);
+  var maskedContext =  getMaskedContext(Component, task.legacyContext) ;
+  var instance = constructClassInstance(Component, props, maskedContext);
+  mountClassInstance(instance, Component, props, maskedContext);
+  finishClassComponent(request, task, instance, Component, props);
+  popComponentStackInDEV(task);
+}
+
+var didWarnAboutBadClass = {};
+var didWarnAboutModulePatternComponent = {};
+var didWarnAboutContextTypeOnFunctionComponent = {};
+var didWarnAboutGetDerivedStateOnFunctionComponent = {};
+var didWarnAboutReassigningProps = false;
+var didWarnAboutGenerators = false;
+var didWarnAboutMaps = false;
+var hasWarnedAboutUsingContextAsConsumer = false; // This would typically be a function component but we still support module pattern
+// components for some reason.
+
+function renderIndeterminateComponent(request, task, prevThenableState, Component, props) {
+  var legacyContext;
+
+  {
+    legacyContext = getMaskedContext(Component, task.legacyContext);
+  }
+
+  pushFunctionComponentStackInDEV(task, Component);
+
+  {
+    if (Component.prototype && typeof Component.prototype.render === 'function') {
+      var componentName = getComponentNameFromType(Component) || 'Unknown';
+
+      if (!didWarnAboutBadClass[componentName]) {
+        error("The <%s /> component appears to have a render method, but doesn't extend React.Component. " + 'This is likely to cause errors. Change %s to extend React.Component instead.', componentName, componentName);
+
+        didWarnAboutBadClass[componentName] = true;
+      }
+    }
+  }
+
+  var value = renderWithHooks(request, task, prevThenableState, Component, props, legacyContext);
+  var hasId = checkDidRenderIdHook();
+
+  {
+    // Support for module components is deprecated and is removed behind a flag.
+    // Whether or not it would crash later, we want to show a good message in DEV first.
+    if (typeof value === 'object' && value !== null && typeof value.render === 'function' && value.$$typeof === undefined) {
+      var _componentName = getComponentNameFromType(Component) || 'Unknown';
+
+      if (!didWarnAboutModulePatternComponent[_componentName]) {
+        error('The <%s /> component appears to be a function component that returns a class instance. ' + 'Change %s to a class that extends React.Component instead. ' + "If you can't use a class try assigning the prototype on the function as a workaround. " + "`%s.prototype = React.Component.prototype`. Don't use an arrow function since it " + 'cannot be called with `new` by React.', _componentName, _componentName, _componentName);
+
+        didWarnAboutModulePatternComponent[_componentName] = true;
+      }
+    }
+  }
+
+  if ( // Run these checks in production only if the flag is off.
+  // Eventually we'll delete this branch altogether.
+   typeof value === 'object' && value !== null && typeof value.render === 'function' && value.$$typeof === undefined) {
+    {
+      var _componentName2 = getComponentNameFromType(Component) || 'Unknown';
+
+      if (!didWarnAboutModulePatternComponent[_componentName2]) {
+        error('The <%s /> component appears to be a function component that returns a class instance. ' + 'Change %s to a class that extends React.Component instead. ' + "If you can't use a class try assigning the prototype on the function as a workaround. " + "`%s.prototype = React.Component.prototype`. Don't use an arrow function since it " + 'cannot be called with `new` by React.', _componentName2, _componentName2, _componentName2);
+
+        didWarnAboutModulePatternComponent[_componentName2] = true;
+      }
+    }
+
+    mountClassInstance(value, Component, props, legacyContext);
+    finishClassComponent(request, task, value, Component, props);
+  } else {
+
+    {
+      validateFunctionComponentInDev(Component);
+    } // We're now successfully past this task, and we don't have to pop back to
+    // the previous task every again, so we can use the destructive recursive form.
+
+
+    if (hasId) {
+      // This component materialized an id. We treat this as its own level, with
+      // a single "child" slot.
+      var prevTreeContext = task.treeContext;
+      var totalChildren = 1;
+      var index = 0;
+      task.treeContext = pushTreeContext(prevTreeContext, totalChildren, index);
+
+      try {
+        renderNodeDestructive(request, task, null, value);
+      } finally {
+        task.treeContext = prevTreeContext;
+      }
+    } else {
+      renderNodeDestructive(request, task, null, value);
+    }
+  }
+
+  popComponentStackInDEV(task);
+}
+
+function validateFunctionComponentInDev(Component) {
+  {
+    if (Component) {
+      if (Component.childContextTypes) {
+        error('%s(...): childContextTypes cannot be defined on a function component.', Component.displayName || Component.name || 'Component');
+      }
+    }
+
+    if (typeof Component.getDerivedStateFromProps === 'function') {
+      var _componentName3 = getComponentNameFromType(Component) || 'Unknown';
+
+      if (!didWarnAboutGetDerivedStateOnFunctionComponent[_componentName3]) {
+        error('%s: Function components do not support getDerivedStateFromProps.', _componentName3);
+
+        didWarnAboutGetDerivedStateOnFunctionComponent[_componentName3] = true;
+      }
+    }
+
+    if (typeof Component.contextType === 'object' && Component.contextType !== null) {
+      var _componentName4 = getComponentNameFromType(Component) || 'Unknown';
+
+      if (!didWarnAboutContextTypeOnFunctionComponent[_componentName4]) {
+        error('%s: Function components do not support contextType.', _componentName4);
+
+        didWarnAboutContextTypeOnFunctionComponent[_componentName4] = true;
+      }
+    }
+  }
+}
+
+function resolveDefaultProps(Component, baseProps) {
+  if (Component && Component.defaultProps) {
+    // Resolve default props. Taken from ReactElement
+    var props = assign({}, baseProps);
+    var defaultProps = Component.defaultProps;
+
+    for (var propName in defaultProps) {
+      if (props[propName] === undefined) {
+        props[propName] = defaultProps[propName];
+      }
+    }
+
+    return props;
+  }
+
+  return baseProps;
+}
+
+function renderForwardRef(request, task, prevThenableState, type, props, ref) {
+  pushFunctionComponentStackInDEV(task, type.render);
+  var children = renderWithHooks(request, task, prevThenableState, type.render, props, ref);
+  var hasId = checkDidRenderIdHook();
+
+  if (hasId) {
+    // This component materialized an id. We treat this as its own level, with
+    // a single "child" slot.
+    var prevTreeContext = task.treeContext;
+    var totalChildren = 1;
+    var index = 0;
+    task.treeContext = pushTreeContext(prevTreeContext, totalChildren, index);
+
+    try {
+      renderNodeDestructive(request, task, null, children);
+    } finally {
+      task.treeContext = prevTreeContext;
+    }
+  } else {
+    renderNodeDestructive(request, task, null, children);
+  }
+
+  popComponentStackInDEV(task);
+}
+
+function renderMemo(request, task, prevThenableState, type, props, ref) {
+  var innerType = type.type;
+  var resolvedProps = resolveDefaultProps(innerType, props);
+  renderElement(request, task, prevThenableState, innerType, resolvedProps, ref);
+}
+
+function renderContextConsumer(request, task, context, props) {
+  // The logic below for Context differs depending on PROD or DEV mode. In
+  // DEV mode, we create a separate object for Context.Consumer that acts
+  // like a proxy to Context. This proxy object adds unnecessary code in PROD
+  // so we use the old behaviour (Context.Consumer references Context) to
+  // reduce size and overhead. The separate object references context via
+  // a property called "_context", which also gives us the ability to check
+  // in DEV mode if this property exists or not and warn if it does not.
+  {
+    if (context._context === undefined) {
+      // This may be because it's a Context (rather than a Consumer).
+      // Or it may be because it's older React where they're the same thing.
+      // We only want to warn if we're sure it's a new React.
+      if (context !== context.Consumer) {
+        if (!hasWarnedAboutUsingContextAsConsumer) {
+          hasWarnedAboutUsingContextAsConsumer = true;
+
+          error('Rendering <Context> directly is not supported and will be removed in ' + 'a future major release. Did you mean to render <Context.Consumer> instead?');
+        }
+      }
+    } else {
+      context = context._context;
+    }
+  }
+
+  var render = props.children;
+
+  {
+    if (typeof render !== 'function') {
+      error('A context consumer was rendered with multiple children, or a child ' + "that isn't a function. A context consumer expects a single child " + 'that is a function. If you did pass a function, make sure there ' + 'is no trailing or leading whitespace around it.');
+    }
+  }
+
+  var newValue = readContext(context);
+  var newChildren = render(newValue);
+  renderNodeDestructive(request, task, null, newChildren);
+}
+
+function renderContextProvider(request, task, type, props) {
+  var context = type._context;
+  var value = props.value;
+  var children = props.children;
+  var prevSnapshot;
+
+  {
+    prevSnapshot = task.context;
+  }
+
+  task.context = pushProvider(context, value);
+  renderNodeDestructive(request, task, null, children);
+  task.context = popProvider(context);
+
+  {
+    if (prevSnapshot !== task.context) {
+      error('Popping the context provider did not return back to the original snapshot. This is a bug in React.');
+    }
+  }
+}
+
+function renderLazyComponent(request, task, prevThenableState, lazyComponent, props, ref) {
+  pushBuiltInComponentStackInDEV(task, 'Lazy');
+  var payload = lazyComponent._payload;
+  var init = lazyComponent._init;
+  var Component = init(payload);
+  var resolvedProps = resolveDefaultProps(Component, props);
+  renderElement(request, task, prevThenableState, Component, resolvedProps, ref);
+  popComponentStackInDEV(task);
+}
+
+function renderOffscreen(request, task, props) {
+  var mode = props.mode;
+
+  if (mode === 'hidden') ; else {
+    // A visible Offscreen boundary is treated exactly like a fragment: a
+    // pure indirection.
+    renderNodeDestructive(request, task, null, props.children);
+  }
+}
+
+function renderElement(request, task, prevThenableState, type, props, ref) {
+  if (typeof type === 'function') {
+    if (shouldConstruct$1(type)) {
+      renderClassComponent(request, task, type, props);
+      return;
+    } else {
+      renderIndeterminateComponent(request, task, prevThenableState, type, props);
+      return;
+    }
+  }
+
+  if (typeof type === 'string') {
+    renderHostElement(request, task, type, props);
+    return;
+  }
+
+  switch (type) {
+    // LegacyHidden acts the same as a fragment. This only works because we
+    // currently assume that every instance of LegacyHidden is accompanied by a
+    // host component wrapper. In the hidden mode, the host component is given a
+    // `hidden` attribute, which ensures that the initial HTML is not visible.
+    // To support the use of LegacyHidden as a true fragment, without an extra
+    // DOM node, we would have to hide the initial HTML in some other way.
+    // TODO: Delete in LegacyHidden. It's an unstable API only used in the
+    // www build. As a migration step, we could add a special prop to Offscreen
+    // that simulates the old behavior (no hiding, no change to effects).
+    case REACT_LEGACY_HIDDEN_TYPE:
+    case REACT_DEBUG_TRACING_MODE_TYPE:
+    case REACT_STRICT_MODE_TYPE:
+    case REACT_PROFILER_TYPE:
+    case REACT_FRAGMENT_TYPE:
+      {
+        renderNodeDestructive(request, task, null, props.children);
+        return;
+      }
+
+    case REACT_OFFSCREEN_TYPE:
+      {
+        renderOffscreen(request, task, props);
+        return;
+      }
+
+    case REACT_SUSPENSE_LIST_TYPE:
+      {
+        pushBuiltInComponentStackInDEV(task, 'SuspenseList'); // TODO: SuspenseList should control the boundaries.
+
+        renderNodeDestructive(request, task, null, props.children);
+        popComponentStackInDEV(task);
+        return;
+      }
+
+    case REACT_SCOPE_TYPE:
+      {
+
+        throw new Error('ReactDOMServer does not yet support scope components.');
+      }
+    // eslint-disable-next-line-no-fallthrough
+
+    case REACT_SUSPENSE_TYPE:
+      {
+        {
+          renderSuspenseBoundary(request, task, props);
+        }
+
+        return;
+      }
+  }
+
+  if (typeof type === 'object' && type !== null) {
+    switch (type.$$typeof) {
+      case REACT_FORWARD_REF_TYPE:
+        {
+          renderForwardRef(request, task, prevThenableState, type, props, ref);
+          return;
+        }
+
+      case REACT_MEMO_TYPE:
+        {
+          renderMemo(request, task, prevThenableState, type, props, ref);
+          return;
+        }
+
+      case REACT_PROVIDER_TYPE:
+        {
+          renderContextProvider(request, task, type, props);
+          return;
+        }
+
+      case REACT_CONTEXT_TYPE:
+        {
+          renderContextConsumer(request, task, type, props);
+          return;
+        }
+
+      case REACT_LAZY_TYPE:
+        {
+          renderLazyComponent(request, task, prevThenableState, type, props);
+          return;
+        }
+    }
+  }
+
+  var info = '';
+
+  {
+    if (type === undefined || typeof type === 'object' && type !== null && Object.keys(type).length === 0) {
+      info += ' You likely forgot to export your component from the file ' + "it's defined in, or you might have mixed up default and " + 'named imports.';
+    }
+  }
+
+  throw new Error('Element type is invalid: expected a string (for built-in ' + 'components) or a class/function (for composite components) ' + ("but got: " + (type == null ? type : typeof type) + "." + info));
+}
+
+function validateIterable(iterable, iteratorFn) {
+  {
+    // We don't support rendering Generators because it's a mutation.
+    // See https://github.com/facebook/react/issues/12995
+    if (typeof Symbol === 'function' && // $FlowFixMe Flow doesn't know about toStringTag
+    iterable[Symbol.toStringTag] === 'Generator') {
+      if (!didWarnAboutGenerators) {
+        error('Using Generators as children is unsupported and will likely yield ' + 'unexpected results because enumerating a generator mutates it. ' + 'You may convert it to an array with `Array.from()` or the ' + '`[...spread]` operator before rendering. Keep in mind ' + 'you might need to polyfill these features for older browsers.');
+      }
+
+      didWarnAboutGenerators = true;
+    } // Warn about using Maps as children
+
+
+    if (iterable.entries === iteratorFn) {
+      if (!didWarnAboutMaps) {
+        error('Using Maps as children is not supported. ' + 'Use an array of keyed ReactElements instead.');
+      }
+
+      didWarnAboutMaps = true;
+    }
+  }
+}
+
+function renderNodeDestructive(request, task, // The thenable state reused from the previous attempt, if any. This is almost
+// always null, except when called by retryTask.
+prevThenableState, node) {
+  {
+    // In Dev we wrap renderNodeDestructiveImpl in a try / catch so we can capture
+    // a component stack at the right place in the tree. We don't do this in renderNode
+    // becuase it is not called at every layer of the tree and we may lose frames
+    try {
+      return renderNodeDestructiveImpl(request, task, prevThenableState, node);
+    } catch (x) {
+      if (typeof x === 'object' && x !== null && typeof x.then === 'function') ; else {
+        // This is an error, stash the component stack if it is null.
+        lastBoundaryErrorComponentStackDev = lastBoundaryErrorComponentStackDev !== null ? lastBoundaryErrorComponentStackDev : getCurrentStackInDEV();
+      } // rethrow so normal suspense logic can handle thrown value accordingly
+
+
+      throw x;
+    }
+  }
+} // This function by it self renders a node and consumes the task by mutating it
+// to update the current execution state.
+
+
+function renderNodeDestructiveImpl(request, task, prevThenableState, node) {
+  // Stash the node we're working on. We'll pick up from this task in case
+  // something suspends.
+  task.node = node; // Handle object types
+
+  if (typeof node === 'object' && node !== null) {
+    switch (node.$$typeof) {
+      case REACT_ELEMENT_TYPE:
+        {
+          var element = node;
+          var type = element.type;
+          var props = element.props;
+          var ref = element.ref;
+          renderElement(request, task, prevThenableState, type, props, ref);
+          return;
+        }
+
+      case REACT_PORTAL_TYPE:
+        throw new Error('Portals are not currently supported by the server renderer. ' + 'Render them conditionally so that they only appear on the client render.');
+      // eslint-disable-next-line-no-fallthrough
+
+      case REACT_LAZY_TYPE:
+        {
+          var lazyNode = node;
+          var payload = lazyNode._payload;
+          var init = lazyNode._init;
+          var resolvedNode;
+
+          {
+            try {
+              resolvedNode = init(payload);
+            } catch (x) {
+              if (typeof x === 'object' && x !== null && typeof x.then === 'function') {
+                // this Lazy initializer is suspending. push a temporary frame onto the stack so it can be
+                // popped off in spawnNewSuspendedTask. This aligns stack behavior between Lazy in element position
+                // vs Component position. We do not want the frame for Errors so we exclusively do this in
+                // the wakeable branch
+                pushBuiltInComponentStackInDEV(task, 'Lazy');
+              }
+
+              throw x;
+            }
+          }
+
+          renderNodeDestructive(request, task, null, resolvedNode);
+          return;
+        }
+    }
+
+    if (isArray(node)) {
+      renderChildrenArray(request, task, node);
+      return;
+    }
+
+    var iteratorFn = getIteratorFn(node);
+
+    if (iteratorFn) {
+      {
+        validateIterable(node, iteratorFn);
+      }
+
+      var iterator = iteratorFn.call(node);
+
+      if (iterator) {
+        // We need to know how many total children are in this set, so that we
+        // can allocate enough id slots to acommodate them. So we must exhaust
+        // the iterator before we start recursively rendering the children.
+        // TODO: This is not great but I think it's inherent to the id
+        // generation algorithm.
+        var step = iterator.next(); // If there are not entries, we need to push an empty so we start by checking that.
+
+        if (!step.done) {
+          var children = [];
+
+          do {
+            children.push(step.value);
+            step = iterator.next();
+          } while (!step.done);
+
+          renderChildrenArray(request, task, children);
+          return;
+        }
+
+        return;
+      }
+    }
+
+    var childString = Object.prototype.toString.call(node);
+    throw new Error("Objects are not valid as a React child (found: " + (childString === '[object Object]' ? 'object with keys {' + Object.keys(node).join(', ') + '}' : childString) + "). " + 'If you meant to render a collection of children, use an array ' + 'instead.');
+  }
+
+  if (typeof node === 'string') {
+    var segment = task.blockedSegment;
+    segment.lastPushedText = pushTextInstance$1(task.blockedSegment.chunks, node, request.responseState, segment.lastPushedText);
+    return;
+  }
+
+  if (typeof node === 'number') {
+    var _segment = task.blockedSegment;
+    _segment.lastPushedText = pushTextInstance$1(task.blockedSegment.chunks, '' + node, request.responseState, _segment.lastPushedText);
+    return;
+  }
+
+  {
+    if (typeof node === 'function') {
+      error('Functions are not valid as a React child. This may happen if ' + 'you return a Component instead of <Component /> from render. ' + 'Or maybe you meant to call this function rather than return it.');
+    }
+  }
+}
+
+function renderChildrenArray(request, task, children) {
+  var totalChildren = children.length;
+
+  for (var i = 0; i < totalChildren; i++) {
+    var prevTreeContext = task.treeContext;
+    task.treeContext = pushTreeContext(prevTreeContext, totalChildren, i);
+
+    try {
+      // We need to use the non-destructive form so that we can safely pop back
+      // up and render the sibling if something suspends.
+      renderNode(request, task, children[i]);
+    } finally {
+      task.treeContext = prevTreeContext;
+    }
+  }
+}
+
+function spawnNewSuspendedTask(request, task, thenableState, x) {
+  // Something suspended, we'll need to create a new segment and resolve it later.
+  var segment = task.blockedSegment;
+  var insertionIndex = segment.chunks.length;
+  var newSegment = createPendingSegment(request, insertionIndex, null, segment.formatContext, // Adopt the parent segment's leading text embed
+  segment.lastPushedText, // Assume we are text embedded at the trailing edge
+  true);
+  segment.children.push(newSegment); // Reset lastPushedText for current Segment since the new Segment "consumed" it
+
+  segment.lastPushedText = false;
+  var newTask = createTask(request, thenableState, task.node, task.blockedBoundary, newSegment, task.abortSet, task.legacyContext, task.context, task.treeContext);
+  trackSuspendedWakeable(x);
+
+  {
+    if (task.componentStack !== null) {
+      // We pop one task off the stack because the node that suspended will be tried again,
+      // which will add it back onto the stack.
+      newTask.componentStack = task.componentStack.parent;
+    }
+  }
+
+  var ping = newTask.ping;
+  x.then(ping, ping);
+} // This is a non-destructive form of rendering a node. If it suspends it spawns
+// a new task and restores the context of this task to what it was before.
+
+
+function renderNode(request, task, node) {
+  // TODO: Store segment.children.length here and reset it in case something
+  // suspended partially through writing something.
+  // Snapshot the current context in case something throws to interrupt the
+  // process.
+  var previousFormatContext = task.blockedSegment.formatContext;
+  var previousLegacyContext = task.legacyContext;
+  var previousContext = task.context;
+  var previousComponentStack = null;
+
+  {
+    previousComponentStack = task.componentStack;
+  }
+
+  try {
+    return renderNodeDestructive(request, task, null, node);
+  } catch (x) {
+    resetHooksState();
+
+    if (typeof x === 'object' && x !== null && typeof x.then === 'function') {
+      var thenableState = getThenableStateAfterSuspending();
+      spawnNewSuspendedTask(request, task, thenableState, x); // Restore the context. We assume that this will be restored by the inner
+      // functions in case nothing throws so we don't use "finally" here.
+
+      task.blockedSegment.formatContext = previousFormatContext;
+      task.legacyContext = previousLegacyContext;
+      task.context = previousContext; // Restore all active ReactContexts to what they were before.
+
+      switchContext(previousContext);
+
+      {
+        task.componentStack = previousComponentStack;
+      }
+
+      return;
+    } else {
+      // Restore the context. We assume that this will be restored by the inner
+      // functions in case nothing throws so we don't use "finally" here.
+      task.blockedSegment.formatContext = previousFormatContext;
+      task.legacyContext = previousLegacyContext;
+      task.context = previousContext; // Restore all active ReactContexts to what they were before.
+
+      switchContext(previousContext);
+
+      {
+        task.componentStack = previousComponentStack;
+      } // We assume that we don't need the correct context.
+      // Let's terminate the rest of the tree and don't render any siblings.
+
+
+      throw x;
+    }
+  }
+}
+
+function erroredTask(request, boundary, segment, error) {
+  // Report the error to a global handler.
+  var errorDigest = logRecoverableError(request, error);
+
+  if (boundary === null) {
+    fatalError(request, error);
+  } else {
+    boundary.pendingTasks--;
+
+    if (!boundary.forceClientRender) {
+      boundary.forceClientRender = true;
+      boundary.errorDigest = errorDigest;
+
+      {
+        captureBoundaryErrorDetailsDev(boundary, error);
+      } // Regardless of what happens next, this boundary won't be displayed,
+      // so we can flush it, if the parent already flushed.
+
+
+      if (boundary.parentFlushed) {
+        // We don't have a preference where in the queue this goes since it's likely
+        // to error on the client anyway. However, intentionally client-rendered
+        // boundaries should be flushed earlier so that they can start on the client.
+        // We reuse the same queue for errors.
+        request.clientRenderedBoundaries.push(boundary);
+      }
+    }
+  }
+
+  request.allPendingTasks--;
+
+  if (request.allPendingTasks === 0) {
+    var onAllReady = request.onAllReady;
+    onAllReady();
+  }
+}
+
+function abortTaskSoft(task) {
+  // This aborts task without aborting the parent boundary that it blocks.
+  // It's used for when we didn't need this task to complete the tree.
+  // If task was needed, then it should use abortTask instead.
+  var request = this;
+  var boundary = task.blockedBoundary;
+  var segment = task.blockedSegment;
+  segment.status = ABORTED;
+  finishedTask(request, boundary, segment);
+}
+
+function abortTask(task, request, error) {
+  // This aborts the task and aborts the parent that it blocks, putting it into
+  // client rendered mode.
+  var boundary = task.blockedBoundary;
+  var segment = task.blockedSegment;
+  segment.status = ABORTED;
+
+  if (boundary === null) {
+    request.allPendingTasks--; // We didn't complete the root so we have nothing to show. We can close
+    // the request;
+
+    if (request.status !== CLOSING && request.status !== CLOSED) {
+      logRecoverableError(request, error);
+      fatalError(request, error);
+    }
+  } else {
+    boundary.pendingTasks--;
+
+    if (!boundary.forceClientRender) {
+      boundary.forceClientRender = true;
+      boundary.errorDigest = request.onError(error);
+
+      {
+        var errorPrefix = 'The server did not finish this Suspense boundary: ';
+        var errorMessage;
+
+        if (error && typeof error.message === 'string') {
+          errorMessage = errorPrefix + error.message;
+        } else {
+          // eslint-disable-next-line react-internal/safe-string-coercion
+          errorMessage = errorPrefix + String(error);
+        }
+
+        var previousTaskInDev = currentTaskInDEV;
+        currentTaskInDEV = task;
+
+        try {
+          captureBoundaryErrorDetailsDev(boundary, errorMessage);
+        } finally {
+          currentTaskInDEV = previousTaskInDev;
+        }
+      }
+
+      if (boundary.parentFlushed) {
+        request.clientRenderedBoundaries.push(boundary);
+      }
+    } // If this boundary was still pending then we haven't already cancelled its fallbacks.
+    // We'll need to abort the fallbacks, which will also error that parent boundary.
+
+
+    boundary.fallbackAbortableTasks.forEach(function (fallbackTask) {
+      return abortTask(fallbackTask, request, error);
+    });
+    boundary.fallbackAbortableTasks.clear();
+    request.allPendingTasks--;
+
+    if (request.allPendingTasks === 0) {
+      var onAllReady = request.onAllReady;
+      onAllReady();
+    }
+  }
+}
+
+function queueCompletedSegment(boundary, segment) {
+  if (segment.chunks.length === 0 && segment.children.length === 1 && segment.children[0].boundary === null) {
+    // This is an empty segment. There's nothing to write, so we can instead transfer the ID
+    // to the child. That way any existing references point to the child.
+    var childSegment = segment.children[0];
+    childSegment.id = segment.id;
+    childSegment.parentFlushed = true;
+
+    if (childSegment.status === COMPLETED) {
+      queueCompletedSegment(boundary, childSegment);
+    }
+  } else {
+    var completedSegments = boundary.completedSegments;
+    completedSegments.push(segment);
+  }
+}
+
+function finishedTask(request, boundary, segment) {
+  if (boundary === null) {
+    if (segment.parentFlushed) {
+      if (request.completedRootSegment !== null) {
+        throw new Error('There can only be one root segment. This is a bug in React.');
+      }
+
+      request.completedRootSegment = segment;
+    }
+
+    request.pendingRootTasks--;
+
+    if (request.pendingRootTasks === 0) {
+      // We have completed the shell so the shell can't error anymore.
+      request.onShellError = noop$1;
+      var onShellReady = request.onShellReady;
+      onShellReady();
+    }
+  } else {
+    boundary.pendingTasks--;
+
+    if (boundary.forceClientRender) ; else if (boundary.pendingTasks === 0) {
+      // This must have been the last segment we were waiting on. This boundary is now complete.
+      if (segment.parentFlushed) {
+        // Our parent segment already flushed, so we need to schedule this segment to be emitted.
+        // If it is a segment that was aborted, we'll write other content instead so we don't need
+        // to emit it.
+        if (segment.status === COMPLETED) {
+          queueCompletedSegment(boundary, segment);
+        }
+      }
+
+      if (boundary.parentFlushed) {
+        // The segment might be part of a segment that didn't flush yet, but if the boundary's
+        // parent flushed, we need to schedule the boundary to be emitted.
+        request.completedBoundaries.push(boundary);
+      } // We can now cancel any pending task on the fallback since we won't need to show it anymore.
+      // This needs to happen after we read the parentFlushed flags because aborting can finish
+      // work which can trigger user code, which can start flushing, which can change those flags.
+
+
+      boundary.fallbackAbortableTasks.forEach(abortTaskSoft, request);
+      boundary.fallbackAbortableTasks.clear();
+    } else {
+      if (segment.parentFlushed) {
+        // Our parent already flushed, so we need to schedule this segment to be emitted.
+        // If it is a segment that was aborted, we'll write other content instead so we don't need
+        // to emit it.
+        if (segment.status === COMPLETED) {
+          queueCompletedSegment(boundary, segment);
+          var completedSegments = boundary.completedSegments;
+
+          if (completedSegments.length === 1) {
+            // This is the first time since we last flushed that we completed anything.
+            // We can schedule this boundary to emit its partially completed segments early
+            // in case the parent has already been flushed.
+            if (boundary.parentFlushed) {
+              request.partialBoundaries.push(boundary);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  request.allPendingTasks--;
+
+  if (request.allPendingTasks === 0) {
+    // This needs to be called at the very end so that we can synchronously write the result
+    // in the callback if needed.
+    var onAllReady = request.onAllReady;
+    onAllReady();
+  }
+}
+
+function retryTask(request, task) {
+  var segment = task.blockedSegment;
+
+  if (segment.status !== PENDING) {
+    // We completed this by other means before we had a chance to retry it.
+    return;
+  } // We restore the context to what it was when we suspended.
+  // We don't restore it after we leave because it's likely that we'll end up
+  // needing a very similar context soon again.
+
+
+  switchContext(task.context);
+  var prevTaskInDEV = null;
+
+  {
+    prevTaskInDEV = currentTaskInDEV;
+    currentTaskInDEV = task;
+  }
+
+  try {
+    // We call the destructive form that mutates this task. That way if something
+    // suspends again, we can reuse the same task instead of spawning a new one.
+    // Reset the task's thenable state before continuing, so that if a later
+    // component suspends we can reuse the same task object. If the same
+    // component suspends again, the thenable state will be restored.
+    var prevThenableState = task.thenableState;
+    task.thenableState = null;
+    renderNodeDestructive(request, task, prevThenableState, task.node);
+    pushSegmentFinale$1(segment.chunks, request.responseState, segment.lastPushedText, segment.textEmbedded);
+    task.abortSet.delete(task);
+    segment.status = COMPLETED;
+    finishedTask(request, task.blockedBoundary, segment);
+  } catch (x) {
+    resetHooksState();
+
+    if (typeof x === 'object' && x !== null && typeof x.then === 'function') {
+      // Something suspended again, let's pick it back up later.
+      var ping = task.ping;
+      x.then(ping, ping);
+      var wakeable = x;
+      trackSuspendedWakeable(wakeable);
+      task.thenableState = getThenableStateAfterSuspending();
+    } else {
+      task.abortSet.delete(task);
+      segment.status = ERRORED;
+      erroredTask(request, task.blockedBoundary, segment, x);
+    }
+  } finally {
+    {
+      currentTaskInDEV = prevTaskInDEV;
+    }
+  }
+}
+
+function performWork(request) {
+  if (request.status === CLOSED) {
+    return;
+  }
+
+  var prevContext = getActiveContext();
+  var prevDispatcher = ReactCurrentDispatcher$1.current;
+  ReactCurrentDispatcher$1.current = Dispatcher;
+  var prevGetCurrentStackImpl;
+
+  {
+    prevGetCurrentStackImpl = ReactDebugCurrentFrame$1.getCurrentStack;
+    ReactDebugCurrentFrame$1.getCurrentStack = getCurrentStackInDEV;
+  }
+
+  var prevResponseState = currentResponseState;
+  setCurrentResponseState(request.responseState);
+
+  try {
+    var pingedTasks = request.pingedTasks;
+    var i;
+
+    for (i = 0; i < pingedTasks.length; i++) {
+      var task = pingedTasks[i];
+      retryTask(request, task);
+    }
+
+    pingedTasks.splice(0, i);
+
+    if (request.destination !== null) {
+      flushCompletedQueues(request, request.destination);
+    }
+  } catch (error) {
+    logRecoverableError(request, error);
+    fatalError(request, error);
+  } finally {
+    setCurrentResponseState(prevResponseState);
+    ReactCurrentDispatcher$1.current = prevDispatcher;
+
+    {
+      ReactDebugCurrentFrame$1.getCurrentStack = prevGetCurrentStackImpl;
+    }
+
+    if (prevDispatcher === Dispatcher) {
+      // This means that we were in a reentrant work loop. This could happen
+      // in a renderer that supports synchronous work like renderToString,
+      // when it's called from within another renderer.
+      // Normally we don't bother switching the contexts to their root/default
+      // values when leaving because we'll likely need the same or similar
+      // context again. However, when we're inside a synchronous loop like this
+      // we'll to restore the context to what it was before returning.
+      switchContext(prevContext);
+    }
+  }
+}
+
+function flushSubtree(request, destination, segment) {
+  segment.parentFlushed = true;
+
+  switch (segment.status) {
+    case PENDING:
+      {
+        // We're emitting a placeholder for this segment to be filled in later.
+        // Therefore we'll need to assign it an ID - to refer to it by.
+        var segmentID = segment.id = request.nextSegmentId++; // When this segment finally completes it won't be embedded in text since it will flush separately
+
+        segment.lastPushedText = false;
+        segment.textEmbedded = false;
+        return writePlaceholder(destination, request.responseState, segmentID);
+      }
+
+    case COMPLETED:
+      {
+        segment.status = FLUSHED;
+        var r = true;
+        var chunks = segment.chunks;
+        var chunkIdx = 0;
+        var children = segment.children;
+
+        for (var childIdx = 0; childIdx < children.length; childIdx++) {
+          var nextChild = children[childIdx]; // Write all the chunks up until the next child.
+
+          for (; chunkIdx < nextChild.index; chunkIdx++) {
+            writeChunk(destination, chunks[chunkIdx]);
+          }
+
+          r = flushSegment(request, destination, nextChild);
+        } // Finally just write all the remaining chunks
+
+
+        for (; chunkIdx < chunks.length - 1; chunkIdx++) {
+          writeChunk(destination, chunks[chunkIdx]);
+        }
+
+        if (chunkIdx < chunks.length) {
+          r = writeChunkAndReturn(destination, chunks[chunkIdx]);
+        }
+
+        return r;
+      }
+
+    default:
+      {
+        throw new Error('Aborted, errored or already flushed boundaries should not be flushed again. This is a bug in React.');
+      }
+  }
+}
+
+function flushSegment(request, destination, segment) {
+  var boundary = segment.boundary;
+
+  if (boundary === null) {
+    // Not a suspense boundary.
+    return flushSubtree(request, destination, segment);
+  }
+
+  boundary.parentFlushed = true; // This segment is a Suspense boundary. We need to decide whether to
+  // emit the content or the fallback now.
+
+  if (boundary.forceClientRender) {
+    // Emit a client rendered suspense boundary wrapper.
+    // We never queue the inner boundary so we'll never emit its content or partial segments.
+    writeStartClientRenderedSuspenseBoundary$1(destination, request.responseState, boundary.errorDigest, boundary.errorMessage, boundary.errorComponentStack); // Flush the fallback.
+
+    flushSubtree(request, destination, segment);
+    return writeEndClientRenderedSuspenseBoundary$1(destination, request.responseState);
+  } else if (boundary.pendingTasks > 0) {
+    // This boundary is still loading. Emit a pending suspense boundary wrapper.
+    // Assign an ID to refer to the future content by.
+    boundary.rootSegmentID = request.nextSegmentId++;
+
+    if (boundary.completedSegments.length > 0) {
+      // If this is at least partially complete, we can queue it to be partially emitted early.
+      request.partialBoundaries.push(boundary);
+    } /// This is the first time we should have referenced this ID.
+
+
+    var id = boundary.id = assignSuspenseBoundaryID(request.responseState);
+    writeStartPendingSuspenseBoundary(destination, request.responseState, id); // Flush the fallback.
+
+    flushSubtree(request, destination, segment);
+    return writeEndPendingSuspenseBoundary(destination, request.responseState);
+  } else if (boundary.byteSize > request.progressiveChunkSize) {
+    // This boundary is large and will be emitted separately so that we can progressively show
+    // other content. We add it to the queue during the flush because we have to ensure that
+    // the parent flushes first so that there's something to inject it into.
+    // We also have to make sure that it's emitted into the queue in a deterministic slot.
+    // I.e. we can't insert it here when it completes.
+    // Assign an ID to refer to the future content by.
+    boundary.rootSegmentID = request.nextSegmentId++;
+    request.completedBoundaries.push(boundary); // Emit a pending rendered suspense boundary wrapper.
+
+    writeStartPendingSuspenseBoundary(destination, request.responseState, boundary.id); // Flush the fallback.
+
+    flushSubtree(request, destination, segment);
+    return writeEndPendingSuspenseBoundary(destination, request.responseState);
+  } else {
+    // We can inline this boundary's content as a complete boundary.
+    writeStartCompletedSuspenseBoundary$1(destination, request.responseState);
+    var completedSegments = boundary.completedSegments;
+
+    if (completedSegments.length !== 1) {
+      throw new Error('A previously unvisited boundary must have exactly one root segment. This is a bug in React.');
+    }
+
+    var contentSegment = completedSegments[0];
+    flushSegment(request, destination, contentSegment);
+    return writeEndCompletedSuspenseBoundary$1(destination, request.responseState);
+  }
+}
+
+function flushClientRenderedBoundary(request, destination, boundary) {
+  return writeClientRenderBoundaryInstruction(destination, request.responseState, boundary.id, boundary.errorDigest, boundary.errorMessage, boundary.errorComponentStack);
+}
+
+function flushSegmentContainer(request, destination, segment) {
+  writeStartSegment(destination, request.responseState, segment.formatContext, segment.id);
+  flushSegment(request, destination, segment);
+  return writeEndSegment(destination, segment.formatContext);
+}
+
+function flushCompletedBoundary(request, destination, boundary) {
+  var completedSegments = boundary.completedSegments;
+  var i = 0;
+
+  for (; i < completedSegments.length; i++) {
+    var segment = completedSegments[i];
+    flushPartiallyCompletedSegment(request, destination, boundary, segment);
+  }
+
+  completedSegments.length = 0;
+  return writeCompletedBoundaryInstruction(destination, request.responseState, boundary.id, boundary.rootSegmentID);
+}
+
+function flushPartialBoundary(request, destination, boundary) {
+  var completedSegments = boundary.completedSegments;
+  var i = 0;
+
+  for (; i < completedSegments.length; i++) {
+    var segment = completedSegments[i];
+
+    if (!flushPartiallyCompletedSegment(request, destination, boundary, segment)) {
+      i++;
+      completedSegments.splice(0, i); // Only write as much as the buffer wants. Something higher priority
+      // might want to write later.
+
+      return false;
+    }
+  }
+
+  completedSegments.splice(0, i);
+  return true;
+}
+
+function flushPartiallyCompletedSegment(request, destination, boundary, segment) {
+  if (segment.status === FLUSHED) {
+    // We've already flushed this inline.
+    return true;
+  }
+
+  var segmentID = segment.id;
+
+  if (segmentID === -1) {
+    // This segment wasn't previously referred to. This happens at the root of
+    // a boundary. We make kind of a leap here and assume this is the root.
+    var rootSegmentID = segment.id = boundary.rootSegmentID;
+
+    if (rootSegmentID === -1) {
+      throw new Error('A root segment ID must have been assigned by now. This is a bug in React.');
+    }
+
+    return flushSegmentContainer(request, destination, segment);
+  } else {
+    flushSegmentContainer(request, destination, segment);
+    return writeCompletedSegmentInstruction(destination, request.responseState, segmentID);
+  }
+}
+
+function flushCompletedQueues(request, destination) {
+
+  try {
+    // The structure of this is to go through each queue one by one and write
+    // until the sink tells us to stop. When we should stop, we still finish writing
+    // that item fully and then yield. At that point we remove the already completed
+    // items up until the point we completed them.
+    // TODO: Emit preloading.
+    var i;
+    var completedRootSegment = request.completedRootSegment;
+
+    if (completedRootSegment !== null) {
+      if (request.pendingRootTasks === 0) {
+        if (enableFloat) {
+          var preamble = request.preamble;
+
+          for (i = 0; i < preamble.length; i++) {
+            // we expect the preamble to be tiny and will ignore backpressure
+            writeChunk(destination, preamble[i]);
+          }
+        }
+
+        flushSegment(request, destination, completedRootSegment);
+        request.completedRootSegment = null;
+        writeCompletedRoot(destination, request.responseState);
+      } else {
+        // We haven't flushed the root yet so we don't need to check boundaries further down
+        return;
+      }
+    } // We emit client rendering instructions for already emitted boundaries first.
+    // This is so that we can signal to the client to start client rendering them as
+    // soon as possible.
+
+
+    var clientRenderedBoundaries = request.clientRenderedBoundaries;
+
+    for (i = 0; i < clientRenderedBoundaries.length; i++) {
+      var boundary = clientRenderedBoundaries[i];
+
+      if (!flushClientRenderedBoundary(request, destination, boundary)) {
+        request.destination = null;
+        i++;
+        clientRenderedBoundaries.splice(0, i);
+        return;
+      }
+    }
+
+    clientRenderedBoundaries.splice(0, i); // Next we emit any complete boundaries. It's better to favor boundaries
+    // that are completely done since we can actually show them, than it is to emit
+    // any individual segments from a partially complete boundary.
+
+    var completedBoundaries = request.completedBoundaries;
+
+    for (i = 0; i < completedBoundaries.length; i++) {
+      var _boundary = completedBoundaries[i];
+
+      if (!flushCompletedBoundary(request, destination, _boundary)) {
+        request.destination = null;
+        i++;
+        completedBoundaries.splice(0, i);
+        return;
+      }
+    }
+
+    completedBoundaries.splice(0, i); // Allow anything written so far to flush to the underlying sink before
+    // we continue with lower priorities.
+
+    completeWriting(destination);
+    beginWriting(destination); // TODO: Here we'll emit data used by hydration.
+    // Next we emit any segments of any boundaries that are partially complete
+    // but not deeply complete.
+
+    var partialBoundaries = request.partialBoundaries;
+
+    for (i = 0; i < partialBoundaries.length; i++) {
+      var _boundary2 = partialBoundaries[i];
+
+      if (!flushPartialBoundary(request, destination, _boundary2)) {
+        request.destination = null;
+        i++;
+        partialBoundaries.splice(0, i);
+        return;
+      }
+    }
+
+    partialBoundaries.splice(0, i); // Next we check the completed boundaries again. This may have had
+    // boundaries added to it in case they were too larged to be inlined.
+    // New ones might be added in this loop.
+
+    var largeBoundaries = request.completedBoundaries;
+
+    for (i = 0; i < largeBoundaries.length; i++) {
+      var _boundary3 = largeBoundaries[i];
+
+      if (!flushCompletedBoundary(request, destination, _boundary3)) {
+        request.destination = null;
+        i++;
+        largeBoundaries.splice(0, i);
+        return;
+      }
+    }
+
+    largeBoundaries.splice(0, i);
+  } finally {
+    if (request.allPendingTasks === 0 && request.pingedTasks.length === 0 && request.clientRenderedBoundaries.length === 0 && request.completedBoundaries.length === 0 // We don't need to check any partially completed segments because
+    // either they have pending task or they're complete.
+    ) {
+        {
+          var postamble = request.postamble;
+
+          for (var _i = 0; _i < postamble.length; _i++) {
+            writeChunk(destination, postamble[_i]);
+          }
+        }
+
+        {
+          if (request.abortableTasks.size !== 0) {
+            error('There was still abortable task at the root when we closed. This is a bug in React.');
+          }
+        } // We're done.
+
+
+        close(destination);
+      }
+  }
+}
+
+function startWork(request) {
+  scheduleWork(function () {
+    return performWork(request);
+  });
+}
+function startFlowing(request, destination) {
+  if (request.status === CLOSING) {
+    request.status = CLOSED;
+    closeWithError(destination, request.fatalError);
+    return;
+  }
+
+  if (request.status === CLOSED) {
+    return;
+  }
+
+  if (request.destination !== null) {
+    // We're already flowing.
+    return;
+  }
+
+  request.destination = destination;
+
+  try {
+    flushCompletedQueues(request, destination);
+  } catch (error) {
+    logRecoverableError(request, error);
+    fatalError(request, error);
+  }
+} // This is called to early terminate a request. It puts all pending boundaries in client rendered state.
+
+function abort(request, reason) {
+  try {
+    var abortableTasks = request.abortableTasks;
+
+    if (abortableTasks.size > 0) {
+      var _error = reason === undefined ? new Error('The render was aborted by the server without a reason.') : reason;
+
+      abortableTasks.forEach(function (task) {
+        return abortTask(task, request, _error);
+      });
+      abortableTasks.clear();
+    }
+
+    if (request.destination !== null) {
+      flushCompletedQueues(request, request.destination);
+    }
+  } catch (error) {
+    logRecoverableError(request, error);
+    fatalError(request, error);
+  }
+}
+
+function onError() {// Non-fatal errors are ignored.
+}
+
+function renderToStringImpl(children, options, generateStaticMarkup, abortReason) {
+  var didFatal = false;
+  var fatalError = null;
+  var result = '';
+  var destination = {
+    push: function (chunk) {
+      if (chunk !== null) {
+        result += chunk;
+      }
+
+      return true;
+    },
+    destroy: function (error) {
+      didFatal = true;
+      fatalError = error;
+    }
+  };
+  var readyToStream = false;
+
+  function onShellReady() {
+    readyToStream = true;
+  }
+
+  var request = createRequest(children, createResponseState$1(generateStaticMarkup, options ? options.identifierPrefix : undefined), createRootFormatContext(), Infinity, onError, undefined, onShellReady, undefined, undefined);
+  startWork(request); // If anything suspended and is still pending, we'll abort it before writing.
+  // That way we write only client-rendered boundaries from the start.
+
+  abort(request, abortReason);
+  startFlowing(request, destination);
+
+  if (didFatal && fatalError !== abortReason) {
+    throw fatalError;
+  }
+
+  if (!readyToStream) {
+    // Note: This error message is the one we use on the client. It doesn't
+    // really make sense here. But this is the legacy server renderer, anyway.
+    // We're going to delete it soon.
+    throw new Error('A component suspended while responding to synchronous input. This ' + 'will cause the UI to be replaced with a loading indicator. To fix, ' + 'updates that suspend should be wrapped with startTransition.');
+  }
+
+  return result;
+}
+
+function renderToString(children, options) {
+  return renderToStringImpl(children, options, false, 'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToReadableStream" which supports Suspense on the server');
+}
+
+function renderToStaticMarkup(children, options) {
+  return renderToStringImpl(children, options, true, 'The server used "renderToStaticMarkup" which does not support Suspense. If you intended to have the server wait for the suspended component please switch to "renderToReadableStream" which supports Suspense on the server');
+}
+
+function renderToNodeStream() {
+  throw new Error('ReactDOMServer.renderToNodeStream(): The streaming API is not available ' + 'in the browser. Use ReactDOMServer.renderToString() instead.');
+}
+
+function renderToStaticNodeStream() {
+  throw new Error('ReactDOMServer.renderToStaticNodeStream(): The streaming API is not available ' + 'in the browser. Use ReactDOMServer.renderToStaticMarkup() instead.');
+}
+
+exports.renderToNodeStream = renderToNodeStream;
+exports.renderToStaticMarkup = renderToStaticMarkup;
+exports.renderToStaticNodeStream = renderToStaticNodeStream;
+exports.renderToString = renderToString;
+exports.version = ReactVersion;
+  })();
+}
+
+
+/***/ }),
+
+/***/ 536:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
 /**
  * @license React
  * react-dom-server-legacy.browser.production.min.js
@@ -18,7 +7422,100 @@ if(process.env.NODE_ENV!=="production"){(function(){"use strict";var e=o(89);var
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  */
-var a=o(89);function m(e){for(var r="https://reactjs.org/docs/error-decoder.html?invariant="+e,o=1;o<arguments.length;o++)r+="&args[]="+encodeURIComponent(arguments[o]);return"Minified React error #"+e+"; visit "+r+" for the full message or use the non-minified dev environment for full errors and additional helpful warnings."}var i=Object.prototype.hasOwnProperty,s=/^[:A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD][:A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD\-.0-9\u00B7\u0300-\u036F\u203F-\u2040]*$/,l={},c={};function ea(e){if(i.call(c,e))return!0;if(i.call(l,e))return!1;if(s.test(e))return c[e]=!0;l[e]=!0;return!1}function t(e,r,o,a,i,s,l){this.acceptsBooleans=2===r||3===r||4===r;this.attributeName=a;this.attributeNamespace=i;this.mustUseProperty=o;this.propertyName=e;this.type=r;this.sanitizeURL=s;this.removeEmptyString=l}var d={},p="children dangerouslySetInnerHTML defaultValue defaultChecked innerHTML suppressContentEditableWarning suppressHydrationWarning style".split(" ");p.push("innerText","textContent");p.forEach((function(e){d[e]=new t(e,0,!1,e,null,!1,!1)}));[["acceptCharset","accept-charset"],["className","class"],["htmlFor","for"],["httpEquiv","http-equiv"]].forEach((function(e){var r=e[0];d[r]=new t(r,1,!1,e[1],null,!1,!1)}));["contentEditable","draggable","spellCheck","value"].forEach((function(e){d[e]=new t(e,2,!1,e.toLowerCase(),null,!1,!1)}));["autoReverse","externalResourcesRequired","focusable","preserveAlpha"].forEach((function(e){d[e]=new t(e,2,!1,e,null,!1,!1)}));"allowFullScreen async autoFocus autoPlay controls default defer disabled disablePictureInPicture disableRemotePlayback formNoValidate hidden loop noModule noValidate open playsInline readOnly required reversed scoped seamless itemScope".split(" ").forEach((function(e){d[e]=new t(e,3,!1,e.toLowerCase(),null,!1,!1)}));["checked","multiple","muted","selected"].forEach((function(e){d[e]=new t(e,3,!0,e,null,!1,!1)}));["capture","download"].forEach((function(e){d[e]=new t(e,4,!1,e,null,!1,!1)}));["cols","rows","size","span"].forEach((function(e){d[e]=new t(e,6,!1,e,null,!1,!1)}));["rowSpan","start"].forEach((function(e){d[e]=new t(e,5,!1,e.toLowerCase(),null,!1,!1)}));var f=/[\-:]([a-z])/g;function ma(e){return e[1].toUpperCase()}"accent-height alignment-baseline arabic-form baseline-shift cap-height clip-path clip-rule color-interpolation color-interpolation-filters color-profile color-rendering dominant-baseline enable-background fill-opacity fill-rule flood-color flood-opacity font-family font-size font-size-adjust font-stretch font-style font-variant font-weight glyph-name glyph-orientation-horizontal glyph-orientation-vertical horiz-adv-x horiz-origin-x image-rendering letter-spacing lighting-color marker-end marker-mid marker-start overline-position overline-thickness paint-order panose-1 pointer-events rendering-intent shape-rendering stop-color stop-opacity strikethrough-position strikethrough-thickness stroke-dasharray stroke-dashoffset stroke-linecap stroke-linejoin stroke-miterlimit stroke-opacity stroke-width text-anchor text-decoration text-rendering underline-position underline-thickness unicode-bidi unicode-range units-per-em v-alphabetic v-hanging v-ideographic v-mathematical vector-effect vert-adv-y vert-origin-x vert-origin-y word-spacing writing-mode xmlns:xlink x-height".split(" ").forEach((function(e){var r=e.replace(f,ma);d[r]=new t(r,1,!1,e,null,!1,!1)}));"xlink:actuate xlink:arcrole xlink:role xlink:show xlink:title xlink:type".split(" ").forEach((function(e){var r=e.replace(f,ma);d[r]=new t(r,1,!1,e,"http://www.w3.org/1999/xlink",!1,!1)}));["xml:base","xml:lang","xml:space"].forEach((function(e){var r=e.replace(f,ma);d[r]=new t(r,1,!1,e,"http://www.w3.org/XML/1998/namespace",!1,!1)}));["tabIndex","crossOrigin"].forEach((function(e){d[e]=new t(e,1,!1,e.toLowerCase(),null,!1,!1)}));d.xlinkHref=new t("xlinkHref",1,!1,"xlink:href","http://www.w3.org/1999/xlink",!0,!1);["src","href","action","formAction"].forEach((function(e){d[e]=new t(e,1,!1,e.toLowerCase(),null,!0,!0)}));var h={animationIterationCount:!0,aspectRatio:!0,borderImageOutset:!0,borderImageSlice:!0,borderImageWidth:!0,boxFlex:!0,boxFlexGroup:!0,boxOrdinalGroup:!0,columnCount:!0,columns:!0,flex:!0,flexGrow:!0,flexPositive:!0,flexShrink:!0,flexNegative:!0,flexOrder:!0,gridArea:!0,gridRow:!0,gridRowEnd:!0,gridRowSpan:!0,gridRowStart:!0,gridColumn:!0,gridColumnEnd:!0,gridColumnSpan:!0,gridColumnStart:!0,fontWeight:!0,lineClamp:!0,lineHeight:!0,opacity:!0,order:!0,orphans:!0,tabSize:!0,widows:!0,zIndex:!0,zoom:!0,fillOpacity:!0,floodOpacity:!0,stopOpacity:!0,strokeDasharray:!0,strokeDashoffset:!0,strokeMiterlimit:!0,strokeOpacity:!0,strokeWidth:!0},g=["Webkit","ms","Moz","O"];Object.keys(h).forEach((function(e){g.forEach((function(r){r=r+e.charAt(0).toUpperCase()+e.substring(1);h[r]=h[e]}))}));var b=/["'&<>]/;function x(e){if("boolean"===typeof e||"number"===typeof e)return""+e;e=""+e;var r=b.exec(e);if(r){var o="",a,i=0;for(a=r.index;a<e.length;a++){switch(e.charCodeAt(a)){case 34:r="&quot;";break;case 38:r="&amp;";break;case 39:r="&#x27;";break;case 60:r="&lt;";break;case 62:r="&gt;";break;default:continue}i!==a&&(o+=e.substring(i,a));i=a+1;o+=r}e=i!==a?o+e.substring(i,a):o}return e}var S=/([A-Z])/g,w=/^ms-/,E=Array.isArray;function y(e,r){return{insertionMode:e,selectedValue:r}}function sa(e,r,o){switch(r){case"select":return y(1,null!=o.value?o.value:o.defaultValue);case"svg":return y(2,null);case"math":return y(3,null);case"foreignObject":return y(1,null);case"table":return y(4,null);case"thead":case"tbody":case"tfoot":return y(5,null);case"colgroup":return y(7,null);case"tr":return y(6,null)}return 4<=e.insertionMode||0===e.insertionMode?y(1,null):e}var P=new Map;function ua(e,r,o){if("object"!==typeof o)throw Error(m(62));r=!0;for(var a in o)if(i.call(o,a)){var s=o[a];if(null!=s&&"boolean"!==typeof s&&""!==s){if(0===a.indexOf("--")){var l=x(a);s=x((""+s).trim())}else{l=a;var c=P.get(l);void 0!==c?l=c:(c=x(l.replace(S,"-$1").toLowerCase().replace(w,"-ms-")),P.set(l,c),l=c);s="number"===typeof s?0===s||i.call(h,a)?""+s:s+"px":x((""+s).trim())}r?(r=!1,e.push(' style="',l,":",s)):e.push(";",l,":",s)}}r||e.push('"')}function z(e,r,o,a){switch(o){case"style":ua(e,r,a);return;case"defaultValue":case"defaultChecked":case"innerHTML":case"suppressContentEditableWarning":case"suppressHydrationWarning":return}if(!(2<o.length)||"o"!==o[0]&&"O"!==o[0]||"n"!==o[1]&&"N"!==o[1])if(r=d.hasOwnProperty(o)?d[o]:null,null!==r){switch(typeof a){case"function":case"symbol":return;case"boolean":if(!r.acceptsBooleans)return}o=r.attributeName;switch(r.type){case 3:a&&e.push(" ",o,'=""');break;case 4:!0===a?e.push(" ",o,'=""'):!1!==a&&e.push(" ",o,'="',x(a),'"');break;case 5:isNaN(a)||e.push(" ",o,'="',x(a),'"');break;case 6:!isNaN(a)&&1<=a&&e.push(" ",o,'="',x(a),'"');break;default:r.sanitizeURL&&(a=""+a),e.push(" ",o,'="',x(a),'"')}}else if(ea(o)){switch(typeof a){case"function":case"symbol":return;case"boolean":if(r=o.toLowerCase().slice(0,5),"data-"!==r&&"aria-"!==r)return}e.push(" ",o,'="',x(a),'"')}}function A(e,r,o){if(null!=r){if(null!=o)throw Error(m(60));if("object"!==typeof r||!("__html"in r))throw Error(m(61));r=r.__html;null!==r&&void 0!==r&&e.push(""+r)}}function va(e){var r="";a.Children.forEach(e,(function(e){null!=e&&(r+=e)}));return r}function B(e,r,o,a){e.push(C(o));var s=o=null,l;for(l in r)if(i.call(r,l)){var c=r[l];if(null!=c)switch(l){case"children":o=c;break;case"dangerouslySetInnerHTML":s=c;break;default:z(e,a,l,c)}}e.push(">");A(e,s,o);return"string"===typeof o?(e.push(x(o)),null):o}var F=/^[a-zA-Z][a-zA-Z:_\.\-\d]*$/,_=new Map;function C(e){var r=_.get(e);if(void 0===r){if(!F.test(e))throw Error(m(65,e));r="<"+e;_.set(e,r)}return r}function ya(e,r,o,a,s,l){switch(o){case"select":e.push(C("select"));var c=null,d=null;for(g in a)if(i.call(a,g)){var p=a[g];if(null!=p)switch(g){case"children":c=p;break;case"dangerouslySetInnerHTML":d=p;break;case"defaultValue":case"value":break;default:z(e,s,g,p)}}e.push(">");A(e,d,c);return c;case"option":d=l.selectedValue;e.push(C("option"));var f=p=null,h=null;var g=null;for(c in a)if(i.call(a,c)){var b=a[c];if(null!=b)switch(c){case"children":p=b;break;case"selected":h=b;break;case"dangerouslySetInnerHTML":g=b;break;case"value":f=b;default:z(e,s,c,b)}}if(null!=d)if(a=null!==f?""+f:va(p),E(d))for(s=0;s<d.length;s++){if(""+d[s]===a){e.push(' selected=""');break}}else""+d===a&&e.push(' selected=""');else h&&e.push(' selected=""');e.push(">");A(e,g,p);return p;case"textarea":e.push(C("textarea"));g=d=c=null;for(p in a)if(i.call(a,p)&&(f=a[p],null!=f))switch(p){case"children":g=f;break;case"value":c=f;break;case"defaultValue":d=f;break;case"dangerouslySetInnerHTML":throw Error(m(91));default:z(e,s,p,f)}null===c&&null!==d&&(c=d);e.push(">");if(null!=g){if(null!=c)throw Error(m(92));if(E(g)&&1<g.length)throw Error(m(93));c=""+g}"string"===typeof c&&"\n"===c[0]&&e.push("\n");null!==c&&e.push(x(""+c));return null;case"input":e.push(C("input"));f=g=p=c=null;for(d in a)if(i.call(a,d)&&(h=a[d],null!=h))switch(d){case"children":case"dangerouslySetInnerHTML":throw Error(m(399,"input"));case"defaultChecked":f=h;break;case"defaultValue":p=h;break;case"checked":g=h;break;case"value":c=h;break;default:z(e,s,d,h)}null!==g?z(e,s,"checked",g):null!==f&&z(e,s,"checked",f);null!==c?z(e,s,"value",c):null!==p&&z(e,s,"value",p);e.push("/>");return null;case"menuitem":e.push(C("menuitem"));for(var S in a)if(i.call(a,S)&&(c=a[S],null!=c))switch(S){case"children":case"dangerouslySetInnerHTML":throw Error(m(400));default:z(e,s,S,c)}e.push(">");return null;case"title":e.push(C("title"));c=null;for(b in a)if(i.call(a,b)&&(d=a[b],null!=d))switch(b){case"children":c=d;break;case"dangerouslySetInnerHTML":throw Error(m(434));default:z(e,s,b,d)}e.push(">");return c;case"link":c="stylesheet"===a.rel;e.push(C("link"));for(var w in a)if(i.call(a,w)&&(d=a[w],null!=d))switch(w){case"children":case"dangerouslySetInnerHTML":throw Error(m(399,"link"));case"precedence":if(c){!0!==d&&"string"!==typeof d||z(e,s,"data-rprec",d);break}default:z(e,s,w,d)}e.push("/>");return null;case"listing":case"pre":e.push(C(o));d=c=null;for(f in a)if(i.call(a,f)&&(p=a[f],null!=p))switch(f){case"children":c=p;break;case"dangerouslySetInnerHTML":d=p;break;default:z(e,s,f,p)}e.push(">");if(null!=d){if(null!=c)throw Error(m(60));if("object"!==typeof d||!("__html"in d))throw Error(m(61));a=d.__html;null!==a&&void 0!==a&&("string"===typeof a&&0<a.length&&"\n"===a[0]?e.push("\n",a):e.push(""+a))}"string"===typeof c&&"\n"===c[0]&&e.push("\n");return c;case"area":case"base":case"br":case"col":case"embed":case"hr":case"img":case"keygen":case"meta":case"param":case"source":case"track":case"wbr":e.push(C(o));for(var P in a)if(i.call(a,P)&&(c=a[P],null!=c))switch(P){case"children":case"dangerouslySetInnerHTML":throw Error(m(399,o));default:z(e,s,P,c)}e.push("/>");return null;case"annotation-xml":case"color-profile":case"font-face":case"font-face-src":case"font-face-uri":case"font-face-format":case"font-face-name":case"missing-glyph":return B(e,a,o,s);case"head":return B(r,a,o,s);case"html":return 0===l.insertionMode&&r.push("<!DOCTYPE html>"),B(r,a,o,s);default:if(-1===o.indexOf("-")&&"string"!==typeof a.is)return B(e,a,o,s);e.push(C(o));d=c=null;for(h in a)if(i.call(a,h)&&(p=a[h],null!=p&&"function"!==typeof p&&"object"!==typeof p&&!1!==p))switch(!0===p&&(p=""),"className"===h&&(h="class"),h){case"children":c=p;break;case"dangerouslySetInnerHTML":d=p;break;case"style":ua(e,s,p);break;case"suppressContentEditableWarning":case"suppressHydrationWarning":break;default:ea(h)&&"function"!==typeof p&&"symbol"!==typeof p&&e.push(" ",h,'="',x(p),'"')}e.push(">");A(e,d,c);return c}}function za(e,r,o){e.push('\x3c!--$?--\x3e<template id="');if(null===o)throw Error(m(395));e.push(o);return e.push('"></template>')}function Aa(e,r,o,a){switch(o.insertionMode){case 0:case 1:return e.push('<div hidden id="'),e.push(r.segmentPrefix),r=a.toString(16),e.push(r),e.push('">');case 2:return e.push('<svg aria-hidden="true" style="display:none" id="'),e.push(r.segmentPrefix),r=a.toString(16),e.push(r),e.push('">');case 3:return e.push('<math aria-hidden="true" style="display:none" id="'),e.push(r.segmentPrefix),r=a.toString(16),e.push(r),e.push('">');case 4:return e.push('<table hidden id="'),e.push(r.segmentPrefix),r=a.toString(16),e.push(r),e.push('">');case 5:return e.push('<table hidden><tbody id="'),e.push(r.segmentPrefix),r=a.toString(16),e.push(r),e.push('">');case 6:return e.push('<table hidden><tr id="'),e.push(r.segmentPrefix),r=a.toString(16),e.push(r),e.push('">');case 7:return e.push('<table hidden><colgroup id="'),e.push(r.segmentPrefix),r=a.toString(16),e.push(r),e.push('">');default:throw Error(m(397))}}function Ba(e,r){switch(r.insertionMode){case 0:case 1:return e.push("</div>");case 2:return e.push("</svg>");case 3:return e.push("</math>");case 4:return e.push("</table>");case 5:return e.push("</tbody></table>");case 6:return e.push("</tr></table>");case 7:return e.push("</colgroup></table>");default:throw Error(m(397))}}var N=/[<\u2028\u2029]/g;function Da(e){return JSON.stringify(e).replace(N,(function(e){switch(e){case"<":return"\\u003c";case"\u2028":return"\\u2028";case"\u2029":return"\\u2029";default:throw Error("escapeJSStringsForInstructionScripts encountered a match it does not know how to replace. this means the match regex and the replacement characters are no longer in sync. This is a bug in React")}}))}function Ea(e,r){r=void 0===r?"":r;return{bootstrapChunks:[],startInlineScript:"<script>",placeholderPrefix:r+"P:",segmentPrefix:r+"S:",boundaryPrefix:r+"B:",idPrefix:r,nextSuspenseID:0,sentCompleteSegmentFunction:!1,sentCompleteBoundaryFunction:!1,sentClientRenderFunction:!1,generateStaticMarkup:e}}function Fa(e,r,o,a){if(o.generateStaticMarkup)return e.push(x(r)),!1;""===r?e=a:(a&&e.push("\x3c!-- --\x3e"),e.push(x(r)),e=!0);return e}var M=Object.assign,O=Symbol.for("react.element"),j=Symbol.for("react.portal"),$=Symbol.for("react.fragment"),G=Symbol.for("react.strict_mode"),ee=Symbol.for("react.profiler"),te=Symbol.for("react.provider"),re=Symbol.for("react.context"),ne=Symbol.for("react.server_context"),oe=Symbol.for("react.forward_ref"),ae=Symbol.for("react.suspense"),ie=Symbol.for("react.suspense_list"),se=Symbol.for("react.memo"),ue=Symbol.for("react.lazy"),le=Symbol.for("react.scope"),ce=Symbol.for("react.debug_trace_mode"),de=Symbol.for("react.offscreen"),pe=Symbol.for("react.legacy_hidden"),fe=Symbol.for("react.cache"),he=Symbol.for("react.default_value"),me=Symbol.iterator;function $a(e){if(null==e)return null;if("function"===typeof e)return e.displayName||e.name||null;if("string"===typeof e)return e;switch(e){case $:return"Fragment";case j:return"Portal";case ee:return"Profiler";case G:return"StrictMode";case ae:return"Suspense";case ie:return"SuspenseList";case fe:return"Cache"}if("object"===typeof e)switch(e.$$typeof){case re:return(e.displayName||"Context")+".Consumer";case te:return(e._context.displayName||"Context")+".Provider";case oe:var r=e.render;e=e.displayName;e||(e=r.displayName||r.name||"",e=""!==e?"ForwardRef("+e+")":"ForwardRef");return e;case se:return r=e.displayName||null,null!==r?r:$a(e.type)||"Memo";case ue:r=e._payload;e=e._init;try{return $a(e(r))}catch(e){break}case ne:return(e.displayName||e._globalName)+".Provider"}return null}var ge={};function bb(e,r){e=e.contextTypes;if(!e)return ge;var o={},a;for(a in e)o[a]=r[a];return o}var ve=null;function H(e,r){if(e!==r){e.context._currentValue2=e.parentValue;e=e.parent;var o=r.parent;if(null===e){if(null!==o)throw Error(m(401))}else{if(null===o)throw Error(m(401));H(e,o)}r.context._currentValue2=r.value}}function cb(e){e.context._currentValue2=e.parentValue;e=e.parent;null!==e&&cb(e)}function db(e){var r=e.parent;null!==r&&db(r);e.context._currentValue2=e.value}function eb(e,r){e.context._currentValue2=e.parentValue;e=e.parent;if(null===e)throw Error(m(402));e.depth===r.depth?H(e,r):eb(e,r)}function fb(e,r){var o=r.parent;if(null===o)throw Error(m(402));e.depth===o.depth?H(e,o):fb(e,o);r.context._currentValue2=r.value}function I(e){var r=ve;r!==e&&(null===r?db(e):null===e?cb(r):r.depth===e.depth?H(r,e):r.depth>e.depth?eb(r,e):fb(r,e),ve=e)}var ye={isMounted:function(){return!1},enqueueSetState:function(e,r){e=e._reactInternals;null!==e.queue&&e.queue.push(r)},enqueueReplaceState:function(e,r){e=e._reactInternals;e.replace=!0;e.queue=[r]},enqueueForceUpdate:function(){}};function hb(e,r,o,a){var i=void 0!==e.state?e.state:null;e.updater=ye;e.props=o;e.state=i;var s={queue:[],replace:!1};e._reactInternals=s;var l=r.contextType;e.context="object"===typeof l&&null!==l?l._currentValue2:a;l=r.getDerivedStateFromProps;"function"===typeof l&&(l=l(o,i),i=null===l||void 0===l?i:M({},i,l),e.state=i);if("function"!==typeof r.getDerivedStateFromProps&&"function"!==typeof e.getSnapshotBeforeUpdate&&("function"===typeof e.UNSAFE_componentWillMount||"function"===typeof e.componentWillMount))if(r=e.state,"function"===typeof e.componentWillMount&&e.componentWillMount(),"function"===typeof e.UNSAFE_componentWillMount&&e.UNSAFE_componentWillMount(),r!==e.state&&ye.enqueueReplaceState(e,e.state,null),null!==s.queue&&0<s.queue.length)if(r=s.queue,l=s.replace,s.queue=null,s.replace=!1,l&&1===r.length)e.state=r[0];else{s=l?r[0]:e.state;i=!0;for(l=l?1:0;l<r.length;l++){var c=r[l];c="function"===typeof c?c.call(e,s,o,a):c;null!=c&&(i?(i=!1,s=M({},s,c)):M(s,c))}e.state=s}else s.queue=null}var be={id:1,overflow:""};function jb(e,r,o){var a=e.id;e=e.overflow;var i=32-ke(a)-1;a&=~(1<<i);o+=1;var s=32-ke(r)+i;if(30<s){var l=i-i%5;s=(a&(1<<l)-1).toString(32);a>>=l;i-=l;return{id:1<<32-ke(r)+i|o<<i|a,overflow:s+e}}return{id:1<<s|o<<i|a,overflow:e}}var ke=Math.clz32?Math.clz32:kb,Ce=Math.log,Se=Math.LN2;function kb(e){e>>>=0;return 0===e?32:31-(Ce(e)/Se|0)|0}function nb(e){switch(e.status){case"fulfilled":case"rejected":break;default:"string"!==typeof e.status&&(e.status="pending",e.then((function(r){"pending"===e.status&&(e.status="fulfilled",e.value=r)}),(function(r){"pending"===e.status&&(e.status="rejected",e.reason=r)})))}}function ob(e,r){return e===r&&(0!==e||1/e===1/r)||e!==e&&r!==r}var we="function"===typeof Object.is?Object.is:ob,xe=null,Te=null,Ee=null,Re=null,Pe=!1,Ie=!1,Fe=0,_e=0,De=null,Ae=null,Ne=0;function V(){if(null===xe)throw Error(m(321));return xe}function qb(){if(0<Ne)throw Error(m(312));return{memoizedState:null,queue:null,next:null}}function rb(){null===Re?null===Ee?(Pe=!1,Ee=Re=qb()):(Pe=!0,Re=Ee):null===Re.next?(Pe=!1,Re=Re.next=qb()):(Pe=!0,Re=Re.next);return Re}function sb(e,r,o,a){for(;Ie;)Ie=!1,_e=Fe=0,Ne+=1,Re=null,o=e(r,a);vb();return o}function wb(){var e=De;De=null;return e}function vb(){Te=xe=null;Ie=!1;Ee=null;Ne=0;Re=Ae=null}function xb(e,r){return"function"===typeof r?r(e):r}function yb(e,r,o){xe=V();Re=rb();if(Pe){var a=Re.queue;r=a.dispatch;if(null!==Ae&&(o=Ae.get(a),void 0!==o)){Ae.delete(a);a=Re.memoizedState;do{a=e(a,o.action),o=o.next}while(null!==o);Re.memoizedState=a;return[a,r]}return[Re.memoizedState,r]}e=e===xb?"function"===typeof r?r():r:void 0!==o?o(r):r;Re.memoizedState=e;e=Re.queue={last:null,dispatch:null};e=e.dispatch=zb.bind(null,xe,e);return[Re.memoizedState,e]}function Ab(e,r){xe=V();Re=rb();r=void 0===r?null:r;if(null!==Re){var o=Re.memoizedState;if(null!==o&&null!==r){var a=o[1];e:if(null===a)a=!1;else{for(var i=0;i<a.length&&i<r.length;i++)if(!we(r[i],a[i])){a=!1;break e}a=!0}if(a)return o[0]}}e=e();Re.memoizedState=[e,r];return e}function zb(e,r,o){if(25<=Ne)throw Error(m(301));if(e===xe)if(Ie=!0,e={action:o,next:null},null===Ae&&(Ae=new Map),o=Ae.get(r),void 0===o)Ae.set(r,e);else{for(r=o;null!==r.next;)r=r.next;r.next=e}}function Bb(){throw Error(m(394))}function Cb(){throw Error(m(393))}function Db(){}var Me={readContext:function(e){return e._currentValue2},useContext:function(e){V();return e._currentValue2},useMemo:Ab,useReducer:yb,useRef:function(e){xe=V();Re=rb();var r=Re.memoizedState;return null===r?(e={current:e},Re.memoizedState=e):r},useState:function(e){return yb(xb,e)},useInsertionEffect:Db,useLayoutEffect:function(){},useCallback:function(e,r){return Ab((function(){return e}),r)},useImperativeHandle:Db,useEffect:Db,useDebugValue:Db,useDeferredValue:function(e){V();return e},useTransition:function(){V();return[!1,Bb]},useId:function(){var e=Te.treeContext;var r=e.overflow;e=e.id;e=(e&~(1<<32-ke(e)-1)).toString(32)+r;var o=Be;if(null===o)throw Error(m(404));r=Fe++;e=":"+o.idPrefix+"R"+e;0<r&&(e+="H"+r.toString(32));return e+":"},useMutableSource:function(e,r){V();return r(e._source)},useSyncExternalStore:function(e,r,o){if(void 0===o)throw Error(m(407));return o()},getCacheForType:function(){throw Error(m(248))},useCacheRefresh:function(){return Cb},useMemoCache:function(e){return Array(e)},use:function(e){if(null!==e&&"object"===typeof e)if("function"===typeof e.then){var r=_e;_e+=1;switch(e.status){case"fulfilled":return e.value;case"rejected":throw e.reason;default:e:{if(null!==De){var o=De[r];if(void 0!==o)break e}o=null}if(null!==o)switch(o.status){case"fulfilled":return o.value;case"rejected":throw o.reason;default:throw o}else throw null===De&&(De=[]),De[r]=e,e}}else if(e.$$typeof===re||e.$$typeof===ne)return e._currentValue2;throw Error(m(438,String(e)))}},Be=null,Oe=a.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED.ReactCurrentDispatcher;function Hb(e){console.error(e);return null}function W(){}function Ib(e,r,o,a,i,s,l,c,d){var p=[],f=new Set;r={destination:null,responseState:r,progressiveChunkSize:void 0===a?12800:a,status:0,fatalError:null,nextSegmentId:0,allPendingTasks:0,pendingRootTasks:0,completedRootSegment:null,abortableTasks:f,pingedTasks:p,clientRenderedBoundaries:[],completedBoundaries:[],partialBoundaries:[],preamble:[],postamble:[],onError:void 0===i?Hb:i,onAllReady:void 0===s?W:s,onShellReady:void 0===l?W:l,onShellError:void 0===c?W:c,onFatalError:void 0===d?W:d};o=Jb(r,0,null,o,!1,!1);o.parentFlushed=!0;e=Kb(r,null,e,null,o,f,ge,null,be);p.push(e);return r}function Kb(e,r,o,a,i,s,l,c,d){e.allPendingTasks++;null===a?e.pendingRootTasks++:a.pendingTasks++;var p={node:o,ping:function(){var r=e.pingedTasks;r.push(p);1===r.length&&Lb(e)},blockedBoundary:a,blockedSegment:i,abortSet:s,legacyContext:l,context:c,treeContext:d,thenableState:r};s.add(p);return p}function Jb(e,r,o,a,i,s){return{status:0,id:-1,index:r,parentFlushed:!1,chunks:[],children:[],formatContext:a,boundary:o,lastPushedText:i,textEmbedded:s}}function X(e,r){e=e.onError(r);if(null!=e&&"string"!==typeof e)throw Error('onError returned something with a type other than "string". onError should return a string and may return null or undefined but must not return anything else. It received something of type "'+typeof e+'" instead');return e}function Y(e,r){var o=e.onShellError;o(r);o=e.onFatalError;o(r);null!==e.destination?(e.status=2,e.destination.destroy(r)):(e.status=1,e.fatalError=r)}function Mb(e,r,o,a){var i=o.render(),s=a.childContextTypes;if(null!==s&&void 0!==s){var l=r.legacyContext;if("function"!==typeof o.getChildContext)a=l;else{o=o.getChildContext();for(var c in o)if(!(c in s))throw Error(m(108,$a(a)||"Unknown",c));a=M({},l,o)}r.legacyContext=a;Z(e,r,null,i);r.legacyContext=l}else Z(e,r,null,i)}function Nb(e,r){if(e&&e.defaultProps){r=M({},r);e=e.defaultProps;for(var o in e)void 0===r[o]&&(r[o]=e[o]);return r}return r}function Ob(e,r,o,a,i,s){if("function"===typeof a)if(a.prototype&&a.prototype.isReactComponent)o=bb(a,r.legacyContext),s=a.contextType,s=new a(i,"object"===typeof s&&null!==s?s._currentValue2:o),hb(s,a,i,o),Mb(e,r,s,a);else{s=bb(a,r.legacyContext);xe={};Te=r;_e=Fe=0;De=o;o=a(i,s);o=sb(a,i,o,s);var l=0!==Fe;if("object"===typeof o&&null!==o&&"function"===typeof o.render&&void 0===o.$$typeof)hb(o,a,i,s),Mb(e,r,o,a);else if(l){i=r.treeContext;r.treeContext=jb(i,1,0);try{Z(e,r,null,o)}finally{r.treeContext=i}}else Z(e,r,null,o)}else if("string"===typeof a){o=r.blockedSegment;s=ya(o.chunks,e.preamble,a,i,e.responseState,o.formatContext);o.lastPushedText=!1;l=o.formatContext;o.formatContext=sa(l,a,i);Pb(e,r,s);o.formatContext=l;r=o.chunks;switch(a){case"area":case"base":case"br":case"col":case"embed":case"hr":case"img":case"input":case"keygen":case"link":case"meta":case"param":case"source":case"track":case"wbr":break;case"body":case"html":r=e.postamble;default:r.push("</",a,">")}o.lastPushedText=!1}else{switch(a){case pe:case ce:case G:case ee:case $:Z(e,r,null,i.children);return;case de:"hidden"!==i.mode&&Z(e,r,null,i.children);return;case ie:Z(e,r,null,i.children);return;case le:throw Error(m(343));case ae:e:{a=r.blockedBoundary;o=r.blockedSegment;s=i.fallback;i=i.children;l=new Set;var c={id:null,rootSegmentID:-1,parentFlushed:!1,pendingTasks:0,forceClientRender:!1,completedSegments:[],byteSize:0,fallbackAbortableTasks:l,errorDigest:null},d=Jb(e,o.chunks.length,c,o.formatContext,!1,!1);o.children.push(d);o.lastPushedText=!1;var p=Jb(e,0,null,o.formatContext,!1,!1);p.parentFlushed=!0;r.blockedBoundary=c;r.blockedSegment=p;try{if(Pb(e,r,i),e.responseState.generateStaticMarkup||p.lastPushedText&&p.textEmbedded&&p.chunks.push("\x3c!-- --\x3e"),p.status=1,Qb(c,p),0===c.pendingTasks)break e}catch(r){p.status=4,c.forceClientRender=!0,c.errorDigest=X(e,r)}finally{r.blockedBoundary=a,r.blockedSegment=o}r=Kb(e,null,s,a,d,l,r.legacyContext,r.context,r.treeContext);e.pingedTasks.push(r)}return}if("object"===typeof a&&null!==a)switch(a.$$typeof){case oe:a=a.render;xe={};Te=r;_e=Fe=0;De=o;o=a(i,s);i=sb(a,i,o,s);if(0!==Fe){a=r.treeContext;r.treeContext=jb(a,1,0);try{Z(e,r,null,i)}finally{r.treeContext=a}}else Z(e,r,null,i);return;case se:a=a.type;i=Nb(a,i);Ob(e,r,o,a,i,s);return;case te:o=i.children;a=a._context;i=i.value;s=a._currentValue2;a._currentValue2=i;l=ve;ve=i={parent:l,depth:null===l?0:l.depth+1,context:a,parentValue:s,value:i};r.context=i;Z(e,r,null,o);e=ve;if(null===e)throw Error(m(403));i=e.parentValue;e.context._currentValue2=i===he?e.context._defaultValue:i;e=ve=e.parent;r.context=e;return;case re:i=i.children;i=i(a._currentValue2);Z(e,r,null,i);return;case ue:s=a._init;a=s(a._payload);i=Nb(a,i);Ob(e,r,o,a,i,void 0);return}throw Error(m(130,null==a?a:typeof a,""))}}function Z(e,r,o,a){r.node=a;if("object"===typeof a&&null!==a){switch(a.$$typeof){case O:Ob(e,r,o,a.type,a.props,a.ref);return;case j:throw Error(m(257));case ue:o=a._init;a=o(a._payload);Z(e,r,null,a);return}if(E(a)){Rb(e,r,a);return}null===a||"object"!==typeof a?o=null:(o=me&&a[me]||a["@@iterator"],o="function"===typeof o?o:null);if(o&&(o=o.call(a))){a=o.next();if(!a.done){var i=[];do{i.push(a.value),a=o.next()}while(!a.done);Rb(e,r,i)}return}e=Object.prototype.toString.call(a);throw Error(m(31,"[object Object]"===e?"object with keys {"+Object.keys(a).join(", ")+"}":e))}"string"===typeof a?(o=r.blockedSegment,o.lastPushedText=Fa(r.blockedSegment.chunks,a,e.responseState,o.lastPushedText)):"number"===typeof a&&(o=r.blockedSegment,o.lastPushedText=Fa(r.blockedSegment.chunks,""+a,e.responseState,o.lastPushedText))}function Rb(e,r,o){for(var a=o.length,i=0;i<a;i++){var s=r.treeContext;r.treeContext=jb(s,a,i);try{Pb(e,r,o[i])}finally{r.treeContext=s}}}function Pb(e,r,o){var a=r.blockedSegment.formatContext,i=r.legacyContext,s=r.context;try{return Z(e,r,null,o)}catch(p){if(vb(),"object"===typeof p&&null!==p&&"function"===typeof p.then){var l=wb();o=p;var c=r.blockedSegment,d=Jb(e,c.chunks.length,null,c.formatContext,c.lastPushedText,!0);c.children.push(d);c.lastPushedText=!1;e=Kb(e,l,r.node,r.blockedBoundary,d,r.abortSet,r.legacyContext,r.context,r.treeContext);nb(o);e=e.ping;o.then(e,e);r.blockedSegment.formatContext=a;r.legacyContext=i;r.context=s;I(s)}else throw r.blockedSegment.formatContext=a,r.legacyContext=i,r.context=s,I(s),p}}function Sb(e){var r=e.blockedBoundary;e=e.blockedSegment;e.status=3;Tb(this,r,e)}function Ub(e,r,o){var a=e.blockedBoundary;e.blockedSegment.status=3;null===a?(r.allPendingTasks--,1!==r.status&&2!==r.status&&(X(r,o),Y(r,o))):(a.pendingTasks--,a.forceClientRender||(a.forceClientRender=!0,a.errorDigest=r.onError(o),a.parentFlushed&&r.clientRenderedBoundaries.push(a)),a.fallbackAbortableTasks.forEach((function(e){return Ub(e,r,o)})),a.fallbackAbortableTasks.clear(),r.allPendingTasks--,0===r.allPendingTasks&&(e=r.onAllReady,e()))}function Qb(e,r){if(0===r.chunks.length&&1===r.children.length&&null===r.children[0].boundary){var o=r.children[0];o.id=r.id;o.parentFlushed=!0;1===o.status&&Qb(e,o)}else e.completedSegments.push(r)}function Tb(e,r,o){if(null===r){if(o.parentFlushed){if(null!==e.completedRootSegment)throw Error(m(389));e.completedRootSegment=o}e.pendingRootTasks--;0===e.pendingRootTasks&&(e.onShellError=W,r=e.onShellReady,r())}else r.pendingTasks--,r.forceClientRender||(0===r.pendingTasks?(o.parentFlushed&&1===o.status&&Qb(r,o),r.parentFlushed&&e.completedBoundaries.push(r),r.fallbackAbortableTasks.forEach(Sb,e),r.fallbackAbortableTasks.clear()):o.parentFlushed&&1===o.status&&(Qb(r,o),1===r.completedSegments.length&&r.parentFlushed&&e.partialBoundaries.push(r)));e.allPendingTasks--;0===e.allPendingTasks&&(e=e.onAllReady,e())}function Lb(e){if(2!==e.status){var r=ve,o=Oe.current;Oe.current=Me;var a=Be;Be=e.responseState;try{var i=e.pingedTasks,s;for(s=0;s<i.length;s++){var l=i[s];var c=e,d=l.blockedSegment;if(0===d.status){I(l.context);try{var p=l.thenableState;l.thenableState=null;Z(c,l,p,l.node);c.responseState.generateStaticMarkup||d.lastPushedText&&d.textEmbedded&&d.chunks.push("\x3c!-- --\x3e");l.abortSet.delete(l);d.status=1;Tb(c,l.blockedBoundary,d)}catch(e){if(vb(),"object"===typeof e&&null!==e&&"function"===typeof e.then){var f=l.ping;e.then(f,f);nb(e);l.thenableState=wb()}else{l.abortSet.delete(l);d.status=4;var h=l.blockedBoundary,g=e,b=X(c,g);null===h?Y(c,g):(h.pendingTasks--,h.forceClientRender||(h.forceClientRender=!0,h.errorDigest=b,h.parentFlushed&&c.clientRenderedBoundaries.push(h)));c.allPendingTasks--;if(0===c.allPendingTasks){var S=c.onAllReady;S()}}}finally{}}}i.splice(0,s);null!==e.destination&&Vb(e,e.destination)}catch(r){X(e,r),Y(e,r)}finally{Be=a,Oe.current=o,o===Me&&I(r)}}}function Wb(e,r,o){o.parentFlushed=!0;switch(o.status){case 0:var a=o.id=e.nextSegmentId++;o.lastPushedText=!1;o.textEmbedded=!1;e=e.responseState;r.push('<template id="');r.push(e.placeholderPrefix);e=a.toString(16);r.push(e);return r.push('"></template>');case 1:o.status=2;var i=!0;a=o.chunks;var s=0;o=o.children;for(var l=0;l<o.length;l++){for(i=o[l];s<i.index;s++)r.push(a[s]);i=Xb(e,r,i)}for(;s<a.length-1;s++)r.push(a[s]);s<a.length&&(i=r.push(a[s]));return i;default:throw Error(m(390))}}function Xb(e,r,o){var a=o.boundary;if(null===a)return Wb(e,r,o);a.parentFlushed=!0;if(a.forceClientRender)return e.responseState.generateStaticMarkup||(a=a.errorDigest,r.push("\x3c!--$!--\x3e"),r.push("<template"),a&&(r.push(' data-dgst="'),a=x(a),r.push(a),r.push('"')),r.push("></template>")),Wb(e,r,o),e=e.responseState.generateStaticMarkup?!0:r.push("\x3c!--/$--\x3e"),e;if(0<a.pendingTasks){a.rootSegmentID=e.nextSegmentId++;0<a.completedSegments.length&&e.partialBoundaries.push(a);var i=e.responseState;var s=i.nextSuspenseID++;i=i.boundaryPrefix+s.toString(16);a=a.id=i;za(r,e.responseState,a);Wb(e,r,o);return r.push("\x3c!--/$--\x3e")}if(a.byteSize>e.progressiveChunkSize)return a.rootSegmentID=e.nextSegmentId++,e.completedBoundaries.push(a),za(r,e.responseState,a.id),Wb(e,r,o),r.push("\x3c!--/$--\x3e");e.responseState.generateStaticMarkup||r.push("\x3c!--$--\x3e");o=a.completedSegments;if(1!==o.length)throw Error(m(391));Xb(e,r,o[0]);e=e.responseState.generateStaticMarkup?!0:r.push("\x3c!--/$--\x3e");return e}function Yb(e,r,o){Aa(r,e.responseState,o.formatContext,o.id);Xb(e,r,o);return Ba(r,o.formatContext)}function Zb(e,r,o){for(var a=o.completedSegments,i=0;i<a.length;i++)$b(e,r,o,a[i]);a.length=0;e=e.responseState;a=o.id;o=o.rootSegmentID;r.push(e.startInlineScript);e.sentCompleteBoundaryFunction?r.push('$RC("'):(e.sentCompleteBoundaryFunction=!0,r.push('function $RC(a,b){a=document.getElementById(a);b=document.getElementById(b);b.parentNode.removeChild(b);if(a){a=a.previousSibling;var f=a.parentNode,c=a.nextSibling,e=0;do{if(c&&8===c.nodeType){var d=c.data;if("/$"===d)if(0===e)break;else e--;else"$"!==d&&"$?"!==d&&"$!"!==d||e++}d=c.nextSibling;f.removeChild(c);c=d}while(c);for(;b.firstChild;)f.insertBefore(b.firstChild,c);a.data="$";a._reactRetry&&a._reactRetry()}};$RC("'));if(null===a)throw Error(m(395));o=o.toString(16);r.push(a);r.push('","');r.push(e.segmentPrefix);r.push(o);return r.push('")<\/script>')}function $b(e,r,o,a){if(2===a.status)return!0;var i=a.id;if(-1===i){if(-1===(a.id=o.rootSegmentID))throw Error(m(392));return Yb(e,r,a)}Yb(e,r,a);e=e.responseState;r.push(e.startInlineScript);e.sentCompleteSegmentFunction?r.push('$RS("'):(e.sentCompleteSegmentFunction=!0,r.push('function $RS(a,b){a=document.getElementById(a);b=document.getElementById(b);for(a.parentNode.removeChild(a);a.firstChild;)b.parentNode.insertBefore(a.firstChild,b);b.parentNode.removeChild(b)};$RS("'));r.push(e.segmentPrefix);i=i.toString(16);r.push(i);r.push('","');r.push(e.placeholderPrefix);r.push(i);return r.push('")<\/script>')}function Vb(e,r){try{var o,a=e.completedRootSegment;if(null!==a)if(0===e.pendingRootTasks){var i=e.preamble;for(o=0;o<i.length;o++)r.push(i[o]);Xb(e,r,a);e.completedRootSegment=null;var s=e.responseState.bootstrapChunks;for(a=0;a<s.length-1;a++)r.push(s[a]);a<s.length&&r.push(s[a])}else return;var l=e.clientRenderedBoundaries;for(o=0;o<l.length;o++){var c=l[o];s=r;var d=e.responseState,p=c.id,f=c.errorDigest,h=c.errorMessage,g=c.errorComponentStack;s.push(d.startInlineScript);d.sentClientRenderFunction?s.push('$RX("'):(d.sentClientRenderFunction=!0,s.push('function $RX(b,c,d,e){var a=document.getElementById(b);a&&(b=a.previousSibling,b.data="$!",a=a.dataset,c&&(a.dgst=c),d&&(a.msg=d),e&&(a.stck=e),b._reactRetry&&b._reactRetry())};$RX("'));if(null===p)throw Error(m(395));s.push(p);s.push('"');if(f||h||g){s.push(",");var b=Da(f||"");s.push(b)}if(h||g){s.push(",");var S=Da(h||"");s.push(S)}if(g){s.push(",");var w=Da(g);s.push(w)}if(!s.push(")<\/script>")){e.destination=null;o++;l.splice(0,o);return}}l.splice(0,o);var E=e.completedBoundaries;for(o=0;o<E.length;o++)if(!Zb(e,r,E[o])){e.destination=null;o++;E.splice(0,o);return}E.splice(0,o);var P=e.partialBoundaries;for(o=0;o<P.length;o++){var F=P[o];e:{l=e;c=r;var _=F.completedSegments;for(d=0;d<_.length;d++)if(!$b(l,c,F,_[d])){d++;_.splice(0,d);var N=!1;break e}_.splice(0,d);N=!0}if(!N){e.destination=null;o++;P.splice(0,o);return}}P.splice(0,o);var M=e.completedBoundaries;for(o=0;o<M.length;o++)if(!Zb(e,r,M[o])){e.destination=null;o++;M.splice(0,o);return}M.splice(0,o)}finally{if(0===e.allPendingTasks&&0===e.pingedTasks.length&&0===e.clientRenderedBoundaries.length&&0===e.completedBoundaries.length){e=e.postamble;for(o=0;o<e.length;o++)r.push(e[o]);r.push(null)}}}function ac(e,r){try{var o=e.abortableTasks;if(0<o.size){var a=void 0===r?Error(m(432)):r;o.forEach((function(r){return Ub(r,e,a)}));o.clear()}null!==e.destination&&Vb(e,e.destination)}catch(r){X(e,r),Y(e,r)}}function bc(){}function cc(e,r,o,a){var i=!1,s=null,l="",c={push:function(e){null!==e&&(l+=e);return!0},destroy:function(e){i=!0;s=e}},d=!1;e=Ib(e,Ea(o,r?r.identifierPrefix:void 0),{insertionMode:1,selectedValue:null},Infinity,bc,void 0,(function(){d=!0}),void 0,void 0);Lb(e);ac(e,a);if(1===e.status)e.status=2,c.destroy(e.fatalError);else if(2!==e.status&&null===e.destination){e.destination=c;try{Vb(e,c)}catch(r){X(e,r),Y(e,r)}}if(i&&s!==a)throw s;if(!d)throw Error(m(426));return l}r.renderToNodeStream=function(){throw Error(m(207))};r.renderToStaticMarkup=function(e,r){return cc(e,r,!0,'The server used "renderToStaticMarkup" which does not support Suspense. If you intended to have the server wait for the suspended component please switch to "renderToReadableStream" which supports Suspense on the server')};r.renderToStaticNodeStream=function(){throw Error(m(208))};r.renderToString=function(e,r){return cc(e,r,!1,'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToReadableStream" which supports Suspense on the server')};r.version="18.3.0-experimental-cb5084d1c-20220924"},297:(e,r,o)=>{
+var aa=__nccwpck_require__(533);function m(a){for(var b="https://reactjs.org/docs/error-decoder.html?invariant="+a,c=1;c<arguments.length;c++)b+="&args[]="+encodeURIComponent(arguments[c]);return"Minified React error #"+a+"; visit "+b+" for the full message or use the non-minified dev environment for full errors and additional helpful warnings."}
+var q=Object.prototype.hasOwnProperty,ba=/^[:A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD][:A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD\-.0-9\u00B7\u0300-\u036F\u203F-\u2040]*$/,ca={},da={};
+function ea(a){if(q.call(da,a))return!0;if(q.call(ca,a))return!1;if(ba.test(a))return da[a]=!0;ca[a]=!0;return!1}function t(a,b,c,d,e,g,f){this.acceptsBooleans=2===b||3===b||4===b;this.attributeName=d;this.attributeNamespace=e;this.mustUseProperty=c;this.propertyName=a;this.type=b;this.sanitizeURL=g;this.removeEmptyString=f}var v={},fa="children dangerouslySetInnerHTML defaultValue defaultChecked innerHTML suppressContentEditableWarning suppressHydrationWarning style".split(" ");
+fa.push("innerText","textContent");fa.forEach(function(a){v[a]=new t(a,0,!1,a,null,!1,!1)});[["acceptCharset","accept-charset"],["className","class"],["htmlFor","for"],["httpEquiv","http-equiv"]].forEach(function(a){var b=a[0];v[b]=new t(b,1,!1,a[1],null,!1,!1)});["contentEditable","draggable","spellCheck","value"].forEach(function(a){v[a]=new t(a,2,!1,a.toLowerCase(),null,!1,!1)});
+["autoReverse","externalResourcesRequired","focusable","preserveAlpha"].forEach(function(a){v[a]=new t(a,2,!1,a,null,!1,!1)});"allowFullScreen async autoFocus autoPlay controls default defer disabled disablePictureInPicture disableRemotePlayback formNoValidate hidden loop noModule noValidate open playsInline readOnly required reversed scoped seamless itemScope".split(" ").forEach(function(a){v[a]=new t(a,3,!1,a.toLowerCase(),null,!1,!1)});
+["checked","multiple","muted","selected"].forEach(function(a){v[a]=new t(a,3,!0,a,null,!1,!1)});["capture","download"].forEach(function(a){v[a]=new t(a,4,!1,a,null,!1,!1)});["cols","rows","size","span"].forEach(function(a){v[a]=new t(a,6,!1,a,null,!1,!1)});["rowSpan","start"].forEach(function(a){v[a]=new t(a,5,!1,a.toLowerCase(),null,!1,!1)});var la=/[\-:]([a-z])/g;function ma(a){return a[1].toUpperCase()}
+"accent-height alignment-baseline arabic-form baseline-shift cap-height clip-path clip-rule color-interpolation color-interpolation-filters color-profile color-rendering dominant-baseline enable-background fill-opacity fill-rule flood-color flood-opacity font-family font-size font-size-adjust font-stretch font-style font-variant font-weight glyph-name glyph-orientation-horizontal glyph-orientation-vertical horiz-adv-x horiz-origin-x image-rendering letter-spacing lighting-color marker-end marker-mid marker-start overline-position overline-thickness paint-order panose-1 pointer-events rendering-intent shape-rendering stop-color stop-opacity strikethrough-position strikethrough-thickness stroke-dasharray stroke-dashoffset stroke-linecap stroke-linejoin stroke-miterlimit stroke-opacity stroke-width text-anchor text-decoration text-rendering underline-position underline-thickness unicode-bidi unicode-range units-per-em v-alphabetic v-hanging v-ideographic v-mathematical vector-effect vert-adv-y vert-origin-x vert-origin-y word-spacing writing-mode xmlns:xlink x-height".split(" ").forEach(function(a){var b=a.replace(la,
+ma);v[b]=new t(b,1,!1,a,null,!1,!1)});"xlink:actuate xlink:arcrole xlink:role xlink:show xlink:title xlink:type".split(" ").forEach(function(a){var b=a.replace(la,ma);v[b]=new t(b,1,!1,a,"http://www.w3.org/1999/xlink",!1,!1)});["xml:base","xml:lang","xml:space"].forEach(function(a){var b=a.replace(la,ma);v[b]=new t(b,1,!1,a,"http://www.w3.org/XML/1998/namespace",!1,!1)});["tabIndex","crossOrigin"].forEach(function(a){v[a]=new t(a,1,!1,a.toLowerCase(),null,!1,!1)});
+v.xlinkHref=new t("xlinkHref",1,!1,"xlink:href","http://www.w3.org/1999/xlink",!0,!1);["src","href","action","formAction"].forEach(function(a){v[a]=new t(a,1,!1,a.toLowerCase(),null,!0,!0)});
+var w={animationIterationCount:!0,aspectRatio:!0,borderImageOutset:!0,borderImageSlice:!0,borderImageWidth:!0,boxFlex:!0,boxFlexGroup:!0,boxOrdinalGroup:!0,columnCount:!0,columns:!0,flex:!0,flexGrow:!0,flexPositive:!0,flexShrink:!0,flexNegative:!0,flexOrder:!0,gridArea:!0,gridRow:!0,gridRowEnd:!0,gridRowSpan:!0,gridRowStart:!0,gridColumn:!0,gridColumnEnd:!0,gridColumnSpan:!0,gridColumnStart:!0,fontWeight:!0,lineClamp:!0,lineHeight:!0,opacity:!0,order:!0,orphans:!0,tabSize:!0,widows:!0,zIndex:!0,zoom:!0,
+fillOpacity:!0,floodOpacity:!0,stopOpacity:!0,strokeDasharray:!0,strokeDashoffset:!0,strokeMiterlimit:!0,strokeOpacity:!0,strokeWidth:!0},na=["Webkit","ms","Moz","O"];Object.keys(w).forEach(function(a){na.forEach(function(b){b=b+a.charAt(0).toUpperCase()+a.substring(1);w[b]=w[a]})});var oa=/["'&<>]/;
+function x(a){if("boolean"===typeof a||"number"===typeof a)return""+a;a=""+a;var b=oa.exec(a);if(b){var c="",d,e=0;for(d=b.index;d<a.length;d++){switch(a.charCodeAt(d)){case 34:b="&quot;";break;case 38:b="&amp;";break;case 39:b="&#x27;";break;case 60:b="&lt;";break;case 62:b="&gt;";break;default:continue}e!==d&&(c+=a.substring(e,d));e=d+1;c+=b}a=e!==d?c+a.substring(e,d):c}return a}var pa=/([A-Z])/g,qa=/^ms-/,ra=Array.isArray;function y(a,b){return{insertionMode:a,selectedValue:b}}
+function sa(a,b,c){switch(b){case "select":return y(1,null!=c.value?c.value:c.defaultValue);case "svg":return y(2,null);case "math":return y(3,null);case "foreignObject":return y(1,null);case "table":return y(4,null);case "thead":case "tbody":case "tfoot":return y(5,null);case "colgroup":return y(7,null);case "tr":return y(6,null)}return 4<=a.insertionMode||0===a.insertionMode?y(1,null):a}var ta=new Map;
+function ua(a,b,c){if("object"!==typeof c)throw Error(m(62));b=!0;for(var d in c)if(q.call(c,d)){var e=c[d];if(null!=e&&"boolean"!==typeof e&&""!==e){if(0===d.indexOf("--")){var g=x(d);e=x((""+e).trim())}else{g=d;var f=ta.get(g);void 0!==f?g=f:(f=x(g.replace(pa,"-$1").toLowerCase().replace(qa,"-ms-")),ta.set(g,f),g=f);e="number"===typeof e?0===e||q.call(w,d)?""+e:e+"px":x((""+e).trim())}b?(b=!1,a.push(' style="',g,":",e)):a.push(";",g,":",e)}}b||a.push('"')}
+function z(a,b,c,d){switch(c){case "style":ua(a,b,d);return;case "defaultValue":case "defaultChecked":case "innerHTML":case "suppressContentEditableWarning":case "suppressHydrationWarning":return}if(!(2<c.length)||"o"!==c[0]&&"O"!==c[0]||"n"!==c[1]&&"N"!==c[1])if(b=v.hasOwnProperty(c)?v[c]:null,null!==b){switch(typeof d){case "function":case "symbol":return;case "boolean":if(!b.acceptsBooleans)return}c=b.attributeName;switch(b.type){case 3:d&&a.push(" ",c,'=""');break;case 4:!0===d?a.push(" ",c,'=""'):
+!1!==d&&a.push(" ",c,'="',x(d),'"');break;case 5:isNaN(d)||a.push(" ",c,'="',x(d),'"');break;case 6:!isNaN(d)&&1<=d&&a.push(" ",c,'="',x(d),'"');break;default:b.sanitizeURL&&(d=""+d),a.push(" ",c,'="',x(d),'"')}}else if(ea(c)){switch(typeof d){case "function":case "symbol":return;case "boolean":if(b=c.toLowerCase().slice(0,5),"data-"!==b&&"aria-"!==b)return}a.push(" ",c,'="',x(d),'"')}}
+function A(a,b,c){if(null!=b){if(null!=c)throw Error(m(60));if("object"!==typeof b||!("__html"in b))throw Error(m(61));b=b.__html;null!==b&&void 0!==b&&a.push(""+b)}}function va(a){var b="";aa.Children.forEach(a,function(a){null!=a&&(b+=a)});return b}
+function B(a,b,c,d){a.push(C(c));var e=c=null,g;for(g in b)if(q.call(b,g)){var f=b[g];if(null!=f)switch(g){case "children":c=f;break;case "dangerouslySetInnerHTML":e=f;break;default:z(a,d,g,f)}}a.push(">");A(a,e,c);return"string"===typeof c?(a.push(x(c)),null):c}var wa=/^[a-zA-Z][a-zA-Z:_\.\-\d]*$/,xa=new Map;function C(a){var b=xa.get(a);if(void 0===b){if(!wa.test(a))throw Error(m(65,a));b="<"+a;xa.set(a,b)}return b}
+function ya(a,b,c,d,e,g){switch(c){case "select":a.push(C("select"));var f=null,h=null;for(n in d)if(q.call(d,n)){var k=d[n];if(null!=k)switch(n){case "children":f=k;break;case "dangerouslySetInnerHTML":h=k;break;case "defaultValue":case "value":break;default:z(a,e,n,k)}}a.push(">");A(a,h,f);return f;case "option":h=g.selectedValue;a.push(C("option"));var l=k=null,p=null;var n=null;for(f in d)if(q.call(d,f)){var r=d[f];if(null!=r)switch(f){case "children":k=r;break;case "selected":p=r;break;case "dangerouslySetInnerHTML":n=
+r;break;case "value":l=r;default:z(a,e,f,r)}}if(null!=h)if(d=null!==l?""+l:va(k),ra(h))for(e=0;e<h.length;e++){if(""+h[e]===d){a.push(' selected=""');break}}else""+h===d&&a.push(' selected=""');else p&&a.push(' selected=""');a.push(">");A(a,n,k);return k;case "textarea":a.push(C("textarea"));n=h=f=null;for(k in d)if(q.call(d,k)&&(l=d[k],null!=l))switch(k){case "children":n=l;break;case "value":f=l;break;case "defaultValue":h=l;break;case "dangerouslySetInnerHTML":throw Error(m(91));default:z(a,e,
+k,l)}null===f&&null!==h&&(f=h);a.push(">");if(null!=n){if(null!=f)throw Error(m(92));if(ra(n)&&1<n.length)throw Error(m(93));f=""+n}"string"===typeof f&&"\n"===f[0]&&a.push("\n");null!==f&&a.push(x(""+f));return null;case "input":a.push(C("input"));l=n=k=f=null;for(h in d)if(q.call(d,h)&&(p=d[h],null!=p))switch(h){case "children":case "dangerouslySetInnerHTML":throw Error(m(399,"input"));case "defaultChecked":l=p;break;case "defaultValue":k=p;break;case "checked":n=p;break;case "value":f=p;break;
+default:z(a,e,h,p)}null!==n?z(a,e,"checked",n):null!==l&&z(a,e,"checked",l);null!==f?z(a,e,"value",f):null!==k&&z(a,e,"value",k);a.push("/>");return null;case "menuitem":a.push(C("menuitem"));for(var E in d)if(q.call(d,E)&&(f=d[E],null!=f))switch(E){case "children":case "dangerouslySetInnerHTML":throw Error(m(400));default:z(a,e,E,f)}a.push(">");return null;case "title":a.push(C("title"));f=null;for(r in d)if(q.call(d,r)&&(h=d[r],null!=h))switch(r){case "children":f=h;break;case "dangerouslySetInnerHTML":throw Error(m(434));
+default:z(a,e,r,h)}a.push(">");return f;case "link":f="stylesheet"===d.rel;a.push(C("link"));for(var F in d)if(q.call(d,F)&&(h=d[F],null!=h))switch(F){case "children":case "dangerouslySetInnerHTML":throw Error(m(399,"link"));case "precedence":if(f){!0!==h&&"string"!==typeof h||z(a,e,"data-rprec",h);break}default:z(a,e,F,h)}a.push("/>");return null;case "listing":case "pre":a.push(C(c));h=f=null;for(l in d)if(q.call(d,l)&&(k=d[l],null!=k))switch(l){case "children":f=k;break;case "dangerouslySetInnerHTML":h=
+k;break;default:z(a,e,l,k)}a.push(">");if(null!=h){if(null!=f)throw Error(m(60));if("object"!==typeof h||!("__html"in h))throw Error(m(61));d=h.__html;null!==d&&void 0!==d&&("string"===typeof d&&0<d.length&&"\n"===d[0]?a.push("\n",d):a.push(""+d))}"string"===typeof f&&"\n"===f[0]&&a.push("\n");return f;case "area":case "base":case "br":case "col":case "embed":case "hr":case "img":case "keygen":case "meta":case "param":case "source":case "track":case "wbr":a.push(C(c));for(var u in d)if(q.call(d,u)&&
+(f=d[u],null!=f))switch(u){case "children":case "dangerouslySetInnerHTML":throw Error(m(399,c));default:z(a,e,u,f)}a.push("/>");return null;case "annotation-xml":case "color-profile":case "font-face":case "font-face-src":case "font-face-uri":case "font-face-format":case "font-face-name":case "missing-glyph":return B(a,d,c,e);case "head":return B(b,d,c,e);case "html":return 0===g.insertionMode&&b.push("<!DOCTYPE html>"),B(b,d,c,e);default:if(-1===c.indexOf("-")&&"string"!==typeof d.is)return B(a,d,
+c,e);a.push(C(c));h=f=null;for(p in d)if(q.call(d,p)&&(k=d[p],null!=k&&"function"!==typeof k&&"object"!==typeof k&&!1!==k))switch(!0===k&&(k=""),"className"===p&&(p="class"),p){case "children":f=k;break;case "dangerouslySetInnerHTML":h=k;break;case "style":ua(a,e,k);break;case "suppressContentEditableWarning":case "suppressHydrationWarning":break;default:ea(p)&&"function"!==typeof k&&"symbol"!==typeof k&&a.push(" ",p,'="',x(k),'"')}a.push(">");A(a,h,f);return f}}
+function za(a,b,c){a.push('\x3c!--$?--\x3e<template id="');if(null===c)throw Error(m(395));a.push(c);return a.push('"></template>')}
+function Aa(a,b,c,d){switch(c.insertionMode){case 0:case 1:return a.push('<div hidden id="'),a.push(b.segmentPrefix),b=d.toString(16),a.push(b),a.push('">');case 2:return a.push('<svg aria-hidden="true" style="display:none" id="'),a.push(b.segmentPrefix),b=d.toString(16),a.push(b),a.push('">');case 3:return a.push('<math aria-hidden="true" style="display:none" id="'),a.push(b.segmentPrefix),b=d.toString(16),a.push(b),a.push('">');case 4:return a.push('<table hidden id="'),a.push(b.segmentPrefix),
+b=d.toString(16),a.push(b),a.push('">');case 5:return a.push('<table hidden><tbody id="'),a.push(b.segmentPrefix),b=d.toString(16),a.push(b),a.push('">');case 6:return a.push('<table hidden><tr id="'),a.push(b.segmentPrefix),b=d.toString(16),a.push(b),a.push('">');case 7:return a.push('<table hidden><colgroup id="'),a.push(b.segmentPrefix),b=d.toString(16),a.push(b),a.push('">');default:throw Error(m(397));}}
+function Ba(a,b){switch(b.insertionMode){case 0:case 1:return a.push("</div>");case 2:return a.push("</svg>");case 3:return a.push("</math>");case 4:return a.push("</table>");case 5:return a.push("</tbody></table>");case 6:return a.push("</tr></table>");case 7:return a.push("</colgroup></table>");default:throw Error(m(397));}}var Ca=/[<\u2028\u2029]/g;
+function Da(a){return JSON.stringify(a).replace(Ca,function(a){switch(a){case "<":return"\\u003c";case "\u2028":return"\\u2028";case "\u2029":return"\\u2029";default:throw Error("escapeJSStringsForInstructionScripts encountered a match it does not know how to replace. this means the match regex and the replacement characters are no longer in sync. This is a bug in React");}})}
+function Ea(a,b){b=void 0===b?"":b;return{bootstrapChunks:[],startInlineScript:"<script>",placeholderPrefix:b+"P:",segmentPrefix:b+"S:",boundaryPrefix:b+"B:",idPrefix:b,nextSuspenseID:0,sentCompleteSegmentFunction:!1,sentCompleteBoundaryFunction:!1,sentClientRenderFunction:!1,generateStaticMarkup:a}}function Fa(a,b,c,d){if(c.generateStaticMarkup)return a.push(x(b)),!1;""===b?a=d:(d&&a.push("\x3c!-- --\x3e"),a.push(x(b)),a=!0);return a}
+var D=Object.assign,Ga=Symbol.for("react.element"),Ha=Symbol.for("react.portal"),Ia=Symbol.for("react.fragment"),Ja=Symbol.for("react.strict_mode"),Ka=Symbol.for("react.profiler"),La=Symbol.for("react.provider"),Ma=Symbol.for("react.context"),Na=Symbol.for("react.server_context"),Oa=Symbol.for("react.forward_ref"),Pa=Symbol.for("react.suspense"),Qa=Symbol.for("react.suspense_list"),Ra=Symbol.for("react.memo"),Sa=Symbol.for("react.lazy"),Ta=Symbol.for("react.scope"),Ua=Symbol.for("react.debug_trace_mode"),
+Va=Symbol.for("react.offscreen"),Wa=Symbol.for("react.legacy_hidden"),Xa=Symbol.for("react.cache"),Ya=Symbol.for("react.default_value"),Za=Symbol.iterator;
+function $a(a){if(null==a)return null;if("function"===typeof a)return a.displayName||a.name||null;if("string"===typeof a)return a;switch(a){case Ia:return"Fragment";case Ha:return"Portal";case Ka:return"Profiler";case Ja:return"StrictMode";case Pa:return"Suspense";case Qa:return"SuspenseList";case Xa:return"Cache"}if("object"===typeof a)switch(a.$$typeof){case Ma:return(a.displayName||"Context")+".Consumer";case La:return(a._context.displayName||"Context")+".Provider";case Oa:var b=a.render;a=a.displayName;
+a||(a=b.displayName||b.name||"",a=""!==a?"ForwardRef("+a+")":"ForwardRef");return a;case Ra:return b=a.displayName||null,null!==b?b:$a(a.type)||"Memo";case Sa:b=a._payload;a=a._init;try{return $a(a(b))}catch(c){break}case Na:return(a.displayName||a._globalName)+".Provider"}return null}var ab={};function bb(a,b){a=a.contextTypes;if(!a)return ab;var c={},d;for(d in a)c[d]=b[d];return c}var G=null;
+function H(a,b){if(a!==b){a.context._currentValue2=a.parentValue;a=a.parent;var c=b.parent;if(null===a){if(null!==c)throw Error(m(401));}else{if(null===c)throw Error(m(401));H(a,c)}b.context._currentValue2=b.value}}function cb(a){a.context._currentValue2=a.parentValue;a=a.parent;null!==a&&cb(a)}function db(a){var b=a.parent;null!==b&&db(b);a.context._currentValue2=a.value}
+function eb(a,b){a.context._currentValue2=a.parentValue;a=a.parent;if(null===a)throw Error(m(402));a.depth===b.depth?H(a,b):eb(a,b)}function fb(a,b){var c=b.parent;if(null===c)throw Error(m(402));a.depth===c.depth?H(a,c):fb(a,c);b.context._currentValue2=b.value}function I(a){var b=G;b!==a&&(null===b?db(a):null===a?cb(b):b.depth===a.depth?H(b,a):b.depth>a.depth?eb(b,a):fb(b,a),G=a)}
+var gb={isMounted:function(){return!1},enqueueSetState:function(a,b){a=a._reactInternals;null!==a.queue&&a.queue.push(b)},enqueueReplaceState:function(a,b){a=a._reactInternals;a.replace=!0;a.queue=[b]},enqueueForceUpdate:function(){}};
+function hb(a,b,c,d){var e=void 0!==a.state?a.state:null;a.updater=gb;a.props=c;a.state=e;var g={queue:[],replace:!1};a._reactInternals=g;var f=b.contextType;a.context="object"===typeof f&&null!==f?f._currentValue2:d;f=b.getDerivedStateFromProps;"function"===typeof f&&(f=f(c,e),e=null===f||void 0===f?e:D({},e,f),a.state=e);if("function"!==typeof b.getDerivedStateFromProps&&"function"!==typeof a.getSnapshotBeforeUpdate&&("function"===typeof a.UNSAFE_componentWillMount||"function"===typeof a.componentWillMount))if(b=
+a.state,"function"===typeof a.componentWillMount&&a.componentWillMount(),"function"===typeof a.UNSAFE_componentWillMount&&a.UNSAFE_componentWillMount(),b!==a.state&&gb.enqueueReplaceState(a,a.state,null),null!==g.queue&&0<g.queue.length)if(b=g.queue,f=g.replace,g.queue=null,g.replace=!1,f&&1===b.length)a.state=b[0];else{g=f?b[0]:a.state;e=!0;for(f=f?1:0;f<b.length;f++){var h=b[f];h="function"===typeof h?h.call(a,g,c,d):h;null!=h&&(e?(e=!1,g=D({},g,h)):D(g,h))}a.state=g}else g.queue=null}
+var ib={id:1,overflow:""};function jb(a,b,c){var d=a.id;a=a.overflow;var e=32-J(d)-1;d&=~(1<<e);c+=1;var g=32-J(b)+e;if(30<g){var f=e-e%5;g=(d&(1<<f)-1).toString(32);d>>=f;e-=f;return{id:1<<32-J(b)+e|c<<e|d,overflow:g+a}}return{id:1<<g|c<<e|d,overflow:a}}var J=Math.clz32?Math.clz32:kb,lb=Math.log,mb=Math.LN2;function kb(a){a>>>=0;return 0===a?32:31-(lb(a)/mb|0)|0}
+function nb(a){switch(a.status){case "fulfilled":case "rejected":break;default:"string"!==typeof a.status&&(a.status="pending",a.then(function(b){"pending"===a.status&&(a.status="fulfilled",a.value=b)},function(b){"pending"===a.status&&(a.status="rejected",a.reason=b)}))}}function ob(a,b){return a===b&&(0!==a||1/a===1/b)||a!==a&&b!==b}var pb="function"===typeof Object.is?Object.is:ob,K=null,L=null,M=null,N=null,O=!1,P=!1,Q=0,R=0,S=null,T=null,U=0;
+function V(){if(null===K)throw Error(m(321));return K}function qb(){if(0<U)throw Error(m(312));return{memoizedState:null,queue:null,next:null}}function rb(){null===N?null===M?(O=!1,M=N=qb()):(O=!0,N=M):null===N.next?(O=!1,N=N.next=qb()):(O=!0,N=N.next);return N}function sb(a,b,c,d){for(;P;)P=!1,R=Q=0,U+=1,N=null,c=a(b,d);vb();return c}function wb(){var a=S;S=null;return a}function vb(){L=K=null;P=!1;M=null;U=0;N=T=null}function xb(a,b){return"function"===typeof b?b(a):b}
+function yb(a,b,c){K=V();N=rb();if(O){var d=N.queue;b=d.dispatch;if(null!==T&&(c=T.get(d),void 0!==c)){T.delete(d);d=N.memoizedState;do d=a(d,c.action),c=c.next;while(null!==c);N.memoizedState=d;return[d,b]}return[N.memoizedState,b]}a=a===xb?"function"===typeof b?b():b:void 0!==c?c(b):b;N.memoizedState=a;a=N.queue={last:null,dispatch:null};a=a.dispatch=zb.bind(null,K,a);return[N.memoizedState,a]}
+function Ab(a,b){K=V();N=rb();b=void 0===b?null:b;if(null!==N){var c=N.memoizedState;if(null!==c&&null!==b){var d=c[1];a:if(null===d)d=!1;else{for(var e=0;e<d.length&&e<b.length;e++)if(!pb(b[e],d[e])){d=!1;break a}d=!0}if(d)return c[0]}}a=a();N.memoizedState=[a,b];return a}function zb(a,b,c){if(25<=U)throw Error(m(301));if(a===K)if(P=!0,a={action:c,next:null},null===T&&(T=new Map),c=T.get(b),void 0===c)T.set(b,a);else{for(b=c;null!==b.next;)b=b.next;b.next=a}}function Bb(){throw Error(m(394));}
+function Cb(){throw Error(m(393));}function Db(){}
+var Fb={readContext:function(a){return a._currentValue2},useContext:function(a){V();return a._currentValue2},useMemo:Ab,useReducer:yb,useRef:function(a){K=V();N=rb();var b=N.memoizedState;return null===b?(a={current:a},N.memoizedState=a):b},useState:function(a){return yb(xb,a)},useInsertionEffect:Db,useLayoutEffect:function(){},useCallback:function(a,b){return Ab(function(){return a},b)},useImperativeHandle:Db,useEffect:Db,useDebugValue:Db,useDeferredValue:function(a){V();return a},useTransition:function(){V();
+return[!1,Bb]},useId:function(){var a=L.treeContext;var b=a.overflow;a=a.id;a=(a&~(1<<32-J(a)-1)).toString(32)+b;var c=Eb;if(null===c)throw Error(m(404));b=Q++;a=":"+c.idPrefix+"R"+a;0<b&&(a+="H"+b.toString(32));return a+":"},useMutableSource:function(a,b){V();return b(a._source)},useSyncExternalStore:function(a,b,c){if(void 0===c)throw Error(m(407));return c()},getCacheForType:function(){throw Error(m(248));},useCacheRefresh:function(){return Cb},useMemoCache:function(a){return Array(a)},use:function(a){if(null!==
+a&&"object"===typeof a)if("function"===typeof a.then){var b=R;R+=1;switch(a.status){case "fulfilled":return a.value;case "rejected":throw a.reason;default:a:{if(null!==S){var c=S[b];if(void 0!==c)break a}c=null}if(null!==c)switch(c.status){case "fulfilled":return c.value;case "rejected":throw c.reason;default:throw c;}else throw null===S&&(S=[]),S[b]=a,a;}}else if(a.$$typeof===Ma||a.$$typeof===Na)return a._currentValue2;throw Error(m(438,String(a)));}},Eb=null,Gb=aa.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED.ReactCurrentDispatcher;
+function Hb(a){console.error(a);return null}function W(){}
+function Ib(a,b,c,d,e,g,f,h,k){var l=[],p=new Set;b={destination:null,responseState:b,progressiveChunkSize:void 0===d?12800:d,status:0,fatalError:null,nextSegmentId:0,allPendingTasks:0,pendingRootTasks:0,completedRootSegment:null,abortableTasks:p,pingedTasks:l,clientRenderedBoundaries:[],completedBoundaries:[],partialBoundaries:[],preamble:[],postamble:[],onError:void 0===e?Hb:e,onAllReady:void 0===g?W:g,onShellReady:void 0===f?W:f,onShellError:void 0===h?W:h,onFatalError:void 0===k?W:k};c=Jb(b,0,
+null,c,!1,!1);c.parentFlushed=!0;a=Kb(b,null,a,null,c,p,ab,null,ib);l.push(a);return b}function Kb(a,b,c,d,e,g,f,h,k){a.allPendingTasks++;null===d?a.pendingRootTasks++:d.pendingTasks++;var l={node:c,ping:function(){var b=a.pingedTasks;b.push(l);1===b.length&&Lb(a)},blockedBoundary:d,blockedSegment:e,abortSet:g,legacyContext:f,context:h,treeContext:k,thenableState:b};g.add(l);return l}
+function Jb(a,b,c,d,e,g){return{status:0,id:-1,index:b,parentFlushed:!1,chunks:[],children:[],formatContext:d,boundary:c,lastPushedText:e,textEmbedded:g}}function X(a,b){a=a.onError(b);if(null!=a&&"string"!==typeof a)throw Error('onError returned something with a type other than "string". onError should return a string and may return null or undefined but must not return anything else. It received something of type "'+typeof a+'" instead');return a}
+function Y(a,b){var c=a.onShellError;c(b);c=a.onFatalError;c(b);null!==a.destination?(a.status=2,a.destination.destroy(b)):(a.status=1,a.fatalError=b)}function Mb(a,b,c,d){var e=c.render(),g=d.childContextTypes;if(null!==g&&void 0!==g){var f=b.legacyContext;if("function"!==typeof c.getChildContext)d=f;else{c=c.getChildContext();for(var h in c)if(!(h in g))throw Error(m(108,$a(d)||"Unknown",h));d=D({},f,c)}b.legacyContext=d;Z(a,b,null,e);b.legacyContext=f}else Z(a,b,null,e)}
+function Nb(a,b){if(a&&a.defaultProps){b=D({},b);a=a.defaultProps;for(var c in a)void 0===b[c]&&(b[c]=a[c]);return b}return b}
+function Ob(a,b,c,d,e,g){if("function"===typeof d)if(d.prototype&&d.prototype.isReactComponent)c=bb(d,b.legacyContext),g=d.contextType,g=new d(e,"object"===typeof g&&null!==g?g._currentValue2:c),hb(g,d,e,c),Mb(a,b,g,d);else{g=bb(d,b.legacyContext);K={};L=b;R=Q=0;S=c;c=d(e,g);c=sb(d,e,c,g);var f=0!==Q;if("object"===typeof c&&null!==c&&"function"===typeof c.render&&void 0===c.$$typeof)hb(c,d,e,g),Mb(a,b,c,d);else if(f){e=b.treeContext;b.treeContext=jb(e,1,0);try{Z(a,b,null,c)}finally{b.treeContext=
+e}}else Z(a,b,null,c)}else if("string"===typeof d){c=b.blockedSegment;g=ya(c.chunks,a.preamble,d,e,a.responseState,c.formatContext);c.lastPushedText=!1;f=c.formatContext;c.formatContext=sa(f,d,e);Pb(a,b,g);c.formatContext=f;b=c.chunks;switch(d){case "area":case "base":case "br":case "col":case "embed":case "hr":case "img":case "input":case "keygen":case "link":case "meta":case "param":case "source":case "track":case "wbr":break;case "body":case "html":b=a.postamble;default:b.push("</",d,">")}c.lastPushedText=
+!1}else{switch(d){case Wa:case Ua:case Ja:case Ka:case Ia:Z(a,b,null,e.children);return;case Va:"hidden"!==e.mode&&Z(a,b,null,e.children);return;case Qa:Z(a,b,null,e.children);return;case Ta:throw Error(m(343));case Pa:a:{d=b.blockedBoundary;c=b.blockedSegment;g=e.fallback;e=e.children;f=new Set;var h={id:null,rootSegmentID:-1,parentFlushed:!1,pendingTasks:0,forceClientRender:!1,completedSegments:[],byteSize:0,fallbackAbortableTasks:f,errorDigest:null},k=Jb(a,c.chunks.length,h,c.formatContext,!1,
+!1);c.children.push(k);c.lastPushedText=!1;var l=Jb(a,0,null,c.formatContext,!1,!1);l.parentFlushed=!0;b.blockedBoundary=h;b.blockedSegment=l;try{if(Pb(a,b,e),a.responseState.generateStaticMarkup||l.lastPushedText&&l.textEmbedded&&l.chunks.push("\x3c!-- --\x3e"),l.status=1,Qb(h,l),0===h.pendingTasks)break a}catch(p){l.status=4,h.forceClientRender=!0,h.errorDigest=X(a,p)}finally{b.blockedBoundary=d,b.blockedSegment=c}b=Kb(a,null,g,d,k,f,b.legacyContext,b.context,b.treeContext);a.pingedTasks.push(b)}return}if("object"===
+typeof d&&null!==d)switch(d.$$typeof){case Oa:d=d.render;K={};L=b;R=Q=0;S=c;c=d(e,g);e=sb(d,e,c,g);if(0!==Q){d=b.treeContext;b.treeContext=jb(d,1,0);try{Z(a,b,null,e)}finally{b.treeContext=d}}else Z(a,b,null,e);return;case Ra:d=d.type;e=Nb(d,e);Ob(a,b,c,d,e,g);return;case La:c=e.children;d=d._context;e=e.value;g=d._currentValue2;d._currentValue2=e;f=G;G=e={parent:f,depth:null===f?0:f.depth+1,context:d,parentValue:g,value:e};b.context=e;Z(a,b,null,c);a=G;if(null===a)throw Error(m(403));e=a.parentValue;
+a.context._currentValue2=e===Ya?a.context._defaultValue:e;a=G=a.parent;b.context=a;return;case Ma:e=e.children;e=e(d._currentValue2);Z(a,b,null,e);return;case Sa:g=d._init;d=g(d._payload);e=Nb(d,e);Ob(a,b,c,d,e,void 0);return}throw Error(m(130,null==d?d:typeof d,""));}}
+function Z(a,b,c,d){b.node=d;if("object"===typeof d&&null!==d){switch(d.$$typeof){case Ga:Ob(a,b,c,d.type,d.props,d.ref);return;case Ha:throw Error(m(257));case Sa:c=d._init;d=c(d._payload);Z(a,b,null,d);return}if(ra(d)){Rb(a,b,d);return}null===d||"object"!==typeof d?c=null:(c=Za&&d[Za]||d["@@iterator"],c="function"===typeof c?c:null);if(c&&(c=c.call(d))){d=c.next();if(!d.done){var e=[];do e.push(d.value),d=c.next();while(!d.done);Rb(a,b,e)}return}a=Object.prototype.toString.call(d);throw Error(m(31,
+"[object Object]"===a?"object with keys {"+Object.keys(d).join(", ")+"}":a));}"string"===typeof d?(c=b.blockedSegment,c.lastPushedText=Fa(b.blockedSegment.chunks,d,a.responseState,c.lastPushedText)):"number"===typeof d&&(c=b.blockedSegment,c.lastPushedText=Fa(b.blockedSegment.chunks,""+d,a.responseState,c.lastPushedText))}function Rb(a,b,c){for(var d=c.length,e=0;e<d;e++){var g=b.treeContext;b.treeContext=jb(g,d,e);try{Pb(a,b,c[e])}finally{b.treeContext=g}}}
+function Pb(a,b,c){var d=b.blockedSegment.formatContext,e=b.legacyContext,g=b.context;try{return Z(a,b,null,c)}catch(l){if(vb(),"object"===typeof l&&null!==l&&"function"===typeof l.then){var f=wb();c=l;var h=b.blockedSegment,k=Jb(a,h.chunks.length,null,h.formatContext,h.lastPushedText,!0);h.children.push(k);h.lastPushedText=!1;a=Kb(a,f,b.node,b.blockedBoundary,k,b.abortSet,b.legacyContext,b.context,b.treeContext);nb(c);a=a.ping;c.then(a,a);b.blockedSegment.formatContext=d;b.legacyContext=e;b.context=
+g;I(g)}else throw b.blockedSegment.formatContext=d,b.legacyContext=e,b.context=g,I(g),l;}}function Sb(a){var b=a.blockedBoundary;a=a.blockedSegment;a.status=3;Tb(this,b,a)}
+function Ub(a,b,c){var d=a.blockedBoundary;a.blockedSegment.status=3;null===d?(b.allPendingTasks--,1!==b.status&&2!==b.status&&(X(b,c),Y(b,c))):(d.pendingTasks--,d.forceClientRender||(d.forceClientRender=!0,d.errorDigest=b.onError(c),d.parentFlushed&&b.clientRenderedBoundaries.push(d)),d.fallbackAbortableTasks.forEach(function(a){return Ub(a,b,c)}),d.fallbackAbortableTasks.clear(),b.allPendingTasks--,0===b.allPendingTasks&&(a=b.onAllReady,a()))}
+function Qb(a,b){if(0===b.chunks.length&&1===b.children.length&&null===b.children[0].boundary){var c=b.children[0];c.id=b.id;c.parentFlushed=!0;1===c.status&&Qb(a,c)}else a.completedSegments.push(b)}
+function Tb(a,b,c){if(null===b){if(c.parentFlushed){if(null!==a.completedRootSegment)throw Error(m(389));a.completedRootSegment=c}a.pendingRootTasks--;0===a.pendingRootTasks&&(a.onShellError=W,b=a.onShellReady,b())}else b.pendingTasks--,b.forceClientRender||(0===b.pendingTasks?(c.parentFlushed&&1===c.status&&Qb(b,c),b.parentFlushed&&a.completedBoundaries.push(b),b.fallbackAbortableTasks.forEach(Sb,a),b.fallbackAbortableTasks.clear()):c.parentFlushed&&1===c.status&&(Qb(b,c),1===b.completedSegments.length&&
+b.parentFlushed&&a.partialBoundaries.push(b)));a.allPendingTasks--;0===a.allPendingTasks&&(a=a.onAllReady,a())}
+function Lb(a){if(2!==a.status){var b=G,c=Gb.current;Gb.current=Fb;var d=Eb;Eb=a.responseState;try{var e=a.pingedTasks,g;for(g=0;g<e.length;g++){var f=e[g];var h=a,k=f.blockedSegment;if(0===k.status){I(f.context);try{var l=f.thenableState;f.thenableState=null;Z(h,f,l,f.node);h.responseState.generateStaticMarkup||k.lastPushedText&&k.textEmbedded&&k.chunks.push("\x3c!-- --\x3e");f.abortSet.delete(f);k.status=1;Tb(h,f.blockedBoundary,k)}catch(u){if(vb(),"object"===typeof u&&null!==u&&"function"===typeof u.then){var p=
+f.ping;u.then(p,p);nb(u);f.thenableState=wb()}else{f.abortSet.delete(f);k.status=4;var n=f.blockedBoundary,r=u,E=X(h,r);null===n?Y(h,r):(n.pendingTasks--,n.forceClientRender||(n.forceClientRender=!0,n.errorDigest=E,n.parentFlushed&&h.clientRenderedBoundaries.push(n)));h.allPendingTasks--;if(0===h.allPendingTasks){var F=h.onAllReady;F()}}}finally{}}}e.splice(0,g);null!==a.destination&&Vb(a,a.destination)}catch(u){X(a,u),Y(a,u)}finally{Eb=d,Gb.current=c,c===Fb&&I(b)}}}
+function Wb(a,b,c){c.parentFlushed=!0;switch(c.status){case 0:var d=c.id=a.nextSegmentId++;c.lastPushedText=!1;c.textEmbedded=!1;a=a.responseState;b.push('<template id="');b.push(a.placeholderPrefix);a=d.toString(16);b.push(a);return b.push('"></template>');case 1:c.status=2;var e=!0;d=c.chunks;var g=0;c=c.children;for(var f=0;f<c.length;f++){for(e=c[f];g<e.index;g++)b.push(d[g]);e=Xb(a,b,e)}for(;g<d.length-1;g++)b.push(d[g]);g<d.length&&(e=b.push(d[g]));return e;default:throw Error(m(390));}}
+function Xb(a,b,c){var d=c.boundary;if(null===d)return Wb(a,b,c);d.parentFlushed=!0;if(d.forceClientRender)return a.responseState.generateStaticMarkup||(d=d.errorDigest,b.push("\x3c!--$!--\x3e"),b.push("<template"),d&&(b.push(' data-dgst="'),d=x(d),b.push(d),b.push('"')),b.push("></template>")),Wb(a,b,c),a=a.responseState.generateStaticMarkup?!0:b.push("\x3c!--/$--\x3e"),a;if(0<d.pendingTasks){d.rootSegmentID=a.nextSegmentId++;0<d.completedSegments.length&&a.partialBoundaries.push(d);var e=a.responseState;
+var g=e.nextSuspenseID++;e=e.boundaryPrefix+g.toString(16);d=d.id=e;za(b,a.responseState,d);Wb(a,b,c);return b.push("\x3c!--/$--\x3e")}if(d.byteSize>a.progressiveChunkSize)return d.rootSegmentID=a.nextSegmentId++,a.completedBoundaries.push(d),za(b,a.responseState,d.id),Wb(a,b,c),b.push("\x3c!--/$--\x3e");a.responseState.generateStaticMarkup||b.push("\x3c!--$--\x3e");c=d.completedSegments;if(1!==c.length)throw Error(m(391));Xb(a,b,c[0]);a=a.responseState.generateStaticMarkup?!0:b.push("\x3c!--/$--\x3e");
+return a}function Yb(a,b,c){Aa(b,a.responseState,c.formatContext,c.id);Xb(a,b,c);return Ba(b,c.formatContext)}
+function Zb(a,b,c){for(var d=c.completedSegments,e=0;e<d.length;e++)$b(a,b,c,d[e]);d.length=0;a=a.responseState;d=c.id;c=c.rootSegmentID;b.push(a.startInlineScript);a.sentCompleteBoundaryFunction?b.push('$RC("'):(a.sentCompleteBoundaryFunction=!0,b.push('function $RC(a,b){a=document.getElementById(a);b=document.getElementById(b);b.parentNode.removeChild(b);if(a){a=a.previousSibling;var f=a.parentNode,c=a.nextSibling,e=0;do{if(c&&8===c.nodeType){var d=c.data;if("/$"===d)if(0===e)break;else e--;else"$"!==d&&"$?"!==d&&"$!"!==d||e++}d=c.nextSibling;f.removeChild(c);c=d}while(c);for(;b.firstChild;)f.insertBefore(b.firstChild,c);a.data="$";a._reactRetry&&a._reactRetry()}};$RC("'));if(null===
+d)throw Error(m(395));c=c.toString(16);b.push(d);b.push('","');b.push(a.segmentPrefix);b.push(c);return b.push('")\x3c/script>')}
+function $b(a,b,c,d){if(2===d.status)return!0;var e=d.id;if(-1===e){if(-1===(d.id=c.rootSegmentID))throw Error(m(392));return Yb(a,b,d)}Yb(a,b,d);a=a.responseState;b.push(a.startInlineScript);a.sentCompleteSegmentFunction?b.push('$RS("'):(a.sentCompleteSegmentFunction=!0,b.push('function $RS(a,b){a=document.getElementById(a);b=document.getElementById(b);for(a.parentNode.removeChild(a);a.firstChild;)b.parentNode.insertBefore(a.firstChild,b);b.parentNode.removeChild(b)};$RS("'));b.push(a.segmentPrefix);
+e=e.toString(16);b.push(e);b.push('","');b.push(a.placeholderPrefix);b.push(e);return b.push('")\x3c/script>')}
+function Vb(a,b){try{var c,d=a.completedRootSegment;if(null!==d)if(0===a.pendingRootTasks){var e=a.preamble;for(c=0;c<e.length;c++)b.push(e[c]);Xb(a,b,d);a.completedRootSegment=null;var g=a.responseState.bootstrapChunks;for(d=0;d<g.length-1;d++)b.push(g[d]);d<g.length&&b.push(g[d])}else return;var f=a.clientRenderedBoundaries;for(c=0;c<f.length;c++){var h=f[c];g=b;var k=a.responseState,l=h.id,p=h.errorDigest,n=h.errorMessage,r=h.errorComponentStack;g.push(k.startInlineScript);k.sentClientRenderFunction?
+g.push('$RX("'):(k.sentClientRenderFunction=!0,g.push('function $RX(b,c,d,e){var a=document.getElementById(b);a&&(b=a.previousSibling,b.data="$!",a=a.dataset,c&&(a.dgst=c),d&&(a.msg=d),e&&(a.stck=e),b._reactRetry&&b._reactRetry())};$RX("'));if(null===l)throw Error(m(395));g.push(l);g.push('"');if(p||n||r){g.push(",");var E=Da(p||"");g.push(E)}if(n||r){g.push(",");var F=Da(n||"");g.push(F)}if(r){g.push(",");var u=Da(r);g.push(u)}if(!g.push(")\x3c/script>")){a.destination=null;c++;f.splice(0,c);return}}f.splice(0,
+c);var ha=a.completedBoundaries;for(c=0;c<ha.length;c++)if(!Zb(a,b,ha[c])){a.destination=null;c++;ha.splice(0,c);return}ha.splice(0,c);var ia=a.partialBoundaries;for(c=0;c<ia.length;c++){var tb=ia[c];a:{f=a;h=b;var ja=tb.completedSegments;for(k=0;k<ja.length;k++)if(!$b(f,h,tb,ja[k])){k++;ja.splice(0,k);var ub=!1;break a}ja.splice(0,k);ub=!0}if(!ub){a.destination=null;c++;ia.splice(0,c);return}}ia.splice(0,c);var ka=a.completedBoundaries;for(c=0;c<ka.length;c++)if(!Zb(a,b,ka[c])){a.destination=null;
+c++;ka.splice(0,c);return}ka.splice(0,c)}finally{if(0===a.allPendingTasks&&0===a.pingedTasks.length&&0===a.clientRenderedBoundaries.length&&0===a.completedBoundaries.length){a=a.postamble;for(c=0;c<a.length;c++)b.push(a[c]);b.push(null)}}}function ac(a,b){try{var c=a.abortableTasks;if(0<c.size){var d=void 0===b?Error(m(432)):b;c.forEach(function(b){return Ub(b,a,d)});c.clear()}null!==a.destination&&Vb(a,a.destination)}catch(e){X(a,e),Y(a,e)}}function bc(){}
+function cc(a,b,c,d){var e=!1,g=null,f="",h={push:function(a){null!==a&&(f+=a);return!0},destroy:function(a){e=!0;g=a}},k=!1;a=Ib(a,Ea(c,b?b.identifierPrefix:void 0),{insertionMode:1,selectedValue:null},Infinity,bc,void 0,function(){k=!0},void 0,void 0);Lb(a);ac(a,d);if(1===a.status)a.status=2,h.destroy(a.fatalError);else if(2!==a.status&&null===a.destination){a.destination=h;try{Vb(a,h)}catch(l){X(a,l),Y(a,l)}}if(e&&g!==d)throw g;if(!k)throw Error(m(426));return f}
+exports.renderToNodeStream=function(){throw Error(m(207));};exports.renderToStaticMarkup=function(a,b){return cc(a,b,!0,'The server used "renderToStaticMarkup" which does not support Suspense. If you intended to have the server wait for the suspended component please switch to "renderToReadableStream" which supports Suspense on the server')};exports.renderToStaticNodeStream=function(){throw Error(m(208));};exports.renderToString=function(a,b){return cc(a,b,!1,'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToReadableStream" which supports Suspense on the server')};
+exports.version="18.3.0-experimental-cb5084d1c-20220924";
+
+
+/***/ }),
+
+/***/ 297:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
 /**
  * @license React
  * react-dom-server.browser.development.js
@@ -28,7 +7525,7397 @@ var a=o(89);function m(e){for(var r="https://reactjs.org/docs/error-decoder.html
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  */
-if(process.env.NODE_ENV!=="production"){(function(){"use strict";var e=o(89);var a="18.3.0-experimental-cb5084d1c-20220924";var i=e.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;function warn(e){{{for(var r=arguments.length,o=new Array(r>1?r-1:0),a=1;a<r;a++){o[a-1]=arguments[a]}printWarning("warn",e,o)}}}function error(e){{{for(var r=arguments.length,o=new Array(r>1?r-1:0),a=1;a<r;a++){o[a-1]=arguments[a]}printWarning("error",e,o)}}}function printWarning(e,r,o){{var a=i.ReactDebugCurrentFrame;var s=a.getStackAddendum();if(s!==""){r+="%s";o=o.concat([s])}var l=o.map((function(e){return String(e)}));l.unshift("Warning: "+r);Function.prototype.apply.call(console[e],console,l)}}function scheduleWork(e){e()}var s=512;var l=null;var c=0;function beginWriting(e){l=new Uint8Array(s);c=0}function writeChunk(e,r){if(r.length===0){return}if(r.length>s){if(c>0){e.enqueue(new Uint8Array(l.buffer,0,c));l=new Uint8Array(s);c=0}e.enqueue(r);return}var o=r;var a=l.length-c;if(a<o.length){if(a===0){e.enqueue(l)}else{l.set(o.subarray(0,a),c);e.enqueue(l);o=o.subarray(a)}l=new Uint8Array(s);c=0}l.set(o,c);c+=o.length}function writeChunkAndReturn(e,r){writeChunk(e,r);return true}function completeWriting(e){if(l&&c>0){e.enqueue(new Uint8Array(l.buffer,0,c));l=null;c=0}}function close(e){e.close()}var d=new TextEncoder;function stringToChunk(e){return d.encode(e)}function stringToPrecomputedChunk(e){return d.encode(e)}function closeWithError(e,r){if(typeof e.error==="function"){e.error(r)}else{e.close()}}function typeName(e){{var r=typeof Symbol==="function"&&Symbol.toStringTag;var o=r&&e[Symbol.toStringTag]||e.constructor.name||"Object";return o}}function willCoercionThrow(e){{try{testStringCoercion(e);return false}catch(e){return true}}}function testStringCoercion(e){return""+e}function checkAttributeStringCoercion(e,r){{if(willCoercionThrow(e)){error("The provided `%s` attribute is an unsupported type %s."+" This value must be coerced to a string before before using it here.",r,typeName(e));return testStringCoercion(e)}}}function checkCSSPropertyStringCoercion(e,r){{if(willCoercionThrow(e)){error("The provided `%s` CSS property is an unsupported type %s."+" This value must be coerced to a string before before using it here.",r,typeName(e));return testStringCoercion(e)}}}function checkHtmlStringCoercion(e){{if(willCoercionThrow(e)){error("The provided HTML markup uses a value of unsupported type %s."+" This value must be coerced to a string before before using it here.",typeName(e));return testStringCoercion(e)}}}var p=true;var f=Object.prototype.hasOwnProperty;var h=0;var g=1;var b=2;var S=3;var w=4;var E=5;var P=6;var F=":A-Z_a-z\\u00C0-\\u00D6\\u00D8-\\u00F6\\u00F8-\\u02FF\\u0370-\\u037D\\u037F-\\u1FFF\\u200C-\\u200D\\u2070-\\u218F\\u2C00-\\u2FEF\\u3001-\\uD7FF\\uF900-\\uFDCF\\uFDF0-\\uFFFD";var _=F+"\\-.0-9\\u00B7\\u0300-\\u036F\\u203F-\\u2040";var N=new RegExp("^["+F+"]["+_+"]*$");var M={};var O={};function isAttributeNameSafe(e){if(f.call(O,e)){return true}if(f.call(M,e)){return false}if(N.test(e)){O[e]=true;return true}M[e]=true;{error("Invalid attribute name: `%s`",e)}return false}function shouldRemoveAttributeWithWarning(e,r,o,a){if(o!==null&&o.type===h){return false}switch(typeof r){case"function":case"symbol":return true;case"boolean":{if(a){return false}if(o!==null){return!o.acceptsBooleans}else{var i=e.toLowerCase().slice(0,5);return i!=="data-"&&i!=="aria-"}}default:return false}}function getPropertyInfo(e){return j.hasOwnProperty(e)?j[e]:null}function PropertyInfoRecord(e,r,o,a,i,s,l){this.acceptsBooleans=r===b||r===S||r===w;this.attributeName=a;this.attributeNamespace=i;this.mustUseProperty=o;this.propertyName=e;this.type=r;this.sanitizeURL=s;this.removeEmptyString=l}var j={};var $=["children","dangerouslySetInnerHTML","defaultValue","defaultChecked","innerHTML","suppressContentEditableWarning","suppressHydrationWarning","style"];{$.push("innerText","textContent")}$.forEach((function(e){j[e]=new PropertyInfoRecord(e,h,false,e,null,false,false)}));[["acceptCharset","accept-charset"],["className","class"],["htmlFor","for"],["httpEquiv","http-equiv"]].forEach((function(e){var r=e[0],o=e[1];j[r]=new PropertyInfoRecord(r,g,false,o,null,false,false)}));["contentEditable","draggable","spellCheck","value"].forEach((function(e){j[e]=new PropertyInfoRecord(e,b,false,e.toLowerCase(),null,false,false)}));["autoReverse","externalResourcesRequired","focusable","preserveAlpha"].forEach((function(e){j[e]=new PropertyInfoRecord(e,b,false,e,null,false,false)}));["allowFullScreen","async","autoFocus","autoPlay","controls","default","defer","disabled","disablePictureInPicture","disableRemotePlayback","formNoValidate","hidden","loop","noModule","noValidate","open","playsInline","readOnly","required","reversed","scoped","seamless","itemScope"].forEach((function(e){j[e]=new PropertyInfoRecord(e,S,false,e.toLowerCase(),null,false,false)}));["checked","multiple","muted","selected"].forEach((function(e){j[e]=new PropertyInfoRecord(e,S,true,e,null,false,false)}));["capture","download"].forEach((function(e){j[e]=new PropertyInfoRecord(e,w,false,e,null,false,false)}));["cols","rows","size","span"].forEach((function(e){j[e]=new PropertyInfoRecord(e,P,false,e,null,false,false)}));["rowSpan","start"].forEach((function(e){j[e]=new PropertyInfoRecord(e,E,false,e.toLowerCase(),null,false,false)}));var G=/[\-\:]([a-z])/g;var capitalize=function(e){return e[1].toUpperCase()};["accent-height","alignment-baseline","arabic-form","baseline-shift","cap-height","clip-path","clip-rule","color-interpolation","color-interpolation-filters","color-profile","color-rendering","dominant-baseline","enable-background","fill-opacity","fill-rule","flood-color","flood-opacity","font-family","font-size","font-size-adjust","font-stretch","font-style","font-variant","font-weight","glyph-name","glyph-orientation-horizontal","glyph-orientation-vertical","horiz-adv-x","horiz-origin-x","image-rendering","letter-spacing","lighting-color","marker-end","marker-mid","marker-start","overline-position","overline-thickness","paint-order","panose-1","pointer-events","rendering-intent","shape-rendering","stop-color","stop-opacity","strikethrough-position","strikethrough-thickness","stroke-dasharray","stroke-dashoffset","stroke-linecap","stroke-linejoin","stroke-miterlimit","stroke-opacity","stroke-width","text-anchor","text-decoration","text-rendering","underline-position","underline-thickness","unicode-bidi","unicode-range","units-per-em","v-alphabetic","v-hanging","v-ideographic","v-mathematical","vector-effect","vert-adv-y","vert-origin-x","vert-origin-y","word-spacing","writing-mode","xmlns:xlink","x-height"].forEach((function(e){var r=e.replace(G,capitalize);j[r]=new PropertyInfoRecord(r,g,false,e,null,false,false)}));["xlink:actuate","xlink:arcrole","xlink:role","xlink:show","xlink:title","xlink:type"].forEach((function(e){var r=e.replace(G,capitalize);j[r]=new PropertyInfoRecord(r,g,false,e,"http://www.w3.org/1999/xlink",false,false)}));["xml:base","xml:lang","xml:space"].forEach((function(e){var r=e.replace(G,capitalize);j[r]=new PropertyInfoRecord(r,g,false,e,"http://www.w3.org/XML/1998/namespace",false,false)}));["tabIndex","crossOrigin"].forEach((function(e){j[e]=new PropertyInfoRecord(e,g,false,e.toLowerCase(),null,false,false)}));var ee="xlinkHref";j[ee]=new PropertyInfoRecord("xlinkHref",g,false,"xlink:href","http://www.w3.org/1999/xlink",true,false);["src","href","action","formAction"].forEach((function(e){j[e]=new PropertyInfoRecord(e,g,false,e.toLowerCase(),null,true,true)}));var te={animationIterationCount:true,aspectRatio:true,borderImageOutset:true,borderImageSlice:true,borderImageWidth:true,boxFlex:true,boxFlexGroup:true,boxOrdinalGroup:true,columnCount:true,columns:true,flex:true,flexGrow:true,flexPositive:true,flexShrink:true,flexNegative:true,flexOrder:true,gridArea:true,gridRow:true,gridRowEnd:true,gridRowSpan:true,gridRowStart:true,gridColumn:true,gridColumnEnd:true,gridColumnSpan:true,gridColumnStart:true,fontWeight:true,lineClamp:true,lineHeight:true,opacity:true,order:true,orphans:true,tabSize:true,widows:true,zIndex:true,zoom:true,fillOpacity:true,floodOpacity:true,stopOpacity:true,strokeDasharray:true,strokeDashoffset:true,strokeMiterlimit:true,strokeOpacity:true,strokeWidth:true};function prefixKey(e,r){return e+r.charAt(0).toUpperCase()+r.substring(1)}var re=["Webkit","ms","Moz","O"];Object.keys(te).forEach((function(e){re.forEach((function(r){te[prefixKey(r,e)]=te[e]}))}));var ne={button:true,checkbox:true,image:true,hidden:true,radio:true,reset:true,submit:true};function checkControlledValueProps(e,r){{if(!(ne[r.type]||r.onChange||r.onInput||r.readOnly||r.disabled||r.value==null)){error("You provided a `value` prop to a form field without an "+"`onChange` handler. This will render a read-only field. If "+"the field should be mutable use `defaultValue`. Otherwise, "+"set either `onChange` or `readOnly`.")}if(!(r.onChange||r.readOnly||r.disabled||r.checked==null)){error("You provided a `checked` prop to a form field without an "+"`onChange` handler. This will render a read-only field. If "+"the field should be mutable use `defaultChecked`. Otherwise, "+"set either `onChange` or `readOnly`.")}}}function isCustomComponent(e,r){if(e.indexOf("-")===-1){return typeof r.is==="string"}switch(e){case"annotation-xml":case"color-profile":case"font-face":case"font-face-src":case"font-face-uri":case"font-face-format":case"font-face-name":case"missing-glyph":return false;default:return true}}var oe={"aria-current":0,"aria-description":0,"aria-details":0,"aria-disabled":0,"aria-hidden":0,"aria-invalid":0,"aria-keyshortcuts":0,"aria-label":0,"aria-roledescription":0,"aria-autocomplete":0,"aria-checked":0,"aria-expanded":0,"aria-haspopup":0,"aria-level":0,"aria-modal":0,"aria-multiline":0,"aria-multiselectable":0,"aria-orientation":0,"aria-placeholder":0,"aria-pressed":0,"aria-readonly":0,"aria-required":0,"aria-selected":0,"aria-sort":0,"aria-valuemax":0,"aria-valuemin":0,"aria-valuenow":0,"aria-valuetext":0,"aria-atomic":0,"aria-busy":0,"aria-live":0,"aria-relevant":0,"aria-dropeffect":0,"aria-grabbed":0,"aria-activedescendant":0,"aria-colcount":0,"aria-colindex":0,"aria-colspan":0,"aria-controls":0,"aria-describedby":0,"aria-errormessage":0,"aria-flowto":0,"aria-labelledby":0,"aria-owns":0,"aria-posinset":0,"aria-rowcount":0,"aria-rowindex":0,"aria-rowspan":0,"aria-setsize":0};var ae={};var ie=new RegExp("^(aria)-["+_+"]*$");var se=new RegExp("^(aria)[A-Z]["+_+"]*$");function validateProperty(e,r){{if(f.call(ae,r)&&ae[r]){return true}if(se.test(r)){var o="aria-"+r.slice(4).toLowerCase();var a=oe.hasOwnProperty(o)?o:null;if(a==null){error("Invalid ARIA attribute `%s`. ARIA attributes follow the pattern aria-* and must be lowercase.",r);ae[r]=true;return true}if(r!==a){error("Invalid ARIA attribute `%s`. Did you mean `%s`?",r,a);ae[r]=true;return true}}if(ie.test(r)){var i=r.toLowerCase();var s=oe.hasOwnProperty(i)?i:null;if(s==null){ae[r]=true;return false}if(r!==s){error("Unknown ARIA attribute `%s`. Did you mean `%s`?",r,s);ae[r]=true;return true}}}return true}function warnInvalidARIAProps(e,r){{var o=[];for(var a in r){var i=validateProperty(e,a);if(!i){o.push(a)}}var s=o.map((function(e){return"`"+e+"`"})).join(", ");if(o.length===1){error("Invalid aria prop %s on <%s> tag. "+"For details, see https://reactjs.org/link/invalid-aria-props",s,e)}else if(o.length>1){error("Invalid aria props %s on <%s> tag. "+"For details, see https://reactjs.org/link/invalid-aria-props",s,e)}}}function validateProperties(e,r){if(isCustomComponent(e,r)){return}warnInvalidARIAProps(e,r)}var ue=false;function validateProperties$1(e,r){{if(e!=="input"&&e!=="textarea"&&e!=="select"){return}if(r!=null&&r.value===null&&!ue){ue=true;if(e==="select"&&r.multiple){error("`value` prop on `%s` should not be null. "+"Consider using an empty array when `multiple` is set to `true` "+"to clear the component or `undefined` for uncontrolled components.",e)}else{error("`value` prop on `%s` should not be null. "+"Consider using an empty string to clear the component or `undefined` "+"for uncontrolled components.",e)}}}}var le={accept:"accept",acceptcharset:"acceptCharset","accept-charset":"acceptCharset",accesskey:"accessKey",action:"action",allowfullscreen:"allowFullScreen",alt:"alt",as:"as",async:"async",autocapitalize:"autoCapitalize",autocomplete:"autoComplete",autocorrect:"autoCorrect",autofocus:"autoFocus",autoplay:"autoPlay",autosave:"autoSave",capture:"capture",cellpadding:"cellPadding",cellspacing:"cellSpacing",challenge:"challenge",charset:"charSet",checked:"checked",children:"children",cite:"cite",class:"className",classid:"classID",classname:"className",cols:"cols",colspan:"colSpan",content:"content",contenteditable:"contentEditable",contextmenu:"contextMenu",controls:"controls",controlslist:"controlsList",coords:"coords",crossorigin:"crossOrigin",dangerouslysetinnerhtml:"dangerouslySetInnerHTML",data:"data",datetime:"dateTime",default:"default",defaultchecked:"defaultChecked",defaultvalue:"defaultValue",defer:"defer",dir:"dir",disabled:"disabled",disablepictureinpicture:"disablePictureInPicture",disableremoteplayback:"disableRemotePlayback",download:"download",draggable:"draggable",enctype:"encType",enterkeyhint:"enterKeyHint",for:"htmlFor",form:"form",formmethod:"formMethod",formaction:"formAction",formenctype:"formEncType",formnovalidate:"formNoValidate",formtarget:"formTarget",frameborder:"frameBorder",headers:"headers",height:"height",hidden:"hidden",high:"high",href:"href",hreflang:"hrefLang",htmlfor:"htmlFor",httpequiv:"httpEquiv","http-equiv":"httpEquiv",icon:"icon",id:"id",imagesizes:"imageSizes",imagesrcset:"imageSrcSet",innerhtml:"innerHTML",inputmode:"inputMode",integrity:"integrity",is:"is",itemid:"itemID",itemprop:"itemProp",itemref:"itemRef",itemscope:"itemScope",itemtype:"itemType",keyparams:"keyParams",keytype:"keyType",kind:"kind",label:"label",lang:"lang",list:"list",loop:"loop",low:"low",manifest:"manifest",marginwidth:"marginWidth",marginheight:"marginHeight",max:"max",maxlength:"maxLength",media:"media",mediagroup:"mediaGroup",method:"method",min:"min",minlength:"minLength",multiple:"multiple",muted:"muted",name:"name",nomodule:"noModule",nonce:"nonce",novalidate:"noValidate",open:"open",optimum:"optimum",pattern:"pattern",placeholder:"placeholder",playsinline:"playsInline",poster:"poster",preload:"preload",profile:"profile",radiogroup:"radioGroup",readonly:"readOnly",referrerpolicy:"referrerPolicy",rel:"rel",required:"required",reversed:"reversed",role:"role",rows:"rows",rowspan:"rowSpan",sandbox:"sandbox",scope:"scope",scoped:"scoped",scrolling:"scrolling",seamless:"seamless",selected:"selected",shape:"shape",size:"size",sizes:"sizes",span:"span",spellcheck:"spellCheck",src:"src",srcdoc:"srcDoc",srclang:"srcLang",srcset:"srcSet",start:"start",step:"step",style:"style",summary:"summary",tabindex:"tabIndex",target:"target",title:"title",type:"type",usemap:"useMap",value:"value",width:"width",wmode:"wmode",wrap:"wrap",about:"about",accentheight:"accentHeight","accent-height":"accentHeight",accumulate:"accumulate",additive:"additive",alignmentbaseline:"alignmentBaseline","alignment-baseline":"alignmentBaseline",allowreorder:"allowReorder",alphabetic:"alphabetic",amplitude:"amplitude",arabicform:"arabicForm","arabic-form":"arabicForm",ascent:"ascent",attributename:"attributeName",attributetype:"attributeType",autoreverse:"autoReverse",azimuth:"azimuth",basefrequency:"baseFrequency",baselineshift:"baselineShift","baseline-shift":"baselineShift",baseprofile:"baseProfile",bbox:"bbox",begin:"begin",bias:"bias",by:"by",calcmode:"calcMode",capheight:"capHeight","cap-height":"capHeight",clip:"clip",clippath:"clipPath","clip-path":"clipPath",clippathunits:"clipPathUnits",cliprule:"clipRule","clip-rule":"clipRule",color:"color",colorinterpolation:"colorInterpolation","color-interpolation":"colorInterpolation",colorinterpolationfilters:"colorInterpolationFilters","color-interpolation-filters":"colorInterpolationFilters",colorprofile:"colorProfile","color-profile":"colorProfile",colorrendering:"colorRendering","color-rendering":"colorRendering",contentscripttype:"contentScriptType",contentstyletype:"contentStyleType",cursor:"cursor",cx:"cx",cy:"cy",d:"d",datatype:"datatype",decelerate:"decelerate",descent:"descent",diffuseconstant:"diffuseConstant",direction:"direction",display:"display",divisor:"divisor",dominantbaseline:"dominantBaseline","dominant-baseline":"dominantBaseline",dur:"dur",dx:"dx",dy:"dy",edgemode:"edgeMode",elevation:"elevation",enablebackground:"enableBackground","enable-background":"enableBackground",end:"end",exponent:"exponent",externalresourcesrequired:"externalResourcesRequired",fill:"fill",fillopacity:"fillOpacity","fill-opacity":"fillOpacity",fillrule:"fillRule","fill-rule":"fillRule",filter:"filter",filterres:"filterRes",filterunits:"filterUnits",floodopacity:"floodOpacity","flood-opacity":"floodOpacity",floodcolor:"floodColor","flood-color":"floodColor",focusable:"focusable",fontfamily:"fontFamily","font-family":"fontFamily",fontsize:"fontSize","font-size":"fontSize",fontsizeadjust:"fontSizeAdjust","font-size-adjust":"fontSizeAdjust",fontstretch:"fontStretch","font-stretch":"fontStretch",fontstyle:"fontStyle","font-style":"fontStyle",fontvariant:"fontVariant","font-variant":"fontVariant",fontweight:"fontWeight","font-weight":"fontWeight",format:"format",from:"from",fx:"fx",fy:"fy",g1:"g1",g2:"g2",glyphname:"glyphName","glyph-name":"glyphName",glyphorientationhorizontal:"glyphOrientationHorizontal","glyph-orientation-horizontal":"glyphOrientationHorizontal",glyphorientationvertical:"glyphOrientationVertical","glyph-orientation-vertical":"glyphOrientationVertical",glyphref:"glyphRef",gradienttransform:"gradientTransform",gradientunits:"gradientUnits",hanging:"hanging",horizadvx:"horizAdvX","horiz-adv-x":"horizAdvX",horizoriginx:"horizOriginX","horiz-origin-x":"horizOriginX",ideographic:"ideographic",imagerendering:"imageRendering","image-rendering":"imageRendering",in2:"in2",in:"in",inlist:"inlist",intercept:"intercept",k1:"k1",k2:"k2",k3:"k3",k4:"k4",k:"k",kernelmatrix:"kernelMatrix",kernelunitlength:"kernelUnitLength",kerning:"kerning",keypoints:"keyPoints",keysplines:"keySplines",keytimes:"keyTimes",lengthadjust:"lengthAdjust",letterspacing:"letterSpacing","letter-spacing":"letterSpacing",lightingcolor:"lightingColor","lighting-color":"lightingColor",limitingconeangle:"limitingConeAngle",local:"local",markerend:"markerEnd","marker-end":"markerEnd",markerheight:"markerHeight",markermid:"markerMid","marker-mid":"markerMid",markerstart:"markerStart","marker-start":"markerStart",markerunits:"markerUnits",markerwidth:"markerWidth",mask:"mask",maskcontentunits:"maskContentUnits",maskunits:"maskUnits",mathematical:"mathematical",mode:"mode",numoctaves:"numOctaves",offset:"offset",opacity:"opacity",operator:"operator",order:"order",orient:"orient",orientation:"orientation",origin:"origin",overflow:"overflow",overlineposition:"overlinePosition","overline-position":"overlinePosition",overlinethickness:"overlineThickness","overline-thickness":"overlineThickness",paintorder:"paintOrder","paint-order":"paintOrder",panose1:"panose1","panose-1":"panose1",pathlength:"pathLength",patterncontentunits:"patternContentUnits",patterntransform:"patternTransform",patternunits:"patternUnits",pointerevents:"pointerEvents","pointer-events":"pointerEvents",points:"points",pointsatx:"pointsAtX",pointsaty:"pointsAtY",pointsatz:"pointsAtZ",prefix:"prefix",preservealpha:"preserveAlpha",preserveaspectratio:"preserveAspectRatio",primitiveunits:"primitiveUnits",property:"property",r:"r",radius:"radius",refx:"refX",refy:"refY",renderingintent:"renderingIntent","rendering-intent":"renderingIntent",repeatcount:"repeatCount",repeatdur:"repeatDur",requiredextensions:"requiredExtensions",requiredfeatures:"requiredFeatures",resource:"resource",restart:"restart",result:"result",results:"results",rotate:"rotate",rx:"rx",ry:"ry",scale:"scale",security:"security",seed:"seed",shaperendering:"shapeRendering","shape-rendering":"shapeRendering",slope:"slope",spacing:"spacing",specularconstant:"specularConstant",specularexponent:"specularExponent",speed:"speed",spreadmethod:"spreadMethod",startoffset:"startOffset",stddeviation:"stdDeviation",stemh:"stemh",stemv:"stemv",stitchtiles:"stitchTiles",stopcolor:"stopColor","stop-color":"stopColor",stopopacity:"stopOpacity","stop-opacity":"stopOpacity",strikethroughposition:"strikethroughPosition","strikethrough-position":"strikethroughPosition",strikethroughthickness:"strikethroughThickness","strikethrough-thickness":"strikethroughThickness",string:"string",stroke:"stroke",strokedasharray:"strokeDasharray","stroke-dasharray":"strokeDasharray",strokedashoffset:"strokeDashoffset","stroke-dashoffset":"strokeDashoffset",strokelinecap:"strokeLinecap","stroke-linecap":"strokeLinecap",strokelinejoin:"strokeLinejoin","stroke-linejoin":"strokeLinejoin",strokemiterlimit:"strokeMiterlimit","stroke-miterlimit":"strokeMiterlimit",strokewidth:"strokeWidth","stroke-width":"strokeWidth",strokeopacity:"strokeOpacity","stroke-opacity":"strokeOpacity",suppresscontenteditablewarning:"suppressContentEditableWarning",suppresshydrationwarning:"suppressHydrationWarning",surfacescale:"surfaceScale",systemlanguage:"systemLanguage",tablevalues:"tableValues",targetx:"targetX",targety:"targetY",textanchor:"textAnchor","text-anchor":"textAnchor",textdecoration:"textDecoration","text-decoration":"textDecoration",textlength:"textLength",textrendering:"textRendering","text-rendering":"textRendering",to:"to",transform:"transform",typeof:"typeof",u1:"u1",u2:"u2",underlineposition:"underlinePosition","underline-position":"underlinePosition",underlinethickness:"underlineThickness","underline-thickness":"underlineThickness",unicode:"unicode",unicodebidi:"unicodeBidi","unicode-bidi":"unicodeBidi",unicoderange:"unicodeRange","unicode-range":"unicodeRange",unitsperem:"unitsPerEm","units-per-em":"unitsPerEm",unselectable:"unselectable",valphabetic:"vAlphabetic","v-alphabetic":"vAlphabetic",values:"values",vectoreffect:"vectorEffect","vector-effect":"vectorEffect",version:"version",vertadvy:"vertAdvY","vert-adv-y":"vertAdvY",vertoriginx:"vertOriginX","vert-origin-x":"vertOriginX",vertoriginy:"vertOriginY","vert-origin-y":"vertOriginY",vhanging:"vHanging","v-hanging":"vHanging",videographic:"vIdeographic","v-ideographic":"vIdeographic",viewbox:"viewBox",viewtarget:"viewTarget",visibility:"visibility",vmathematical:"vMathematical","v-mathematical":"vMathematical",vocab:"vocab",widths:"widths",wordspacing:"wordSpacing","word-spacing":"wordSpacing",writingmode:"writingMode","writing-mode":"writingMode",x1:"x1",x2:"x2",x:"x",xchannelselector:"xChannelSelector",xheight:"xHeight","x-height":"xHeight",xlinkactuate:"xlinkActuate","xlink:actuate":"xlinkActuate",xlinkarcrole:"xlinkArcrole","xlink:arcrole":"xlinkArcrole",xlinkhref:"xlinkHref","xlink:href":"xlinkHref",xlinkrole:"xlinkRole","xlink:role":"xlinkRole",xlinkshow:"xlinkShow","xlink:show":"xlinkShow",xlinktitle:"xlinkTitle","xlink:title":"xlinkTitle",xlinktype:"xlinkType","xlink:type":"xlinkType",xmlbase:"xmlBase","xml:base":"xmlBase",xmllang:"xmlLang","xml:lang":"xmlLang",xmlns:"xmlns","xml:space":"xmlSpace",xmlnsxlink:"xmlnsXlink","xmlns:xlink":"xmlnsXlink",xmlspace:"xmlSpace",y1:"y1",y2:"y2",y:"y",ychannelselector:"yChannelSelector",z:"z",zoomandpan:"zoomAndPan"};var validateProperty$1=function(){};{var ce={};var de=/^on./;var pe=/^on[^A-Z]/;var fe=new RegExp("^(aria)-["+_+"]*$");var he=new RegExp("^(aria)[A-Z]["+_+"]*$");validateProperty$1=function(e,r,o,a){if(f.call(ce,r)&&ce[r]){return true}var i=r.toLowerCase();if(i==="onfocusin"||i==="onfocusout"){error("React uses onFocus and onBlur instead of onFocusIn and onFocusOut. "+"All React events are normalized to bubble, so onFocusIn and onFocusOut "+"are not needed/supported by React.");ce[r]=true;return true}if(a!=null){var s=a.registrationNameDependencies,l=a.possibleRegistrationNames;if(s.hasOwnProperty(r)){return true}var c=l.hasOwnProperty(i)?l[i]:null;if(c!=null){error("Invalid event handler property `%s`. Did you mean `%s`?",r,c);ce[r]=true;return true}if(de.test(r)){error("Unknown event handler property `%s`. It will be ignored.",r);ce[r]=true;return true}}else if(de.test(r)){if(pe.test(r)){error("Invalid event handler property `%s`. "+"React events use the camelCase naming convention, for example `onClick`.",r)}ce[r]=true;return true}if(fe.test(r)||he.test(r)){return true}if(i==="innerhtml"){error("Directly setting property `innerHTML` is not permitted. "+"For more information, lookup documentation on `dangerouslySetInnerHTML`.");ce[r]=true;return true}if(i==="aria"){error("The `aria` attribute is reserved for future use in React. "+"Pass individual `aria-` attributes instead.");ce[r]=true;return true}if(i==="is"&&o!==null&&o!==undefined&&typeof o!=="string"){error("Received a `%s` for a string attribute `is`. If this is expected, cast "+"the value to a string.",typeof o);ce[r]=true;return true}if(typeof o==="number"&&isNaN(o)){error("Received NaN for the `%s` attribute. If this is expected, cast "+"the value to a string.",r);ce[r]=true;return true}var d=getPropertyInfo(r);var p=d!==null&&d.type===h;if(le.hasOwnProperty(i)){var g=le[i];if(g!==r){error("Invalid DOM property `%s`. Did you mean `%s`?",r,g);ce[r]=true;return true}}else if(!p&&r!==i){error("React does not recognize the `%s` prop on a DOM element. If you "+"intentionally want it to appear in the DOM as a custom "+"attribute, spell it as lowercase `%s` instead. "+"If you accidentally passed it from a parent component, remove "+"it from the DOM element.",r,i);ce[r]=true;return true}if(typeof o==="boolean"&&shouldRemoveAttributeWithWarning(r,o,d,false)){if(o){error("Received `%s` for a non-boolean attribute `%s`.\n\n"+"If you want to write it to the DOM, pass a string instead: "+'%s="%s" or %s={value.toString()}.',o,r,r,o,r)}else{error("Received `%s` for a non-boolean attribute `%s`.\n\n"+"If you want to write it to the DOM, pass a string instead: "+'%s="%s" or %s={value.toString()}.\n\n'+"If you used to conditionally omit it with %s={condition && value}, "+"pass %s={condition ? value : undefined} instead.",o,r,r,o,r,r,r)}ce[r]=true;return true}if(p){return true}if(shouldRemoveAttributeWithWarning(r,o,d,false)){ce[r]=true;return false}if((o==="false"||o==="true")&&d!==null&&d.type===S){error("Received the string `%s` for the boolean attribute `%s`. "+"%s "+"Did you mean %s={%s}?",o,r,o==="false"?"The browser will interpret it as a truthy value.":'Although this works, it will not work as expected if you pass the string "false".',r,o);ce[r]=true;return true}return true}}var warnUnknownProperties=function(e,r,o){{var a=[];for(var i in r){var s=validateProperty$1(e,i,r[i],o);if(!s){a.push(i)}}var l=a.map((function(e){return"`"+e+"`"})).join(", ");if(a.length===1){error("Invalid value for prop %s on <%s> tag. Either remove it from the element, "+"or pass a string or number value to keep it in the DOM. "+"For details, see https://reactjs.org/link/attribute-behavior ",l,e)}else if(a.length>1){error("Invalid values for props %s on <%s> tag. Either remove them from the element, "+"or pass a string or number value to keep them in the DOM. "+"For details, see https://reactjs.org/link/attribute-behavior ",l,e)}}};function validateProperties$2(e,r,o){if(isCustomComponent(e,r)){return}warnUnknownProperties(e,r,o)}var warnValidStyle=function(){};{var me=/^(?:webkit|moz|o)[A-Z]/;var ge=/^-ms-/;var ve=/-(.)/g;var ye=/;\s*$/;var be={};var ke={};var Ce=false;var Se=false;var camelize=function(e){return e.replace(ve,(function(e,r){return r.toUpperCase()}))};var warnHyphenatedStyleName=function(e){if(be.hasOwnProperty(e)&&be[e]){return}be[e]=true;error("Unsupported style property %s. Did you mean %s?",e,camelize(e.replace(ge,"ms-")))};var warnBadVendoredStyleName=function(e){if(be.hasOwnProperty(e)&&be[e]){return}be[e]=true;error("Unsupported vendor-prefixed style property %s. Did you mean %s?",e,e.charAt(0).toUpperCase()+e.slice(1))};var warnStyleValueWithSemicolon=function(e,r){if(ke.hasOwnProperty(r)&&ke[r]){return}ke[r]=true;error("Style property values shouldn't contain a semicolon. "+'Try "%s: %s" instead.',e,r.replace(ye,""))};var warnStyleValueIsNaN=function(e,r){if(Ce){return}Ce=true;error("`NaN` is an invalid value for the `%s` css style property.",e)};var warnStyleValueIsInfinity=function(e,r){if(Se){return}Se=true;error("`Infinity` is an invalid value for the `%s` css style property.",e)};warnValidStyle=function(e,r){if(e.indexOf("-")>-1){warnHyphenatedStyleName(e)}else if(me.test(e)){warnBadVendoredStyleName(e)}else if(ye.test(r)){warnStyleValueWithSemicolon(e,r)}if(typeof r==="number"){if(isNaN(r)){warnStyleValueIsNaN(e,r)}else if(!isFinite(r)){warnStyleValueIsInfinity(e,r)}}}}var we=warnValidStyle;var xe=/["'&<>]/;function escapeHtml(e){{checkHtmlStringCoercion(e)}var r=""+e;var o=xe.exec(r);if(!o){return r}var a;var i="";var s;var l=0;for(s=o.index;s<r.length;s++){switch(r.charCodeAt(s)){case 34:a="&quot;";break;case 38:a="&amp;";break;case 39:a="&#x27;";break;case 60:a="&lt;";break;case 62:a="&gt;";break;default:continue}if(l!==s){i+=r.substring(l,s)}l=s+1;i+=a}return l!==s?i+r.substring(l,s):i}function escapeTextForBrowser(e){if(typeof e==="boolean"||typeof e==="number"){return""+e}return escapeHtml(e)}var Te=/([A-Z])/g;var Ee=/^ms-/;function hyphenateStyleName(e){return e.replace(Te,"-$1").toLowerCase().replace(Ee,"-ms-")}var Re=/^[\u0000-\u001F ]*j[\r\n\t]*a[\r\n\t]*v[\r\n\t]*a[\r\n\t]*s[\r\n\t]*c[\r\n\t]*r[\r\n\t]*i[\r\n\t]*p[\r\n\t]*t[\r\n\t]*\:/i;var Pe=false;function sanitizeURL(e){{if(!Pe&&Re.test(e)){Pe=true;error("A future version of React will block javascript: URLs as a security precaution. "+"Use event handlers instead if you can. If you need to generate unsafe HTML try "+"using dangerouslySetInnerHTML instead. React was passed %s.",JSON.stringify(e))}}}var Ie=Array.isArray;function isArray(e){return Ie(e)}var Fe=stringToPrecomputedChunk("<script>");var _e=stringToPrecomputedChunk("<\/script>");var De=stringToPrecomputedChunk('<script src="');var Ae=stringToPrecomputedChunk('<script type="module" src="');var Ne=stringToPrecomputedChunk('" integrity="');var Me=stringToPrecomputedChunk('" async=""><\/script>');function escapeBootstrapScriptContent(e){{checkHtmlStringCoercion(e)}return(""+e).replace(Be,scriptReplacer)}var Be=/(<\/|<)(s)(cript)/gi;var scriptReplacer=function(e,r,o,a){return""+r+(o==="s"?"\\u0073":"\\u0053")+a};function createResponseState(e,r,o,a,i){var s=e===undefined?"":e;var l=r===undefined?Fe:stringToPrecomputedChunk('<script nonce="'+escapeTextForBrowser(r)+'">');var c=[];if(o!==undefined){c.push(l,stringToChunk(escapeBootstrapScriptContent(o)),_e)}if(a!==undefined){for(var d=0;d<a.length;d++){var p=a[d];var f=typeof p==="string"?p:p.src;var h=typeof p==="string"?undefined:p.integrity;c.push(De,stringToChunk(escapeTextForBrowser(f)));if(h){c.push(Ne,stringToChunk(escapeTextForBrowser(h)))}c.push(Me)}}if(i!==undefined){for(var g=0;g<i.length;g++){var b=i[g];var S=typeof b==="string"?b:b.src;var w=typeof b==="string"?undefined:b.integrity;c.push(Ae,stringToChunk(escapeTextForBrowser(S)));if(w){c.push(Ne,stringToChunk(escapeTextForBrowser(w)))}c.push(Me)}}return{bootstrapChunks:c,startInlineScript:l,placeholderPrefix:stringToPrecomputedChunk(s+"P:"),segmentPrefix:stringToPrecomputedChunk(s+"S:"),boundaryPrefix:s+"B:",idPrefix:s,nextSuspenseID:0,sentCompleteSegmentFunction:false,sentCompleteBoundaryFunction:false,sentClientRenderFunction:false}}var Oe=0;var Le=1;var Ve=2;var je=3;var $e=4;var He=5;var Ue=6;var We=7;function createFormatContext(e,r){return{insertionMode:e,selectedValue:r}}function createRootFormatContext(e){var r=e==="http://www.w3.org/2000/svg"?Ve:e==="http://www.w3.org/1998/Math/MathML"?je:Oe;return createFormatContext(r,null)}function getChildFormatContext(e,r,o){switch(r){case"select":return createFormatContext(Le,o.value!=null?o.value:o.defaultValue);case"svg":return createFormatContext(Ve,null);case"math":return createFormatContext(je,null);case"foreignObject":return createFormatContext(Le,null);case"table":return createFormatContext($e,null);case"thead":case"tbody":case"tfoot":return createFormatContext(He,null);case"colgroup":return createFormatContext(We,null);case"tr":return createFormatContext(Ue,null)}if(e.insertionMode>=$e){return createFormatContext(Le,null)}if(e.insertionMode===Oe){return createFormatContext(Le,null)}return e}var ze=null;function assignSuspenseBoundaryID(e){var r=e.nextSuspenseID++;return stringToPrecomputedChunk(e.boundaryPrefix+r.toString(16))}function makeId(e,r,o){var a=e.idPrefix;var i=":"+a+"R"+r;if(o>0){i+="H"+o.toString(32)}return i+":"}function encodeHTMLTextNode(e){return escapeTextForBrowser(e)}var qe=stringToPrecomputedChunk("\x3c!-- --\x3e");function pushTextInstance(e,r,o,a){if(r===""){return a}if(a){e.push(qe)}e.push(stringToChunk(encodeHTMLTextNode(r)));return true}function pushSegmentFinale(e,r,o,a){if(o&&a){e.push(qe)}}var Ye=new Map;function processStyleName(e){var r=Ye.get(e);if(r!==undefined){return r}var o=stringToPrecomputedChunk(escapeTextForBrowser(hyphenateStyleName(e)));Ye.set(e,o);return o}var Ze=stringToPrecomputedChunk(' style="');var Xe=stringToPrecomputedChunk(":");var Je=stringToPrecomputedChunk(";");function pushStyle(e,r,o){if(typeof o!=="object"){throw new Error("The `style` prop expects a mapping from style properties to values, "+"not a string. For example, style={{marginRight: spacing + 'em'}} when "+"using JSX.")}var a=true;for(var i in o){if(!f.call(o,i)){continue}var s=o[i];if(s==null||typeof s==="boolean"||s===""){continue}var l=void 0;var c=void 0;var d=i.indexOf("--")===0;if(d){l=stringToChunk(escapeTextForBrowser(i));{checkCSSPropertyStringCoercion(s,i)}c=stringToChunk(escapeTextForBrowser((""+s).trim()))}else{{we(i,s)}l=processStyleName(i);if(typeof s==="number"){if(s!==0&&!f.call(te,i)){c=stringToChunk(s+"px")}else{c=stringToChunk(""+s)}}else{{checkCSSPropertyStringCoercion(s,i)}c=stringToChunk(escapeTextForBrowser((""+s).trim()))}}if(a){a=false;e.push(Ze,l,Xe,c)}else{e.push(Je,l,Xe,c)}}if(!a){e.push(Qe)}}var Ke=stringToPrecomputedChunk(" ");var Ge=stringToPrecomputedChunk('="');var Qe=stringToPrecomputedChunk('"');var et=stringToPrecomputedChunk('=""');function pushAttribute(e,r,o,a){switch(o){case"style":{pushStyle(e,r,a);return}case"defaultValue":case"defaultChecked":case"innerHTML":case"suppressContentEditableWarning":case"suppressHydrationWarning":return}if(o.length>2&&(o[0]==="o"||o[0]==="O")&&(o[1]==="n"||o[1]==="N")){return}var i=getPropertyInfo(o);if(i!==null){switch(typeof a){case"function":case"symbol":return;case"boolean":{if(!i.acceptsBooleans){return}}}var s=i.attributeName;var l=stringToChunk(s);switch(i.type){case S:if(a){e.push(Ke,l,et)}return;case w:if(a===true){e.push(Ke,l,et)}else if(a===false);else{e.push(Ke,l,Ge,stringToChunk(escapeTextForBrowser(a)),Qe)}return;case E:if(!isNaN(a)){e.push(Ke,l,Ge,stringToChunk(escapeTextForBrowser(a)),Qe)}break;case P:if(!isNaN(a)&&a>=1){e.push(Ke,l,Ge,stringToChunk(escapeTextForBrowser(a)),Qe)}break;default:if(i.sanitizeURL){{checkAttributeStringCoercion(a,s)}a=""+a;sanitizeURL(a)}e.push(Ke,l,Ge,stringToChunk(escapeTextForBrowser(a)),Qe)}}else if(isAttributeNameSafe(o)){switch(typeof a){case"function":case"symbol":return;case"boolean":{var c=o.toLowerCase().slice(0,5);if(c!=="data-"&&c!=="aria-"){return}}}e.push(Ke,stringToChunk(o),Ge,stringToChunk(escapeTextForBrowser(a)),Qe)}}var tt=stringToPrecomputedChunk(">");var rt=stringToPrecomputedChunk("/>");function pushInnerHTML(e,r,o){if(r!=null){if(o!=null){throw new Error("Can only set one of `children` or `props.dangerouslySetInnerHTML`.")}if(typeof r!=="object"||!("__html"in r)){throw new Error("`props.dangerouslySetInnerHTML` must be in the form `{__html: ...}`. "+"Please visit https://reactjs.org/link/dangerously-set-inner-html "+"for more information.")}var a=r.__html;if(a!==null&&a!==undefined){{checkHtmlStringCoercion(a)}e.push(stringToChunk(""+a))}}}var nt=false;var ot=false;var at=false;var it=false;var st=false;var ut=false;var lt=false;function checkSelectProp(e,r){{var o=e[r];if(o!=null){var a=isArray(o);if(e.multiple&&!a){error("The `%s` prop supplied to <select> must be an array if "+"`multiple` is true.",r)}else if(!e.multiple&&a){error("The `%s` prop supplied to <select> must be a scalar "+"value if `multiple` is false.",r)}}}}function pushStartSelect(e,r,o){{checkControlledValueProps("select",r);checkSelectProp(r,"value");checkSelectProp(r,"defaultValue");if(r.value!==undefined&&r.defaultValue!==undefined&&!at){error("Select elements must be either controlled or uncontrolled "+"(specify either the value prop, or the defaultValue prop, but not "+"both). Decide between using a controlled or uncontrolled select "+"element and remove one of these props. More info: "+"https://reactjs.org/link/controlled-components");at=true}}e.push(startChunkForTag("select"));var a=null;var i=null;for(var s in r){if(f.call(r,s)){var l=r[s];if(l==null){continue}switch(s){case"children":a=l;break;case"dangerouslySetInnerHTML":i=l;break;case"defaultValue":case"value":break;default:pushAttribute(e,o,s,l);break}}}e.push(tt);pushInnerHTML(e,i,a);return a}function flattenOptionChildren(r){var o="";e.Children.forEach(r,(function(e){if(e==null){return}o+=e;{if(!st&&typeof e!=="string"&&typeof e!=="number"){st=true;error("Cannot infer the option value of complex children. "+"Pass a `value` prop or use a plain string as children to <option>.")}}}));return o}var ct=stringToPrecomputedChunk(' selected=""');function pushStartOption(e,r,o,a){var i=a.selectedValue;e.push(startChunkForTag("option"));var s=null;var l=null;var c=null;var d=null;for(var p in r){if(f.call(r,p)){var h=r[p];if(h==null){continue}switch(p){case"children":s=h;break;case"selected":c=h;{if(!lt){error("Use the `defaultValue` or `value` props on <select> instead of "+"setting `selected` on <option>.");lt=true}}break;case"dangerouslySetInnerHTML":d=h;break;case"value":l=h;default:pushAttribute(e,o,p,h);break}}}if(i!=null){var g;if(l!==null){{checkAttributeStringCoercion(l,"value")}g=""+l}else{{if(d!==null){if(!ut){ut=true;error("Pass a `value` prop if you set dangerouslyInnerHTML so React knows "+"which value should be selected.")}}}g=flattenOptionChildren(s)}if(isArray(i)){for(var b=0;b<i.length;b++){{checkAttributeStringCoercion(i[b],"value")}var S=""+i[b];if(S===g){e.push(ct);break}}}else{{checkAttributeStringCoercion(i,"select.value")}if(""+i===g){e.push(ct)}}}else if(c){e.push(ct)}e.push(tt);pushInnerHTML(e,d,s);return s}function pushInput(e,r,o){{checkControlledValueProps("input",r);if(r.checked!==undefined&&r.defaultChecked!==undefined&&!ot){error("%s contains an input of type %s with both checked and defaultChecked props. "+"Input elements must be either controlled or uncontrolled "+"(specify either the checked prop, or the defaultChecked prop, but not "+"both). Decide between using a controlled or uncontrolled input "+"element and remove one of these props. More info: "+"https://reactjs.org/link/controlled-components","A component",r.type);ot=true}if(r.value!==undefined&&r.defaultValue!==undefined&&!nt){error("%s contains an input of type %s with both value and defaultValue props. "+"Input elements must be either controlled or uncontrolled "+"(specify either the value prop, or the defaultValue prop, but not "+"both). Decide between using a controlled or uncontrolled input "+"element and remove one of these props. More info: "+"https://reactjs.org/link/controlled-components","A component",r.type);nt=true}}e.push(startChunkForTag("input"));var a=null;var i=null;var s=null;var l=null;for(var c in r){if(f.call(r,c)){var d=r[c];if(d==null){continue}switch(c){case"children":case"dangerouslySetInnerHTML":throw new Error("input"+" is a self-closing tag and must neither have `children` nor "+"use `dangerouslySetInnerHTML`.");case"defaultChecked":l=d;break;case"defaultValue":i=d;break;case"checked":s=d;break;case"value":a=d;break;default:pushAttribute(e,o,c,d);break}}}if(s!==null){pushAttribute(e,o,"checked",s)}else if(l!==null){pushAttribute(e,o,"checked",l)}if(a!==null){pushAttribute(e,o,"value",a)}else if(i!==null){pushAttribute(e,o,"value",i)}e.push(rt);return null}function pushStartTextArea(e,r,o){{checkControlledValueProps("textarea",r);if(r.value!==undefined&&r.defaultValue!==undefined&&!it){error("Textarea elements must be either controlled or uncontrolled "+"(specify either the value prop, or the defaultValue prop, but not "+"both). Decide between using a controlled or uncontrolled textarea "+"and remove one of these props. More info: "+"https://reactjs.org/link/controlled-components");it=true}}e.push(startChunkForTag("textarea"));var a=null;var i=null;var s=null;for(var l in r){if(f.call(r,l)){var c=r[l];if(c==null){continue}switch(l){case"children":s=c;break;case"value":a=c;break;case"defaultValue":i=c;break;case"dangerouslySetInnerHTML":throw new Error("`dangerouslySetInnerHTML` does not make sense on <textarea>.");default:pushAttribute(e,o,l,c);break}}}if(a===null&&i!==null){a=i}e.push(tt);if(s!=null){{error("Use the `defaultValue` or `value` props instead of setting "+"children on <textarea>.")}if(a!=null){throw new Error("If you supply `defaultValue` on a <textarea>, do not pass children.")}if(isArray(s)){if(s.length>1){throw new Error("<textarea> can only have at most one child.")}{checkHtmlStringCoercion(s[0])}a=""+s[0]}{checkHtmlStringCoercion(s)}a=""+s}if(typeof a==="string"&&a[0]==="\n"){e.push(dt)}if(a!==null){{checkAttributeStringCoercion(a,"value")}e.push(stringToChunk(encodeHTMLTextNode(""+a)))}return null}function pushLink(e,r,o){var a=r.rel==="stylesheet";e.push(startChunkForTag("link"));for(var i in r){if(f.call(r,i)){var s=r[i];if(s==null){continue}switch(i){case"children":case"dangerouslySetInnerHTML":throw new Error("link"+" is a self-closing tag and must neither have `children` nor "+"use `dangerouslySetInnerHTML`.");case"precedence":{if(a){if(s===true||typeof s==="string"){pushAttribute(e,o,"data-rprec",s)}else{throw new Error('the "precedence" prop for links to stylesheets expects to receive a string but received something of type "'+typeof s+'" instead.')}break}}default:pushAttribute(e,o,i,s);break}}}e.push(rt);return null}function pushSelfClosing(e,r,o,a){e.push(startChunkForTag(o));for(var i in r){if(f.call(r,i)){var s=r[i];if(s==null){continue}switch(i){case"children":case"dangerouslySetInnerHTML":throw new Error(o+" is a self-closing tag and must neither have `children` nor "+"use `dangerouslySetInnerHTML`.");default:pushAttribute(e,a,i,s);break}}}e.push(rt);return null}function pushStartMenuItem(e,r,o){e.push(startChunkForTag("menuitem"));for(var a in r){if(f.call(r,a)){var i=r[a];if(i==null){continue}switch(a){case"children":case"dangerouslySetInnerHTML":throw new Error("menuitems cannot have `children` nor `dangerouslySetInnerHTML`.");default:pushAttribute(e,o,a,i);break}}}e.push(tt);return null}function pushStartTitle(e,r,o){e.push(startChunkForTag("title"));var a=null;for(var i in r){if(f.call(r,i)){var s=r[i];if(s==null){continue}switch(i){case"children":a=s;break;case"dangerouslySetInnerHTML":throw new Error("`dangerouslySetInnerHTML` does not make sense on <title>.");default:pushAttribute(e,o,i,s);break}}}e.push(tt);{var l=Array.isArray(a)&&a.length<2?a[0]||null:a;if(Array.isArray(a)&&a.length>1){error("A title element received an array with more than 1 element as children. "+"In browsers title Elements can only have Text Nodes as children. If "+"the children being rendered output more than a single text node in aggregate the browser "+"will display markup and comments as text in the title and hydration will likely fail and "+"fall back to client rendering")}else if(l!=null&&l.$$typeof!=null){error("A title element received a React element for children. "+"In the browser title Elements can only have Text Nodes as children. If "+"the children being rendered output more than a single text node in aggregate the browser "+"will display markup and comments as text in the title and hydration will likely fail and "+"fall back to client rendering")}else if(l!=null&&typeof l!=="string"&&typeof l!=="number"){error("A title element received a value that was not a string or number for children. "+"In the browser title Elements can only have Text Nodes as children. If "+"the children being rendered output more than a single text node in aggregate the browser "+"will display markup and comments as text in the title and hydration will likely fail and "+"fall back to client rendering")}}return a}function pushStartHead(e,r,o,a,i){e=r;return pushStartGenericElement(e,o,a,i)}function pushStartHtml(e,r,o,a,i,s){e=r;if(i.insertionMode===Oe){e.push(ht)}return pushStartGenericElement(e,o,a,s)}function pushStartGenericElement(e,r,o,a){e.push(startChunkForTag(o));var i=null;var s=null;for(var l in r){if(f.call(r,l)){var c=r[l];if(c==null){continue}switch(l){case"children":i=c;break;case"dangerouslySetInnerHTML":s=c;break;default:pushAttribute(e,a,l,c);break}}}e.push(tt);pushInnerHTML(e,s,i);if(typeof i==="string"){e.push(stringToChunk(encodeHTMLTextNode(i)));return null}return i}function pushStartCustomElement(e,r,o,a){e.push(startChunkForTag(o));var i=null;var s=null;for(var l in r){if(f.call(r,l)){var c=r[l];if(c==null){continue}if(typeof c==="function"||typeof c==="object"){continue}if(c===false){continue}if(c===true){c=""}if(l==="className"){l="class"}switch(l){case"children":i=c;break;case"dangerouslySetInnerHTML":s=c;break;case"style":pushStyle(e,a,c);break;case"suppressContentEditableWarning":case"suppressHydrationWarning":break;default:if(isAttributeNameSafe(l)&&typeof c!=="function"&&typeof c!=="symbol"){e.push(Ke,stringToChunk(l),Ge,stringToChunk(escapeTextForBrowser(c)),Qe)}break}}}e.push(tt);pushInnerHTML(e,s,i);return i}var dt=stringToPrecomputedChunk("\n");function pushStartPreformattedElement(e,r,o,a){e.push(startChunkForTag(o));var i=null;var s=null;for(var l in r){if(f.call(r,l)){var c=r[l];if(c==null){continue}switch(l){case"children":i=c;break;case"dangerouslySetInnerHTML":s=c;break;default:pushAttribute(e,a,l,c);break}}}e.push(tt);if(s!=null){if(i!=null){throw new Error("Can only set one of `children` or `props.dangerouslySetInnerHTML`.")}if(typeof s!=="object"||!("__html"in s)){throw new Error("`props.dangerouslySetInnerHTML` must be in the form `{__html: ...}`. "+"Please visit https://reactjs.org/link/dangerously-set-inner-html "+"for more information.")}var d=s.__html;if(d!==null&&d!==undefined){if(typeof d==="string"&&d.length>0&&d[0]==="\n"){e.push(dt,stringToChunk(d))}else{{checkHtmlStringCoercion(d)}e.push(stringToChunk(""+d))}}}if(typeof i==="string"&&i[0]==="\n"){e.push(dt)}return i}var pt=/^[a-zA-Z][a-zA-Z:_\.\-\d]*$/;var ft=new Map;function startChunkForTag(e){var r=ft.get(e);if(r===undefined){if(!pt.test(e)){throw new Error("Invalid tag: "+e)}r=stringToPrecomputedChunk("<"+e);ft.set(e,r)}return r}var ht=stringToPrecomputedChunk("<!DOCTYPE html>");function pushStartInstance(e,r,o,a,i,s){{validateProperties(o,a);validateProperties$1(o,a);validateProperties$2(o,a,null);if(!a.suppressContentEditableWarning&&a.contentEditable&&a.children!=null){error("A component is `contentEditable` and contains `children` managed by "+"React. It is now your responsibility to guarantee that none of "+"those nodes are unexpectedly modified or duplicated. This is "+"probably not intentional.")}if(s.insertionMode!==Ve&&s.insertionMode!==je){if(o.indexOf("-")===-1&&typeof a.is!=="string"&&o.toLowerCase()!==o){error("<%s /> is using incorrect casing. "+"Use PascalCase for React components, "+"or lowercase for HTML elements.",o)}}}switch(o){case"select":return pushStartSelect(e,a,i);case"option":return pushStartOption(e,a,i,s);case"textarea":return pushStartTextArea(e,a,i);case"input":return pushInput(e,a,i);case"menuitem":return pushStartMenuItem(e,a,i);case"title":return pushStartTitle(e,a,i);case"link":return pushLink(e,a,i);case"listing":case"pre":{return pushStartPreformattedElement(e,a,o,i)}case"area":case"base":case"br":case"col":case"embed":case"hr":case"img":case"keygen":case"meta":case"param":case"source":case"track":case"wbr":{return pushSelfClosing(e,a,o,i)}case"annotation-xml":case"color-profile":case"font-face":case"font-face-src":case"font-face-uri":case"font-face-format":case"font-face-name":case"missing-glyph":{return pushStartGenericElement(e,a,o,i)}case"head":return pushStartHead(e,r,a,o,i);case"html":{return pushStartHtml(e,r,a,o,s,i)}default:{if(o.indexOf("-")===-1&&typeof a.is!=="string"){return pushStartGenericElement(e,a,o,i)}else{return pushStartCustomElement(e,a,o,i)}}}}var mt=stringToPrecomputedChunk("</");var gt=stringToPrecomputedChunk(">");function pushEndInstance(e,r,o,a){switch(o){case"area":case"base":case"br":case"col":case"embed":case"hr":case"img":case"input":case"keygen":case"link":case"meta":case"param":case"source":case"track":case"wbr":{break}case"body":case"html":e=r;default:{e.push(mt,stringToChunk(o),gt)}}}function writeCompletedRoot(e,r){var o=r.bootstrapChunks;var a=0;for(;a<o.length-1;a++){writeChunk(e,o[a])}if(a<o.length){return writeChunkAndReturn(e,o[a])}return true}var vt=stringToPrecomputedChunk('<template id="');var yt=stringToPrecomputedChunk('"></template>');function writePlaceholder(e,r,o){writeChunk(e,vt);writeChunk(e,r.placeholderPrefix);var a=stringToChunk(o.toString(16));writeChunk(e,a);return writeChunkAndReturn(e,yt)}var bt=stringToPrecomputedChunk("\x3c!--$--\x3e");var kt=stringToPrecomputedChunk('\x3c!--$?--\x3e<template id="');var Ct=stringToPrecomputedChunk('"></template>');var St=stringToPrecomputedChunk("\x3c!--$!--\x3e");var wt=stringToPrecomputedChunk("\x3c!--/$--\x3e");var xt=stringToPrecomputedChunk("<template");var Tt=stringToPrecomputedChunk('"');var Et=stringToPrecomputedChunk(' data-dgst="');var Rt=stringToPrecomputedChunk(' data-msg="');var Pt=stringToPrecomputedChunk(' data-stck="');var It=stringToPrecomputedChunk("></template>");function writeStartCompletedSuspenseBoundary(e,r){return writeChunkAndReturn(e,bt)}function writeStartPendingSuspenseBoundary(e,r,o){writeChunk(e,kt);if(o===null){throw new Error("An ID must have been assigned before we can complete the boundary.")}writeChunk(e,o);return writeChunkAndReturn(e,Ct)}function writeStartClientRenderedSuspenseBoundary(e,r,o,a,i){var s;s=writeChunkAndReturn(e,St);writeChunk(e,xt);if(o){writeChunk(e,Et);writeChunk(e,stringToChunk(escapeTextForBrowser(o)));writeChunk(e,Tt)}{if(a){writeChunk(e,Rt);writeChunk(e,stringToChunk(escapeTextForBrowser(a)));writeChunk(e,Tt)}if(i){writeChunk(e,Pt);writeChunk(e,stringToChunk(escapeTextForBrowser(i)));writeChunk(e,Tt)}}s=writeChunkAndReturn(e,It);return s}function writeEndCompletedSuspenseBoundary(e,r){return writeChunkAndReturn(e,wt)}function writeEndPendingSuspenseBoundary(e,r){return writeChunkAndReturn(e,wt)}function writeEndClientRenderedSuspenseBoundary(e,r){return writeChunkAndReturn(e,wt)}var Ft=stringToPrecomputedChunk('<div hidden id="');var _t=stringToPrecomputedChunk('">');var Dt=stringToPrecomputedChunk("</div>");var At=stringToPrecomputedChunk('<svg aria-hidden="true" style="display:none" id="');var Nt=stringToPrecomputedChunk('">');var Mt=stringToPrecomputedChunk("</svg>");var Bt=stringToPrecomputedChunk('<math aria-hidden="true" style="display:none" id="');var Ot=stringToPrecomputedChunk('">');var Lt=stringToPrecomputedChunk("</math>");var Vt=stringToPrecomputedChunk('<table hidden id="');var jt=stringToPrecomputedChunk('">');var $t=stringToPrecomputedChunk("</table>");var Ht=stringToPrecomputedChunk('<table hidden><tbody id="');var Ut=stringToPrecomputedChunk('">');var Wt=stringToPrecomputedChunk("</tbody></table>");var zt=stringToPrecomputedChunk('<table hidden><tr id="');var qt=stringToPrecomputedChunk('">');var Yt=stringToPrecomputedChunk("</tr></table>");var Zt=stringToPrecomputedChunk('<table hidden><colgroup id="');var Xt=stringToPrecomputedChunk('">');var Jt=stringToPrecomputedChunk("</colgroup></table>");function writeStartSegment(e,r,o,a){switch(o.insertionMode){case Oe:case Le:{writeChunk(e,Ft);writeChunk(e,r.segmentPrefix);writeChunk(e,stringToChunk(a.toString(16)));return writeChunkAndReturn(e,_t)}case Ve:{writeChunk(e,At);writeChunk(e,r.segmentPrefix);writeChunk(e,stringToChunk(a.toString(16)));return writeChunkAndReturn(e,Nt)}case je:{writeChunk(e,Bt);writeChunk(e,r.segmentPrefix);writeChunk(e,stringToChunk(a.toString(16)));return writeChunkAndReturn(e,Ot)}case $e:{writeChunk(e,Vt);writeChunk(e,r.segmentPrefix);writeChunk(e,stringToChunk(a.toString(16)));return writeChunkAndReturn(e,jt)}case He:{writeChunk(e,Ht);writeChunk(e,r.segmentPrefix);writeChunk(e,stringToChunk(a.toString(16)));return writeChunkAndReturn(e,Ut)}case Ue:{writeChunk(e,zt);writeChunk(e,r.segmentPrefix);writeChunk(e,stringToChunk(a.toString(16)));return writeChunkAndReturn(e,qt)}case We:{writeChunk(e,Zt);writeChunk(e,r.segmentPrefix);writeChunk(e,stringToChunk(a.toString(16)));return writeChunkAndReturn(e,Xt)}default:{throw new Error("Unknown insertion mode. This is a bug in React.")}}}function writeEndSegment(e,r){switch(r.insertionMode){case Oe:case Le:{return writeChunkAndReturn(e,Dt)}case Ve:{return writeChunkAndReturn(e,Mt)}case je:{return writeChunkAndReturn(e,Lt)}case $e:{return writeChunkAndReturn(e,$t)}case He:{return writeChunkAndReturn(e,Wt)}case Ue:{return writeChunkAndReturn(e,Yt)}case We:{return writeChunkAndReturn(e,Jt)}default:{throw new Error("Unknown insertion mode. This is a bug in React.")}}}var Kt="function $RS(a,b){a=document.getElementById(a);b=document.getElementById(b);for(a.parentNode.removeChild(a);a.firstChild;)b.parentNode.insertBefore(a.firstChild,b);b.parentNode.removeChild(b)}";var Gt='function $RC(a,b){a=document.getElementById(a);b=document.getElementById(b);b.parentNode.removeChild(b);if(a){a=a.previousSibling;var f=a.parentNode,c=a.nextSibling,e=0;do{if(c&&8===c.nodeType){var d=c.data;if("/$"===d)if(0===e)break;else e--;else"$"!==d&&"$?"!==d&&"$!"!==d||e++}d=c.nextSibling;f.removeChild(c);c=d}while(c);for(;b.firstChild;)f.insertBefore(b.firstChild,c);a.data="$";a._reactRetry&&a._reactRetry()}}';var Qt='function $RX(b,c,d,e){var a=document.getElementById(b);a&&(b=a.previousSibling,b.data="$!",a=a.dataset,c&&(a.dgst=c),d&&(a.msg=d),e&&(a.stck=e),b._reactRetry&&b._reactRetry())}';var er=stringToPrecomputedChunk(Kt+';$RS("');var tr=stringToPrecomputedChunk('$RS("');var rr=stringToPrecomputedChunk('","');var nr=stringToPrecomputedChunk('")<\/script>');function writeCompletedSegmentInstruction(e,r,o){writeChunk(e,r.startInlineScript);if(!r.sentCompleteSegmentFunction){r.sentCompleteSegmentFunction=true;writeChunk(e,er)}else{writeChunk(e,tr)}writeChunk(e,r.segmentPrefix);var a=stringToChunk(o.toString(16));writeChunk(e,a);writeChunk(e,rr);writeChunk(e,r.placeholderPrefix);writeChunk(e,a);return writeChunkAndReturn(e,nr)}var or=stringToPrecomputedChunk(Gt+';$RC("');var ar=stringToPrecomputedChunk('$RC("');var ir=stringToPrecomputedChunk('","');var sr=stringToPrecomputedChunk('")<\/script>');function writeCompletedBoundaryInstruction(e,r,o,a){writeChunk(e,r.startInlineScript);if(!r.sentCompleteBoundaryFunction){r.sentCompleteBoundaryFunction=true;writeChunk(e,or)}else{writeChunk(e,ar)}if(o===null){throw new Error("An ID must have been assigned before we can complete the boundary.")}var i=stringToChunk(a.toString(16));writeChunk(e,o);writeChunk(e,ir);writeChunk(e,r.segmentPrefix);writeChunk(e,i);return writeChunkAndReturn(e,sr)}var ur=stringToPrecomputedChunk(Qt+';$RX("');var lr=stringToPrecomputedChunk('$RX("');var cr=stringToPrecomputedChunk('"');var dr=stringToPrecomputedChunk(")<\/script>");var pr=stringToPrecomputedChunk(",");function writeClientRenderBoundaryInstruction(e,r,o,a,i,s){writeChunk(e,r.startInlineScript);if(!r.sentClientRenderFunction){r.sentClientRenderFunction=true;writeChunk(e,ur)}else{writeChunk(e,lr)}if(o===null){throw new Error("An ID must have been assigned before we can complete the boundary.")}writeChunk(e,o);writeChunk(e,cr);if(a||i||s){writeChunk(e,pr);writeChunk(e,stringToChunk(escapeJSStringsForInstructionScripts(a||"")))}if(i||s){writeChunk(e,pr);writeChunk(e,stringToChunk(escapeJSStringsForInstructionScripts(i||"")))}if(s){writeChunk(e,pr);writeChunk(e,stringToChunk(escapeJSStringsForInstructionScripts(s)))}return writeChunkAndReturn(e,dr)}var fr=/[<\u2028\u2029]/g;function escapeJSStringsForInstructionScripts(e){var r=JSON.stringify(e);return r.replace(fr,(function(e){switch(e){case"<":return"\\u003c";case"\u2028":return"\\u2028";case"\u2029":return"\\u2029";default:{throw new Error("escapeJSStringsForInstructionScripts encountered a match it does not know how to replace. this means the match regex and the replacement characters are no longer in sync. This is a bug in React")}}}))}var hr=Object.assign;var mr=Symbol.for("react.element");var gr=Symbol.for("react.portal");var vr=Symbol.for("react.fragment");var yr=Symbol.for("react.strict_mode");var br=Symbol.for("react.profiler");var kr=Symbol.for("react.provider");var Cr=Symbol.for("react.context");var Sr=Symbol.for("react.server_context");var wr=Symbol.for("react.forward_ref");var xr=Symbol.for("react.suspense");var Tr=Symbol.for("react.suspense_list");var Er=Symbol.for("react.memo");var Rr=Symbol.for("react.lazy");var Pr=Symbol.for("react.scope");var Ir=Symbol.for("react.debug_trace_mode");var Fr=Symbol.for("react.offscreen");var _r=Symbol.for("react.legacy_hidden");var Dr=Symbol.for("react.cache");var Ar=Symbol.for("react.default_value");var Nr=Symbol.iterator;var Mr="@@iterator";function getIteratorFn(e){if(e===null||typeof e!=="object"){return null}var r=Nr&&e[Nr]||e[Mr];if(typeof r==="function"){return r}return null}function getWrappedName(e,r,o){var a=e.displayName;if(a){return a}var i=r.displayName||r.name||"";return i!==""?o+"("+i+")":o}function getContextName(e){return e.displayName||"Context"}function getComponentNameFromType(e){if(e==null){return null}{if(typeof e.tag==="number"){error("Received an unexpected object in getComponentNameFromType(). "+"This is likely a bug in React. Please file an issue.")}}if(typeof e==="function"){return e.displayName||e.name||null}if(typeof e==="string"){return e}switch(e){case vr:return"Fragment";case gr:return"Portal";case br:return"Profiler";case yr:return"StrictMode";case xr:return"Suspense";case Tr:return"SuspenseList";case Dr:{return"Cache"}}if(typeof e==="object"){switch(e.$$typeof){case Cr:var r=e;return getContextName(r)+".Consumer";case kr:var o=e;return getContextName(o._context)+".Provider";case wr:return getWrappedName(e,e.render,"ForwardRef");case Er:var a=e.displayName||null;if(a!==null){return a}return getComponentNameFromType(e.type)||"Memo";case Rr:{var i=e;var s=i._payload;var l=i._init;try{return getComponentNameFromType(l(s))}catch(e){return null}}case Sr:{var c=e;return(c.displayName||c._globalName)+".Provider"}}}return null}var Br=0;var Or;var Lr;var Vr;var jr;var $r;var Hr;var Ur;function disabledLog(){}disabledLog.__reactDisabledLog=true;function disableLogs(){{if(Br===0){Or=console.log;Lr=console.info;Vr=console.warn;jr=console.error;$r=console.group;Hr=console.groupCollapsed;Ur=console.groupEnd;var e={configurable:true,enumerable:true,value:disabledLog,writable:true};Object.defineProperties(console,{info:e,log:e,warn:e,error:e,group:e,groupCollapsed:e,groupEnd:e})}Br++}}function reenableLogs(){{Br--;if(Br===0){var e={configurable:true,enumerable:true,writable:true};Object.defineProperties(console,{log:hr({},e,{value:Or}),info:hr({},e,{value:Lr}),warn:hr({},e,{value:Vr}),error:hr({},e,{value:jr}),group:hr({},e,{value:$r}),groupCollapsed:hr({},e,{value:Hr}),groupEnd:hr({},e,{value:Ur})})}if(Br<0){error("disabledDepth fell below zero. "+"This is a bug in React. Please file an issue.")}}}var Wr=i.ReactCurrentDispatcher;var zr;function describeBuiltInComponentFrame(e,r,o){{if(zr===undefined){try{throw Error()}catch(e){var a=e.stack.trim().match(/\n( *(at )?)/);zr=a&&a[1]||""}}return"\n"+zr+e}}var qr=false;var Yr;{var Zr=typeof WeakMap==="function"?WeakMap:Map;Yr=new Zr}function describeNativeComponentFrame(e,r){if(!e||qr){return""}{var o=Yr.get(e);if(o!==undefined){return o}}var a;qr=true;var i=Error.prepareStackTrace;Error.prepareStackTrace=undefined;var s;{s=Wr.current;Wr.current=null;disableLogs()}try{if(r){var Fake=function(){throw Error()};Object.defineProperty(Fake.prototype,"props",{set:function(){throw Error()}});if(typeof Reflect==="object"&&Reflect.construct){try{Reflect.construct(Fake,[])}catch(e){a=e}Reflect.construct(e,[],Fake)}else{try{Fake.call()}catch(e){a=e}e.call(Fake.prototype)}}else{try{throw Error()}catch(e){a=e}e()}}catch(r){if(r&&a&&typeof r.stack==="string"){var l=r.stack.split("\n");var c=a.stack.split("\n");var d=l.length-1;var p=c.length-1;while(d>=1&&p>=0&&l[d]!==c[p]){p--}for(;d>=1&&p>=0;d--,p--){if(l[d]!==c[p]){if(d!==1||p!==1){do{d--;p--;if(p<0||l[d]!==c[p]){var f="\n"+l[d].replace(" at new "," at ");if(e.displayName&&f.includes("<anonymous>")){f=f.replace("<anonymous>",e.displayName)}{if(typeof e==="function"){Yr.set(e,f)}}return f}}while(d>=1&&p>=0)}break}}}}finally{qr=false;{Wr.current=s;reenableLogs()}Error.prepareStackTrace=i}var h=e?e.displayName||e.name:"";var g=h?describeBuiltInComponentFrame(h):"";{if(typeof e==="function"){Yr.set(e,g)}}return g}function describeClassComponentFrame(e,r,o){{return describeNativeComponentFrame(e,true)}}function describeFunctionComponentFrame(e,r,o){{return describeNativeComponentFrame(e,false)}}function shouldConstruct(e){var r=e.prototype;return!!(r&&r.isReactComponent)}function describeUnknownElementTypeFrameInDEV(e,r,o){if(e==null){return""}if(typeof e==="function"){{return describeNativeComponentFrame(e,shouldConstruct(e))}}if(typeof e==="string"){return describeBuiltInComponentFrame(e)}switch(e){case xr:return describeBuiltInComponentFrame("Suspense");case Tr:return describeBuiltInComponentFrame("SuspenseList")}if(typeof e==="object"){switch(e.$$typeof){case wr:return describeFunctionComponentFrame(e.render);case Er:return describeUnknownElementTypeFrameInDEV(e.type,r,o);case Rr:{var a=e;var i=a._payload;var s=a._init;try{return describeUnknownElementTypeFrameInDEV(s(i),r,o)}catch(e){}}}}return""}var Xr={};var Jr=i.ReactDebugCurrentFrame;function setCurrentlyValidatingElement(e){{if(e){var r=e._owner;var o=describeUnknownElementTypeFrameInDEV(e.type,e._source,r?r.type:null);Jr.setExtraStackFrame(o)}else{Jr.setExtraStackFrame(null)}}}function checkPropTypes(e,r,o,a,i){{var s=Function.call.bind(f);for(var l in e){if(s(e,l)){var c=void 0;try{if(typeof e[l]!=="function"){var d=Error((a||"React class")+": "+o+" type `"+l+"` is invalid; "+"it must be a function, usually from the `prop-types` package, but received `"+typeof e[l]+"`."+"This often happens because of typos such as `PropTypes.function` instead of `PropTypes.func`.");d.name="Invariant Violation";throw d}c=e[l](r,l,a,o,null,"SECRET_DO_NOT_PASS_THIS_OR_YOU_WILL_BE_FIRED")}catch(e){c=e}if(c&&!(c instanceof Error)){setCurrentlyValidatingElement(i);error("%s: type specification of %s"+" `%s` is invalid; the type checker "+"function must return `null` or an `Error` but returned a %s. "+"You may have forgotten to pass an argument to the type checker "+"creator (arrayOf, instanceOf, objectOf, oneOf, oneOfType, and "+"shape all require an argument).",a||"React class",o,l,typeof c);setCurrentlyValidatingElement(null)}if(c instanceof Error&&!(c.message in Xr)){Xr[c.message]=true;setCurrentlyValidatingElement(i);error("Failed %s type: %s",o,c.message);setCurrentlyValidatingElement(null)}}}}}var Kr;{Kr={}}var Gr={};{Object.freeze(Gr)}function getMaskedContext(e,r){{var o=e.contextTypes;if(!o){return Gr}var a={};for(var i in o){a[i]=r[i]}{var s=getComponentNameFromType(e)||"Unknown";checkPropTypes(o,a,"context",s)}return a}}function processChildContext(e,r,o,a){{if(typeof e.getChildContext!=="function"){{var i=getComponentNameFromType(r)||"Unknown";if(!Kr[i]){Kr[i]=true;error("%s.childContextTypes is specified but there is no getChildContext() method "+"on the instance. You can either define getChildContext() on %s or remove "+"childContextTypes from it.",i,i)}}return o}var s=e.getChildContext();for(var l in s){if(!(l in a)){throw new Error((getComponentNameFromType(r)||"Unknown")+'.getChildContext(): key "'+l+'" is not defined in childContextTypes.')}}{var c=getComponentNameFromType(r)||"Unknown";checkPropTypes(a,s,"child context",c)}return hr({},o,s)}}var Qr;{Qr={}}var en=null;var tn=null;function popNode(e){{e.context._currentValue=e.parentValue}}function pushNode(e){{e.context._currentValue=e.value}}function popToNearestCommonAncestor(e,r){if(e===r);else{popNode(e);var o=e.parent;var a=r.parent;if(o===null){if(a!==null){throw new Error("The stacks must reach the root at the same time. This is a bug in React.")}}else{if(a===null){throw new Error("The stacks must reach the root at the same time. This is a bug in React.")}popToNearestCommonAncestor(o,a)}pushNode(r)}}function popAllPrevious(e){popNode(e);var r=e.parent;if(r!==null){popAllPrevious(r)}}function pushAllNext(e){var r=e.parent;if(r!==null){pushAllNext(r)}pushNode(e)}function popPreviousToCommonLevel(e,r){popNode(e);var o=e.parent;if(o===null){throw new Error("The depth must equal at least at zero before reaching the root. This is a bug in React.")}if(o.depth===r.depth){popToNearestCommonAncestor(o,r)}else{popPreviousToCommonLevel(o,r)}}function popNextToCommonLevel(e,r){var o=r.parent;if(o===null){throw new Error("The depth must equal at least at zero before reaching the root. This is a bug in React.")}if(e.depth===o.depth){popToNearestCommonAncestor(e,o)}else{popNextToCommonLevel(e,o)}pushNode(r)}function switchContext(e){var r=tn;var o=e;if(r!==o){if(r===null){pushAllNext(o)}else if(o===null){popAllPrevious(r)}else if(r.depth===o.depth){popToNearestCommonAncestor(r,o)}else if(r.depth>o.depth){popPreviousToCommonLevel(r,o)}else{popNextToCommonLevel(r,o)}tn=o}}function pushProvider(e,r){var o;{o=e._currentValue;e._currentValue=r;{if(e._currentRenderer!==undefined&&e._currentRenderer!==null&&e._currentRenderer!==Qr){error("Detected multiple renderers concurrently rendering the "+"same context provider. This is currently unsupported.")}e._currentRenderer=Qr}}var a=tn;var i={parent:a,depth:a===null?0:a.depth+1,context:e,parentValue:o,value:r};tn=i;return i}function popProvider(e){var r=tn;if(r===null){throw new Error("Tried to pop a Context at the root of the app. This is a bug in React.")}{if(r.context!==e){error("The parent context is not the expected context. This is probably a bug in React.")}}{var o=r.parentValue;if(o===Ar){r.context._currentValue=r.context._defaultValue}else{r.context._currentValue=o}{if(e._currentRenderer!==undefined&&e._currentRenderer!==null&&e._currentRenderer!==Qr){error("Detected multiple renderers concurrently rendering the "+"same context provider. This is currently unsupported.")}e._currentRenderer=Qr}}return tn=r.parent}function getActiveContext(){return tn}function readContext(e){var r=e._currentValue;return r}function get(e){return e._reactInternals}function set(e,r){e._reactInternals=r}var rn={};var nn={};var on;var an;var sn;var un;var ln;var cn;var dn;var pn;var fn;{on=new Set;an=new Set;sn=new Set;dn=new Set;un=new Set;pn=new Set;fn=new Set;var hn=new Set;cn=function(e,r){if(e===null||typeof e==="function"){return}var o=r+"_"+e;if(!hn.has(o)){hn.add(o);error("%s(...): Expected the last optional `callback` argument to be a "+"function. Instead received: %s.",r,e)}};ln=function(e,r){if(r===undefined){var o=getComponentNameFromType(e)||"Component";if(!un.has(o)){un.add(o);error("%s.getDerivedStateFromProps(): A valid state object (or null) must be returned. "+"You have returned undefined.",o)}}}}function warnNoop(e,r){{var o=e.constructor;var a=o&&getComponentNameFromType(o)||"ReactClass";var i=a+"."+r;if(rn[i]){return}error("%s(...): Can only update a mounting component. "+"This usually means you called %s() outside componentWillMount() on the server. "+"This is a no-op.\n\nPlease check the code for the %s component.",r,r,a);rn[i]=true}}var mn={isMounted:function(e){return false},enqueueSetState:function(e,r,o){var a=get(e);if(a.queue===null){warnNoop(e,"setState")}else{a.queue.push(r);{if(o!==undefined&&o!==null){cn(o,"setState")}}}},enqueueReplaceState:function(e,r,o){var a=get(e);a.replace=true;a.queue=[r];{if(o!==undefined&&o!==null){cn(o,"setState")}}},enqueueForceUpdate:function(e,r){var o=get(e);if(o.queue===null){warnNoop(e,"forceUpdate")}else{{if(r!==undefined&&r!==null){cn(r,"setState")}}}}};function applyDerivedStateFromProps(e,r,o,a,i){var s=o(i,a);{ln(r,s)}var l=s===null||s===undefined?a:hr({},a,s);return l}function constructClassInstance(e,r,o){var a=Gr;var i=e.contextType;{if("contextType"in e){var s=i===null||i!==undefined&&i.$$typeof===Cr&&i._context===undefined;if(!s&&!fn.has(e)){fn.add(e);var l="";if(i===undefined){l=" However, it is set to undefined. "+"This can be caused by a typo or by mixing up named and default imports. "+"This can also happen due to a circular dependency, so "+"try moving the createContext() call to a separate file."}else if(typeof i!=="object"){l=" However, it is set to a "+typeof i+"."}else if(i.$$typeof===kr){l=" Did you accidentally pass the Context.Provider instead?"}else if(i._context!==undefined){l=" Did you accidentally pass the Context.Consumer instead?"}else{l=" However, it is set to an object with keys {"+Object.keys(i).join(", ")+"}."}error("%s defines an invalid contextType. "+"contextType should point to the Context object returned by React.createContext().%s",getComponentNameFromType(e)||"Component",l)}}}if(typeof i==="object"&&i!==null){a=readContext(i)}else{a=o}var c=new e(r,a);{if(typeof e.getDerivedStateFromProps==="function"&&(c.state===null||c.state===undefined)){var d=getComponentNameFromType(e)||"Component";if(!on.has(d)){on.add(d);error("`%s` uses `getDerivedStateFromProps` but its initial state is "+"%s. This is not recommended. Instead, define the initial state by "+"assigning an object to `this.state` in the constructor of `%s`. "+"This ensures that `getDerivedStateFromProps` arguments have a consistent shape.",d,c.state===null?"null":"undefined",d)}}if(typeof e.getDerivedStateFromProps==="function"||typeof c.getSnapshotBeforeUpdate==="function"){var p=null;var f=null;var h=null;if(typeof c.componentWillMount==="function"&&c.componentWillMount.__suppressDeprecationWarning!==true){p="componentWillMount"}else if(typeof c.UNSAFE_componentWillMount==="function"){p="UNSAFE_componentWillMount"}if(typeof c.componentWillReceiveProps==="function"&&c.componentWillReceiveProps.__suppressDeprecationWarning!==true){f="componentWillReceiveProps"}else if(typeof c.UNSAFE_componentWillReceiveProps==="function"){f="UNSAFE_componentWillReceiveProps"}if(typeof c.componentWillUpdate==="function"&&c.componentWillUpdate.__suppressDeprecationWarning!==true){h="componentWillUpdate"}else if(typeof c.UNSAFE_componentWillUpdate==="function"){h="UNSAFE_componentWillUpdate"}if(p!==null||f!==null||h!==null){var g=getComponentNameFromType(e)||"Component";var b=typeof e.getDerivedStateFromProps==="function"?"getDerivedStateFromProps()":"getSnapshotBeforeUpdate()";if(!sn.has(g)){sn.add(g);error("Unsafe legacy lifecycles will not be called for components using new component APIs.\n\n"+"%s uses %s but also contains the following legacy lifecycles:%s%s%s\n\n"+"The above lifecycles should be removed. Learn more about this warning here:\n"+"https://reactjs.org/link/unsafe-component-lifecycles",g,b,p!==null?"\n  "+p:"",f!==null?"\n  "+f:"",h!==null?"\n  "+h:"")}}}}return c}function checkClassInstance(e,r,o){{var a=getComponentNameFromType(r)||"Component";var i=e.render;if(!i){if(r.prototype&&typeof r.prototype.render==="function"){error("%s(...): No `render` method found on the returned component "+"instance: did you accidentally return an object from the constructor?",a)}else{error("%s(...): No `render` method found on the returned component "+"instance: you may have forgotten to define `render`.",a)}}if(e.getInitialState&&!e.getInitialState.isReactClassApproved&&!e.state){error("getInitialState was defined on %s, a plain JavaScript class. "+"This is only supported for classes created using React.createClass. "+"Did you mean to define a state property instead?",a)}if(e.getDefaultProps&&!e.getDefaultProps.isReactClassApproved){error("getDefaultProps was defined on %s, a plain JavaScript class. "+"This is only supported for classes created using React.createClass. "+"Use a static property to define defaultProps instead.",a)}if(e.propTypes){error("propTypes was defined as an instance property on %s. Use a static "+"property to define propTypes instead.",a)}if(e.contextType){error("contextType was defined as an instance property on %s. Use a static "+"property to define contextType instead.",a)}{if(e.contextTypes){error("contextTypes was defined as an instance property on %s. Use a static "+"property to define contextTypes instead.",a)}if(r.contextType&&r.contextTypes&&!pn.has(r)){pn.add(r);error("%s declares both contextTypes and contextType static properties. "+"The legacy contextTypes property will be ignored.",a)}}if(typeof e.componentShouldUpdate==="function"){error("%s has a method called "+"componentShouldUpdate(). Did you mean shouldComponentUpdate()? "+"The name is phrased as a question because the function is "+"expected to return a value.",a)}if(r.prototype&&r.prototype.isPureReactComponent&&typeof e.shouldComponentUpdate!=="undefined"){error("%s has a method called shouldComponentUpdate(). "+"shouldComponentUpdate should not be used when extending React.PureComponent. "+"Please extend React.Component if shouldComponentUpdate is used.",getComponentNameFromType(r)||"A pure component")}if(typeof e.componentDidUnmount==="function"){error("%s has a method called "+"componentDidUnmount(). But there is no such lifecycle method. "+"Did you mean componentWillUnmount()?",a)}if(typeof e.componentDidReceiveProps==="function"){error("%s has a method called "+"componentDidReceiveProps(). But there is no such lifecycle method. "+"If you meant to update the state in response to changing props, "+"use componentWillReceiveProps(). If you meant to fetch data or "+"run side-effects or mutations after React has updated the UI, use componentDidUpdate().",a)}if(typeof e.componentWillRecieveProps==="function"){error("%s has a method called "+"componentWillRecieveProps(). Did you mean componentWillReceiveProps()?",a)}if(typeof e.UNSAFE_componentWillRecieveProps==="function"){error("%s has a method called "+"UNSAFE_componentWillRecieveProps(). Did you mean UNSAFE_componentWillReceiveProps()?",a)}var s=e.props!==o;if(e.props!==undefined&&s){error("%s(...): When calling super() in `%s`, make sure to pass "+"up the same props that your component's constructor was passed.",a,a)}if(e.defaultProps){error("Setting defaultProps as an instance property on %s is not supported and will be ignored."+" Instead, define defaultProps as a static property on %s.",a,a)}if(typeof e.getSnapshotBeforeUpdate==="function"&&typeof e.componentDidUpdate!=="function"&&!an.has(r)){an.add(r);error("%s: getSnapshotBeforeUpdate() should be used with componentDidUpdate(). "+"This component defines getSnapshotBeforeUpdate() only.",getComponentNameFromType(r))}if(typeof e.getDerivedStateFromProps==="function"){error("%s: getDerivedStateFromProps() is defined as an instance method "+"and will be ignored. Instead, declare it as a static method.",a)}if(typeof e.getDerivedStateFromError==="function"){error("%s: getDerivedStateFromError() is defined as an instance method "+"and will be ignored. Instead, declare it as a static method.",a)}if(typeof r.getSnapshotBeforeUpdate==="function"){error("%s: getSnapshotBeforeUpdate() is defined as a static method "+"and will be ignored. Instead, declare it as an instance method.",a)}var l=e.state;if(l&&(typeof l!=="object"||isArray(l))){error("%s.state: must be set to an object or null",a)}if(typeof e.getChildContext==="function"&&typeof r.childContextTypes!=="object"){error("%s.getChildContext(): childContextTypes must be defined in order to "+"use getChildContext().",a)}}}function callComponentWillMount(e,r){var o=r.state;if(typeof r.componentWillMount==="function"){{if(r.componentWillMount.__suppressDeprecationWarning!==true){var a=getComponentNameFromType(e)||"Unknown";if(!nn[a]){warn("componentWillMount has been renamed, and is not recommended for use. "+"See https://reactjs.org/link/unsafe-component-lifecycles for details.\n\n"+"* Move code from componentWillMount to componentDidMount (preferred in most cases) "+"or the constructor.\n"+"\nPlease update the following components: %s",a);nn[a]=true}}}r.componentWillMount()}if(typeof r.UNSAFE_componentWillMount==="function"){r.UNSAFE_componentWillMount()}if(o!==r.state){{error("%s.componentWillMount(): Assigning directly to this.state is "+"deprecated (except inside a component's "+"constructor). Use setState instead.",getComponentNameFromType(e)||"Component")}mn.enqueueReplaceState(r,r.state,null)}}function processUpdateQueue(e,r,o,a){if(e.queue!==null&&e.queue.length>0){var i=e.queue;var s=e.replace;e.queue=null;e.replace=false;if(s&&i.length===1){r.state=i[0]}else{var l=s?i[0]:r.state;var c=true;for(var d=s?1:0;d<i.length;d++){var p=i[d];var f=typeof p==="function"?p.call(r,l,o,a):p;if(f!=null){if(c){c=false;l=hr({},l,f)}else{hr(l,f)}}}r.state=l}}else{e.queue=null}}function mountClassInstance(e,r,o,a){{checkClassInstance(e,r,o)}var i=e.state!==undefined?e.state:null;e.updater=mn;e.props=o;e.state=i;var s={queue:[],replace:false};set(e,s);var l=r.contextType;if(typeof l==="object"&&l!==null){e.context=readContext(l)}else{e.context=a}{if(e.state===o){var c=getComponentNameFromType(r)||"Component";if(!dn.has(c)){dn.add(c);error("%s: It is not recommended to assign props directly to state "+"because updates to props won't be reflected in state. "+"In most cases, it is better to use props directly.",c)}}}var d=r.getDerivedStateFromProps;if(typeof d==="function"){e.state=applyDerivedStateFromProps(e,r,d,i,o)}if(typeof r.getDerivedStateFromProps!=="function"&&typeof e.getSnapshotBeforeUpdate!=="function"&&(typeof e.UNSAFE_componentWillMount==="function"||typeof e.componentWillMount==="function")){callComponentWillMount(r,e);processUpdateQueue(s,e,o,a)}}var gn={id:1,overflow:""};function getTreeId(e){var r=e.overflow;var o=e.id;var a=o&~getLeadingBit(o);return a.toString(32)+r}function pushTreeContext(e,r,o){var a=e.id;var i=e.overflow;var s=getBitLength(a)-1;var l=a&~(1<<s);var c=o+1;var d=getBitLength(r)+s;if(d>30){var p=s-s%5;var f=(1<<p)-1;var h=(l&f).toString(32);var g=l>>p;var b=s-p;var S=getBitLength(r)+b;var w=c<<b;var E=w|g;var P=h+i;return{id:1<<S|E,overflow:P}}else{var F=c<<s;var _=F|l;var N=i;return{id:1<<d|_,overflow:N}}}function getBitLength(e){return 32-vn(e)}function getLeadingBit(e){return 1<<getBitLength(e)-1}var vn=Math.clz32?Math.clz32:clz32Fallback;var yn=Math.log;var bn=Math.LN2;function clz32Fallback(e){var r=e>>>0;if(r===0){return 32}return 31-(yn(r)/bn|0)|0}function createThenableState(){return[]}function trackSuspendedWakeable(e){var r=e;switch(r.status){case"fulfilled":case"rejected":break;default:{if(typeof r.status==="string"){break}var o=r;o.status="pending";o.then((function(e){if(r.status==="pending"){var o=r;o.status="fulfilled";o.value=e}}),(function(e){if(r.status==="pending"){var o=r;o.status="rejected";o.reason=e}}));break}}}function trackUsedThenable(e,r,o){e[o]=r}function getPreviouslyUsedThenableAtIndex(e,r){if(e!==null){var o=e[r];if(o!==undefined){return o}}return null}function is(e,r){return e===r&&(e!==0||1/e===1/r)||e!==e&&r!==r}var kn=typeof Object.is==="function"?Object.is:is;var Cn=null;var Sn=null;var wn=null;var xn=null;var Tn=false;var En=false;var Rn=0;var Pn=0;var In=null;var Fn=null;var _n=0;var Dn=25;var An=false;var Nn;function resolveCurrentlyRenderingComponent(){if(Cn===null){throw new Error("Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for"+" one of the following reasons:\n"+"1. You might have mismatching versions of React and the renderer (such as React DOM)\n"+"2. You might be breaking the Rules of Hooks\n"+"3. You might have more than one copy of React in the same app\n"+"See https://reactjs.org/link/invalid-hook-call for tips about how to debug and fix this problem.")}{if(An){error("Do not call Hooks inside useEffect(...), useMemo(...), or other built-in Hooks. "+"You can only call Hooks at the top level of your React function. "+"For more information, see "+"https://reactjs.org/link/rules-of-hooks")}}return Cn}function areHookInputsEqual(e,r){if(r===null){{error("%s received a final argument during this render, but not during "+"the previous render. Even though the final argument is optional, "+"its type cannot change between renders.",Nn)}return false}{if(e.length!==r.length){error("The final argument passed to %s changed size between renders. The "+"order and size of this array must remain constant.\n\n"+"Previous: %s\n"+"Incoming: %s",Nn,"["+e.join(", ")+"]","["+r.join(", ")+"]")}}for(var o=0;o<r.length&&o<e.length;o++){if(kn(e[o],r[o])){continue}return false}return true}function createHook(){if(_n>0){throw new Error("Rendered more hooks than during the previous render")}return{memoizedState:null,queue:null,next:null}}function createWorkInProgressHook(){if(xn===null){if(wn===null){Tn=false;wn=xn=createHook()}else{Tn=true;xn=wn}}else{if(xn.next===null){Tn=false;xn=xn.next=createHook()}else{Tn=true;xn=xn.next}}return xn}function prepareToUseHooks(e,r,o){Cn=r;Sn=e;{An=false}Rn=0;Pn=0;In=o}function finishHooks(e,r,o,a){while(En){En=false;Rn=0;Pn=0;_n+=1;xn=null;o=e(r,a)}resetHooksState();return o}function getThenableStateAfterSuspending(){var e=In;In=null;return e}function checkDidRenderIdHook(){var e=Rn!==0;return e}function resetHooksState(){{An=false}Cn=null;Sn=null;En=false;wn=null;_n=0;Fn=null;xn=null}function getCacheForType(e){throw new Error("Not implemented.")}function readContext$1(e){{if(An){error("Context can only be read while React is rendering. "+"In classes, you can read it in the render method or getDerivedStateFromProps. "+"In function components, you can read it directly in the function body, but not "+"inside Hooks like useReducer() or useMemo().")}}return readContext(e)}function useContext(e){{Nn="useContext"}resolveCurrentlyRenderingComponent();return readContext(e)}function basicStateReducer(e,r){return typeof r==="function"?r(e):r}function useState(e){{Nn="useState"}return useReducer(basicStateReducer,e)}function useReducer(e,r,o){{if(e!==basicStateReducer){Nn="useReducer"}}Cn=resolveCurrentlyRenderingComponent();xn=createWorkInProgressHook();if(Tn){var a=xn.queue;var i=a.dispatch;if(Fn!==null){var s=Fn.get(a);if(s!==undefined){Fn.delete(a);var l=xn.memoizedState;var c=s;do{var d=c.action;{An=true}l=e(l,d);{An=false}c=c.next}while(c!==null);xn.memoizedState=l;return[l,i]}}return[xn.memoizedState,i]}else{{An=true}var p;if(e===basicStateReducer){p=typeof r==="function"?r():r}else{p=o!==undefined?o(r):r}{An=false}xn.memoizedState=p;var f=xn.queue={last:null,dispatch:null};var h=f.dispatch=dispatchAction.bind(null,Cn,f);return[xn.memoizedState,h]}}function useMemo(e,r){Cn=resolveCurrentlyRenderingComponent();xn=createWorkInProgressHook();var o=r===undefined?null:r;if(xn!==null){var a=xn.memoizedState;if(a!==null){if(o!==null){var i=a[1];if(areHookInputsEqual(o,i)){return a[0]}}}}{An=true}var s=e();{An=false}xn.memoizedState=[s,o];return s}function useRef(e){Cn=resolveCurrentlyRenderingComponent();xn=createWorkInProgressHook();var r=xn.memoizedState;if(r===null){var o={current:e};{Object.seal(o)}xn.memoizedState=o;return o}else{return r}}function useLayoutEffect(e,r){{Nn="useLayoutEffect";error("useLayoutEffect does nothing on the server, because its effect cannot "+"be encoded into the server renderer's output format. This will lead "+"to a mismatch between the initial, non-hydrated UI and the intended "+"UI. To avoid this, useLayoutEffect should only be used in "+"components that render exclusively on the client. "+"See https://reactjs.org/link/uselayouteffect-ssr for common fixes.")}}function dispatchAction(e,r,o){if(_n>=Dn){throw new Error("Too many re-renders. React limits the number of renders to prevent "+"an infinite loop.")}if(e===Cn){En=true;var a={action:o,next:null};if(Fn===null){Fn=new Map}var i=Fn.get(r);if(i===undefined){Fn.set(r,a)}else{var s=i;while(s.next!==null){s=s.next}s.next=a}}}function useCallback(e,r){return useMemo((function(){return e}),r)}function useMutableSource(e,r,o){resolveCurrentlyRenderingComponent();return r(e._source)}function useSyncExternalStore(e,r,o){if(o===undefined){throw new Error("Missing getServerSnapshot, which is required for "+"server-rendered content. Will revert to client rendering.")}return o()}function useDeferredValue(e){resolveCurrentlyRenderingComponent();return e}function unsupportedStartTransition(){throw new Error("startTransition cannot be called during server rendering.")}function useTransition(){resolveCurrentlyRenderingComponent();return[false,unsupportedStartTransition]}function useId(){var e=Sn;var r=getTreeId(e.treeContext);var o=Bn;if(o===null){throw new Error("Invalid hook call. Hooks can only be called inside of the body of a function component.")}var a=Rn++;return makeId(o,r,a)}function use(e){if(e!==null&&typeof e==="object"){if(typeof e.then==="function"){var r=e;var o=Pn;Pn+=1;switch(r.status){case"fulfilled":{var a=r.value;return a}case"rejected":{var i=r.reason;throw i}default:{var s=getPreviouslyUsedThenableAtIndex(In,o);if(s!==null){switch(s.status){case"fulfilled":{var l=s.value;return l}case"rejected":{var c=s.reason;throw c}default:{throw s}}}else{if(In===null){In=createThenableState()}trackUsedThenable(In,r,o);throw r}}}}else if(e.$$typeof===Cr||e.$$typeof===Sr){var d=e;return readContext$1(d)}}throw new Error("An unsupported type was passed to use(): "+String(e))}function unsupportedRefresh(){throw new Error("Cache cannot be refreshed during server rendering.")}function useCacheRefresh(){return unsupportedRefresh}function useMemoCache(e){return new Array(e)}function noop(){}var Mn={readContext:readContext$1,useContext:useContext,useMemo:useMemo,useReducer:useReducer,useRef:useRef,useState:useState,useInsertionEffect:noop,useLayoutEffect:useLayoutEffect,useCallback:useCallback,useImperativeHandle:noop,useEffect:noop,useDebugValue:noop,useDeferredValue:useDeferredValue,useTransition:useTransition,useId:useId,useMutableSource:useMutableSource,useSyncExternalStore:useSyncExternalStore};{Mn.getCacheForType=getCacheForType;Mn.useCacheRefresh=useCacheRefresh}{Mn.useMemoCache=useMemoCache}{Mn.use=use}var Bn=null;function setCurrentResponseState(e){Bn=e}function getStackByComponentStackNode(e){try{var r="";var o=e;do{switch(o.tag){case 0:r+=describeBuiltInComponentFrame(o.type,null,null);break;case 1:r+=describeFunctionComponentFrame(o.type,null,null);break;case 2:r+=describeClassComponentFrame(o.type,null,null);break}o=o.parent}while(o);return r}catch(e){return"\nError generating stack: "+e.message+"\n"+e.stack}}var On=i.ReactCurrentDispatcher;var Ln=i.ReactDebugCurrentFrame;var Vn=0;var jn=1;var $n=2;var Hn=3;var Un=4;var Wn=0;var zn=1;var qn=2;var Yn=12800;function defaultErrorHandler(e){console["error"](e);return null}function noop$1(){}function createRequest(e,r,o,a,i,s,l,c,d){var p=[];var f=new Set;var h={destination:null,responseState:r,progressiveChunkSize:a===undefined?Yn:a,status:Wn,fatalError:null,nextSegmentId:0,allPendingTasks:0,pendingRootTasks:0,completedRootSegment:null,abortableTasks:f,pingedTasks:p,clientRenderedBoundaries:[],completedBoundaries:[],partialBoundaries:[],preamble:[],postamble:[],onError:i===undefined?defaultErrorHandler:i,onAllReady:s===undefined?noop$1:s,onShellReady:l===undefined?noop$1:l,onShellError:c===undefined?noop$1:c,onFatalError:d===undefined?noop$1:d};var g=createPendingSegment(h,0,null,o,false,false);g.parentFlushed=true;var b=createTask(h,null,e,null,g,f,Gr,en,gn);p.push(b);return h}function pingTask(e,r){var o=e.pingedTasks;o.push(r);if(o.length===1){scheduleWork((function(){return performWork(e)}))}}function createSuspenseBoundary(e,r){return{id:ze,rootSegmentID:-1,parentFlushed:false,pendingTasks:0,forceClientRender:false,completedSegments:[],byteSize:0,fallbackAbortableTasks:r,errorDigest:null}}function createTask(e,r,o,a,i,s,l,c,d){e.allPendingTasks++;if(a===null){e.pendingRootTasks++}else{a.pendingTasks++}var p={node:o,ping:function(){return pingTask(e,p)},blockedBoundary:a,blockedSegment:i,abortSet:s,legacyContext:l,context:c,treeContext:d,thenableState:r};{p.componentStack=null}s.add(p);return p}function createPendingSegment(e,r,o,a,i,s){return{status:Vn,id:-1,index:r,parentFlushed:false,chunks:[],children:[],formatContext:a,boundary:o,lastPushedText:i,textEmbedded:s}}var Zn=null;function getCurrentStackInDEV(){{if(Zn===null||Zn.componentStack===null){return""}return getStackByComponentStackNode(Zn.componentStack)}}function pushBuiltInComponentStackInDEV(e,r){{e.componentStack={tag:0,parent:e.componentStack,type:r}}}function pushFunctionComponentStackInDEV(e,r){{e.componentStack={tag:1,parent:e.componentStack,type:r}}}function pushClassComponentStackInDEV(e,r){{e.componentStack={tag:2,parent:e.componentStack,type:r}}}function popComponentStackInDEV(e){{if(e.componentStack===null){error("Unexpectedly popped too many stack frames. This is a bug in React.")}else{e.componentStack=e.componentStack.parent}}}var Xn=null;function captureBoundaryErrorDetailsDev(e,r){{var o;if(typeof r==="string"){o=r}else if(r&&typeof r.message==="string"){o=r.message}else{o=String(r)}var a=Xn||getCurrentStackInDEV();Xn=null;e.errorMessage=o;e.errorComponentStack=a}}function logRecoverableError(e,r){var o=e.onError(r);if(o!=null&&typeof o!=="string"){throw new Error('onError returned something with a type other than "string". onError should return a string and may return null or undefined but must not return anything else. It received something of type "'+typeof o+'" instead')}return o}function fatalError(e,r){var o=e.onShellError;o(r);var a=e.onFatalError;a(r);if(e.destination!==null){e.status=qn;closeWithError(e.destination,r)}else{e.status=zn;e.fatalError=r}}function renderSuspenseBoundary(e,r,o){pushBuiltInComponentStackInDEV(r,"Suspense");var a=r.blockedBoundary;var i=r.blockedSegment;var s=o.fallback;var l=o.children;var c=new Set;var d=createSuspenseBoundary(e,c);var p=i.chunks.length;var f=createPendingSegment(e,p,d,i.formatContext,false,false);i.children.push(f);i.lastPushedText=false;var h=createPendingSegment(e,0,null,i.formatContext,false,false);h.parentFlushed=true;r.blockedBoundary=d;r.blockedSegment=h;try{renderNode(e,r,l);pushSegmentFinale(h.chunks,e.responseState,h.lastPushedText,h.textEmbedded);h.status=jn;queueCompletedSegment(d,h);if(d.pendingTasks===0){popComponentStackInDEV(r);return}}catch(r){h.status=Un;d.forceClientRender=true;d.errorDigest=logRecoverableError(e,r);{captureBoundaryErrorDetailsDev(d,r)}}finally{r.blockedBoundary=a;r.blockedSegment=i}var g=createTask(e,null,s,a,f,c,r.legacyContext,r.context,r.treeContext);{g.componentStack=r.componentStack}e.pingedTasks.push(g);popComponentStackInDEV(r)}function renderHostElement(e,r,o,a){pushBuiltInComponentStackInDEV(r,o);var i=r.blockedSegment;var s=pushStartInstance(i.chunks,e.preamble,o,a,e.responseState,i.formatContext);i.lastPushedText=false;var l=i.formatContext;i.formatContext=getChildFormatContext(l,o,a);renderNode(e,r,s);i.formatContext=l;pushEndInstance(i.chunks,e.postamble,o);i.lastPushedText=false;popComponentStackInDEV(r)}function shouldConstruct$1(e){return e.prototype&&e.prototype.isReactComponent}function renderWithHooks(e,r,o,a,i,s){var l={};prepareToUseHooks(r,l,o);var c=a(i,s);return finishHooks(a,i,c,s)}function finishClassComponent(e,r,o,a,i){var s=o.render();{if(o.props!==i){if(!eo){error("It looks like %s is reassigning its own `this.props` while rendering. "+"This is not supported and can lead to confusing bugs.",getComponentNameFromType(a)||"a component")}eo=true}}{var l=a.childContextTypes;if(l!==null&&l!==undefined){var c=r.legacyContext;var d=processChildContext(o,a,c,l);r.legacyContext=d;renderNodeDestructive(e,r,null,s);r.legacyContext=c;return}}renderNodeDestructive(e,r,null,s)}function renderClassComponent(e,r,o,a){pushClassComponentStackInDEV(r,o);var i=getMaskedContext(o,r.legacyContext);var s=constructClassInstance(o,a,i);mountClassInstance(s,o,a,i);finishClassComponent(e,r,s,o,a);popComponentStackInDEV(r)}var Jn={};var Kn={};var Gn={};var Qn={};var eo=false;var to=false;var ro=false;var no=false;function renderIndeterminateComponent(e,r,o,a,i){var s;{s=getMaskedContext(a,r.legacyContext)}pushFunctionComponentStackInDEV(r,a);{if(a.prototype&&typeof a.prototype.render==="function"){var l=getComponentNameFromType(a)||"Unknown";if(!Jn[l]){error("The <%s /> component appears to have a render method, but doesn't extend React.Component. "+"This is likely to cause errors. Change %s to extend React.Component instead.",l,l);Jn[l]=true}}}var c=renderWithHooks(e,r,o,a,i,s);var d=checkDidRenderIdHook();{if(typeof c==="object"&&c!==null&&typeof c.render==="function"&&c.$$typeof===undefined){var p=getComponentNameFromType(a)||"Unknown";if(!Kn[p]){error("The <%s /> component appears to be a function component that returns a class instance. "+"Change %s to a class that extends React.Component instead. "+"If you can't use a class try assigning the prototype on the function as a workaround. "+"`%s.prototype = React.Component.prototype`. Don't use an arrow function since it "+"cannot be called with `new` by React.",p,p,p);Kn[p]=true}}}if(typeof c==="object"&&c!==null&&typeof c.render==="function"&&c.$$typeof===undefined){{var f=getComponentNameFromType(a)||"Unknown";if(!Kn[f]){error("The <%s /> component appears to be a function component that returns a class instance. "+"Change %s to a class that extends React.Component instead. "+"If you can't use a class try assigning the prototype on the function as a workaround. "+"`%s.prototype = React.Component.prototype`. Don't use an arrow function since it "+"cannot be called with `new` by React.",f,f,f);Kn[f]=true}}mountClassInstance(c,a,i,s);finishClassComponent(e,r,c,a,i)}else{{validateFunctionComponentInDev(a)}if(d){var h=r.treeContext;var g=1;var b=0;r.treeContext=pushTreeContext(h,g,b);try{renderNodeDestructive(e,r,null,c)}finally{r.treeContext=h}}else{renderNodeDestructive(e,r,null,c)}}popComponentStackInDEV(r)}function validateFunctionComponentInDev(e){{if(e){if(e.childContextTypes){error("%s(...): childContextTypes cannot be defined on a function component.",e.displayName||e.name||"Component")}}if(typeof e.getDerivedStateFromProps==="function"){var r=getComponentNameFromType(e)||"Unknown";if(!Qn[r]){error("%s: Function components do not support getDerivedStateFromProps.",r);Qn[r]=true}}if(typeof e.contextType==="object"&&e.contextType!==null){var o=getComponentNameFromType(e)||"Unknown";if(!Gn[o]){error("%s: Function components do not support contextType.",o);Gn[o]=true}}}}function resolveDefaultProps(e,r){if(e&&e.defaultProps){var o=hr({},r);var a=e.defaultProps;for(var i in a){if(o[i]===undefined){o[i]=a[i]}}return o}return r}function renderForwardRef(e,r,o,a,i,s){pushFunctionComponentStackInDEV(r,a.render);var l=renderWithHooks(e,r,o,a.render,i,s);var c=checkDidRenderIdHook();if(c){var d=r.treeContext;var p=1;var f=0;r.treeContext=pushTreeContext(d,p,f);try{renderNodeDestructive(e,r,null,l)}finally{r.treeContext=d}}else{renderNodeDestructive(e,r,null,l)}popComponentStackInDEV(r)}function renderMemo(e,r,o,a,i,s){var l=a.type;var c=resolveDefaultProps(l,i);renderElement(e,r,o,l,c,s)}function renderContextConsumer(e,r,o,a){{if(o._context===undefined){if(o!==o.Consumer){if(!no){no=true;error("Rendering <Context> directly is not supported and will be removed in "+"a future major release. Did you mean to render <Context.Consumer> instead?")}}}else{o=o._context}}var i=a.children;{if(typeof i!=="function"){error("A context consumer was rendered with multiple children, or a child "+"that isn't a function. A context consumer expects a single child "+"that is a function. If you did pass a function, make sure there "+"is no trailing or leading whitespace around it.")}}var s=readContext(o);var l=i(s);renderNodeDestructive(e,r,null,l)}function renderContextProvider(e,r,o,a){var i=o._context;var s=a.value;var l=a.children;var c;{c=r.context}r.context=pushProvider(i,s);renderNodeDestructive(e,r,null,l);r.context=popProvider(i);{if(c!==r.context){error("Popping the context provider did not return back to the original snapshot. This is a bug in React.")}}}function renderLazyComponent(e,r,o,a,i,s){pushBuiltInComponentStackInDEV(r,"Lazy");var l=a._payload;var c=a._init;var d=c(l);var p=resolveDefaultProps(d,i);renderElement(e,r,o,d,p,s);popComponentStackInDEV(r)}function renderOffscreen(e,r,o){var a=o.mode;if(a==="hidden");else{renderNodeDestructive(e,r,null,o.children)}}function renderElement(e,r,o,a,i,s){if(typeof a==="function"){if(shouldConstruct$1(a)){renderClassComponent(e,r,a,i);return}else{renderIndeterminateComponent(e,r,o,a,i);return}}if(typeof a==="string"){renderHostElement(e,r,a,i);return}switch(a){case _r:case Ir:case yr:case br:case vr:{renderNodeDestructive(e,r,null,i.children);return}case Fr:{renderOffscreen(e,r,i);return}case Tr:{pushBuiltInComponentStackInDEV(r,"SuspenseList");renderNodeDestructive(e,r,null,i.children);popComponentStackInDEV(r);return}case Pr:{throw new Error("ReactDOMServer does not yet support scope components.")}case xr:{{renderSuspenseBoundary(e,r,i)}return}}if(typeof a==="object"&&a!==null){switch(a.$$typeof){case wr:{renderForwardRef(e,r,o,a,i,s);return}case Er:{renderMemo(e,r,o,a,i,s);return}case kr:{renderContextProvider(e,r,a,i);return}case Cr:{renderContextConsumer(e,r,a,i);return}case Rr:{renderLazyComponent(e,r,o,a,i);return}}}var l="";{if(a===undefined||typeof a==="object"&&a!==null&&Object.keys(a).length===0){l+=" You likely forgot to export your component from the file "+"it's defined in, or you might have mixed up default and "+"named imports."}}throw new Error("Element type is invalid: expected a string (for built-in "+"components) or a class/function (for composite components) "+("but got: "+(a==null?a:typeof a)+"."+l))}function validateIterable(e,r){{if(typeof Symbol==="function"&&e[Symbol.toStringTag]==="Generator"){if(!to){error("Using Generators as children is unsupported and will likely yield "+"unexpected results because enumerating a generator mutates it. "+"You may convert it to an array with `Array.from()` or the "+"`[...spread]` operator before rendering. Keep in mind "+"you might need to polyfill these features for older browsers.")}to=true}if(e.entries===r){if(!ro){error("Using Maps as children is not supported. "+"Use an array of keyed ReactElements instead.")}ro=true}}}function renderNodeDestructive(e,r,o,a){{try{return renderNodeDestructiveImpl(e,r,o,a)}catch(e){if(typeof e==="object"&&e!==null&&typeof e.then==="function");else{Xn=Xn!==null?Xn:getCurrentStackInDEV()}throw e}}}function renderNodeDestructiveImpl(e,r,o,a){r.node=a;if(typeof a==="object"&&a!==null){switch(a.$$typeof){case mr:{var i=a;var s=i.type;var l=i.props;var c=i.ref;renderElement(e,r,o,s,l,c);return}case gr:throw new Error("Portals are not currently supported by the server renderer. "+"Render them conditionally so that they only appear on the client render.");case Rr:{var d=a;var p=d._payload;var f=d._init;var h;{try{h=f(p)}catch(e){if(typeof e==="object"&&e!==null&&typeof e.then==="function"){pushBuiltInComponentStackInDEV(r,"Lazy")}throw e}}renderNodeDestructive(e,r,null,h);return}}if(isArray(a)){renderChildrenArray(e,r,a);return}var g=getIteratorFn(a);if(g){{validateIterable(a,g)}var b=g.call(a);if(b){var S=b.next();if(!S.done){var w=[];do{w.push(S.value);S=b.next()}while(!S.done);renderChildrenArray(e,r,w);return}return}}var E=Object.prototype.toString.call(a);throw new Error("Objects are not valid as a React child (found: "+(E==="[object Object]"?"object with keys {"+Object.keys(a).join(", ")+"}":E)+"). "+"If you meant to render a collection of children, use an array "+"instead.")}if(typeof a==="string"){var P=r.blockedSegment;P.lastPushedText=pushTextInstance(r.blockedSegment.chunks,a,e.responseState,P.lastPushedText);return}if(typeof a==="number"){var F=r.blockedSegment;F.lastPushedText=pushTextInstance(r.blockedSegment.chunks,""+a,e.responseState,F.lastPushedText);return}{if(typeof a==="function"){error("Functions are not valid as a React child. This may happen if "+"you return a Component instead of <Component /> from render. "+"Or maybe you meant to call this function rather than return it.")}}}function renderChildrenArray(e,r,o){var a=o.length;for(var i=0;i<a;i++){var s=r.treeContext;r.treeContext=pushTreeContext(s,a,i);try{renderNode(e,r,o[i])}finally{r.treeContext=s}}}function spawnNewSuspendedTask(e,r,o,a){var i=r.blockedSegment;var s=i.chunks.length;var l=createPendingSegment(e,s,null,i.formatContext,i.lastPushedText,true);i.children.push(l);i.lastPushedText=false;var c=createTask(e,o,r.node,r.blockedBoundary,l,r.abortSet,r.legacyContext,r.context,r.treeContext);trackSuspendedWakeable(a);{if(r.componentStack!==null){c.componentStack=r.componentStack.parent}}var d=c.ping;a.then(d,d)}function renderNode(e,r,o){var a=r.blockedSegment.formatContext;var i=r.legacyContext;var s=r.context;var l=null;{l=r.componentStack}try{return renderNodeDestructive(e,r,null,o)}catch(o){resetHooksState();if(typeof o==="object"&&o!==null&&typeof o.then==="function"){var c=getThenableStateAfterSuspending();spawnNewSuspendedTask(e,r,c,o);r.blockedSegment.formatContext=a;r.legacyContext=i;r.context=s;switchContext(s);{r.componentStack=l}return}else{r.blockedSegment.formatContext=a;r.legacyContext=i;r.context=s;switchContext(s);{r.componentStack=l}throw o}}}function erroredTask(e,r,o,a){var i=logRecoverableError(e,a);if(r===null){fatalError(e,a)}else{r.pendingTasks--;if(!r.forceClientRender){r.forceClientRender=true;r.errorDigest=i;{captureBoundaryErrorDetailsDev(r,a)}if(r.parentFlushed){e.clientRenderedBoundaries.push(r)}}}e.allPendingTasks--;if(e.allPendingTasks===0){var s=e.onAllReady;s()}}function abortTaskSoft(e){var r=this;var o=e.blockedBoundary;var a=e.blockedSegment;a.status=Hn;finishedTask(r,o,a)}function abortTask(e,r,o){var a=e.blockedBoundary;var i=e.blockedSegment;i.status=Hn;if(a===null){r.allPendingTasks--;if(r.status!==zn&&r.status!==qn){logRecoverableError(r,o);fatalError(r,o)}}else{a.pendingTasks--;if(!a.forceClientRender){a.forceClientRender=true;a.errorDigest=r.onError(o);{var s="The server did not finish this Suspense boundary: ";var l;if(o&&typeof o.message==="string"){l=s+o.message}else{l=s+String(o)}var c=Zn;Zn=e;try{captureBoundaryErrorDetailsDev(a,l)}finally{Zn=c}}if(a.parentFlushed){r.clientRenderedBoundaries.push(a)}}a.fallbackAbortableTasks.forEach((function(e){return abortTask(e,r,o)}));a.fallbackAbortableTasks.clear();r.allPendingTasks--;if(r.allPendingTasks===0){var d=r.onAllReady;d()}}}function queueCompletedSegment(e,r){if(r.chunks.length===0&&r.children.length===1&&r.children[0].boundary===null){var o=r.children[0];o.id=r.id;o.parentFlushed=true;if(o.status===jn){queueCompletedSegment(e,o)}}else{var a=e.completedSegments;a.push(r)}}function finishedTask(e,r,o){if(r===null){if(o.parentFlushed){if(e.completedRootSegment!==null){throw new Error("There can only be one root segment. This is a bug in React.")}e.completedRootSegment=o}e.pendingRootTasks--;if(e.pendingRootTasks===0){e.onShellError=noop$1;var a=e.onShellReady;a()}}else{r.pendingTasks--;if(r.forceClientRender);else if(r.pendingTasks===0){if(o.parentFlushed){if(o.status===jn){queueCompletedSegment(r,o)}}if(r.parentFlushed){e.completedBoundaries.push(r)}r.fallbackAbortableTasks.forEach(abortTaskSoft,e);r.fallbackAbortableTasks.clear()}else{if(o.parentFlushed){if(o.status===jn){queueCompletedSegment(r,o);var i=r.completedSegments;if(i.length===1){if(r.parentFlushed){e.partialBoundaries.push(r)}}}}}}e.allPendingTasks--;if(e.allPendingTasks===0){var s=e.onAllReady;s()}}function retryTask(e,r){var o=r.blockedSegment;if(o.status!==Vn){return}switchContext(r.context);var a=null;{a=Zn;Zn=r}try{var i=r.thenableState;r.thenableState=null;renderNodeDestructive(e,r,i,r.node);pushSegmentFinale(o.chunks,e.responseState,o.lastPushedText,o.textEmbedded);r.abortSet.delete(r);o.status=jn;finishedTask(e,r.blockedBoundary,o)}catch(a){resetHooksState();if(typeof a==="object"&&a!==null&&typeof a.then==="function"){var s=r.ping;a.then(s,s);var l=a;trackSuspendedWakeable(l);r.thenableState=getThenableStateAfterSuspending()}else{r.abortSet.delete(r);o.status=Un;erroredTask(e,r.blockedBoundary,o,a)}}finally{{Zn=a}}}function performWork(e){if(e.status===qn){return}var r=getActiveContext();var o=On.current;On.current=Mn;var a;{a=Ln.getCurrentStack;Ln.getCurrentStack=getCurrentStackInDEV}var i=Bn;setCurrentResponseState(e.responseState);try{var s=e.pingedTasks;var l;for(l=0;l<s.length;l++){var c=s[l];retryTask(e,c)}s.splice(0,l);if(e.destination!==null){flushCompletedQueues(e,e.destination)}}catch(r){logRecoverableError(e,r);fatalError(e,r)}finally{setCurrentResponseState(i);On.current=o;{Ln.getCurrentStack=a}if(o===Mn){switchContext(r)}}}function flushSubtree(e,r,o){o.parentFlushed=true;switch(o.status){case Vn:{var a=o.id=e.nextSegmentId++;o.lastPushedText=false;o.textEmbedded=false;return writePlaceholder(r,e.responseState,a)}case jn:{o.status=$n;var i=true;var s=o.chunks;var l=0;var c=o.children;for(var d=0;d<c.length;d++){var p=c[d];for(;l<p.index;l++){writeChunk(r,s[l])}i=flushSegment(e,r,p)}for(;l<s.length-1;l++){writeChunk(r,s[l])}if(l<s.length){i=writeChunkAndReturn(r,s[l])}return i}default:{throw new Error("Aborted, errored or already flushed boundaries should not be flushed again. This is a bug in React.")}}}function flushSegment(e,r,o){var a=o.boundary;if(a===null){return flushSubtree(e,r,o)}a.parentFlushed=true;if(a.forceClientRender){writeStartClientRenderedSuspenseBoundary(r,e.responseState,a.errorDigest,a.errorMessage,a.errorComponentStack);flushSubtree(e,r,o);return writeEndClientRenderedSuspenseBoundary(r,e.responseState)}else if(a.pendingTasks>0){a.rootSegmentID=e.nextSegmentId++;if(a.completedSegments.length>0){e.partialBoundaries.push(a)}var i=a.id=assignSuspenseBoundaryID(e.responseState);writeStartPendingSuspenseBoundary(r,e.responseState,i);flushSubtree(e,r,o);return writeEndPendingSuspenseBoundary(r,e.responseState)}else if(a.byteSize>e.progressiveChunkSize){a.rootSegmentID=e.nextSegmentId++;e.completedBoundaries.push(a);writeStartPendingSuspenseBoundary(r,e.responseState,a.id);flushSubtree(e,r,o);return writeEndPendingSuspenseBoundary(r,e.responseState)}else{writeStartCompletedSuspenseBoundary(r,e.responseState);var s=a.completedSegments;if(s.length!==1){throw new Error("A previously unvisited boundary must have exactly one root segment. This is a bug in React.")}var l=s[0];flushSegment(e,r,l);return writeEndCompletedSuspenseBoundary(r,e.responseState)}}function flushClientRenderedBoundary(e,r,o){return writeClientRenderBoundaryInstruction(r,e.responseState,o.id,o.errorDigest,o.errorMessage,o.errorComponentStack)}function flushSegmentContainer(e,r,o){writeStartSegment(r,e.responseState,o.formatContext,o.id);flushSegment(e,r,o);return writeEndSegment(r,o.formatContext)}function flushCompletedBoundary(e,r,o){var a=o.completedSegments;var i=0;for(;i<a.length;i++){var s=a[i];flushPartiallyCompletedSegment(e,r,o,s)}a.length=0;return writeCompletedBoundaryInstruction(r,e.responseState,o.id,o.rootSegmentID)}function flushPartialBoundary(e,r,o){var a=o.completedSegments;var i=0;for(;i<a.length;i++){var s=a[i];if(!flushPartiallyCompletedSegment(e,r,o,s)){i++;a.splice(0,i);return false}}a.splice(0,i);return true}function flushPartiallyCompletedSegment(e,r,o,a){if(a.status===$n){return true}var i=a.id;if(i===-1){var s=a.id=o.rootSegmentID;if(s===-1){throw new Error("A root segment ID must have been assigned by now. This is a bug in React.")}return flushSegmentContainer(e,r,a)}else{flushSegmentContainer(e,r,a);return writeCompletedSegmentInstruction(r,e.responseState,i)}}function flushCompletedQueues(e,r){beginWriting();try{var o;var a=e.completedRootSegment;if(a!==null){if(e.pendingRootTasks===0){if(p){var i=e.preamble;for(o=0;o<i.length;o++){writeChunk(r,i[o])}}flushSegment(e,r,a);e.completedRootSegment=null;writeCompletedRoot(r,e.responseState)}else{return}}var s=e.clientRenderedBoundaries;for(o=0;o<s.length;o++){var l=s[o];if(!flushClientRenderedBoundary(e,r,l)){e.destination=null;o++;s.splice(0,o);return}}s.splice(0,o);var c=e.completedBoundaries;for(o=0;o<c.length;o++){var d=c[o];if(!flushCompletedBoundary(e,r,d)){e.destination=null;o++;c.splice(0,o);return}}c.splice(0,o);completeWriting(r);beginWriting(r);var f=e.partialBoundaries;for(o=0;o<f.length;o++){var h=f[o];if(!flushPartialBoundary(e,r,h)){e.destination=null;o++;f.splice(0,o);return}}f.splice(0,o);var g=e.completedBoundaries;for(o=0;o<g.length;o++){var b=g[o];if(!flushCompletedBoundary(e,r,b)){e.destination=null;o++;g.splice(0,o);return}}g.splice(0,o)}finally{if(e.allPendingTasks===0&&e.pingedTasks.length===0&&e.clientRenderedBoundaries.length===0&&e.completedBoundaries.length===0){{var S=e.postamble;for(var w=0;w<S.length;w++){writeChunk(r,S[w])}}completeWriting(r);{if(e.abortableTasks.size!==0){error("There was still abortable task at the root when we closed. This is a bug in React.")}}close(r)}else{completeWriting(r)}}}function startWork(e){scheduleWork((function(){return performWork(e)}))}function startFlowing(e,r){if(e.status===zn){e.status=qn;closeWithError(r,e.fatalError);return}if(e.status===qn){return}if(e.destination!==null){return}e.destination=r;try{flushCompletedQueues(e,r)}catch(r){logRecoverableError(e,r);fatalError(e,r)}}function abort(e,r){try{var o=e.abortableTasks;if(o.size>0){var a=r===undefined?new Error("The render was aborted by the server without a reason."):r;o.forEach((function(r){return abortTask(r,e,a)}));o.clear()}if(e.destination!==null){flushCompletedQueues(e,e.destination)}}catch(r){logRecoverableError(e,r);fatalError(e,r)}}function renderToReadableStream(e,r){return new Promise((function(o,a){var i;var s;var l=new Promise((function(e,r){s=e;i=r}));function onShellReady(){var e=new ReadableStream({type:"bytes",pull:function(e){startFlowing(c,e)},cancel:function(e){abort(c)}},{highWaterMark:0});e.allReady=l;o(e)}function onShellError(e){l.catch((function(){}));a(e)}var c=createRequest(e,createResponseState(r?r.identifierPrefix:undefined,r?r.nonce:undefined,r?r.bootstrapScriptContent:undefined,r?r.bootstrapScripts:undefined,r?r.bootstrapModules:undefined),createRootFormatContext(r?r.namespaceURI:undefined),r?r.progressiveChunkSize:undefined,r?r.onError:undefined,s,onShellReady,onShellError,i);if(r&&r.signal){var d=r.signal;if(d.aborted){abort(c,d.reason)}else{var listener=function(){abort(c,d.reason);d.removeEventListener("abort",listener)};d.addEventListener("abort",listener)}}startWork(c)}))}r.renderToReadableStream=renderToReadableStream;r.version=a})()}},655:(e,r,o)=>{
+
+
+
+if (process.env.NODE_ENV !== "production") {
+  (function() {
+'use strict';
+
+var React = __nccwpck_require__(533);
+
+var ReactVersion = '18.3.0-experimental-cb5084d1c-20220924';
+
+var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
+
+// by calls to these methods by a Babel plugin.
+//
+// In PROD (or in packages without access to React internals),
+// they are left as they are instead.
+
+function warn(format) {
+  {
+    {
+      for (var _len = arguments.length, args = new Array(_len > 1 ? _len - 1 : 0), _key = 1; _key < _len; _key++) {
+        args[_key - 1] = arguments[_key];
+      }
+
+      printWarning('warn', format, args);
+    }
+  }
+}
+function error(format) {
+  {
+    {
+      for (var _len2 = arguments.length, args = new Array(_len2 > 1 ? _len2 - 1 : 0), _key2 = 1; _key2 < _len2; _key2++) {
+        args[_key2 - 1] = arguments[_key2];
+      }
+
+      printWarning('error', format, args);
+    }
+  }
+}
+
+function printWarning(level, format, args) {
+  // When changing this logic, you might want to also
+  // update consoleWithStackDev.www.js as well.
+  {
+    var ReactDebugCurrentFrame = ReactSharedInternals.ReactDebugCurrentFrame;
+    var stack = ReactDebugCurrentFrame.getStackAddendum();
+
+    if (stack !== '') {
+      format += '%s';
+      args = args.concat([stack]);
+    } // eslint-disable-next-line react-internal/safe-string-coercion
+
+
+    var argsWithFormat = args.map(function (item) {
+      return String(item);
+    }); // Careful: RN currently depends on this prefix
+
+    argsWithFormat.unshift('Warning: ' + format); // We intentionally don't use spread (or .apply) directly because it
+    // breaks IE9: https://github.com/facebook/react/issues/13610
+    // eslint-disable-next-line react-internal/no-production-logging
+
+    Function.prototype.apply.call(console[level], console, argsWithFormat);
+  }
+}
+
+function scheduleWork(callback) {
+  callback();
+}
+var VIEW_SIZE = 512;
+var currentView = null;
+var writtenBytes = 0;
+function beginWriting(destination) {
+  currentView = new Uint8Array(VIEW_SIZE);
+  writtenBytes = 0;
+}
+function writeChunk(destination, chunk) {
+  if (chunk.length === 0) {
+    return;
+  }
+
+  if (chunk.length > VIEW_SIZE) {
+    // this chunk may overflow a single view which implies it was not
+    // one that is cached by the streaming renderer. We will enqueu
+    // it directly and expect it is not re-used
+    if (writtenBytes > 0) {
+      destination.enqueue(new Uint8Array(currentView.buffer, 0, writtenBytes));
+      currentView = new Uint8Array(VIEW_SIZE);
+      writtenBytes = 0;
+    }
+
+    destination.enqueue(chunk);
+    return;
+  }
+
+  var bytesToWrite = chunk;
+  var allowableBytes = currentView.length - writtenBytes;
+
+  if (allowableBytes < bytesToWrite.length) {
+    // this chunk would overflow the current view. We enqueue a full view
+    // and start a new view with the remaining chunk
+    if (allowableBytes === 0) {
+      // the current view is already full, send it
+      destination.enqueue(currentView);
+    } else {
+      // fill up the current view and apply the remaining chunk bytes
+      // to a new view.
+      currentView.set(bytesToWrite.subarray(0, allowableBytes), writtenBytes); // writtenBytes += allowableBytes; // this can be skipped because we are going to immediately reset the view
+
+      destination.enqueue(currentView);
+      bytesToWrite = bytesToWrite.subarray(allowableBytes);
+    }
+
+    currentView = new Uint8Array(VIEW_SIZE);
+    writtenBytes = 0;
+  }
+
+  currentView.set(bytesToWrite, writtenBytes);
+  writtenBytes += bytesToWrite.length;
+}
+function writeChunkAndReturn(destination, chunk) {
+  writeChunk(destination, chunk); // in web streams there is no backpressure so we can alwas write more
+
+  return true;
+}
+function completeWriting(destination) {
+  if (currentView && writtenBytes > 0) {
+    destination.enqueue(new Uint8Array(currentView.buffer, 0, writtenBytes));
+    currentView = null;
+    writtenBytes = 0;
+  }
+}
+function close(destination) {
+  destination.close();
+}
+var textEncoder = new TextEncoder();
+function stringToChunk(content) {
+  return textEncoder.encode(content);
+}
+function stringToPrecomputedChunk(content) {
+  return textEncoder.encode(content);
+}
+function closeWithError(destination, error) {
+  if (typeof destination.error === 'function') {
+    // $FlowFixMe: This is an Error object or the destination accepts other types.
+    destination.error(error);
+  } else {
+    // Earlier implementations doesn't support this method. In that environment you're
+    // supposed to throw from a promise returned but we don't return a promise in our
+    // approach. We could fork this implementation but this is environment is an edge
+    // case to begin with. It's even less common to run this in an older environment.
+    // Even then, this is not where errors are supposed to happen and they get reported
+    // to a global callback in addition to this anyway. So it's fine just to close this.
+    destination.close();
+  }
+}
+
+/*
+ * The `'' + value` pattern (used in in perf-sensitive code) throws for Symbol
+ * and Temporal.* types. See https://github.com/facebook/react/pull/22064.
+ *
+ * The functions in this module will throw an easier-to-understand,
+ * easier-to-debug exception with a clear errors message message explaining the
+ * problem. (Instead of a confusing exception thrown inside the implementation
+ * of the `value` object).
+ */
+// $FlowFixMe only called in DEV, so void return is not possible.
+function typeName(value) {
+  {
+    // toStringTag is needed for namespaced types like Temporal.Instant
+    var hasToStringTag = typeof Symbol === 'function' && Symbol.toStringTag;
+    var type = hasToStringTag && value[Symbol.toStringTag] || value.constructor.name || 'Object'; // $FlowFixMe
+
+    return type;
+  }
+} // $FlowFixMe only called in DEV, so void return is not possible.
+
+
+function willCoercionThrow(value) {
+  {
+    try {
+      testStringCoercion(value);
+      return false;
+    } catch (e) {
+      return true;
+    }
+  }
+}
+
+function testStringCoercion(value) {
+  // If you ended up here by following an exception call stack, here's what's
+  // happened: you supplied an object or symbol value to React (as a prop, key,
+  // DOM attribute, CSS property, string ref, etc.) and when React tried to
+  // coerce it to a string using `'' + value`, an exception was thrown.
+  //
+  // The most common types that will cause this exception are `Symbol` instances
+  // and Temporal objects like `Temporal.Instant`. But any object that has a
+  // `valueOf` or `[Symbol.toPrimitive]` method that throws will also cause this
+  // exception. (Library authors do this to prevent users from using built-in
+  // numeric operators like `+` or comparison operators like `>=` because custom
+  // methods are needed to perform accurate arithmetic or comparison.)
+  //
+  // To fix the problem, coerce this object or symbol value to a string before
+  // passing it to React. The most reliable way is usually `String(value)`.
+  //
+  // To find which value is throwing, check the browser or debugger console.
+  // Before this exception was thrown, there should be `console.error` output
+  // that shows the type (Symbol, Temporal.PlainDate, etc.) that caused the
+  // problem and how that type was used: key, atrribute, input value prop, etc.
+  // In most cases, this console output also shows the component and its
+  // ancestor components where the exception happened.
+  //
+  // eslint-disable-next-line react-internal/safe-string-coercion
+  return '' + value;
+}
+
+function checkAttributeStringCoercion(value, attributeName) {
+  {
+    if (willCoercionThrow(value)) {
+      error('The provided `%s` attribute is an unsupported type %s.' + ' This value must be coerced to a string before before using it here.', attributeName, typeName(value));
+
+      return testStringCoercion(value); // throw (to help callers find troubleshooting comments)
+    }
+  }
+}
+function checkCSSPropertyStringCoercion(value, propName) {
+  {
+    if (willCoercionThrow(value)) {
+      error('The provided `%s` CSS property is an unsupported type %s.' + ' This value must be coerced to a string before before using it here.', propName, typeName(value));
+
+      return testStringCoercion(value); // throw (to help callers find troubleshooting comments)
+    }
+  }
+}
+function checkHtmlStringCoercion(value) {
+  {
+    if (willCoercionThrow(value)) {
+      error('The provided HTML markup uses a value of unsupported type %s.' + ' This value must be coerced to a string before before using it here.', typeName(value));
+
+      return testStringCoercion(value); // throw (to help callers find troubleshooting comments)
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+var enableFloat = true;
+
+var hasOwnProperty = Object.prototype.hasOwnProperty;
+
+// A reserved attribute.
+// It is handled by React separately and shouldn't be written to the DOM.
+var RESERVED = 0; // A simple string attribute.
+// Attributes that aren't in the filter are presumed to have this type.
+
+var STRING = 1; // A string attribute that accepts booleans in React. In HTML, these are called
+// "enumerated" attributes with "true" and "false" as possible values.
+// When true, it should be set to a "true" string.
+// When false, it should be set to a "false" string.
+
+var BOOLEANISH_STRING = 2; // A real boolean attribute.
+// When true, it should be present (set either to an empty string or its name).
+// When false, it should be omitted.
+
+var BOOLEAN = 3; // An attribute that can be used as a flag as well as with a value.
+// When true, it should be present (set either to an empty string or its name).
+// When false, it should be omitted.
+// For any other value, should be present with that value.
+
+var OVERLOADED_BOOLEAN = 4; // An attribute that must be numeric or parse as a numeric.
+// When falsy, it should be removed.
+
+var NUMERIC = 5; // An attribute that must be positive numeric or parse as a positive numeric.
+// When falsy, it should be removed.
+
+var POSITIVE_NUMERIC = 6;
+
+/* eslint-disable max-len */
+var ATTRIBUTE_NAME_START_CHAR = ":A-Z_a-z\\u00C0-\\u00D6\\u00D8-\\u00F6\\u00F8-\\u02FF\\u0370-\\u037D\\u037F-\\u1FFF\\u200C-\\u200D\\u2070-\\u218F\\u2C00-\\u2FEF\\u3001-\\uD7FF\\uF900-\\uFDCF\\uFDF0-\\uFFFD";
+/* eslint-enable max-len */
+
+var ATTRIBUTE_NAME_CHAR = ATTRIBUTE_NAME_START_CHAR + "\\-.0-9\\u00B7\\u0300-\\u036F\\u203F-\\u2040";
+var VALID_ATTRIBUTE_NAME_REGEX = new RegExp('^[' + ATTRIBUTE_NAME_START_CHAR + '][' + ATTRIBUTE_NAME_CHAR + ']*$');
+var illegalAttributeNameCache = {};
+var validatedAttributeNameCache = {};
+function isAttributeNameSafe(attributeName) {
+  if (hasOwnProperty.call(validatedAttributeNameCache, attributeName)) {
+    return true;
+  }
+
+  if (hasOwnProperty.call(illegalAttributeNameCache, attributeName)) {
+    return false;
+  }
+
+  if (VALID_ATTRIBUTE_NAME_REGEX.test(attributeName)) {
+    validatedAttributeNameCache[attributeName] = true;
+    return true;
+  }
+
+  illegalAttributeNameCache[attributeName] = true;
+
+  {
+    error('Invalid attribute name: `%s`', attributeName);
+  }
+
+  return false;
+}
+function shouldRemoveAttributeWithWarning(name, value, propertyInfo, isCustomComponentTag) {
+  if (propertyInfo !== null && propertyInfo.type === RESERVED) {
+    return false;
+  }
+
+  switch (typeof value) {
+    case 'function': // $FlowFixMe symbol is perfectly valid here
+
+    case 'symbol':
+      // eslint-disable-line
+      return true;
+
+    case 'boolean':
+      {
+        if (isCustomComponentTag) {
+          return false;
+        }
+
+        if (propertyInfo !== null) {
+          return !propertyInfo.acceptsBooleans;
+        } else {
+          var prefix = name.toLowerCase().slice(0, 5);
+          return prefix !== 'data-' && prefix !== 'aria-';
+        }
+      }
+
+    default:
+      return false;
+  }
+}
+function getPropertyInfo(name) {
+  return properties.hasOwnProperty(name) ? properties[name] : null;
+}
+
+function PropertyInfoRecord(name, type, mustUseProperty, attributeName, attributeNamespace, sanitizeURL, removeEmptyString) {
+  this.acceptsBooleans = type === BOOLEANISH_STRING || type === BOOLEAN || type === OVERLOADED_BOOLEAN;
+  this.attributeName = attributeName;
+  this.attributeNamespace = attributeNamespace;
+  this.mustUseProperty = mustUseProperty;
+  this.propertyName = name;
+  this.type = type;
+  this.sanitizeURL = sanitizeURL;
+  this.removeEmptyString = removeEmptyString;
+} // When adding attributes to this list, be sure to also add them to
+// the `possibleStandardNames` module to ensure casing and incorrect
+// name warnings.
+
+
+var properties = {}; // These props are reserved by React. They shouldn't be written to the DOM.
+
+var reservedProps = ['children', 'dangerouslySetInnerHTML', // TODO: This prevents the assignment of defaultValue to regular
+// elements (not just inputs). Now that ReactDOMInput assigns to the
+// defaultValue property -- do we need this?
+'defaultValue', 'defaultChecked', 'innerHTML', 'suppressContentEditableWarning', 'suppressHydrationWarning', 'style'];
+
+{
+  reservedProps.push('innerText', 'textContent');
+}
+
+reservedProps.forEach(function (name) {
+  properties[name] = new PropertyInfoRecord(name, RESERVED, false, // mustUseProperty
+  name, // attributeName
+  null, // attributeNamespace
+  false, // sanitizeURL
+  false);
+}); // A few React string attributes have a different name.
+// This is a mapping from React prop names to the attribute names.
+
+[['acceptCharset', 'accept-charset'], ['className', 'class'], ['htmlFor', 'for'], ['httpEquiv', 'http-equiv']].forEach(function (_ref) {
+  var name = _ref[0],
+      attributeName = _ref[1];
+  properties[name] = new PropertyInfoRecord(name, STRING, false, // mustUseProperty
+  attributeName, // attributeName
+  null, // attributeNamespace
+  false, // sanitizeURL
+  false);
+}); // These are "enumerated" HTML attributes that accept "true" and "false".
+// In React, we let users pass `true` and `false` even though technically
+// these aren't boolean attributes (they are coerced to strings).
+
+['contentEditable', 'draggable', 'spellCheck', 'value'].forEach(function (name) {
+  properties[name] = new PropertyInfoRecord(name, BOOLEANISH_STRING, false, // mustUseProperty
+  name.toLowerCase(), // attributeName
+  null, // attributeNamespace
+  false, // sanitizeURL
+  false);
+}); // These are "enumerated" SVG attributes that accept "true" and "false".
+// In React, we let users pass `true` and `false` even though technically
+// these aren't boolean attributes (they are coerced to strings).
+// Since these are SVG attributes, their attribute names are case-sensitive.
+
+['autoReverse', 'externalResourcesRequired', 'focusable', 'preserveAlpha'].forEach(function (name) {
+  properties[name] = new PropertyInfoRecord(name, BOOLEANISH_STRING, false, // mustUseProperty
+  name, // attributeName
+  null, // attributeNamespace
+  false, // sanitizeURL
+  false);
+}); // These are HTML boolean attributes.
+
+['allowFullScreen', 'async', // Note: there is a special case that prevents it from being written to the DOM
+// on the client side because the browsers are inconsistent. Instead we call focus().
+'autoFocus', 'autoPlay', 'controls', 'default', 'defer', 'disabled', 'disablePictureInPicture', 'disableRemotePlayback', 'formNoValidate', 'hidden', 'loop', 'noModule', 'noValidate', 'open', 'playsInline', 'readOnly', 'required', 'reversed', 'scoped', 'seamless', // Microdata
+'itemScope'].forEach(function (name) {
+  properties[name] = new PropertyInfoRecord(name, BOOLEAN, false, // mustUseProperty
+  name.toLowerCase(), // attributeName
+  null, // attributeNamespace
+  false, // sanitizeURL
+  false);
+}); // These are the few React props that we set as DOM properties
+// rather than attributes. These are all booleans.
+
+['checked', // Note: `option.selected` is not updated if `select.multiple` is
+// disabled with `removeAttribute`. We have special logic for handling this.
+'multiple', 'muted', 'selected' // NOTE: if you add a camelCased prop to this list,
+// you'll need to set attributeName to name.toLowerCase()
+// instead in the assignment below.
+].forEach(function (name) {
+  properties[name] = new PropertyInfoRecord(name, BOOLEAN, true, // mustUseProperty
+  name, // attributeName
+  null, // attributeNamespace
+  false, // sanitizeURL
+  false);
+}); // These are HTML attributes that are "overloaded booleans": they behave like
+// booleans, but can also accept a string value.
+
+['capture', 'download' // NOTE: if you add a camelCased prop to this list,
+// you'll need to set attributeName to name.toLowerCase()
+// instead in the assignment below.
+].forEach(function (name) {
+  properties[name] = new PropertyInfoRecord(name, OVERLOADED_BOOLEAN, false, // mustUseProperty
+  name, // attributeName
+  null, // attributeNamespace
+  false, // sanitizeURL
+  false);
+}); // These are HTML attributes that must be positive numbers.
+
+['cols', 'rows', 'size', 'span' // NOTE: if you add a camelCased prop to this list,
+// you'll need to set attributeName to name.toLowerCase()
+// instead in the assignment below.
+].forEach(function (name) {
+  properties[name] = new PropertyInfoRecord(name, POSITIVE_NUMERIC, false, // mustUseProperty
+  name, // attributeName
+  null, // attributeNamespace
+  false, // sanitizeURL
+  false);
+}); // These are HTML attributes that must be numbers.
+
+['rowSpan', 'start'].forEach(function (name) {
+  properties[name] = new PropertyInfoRecord(name, NUMERIC, false, // mustUseProperty
+  name.toLowerCase(), // attributeName
+  null, // attributeNamespace
+  false, // sanitizeURL
+  false);
+});
+var CAMELIZE = /[\-\:]([a-z])/g;
+
+var capitalize = function (token) {
+  return token[1].toUpperCase();
+}; // This is a list of all SVG attributes that need special casing, namespacing,
+// or boolean value assignment. Regular attributes that just accept strings
+// and have the same names are omitted, just like in the HTML attribute filter.
+// Some of these attributes can be hard to find. This list was created by
+// scraping the MDN documentation.
+
+
+['accent-height', 'alignment-baseline', 'arabic-form', 'baseline-shift', 'cap-height', 'clip-path', 'clip-rule', 'color-interpolation', 'color-interpolation-filters', 'color-profile', 'color-rendering', 'dominant-baseline', 'enable-background', 'fill-opacity', 'fill-rule', 'flood-color', 'flood-opacity', 'font-family', 'font-size', 'font-size-adjust', 'font-stretch', 'font-style', 'font-variant', 'font-weight', 'glyph-name', 'glyph-orientation-horizontal', 'glyph-orientation-vertical', 'horiz-adv-x', 'horiz-origin-x', 'image-rendering', 'letter-spacing', 'lighting-color', 'marker-end', 'marker-mid', 'marker-start', 'overline-position', 'overline-thickness', 'paint-order', 'panose-1', 'pointer-events', 'rendering-intent', 'shape-rendering', 'stop-color', 'stop-opacity', 'strikethrough-position', 'strikethrough-thickness', 'stroke-dasharray', 'stroke-dashoffset', 'stroke-linecap', 'stroke-linejoin', 'stroke-miterlimit', 'stroke-opacity', 'stroke-width', 'text-anchor', 'text-decoration', 'text-rendering', 'underline-position', 'underline-thickness', 'unicode-bidi', 'unicode-range', 'units-per-em', 'v-alphabetic', 'v-hanging', 'v-ideographic', 'v-mathematical', 'vector-effect', 'vert-adv-y', 'vert-origin-x', 'vert-origin-y', 'word-spacing', 'writing-mode', 'xmlns:xlink', 'x-height' // NOTE: if you add a camelCased prop to this list,
+// you'll need to set attributeName to name.toLowerCase()
+// instead in the assignment below.
+].forEach(function (attributeName) {
+  var name = attributeName.replace(CAMELIZE, capitalize);
+  properties[name] = new PropertyInfoRecord(name, STRING, false, // mustUseProperty
+  attributeName, null, // attributeNamespace
+  false, // sanitizeURL
+  false);
+}); // String SVG attributes with the xlink namespace.
+
+['xlink:actuate', 'xlink:arcrole', 'xlink:role', 'xlink:show', 'xlink:title', 'xlink:type' // NOTE: if you add a camelCased prop to this list,
+// you'll need to set attributeName to name.toLowerCase()
+// instead in the assignment below.
+].forEach(function (attributeName) {
+  var name = attributeName.replace(CAMELIZE, capitalize);
+  properties[name] = new PropertyInfoRecord(name, STRING, false, // mustUseProperty
+  attributeName, 'http://www.w3.org/1999/xlink', false, // sanitizeURL
+  false);
+}); // String SVG attributes with the xml namespace.
+
+['xml:base', 'xml:lang', 'xml:space' // NOTE: if you add a camelCased prop to this list,
+// you'll need to set attributeName to name.toLowerCase()
+// instead in the assignment below.
+].forEach(function (attributeName) {
+  var name = attributeName.replace(CAMELIZE, capitalize);
+  properties[name] = new PropertyInfoRecord(name, STRING, false, // mustUseProperty
+  attributeName, 'http://www.w3.org/XML/1998/namespace', false, // sanitizeURL
+  false);
+}); // These attribute exists both in HTML and SVG.
+// The attribute name is case-sensitive in SVG so we can't just use
+// the React name like we do for attributes that exist only in HTML.
+
+['tabIndex', 'crossOrigin'].forEach(function (attributeName) {
+  properties[attributeName] = new PropertyInfoRecord(attributeName, STRING, false, // mustUseProperty
+  attributeName.toLowerCase(), // attributeName
+  null, // attributeNamespace
+  false, // sanitizeURL
+  false);
+}); // These attributes accept URLs. These must not allow javascript: URLS.
+// These will also need to accept Trusted Types object in the future.
+
+var xlinkHref = 'xlinkHref';
+properties[xlinkHref] = new PropertyInfoRecord('xlinkHref', STRING, false, // mustUseProperty
+'xlink:href', 'http://www.w3.org/1999/xlink', true, // sanitizeURL
+false);
+['src', 'href', 'action', 'formAction'].forEach(function (attributeName) {
+  properties[attributeName] = new PropertyInfoRecord(attributeName, STRING, false, // mustUseProperty
+  attributeName.toLowerCase(), // attributeName
+  null, // attributeNamespace
+  true, // sanitizeURL
+  true);
+});
+
+/**
+ * CSS properties which accept numbers but are not in units of "px".
+ */
+var isUnitlessNumber = {
+  animationIterationCount: true,
+  aspectRatio: true,
+  borderImageOutset: true,
+  borderImageSlice: true,
+  borderImageWidth: true,
+  boxFlex: true,
+  boxFlexGroup: true,
+  boxOrdinalGroup: true,
+  columnCount: true,
+  columns: true,
+  flex: true,
+  flexGrow: true,
+  flexPositive: true,
+  flexShrink: true,
+  flexNegative: true,
+  flexOrder: true,
+  gridArea: true,
+  gridRow: true,
+  gridRowEnd: true,
+  gridRowSpan: true,
+  gridRowStart: true,
+  gridColumn: true,
+  gridColumnEnd: true,
+  gridColumnSpan: true,
+  gridColumnStart: true,
+  fontWeight: true,
+  lineClamp: true,
+  lineHeight: true,
+  opacity: true,
+  order: true,
+  orphans: true,
+  tabSize: true,
+  widows: true,
+  zIndex: true,
+  zoom: true,
+  // SVG-related properties
+  fillOpacity: true,
+  floodOpacity: true,
+  stopOpacity: true,
+  strokeDasharray: true,
+  strokeDashoffset: true,
+  strokeMiterlimit: true,
+  strokeOpacity: true,
+  strokeWidth: true
+};
+/**
+ * @param {string} prefix vendor-specific prefix, eg: Webkit
+ * @param {string} key style name, eg: transitionDuration
+ * @return {string} style name prefixed with `prefix`, properly camelCased, eg:
+ * WebkitTransitionDuration
+ */
+
+function prefixKey(prefix, key) {
+  return prefix + key.charAt(0).toUpperCase() + key.substring(1);
+}
+/**
+ * Support style names that may come passed in prefixed by adding permutations
+ * of vendor prefixes.
+ */
+
+
+var prefixes = ['Webkit', 'ms', 'Moz', 'O']; // Using Object.keys here, or else the vanilla for-in loop makes IE8 go into an
+// infinite loop, because it iterates over the newly added props too.
+
+Object.keys(isUnitlessNumber).forEach(function (prop) {
+  prefixes.forEach(function (prefix) {
+    isUnitlessNumber[prefixKey(prefix, prop)] = isUnitlessNumber[prop];
+  });
+});
+
+var hasReadOnlyValue = {
+  button: true,
+  checkbox: true,
+  image: true,
+  hidden: true,
+  radio: true,
+  reset: true,
+  submit: true
+};
+function checkControlledValueProps(tagName, props) {
+  {
+    if (!(hasReadOnlyValue[props.type] || props.onChange || props.onInput || props.readOnly || props.disabled || props.value == null)) {
+      error('You provided a `value` prop to a form field without an ' + '`onChange` handler. This will render a read-only field. If ' + 'the field should be mutable use `defaultValue`. Otherwise, ' + 'set either `onChange` or `readOnly`.');
+    }
+
+    if (!(props.onChange || props.readOnly || props.disabled || props.checked == null)) {
+      error('You provided a `checked` prop to a form field without an ' + '`onChange` handler. This will render a read-only field. If ' + 'the field should be mutable use `defaultChecked`. Otherwise, ' + 'set either `onChange` or `readOnly`.');
+    }
+  }
+}
+
+function isCustomComponent(tagName, props) {
+  if (tagName.indexOf('-') === -1) {
+    return typeof props.is === 'string';
+  }
+
+  switch (tagName) {
+    // These are reserved SVG and MathML elements.
+    // We don't mind this list too much because we expect it to never grow.
+    // The alternative is to track the namespace in a few places which is convoluted.
+    // https://w3c.github.io/webcomponents/spec/custom/#custom-elements-core-concepts
+    case 'annotation-xml':
+    case 'color-profile':
+    case 'font-face':
+    case 'font-face-src':
+    case 'font-face-uri':
+    case 'font-face-format':
+    case 'font-face-name':
+    case 'missing-glyph':
+      return false;
+
+    default:
+      return true;
+  }
+}
+
+var ariaProperties = {
+  'aria-current': 0,
+  // state
+  'aria-description': 0,
+  'aria-details': 0,
+  'aria-disabled': 0,
+  // state
+  'aria-hidden': 0,
+  // state
+  'aria-invalid': 0,
+  // state
+  'aria-keyshortcuts': 0,
+  'aria-label': 0,
+  'aria-roledescription': 0,
+  // Widget Attributes
+  'aria-autocomplete': 0,
+  'aria-checked': 0,
+  'aria-expanded': 0,
+  'aria-haspopup': 0,
+  'aria-level': 0,
+  'aria-modal': 0,
+  'aria-multiline': 0,
+  'aria-multiselectable': 0,
+  'aria-orientation': 0,
+  'aria-placeholder': 0,
+  'aria-pressed': 0,
+  'aria-readonly': 0,
+  'aria-required': 0,
+  'aria-selected': 0,
+  'aria-sort': 0,
+  'aria-valuemax': 0,
+  'aria-valuemin': 0,
+  'aria-valuenow': 0,
+  'aria-valuetext': 0,
+  // Live Region Attributes
+  'aria-atomic': 0,
+  'aria-busy': 0,
+  'aria-live': 0,
+  'aria-relevant': 0,
+  // Drag-and-Drop Attributes
+  'aria-dropeffect': 0,
+  'aria-grabbed': 0,
+  // Relationship Attributes
+  'aria-activedescendant': 0,
+  'aria-colcount': 0,
+  'aria-colindex': 0,
+  'aria-colspan': 0,
+  'aria-controls': 0,
+  'aria-describedby': 0,
+  'aria-errormessage': 0,
+  'aria-flowto': 0,
+  'aria-labelledby': 0,
+  'aria-owns': 0,
+  'aria-posinset': 0,
+  'aria-rowcount': 0,
+  'aria-rowindex': 0,
+  'aria-rowspan': 0,
+  'aria-setsize': 0
+};
+
+var warnedProperties = {};
+var rARIA = new RegExp('^(aria)-[' + ATTRIBUTE_NAME_CHAR + ']*$');
+var rARIACamel = new RegExp('^(aria)[A-Z][' + ATTRIBUTE_NAME_CHAR + ']*$');
+
+function validateProperty(tagName, name) {
+  {
+    if (hasOwnProperty.call(warnedProperties, name) && warnedProperties[name]) {
+      return true;
+    }
+
+    if (rARIACamel.test(name)) {
+      var ariaName = 'aria-' + name.slice(4).toLowerCase();
+      var correctName = ariaProperties.hasOwnProperty(ariaName) ? ariaName : null; // If this is an aria-* attribute, but is not listed in the known DOM
+      // DOM properties, then it is an invalid aria-* attribute.
+
+      if (correctName == null) {
+        error('Invalid ARIA attribute `%s`. ARIA attributes follow the pattern aria-* and must be lowercase.', name);
+
+        warnedProperties[name] = true;
+        return true;
+      } // aria-* attributes should be lowercase; suggest the lowercase version.
+
+
+      if (name !== correctName) {
+        error('Invalid ARIA attribute `%s`. Did you mean `%s`?', name, correctName);
+
+        warnedProperties[name] = true;
+        return true;
+      }
+    }
+
+    if (rARIA.test(name)) {
+      var lowerCasedName = name.toLowerCase();
+      var standardName = ariaProperties.hasOwnProperty(lowerCasedName) ? lowerCasedName : null; // If this is an aria-* attribute, but is not listed in the known DOM
+      // DOM properties, then it is an invalid aria-* attribute.
+
+      if (standardName == null) {
+        warnedProperties[name] = true;
+        return false;
+      } // aria-* attributes should be lowercase; suggest the lowercase version.
+
+
+      if (name !== standardName) {
+        error('Unknown ARIA attribute `%s`. Did you mean `%s`?', name, standardName);
+
+        warnedProperties[name] = true;
+        return true;
+      }
+    }
+  }
+
+  return true;
+}
+
+function warnInvalidARIAProps(type, props) {
+  {
+    var invalidProps = [];
+
+    for (var key in props) {
+      var isValid = validateProperty(type, key);
+
+      if (!isValid) {
+        invalidProps.push(key);
+      }
+    }
+
+    var unknownPropString = invalidProps.map(function (prop) {
+      return '`' + prop + '`';
+    }).join(', ');
+
+    if (invalidProps.length === 1) {
+      error('Invalid aria prop %s on <%s> tag. ' + 'For details, see https://reactjs.org/link/invalid-aria-props', unknownPropString, type);
+    } else if (invalidProps.length > 1) {
+      error('Invalid aria props %s on <%s> tag. ' + 'For details, see https://reactjs.org/link/invalid-aria-props', unknownPropString, type);
+    }
+  }
+}
+
+function validateProperties(type, props) {
+  if (isCustomComponent(type, props)) {
+    return;
+  }
+
+  warnInvalidARIAProps(type, props);
+}
+
+var didWarnValueNull = false;
+function validateProperties$1(type, props) {
+  {
+    if (type !== 'input' && type !== 'textarea' && type !== 'select') {
+      return;
+    }
+
+    if (props != null && props.value === null && !didWarnValueNull) {
+      didWarnValueNull = true;
+
+      if (type === 'select' && props.multiple) {
+        error('`value` prop on `%s` should not be null. ' + 'Consider using an empty array when `multiple` is set to `true` ' + 'to clear the component or `undefined` for uncontrolled components.', type);
+      } else {
+        error('`value` prop on `%s` should not be null. ' + 'Consider using an empty string to clear the component or `undefined` ' + 'for uncontrolled components.', type);
+      }
+    }
+  }
+}
+
+// When adding attributes to the HTML or SVG allowed attribute list, be sure to
+// also add them to this module to ensure casing and incorrect name
+// warnings.
+var possibleStandardNames = {
+  // HTML
+  accept: 'accept',
+  acceptcharset: 'acceptCharset',
+  'accept-charset': 'acceptCharset',
+  accesskey: 'accessKey',
+  action: 'action',
+  allowfullscreen: 'allowFullScreen',
+  alt: 'alt',
+  as: 'as',
+  async: 'async',
+  autocapitalize: 'autoCapitalize',
+  autocomplete: 'autoComplete',
+  autocorrect: 'autoCorrect',
+  autofocus: 'autoFocus',
+  autoplay: 'autoPlay',
+  autosave: 'autoSave',
+  capture: 'capture',
+  cellpadding: 'cellPadding',
+  cellspacing: 'cellSpacing',
+  challenge: 'challenge',
+  charset: 'charSet',
+  checked: 'checked',
+  children: 'children',
+  cite: 'cite',
+  class: 'className',
+  classid: 'classID',
+  classname: 'className',
+  cols: 'cols',
+  colspan: 'colSpan',
+  content: 'content',
+  contenteditable: 'contentEditable',
+  contextmenu: 'contextMenu',
+  controls: 'controls',
+  controlslist: 'controlsList',
+  coords: 'coords',
+  crossorigin: 'crossOrigin',
+  dangerouslysetinnerhtml: 'dangerouslySetInnerHTML',
+  data: 'data',
+  datetime: 'dateTime',
+  default: 'default',
+  defaultchecked: 'defaultChecked',
+  defaultvalue: 'defaultValue',
+  defer: 'defer',
+  dir: 'dir',
+  disabled: 'disabled',
+  disablepictureinpicture: 'disablePictureInPicture',
+  disableremoteplayback: 'disableRemotePlayback',
+  download: 'download',
+  draggable: 'draggable',
+  enctype: 'encType',
+  enterkeyhint: 'enterKeyHint',
+  for: 'htmlFor',
+  form: 'form',
+  formmethod: 'formMethod',
+  formaction: 'formAction',
+  formenctype: 'formEncType',
+  formnovalidate: 'formNoValidate',
+  formtarget: 'formTarget',
+  frameborder: 'frameBorder',
+  headers: 'headers',
+  height: 'height',
+  hidden: 'hidden',
+  high: 'high',
+  href: 'href',
+  hreflang: 'hrefLang',
+  htmlfor: 'htmlFor',
+  httpequiv: 'httpEquiv',
+  'http-equiv': 'httpEquiv',
+  icon: 'icon',
+  id: 'id',
+  imagesizes: 'imageSizes',
+  imagesrcset: 'imageSrcSet',
+  innerhtml: 'innerHTML',
+  inputmode: 'inputMode',
+  integrity: 'integrity',
+  is: 'is',
+  itemid: 'itemID',
+  itemprop: 'itemProp',
+  itemref: 'itemRef',
+  itemscope: 'itemScope',
+  itemtype: 'itemType',
+  keyparams: 'keyParams',
+  keytype: 'keyType',
+  kind: 'kind',
+  label: 'label',
+  lang: 'lang',
+  list: 'list',
+  loop: 'loop',
+  low: 'low',
+  manifest: 'manifest',
+  marginwidth: 'marginWidth',
+  marginheight: 'marginHeight',
+  max: 'max',
+  maxlength: 'maxLength',
+  media: 'media',
+  mediagroup: 'mediaGroup',
+  method: 'method',
+  min: 'min',
+  minlength: 'minLength',
+  multiple: 'multiple',
+  muted: 'muted',
+  name: 'name',
+  nomodule: 'noModule',
+  nonce: 'nonce',
+  novalidate: 'noValidate',
+  open: 'open',
+  optimum: 'optimum',
+  pattern: 'pattern',
+  placeholder: 'placeholder',
+  playsinline: 'playsInline',
+  poster: 'poster',
+  preload: 'preload',
+  profile: 'profile',
+  radiogroup: 'radioGroup',
+  readonly: 'readOnly',
+  referrerpolicy: 'referrerPolicy',
+  rel: 'rel',
+  required: 'required',
+  reversed: 'reversed',
+  role: 'role',
+  rows: 'rows',
+  rowspan: 'rowSpan',
+  sandbox: 'sandbox',
+  scope: 'scope',
+  scoped: 'scoped',
+  scrolling: 'scrolling',
+  seamless: 'seamless',
+  selected: 'selected',
+  shape: 'shape',
+  size: 'size',
+  sizes: 'sizes',
+  span: 'span',
+  spellcheck: 'spellCheck',
+  src: 'src',
+  srcdoc: 'srcDoc',
+  srclang: 'srcLang',
+  srcset: 'srcSet',
+  start: 'start',
+  step: 'step',
+  style: 'style',
+  summary: 'summary',
+  tabindex: 'tabIndex',
+  target: 'target',
+  title: 'title',
+  type: 'type',
+  usemap: 'useMap',
+  value: 'value',
+  width: 'width',
+  wmode: 'wmode',
+  wrap: 'wrap',
+  // SVG
+  about: 'about',
+  accentheight: 'accentHeight',
+  'accent-height': 'accentHeight',
+  accumulate: 'accumulate',
+  additive: 'additive',
+  alignmentbaseline: 'alignmentBaseline',
+  'alignment-baseline': 'alignmentBaseline',
+  allowreorder: 'allowReorder',
+  alphabetic: 'alphabetic',
+  amplitude: 'amplitude',
+  arabicform: 'arabicForm',
+  'arabic-form': 'arabicForm',
+  ascent: 'ascent',
+  attributename: 'attributeName',
+  attributetype: 'attributeType',
+  autoreverse: 'autoReverse',
+  azimuth: 'azimuth',
+  basefrequency: 'baseFrequency',
+  baselineshift: 'baselineShift',
+  'baseline-shift': 'baselineShift',
+  baseprofile: 'baseProfile',
+  bbox: 'bbox',
+  begin: 'begin',
+  bias: 'bias',
+  by: 'by',
+  calcmode: 'calcMode',
+  capheight: 'capHeight',
+  'cap-height': 'capHeight',
+  clip: 'clip',
+  clippath: 'clipPath',
+  'clip-path': 'clipPath',
+  clippathunits: 'clipPathUnits',
+  cliprule: 'clipRule',
+  'clip-rule': 'clipRule',
+  color: 'color',
+  colorinterpolation: 'colorInterpolation',
+  'color-interpolation': 'colorInterpolation',
+  colorinterpolationfilters: 'colorInterpolationFilters',
+  'color-interpolation-filters': 'colorInterpolationFilters',
+  colorprofile: 'colorProfile',
+  'color-profile': 'colorProfile',
+  colorrendering: 'colorRendering',
+  'color-rendering': 'colorRendering',
+  contentscripttype: 'contentScriptType',
+  contentstyletype: 'contentStyleType',
+  cursor: 'cursor',
+  cx: 'cx',
+  cy: 'cy',
+  d: 'd',
+  datatype: 'datatype',
+  decelerate: 'decelerate',
+  descent: 'descent',
+  diffuseconstant: 'diffuseConstant',
+  direction: 'direction',
+  display: 'display',
+  divisor: 'divisor',
+  dominantbaseline: 'dominantBaseline',
+  'dominant-baseline': 'dominantBaseline',
+  dur: 'dur',
+  dx: 'dx',
+  dy: 'dy',
+  edgemode: 'edgeMode',
+  elevation: 'elevation',
+  enablebackground: 'enableBackground',
+  'enable-background': 'enableBackground',
+  end: 'end',
+  exponent: 'exponent',
+  externalresourcesrequired: 'externalResourcesRequired',
+  fill: 'fill',
+  fillopacity: 'fillOpacity',
+  'fill-opacity': 'fillOpacity',
+  fillrule: 'fillRule',
+  'fill-rule': 'fillRule',
+  filter: 'filter',
+  filterres: 'filterRes',
+  filterunits: 'filterUnits',
+  floodopacity: 'floodOpacity',
+  'flood-opacity': 'floodOpacity',
+  floodcolor: 'floodColor',
+  'flood-color': 'floodColor',
+  focusable: 'focusable',
+  fontfamily: 'fontFamily',
+  'font-family': 'fontFamily',
+  fontsize: 'fontSize',
+  'font-size': 'fontSize',
+  fontsizeadjust: 'fontSizeAdjust',
+  'font-size-adjust': 'fontSizeAdjust',
+  fontstretch: 'fontStretch',
+  'font-stretch': 'fontStretch',
+  fontstyle: 'fontStyle',
+  'font-style': 'fontStyle',
+  fontvariant: 'fontVariant',
+  'font-variant': 'fontVariant',
+  fontweight: 'fontWeight',
+  'font-weight': 'fontWeight',
+  format: 'format',
+  from: 'from',
+  fx: 'fx',
+  fy: 'fy',
+  g1: 'g1',
+  g2: 'g2',
+  glyphname: 'glyphName',
+  'glyph-name': 'glyphName',
+  glyphorientationhorizontal: 'glyphOrientationHorizontal',
+  'glyph-orientation-horizontal': 'glyphOrientationHorizontal',
+  glyphorientationvertical: 'glyphOrientationVertical',
+  'glyph-orientation-vertical': 'glyphOrientationVertical',
+  glyphref: 'glyphRef',
+  gradienttransform: 'gradientTransform',
+  gradientunits: 'gradientUnits',
+  hanging: 'hanging',
+  horizadvx: 'horizAdvX',
+  'horiz-adv-x': 'horizAdvX',
+  horizoriginx: 'horizOriginX',
+  'horiz-origin-x': 'horizOriginX',
+  ideographic: 'ideographic',
+  imagerendering: 'imageRendering',
+  'image-rendering': 'imageRendering',
+  in2: 'in2',
+  in: 'in',
+  inlist: 'inlist',
+  intercept: 'intercept',
+  k1: 'k1',
+  k2: 'k2',
+  k3: 'k3',
+  k4: 'k4',
+  k: 'k',
+  kernelmatrix: 'kernelMatrix',
+  kernelunitlength: 'kernelUnitLength',
+  kerning: 'kerning',
+  keypoints: 'keyPoints',
+  keysplines: 'keySplines',
+  keytimes: 'keyTimes',
+  lengthadjust: 'lengthAdjust',
+  letterspacing: 'letterSpacing',
+  'letter-spacing': 'letterSpacing',
+  lightingcolor: 'lightingColor',
+  'lighting-color': 'lightingColor',
+  limitingconeangle: 'limitingConeAngle',
+  local: 'local',
+  markerend: 'markerEnd',
+  'marker-end': 'markerEnd',
+  markerheight: 'markerHeight',
+  markermid: 'markerMid',
+  'marker-mid': 'markerMid',
+  markerstart: 'markerStart',
+  'marker-start': 'markerStart',
+  markerunits: 'markerUnits',
+  markerwidth: 'markerWidth',
+  mask: 'mask',
+  maskcontentunits: 'maskContentUnits',
+  maskunits: 'maskUnits',
+  mathematical: 'mathematical',
+  mode: 'mode',
+  numoctaves: 'numOctaves',
+  offset: 'offset',
+  opacity: 'opacity',
+  operator: 'operator',
+  order: 'order',
+  orient: 'orient',
+  orientation: 'orientation',
+  origin: 'origin',
+  overflow: 'overflow',
+  overlineposition: 'overlinePosition',
+  'overline-position': 'overlinePosition',
+  overlinethickness: 'overlineThickness',
+  'overline-thickness': 'overlineThickness',
+  paintorder: 'paintOrder',
+  'paint-order': 'paintOrder',
+  panose1: 'panose1',
+  'panose-1': 'panose1',
+  pathlength: 'pathLength',
+  patterncontentunits: 'patternContentUnits',
+  patterntransform: 'patternTransform',
+  patternunits: 'patternUnits',
+  pointerevents: 'pointerEvents',
+  'pointer-events': 'pointerEvents',
+  points: 'points',
+  pointsatx: 'pointsAtX',
+  pointsaty: 'pointsAtY',
+  pointsatz: 'pointsAtZ',
+  prefix: 'prefix',
+  preservealpha: 'preserveAlpha',
+  preserveaspectratio: 'preserveAspectRatio',
+  primitiveunits: 'primitiveUnits',
+  property: 'property',
+  r: 'r',
+  radius: 'radius',
+  refx: 'refX',
+  refy: 'refY',
+  renderingintent: 'renderingIntent',
+  'rendering-intent': 'renderingIntent',
+  repeatcount: 'repeatCount',
+  repeatdur: 'repeatDur',
+  requiredextensions: 'requiredExtensions',
+  requiredfeatures: 'requiredFeatures',
+  resource: 'resource',
+  restart: 'restart',
+  result: 'result',
+  results: 'results',
+  rotate: 'rotate',
+  rx: 'rx',
+  ry: 'ry',
+  scale: 'scale',
+  security: 'security',
+  seed: 'seed',
+  shaperendering: 'shapeRendering',
+  'shape-rendering': 'shapeRendering',
+  slope: 'slope',
+  spacing: 'spacing',
+  specularconstant: 'specularConstant',
+  specularexponent: 'specularExponent',
+  speed: 'speed',
+  spreadmethod: 'spreadMethod',
+  startoffset: 'startOffset',
+  stddeviation: 'stdDeviation',
+  stemh: 'stemh',
+  stemv: 'stemv',
+  stitchtiles: 'stitchTiles',
+  stopcolor: 'stopColor',
+  'stop-color': 'stopColor',
+  stopopacity: 'stopOpacity',
+  'stop-opacity': 'stopOpacity',
+  strikethroughposition: 'strikethroughPosition',
+  'strikethrough-position': 'strikethroughPosition',
+  strikethroughthickness: 'strikethroughThickness',
+  'strikethrough-thickness': 'strikethroughThickness',
+  string: 'string',
+  stroke: 'stroke',
+  strokedasharray: 'strokeDasharray',
+  'stroke-dasharray': 'strokeDasharray',
+  strokedashoffset: 'strokeDashoffset',
+  'stroke-dashoffset': 'strokeDashoffset',
+  strokelinecap: 'strokeLinecap',
+  'stroke-linecap': 'strokeLinecap',
+  strokelinejoin: 'strokeLinejoin',
+  'stroke-linejoin': 'strokeLinejoin',
+  strokemiterlimit: 'strokeMiterlimit',
+  'stroke-miterlimit': 'strokeMiterlimit',
+  strokewidth: 'strokeWidth',
+  'stroke-width': 'strokeWidth',
+  strokeopacity: 'strokeOpacity',
+  'stroke-opacity': 'strokeOpacity',
+  suppresscontenteditablewarning: 'suppressContentEditableWarning',
+  suppresshydrationwarning: 'suppressHydrationWarning',
+  surfacescale: 'surfaceScale',
+  systemlanguage: 'systemLanguage',
+  tablevalues: 'tableValues',
+  targetx: 'targetX',
+  targety: 'targetY',
+  textanchor: 'textAnchor',
+  'text-anchor': 'textAnchor',
+  textdecoration: 'textDecoration',
+  'text-decoration': 'textDecoration',
+  textlength: 'textLength',
+  textrendering: 'textRendering',
+  'text-rendering': 'textRendering',
+  to: 'to',
+  transform: 'transform',
+  typeof: 'typeof',
+  u1: 'u1',
+  u2: 'u2',
+  underlineposition: 'underlinePosition',
+  'underline-position': 'underlinePosition',
+  underlinethickness: 'underlineThickness',
+  'underline-thickness': 'underlineThickness',
+  unicode: 'unicode',
+  unicodebidi: 'unicodeBidi',
+  'unicode-bidi': 'unicodeBidi',
+  unicoderange: 'unicodeRange',
+  'unicode-range': 'unicodeRange',
+  unitsperem: 'unitsPerEm',
+  'units-per-em': 'unitsPerEm',
+  unselectable: 'unselectable',
+  valphabetic: 'vAlphabetic',
+  'v-alphabetic': 'vAlphabetic',
+  values: 'values',
+  vectoreffect: 'vectorEffect',
+  'vector-effect': 'vectorEffect',
+  version: 'version',
+  vertadvy: 'vertAdvY',
+  'vert-adv-y': 'vertAdvY',
+  vertoriginx: 'vertOriginX',
+  'vert-origin-x': 'vertOriginX',
+  vertoriginy: 'vertOriginY',
+  'vert-origin-y': 'vertOriginY',
+  vhanging: 'vHanging',
+  'v-hanging': 'vHanging',
+  videographic: 'vIdeographic',
+  'v-ideographic': 'vIdeographic',
+  viewbox: 'viewBox',
+  viewtarget: 'viewTarget',
+  visibility: 'visibility',
+  vmathematical: 'vMathematical',
+  'v-mathematical': 'vMathematical',
+  vocab: 'vocab',
+  widths: 'widths',
+  wordspacing: 'wordSpacing',
+  'word-spacing': 'wordSpacing',
+  writingmode: 'writingMode',
+  'writing-mode': 'writingMode',
+  x1: 'x1',
+  x2: 'x2',
+  x: 'x',
+  xchannelselector: 'xChannelSelector',
+  xheight: 'xHeight',
+  'x-height': 'xHeight',
+  xlinkactuate: 'xlinkActuate',
+  'xlink:actuate': 'xlinkActuate',
+  xlinkarcrole: 'xlinkArcrole',
+  'xlink:arcrole': 'xlinkArcrole',
+  xlinkhref: 'xlinkHref',
+  'xlink:href': 'xlinkHref',
+  xlinkrole: 'xlinkRole',
+  'xlink:role': 'xlinkRole',
+  xlinkshow: 'xlinkShow',
+  'xlink:show': 'xlinkShow',
+  xlinktitle: 'xlinkTitle',
+  'xlink:title': 'xlinkTitle',
+  xlinktype: 'xlinkType',
+  'xlink:type': 'xlinkType',
+  xmlbase: 'xmlBase',
+  'xml:base': 'xmlBase',
+  xmllang: 'xmlLang',
+  'xml:lang': 'xmlLang',
+  xmlns: 'xmlns',
+  'xml:space': 'xmlSpace',
+  xmlnsxlink: 'xmlnsXlink',
+  'xmlns:xlink': 'xmlnsXlink',
+  xmlspace: 'xmlSpace',
+  y1: 'y1',
+  y2: 'y2',
+  y: 'y',
+  ychannelselector: 'yChannelSelector',
+  z: 'z',
+  zoomandpan: 'zoomAndPan'
+};
+
+var validateProperty$1 = function () {};
+
+{
+  var warnedProperties$1 = {};
+  var EVENT_NAME_REGEX = /^on./;
+  var INVALID_EVENT_NAME_REGEX = /^on[^A-Z]/;
+  var rARIA$1 = new RegExp('^(aria)-[' + ATTRIBUTE_NAME_CHAR + ']*$');
+  var rARIACamel$1 = new RegExp('^(aria)[A-Z][' + ATTRIBUTE_NAME_CHAR + ']*$');
+
+  validateProperty$1 = function (tagName, name, value, eventRegistry) {
+    if (hasOwnProperty.call(warnedProperties$1, name) && warnedProperties$1[name]) {
+      return true;
+    }
+
+    var lowerCasedName = name.toLowerCase();
+
+    if (lowerCasedName === 'onfocusin' || lowerCasedName === 'onfocusout') {
+      error('React uses onFocus and onBlur instead of onFocusIn and onFocusOut. ' + 'All React events are normalized to bubble, so onFocusIn and onFocusOut ' + 'are not needed/supported by React.');
+
+      warnedProperties$1[name] = true;
+      return true;
+    } // We can't rely on the event system being injected on the server.
+
+
+    if (eventRegistry != null) {
+      var registrationNameDependencies = eventRegistry.registrationNameDependencies,
+          possibleRegistrationNames = eventRegistry.possibleRegistrationNames;
+
+      if (registrationNameDependencies.hasOwnProperty(name)) {
+        return true;
+      }
+
+      var registrationName = possibleRegistrationNames.hasOwnProperty(lowerCasedName) ? possibleRegistrationNames[lowerCasedName] : null;
+
+      if (registrationName != null) {
+        error('Invalid event handler property `%s`. Did you mean `%s`?', name, registrationName);
+
+        warnedProperties$1[name] = true;
+        return true;
+      }
+
+      if (EVENT_NAME_REGEX.test(name)) {
+        error('Unknown event handler property `%s`. It will be ignored.', name);
+
+        warnedProperties$1[name] = true;
+        return true;
+      }
+    } else if (EVENT_NAME_REGEX.test(name)) {
+      // If no event plugins have been injected, we are in a server environment.
+      // So we can't tell if the event name is correct for sure, but we can filter
+      // out known bad ones like `onclick`. We can't suggest a specific replacement though.
+      if (INVALID_EVENT_NAME_REGEX.test(name)) {
+        error('Invalid event handler property `%s`. ' + 'React events use the camelCase naming convention, for example `onClick`.', name);
+      }
+
+      warnedProperties$1[name] = true;
+      return true;
+    } // Let the ARIA attribute hook validate ARIA attributes
+
+
+    if (rARIA$1.test(name) || rARIACamel$1.test(name)) {
+      return true;
+    }
+
+    if (lowerCasedName === 'innerhtml') {
+      error('Directly setting property `innerHTML` is not permitted. ' + 'For more information, lookup documentation on `dangerouslySetInnerHTML`.');
+
+      warnedProperties$1[name] = true;
+      return true;
+    }
+
+    if (lowerCasedName === 'aria') {
+      error('The `aria` attribute is reserved for future use in React. ' + 'Pass individual `aria-` attributes instead.');
+
+      warnedProperties$1[name] = true;
+      return true;
+    }
+
+    if (lowerCasedName === 'is' && value !== null && value !== undefined && typeof value !== 'string') {
+      error('Received a `%s` for a string attribute `is`. If this is expected, cast ' + 'the value to a string.', typeof value);
+
+      warnedProperties$1[name] = true;
+      return true;
+    }
+
+    if (typeof value === 'number' && isNaN(value)) {
+      error('Received NaN for the `%s` attribute. If this is expected, cast ' + 'the value to a string.', name);
+
+      warnedProperties$1[name] = true;
+      return true;
+    }
+
+    var propertyInfo = getPropertyInfo(name);
+    var isReserved = propertyInfo !== null && propertyInfo.type === RESERVED; // Known attributes should match the casing specified in the property config.
+
+    if (possibleStandardNames.hasOwnProperty(lowerCasedName)) {
+      var standardName = possibleStandardNames[lowerCasedName];
+
+      if (standardName !== name) {
+        error('Invalid DOM property `%s`. Did you mean `%s`?', name, standardName);
+
+        warnedProperties$1[name] = true;
+        return true;
+      }
+    } else if (!isReserved && name !== lowerCasedName) {
+      // Unknown attributes should have lowercase casing since that's how they
+      // will be cased anyway with server rendering.
+      error('React does not recognize the `%s` prop on a DOM element. If you ' + 'intentionally want it to appear in the DOM as a custom ' + 'attribute, spell it as lowercase `%s` instead. ' + 'If you accidentally passed it from a parent component, remove ' + 'it from the DOM element.', name, lowerCasedName);
+
+      warnedProperties$1[name] = true;
+      return true;
+    }
+
+    if (typeof value === 'boolean' && shouldRemoveAttributeWithWarning(name, value, propertyInfo, false)) {
+      if (value) {
+        error('Received `%s` for a non-boolean attribute `%s`.\n\n' + 'If you want to write it to the DOM, pass a string instead: ' + '%s="%s" or %s={value.toString()}.', value, name, name, value, name);
+      } else {
+        error('Received `%s` for a non-boolean attribute `%s`.\n\n' + 'If you want to write it to the DOM, pass a string instead: ' + '%s="%s" or %s={value.toString()}.\n\n' + 'If you used to conditionally omit it with %s={condition && value}, ' + 'pass %s={condition ? value : undefined} instead.', value, name, name, value, name, name, name);
+      }
+
+      warnedProperties$1[name] = true;
+      return true;
+    } // Now that we've validated casing, do not validate
+    // data types for reserved props
+
+
+    if (isReserved) {
+      return true;
+    } // Warn when a known attribute is a bad type
+
+
+    if (shouldRemoveAttributeWithWarning(name, value, propertyInfo, false)) {
+      warnedProperties$1[name] = true;
+      return false;
+    } // Warn when passing the strings 'false' or 'true' into a boolean prop
+
+
+    if ((value === 'false' || value === 'true') && propertyInfo !== null && propertyInfo.type === BOOLEAN) {
+      error('Received the string `%s` for the boolean attribute `%s`. ' + '%s ' + 'Did you mean %s={%s}?', value, name, value === 'false' ? 'The browser will interpret it as a truthy value.' : 'Although this works, it will not work as expected if you pass the string "false".', name, value);
+
+      warnedProperties$1[name] = true;
+      return true;
+    }
+
+    return true;
+  };
+}
+
+var warnUnknownProperties = function (type, props, eventRegistry) {
+  {
+    var unknownProps = [];
+
+    for (var key in props) {
+      var isValid = validateProperty$1(type, key, props[key], eventRegistry);
+
+      if (!isValid) {
+        unknownProps.push(key);
+      }
+    }
+
+    var unknownPropString = unknownProps.map(function (prop) {
+      return '`' + prop + '`';
+    }).join(', ');
+
+    if (unknownProps.length === 1) {
+      error('Invalid value for prop %s on <%s> tag. Either remove it from the element, ' + 'or pass a string or number value to keep it in the DOM. ' + 'For details, see https://reactjs.org/link/attribute-behavior ', unknownPropString, type);
+    } else if (unknownProps.length > 1) {
+      error('Invalid values for props %s on <%s> tag. Either remove them from the element, ' + 'or pass a string or number value to keep them in the DOM. ' + 'For details, see https://reactjs.org/link/attribute-behavior ', unknownPropString, type);
+    }
+  }
+};
+
+function validateProperties$2(type, props, eventRegistry) {
+  if (isCustomComponent(type, props)) {
+    return;
+  }
+
+  warnUnknownProperties(type, props, eventRegistry);
+}
+
+var warnValidStyle = function () {};
+
+{
+  // 'msTransform' is correct, but the other prefixes should be capitalized
+  var badVendoredStyleNamePattern = /^(?:webkit|moz|o)[A-Z]/;
+  var msPattern = /^-ms-/;
+  var hyphenPattern = /-(.)/g; // style values shouldn't contain a semicolon
+
+  var badStyleValueWithSemicolonPattern = /;\s*$/;
+  var warnedStyleNames = {};
+  var warnedStyleValues = {};
+  var warnedForNaNValue = false;
+  var warnedForInfinityValue = false;
+
+  var camelize = function (string) {
+    return string.replace(hyphenPattern, function (_, character) {
+      return character.toUpperCase();
+    });
+  };
+
+  var warnHyphenatedStyleName = function (name) {
+    if (warnedStyleNames.hasOwnProperty(name) && warnedStyleNames[name]) {
+      return;
+    }
+
+    warnedStyleNames[name] = true;
+
+    error('Unsupported style property %s. Did you mean %s?', name, // As Andi Smith suggests
+    // (http://www.andismith.com/blog/2012/02/modernizr-prefixed/), an `-ms` prefix
+    // is converted to lowercase `ms`.
+    camelize(name.replace(msPattern, 'ms-')));
+  };
+
+  var warnBadVendoredStyleName = function (name) {
+    if (warnedStyleNames.hasOwnProperty(name) && warnedStyleNames[name]) {
+      return;
+    }
+
+    warnedStyleNames[name] = true;
+
+    error('Unsupported vendor-prefixed style property %s. Did you mean %s?', name, name.charAt(0).toUpperCase() + name.slice(1));
+  };
+
+  var warnStyleValueWithSemicolon = function (name, value) {
+    if (warnedStyleValues.hasOwnProperty(value) && warnedStyleValues[value]) {
+      return;
+    }
+
+    warnedStyleValues[value] = true;
+
+    error("Style property values shouldn't contain a semicolon. " + 'Try "%s: %s" instead.', name, value.replace(badStyleValueWithSemicolonPattern, ''));
+  };
+
+  var warnStyleValueIsNaN = function (name, value) {
+    if (warnedForNaNValue) {
+      return;
+    }
+
+    warnedForNaNValue = true;
+
+    error('`NaN` is an invalid value for the `%s` css style property.', name);
+  };
+
+  var warnStyleValueIsInfinity = function (name, value) {
+    if (warnedForInfinityValue) {
+      return;
+    }
+
+    warnedForInfinityValue = true;
+
+    error('`Infinity` is an invalid value for the `%s` css style property.', name);
+  };
+
+  warnValidStyle = function (name, value) {
+    if (name.indexOf('-') > -1) {
+      warnHyphenatedStyleName(name);
+    } else if (badVendoredStyleNamePattern.test(name)) {
+      warnBadVendoredStyleName(name);
+    } else if (badStyleValueWithSemicolonPattern.test(value)) {
+      warnStyleValueWithSemicolon(name, value);
+    }
+
+    if (typeof value === 'number') {
+      if (isNaN(value)) {
+        warnStyleValueIsNaN(name, value);
+      } else if (!isFinite(value)) {
+        warnStyleValueIsInfinity(name, value);
+      }
+    }
+  };
+}
+
+var warnValidStyle$1 = warnValidStyle;
+
+// code copied and modified from escape-html
+var matchHtmlRegExp = /["'&<>]/;
+/**
+ * Escapes special characters and HTML entities in a given html string.
+ *
+ * @param  {string} string HTML string to escape for later insertion
+ * @return {string}
+ * @public
+ */
+
+function escapeHtml(string) {
+  {
+    checkHtmlStringCoercion(string);
+  }
+
+  var str = '' + string;
+  var match = matchHtmlRegExp.exec(str);
+
+  if (!match) {
+    return str;
+  }
+
+  var escape;
+  var html = '';
+  var index;
+  var lastIndex = 0;
+
+  for (index = match.index; index < str.length; index++) {
+    switch (str.charCodeAt(index)) {
+      case 34:
+        // "
+        escape = '&quot;';
+        break;
+
+      case 38:
+        // &
+        escape = '&amp;';
+        break;
+
+      case 39:
+        // '
+        escape = '&#x27;'; // modified from escape-html; used to be '&#39'
+
+        break;
+
+      case 60:
+        // <
+        escape = '&lt;';
+        break;
+
+      case 62:
+        // >
+        escape = '&gt;';
+        break;
+
+      default:
+        continue;
+    }
+
+    if (lastIndex !== index) {
+      html += str.substring(lastIndex, index);
+    }
+
+    lastIndex = index + 1;
+    html += escape;
+  }
+
+  return lastIndex !== index ? html + str.substring(lastIndex, index) : html;
+} // end code copied and modified from escape-html
+
+/**
+ * Escapes text to prevent scripting attacks.
+ *
+ * @param {*} text Text value to escape.
+ * @return {string} An escaped string.
+ */
+
+
+function escapeTextForBrowser(text) {
+  if (typeof text === 'boolean' || typeof text === 'number') {
+    // this shortcircuit helps perf for types that we know will never have
+    // special characters, especially given that this function is used often
+    // for numeric dom ids.
+    return '' + text;
+  }
+
+  return escapeHtml(text);
+}
+
+var uppercasePattern = /([A-Z])/g;
+var msPattern$1 = /^ms-/;
+/**
+ * Hyphenates a camelcased CSS property name, for example:
+ *
+ *   > hyphenateStyleName('backgroundColor')
+ *   < "background-color"
+ *   > hyphenateStyleName('MozTransition')
+ *   < "-moz-transition"
+ *   > hyphenateStyleName('msTransition')
+ *   < "-ms-transition"
+ *
+ * As Modernizr suggests (http://modernizr.com/docs/#prefixed), an `ms` prefix
+ * is converted to `-ms-`.
+ */
+
+function hyphenateStyleName(name) {
+  return name.replace(uppercasePattern, '-$1').toLowerCase().replace(msPattern$1, '-ms-');
+}
+
+// and any newline or tab are filtered out as if they're not part of the URL.
+// https://url.spec.whatwg.org/#url-parsing
+// Tab or newline are defined as \r\n\t:
+// https://infra.spec.whatwg.org/#ascii-tab-or-newline
+// A C0 control is a code point in the range \u0000 NULL to \u001F
+// INFORMATION SEPARATOR ONE, inclusive:
+// https://infra.spec.whatwg.org/#c0-control-or-space
+
+/* eslint-disable max-len */
+
+var isJavaScriptProtocol = /^[\u0000-\u001F ]*j[\r\n\t]*a[\r\n\t]*v[\r\n\t]*a[\r\n\t]*s[\r\n\t]*c[\r\n\t]*r[\r\n\t]*i[\r\n\t]*p[\r\n\t]*t[\r\n\t]*\:/i;
+var didWarn = false;
+
+function sanitizeURL(url) {
+  {
+    if (!didWarn && isJavaScriptProtocol.test(url)) {
+      didWarn = true;
+
+      error('A future version of React will block javascript: URLs as a security precaution. ' + 'Use event handlers instead if you can. If you need to generate unsafe HTML try ' + 'using dangerouslySetInnerHTML instead. React was passed %s.', JSON.stringify(url));
+    }
+  }
+}
+
+var isArrayImpl = Array.isArray; // eslint-disable-next-line no-redeclare
+
+function isArray(a) {
+  return isArrayImpl(a);
+}
+
+var startInlineScript = stringToPrecomputedChunk('<script>');
+var endInlineScript = stringToPrecomputedChunk('</script>');
+var startScriptSrc = stringToPrecomputedChunk('<script src="');
+var startModuleSrc = stringToPrecomputedChunk('<script type="module" src="');
+var scriptIntegirty = stringToPrecomputedChunk('" integrity="');
+var endAsyncScript = stringToPrecomputedChunk('" async=""></script>');
+/**
+ * This escaping function is designed to work with bootstrapScriptContent only.
+ * because we know we are escaping the entire script. We can avoid for instance
+ * escaping html comment string sequences that are valid javascript as well because
+ * if there are no sebsequent <script sequences the html parser will never enter
+ * script data double escaped state (see: https://www.w3.org/TR/html53/syntax.html#script-data-double-escaped-state)
+ *
+ * While untrusted script content should be made safe before using this api it will
+ * ensure that the script cannot be early terminated or never terminated state
+ */
+
+function escapeBootstrapScriptContent(scriptText) {
+  {
+    checkHtmlStringCoercion(scriptText);
+  }
+
+  return ('' + scriptText).replace(scriptRegex, scriptReplacer);
+}
+
+var scriptRegex = /(<\/|<)(s)(cript)/gi;
+
+var scriptReplacer = function (match, prefix, s, suffix) {
+  return "" + prefix + (s === 's' ? "\\u0073" : "\\u0053") + suffix;
+};
+
+// Allows us to keep track of what we've already written so we can refer back to it.
+function createResponseState(identifierPrefix, nonce, bootstrapScriptContent, bootstrapScripts, bootstrapModules) {
+  var idPrefix = identifierPrefix === undefined ? '' : identifierPrefix;
+  var inlineScriptWithNonce = nonce === undefined ? startInlineScript : stringToPrecomputedChunk('<script nonce="' + escapeTextForBrowser(nonce) + '">');
+  var bootstrapChunks = [];
+
+  if (bootstrapScriptContent !== undefined) {
+    bootstrapChunks.push(inlineScriptWithNonce, stringToChunk(escapeBootstrapScriptContent(bootstrapScriptContent)), endInlineScript);
+  }
+
+  if (bootstrapScripts !== undefined) {
+    for (var i = 0; i < bootstrapScripts.length; i++) {
+      var scriptConfig = bootstrapScripts[i];
+      var src = typeof scriptConfig === 'string' ? scriptConfig : scriptConfig.src;
+      var integrity = typeof scriptConfig === 'string' ? undefined : scriptConfig.integrity;
+      bootstrapChunks.push(startScriptSrc, stringToChunk(escapeTextForBrowser(src)));
+
+      if (integrity) {
+        bootstrapChunks.push(scriptIntegirty, stringToChunk(escapeTextForBrowser(integrity)));
+      }
+
+      bootstrapChunks.push(endAsyncScript);
+    }
+  }
+
+  if (bootstrapModules !== undefined) {
+    for (var _i = 0; _i < bootstrapModules.length; _i++) {
+      var _scriptConfig = bootstrapModules[_i];
+
+      var _src = typeof _scriptConfig === 'string' ? _scriptConfig : _scriptConfig.src;
+
+      var _integrity = typeof _scriptConfig === 'string' ? undefined : _scriptConfig.integrity;
+
+      bootstrapChunks.push(startModuleSrc, stringToChunk(escapeTextForBrowser(_src)));
+
+      if (_integrity) {
+        bootstrapChunks.push(scriptIntegirty, stringToChunk(escapeTextForBrowser(_integrity)));
+      }
+
+      bootstrapChunks.push(endAsyncScript);
+    }
+  }
+
+  return {
+    bootstrapChunks: bootstrapChunks,
+    startInlineScript: inlineScriptWithNonce,
+    placeholderPrefix: stringToPrecomputedChunk(idPrefix + 'P:'),
+    segmentPrefix: stringToPrecomputedChunk(idPrefix + 'S:'),
+    boundaryPrefix: idPrefix + 'B:',
+    idPrefix: idPrefix,
+    nextSuspenseID: 0,
+    sentCompleteSegmentFunction: false,
+    sentCompleteBoundaryFunction: false,
+    sentClientRenderFunction: false
+  };
+} // Constants for the insertion mode we're currently writing in. We don't encode all HTML5 insertion
+// modes. We only include the variants as they matter for the sake of our purposes.
+// We don't actually provide the namespace therefore we use constants instead of the string.
+
+var ROOT_HTML_MODE = 0; // Used for the root most element tag.
+
+var HTML_MODE = 1;
+var SVG_MODE = 2;
+var MATHML_MODE = 3;
+var HTML_TABLE_MODE = 4;
+var HTML_TABLE_BODY_MODE = 5;
+var HTML_TABLE_ROW_MODE = 6;
+var HTML_COLGROUP_MODE = 7; // We have a greater than HTML_TABLE_MODE check elsewhere. If you add more cases here, make sure it
+// still makes sense
+
+function createFormatContext(insertionMode, selectedValue) {
+  return {
+    insertionMode: insertionMode,
+    selectedValue: selectedValue
+  };
+}
+
+function createRootFormatContext(namespaceURI) {
+  var insertionMode = namespaceURI === 'http://www.w3.org/2000/svg' ? SVG_MODE : namespaceURI === 'http://www.w3.org/1998/Math/MathML' ? MATHML_MODE : ROOT_HTML_MODE;
+  return createFormatContext(insertionMode, null);
+}
+function getChildFormatContext(parentContext, type, props) {
+  switch (type) {
+    case 'select':
+      return createFormatContext(HTML_MODE, props.value != null ? props.value : props.defaultValue);
+
+    case 'svg':
+      return createFormatContext(SVG_MODE, null);
+
+    case 'math':
+      return createFormatContext(MATHML_MODE, null);
+
+    case 'foreignObject':
+      return createFormatContext(HTML_MODE, null);
+    // Table parents are special in that their children can only be created at all if they're
+    // wrapped in a table parent. So we need to encode that we're entering this mode.
+
+    case 'table':
+      return createFormatContext(HTML_TABLE_MODE, null);
+
+    case 'thead':
+    case 'tbody':
+    case 'tfoot':
+      return createFormatContext(HTML_TABLE_BODY_MODE, null);
+
+    case 'colgroup':
+      return createFormatContext(HTML_COLGROUP_MODE, null);
+
+    case 'tr':
+      return createFormatContext(HTML_TABLE_ROW_MODE, null);
+  }
+
+  if (parentContext.insertionMode >= HTML_TABLE_MODE) {
+    // Whatever tag this was, it wasn't a table parent or other special parent, so we must have
+    // entered plain HTML again.
+    return createFormatContext(HTML_MODE, null);
+  }
+
+  if (parentContext.insertionMode === ROOT_HTML_MODE) {
+    // We've emitted the root and is now in plain HTML mode.
+    return createFormatContext(HTML_MODE, null);
+  }
+
+  return parentContext;
+}
+var UNINITIALIZED_SUSPENSE_BOUNDARY_ID = null;
+function assignSuspenseBoundaryID(responseState) {
+  var generatedID = responseState.nextSuspenseID++;
+  return stringToPrecomputedChunk(responseState.boundaryPrefix + generatedID.toString(16));
+}
+function makeId(responseState, treeId, localId) {
+  var idPrefix = responseState.idPrefix;
+  var id = ':' + idPrefix + 'R' + treeId; // Unless this is the first id at this level, append a number at the end
+  // that represents the position of this useId hook among all the useId
+  // hooks for this fiber.
+
+  if (localId > 0) {
+    id += 'H' + localId.toString(32);
+  }
+
+  return id + ':';
+}
+
+function encodeHTMLTextNode(text) {
+  return escapeTextForBrowser(text);
+}
+
+var textSeparator = stringToPrecomputedChunk('<!-- -->');
+function pushTextInstance(target, text, responseState, textEmbedded) {
+  if (text === '') {
+    // Empty text doesn't have a DOM node representation and the hydration is aware of this.
+    return textEmbedded;
+  }
+
+  if (textEmbedded) {
+    target.push(textSeparator);
+  }
+
+  target.push(stringToChunk(encodeHTMLTextNode(text)));
+  return true;
+} // Called when Fizz is done with a Segment. Currently the only purpose is to conditionally
+// emit a text separator when we don't know for sure it is safe to omit
+
+function pushSegmentFinale(target, responseState, lastPushedText, textEmbedded) {
+  if (lastPushedText && textEmbedded) {
+    target.push(textSeparator);
+  }
+}
+var styleNameCache = new Map();
+
+function processStyleName(styleName) {
+  var chunk = styleNameCache.get(styleName);
+
+  if (chunk !== undefined) {
+    return chunk;
+  }
+
+  var result = stringToPrecomputedChunk(escapeTextForBrowser(hyphenateStyleName(styleName)));
+  styleNameCache.set(styleName, result);
+  return result;
+}
+
+var styleAttributeStart = stringToPrecomputedChunk(' style="');
+var styleAssign = stringToPrecomputedChunk(':');
+var styleSeparator = stringToPrecomputedChunk(';');
+
+function pushStyle(target, responseState, style) {
+  if (typeof style !== 'object') {
+    throw new Error('The `style` prop expects a mapping from style properties to values, ' + "not a string. For example, style={{marginRight: spacing + 'em'}} when " + 'using JSX.');
+  }
+
+  var isFirst = true;
+
+  for (var styleName in style) {
+    if (!hasOwnProperty.call(style, styleName)) {
+      continue;
+    } // If you provide unsafe user data here they can inject arbitrary CSS
+    // which may be problematic (I couldn't repro this):
+    // https://www.owasp.org/index.php/XSS_Filter_Evasion_Cheat_Sheet
+    // http://www.thespanner.co.uk/2007/11/26/ultimate-xss-css-injection/
+    // This is not an XSS hole but instead a potential CSS injection issue
+    // which has lead to a greater discussion about how we're going to
+    // trust URLs moving forward. See #2115901
+
+
+    var styleValue = style[styleName];
+
+    if (styleValue == null || typeof styleValue === 'boolean' || styleValue === '') {
+      // TODO: We used to set empty string as a style with an empty value. Does that ever make sense?
+      continue;
+    }
+
+    var nameChunk = void 0;
+    var valueChunk = void 0;
+    var isCustomProperty = styleName.indexOf('--') === 0;
+
+    if (isCustomProperty) {
+      nameChunk = stringToChunk(escapeTextForBrowser(styleName));
+
+      {
+        checkCSSPropertyStringCoercion(styleValue, styleName);
+      }
+
+      valueChunk = stringToChunk(escapeTextForBrowser(('' + styleValue).trim()));
+    } else {
+      {
+        warnValidStyle$1(styleName, styleValue);
+      }
+
+      nameChunk = processStyleName(styleName);
+
+      if (typeof styleValue === 'number') {
+        if (styleValue !== 0 && !hasOwnProperty.call(isUnitlessNumber, styleName)) {
+          valueChunk = stringToChunk(styleValue + 'px'); // Presumes implicit 'px' suffix for unitless numbers
+        } else {
+          valueChunk = stringToChunk('' + styleValue);
+        }
+      } else {
+        {
+          checkCSSPropertyStringCoercion(styleValue, styleName);
+        }
+
+        valueChunk = stringToChunk(escapeTextForBrowser(('' + styleValue).trim()));
+      }
+    }
+
+    if (isFirst) {
+      isFirst = false; // If it's first, we don't need any separators prefixed.
+
+      target.push(styleAttributeStart, nameChunk, styleAssign, valueChunk);
+    } else {
+      target.push(styleSeparator, nameChunk, styleAssign, valueChunk);
+    }
+  }
+
+  if (!isFirst) {
+    target.push(attributeEnd);
+  }
+}
+
+var attributeSeparator = stringToPrecomputedChunk(' ');
+var attributeAssign = stringToPrecomputedChunk('="');
+var attributeEnd = stringToPrecomputedChunk('"');
+var attributeEmptyString = stringToPrecomputedChunk('=""');
+
+function pushAttribute(target, responseState, name, value) {
+  switch (name) {
+    case 'style':
+      {
+        pushStyle(target, responseState, value);
+        return;
+      }
+
+    case 'defaultValue':
+    case 'defaultChecked': // These shouldn't be set as attributes on generic HTML elements.
+
+    case 'innerHTML': // Must use dangerouslySetInnerHTML instead.
+
+    case 'suppressContentEditableWarning':
+    case 'suppressHydrationWarning':
+      // Ignored. These are built-in to React on the client.
+      return;
+  }
+
+  if ( // shouldIgnoreAttribute
+  // We have already filtered out null/undefined and reserved words.
+  name.length > 2 && (name[0] === 'o' || name[0] === 'O') && (name[1] === 'n' || name[1] === 'N')) {
+    return;
+  }
+
+  var propertyInfo = getPropertyInfo(name);
+
+  if (propertyInfo !== null) {
+    // shouldRemoveAttribute
+    switch (typeof value) {
+      case 'function': // $FlowFixMe symbol is perfectly valid here
+
+      case 'symbol':
+        // eslint-disable-line
+        return;
+
+      case 'boolean':
+        {
+          if (!propertyInfo.acceptsBooleans) {
+            return;
+          }
+        }
+    }
+
+    var attributeName = propertyInfo.attributeName;
+    var attributeNameChunk = stringToChunk(attributeName); // TODO: If it's known we can cache the chunk.
+
+    switch (propertyInfo.type) {
+      case BOOLEAN:
+        if (value) {
+          target.push(attributeSeparator, attributeNameChunk, attributeEmptyString);
+        }
+
+        return;
+
+      case OVERLOADED_BOOLEAN:
+        if (value === true) {
+          target.push(attributeSeparator, attributeNameChunk, attributeEmptyString);
+        } else if (value === false) ; else {
+          target.push(attributeSeparator, attributeNameChunk, attributeAssign, stringToChunk(escapeTextForBrowser(value)), attributeEnd);
+        }
+
+        return;
+
+      case NUMERIC:
+        if (!isNaN(value)) {
+          target.push(attributeSeparator, attributeNameChunk, attributeAssign, stringToChunk(escapeTextForBrowser(value)), attributeEnd);
+        }
+
+        break;
+
+      case POSITIVE_NUMERIC:
+        if (!isNaN(value) && value >= 1) {
+          target.push(attributeSeparator, attributeNameChunk, attributeAssign, stringToChunk(escapeTextForBrowser(value)), attributeEnd);
+        }
+
+        break;
+
+      default:
+        if (propertyInfo.sanitizeURL) {
+          {
+            checkAttributeStringCoercion(value, attributeName);
+          }
+
+          value = '' + value;
+          sanitizeURL(value);
+        }
+
+        target.push(attributeSeparator, attributeNameChunk, attributeAssign, stringToChunk(escapeTextForBrowser(value)), attributeEnd);
+    }
+  } else if (isAttributeNameSafe(name)) {
+    // shouldRemoveAttribute
+    switch (typeof value) {
+      case 'function': // $FlowFixMe symbol is perfectly valid here
+
+      case 'symbol':
+        // eslint-disable-line
+        return;
+
+      case 'boolean':
+        {
+          var prefix = name.toLowerCase().slice(0, 5);
+
+          if (prefix !== 'data-' && prefix !== 'aria-') {
+            return;
+          }
+        }
+    }
+
+    target.push(attributeSeparator, stringToChunk(name), attributeAssign, stringToChunk(escapeTextForBrowser(value)), attributeEnd);
+  }
+}
+
+var endOfStartTag = stringToPrecomputedChunk('>');
+var endOfStartTagSelfClosing = stringToPrecomputedChunk('/>');
+
+function pushInnerHTML(target, innerHTML, children) {
+  if (innerHTML != null) {
+    if (children != null) {
+      throw new Error('Can only set one of `children` or `props.dangerouslySetInnerHTML`.');
+    }
+
+    if (typeof innerHTML !== 'object' || !('__html' in innerHTML)) {
+      throw new Error('`props.dangerouslySetInnerHTML` must be in the form `{__html: ...}`. ' + 'Please visit https://reactjs.org/link/dangerously-set-inner-html ' + 'for more information.');
+    }
+
+    var html = innerHTML.__html;
+
+    if (html !== null && html !== undefined) {
+      {
+        checkHtmlStringCoercion(html);
+      }
+
+      target.push(stringToChunk('' + html));
+    }
+  }
+} // TODO: Move these to ResponseState so that we warn for every request.
+// It would help debugging in stateful servers (e.g. service worker).
+
+
+var didWarnDefaultInputValue = false;
+var didWarnDefaultChecked = false;
+var didWarnDefaultSelectValue = false;
+var didWarnDefaultTextareaValue = false;
+var didWarnInvalidOptionChildren = false;
+var didWarnInvalidOptionInnerHTML = false;
+var didWarnSelectedSetOnOption = false;
+
+function checkSelectProp(props, propName) {
+  {
+    var value = props[propName];
+
+    if (value != null) {
+      var array = isArray(value);
+
+      if (props.multiple && !array) {
+        error('The `%s` prop supplied to <select> must be an array if ' + '`multiple` is true.', propName);
+      } else if (!props.multiple && array) {
+        error('The `%s` prop supplied to <select> must be a scalar ' + 'value if `multiple` is false.', propName);
+      }
+    }
+  }
+}
+
+function pushStartSelect(target, props, responseState) {
+  {
+    checkControlledValueProps('select', props);
+    checkSelectProp(props, 'value');
+    checkSelectProp(props, 'defaultValue');
+
+    if (props.value !== undefined && props.defaultValue !== undefined && !didWarnDefaultSelectValue) {
+      error('Select elements must be either controlled or uncontrolled ' + '(specify either the value prop, or the defaultValue prop, but not ' + 'both). Decide between using a controlled or uncontrolled select ' + 'element and remove one of these props. More info: ' + 'https://reactjs.org/link/controlled-components');
+
+      didWarnDefaultSelectValue = true;
+    }
+  }
+
+  target.push(startChunkForTag('select'));
+  var children = null;
+  var innerHTML = null;
+
+  for (var propKey in props) {
+    if (hasOwnProperty.call(props, propKey)) {
+      var propValue = props[propKey];
+
+      if (propValue == null) {
+        continue;
+      }
+
+      switch (propKey) {
+        case 'children':
+          children = propValue;
+          break;
+
+        case 'dangerouslySetInnerHTML':
+          // TODO: This doesn't really make sense for select since it can't use the controlled
+          // value in the innerHTML.
+          innerHTML = propValue;
+          break;
+
+        case 'defaultValue':
+        case 'value':
+          // These are set on the Context instead and applied to the nested options.
+          break;
+
+        default:
+          pushAttribute(target, responseState, propKey, propValue);
+          break;
+      }
+    }
+  }
+
+  target.push(endOfStartTag);
+  pushInnerHTML(target, innerHTML, children);
+  return children;
+}
+
+function flattenOptionChildren(children) {
+  var content = ''; // Flatten children and warn if they aren't strings or numbers;
+  // invalid types are ignored.
+
+  React.Children.forEach(children, function (child) {
+    if (child == null) {
+      return;
+    }
+
+    content += child;
+
+    {
+      if (!didWarnInvalidOptionChildren && typeof child !== 'string' && typeof child !== 'number') {
+        didWarnInvalidOptionChildren = true;
+
+        error('Cannot infer the option value of complex children. ' + 'Pass a `value` prop or use a plain string as children to <option>.');
+      }
+    }
+  });
+  return content;
+}
+
+var selectedMarkerAttribute = stringToPrecomputedChunk(' selected=""');
+
+function pushStartOption(target, props, responseState, formatContext) {
+  var selectedValue = formatContext.selectedValue;
+  target.push(startChunkForTag('option'));
+  var children = null;
+  var value = null;
+  var selected = null;
+  var innerHTML = null;
+
+  for (var propKey in props) {
+    if (hasOwnProperty.call(props, propKey)) {
+      var propValue = props[propKey];
+
+      if (propValue == null) {
+        continue;
+      }
+
+      switch (propKey) {
+        case 'children':
+          children = propValue;
+          break;
+
+        case 'selected':
+          // ignore
+          selected = propValue;
+
+          {
+            // TODO: Remove support for `selected` in <option>.
+            if (!didWarnSelectedSetOnOption) {
+              error('Use the `defaultValue` or `value` props on <select> instead of ' + 'setting `selected` on <option>.');
+
+              didWarnSelectedSetOnOption = true;
+            }
+          }
+
+          break;
+
+        case 'dangerouslySetInnerHTML':
+          innerHTML = propValue;
+          break;
+        // eslint-disable-next-line-no-fallthrough
+
+        case 'value':
+          value = propValue;
+        // We intentionally fallthrough to also set the attribute on the node.
+        // eslint-disable-next-line-no-fallthrough
+
+        default:
+          pushAttribute(target, responseState, propKey, propValue);
+          break;
+      }
+    }
+  }
+
+  if (selectedValue != null) {
+    var stringValue;
+
+    if (value !== null) {
+      {
+        checkAttributeStringCoercion(value, 'value');
+      }
+
+      stringValue = '' + value;
+    } else {
+      {
+        if (innerHTML !== null) {
+          if (!didWarnInvalidOptionInnerHTML) {
+            didWarnInvalidOptionInnerHTML = true;
+
+            error('Pass a `value` prop if you set dangerouslyInnerHTML so React knows ' + 'which value should be selected.');
+          }
+        }
+      }
+
+      stringValue = flattenOptionChildren(children);
+    }
+
+    if (isArray(selectedValue)) {
+      // multiple
+      for (var i = 0; i < selectedValue.length; i++) {
+        {
+          checkAttributeStringCoercion(selectedValue[i], 'value');
+        }
+
+        var v = '' + selectedValue[i];
+
+        if (v === stringValue) {
+          target.push(selectedMarkerAttribute);
+          break;
+        }
+      }
+    } else {
+      {
+        checkAttributeStringCoercion(selectedValue, 'select.value');
+      }
+
+      if ('' + selectedValue === stringValue) {
+        target.push(selectedMarkerAttribute);
+      }
+    }
+  } else if (selected) {
+    target.push(selectedMarkerAttribute);
+  }
+
+  target.push(endOfStartTag);
+  pushInnerHTML(target, innerHTML, children);
+  return children;
+}
+
+function pushInput(target, props, responseState) {
+  {
+    checkControlledValueProps('input', props);
+
+    if (props.checked !== undefined && props.defaultChecked !== undefined && !didWarnDefaultChecked) {
+      error('%s contains an input of type %s with both checked and defaultChecked props. ' + 'Input elements must be either controlled or uncontrolled ' + '(specify either the checked prop, or the defaultChecked prop, but not ' + 'both). Decide between using a controlled or uncontrolled input ' + 'element and remove one of these props. More info: ' + 'https://reactjs.org/link/controlled-components', 'A component', props.type);
+
+      didWarnDefaultChecked = true;
+    }
+
+    if (props.value !== undefined && props.defaultValue !== undefined && !didWarnDefaultInputValue) {
+      error('%s contains an input of type %s with both value and defaultValue props. ' + 'Input elements must be either controlled or uncontrolled ' + '(specify either the value prop, or the defaultValue prop, but not ' + 'both). Decide between using a controlled or uncontrolled input ' + 'element and remove one of these props. More info: ' + 'https://reactjs.org/link/controlled-components', 'A component', props.type);
+
+      didWarnDefaultInputValue = true;
+    }
+  }
+
+  target.push(startChunkForTag('input'));
+  var value = null;
+  var defaultValue = null;
+  var checked = null;
+  var defaultChecked = null;
+
+  for (var propKey in props) {
+    if (hasOwnProperty.call(props, propKey)) {
+      var propValue = props[propKey];
+
+      if (propValue == null) {
+        continue;
+      }
+
+      switch (propKey) {
+        case 'children':
+        case 'dangerouslySetInnerHTML':
+          throw new Error('input' + " is a self-closing tag and must neither have `children` nor " + 'use `dangerouslySetInnerHTML`.');
+        // eslint-disable-next-line-no-fallthrough
+
+        case 'defaultChecked':
+          defaultChecked = propValue;
+          break;
+
+        case 'defaultValue':
+          defaultValue = propValue;
+          break;
+
+        case 'checked':
+          checked = propValue;
+          break;
+
+        case 'value':
+          value = propValue;
+          break;
+
+        default:
+          pushAttribute(target, responseState, propKey, propValue);
+          break;
+      }
+    }
+  }
+
+  if (checked !== null) {
+    pushAttribute(target, responseState, 'checked', checked);
+  } else if (defaultChecked !== null) {
+    pushAttribute(target, responseState, 'checked', defaultChecked);
+  }
+
+  if (value !== null) {
+    pushAttribute(target, responseState, 'value', value);
+  } else if (defaultValue !== null) {
+    pushAttribute(target, responseState, 'value', defaultValue);
+  }
+
+  target.push(endOfStartTagSelfClosing);
+  return null;
+}
+
+function pushStartTextArea(target, props, responseState) {
+  {
+    checkControlledValueProps('textarea', props);
+
+    if (props.value !== undefined && props.defaultValue !== undefined && !didWarnDefaultTextareaValue) {
+      error('Textarea elements must be either controlled or uncontrolled ' + '(specify either the value prop, or the defaultValue prop, but not ' + 'both). Decide between using a controlled or uncontrolled textarea ' + 'and remove one of these props. More info: ' + 'https://reactjs.org/link/controlled-components');
+
+      didWarnDefaultTextareaValue = true;
+    }
+  }
+
+  target.push(startChunkForTag('textarea'));
+  var value = null;
+  var defaultValue = null;
+  var children = null;
+
+  for (var propKey in props) {
+    if (hasOwnProperty.call(props, propKey)) {
+      var propValue = props[propKey];
+
+      if (propValue == null) {
+        continue;
+      }
+
+      switch (propKey) {
+        case 'children':
+          children = propValue;
+          break;
+
+        case 'value':
+          value = propValue;
+          break;
+
+        case 'defaultValue':
+          defaultValue = propValue;
+          break;
+
+        case 'dangerouslySetInnerHTML':
+          throw new Error('`dangerouslySetInnerHTML` does not make sense on <textarea>.');
+        // eslint-disable-next-line-no-fallthrough
+
+        default:
+          pushAttribute(target, responseState, propKey, propValue);
+          break;
+      }
+    }
+  }
+
+  if (value === null && defaultValue !== null) {
+    value = defaultValue;
+  }
+
+  target.push(endOfStartTag); // TODO (yungsters): Remove support for children content in <textarea>.
+
+  if (children != null) {
+    {
+      error('Use the `defaultValue` or `value` props instead of setting ' + 'children on <textarea>.');
+    }
+
+    if (value != null) {
+      throw new Error('If you supply `defaultValue` on a <textarea>, do not pass children.');
+    }
+
+    if (isArray(children)) {
+      if (children.length > 1) {
+        throw new Error('<textarea> can only have at most one child.');
+      } // TODO: remove the coercion and the DEV check below because it will
+      // always be overwritten by the coercion several lines below it. #22309
+
+
+      {
+        checkHtmlStringCoercion(children[0]);
+      }
+
+      value = '' + children[0];
+    }
+
+    {
+      checkHtmlStringCoercion(children);
+    }
+
+    value = '' + children;
+  }
+
+  if (typeof value === 'string' && value[0] === '\n') {
+    // text/html ignores the first character in these tags if it's a newline
+    // Prefer to break application/xml over text/html (for now) by adding
+    // a newline specifically to get eaten by the parser. (Alternately for
+    // textareas, replacing "^\n" with "\r\n" doesn't get eaten, and the first
+    // \r is normalized out by HTMLTextAreaElement#value.)
+    // See: <http://www.w3.org/TR/html-polyglot/#newlines-in-textarea-and-pre>
+    // See: <http://www.w3.org/TR/html5/syntax.html#element-restrictions>
+    // See: <http://www.w3.org/TR/html5/syntax.html#newlines>
+    // See: Parsing of "textarea" "listing" and "pre" elements
+    //  from <http://www.w3.org/TR/html5/syntax.html#parsing-main-inbody>
+    target.push(leadingNewline);
+  } // ToString and push directly instead of recurse over children.
+  // We don't really support complex children in the value anyway.
+  // This also currently avoids a trailing comment node which breaks textarea.
+
+
+  if (value !== null) {
+    {
+      checkAttributeStringCoercion(value, 'value');
+    }
+
+    target.push(stringToChunk(encodeHTMLTextNode('' + value)));
+  }
+
+  return null;
+}
+
+function pushLink(target, props, responseState) {
+  var isStylesheet = props.rel === 'stylesheet';
+  target.push(startChunkForTag('link'));
+
+  for (var propKey in props) {
+    if (hasOwnProperty.call(props, propKey)) {
+      var propValue = props[propKey];
+
+      if (propValue == null) {
+        continue;
+      }
+
+      switch (propKey) {
+        case 'children':
+        case 'dangerouslySetInnerHTML':
+          throw new Error('link' + " is a self-closing tag and must neither have `children` nor " + 'use `dangerouslySetInnerHTML`.');
+
+        case 'precedence':
+          {
+            if (isStylesheet) {
+              if (propValue === true || typeof propValue === 'string') {
+                pushAttribute(target, responseState, 'data-rprec', propValue);
+              } else {
+                throw new Error("the \"precedence\" prop for links to stylesheets expects to receive a string but received something of type \"" + typeof propValue + "\" instead.");
+              }
+
+              break;
+            } // intentionally fall through
+
+          }
+        // eslint-disable-next-line-no-fallthrough
+
+        default:
+          pushAttribute(target, responseState, propKey, propValue);
+          break;
+      }
+    }
+  }
+
+  target.push(endOfStartTagSelfClosing);
+  return null;
+}
+
+function pushSelfClosing(target, props, tag, responseState) {
+  target.push(startChunkForTag(tag));
+
+  for (var propKey in props) {
+    if (hasOwnProperty.call(props, propKey)) {
+      var propValue = props[propKey];
+
+      if (propValue == null) {
+        continue;
+      }
+
+      switch (propKey) {
+        case 'children':
+        case 'dangerouslySetInnerHTML':
+          throw new Error(tag + " is a self-closing tag and must neither have `children` nor " + 'use `dangerouslySetInnerHTML`.');
+        // eslint-disable-next-line-no-fallthrough
+
+        default:
+          pushAttribute(target, responseState, propKey, propValue);
+          break;
+      }
+    }
+  }
+
+  target.push(endOfStartTagSelfClosing);
+  return null;
+}
+
+function pushStartMenuItem(target, props, responseState) {
+  target.push(startChunkForTag('menuitem'));
+
+  for (var propKey in props) {
+    if (hasOwnProperty.call(props, propKey)) {
+      var propValue = props[propKey];
+
+      if (propValue == null) {
+        continue;
+      }
+
+      switch (propKey) {
+        case 'children':
+        case 'dangerouslySetInnerHTML':
+          throw new Error('menuitems cannot have `children` nor `dangerouslySetInnerHTML`.');
+        // eslint-disable-next-line-no-fallthrough
+
+        default:
+          pushAttribute(target, responseState, propKey, propValue);
+          break;
+      }
+    }
+  }
+
+  target.push(endOfStartTag);
+  return null;
+}
+
+function pushStartTitle(target, props, responseState) {
+  target.push(startChunkForTag('title'));
+  var children = null;
+
+  for (var propKey in props) {
+    if (hasOwnProperty.call(props, propKey)) {
+      var propValue = props[propKey];
+
+      if (propValue == null) {
+        continue;
+      }
+
+      switch (propKey) {
+        case 'children':
+          children = propValue;
+          break;
+
+        case 'dangerouslySetInnerHTML':
+          throw new Error('`dangerouslySetInnerHTML` does not make sense on <title>.');
+        // eslint-disable-next-line-no-fallthrough
+
+        default:
+          pushAttribute(target, responseState, propKey, propValue);
+          break;
+      }
+    }
+  }
+
+  target.push(endOfStartTag);
+
+  {
+    var child = Array.isArray(children) && children.length < 2 ? children[0] || null : children;
+
+    if (Array.isArray(children) && children.length > 1) {
+      error('A title element received an array with more than 1 element as children. ' + 'In browsers title Elements can only have Text Nodes as children. If ' + 'the children being rendered output more than a single text node in aggregate the browser ' + 'will display markup and comments as text in the title and hydration will likely fail and ' + 'fall back to client rendering');
+    } else if (child != null && child.$$typeof != null) {
+      error('A title element received a React element for children. ' + 'In the browser title Elements can only have Text Nodes as children. If ' + 'the children being rendered output more than a single text node in aggregate the browser ' + 'will display markup and comments as text in the title and hydration will likely fail and ' + 'fall back to client rendering');
+    } else if (child != null && typeof child !== 'string' && typeof child !== 'number') {
+      error('A title element received a value that was not a string or number for children. ' + 'In the browser title Elements can only have Text Nodes as children. If ' + 'the children being rendered output more than a single text node in aggregate the browser ' + 'will display markup and comments as text in the title and hydration will likely fail and ' + 'fall back to client rendering');
+    }
+  }
+
+  return children;
+}
+
+function pushStartHead(target, preamble, props, tag, responseState) {
+  // Preamble type is nullable for feature off cases but is guaranteed when feature is on
+  target =  preamble ;
+  return pushStartGenericElement(target, props, tag, responseState);
+}
+
+function pushStartHtml(target, preamble, props, tag, formatContext, responseState) {
+  // Preamble type is nullable for feature off cases but is guaranteed when feature is on
+  target =  preamble ;
+
+  if (formatContext.insertionMode === ROOT_HTML_MODE) {
+    // If we're rendering the html tag and we're at the root (i.e. not in foreignObject)
+    // then we also emit the DOCTYPE as part of the root content as a convenience for
+    // rendering the whole document.
+    target.push(DOCTYPE);
+  }
+
+  return pushStartGenericElement(target, props, tag, responseState);
+}
+
+function pushStartGenericElement(target, props, tag, responseState) {
+  target.push(startChunkForTag(tag));
+  var children = null;
+  var innerHTML = null;
+
+  for (var propKey in props) {
+    if (hasOwnProperty.call(props, propKey)) {
+      var propValue = props[propKey];
+
+      if (propValue == null) {
+        continue;
+      }
+
+      switch (propKey) {
+        case 'children':
+          children = propValue;
+          break;
+
+        case 'dangerouslySetInnerHTML':
+          innerHTML = propValue;
+          break;
+
+        default:
+          pushAttribute(target, responseState, propKey, propValue);
+          break;
+      }
+    }
+  }
+
+  target.push(endOfStartTag);
+  pushInnerHTML(target, innerHTML, children);
+
+  if (typeof children === 'string') {
+    // Special case children as a string to avoid the unnecessary comment.
+    // TODO: Remove this special case after the general optimization is in place.
+    target.push(stringToChunk(encodeHTMLTextNode(children)));
+    return null;
+  }
+
+  return children;
+}
+
+function pushStartCustomElement(target, props, tag, responseState) {
+  target.push(startChunkForTag(tag));
+  var children = null;
+  var innerHTML = null;
+
+  for (var propKey in props) {
+    if (hasOwnProperty.call(props, propKey)) {
+      var propValue = props[propKey];
+
+      if (propValue == null) {
+        continue;
+      }
+
+      if ( (typeof propValue === 'function' || typeof propValue === 'object')) {
+        // It is normal to render functions and objects on custom elements when
+        // client rendering, but when server rendering the output isn't useful,
+        // so skip it.
+        continue;
+      }
+
+      if ( propValue === false) {
+        continue;
+      }
+
+      if ( propValue === true) {
+        propValue = '';
+      }
+
+      if ( propKey === 'className') {
+        // className gets rendered as class on the client, so it should be
+        // rendered as class on the server.
+        propKey = 'class';
+      }
+
+      switch (propKey) {
+        case 'children':
+          children = propValue;
+          break;
+
+        case 'dangerouslySetInnerHTML':
+          innerHTML = propValue;
+          break;
+
+        case 'style':
+          pushStyle(target, responseState, propValue);
+          break;
+
+        case 'suppressContentEditableWarning':
+        case 'suppressHydrationWarning':
+          // Ignored. These are built-in to React on the client.
+          break;
+
+        default:
+          if (isAttributeNameSafe(propKey) && typeof propValue !== 'function' && typeof propValue !== 'symbol') {
+            target.push(attributeSeparator, stringToChunk(propKey), attributeAssign, stringToChunk(escapeTextForBrowser(propValue)), attributeEnd);
+          }
+
+          break;
+      }
+    }
+  }
+
+  target.push(endOfStartTag);
+  pushInnerHTML(target, innerHTML, children);
+  return children;
+}
+
+var leadingNewline = stringToPrecomputedChunk('\n');
+
+function pushStartPreformattedElement(target, props, tag, responseState) {
+  target.push(startChunkForTag(tag));
+  var children = null;
+  var innerHTML = null;
+
+  for (var propKey in props) {
+    if (hasOwnProperty.call(props, propKey)) {
+      var propValue = props[propKey];
+
+      if (propValue == null) {
+        continue;
+      }
+
+      switch (propKey) {
+        case 'children':
+          children = propValue;
+          break;
+
+        case 'dangerouslySetInnerHTML':
+          innerHTML = propValue;
+          break;
+
+        default:
+          pushAttribute(target, responseState, propKey, propValue);
+          break;
+      }
+    }
+  }
+
+  target.push(endOfStartTag); // text/html ignores the first character in these tags if it's a newline
+  // Prefer to break application/xml over text/html (for now) by adding
+  // a newline specifically to get eaten by the parser. (Alternately for
+  // textareas, replacing "^\n" with "\r\n" doesn't get eaten, and the first
+  // \r is normalized out by HTMLTextAreaElement#value.)
+  // See: <http://www.w3.org/TR/html-polyglot/#newlines-in-textarea-and-pre>
+  // See: <http://www.w3.org/TR/html5/syntax.html#element-restrictions>
+  // See: <http://www.w3.org/TR/html5/syntax.html#newlines>
+  // See: Parsing of "textarea" "listing" and "pre" elements
+  //  from <http://www.w3.org/TR/html5/syntax.html#parsing-main-inbody>
+  // TODO: This doesn't deal with the case where the child is an array
+  // or component that returns a string.
+
+  if (innerHTML != null) {
+    if (children != null) {
+      throw new Error('Can only set one of `children` or `props.dangerouslySetInnerHTML`.');
+    }
+
+    if (typeof innerHTML !== 'object' || !('__html' in innerHTML)) {
+      throw new Error('`props.dangerouslySetInnerHTML` must be in the form `{__html: ...}`. ' + 'Please visit https://reactjs.org/link/dangerously-set-inner-html ' + 'for more information.');
+    }
+
+    var html = innerHTML.__html;
+
+    if (html !== null && html !== undefined) {
+      if (typeof html === 'string' && html.length > 0 && html[0] === '\n') {
+        target.push(leadingNewline, stringToChunk(html));
+      } else {
+        {
+          checkHtmlStringCoercion(html);
+        }
+
+        target.push(stringToChunk('' + html));
+      }
+    }
+  }
+
+  if (typeof children === 'string' && children[0] === '\n') {
+    target.push(leadingNewline);
+  }
+
+  return children;
+} // We accept any tag to be rendered but since this gets injected into arbitrary
+// HTML, we want to make sure that it's a safe tag.
+// http://www.w3.org/TR/REC-xml/#NT-Name
+
+
+var VALID_TAG_REGEX = /^[a-zA-Z][a-zA-Z:_\.\-\d]*$/; // Simplified subset
+
+var validatedTagCache = new Map();
+
+function startChunkForTag(tag) {
+  var tagStartChunk = validatedTagCache.get(tag);
+
+  if (tagStartChunk === undefined) {
+    if (!VALID_TAG_REGEX.test(tag)) {
+      throw new Error("Invalid tag: " + tag);
+    }
+
+    tagStartChunk = stringToPrecomputedChunk('<' + tag);
+    validatedTagCache.set(tag, tagStartChunk);
+  }
+
+  return tagStartChunk;
+}
+
+var DOCTYPE = stringToPrecomputedChunk('<!DOCTYPE html>');
+function pushStartInstance(target, preamble, type, props, responseState, formatContext) {
+  {
+    validateProperties(type, props);
+    validateProperties$1(type, props);
+    validateProperties$2(type, props, null);
+
+    if (!props.suppressContentEditableWarning && props.contentEditable && props.children != null) {
+      error('A component is `contentEditable` and contains `children` managed by ' + 'React. It is now your responsibility to guarantee that none of ' + 'those nodes are unexpectedly modified or duplicated. This is ' + 'probably not intentional.');
+    }
+
+    if (formatContext.insertionMode !== SVG_MODE && formatContext.insertionMode !== MATHML_MODE) {
+      if (type.indexOf('-') === -1 && typeof props.is !== 'string' && type.toLowerCase() !== type) {
+        error('<%s /> is using incorrect casing. ' + 'Use PascalCase for React components, ' + 'or lowercase for HTML elements.', type);
+      }
+    }
+  }
+
+  switch (type) {
+    // Special tags
+    case 'select':
+      return pushStartSelect(target, props, responseState);
+
+    case 'option':
+      return pushStartOption(target, props, responseState, formatContext);
+
+    case 'textarea':
+      return pushStartTextArea(target, props, responseState);
+
+    case 'input':
+      return pushInput(target, props, responseState);
+
+    case 'menuitem':
+      return pushStartMenuItem(target, props, responseState);
+
+    case 'title':
+      return pushStartTitle(target, props, responseState);
+
+    case 'link':
+      return pushLink(target, props, responseState);
+    // Newline eating tags
+
+    case 'listing':
+    case 'pre':
+      {
+        return pushStartPreformattedElement(target, props, type, responseState);
+      }
+    // Omitted close tags
+
+    case 'area':
+    case 'base':
+    case 'br':
+    case 'col':
+    case 'embed':
+    case 'hr':
+    case 'img':
+    case 'keygen':
+    case 'meta':
+    case 'param':
+    case 'source':
+    case 'track':
+    case 'wbr':
+      {
+        return pushSelfClosing(target, props, type, responseState);
+      }
+    // These are reserved SVG and MathML elements, that are never custom elements.
+    // https://w3c.github.io/webcomponents/spec/custom/#custom-elements-core-concepts
+
+    case 'annotation-xml':
+    case 'color-profile':
+    case 'font-face':
+    case 'font-face-src':
+    case 'font-face-uri':
+    case 'font-face-format':
+    case 'font-face-name':
+    case 'missing-glyph':
+      {
+        return pushStartGenericElement(target, props, type, responseState);
+      }
+    // Preamble start tags
+
+    case 'head':
+      return pushStartHead(target, preamble, props, type, responseState);
+
+    case 'html':
+      {
+        return pushStartHtml(target, preamble, props, type, formatContext, responseState);
+      }
+
+    default:
+      {
+        if (type.indexOf('-') === -1 && typeof props.is !== 'string') {
+          // Generic element
+          return pushStartGenericElement(target, props, type, responseState);
+        } else {
+          // Custom element
+          return pushStartCustomElement(target, props, type, responseState);
+        }
+      }
+  }
+}
+var endTag1 = stringToPrecomputedChunk('</');
+var endTag2 = stringToPrecomputedChunk('>');
+function pushEndInstance(target, postamble, type, props) {
+  switch (type) {
+    // Omitted close tags
+    // TODO: Instead of repeating this switch we could try to pass a flag from above.
+    // That would require returning a tuple. Which might be ok if it gets inlined.
+    case 'area':
+    case 'base':
+    case 'br':
+    case 'col':
+    case 'embed':
+    case 'hr':
+    case 'img':
+    case 'input':
+    case 'keygen':
+    case 'link':
+    case 'meta':
+    case 'param':
+    case 'source':
+    case 'track':
+    case 'wbr':
+      {
+        // No close tag needed.
+        break;
+      }
+    // Postamble end tags
+
+    case 'body':
+    case 'html':
+      target =  postamble ;
+    // Intentional fallthrough
+
+    default:
+      {
+        target.push(endTag1, stringToChunk(type), endTag2);
+      }
+  }
+}
+function writeCompletedRoot(destination, responseState) {
+  var bootstrapChunks = responseState.bootstrapChunks;
+  var i = 0;
+
+  for (; i < bootstrapChunks.length - 1; i++) {
+    writeChunk(destination, bootstrapChunks[i]);
+  }
+
+  if (i < bootstrapChunks.length) {
+    return writeChunkAndReturn(destination, bootstrapChunks[i]);
+  }
+
+  return true;
+} // Structural Nodes
+// A placeholder is a node inside a hidden partial tree that can be filled in later, but before
+// display. It's never visible to users. We use the template tag because it can be used in every
+// type of parent. <script> tags also work in every other tag except <colgroup>.
+
+var placeholder1 = stringToPrecomputedChunk('<template id="');
+var placeholder2 = stringToPrecomputedChunk('"></template>');
+function writePlaceholder(destination, responseState, id) {
+  writeChunk(destination, placeholder1);
+  writeChunk(destination, responseState.placeholderPrefix);
+  var formattedID = stringToChunk(id.toString(16));
+  writeChunk(destination, formattedID);
+  return writeChunkAndReturn(destination, placeholder2);
+} // Suspense boundaries are encoded as comments.
+
+var startCompletedSuspenseBoundary = stringToPrecomputedChunk('<!--$-->');
+var startPendingSuspenseBoundary1 = stringToPrecomputedChunk('<!--$?--><template id="');
+var startPendingSuspenseBoundary2 = stringToPrecomputedChunk('"></template>');
+var startClientRenderedSuspenseBoundary = stringToPrecomputedChunk('<!--$!-->');
+var endSuspenseBoundary = stringToPrecomputedChunk('<!--/$-->');
+var clientRenderedSuspenseBoundaryError1 = stringToPrecomputedChunk('<template');
+var clientRenderedSuspenseBoundaryErrorAttrInterstitial = stringToPrecomputedChunk('"');
+var clientRenderedSuspenseBoundaryError1A = stringToPrecomputedChunk(' data-dgst="');
+var clientRenderedSuspenseBoundaryError1B = stringToPrecomputedChunk(' data-msg="');
+var clientRenderedSuspenseBoundaryError1C = stringToPrecomputedChunk(' data-stck="');
+var clientRenderedSuspenseBoundaryError2 = stringToPrecomputedChunk('></template>');
+function writeStartCompletedSuspenseBoundary(destination, responseState) {
+  return writeChunkAndReturn(destination, startCompletedSuspenseBoundary);
+}
+function writeStartPendingSuspenseBoundary(destination, responseState, id) {
+  writeChunk(destination, startPendingSuspenseBoundary1);
+
+  if (id === null) {
+    throw new Error('An ID must have been assigned before we can complete the boundary.');
+  }
+
+  writeChunk(destination, id);
+  return writeChunkAndReturn(destination, startPendingSuspenseBoundary2);
+}
+function writeStartClientRenderedSuspenseBoundary(destination, responseState, errorDigest, errorMesssage, errorComponentStack) {
+  var result;
+  result = writeChunkAndReturn(destination, startClientRenderedSuspenseBoundary);
+  writeChunk(destination, clientRenderedSuspenseBoundaryError1);
+
+  if (errorDigest) {
+    writeChunk(destination, clientRenderedSuspenseBoundaryError1A);
+    writeChunk(destination, stringToChunk(escapeTextForBrowser(errorDigest)));
+    writeChunk(destination, clientRenderedSuspenseBoundaryErrorAttrInterstitial);
+  }
+
+  {
+    if (errorMesssage) {
+      writeChunk(destination, clientRenderedSuspenseBoundaryError1B);
+      writeChunk(destination, stringToChunk(escapeTextForBrowser(errorMesssage)));
+      writeChunk(destination, clientRenderedSuspenseBoundaryErrorAttrInterstitial);
+    }
+
+    if (errorComponentStack) {
+      writeChunk(destination, clientRenderedSuspenseBoundaryError1C);
+      writeChunk(destination, stringToChunk(escapeTextForBrowser(errorComponentStack)));
+      writeChunk(destination, clientRenderedSuspenseBoundaryErrorAttrInterstitial);
+    }
+  }
+
+  result = writeChunkAndReturn(destination, clientRenderedSuspenseBoundaryError2);
+  return result;
+}
+function writeEndCompletedSuspenseBoundary(destination, responseState) {
+  return writeChunkAndReturn(destination, endSuspenseBoundary);
+}
+function writeEndPendingSuspenseBoundary(destination, responseState) {
+  return writeChunkAndReturn(destination, endSuspenseBoundary);
+}
+function writeEndClientRenderedSuspenseBoundary(destination, responseState) {
+  return writeChunkAndReturn(destination, endSuspenseBoundary);
+}
+var startSegmentHTML = stringToPrecomputedChunk('<div hidden id="');
+var startSegmentHTML2 = stringToPrecomputedChunk('">');
+var endSegmentHTML = stringToPrecomputedChunk('</div>');
+var startSegmentSVG = stringToPrecomputedChunk('<svg aria-hidden="true" style="display:none" id="');
+var startSegmentSVG2 = stringToPrecomputedChunk('">');
+var endSegmentSVG = stringToPrecomputedChunk('</svg>');
+var startSegmentMathML = stringToPrecomputedChunk('<math aria-hidden="true" style="display:none" id="');
+var startSegmentMathML2 = stringToPrecomputedChunk('">');
+var endSegmentMathML = stringToPrecomputedChunk('</math>');
+var startSegmentTable = stringToPrecomputedChunk('<table hidden id="');
+var startSegmentTable2 = stringToPrecomputedChunk('">');
+var endSegmentTable = stringToPrecomputedChunk('</table>');
+var startSegmentTableBody = stringToPrecomputedChunk('<table hidden><tbody id="');
+var startSegmentTableBody2 = stringToPrecomputedChunk('">');
+var endSegmentTableBody = stringToPrecomputedChunk('</tbody></table>');
+var startSegmentTableRow = stringToPrecomputedChunk('<table hidden><tr id="');
+var startSegmentTableRow2 = stringToPrecomputedChunk('">');
+var endSegmentTableRow = stringToPrecomputedChunk('</tr></table>');
+var startSegmentColGroup = stringToPrecomputedChunk('<table hidden><colgroup id="');
+var startSegmentColGroup2 = stringToPrecomputedChunk('">');
+var endSegmentColGroup = stringToPrecomputedChunk('</colgroup></table>');
+function writeStartSegment(destination, responseState, formatContext, id) {
+  switch (formatContext.insertionMode) {
+    case ROOT_HTML_MODE:
+    case HTML_MODE:
+      {
+        writeChunk(destination, startSegmentHTML);
+        writeChunk(destination, responseState.segmentPrefix);
+        writeChunk(destination, stringToChunk(id.toString(16)));
+        return writeChunkAndReturn(destination, startSegmentHTML2);
+      }
+
+    case SVG_MODE:
+      {
+        writeChunk(destination, startSegmentSVG);
+        writeChunk(destination, responseState.segmentPrefix);
+        writeChunk(destination, stringToChunk(id.toString(16)));
+        return writeChunkAndReturn(destination, startSegmentSVG2);
+      }
+
+    case MATHML_MODE:
+      {
+        writeChunk(destination, startSegmentMathML);
+        writeChunk(destination, responseState.segmentPrefix);
+        writeChunk(destination, stringToChunk(id.toString(16)));
+        return writeChunkAndReturn(destination, startSegmentMathML2);
+      }
+
+    case HTML_TABLE_MODE:
+      {
+        writeChunk(destination, startSegmentTable);
+        writeChunk(destination, responseState.segmentPrefix);
+        writeChunk(destination, stringToChunk(id.toString(16)));
+        return writeChunkAndReturn(destination, startSegmentTable2);
+      }
+    // TODO: For the rest of these, there will be extra wrapper nodes that never
+    // get deleted from the document. We need to delete the table too as part
+    // of the injected scripts. They are invisible though so it's not too terrible
+    // and it's kind of an edge case to suspend in a table. Totally supported though.
+
+    case HTML_TABLE_BODY_MODE:
+      {
+        writeChunk(destination, startSegmentTableBody);
+        writeChunk(destination, responseState.segmentPrefix);
+        writeChunk(destination, stringToChunk(id.toString(16)));
+        return writeChunkAndReturn(destination, startSegmentTableBody2);
+      }
+
+    case HTML_TABLE_ROW_MODE:
+      {
+        writeChunk(destination, startSegmentTableRow);
+        writeChunk(destination, responseState.segmentPrefix);
+        writeChunk(destination, stringToChunk(id.toString(16)));
+        return writeChunkAndReturn(destination, startSegmentTableRow2);
+      }
+
+    case HTML_COLGROUP_MODE:
+      {
+        writeChunk(destination, startSegmentColGroup);
+        writeChunk(destination, responseState.segmentPrefix);
+        writeChunk(destination, stringToChunk(id.toString(16)));
+        return writeChunkAndReturn(destination, startSegmentColGroup2);
+      }
+
+    default:
+      {
+        throw new Error('Unknown insertion mode. This is a bug in React.');
+      }
+  }
+}
+function writeEndSegment(destination, formatContext) {
+  switch (formatContext.insertionMode) {
+    case ROOT_HTML_MODE:
+    case HTML_MODE:
+      {
+        return writeChunkAndReturn(destination, endSegmentHTML);
+      }
+
+    case SVG_MODE:
+      {
+        return writeChunkAndReturn(destination, endSegmentSVG);
+      }
+
+    case MATHML_MODE:
+      {
+        return writeChunkAndReturn(destination, endSegmentMathML);
+      }
+
+    case HTML_TABLE_MODE:
+      {
+        return writeChunkAndReturn(destination, endSegmentTable);
+      }
+
+    case HTML_TABLE_BODY_MODE:
+      {
+        return writeChunkAndReturn(destination, endSegmentTableBody);
+      }
+
+    case HTML_TABLE_ROW_MODE:
+      {
+        return writeChunkAndReturn(destination, endSegmentTableRow);
+      }
+
+    case HTML_COLGROUP_MODE:
+      {
+        return writeChunkAndReturn(destination, endSegmentColGroup);
+      }
+
+    default:
+      {
+        throw new Error('Unknown insertion mode. This is a bug in React.');
+      }
+  }
+} // Instruction Set
+// The following code is the source scripts that we then minify and inline below,
+// with renamed function names that we hope don't collide:
+// const COMMENT_NODE = 8;
+// const SUSPENSE_START_DATA = '$';
+// const SUSPENSE_END_DATA = '/$';
+// const SUSPENSE_PENDING_START_DATA = '$?';
+// const SUSPENSE_FALLBACK_START_DATA = '$!';
+//
+// function clientRenderBoundary(suspenseBoundaryID, errorDigest, errorMsg, errorComponentStack) {
+//   // Find the fallback's first element.
+//   const suspenseIdNode = document.getElementById(suspenseBoundaryID);
+//   if (!suspenseIdNode) {
+//     // The user must have already navigated away from this tree.
+//     // E.g. because the parent was hydrated.
+//     return;
+//   }
+//   // Find the boundary around the fallback. This is always the previous node.
+//   const suspenseNode = suspenseIdNode.previousSibling;
+//   // Tag it to be client rendered.
+//   suspenseNode.data = SUSPENSE_FALLBACK_START_DATA;
+//   // assign error metadata to first sibling
+//   let dataset = suspenseIdNode.dataset;
+//   if (errorDigest) dataset.dgst = errorDigest;
+//   if (errorMsg) dataset.msg = errorMsg;
+//   if (errorComponentStack) dataset.stck = errorComponentStack;
+//   // Tell React to retry it if the parent already hydrated.
+//   if (suspenseNode._reactRetry) {
+//     suspenseNode._reactRetry();
+//   }
+// }
+//
+// function completeBoundary(suspenseBoundaryID, contentID) {
+//   // Find the fallback's first element.
+//   const suspenseIdNode = document.getElementById(suspenseBoundaryID);
+//   const contentNode = document.getElementById(contentID);
+//   // We'll detach the content node so that regardless of what happens next we don't leave in the tree.
+//   // This might also help by not causing recalcing each time we move a child from here to the target.
+//   contentNode.parentNode.removeChild(contentNode);
+//   if (!suspenseIdNode) {
+//     // The user must have already navigated away from this tree.
+//     // E.g. because the parent was hydrated. That's fine there's nothing to do
+//     // but we have to make sure that we already deleted the container node.
+//     return;
+//   }
+//   // Find the boundary around the fallback. This is always the previous node.
+//   const suspenseNode = suspenseIdNode.previousSibling;
+//
+//   // Clear all the existing children. This is complicated because
+//   // there can be embedded Suspense boundaries in the fallback.
+//   // This is similar to clearSuspenseBoundary in ReactDOMHostConfig.
+//   // TODO: We could avoid this if we never emitted suspense boundaries in fallback trees.
+//   // They never hydrate anyway. However, currently we support incrementally loading the fallback.
+//   const parentInstance = suspenseNode.parentNode;
+//   let node = suspenseNode.nextSibling;
+//   let depth = 0;
+//   do {
+//     if (node && node.nodeType === COMMENT_NODE) {
+//       const data = node.data;
+//       if (data === SUSPENSE_END_DATA) {
+//         if (depth === 0) {
+//           break;
+//         } else {
+//           depth--;
+//         }
+//       } else if (
+//         data === SUSPENSE_START_DATA ||
+//         data === SUSPENSE_PENDING_START_DATA ||
+//         data === SUSPENSE_FALLBACK_START_DATA
+//       ) {
+//         depth++;
+//       }
+//     }
+//
+//     const nextNode = node.nextSibling;
+//     parentInstance.removeChild(node);
+//     node = nextNode;
+//   } while (node);
+//
+//   const endOfBoundary = node;
+//
+//   // Insert all the children from the contentNode between the start and end of suspense boundary.
+//   while (contentNode.firstChild) {
+//     parentInstance.insertBefore(contentNode.firstChild, endOfBoundary);
+//   }
+//   suspenseNode.data = SUSPENSE_START_DATA;
+//   if (suspenseNode._reactRetry) {
+//     suspenseNode._reactRetry();
+//   }
+// }
+//
+// function completeSegment(containerID, placeholderID) {
+//   const segmentContainer = document.getElementById(containerID);
+//   const placeholderNode = document.getElementById(placeholderID);
+//   // We always expect both nodes to exist here because, while we might
+//   // have navigated away from the main tree, we still expect the detached
+//   // tree to exist.
+//   segmentContainer.parentNode.removeChild(segmentContainer);
+//   while (segmentContainer.firstChild) {
+//     placeholderNode.parentNode.insertBefore(
+//       segmentContainer.firstChild,
+//       placeholderNode,
+//     );
+//   }
+//   placeholderNode.parentNode.removeChild(placeholderNode);
+// }
+
+var completeSegmentFunction = 'function $RS(a,b){a=document.getElementById(a);b=document.getElementById(b);for(a.parentNode.removeChild(a);a.firstChild;)b.parentNode.insertBefore(a.firstChild,b);b.parentNode.removeChild(b)}';
+var completeBoundaryFunction = 'function $RC(a,b){a=document.getElementById(a);b=document.getElementById(b);b.parentNode.removeChild(b);if(a){a=a.previousSibling;var f=a.parentNode,c=a.nextSibling,e=0;do{if(c&&8===c.nodeType){var d=c.data;if("/$"===d)if(0===e)break;else e--;else"$"!==d&&"$?"!==d&&"$!"!==d||e++}d=c.nextSibling;f.removeChild(c);c=d}while(c);for(;b.firstChild;)f.insertBefore(b.firstChild,c);a.data="$";a._reactRetry&&a._reactRetry()}}';
+var clientRenderFunction = 'function $RX(b,c,d,e){var a=document.getElementById(b);a&&(b=a.previousSibling,b.data="$!",a=a.dataset,c&&(a.dgst=c),d&&(a.msg=d),e&&(a.stck=e),b._reactRetry&&b._reactRetry())}';
+var completeSegmentScript1Full = stringToPrecomputedChunk(completeSegmentFunction + ';$RS("');
+var completeSegmentScript1Partial = stringToPrecomputedChunk('$RS("');
+var completeSegmentScript2 = stringToPrecomputedChunk('","');
+var completeSegmentScript3 = stringToPrecomputedChunk('")</script>');
+function writeCompletedSegmentInstruction(destination, responseState, contentSegmentID) {
+  writeChunk(destination, responseState.startInlineScript);
+
+  if (!responseState.sentCompleteSegmentFunction) {
+    // The first time we write this, we'll need to include the full implementation.
+    responseState.sentCompleteSegmentFunction = true;
+    writeChunk(destination, completeSegmentScript1Full);
+  } else {
+    // Future calls can just reuse the same function.
+    writeChunk(destination, completeSegmentScript1Partial);
+  }
+
+  writeChunk(destination, responseState.segmentPrefix);
+  var formattedID = stringToChunk(contentSegmentID.toString(16));
+  writeChunk(destination, formattedID);
+  writeChunk(destination, completeSegmentScript2);
+  writeChunk(destination, responseState.placeholderPrefix);
+  writeChunk(destination, formattedID);
+  return writeChunkAndReturn(destination, completeSegmentScript3);
+}
+var completeBoundaryScript1Full = stringToPrecomputedChunk(completeBoundaryFunction + ';$RC("');
+var completeBoundaryScript1Partial = stringToPrecomputedChunk('$RC("');
+var completeBoundaryScript2 = stringToPrecomputedChunk('","');
+var completeBoundaryScript3 = stringToPrecomputedChunk('")</script>');
+function writeCompletedBoundaryInstruction(destination, responseState, boundaryID, contentSegmentID) {
+  writeChunk(destination, responseState.startInlineScript);
+
+  if (!responseState.sentCompleteBoundaryFunction) {
+    // The first time we write this, we'll need to include the full implementation.
+    responseState.sentCompleteBoundaryFunction = true;
+    writeChunk(destination, completeBoundaryScript1Full);
+  } else {
+    // Future calls can just reuse the same function.
+    writeChunk(destination, completeBoundaryScript1Partial);
+  }
+
+  if (boundaryID === null) {
+    throw new Error('An ID must have been assigned before we can complete the boundary.');
+  }
+
+  var formattedContentID = stringToChunk(contentSegmentID.toString(16));
+  writeChunk(destination, boundaryID);
+  writeChunk(destination, completeBoundaryScript2);
+  writeChunk(destination, responseState.segmentPrefix);
+  writeChunk(destination, formattedContentID);
+  return writeChunkAndReturn(destination, completeBoundaryScript3);
+}
+var clientRenderScript1Full = stringToPrecomputedChunk(clientRenderFunction + ';$RX("');
+var clientRenderScript1Partial = stringToPrecomputedChunk('$RX("');
+var clientRenderScript1A = stringToPrecomputedChunk('"');
+var clientRenderScript2 = stringToPrecomputedChunk(')</script>');
+var clientRenderErrorScriptArgInterstitial = stringToPrecomputedChunk(',');
+function writeClientRenderBoundaryInstruction(destination, responseState, boundaryID, errorDigest, errorMessage, errorComponentStack) {
+  writeChunk(destination, responseState.startInlineScript);
+
+  if (!responseState.sentClientRenderFunction) {
+    // The first time we write this, we'll need to include the full implementation.
+    responseState.sentClientRenderFunction = true;
+    writeChunk(destination, clientRenderScript1Full);
+  } else {
+    // Future calls can just reuse the same function.
+    writeChunk(destination, clientRenderScript1Partial);
+  }
+
+  if (boundaryID === null) {
+    throw new Error('An ID must have been assigned before we can complete the boundary.');
+  }
+
+  writeChunk(destination, boundaryID);
+  writeChunk(destination, clientRenderScript1A);
+
+  if (errorDigest || errorMessage || errorComponentStack) {
+    writeChunk(destination, clientRenderErrorScriptArgInterstitial);
+    writeChunk(destination, stringToChunk(escapeJSStringsForInstructionScripts(errorDigest || '')));
+  }
+
+  if (errorMessage || errorComponentStack) {
+    writeChunk(destination, clientRenderErrorScriptArgInterstitial);
+    writeChunk(destination, stringToChunk(escapeJSStringsForInstructionScripts(errorMessage || '')));
+  }
+
+  if (errorComponentStack) {
+    writeChunk(destination, clientRenderErrorScriptArgInterstitial);
+    writeChunk(destination, stringToChunk(escapeJSStringsForInstructionScripts(errorComponentStack)));
+  }
+
+  return writeChunkAndReturn(destination, clientRenderScript2);
+}
+var regexForJSStringsInScripts = /[<\u2028\u2029]/g;
+
+function escapeJSStringsForInstructionScripts(input) {
+  var escaped = JSON.stringify(input);
+  return escaped.replace(regexForJSStringsInScripts, function (match) {
+    switch (match) {
+      // santizing breaking out of strings and script tags
+      case '<':
+        return "\\u003c";
+
+      case "\u2028":
+        return "\\u2028";
+
+      case "\u2029":
+        return "\\u2029";
+
+      default:
+        {
+          // eslint-disable-next-line react-internal/prod-error-codes
+          throw new Error('escapeJSStringsForInstructionScripts encountered a match it does not know how to replace. this means the match regex and the replacement characters are no longer in sync. This is a bug in React');
+        }
+    }
+  });
+}
+
+var assign = Object.assign;
+
+// ATTENTION
+// When adding new symbols to this file,
+// Please consider also adding to 'react-devtools-shared/src/backend/ReactSymbols'
+// The Symbol used to tag the ReactElement-like types.
+var REACT_ELEMENT_TYPE = Symbol.for('react.element');
+var REACT_PORTAL_TYPE = Symbol.for('react.portal');
+var REACT_FRAGMENT_TYPE = Symbol.for('react.fragment');
+var REACT_STRICT_MODE_TYPE = Symbol.for('react.strict_mode');
+var REACT_PROFILER_TYPE = Symbol.for('react.profiler');
+var REACT_PROVIDER_TYPE = Symbol.for('react.provider');
+var REACT_CONTEXT_TYPE = Symbol.for('react.context');
+var REACT_SERVER_CONTEXT_TYPE = Symbol.for('react.server_context');
+var REACT_FORWARD_REF_TYPE = Symbol.for('react.forward_ref');
+var REACT_SUSPENSE_TYPE = Symbol.for('react.suspense');
+var REACT_SUSPENSE_LIST_TYPE = Symbol.for('react.suspense_list');
+var REACT_MEMO_TYPE = Symbol.for('react.memo');
+var REACT_LAZY_TYPE = Symbol.for('react.lazy');
+var REACT_SCOPE_TYPE = Symbol.for('react.scope');
+var REACT_DEBUG_TRACING_MODE_TYPE = Symbol.for('react.debug_trace_mode');
+var REACT_OFFSCREEN_TYPE = Symbol.for('react.offscreen');
+var REACT_LEGACY_HIDDEN_TYPE = Symbol.for('react.legacy_hidden');
+var REACT_CACHE_TYPE = Symbol.for('react.cache');
+var REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED = Symbol.for('react.default_value');
+var MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
+var FAUX_ITERATOR_SYMBOL = '@@iterator';
+function getIteratorFn(maybeIterable) {
+  if (maybeIterable === null || typeof maybeIterable !== 'object') {
+    return null;
+  }
+
+  var maybeIterator = MAYBE_ITERATOR_SYMBOL && maybeIterable[MAYBE_ITERATOR_SYMBOL] || maybeIterable[FAUX_ITERATOR_SYMBOL];
+
+  if (typeof maybeIterator === 'function') {
+    return maybeIterator;
+  }
+
+  return null;
+}
+
+function getWrappedName(outerType, innerType, wrapperName) {
+  var displayName = outerType.displayName;
+
+  if (displayName) {
+    return displayName;
+  }
+
+  var functionName = innerType.displayName || innerType.name || '';
+  return functionName !== '' ? wrapperName + "(" + functionName + ")" : wrapperName;
+} // Keep in sync with react-reconciler/getComponentNameFromFiber
+
+
+function getContextName(type) {
+  return type.displayName || 'Context';
+} // Note that the reconciler package should generally prefer to use getComponentNameFromFiber() instead.
+
+
+function getComponentNameFromType(type) {
+  if (type == null) {
+    // Host root, text node or just invalid type.
+    return null;
+  }
+
+  {
+    if (typeof type.tag === 'number') {
+      error('Received an unexpected object in getComponentNameFromType(). ' + 'This is likely a bug in React. Please file an issue.');
+    }
+  }
+
+  if (typeof type === 'function') {
+    return type.displayName || type.name || null;
+  }
+
+  if (typeof type === 'string') {
+    return type;
+  }
+
+  switch (type) {
+    case REACT_FRAGMENT_TYPE:
+      return 'Fragment';
+
+    case REACT_PORTAL_TYPE:
+      return 'Portal';
+
+    case REACT_PROFILER_TYPE:
+      return 'Profiler';
+
+    case REACT_STRICT_MODE_TYPE:
+      return 'StrictMode';
+
+    case REACT_SUSPENSE_TYPE:
+      return 'Suspense';
+
+    case REACT_SUSPENSE_LIST_TYPE:
+      return 'SuspenseList';
+
+    case REACT_CACHE_TYPE:
+      {
+        return 'Cache';
+      }
+
+  }
+
+  if (typeof type === 'object') {
+    switch (type.$$typeof) {
+      case REACT_CONTEXT_TYPE:
+        var context = type;
+        return getContextName(context) + '.Consumer';
+
+      case REACT_PROVIDER_TYPE:
+        var provider = type;
+        return getContextName(provider._context) + '.Provider';
+
+      case REACT_FORWARD_REF_TYPE:
+        return getWrappedName(type, type.render, 'ForwardRef');
+
+      case REACT_MEMO_TYPE:
+        var outerName = type.displayName || null;
+
+        if (outerName !== null) {
+          return outerName;
+        }
+
+        return getComponentNameFromType(type.type) || 'Memo';
+
+      case REACT_LAZY_TYPE:
+        {
+          var lazyComponent = type;
+          var payload = lazyComponent._payload;
+          var init = lazyComponent._init;
+
+          try {
+            return getComponentNameFromType(init(payload));
+          } catch (x) {
+            return null;
+          }
+        }
+
+      case REACT_SERVER_CONTEXT_TYPE:
+        {
+          var context2 = type;
+          return (context2.displayName || context2._globalName) + '.Provider';
+        }
+
+      // eslint-disable-next-line no-fallthrough
+    }
+  }
+
+  return null;
+}
+
+// Helpers to patch console.logs to avoid logging during side-effect free
+// replaying on render function. This currently only patches the object
+// lazily which won't cover if the log function was extracted eagerly.
+// We could also eagerly patch the method.
+var disabledDepth = 0;
+var prevLog;
+var prevInfo;
+var prevWarn;
+var prevError;
+var prevGroup;
+var prevGroupCollapsed;
+var prevGroupEnd;
+
+function disabledLog() {}
+
+disabledLog.__reactDisabledLog = true;
+function disableLogs() {
+  {
+    if (disabledDepth === 0) {
+      /* eslint-disable react-internal/no-production-logging */
+      prevLog = console.log;
+      prevInfo = console.info;
+      prevWarn = console.warn;
+      prevError = console.error;
+      prevGroup = console.group;
+      prevGroupCollapsed = console.groupCollapsed;
+      prevGroupEnd = console.groupEnd; // https://github.com/facebook/react/issues/19099
+
+      var props = {
+        configurable: true,
+        enumerable: true,
+        value: disabledLog,
+        writable: true
+      }; // $FlowFixMe Flow thinks console is immutable.
+
+      Object.defineProperties(console, {
+        info: props,
+        log: props,
+        warn: props,
+        error: props,
+        group: props,
+        groupCollapsed: props,
+        groupEnd: props
+      });
+      /* eslint-enable react-internal/no-production-logging */
+    }
+
+    disabledDepth++;
+  }
+}
+function reenableLogs() {
+  {
+    disabledDepth--;
+
+    if (disabledDepth === 0) {
+      /* eslint-disable react-internal/no-production-logging */
+      var props = {
+        configurable: true,
+        enumerable: true,
+        writable: true
+      }; // $FlowFixMe Flow thinks console is immutable.
+
+      Object.defineProperties(console, {
+        log: assign({}, props, {
+          value: prevLog
+        }),
+        info: assign({}, props, {
+          value: prevInfo
+        }),
+        warn: assign({}, props, {
+          value: prevWarn
+        }),
+        error: assign({}, props, {
+          value: prevError
+        }),
+        group: assign({}, props, {
+          value: prevGroup
+        }),
+        groupCollapsed: assign({}, props, {
+          value: prevGroupCollapsed
+        }),
+        groupEnd: assign({}, props, {
+          value: prevGroupEnd
+        })
+      });
+      /* eslint-enable react-internal/no-production-logging */
+    }
+
+    if (disabledDepth < 0) {
+      error('disabledDepth fell below zero. ' + 'This is a bug in React. Please file an issue.');
+    }
+  }
+}
+
+var ReactCurrentDispatcher = ReactSharedInternals.ReactCurrentDispatcher;
+var prefix;
+function describeBuiltInComponentFrame(name, source, ownerFn) {
+  {
+    if (prefix === undefined) {
+      // Extract the VM specific prefix used by each line.
+      try {
+        throw Error();
+      } catch (x) {
+        var match = x.stack.trim().match(/\n( *(at )?)/);
+        prefix = match && match[1] || '';
+      }
+    } // We use the prefix to ensure our stacks line up with native stack frames.
+
+
+    return '\n' + prefix + name;
+  }
+}
+var reentry = false;
+var componentFrameCache;
+
+{
+  var PossiblyWeakMap = typeof WeakMap === 'function' ? WeakMap : Map;
+  componentFrameCache = new PossiblyWeakMap();
+}
+
+function describeNativeComponentFrame(fn, construct) {
+  // If something asked for a stack inside a fake render, it should get ignored.
+  if ( !fn || reentry) {
+    return '';
+  }
+
+  {
+    var frame = componentFrameCache.get(fn);
+
+    if (frame !== undefined) {
+      return frame;
+    }
+  }
+
+  var control;
+  reentry = true;
+  var previousPrepareStackTrace = Error.prepareStackTrace; // $FlowFixMe It does accept undefined.
+
+  Error.prepareStackTrace = undefined;
+  var previousDispatcher;
+
+  {
+    previousDispatcher = ReactCurrentDispatcher.current; // Set the dispatcher in DEV because this might be call in the render function
+    // for warnings.
+
+    ReactCurrentDispatcher.current = null;
+    disableLogs();
+  }
+
+  try {
+    // This should throw.
+    if (construct) {
+      // Something should be setting the props in the constructor.
+      var Fake = function () {
+        throw Error();
+      }; // $FlowFixMe
+
+
+      Object.defineProperty(Fake.prototype, 'props', {
+        set: function () {
+          // We use a throwing setter instead of frozen or non-writable props
+          // because that won't throw in a non-strict mode function.
+          throw Error();
+        }
+      });
+
+      if (typeof Reflect === 'object' && Reflect.construct) {
+        // We construct a different control for this case to include any extra
+        // frames added by the construct call.
+        try {
+          Reflect.construct(Fake, []);
+        } catch (x) {
+          control = x;
+        }
+
+        Reflect.construct(fn, [], Fake);
+      } else {
+        try {
+          Fake.call();
+        } catch (x) {
+          control = x;
+        }
+
+        fn.call(Fake.prototype);
+      }
+    } else {
+      try {
+        throw Error();
+      } catch (x) {
+        control = x;
+      } // TODO(luna): This will currently only throw if the function component
+      // tries to access React/ReactDOM/props. We should probably make this throw
+      // in simple components too
+
+
+      fn();
+    }
+  } catch (sample) {
+    // This is inlined manually because closure doesn't do it for us.
+    if (sample && control && typeof sample.stack === 'string') {
+      // This extracts the first frame from the sample that isn't also in the control.
+      // Skipping one frame that we assume is the frame that calls the two.
+      var sampleLines = sample.stack.split('\n');
+      var controlLines = control.stack.split('\n');
+      var s = sampleLines.length - 1;
+      var c = controlLines.length - 1;
+
+      while (s >= 1 && c >= 0 && sampleLines[s] !== controlLines[c]) {
+        // We expect at least one stack frame to be shared.
+        // Typically this will be the root most one. However, stack frames may be
+        // cut off due to maximum stack limits. In this case, one maybe cut off
+        // earlier than the other. We assume that the sample is longer or the same
+        // and there for cut off earlier. So we should find the root most frame in
+        // the sample somewhere in the control.
+        c--;
+      }
+
+      for (; s >= 1 && c >= 0; s--, c--) {
+        // Next we find the first one that isn't the same which should be the
+        // frame that called our sample function and the control.
+        if (sampleLines[s] !== controlLines[c]) {
+          // In V8, the first line is describing the message but other VMs don't.
+          // If we're about to return the first line, and the control is also on the same
+          // line, that's a pretty good indicator that our sample threw at same line as
+          // the control. I.e. before we entered the sample frame. So we ignore this result.
+          // This can happen if you passed a class to function component, or non-function.
+          if (s !== 1 || c !== 1) {
+            do {
+              s--;
+              c--; // We may still have similar intermediate frames from the construct call.
+              // The next one that isn't the same should be our match though.
+
+              if (c < 0 || sampleLines[s] !== controlLines[c]) {
+                // V8 adds a "new" prefix for native classes. Let's remove it to make it prettier.
+                var _frame = '\n' + sampleLines[s].replace(' at new ', ' at '); // If our component frame is labeled "<anonymous>"
+                // but we have a user-provided "displayName"
+                // splice it in to make the stack more readable.
+
+
+                if (fn.displayName && _frame.includes('<anonymous>')) {
+                  _frame = _frame.replace('<anonymous>', fn.displayName);
+                }
+
+                {
+                  if (typeof fn === 'function') {
+                    componentFrameCache.set(fn, _frame);
+                  }
+                } // Return the line we found.
+
+
+                return _frame;
+              }
+            } while (s >= 1 && c >= 0);
+          }
+
+          break;
+        }
+      }
+    }
+  } finally {
+    reentry = false;
+
+    {
+      ReactCurrentDispatcher.current = previousDispatcher;
+      reenableLogs();
+    }
+
+    Error.prepareStackTrace = previousPrepareStackTrace;
+  } // Fallback to just using the name if we couldn't make it throw.
+
+
+  var name = fn ? fn.displayName || fn.name : '';
+  var syntheticFrame = name ? describeBuiltInComponentFrame(name) : '';
+
+  {
+    if (typeof fn === 'function') {
+      componentFrameCache.set(fn, syntheticFrame);
+    }
+  }
+
+  return syntheticFrame;
+}
+
+function describeClassComponentFrame(ctor, source, ownerFn) {
+  {
+    return describeNativeComponentFrame(ctor, true);
+  }
+}
+function describeFunctionComponentFrame(fn, source, ownerFn) {
+  {
+    return describeNativeComponentFrame(fn, false);
+  }
+}
+
+function shouldConstruct(Component) {
+  var prototype = Component.prototype;
+  return !!(prototype && prototype.isReactComponent);
+}
+
+function describeUnknownElementTypeFrameInDEV(type, source, ownerFn) {
+
+  if (type == null) {
+    return '';
+  }
+
+  if (typeof type === 'function') {
+    {
+      return describeNativeComponentFrame(type, shouldConstruct(type));
+    }
+  }
+
+  if (typeof type === 'string') {
+    return describeBuiltInComponentFrame(type);
+  }
+
+  switch (type) {
+    case REACT_SUSPENSE_TYPE:
+      return describeBuiltInComponentFrame('Suspense');
+
+    case REACT_SUSPENSE_LIST_TYPE:
+      return describeBuiltInComponentFrame('SuspenseList');
+  }
+
+  if (typeof type === 'object') {
+    switch (type.$$typeof) {
+      case REACT_FORWARD_REF_TYPE:
+        return describeFunctionComponentFrame(type.render);
+
+      case REACT_MEMO_TYPE:
+        // Memo may contain any component type so we recursively resolve it.
+        return describeUnknownElementTypeFrameInDEV(type.type, source, ownerFn);
+
+      case REACT_LAZY_TYPE:
+        {
+          var lazyComponent = type;
+          var payload = lazyComponent._payload;
+          var init = lazyComponent._init;
+
+          try {
+            // Lazy may contain any component type so we recursively resolve it.
+            return describeUnknownElementTypeFrameInDEV(init(payload), source, ownerFn);
+          } catch (x) {}
+        }
+    }
+  }
+
+  return '';
+}
+
+var loggedTypeFailures = {};
+var ReactDebugCurrentFrame = ReactSharedInternals.ReactDebugCurrentFrame;
+
+function setCurrentlyValidatingElement(element) {
+  {
+    if (element) {
+      var owner = element._owner;
+      var stack = describeUnknownElementTypeFrameInDEV(element.type, element._source, owner ? owner.type : null);
+      ReactDebugCurrentFrame.setExtraStackFrame(stack);
+    } else {
+      ReactDebugCurrentFrame.setExtraStackFrame(null);
+    }
+  }
+}
+
+function checkPropTypes(typeSpecs, values, location, componentName, element) {
+  {
+    // $FlowFixMe This is okay but Flow doesn't know it.
+    var has = Function.call.bind(hasOwnProperty);
+
+    for (var typeSpecName in typeSpecs) {
+      if (has(typeSpecs, typeSpecName)) {
+        var error$1 = void 0; // Prop type validation may throw. In case they do, we don't want to
+        // fail the render phase where it didn't fail before. So we log it.
+        // After these have been cleaned up, we'll let them throw.
+
+        try {
+          // This is intentionally an invariant that gets caught. It's the same
+          // behavior as without this statement except with a better message.
+          if (typeof typeSpecs[typeSpecName] !== 'function') {
+            // eslint-disable-next-line react-internal/prod-error-codes
+            var err = Error((componentName || 'React class') + ': ' + location + ' type `' + typeSpecName + '` is invalid; ' + 'it must be a function, usually from the `prop-types` package, but received `' + typeof typeSpecs[typeSpecName] + '`.' + 'This often happens because of typos such as `PropTypes.function` instead of `PropTypes.func`.');
+            err.name = 'Invariant Violation';
+            throw err;
+          }
+
+          error$1 = typeSpecs[typeSpecName](values, typeSpecName, componentName, location, null, 'SECRET_DO_NOT_PASS_THIS_OR_YOU_WILL_BE_FIRED');
+        } catch (ex) {
+          error$1 = ex;
+        }
+
+        if (error$1 && !(error$1 instanceof Error)) {
+          setCurrentlyValidatingElement(element);
+
+          error('%s: type specification of %s' + ' `%s` is invalid; the type checker ' + 'function must return `null` or an `Error` but returned a %s. ' + 'You may have forgotten to pass an argument to the type checker ' + 'creator (arrayOf, instanceOf, objectOf, oneOf, oneOfType, and ' + 'shape all require an argument).', componentName || 'React class', location, typeSpecName, typeof error$1);
+
+          setCurrentlyValidatingElement(null);
+        }
+
+        if (error$1 instanceof Error && !(error$1.message in loggedTypeFailures)) {
+          // Only monitor this failure once because there tends to be a lot of the
+          // same error.
+          loggedTypeFailures[error$1.message] = true;
+          setCurrentlyValidatingElement(element);
+
+          error('Failed %s type: %s', location, error$1.message);
+
+          setCurrentlyValidatingElement(null);
+        }
+      }
+    }
+  }
+}
+
+var warnedAboutMissingGetChildContext;
+
+{
+  warnedAboutMissingGetChildContext = {};
+} // $FlowFixMe[incompatible-exact]
+
+
+var emptyContextObject = {};
+
+{
+  Object.freeze(emptyContextObject);
+}
+
+function getMaskedContext(type, unmaskedContext) {
+  {
+    var contextTypes = type.contextTypes;
+
+    if (!contextTypes) {
+      return emptyContextObject;
+    }
+
+    var context = {};
+
+    for (var key in contextTypes) {
+      context[key] = unmaskedContext[key];
+    }
+
+    {
+      var name = getComponentNameFromType(type) || 'Unknown';
+      checkPropTypes(contextTypes, context, 'context', name);
+    }
+
+    return context;
+  }
+}
+function processChildContext(instance, type, parentContext, childContextTypes) {
+  {
+    // TODO (bvaughn) Replace this behavior with an invariant() in the future.
+    // It has only been added in Fiber to match the (unintentional) behavior in Stack.
+    if (typeof instance.getChildContext !== 'function') {
+      {
+        var componentName = getComponentNameFromType(type) || 'Unknown';
+
+        if (!warnedAboutMissingGetChildContext[componentName]) {
+          warnedAboutMissingGetChildContext[componentName] = true;
+
+          error('%s.childContextTypes is specified but there is no getChildContext() method ' + 'on the instance. You can either define getChildContext() on %s or remove ' + 'childContextTypes from it.', componentName, componentName);
+        }
+      }
+
+      return parentContext;
+    }
+
+    var childContext = instance.getChildContext();
+
+    for (var contextKey in childContext) {
+      if (!(contextKey in childContextTypes)) {
+        throw new Error((getComponentNameFromType(type) || 'Unknown') + ".getChildContext(): key \"" + contextKey + "\" is not defined in childContextTypes.");
+      }
+    }
+
+    {
+      var name = getComponentNameFromType(type) || 'Unknown';
+      checkPropTypes(childContextTypes, childContext, 'child context', name);
+    }
+
+    return assign({}, parentContext, childContext);
+  }
+}
+
+var rendererSigil;
+
+{
+  // Use this to detect multiple renderers using the same context
+  rendererSigil = {};
+} // Used to store the parent path of all context overrides in a shared linked list.
+// Forming a reverse tree.
+
+
+var rootContextSnapshot = null; // We assume that this runtime owns the "current" field on all ReactContext instances.
+// This global (actually thread local) state represents what state all those "current",
+// fields are currently in.
+
+var currentActiveSnapshot = null;
+
+function popNode(prev) {
+  {
+    prev.context._currentValue = prev.parentValue;
+  }
+}
+
+function pushNode(next) {
+  {
+    next.context._currentValue = next.value;
+  }
+}
+
+function popToNearestCommonAncestor(prev, next) {
+  if (prev === next) ; else {
+    popNode(prev);
+    var parentPrev = prev.parent;
+    var parentNext = next.parent;
+
+    if (parentPrev === null) {
+      if (parentNext !== null) {
+        throw new Error('The stacks must reach the root at the same time. This is a bug in React.');
+      }
+    } else {
+      if (parentNext === null) {
+        throw new Error('The stacks must reach the root at the same time. This is a bug in React.');
+      }
+
+      popToNearestCommonAncestor(parentPrev, parentNext);
+    } // On the way back, we push the new ones that weren't common.
+
+
+    pushNode(next);
+  }
+}
+
+function popAllPrevious(prev) {
+  popNode(prev);
+  var parentPrev = prev.parent;
+
+  if (parentPrev !== null) {
+    popAllPrevious(parentPrev);
+  }
+}
+
+function pushAllNext(next) {
+  var parentNext = next.parent;
+
+  if (parentNext !== null) {
+    pushAllNext(parentNext);
+  }
+
+  pushNode(next);
+}
+
+function popPreviousToCommonLevel(prev, next) {
+  popNode(prev);
+  var parentPrev = prev.parent;
+
+  if (parentPrev === null) {
+    throw new Error('The depth must equal at least at zero before reaching the root. This is a bug in React.');
+  }
+
+  if (parentPrev.depth === next.depth) {
+    // We found the same level. Now we just need to find a shared ancestor.
+    popToNearestCommonAncestor(parentPrev, next);
+  } else {
+    // We must still be deeper.
+    popPreviousToCommonLevel(parentPrev, next);
+  }
+}
+
+function popNextToCommonLevel(prev, next) {
+  var parentNext = next.parent;
+
+  if (parentNext === null) {
+    throw new Error('The depth must equal at least at zero before reaching the root. This is a bug in React.');
+  }
+
+  if (prev.depth === parentNext.depth) {
+    // We found the same level. Now we just need to find a shared ancestor.
+    popToNearestCommonAncestor(prev, parentNext);
+  } else {
+    // We must still be deeper.
+    popNextToCommonLevel(prev, parentNext);
+  }
+
+  pushNode(next);
+} // Perform context switching to the new snapshot.
+// To make it cheap to read many contexts, while not suspending, we make the switch eagerly by
+// updating all the context's current values. That way reads, always just read the current value.
+// At the cost of updating contexts even if they're never read by this subtree.
+
+
+function switchContext(newSnapshot) {
+  // The basic algorithm we need to do is to pop back any contexts that are no longer on the stack.
+  // We also need to update any new contexts that are now on the stack with the deepest value.
+  // The easiest way to update new contexts is to just reapply them in reverse order from the
+  // perspective of the backpointers. To avoid allocating a lot when switching, we use the stack
+  // for that. Therefore this algorithm is recursive.
+  // 1) First we pop which ever snapshot tree was deepest. Popping old contexts as we go.
+  // 2) Then we find the nearest common ancestor from there. Popping old contexts as we go.
+  // 3) Then we reapply new contexts on the way back up the stack.
+  var prev = currentActiveSnapshot;
+  var next = newSnapshot;
+
+  if (prev !== next) {
+    if (prev === null) {
+      // $FlowFixMe: This has to be non-null since it's not equal to prev.
+      pushAllNext(next);
+    } else if (next === null) {
+      popAllPrevious(prev);
+    } else if (prev.depth === next.depth) {
+      popToNearestCommonAncestor(prev, next);
+    } else if (prev.depth > next.depth) {
+      popPreviousToCommonLevel(prev, next);
+    } else {
+      popNextToCommonLevel(prev, next);
+    }
+
+    currentActiveSnapshot = next;
+  }
+}
+function pushProvider(context, nextValue) {
+  var prevValue;
+
+  {
+    prevValue = context._currentValue;
+    context._currentValue = nextValue;
+
+    {
+      if (context._currentRenderer !== undefined && context._currentRenderer !== null && context._currentRenderer !== rendererSigil) {
+        error('Detected multiple renderers concurrently rendering the ' + 'same context provider. This is currently unsupported.');
+      }
+
+      context._currentRenderer = rendererSigil;
+    }
+  }
+
+  var prevNode = currentActiveSnapshot;
+  var newNode = {
+    parent: prevNode,
+    depth: prevNode === null ? 0 : prevNode.depth + 1,
+    context: context,
+    parentValue: prevValue,
+    value: nextValue
+  };
+  currentActiveSnapshot = newNode;
+  return newNode;
+}
+function popProvider(context) {
+  var prevSnapshot = currentActiveSnapshot;
+
+  if (prevSnapshot === null) {
+    throw new Error('Tried to pop a Context at the root of the app. This is a bug in React.');
+  }
+
+  {
+    if (prevSnapshot.context !== context) {
+      error('The parent context is not the expected context. This is probably a bug in React.');
+    }
+  }
+
+  {
+    var value = prevSnapshot.parentValue;
+
+    if (value === REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED) {
+      prevSnapshot.context._currentValue = prevSnapshot.context._defaultValue;
+    } else {
+      prevSnapshot.context._currentValue = value;
+    }
+
+    {
+      if (context._currentRenderer !== undefined && context._currentRenderer !== null && context._currentRenderer !== rendererSigil) {
+        error('Detected multiple renderers concurrently rendering the ' + 'same context provider. This is currently unsupported.');
+      }
+
+      context._currentRenderer = rendererSigil;
+    }
+  }
+
+  return currentActiveSnapshot = prevSnapshot.parent;
+}
+function getActiveContext() {
+  return currentActiveSnapshot;
+}
+function readContext(context) {
+  var value =  context._currentValue ;
+  return value;
+}
+
+/**
+ * `ReactInstanceMap` maintains a mapping from a public facing stateful
+ * instance (key) and the internal representation (value). This allows public
+ * methods to accept the user facing instance as an argument and map them back
+ * to internal methods.
+ *
+ * Note that this module is currently shared and assumed to be stateless.
+ * If this becomes an actual Map, that will break.
+ */
+function get(key) {
+  return key._reactInternals;
+}
+function set(key, value) {
+  key._reactInternals = value;
+}
+
+var didWarnAboutNoopUpdateForComponent = {};
+var didWarnAboutDeprecatedWillMount = {};
+var didWarnAboutUninitializedState;
+var didWarnAboutGetSnapshotBeforeUpdateWithoutDidUpdate;
+var didWarnAboutLegacyLifecyclesAndDerivedState;
+var didWarnAboutUndefinedDerivedState;
+var warnOnUndefinedDerivedState;
+var warnOnInvalidCallback;
+var didWarnAboutDirectlyAssigningPropsToState;
+var didWarnAboutContextTypeAndContextTypes;
+var didWarnAboutInvalidateContextType;
+
+{
+  didWarnAboutUninitializedState = new Set();
+  didWarnAboutGetSnapshotBeforeUpdateWithoutDidUpdate = new Set();
+  didWarnAboutLegacyLifecyclesAndDerivedState = new Set();
+  didWarnAboutDirectlyAssigningPropsToState = new Set();
+  didWarnAboutUndefinedDerivedState = new Set();
+  didWarnAboutContextTypeAndContextTypes = new Set();
+  didWarnAboutInvalidateContextType = new Set();
+  var didWarnOnInvalidCallback = new Set();
+
+  warnOnInvalidCallback = function (callback, callerName) {
+    if (callback === null || typeof callback === 'function') {
+      return;
+    }
+
+    var key = callerName + '_' + callback;
+
+    if (!didWarnOnInvalidCallback.has(key)) {
+      didWarnOnInvalidCallback.add(key);
+
+      error('%s(...): Expected the last optional `callback` argument to be a ' + 'function. Instead received: %s.', callerName, callback);
+    }
+  };
+
+  warnOnUndefinedDerivedState = function (type, partialState) {
+    if (partialState === undefined) {
+      var componentName = getComponentNameFromType(type) || 'Component';
+
+      if (!didWarnAboutUndefinedDerivedState.has(componentName)) {
+        didWarnAboutUndefinedDerivedState.add(componentName);
+
+        error('%s.getDerivedStateFromProps(): A valid state object (or null) must be returned. ' + 'You have returned undefined.', componentName);
+      }
+    }
+  };
+}
+
+function warnNoop(publicInstance, callerName) {
+  {
+    var _constructor = publicInstance.constructor;
+    var componentName = _constructor && getComponentNameFromType(_constructor) || 'ReactClass';
+    var warningKey = componentName + '.' + callerName;
+
+    if (didWarnAboutNoopUpdateForComponent[warningKey]) {
+      return;
+    }
+
+    error('%s(...): Can only update a mounting component. ' + 'This usually means you called %s() outside componentWillMount() on the server. ' + 'This is a no-op.\n\nPlease check the code for the %s component.', callerName, callerName, componentName);
+
+    didWarnAboutNoopUpdateForComponent[warningKey] = true;
+  }
+}
+
+var classComponentUpdater = {
+  isMounted: function (inst) {
+    return false;
+  },
+  enqueueSetState: function (inst, payload, callback) {
+    var internals = get(inst);
+
+    if (internals.queue === null) {
+      warnNoop(inst, 'setState');
+    } else {
+      internals.queue.push(payload);
+
+      {
+        if (callback !== undefined && callback !== null) {
+          warnOnInvalidCallback(callback, 'setState');
+        }
+      }
+    }
+  },
+  enqueueReplaceState: function (inst, payload, callback) {
+    var internals = get(inst);
+    internals.replace = true;
+    internals.queue = [payload];
+
+    {
+      if (callback !== undefined && callback !== null) {
+        warnOnInvalidCallback(callback, 'setState');
+      }
+    }
+  },
+  enqueueForceUpdate: function (inst, callback) {
+    var internals = get(inst);
+
+    if (internals.queue === null) {
+      warnNoop(inst, 'forceUpdate');
+    } else {
+      {
+        if (callback !== undefined && callback !== null) {
+          warnOnInvalidCallback(callback, 'setState');
+        }
+      }
+    }
+  }
+};
+
+function applyDerivedStateFromProps(instance, ctor, getDerivedStateFromProps, prevState, nextProps) {
+  var partialState = getDerivedStateFromProps(nextProps, prevState);
+
+  {
+    warnOnUndefinedDerivedState(ctor, partialState);
+  } // Merge the partial state and the previous state.
+
+
+  var newState = partialState === null || partialState === undefined ? prevState : assign({}, prevState, partialState);
+  return newState;
+}
+
+function constructClassInstance(ctor, props, maskedLegacyContext) {
+  var context = emptyContextObject;
+  var contextType = ctor.contextType;
+
+  {
+    if ('contextType' in ctor) {
+      var isValid = // Allow null for conditional declaration
+      contextType === null || contextType !== undefined && contextType.$$typeof === REACT_CONTEXT_TYPE && contextType._context === undefined; // Not a <Context.Consumer>
+
+      if (!isValid && !didWarnAboutInvalidateContextType.has(ctor)) {
+        didWarnAboutInvalidateContextType.add(ctor);
+        var addendum = '';
+
+        if (contextType === undefined) {
+          addendum = ' However, it is set to undefined. ' + 'This can be caused by a typo or by mixing up named and default imports. ' + 'This can also happen due to a circular dependency, so ' + 'try moving the createContext() call to a separate file.';
+        } else if (typeof contextType !== 'object') {
+          addendum = ' However, it is set to a ' + typeof contextType + '.';
+        } else if (contextType.$$typeof === REACT_PROVIDER_TYPE) {
+          addendum = ' Did you accidentally pass the Context.Provider instead?';
+        } else if (contextType._context !== undefined) {
+          // <Context.Consumer>
+          addendum = ' Did you accidentally pass the Context.Consumer instead?';
+        } else {
+          addendum = ' However, it is set to an object with keys {' + Object.keys(contextType).join(', ') + '}.';
+        }
+
+        error('%s defines an invalid contextType. ' + 'contextType should point to the Context object returned by React.createContext().%s', getComponentNameFromType(ctor) || 'Component', addendum);
+      }
+    }
+  }
+
+  if (typeof contextType === 'object' && contextType !== null) {
+    context = readContext(contextType);
+  } else {
+    context = maskedLegacyContext;
+  }
+
+  var instance = new ctor(props, context);
+
+  {
+    if (typeof ctor.getDerivedStateFromProps === 'function' && (instance.state === null || instance.state === undefined)) {
+      var componentName = getComponentNameFromType(ctor) || 'Component';
+
+      if (!didWarnAboutUninitializedState.has(componentName)) {
+        didWarnAboutUninitializedState.add(componentName);
+
+        error('`%s` uses `getDerivedStateFromProps` but its initial state is ' + '%s. This is not recommended. Instead, define the initial state by ' + 'assigning an object to `this.state` in the constructor of `%s`. ' + 'This ensures that `getDerivedStateFromProps` arguments have a consistent shape.', componentName, instance.state === null ? 'null' : 'undefined', componentName);
+      }
+    } // If new component APIs are defined, "unsafe" lifecycles won't be called.
+    // Warn about these lifecycles if they are present.
+    // Don't warn about react-lifecycles-compat polyfilled methods though.
+
+
+    if (typeof ctor.getDerivedStateFromProps === 'function' || typeof instance.getSnapshotBeforeUpdate === 'function') {
+      var foundWillMountName = null;
+      var foundWillReceivePropsName = null;
+      var foundWillUpdateName = null;
+
+      if (typeof instance.componentWillMount === 'function' && instance.componentWillMount.__suppressDeprecationWarning !== true) {
+        foundWillMountName = 'componentWillMount';
+      } else if (typeof instance.UNSAFE_componentWillMount === 'function') {
+        foundWillMountName = 'UNSAFE_componentWillMount';
+      }
+
+      if (typeof instance.componentWillReceiveProps === 'function' && instance.componentWillReceiveProps.__suppressDeprecationWarning !== true) {
+        foundWillReceivePropsName = 'componentWillReceiveProps';
+      } else if (typeof instance.UNSAFE_componentWillReceiveProps === 'function') {
+        foundWillReceivePropsName = 'UNSAFE_componentWillReceiveProps';
+      }
+
+      if (typeof instance.componentWillUpdate === 'function' && instance.componentWillUpdate.__suppressDeprecationWarning !== true) {
+        foundWillUpdateName = 'componentWillUpdate';
+      } else if (typeof instance.UNSAFE_componentWillUpdate === 'function') {
+        foundWillUpdateName = 'UNSAFE_componentWillUpdate';
+      }
+
+      if (foundWillMountName !== null || foundWillReceivePropsName !== null || foundWillUpdateName !== null) {
+        var _componentName = getComponentNameFromType(ctor) || 'Component';
+
+        var newApiName = typeof ctor.getDerivedStateFromProps === 'function' ? 'getDerivedStateFromProps()' : 'getSnapshotBeforeUpdate()';
+
+        if (!didWarnAboutLegacyLifecyclesAndDerivedState.has(_componentName)) {
+          didWarnAboutLegacyLifecyclesAndDerivedState.add(_componentName);
+
+          error('Unsafe legacy lifecycles will not be called for components using new component APIs.\n\n' + '%s uses %s but also contains the following legacy lifecycles:%s%s%s\n\n' + 'The above lifecycles should be removed. Learn more about this warning here:\n' + 'https://reactjs.org/link/unsafe-component-lifecycles', _componentName, newApiName, foundWillMountName !== null ? "\n  " + foundWillMountName : '', foundWillReceivePropsName !== null ? "\n  " + foundWillReceivePropsName : '', foundWillUpdateName !== null ? "\n  " + foundWillUpdateName : '');
+        }
+      }
+    }
+  }
+
+  return instance;
+}
+
+function checkClassInstance(instance, ctor, newProps) {
+  {
+    var name = getComponentNameFromType(ctor) || 'Component';
+    var renderPresent = instance.render;
+
+    if (!renderPresent) {
+      if (ctor.prototype && typeof ctor.prototype.render === 'function') {
+        error('%s(...): No `render` method found on the returned component ' + 'instance: did you accidentally return an object from the constructor?', name);
+      } else {
+        error('%s(...): No `render` method found on the returned component ' + 'instance: you may have forgotten to define `render`.', name);
+      }
+    }
+
+    if (instance.getInitialState && !instance.getInitialState.isReactClassApproved && !instance.state) {
+      error('getInitialState was defined on %s, a plain JavaScript class. ' + 'This is only supported for classes created using React.createClass. ' + 'Did you mean to define a state property instead?', name);
+    }
+
+    if (instance.getDefaultProps && !instance.getDefaultProps.isReactClassApproved) {
+      error('getDefaultProps was defined on %s, a plain JavaScript class. ' + 'This is only supported for classes created using React.createClass. ' + 'Use a static property to define defaultProps instead.', name);
+    }
+
+    if (instance.propTypes) {
+      error('propTypes was defined as an instance property on %s. Use a static ' + 'property to define propTypes instead.', name);
+    }
+
+    if (instance.contextType) {
+      error('contextType was defined as an instance property on %s. Use a static ' + 'property to define contextType instead.', name);
+    }
+
+    {
+      if (instance.contextTypes) {
+        error('contextTypes was defined as an instance property on %s. Use a static ' + 'property to define contextTypes instead.', name);
+      }
+
+      if (ctor.contextType && ctor.contextTypes && !didWarnAboutContextTypeAndContextTypes.has(ctor)) {
+        didWarnAboutContextTypeAndContextTypes.add(ctor);
+
+        error('%s declares both contextTypes and contextType static properties. ' + 'The legacy contextTypes property will be ignored.', name);
+      }
+    }
+
+    if (typeof instance.componentShouldUpdate === 'function') {
+      error('%s has a method called ' + 'componentShouldUpdate(). Did you mean shouldComponentUpdate()? ' + 'The name is phrased as a question because the function is ' + 'expected to return a value.', name);
+    }
+
+    if (ctor.prototype && ctor.prototype.isPureReactComponent && typeof instance.shouldComponentUpdate !== 'undefined') {
+      error('%s has a method called shouldComponentUpdate(). ' + 'shouldComponentUpdate should not be used when extending React.PureComponent. ' + 'Please extend React.Component if shouldComponentUpdate is used.', getComponentNameFromType(ctor) || 'A pure component');
+    }
+
+    if (typeof instance.componentDidUnmount === 'function') {
+      error('%s has a method called ' + 'componentDidUnmount(). But there is no such lifecycle method. ' + 'Did you mean componentWillUnmount()?', name);
+    }
+
+    if (typeof instance.componentDidReceiveProps === 'function') {
+      error('%s has a method called ' + 'componentDidReceiveProps(). But there is no such lifecycle method. ' + 'If you meant to update the state in response to changing props, ' + 'use componentWillReceiveProps(). If you meant to fetch data or ' + 'run side-effects or mutations after React has updated the UI, use componentDidUpdate().', name);
+    }
+
+    if (typeof instance.componentWillRecieveProps === 'function') {
+      error('%s has a method called ' + 'componentWillRecieveProps(). Did you mean componentWillReceiveProps()?', name);
+    }
+
+    if (typeof instance.UNSAFE_componentWillRecieveProps === 'function') {
+      error('%s has a method called ' + 'UNSAFE_componentWillRecieveProps(). Did you mean UNSAFE_componentWillReceiveProps()?', name);
+    }
+
+    var hasMutatedProps = instance.props !== newProps;
+
+    if (instance.props !== undefined && hasMutatedProps) {
+      error('%s(...): When calling super() in `%s`, make sure to pass ' + "up the same props that your component's constructor was passed.", name, name);
+    }
+
+    if (instance.defaultProps) {
+      error('Setting defaultProps as an instance property on %s is not supported and will be ignored.' + ' Instead, define defaultProps as a static property on %s.', name, name);
+    }
+
+    if (typeof instance.getSnapshotBeforeUpdate === 'function' && typeof instance.componentDidUpdate !== 'function' && !didWarnAboutGetSnapshotBeforeUpdateWithoutDidUpdate.has(ctor)) {
+      didWarnAboutGetSnapshotBeforeUpdateWithoutDidUpdate.add(ctor);
+
+      error('%s: getSnapshotBeforeUpdate() should be used with componentDidUpdate(). ' + 'This component defines getSnapshotBeforeUpdate() only.', getComponentNameFromType(ctor));
+    }
+
+    if (typeof instance.getDerivedStateFromProps === 'function') {
+      error('%s: getDerivedStateFromProps() is defined as an instance method ' + 'and will be ignored. Instead, declare it as a static method.', name);
+    }
+
+    if (typeof instance.getDerivedStateFromError === 'function') {
+      error('%s: getDerivedStateFromError() is defined as an instance method ' + 'and will be ignored. Instead, declare it as a static method.', name);
+    }
+
+    if (typeof ctor.getSnapshotBeforeUpdate === 'function') {
+      error('%s: getSnapshotBeforeUpdate() is defined as a static method ' + 'and will be ignored. Instead, declare it as an instance method.', name);
+    }
+
+    var _state = instance.state;
+
+    if (_state && (typeof _state !== 'object' || isArray(_state))) {
+      error('%s.state: must be set to an object or null', name);
+    }
+
+    if (typeof instance.getChildContext === 'function' && typeof ctor.childContextTypes !== 'object') {
+      error('%s.getChildContext(): childContextTypes must be defined in order to ' + 'use getChildContext().', name);
+    }
+  }
+}
+
+function callComponentWillMount(type, instance) {
+  var oldState = instance.state;
+
+  if (typeof instance.componentWillMount === 'function') {
+    {
+      if ( instance.componentWillMount.__suppressDeprecationWarning !== true) {
+        var componentName = getComponentNameFromType(type) || 'Unknown';
+
+        if (!didWarnAboutDeprecatedWillMount[componentName]) {
+          warn( // keep this warning in sync with ReactStrictModeWarning.js
+          'componentWillMount has been renamed, and is not recommended for use. ' + 'See https://reactjs.org/link/unsafe-component-lifecycles for details.\n\n' + '* Move code from componentWillMount to componentDidMount (preferred in most cases) ' + 'or the constructor.\n' + '\nPlease update the following components: %s', componentName);
+
+          didWarnAboutDeprecatedWillMount[componentName] = true;
+        }
+      }
+    }
+
+    instance.componentWillMount();
+  }
+
+  if (typeof instance.UNSAFE_componentWillMount === 'function') {
+    instance.UNSAFE_componentWillMount();
+  }
+
+  if (oldState !== instance.state) {
+    {
+      error('%s.componentWillMount(): Assigning directly to this.state is ' + "deprecated (except inside a component's " + 'constructor). Use setState instead.', getComponentNameFromType(type) || 'Component');
+    }
+
+    classComponentUpdater.enqueueReplaceState(instance, instance.state, null);
+  }
+}
+
+function processUpdateQueue(internalInstance, inst, props, maskedLegacyContext) {
+  if (internalInstance.queue !== null && internalInstance.queue.length > 0) {
+    var oldQueue = internalInstance.queue;
+    var oldReplace = internalInstance.replace;
+    internalInstance.queue = null;
+    internalInstance.replace = false;
+
+    if (oldReplace && oldQueue.length === 1) {
+      inst.state = oldQueue[0];
+    } else {
+      var nextState = oldReplace ? oldQueue[0] : inst.state;
+      var dontMutate = true;
+
+      for (var i = oldReplace ? 1 : 0; i < oldQueue.length; i++) {
+        var partial = oldQueue[i];
+        var partialState = typeof partial === 'function' ? partial.call(inst, nextState, props, maskedLegacyContext) : partial;
+
+        if (partialState != null) {
+          if (dontMutate) {
+            dontMutate = false;
+            nextState = assign({}, nextState, partialState);
+          } else {
+            assign(nextState, partialState);
+          }
+        }
+      }
+
+      inst.state = nextState;
+    }
+  } else {
+    internalInstance.queue = null;
+  }
+} // Invokes the mount life-cycles on a previously never rendered instance.
+
+
+function mountClassInstance(instance, ctor, newProps, maskedLegacyContext) {
+  {
+    checkClassInstance(instance, ctor, newProps);
+  }
+
+  var initialState = instance.state !== undefined ? instance.state : null;
+  instance.updater = classComponentUpdater;
+  instance.props = newProps;
+  instance.state = initialState; // We don't bother initializing the refs object on the server, since we're not going to resolve them anyway.
+  // The internal instance will be used to manage updates that happen during this mount.
+
+  var internalInstance = {
+    queue: [],
+    replace: false
+  };
+  set(instance, internalInstance);
+  var contextType = ctor.contextType;
+
+  if (typeof contextType === 'object' && contextType !== null) {
+    instance.context = readContext(contextType);
+  } else {
+    instance.context = maskedLegacyContext;
+  }
+
+  {
+    if (instance.state === newProps) {
+      var componentName = getComponentNameFromType(ctor) || 'Component';
+
+      if (!didWarnAboutDirectlyAssigningPropsToState.has(componentName)) {
+        didWarnAboutDirectlyAssigningPropsToState.add(componentName);
+
+        error('%s: It is not recommended to assign props directly to state ' + "because updates to props won't be reflected in state. " + 'In most cases, it is better to use props directly.', componentName);
+      }
+    }
+  }
+
+  var getDerivedStateFromProps = ctor.getDerivedStateFromProps;
+
+  if (typeof getDerivedStateFromProps === 'function') {
+    instance.state = applyDerivedStateFromProps(instance, ctor, getDerivedStateFromProps, initialState, newProps);
+  } // In order to support react-lifecycles-compat polyfilled components,
+  // Unsafe lifecycles should not be invoked for components using the new APIs.
+
+
+  if (typeof ctor.getDerivedStateFromProps !== 'function' && typeof instance.getSnapshotBeforeUpdate !== 'function' && (typeof instance.UNSAFE_componentWillMount === 'function' || typeof instance.componentWillMount === 'function')) {
+    callComponentWillMount(ctor, instance); // If we had additional state updates during this life-cycle, let's
+    // process them now.
+
+    processUpdateQueue(internalInstance, instance, newProps, maskedLegacyContext);
+  }
+}
+
+// Ids are base 32 strings whose binary representation corresponds to the
+// position of a node in a tree.
+// Every time the tree forks into multiple children, we add additional bits to
+// the left of the sequence that represent the position of the child within the
+// current level of children.
+//
+//      00101       00010001011010101
+//      ╰─┬─╯       ╰───────┬───────╯
+//   Fork 5 of 20       Parent id
+//
+// The leading 0s are important. In the above example, you only need 3 bits to
+// represent slot 5. However, you need 5 bits to represent all the forks at
+// the current level, so we must account for the empty bits at the end.
+//
+// For this same reason, slots are 1-indexed instead of 0-indexed. Otherwise,
+// the zeroth id at a level would be indistinguishable from its parent.
+//
+// If a node has only one child, and does not materialize an id (i.e. does not
+// contain a useId hook), then we don't need to allocate any space in the
+// sequence. It's treated as a transparent indirection. For example, these two
+// trees produce the same ids:
+//
+// <>                          <>
+//   <Indirection>               <A />
+//     <A />                     <B />
+//   </Indirection>            </>
+//   <B />
+// </>
+//
+// However, we cannot skip any node that materializes an id. Otherwise, a parent
+// id that does not fork would be indistinguishable from its child id. For
+// example, this tree does not fork, but the parent and child must have
+// different ids.
+//
+// <Parent>
+//   <Child />
+// </Parent>
+//
+// To handle this scenario, every time we materialize an id, we allocate a
+// new level with a single slot. You can think of this as a fork with only one
+// prong, or an array of children with length 1.
+//
+// It's possible for the size of the sequence to exceed 32 bits, the max
+// size for bitwise operations. When this happens, we make more room by
+// converting the right part of the id to a string and storing it in an overflow
+// variable. We use a base 32 string representation, because 32 is the largest
+// power of 2 that is supported by toString(). We want the base to be large so
+// that the resulting ids are compact, and we want the base to be a power of 2
+// because every log2(base) bits corresponds to a single character, i.e. every
+// log2(32) = 5 bits. That means we can lop bits off the end 5 at a time without
+// affecting the final result.
+var emptyTreeContext = {
+  id: 1,
+  overflow: ''
+};
+function getTreeId(context) {
+  var overflow = context.overflow;
+  var idWithLeadingBit = context.id;
+  var id = idWithLeadingBit & ~getLeadingBit(idWithLeadingBit);
+  return id.toString(32) + overflow;
+}
+function pushTreeContext(baseContext, totalChildren, index) {
+  var baseIdWithLeadingBit = baseContext.id;
+  var baseOverflow = baseContext.overflow; // The leftmost 1 marks the end of the sequence, non-inclusive. It's not part
+  // of the id; we use it to account for leading 0s.
+
+  var baseLength = getBitLength(baseIdWithLeadingBit) - 1;
+  var baseId = baseIdWithLeadingBit & ~(1 << baseLength);
+  var slot = index + 1;
+  var length = getBitLength(totalChildren) + baseLength; // 30 is the max length we can store without overflowing, taking into
+  // consideration the leading 1 we use to mark the end of the sequence.
+
+  if (length > 30) {
+    // We overflowed the bitwise-safe range. Fall back to slower algorithm.
+    // This branch assumes the length of the base id is greater than 5; it won't
+    // work for smaller ids, because you need 5 bits per character.
+    //
+    // We encode the id in multiple steps: first the base id, then the
+    // remaining digits.
+    //
+    // Each 5 bit sequence corresponds to a single base 32 character. So for
+    // example, if the current id is 23 bits long, we can convert 20 of those
+    // bits into a string of 4 characters, with 3 bits left over.
+    //
+    // First calculate how many bits in the base id represent a complete
+    // sequence of characters.
+    var numberOfOverflowBits = baseLength - baseLength % 5; // Then create a bitmask that selects only those bits.
+
+    var newOverflowBits = (1 << numberOfOverflowBits) - 1; // Select the bits, and convert them to a base 32 string.
+
+    var newOverflow = (baseId & newOverflowBits).toString(32); // Now we can remove those bits from the base id.
+
+    var restOfBaseId = baseId >> numberOfOverflowBits;
+    var restOfBaseLength = baseLength - numberOfOverflowBits; // Finally, encode the rest of the bits using the normal algorithm. Because
+    // we made more room, this time it won't overflow.
+
+    var restOfLength = getBitLength(totalChildren) + restOfBaseLength;
+    var restOfNewBits = slot << restOfBaseLength;
+    var id = restOfNewBits | restOfBaseId;
+    var overflow = newOverflow + baseOverflow;
+    return {
+      id: 1 << restOfLength | id,
+      overflow: overflow
+    };
+  } else {
+    // Normal path
+    var newBits = slot << baseLength;
+
+    var _id = newBits | baseId;
+
+    var _overflow = baseOverflow;
+    return {
+      id: 1 << length | _id,
+      overflow: _overflow
+    };
+  }
+}
+
+function getBitLength(number) {
+  return 32 - clz32(number);
+}
+
+function getLeadingBit(id) {
+  return 1 << getBitLength(id) - 1;
+} // TODO: Math.clz32 is supported in Node 12+. Maybe we can drop the fallback.
+
+
+var clz32 = Math.clz32 ? Math.clz32 : clz32Fallback; // Count leading zeros.
+// Based on:
+// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/clz32
+
+var log = Math.log;
+var LN2 = Math.LN2;
+
+function clz32Fallback(x) {
+  var asUint = x >>> 0;
+
+  if (asUint === 0) {
+    return 32;
+  }
+
+  return 31 - (log(asUint) / LN2 | 0) | 0;
+}
+
+// Corresponds to ReactFiberWakeable and ReactFlightWakeable modules. Generally,
+// changes to one module should be reflected in the others.
+// TODO: Rename this module and the corresponding Fiber one to "Thenable"
+// instead of "Wakeable". Or some other more appropriate name.
+// TODO: Sparse arrays are bad for performance.
+function createThenableState() {
+  // The ThenableState is created the first time a component suspends. If it
+  // suspends again, we'll reuse the same state.
+  return [];
+}
+function trackSuspendedWakeable(wakeable) {
+  // If this wakeable isn't already a thenable, turn it into one now. Then,
+  // when we resume the work loop, we can check if its status is
+  // still pending.
+  // TODO: Get rid of the Wakeable type? It's superseded by UntrackedThenable.
+  var thenable = wakeable; // We use an expando to track the status and result of a thenable so that we
+  // can synchronously unwrap the value. Think of this as an extension of the
+  // Promise API, or a custom interface that is a superset of Thenable.
+  //
+  // If the thenable doesn't have a status, set it to "pending" and attach
+  // a listener that will update its status and result when it resolves.
+
+  switch (thenable.status) {
+    case 'fulfilled':
+    case 'rejected':
+      // A thenable that already resolved shouldn't have been thrown, so this is
+      // unexpected. Suggests a mistake in a userspace data library. Don't track
+      // this thenable, because if we keep trying it will likely infinite loop
+      // without ever resolving.
+      // TODO: Log a warning?
+      break;
+
+    default:
+      {
+        if (typeof thenable.status === 'string') {
+          // Only instrument the thenable if the status if not defined. If
+          // it's defined, but an unknown value, assume it's been instrumented by
+          // some custom userspace implementation. We treat it as "pending".
+          break;
+        }
+
+        var pendingThenable = thenable;
+        pendingThenable.status = 'pending';
+        pendingThenable.then(function (fulfilledValue) {
+          if (thenable.status === 'pending') {
+            var fulfilledThenable = thenable;
+            fulfilledThenable.status = 'fulfilled';
+            fulfilledThenable.value = fulfilledValue;
+          }
+        }, function (error) {
+          if (thenable.status === 'pending') {
+            var rejectedThenable = thenable;
+            rejectedThenable.status = 'rejected';
+            rejectedThenable.reason = error;
+          }
+        });
+        break;
+      }
+  }
+}
+function trackUsedThenable(thenableState, thenable, index) {
+  // This is only a separate function from trackSuspendedWakeable for symmetry
+  // with Fiber.
+  thenableState[index] = thenable;
+}
+function getPreviouslyUsedThenableAtIndex(thenableState, index) {
+  if (thenableState !== null) {
+    var thenable = thenableState[index];
+
+    if (thenable !== undefined) {
+      return thenable;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * inlined Object.is polyfill to avoid requiring consumers ship their own
+ * https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/is
+ */
+function is(x, y) {
+  return x === y && (x !== 0 || 1 / x === 1 / y) || x !== x && y !== y // eslint-disable-line no-self-compare
+  ;
+}
+
+var objectIs = typeof Object.is === 'function' ? Object.is : is;
+
+var currentlyRenderingComponent = null;
+var currentlyRenderingTask = null;
+var firstWorkInProgressHook = null;
+var workInProgressHook = null; // Whether the work-in-progress hook is a re-rendered hook
+
+var isReRender = false; // Whether an update was scheduled during the currently executing render pass.
+
+var didScheduleRenderPhaseUpdate = false; // Counts the number of useId hooks in this component
+
+var localIdCounter = 0; // Counts the number of use(thenable) calls in this component
+
+var thenableIndexCounter = 0;
+var thenableState = null; // Lazily created map of render-phase updates
+
+var renderPhaseUpdates = null; // Counter to prevent infinite loops.
+
+var numberOfReRenders = 0;
+var RE_RENDER_LIMIT = 25;
+var isInHookUserCodeInDev = false; // In DEV, this is the name of the currently executing primitive hook
+
+var currentHookNameInDev;
+
+function resolveCurrentlyRenderingComponent() {
+  if (currentlyRenderingComponent === null) {
+    throw new Error('Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for' + ' one of the following reasons:\n' + '1. You might have mismatching versions of React and the renderer (such as React DOM)\n' + '2. You might be breaking the Rules of Hooks\n' + '3. You might have more than one copy of React in the same app\n' + 'See https://reactjs.org/link/invalid-hook-call for tips about how to debug and fix this problem.');
+  }
+
+  {
+    if (isInHookUserCodeInDev) {
+      error('Do not call Hooks inside useEffect(...), useMemo(...), or other built-in Hooks. ' + 'You can only call Hooks at the top level of your React function. ' + 'For more information, see ' + 'https://reactjs.org/link/rules-of-hooks');
+    }
+  }
+
+  return currentlyRenderingComponent;
+}
+
+function areHookInputsEqual(nextDeps, prevDeps) {
+  if (prevDeps === null) {
+    {
+      error('%s received a final argument during this render, but not during ' + 'the previous render. Even though the final argument is optional, ' + 'its type cannot change between renders.', currentHookNameInDev);
+    }
+
+    return false;
+  }
+
+  {
+    // Don't bother comparing lengths in prod because these arrays should be
+    // passed inline.
+    if (nextDeps.length !== prevDeps.length) {
+      error('The final argument passed to %s changed size between renders. The ' + 'order and size of this array must remain constant.\n\n' + 'Previous: %s\n' + 'Incoming: %s', currentHookNameInDev, "[" + nextDeps.join(', ') + "]", "[" + prevDeps.join(', ') + "]");
+    }
+  }
+
+  for (var i = 0; i < prevDeps.length && i < nextDeps.length; i++) {
+    if (objectIs(nextDeps[i], prevDeps[i])) {
+      continue;
+    }
+
+    return false;
+  }
+
+  return true;
+}
+
+function createHook() {
+  if (numberOfReRenders > 0) {
+    throw new Error('Rendered more hooks than during the previous render');
+  }
+
+  return {
+    memoizedState: null,
+    queue: null,
+    next: null
+  };
+}
+
+function createWorkInProgressHook() {
+  if (workInProgressHook === null) {
+    // This is the first hook in the list
+    if (firstWorkInProgressHook === null) {
+      isReRender = false;
+      firstWorkInProgressHook = workInProgressHook = createHook();
+    } else {
+      // There's already a work-in-progress. Reuse it.
+      isReRender = true;
+      workInProgressHook = firstWorkInProgressHook;
+    }
+  } else {
+    if (workInProgressHook.next === null) {
+      isReRender = false; // Append to the end of the list
+
+      workInProgressHook = workInProgressHook.next = createHook();
+    } else {
+      // There's already a work-in-progress. Reuse it.
+      isReRender = true;
+      workInProgressHook = workInProgressHook.next;
+    }
+  }
+
+  return workInProgressHook;
+}
+
+function prepareToUseHooks(task, componentIdentity, prevThenableState) {
+  currentlyRenderingComponent = componentIdentity;
+  currentlyRenderingTask = task;
+
+  {
+    isInHookUserCodeInDev = false;
+  } // The following should have already been reset
+  // didScheduleRenderPhaseUpdate = false;
+  // firstWorkInProgressHook = null;
+  // numberOfReRenders = 0;
+  // renderPhaseUpdates = null;
+  // workInProgressHook = null;
+
+
+  localIdCounter = 0;
+  thenableIndexCounter = 0;
+  thenableState = prevThenableState;
+}
+function finishHooks(Component, props, children, refOrContext) {
+  // This must be called after every function component to prevent hooks from
+  // being used in classes.
+  while (didScheduleRenderPhaseUpdate) {
+    // Updates were scheduled during the render phase. They are stored in
+    // the `renderPhaseUpdates` map. Call the component again, reusing the
+    // work-in-progress hooks and applying the additional updates on top. Keep
+    // restarting until no more updates are scheduled.
+    didScheduleRenderPhaseUpdate = false;
+    localIdCounter = 0;
+    thenableIndexCounter = 0;
+    numberOfReRenders += 1; // Start over from the beginning of the list
+
+    workInProgressHook = null;
+    children = Component(props, refOrContext);
+  }
+
+  resetHooksState();
+  return children;
+}
+function getThenableStateAfterSuspending() {
+  var state = thenableState;
+  thenableState = null;
+  return state;
+}
+function checkDidRenderIdHook() {
+  // This should be called immediately after every finishHooks call.
+  // Conceptually, it's part of the return value of finishHooks; it's only a
+  // separate function to avoid using an array tuple.
+  var didRenderIdHook = localIdCounter !== 0;
+  return didRenderIdHook;
+} // Reset the internal hooks state if an error occurs while rendering a component
+
+function resetHooksState() {
+  {
+    isInHookUserCodeInDev = false;
+  }
+
+  currentlyRenderingComponent = null;
+  currentlyRenderingTask = null;
+  didScheduleRenderPhaseUpdate = false;
+  firstWorkInProgressHook = null;
+  numberOfReRenders = 0;
+  renderPhaseUpdates = null;
+  workInProgressHook = null;
+}
+
+function getCacheForType(resourceType) {
+  // TODO: This should silently mark this as client rendered since it's not necessarily
+  // considered an error. It needs to work for things like Flight though.
+  throw new Error('Not implemented.');
+}
+
+function readContext$1(context) {
+  {
+    if (isInHookUserCodeInDev) {
+      error('Context can only be read while React is rendering. ' + 'In classes, you can read it in the render method or getDerivedStateFromProps. ' + 'In function components, you can read it directly in the function body, but not ' + 'inside Hooks like useReducer() or useMemo().');
+    }
+  }
+
+  return readContext(context);
+}
+
+function useContext(context) {
+  {
+    currentHookNameInDev = 'useContext';
+  }
+
+  resolveCurrentlyRenderingComponent();
+  return readContext(context);
+}
+
+function basicStateReducer(state, action) {
+  // $FlowFixMe: Flow doesn't like mixed types
+  return typeof action === 'function' ? action(state) : action;
+}
+
+function useState(initialState) {
+  {
+    currentHookNameInDev = 'useState';
+  }
+
+  return useReducer(basicStateReducer, // useReducer has a special case to support lazy useState initializers
+  initialState);
+}
+function useReducer(reducer, initialArg, init) {
+  {
+    if (reducer !== basicStateReducer) {
+      currentHookNameInDev = 'useReducer';
+    }
+  }
+
+  currentlyRenderingComponent = resolveCurrentlyRenderingComponent();
+  workInProgressHook = createWorkInProgressHook();
+
+  if (isReRender) {
+    // This is a re-render. Apply the new render phase updates to the previous
+    // current hook.
+    var queue = workInProgressHook.queue;
+    var dispatch = queue.dispatch;
+
+    if (renderPhaseUpdates !== null) {
+      // Render phase updates are stored in a map of queue -> linked list
+      var firstRenderPhaseUpdate = renderPhaseUpdates.get(queue);
+
+      if (firstRenderPhaseUpdate !== undefined) {
+        renderPhaseUpdates.delete(queue);
+        var newState = workInProgressHook.memoizedState;
+        var update = firstRenderPhaseUpdate;
+
+        do {
+          // Process this render phase update. We don't have to check the
+          // priority because it will always be the same as the current
+          // render's.
+          var action = update.action;
+
+          {
+            isInHookUserCodeInDev = true;
+          }
+
+          newState = reducer(newState, action);
+
+          {
+            isInHookUserCodeInDev = false;
+          }
+
+          update = update.next;
+        } while (update !== null);
+
+        workInProgressHook.memoizedState = newState;
+        return [newState, dispatch];
+      }
+    }
+
+    return [workInProgressHook.memoizedState, dispatch];
+  } else {
+    {
+      isInHookUserCodeInDev = true;
+    }
+
+    var initialState;
+
+    if (reducer === basicStateReducer) {
+      // Special case for `useState`.
+      initialState = typeof initialArg === 'function' ? initialArg() : initialArg;
+    } else {
+      initialState = init !== undefined ? init(initialArg) : initialArg;
+    }
+
+    {
+      isInHookUserCodeInDev = false;
+    }
+
+    workInProgressHook.memoizedState = initialState;
+
+    var _queue = workInProgressHook.queue = {
+      last: null,
+      dispatch: null
+    };
+
+    var _dispatch = _queue.dispatch = dispatchAction.bind(null, currentlyRenderingComponent, _queue);
+
+    return [workInProgressHook.memoizedState, _dispatch];
+  }
+}
+
+function useMemo(nextCreate, deps) {
+  currentlyRenderingComponent = resolveCurrentlyRenderingComponent();
+  workInProgressHook = createWorkInProgressHook();
+  var nextDeps = deps === undefined ? null : deps;
+
+  if (workInProgressHook !== null) {
+    var prevState = workInProgressHook.memoizedState;
+
+    if (prevState !== null) {
+      if (nextDeps !== null) {
+        var prevDeps = prevState[1];
+
+        if (areHookInputsEqual(nextDeps, prevDeps)) {
+          return prevState[0];
+        }
+      }
+    }
+  }
+
+  {
+    isInHookUserCodeInDev = true;
+  }
+
+  var nextValue = nextCreate();
+
+  {
+    isInHookUserCodeInDev = false;
+  }
+
+  workInProgressHook.memoizedState = [nextValue, nextDeps];
+  return nextValue;
+}
+
+function useRef(initialValue) {
+  currentlyRenderingComponent = resolveCurrentlyRenderingComponent();
+  workInProgressHook = createWorkInProgressHook();
+  var previousRef = workInProgressHook.memoizedState;
+
+  if (previousRef === null) {
+    var ref = {
+      current: initialValue
+    };
+
+    {
+      Object.seal(ref);
+    }
+
+    workInProgressHook.memoizedState = ref;
+    return ref;
+  } else {
+    return previousRef;
+  }
+}
+
+function useLayoutEffect(create, inputs) {
+  {
+    currentHookNameInDev = 'useLayoutEffect';
+
+    error('useLayoutEffect does nothing on the server, because its effect cannot ' + "be encoded into the server renderer's output format. This will lead " + 'to a mismatch between the initial, non-hydrated UI and the intended ' + 'UI. To avoid this, useLayoutEffect should only be used in ' + 'components that render exclusively on the client. ' + 'See https://reactjs.org/link/uselayouteffect-ssr for common fixes.');
+  }
+}
+
+function dispatchAction(componentIdentity, queue, action) {
+  if (numberOfReRenders >= RE_RENDER_LIMIT) {
+    throw new Error('Too many re-renders. React limits the number of renders to prevent ' + 'an infinite loop.');
+  }
+
+  if (componentIdentity === currentlyRenderingComponent) {
+    // This is a render phase update. Stash it in a lazily-created map of
+    // queue -> linked list of updates. After this render pass, we'll restart
+    // and apply the stashed updates on top of the work-in-progress hook.
+    didScheduleRenderPhaseUpdate = true;
+    var update = {
+      action: action,
+      next: null
+    };
+
+    if (renderPhaseUpdates === null) {
+      renderPhaseUpdates = new Map();
+    }
+
+    var firstRenderPhaseUpdate = renderPhaseUpdates.get(queue);
+
+    if (firstRenderPhaseUpdate === undefined) {
+      renderPhaseUpdates.set(queue, update);
+    } else {
+      // Append the update to the end of the list.
+      var lastRenderPhaseUpdate = firstRenderPhaseUpdate;
+
+      while (lastRenderPhaseUpdate.next !== null) {
+        lastRenderPhaseUpdate = lastRenderPhaseUpdate.next;
+      }
+
+      lastRenderPhaseUpdate.next = update;
+    }
+  }
+}
+
+function useCallback(callback, deps) {
+  return useMemo(function () {
+    return callback;
+  }, deps);
+} // TODO Decide on how to implement this hook for server rendering.
+// If a mutation occurs during render, consider triggering a Suspense boundary
+// and falling back to client rendering.
+
+function useMutableSource(source, getSnapshot, subscribe) {
+  resolveCurrentlyRenderingComponent();
+  return getSnapshot(source._source);
+}
+
+function useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot) {
+  if (getServerSnapshot === undefined) {
+    throw new Error('Missing getServerSnapshot, which is required for ' + 'server-rendered content. Will revert to client rendering.');
+  }
+
+  return getServerSnapshot();
+}
+
+function useDeferredValue(value) {
+  resolveCurrentlyRenderingComponent();
+  return value;
+}
+
+function unsupportedStartTransition() {
+  throw new Error('startTransition cannot be called during server rendering.');
+}
+
+function useTransition() {
+  resolveCurrentlyRenderingComponent();
+  return [false, unsupportedStartTransition];
+}
+
+function useId() {
+  var task = currentlyRenderingTask;
+  var treeId = getTreeId(task.treeContext);
+  var responseState = currentResponseState;
+
+  if (responseState === null) {
+    throw new Error('Invalid hook call. Hooks can only be called inside of the body of a function component.');
+  }
+
+  var localId = localIdCounter++;
+  return makeId(responseState, treeId, localId);
+}
+
+function use(usable) {
+  if (usable !== null && typeof usable === 'object') {
+    if (typeof usable.then === 'function') {
+      // This is a thenable.
+      var thenable = usable; // Track the position of the thenable within this fiber.
+
+      var index = thenableIndexCounter;
+      thenableIndexCounter += 1;
+
+      switch (thenable.status) {
+        case 'fulfilled':
+          {
+            var fulfilledValue = thenable.value;
+            return fulfilledValue;
+          }
+
+        case 'rejected':
+          {
+            var rejectedError = thenable.reason;
+            throw rejectedError;
+          }
+
+        default:
+          {
+            var prevThenableAtIndex = getPreviouslyUsedThenableAtIndex(thenableState, index);
+
+            if (prevThenableAtIndex !== null) {
+              switch (prevThenableAtIndex.status) {
+                case 'fulfilled':
+                  {
+                    var _fulfilledValue = prevThenableAtIndex.value;
+                    return _fulfilledValue;
+                  }
+
+                case 'rejected':
+                  {
+                    var _rejectedError = prevThenableAtIndex.reason;
+                    throw _rejectedError;
+                  }
+
+                default:
+                  {
+                    // The thenable still hasn't resolved. Suspend with the same
+                    // thenable as last time to avoid redundant listeners.
+                    throw prevThenableAtIndex;
+                  }
+              }
+            } else {
+              // This is the first time something has been used at this index.
+              // Stash the thenable at the current index so we can reuse it during
+              // the next attempt.
+              if (thenableState === null) {
+                thenableState = createThenableState();
+              }
+
+              trackUsedThenable(thenableState, thenable, index); // Suspend.
+              // TODO: Throwing here is an implementation detail that allows us to
+              // unwind the call stack. But we shouldn't allow it to leak into
+              // userspace. Throw an opaque placeholder value instead of the
+              // actual thenable. If it doesn't get captured by the work loop, log
+              // a warning, because that means something in userspace must have
+              // caught it.
+
+              throw thenable;
+            }
+          }
+      }
+    } else if (usable.$$typeof === REACT_CONTEXT_TYPE || usable.$$typeof === REACT_SERVER_CONTEXT_TYPE) {
+      var context = usable;
+      return readContext$1(context);
+    }
+  } // eslint-disable-next-line react-internal/safe-string-coercion
+
+
+  throw new Error('An unsupported type was passed to use(): ' + String(usable));
+}
+
+function unsupportedRefresh() {
+  throw new Error('Cache cannot be refreshed during server rendering.');
+}
+
+function useCacheRefresh() {
+  return unsupportedRefresh;
+}
+
+function useMemoCache(size) {
+  return new Array(size);
+}
+
+function noop() {}
+
+var Dispatcher = {
+  readContext: readContext$1,
+  useContext: useContext,
+  useMemo: useMemo,
+  useReducer: useReducer,
+  useRef: useRef,
+  useState: useState,
+  useInsertionEffect: noop,
+  useLayoutEffect: useLayoutEffect,
+  useCallback: useCallback,
+  // useImperativeHandle is not run in the server environment
+  useImperativeHandle: noop,
+  // Effects are not run in the server environment.
+  useEffect: noop,
+  // Debugging effect
+  useDebugValue: noop,
+  useDeferredValue: useDeferredValue,
+  useTransition: useTransition,
+  useId: useId,
+  // Subscriptions are not setup in a server environment.
+  useMutableSource: useMutableSource,
+  useSyncExternalStore: useSyncExternalStore
+};
+
+{
+  Dispatcher.getCacheForType = getCacheForType;
+  Dispatcher.useCacheRefresh = useCacheRefresh;
+}
+
+{
+  Dispatcher.useMemoCache = useMemoCache;
+}
+
+{
+  Dispatcher.use = use;
+}
+
+var currentResponseState = null;
+function setCurrentResponseState(responseState) {
+  currentResponseState = responseState;
+}
+
+function getStackByComponentStackNode(componentStack) {
+  try {
+    var info = '';
+    var node = componentStack;
+
+    do {
+      switch (node.tag) {
+        case 0:
+          info += describeBuiltInComponentFrame(node.type, null, null);
+          break;
+
+        case 1:
+          info += describeFunctionComponentFrame(node.type, null, null);
+          break;
+
+        case 2:
+          info += describeClassComponentFrame(node.type, null, null);
+          break;
+      }
+
+      node = node.parent;
+    } while (node);
+
+    return info;
+  } catch (x) {
+    return '\nError generating stack: ' + x.message + '\n' + x.stack;
+  }
+}
+
+var ReactCurrentDispatcher$1 = ReactSharedInternals.ReactCurrentDispatcher;
+var ReactDebugCurrentFrame$1 = ReactSharedInternals.ReactDebugCurrentFrame;
+var PENDING = 0;
+var COMPLETED = 1;
+var FLUSHED = 2;
+var ABORTED = 3;
+var ERRORED = 4;
+var OPEN = 0;
+var CLOSING = 1;
+var CLOSED = 2;
+// This is a default heuristic for how to split up the HTML content into progressive
+// loading. Our goal is to be able to display additional new content about every 500ms.
+// Faster than that is unnecessary and should be throttled on the client. It also
+// adds unnecessary overhead to do more splits. We don't know if it's a higher or lower
+// end device but higher end suffer less from the overhead than lower end does from
+// not getting small enough pieces. We error on the side of low end.
+// We base this on low end 3G speeds which is about 500kbits per second. We assume
+// that there can be a reasonable drop off from max bandwidth which leaves you with
+// as little as 80%. We can receive half of that each 500ms - at best. In practice,
+// a little bandwidth is lost to processing and contention - e.g. CSS and images that
+// are downloaded along with the main content. So we estimate about half of that to be
+// the lower end throughput. In other words, we expect that you can at least show
+// about 12.5kb of content per 500ms. Not counting starting latency for the first
+// paint.
+// 500 * 1024 / 8 * .8 * 0.5 / 2
+var DEFAULT_PROGRESSIVE_CHUNK_SIZE = 12800;
+
+function defaultErrorHandler(error) {
+  console['error'](error); // Don't transform to our wrapper
+
+  return null;
+}
+
+function noop$1() {}
+
+function createRequest(children, responseState, rootFormatContext, progressiveChunkSize, onError, onAllReady, onShellReady, onShellError, onFatalError) {
+  var pingedTasks = [];
+  var abortSet = new Set();
+  var request = {
+    destination: null,
+    responseState: responseState,
+    progressiveChunkSize: progressiveChunkSize === undefined ? DEFAULT_PROGRESSIVE_CHUNK_SIZE : progressiveChunkSize,
+    status: OPEN,
+    fatalError: null,
+    nextSegmentId: 0,
+    allPendingTasks: 0,
+    pendingRootTasks: 0,
+    completedRootSegment: null,
+    abortableTasks: abortSet,
+    pingedTasks: pingedTasks,
+    clientRenderedBoundaries: [],
+    completedBoundaries: [],
+    partialBoundaries: [],
+    preamble: [],
+    postamble: [],
+    onError: onError === undefined ? defaultErrorHandler : onError,
+    onAllReady: onAllReady === undefined ? noop$1 : onAllReady,
+    onShellReady: onShellReady === undefined ? noop$1 : onShellReady,
+    onShellError: onShellError === undefined ? noop$1 : onShellError,
+    onFatalError: onFatalError === undefined ? noop$1 : onFatalError
+  }; // This segment represents the root fallback.
+
+  var rootSegment = createPendingSegment(request, 0, null, rootFormatContext, // Root segments are never embedded in Text on either edge
+  false, false); // There is no parent so conceptually, we're unblocked to flush this segment.
+
+  rootSegment.parentFlushed = true;
+  var rootTask = createTask(request, null, children, null, rootSegment, abortSet, emptyContextObject, rootContextSnapshot, emptyTreeContext);
+  pingedTasks.push(rootTask);
+  return request;
+}
+
+function pingTask(request, task) {
+  var pingedTasks = request.pingedTasks;
+  pingedTasks.push(task);
+
+  if (pingedTasks.length === 1) {
+    scheduleWork(function () {
+      return performWork(request);
+    });
+  }
+}
+
+function createSuspenseBoundary(request, fallbackAbortableTasks) {
+  return {
+    id: UNINITIALIZED_SUSPENSE_BOUNDARY_ID,
+    rootSegmentID: -1,
+    parentFlushed: false,
+    pendingTasks: 0,
+    forceClientRender: false,
+    completedSegments: [],
+    byteSize: 0,
+    fallbackAbortableTasks: fallbackAbortableTasks,
+    errorDigest: null
+  };
+}
+
+function createTask(request, thenableState, node, blockedBoundary, blockedSegment, abortSet, legacyContext, context, treeContext) {
+  request.allPendingTasks++;
+
+  if (blockedBoundary === null) {
+    request.pendingRootTasks++;
+  } else {
+    blockedBoundary.pendingTasks++;
+  }
+
+  var task = {
+    node: node,
+    ping: function () {
+      return pingTask(request, task);
+    },
+    blockedBoundary: blockedBoundary,
+    blockedSegment: blockedSegment,
+    abortSet: abortSet,
+    legacyContext: legacyContext,
+    context: context,
+    treeContext: treeContext,
+    thenableState: thenableState
+  };
+
+  {
+    task.componentStack = null;
+  }
+
+  abortSet.add(task);
+  return task;
+}
+
+function createPendingSegment(request, index, boundary, formatContext, lastPushedText, textEmbedded) {
+  return {
+    status: PENDING,
+    id: -1,
+    // lazily assigned later
+    index: index,
+    parentFlushed: false,
+    chunks: [],
+    children: [],
+    formatContext: formatContext,
+    boundary: boundary,
+    lastPushedText: lastPushedText,
+    textEmbedded: textEmbedded
+  };
+} // DEV-only global reference to the currently executing task
+
+
+var currentTaskInDEV = null;
+
+function getCurrentStackInDEV() {
+  {
+    if (currentTaskInDEV === null || currentTaskInDEV.componentStack === null) {
+      return '';
+    }
+
+    return getStackByComponentStackNode(currentTaskInDEV.componentStack);
+  }
+}
+
+function pushBuiltInComponentStackInDEV(task, type) {
+  {
+    task.componentStack = {
+      tag: 0,
+      parent: task.componentStack,
+      type: type
+    };
+  }
+}
+
+function pushFunctionComponentStackInDEV(task, type) {
+  {
+    task.componentStack = {
+      tag: 1,
+      parent: task.componentStack,
+      type: type
+    };
+  }
+}
+
+function pushClassComponentStackInDEV(task, type) {
+  {
+    task.componentStack = {
+      tag: 2,
+      parent: task.componentStack,
+      type: type
+    };
+  }
+}
+
+function popComponentStackInDEV(task) {
+  {
+    if (task.componentStack === null) {
+      error('Unexpectedly popped too many stack frames. This is a bug in React.');
+    } else {
+      task.componentStack = task.componentStack.parent;
+    }
+  }
+} // stash the component stack of an unwinding error until it is processed
+
+
+var lastBoundaryErrorComponentStackDev = null;
+
+function captureBoundaryErrorDetailsDev(boundary, error) {
+  {
+    var errorMessage;
+
+    if (typeof error === 'string') {
+      errorMessage = error;
+    } else if (error && typeof error.message === 'string') {
+      errorMessage = error.message;
+    } else {
+      // eslint-disable-next-line react-internal/safe-string-coercion
+      errorMessage = String(error);
+    }
+
+    var errorComponentStack = lastBoundaryErrorComponentStackDev || getCurrentStackInDEV();
+    lastBoundaryErrorComponentStackDev = null;
+    boundary.errorMessage = errorMessage;
+    boundary.errorComponentStack = errorComponentStack;
+  }
+}
+
+function logRecoverableError(request, error) {
+  // If this callback errors, we intentionally let that error bubble up to become a fatal error
+  // so that someone fixes the error reporting instead of hiding it.
+  var errorDigest = request.onError(error);
+
+  if (errorDigest != null && typeof errorDigest !== 'string') {
+    // eslint-disable-next-line react-internal/prod-error-codes
+    throw new Error("onError returned something with a type other than \"string\". onError should return a string and may return null or undefined but must not return anything else. It received something of type \"" + typeof errorDigest + "\" instead");
+  }
+
+  return errorDigest;
+}
+
+function fatalError(request, error) {
+  // This is called outside error handling code such as if the root errors outside
+  // a suspense boundary or if the root suspense boundary's fallback errors.
+  // It's also called if React itself or its host configs errors.
+  var onShellError = request.onShellError;
+  onShellError(error);
+  var onFatalError = request.onFatalError;
+  onFatalError(error);
+
+  if (request.destination !== null) {
+    request.status = CLOSED;
+    closeWithError(request.destination, error);
+  } else {
+    request.status = CLOSING;
+    request.fatalError = error;
+  }
+}
+
+function renderSuspenseBoundary(request, task, props) {
+  pushBuiltInComponentStackInDEV(task, 'Suspense');
+  var parentBoundary = task.blockedBoundary;
+  var parentSegment = task.blockedSegment; // Each time we enter a suspense boundary, we split out into a new segment for
+  // the fallback so that we can later replace that segment with the content.
+  // This also lets us split out the main content even if it doesn't suspend,
+  // in case it ends up generating a large subtree of content.
+
+  var fallback = props.fallback;
+  var content = props.children;
+  var fallbackAbortSet = new Set();
+  var newBoundary = createSuspenseBoundary(request, fallbackAbortSet);
+  var insertionIndex = parentSegment.chunks.length; // The children of the boundary segment is actually the fallback.
+
+  var boundarySegment = createPendingSegment(request, insertionIndex, newBoundary, parentSegment.formatContext, // boundaries never require text embedding at their edges because comment nodes bound them
+  false, false);
+  parentSegment.children.push(boundarySegment); // The parentSegment has a child Segment at this index so we reset the lastPushedText marker on the parent
+
+  parentSegment.lastPushedText = false; // This segment is the actual child content. We can start rendering that immediately.
+
+  var contentRootSegment = createPendingSegment(request, 0, null, parentSegment.formatContext, // boundaries never require text embedding at their edges because comment nodes bound them
+  false, false); // We mark the root segment as having its parent flushed. It's not really flushed but there is
+  // no parent segment so there's nothing to wait on.
+
+  contentRootSegment.parentFlushed = true; // Currently this is running synchronously. We could instead schedule this to pingedTasks.
+  // I suspect that there might be some efficiency benefits from not creating the suspended task
+  // and instead just using the stack if possible.
+  // TODO: Call this directly instead of messing with saving and restoring contexts.
+  // We can reuse the current context and task to render the content immediately without
+  // context switching. We just need to temporarily switch which boundary and which segment
+  // we're writing to. If something suspends, it'll spawn new suspended task with that context.
+
+  task.blockedBoundary = newBoundary;
+  task.blockedSegment = contentRootSegment;
+
+  try {
+    // We use the safe form because we don't handle suspending here. Only error handling.
+    renderNode(request, task, content);
+    pushSegmentFinale(contentRootSegment.chunks, request.responseState, contentRootSegment.lastPushedText, contentRootSegment.textEmbedded);
+    contentRootSegment.status = COMPLETED;
+    queueCompletedSegment(newBoundary, contentRootSegment);
+
+    if (newBoundary.pendingTasks === 0) {
+      // This must have been the last segment we were waiting on. This boundary is now complete.
+      // Therefore we won't need the fallback. We early return so that we don't have to create
+      // the fallback.
+      popComponentStackInDEV(task);
+      return;
+    }
+  } catch (error) {
+    contentRootSegment.status = ERRORED;
+    newBoundary.forceClientRender = true;
+    newBoundary.errorDigest = logRecoverableError(request, error);
+
+    {
+      captureBoundaryErrorDetailsDev(newBoundary, error);
+    } // We don't need to decrement any task numbers because we didn't spawn any new task.
+    // We don't need to schedule any task because we know the parent has written yet.
+    // We do need to fallthrough to create the fallback though.
+
+  } finally {
+    task.blockedBoundary = parentBoundary;
+    task.blockedSegment = parentSegment;
+  } // We create suspended task for the fallback because we don't want to actually work
+  // on it yet in case we finish the main content, so we queue for later.
+
+
+  var suspendedFallbackTask = createTask(request, null, fallback, parentBoundary, boundarySegment, fallbackAbortSet, task.legacyContext, task.context, task.treeContext);
+
+  {
+    suspendedFallbackTask.componentStack = task.componentStack;
+  } // TODO: This should be queued at a separate lower priority queue so that we only work
+  // on preparing fallbacks if we don't have any more main content to task on.
+
+
+  request.pingedTasks.push(suspendedFallbackTask);
+  popComponentStackInDEV(task);
+}
+
+function renderHostElement(request, task, type, props) {
+  pushBuiltInComponentStackInDEV(task, type);
+  var segment = task.blockedSegment;
+  var children = pushStartInstance(segment.chunks, request.preamble, type, props, request.responseState, segment.formatContext);
+  segment.lastPushedText = false;
+  var prevContext = segment.formatContext;
+  segment.formatContext = getChildFormatContext(prevContext, type, props); // We use the non-destructive form because if something suspends, we still
+  // need to pop back up and finish this subtree of HTML.
+
+  renderNode(request, task, children); // We expect that errors will fatal the whole task and that we don't need
+  // the correct context. Therefore this is not in a finally.
+
+  segment.formatContext = prevContext;
+  pushEndInstance(segment.chunks, request.postamble, type);
+  segment.lastPushedText = false;
+  popComponentStackInDEV(task);
+}
+
+function shouldConstruct$1(Component) {
+  return Component.prototype && Component.prototype.isReactComponent;
+}
+
+function renderWithHooks(request, task, prevThenableState, Component, props, secondArg) {
+  var componentIdentity = {};
+  prepareToUseHooks(task, componentIdentity, prevThenableState);
+  var result = Component(props, secondArg);
+  return finishHooks(Component, props, result, secondArg);
+}
+
+function finishClassComponent(request, task, instance, Component, props) {
+  var nextChildren = instance.render();
+
+  {
+    if (instance.props !== props) {
+      if (!didWarnAboutReassigningProps) {
+        error('It looks like %s is reassigning its own `this.props` while rendering. ' + 'This is not supported and can lead to confusing bugs.', getComponentNameFromType(Component) || 'a component');
+      }
+
+      didWarnAboutReassigningProps = true;
+    }
+  }
+
+  {
+    var childContextTypes = Component.childContextTypes;
+
+    if (childContextTypes !== null && childContextTypes !== undefined) {
+      var previousContext = task.legacyContext;
+      var mergedContext = processChildContext(instance, Component, previousContext, childContextTypes);
+      task.legacyContext = mergedContext;
+      renderNodeDestructive(request, task, null, nextChildren);
+      task.legacyContext = previousContext;
+      return;
+    }
+  }
+
+  renderNodeDestructive(request, task, null, nextChildren);
+}
+
+function renderClassComponent(request, task, Component, props) {
+  pushClassComponentStackInDEV(task, Component);
+  var maskedContext =  getMaskedContext(Component, task.legacyContext) ;
+  var instance = constructClassInstance(Component, props, maskedContext);
+  mountClassInstance(instance, Component, props, maskedContext);
+  finishClassComponent(request, task, instance, Component, props);
+  popComponentStackInDEV(task);
+}
+
+var didWarnAboutBadClass = {};
+var didWarnAboutModulePatternComponent = {};
+var didWarnAboutContextTypeOnFunctionComponent = {};
+var didWarnAboutGetDerivedStateOnFunctionComponent = {};
+var didWarnAboutReassigningProps = false;
+var didWarnAboutGenerators = false;
+var didWarnAboutMaps = false;
+var hasWarnedAboutUsingContextAsConsumer = false; // This would typically be a function component but we still support module pattern
+// components for some reason.
+
+function renderIndeterminateComponent(request, task, prevThenableState, Component, props) {
+  var legacyContext;
+
+  {
+    legacyContext = getMaskedContext(Component, task.legacyContext);
+  }
+
+  pushFunctionComponentStackInDEV(task, Component);
+
+  {
+    if (Component.prototype && typeof Component.prototype.render === 'function') {
+      var componentName = getComponentNameFromType(Component) || 'Unknown';
+
+      if (!didWarnAboutBadClass[componentName]) {
+        error("The <%s /> component appears to have a render method, but doesn't extend React.Component. " + 'This is likely to cause errors. Change %s to extend React.Component instead.', componentName, componentName);
+
+        didWarnAboutBadClass[componentName] = true;
+      }
+    }
+  }
+
+  var value = renderWithHooks(request, task, prevThenableState, Component, props, legacyContext);
+  var hasId = checkDidRenderIdHook();
+
+  {
+    // Support for module components is deprecated and is removed behind a flag.
+    // Whether or not it would crash later, we want to show a good message in DEV first.
+    if (typeof value === 'object' && value !== null && typeof value.render === 'function' && value.$$typeof === undefined) {
+      var _componentName = getComponentNameFromType(Component) || 'Unknown';
+
+      if (!didWarnAboutModulePatternComponent[_componentName]) {
+        error('The <%s /> component appears to be a function component that returns a class instance. ' + 'Change %s to a class that extends React.Component instead. ' + "If you can't use a class try assigning the prototype on the function as a workaround. " + "`%s.prototype = React.Component.prototype`. Don't use an arrow function since it " + 'cannot be called with `new` by React.', _componentName, _componentName, _componentName);
+
+        didWarnAboutModulePatternComponent[_componentName] = true;
+      }
+    }
+  }
+
+  if ( // Run these checks in production only if the flag is off.
+  // Eventually we'll delete this branch altogether.
+   typeof value === 'object' && value !== null && typeof value.render === 'function' && value.$$typeof === undefined) {
+    {
+      var _componentName2 = getComponentNameFromType(Component) || 'Unknown';
+
+      if (!didWarnAboutModulePatternComponent[_componentName2]) {
+        error('The <%s /> component appears to be a function component that returns a class instance. ' + 'Change %s to a class that extends React.Component instead. ' + "If you can't use a class try assigning the prototype on the function as a workaround. " + "`%s.prototype = React.Component.prototype`. Don't use an arrow function since it " + 'cannot be called with `new` by React.', _componentName2, _componentName2, _componentName2);
+
+        didWarnAboutModulePatternComponent[_componentName2] = true;
+      }
+    }
+
+    mountClassInstance(value, Component, props, legacyContext);
+    finishClassComponent(request, task, value, Component, props);
+  } else {
+
+    {
+      validateFunctionComponentInDev(Component);
+    } // We're now successfully past this task, and we don't have to pop back to
+    // the previous task every again, so we can use the destructive recursive form.
+
+
+    if (hasId) {
+      // This component materialized an id. We treat this as its own level, with
+      // a single "child" slot.
+      var prevTreeContext = task.treeContext;
+      var totalChildren = 1;
+      var index = 0;
+      task.treeContext = pushTreeContext(prevTreeContext, totalChildren, index);
+
+      try {
+        renderNodeDestructive(request, task, null, value);
+      } finally {
+        task.treeContext = prevTreeContext;
+      }
+    } else {
+      renderNodeDestructive(request, task, null, value);
+    }
+  }
+
+  popComponentStackInDEV(task);
+}
+
+function validateFunctionComponentInDev(Component) {
+  {
+    if (Component) {
+      if (Component.childContextTypes) {
+        error('%s(...): childContextTypes cannot be defined on a function component.', Component.displayName || Component.name || 'Component');
+      }
+    }
+
+    if (typeof Component.getDerivedStateFromProps === 'function') {
+      var _componentName3 = getComponentNameFromType(Component) || 'Unknown';
+
+      if (!didWarnAboutGetDerivedStateOnFunctionComponent[_componentName3]) {
+        error('%s: Function components do not support getDerivedStateFromProps.', _componentName3);
+
+        didWarnAboutGetDerivedStateOnFunctionComponent[_componentName3] = true;
+      }
+    }
+
+    if (typeof Component.contextType === 'object' && Component.contextType !== null) {
+      var _componentName4 = getComponentNameFromType(Component) || 'Unknown';
+
+      if (!didWarnAboutContextTypeOnFunctionComponent[_componentName4]) {
+        error('%s: Function components do not support contextType.', _componentName4);
+
+        didWarnAboutContextTypeOnFunctionComponent[_componentName4] = true;
+      }
+    }
+  }
+}
+
+function resolveDefaultProps(Component, baseProps) {
+  if (Component && Component.defaultProps) {
+    // Resolve default props. Taken from ReactElement
+    var props = assign({}, baseProps);
+    var defaultProps = Component.defaultProps;
+
+    for (var propName in defaultProps) {
+      if (props[propName] === undefined) {
+        props[propName] = defaultProps[propName];
+      }
+    }
+
+    return props;
+  }
+
+  return baseProps;
+}
+
+function renderForwardRef(request, task, prevThenableState, type, props, ref) {
+  pushFunctionComponentStackInDEV(task, type.render);
+  var children = renderWithHooks(request, task, prevThenableState, type.render, props, ref);
+  var hasId = checkDidRenderIdHook();
+
+  if (hasId) {
+    // This component materialized an id. We treat this as its own level, with
+    // a single "child" slot.
+    var prevTreeContext = task.treeContext;
+    var totalChildren = 1;
+    var index = 0;
+    task.treeContext = pushTreeContext(prevTreeContext, totalChildren, index);
+
+    try {
+      renderNodeDestructive(request, task, null, children);
+    } finally {
+      task.treeContext = prevTreeContext;
+    }
+  } else {
+    renderNodeDestructive(request, task, null, children);
+  }
+
+  popComponentStackInDEV(task);
+}
+
+function renderMemo(request, task, prevThenableState, type, props, ref) {
+  var innerType = type.type;
+  var resolvedProps = resolveDefaultProps(innerType, props);
+  renderElement(request, task, prevThenableState, innerType, resolvedProps, ref);
+}
+
+function renderContextConsumer(request, task, context, props) {
+  // The logic below for Context differs depending on PROD or DEV mode. In
+  // DEV mode, we create a separate object for Context.Consumer that acts
+  // like a proxy to Context. This proxy object adds unnecessary code in PROD
+  // so we use the old behaviour (Context.Consumer references Context) to
+  // reduce size and overhead. The separate object references context via
+  // a property called "_context", which also gives us the ability to check
+  // in DEV mode if this property exists or not and warn if it does not.
+  {
+    if (context._context === undefined) {
+      // This may be because it's a Context (rather than a Consumer).
+      // Or it may be because it's older React where they're the same thing.
+      // We only want to warn if we're sure it's a new React.
+      if (context !== context.Consumer) {
+        if (!hasWarnedAboutUsingContextAsConsumer) {
+          hasWarnedAboutUsingContextAsConsumer = true;
+
+          error('Rendering <Context> directly is not supported and will be removed in ' + 'a future major release. Did you mean to render <Context.Consumer> instead?');
+        }
+      }
+    } else {
+      context = context._context;
+    }
+  }
+
+  var render = props.children;
+
+  {
+    if (typeof render !== 'function') {
+      error('A context consumer was rendered with multiple children, or a child ' + "that isn't a function. A context consumer expects a single child " + 'that is a function. If you did pass a function, make sure there ' + 'is no trailing or leading whitespace around it.');
+    }
+  }
+
+  var newValue = readContext(context);
+  var newChildren = render(newValue);
+  renderNodeDestructive(request, task, null, newChildren);
+}
+
+function renderContextProvider(request, task, type, props) {
+  var context = type._context;
+  var value = props.value;
+  var children = props.children;
+  var prevSnapshot;
+
+  {
+    prevSnapshot = task.context;
+  }
+
+  task.context = pushProvider(context, value);
+  renderNodeDestructive(request, task, null, children);
+  task.context = popProvider(context);
+
+  {
+    if (prevSnapshot !== task.context) {
+      error('Popping the context provider did not return back to the original snapshot. This is a bug in React.');
+    }
+  }
+}
+
+function renderLazyComponent(request, task, prevThenableState, lazyComponent, props, ref) {
+  pushBuiltInComponentStackInDEV(task, 'Lazy');
+  var payload = lazyComponent._payload;
+  var init = lazyComponent._init;
+  var Component = init(payload);
+  var resolvedProps = resolveDefaultProps(Component, props);
+  renderElement(request, task, prevThenableState, Component, resolvedProps, ref);
+  popComponentStackInDEV(task);
+}
+
+function renderOffscreen(request, task, props) {
+  var mode = props.mode;
+
+  if (mode === 'hidden') ; else {
+    // A visible Offscreen boundary is treated exactly like a fragment: a
+    // pure indirection.
+    renderNodeDestructive(request, task, null, props.children);
+  }
+}
+
+function renderElement(request, task, prevThenableState, type, props, ref) {
+  if (typeof type === 'function') {
+    if (shouldConstruct$1(type)) {
+      renderClassComponent(request, task, type, props);
+      return;
+    } else {
+      renderIndeterminateComponent(request, task, prevThenableState, type, props);
+      return;
+    }
+  }
+
+  if (typeof type === 'string') {
+    renderHostElement(request, task, type, props);
+    return;
+  }
+
+  switch (type) {
+    // LegacyHidden acts the same as a fragment. This only works because we
+    // currently assume that every instance of LegacyHidden is accompanied by a
+    // host component wrapper. In the hidden mode, the host component is given a
+    // `hidden` attribute, which ensures that the initial HTML is not visible.
+    // To support the use of LegacyHidden as a true fragment, without an extra
+    // DOM node, we would have to hide the initial HTML in some other way.
+    // TODO: Delete in LegacyHidden. It's an unstable API only used in the
+    // www build. As a migration step, we could add a special prop to Offscreen
+    // that simulates the old behavior (no hiding, no change to effects).
+    case REACT_LEGACY_HIDDEN_TYPE:
+    case REACT_DEBUG_TRACING_MODE_TYPE:
+    case REACT_STRICT_MODE_TYPE:
+    case REACT_PROFILER_TYPE:
+    case REACT_FRAGMENT_TYPE:
+      {
+        renderNodeDestructive(request, task, null, props.children);
+        return;
+      }
+
+    case REACT_OFFSCREEN_TYPE:
+      {
+        renderOffscreen(request, task, props);
+        return;
+      }
+
+    case REACT_SUSPENSE_LIST_TYPE:
+      {
+        pushBuiltInComponentStackInDEV(task, 'SuspenseList'); // TODO: SuspenseList should control the boundaries.
+
+        renderNodeDestructive(request, task, null, props.children);
+        popComponentStackInDEV(task);
+        return;
+      }
+
+    case REACT_SCOPE_TYPE:
+      {
+
+        throw new Error('ReactDOMServer does not yet support scope components.');
+      }
+    // eslint-disable-next-line-no-fallthrough
+
+    case REACT_SUSPENSE_TYPE:
+      {
+        {
+          renderSuspenseBoundary(request, task, props);
+        }
+
+        return;
+      }
+  }
+
+  if (typeof type === 'object' && type !== null) {
+    switch (type.$$typeof) {
+      case REACT_FORWARD_REF_TYPE:
+        {
+          renderForwardRef(request, task, prevThenableState, type, props, ref);
+          return;
+        }
+
+      case REACT_MEMO_TYPE:
+        {
+          renderMemo(request, task, prevThenableState, type, props, ref);
+          return;
+        }
+
+      case REACT_PROVIDER_TYPE:
+        {
+          renderContextProvider(request, task, type, props);
+          return;
+        }
+
+      case REACT_CONTEXT_TYPE:
+        {
+          renderContextConsumer(request, task, type, props);
+          return;
+        }
+
+      case REACT_LAZY_TYPE:
+        {
+          renderLazyComponent(request, task, prevThenableState, type, props);
+          return;
+        }
+    }
+  }
+
+  var info = '';
+
+  {
+    if (type === undefined || typeof type === 'object' && type !== null && Object.keys(type).length === 0) {
+      info += ' You likely forgot to export your component from the file ' + "it's defined in, or you might have mixed up default and " + 'named imports.';
+    }
+  }
+
+  throw new Error('Element type is invalid: expected a string (for built-in ' + 'components) or a class/function (for composite components) ' + ("but got: " + (type == null ? type : typeof type) + "." + info));
+}
+
+function validateIterable(iterable, iteratorFn) {
+  {
+    // We don't support rendering Generators because it's a mutation.
+    // See https://github.com/facebook/react/issues/12995
+    if (typeof Symbol === 'function' && // $FlowFixMe Flow doesn't know about toStringTag
+    iterable[Symbol.toStringTag] === 'Generator') {
+      if (!didWarnAboutGenerators) {
+        error('Using Generators as children is unsupported and will likely yield ' + 'unexpected results because enumerating a generator mutates it. ' + 'You may convert it to an array with `Array.from()` or the ' + '`[...spread]` operator before rendering. Keep in mind ' + 'you might need to polyfill these features for older browsers.');
+      }
+
+      didWarnAboutGenerators = true;
+    } // Warn about using Maps as children
+
+
+    if (iterable.entries === iteratorFn) {
+      if (!didWarnAboutMaps) {
+        error('Using Maps as children is not supported. ' + 'Use an array of keyed ReactElements instead.');
+      }
+
+      didWarnAboutMaps = true;
+    }
+  }
+}
+
+function renderNodeDestructive(request, task, // The thenable state reused from the previous attempt, if any. This is almost
+// always null, except when called by retryTask.
+prevThenableState, node) {
+  {
+    // In Dev we wrap renderNodeDestructiveImpl in a try / catch so we can capture
+    // a component stack at the right place in the tree. We don't do this in renderNode
+    // becuase it is not called at every layer of the tree and we may lose frames
+    try {
+      return renderNodeDestructiveImpl(request, task, prevThenableState, node);
+    } catch (x) {
+      if (typeof x === 'object' && x !== null && typeof x.then === 'function') ; else {
+        // This is an error, stash the component stack if it is null.
+        lastBoundaryErrorComponentStackDev = lastBoundaryErrorComponentStackDev !== null ? lastBoundaryErrorComponentStackDev : getCurrentStackInDEV();
+      } // rethrow so normal suspense logic can handle thrown value accordingly
+
+
+      throw x;
+    }
+  }
+} // This function by it self renders a node and consumes the task by mutating it
+// to update the current execution state.
+
+
+function renderNodeDestructiveImpl(request, task, prevThenableState, node) {
+  // Stash the node we're working on. We'll pick up from this task in case
+  // something suspends.
+  task.node = node; // Handle object types
+
+  if (typeof node === 'object' && node !== null) {
+    switch (node.$$typeof) {
+      case REACT_ELEMENT_TYPE:
+        {
+          var element = node;
+          var type = element.type;
+          var props = element.props;
+          var ref = element.ref;
+          renderElement(request, task, prevThenableState, type, props, ref);
+          return;
+        }
+
+      case REACT_PORTAL_TYPE:
+        throw new Error('Portals are not currently supported by the server renderer. ' + 'Render them conditionally so that they only appear on the client render.');
+      // eslint-disable-next-line-no-fallthrough
+
+      case REACT_LAZY_TYPE:
+        {
+          var lazyNode = node;
+          var payload = lazyNode._payload;
+          var init = lazyNode._init;
+          var resolvedNode;
+
+          {
+            try {
+              resolvedNode = init(payload);
+            } catch (x) {
+              if (typeof x === 'object' && x !== null && typeof x.then === 'function') {
+                // this Lazy initializer is suspending. push a temporary frame onto the stack so it can be
+                // popped off in spawnNewSuspendedTask. This aligns stack behavior between Lazy in element position
+                // vs Component position. We do not want the frame for Errors so we exclusively do this in
+                // the wakeable branch
+                pushBuiltInComponentStackInDEV(task, 'Lazy');
+              }
+
+              throw x;
+            }
+          }
+
+          renderNodeDestructive(request, task, null, resolvedNode);
+          return;
+        }
+    }
+
+    if (isArray(node)) {
+      renderChildrenArray(request, task, node);
+      return;
+    }
+
+    var iteratorFn = getIteratorFn(node);
+
+    if (iteratorFn) {
+      {
+        validateIterable(node, iteratorFn);
+      }
+
+      var iterator = iteratorFn.call(node);
+
+      if (iterator) {
+        // We need to know how many total children are in this set, so that we
+        // can allocate enough id slots to acommodate them. So we must exhaust
+        // the iterator before we start recursively rendering the children.
+        // TODO: This is not great but I think it's inherent to the id
+        // generation algorithm.
+        var step = iterator.next(); // If there are not entries, we need to push an empty so we start by checking that.
+
+        if (!step.done) {
+          var children = [];
+
+          do {
+            children.push(step.value);
+            step = iterator.next();
+          } while (!step.done);
+
+          renderChildrenArray(request, task, children);
+          return;
+        }
+
+        return;
+      }
+    }
+
+    var childString = Object.prototype.toString.call(node);
+    throw new Error("Objects are not valid as a React child (found: " + (childString === '[object Object]' ? 'object with keys {' + Object.keys(node).join(', ') + '}' : childString) + "). " + 'If you meant to render a collection of children, use an array ' + 'instead.');
+  }
+
+  if (typeof node === 'string') {
+    var segment = task.blockedSegment;
+    segment.lastPushedText = pushTextInstance(task.blockedSegment.chunks, node, request.responseState, segment.lastPushedText);
+    return;
+  }
+
+  if (typeof node === 'number') {
+    var _segment = task.blockedSegment;
+    _segment.lastPushedText = pushTextInstance(task.blockedSegment.chunks, '' + node, request.responseState, _segment.lastPushedText);
+    return;
+  }
+
+  {
+    if (typeof node === 'function') {
+      error('Functions are not valid as a React child. This may happen if ' + 'you return a Component instead of <Component /> from render. ' + 'Or maybe you meant to call this function rather than return it.');
+    }
+  }
+}
+
+function renderChildrenArray(request, task, children) {
+  var totalChildren = children.length;
+
+  for (var i = 0; i < totalChildren; i++) {
+    var prevTreeContext = task.treeContext;
+    task.treeContext = pushTreeContext(prevTreeContext, totalChildren, i);
+
+    try {
+      // We need to use the non-destructive form so that we can safely pop back
+      // up and render the sibling if something suspends.
+      renderNode(request, task, children[i]);
+    } finally {
+      task.treeContext = prevTreeContext;
+    }
+  }
+}
+
+function spawnNewSuspendedTask(request, task, thenableState, x) {
+  // Something suspended, we'll need to create a new segment and resolve it later.
+  var segment = task.blockedSegment;
+  var insertionIndex = segment.chunks.length;
+  var newSegment = createPendingSegment(request, insertionIndex, null, segment.formatContext, // Adopt the parent segment's leading text embed
+  segment.lastPushedText, // Assume we are text embedded at the trailing edge
+  true);
+  segment.children.push(newSegment); // Reset lastPushedText for current Segment since the new Segment "consumed" it
+
+  segment.lastPushedText = false;
+  var newTask = createTask(request, thenableState, task.node, task.blockedBoundary, newSegment, task.abortSet, task.legacyContext, task.context, task.treeContext);
+  trackSuspendedWakeable(x);
+
+  {
+    if (task.componentStack !== null) {
+      // We pop one task off the stack because the node that suspended will be tried again,
+      // which will add it back onto the stack.
+      newTask.componentStack = task.componentStack.parent;
+    }
+  }
+
+  var ping = newTask.ping;
+  x.then(ping, ping);
+} // This is a non-destructive form of rendering a node. If it suspends it spawns
+// a new task and restores the context of this task to what it was before.
+
+
+function renderNode(request, task, node) {
+  // TODO: Store segment.children.length here and reset it in case something
+  // suspended partially through writing something.
+  // Snapshot the current context in case something throws to interrupt the
+  // process.
+  var previousFormatContext = task.blockedSegment.formatContext;
+  var previousLegacyContext = task.legacyContext;
+  var previousContext = task.context;
+  var previousComponentStack = null;
+
+  {
+    previousComponentStack = task.componentStack;
+  }
+
+  try {
+    return renderNodeDestructive(request, task, null, node);
+  } catch (x) {
+    resetHooksState();
+
+    if (typeof x === 'object' && x !== null && typeof x.then === 'function') {
+      var thenableState = getThenableStateAfterSuspending();
+      spawnNewSuspendedTask(request, task, thenableState, x); // Restore the context. We assume that this will be restored by the inner
+      // functions in case nothing throws so we don't use "finally" here.
+
+      task.blockedSegment.formatContext = previousFormatContext;
+      task.legacyContext = previousLegacyContext;
+      task.context = previousContext; // Restore all active ReactContexts to what they were before.
+
+      switchContext(previousContext);
+
+      {
+        task.componentStack = previousComponentStack;
+      }
+
+      return;
+    } else {
+      // Restore the context. We assume that this will be restored by the inner
+      // functions in case nothing throws so we don't use "finally" here.
+      task.blockedSegment.formatContext = previousFormatContext;
+      task.legacyContext = previousLegacyContext;
+      task.context = previousContext; // Restore all active ReactContexts to what they were before.
+
+      switchContext(previousContext);
+
+      {
+        task.componentStack = previousComponentStack;
+      } // We assume that we don't need the correct context.
+      // Let's terminate the rest of the tree and don't render any siblings.
+
+
+      throw x;
+    }
+  }
+}
+
+function erroredTask(request, boundary, segment, error) {
+  // Report the error to a global handler.
+  var errorDigest = logRecoverableError(request, error);
+
+  if (boundary === null) {
+    fatalError(request, error);
+  } else {
+    boundary.pendingTasks--;
+
+    if (!boundary.forceClientRender) {
+      boundary.forceClientRender = true;
+      boundary.errorDigest = errorDigest;
+
+      {
+        captureBoundaryErrorDetailsDev(boundary, error);
+      } // Regardless of what happens next, this boundary won't be displayed,
+      // so we can flush it, if the parent already flushed.
+
+
+      if (boundary.parentFlushed) {
+        // We don't have a preference where in the queue this goes since it's likely
+        // to error on the client anyway. However, intentionally client-rendered
+        // boundaries should be flushed earlier so that they can start on the client.
+        // We reuse the same queue for errors.
+        request.clientRenderedBoundaries.push(boundary);
+      }
+    }
+  }
+
+  request.allPendingTasks--;
+
+  if (request.allPendingTasks === 0) {
+    var onAllReady = request.onAllReady;
+    onAllReady();
+  }
+}
+
+function abortTaskSoft(task) {
+  // This aborts task without aborting the parent boundary that it blocks.
+  // It's used for when we didn't need this task to complete the tree.
+  // If task was needed, then it should use abortTask instead.
+  var request = this;
+  var boundary = task.blockedBoundary;
+  var segment = task.blockedSegment;
+  segment.status = ABORTED;
+  finishedTask(request, boundary, segment);
+}
+
+function abortTask(task, request, error) {
+  // This aborts the task and aborts the parent that it blocks, putting it into
+  // client rendered mode.
+  var boundary = task.blockedBoundary;
+  var segment = task.blockedSegment;
+  segment.status = ABORTED;
+
+  if (boundary === null) {
+    request.allPendingTasks--; // We didn't complete the root so we have nothing to show. We can close
+    // the request;
+
+    if (request.status !== CLOSING && request.status !== CLOSED) {
+      logRecoverableError(request, error);
+      fatalError(request, error);
+    }
+  } else {
+    boundary.pendingTasks--;
+
+    if (!boundary.forceClientRender) {
+      boundary.forceClientRender = true;
+      boundary.errorDigest = request.onError(error);
+
+      {
+        var errorPrefix = 'The server did not finish this Suspense boundary: ';
+        var errorMessage;
+
+        if (error && typeof error.message === 'string') {
+          errorMessage = errorPrefix + error.message;
+        } else {
+          // eslint-disable-next-line react-internal/safe-string-coercion
+          errorMessage = errorPrefix + String(error);
+        }
+
+        var previousTaskInDev = currentTaskInDEV;
+        currentTaskInDEV = task;
+
+        try {
+          captureBoundaryErrorDetailsDev(boundary, errorMessage);
+        } finally {
+          currentTaskInDEV = previousTaskInDev;
+        }
+      }
+
+      if (boundary.parentFlushed) {
+        request.clientRenderedBoundaries.push(boundary);
+      }
+    } // If this boundary was still pending then we haven't already cancelled its fallbacks.
+    // We'll need to abort the fallbacks, which will also error that parent boundary.
+
+
+    boundary.fallbackAbortableTasks.forEach(function (fallbackTask) {
+      return abortTask(fallbackTask, request, error);
+    });
+    boundary.fallbackAbortableTasks.clear();
+    request.allPendingTasks--;
+
+    if (request.allPendingTasks === 0) {
+      var onAllReady = request.onAllReady;
+      onAllReady();
+    }
+  }
+}
+
+function queueCompletedSegment(boundary, segment) {
+  if (segment.chunks.length === 0 && segment.children.length === 1 && segment.children[0].boundary === null) {
+    // This is an empty segment. There's nothing to write, so we can instead transfer the ID
+    // to the child. That way any existing references point to the child.
+    var childSegment = segment.children[0];
+    childSegment.id = segment.id;
+    childSegment.parentFlushed = true;
+
+    if (childSegment.status === COMPLETED) {
+      queueCompletedSegment(boundary, childSegment);
+    }
+  } else {
+    var completedSegments = boundary.completedSegments;
+    completedSegments.push(segment);
+  }
+}
+
+function finishedTask(request, boundary, segment) {
+  if (boundary === null) {
+    if (segment.parentFlushed) {
+      if (request.completedRootSegment !== null) {
+        throw new Error('There can only be one root segment. This is a bug in React.');
+      }
+
+      request.completedRootSegment = segment;
+    }
+
+    request.pendingRootTasks--;
+
+    if (request.pendingRootTasks === 0) {
+      // We have completed the shell so the shell can't error anymore.
+      request.onShellError = noop$1;
+      var onShellReady = request.onShellReady;
+      onShellReady();
+    }
+  } else {
+    boundary.pendingTasks--;
+
+    if (boundary.forceClientRender) ; else if (boundary.pendingTasks === 0) {
+      // This must have been the last segment we were waiting on. This boundary is now complete.
+      if (segment.parentFlushed) {
+        // Our parent segment already flushed, so we need to schedule this segment to be emitted.
+        // If it is a segment that was aborted, we'll write other content instead so we don't need
+        // to emit it.
+        if (segment.status === COMPLETED) {
+          queueCompletedSegment(boundary, segment);
+        }
+      }
+
+      if (boundary.parentFlushed) {
+        // The segment might be part of a segment that didn't flush yet, but if the boundary's
+        // parent flushed, we need to schedule the boundary to be emitted.
+        request.completedBoundaries.push(boundary);
+      } // We can now cancel any pending task on the fallback since we won't need to show it anymore.
+      // This needs to happen after we read the parentFlushed flags because aborting can finish
+      // work which can trigger user code, which can start flushing, which can change those flags.
+
+
+      boundary.fallbackAbortableTasks.forEach(abortTaskSoft, request);
+      boundary.fallbackAbortableTasks.clear();
+    } else {
+      if (segment.parentFlushed) {
+        // Our parent already flushed, so we need to schedule this segment to be emitted.
+        // If it is a segment that was aborted, we'll write other content instead so we don't need
+        // to emit it.
+        if (segment.status === COMPLETED) {
+          queueCompletedSegment(boundary, segment);
+          var completedSegments = boundary.completedSegments;
+
+          if (completedSegments.length === 1) {
+            // This is the first time since we last flushed that we completed anything.
+            // We can schedule this boundary to emit its partially completed segments early
+            // in case the parent has already been flushed.
+            if (boundary.parentFlushed) {
+              request.partialBoundaries.push(boundary);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  request.allPendingTasks--;
+
+  if (request.allPendingTasks === 0) {
+    // This needs to be called at the very end so that we can synchronously write the result
+    // in the callback if needed.
+    var onAllReady = request.onAllReady;
+    onAllReady();
+  }
+}
+
+function retryTask(request, task) {
+  var segment = task.blockedSegment;
+
+  if (segment.status !== PENDING) {
+    // We completed this by other means before we had a chance to retry it.
+    return;
+  } // We restore the context to what it was when we suspended.
+  // We don't restore it after we leave because it's likely that we'll end up
+  // needing a very similar context soon again.
+
+
+  switchContext(task.context);
+  var prevTaskInDEV = null;
+
+  {
+    prevTaskInDEV = currentTaskInDEV;
+    currentTaskInDEV = task;
+  }
+
+  try {
+    // We call the destructive form that mutates this task. That way if something
+    // suspends again, we can reuse the same task instead of spawning a new one.
+    // Reset the task's thenable state before continuing, so that if a later
+    // component suspends we can reuse the same task object. If the same
+    // component suspends again, the thenable state will be restored.
+    var prevThenableState = task.thenableState;
+    task.thenableState = null;
+    renderNodeDestructive(request, task, prevThenableState, task.node);
+    pushSegmentFinale(segment.chunks, request.responseState, segment.lastPushedText, segment.textEmbedded);
+    task.abortSet.delete(task);
+    segment.status = COMPLETED;
+    finishedTask(request, task.blockedBoundary, segment);
+  } catch (x) {
+    resetHooksState();
+
+    if (typeof x === 'object' && x !== null && typeof x.then === 'function') {
+      // Something suspended again, let's pick it back up later.
+      var ping = task.ping;
+      x.then(ping, ping);
+      var wakeable = x;
+      trackSuspendedWakeable(wakeable);
+      task.thenableState = getThenableStateAfterSuspending();
+    } else {
+      task.abortSet.delete(task);
+      segment.status = ERRORED;
+      erroredTask(request, task.blockedBoundary, segment, x);
+    }
+  } finally {
+    {
+      currentTaskInDEV = prevTaskInDEV;
+    }
+  }
+}
+
+function performWork(request) {
+  if (request.status === CLOSED) {
+    return;
+  }
+
+  var prevContext = getActiveContext();
+  var prevDispatcher = ReactCurrentDispatcher$1.current;
+  ReactCurrentDispatcher$1.current = Dispatcher;
+  var prevGetCurrentStackImpl;
+
+  {
+    prevGetCurrentStackImpl = ReactDebugCurrentFrame$1.getCurrentStack;
+    ReactDebugCurrentFrame$1.getCurrentStack = getCurrentStackInDEV;
+  }
+
+  var prevResponseState = currentResponseState;
+  setCurrentResponseState(request.responseState);
+
+  try {
+    var pingedTasks = request.pingedTasks;
+    var i;
+
+    for (i = 0; i < pingedTasks.length; i++) {
+      var task = pingedTasks[i];
+      retryTask(request, task);
+    }
+
+    pingedTasks.splice(0, i);
+
+    if (request.destination !== null) {
+      flushCompletedQueues(request, request.destination);
+    }
+  } catch (error) {
+    logRecoverableError(request, error);
+    fatalError(request, error);
+  } finally {
+    setCurrentResponseState(prevResponseState);
+    ReactCurrentDispatcher$1.current = prevDispatcher;
+
+    {
+      ReactDebugCurrentFrame$1.getCurrentStack = prevGetCurrentStackImpl;
+    }
+
+    if (prevDispatcher === Dispatcher) {
+      // This means that we were in a reentrant work loop. This could happen
+      // in a renderer that supports synchronous work like renderToString,
+      // when it's called from within another renderer.
+      // Normally we don't bother switching the contexts to their root/default
+      // values when leaving because we'll likely need the same or similar
+      // context again. However, when we're inside a synchronous loop like this
+      // we'll to restore the context to what it was before returning.
+      switchContext(prevContext);
+    }
+  }
+}
+
+function flushSubtree(request, destination, segment) {
+  segment.parentFlushed = true;
+
+  switch (segment.status) {
+    case PENDING:
+      {
+        // We're emitting a placeholder for this segment to be filled in later.
+        // Therefore we'll need to assign it an ID - to refer to it by.
+        var segmentID = segment.id = request.nextSegmentId++; // When this segment finally completes it won't be embedded in text since it will flush separately
+
+        segment.lastPushedText = false;
+        segment.textEmbedded = false;
+        return writePlaceholder(destination, request.responseState, segmentID);
+      }
+
+    case COMPLETED:
+      {
+        segment.status = FLUSHED;
+        var r = true;
+        var chunks = segment.chunks;
+        var chunkIdx = 0;
+        var children = segment.children;
+
+        for (var childIdx = 0; childIdx < children.length; childIdx++) {
+          var nextChild = children[childIdx]; // Write all the chunks up until the next child.
+
+          for (; chunkIdx < nextChild.index; chunkIdx++) {
+            writeChunk(destination, chunks[chunkIdx]);
+          }
+
+          r = flushSegment(request, destination, nextChild);
+        } // Finally just write all the remaining chunks
+
+
+        for (; chunkIdx < chunks.length - 1; chunkIdx++) {
+          writeChunk(destination, chunks[chunkIdx]);
+        }
+
+        if (chunkIdx < chunks.length) {
+          r = writeChunkAndReturn(destination, chunks[chunkIdx]);
+        }
+
+        return r;
+      }
+
+    default:
+      {
+        throw new Error('Aborted, errored or already flushed boundaries should not be flushed again. This is a bug in React.');
+      }
+  }
+}
+
+function flushSegment(request, destination, segment) {
+  var boundary = segment.boundary;
+
+  if (boundary === null) {
+    // Not a suspense boundary.
+    return flushSubtree(request, destination, segment);
+  }
+
+  boundary.parentFlushed = true; // This segment is a Suspense boundary. We need to decide whether to
+  // emit the content or the fallback now.
+
+  if (boundary.forceClientRender) {
+    // Emit a client rendered suspense boundary wrapper.
+    // We never queue the inner boundary so we'll never emit its content or partial segments.
+    writeStartClientRenderedSuspenseBoundary(destination, request.responseState, boundary.errorDigest, boundary.errorMessage, boundary.errorComponentStack); // Flush the fallback.
+
+    flushSubtree(request, destination, segment);
+    return writeEndClientRenderedSuspenseBoundary(destination, request.responseState);
+  } else if (boundary.pendingTasks > 0) {
+    // This boundary is still loading. Emit a pending suspense boundary wrapper.
+    // Assign an ID to refer to the future content by.
+    boundary.rootSegmentID = request.nextSegmentId++;
+
+    if (boundary.completedSegments.length > 0) {
+      // If this is at least partially complete, we can queue it to be partially emitted early.
+      request.partialBoundaries.push(boundary);
+    } /// This is the first time we should have referenced this ID.
+
+
+    var id = boundary.id = assignSuspenseBoundaryID(request.responseState);
+    writeStartPendingSuspenseBoundary(destination, request.responseState, id); // Flush the fallback.
+
+    flushSubtree(request, destination, segment);
+    return writeEndPendingSuspenseBoundary(destination, request.responseState);
+  } else if (boundary.byteSize > request.progressiveChunkSize) {
+    // This boundary is large and will be emitted separately so that we can progressively show
+    // other content. We add it to the queue during the flush because we have to ensure that
+    // the parent flushes first so that there's something to inject it into.
+    // We also have to make sure that it's emitted into the queue in a deterministic slot.
+    // I.e. we can't insert it here when it completes.
+    // Assign an ID to refer to the future content by.
+    boundary.rootSegmentID = request.nextSegmentId++;
+    request.completedBoundaries.push(boundary); // Emit a pending rendered suspense boundary wrapper.
+
+    writeStartPendingSuspenseBoundary(destination, request.responseState, boundary.id); // Flush the fallback.
+
+    flushSubtree(request, destination, segment);
+    return writeEndPendingSuspenseBoundary(destination, request.responseState);
+  } else {
+    // We can inline this boundary's content as a complete boundary.
+    writeStartCompletedSuspenseBoundary(destination, request.responseState);
+    var completedSegments = boundary.completedSegments;
+
+    if (completedSegments.length !== 1) {
+      throw new Error('A previously unvisited boundary must have exactly one root segment. This is a bug in React.');
+    }
+
+    var contentSegment = completedSegments[0];
+    flushSegment(request, destination, contentSegment);
+    return writeEndCompletedSuspenseBoundary(destination, request.responseState);
+  }
+}
+
+function flushClientRenderedBoundary(request, destination, boundary) {
+  return writeClientRenderBoundaryInstruction(destination, request.responseState, boundary.id, boundary.errorDigest, boundary.errorMessage, boundary.errorComponentStack);
+}
+
+function flushSegmentContainer(request, destination, segment) {
+  writeStartSegment(destination, request.responseState, segment.formatContext, segment.id);
+  flushSegment(request, destination, segment);
+  return writeEndSegment(destination, segment.formatContext);
+}
+
+function flushCompletedBoundary(request, destination, boundary) {
+  var completedSegments = boundary.completedSegments;
+  var i = 0;
+
+  for (; i < completedSegments.length; i++) {
+    var segment = completedSegments[i];
+    flushPartiallyCompletedSegment(request, destination, boundary, segment);
+  }
+
+  completedSegments.length = 0;
+  return writeCompletedBoundaryInstruction(destination, request.responseState, boundary.id, boundary.rootSegmentID);
+}
+
+function flushPartialBoundary(request, destination, boundary) {
+  var completedSegments = boundary.completedSegments;
+  var i = 0;
+
+  for (; i < completedSegments.length; i++) {
+    var segment = completedSegments[i];
+
+    if (!flushPartiallyCompletedSegment(request, destination, boundary, segment)) {
+      i++;
+      completedSegments.splice(0, i); // Only write as much as the buffer wants. Something higher priority
+      // might want to write later.
+
+      return false;
+    }
+  }
+
+  completedSegments.splice(0, i);
+  return true;
+}
+
+function flushPartiallyCompletedSegment(request, destination, boundary, segment) {
+  if (segment.status === FLUSHED) {
+    // We've already flushed this inline.
+    return true;
+  }
+
+  var segmentID = segment.id;
+
+  if (segmentID === -1) {
+    // This segment wasn't previously referred to. This happens at the root of
+    // a boundary. We make kind of a leap here and assume this is the root.
+    var rootSegmentID = segment.id = boundary.rootSegmentID;
+
+    if (rootSegmentID === -1) {
+      throw new Error('A root segment ID must have been assigned by now. This is a bug in React.');
+    }
+
+    return flushSegmentContainer(request, destination, segment);
+  } else {
+    flushSegmentContainer(request, destination, segment);
+    return writeCompletedSegmentInstruction(destination, request.responseState, segmentID);
+  }
+}
+
+function flushCompletedQueues(request, destination) {
+  beginWriting();
+
+  try {
+    // The structure of this is to go through each queue one by one and write
+    // until the sink tells us to stop. When we should stop, we still finish writing
+    // that item fully and then yield. At that point we remove the already completed
+    // items up until the point we completed them.
+    // TODO: Emit preloading.
+    var i;
+    var completedRootSegment = request.completedRootSegment;
+
+    if (completedRootSegment !== null) {
+      if (request.pendingRootTasks === 0) {
+        if (enableFloat) {
+          var preamble = request.preamble;
+
+          for (i = 0; i < preamble.length; i++) {
+            // we expect the preamble to be tiny and will ignore backpressure
+            writeChunk(destination, preamble[i]);
+          }
+        }
+
+        flushSegment(request, destination, completedRootSegment);
+        request.completedRootSegment = null;
+        writeCompletedRoot(destination, request.responseState);
+      } else {
+        // We haven't flushed the root yet so we don't need to check boundaries further down
+        return;
+      }
+    } // We emit client rendering instructions for already emitted boundaries first.
+    // This is so that we can signal to the client to start client rendering them as
+    // soon as possible.
+
+
+    var clientRenderedBoundaries = request.clientRenderedBoundaries;
+
+    for (i = 0; i < clientRenderedBoundaries.length; i++) {
+      var boundary = clientRenderedBoundaries[i];
+
+      if (!flushClientRenderedBoundary(request, destination, boundary)) {
+        request.destination = null;
+        i++;
+        clientRenderedBoundaries.splice(0, i);
+        return;
+      }
+    }
+
+    clientRenderedBoundaries.splice(0, i); // Next we emit any complete boundaries. It's better to favor boundaries
+    // that are completely done since we can actually show them, than it is to emit
+    // any individual segments from a partially complete boundary.
+
+    var completedBoundaries = request.completedBoundaries;
+
+    for (i = 0; i < completedBoundaries.length; i++) {
+      var _boundary = completedBoundaries[i];
+
+      if (!flushCompletedBoundary(request, destination, _boundary)) {
+        request.destination = null;
+        i++;
+        completedBoundaries.splice(0, i);
+        return;
+      }
+    }
+
+    completedBoundaries.splice(0, i); // Allow anything written so far to flush to the underlying sink before
+    // we continue with lower priorities.
+
+    completeWriting(destination);
+    beginWriting(destination); // TODO: Here we'll emit data used by hydration.
+    // Next we emit any segments of any boundaries that are partially complete
+    // but not deeply complete.
+
+    var partialBoundaries = request.partialBoundaries;
+
+    for (i = 0; i < partialBoundaries.length; i++) {
+      var _boundary2 = partialBoundaries[i];
+
+      if (!flushPartialBoundary(request, destination, _boundary2)) {
+        request.destination = null;
+        i++;
+        partialBoundaries.splice(0, i);
+        return;
+      }
+    }
+
+    partialBoundaries.splice(0, i); // Next we check the completed boundaries again. This may have had
+    // boundaries added to it in case they were too larged to be inlined.
+    // New ones might be added in this loop.
+
+    var largeBoundaries = request.completedBoundaries;
+
+    for (i = 0; i < largeBoundaries.length; i++) {
+      var _boundary3 = largeBoundaries[i];
+
+      if (!flushCompletedBoundary(request, destination, _boundary3)) {
+        request.destination = null;
+        i++;
+        largeBoundaries.splice(0, i);
+        return;
+      }
+    }
+
+    largeBoundaries.splice(0, i);
+  } finally {
+    if (request.allPendingTasks === 0 && request.pingedTasks.length === 0 && request.clientRenderedBoundaries.length === 0 && request.completedBoundaries.length === 0 // We don't need to check any partially completed segments because
+    // either they have pending task or they're complete.
+    ) {
+        {
+          var postamble = request.postamble;
+
+          for (var _i = 0; _i < postamble.length; _i++) {
+            writeChunk(destination, postamble[_i]);
+          }
+        }
+
+        completeWriting(destination);
+
+        {
+          if (request.abortableTasks.size !== 0) {
+            error('There was still abortable task at the root when we closed. This is a bug in React.');
+          }
+        } // We're done.
+
+
+        close(destination);
+      } else {
+      completeWriting(destination);
+    }
+  }
+}
+
+function startWork(request) {
+  scheduleWork(function () {
+    return performWork(request);
+  });
+}
+function startFlowing(request, destination) {
+  if (request.status === CLOSING) {
+    request.status = CLOSED;
+    closeWithError(destination, request.fatalError);
+    return;
+  }
+
+  if (request.status === CLOSED) {
+    return;
+  }
+
+  if (request.destination !== null) {
+    // We're already flowing.
+    return;
+  }
+
+  request.destination = destination;
+
+  try {
+    flushCompletedQueues(request, destination);
+  } catch (error) {
+    logRecoverableError(request, error);
+    fatalError(request, error);
+  }
+} // This is called to early terminate a request. It puts all pending boundaries in client rendered state.
+
+function abort(request, reason) {
+  try {
+    var abortableTasks = request.abortableTasks;
+
+    if (abortableTasks.size > 0) {
+      var _error = reason === undefined ? new Error('The render was aborted by the server without a reason.') : reason;
+
+      abortableTasks.forEach(function (task) {
+        return abortTask(task, request, _error);
+      });
+      abortableTasks.clear();
+    }
+
+    if (request.destination !== null) {
+      flushCompletedQueues(request, request.destination);
+    }
+  } catch (error) {
+    logRecoverableError(request, error);
+    fatalError(request, error);
+  }
+}
+
+function renderToReadableStream(children, options) {
+  return new Promise(function (resolve, reject) {
+    var onFatalError;
+    var onAllReady;
+    var allReady = new Promise(function (res, rej) {
+      onAllReady = res;
+      onFatalError = rej;
+    });
+
+    function onShellReady() {
+      var stream = new ReadableStream({
+        type: 'bytes',
+        pull: function (controller) {
+          startFlowing(request, controller);
+        },
+        cancel: function (reason) {
+          abort(request);
+        }
+      }, // $FlowFixMe size() methods are not allowed on byte streams.
+      {
+        highWaterMark: 0
+      }); // TODO: Move to sub-classing ReadableStream.
+
+      stream.allReady = allReady;
+      resolve(stream);
+    }
+
+    function onShellError(error) {
+      // If the shell errors the caller of `renderToReadableStream` won't have access to `allReady`.
+      // However, `allReady` will be rejected by `onFatalError` as well.
+      // So we need to catch the duplicate, uncatchable fatal error in `allReady` to prevent a `UnhandledPromiseRejection`.
+      allReady.catch(function () {});
+      reject(error);
+    }
+
+    var request = createRequest(children, createResponseState(options ? options.identifierPrefix : undefined, options ? options.nonce : undefined, options ? options.bootstrapScriptContent : undefined, options ? options.bootstrapScripts : undefined, options ? options.bootstrapModules : undefined), createRootFormatContext(options ? options.namespaceURI : undefined), options ? options.progressiveChunkSize : undefined, options ? options.onError : undefined, onAllReady, onShellReady, onShellError, onFatalError);
+
+    if (options && options.signal) {
+      var signal = options.signal;
+
+      if (signal.aborted) {
+        abort(request, signal.reason);
+      } else {
+        var listener = function () {
+          abort(request, signal.reason);
+          signal.removeEventListener('abort', listener);
+        };
+
+        signal.addEventListener('abort', listener);
+      }
+    }
+
+    startWork(request);
+  });
+}
+
+exports.renderToReadableStream = renderToReadableStream;
+exports.version = ReactVersion;
+  })();
+}
+
+
+/***/ }),
+
+/***/ 655:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
 /**
  * @license React
  * react-dom-server.browser.production.min.js
@@ -38,23 +14925,169 @@ if(process.env.NODE_ENV!=="production"){(function(){"use strict";var e=o(89);var
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  */
-var a=o(89);function k(e){for(var r="https://reactjs.org/docs/error-decoder.html?invariant="+e,o=1;o<arguments.length;o++)r+="&args[]="+encodeURIComponent(arguments[o]);return"Minified React error #"+e+"; visit "+r+" for the full message or use the non-minified dev environment for full errors and additional helpful warnings."}var i=null,s=0;function q(e,r){if(0!==r.length)if(512<r.length)0<s&&(e.enqueue(new Uint8Array(i.buffer,0,s)),i=new Uint8Array(512),s=0),e.enqueue(r);else{var o=i.length-s;o<r.length&&(0===o?e.enqueue(i):(i.set(r.subarray(0,o),s),e.enqueue(i),r=r.subarray(o)),i=new Uint8Array(512),s=0);i.set(r,s);s+=r.length}}function u(e,r){q(e,r);return!0}function ba(e){i&&0<s&&(e.enqueue(new Uint8Array(i.buffer,0,s)),i=null,s=0)}var l=new TextEncoder;function v(e){return l.encode(e)}function x(e){return l.encode(e)}function da(e,r){"function"===typeof e.error?e.error(r):e.close()}var c=Object.prototype.hasOwnProperty,d=/^[:A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD][:A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD\-.0-9\u00B7\u0300-\u036F\u203F-\u2040]*$/,p={},f={};function ia(e){if(c.call(f,e))return!0;if(c.call(p,e))return!1;if(d.test(e))return f[e]=!0;p[e]=!0;return!1}function A(e,r,o,a,i,s,l){this.acceptsBooleans=2===r||3===r||4===r;this.attributeName=a;this.attributeNamespace=i;this.mustUseProperty=o;this.propertyName=e;this.type=r;this.sanitizeURL=s;this.removeEmptyString=l}var h={},g="children dangerouslySetInnerHTML defaultValue defaultChecked innerHTML suppressContentEditableWarning suppressHydrationWarning style".split(" ");g.push("innerText","textContent");g.forEach((function(e){h[e]=new A(e,0,!1,e,null,!1,!1)}));[["acceptCharset","accept-charset"],["className","class"],["htmlFor","for"],["httpEquiv","http-equiv"]].forEach((function(e){var r=e[0];h[r]=new A(r,1,!1,e[1],null,!1,!1)}));["contentEditable","draggable","spellCheck","value"].forEach((function(e){h[e]=new A(e,2,!1,e.toLowerCase(),null,!1,!1)}));["autoReverse","externalResourcesRequired","focusable","preserveAlpha"].forEach((function(e){h[e]=new A(e,2,!1,e,null,!1,!1)}));"allowFullScreen async autoFocus autoPlay controls default defer disabled disablePictureInPicture disableRemotePlayback formNoValidate hidden loop noModule noValidate open playsInline readOnly required reversed scoped seamless itemScope".split(" ").forEach((function(e){h[e]=new A(e,3,!1,e.toLowerCase(),null,!1,!1)}));["checked","multiple","muted","selected"].forEach((function(e){h[e]=new A(e,3,!0,e,null,!1,!1)}));["capture","download"].forEach((function(e){h[e]=new A(e,4,!1,e,null,!1,!1)}));["cols","rows","size","span"].forEach((function(e){h[e]=new A(e,6,!1,e,null,!1,!1)}));["rowSpan","start"].forEach((function(e){h[e]=new A(e,5,!1,e.toLowerCase(),null,!1,!1)}));var b=/[\-:]([a-z])/g;function la(e){return e[1].toUpperCase()}"accent-height alignment-baseline arabic-form baseline-shift cap-height clip-path clip-rule color-interpolation color-interpolation-filters color-profile color-rendering dominant-baseline enable-background fill-opacity fill-rule flood-color flood-opacity font-family font-size font-size-adjust font-stretch font-style font-variant font-weight glyph-name glyph-orientation-horizontal glyph-orientation-vertical horiz-adv-x horiz-origin-x image-rendering letter-spacing lighting-color marker-end marker-mid marker-start overline-position overline-thickness paint-order panose-1 pointer-events rendering-intent shape-rendering stop-color stop-opacity strikethrough-position strikethrough-thickness stroke-dasharray stroke-dashoffset stroke-linecap stroke-linejoin stroke-miterlimit stroke-opacity stroke-width text-anchor text-decoration text-rendering underline-position underline-thickness unicode-bidi unicode-range units-per-em v-alphabetic v-hanging v-ideographic v-mathematical vector-effect vert-adv-y vert-origin-x vert-origin-y word-spacing writing-mode xmlns:xlink x-height".split(" ").forEach((function(e){var r=e.replace(b,la);h[r]=new A(r,1,!1,e,null,!1,!1)}));"xlink:actuate xlink:arcrole xlink:role xlink:show xlink:title xlink:type".split(" ").forEach((function(e){var r=e.replace(b,la);h[r]=new A(r,1,!1,e,"http://www.w3.org/1999/xlink",!1,!1)}));["xml:base","xml:lang","xml:space"].forEach((function(e){var r=e.replace(b,la);h[r]=new A(r,1,!1,e,"http://www.w3.org/XML/1998/namespace",!1,!1)}));["tabIndex","crossOrigin"].forEach((function(e){h[e]=new A(e,1,!1,e.toLowerCase(),null,!1,!1)}));h.xlinkHref=new A("xlinkHref",1,!1,"xlink:href","http://www.w3.org/1999/xlink",!0,!1);["src","href","action","formAction"].forEach((function(e){h[e]=new A(e,1,!1,e.toLowerCase(),null,!0,!0)}));var S={animationIterationCount:!0,aspectRatio:!0,borderImageOutset:!0,borderImageSlice:!0,borderImageWidth:!0,boxFlex:!0,boxFlexGroup:!0,boxOrdinalGroup:!0,columnCount:!0,columns:!0,flex:!0,flexGrow:!0,flexPositive:!0,flexShrink:!0,flexNegative:!0,flexOrder:!0,gridArea:!0,gridRow:!0,gridRowEnd:!0,gridRowSpan:!0,gridRowStart:!0,gridColumn:!0,gridColumnEnd:!0,gridColumnSpan:!0,gridColumnStart:!0,fontWeight:!0,lineClamp:!0,lineHeight:!0,opacity:!0,order:!0,orphans:!0,tabSize:!0,widows:!0,zIndex:!0,zoom:!0,fillOpacity:!0,floodOpacity:!0,stopOpacity:!0,strokeDasharray:!0,strokeDashoffset:!0,strokeMiterlimit:!0,strokeOpacity:!0,strokeWidth:!0},w=["Webkit","ms","Moz","O"];Object.keys(S).forEach((function(e){w.forEach((function(r){r=r+e.charAt(0).toUpperCase()+e.substring(1);S[r]=S[e]}))}));var E=/["'&<>]/;function C(e){if("boolean"===typeof e||"number"===typeof e)return""+e;e=""+e;var r=E.exec(e);if(r){var o="",a,i=0;for(a=r.index;a<e.length;a++){switch(e.charCodeAt(a)){case 34:r="&quot;";break;case 38:r="&amp;";break;case 39:r="&#x27;";break;case 60:r="&lt;";break;case 62:r="&gt;";break;default:continue}i!==a&&(o+=e.substring(i,a));i=a+1;o+=r}e=i!==a?o+e.substring(i,a):o}return e}var P=/([A-Z])/g,F=/^ms-/,_=Array.isArray,N=x("<script>"),M=x("<\/script>"),O=x('<script src="'),j=x('<script type="module" src="'),$=x('" integrity="'),G=x('" async=""><\/script>'),ee=/(<\/|<)(s)(cript)/gi;function Ba(e,r,o,a){return""+r+("s"===o?"\\u0073":"\\u0053")+a}function Ca(e,r,o,a,i){e=void 0===e?"":e;r=void 0===r?N:x('<script nonce="'+C(r)+'">');var s=[];void 0!==o&&s.push(r,v((""+o).replace(ee,Ba)),M);if(void 0!==a)for(o=0;o<a.length;o++){var l=a[o],c="string"===typeof l?void 0:l.integrity;s.push(O,v(C("string"===typeof l?l:l.src)));c&&s.push($,v(C(c)));s.push(G)}if(void 0!==i)for(a=0;a<i.length;a++)o=i[a],l="string"===typeof o?void 0:o.integrity,s.push(j,v(C("string"===typeof o?o:o.src))),l&&s.push($,v(C(l))),s.push(G);return{bootstrapChunks:s,startInlineScript:r,placeholderPrefix:x(e+"P:"),segmentPrefix:x(e+"S:"),boundaryPrefix:e+"B:",idPrefix:e,nextSuspenseID:0,sentCompleteSegmentFunction:!1,sentCompleteBoundaryFunction:!1,sentClientRenderFunction:!1}}function D(e,r){return{insertionMode:e,selectedValue:r}}function Da(e){return D("http://www.w3.org/2000/svg"===e?2:"http://www.w3.org/1998/Math/MathML"===e?3:0,null)}function Ea(e,r,o){switch(r){case"select":return D(1,null!=o.value?o.value:o.defaultValue);case"svg":return D(2,null);case"math":return D(3,null);case"foreignObject":return D(1,null);case"table":return D(4,null);case"thead":case"tbody":case"tfoot":return D(5,null);case"colgroup":return D(7,null);case"tr":return D(6,null)}return 4<=e.insertionMode||0===e.insertionMode?D(1,null):e}var te=x("\x3c!-- --\x3e");function Ga(e,r,o,a){if(""===r)return a;a&&e.push(te);e.push(v(C(r)));return!0}var re=new Map,ne=x(' style="'),oe=x(":"),ae=x(";");function La(e,r,o){if("object"!==typeof o)throw Error(k(62));r=!0;for(var a in o)if(c.call(o,a)){var i=o[a];if(null!=i&&"boolean"!==typeof i&&""!==i){if(0===a.indexOf("--")){var s=v(C(a));i=v(C((""+i).trim()))}else{s=a;var l=re.get(s);void 0!==l?s=l:(l=x(C(s.replace(P,"-$1").toLowerCase().replace(F,"-ms-"))),re.set(s,l),s=l);i="number"===typeof i?0===i||c.call(S,a)?v(""+i):v(i+"px"):v(C((""+i).trim()))}r?(r=!1,e.push(ne,s,oe,i)):e.push(ae,s,oe,i)}}r||e.push(ue)}var ie=x(" "),se=x('="'),ue=x('"'),le=x('=""');function J(e,r,o,a){switch(o){case"style":La(e,r,a);return;case"defaultValue":case"defaultChecked":case"innerHTML":case"suppressContentEditableWarning":case"suppressHydrationWarning":return}if(!(2<o.length)||"o"!==o[0]&&"O"!==o[0]||"n"!==o[1]&&"N"!==o[1])if(r=h.hasOwnProperty(o)?h[o]:null,null!==r){switch(typeof a){case"function":case"symbol":return;case"boolean":if(!r.acceptsBooleans)return}o=v(r.attributeName);switch(r.type){case 3:a&&e.push(ie,o,le);break;case 4:!0===a?e.push(ie,o,le):!1!==a&&e.push(ie,o,se,v(C(a)),ue);break;case 5:isNaN(a)||e.push(ie,o,se,v(C(a)),ue);break;case 6:!isNaN(a)&&1<=a&&e.push(ie,o,se,v(C(a)),ue);break;default:r.sanitizeURL&&(a=""+a),e.push(ie,o,se,v(C(a)),ue)}}else if(ia(o)){switch(typeof a){case"function":case"symbol":return;case"boolean":if(r=o.toLowerCase().slice(0,5),"data-"!==r&&"aria-"!==r)return}e.push(ie,v(o),se,v(C(a)),ue)}}var ce=x(">"),de=x("/>");function Oa(e,r,o){if(null!=r){if(null!=o)throw Error(k(60));if("object"!==typeof r||!("__html"in r))throw Error(k(61));r=r.__html;null!==r&&void 0!==r&&e.push(v(""+r))}}function Pa(e){var r="";a.Children.forEach(e,(function(e){null!=e&&(r+=e)}));return r}var pe=x(' selected=""');function Ra(e,r,o,a){e.push(L(o));var i=o=null,s;for(s in r)if(c.call(r,s)){var l=r[s];if(null!=l)switch(s){case"children":o=l;break;case"dangerouslySetInnerHTML":i=l;break;default:J(e,a,s,l)}}e.push(ce);Oa(e,i,o);return"string"===typeof o?(e.push(v(C(o))),null):o}var fe=x("\n"),he=/^[a-zA-Z][a-zA-Z:_\.\-\d]*$/,me=new Map;function L(e){var r=me.get(e);if(void 0===r){if(!he.test(e))throw Error(k(65,e));r=x("<"+e);me.set(e,r)}return r}var ge=x("<!DOCTYPE html>");function Wa(e,r,o,a,i,s){switch(o){case"select":e.push(L("select"));var l=null,d=null;for(g in a)if(c.call(a,g)){var p=a[g];if(null!=p)switch(g){case"children":l=p;break;case"dangerouslySetInnerHTML":d=p;break;case"defaultValue":case"value":break;default:J(e,i,g,p)}}e.push(ce);Oa(e,d,l);return l;case"option":d=s.selectedValue;e.push(L("option"));var f=p=null,h=null;var g=null;for(l in a)if(c.call(a,l)){var b=a[l];if(null!=b)switch(l){case"children":p=b;break;case"selected":h=b;break;case"dangerouslySetInnerHTML":g=b;break;case"value":f=b;default:J(e,i,l,b)}}if(null!=d)if(a=null!==f?""+f:Pa(p),_(d))for(i=0;i<d.length;i++){if(""+d[i]===a){e.push(pe);break}}else""+d===a&&e.push(pe);else h&&e.push(pe);e.push(ce);Oa(e,g,p);return p;case"textarea":e.push(L("textarea"));g=d=l=null;for(p in a)if(c.call(a,p)&&(f=a[p],null!=f))switch(p){case"children":g=f;break;case"value":l=f;break;case"defaultValue":d=f;break;case"dangerouslySetInnerHTML":throw Error(k(91));default:J(e,i,p,f)}null===l&&null!==d&&(l=d);e.push(ce);if(null!=g){if(null!=l)throw Error(k(92));if(_(g)&&1<g.length)throw Error(k(93));l=""+g}"string"===typeof l&&"\n"===l[0]&&e.push(fe);null!==l&&e.push(v(C(""+l)));return null;case"input":e.push(L("input"));f=g=p=l=null;for(d in a)if(c.call(a,d)&&(h=a[d],null!=h))switch(d){case"children":case"dangerouslySetInnerHTML":throw Error(k(399,"input"));case"defaultChecked":f=h;break;case"defaultValue":p=h;break;case"checked":g=h;break;case"value":l=h;break;default:J(e,i,d,h)}null!==g?J(e,i,"checked",g):null!==f&&J(e,i,"checked",f);null!==l?J(e,i,"value",l):null!==p&&J(e,i,"value",p);e.push(de);return null;case"menuitem":e.push(L("menuitem"));for(var S in a)if(c.call(a,S)&&(l=a[S],null!=l))switch(S){case"children":case"dangerouslySetInnerHTML":throw Error(k(400));default:J(e,i,S,l)}e.push(ce);return null;case"title":e.push(L("title"));l=null;for(b in a)if(c.call(a,b)&&(d=a[b],null!=d))switch(b){case"children":l=d;break;case"dangerouslySetInnerHTML":throw Error(k(434));default:J(e,i,b,d)}e.push(ce);return l;case"link":l="stylesheet"===a.rel;e.push(L("link"));for(var w in a)if(c.call(a,w)&&(d=a[w],null!=d))switch(w){case"children":case"dangerouslySetInnerHTML":throw Error(k(399,"link"));case"precedence":if(l){!0!==d&&"string"!==typeof d||J(e,i,"data-rprec",d);break}default:J(e,i,w,d)}e.push(de);return null;case"listing":case"pre":e.push(L(o));d=l=null;for(f in a)if(c.call(a,f)&&(p=a[f],null!=p))switch(f){case"children":l=p;break;case"dangerouslySetInnerHTML":d=p;break;default:J(e,i,f,p)}e.push(ce);if(null!=d){if(null!=l)throw Error(k(60));if("object"!==typeof d||!("__html"in d))throw Error(k(61));a=d.__html;null!==a&&void 0!==a&&("string"===typeof a&&0<a.length&&"\n"===a[0]?e.push(fe,v(a)):e.push(v(""+a)))}"string"===typeof l&&"\n"===l[0]&&e.push(fe);return l;case"area":case"base":case"br":case"col":case"embed":case"hr":case"img":case"keygen":case"meta":case"param":case"source":case"track":case"wbr":e.push(L(o));for(var E in a)if(c.call(a,E)&&(l=a[E],null!=l))switch(E){case"children":case"dangerouslySetInnerHTML":throw Error(k(399,o));default:J(e,i,E,l)}e.push(de);return null;case"annotation-xml":case"color-profile":case"font-face":case"font-face-src":case"font-face-uri":case"font-face-format":case"font-face-name":case"missing-glyph":return Ra(e,a,o,i);case"head":return Ra(r,a,o,i);case"html":return 0===s.insertionMode&&r.push(ge),Ra(r,a,o,i);default:if(-1===o.indexOf("-")&&"string"!==typeof a.is)return Ra(e,a,o,i);e.push(L(o));d=l=null;for(h in a)if(c.call(a,h)&&(p=a[h],null!=p&&"function"!==typeof p&&"object"!==typeof p&&!1!==p))switch(!0===p&&(p=""),"className"===h&&(h="class"),h){case"children":l=p;break;case"dangerouslySetInnerHTML":d=p;break;case"style":La(e,i,p);break;case"suppressContentEditableWarning":case"suppressHydrationWarning":break;default:ia(h)&&"function"!==typeof p&&"symbol"!==typeof p&&e.push(ie,v(h),se,v(C(p)),ue)}e.push(ce);Oa(e,d,l);return l}}var ve=x("</"),ye=x(">"),be=x('<template id="'),ke=x('"></template>'),Ce=x("\x3c!--$--\x3e"),Se=x('\x3c!--$?--\x3e<template id="'),we=x('"></template>'),xe=x("\x3c!--$!--\x3e"),Te=x("\x3c!--/$--\x3e"),Ee=x("<template"),Re=x('"'),Pe=x(' data-dgst="');x(' data-msg="');x(' data-stck="');var Ie=x("></template>");function jb(e,r,o){q(e,Se);if(null===o)throw Error(k(395));q(e,o);return u(e,we)}var Fe=x('<div hidden id="'),_e=x('">'),De=x("</div>"),Ae=x('<svg aria-hidden="true" style="display:none" id="'),Ne=x('">'),Me=x("</svg>"),Be=x('<math aria-hidden="true" style="display:none" id="'),Oe=x('">'),Le=x("</math>"),Ve=x('<table hidden id="'),je=x('">'),$e=x("</table>"),He=x('<table hidden><tbody id="'),Ue=x('">'),We=x("</tbody></table>"),ze=x('<table hidden><tr id="'),qe=x('">'),Ye=x("</tr></table>"),Ze=x('<table hidden><colgroup id="'),Xe=x('">'),Je=x("</colgroup></table>");function Fb(e,r,o,a){switch(o.insertionMode){case 0:case 1:return q(e,Fe),q(e,r.segmentPrefix),q(e,v(a.toString(16))),u(e,_e);case 2:return q(e,Ae),q(e,r.segmentPrefix),q(e,v(a.toString(16))),u(e,Ne);case 3:return q(e,Be),q(e,r.segmentPrefix),q(e,v(a.toString(16))),u(e,Oe);case 4:return q(e,Ve),q(e,r.segmentPrefix),q(e,v(a.toString(16))),u(e,je);case 5:return q(e,He),q(e,r.segmentPrefix),q(e,v(a.toString(16))),u(e,Ue);case 6:return q(e,ze),q(e,r.segmentPrefix),q(e,v(a.toString(16))),u(e,qe);case 7:return q(e,Ze),q(e,r.segmentPrefix),q(e,v(a.toString(16))),u(e,Xe);default:throw Error(k(397))}}function Gb(e,r){switch(r.insertionMode){case 0:case 1:return u(e,De);case 2:return u(e,Me);case 3:return u(e,Le);case 4:return u(e,$e);case 5:return u(e,We);case 6:return u(e,Ye);case 7:return u(e,Je);default:throw Error(k(397))}}var Ke=x('function $RS(a,b){a=document.getElementById(a);b=document.getElementById(b);for(a.parentNode.removeChild(a);a.firstChild;)b.parentNode.insertBefore(a.firstChild,b);b.parentNode.removeChild(b)};$RS("'),Ge=x('$RS("'),Qe=x('","'),et=x('")<\/script>'),tt=x('function $RC(a,b){a=document.getElementById(a);b=document.getElementById(b);b.parentNode.removeChild(b);if(a){a=a.previousSibling;var f=a.parentNode,c=a.nextSibling,e=0;do{if(c&&8===c.nodeType){var d=c.data;if("/$"===d)if(0===e)break;else e--;else"$"!==d&&"$?"!==d&&"$!"!==d||e++}d=c.nextSibling;f.removeChild(c);c=d}while(c);for(;b.firstChild;)f.insertBefore(b.firstChild,c);a.data="$";a._reactRetry&&a._reactRetry()}};$RC("'),rt=x('$RC("'),nt=x('","'),ot=x('")<\/script>'),at=x('function $RX(b,c,d,e){var a=document.getElementById(b);a&&(b=a.previousSibling,b.data="$!",a=a.dataset,c&&(a.dgst=c),d&&(a.msg=d),e&&(a.stck=e),b._reactRetry&&b._reactRetry())};$RX("'),it=x('$RX("'),st=x('"'),ut=x(")<\/script>"),lt=x(","),ct=/[<\u2028\u2029]/g;function Wb(e){return JSON.stringify(e).replace(ct,(function(e){switch(e){case"<":return"\\u003c";case"\u2028":return"\\u2028";case"\u2029":return"\\u2029";default:throw Error("escapeJSStringsForInstructionScripts encountered a match it does not know how to replace. this means the match regex and the replacement characters are no longer in sync. This is a bug in React")}}))}var dt=Object.assign,pt=Symbol.for("react.element"),ft=Symbol.for("react.portal"),ht=Symbol.for("react.fragment"),mt=Symbol.for("react.strict_mode"),gt=Symbol.for("react.profiler"),vt=Symbol.for("react.provider"),yt=Symbol.for("react.context"),bt=Symbol.for("react.server_context"),kt=Symbol.for("react.forward_ref"),Ct=Symbol.for("react.suspense"),St=Symbol.for("react.suspense_list"),wt=Symbol.for("react.memo"),xt=Symbol.for("react.lazy"),Tt=Symbol.for("react.scope"),Et=Symbol.for("react.debug_trace_mode"),Rt=Symbol.for("react.offscreen"),Pt=Symbol.for("react.legacy_hidden"),It=Symbol.for("react.cache"),Ft=Symbol.for("react.default_value"),_t=Symbol.iterator;function qc(e){if(null==e)return null;if("function"===typeof e)return e.displayName||e.name||null;if("string"===typeof e)return e;switch(e){case ht:return"Fragment";case ft:return"Portal";case gt:return"Profiler";case mt:return"StrictMode";case Ct:return"Suspense";case St:return"SuspenseList";case It:return"Cache"}if("object"===typeof e)switch(e.$$typeof){case yt:return(e.displayName||"Context")+".Consumer";case vt:return(e._context.displayName||"Context")+".Provider";case kt:var r=e.render;e=e.displayName;e||(e=r.displayName||r.name||"",e=""!==e?"ForwardRef("+e+")":"ForwardRef");return e;case wt:return r=e.displayName||null,null!==r?r:qc(e.type)||"Memo";case xt:r=e._payload;e=e._init;try{return qc(e(r))}catch(e){break}case bt:return(e.displayName||e._globalName)+".Provider"}return null}var Dt={};function sc(e,r){e=e.contextTypes;if(!e)return Dt;var o={},a;for(a in e)o[a]=r[a];return o}var At=null;function tc(e,r){if(e!==r){e.context._currentValue=e.parentValue;e=e.parent;var o=r.parent;if(null===e){if(null!==o)throw Error(k(401))}else{if(null===o)throw Error(k(401));tc(e,o)}r.context._currentValue=r.value}}function uc(e){e.context._currentValue=e.parentValue;e=e.parent;null!==e&&uc(e)}function vc(e){var r=e.parent;null!==r&&vc(r);e.context._currentValue=e.value}function wc(e,r){e.context._currentValue=e.parentValue;e=e.parent;if(null===e)throw Error(k(402));e.depth===r.depth?tc(e,r):wc(e,r)}function xc(e,r){var o=r.parent;if(null===o)throw Error(k(402));e.depth===o.depth?tc(e,o):xc(e,o);r.context._currentValue=r.value}function yc(e){var r=At;r!==e&&(null===r?vc(e):null===e?uc(r):r.depth===e.depth?tc(r,e):r.depth>e.depth?wc(r,e):xc(r,e),At=e)}var Nt={isMounted:function(){return!1},enqueueSetState:function(e,r){e=e._reactInternals;null!==e.queue&&e.queue.push(r)},enqueueReplaceState:function(e,r){e=e._reactInternals;e.replace=!0;e.queue=[r]},enqueueForceUpdate:function(){}};function Ac(e,r,o,a){var i=void 0!==e.state?e.state:null;e.updater=Nt;e.props=o;e.state=i;var s={queue:[],replace:!1};e._reactInternals=s;var l=r.contextType;e.context="object"===typeof l&&null!==l?l._currentValue:a;l=r.getDerivedStateFromProps;"function"===typeof l&&(l=l(o,i),i=null===l||void 0===l?i:dt({},i,l),e.state=i);if("function"!==typeof r.getDerivedStateFromProps&&"function"!==typeof e.getSnapshotBeforeUpdate&&("function"===typeof e.UNSAFE_componentWillMount||"function"===typeof e.componentWillMount))if(r=e.state,"function"===typeof e.componentWillMount&&e.componentWillMount(),"function"===typeof e.UNSAFE_componentWillMount&&e.UNSAFE_componentWillMount(),r!==e.state&&Nt.enqueueReplaceState(e,e.state,null),null!==s.queue&&0<s.queue.length)if(r=s.queue,l=s.replace,s.queue=null,s.replace=!1,l&&1===r.length)e.state=r[0];else{s=l?r[0]:e.state;i=!0;for(l=l?1:0;l<r.length;l++){var c=r[l];c="function"===typeof c?c.call(e,s,o,a):c;null!=c&&(i?(i=!1,s=dt({},s,c)):dt(s,c))}e.state=s}else s.queue=null}var Mt={id:1,overflow:""};function Cc(e,r,o){var a=e.id;e=e.overflow;var i=32-Bt(a)-1;a&=~(1<<i);o+=1;var s=32-Bt(r)+i;if(30<s){var l=i-i%5;s=(a&(1<<l)-1).toString(32);a>>=l;i-=l;return{id:1<<32-Bt(r)+i|o<<i|a,overflow:s+e}}return{id:1<<s|o<<i|a,overflow:e}}var Bt=Math.clz32?Math.clz32:Ec,Ot=Math.log,Lt=Math.LN2;function Ec(e){e>>>=0;return 0===e?32:31-(Ot(e)/Lt|0)|0}function Hc(e){switch(e.status){case"fulfilled":case"rejected":break;default:"string"!==typeof e.status&&(e.status="pending",e.then((function(r){"pending"===e.status&&(e.status="fulfilled",e.value=r)}),(function(r){"pending"===e.status&&(e.status="rejected",e.reason=r)})))}}function Ic(e,r){return e===r&&(0!==e||1/e===1/r)||e!==e&&r!==r}var Vt="function"===typeof Object.is?Object.is:Ic,jt=null,$t=null,Ht=null,Ut=null,Wt=!1,zt=!1,qt=0,Yt=0,Zt=null,Xt=null,Jt=0;function V(){if(null===jt)throw Error(k(321));return jt}function Oc(){if(0<Jt)throw Error(k(312));return{memoizedState:null,queue:null,next:null}}function Pc(){null===Ut?null===Ht?(Wt=!1,Ht=Ut=Oc()):(Wt=!0,Ut=Ht):null===Ut.next?(Wt=!1,Ut=Ut.next=Oc()):(Wt=!0,Ut=Ut.next);return Ut}function Qc(e,r,o,a){for(;zt;)zt=!1,Yt=qt=0,Jt+=1,Ut=null,o=e(r,a);Rc();return o}function Sc(){var e=Zt;Zt=null;return e}function Rc(){$t=jt=null;zt=!1;Ht=null;Jt=0;Ut=Xt=null}function Tc(e,r){return"function"===typeof r?r(e):r}function Uc(e,r,o){jt=V();Ut=Pc();if(Wt){var a=Ut.queue;r=a.dispatch;if(null!==Xt&&(o=Xt.get(a),void 0!==o)){Xt.delete(a);a=Ut.memoizedState;do{a=e(a,o.action),o=o.next}while(null!==o);Ut.memoizedState=a;return[a,r]}return[Ut.memoizedState,r]}e=e===Tc?"function"===typeof r?r():r:void 0!==o?o(r):r;Ut.memoizedState=e;e=Ut.queue={last:null,dispatch:null};e=e.dispatch=Vc.bind(null,jt,e);return[Ut.memoizedState,e]}function Wc(e,r){jt=V();Ut=Pc();r=void 0===r?null:r;if(null!==Ut){var o=Ut.memoizedState;if(null!==o&&null!==r){var a=o[1];e:if(null===a)a=!1;else{for(var i=0;i<a.length&&i<r.length;i++)if(!Vt(r[i],a[i])){a=!1;break e}a=!0}if(a)return o[0]}}e=e();Ut.memoizedState=[e,r];return e}function Vc(e,r,o){if(25<=Jt)throw Error(k(301));if(e===jt)if(zt=!0,e={action:o,next:null},null===Xt&&(Xt=new Map),o=Xt.get(r),void 0===o)Xt.set(r,e);else{for(r=o;null!==r.next;)r=r.next;r.next=e}}function Xc(){throw Error(k(394))}function Yc(){throw Error(k(393))}function Zc(){}var Kt={readContext:function(e){return e._currentValue},useContext:function(e){V();return e._currentValue},useMemo:Wc,useReducer:Uc,useRef:function(e){jt=V();Ut=Pc();var r=Ut.memoizedState;return null===r?(e={current:e},Ut.memoizedState=e):r},useState:function(e){return Uc(Tc,e)},useInsertionEffect:Zc,useLayoutEffect:function(){},useCallback:function(e,r){return Wc((function(){return e}),r)},useImperativeHandle:Zc,useEffect:Zc,useDebugValue:Zc,useDeferredValue:function(e){V();return e},useTransition:function(){V();return[!1,Xc]},useId:function(){var e=$t.treeContext;var r=e.overflow;e=e.id;e=(e&~(1<<32-Bt(e)-1)).toString(32)+r;var o=Gt;if(null===o)throw Error(k(404));r=qt++;e=":"+o.idPrefix+"R"+e;0<r&&(e+="H"+r.toString(32));return e+":"},useMutableSource:function(e,r){V();return r(e._source)},useSyncExternalStore:function(e,r,o){if(void 0===o)throw Error(k(407));return o()},getCacheForType:function(){throw Error(k(248))},useCacheRefresh:function(){return Yc},useMemoCache:function(e){return Array(e)},use:function(e){if(null!==e&&"object"===typeof e)if("function"===typeof e.then){var r=Yt;Yt+=1;switch(e.status){case"fulfilled":return e.value;case"rejected":throw e.reason;default:e:{if(null!==Zt){var o=Zt[r];if(void 0!==o)break e}o=null}if(null!==o)switch(o.status){case"fulfilled":return o.value;case"rejected":throw o.reason;default:throw o}else throw null===Zt&&(Zt=[]),Zt[r]=e,e}}else if(e.$$typeof===yt||e.$$typeof===bt)return e._currentValue;throw Error(k(438,String(e)))}},Gt=null,Qt=a.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED.ReactCurrentDispatcher;function cd(e){console.error(e);return null}function W(){}function dd(e,r,o,a,i,s,l,c,d){var p=[],f=new Set;r={destination:null,responseState:r,progressiveChunkSize:void 0===a?12800:a,status:0,fatalError:null,nextSegmentId:0,allPendingTasks:0,pendingRootTasks:0,completedRootSegment:null,abortableTasks:f,pingedTasks:p,clientRenderedBoundaries:[],completedBoundaries:[],partialBoundaries:[],preamble:[],postamble:[],onError:void 0===i?cd:i,onAllReady:void 0===s?W:s,onShellReady:void 0===l?W:l,onShellError:void 0===c?W:c,onFatalError:void 0===d?W:d};o=ed(r,0,null,o,!1,!1);o.parentFlushed=!0;e=fd(r,null,e,null,o,f,Dt,null,Mt);p.push(e);return r}function fd(e,r,o,a,i,s,l,c,d){e.allPendingTasks++;null===a?e.pendingRootTasks++:a.pendingTasks++;var p={node:o,ping:function(){var r=e.pingedTasks;r.push(p);1===r.length&&gd(e)},blockedBoundary:a,blockedSegment:i,abortSet:s,legacyContext:l,context:c,treeContext:d,thenableState:r};s.add(p);return p}function ed(e,r,o,a,i,s){return{status:0,id:-1,index:r,parentFlushed:!1,chunks:[],children:[],formatContext:a,boundary:o,lastPushedText:i,textEmbedded:s}}function X(e,r){e=e.onError(r);if(null!=e&&"string"!==typeof e)throw Error('onError returned something with a type other than "string". onError should return a string and may return null or undefined but must not return anything else. It received something of type "'+typeof e+'" instead');return e}function Y(e,r){var o=e.onShellError;o(r);o=e.onFatalError;o(r);null!==e.destination?(e.status=2,da(e.destination,r)):(e.status=1,e.fatalError=r)}function hd(e,r,o,a){var i=o.render(),s=a.childContextTypes;if(null!==s&&void 0!==s){var l=r.legacyContext;if("function"!==typeof o.getChildContext)a=l;else{o=o.getChildContext();for(var c in o)if(!(c in s))throw Error(k(108,qc(a)||"Unknown",c));a=dt({},l,o)}r.legacyContext=a;Z(e,r,null,i);r.legacyContext=l}else Z(e,r,null,i)}function id(e,r){if(e&&e.defaultProps){r=dt({},r);e=e.defaultProps;for(var o in e)void 0===r[o]&&(r[o]=e[o]);return r}return r}function jd(e,r,o,a,i,s){if("function"===typeof a)if(a.prototype&&a.prototype.isReactComponent)o=sc(a,r.legacyContext),s=a.contextType,s=new a(i,"object"===typeof s&&null!==s?s._currentValue:o),Ac(s,a,i,o),hd(e,r,s,a);else{s=sc(a,r.legacyContext);jt={};$t=r;Yt=qt=0;Zt=o;o=a(i,s);o=Qc(a,i,o,s);var l=0!==qt;if("object"===typeof o&&null!==o&&"function"===typeof o.render&&void 0===o.$$typeof)Ac(o,a,i,s),hd(e,r,o,a);else if(l){i=r.treeContext;r.treeContext=Cc(i,1,0);try{Z(e,r,null,o)}finally{r.treeContext=i}}else Z(e,r,null,o)}else if("string"===typeof a){o=r.blockedSegment;s=Wa(o.chunks,e.preamble,a,i,e.responseState,o.formatContext);o.lastPushedText=!1;l=o.formatContext;o.formatContext=Ea(l,a,i);kd(e,r,s);o.formatContext=l;r=o.chunks;switch(a){case"area":case"base":case"br":case"col":case"embed":case"hr":case"img":case"input":case"keygen":case"link":case"meta":case"param":case"source":case"track":case"wbr":break;case"body":case"html":r=e.postamble;default:r.push(ve,v(a),ye)}o.lastPushedText=!1}else{switch(a){case Pt:case Et:case mt:case gt:case ht:Z(e,r,null,i.children);return;case Rt:"hidden"!==i.mode&&Z(e,r,null,i.children);return;case St:Z(e,r,null,i.children);return;case Tt:throw Error(k(343));case Ct:e:{a=r.blockedBoundary;o=r.blockedSegment;s=i.fallback;i=i.children;l=new Set;var c={id:null,rootSegmentID:-1,parentFlushed:!1,pendingTasks:0,forceClientRender:!1,completedSegments:[],byteSize:0,fallbackAbortableTasks:l,errorDigest:null},d=ed(e,o.chunks.length,c,o.formatContext,!1,!1);o.children.push(d);o.lastPushedText=!1;var p=ed(e,0,null,o.formatContext,!1,!1);p.parentFlushed=!0;r.blockedBoundary=c;r.blockedSegment=p;try{if(kd(e,r,i),p.lastPushedText&&p.textEmbedded&&p.chunks.push(te),p.status=1,ld(c,p),0===c.pendingTasks)break e}catch(r){p.status=4,c.forceClientRender=!0,c.errorDigest=X(e,r)}finally{r.blockedBoundary=a,r.blockedSegment=o}r=fd(e,null,s,a,d,l,r.legacyContext,r.context,r.treeContext);e.pingedTasks.push(r)}return}if("object"===typeof a&&null!==a)switch(a.$$typeof){case kt:a=a.render;jt={};$t=r;Yt=qt=0;Zt=o;o=a(i,s);i=Qc(a,i,o,s);if(0!==qt){a=r.treeContext;r.treeContext=Cc(a,1,0);try{Z(e,r,null,i)}finally{r.treeContext=a}}else Z(e,r,null,i);return;case wt:a=a.type;i=id(a,i);jd(e,r,o,a,i,s);return;case vt:o=i.children;a=a._context;i=i.value;s=a._currentValue;a._currentValue=i;l=At;At=i={parent:l,depth:null===l?0:l.depth+1,context:a,parentValue:s,value:i};r.context=i;Z(e,r,null,o);e=At;if(null===e)throw Error(k(403));i=e.parentValue;e.context._currentValue=i===Ft?e.context._defaultValue:i;e=At=e.parent;r.context=e;return;case yt:i=i.children;i=i(a._currentValue);Z(e,r,null,i);return;case xt:s=a._init;a=s(a._payload);i=id(a,i);jd(e,r,o,a,i,void 0);return}throw Error(k(130,null==a?a:typeof a,""))}}function Z(e,r,o,a){r.node=a;if("object"===typeof a&&null!==a){switch(a.$$typeof){case pt:jd(e,r,o,a.type,a.props,a.ref);return;case ft:throw Error(k(257));case xt:o=a._init;a=o(a._payload);Z(e,r,null,a);return}if(_(a)){md(e,r,a);return}null===a||"object"!==typeof a?o=null:(o=_t&&a[_t]||a["@@iterator"],o="function"===typeof o?o:null);if(o&&(o=o.call(a))){a=o.next();if(!a.done){var i=[];do{i.push(a.value),a=o.next()}while(!a.done);md(e,r,i)}return}e=Object.prototype.toString.call(a);throw Error(k(31,"[object Object]"===e?"object with keys {"+Object.keys(a).join(", ")+"}":e))}"string"===typeof a?(o=r.blockedSegment,o.lastPushedText=Ga(r.blockedSegment.chunks,a,e.responseState,o.lastPushedText)):"number"===typeof a&&(o=r.blockedSegment,o.lastPushedText=Ga(r.blockedSegment.chunks,""+a,e.responseState,o.lastPushedText))}function md(e,r,o){for(var a=o.length,i=0;i<a;i++){var s=r.treeContext;r.treeContext=Cc(s,a,i);try{kd(e,r,o[i])}finally{r.treeContext=s}}}function kd(e,r,o){var a=r.blockedSegment.formatContext,i=r.legacyContext,s=r.context;try{return Z(e,r,null,o)}catch(p){if(Rc(),"object"===typeof p&&null!==p&&"function"===typeof p.then){var l=Sc();o=p;var c=r.blockedSegment,d=ed(e,c.chunks.length,null,c.formatContext,c.lastPushedText,!0);c.children.push(d);c.lastPushedText=!1;e=fd(e,l,r.node,r.blockedBoundary,d,r.abortSet,r.legacyContext,r.context,r.treeContext);Hc(o);e=e.ping;o.then(e,e);r.blockedSegment.formatContext=a;r.legacyContext=i;r.context=s;yc(s)}else throw r.blockedSegment.formatContext=a,r.legacyContext=i,r.context=s,yc(s),p}}function nd(e){var r=e.blockedBoundary;e=e.blockedSegment;e.status=3;od(this,r,e)}function pd(e,r,o){var a=e.blockedBoundary;e.blockedSegment.status=3;null===a?(r.allPendingTasks--,1!==r.status&&2!==r.status&&(X(r,o),Y(r,o))):(a.pendingTasks--,a.forceClientRender||(a.forceClientRender=!0,a.errorDigest=r.onError(o),a.parentFlushed&&r.clientRenderedBoundaries.push(a)),a.fallbackAbortableTasks.forEach((function(e){return pd(e,r,o)})),a.fallbackAbortableTasks.clear(),r.allPendingTasks--,0===r.allPendingTasks&&(e=r.onAllReady,e()))}function ld(e,r){if(0===r.chunks.length&&1===r.children.length&&null===r.children[0].boundary){var o=r.children[0];o.id=r.id;o.parentFlushed=!0;1===o.status&&ld(e,o)}else e.completedSegments.push(r)}function od(e,r,o){if(null===r){if(o.parentFlushed){if(null!==e.completedRootSegment)throw Error(k(389));e.completedRootSegment=o}e.pendingRootTasks--;0===e.pendingRootTasks&&(e.onShellError=W,r=e.onShellReady,r())}else r.pendingTasks--,r.forceClientRender||(0===r.pendingTasks?(o.parentFlushed&&1===o.status&&ld(r,o),r.parentFlushed&&e.completedBoundaries.push(r),r.fallbackAbortableTasks.forEach(nd,e),r.fallbackAbortableTasks.clear()):o.parentFlushed&&1===o.status&&(ld(r,o),1===r.completedSegments.length&&r.parentFlushed&&e.partialBoundaries.push(r)));e.allPendingTasks--;0===e.allPendingTasks&&(e=e.onAllReady,e())}function gd(e){if(2!==e.status){var r=At,o=Qt.current;Qt.current=Kt;var a=Gt;Gt=e.responseState;try{var i=e.pingedTasks,s;for(s=0;s<i.length;s++){var l=i[s];var c=e,d=l.blockedSegment;if(0===d.status){yc(l.context);try{var p=l.thenableState;l.thenableState=null;Z(c,l,p,l.node);d.lastPushedText&&d.textEmbedded&&d.chunks.push(te);l.abortSet.delete(l);d.status=1;od(c,l.blockedBoundary,d)}catch(e){if(Rc(),"object"===typeof e&&null!==e&&"function"===typeof e.then){var f=l.ping;e.then(f,f);Hc(e);l.thenableState=Sc()}else{l.abortSet.delete(l);d.status=4;var h=l.blockedBoundary,g=e,b=X(c,g);null===h?Y(c,g):(h.pendingTasks--,h.forceClientRender||(h.forceClientRender=!0,h.errorDigest=b,h.parentFlushed&&c.clientRenderedBoundaries.push(h)));c.allPendingTasks--;if(0===c.allPendingTasks){var S=c.onAllReady;S()}}}finally{}}}i.splice(0,s);null!==e.destination&&qd(e,e.destination)}catch(r){X(e,r),Y(e,r)}finally{Gt=a,Qt.current=o,o===Kt&&yc(r)}}}function rd(e,r,o){o.parentFlushed=!0;switch(o.status){case 0:var a=o.id=e.nextSegmentId++;o.lastPushedText=!1;o.textEmbedded=!1;e=e.responseState;q(r,be);q(r,e.placeholderPrefix);e=v(a.toString(16));q(r,e);return u(r,ke);case 1:o.status=2;var i=!0;a=o.chunks;var s=0;o=o.children;for(var l=0;l<o.length;l++){for(i=o[l];s<i.index;s++)q(r,a[s]);i=sd(e,r,i)}for(;s<a.length-1;s++)q(r,a[s]);s<a.length&&(i=u(r,a[s]));return i;default:throw Error(k(390))}}function sd(e,r,o){var a=o.boundary;if(null===a)return rd(e,r,o);a.parentFlushed=!0;if(a.forceClientRender)a=a.errorDigest,u(r,xe),q(r,Ee),a&&(q(r,Pe),q(r,v(C(a))),q(r,Re)),u(r,Ie),rd(e,r,o);else if(0<a.pendingTasks){a.rootSegmentID=e.nextSegmentId++;0<a.completedSegments.length&&e.partialBoundaries.push(a);var i=e.responseState;var s=i.nextSuspenseID++;i=x(i.boundaryPrefix+s.toString(16));a=a.id=i;jb(r,e.responseState,a);rd(e,r,o)}else if(a.byteSize>e.progressiveChunkSize)a.rootSegmentID=e.nextSegmentId++,e.completedBoundaries.push(a),jb(r,e.responseState,a.id),rd(e,r,o);else{u(r,Ce);o=a.completedSegments;if(1!==o.length)throw Error(k(391));sd(e,r,o[0])}return u(r,Te)}function td(e,r,o){Fb(r,e.responseState,o.formatContext,o.id);sd(e,r,o);return Gb(r,o.formatContext)}function ud(e,r,o){for(var a=o.completedSegments,i=0;i<a.length;i++)vd(e,r,o,a[i]);a.length=0;e=e.responseState;a=o.id;o=o.rootSegmentID;q(r,e.startInlineScript);e.sentCompleteBoundaryFunction?q(r,rt):(e.sentCompleteBoundaryFunction=!0,q(r,tt));if(null===a)throw Error(k(395));o=v(o.toString(16));q(r,a);q(r,nt);q(r,e.segmentPrefix);q(r,o);return u(r,ot)}function vd(e,r,o,a){if(2===a.status)return!0;var i=a.id;if(-1===i){if(-1===(a.id=o.rootSegmentID))throw Error(k(392));return td(e,r,a)}td(e,r,a);e=e.responseState;q(r,e.startInlineScript);e.sentCompleteSegmentFunction?q(r,Ge):(e.sentCompleteSegmentFunction=!0,q(r,Ke));q(r,e.segmentPrefix);i=v(i.toString(16));q(r,i);q(r,Qe);q(r,e.placeholderPrefix);q(r,i);return u(r,et)}function qd(e,r){i=new Uint8Array(512);s=0;try{var o,a=e.completedRootSegment;if(null!==a)if(0===e.pendingRootTasks){var l=e.preamble;for(o=0;o<l.length;o++)q(r,l[o]);sd(e,r,a);e.completedRootSegment=null;var c=e.responseState.bootstrapChunks;for(a=0;a<c.length-1;a++)q(r,c[a]);a<c.length&&u(r,c[a])}else return;var d=e.clientRenderedBoundaries;for(o=0;o<d.length;o++){var p=d[o];c=r;var f=e.responseState,h=p.id,g=p.errorDigest,b=p.errorMessage,S=p.errorComponentStack;q(c,f.startInlineScript);f.sentClientRenderFunction?q(c,it):(f.sentClientRenderFunction=!0,q(c,at));if(null===h)throw Error(k(395));q(c,h);q(c,st);if(g||b||S)q(c,lt),q(c,v(Wb(g||"")));if(b||S)q(c,lt),q(c,v(Wb(b||"")));S&&(q(c,lt),q(c,v(Wb(S))));if(!u(c,ut)){e.destination=null;o++;d.splice(0,o);return}}d.splice(0,o);var w=e.completedBoundaries;for(o=0;o<w.length;o++)if(!ud(e,r,w[o])){e.destination=null;o++;w.splice(0,o);return}w.splice(0,o);ba(r);i=new Uint8Array(512);s=0;var E=e.partialBoundaries;for(o=0;o<E.length;o++){var P=E[o];e:{d=e;p=r;var F=P.completedSegments;for(f=0;f<F.length;f++)if(!vd(d,p,P,F[f])){f++;F.splice(0,f);var _=!1;break e}F.splice(0,f);_=!0}if(!_){e.destination=null;o++;E.splice(0,o);return}}E.splice(0,o);var N=e.completedBoundaries;for(o=0;o<N.length;o++)if(!ud(e,r,N[o])){e.destination=null;o++;N.splice(0,o);return}N.splice(0,o)}finally{if(0===e.allPendingTasks&&0===e.pingedTasks.length&&0===e.clientRenderedBoundaries.length&&0===e.completedBoundaries.length){e=e.postamble;for(o=0;o<e.length;o++)q(r,e[o]);ba(r);r.close()}else ba(r)}}function wd(e,r){try{var o=e.abortableTasks;if(0<o.size){var a=void 0===r?Error(k(432)):r;o.forEach((function(r){return pd(r,e,a)}));o.clear()}null!==e.destination&&qd(e,e.destination)}catch(r){X(e,r),Y(e,r)}}r.renderToReadableStream=function(e,r){return new Promise((function(o,a){var i,s,l=new Promise((function(e,r){s=e;i=r})),c=dd(e,Ca(r?r.identifierPrefix:void 0,r?r.nonce:void 0,r?r.bootstrapScriptContent:void 0,r?r.bootstrapScripts:void 0,r?r.bootstrapModules:void 0),Da(r?r.namespaceURI:void 0),r?r.progressiveChunkSize:void 0,r?r.onError:void 0,s,(function(){var e=new ReadableStream({type:"bytes",pull:function(e){if(1===c.status)c.status=2,da(e,c.fatalError);else if(2!==c.status&&null===c.destination){c.destination=e;try{qd(c,e)}catch(e){X(c,e),Y(c,e)}}},cancel:function(){wd(c)}},{highWaterMark:0});e.allReady=l;o(e)}),(function(e){l.catch((function(){}));a(e)}),i);if(r&&r.signal){var d=r.signal;if(d.aborted)wd(c,d.reason);else{var n=function(){wd(c,d.reason);d.removeEventListener("abort",n)};d.addEventListener("abort",n)}}gd(c)}))};r.version="18.3.0-experimental-cb5084d1c-20220924"},927:(e,r,o)=>{e=o.nmd(e);
-/**
- * @license React
- * react.development.js
- *
- * Copyright (c) Facebook, Inc. and its affiliates.
- *
- * This source code is licensed under the MIT license found in the
- * LICENSE file in the root directory of this source tree.
- */if(process.env.NODE_ENV!=="production"){(function(){"use strict";if(typeof __REACT_DEVTOOLS_GLOBAL_HOOK__!=="undefined"&&typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart==="function"){__REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(new Error)}var o="18.3.0-experimental-cb5084d1c-20220924";var a=Symbol.for("react.element");var i=Symbol.for("react.portal");var s=Symbol.for("react.fragment");var l=Symbol.for("react.strict_mode");var c=Symbol.for("react.profiler");var d=Symbol.for("react.provider");var p=Symbol.for("react.context");var f=Symbol.for("react.server_context");var h=Symbol.for("react.forward_ref");var g=Symbol.for("react.suspense");var b=Symbol.for("react.suspense_list");var S=Symbol.for("react.memo");var w=Symbol.for("react.lazy");var E=Symbol.for("react.debug_trace_mode");var P=Symbol.for("react.offscreen");var F=Symbol.for("react.cache");var _=Symbol.for("react.default_value");var N=Symbol.iterator;var M="@@iterator";function getIteratorFn(e){if(e===null||typeof e!=="object"){return null}var r=N&&e[N]||e[M];if(typeof r==="function"){return r}return null}var O={current:null};var j={transition:null};var $={current:null,isBatchingLegacy:false,didScheduleLegacyUpdate:false};var G={current:null};var ee={};var te=null;function setExtraStackFrame(e){{te=e}}{ee.setExtraStackFrame=function(e){{te=e}};ee.getCurrentStack=null;ee.getStackAddendum=function(){var e="";if(te){e+=te}var r=ee.getCurrentStack;if(r){e+=r()||""}return e}}var re=false;var ne=false;var oe=false;var ae=false;var ie={};var se={ReactCurrentDispatcher:O,ReactCurrentBatchConfig:j,ReactCurrentOwner:G};{se.ReactDebugCurrentFrame=ee;se.ReactCurrentActQueue=$}{se.ContextRegistry=ie}function warn(e){{{for(var r=arguments.length,o=new Array(r>1?r-1:0),a=1;a<r;a++){o[a-1]=arguments[a]}printWarning("warn",e,o)}}}function error(e){{{for(var r=arguments.length,o=new Array(r>1?r-1:0),a=1;a<r;a++){o[a-1]=arguments[a]}printWarning("error",e,o)}}}function printWarning(e,r,o){{var a=se.ReactDebugCurrentFrame;var i=a.getStackAddendum();if(i!==""){r+="%s";o=o.concat([i])}var s=o.map((function(e){return String(e)}));s.unshift("Warning: "+r);Function.prototype.apply.call(console[e],console,s)}}var ue={};function warnNoop(e,r){{var o=e.constructor;var a=o&&(o.displayName||o.name)||"ReactClass";var i=a+"."+r;if(ue[i]){return}error("Can't call %s on a component that is not yet mounted. "+"This is a no-op, but it might indicate a bug in your application. "+"Instead, assign to `this.state` directly or define a `state = {};` "+"class property with the desired state in the %s component.",r,a);ue[i]=true}}var le={isMounted:function(e){return false},enqueueForceUpdate:function(e,r,o){warnNoop(e,"forceUpdate")},enqueueReplaceState:function(e,r,o,a){warnNoop(e,"replaceState")},enqueueSetState:function(e,r,o,a){warnNoop(e,"setState")}};var ce=Object.assign;var de={};{Object.freeze(de)}function Component(e,r,o){this.props=e;this.context=r;this.refs=de;this.updater=o||le}Component.prototype.isReactComponent={};Component.prototype.setState=function(e,r){if(typeof e!=="object"&&typeof e!=="function"&&e!=null){throw new Error("setState(...): takes an object of state variables to update or a "+"function which returns an object of state variables.")}this.updater.enqueueSetState(this,e,r,"setState")};Component.prototype.forceUpdate=function(e){this.updater.enqueueForceUpdate(this,e,"forceUpdate")};{var pe={isMounted:["isMounted","Instead, make sure to clean up subscriptions and pending requests in "+"componentWillUnmount to prevent memory leaks."],replaceState:["replaceState","Refactor your code to use setState instead (see "+"https://github.com/facebook/react/issues/3236)."]};var defineDeprecationWarning=function(e,r){Object.defineProperty(Component.prototype,e,{get:function(){warn("%s(...) is deprecated in plain JavaScript React classes. %s",r[0],r[1]);return undefined}})};for(var fe in pe){if(pe.hasOwnProperty(fe)){defineDeprecationWarning(fe,pe[fe])}}}function ComponentDummy(){}ComponentDummy.prototype=Component.prototype;function PureComponent(e,r,o){this.props=e;this.context=r;this.refs=de;this.updater=o||le}var he=PureComponent.prototype=new ComponentDummy;he.constructor=PureComponent;ce(he,Component.prototype);he.isPureReactComponent=true;function createRef(){var e={current:null};{Object.seal(e)}return e}var me=Array.isArray;function isArray(e){return me(e)}function typeName(e){{var r=typeof Symbol==="function"&&Symbol.toStringTag;var o=r&&e[Symbol.toStringTag]||e.constructor.name||"Object";return o}}function willCoercionThrow(e){{try{testStringCoercion(e);return false}catch(e){return true}}}function testStringCoercion(e){return""+e}function checkKeyStringCoercion(e){{if(willCoercionThrow(e)){error("The provided key is an unsupported type %s."+" This value must be coerced to a string before before using it here.",typeName(e));return testStringCoercion(e)}}}function getWrappedName(e,r,o){var a=e.displayName;if(a){return a}var i=r.displayName||r.name||"";return i!==""?o+"("+i+")":o}function getContextName(e){return e.displayName||"Context"}function getComponentNameFromType(e){if(e==null){return null}{if(typeof e.tag==="number"){error("Received an unexpected object in getComponentNameFromType(). "+"This is likely a bug in React. Please file an issue.")}}if(typeof e==="function"){return e.displayName||e.name||null}if(typeof e==="string"){return e}switch(e){case s:return"Fragment";case i:return"Portal";case c:return"Profiler";case l:return"StrictMode";case g:return"Suspense";case b:return"SuspenseList";case F:{return"Cache"}}if(typeof e==="object"){switch(e.$$typeof){case p:var r=e;return getContextName(r)+".Consumer";case d:var o=e;return getContextName(o._context)+".Provider";case h:return getWrappedName(e,e.render,"ForwardRef");case S:var a=e.displayName||null;if(a!==null){return a}return getComponentNameFromType(e.type)||"Memo";case w:{var E=e;var P=E._payload;var _=E._init;try{return getComponentNameFromType(_(P))}catch(e){return null}}case f:{var N=e;return(N.displayName||N._globalName)+".Provider"}}}return null}var ge=Object.prototype.hasOwnProperty;var ve={key:true,ref:true,__self:true,__source:true};var ye,be,ke;{ke={}}function hasValidRef(e){{if(ge.call(e,"ref")){var r=Object.getOwnPropertyDescriptor(e,"ref").get;if(r&&r.isReactWarning){return false}}}return e.ref!==undefined}function hasValidKey(e){{if(ge.call(e,"key")){var r=Object.getOwnPropertyDescriptor(e,"key").get;if(r&&r.isReactWarning){return false}}}return e.key!==undefined}function defineKeyPropWarningGetter(e,r){var warnAboutAccessingKey=function(){{if(!ye){ye=true;error("%s: `key` is not a prop. Trying to access it will result "+"in `undefined` being returned. If you need to access the same "+"value within the child component, you should pass it as a different "+"prop. (https://reactjs.org/link/special-props)",r)}}};warnAboutAccessingKey.isReactWarning=true;Object.defineProperty(e,"key",{get:warnAboutAccessingKey,configurable:true})}function defineRefPropWarningGetter(e,r){var warnAboutAccessingRef=function(){{if(!be){be=true;error("%s: `ref` is not a prop. Trying to access it will result "+"in `undefined` being returned. If you need to access the same "+"value within the child component, you should pass it as a different "+"prop. (https://reactjs.org/link/special-props)",r)}}};warnAboutAccessingRef.isReactWarning=true;Object.defineProperty(e,"ref",{get:warnAboutAccessingRef,configurable:true})}function warnIfStringRefCannotBeAutoConverted(e){{if(typeof e.ref==="string"&&G.current&&e.__self&&G.current.stateNode!==e.__self){var r=getComponentNameFromType(G.current.type);if(!ke[r]){error('Component "%s" contains the string ref "%s". '+"Support for string refs will be removed in a future major release. "+"This case cannot be automatically converted to an arrow function. "+"We ask you to manually fix this case by using useRef() or createRef() instead. "+"Learn more about using refs safely here: "+"https://reactjs.org/link/strict-mode-string-ref",r,e.ref);ke[r]=true}}}}var ReactElement=function(e,r,o,i,s,l,c){var d={$$typeof:a,type:e,key:r,ref:o,props:c,_owner:l};{d._store={};Object.defineProperty(d._store,"validated",{configurable:false,enumerable:false,writable:true,value:false});Object.defineProperty(d,"_self",{configurable:false,enumerable:false,writable:false,value:i});Object.defineProperty(d,"_source",{configurable:false,enumerable:false,writable:false,value:s});if(Object.freeze){Object.freeze(d.props);Object.freeze(d)}}return d};function createElement(e,r,o){var a;var i={};var s=null;var l=null;var c=null;var d=null;if(r!=null){if(hasValidRef(r)){l=r.ref;{warnIfStringRefCannotBeAutoConverted(r)}}if(hasValidKey(r)){{checkKeyStringCoercion(r.key)}s=""+r.key}c=r.__self===undefined?null:r.__self;d=r.__source===undefined?null:r.__source;for(a in r){if(ge.call(r,a)&&!ve.hasOwnProperty(a)){i[a]=r[a]}}}var p=arguments.length-2;if(p===1){i.children=o}else if(p>1){var f=Array(p);for(var h=0;h<p;h++){f[h]=arguments[h+2]}{if(Object.freeze){Object.freeze(f)}}i.children=f}if(e&&e.defaultProps){var g=e.defaultProps;for(a in g){if(i[a]===undefined){i[a]=g[a]}}}{if(s||l){var b=typeof e==="function"?e.displayName||e.name||"Unknown":e;if(s){defineKeyPropWarningGetter(i,b)}if(l){defineRefPropWarningGetter(i,b)}}}return ReactElement(e,s,l,c,d,G.current,i)}function cloneAndReplaceKey(e,r){var o=ReactElement(e.type,r,e.ref,e._self,e._source,e._owner,e.props);return o}function cloneElement(e,r,o){if(e===null||e===undefined){throw new Error("React.cloneElement(...): The argument must be a React element, but you passed "+e+".")}var a;var i=ce({},e.props);var s=e.key;var l=e.ref;var c=e._self;var d=e._source;var p=e._owner;if(r!=null){if(hasValidRef(r)){l=r.ref;p=G.current}if(hasValidKey(r)){{checkKeyStringCoercion(r.key)}s=""+r.key}var f;if(e.type&&e.type.defaultProps){f=e.type.defaultProps}for(a in r){if(ge.call(r,a)&&!ve.hasOwnProperty(a)){if(r[a]===undefined&&f!==undefined){i[a]=f[a]}else{i[a]=r[a]}}}}var h=arguments.length-2;if(h===1){i.children=o}else if(h>1){var g=Array(h);for(var b=0;b<h;b++){g[b]=arguments[b+2]}i.children=g}return ReactElement(e.type,s,l,c,d,p,i)}function isValidElement(e){return typeof e==="object"&&e!==null&&e.$$typeof===a}var Ce=".";var Se=":";function escape(e){var r=/[=:]/g;var o={"=":"=0",":":"=2"};var a=e.replace(r,(function(e){return o[e]}));return"$"+a}var we=false;var xe=/\/+/g;function escapeUserProvidedKey(e){return e.replace(xe,"$&/")}function getElementKey(e,r){if(typeof e==="object"&&e!==null&&e.key!=null){{checkKeyStringCoercion(e.key)}return escape(""+e.key)}return r.toString(36)}function mapIntoArray(e,r,o,s,l){var c=typeof e;if(c==="undefined"||c==="boolean"){e=null}var d=false;if(e===null){d=true}else{switch(c){case"string":case"number":d=true;break;case"object":switch(e.$$typeof){case a:case i:d=true}}}if(d){var p=e;var f=l(p);var h=s===""?Ce+getElementKey(p,0):s;if(isArray(f)){var g="";if(h!=null){g=escapeUserProvidedKey(h)+"/"}mapIntoArray(f,r,g,"",(function(e){return e}))}else if(f!=null){if(isValidElement(f)){{if(f.key&&(!p||p.key!==f.key)){checkKeyStringCoercion(f.key)}}f=cloneAndReplaceKey(f,o+(f.key&&(!p||p.key!==f.key)?escapeUserProvidedKey(""+f.key)+"/":"")+h)}r.push(f)}return 1}var b;var S;var w=0;var E=s===""?Ce:s+Se;if(isArray(e)){for(var P=0;P<e.length;P++){b=e[P];S=E+getElementKey(b,P);w+=mapIntoArray(b,r,o,S,l)}}else{var F=getIteratorFn(e);if(typeof F==="function"){var _=e;{if(F===_.entries){if(!we){warn("Using Maps as children is not supported. "+"Use an array of keyed ReactElements instead.")}we=true}}var N=F.call(_);var M;var O=0;while(!(M=N.next()).done){b=M.value;S=E+getElementKey(b,O++);w+=mapIntoArray(b,r,o,S,l)}}else if(c==="object"){var j=String(e);throw new Error("Objects are not valid as a React child (found: "+(j==="[object Object]"?"object with keys {"+Object.keys(e).join(", ")+"}":j)+"). "+"If you meant to render a collection of children, use an array "+"instead.")}}return w}function mapChildren(e,r,o){if(e==null){return e}var a=[];var i=0;mapIntoArray(e,a,"","",(function(e){return r.call(o,e,i++)}));return a}function countChildren(e){var r=0;mapChildren(e,(function(){r++}));return r}function forEachChildren(e,r,o){mapChildren(e,(function(){r.apply(this,arguments)}),o)}function toArray(e){return mapChildren(e,(function(e){return e}))||[]}function onlyChild(e){if(!isValidElement(e)){throw new Error("React.Children.only expected to receive a single React element child.")}return e}function createContext(e){var r={$$typeof:p,_currentValue:e,_currentValue2:e,_threadCount:0,Provider:null,Consumer:null,_defaultValue:null,_globalName:null};r.Provider={$$typeof:d,_context:r};var o=false;var a=false;var i=false;{var s={$$typeof:p,_context:r};Object.defineProperties(s,{Provider:{get:function(){if(!a){a=true;error("Rendering <Context.Consumer.Provider> is not supported and will be removed in "+"a future major release. Did you mean to render <Context.Provider> instead?")}return r.Provider},set:function(e){r.Provider=e}},_currentValue:{get:function(){return r._currentValue},set:function(e){r._currentValue=e}},_currentValue2:{get:function(){return r._currentValue2},set:function(e){r._currentValue2=e}},_threadCount:{get:function(){return r._threadCount},set:function(e){r._threadCount=e}},Consumer:{get:function(){if(!o){o=true;error("Rendering <Context.Consumer.Consumer> is not supported and will be removed in "+"a future major release. Did you mean to render <Context.Consumer> instead?")}return r.Consumer}},displayName:{get:function(){return r.displayName},set:function(e){if(!i){warn("Setting `displayName` on Context.Consumer has no effect. "+"You should set it directly on the context with Context.displayName = '%s'.",e);i=true}}}});r.Consumer=s}{r._currentRenderer=null;r._currentRenderer2=null}return r}var Te=-1;var Ee=0;var Re=1;var Pe=2;function lazyInitializer(e){if(e._status===Te){var r=e._result;var o=r();o.then((function(r){if(e._status===Ee||e._status===Te){var o=e;o._status=Re;o._result=r}}),(function(r){if(e._status===Ee||e._status===Te){var o=e;o._status=Pe;o._result=r}}));if(e._status===Te){var a=e;a._status=Ee;a._result=o}}if(e._status===Re){var i=e._result;{if(i===undefined){error("lazy: Expected the result of a dynamic imp"+"ort() call. "+"Instead received: %s\n\nYour code should look like: \n  "+"const MyComponent = lazy(() => imp"+"ort('./MyComponent'))\n\n"+"Did you accidentally put curly braces around the import?",i)}}{if(!("default"in i)){error("lazy: Expected the result of a dynamic imp"+"ort() call. "+"Instead received: %s\n\nYour code should look like: \n  "+"const MyComponent = lazy(() => imp"+"ort('./MyComponent'))",i)}}return i.default}else{throw e._result}}function lazy(e){var r={_status:Te,_result:e};var o={$$typeof:w,_payload:r,_init:lazyInitializer};{var a;var i;Object.defineProperties(o,{defaultProps:{configurable:true,get:function(){return a},set:function(e){error("React.lazy(...): It is not supported to assign `defaultProps` to "+"a lazy component import. Either specify them where the component "+"is defined, or create a wrapping component around it.");a=e;Object.defineProperty(o,"defaultProps",{enumerable:true})}},propTypes:{configurable:true,get:function(){return i},set:function(e){error("React.lazy(...): It is not supported to assign `propTypes` to "+"a lazy component import. Either specify them where the component "+"is defined, or create a wrapping component around it.");i=e;Object.defineProperty(o,"propTypes",{enumerable:true})}}})}return o}function forwardRef(e){{if(e!=null&&e.$$typeof===S){error("forwardRef requires a render function but received a `memo` "+"component. Instead of forwardRef(memo(...)), use "+"memo(forwardRef(...)).")}else if(typeof e!=="function"){error("forwardRef requires a render function but was given %s.",e===null?"null":typeof e)}else{if(e.length!==0&&e.length!==2){error("forwardRef render functions accept exactly two parameters: props and ref. %s",e.length===1?"Did you forget to use the ref parameter?":"Any additional parameter will be undefined.")}}if(e!=null){if(e.defaultProps!=null||e.propTypes!=null){error("forwardRef render functions do not support propTypes or defaultProps. "+"Did you accidentally pass a React component?")}}}var r={$$typeof:h,render:e};{var o;Object.defineProperty(r,"displayName",{enumerable:false,configurable:true,get:function(){return o},set:function(r){o=r;if(!e.name&&!e.displayName){e.displayName=r}}})}return r}var Ie=Symbol.for("react.module.reference");function isValidElementType(e){if(typeof e==="string"||typeof e==="function"){return true}if(e===s||e===c||ae||e===l||e===g||e===b||oe||e===P||re||e===F||ne){return true}if(typeof e==="object"&&e!==null){if(e.$$typeof===w||e.$$typeof===S||e.$$typeof===d||e.$$typeof===p||e.$$typeof===h||e.$$typeof===Ie||e.getModuleId!==undefined){return true}}return false}function memo(e,r){{if(!isValidElementType(e)){error("memo: The first argument must be a component. Instead "+"received: %s",e===null?"null":typeof e)}}var o={$$typeof:S,type:e,compare:r===undefined?null:r};{var a;Object.defineProperty(o,"displayName",{enumerable:false,configurable:true,get:function(){return a},set:function(r){a=r;if(!e.name&&!e.displayName){e.displayName=r}}})}return o}function resolveDispatcher(){var e=O.current;{if(e===null){error("Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for"+" one of the following reasons:\n"+"1. You might have mismatching versions of React and the renderer (such as React DOM)\n"+"2. You might be breaking the Rules of Hooks\n"+"3. You might have more than one copy of React in the same app\n"+"See https://reactjs.org/link/invalid-hook-call for tips about how to debug and fix this problem.")}}return e}function getCacheSignal(){var e=resolveDispatcher();return e.getCacheSignal()}function getCacheForType(e){var r=resolveDispatcher();return r.getCacheForType(e)}function useContext(e){var r=resolveDispatcher();{if(e._context!==undefined){var o=e._context;if(o.Consumer===e){error("Calling useContext(Context.Consumer) is not supported, may cause bugs, and will be "+"removed in a future major release. Did you mean to call useContext(Context) instead?")}else if(o.Provider===e){error("Calling useContext(Context.Provider) is not supported. "+"Did you mean to call useContext(Context) instead?")}}}return r.useContext(e)}function useState(e){var r=resolveDispatcher();return r.useState(e)}function useReducer(e,r,o){var a=resolveDispatcher();return a.useReducer(e,r,o)}function useRef(e){var r=resolveDispatcher();return r.useRef(e)}function useEffect(e,r){var o=resolveDispatcher();return o.useEffect(e,r)}function useInsertionEffect(e,r){var o=resolveDispatcher();return o.useInsertionEffect(e,r)}function useLayoutEffect(e,r){var o=resolveDispatcher();return o.useLayoutEffect(e,r)}function useCallback(e,r){var o=resolveDispatcher();return o.useCallback(e,r)}function useMemo(e,r){var o=resolveDispatcher();return o.useMemo(e,r)}function useImperativeHandle(e,r,o){var a=resolveDispatcher();return a.useImperativeHandle(e,r,o)}function useDebugValue(e,r){{var o=resolveDispatcher();return o.useDebugValue(e,r)}}function useTransition(){var e=resolveDispatcher();return e.useTransition()}function useDeferredValue(e){var r=resolveDispatcher();return r.useDeferredValue(e)}function useId(){var e=resolveDispatcher();return e.useId()}function useSyncExternalStore(e,r,o){var a=resolveDispatcher();return a.useSyncExternalStore(e,r,o)}function useCacheRefresh(){var e=resolveDispatcher();return e.useCacheRefresh()}function use(e){var r=resolveDispatcher();return r.use(e)}function useMemoCache(e){var r=resolveDispatcher();return r.useMemoCache(e)}function useEvent(e){var r=resolveDispatcher();return r.useEvent(e)}var Fe=0;var _e;var De;var Ae;var Ne;var Me;var Be;var Oe;function disabledLog(){}disabledLog.__reactDisabledLog=true;function disableLogs(){{if(Fe===0){_e=console.log;De=console.info;Ae=console.warn;Ne=console.error;Me=console.group;Be=console.groupCollapsed;Oe=console.groupEnd;var e={configurable:true,enumerable:true,value:disabledLog,writable:true};Object.defineProperties(console,{info:e,log:e,warn:e,error:e,group:e,groupCollapsed:e,groupEnd:e})}Fe++}}function reenableLogs(){{Fe--;if(Fe===0){var e={configurable:true,enumerable:true,writable:true};Object.defineProperties(console,{log:ce({},e,{value:_e}),info:ce({},e,{value:De}),warn:ce({},e,{value:Ae}),error:ce({},e,{value:Ne}),group:ce({},e,{value:Me}),groupCollapsed:ce({},e,{value:Be}),groupEnd:ce({},e,{value:Oe})})}if(Fe<0){error("disabledDepth fell below zero. "+"This is a bug in React. Please file an issue.")}}}var Le=se.ReactCurrentDispatcher;var Ve;function describeBuiltInComponentFrame(e,r,o){{if(Ve===undefined){try{throw Error()}catch(e){var a=e.stack.trim().match(/\n( *(at )?)/);Ve=a&&a[1]||""}}return"\n"+Ve+e}}var je=false;var $e;{var He=typeof WeakMap==="function"?WeakMap:Map;$e=new He}function describeNativeComponentFrame(e,r){if(!e||je){return""}{var o=$e.get(e);if(o!==undefined){return o}}var a;je=true;var i=Error.prepareStackTrace;Error.prepareStackTrace=undefined;var s;{s=Le.current;Le.current=null;disableLogs()}try{if(r){var Fake=function(){throw Error()};Object.defineProperty(Fake.prototype,"props",{set:function(){throw Error()}});if(typeof Reflect==="object"&&Reflect.construct){try{Reflect.construct(Fake,[])}catch(e){a=e}Reflect.construct(e,[],Fake)}else{try{Fake.call()}catch(e){a=e}e.call(Fake.prototype)}}else{try{throw Error()}catch(e){a=e}e()}}catch(r){if(r&&a&&typeof r.stack==="string"){var l=r.stack.split("\n");var c=a.stack.split("\n");var d=l.length-1;var p=c.length-1;while(d>=1&&p>=0&&l[d]!==c[p]){p--}for(;d>=1&&p>=0;d--,p--){if(l[d]!==c[p]){if(d!==1||p!==1){do{d--;p--;if(p<0||l[d]!==c[p]){var f="\n"+l[d].replace(" at new "," at ");if(e.displayName&&f.includes("<anonymous>")){f=f.replace("<anonymous>",e.displayName)}{if(typeof e==="function"){$e.set(e,f)}}return f}}while(d>=1&&p>=0)}break}}}}finally{je=false;{Le.current=s;reenableLogs()}Error.prepareStackTrace=i}var h=e?e.displayName||e.name:"";var g=h?describeBuiltInComponentFrame(h):"";{if(typeof e==="function"){$e.set(e,g)}}return g}function describeFunctionComponentFrame(e,r,o){{return describeNativeComponentFrame(e,false)}}function shouldConstruct(e){var r=e.prototype;return!!(r&&r.isReactComponent)}function describeUnknownElementTypeFrameInDEV(e,r,o){if(e==null){return""}if(typeof e==="function"){{return describeNativeComponentFrame(e,shouldConstruct(e))}}if(typeof e==="string"){return describeBuiltInComponentFrame(e)}switch(e){case g:return describeBuiltInComponentFrame("Suspense");case b:return describeBuiltInComponentFrame("SuspenseList")}if(typeof e==="object"){switch(e.$$typeof){case h:return describeFunctionComponentFrame(e.render);case S:return describeUnknownElementTypeFrameInDEV(e.type,r,o);case w:{var a=e;var i=a._payload;var s=a._init;try{return describeUnknownElementTypeFrameInDEV(s(i),r,o)}catch(e){}}}}return""}var Ue={};var We=se.ReactDebugCurrentFrame;function setCurrentlyValidatingElement(e){{if(e){var r=e._owner;var o=describeUnknownElementTypeFrameInDEV(e.type,e._source,r?r.type:null);We.setExtraStackFrame(o)}else{We.setExtraStackFrame(null)}}}function checkPropTypes(e,r,o,a,i){{var s=Function.call.bind(ge);for(var l in e){if(s(e,l)){var c=void 0;try{if(typeof e[l]!=="function"){var d=Error((a||"React class")+": "+o+" type `"+l+"` is invalid; "+"it must be a function, usually from the `prop-types` package, but received `"+typeof e[l]+"`."+"This often happens because of typos such as `PropTypes.function` instead of `PropTypes.func`.");d.name="Invariant Violation";throw d}c=e[l](r,l,a,o,null,"SECRET_DO_NOT_PASS_THIS_OR_YOU_WILL_BE_FIRED")}catch(e){c=e}if(c&&!(c instanceof Error)){setCurrentlyValidatingElement(i);error("%s: type specification of %s"+" `%s` is invalid; the type checker "+"function must return `null` or an `Error` but returned a %s. "+"You may have forgotten to pass an argument to the type checker "+"creator (arrayOf, instanceOf, objectOf, oneOf, oneOfType, and "+"shape all require an argument).",a||"React class",o,l,typeof c);setCurrentlyValidatingElement(null)}if(c instanceof Error&&!(c.message in Ue)){Ue[c.message]=true;setCurrentlyValidatingElement(i);error("Failed %s type: %s",o,c.message);setCurrentlyValidatingElement(null)}}}}}function setCurrentlyValidatingElement$1(e){{if(e){var r=e._owner;var o=describeUnknownElementTypeFrameInDEV(e.type,e._source,r?r.type:null);setExtraStackFrame(o)}else{setExtraStackFrame(null)}}}var ze;{ze=false}function getDeclarationErrorAddendum(){if(G.current){var e=getComponentNameFromType(G.current.type);if(e){return"\n\nCheck the render method of `"+e+"`."}}return""}function getSourceInfoErrorAddendum(e){if(e!==undefined){var r=e.fileName.replace(/^.*[\\\/]/,"");var o=e.lineNumber;return"\n\nCheck your code at "+r+":"+o+"."}return""}function getSourceInfoErrorAddendumForProps(e){if(e!==null&&e!==undefined){return getSourceInfoErrorAddendum(e.__source)}return""}var qe={};function getCurrentComponentErrorInfo(e){var r=getDeclarationErrorAddendum();if(!r){var o=typeof e==="string"?e:e.displayName||e.name;if(o){r="\n\nCheck the top-level render call using <"+o+">."}}return r}function validateExplicitKey(e,r){if(!e._store||e._store.validated||e.key!=null){return}e._store.validated=true;var o=getCurrentComponentErrorInfo(r);if(qe[o]){return}qe[o]=true;var a="";if(e&&e._owner&&e._owner!==G.current){a=" It was passed a child from "+getComponentNameFromType(e._owner.type)+"."}{setCurrentlyValidatingElement$1(e);error('Each child in a list should have a unique "key" prop.'+"%s%s See https://reactjs.org/link/warning-keys for more information.",o,a);setCurrentlyValidatingElement$1(null)}}function validateChildKeys(e,r){if(typeof e!=="object"){return}if(isArray(e)){for(var o=0;o<e.length;o++){var a=e[o];if(isValidElement(a)){validateExplicitKey(a,r)}}}else if(isValidElement(e)){if(e._store){e._store.validated=true}}else if(e){var i=getIteratorFn(e);if(typeof i==="function"){if(i!==e.entries){var s=i.call(e);var l;while(!(l=s.next()).done){if(isValidElement(l.value)){validateExplicitKey(l.value,r)}}}}}}function validatePropTypes(e){{var r=e.type;if(r===null||r===undefined||typeof r==="string"){return}var o;if(typeof r==="function"){o=r.propTypes}else if(typeof r==="object"&&(r.$$typeof===h||r.$$typeof===S)){o=r.propTypes}else{return}if(o){var a=getComponentNameFromType(r);checkPropTypes(o,e.props,"prop",a,e)}else if(r.PropTypes!==undefined&&!ze){ze=true;var i=getComponentNameFromType(r);error("Component %s declared `PropTypes` instead of `propTypes`. Did you misspell the property assignment?",i||"Unknown")}if(typeof r.getDefaultProps==="function"&&!r.getDefaultProps.isReactClassApproved){error("getDefaultProps is only used on classic React.createClass "+"definitions. Use a static property named `defaultProps` instead.")}}}function validateFragmentProps(e){{var r=Object.keys(e.props);for(var o=0;o<r.length;o++){var a=r[o];if(a!=="children"&&a!=="key"){setCurrentlyValidatingElement$1(e);error("Invalid prop `%s` supplied to `React.Fragment`. "+"React.Fragment can only have `key` and `children` props.",a);setCurrentlyValidatingElement$1(null);break}}if(e.ref!==null){setCurrentlyValidatingElement$1(e);error("Invalid attribute `ref` supplied to `React.Fragment`.");setCurrentlyValidatingElement$1(null)}}}function createElementWithValidation(e,r,o){var i=isValidElementType(e);if(!i){var l="";if(e===undefined||typeof e==="object"&&e!==null&&Object.keys(e).length===0){l+=" You likely forgot to export your component from the file "+"it's defined in, or you might have mixed up default and named imports."}var c=getSourceInfoErrorAddendumForProps(r);if(c){l+=c}else{l+=getDeclarationErrorAddendum()}var d;if(e===null){d="null"}else if(isArray(e)){d="array"}else if(e!==undefined&&e.$$typeof===a){d="<"+(getComponentNameFromType(e.type)||"Unknown")+" />";l=" Did you accidentally export a JSX literal instead of a component?"}else{d=typeof e}{error("React.createElement: type is invalid -- expected a string (for "+"built-in components) or a class/function (for composite "+"components) but got: %s.%s",d,l)}}var p=createElement.apply(this,arguments);if(p==null){return p}if(i){for(var f=2;f<arguments.length;f++){validateChildKeys(arguments[f],e)}}if(e===s){validateFragmentProps(p)}else{validatePropTypes(p)}return p}var Ye=false;function createFactoryWithValidation(e){var r=createElementWithValidation.bind(null,e);r.type=e;{if(!Ye){Ye=true;warn("React.createFactory() is deprecated and will be removed in "+"a future major release. Consider using JSX "+"or use React.createElement() directly instead.")}Object.defineProperty(r,"type",{enumerable:false,get:function(){warn("Factory.type is deprecated. Access the class directly "+"before passing it to createFactory.");Object.defineProperty(this,"type",{value:e});return e}})}return r}function cloneElementWithValidation(e,r,o){var a=cloneElement.apply(this,arguments);for(var i=2;i<arguments.length;i++){validateChildKeys(arguments[i],a.type)}validatePropTypes(a);return a}var Ze=se.ContextRegistry;function createServerContext(e,r){var o=true;if(!Ze[e]){o=false;var a={$$typeof:f,_currentValue:r,_currentValue2:r,_defaultValue:r,_threadCount:0,Provider:null,Consumer:null,_globalName:e};a.Provider={$$typeof:d,_context:a};{var i;a._currentRenderer=null;a._currentRenderer2=null;Object.defineProperties(a,{Consumer:{get:function(){if(!i){error("Consumer pattern is not supported by ReactServerContext");i=true}return null}}})}Ze[e]=a}var s=Ze[e];if(s._defaultValue===_){s._defaultValue=r;if(s._currentValue===_){s._currentValue=r}if(s._currentValue2===_){s._currentValue2=r}}else if(o){throw new Error("ServerContext: "+e+" already defined")}return s}function startTransition(e,r){var o=j.transition;j.transition={};var a=j.transition;{j.transition._updatedFibers=new Set}try{e()}finally{j.transition=o;{if(o===null&&a._updatedFibers){var i=a._updatedFibers.size;if(i>10){warn("Detected a large number of updates inside startTransition. "+"If this is due to a subscription please re-write it to use React provided hooks. "+"Otherwise concurrent mode guarantees are off the table.")}a._updatedFibers.clear()}}}}var Xe=false;var Je=null;function enqueueTask(r){if(Je===null){try{var o=("require"+Math.random()).slice(0,7);var a=e&&e[o];Je=a.call(e,"timers").setImmediate}catch(e){Je=function(e){{if(Xe===false){Xe=true;if(typeof MessageChannel==="undefined"){error("This browser does not have a MessageChannel implementation, "+"so enqueuing tasks via await act(async () => ...) will fail. "+"Please file an issue at https://github.com/facebook/react/issues "+"if you encounter this warning.")}}}var r=new MessageChannel;r.port1.onmessage=e;r.port2.postMessage(undefined)}}}return Je(r)}var Ke=0;var Ge=false;function act(e){{var r=Ke;Ke++;if($.current===null){$.current=[]}var o=$.isBatchingLegacy;var a;try{$.isBatchingLegacy=true;a=e();if(!o&&$.didScheduleLegacyUpdate){var i=$.current;if(i!==null){$.didScheduleLegacyUpdate=false;flushActQueue(i)}}}catch(e){popActScope(r);throw e}finally{$.isBatchingLegacy=o}if(a!==null&&typeof a==="object"&&typeof a.then==="function"){var s=a;var l=false;var c={then:function(e,o){l=true;s.then((function(a){popActScope(r);if(Ke===0){recursivelyFlushAsyncActWork(a,e,o)}else{e(a)}}),(function(e){popActScope(r);o(e)}))}};{if(!Ge&&typeof Promise!=="undefined"){Promise.resolve().then((function(){})).then((function(){if(!l){Ge=true;error("You called act(async () => ...) without await. "+"This could lead to unexpected testing behaviour, "+"interleaving multiple act calls and mixing their "+"scopes. "+"You should - await act(async () => ...);")}}))}}return c}else{var d=a;popActScope(r);if(Ke===0){var p=$.current;if(p!==null){flushActQueue(p);$.current=null}var f={then:function(e,r){if($.current===null){$.current=[];recursivelyFlushAsyncActWork(d,e,r)}else{e(d)}}};return f}else{var h={then:function(e,r){e(d)}};return h}}}}function popActScope(e){{if(e!==Ke-1){error("You seem to have overlapping act() calls, this is not supported. "+"Be sure to await previous act() calls before making a new one. ")}Ke=e}}function recursivelyFlushAsyncActWork(e,r,o){{var a=$.current;if(a!==null){try{flushActQueue(a);enqueueTask((function(){if(a.length===0){$.current=null;r(e)}else{recursivelyFlushAsyncActWork(e,r,o)}}))}catch(e){o(e)}}else{r(e)}}}var Qe=false;function flushActQueue(e){{if(!Qe){Qe=true;var r=0;try{for(;r<e.length;r++){var o=e[r];do{o=o(true)}while(o!==null)}e.length=0}catch(o){e=e.slice(r+1);throw o}finally{Qe=false}}}}var et=createElementWithValidation;var tt=cloneElementWithValidation;var rt=createFactoryWithValidation;var nt={map:mapChildren,forEach:forEachChildren,count:countChildren,toArray:toArray,only:onlyChild};r.Children=nt;r.Component=Component;r.Fragment=s;r.Profiler=c;r.PureComponent=PureComponent;r.StrictMode=l;r.Suspense=g;r.SuspenseList=b;r.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED=se;r.cloneElement=tt;r.createContext=createContext;r.createElement=et;r.createFactory=rt;r.createRef=createRef;r.createServerContext=createServerContext;r.experimental_use=use;r.experimental_useEvent=useEvent;r.forwardRef=forwardRef;r.isValidElement=isValidElement;r.lazy=lazy;r.memo=memo;r.startTransition=startTransition;r.unstable_Cache=F;r.unstable_DebugTracingMode=E;r.unstable_Offscreen=P;r.unstable_act=act;r.unstable_getCacheForType=getCacheForType;r.unstable_getCacheSignal=getCacheSignal;r.unstable_useCacheRefresh=useCacheRefresh;r.unstable_useMemoCache=useMemoCache;r.useCallback=useCallback;r.useContext=useContext;r.useDebugValue=useDebugValue;r.useDeferredValue=useDeferredValue;r.useEffect=useEffect;r.useId=useId;r.useImperativeHandle=useImperativeHandle;r.useInsertionEffect=useInsertionEffect;r.useLayoutEffect=useLayoutEffect;r.useMemo=useMemo;r.useReducer=useReducer;r.useRef=useRef;r.useState=useState;r.useSyncExternalStore=useSyncExternalStore;r.useTransition=useTransition;r.version=o;if(typeof __REACT_DEVTOOLS_GLOBAL_HOOK__!=="undefined"&&typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop==="function"){__REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop(new Error)}})()}},552:(e,r)=>{
-/**
- * @license React
- * react.production.min.js
- *
- * Copyright (c) Facebook, Inc. and its affiliates.
- *
- * This source code is licensed under the MIT license found in the
- * LICENSE file in the root directory of this source tree.
- */
-var o=Symbol.for("react.element"),a=Symbol.for("react.portal"),i=Symbol.for("react.fragment"),s=Symbol.for("react.strict_mode"),l=Symbol.for("react.profiler"),c=Symbol.for("react.provider"),d=Symbol.for("react.context"),p=Symbol.for("react.server_context"),f=Symbol.for("react.forward_ref"),h=Symbol.for("react.suspense"),g=Symbol.for("react.suspense_list"),b=Symbol.for("react.memo"),S=Symbol.for("react.lazy"),w=Symbol.for("react.debug_trace_mode"),E=Symbol.for("react.offscreen"),P=Symbol.for("react.cache"),F=Symbol.for("react.default_value"),_=Symbol.iterator;function ba(e){if(null===e||"object"!==typeof e)return null;e=_&&e[_]||e["@@iterator"];return"function"===typeof e?e:null}var N={isMounted:function(){return!1},enqueueForceUpdate:function(){},enqueueReplaceState:function(){},enqueueSetState:function(){}},M=Object.assign,O={};function I(e,r,o){this.props=e;this.context=r;this.refs=O;this.updater=o||N}I.prototype.isReactComponent={};I.prototype.setState=function(e,r){if("object"!==typeof e&&"function"!==typeof e&&null!=e)throw Error("setState(...): takes an object of state variables to update or a function which returns an object of state variables.");this.updater.enqueueSetState(this,e,r,"setState")};I.prototype.forceUpdate=function(e){this.updater.enqueueForceUpdate(this,e,"forceUpdate")};function J(){}J.prototype=I.prototype;function K(e,r,o){this.props=e;this.context=r;this.refs=O;this.updater=o||N}var j=K.prototype=new J;j.constructor=K;M(j,I.prototype);j.isPureReactComponent=!0;var $=Array.isArray,G=Object.prototype.hasOwnProperty,ee={current:null},te={key:!0,ref:!0,__self:!0,__source:!0};function Q(e,r,a){var i,s={},l=null,c=null;if(null!=r)for(i in void 0!==r.ref&&(c=r.ref),void 0!==r.key&&(l=""+r.key),r)G.call(r,i)&&!te.hasOwnProperty(i)&&(s[i]=r[i]);var d=arguments.length-2;if(1===d)s.children=a;else if(1<d){for(var p=Array(d),f=0;f<d;f++)p[f]=arguments[f+2];s.children=p}if(e&&e.defaultProps)for(i in d=e.defaultProps,d)void 0===s[i]&&(s[i]=d[i]);return{$$typeof:o,type:e,key:l,ref:c,props:s,_owner:ee.current}}function ca(e,r){return{$$typeof:o,type:e.type,key:r,ref:e.ref,props:e.props,_owner:e._owner}}function R(e){return"object"===typeof e&&null!==e&&e.$$typeof===o}function escape(e){var r={"=":"=0",":":"=2"};return"$"+e.replace(/[=:]/g,(function(e){return r[e]}))}var re=/\/+/g;function T(e,r){return"object"===typeof e&&null!==e&&null!=e.key?escape(""+e.key):r.toString(36)}function U(e,r,i,s,l){var c=typeof e;if("undefined"===c||"boolean"===c)e=null;var d=!1;if(null===e)d=!0;else switch(c){case"string":case"number":d=!0;break;case"object":switch(e.$$typeof){case o:case a:d=!0}}if(d)return d=e,l=l(d),e=""===s?"."+T(d,0):s,$(l)?(i="",null!=e&&(i=e.replace(re,"$&/")+"/"),U(l,r,i,"",(function(e){return e}))):null!=l&&(R(l)&&(l=ca(l,i+(!l.key||d&&d.key===l.key?"":(""+l.key).replace(re,"$&/")+"/")+e)),r.push(l)),1;d=0;s=""===s?".":s+":";if($(e))for(var p=0;p<e.length;p++){c=e[p];var f=s+T(c,p);d+=U(c,r,i,f,l)}else if(f=ba(e),"function"===typeof f)for(e=f.call(e),p=0;!(c=e.next()).done;)c=c.value,f=s+T(c,p++),d+=U(c,r,i,f,l);else if("object"===c)throw r=String(e),Error("Objects are not valid as a React child (found: "+("[object Object]"===r?"object with keys {"+Object.keys(e).join(", ")+"}":r)+"). If you meant to render a collection of children, use an array instead.");return d}function V(e,r,o){if(null==e)return e;var a=[],i=0;U(e,a,"","",(function(e){return r.call(o,e,i++)}));return a}function da(e){if(-1===e._status){var r=e._result;r=r();r.then((function(r){if(0===e._status||-1===e._status)e._status=1,e._result=r}),(function(r){if(0===e._status||-1===e._status)e._status=2,e._result=r}));-1===e._status&&(e._status=0,e._result=r)}if(1===e._status)return e._result.default;throw e._result}var ne={current:null},oe={transition:null},ae={ReactCurrentDispatcher:ne,ReactCurrentBatchConfig:oe,ReactCurrentOwner:ee,ContextRegistry:{}},ie=ae.ContextRegistry;r.Children={map:V,forEach:function(e,r,o){V(e,(function(){r.apply(this,arguments)}),o)},count:function(e){var r=0;V(e,(function(){r++}));return r},toArray:function(e){return V(e,(function(e){return e}))||[]},only:function(e){if(!R(e))throw Error("React.Children.only expected to receive a single React element child.");return e}};r.Component=I;r.Fragment=i;r.Profiler=l;r.PureComponent=K;r.StrictMode=s;r.Suspense=h;r.SuspenseList=g;r.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED=ae;r.cloneElement=function(e,r,a){if(null===e||void 0===e)throw Error("React.cloneElement(...): The argument must be a React element, but you passed "+e+".");var i=M({},e.props),s=e.key,l=e.ref,c=e._owner;if(null!=r){void 0!==r.ref&&(l=r.ref,c=ee.current);void 0!==r.key&&(s=""+r.key);if(e.type&&e.type.defaultProps)var d=e.type.defaultProps;for(p in r)G.call(r,p)&&!te.hasOwnProperty(p)&&(i[p]=void 0===r[p]&&void 0!==d?d[p]:r[p])}var p=arguments.length-2;if(1===p)i.children=a;else if(1<p){d=Array(p);for(var f=0;f<p;f++)d[f]=arguments[f+2];i.children=d}return{$$typeof:o,type:e.type,key:s,ref:l,props:i,_owner:c}};r.createContext=function(e){e={$$typeof:d,_currentValue:e,_currentValue2:e,_threadCount:0,Provider:null,Consumer:null,_defaultValue:null,_globalName:null};e.Provider={$$typeof:c,_context:e};return e.Consumer=e};r.createElement=Q;r.createFactory=function(e){var r=Q.bind(null,e);r.type=e;return r};r.createRef=function(){return{current:null}};r.createServerContext=function(e,r){var o=!0;if(!ie[e]){o=!1;var a={$$typeof:p,_currentValue:r,_currentValue2:r,_defaultValue:r,_threadCount:0,Provider:null,Consumer:null,_globalName:e};a.Provider={$$typeof:c,_context:a};ie[e]=a}a=ie[e];if(a._defaultValue===F)a._defaultValue=r,a._currentValue===F&&(a._currentValue=r),a._currentValue2===F&&(a._currentValue2=r);else if(o)throw Error("ServerContext: "+e+" already defined");return a};r.experimental_use=function(e){return ne.current.use(e)};r.experimental_useEvent=function(e){return ne.current.useEvent(e)};r.forwardRef=function(e){return{$$typeof:f,render:e}};r.isValidElement=R;r.lazy=function(e){return{$$typeof:S,_payload:{_status:-1,_result:e},_init:da}};r.memo=function(e,r){return{$$typeof:b,type:e,compare:void 0===r?null:r}};r.startTransition=function(e){var r=oe.transition;oe.transition={};try{e()}finally{oe.transition=r}};r.unstable_Cache=P;r.unstable_DebugTracingMode=w;r.unstable_Offscreen=E;r.unstable_act=function(){throw Error("act(...) is not supported in production builds of React.")};r.unstable_getCacheForType=function(e){return ne.current.getCacheForType(e)};r.unstable_getCacheSignal=function(){return ne.current.getCacheSignal()};r.unstable_useCacheRefresh=function(){return ne.current.useCacheRefresh()};r.unstable_useMemoCache=function(e){return ne.current.useMemoCache(e)};r.useCallback=function(e,r){return ne.current.useCallback(e,r)};r.useContext=function(e){return ne.current.useContext(e)};r.useDebugValue=function(){};r.useDeferredValue=function(e){return ne.current.useDeferredValue(e)};r.useEffect=function(e,r){return ne.current.useEffect(e,r)};r.useId=function(){return ne.current.useId()};r.useImperativeHandle=function(e,r,o){return ne.current.useImperativeHandle(e,r,o)};r.useInsertionEffect=function(e,r){return ne.current.useInsertionEffect(e,r)};r.useLayoutEffect=function(e,r){return ne.current.useLayoutEffect(e,r)};r.useMemo=function(e,r){return ne.current.useMemo(e,r)};r.useReducer=function(e,r,o){return ne.current.useReducer(e,r,o)};r.useRef=function(e){return ne.current.useRef(e)};r.useState=function(e){return ne.current.useState(e)};r.useSyncExternalStore=function(e,r,o){return ne.current.useSyncExternalStore(e,r,o)};r.useTransition=function(){return ne.current.useTransition()};r.version="18.3.0-experimental-cb5084d1c-20220924"},89:(e,r,o)=>{if(process.env.NODE_ENV==="production"){e.exports=o(552)}else{e.exports=o(927)}}};var r={};function __nccwpck_require__(o){var a=r[o];if(a!==undefined){return a.exports}var i=r[o]={id:o,loaded:false,exports:{}};var s=true;try{e[o](i,i.exports,__nccwpck_require__);s=false}finally{if(s)delete r[o]}i.loaded=true;return i.exports}(()=>{__nccwpck_require__.nmd=e=>{e.paths=[];if(!e.children)e.children=[];return e}})();if(typeof __nccwpck_require__!=="undefined")__nccwpck_require__.ab=__dirname+"/";var o={};(()=>{var e=o;var r,a;if(process.env.NODE_ENV==="production"){r=__nccwpck_require__(536);a=__nccwpck_require__(655)}else{r=__nccwpck_require__(681);a=__nccwpck_require__(297)}e.version=r.version;e.renderToString=r.renderToString;e.renderToStaticMarkup=r.renderToStaticMarkup;e.renderToNodeStream=r.renderToNodeStream;e.renderToStaticNodeStream=r.renderToStaticNodeStream;e.renderToReadableStream=a.renderToReadableStream})();module.exports=o})();
+var aa=__nccwpck_require__(533);function k(a){for(var b="https://reactjs.org/docs/error-decoder.html?invariant="+a,c=1;c<arguments.length;c++)b+="&args[]="+encodeURIComponent(arguments[c]);return"Minified React error #"+a+"; visit "+b+" for the full message or use the non-minified dev environment for full errors and additional helpful warnings."}var m=null,p=0;
+function q(a,b){if(0!==b.length)if(512<b.length)0<p&&(a.enqueue(new Uint8Array(m.buffer,0,p)),m=new Uint8Array(512),p=0),a.enqueue(b);else{var c=m.length-p;c<b.length&&(0===c?a.enqueue(m):(m.set(b.subarray(0,c),p),a.enqueue(m),b=b.subarray(c)),m=new Uint8Array(512),p=0);m.set(b,p);p+=b.length}}function u(a,b){q(a,b);return!0}function ba(a){m&&0<p&&(a.enqueue(new Uint8Array(m.buffer,0,p)),m=null,p=0)}var ca=new TextEncoder;function v(a){return ca.encode(a)}function x(a){return ca.encode(a)}
+function da(a,b){"function"===typeof a.error?a.error(b):a.close()}var y=Object.prototype.hasOwnProperty,ea=/^[:A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD][:A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD\-.0-9\u00B7\u0300-\u036F\u203F-\u2040]*$/,fa={},ha={};
+function ia(a){if(y.call(ha,a))return!0;if(y.call(fa,a))return!1;if(ea.test(a))return ha[a]=!0;fa[a]=!0;return!1}function A(a,b,c,d,e,g,f){this.acceptsBooleans=2===b||3===b||4===b;this.attributeName=d;this.attributeNamespace=e;this.mustUseProperty=c;this.propertyName=a;this.type=b;this.sanitizeURL=g;this.removeEmptyString=f}var B={},ja="children dangerouslySetInnerHTML defaultValue defaultChecked innerHTML suppressContentEditableWarning suppressHydrationWarning style".split(" ");
+ja.push("innerText","textContent");ja.forEach(function(a){B[a]=new A(a,0,!1,a,null,!1,!1)});[["acceptCharset","accept-charset"],["className","class"],["htmlFor","for"],["httpEquiv","http-equiv"]].forEach(function(a){var b=a[0];B[b]=new A(b,1,!1,a[1],null,!1,!1)});["contentEditable","draggable","spellCheck","value"].forEach(function(a){B[a]=new A(a,2,!1,a.toLowerCase(),null,!1,!1)});
+["autoReverse","externalResourcesRequired","focusable","preserveAlpha"].forEach(function(a){B[a]=new A(a,2,!1,a,null,!1,!1)});"allowFullScreen async autoFocus autoPlay controls default defer disabled disablePictureInPicture disableRemotePlayback formNoValidate hidden loop noModule noValidate open playsInline readOnly required reversed scoped seamless itemScope".split(" ").forEach(function(a){B[a]=new A(a,3,!1,a.toLowerCase(),null,!1,!1)});
+["checked","multiple","muted","selected"].forEach(function(a){B[a]=new A(a,3,!0,a,null,!1,!1)});["capture","download"].forEach(function(a){B[a]=new A(a,4,!1,a,null,!1,!1)});["cols","rows","size","span"].forEach(function(a){B[a]=new A(a,6,!1,a,null,!1,!1)});["rowSpan","start"].forEach(function(a){B[a]=new A(a,5,!1,a.toLowerCase(),null,!1,!1)});var ka=/[\-:]([a-z])/g;function la(a){return a[1].toUpperCase()}
+"accent-height alignment-baseline arabic-form baseline-shift cap-height clip-path clip-rule color-interpolation color-interpolation-filters color-profile color-rendering dominant-baseline enable-background fill-opacity fill-rule flood-color flood-opacity font-family font-size font-size-adjust font-stretch font-style font-variant font-weight glyph-name glyph-orientation-horizontal glyph-orientation-vertical horiz-adv-x horiz-origin-x image-rendering letter-spacing lighting-color marker-end marker-mid marker-start overline-position overline-thickness paint-order panose-1 pointer-events rendering-intent shape-rendering stop-color stop-opacity strikethrough-position strikethrough-thickness stroke-dasharray stroke-dashoffset stroke-linecap stroke-linejoin stroke-miterlimit stroke-opacity stroke-width text-anchor text-decoration text-rendering underline-position underline-thickness unicode-bidi unicode-range units-per-em v-alphabetic v-hanging v-ideographic v-mathematical vector-effect vert-adv-y vert-origin-x vert-origin-y word-spacing writing-mode xmlns:xlink x-height".split(" ").forEach(function(a){var b=a.replace(ka,
+la);B[b]=new A(b,1,!1,a,null,!1,!1)});"xlink:actuate xlink:arcrole xlink:role xlink:show xlink:title xlink:type".split(" ").forEach(function(a){var b=a.replace(ka,la);B[b]=new A(b,1,!1,a,"http://www.w3.org/1999/xlink",!1,!1)});["xml:base","xml:lang","xml:space"].forEach(function(a){var b=a.replace(ka,la);B[b]=new A(b,1,!1,a,"http://www.w3.org/XML/1998/namespace",!1,!1)});["tabIndex","crossOrigin"].forEach(function(a){B[a]=new A(a,1,!1,a.toLowerCase(),null,!1,!1)});
+B.xlinkHref=new A("xlinkHref",1,!1,"xlink:href","http://www.w3.org/1999/xlink",!0,!1);["src","href","action","formAction"].forEach(function(a){B[a]=new A(a,1,!1,a.toLowerCase(),null,!0,!0)});
+var ma={animationIterationCount:!0,aspectRatio:!0,borderImageOutset:!0,borderImageSlice:!0,borderImageWidth:!0,boxFlex:!0,boxFlexGroup:!0,boxOrdinalGroup:!0,columnCount:!0,columns:!0,flex:!0,flexGrow:!0,flexPositive:!0,flexShrink:!0,flexNegative:!0,flexOrder:!0,gridArea:!0,gridRow:!0,gridRowEnd:!0,gridRowSpan:!0,gridRowStart:!0,gridColumn:!0,gridColumnEnd:!0,gridColumnSpan:!0,gridColumnStart:!0,fontWeight:!0,lineClamp:!0,lineHeight:!0,opacity:!0,order:!0,orphans:!0,tabSize:!0,widows:!0,zIndex:!0,
+zoom:!0,fillOpacity:!0,floodOpacity:!0,stopOpacity:!0,strokeDasharray:!0,strokeDashoffset:!0,strokeMiterlimit:!0,strokeOpacity:!0,strokeWidth:!0},na=["Webkit","ms","Moz","O"];Object.keys(ma).forEach(function(a){na.forEach(function(b){b=b+a.charAt(0).toUpperCase()+a.substring(1);ma[b]=ma[a]})});var oa=/["'&<>]/;
+function C(a){if("boolean"===typeof a||"number"===typeof a)return""+a;a=""+a;var b=oa.exec(a);if(b){var c="",d,e=0;for(d=b.index;d<a.length;d++){switch(a.charCodeAt(d)){case 34:b="&quot;";break;case 38:b="&amp;";break;case 39:b="&#x27;";break;case 60:b="&lt;";break;case 62:b="&gt;";break;default:continue}e!==d&&(c+=a.substring(e,d));e=d+1;c+=b}a=e!==d?c+a.substring(e,d):c}return a}
+var pa=/([A-Z])/g,qa=/^ms-/,ta=Array.isArray,ua=x("<script>"),va=x("\x3c/script>"),wa=x('<script src="'),xa=x('<script type="module" src="'),ya=x('" integrity="'),za=x('" async="">\x3c/script>'),Aa=/(<\/|<)(s)(cript)/gi;function Ba(a,b,c,d){return""+b+("s"===c?"\\u0073":"\\u0053")+d}
+function Ca(a,b,c,d,e){a=void 0===a?"":a;b=void 0===b?ua:x('<script nonce="'+C(b)+'">');var g=[];void 0!==c&&g.push(b,v((""+c).replace(Aa,Ba)),va);if(void 0!==d)for(c=0;c<d.length;c++){var f=d[c],h="string"===typeof f?void 0:f.integrity;g.push(wa,v(C("string"===typeof f?f:f.src)));h&&g.push(ya,v(C(h)));g.push(za)}if(void 0!==e)for(d=0;d<e.length;d++)c=e[d],f="string"===typeof c?void 0:c.integrity,g.push(xa,v(C("string"===typeof c?c:c.src))),f&&g.push(ya,v(C(f))),g.push(za);return{bootstrapChunks:g,
+startInlineScript:b,placeholderPrefix:x(a+"P:"),segmentPrefix:x(a+"S:"),boundaryPrefix:a+"B:",idPrefix:a,nextSuspenseID:0,sentCompleteSegmentFunction:!1,sentCompleteBoundaryFunction:!1,sentClientRenderFunction:!1}}function D(a,b){return{insertionMode:a,selectedValue:b}}function Da(a){return D("http://www.w3.org/2000/svg"===a?2:"http://www.w3.org/1998/Math/MathML"===a?3:0,null)}
+function Ea(a,b,c){switch(b){case "select":return D(1,null!=c.value?c.value:c.defaultValue);case "svg":return D(2,null);case "math":return D(3,null);case "foreignObject":return D(1,null);case "table":return D(4,null);case "thead":case "tbody":case "tfoot":return D(5,null);case "colgroup":return D(7,null);case "tr":return D(6,null)}return 4<=a.insertionMode||0===a.insertionMode?D(1,null):a}var Fa=x("\x3c!-- --\x3e");function Ga(a,b,c,d){if(""===b)return d;d&&a.push(Fa);a.push(v(C(b)));return!0}
+var Ha=new Map,Ia=x(' style="'),Ja=x(":"),Ka=x(";");
+function La(a,b,c){if("object"!==typeof c)throw Error(k(62));b=!0;for(var d in c)if(y.call(c,d)){var e=c[d];if(null!=e&&"boolean"!==typeof e&&""!==e){if(0===d.indexOf("--")){var g=v(C(d));e=v(C((""+e).trim()))}else{g=d;var f=Ha.get(g);void 0!==f?g=f:(f=x(C(g.replace(pa,"-$1").toLowerCase().replace(qa,"-ms-"))),Ha.set(g,f),g=f);e="number"===typeof e?0===e||y.call(ma,d)?v(""+e):v(e+"px"):v(C((""+e).trim()))}b?(b=!1,a.push(Ia,g,Ja,e)):a.push(Ka,g,Ja,e)}}b||a.push(E)}
+var F=x(" "),G=x('="'),E=x('"'),Ma=x('=""');
+function J(a,b,c,d){switch(c){case "style":La(a,b,d);return;case "defaultValue":case "defaultChecked":case "innerHTML":case "suppressContentEditableWarning":case "suppressHydrationWarning":return}if(!(2<c.length)||"o"!==c[0]&&"O"!==c[0]||"n"!==c[1]&&"N"!==c[1])if(b=B.hasOwnProperty(c)?B[c]:null,null!==b){switch(typeof d){case "function":case "symbol":return;case "boolean":if(!b.acceptsBooleans)return}c=v(b.attributeName);switch(b.type){case 3:d&&a.push(F,c,Ma);break;case 4:!0===d?a.push(F,c,Ma):!1!==
+d&&a.push(F,c,G,v(C(d)),E);break;case 5:isNaN(d)||a.push(F,c,G,v(C(d)),E);break;case 6:!isNaN(d)&&1<=d&&a.push(F,c,G,v(C(d)),E);break;default:b.sanitizeURL&&(d=""+d),a.push(F,c,G,v(C(d)),E)}}else if(ia(c)){switch(typeof d){case "function":case "symbol":return;case "boolean":if(b=c.toLowerCase().slice(0,5),"data-"!==b&&"aria-"!==b)return}a.push(F,v(c),G,v(C(d)),E)}}var K=x(">"),Na=x("/>");
+function Oa(a,b,c){if(null!=b){if(null!=c)throw Error(k(60));if("object"!==typeof b||!("__html"in b))throw Error(k(61));b=b.__html;null!==b&&void 0!==b&&a.push(v(""+b))}}function Pa(a){var b="";aa.Children.forEach(a,function(a){null!=a&&(b+=a)});return b}var Qa=x(' selected=""');
+function Ra(a,b,c,d){a.push(L(c));var e=c=null,g;for(g in b)if(y.call(b,g)){var f=b[g];if(null!=f)switch(g){case "children":c=f;break;case "dangerouslySetInnerHTML":e=f;break;default:J(a,d,g,f)}}a.push(K);Oa(a,e,c);return"string"===typeof c?(a.push(v(C(c))),null):c}var Sa=x("\n"),Ta=/^[a-zA-Z][a-zA-Z:_\.\-\d]*$/,Ua=new Map;function L(a){var b=Ua.get(a);if(void 0===b){if(!Ta.test(a))throw Error(k(65,a));b=x("<"+a);Ua.set(a,b)}return b}var Va=x("<!DOCTYPE html>");
+function Wa(a,b,c,d,e,g){switch(c){case "select":a.push(L("select"));var f=null,h=null;for(r in d)if(y.call(d,r)){var l=d[r];if(null!=l)switch(r){case "children":f=l;break;case "dangerouslySetInnerHTML":h=l;break;case "defaultValue":case "value":break;default:J(a,e,r,l)}}a.push(K);Oa(a,h,f);return f;case "option":h=g.selectedValue;a.push(L("option"));var n=l=null,t=null;var r=null;for(f in d)if(y.call(d,f)){var w=d[f];if(null!=w)switch(f){case "children":l=w;break;case "selected":t=w;break;case "dangerouslySetInnerHTML":r=
+w;break;case "value":n=w;default:J(a,e,f,w)}}if(null!=h)if(d=null!==n?""+n:Pa(l),ta(h))for(e=0;e<h.length;e++){if(""+h[e]===d){a.push(Qa);break}}else""+h===d&&a.push(Qa);else t&&a.push(Qa);a.push(K);Oa(a,r,l);return l;case "textarea":a.push(L("textarea"));r=h=f=null;for(l in d)if(y.call(d,l)&&(n=d[l],null!=n))switch(l){case "children":r=n;break;case "value":f=n;break;case "defaultValue":h=n;break;case "dangerouslySetInnerHTML":throw Error(k(91));default:J(a,e,l,n)}null===f&&null!==h&&(f=h);a.push(K);
+if(null!=r){if(null!=f)throw Error(k(92));if(ta(r)&&1<r.length)throw Error(k(93));f=""+r}"string"===typeof f&&"\n"===f[0]&&a.push(Sa);null!==f&&a.push(v(C(""+f)));return null;case "input":a.push(L("input"));n=r=l=f=null;for(h in d)if(y.call(d,h)&&(t=d[h],null!=t))switch(h){case "children":case "dangerouslySetInnerHTML":throw Error(k(399,"input"));case "defaultChecked":n=t;break;case "defaultValue":l=t;break;case "checked":r=t;break;case "value":f=t;break;default:J(a,e,h,t)}null!==r?J(a,e,"checked",
+r):null!==n&&J(a,e,"checked",n);null!==f?J(a,e,"value",f):null!==l&&J(a,e,"value",l);a.push(Na);return null;case "menuitem":a.push(L("menuitem"));for(var H in d)if(y.call(d,H)&&(f=d[H],null!=f))switch(H){case "children":case "dangerouslySetInnerHTML":throw Error(k(400));default:J(a,e,H,f)}a.push(K);return null;case "title":a.push(L("title"));f=null;for(w in d)if(y.call(d,w)&&(h=d[w],null!=h))switch(w){case "children":f=h;break;case "dangerouslySetInnerHTML":throw Error(k(434));default:J(a,e,w,h)}a.push(K);
+return f;case "link":f="stylesheet"===d.rel;a.push(L("link"));for(var I in d)if(y.call(d,I)&&(h=d[I],null!=h))switch(I){case "children":case "dangerouslySetInnerHTML":throw Error(k(399,"link"));case "precedence":if(f){!0!==h&&"string"!==typeof h||J(a,e,"data-rprec",h);break}default:J(a,e,I,h)}a.push(Na);return null;case "listing":case "pre":a.push(L(c));h=f=null;for(n in d)if(y.call(d,n)&&(l=d[n],null!=l))switch(n){case "children":f=l;break;case "dangerouslySetInnerHTML":h=l;break;default:J(a,e,n,
+l)}a.push(K);if(null!=h){if(null!=f)throw Error(k(60));if("object"!==typeof h||!("__html"in h))throw Error(k(61));d=h.__html;null!==d&&void 0!==d&&("string"===typeof d&&0<d.length&&"\n"===d[0]?a.push(Sa,v(d)):a.push(v(""+d)))}"string"===typeof f&&"\n"===f[0]&&a.push(Sa);return f;case "area":case "base":case "br":case "col":case "embed":case "hr":case "img":case "keygen":case "meta":case "param":case "source":case "track":case "wbr":a.push(L(c));for(var z in d)if(y.call(d,z)&&(f=d[z],null!=f))switch(z){case "children":case "dangerouslySetInnerHTML":throw Error(k(399,
+c));default:J(a,e,z,f)}a.push(Na);return null;case "annotation-xml":case "color-profile":case "font-face":case "font-face-src":case "font-face-uri":case "font-face-format":case "font-face-name":case "missing-glyph":return Ra(a,d,c,e);case "head":return Ra(b,d,c,e);case "html":return 0===g.insertionMode&&b.push(Va),Ra(b,d,c,e);default:if(-1===c.indexOf("-")&&"string"!==typeof d.is)return Ra(a,d,c,e);a.push(L(c));h=f=null;for(t in d)if(y.call(d,t)&&(l=d[t],null!=l&&"function"!==typeof l&&"object"!==
+typeof l&&!1!==l))switch(!0===l&&(l=""),"className"===t&&(t="class"),t){case "children":f=l;break;case "dangerouslySetInnerHTML":h=l;break;case "style":La(a,e,l);break;case "suppressContentEditableWarning":case "suppressHydrationWarning":break;default:ia(t)&&"function"!==typeof l&&"symbol"!==typeof l&&a.push(F,v(t),G,v(C(l)),E)}a.push(K);Oa(a,h,f);return f}}
+var Xa=x("</"),Ya=x(">"),Za=x('<template id="'),$a=x('"></template>'),ab=x("\x3c!--$--\x3e"),bb=x('\x3c!--$?--\x3e<template id="'),cb=x('"></template>'),db=x("\x3c!--$!--\x3e"),eb=x("\x3c!--/$--\x3e"),fb=x("<template"),gb=x('"'),hb=x(' data-dgst="');x(' data-msg="');x(' data-stck="');var ib=x("></template>");function jb(a,b,c){q(a,bb);if(null===c)throw Error(k(395));q(a,c);return u(a,cb)}
+var kb=x('<div hidden id="'),lb=x('">'),mb=x("</div>"),nb=x('<svg aria-hidden="true" style="display:none" id="'),ob=x('">'),pb=x("</svg>"),qb=x('<math aria-hidden="true" style="display:none" id="'),rb=x('">'),sb=x("</math>"),tb=x('<table hidden id="'),ub=x('">'),vb=x("</table>"),wb=x('<table hidden><tbody id="'),xb=x('">'),yb=x("</tbody></table>"),zb=x('<table hidden><tr id="'),Ab=x('">'),Bb=x("</tr></table>"),Cb=x('<table hidden><colgroup id="'),Db=x('">'),Eb=x("</colgroup></table>");
+function Fb(a,b,c,d){switch(c.insertionMode){case 0:case 1:return q(a,kb),q(a,b.segmentPrefix),q(a,v(d.toString(16))),u(a,lb);case 2:return q(a,nb),q(a,b.segmentPrefix),q(a,v(d.toString(16))),u(a,ob);case 3:return q(a,qb),q(a,b.segmentPrefix),q(a,v(d.toString(16))),u(a,rb);case 4:return q(a,tb),q(a,b.segmentPrefix),q(a,v(d.toString(16))),u(a,ub);case 5:return q(a,wb),q(a,b.segmentPrefix),q(a,v(d.toString(16))),u(a,xb);case 6:return q(a,zb),q(a,b.segmentPrefix),q(a,v(d.toString(16))),u(a,Ab);case 7:return q(a,
+Cb),q(a,b.segmentPrefix),q(a,v(d.toString(16))),u(a,Db);default:throw Error(k(397));}}function Gb(a,b){switch(b.insertionMode){case 0:case 1:return u(a,mb);case 2:return u(a,pb);case 3:return u(a,sb);case 4:return u(a,vb);case 5:return u(a,yb);case 6:return u(a,Bb);case 7:return u(a,Eb);default:throw Error(k(397));}}
+var Hb=x('function $RS(a,b){a=document.getElementById(a);b=document.getElementById(b);for(a.parentNode.removeChild(a);a.firstChild;)b.parentNode.insertBefore(a.firstChild,b);b.parentNode.removeChild(b)};$RS("'),Ib=x('$RS("'),Jb=x('","'),Kb=x('")\x3c/script>'),Lb=x('function $RC(a,b){a=document.getElementById(a);b=document.getElementById(b);b.parentNode.removeChild(b);if(a){a=a.previousSibling;var f=a.parentNode,c=a.nextSibling,e=0;do{if(c&&8===c.nodeType){var d=c.data;if("/$"===d)if(0===e)break;else e--;else"$"!==d&&"$?"!==d&&"$!"!==d||e++}d=c.nextSibling;f.removeChild(c);c=d}while(c);for(;b.firstChild;)f.insertBefore(b.firstChild,c);a.data="$";a._reactRetry&&a._reactRetry()}};$RC("'),
+Mb=x('$RC("'),Nb=x('","'),Pb=x('")\x3c/script>'),Qb=x('function $RX(b,c,d,e){var a=document.getElementById(b);a&&(b=a.previousSibling,b.data="$!",a=a.dataset,c&&(a.dgst=c),d&&(a.msg=d),e&&(a.stck=e),b._reactRetry&&b._reactRetry())};$RX("'),Rb=x('$RX("'),Sb=x('"'),Tb=x(")\x3c/script>"),Ub=x(","),Vb=/[<\u2028\u2029]/g;
+function Wb(a){return JSON.stringify(a).replace(Vb,function(a){switch(a){case "<":return"\\u003c";case "\u2028":return"\\u2028";case "\u2029":return"\\u2029";default:throw Error("escapeJSStringsForInstructionScripts encountered a match it does not know how to replace. this means the match regex and the replacement characters are no longer in sync. This is a bug in React");}})}
+var M=Object.assign,Xb=Symbol.for("react.element"),Yb=Symbol.for("react.portal"),Zb=Symbol.for("react.fragment"),$b=Symbol.for("react.strict_mode"),ac=Symbol.for("react.profiler"),bc=Symbol.for("react.provider"),cc=Symbol.for("react.context"),dc=Symbol.for("react.server_context"),ec=Symbol.for("react.forward_ref"),fc=Symbol.for("react.suspense"),gc=Symbol.for("react.suspense_list"),hc=Symbol.for("react.memo"),ic=Symbol.for("react.lazy"),jc=Symbol.for("react.scope"),kc=Symbol.for("react.debug_trace_mode"),
+lc=Symbol.for("react.offscreen"),mc=Symbol.for("react.legacy_hidden"),nc=Symbol.for("react.cache"),oc=Symbol.for("react.default_value"),pc=Symbol.iterator;
+function qc(a){if(null==a)return null;if("function"===typeof a)return a.displayName||a.name||null;if("string"===typeof a)return a;switch(a){case Zb:return"Fragment";case Yb:return"Portal";case ac:return"Profiler";case $b:return"StrictMode";case fc:return"Suspense";case gc:return"SuspenseList";case nc:return"Cache"}if("object"===typeof a)switch(a.$$typeof){case cc:return(a.displayName||"Context")+".Consumer";case bc:return(a._context.displayName||"Context")+".Provider";case ec:var b=a.render;a=a.displayName;
+a||(a=b.displayName||b.name||"",a=""!==a?"ForwardRef("+a+")":"ForwardRef");return a;case hc:return b=a.displayName||null,null!==b?b:qc(a.type)||"Memo";case ic:b=a._payload;a=a._init;try{return qc(a(b))}catch(c){break}case dc:return(a.displayName||a._globalName)+".Provider"}return null}var rc={};function sc(a,b){a=a.contextTypes;if(!a)return rc;var c={},d;for(d in a)c[d]=b[d];return c}var N=null;
+function tc(a,b){if(a!==b){a.context._currentValue=a.parentValue;a=a.parent;var c=b.parent;if(null===a){if(null!==c)throw Error(k(401));}else{if(null===c)throw Error(k(401));tc(a,c)}b.context._currentValue=b.value}}function uc(a){a.context._currentValue=a.parentValue;a=a.parent;null!==a&&uc(a)}function vc(a){var b=a.parent;null!==b&&vc(b);a.context._currentValue=a.value}
+function wc(a,b){a.context._currentValue=a.parentValue;a=a.parent;if(null===a)throw Error(k(402));a.depth===b.depth?tc(a,b):wc(a,b)}function xc(a,b){var c=b.parent;if(null===c)throw Error(k(402));a.depth===c.depth?tc(a,c):xc(a,c);b.context._currentValue=b.value}function yc(a){var b=N;b!==a&&(null===b?vc(a):null===a?uc(b):b.depth===a.depth?tc(b,a):b.depth>a.depth?wc(b,a):xc(b,a),N=a)}
+var zc={isMounted:function(){return!1},enqueueSetState:function(a,b){a=a._reactInternals;null!==a.queue&&a.queue.push(b)},enqueueReplaceState:function(a,b){a=a._reactInternals;a.replace=!0;a.queue=[b]},enqueueForceUpdate:function(){}};
+function Ac(a,b,c,d){var e=void 0!==a.state?a.state:null;a.updater=zc;a.props=c;a.state=e;var g={queue:[],replace:!1};a._reactInternals=g;var f=b.contextType;a.context="object"===typeof f&&null!==f?f._currentValue:d;f=b.getDerivedStateFromProps;"function"===typeof f&&(f=f(c,e),e=null===f||void 0===f?e:M({},e,f),a.state=e);if("function"!==typeof b.getDerivedStateFromProps&&"function"!==typeof a.getSnapshotBeforeUpdate&&("function"===typeof a.UNSAFE_componentWillMount||"function"===typeof a.componentWillMount))if(b=
+a.state,"function"===typeof a.componentWillMount&&a.componentWillMount(),"function"===typeof a.UNSAFE_componentWillMount&&a.UNSAFE_componentWillMount(),b!==a.state&&zc.enqueueReplaceState(a,a.state,null),null!==g.queue&&0<g.queue.length)if(b=g.queue,f=g.replace,g.queue=null,g.replace=!1,f&&1===b.length)a.state=b[0];else{g=f?b[0]:a.state;e=!0;for(f=f?1:0;f<b.length;f++){var h=b[f];h="function"===typeof h?h.call(a,g,c,d):h;null!=h&&(e?(e=!1,g=M({},g,h)):M(g,h))}a.state=g}else g.queue=null}
+var Bc={id:1,overflow:""};function Cc(a,b,c){var d=a.id;a=a.overflow;var e=32-Dc(d)-1;d&=~(1<<e);c+=1;var g=32-Dc(b)+e;if(30<g){var f=e-e%5;g=(d&(1<<f)-1).toString(32);d>>=f;e-=f;return{id:1<<32-Dc(b)+e|c<<e|d,overflow:g+a}}return{id:1<<g|c<<e|d,overflow:a}}var Dc=Math.clz32?Math.clz32:Ec,Fc=Math.log,Gc=Math.LN2;function Ec(a){a>>>=0;return 0===a?32:31-(Fc(a)/Gc|0)|0}
+function Hc(a){switch(a.status){case "fulfilled":case "rejected":break;default:"string"!==typeof a.status&&(a.status="pending",a.then(function(b){"pending"===a.status&&(a.status="fulfilled",a.value=b)},function(b){"pending"===a.status&&(a.status="rejected",a.reason=b)}))}}function Ic(a,b){return a===b&&(0!==a||1/a===1/b)||a!==a&&b!==b}var Jc="function"===typeof Object.is?Object.is:Ic,O=null,Kc=null,Lc=null,P=null,Q=!1,Mc=!1,R=0,S=0,T=null,U=null,Nc=0;
+function V(){if(null===O)throw Error(k(321));return O}function Oc(){if(0<Nc)throw Error(k(312));return{memoizedState:null,queue:null,next:null}}function Pc(){null===P?null===Lc?(Q=!1,Lc=P=Oc()):(Q=!0,P=Lc):null===P.next?(Q=!1,P=P.next=Oc()):(Q=!0,P=P.next);return P}function Qc(a,b,c,d){for(;Mc;)Mc=!1,S=R=0,Nc+=1,P=null,c=a(b,d);Rc();return c}function Sc(){var a=T;T=null;return a}function Rc(){Kc=O=null;Mc=!1;Lc=null;Nc=0;P=U=null}function Tc(a,b){return"function"===typeof b?b(a):b}
+function Uc(a,b,c){O=V();P=Pc();if(Q){var d=P.queue;b=d.dispatch;if(null!==U&&(c=U.get(d),void 0!==c)){U.delete(d);d=P.memoizedState;do d=a(d,c.action),c=c.next;while(null!==c);P.memoizedState=d;return[d,b]}return[P.memoizedState,b]}a=a===Tc?"function"===typeof b?b():b:void 0!==c?c(b):b;P.memoizedState=a;a=P.queue={last:null,dispatch:null};a=a.dispatch=Vc.bind(null,O,a);return[P.memoizedState,a]}
+function Wc(a,b){O=V();P=Pc();b=void 0===b?null:b;if(null!==P){var c=P.memoizedState;if(null!==c&&null!==b){var d=c[1];a:if(null===d)d=!1;else{for(var e=0;e<d.length&&e<b.length;e++)if(!Jc(b[e],d[e])){d=!1;break a}d=!0}if(d)return c[0]}}a=a();P.memoizedState=[a,b];return a}function Vc(a,b,c){if(25<=Nc)throw Error(k(301));if(a===O)if(Mc=!0,a={action:c,next:null},null===U&&(U=new Map),c=U.get(b),void 0===c)U.set(b,a);else{for(b=c;null!==b.next;)b=b.next;b.next=a}}
+function Xc(){throw Error(k(394));}function Yc(){throw Error(k(393));}function Zc(){}
+var ad={readContext:function(a){return a._currentValue},useContext:function(a){V();return a._currentValue},useMemo:Wc,useReducer:Uc,useRef:function(a){O=V();P=Pc();var b=P.memoizedState;return null===b?(a={current:a},P.memoizedState=a):b},useState:function(a){return Uc(Tc,a)},useInsertionEffect:Zc,useLayoutEffect:function(){},useCallback:function(a,b){return Wc(function(){return a},b)},useImperativeHandle:Zc,useEffect:Zc,useDebugValue:Zc,useDeferredValue:function(a){V();return a},useTransition:function(){V();
+return[!1,Xc]},useId:function(){var a=Kc.treeContext;var b=a.overflow;a=a.id;a=(a&~(1<<32-Dc(a)-1)).toString(32)+b;var c=$c;if(null===c)throw Error(k(404));b=R++;a=":"+c.idPrefix+"R"+a;0<b&&(a+="H"+b.toString(32));return a+":"},useMutableSource:function(a,b){V();return b(a._source)},useSyncExternalStore:function(a,b,c){if(void 0===c)throw Error(k(407));return c()},getCacheForType:function(){throw Error(k(248));},useCacheRefresh:function(){return Yc},useMemoCache:function(a){return Array(a)},use:function(a){if(null!==
+a&&"object"===typeof a)if("function"===typeof a.then){var b=S;S+=1;switch(a.status){case "fulfilled":return a.value;case "rejected":throw a.reason;default:a:{if(null!==T){var c=T[b];if(void 0!==c)break a}c=null}if(null!==c)switch(c.status){case "fulfilled":return c.value;case "rejected":throw c.reason;default:throw c;}else throw null===T&&(T=[]),T[b]=a,a;}}else if(a.$$typeof===cc||a.$$typeof===dc)return a._currentValue;throw Error(k(438,String(a)));}},$c=null,bd=aa.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED.ReactCurrentDispatcher;
+function cd(a){console.error(a);return null}function W(){}
+function dd(a,b,c,d,e,g,f,h,l){var n=[],t=new Set;b={destination:null,responseState:b,progressiveChunkSize:void 0===d?12800:d,status:0,fatalError:null,nextSegmentId:0,allPendingTasks:0,pendingRootTasks:0,completedRootSegment:null,abortableTasks:t,pingedTasks:n,clientRenderedBoundaries:[],completedBoundaries:[],partialBoundaries:[],preamble:[],postamble:[],onError:void 0===e?cd:e,onAllReady:void 0===g?W:g,onShellReady:void 0===f?W:f,onShellError:void 0===h?W:h,onFatalError:void 0===l?W:l};c=ed(b,0,
+null,c,!1,!1);c.parentFlushed=!0;a=fd(b,null,a,null,c,t,rc,null,Bc);n.push(a);return b}function fd(a,b,c,d,e,g,f,h,l){a.allPendingTasks++;null===d?a.pendingRootTasks++:d.pendingTasks++;var n={node:c,ping:function(){var b=a.pingedTasks;b.push(n);1===b.length&&gd(a)},blockedBoundary:d,blockedSegment:e,abortSet:g,legacyContext:f,context:h,treeContext:l,thenableState:b};g.add(n);return n}
+function ed(a,b,c,d,e,g){return{status:0,id:-1,index:b,parentFlushed:!1,chunks:[],children:[],formatContext:d,boundary:c,lastPushedText:e,textEmbedded:g}}function X(a,b){a=a.onError(b);if(null!=a&&"string"!==typeof a)throw Error('onError returned something with a type other than "string". onError should return a string and may return null or undefined but must not return anything else. It received something of type "'+typeof a+'" instead');return a}
+function Y(a,b){var c=a.onShellError;c(b);c=a.onFatalError;c(b);null!==a.destination?(a.status=2,da(a.destination,b)):(a.status=1,a.fatalError=b)}function hd(a,b,c,d){var e=c.render(),g=d.childContextTypes;if(null!==g&&void 0!==g){var f=b.legacyContext;if("function"!==typeof c.getChildContext)d=f;else{c=c.getChildContext();for(var h in c)if(!(h in g))throw Error(k(108,qc(d)||"Unknown",h));d=M({},f,c)}b.legacyContext=d;Z(a,b,null,e);b.legacyContext=f}else Z(a,b,null,e)}
+function id(a,b){if(a&&a.defaultProps){b=M({},b);a=a.defaultProps;for(var c in a)void 0===b[c]&&(b[c]=a[c]);return b}return b}
+function jd(a,b,c,d,e,g){if("function"===typeof d)if(d.prototype&&d.prototype.isReactComponent)c=sc(d,b.legacyContext),g=d.contextType,g=new d(e,"object"===typeof g&&null!==g?g._currentValue:c),Ac(g,d,e,c),hd(a,b,g,d);else{g=sc(d,b.legacyContext);O={};Kc=b;S=R=0;T=c;c=d(e,g);c=Qc(d,e,c,g);var f=0!==R;if("object"===typeof c&&null!==c&&"function"===typeof c.render&&void 0===c.$$typeof)Ac(c,d,e,g),hd(a,b,c,d);else if(f){e=b.treeContext;b.treeContext=Cc(e,1,0);try{Z(a,b,null,c)}finally{b.treeContext=
+e}}else Z(a,b,null,c)}else if("string"===typeof d){c=b.blockedSegment;g=Wa(c.chunks,a.preamble,d,e,a.responseState,c.formatContext);c.lastPushedText=!1;f=c.formatContext;c.formatContext=Ea(f,d,e);kd(a,b,g);c.formatContext=f;b=c.chunks;switch(d){case "area":case "base":case "br":case "col":case "embed":case "hr":case "img":case "input":case "keygen":case "link":case "meta":case "param":case "source":case "track":case "wbr":break;case "body":case "html":b=a.postamble;default:b.push(Xa,v(d),Ya)}c.lastPushedText=
+!1}else{switch(d){case mc:case kc:case $b:case ac:case Zb:Z(a,b,null,e.children);return;case lc:"hidden"!==e.mode&&Z(a,b,null,e.children);return;case gc:Z(a,b,null,e.children);return;case jc:throw Error(k(343));case fc:a:{d=b.blockedBoundary;c=b.blockedSegment;g=e.fallback;e=e.children;f=new Set;var h={id:null,rootSegmentID:-1,parentFlushed:!1,pendingTasks:0,forceClientRender:!1,completedSegments:[],byteSize:0,fallbackAbortableTasks:f,errorDigest:null},l=ed(a,c.chunks.length,h,c.formatContext,!1,
+!1);c.children.push(l);c.lastPushedText=!1;var n=ed(a,0,null,c.formatContext,!1,!1);n.parentFlushed=!0;b.blockedBoundary=h;b.blockedSegment=n;try{if(kd(a,b,e),n.lastPushedText&&n.textEmbedded&&n.chunks.push(Fa),n.status=1,ld(h,n),0===h.pendingTasks)break a}catch(t){n.status=4,h.forceClientRender=!0,h.errorDigest=X(a,t)}finally{b.blockedBoundary=d,b.blockedSegment=c}b=fd(a,null,g,d,l,f,b.legacyContext,b.context,b.treeContext);a.pingedTasks.push(b)}return}if("object"===typeof d&&null!==d)switch(d.$$typeof){case ec:d=
+d.render;O={};Kc=b;S=R=0;T=c;c=d(e,g);e=Qc(d,e,c,g);if(0!==R){d=b.treeContext;b.treeContext=Cc(d,1,0);try{Z(a,b,null,e)}finally{b.treeContext=d}}else Z(a,b,null,e);return;case hc:d=d.type;e=id(d,e);jd(a,b,c,d,e,g);return;case bc:c=e.children;d=d._context;e=e.value;g=d._currentValue;d._currentValue=e;f=N;N=e={parent:f,depth:null===f?0:f.depth+1,context:d,parentValue:g,value:e};b.context=e;Z(a,b,null,c);a=N;if(null===a)throw Error(k(403));e=a.parentValue;a.context._currentValue=e===oc?a.context._defaultValue:
+e;a=N=a.parent;b.context=a;return;case cc:e=e.children;e=e(d._currentValue);Z(a,b,null,e);return;case ic:g=d._init;d=g(d._payload);e=id(d,e);jd(a,b,c,d,e,void 0);return}throw Error(k(130,null==d?d:typeof d,""));}}
+function Z(a,b,c,d){b.node=d;if("object"===typeof d&&null!==d){switch(d.$$typeof){case Xb:jd(a,b,c,d.type,d.props,d.ref);return;case Yb:throw Error(k(257));case ic:c=d._init;d=c(d._payload);Z(a,b,null,d);return}if(ta(d)){md(a,b,d);return}null===d||"object"!==typeof d?c=null:(c=pc&&d[pc]||d["@@iterator"],c="function"===typeof c?c:null);if(c&&(c=c.call(d))){d=c.next();if(!d.done){var e=[];do e.push(d.value),d=c.next();while(!d.done);md(a,b,e)}return}a=Object.prototype.toString.call(d);throw Error(k(31,
+"[object Object]"===a?"object with keys {"+Object.keys(d).join(", ")+"}":a));}"string"===typeof d?(c=b.blockedSegment,c.lastPushedText=Ga(b.blockedSegment.chunks,d,a.responseState,c.lastPushedText)):"number"===typeof d&&(c=b.blockedSegment,c.lastPushedText=Ga(b.blockedSegment.chunks,""+d,a.responseState,c.lastPushedText))}function md(a,b,c){for(var d=c.length,e=0;e<d;e++){var g=b.treeContext;b.treeContext=Cc(g,d,e);try{kd(a,b,c[e])}finally{b.treeContext=g}}}
+function kd(a,b,c){var d=b.blockedSegment.formatContext,e=b.legacyContext,g=b.context;try{return Z(a,b,null,c)}catch(n){if(Rc(),"object"===typeof n&&null!==n&&"function"===typeof n.then){var f=Sc();c=n;var h=b.blockedSegment,l=ed(a,h.chunks.length,null,h.formatContext,h.lastPushedText,!0);h.children.push(l);h.lastPushedText=!1;a=fd(a,f,b.node,b.blockedBoundary,l,b.abortSet,b.legacyContext,b.context,b.treeContext);Hc(c);a=a.ping;c.then(a,a);b.blockedSegment.formatContext=d;b.legacyContext=e;b.context=
+g;yc(g)}else throw b.blockedSegment.formatContext=d,b.legacyContext=e,b.context=g,yc(g),n;}}function nd(a){var b=a.blockedBoundary;a=a.blockedSegment;a.status=3;od(this,b,a)}
+function pd(a,b,c){var d=a.blockedBoundary;a.blockedSegment.status=3;null===d?(b.allPendingTasks--,1!==b.status&&2!==b.status&&(X(b,c),Y(b,c))):(d.pendingTasks--,d.forceClientRender||(d.forceClientRender=!0,d.errorDigest=b.onError(c),d.parentFlushed&&b.clientRenderedBoundaries.push(d)),d.fallbackAbortableTasks.forEach(function(a){return pd(a,b,c)}),d.fallbackAbortableTasks.clear(),b.allPendingTasks--,0===b.allPendingTasks&&(a=b.onAllReady,a()))}
+function ld(a,b){if(0===b.chunks.length&&1===b.children.length&&null===b.children[0].boundary){var c=b.children[0];c.id=b.id;c.parentFlushed=!0;1===c.status&&ld(a,c)}else a.completedSegments.push(b)}
+function od(a,b,c){if(null===b){if(c.parentFlushed){if(null!==a.completedRootSegment)throw Error(k(389));a.completedRootSegment=c}a.pendingRootTasks--;0===a.pendingRootTasks&&(a.onShellError=W,b=a.onShellReady,b())}else b.pendingTasks--,b.forceClientRender||(0===b.pendingTasks?(c.parentFlushed&&1===c.status&&ld(b,c),b.parentFlushed&&a.completedBoundaries.push(b),b.fallbackAbortableTasks.forEach(nd,a),b.fallbackAbortableTasks.clear()):c.parentFlushed&&1===c.status&&(ld(b,c),1===b.completedSegments.length&&
+b.parentFlushed&&a.partialBoundaries.push(b)));a.allPendingTasks--;0===a.allPendingTasks&&(a=a.onAllReady,a())}
+function gd(a){if(2!==a.status){var b=N,c=bd.current;bd.current=ad;var d=$c;$c=a.responseState;try{var e=a.pingedTasks,g;for(g=0;g<e.length;g++){var f=e[g];var h=a,l=f.blockedSegment;if(0===l.status){yc(f.context);try{var n=f.thenableState;f.thenableState=null;Z(h,f,n,f.node);l.lastPushedText&&l.textEmbedded&&l.chunks.push(Fa);f.abortSet.delete(f);l.status=1;od(h,f.blockedBoundary,l)}catch(z){if(Rc(),"object"===typeof z&&null!==z&&"function"===typeof z.then){var t=f.ping;z.then(t,t);Hc(z);f.thenableState=
+Sc()}else{f.abortSet.delete(f);l.status=4;var r=f.blockedBoundary,w=z,H=X(h,w);null===r?Y(h,w):(r.pendingTasks--,r.forceClientRender||(r.forceClientRender=!0,r.errorDigest=H,r.parentFlushed&&h.clientRenderedBoundaries.push(r)));h.allPendingTasks--;if(0===h.allPendingTasks){var I=h.onAllReady;I()}}}finally{}}}e.splice(0,g);null!==a.destination&&qd(a,a.destination)}catch(z){X(a,z),Y(a,z)}finally{$c=d,bd.current=c,c===ad&&yc(b)}}}
+function rd(a,b,c){c.parentFlushed=!0;switch(c.status){case 0:var d=c.id=a.nextSegmentId++;c.lastPushedText=!1;c.textEmbedded=!1;a=a.responseState;q(b,Za);q(b,a.placeholderPrefix);a=v(d.toString(16));q(b,a);return u(b,$a);case 1:c.status=2;var e=!0;d=c.chunks;var g=0;c=c.children;for(var f=0;f<c.length;f++){for(e=c[f];g<e.index;g++)q(b,d[g]);e=sd(a,b,e)}for(;g<d.length-1;g++)q(b,d[g]);g<d.length&&(e=u(b,d[g]));return e;default:throw Error(k(390));}}
+function sd(a,b,c){var d=c.boundary;if(null===d)return rd(a,b,c);d.parentFlushed=!0;if(d.forceClientRender)d=d.errorDigest,u(b,db),q(b,fb),d&&(q(b,hb),q(b,v(C(d))),q(b,gb)),u(b,ib),rd(a,b,c);else if(0<d.pendingTasks){d.rootSegmentID=a.nextSegmentId++;0<d.completedSegments.length&&a.partialBoundaries.push(d);var e=a.responseState;var g=e.nextSuspenseID++;e=x(e.boundaryPrefix+g.toString(16));d=d.id=e;jb(b,a.responseState,d);rd(a,b,c)}else if(d.byteSize>a.progressiveChunkSize)d.rootSegmentID=a.nextSegmentId++,
+a.completedBoundaries.push(d),jb(b,a.responseState,d.id),rd(a,b,c);else{u(b,ab);c=d.completedSegments;if(1!==c.length)throw Error(k(391));sd(a,b,c[0])}return u(b,eb)}function td(a,b,c){Fb(b,a.responseState,c.formatContext,c.id);sd(a,b,c);return Gb(b,c.formatContext)}
+function ud(a,b,c){for(var d=c.completedSegments,e=0;e<d.length;e++)vd(a,b,c,d[e]);d.length=0;a=a.responseState;d=c.id;c=c.rootSegmentID;q(b,a.startInlineScript);a.sentCompleteBoundaryFunction?q(b,Mb):(a.sentCompleteBoundaryFunction=!0,q(b,Lb));if(null===d)throw Error(k(395));c=v(c.toString(16));q(b,d);q(b,Nb);q(b,a.segmentPrefix);q(b,c);return u(b,Pb)}
+function vd(a,b,c,d){if(2===d.status)return!0;var e=d.id;if(-1===e){if(-1===(d.id=c.rootSegmentID))throw Error(k(392));return td(a,b,d)}td(a,b,d);a=a.responseState;q(b,a.startInlineScript);a.sentCompleteSegmentFunction?q(b,Ib):(a.sentCompleteSegmentFunction=!0,q(b,Hb));q(b,a.segmentPrefix);e=v(e.toString(16));q(b,e);q(b,Jb);q(b,a.placeholderPrefix);q(b,e);return u(b,Kb)}
+function qd(a,b){m=new Uint8Array(512);p=0;try{var c,d=a.completedRootSegment;if(null!==d)if(0===a.pendingRootTasks){var e=a.preamble;for(c=0;c<e.length;c++)q(b,e[c]);sd(a,b,d);a.completedRootSegment=null;var g=a.responseState.bootstrapChunks;for(d=0;d<g.length-1;d++)q(b,g[d]);d<g.length&&u(b,g[d])}else return;var f=a.clientRenderedBoundaries;for(c=0;c<f.length;c++){var h=f[c];g=b;var l=a.responseState,n=h.id,t=h.errorDigest,r=h.errorMessage,w=h.errorComponentStack;q(g,l.startInlineScript);l.sentClientRenderFunction?
+q(g,Rb):(l.sentClientRenderFunction=!0,q(g,Qb));if(null===n)throw Error(k(395));q(g,n);q(g,Sb);if(t||r||w)q(g,Ub),q(g,v(Wb(t||"")));if(r||w)q(g,Ub),q(g,v(Wb(r||"")));w&&(q(g,Ub),q(g,v(Wb(w))));if(!u(g,Tb)){a.destination=null;c++;f.splice(0,c);return}}f.splice(0,c);var H=a.completedBoundaries;for(c=0;c<H.length;c++)if(!ud(a,b,H[c])){a.destination=null;c++;H.splice(0,c);return}H.splice(0,c);ba(b);m=new Uint8Array(512);p=0;var I=a.partialBoundaries;for(c=0;c<I.length;c++){var z=I[c];a:{f=a;h=b;var ra=
+z.completedSegments;for(l=0;l<ra.length;l++)if(!vd(f,h,z,ra[l])){l++;ra.splice(0,l);var Ob=!1;break a}ra.splice(0,l);Ob=!0}if(!Ob){a.destination=null;c++;I.splice(0,c);return}}I.splice(0,c);var sa=a.completedBoundaries;for(c=0;c<sa.length;c++)if(!ud(a,b,sa[c])){a.destination=null;c++;sa.splice(0,c);return}sa.splice(0,c)}finally{if(0===a.allPendingTasks&&0===a.pingedTasks.length&&0===a.clientRenderedBoundaries.length&&0===a.completedBoundaries.length){a=a.postamble;for(c=0;c<a.length;c++)q(b,a[c]);
+ba(b);b.close()}else ba(b)}}function wd(a,b){try{var c=a.abortableTasks;if(0<c.size){var d=void 0===b?Error(k(432)):b;c.forEach(function(b){return pd(b,a,d)});c.clear()}null!==a.destination&&qd(a,a.destination)}catch(e){X(a,e),Y(a,e)}}
+exports.renderToReadableStream=function(a,b){return new Promise(function(c,d){var e,g,f=new Promise(function(a,b){g=a;e=b}),h=dd(a,Ca(b?b.identifierPrefix:void 0,b?b.nonce:void 0,b?b.bootstrapScriptContent:void 0,b?b.bootstrapScripts:void 0,b?b.bootstrapModules:void 0),Da(b?b.namespaceURI:void 0),b?b.progressiveChunkSize:void 0,b?b.onError:void 0,g,function(){var a=new ReadableStream({type:"bytes",pull:function(a){if(1===h.status)h.status=2,da(a,h.fatalError);else if(2!==h.status&&null===h.destination){h.destination=
+a;try{qd(h,a)}catch(w){X(h,w),Y(h,w)}}},cancel:function(){wd(h)}},{highWaterMark:0});a.allReady=f;c(a)},function(a){f.catch(function(){});d(a)},e);if(b&&b.signal){var l=b.signal;if(l.aborted)wd(h,l.reason);else{var n=function(){wd(h,l.reason);l.removeEventListener("abort",n)};l.addEventListener("abort",n)}}gd(h)})};exports.version="18.3.0-experimental-cb5084d1c-20220924";
+
+
+/***/ }),
+
+/***/ 533:
+/***/ ((module) => {
+
+module.exports = require("next/dist/compiled/react");
+
+/***/ })
+
+/******/ 	});
+/************************************************************************/
+/******/ 	// The module cache
+/******/ 	var __webpack_module_cache__ = {};
+/******/ 	
+/******/ 	// The require function
+/******/ 	function __nccwpck_require__(moduleId) {
+/******/ 		// Check if module is in cache
+/******/ 		var cachedModule = __webpack_module_cache__[moduleId];
+/******/ 		if (cachedModule !== undefined) {
+/******/ 			return cachedModule.exports;
+/******/ 		}
+/******/ 		// Create a new module (and put it into the cache)
+/******/ 		var module = __webpack_module_cache__[moduleId] = {
+/******/ 			// no module.id needed
+/******/ 			// no module.loaded needed
+/******/ 			exports: {}
+/******/ 		};
+/******/ 	
+/******/ 		// Execute the module function
+/******/ 		var threw = true;
+/******/ 		try {
+/******/ 			__webpack_modules__[moduleId](module, module.exports, __nccwpck_require__);
+/******/ 			threw = false;
+/******/ 		} finally {
+/******/ 			if(threw) delete __webpack_module_cache__[moduleId];
+/******/ 		}
+/******/ 	
+/******/ 		// Return the exports of the module
+/******/ 		return module.exports;
+/******/ 	}
+/******/ 	
+/************************************************************************/
+/******/ 	/* webpack/runtime/compat */
+/******/ 	
+/******/ 	if (typeof __nccwpck_require__ !== 'undefined') __nccwpck_require__.ab = __dirname + "/";
+/******/ 	
+/************************************************************************/
+var __webpack_exports__ = {};
+// This entry need to be wrapped in an IIFE because it need to be isolated against other modules in the chunk.
+(() => {
+var exports = __webpack_exports__;
+
+
+var l, s;
+if (process.env.NODE_ENV === 'production') {
+  l = __nccwpck_require__(536);
+  s = __nccwpck_require__(655);
+} else {
+  l = __nccwpck_require__(681);
+  s = __nccwpck_require__(297);
+}
+
+exports.version = l.version;
+exports.renderToString = l.renderToString;
+exports.renderToStaticMarkup = l.renderToStaticMarkup;
+exports.renderToNodeStream = l.renderToNodeStream;
+exports.renderToStaticNodeStream = l.renderToStaticNodeStream;
+exports.renderToReadableStream = s.renderToReadableStream;
+
+})();
+
+module.exports = __webpack_exports__;
+/******/ })()
+;

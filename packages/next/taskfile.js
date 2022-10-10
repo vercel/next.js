@@ -337,10 +337,13 @@ export async function ncc_react(task, opts) {
   )
   await task
     .source(join(reactDomDir, '*.js'))
-    .ncc({})
+    .ncc({ minify: false, externals })
     .target(`compiled/react-dom`)
 
-  await task.source(join(reactDir, '*.js')).ncc({}).target(`compiled/react`)
+  await task
+    .source(join(reactDir, '*.js'))
+    .ncc({ minify: false, externals })
+    .target(`compiled/react`)
 }
 
 // eslint-disable-next-line camelcase
@@ -1483,14 +1486,43 @@ export async function copy_react_server_dom_webpack(task, opts) {
     .source(require.resolve('react-server-dom-webpack'))
     .target('compiled/react-server-dom-webpack')
 
+  // await task
+  //   .source(
+  //     join(
+  //       dirname(require.resolve('react-server-dom-webpack')),
+  //       'cjs/react-server-dom-webpack.*'
+  //     )
+  //   )
+  //   // eslint-disable-next-line require-yield
+  //   .run({ every: true }, function* (file) {
+  //     const source = file.data.toString()
+  //     // We replace the module/chunk loading code with our own implementaion in Next.js.
+  //     file.data = source
+  //       .replace(/__webpack_chunk_load__/g, 'globalThis.__next_chunk_load__')
+  //       .replace(/__webpack_require__/g, 'globalThis.__next_require__')
+  //   })
+  //   .target('compiled/react-server-dom-webpack/cjs')
+
+  // await task
+  //   .source(
+  //     join(
+  //       dirname(require.resolve('react-server-dom-webpack')),
+  //       'cjs/react-server-dom-webpack-writer.browser.*'
+  //     )
+  //   )
+  //   .target('compiled/react-server-dom-webpack/cjs')
+
   await task
     .source(
       join(
-        dirname(require.resolve('react-server-dom-webpack')),
-        'cjs/react-server-dom-webpack.*'
+        relative(
+          __dirname,
+          dirname(require.resolve('react-server-dom-webpack'))
+        ),
+        'writer.browser.server.js'
       )
     )
-    // eslint-disable-next-line require-yield
+    .ncc({ minify: false, externals })
     .run({ every: true }, function* (file) {
       const source = file.data.toString()
       // We replace the module/chunk loading code with our own implementaion in Next.js.
@@ -1498,24 +1530,6 @@ export async function copy_react_server_dom_webpack(task, opts) {
         .replace(/__webpack_chunk_load__/g, 'globalThis.__next_chunk_load__')
         .replace(/__webpack_require__/g, 'globalThis.__next_require__')
     })
-    .target('compiled/react-server-dom-webpack/cjs')
-
-  await task
-    .source(
-      join(
-        dirname(require.resolve('react-server-dom-webpack')),
-        'cjs/react-server-dom-webpack-writer.browser.*'
-      )
-    )
-    .target('compiled/react-server-dom-webpack/cjs')
-
-  await task
-    .source(
-      join(
-        dirname(require.resolve('react-server-dom-webpack')),
-        'writer.browser.server.js'
-      )
-    )
     .target('compiled/react-server-dom-webpack')
 }
 
