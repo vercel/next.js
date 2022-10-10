@@ -1,5 +1,6 @@
 'client'
 
+import ReactDOM from 'react-dom'
 import React, { useEffect, useContext, useRef } from 'react'
 import { ScriptHTMLAttributes } from 'react'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
@@ -177,7 +178,8 @@ function Script(props: ScriptProps): JSX.Element | null {
   } = props
 
   // Context is available only during SSR
-  const { updateScripts, scripts, getIsSsr } = useContext(HeadManagerContext)
+  const { updateScripts, scripts, getIsSsr, appDir, nonce } =
+    useContext(HeadManagerContext)
 
   /**
    * - First mount:
@@ -251,6 +253,61 @@ function Script(props: ScriptProps): JSX.Element | null {
       LoadCache.add(id || src)
     } else if (getIsSsr && !getIsSsr()) {
       loadScript(props)
+    }
+  }
+
+  // For the app directory, we need React Float to preload these scripts.
+  if (appDir) {
+    // Before interactive scripts need to be loaded by Next.js' runtime instead
+    // of native <script> tags, becasue they no longer have `defer`.
+    if (strategy === 'beforeInteractive') {
+      if (!src) {
+        // For inlined scripts, we put the content in `children`.
+        if (restProps.dangerouslySetInnerHTML) {
+          restProps.children = restProps.dangerouslySetInnerHTML.__html
+          delete restProps.dangerouslySetInnerHTML
+        }
+
+        return (
+          <script
+            nonce={nonce}
+            dangerouslySetInnerHTML={{
+              __html: `(self.__next_s=self.__next_s||[]).push(${JSON.stringify([
+                0,
+                { ...restProps },
+              ])})`,
+            }}
+          />
+        )
+      }
+
+      // @ts-ignore
+      ReactDOM.preload(
+        src,
+        restProps.integrity
+          ? { as: 'script', integrity: restProps.integrity }
+          : { as: 'script' }
+      )
+      return (
+        <script
+          nonce={nonce}
+          dangerouslySetInnerHTML={{
+            __html: `(self.__next_s=self.__next_s||[]).push(${JSON.stringify([
+              src,
+            ])})`,
+          }}
+        />
+      )
+    } else if (strategy === 'afterInteractive') {
+      if (src) {
+        // @ts-ignore
+        ReactDOM.preload(
+          src,
+          restProps.integrity
+            ? { as: 'script', integrity: restProps.integrity }
+            : { as: 'script' }
+        )
+      }
     }
   }
 
