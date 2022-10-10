@@ -27,8 +27,8 @@ use crate::{
 };
 
 #[turbo_tasks::function]
-pub fn get_client_environment(browserslist_query: &str) -> Result<EnvironmentVc> {
-    Ok(EnvironmentVc::new(
+pub fn get_client_environment(browserslist_query: &str) -> EnvironmentVc {
+    EnvironmentVc::new(
         Value::new(ExecutionEnvironment::Browser(
             BrowserEnvironment {
                 dom: true,
@@ -39,7 +39,7 @@ pub fn get_client_environment(browserslist_query: &str) -> Result<EnvironmentVc>
             .into(),
         )),
         Value::new(EnvironmentIntention::Client),
-    ))
+    )
 }
 
 #[turbo_tasks::function]
@@ -80,7 +80,7 @@ pub async fn get_client_module_options_context(
 pub fn get_client_asset_context(
     project_root: FileSystemPathVc,
     browserslist_query: &str,
-) -> Result<AssetContextVc> {
+) -> AssetContextVc {
     let environment = get_client_environment(browserslist_query);
     let resolve_options_context = get_client_resolve_options_context();
     let module_options_context = get_client_module_options_context(project_root, environment);
@@ -93,7 +93,7 @@ pub fn get_client_asset_context(
     )
     .into();
 
-    Ok(context)
+    context
 }
 
 #[turbo_tasks::function]
@@ -144,9 +144,9 @@ pub fn get_resolved_client_runtime_entries(
     project_root: FileSystemPathVc,
     env: ProcessEnvVc,
     browserslist_query: &str,
-) -> Result<EcmascriptChunkPlaceablesVc> {
+) -> EcmascriptChunkPlaceablesVc {
     let context = get_client_asset_context(project_root, browserslist_query);
     let entries = get_client_runtime_entries(project_root, env);
 
-    Ok(entries.resolve_entries(context))
+    entries.resolve_entries(context)
 }
