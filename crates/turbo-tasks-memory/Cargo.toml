@@ -2,6 +2,7 @@
 name = "turbo-tasks-memory"
 version = "0.1.0"
 edition = "2021"
+autobenches = false
 
 [lib]
 bench = false
@@ -20,6 +21,7 @@ tokio = "1.11.0"
 turbo-tasks = { path = "../turbo-tasks" }
 
 [dev-dependencies]
+criterion = { version = "0.3.5", features = ["async_tokio"] }
 serde = "1.0.136"
 tokio = { version = "1.11.0", features = ["full"] }
 turbo-tasks-testing = { path = "../turbo-tasks-testing" }
@@ -35,3 +37,7 @@ log_activate_tasks = []
 log_connect_tasks = []
 report_expensive = []
 print_scope_updates = []
+
+[[bench]]
+name = "mod"
+harness = false

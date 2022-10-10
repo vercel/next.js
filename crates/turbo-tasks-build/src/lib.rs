@@ -31,6 +31,7 @@ pub fn generate_register() {
     let src_dir = crate_dir.join("src");
     let examples_dir = crate_dir.join("examples");
     let tests_dir = crate_dir.join("tests");
+    let benches_dir = crate_dir.join("benches");
     let cargo_lock_path = workspace_dir.join("Cargo.lock");
 
     // TODO: use (ask @sokra)
@@ -70,6 +71,17 @@ pub fn generate_register() {
                 if name.ends_with(".rs") {
                     entries.push((format!("register_test_{name}"), item.path()));
                 }
+            }
+        }
+    }
+
+    if benches_dir.exists() {
+        let bench_mod = benches_dir.join("mod.rs");
+        if bench_mod.is_file() {
+            let name = bench_mod.file_name().unwrap();
+            let name = name.to_string_lossy();
+            if name.ends_with(".rs") {
+                entries.push(("register_benches.rs".to_string(), bench_mod));
             }
         }
     }
