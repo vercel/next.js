@@ -1,7 +1,7 @@
 #![feature(future_join)]
 #![feature(min_specialization)]
 
-use std::{net::IpAddr, path::MAIN_SEPARATOR, sync::Arc};
+use std::{env::current_dir, net::IpAddr, path::MAIN_SEPARATOR, sync::Arc};
 
 use anyhow::{anyhow, Context, Result};
 use next_core::{create_server_rendered_source, create_web_entry_source, env::load_env};
@@ -109,7 +109,7 @@ impl NextDevServerBuilder {
         let log_detail = self.log_detail;
         let browserslist_query = self.browserslist_query;
         let log_options = LogOptions {
-            project_dir: project_dir.clone(),
+            current_dir: current_dir().unwrap(),
             show_all,
             log_detail,
             log_level: self.log_level,

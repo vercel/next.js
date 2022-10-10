@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{primitives::StringVc, ValueToString};
+use turbo_tasks::primitives::StringVc;
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::issue::{Issue, IssueVc};
 
@@ -13,11 +13,8 @@ pub struct RenderingIssue {
 #[turbo_tasks::value_impl]
 impl Issue for RenderingIssue {
     #[turbo_tasks::function]
-    async fn title(&self) -> Result<StringVc> {
-        Ok(StringVc::cell(format!(
-            "error during rendering of {}",
-            self.context.to_string().await?,
-        )))
+    fn title(&self) -> StringVc {
+        StringVc::cell("Error during SSR Rendering".to_string())
     }
 
     #[turbo_tasks::function]
@@ -35,6 +32,10 @@ impl Issue for RenderingIssue {
         self.message
     }
 
-    // TODO add sub_issue for logging data
-    // TODO parse stack trace
+    #[turbo_tasks::function]
+    fn detail(&self) -> StringVc {
+        self.logging
+    }
+
+    // TODO parse stack trace into source location
 }
