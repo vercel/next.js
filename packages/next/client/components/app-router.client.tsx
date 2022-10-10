@@ -92,20 +92,22 @@ let initialParallelRoutes: CacheNode['parallelRoutes'] =
 
 const prefetched = new Set<string>()
 
-/**
- * The global router that wraps the application components.
- */
-export default function AppRouter({
-  initialTree,
-  initialCanonicalUrl,
-  children,
-  assetPrefix,
-}: {
+type AppRouterProps = {
   initialTree: FlightRouterState
   initialCanonicalUrl: string
   children: ReactNode
   assetPrefix: string
-}) {
+}
+
+/**
+ * The global router that wraps the application components.
+ */
+function Router({
+  initialTree,
+  initialCanonicalUrl,
+  children,
+  assetPrefix,
+}: AppRouterProps) {
   const initialState = useMemo(() => {
     return {
       tree: initialTree,
@@ -354,19 +356,25 @@ export default function AppRouter({
                 url: canonicalUrl,
               }}
             >
-              <ErrorBoundary errorComponent={GlobalErrorComponent}>
-                {HotReloader ? (
-                  <HotReloader assetPrefix={assetPrefix}>
-                    {cache.subTreeData}
-                  </HotReloader>
-                ) : (
-                  cache.subTreeData
-                )}
-              </ErrorBoundary>
+              {HotReloader ? (
+                <HotReloader assetPrefix={assetPrefix}>
+                  {cache.subTreeData}
+                </HotReloader>
+              ) : (
+                cache.subTreeData
+              )}
             </LayoutRouterContext.Provider>
           </AppRouterContext.Provider>
         </GlobalLayoutRouterContext.Provider>
       </SearchParamsContext.Provider>
     </PathnameContext.Provider>
+  )
+}
+
+export default function AppRouter(props: AppRouterProps) {
+  return (
+    <ErrorBoundary errorComponent={GlobalErrorComponent}>
+      <Router {...props} />
+    </ErrorBoundary>
   )
 }
