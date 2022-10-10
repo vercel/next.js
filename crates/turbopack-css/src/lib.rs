@@ -29,6 +29,11 @@ use turbopack_core::{
     reference::{AssetReference, AssetReferencesVc},
     resolve::origin::{ResolveOrigin, ResolveOriginVc},
 };
+use turbopack_ecmascript::chunk::{
+    EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemContentVc,
+    EcmascriptChunkItemVc, EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc, EcmascriptExports,
+    EcmascriptExportsVc,
+};
 
 use crate::{
     chunk::{
@@ -256,9 +261,85 @@ impl CssChunkItem for ModuleChunkItem {
     }
 }
 
+/// TODO(alexkirsz) This is a temporary shim to allow CSS modules to be imported
+/// from within Next.js code without throwing an error. The goal is to surface
+/// other errors to fix while we are blocked on CSS module support.
+#[turbo_tasks::value]
+struct CssModuleShimChunkItem {
+    context: ChunkingContextVc,
+    inner: CssModuleAssetVc,
+}
+
+#[turbo_tasks::value_impl]
+impl EcmascriptChunkPlaceable for CssModuleAsset {
+    #[turbo_tasks::function]
+    fn as_chunk_item(
+        self_vc: CssModuleAssetVc,
+        context: ChunkingContextVc,
+    ) -> EcmascriptChunkItemVc {
+        CssModuleShimChunkItem {
+            context,
+            inner: self_vc,
+        }
+        .cell()
+        .into()
+    }
+
+    #[turbo_tasks::function]
+    fn get_exports(&self) -> EcmascriptExportsVc {
+        EcmascriptExports::None.cell()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ValueToString for CssModuleShimChunkItem {
+    #[turbo_tasks::function]
+    fn to_string(&self) -> StringVc {
+        StringVc::cell("temp".to_string())
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ChunkItem for CssModuleShimChunkItem {
+    #[turbo_tasks::function]
+    fn references(&self) -> AssetReferencesVc {
+        AssetReferencesVc::empty()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl EcmascriptChunkItem for CssModuleShimChunkItem {
+    #[turbo_tasks::function]
+    fn chunking_context(&self) -> ChunkingContextVc {
+        self.context
+    }
+
+    #[turbo_tasks::function]
+    async fn content(&self) -> Result<EcmascriptChunkItemContentVc> {
+        Ok(EcmascriptChunkItemContent {
+            inner_code: r#"const proxy = new Proxy(
+    {},
+    {
+        get(target, prop, receiver) {
+            return `css_modules_unimplemented_{prop}`;
+        },
+    }
+);
+__turbopack_export_value__({}, proxy);
+"#
+            .to_string(),
+            // TODO: We generate a minimal map for runtime code so that the filename is
+            // displayed in dev tools.
+            ..Default::default()
+        }
+        .cell())
+    }
+}
+
 pub fn register() {
     turbo_tasks::register();
     turbo_tasks_fs::register();
     turbopack_core::register();
+    turbopack_ecmascript::register();
     include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }
