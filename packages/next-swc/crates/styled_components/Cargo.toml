@@ -21,7 +21,7 @@ swc_core = { features = [
   "ecma_ast",
   "ecma_utils",
   "ecma_visit"
-], version = "0.32.7" }
+], version = "0.32.8" }
 
 [dev-dependencies]
 serde_json = "1"
@@ -30,4 +30,4 @@ swc_core = { features = [
   "ecma_parser",
   "ecma_transforms",
   "testing_transform"
-], version = "0.32.7" }
+], version = "0.32.8" }
