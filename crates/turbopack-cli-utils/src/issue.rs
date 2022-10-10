@@ -3,6 +3,7 @@ use std::{
     cmp::{min, Ordering},
     collections::HashMap,
     fmt::Write as _,
+    path::PathBuf,
     str::FromStr,
 };
 
@@ -10,7 +11,7 @@ use anyhow::{anyhow, Result};
 use crossterm::style::{StyledContent, Stylize};
 use owo_colors::{OwoColorize as _, Style};
 use turbo_tasks::{primitives::BoolVc, ValueToString};
-use turbo_tasks_fs::FileLinesContent;
+use turbo_tasks_fs::{DiskFileSystemVc, FileLinesContent, FileSystemPathVc};
 use turbopack_core::issue::{
     CapturedIssuesVc, IssueProcessingPathItem, IssueSeverity, IssueSource,
     OptionIssueProcessingPathItemsVc,
@@ -194,7 +195,7 @@ const ORDERED_GROUPS: &[IssueSeverity] = &[
 #[turbo_tasks::value(shared)]
 #[derive(Debug, Clone)]
 pub struct LogOptions {
-    pub project_dir: String,
+    pub current_dir: PathBuf,
     pub show_all: bool,
     pub log_detail: bool,
     pub log_level: IssueSeverity,
@@ -207,16 +208,18 @@ pub async fn group_and_display_issues(
 ) -> Result<BoolVc> {
     let issues = issues.await?;
     let &LogOptions {
-        project_dir: ref context,
+        ref current_dir,
         show_all,
         log_detail,
         log_level,
+        ..
     } = &*options.await?;
     let mut grouped_issues: GroupedIssues = HashMap::new();
     let mut has_fatal = false;
+
     for (issue, path) in issues.iter_with_shortest_path() {
         let severity = &*issue.severity().await?;
-        let context_name = issue.context().to_string().await?;
+        let context_path = make_relative_to_cwd(issue.context(), current_dir).await?;
         let category = &*issue.category().await?;
         let title = &*issue.title().await?;
         has_fatal = severity == &IssueSeverity::Fatal;
@@ -227,32 +230,35 @@ pub async fn group_and_display_issues(
             .entry(category.clone())
             .or_insert_with(Default::default);
         let issues = category_map
-            .entry(context_name.clone())
+            .entry(context_path.clone())
             .or_insert_with(Default::default);
+
         let mut styled_issue = if let Some(source) = &*issue.source().await? {
             let source = &*source.await?;
             let mut styled_issue = format!(
                 "{}:{}:{}  {}",
-                context_name
-                    .replace("[context directory]", context)
-                    .replace("/./", "/"),
+                context_path,
                 source.start.line + 1,
                 source.start.column,
                 title.bold()
             );
-            if log_detail {
-                styled_issue.push('\n');
-                format_source_content(source, &mut styled_issue).await?;
-            }
+            styled_issue.push('\n');
+            format_source_content(source, &mut styled_issue).await?;
             styled_issue
         } else {
             format!("{}", title.bold())
         };
+
+        let description = issue.description().await?;
+        if !description.is_empty() {
+            writeln!(&mut styled_issue, "\n{description}")?;
+        }
+
         if log_detail {
             styled_issue.push('\n');
-            let description = issue.description().await?;
-            if !description.is_empty() {
-                for line in description.split('\n') {
+            let detail = issue.detail().await?;
+            if !detail.is_empty() {
+                for line in detail.split('\n') {
                     writeln!(&mut styled_issue, "| {line}")?;
                 }
             }
@@ -348,6 +354,20 @@ pub async fn group_and_display_issues(
         }
     }
     Ok(BoolVc::cell(has_fatal))
+}
+
+async fn make_relative_to_cwd(path: FileSystemPathVc, cwd: &PathBuf) -> Result<String> {
+    if let Some(fs) = DiskFileSystemVc::resolve_from(path.fs()).await? {
+        let sys_path = fs.await?.to_sys_path(path).await?;
+        let relative = sys_path
+            .strip_prefix(cwd)
+            .unwrap_or(&sys_path)
+            .to_string_lossy()
+            .into_owned();
+        Ok(relative)
+    } else {
+        Ok(path.to_string().await?.clone_value())
+    }
 }
 
 fn show_all_message(label: &str, size: usize) -> StyledContent<String> {

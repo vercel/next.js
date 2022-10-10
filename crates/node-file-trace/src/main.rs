@@ -390,18 +390,14 @@ async fn run<B: Backend + 'static, F: Future<Output = ()>>(
         let args = args.clone();
         Box::pin(async move {
             let common_args = args.common();
-            let context = common_args
-                .context_directory
-                .clone()
-                .unwrap_or_else(|| dir.to_string_lossy().to_string());
-            let output = main_operation(TransientValue::new(dir), args.clone().into());
+            let output = main_operation(TransientValue::new(dir.clone()), args.clone().into());
 
             let issues = IssueVc::peek_issues_with_path(output).await?;
             group_and_display_issues(
                 LogOptions {
+                    current_dir: dir,
                     show_all: common_args.show_all,
                     log_detail: common_args.log_detail,
-                    project_dir: context,
                     log_level: common_args
                         .log_level
                         .map_or_else(|| IssueSeverity::Error, |l| l.0),

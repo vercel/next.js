@@ -10,6 +10,7 @@ pub struct AnalyzeIssue {
     pub path: FileSystemPathVc,
     pub title: StringVc,
     pub message: StringVc,
+    pub category: StringVc,
     pub code: Option<String>,
     pub source: Option<IssueSourceVc>,
 }
@@ -32,7 +33,7 @@ impl Issue for AnalyzeIssue {
 
     #[turbo_tasks::function]
     fn category(&self) -> StringVc {
-        StringVc::cell("analyze".to_string())
+        self.category
     }
 
     #[turbo_tasks::function]

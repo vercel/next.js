@@ -10,7 +10,6 @@ pub struct CodeGenerationIssue {
     pub path: FileSystemPathVc,
     pub title: StringVc,
     pub message: StringVc,
-    pub code: Option<String>,
 }
 
 #[turbo_tasks::value_impl]
@@ -21,12 +20,8 @@ impl Issue for CodeGenerationIssue {
     }
 
     #[turbo_tasks::function]
-    async fn title(&self) -> Result<StringVc> {
-        Ok(if let Some(code) = self.code.as_ref() {
-            StringVc::cell(format!("{code} {}", self.title.await?))
-        } else {
-            self.title
-        })
+    fn title(&self) -> StringVc {
+        self.title
     }
 
     #[turbo_tasks::function]

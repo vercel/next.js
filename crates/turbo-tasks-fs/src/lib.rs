@@ -244,6 +244,11 @@ impl DiskFileSystem {
             // thread will detect the stop because the channel is disconnected
         }
     }
+
+    pub async fn to_sys_path(&self, fs_path: FileSystemPathVc) -> Result<PathBuf> {
+        let path = Path::new(&self.root).join(&*unix_to_sys(&fs_path.await?.path));
+        Ok(path)
+    }
 }
 
 pub fn path_to_key(path: impl AsRef<Path>) -> String {
@@ -279,7 +284,7 @@ impl fmt::Debug for DiskFileSystem {
 impl FileSystem for DiskFileSystem {
     #[turbo_tasks::function]
     async fn read(&self, fs_path: FileSystemPathVc) -> Result<FileContentVc> {
-        let full_path = Path::new(&self.root).join(&*unix_to_sys(&fs_path.await?.path));
+        let full_path = self.to_sys_path(fs_path).await?;
         self.register_invalidator(&full_path);
 
         let content = match retry_future(|| File::from_path(full_path.clone())).await {
@@ -295,8 +300,8 @@ impl FileSystem for DiskFileSystem {
 
     #[turbo_tasks::function]
     async fn read_dir(&self, fs_path: FileSystemPathVc) -> Result<DirectoryContentVc> {
+        let full_path = self.to_sys_path(fs_path).await?;
         let fs_path = fs_path.await?;
-        let full_path = Path::new(&self.root).join(&*unix_to_sys(&fs_path.path));
         self.register_invalidator(&full_path);
 
         // we use the sync std function here as it's a lot faster (600%) in
@@ -349,8 +354,7 @@ impl FileSystem for DiskFileSystem {
 
     #[turbo_tasks::function]
     async fn read_link(&self, fs_path: FileSystemPathVc) -> Result<LinkContentVc> {
-        let path = fs_path.await?;
-        let full_path = Path::new(&self.root).join(&*unix_to_sys(&path.path));
+        let full_path = self.to_sys_path(fs_path).await?;
         self.register_invalidator(&full_path);
 
         let link_path = match retry_future(|| fs::read_link(&full_path)).await {
@@ -442,7 +446,7 @@ impl FileSystem for DiskFileSystem {
         fs_path: FileSystemPathVc,
         content: FileContentVc,
     ) -> Result<CompletionVc> {
-        let full_path = Path::new(&self.root).join(&*unix_to_sys(&fs_path.await?.path));
+        let full_path = self.to_sys_path(fs_path).await?;
         let content = content.await?;
         let old_content = fs_path
             .read()
@@ -508,7 +512,7 @@ impl FileSystem for DiskFileSystem {
         fs_path: FileSystemPathVc,
         target: LinkContentVc,
     ) -> Result<CompletionVc> {
-        let full_path = Path::new(&self.root).join(&*unix_to_sys(&fs_path.await?.path));
+        let full_path = self.to_sys_path(fs_path).await?;
         let old_content = fs_path
             .read_link()
             .await
@@ -580,7 +584,7 @@ impl FileSystem for DiskFileSystem {
 
     #[turbo_tasks::function]
     async fn metadata(&self, fs_path: FileSystemPathVc) -> Result<FileMetaVc> {
-        let full_path = Path::new(&self.root).join(&*unix_to_sys(&fs_path.await?.path));
+        let full_path = self.to_sys_path(fs_path).await?;
         self.register_invalidator(&full_path);
 
         let meta = retry_future(|| fs::metadata(full_path.clone()))
@@ -1000,7 +1004,7 @@ impl ValueToString for FileSystemPath {
         Ok(StringVc::cell(format!(
             "[{}]/{}",
             self.fs.to_string().await?,
-            self.path.replace('\\', "/")
+            self.path
         )))
     }
 }

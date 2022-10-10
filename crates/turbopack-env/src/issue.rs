@@ -1,7 +1,7 @@
 use anyhow::Result;
 use turbo_tasks::primitives::StringVc;
 use turbo_tasks_fs::FileSystemPathVc;
-use turbopack_core::issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc};
+use turbopack_core::issue::{Issue, IssueVc};
 
 /// An issue that occurred while resolving the parsing or evaluating the .env.
 #[turbo_tasks::value(shared)]
@@ -12,11 +12,6 @@ pub struct ProcessEnvIssue {
 
 #[turbo_tasks::value_impl]
 impl Issue for ProcessEnvIssue {
-    #[turbo_tasks::function]
-    fn severity(&self) -> IssueSeverityVc {
-        IssueSeverity::Error.into()
-    }
-
     #[turbo_tasks::function]
     fn title(&self) -> StringVc {
         StringVc::cell("Error loading dotenv file".to_string())

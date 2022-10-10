@@ -8,10 +8,7 @@ use swc_core::common::{
 use turbo_tasks::primitives::StringVc;
 use turbopack_core::{
     asset::AssetVc,
-    issue::{
-        analyze::{AnalyzeIssue, AnalyzeIssueVc},
-        IssueSeverity, IssueSourceVc,
-    },
+    issue::{analyze::AnalyzeIssue, IssueSeverity, IssueSourceVc},
 };
 
 pub struct IssueEmitter {
@@ -52,7 +49,7 @@ impl Emitter for IssueEmitter {
         });
         // TODO add other primary and secondary spans with labels as sub_issues
 
-        let issue: AnalyzeIssueVc = AnalyzeIssue {
+        let issue = AnalyzeIssue {
             severity: match level {
                 Level::Bug => IssueSeverity::Bug,
                 Level::Fatal | Level::PhaseFatal => IssueSeverity::Fatal,
@@ -63,14 +60,15 @@ impl Emitter for IssueEmitter {
                 Level::Cancelled => IssueSeverity::Error,
                 Level::FailureNote => IssueSeverity::Note,
             }
-            .into(),
+            .cell(),
+            category: StringVc::cell("parse".to_string()),
             path: self.source.path(),
             title: StringVc::cell(title),
             message: StringVc::cell(message),
             code,
             source,
         }
-        .into();
+        .cell();
         issue.as_issue().emit();
     }
 }

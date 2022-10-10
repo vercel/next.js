@@ -17,19 +17,11 @@ pub struct ResolvingIssue {
 #[turbo_tasks::value_impl]
 impl Issue for ResolvingIssue {
     #[turbo_tasks::function]
-    async fn title(&self) -> Result<StringVc> {
-        if self.error_message.is_some() {
-            Ok(StringVc::cell(format!(
-                "error during resolving {request_type}",
-                request_type = self.request_type,
-            )))
-        } else {
-            Ok(StringVc::cell(format!(
-                "unable to resolve {request_type} {module_name}",
-                request_type = self.request_type,
-                module_name = self.request.to_string().await?
-            )))
-        }
+    fn title(&self) -> StringVc {
+        StringVc::cell(format!(
+            "Error resolving {request_type}",
+            request_type = self.request_type,
+        ))
     }
 
     #[turbo_tasks::function]
@@ -44,6 +36,14 @@ impl Issue for ResolvingIssue {
 
     #[turbo_tasks::function]
     async fn description(&self) -> Result<StringVc> {
+        Ok(StringVc::cell(format!(
+            "unable to resolve {module_name}",
+            module_name = self.request.to_string().await?
+        )))
+    }
+
+    #[turbo_tasks::function]
+    async fn detail(&self) -> Result<StringVc> {
         if let Some(error_message) = &self.error_message {
             Ok(StringVc::cell(format!(
                 "An error happened during resolving.

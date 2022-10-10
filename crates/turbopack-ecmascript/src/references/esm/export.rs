@@ -63,6 +63,7 @@ async fn expand_star_exports(root_asset: EcmascriptChunkPlaceableVc) -> Result<S
             }
             EcmascriptExports::None => AnalyzeIssue {
                 code: None,
+                category: StringVc::cell("analyze".to_string()),
                 message: StringVc::cell(format!(
                     "export * used with module {} which has no exports\nTypescript only: Did you \
                      want to import only types with `export type * from \"...\"`?",
@@ -78,6 +79,7 @@ async fn expand_star_exports(root_asset: EcmascriptChunkPlaceableVc) -> Result<S
             .emit(),
             EcmascriptExports::Value => AnalyzeIssue {
                 code: None,
+                category: StringVc::cell("analyze".to_string()),
                 message: StringVc::cell(format!(
                     "export * used with module {} which only has a default export (default export \
                      is not exported with export *)\nDid you want to use `export {{ default }} \
@@ -94,6 +96,7 @@ async fn expand_star_exports(root_asset: EcmascriptChunkPlaceableVc) -> Result<S
             .emit(),
             EcmascriptExports::CommonJs => AnalyzeIssue {
                 code: None,
+                category: StringVc::cell("analyze".to_string()),
                 message: StringVc::cell(format!(
                     "export * used with module {} which is a CommonJS module with exports only \
                      available at runtime\nList all export names manually (`export {{ a, b, c }} \

@@ -40,9 +40,8 @@ pub async fn assert_can_resolve_react_refresh(
         _ => {
             ReactRefreshResolvingIssue {
                 path,
-                description: StringVc::cell(format!(
-                    "could not resolve the `@next/react-refresh-utils/dist/runtime` \
-                     module\nresolve options: {:?}",
+                detail: StringVc::cell(format!(
+                    "resolve options: {:?}",
                     resolve_options.dbg().await?
                 )),
             }
@@ -86,7 +85,7 @@ pub async fn resolve_react_refresh(origin: ResolveOriginVc) -> Result<Ecmascript
 #[turbo_tasks::value(shared)]
 pub struct ReactRefreshResolvingIssue {
     path: FileSystemPathVc,
-    description: StringVc,
+    detail: StringVc,
 }
 
 #[turbo_tasks::value_impl]
@@ -97,13 +96,8 @@ impl Issue for ReactRefreshResolvingIssue {
     }
 
     #[turbo_tasks::function]
-    async fn title(&self) -> Result<StringVc> {
-        Ok(StringVc::cell(
-            "An issue occurred while resolving the React Refresh runtime. React Refresh will be \
-             disabled.\nTo enable React Refresh, install the `react-refresh` and \
-             `@next/react-refresh-utils` modules."
-                .to_string(),
-        ))
+    fn title(&self) -> StringVc {
+        StringVc::cell("Could not resolve React Refresh runtime".to_string())
     }
 
     #[turbo_tasks::function]
@@ -118,6 +112,15 @@ impl Issue for ReactRefreshResolvingIssue {
 
     #[turbo_tasks::function]
     fn description(&self) -> StringVc {
-        self.description
+        StringVc::cell(
+            "React Refresh will be disabled.\nTo enable React Refresh, install the \
+             `react-refresh` and `@next/react-refresh-utils` modules."
+                .to_string(),
+        )
+    }
+
+    #[turbo_tasks::function]
+    fn detail(&self) -> StringVc {
+        self.detail
     }
 }

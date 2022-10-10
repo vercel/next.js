@@ -136,7 +136,6 @@ impl PatternMappingVc {
                 // TODO implement mapping
                 CodeGenerationIssue {
                     severity: IssueSeverity::Bug.into(),
-                    code: None,
                     title: StringVc::cell(
                         "pattern mapping is not implemented for this result".to_string(),
                     ),
@@ -173,7 +172,6 @@ impl PatternMappingVc {
         }
         CodeGenerationIssue {
             severity: IssueSeverity::Bug.into(),
-            code: None,
             title: StringVc::cell("non-ecmascript placeable asset".to_string()),
             message: StringVc::cell(format!(
                 "asset {} is not placeable in ESM chunks, so it doesn't have a module id",
