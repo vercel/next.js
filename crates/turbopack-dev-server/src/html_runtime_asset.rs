@@ -40,7 +40,7 @@ impl Asset for HtmlRuntimeAsset {
 
     #[turbo_tasks::function]
     fn content(&self) -> AssetContentVc {
-        embed_file!("html-runtime.js").into()
+        embed_file!("src/html-runtime.js").into()
     }
 
     #[turbo_tasks::function]

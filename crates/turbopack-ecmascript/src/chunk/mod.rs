@@ -614,7 +614,7 @@ impl EcmascriptChunkVc {
                         EcmascriptChunkContentEvaluate {
                             chunks_ids: StringsVc::cell(chunks_ids),
                             entry_modules_ids: ModuleIdsVc::cell(entry_modules_ids),
-                            runtime_code: embed_file!("runtime.js"),
+                            runtime_code: embed_file!("src/chunk/runtime.js"),
                         },
                     )),
                     runtime_entries,
