@@ -1521,7 +1521,7 @@ describe('app dir', () => {
         }
       })
 
-      it('should fallback default error boundary when no error component specified', async () => {
+      it('should use default error boundary for prod and overlay for dev when no error component specified', async () => {
         const browser = await webdriver(
           next.url,
           '/error/global-error-boundary'
