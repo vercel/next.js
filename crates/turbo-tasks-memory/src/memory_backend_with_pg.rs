@@ -1424,7 +1424,7 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         _trait_id: TraitTypeId,
         _reader: TaskId,
         _turbo_tasks: &dyn TurboTasksBackendApi,
-    ) -> Result<Result<Vec<RawVc>, EventListener>> {
+    ) -> Result<Result<HashSet<RawVc>, EventListener>> {
         todo!()
     }
 

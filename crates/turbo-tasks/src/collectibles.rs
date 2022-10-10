@@ -11,7 +11,7 @@ pub async fn read_collectibles(raw: RawVc, trait_type: usize) -> Result<RawVcSet
     if let RawVc::TaskOutput(task) = raw {
         let tt = crate::turbo_tasks();
         let set = read_task_collectibles(&*tt, task, TraitTypeId::from(trait_type)).await?;
-        Ok(RawVcSetVc::cell(set.into_iter().collect()))
+        Ok(RawVcSetVc::cell(set))
     } else {
         Err(anyhow!(
             "peek/task_collectibles was called on Vc that points to a cell (instead of a Vc that \

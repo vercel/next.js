@@ -349,7 +349,7 @@ impl Backend for MemoryBackend {
         trait_id: TraitTypeId,
         reader: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi,
-    ) -> Result<Result<Vec<RawVc>, EventListener>> {
+    ) -> Result<Result<HashSet<RawVc>, EventListener>> {
         self.with_task(id, |task| {
             task.try_read_task_collectibles(reader, trait_id, self, turbo_tasks)
         })

@@ -167,7 +167,7 @@ impl TurboTasksApi for VcStorage {
         &self,
         _task: TaskId,
         _trait_id: TraitTypeId,
-    ) -> Result<Result<Vec<RawVc>, EventListener>> {
+    ) -> Result<Result<HashSet<RawVc>, EventListener>> {
         unimplemented!()
     }
 

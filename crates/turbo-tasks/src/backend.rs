@@ -1,7 +1,7 @@
 use std::{
     any::Any,
     borrow::Cow,
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fmt::{Debug, Display},
     future::Future,
     pin::Pin,
@@ -284,7 +284,7 @@ pub trait Backend: Sync + Send {
         trait_id: TraitTypeId,
         reader: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi,
-    ) -> Result<Result<Vec<RawVc>, EventListener>>;
+    ) -> Result<Result<HashSet<RawVc>, EventListener>>;
 
     fn emit_collectible(
         &self,

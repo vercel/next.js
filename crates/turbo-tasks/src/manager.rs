@@ -93,7 +93,7 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         &self,
         task: TaskId,
         trait_id: TraitTypeId,
-    ) -> Result<Result<Vec<RawVc>, EventListener>>;
+    ) -> Result<Result<HashSet<RawVc>, EventListener>>;
 
     fn emit_collectible(&self, trait_type: TraitTypeId, collectible: RawVc);
     fn unemit_collectible(&self, trait_type: TraitTypeId, collectible: RawVc);
@@ -697,7 +697,7 @@ impl<B: Backend> TurboTasksApi for TurboTasks<B> {
         &self,
         task: TaskId,
         trait_id: TraitTypeId,
-    ) -> Result<Result<Vec<RawVc>, EventListener>> {
+    ) -> Result<Result<HashSet<RawVc>, EventListener>> {
         self.backend.try_read_task_collectibles(
             task,
             trait_id,
@@ -1041,7 +1041,7 @@ pub(crate) async fn read_task_collectibles(
     this: &dyn TurboTasksApi,
     id: TaskId,
     trait_id: TraitTypeId,
-) -> Result<Vec<RawVc>> {
+) -> Result<HashSet<RawVc>> {
     loop {
         match this.try_read_task_collectibles(id, trait_id)? {
             Ok(result) => return Ok(result),

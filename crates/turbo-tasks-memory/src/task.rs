@@ -214,7 +214,7 @@ use crate::{
     cell::Cell,
     memory_backend::Job,
     output::Output,
-    scope::{ScopeChildChangeEffect, ScopeCollectibleChangeEffect, TaskScopeId, TaskScopes},
+    scope::{ScopeChildChangeEffect, TaskScopeId, TaskScopes},
     stats, MemoryBackend,
 };
 
@@ -433,7 +433,7 @@ impl Task {
                     let unemitted = take(&mut state.unemitted_collectibles);
                     state.scopes.iter().for_each(|id| {
                         backend.with_scope(id, |scope| {
-                            let mut effects = Vec::new();
+                            let mut tasks = HashSet::new();
                             {
                                 let mut state = scope.state.lock();
                                 emitted
@@ -441,18 +441,16 @@ impl Task {
                                     .filter_map(|(trait_id, collectible)| {
                                         state.remove_collectible(*trait_id, *collectible)
                                     })
-                                    .for_each(|e| effects.push(e));
+                                    .for_each(|e| tasks.extend(e.notify));
 
                                 unemitted
                                     .iter()
                                     .filter_map(|(trait_id, collectible)| {
                                         state.add_collectible(*trait_id, *collectible)
                                     })
-                                    .for_each(|e| effects.push(e));
+                                    .for_each(|e| tasks.extend(e.notify));
                             };
-                            for ScopeCollectibleChangeEffect { notify } in effects {
-                                turbo_tasks.schedule_notify_tasks_set(&notify);
-                            }
+                            turbo_tasks.schedule_notify_tasks_set(&tasks);
                         })
                     })
                 }
@@ -710,7 +708,7 @@ impl Task {
             }
 
             if !state.emitted_collectibles.is_empty() || state.unemitted_collectibles.is_empty() {
-                let mut effects = Vec::new();
+                let mut tasks = HashSet::new();
                 {
                     let mut scope_state = scope.state.lock();
                     state
@@ -719,18 +717,16 @@ impl Task {
                         .filter_map(|(trait_id, collectible)| {
                             scope_state.add_collectible(*trait_id, *collectible)
                         })
-                        .for_each(|e| effects.push(e));
+                        .for_each(|e| tasks.extend(e.notify));
                     state
                         .unemitted_collectibles
                         .iter()
                         .filter_map(|(trait_id, collectible)| {
                             scope_state.remove_collectible(*trait_id, *collectible)
                         })
-                        .for_each(|e| effects.push(e));
+                        .for_each(|e| tasks.extend(e.notify));
                 };
-                for ScopeCollectibleChangeEffect { notify } in effects {
-                    turbo_tasks.schedule_notify_tasks_set(&notify);
-                }
+                turbo_tasks.schedule_notify_tasks_set(&tasks);
             }
         });
         schedule_self
@@ -754,7 +750,7 @@ impl Task {
             scope.decrement_tasks();
 
             if !state.emitted_collectibles.is_empty() || state.unemitted_collectibles.is_empty() {
-                let mut effects = Vec::new();
+                let mut tasks = HashSet::new();
                 {
                     let mut scope_state = scope.state.lock();
                     state
@@ -763,18 +759,16 @@ impl Task {
                         .filter_map(|(trait_id, collectible)| {
                             scope_state.remove_collectible(*trait_id, *collectible)
                         })
-                        .for_each(|e| effects.push(e));
+                        .for_each(|e| tasks.extend(e.notify));
                     state
                         .unemitted_collectibles
                         .iter()
                         .filter_map(|(trait_id, collectible)| {
                             scope_state.add_collectible(*trait_id, *collectible)
                         })
-                        .for_each(|e| effects.push(e));
+                        .for_each(|e| tasks.extend(e.notify));
                 };
-                for ScopeCollectibleChangeEffect { notify } in effects {
-                    turbo_tasks.schedule_notify_tasks_set(&notify);
-                }
+                turbo_tasks.schedule_notify_tasks_set(&tasks);
             }
         });
     }
@@ -1302,7 +1296,7 @@ impl Task {
         trait_id: TraitTypeId,
         backend: &MemoryBackend,
         turbo_tasks: &dyn TurboTasksBackendApi,
-    ) -> Result<Result<Vec<RawVc>, EventListener>> {
+    ) -> Result<Result<HashSet<RawVc>, EventListener>> {
         // TODO technically we don't need a write lock here
         let mut state = self.state.write();
         state = self.ensure_root_scoped(state, backend, turbo_tasks);
@@ -1334,18 +1328,19 @@ impl Task {
     ) {
         let mut state = self.state.write();
         if state.emitted_collectibles.insert((trait_type, collectible)) {
-            state.scopes.iter().for_each(|id| {
-                backend.with_scope(id, |scope| {
-                    let mut state = scope.state.lock();
-                    if let Some(ScopeCollectibleChangeEffect { notify }) =
+            let mut tasks = HashSet::new();
+            state
+                .scopes
+                .iter()
+                .flat_map(|id| {
+                    backend.with_scope(id, |scope| {
+                        let mut state = scope.state.lock();
                         state.add_collectible(trait_type, collectible)
-                    {
-                        drop(state);
-
-                        turbo_tasks.schedule_notify_tasks_set(&notify);
-                    }
+                    })
                 })
-            })
+                .for_each(|e| tasks.extend(e.notify));
+            drop(state);
+            turbo_tasks.schedule_notify_tasks_set(&tasks);
         }
     }
 
@@ -1361,18 +1356,19 @@ impl Task {
             .unemitted_collectibles
             .insert((trait_type, collectible))
         {
-            state.scopes.iter().for_each(|id| {
-                backend.with_scope(id, |scope| {
-                    let mut state = scope.state.lock();
-                    if let Some(ScopeCollectibleChangeEffect { notify }) =
+            let mut tasks = HashSet::new();
+            state
+                .scopes
+                .iter()
+                .flat_map(|id| {
+                    backend.with_scope(id, |scope| {
+                        let mut state = scope.state.lock();
                         state.remove_collectible(trait_type, collectible)
-                    {
-                        drop(state);
-
-                        turbo_tasks.schedule_notify_tasks_set(&notify);
-                    }
+                    })
                 })
-            })
+                .for_each(|e| tasks.extend(e.notify));
+            drop(state);
+            turbo_tasks.schedule_notify_tasks_set(&tasks);
         }
     }
 

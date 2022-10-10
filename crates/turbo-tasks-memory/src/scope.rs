@@ -336,13 +336,25 @@ impl TaskScope {
         trait_id: TraitTypeId,
         reader: TaskId,
         backend: &MemoryBackend,
-    ) -> Vec<RawVc> {
+    ) -> HashSet<RawVc> {
+        let collectibles = self.read_collectibles_recursive(self_id, trait_id, reader, backend);
+        HashSet::from_iter(collectibles.iter().copied())
+    }
+
+    fn read_collectibles_recursive(
+        &self,
+        self_id: TaskScopeId,
+        trait_id: TraitTypeId,
+        reader: TaskId,
+        backend: &MemoryBackend,
+    ) -> CountHashSet<RawVc> {
         // TODO add reverse edges from task to scopes and (scope, trait_id)
         let mut state = self.state.lock();
         let children = state.children.iter().copied().collect::<Vec<_>>();
         state.dependent_tasks.insert(reader);
         Task::add_dependency_to_current(TaskDependency::ScopeChildren(self_id));
-        let mut collectibles = {
+
+        let mut current = {
             let (c, dependent_tasks) = state.collectibles.entry(trait_id).or_default();
             dependent_tasks.insert(reader);
             Task::add_dependency_to_current(TaskDependency::ScopeCollectibles(self_id, trait_id));
@@ -352,40 +364,14 @@ impl TaskScope {
 
         for id in children {
             backend.with_scope(id, |scope| {
-                for collectible in scope.read_collectibles(id, trait_id, reader, backend) {
-                    collectibles.add(collectible);
+                let child = scope.read_collectibles_recursive(id, trait_id, reader, backend);
+                for v in child.iter() {
+                    current.add(*v);
                 }
             })
         }
 
-        collectibles.iter().copied().collect::<Vec<_>>()
-    }
-
-    pub fn read_collectibles_untracked(
-        &self,
-        trait_id: TraitTypeId,
-        backend: &MemoryBackend,
-    ) -> Vec<RawVc> {
-        let state = self.state.lock();
-        let children = state.children.iter().copied().collect::<Vec<_>>();
-        let mut collectibles = {
-            if let Some((c, _)) = state.collectibles.get(&trait_id) {
-                c.clone()
-            } else {
-                CountHashSet::new()
-            }
-        };
-        drop(state);
-
-        for id in children {
-            backend.with_scope(id, |scope| {
-                for collectible in scope.read_collectibles_untracked(trait_id, backend) {
-                    collectibles.add(collectible);
-                }
-            })
-        }
-
-        collectibles.iter().copied().collect::<Vec<_>>()
+        current
     }
 
     pub(crate) fn remove_dependent_task(&self, reader: TaskId) {
