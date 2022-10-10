@@ -62,7 +62,7 @@ impl DevServer {
         turbo_tasks: Arc<dyn TurboTasksApi>,
         get_source: S,
         addr: SocketAddr,
-        log_options: LogOptions,
+        log_options: Arc<LogOptions>,
     ) -> Self {
         let make_svc = make_service_fn(move |_| {
             let tt = turbo_tasks.clone();
@@ -83,7 +83,7 @@ impl DevServer {
                         }
                         let (tx, rx) = tokio::sync::oneshot::channel();
                         let task_id = tt.run_once(Box::pin(async move {
-                            let log_options = log_options.cell();
+                            let log_options = (*log_options).clone().cell();
                             let uri = request.uri();
                             let path = uri.path();
                             let asset_path = path[1..].to_string();

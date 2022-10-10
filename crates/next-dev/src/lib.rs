@@ -108,12 +108,12 @@ impl NextDevServerBuilder {
         let show_all = self.show_all;
         let log_detail = self.log_detail;
         let browserslist_query = self.browserslist_query;
-        let log_options = LogOptions {
+        let log_options = Arc::new(LogOptions {
             current_dir: current_dir().unwrap(),
             show_all,
             log_detail,
             log_level: self.log_level,
-        };
+        });
         let log_options_to_dev_server = log_options.clone();
 
         let server = DevServer::listen(
@@ -125,7 +125,7 @@ impl NextDevServerBuilder {
                     entry_requests.clone(),
                     eager_compile,
                     turbo_tasks.clone().into(),
-                    log_options.clone().cell(),
+                    log_options.clone().into(),
                     browserslist_query.clone(),
                 )
             },
@@ -181,9 +181,10 @@ async fn source(
     entry_requests: Vec<String>,
     eager_compile: bool,
     turbo_tasks: TransientInstance<TurboTasks<MemoryBackend>>,
-    log_options: LogOptionsVc,
+    log_options: TransientInstance<LogOptions>,
     browserslist_query: String,
 ) -> Result<ContentSourceVc> {
+    let log_options = (*log_options).clone().cell();
     let output_fs = output_fs(&project_dir, log_options);
     let fs = project_fs(&root_dir, log_options);
     let project_relative = project_dir.strip_prefix(&root_dir).unwrap();
