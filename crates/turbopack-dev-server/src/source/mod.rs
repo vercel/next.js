@@ -1,5 +1,7 @@
 pub mod asset_graph;
 pub mod combined;
+pub mod conditional;
+pub mod lazy_instatiated;
 pub mod query;
 pub mod router;
 pub mod sub_path;
@@ -35,6 +37,7 @@ impl From<VersionedContentVc> for ContentSourceResultVc {
 #[derive(
     Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, TraceRawVcs, Serialize, Deserialize,
 )]
+#[serde(untagged)]
 pub enum HeaderValue {
     SingleString(String),
     SingleBytes(Vec<u8>),
@@ -89,6 +92,8 @@ impl HeaderValue {
 pub struct ContentSourceData {
     /// http method, if requested
     pub method: Option<String>,
+    /// The full url (including query string), if requested
+    pub url: Option<String>,
     /// query string items, empty when not requested
     pub query: Query,
     /// http headers, might contain multiple headers with the same name, empty
@@ -142,12 +147,14 @@ impl ContentSourceDataFilter {
 /// Describes additional information that need to be sent to requests to
 /// ContentSource. By sending these information ContentSource responses are
 /// cached-keyed by them and they can access them.
-#[turbo_tasks::value]
-#[derive(Debug, Default)]
+#[turbo_tasks::value(shared)]
+#[derive(Debug, Default, Clone)]
 pub struct ContentSourceDataVary {
     pub method: bool,
+    pub url: bool,
     pub query: Option<ContentSourceDataFilter>,
     pub headers: Option<ContentSourceDataFilter>,
+    pub placeholder_for_future_extensions: (),
 }
 
 impl ContentSourceDataVary {
@@ -155,8 +162,19 @@ impl ContentSourceDataVary {
     /// all information requested by either one
     pub fn extend(&mut self, other: &ContentSourceDataVary) {
         self.method = self.method || other.method;
+        self.url = self.url || other.url;
         ContentSourceDataFilter::extend_options(&mut self.query, &other.query);
         ContentSourceDataFilter::extend_options(&mut self.headers, &other.headers);
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ContentSourceDataVaryVc {
+    #[turbo_tasks::function]
+    pub async fn extend(self, other: ContentSourceDataVaryVc) -> Result<ContentSourceDataVaryVc> {
+        let mut new = self.await?.clone_value();
+        new.extend(&*other.await?);
+        Ok(new.cell())
     }
 }
 

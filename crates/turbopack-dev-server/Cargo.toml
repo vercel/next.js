@@ -19,6 +19,7 @@ indexmap = { workspace = true, features = ["serde"] }
 lazy_static = "1.4.0"
 mime = "0.3.16"
 mime_guess = "2.0.4"
+parking_lot = "0.12.1"
 serde = "1.0.136"
 serde_json = "1.0.85"
 serde_qs = "0.10.1"

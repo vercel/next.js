@@ -45,3 +45,18 @@ impl ValueToString for JsonValue {
         StringVc::cell(self.0.to_string())
     }
 }
+
+#[turbo_tasks::value(transparent, eq = "manual")]
+pub struct Regex(
+    #[turbo_tasks(trace_ignore)]
+    #[serde(with = "serde_regex")]
+    regex::Regex,
+);
+
+impl PartialEq for Regex {
+    fn eq(&self, other: &Regex) -> bool {
+        // Context: https://github.com/rust-lang/regex/issues/313#issuecomment-269898900
+        self.0.as_str() == other.0.as_str()
+    }
+}
+impl Eq for Regex {}

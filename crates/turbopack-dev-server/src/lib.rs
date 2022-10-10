@@ -204,6 +204,9 @@ fn request_to_data(
     if vary.method {
         data.method = Some(request.method().to_string());
     }
+    if vary.url {
+        data.url = Some(request.uri().to_string());
+    }
     if let Some(filter) = vary.query.as_ref() {
         if let Some(query) = request.uri().query() {
             let mut query: Query = serde_qs::from_str(query)?;

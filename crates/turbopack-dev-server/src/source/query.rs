@@ -8,6 +8,7 @@ use super::ContentSourceDataFilter;
 
 /// A parsed query string from a http request
 #[derive(Clone, Debug, PartialEq, Eq, Default, TraceRawVcs, Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct Query(#[turbo_tasks(trace_ignore)] IndexMap<String, QueryValue>);
 
 impl Query {

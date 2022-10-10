@@ -89,6 +89,12 @@ impl From<AssetContent> for VersionedContentVc {
     }
 }
 
+impl From<AssetContentVc> for VersionedContentVc {
+    fn from(asset_content: AssetContentVc) -> Self {
+        VersionedAssetContentVc::new(asset_content).into()
+    }
+}
+
 /// Describes the current version of an object, and how to update them from an
 /// earlier version.
 #[turbo_tasks::value_trait]

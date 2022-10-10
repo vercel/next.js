@@ -6,6 +6,8 @@ use std::{
     time::Duration,
 };
 
+use indexmap::IndexMap;
+
 use crate::RawVc;
 
 pub struct TraceRawVcsContext {
@@ -138,6 +140,15 @@ impl<K: TraceRawVcs, V: TraceRawVcs> TraceRawVcs for HashMap<K, V> {
 }
 
 impl<K: TraceRawVcs, V: TraceRawVcs> TraceRawVcs for BTreeMap<K, V> {
+    fn trace_raw_vcs(&self, context: &mut TraceRawVcsContext) {
+        for (key, value) in self.iter() {
+            TraceRawVcs::trace_raw_vcs(key, context);
+            TraceRawVcs::trace_raw_vcs(value, context);
+        }
+    }
+}
+
+impl<K: TraceRawVcs, V: TraceRawVcs> TraceRawVcs for IndexMap<K, V> {
     fn trace_raw_vcs(&self, context: &mut TraceRawVcsContext) {
         for (key, value) in self.iter() {
             TraceRawVcs::trace_raw_vcs(key, context);
