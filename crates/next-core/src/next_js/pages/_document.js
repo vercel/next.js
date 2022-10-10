@@ -42,7 +42,7 @@ export function htmlEscapeJsonString(str) {
 }
 
 export function NextScript() {
-  const { scripts, data } = React.useContext(HtmlContext);
+  const { scripts, __NEXT_DATA__ } = React.useContext(HtmlContext);
 
   return (
     <>
@@ -50,7 +50,7 @@ export function NextScript() {
         id="__NEXT_DATA__"
         type="application/json"
         dangerouslySetInnerHTML={{
-          __html: htmlEscapeJsonString(JSON.stringify(data)),
+          __html: htmlEscapeJsonString(JSON.stringify(__NEXT_DATA__)),
         }}
       ></script>
       {scripts.map((url) => (

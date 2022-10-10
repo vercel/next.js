@@ -40,6 +40,13 @@ pub fn get_next_import_map(pages_dir: FileSystemPathVc) -> ImportMapVc {
         )
         .into(),
     );
+    let internal_shared_utils_import_mapping = asset_to_import_mapping(
+        VirtualAssetVc::new(
+            pages_dir.root().join("next_js/internal/shared-utils.js"),
+            embed_next_file!("internal/shared-utils.js").into(),
+        )
+        .into(),
+    );
 
     insert_alias_to_alternatives(
         &mut import_map,
@@ -59,6 +66,12 @@ pub fn get_next_import_map(pages_dir: FileSystemPathVc) -> ImportMapVc {
         "@vercel/turbopack-next/internal/html-context",
         internal_html_context_import_mapping,
     );
+    insert_alias(
+        &mut import_map,
+        "@vercel/turbopack-next/internal/shared-utils",
+        internal_shared_utils_import_mapping,
+    );
+    insert_alias(&mut import_map, "next/app", pages_app_asset_import_mapping);
     insert_alias(
         &mut import_map,
         "next/document",
