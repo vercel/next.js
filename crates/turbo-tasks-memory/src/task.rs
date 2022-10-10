@@ -707,7 +707,7 @@ impl Task {
                 }
             }
 
-            if !state.emitted_collectibles.is_empty() || state.unemitted_collectibles.is_empty() {
+            if !state.emitted_collectibles.is_empty() || !state.unemitted_collectibles.is_empty() {
                 let mut tasks = HashSet::new();
                 {
                     let mut scope_state = scope.state.lock();
@@ -749,7 +749,7 @@ impl Task {
             }
             scope.decrement_tasks();
 
-            if !state.emitted_collectibles.is_empty() || state.unemitted_collectibles.is_empty() {
+            if !state.emitted_collectibles.is_empty() || !state.unemitted_collectibles.is_empty() {
                 let mut tasks = HashSet::new();
                 {
                     let mut scope_state = scope.state.lock();
