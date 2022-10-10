@@ -268,6 +268,9 @@ const configSchema = {
         appDir: {
           type: 'boolean',
         },
+        dangerouslyAllowMiddlewareResponseBody: {
+          type: 'boolean',
+        },
         externalDir: {
           type: 'boolean',
         },
@@ -323,12 +326,6 @@ const configSchema = {
         optimisticClientCache: {
           type: 'boolean',
         },
-        serverComponentsExternalPackages: {
-          items: {
-            type: 'string',
-          },
-          type: 'array',
-        },
         outputFileTracingRoot: {
           minLength: 1,
           type: 'string',
@@ -347,6 +344,12 @@ const configSchema = {
           // automatic typing doesn't like enum
           enum: ['experimental-edge', 'nodejs'] as any,
           type: 'string',
+        },
+        serverComponentsExternalPackages: {
+          items: {
+            type: 'string',
+          },
+          type: 'array',
         },
         scrollRestoration: {
           type: 'boolean',

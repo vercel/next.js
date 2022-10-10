@@ -47,11 +47,6 @@ function runTests({ dev, serverless }) {
 
       const cacheKeys = await getCacheKeys()
       expect(cacheKeys).toEqual([
-        ...(process.env.__MIDDLEWARE_TEST
-          ? // data route is fetched with middleware due to query hydration
-            // since middleware matches the index route
-            ['/_next/data/BUILD_ID/index.json']
-          : []),
         '/_next/data/BUILD_ID/p1/p2/all-ssg/hello.json?rest=hello',
         '/_next/data/BUILD_ID/p1/p2/all-ssg/hello1/hello2.json?rest=hello1&rest=hello2',
         '/_next/data/BUILD_ID/p1/p2/nested-all-ssg/hello.json?rest=hello',
@@ -97,7 +92,14 @@ function runTests({ dev, serverless }) {
         await browser.waitForElementByCss(linkSelector)
       }
       const newCacheKeys = await getCacheKeys()
-      expect(newCacheKeys).toEqual(cacheKeys)
+      expect(newCacheKeys).toEqual([
+        ...(process.env.__MIDDLEWARE_TEST
+          ? // data route is fetched with middleware due to query hydration
+            // since middleware matches the index route
+            ['/_next/data/BUILD_ID/index.json']
+          : []),
+        ...cacheKeys,
+      ])
     })
   }
 

@@ -23,5 +23,13 @@ export default function handler(req) {
     return res
   }
 
+  if (req.nextUrl.pathname === '/middleware-response-body') {
+    return new Response('hello from middleware', {
+      headers: {
+        'x-from-middleware': 'true',
+      },
+    })
+  }
+
   return NextResponse.next()
 }
