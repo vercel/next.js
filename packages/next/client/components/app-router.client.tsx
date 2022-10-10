@@ -28,6 +28,7 @@ import {
   // LayoutSegmentsContext,
 } from './hooks-client-context'
 import { useReducerWithReduxDevtools } from './use-reducer-with-devtools'
+import { ErrorBoundary, GlobalErrorComponent } from './error-boundary'
 
 function urlToUrlWithoutFlightMarker(url: string): URL {
   const urlWithoutFlightParameters = new URL(url, location.origin)
@@ -353,13 +354,15 @@ export default function AppRouter({
                 url: canonicalUrl,
               }}
             >
-              {HotReloader ? (
-                <HotReloader assetPrefix={assetPrefix}>
-                  {cache.subTreeData}
-                </HotReloader>
-              ) : (
-                cache.subTreeData
-              )}
+              <ErrorBoundary errorComponent={GlobalErrorComponent}>
+                {HotReloader ? (
+                  <HotReloader assetPrefix={assetPrefix}>
+                    {cache.subTreeData}
+                  </HotReloader>
+                ) : (
+                  cache.subTreeData
+                )}
+              </ErrorBoundary>
             </LayoutRouterContext.Provider>
           </AppRouterContext.Provider>
         </GlobalLayoutRouterContext.Provider>

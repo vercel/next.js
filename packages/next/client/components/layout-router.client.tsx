@@ -20,6 +20,7 @@ import type {
   FlightSegmentPath,
   // FlightDataPath,
 } from '../../server/app-render'
+import type { ErrorComponent } from './error-boundary'
 import {
   LayoutRouterContext,
   GlobalLayoutRouterContext,
@@ -28,7 +29,7 @@ import {
 } from '../../shared/lib/app-router-context'
 import { fetchServerResponse } from './app-router.client'
 import { createInfinitePromise } from './infinite-promise'
-
+import { ErrorBoundary } from './error-boundary'
 import { matchSegment } from './match-segments'
 
 /**
@@ -362,65 +363,6 @@ function NotFoundBoundary({ notFound, children }: NotFoundBoundaryProps) {
   ) : (
     <>{children}</>
   )
-}
-
-type ErrorComponent = React.ComponentType<{ error: Error; reset: () => void }>
-interface ErrorBoundaryProps {
-  errorComponent: ErrorComponent
-}
-
-/**
- * Handles errors through `getDerivedStateFromError`.
- * Renders the provided error component and provides a way to `reset` the error boundary state.
- */
-class ErrorBoundaryHandler extends React.Component<
-  ErrorBoundaryProps,
-  { error: Error | null }
-> {
-  constructor(props: ErrorBoundaryProps) {
-    super(props)
-    this.state = { error: null }
-  }
-
-  static getDerivedStateFromError(error: Error) {
-    return { error }
-  }
-
-  reset = () => {
-    this.setState({ error: null })
-  }
-
-  render() {
-    if (this.state.error) {
-      return (
-        <this.props.errorComponent
-          error={this.state.error}
-          reset={this.reset}
-        />
-      )
-    }
-
-    return this.props.children
-  }
-}
-
-/**
- * Renders error boundary with the provided "errorComponent" property as the fallback.
- * If no "errorComponent" property is provided it renders the children without an error boundary.
- */
-function ErrorBoundary({
-  errorComponent,
-  children,
-}: ErrorBoundaryProps & { children: React.ReactNode }): JSX.Element {
-  if (errorComponent) {
-    return (
-      <ErrorBoundaryHandler errorComponent={errorComponent}>
-        {children}
-      </ErrorBoundaryHandler>
-    )
-  }
-
-  return <>{children}</>
 }
 
 /**
