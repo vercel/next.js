@@ -429,7 +429,14 @@ importers:
       eslint: 7.24.0
 
   packages/font:
-    specifiers: {}
+    specifiers:
+      '@types/fontkit': 2.0.0
+      '@vercel/ncc': 0.34.0
+      fontkit: 2.0.2
+    devDependencies:
+      '@types/fontkit': 2.0.0
+      '@vercel/ncc': 0.34.0
+      fontkit: 2.0.2
 
   packages/next:
     specifiers:
@@ -596,8 +603,8 @@ importers:
       source-map: 0.6.1
       stream-browserify: 3.0.0
       stream-http: 3.1.1
-      string_decoder: 1.3.0
       string-hash: 1.1.3
+      string_decoder: 1.3.0
       strip-ansi: 6.0.0
       styled-jsx: 5.0.7
       tar: 6.1.11
@@ -786,8 +793,8 @@ importers:
       source-map: 0.6.1
       stream-browserify: 3.0.0
       stream-http: 3.1.1
-      string_decoder: 1.3.0
       string-hash: 1.1.3
+      string_decoder: 1.3.0
       strip-ansi: 6.0.0
       tar: 6.1.11
       taskr: 1.1.0
@@ -7343,6 +7350,15 @@ packages:
       }
     dev: true
 
+  /@types/fontkit/2.0.0:
+    resolution:
+      {
+        integrity: sha512-Qe+6szpPLTNsqkDFs2MScJyB51d5Hpobyg/T0QoUWO53WuNOTNLsV8fkE4QQPOJbhOMN5wlwmNeDdsh/e6Uqdg==,
+      }
+    dependencies:
+      '@types/node': 17.0.21
+    dev: true
+
   /@types/fresh/0.5.0:
     resolution:
       {
@@ -10029,6 +10045,15 @@ packages:
       duplexer: 0.1.1
     dev: true
 
+  /brotli/1.3.3:
+    resolution:
+      {
+        integrity: sha512-oTKjJdShmDuGW94SyyaoQvAjf30dZaHnjJ8uAF+u2/vGJkJbJPJAT1gDiOJP5v1Zb6f9KEyW/1HpuaWIXtGHPg==,
+      }
+    dependencies:
+      base64-js: 1.5.1
+    dev: true
+
   /browser-process-hrtime/1.0.0:
     resolution:
       {
@@ -11089,6 +11114,14 @@ packages:
     engines: { node: '>=0.8' }
     dev: true
 
+  /clone/2.1.2:
+    resolution:
+      {
+        integrity: sha512-3Pe/CF1Nn94hyhIYpjtiLhdCoEoz0DqQ+988E9gmeEdQZlojxnOb74wctFyuwWQHzqyf9X7C7MG8juUpqBJT8w==,
+      }
+    engines: { node: '>=0.8' }
+    dev: true
+
   /clor/5.2.0:
     resolution:
       {
@@ -11620,8 +11653,8 @@ packages:
     engines: { node: '>=10' }
     hasBin: true
     dependencies:
-      is-text-path: 1.0.1
       JSONStream: 1.3.5
+      is-text-path: 1.0.1
       lodash: 4.17.21
       meow: 8.1.2
       split2: 2.2.0
@@ -12996,6 +13029,13 @@ packages:
     dependencies:
       asap: 2.0.6
       wrappy: 1.0.2
+    dev: true
+
+  /dfa/1.2.0:
+    resolution:
+      {
+        integrity: sha512-ED3jP8saaweFTjeGX8HQPjeC1YYyZs98jGNZx6IiBvxW7JG5v492kamAQB3m2wop07CvU/RQmzcKr6bgcC5D/Q==,
+      }
     dev: true
 
   /diagnostics_channel/1.1.0:
@@ -15209,6 +15249,23 @@ packages:
       debug: 3.2.7
     transitivePeerDependencies:
       - supports-color
+    dev: true
+
+  /fontkit/2.0.2:
+    resolution:
+      {
+        integrity: sha512-jc4k5Yr8iov8QfS6u8w2CnHWVmbOGtdBtOXMze5Y+QD966Rx6PEVWXSEGwXlsDlKtu1G12cJjcsybnqhSk/+LA==,
+      }
+    dependencies:
+      '@swc/helpers': 0.4.11
+      brotli: 1.3.3
+      clone: 2.1.2
+      dfa: 1.2.0
+      fast-deep-equal: 3.1.3
+      restructure: 3.0.0
+      tiny-inflate: 1.0.3
+      unicode-properties: 1.4.1
+      unicode-trie: 2.0.0
     dev: true
 
   /for-in/1.0.2:
@@ -22823,6 +22880,13 @@ packages:
       - supports-color
     dev: true
 
+  /pako/0.2.9:
+    resolution:
+      {
+        integrity: sha512-NUcwaKxUxWrZLpDG+z/xZaCgQITkA/Dv4V/T6bw7VON6l1Xz/VnrBqrYjZQ12TamKHzITTfOEIYUj48y2KXImA==,
+      }
+    dev: true
+
   /pako/1.0.11:
     resolution:
       {
@@ -26338,6 +26402,13 @@ packages:
       signal-exit: 3.0.3
     dev: true
 
+  /restructure/3.0.0:
+    resolution:
+      {
+        integrity: sha512-Xj8/MEIhhfj9X2rmD9iJ4Gga9EFqVlpMj3vfLnV2r/Mh5jRMryNV+6lWh9GdJtDBcBSPIqzRdfBQ3wDtNFv/uw==,
+      }
+    dev: true
+
   /ret/0.1.15:
     resolution:
       {
@@ -28595,6 +28666,13 @@ packages:
       globrex: 0.1.2
     dev: true
 
+  /tiny-inflate/1.0.3:
+    resolution:
+      {
+        integrity: sha512-pkY1fj1cKHb2seWDy0B16HeWyczlJA9/WW3u3c4z/NiWDsO3DOU5D7nhTLE9CF0yXv/QZFY7sEJmj24dK+Rrqw==,
+      }
+    dev: true
+
   /tinydate/1.2.0:
     resolution:
       {
@@ -29278,6 +29356,16 @@ packages:
       }
     engines: { node: '>=4' }
 
+  /unicode-properties/1.4.1:
+    resolution:
+      {
+        integrity: sha512-CLjCCLQ6UuMxWnbIylkisbRj31qxHPAurvena/0iwSVbQ2G1VY5/HjV0IRabOEbDHlzZlRdCrD4NhB0JtU40Pg==,
+      }
+    dependencies:
+      base64-js: 1.5.1
+      unicode-trie: 2.0.0
+    dev: true
+
   /unicode-property-aliases-ecmascript/1.0.5:
     resolution:
       {
@@ -29292,6 +29380,16 @@ packages:
         integrity: sha512-5Zfuy9q/DFr4tfO7ZPeVXb1aPoeQSdeFMLpYuFebehDAhbuevLs5yxSZmIFN1tP5F9Wl4IpJrYojg85/zgyZHQ==,
       }
     engines: { node: '>=4' }
+
+  /unicode-trie/2.0.0:
+    resolution:
+      {
+        integrity: sha512-x7bc76x0bm4prf1VLg79uhAzKw8DVboClSN5VxJuQ+LKDOVEW9CdH+VY7SP+vX7xCYQqzzgQpFqz15zeLvAtZQ==,
+      }
+    dependencies:
+      pako: 0.2.9
+      tiny-inflate: 1.0.3
+    dev: true
 
   /unified-diff/3.1.0:
     resolution:
