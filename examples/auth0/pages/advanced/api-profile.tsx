@@ -8,7 +8,7 @@ const ApiProfile = () => {
   const [data, setData] = useState(null)
 
   useEffect(() => {
-    (async () => {
+    ;(async () => {
       const res = await fetch('/api/protected-api')
 
       const data = await res.json()
