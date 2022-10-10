@@ -3,7 +3,6 @@
 import { join } from 'path'
 import fs from 'fs-extra'
 import webdriver from 'next-webdriver'
-import assert from 'assert'
 import { check, findPort, killApp, nextBuild, nextStart } from 'next-test-utils'
 
 jest.setTimeout(1000 * 60 * 2)
