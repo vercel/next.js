@@ -70,7 +70,7 @@ impl NodeJsPoolProcess {
         self.stdout.read_line(buf)
     }
 
-    pub fn write(&mut self, buf: &[u8]) -> std::io::Result<()> {
+    pub(super) fn write(&mut self, buf: &[u8]) -> std::io::Result<()> {
         self.stdin.write_all(buf)
     }
 }
@@ -85,7 +85,7 @@ impl NodeJsPoolProcess {
 /// The worker will *not* use the env of the parent process by default. All env
 /// vars need to be provided to make the execution as pure as possible.
 #[turbo_tasks::value(into = "new", cell = "new", serialization = "none", eq = "manual")]
-pub struct NodeJsPool {
+pub(super) struct NodeJsPool {
     cwd: PathBuf,
     entrypoint: PathBuf,
     env: HashMap<String, String>,
@@ -96,7 +96,7 @@ pub struct NodeJsPool {
 }
 
 impl NodeJsPool {
-    pub fn new(
+    pub(super) fn new(
         cwd: PathBuf,
         entrypoint: PathBuf,
         env: HashMap<String, String>,
@@ -130,7 +130,7 @@ impl NodeJsPool {
         })
     }
 
-    pub async fn run(&self, input: &[u8]) -> Result<NodeJsOperationResult> {
+    pub(super) async fn run(&self, input: &[u8]) -> Result<NodeJsOperationResult> {
         let (mut child, permit) = self.acquire_child().await?;
         // SAFETY we await spawn blocking so we stay within the lifetime of input
         let static_input: &'static [u8] = unsafe { transmute(input) };
@@ -150,7 +150,7 @@ impl NodeJsPool {
     }
 }
 
-pub struct NodeJsOperationResult {
+pub(super) struct NodeJsOperationResult {
     child_ended: bool,
     child: Option<NodeJsPoolProcess>,
     // This is used for drop
@@ -160,11 +160,7 @@ pub struct NodeJsOperationResult {
 }
 
 impl NodeJsOperationResult {
-    pub fn stdin(&mut self) -> Option<&mut ChildStdin> {
-        self.child.as_mut().map(|c| &mut c.stdin)
-    }
-
-    pub fn read_line(&mut self, buf: &mut String) -> Result<usize, std::io::Error> {
+    pub(super) fn read_line(&mut self, buf: &mut String) -> Result<usize, std::io::Error> {
         if let Some(ref mut child) = self.child {
             if self.child_ended {
                 return Ok(0);
@@ -186,7 +182,7 @@ impl NodeJsOperationResult {
         }
     }
 
-    pub fn read_lines(&mut self) -> Result<Vec<String>, std::io::Error> {
+    pub(super) fn read_lines(&mut self) -> Result<Vec<String>, std::io::Error> {
         let mut lines = Vec::new();
         loop {
             let mut line = String::new();

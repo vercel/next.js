@@ -10,9 +10,9 @@ use turbopack_core::{
 };
 
 #[turbo_tasks::value(shared)]
-pub struct NodeJsBootstrapAsset {
-    pub path: FileSystemPathVc,
-    pub chunk_group: ChunkGroupVc,
+pub(super) struct NodeJsBootstrapAsset {
+    pub(super) path: FileSystemPathVc,
+    pub(super) chunk_group: ChunkGroupVc,
 }
 
 #[turbo_tasks::value_impl]

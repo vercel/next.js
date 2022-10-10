@@ -19,6 +19,7 @@ process.stdin.on("data", async (data) => {
     buffer.push(data.slice(0, idx));
     try {
       let json = JSON.parse(Buffer.concat(buffer).toString("utf-8"));
+      buffer.length = 0;
       let result = await operation(json);
       console.log(`RESULT=${JSON.stringify(result)}`);
     } catch (e) {
@@ -37,14 +38,30 @@ function Body({ children }) {
   return <div id="__next">{children}</div>;
 }
 
-async function operation(data) {
+async function operation(renderData) {
+  let data;
   if ("getStaticProps" in otherExports) {
     // TODO(alexkirsz) Pass in `context` as defined in
     // https://nextjs.org/docs/api-reference/data-fetching/get-static-props#context-parameter
-    data = otherExports.getStaticProps({});
+    data = otherExports.getStaticProps({
+      params: renderData.params,
+    });
     if ("then" in data) {
       data = await data;
     }
+  } else if ("getServerSideProps" in otherExports) {
+    data = otherExports.getServerSideProps({
+      params: renderData.params,
+      query: { ...renderData.query, ...renderData.params },
+      req: {
+        headers: renderData.headers,
+        // TODO add `cookies` field
+      },
+      method: renderData.method,
+      url: renderData.url,
+    });
+  } else {
+    data = { props: {} };
   }
 
   const initialProps = await loadGetInitialProps(App, {

@@ -11,9 +11,12 @@ bench = false
 [dependencies]
 anyhow = "1.0.47"
 futures = "0.3.21"
+indexmap = { workspace = true, features = ["serde"] }
 mime = "0.3.16"
+regex = "1.6.0"
 serde = "1.0.136"
 serde_json = "1.0.85"
+serde_qs = "0.10.1"
 tokio = { version = "1.11.0", features = ["full"] }
 turbo-tasks = { path = "../turbo-tasks" }
 turbo-tasks-env = { path = "../turbo-tasks-env" }

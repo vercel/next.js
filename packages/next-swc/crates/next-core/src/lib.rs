@@ -7,7 +7,6 @@ pub mod next_client;
 mod next_import_map;
 mod nodejs;
 pub mod react_refresh;
-mod server_render;
 mod server_rendered_source;
 mod web_entry_source;
 

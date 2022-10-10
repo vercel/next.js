@@ -4,10 +4,10 @@ use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::issue::{Issue, IssueVc};
 
 #[turbo_tasks::value(shared)]
-pub struct RenderingIssue {
-    pub context: FileSystemPathVc,
-    pub message: StringVc,
-    pub logging: StringVc,
+pub(super) struct RenderingIssue {
+    pub(super) context: FileSystemPathVc,
+    pub(super) message: StringVc,
+    pub(super) logging: StringVc,
 }
 
 #[turbo_tasks::value_impl]

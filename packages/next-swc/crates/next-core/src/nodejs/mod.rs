@@ -1,33 +1,34 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{BTreeMap, HashMap, HashSet},
     path::PathBuf,
 };
 
 use anyhow::{anyhow, Result};
 use futures::{stream::FuturesUnordered, TryStreamExt};
+use indexmap::IndexMap;
 use mime::TEXT_HTML_UTF_8;
+pub use node_rendered_source::{create_node_rendered_source, NodeRenderer, NodeRendererVc};
 use serde_json::Value as JsonValue;
-use turbo_tasks::{
-    primitives::{JsonValueVc, StringVc},
-    spawn_blocking, CompletionVc, CompletionsVc, ValueToString,
-};
+use turbo_tasks::{primitives::StringVc, spawn_blocking, CompletionVc, CompletionsVc};
 use turbo_tasks_fs::{DiskFileSystemVc, File, FileContent, FileSystemPathVc};
 use turbopack::ecmascript::EcmascriptModuleAssetVc;
 use turbopack_core::{
     asset::{AssetContentVc, AssetVc, AssetsSetVc},
     chunk::{ChunkGroupVc, ChunkingContextVc},
 };
+use turbopack_dev_server::source::{query::Query, HeaderValue};
 use turbopack_ecmascript::chunk::EcmascriptChunkPlaceablesVc;
 
 use self::{
     bootstrap::NodeJsBootstrapAsset,
+    issue::RenderingIssue,
     pool::{NodeJsPool, NodeJsPoolVc},
 };
-use crate::nodejs::issue::RenderingIssue;
 
-pub mod bootstrap;
+pub(crate) mod bootstrap;
 pub(crate) mod issue;
-pub mod pool;
+pub(crate) mod node_rendered_source;
+pub(crate) mod pool;
 
 #[turbo_tasks::function]
 async fn emit(
@@ -47,9 +48,9 @@ async fn emit(
 /// List of the all assets of the "internal" subgraph and a list of boundary
 /// assets that are not considered "internal" ("external")
 #[turbo_tasks::value]
-pub struct SeparatedAssets {
-    pub internal_assets: AssetsSetVc,
-    pub external_asset_entrypoints: AssetsSetVc,
+struct SeparatedAssets {
+    internal_assets: AssetsSetVc,
+    external_asset_entrypoints: AssetsSetVc,
 }
 
 /// Extracts the subgraph of "internal" assets (assets within the passes
@@ -70,7 +71,7 @@ async fn internal_assets(
 /// Returns a set of "external" assets on the boundary of the "internal"
 /// subgraph
 #[turbo_tasks::function]
-pub async fn external_asset_entrypoints(
+async fn external_asset_entrypoints(
     module: EcmascriptModuleAssetVc,
     runtime_entries: EcmascriptChunkPlaceablesVc,
     chunking_context: ChunkingContextVc,
@@ -150,7 +151,7 @@ async fn separate_assets(
 
 /// Creates a node.js renderer pool for an entrypoint.
 #[turbo_tasks::function]
-pub async fn get_renderer_pool(
+async fn get_renderer_pool(
     intermediate_asset: AssetVc,
     intermediate_output_path: FileSystemPathVc,
 ) -> Result<NodeJsPoolVc> {
@@ -184,15 +185,24 @@ async fn get_intermediate_asset(
     .into())
 }
 
+#[turbo_tasks::value(shared)]
+pub(super) struct RenderData {
+    params: IndexMap<String, String>,
+    method: String,
+    url: String,
+    query: Query,
+    headers: BTreeMap<String, HeaderValue>,
+}
+
 /// Renders a module as static HTML in a node.js process.
 #[turbo_tasks::function]
-pub async fn render_static(
+async fn render_static(
     path: FileSystemPathVc,
     module: EcmascriptModuleAssetVc,
     runtime_entries: EcmascriptChunkPlaceablesVc,
     chunking_context: ChunkingContextVc,
     intermediate_output_path: FileSystemPathVc,
-    data: JsonValueVc,
+    data: RenderDataVc,
 ) -> Result<AssetContentVc> {
     fn into_result(content: String) -> Result<AssetContentVc> {
         Ok(
@@ -210,7 +220,9 @@ pub async fn render_static(
         intermediate_output_path,
     );
     let pool = renderer_pool.await?;
-    let mut op = pool.run(data.to_string().await?.as_bytes()).await?;
+    let mut op = pool
+        .run(serde_json::to_string(&*data.await?)?.as_bytes())
+        .await?;
     let lines = spawn_blocking(move || {
         let lines = op.read_lines()?;
         drop(op);

@@ -1,8 +1,8 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Write};
 
-use anyhow::Result;
-use serde_json::json;
-use turbo_tasks::{primitives::JsonValueVc, Value};
+use anyhow::{anyhow, bail, Result};
+use regex::Regex;
+use turbo_tasks::{primitives::RegexVc, Value, ValueToString};
 use turbo_tasks_env::ProcessEnvVc;
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc};
 use turbopack::{
@@ -10,21 +10,26 @@ use turbopack::{
     transition::TransitionsByNameVc, ModuleAssetContextVc,
 };
 use turbopack_core::{
+    asset::AssetVc,
     chunk::dev::DevChunkingContextVc,
     context::AssetContextVc,
     environment::{EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
     source_asset::SourceAssetVc,
     target::CompileTargetVc,
+    virtual_asset::VirtualAssetVc,
 };
 use turbopack_dev_server::source::{
-    asset_graph::AssetGraphContentSourceVc,
     combined::{CombinedContentSource, CombinedContentSourceVc},
     ContentSourceVc, NoContentSourceVc,
 };
-use turbopack_ecmascript::chunk::EcmascriptChunkPlaceablesVc;
+use turbopack_ecmascript::{
+    chunk::EcmascriptChunkPlaceablesVc, EcmascriptInputTransform, EcmascriptInputTransformsVc,
+    EcmascriptModuleAssetType, EcmascriptModuleAssetVc,
+};
 use turbopack_env::ProcessEnvAssetVc;
 
 use crate::{
+    embed_next_file,
     next_client::{
         context::{
             get_client_assets_path, get_client_chunking_context, get_client_environment,
@@ -34,7 +39,7 @@ use crate::{
         NextClientTransition,
     },
     next_import_map::get_next_import_map,
-    server_render::asset::ServerRenderedAssetVc,
+    nodejs::node_rendered_source::{create_node_rendered_source, NodeRenderer, NodeRendererVc},
 };
 
 /// Create a content source serving the `pages` or `src/pages` directory as
@@ -127,9 +132,54 @@ pub async fn create_server_rendered_source(
     .into())
 }
 
+/// Converts a filename within the server root to a regular expression with
+/// named capture groups for every dynamic segment.
+#[turbo_tasks::function]
+async fn regular_expression_for_path(
+    server_root: FileSystemPathVc,
+    server_path: FileSystemPathVc,
+) -> Result<RegexVc> {
+    let server_path_value = &*server_path.await?;
+    let path = if let Some(path) = server_root.await?.get_path_to(server_path_value) {
+        path
+    } else {
+        bail!(
+            "server_path ({}) is not in server_root ({})",
+            server_path.to_string().await?,
+            server_root.to_string().await?
+        )
+    };
+    let (path, _) = path
+        .rsplit_once('.')
+        .ok_or_else(|| anyhow!("path ({}) has no extension", path))?;
+    let path = path.strip_suffix("/index").unwrap_or(path);
+    let mut reg_exp_source = "^".to_string();
+    for segment in path.split('/') {
+        if reg_exp_source.len() > 1 {
+            reg_exp_source += "/";
+        }
+        if let Some(segment) = segment.strip_prefix('[') {
+            if let Some((placeholder, rem)) = segment.split_once(']') {
+                if let Some(placeholder) = placeholder.strip_prefix("...") {
+                    write!(reg_exp_source, "(?P<{placeholder}>[^?]+)")?;
+                } else {
+                    write!(reg_exp_source, "(?P<{placeholder}>[^?/]+)")?;
+                }
+                reg_exp_source += &regex::escape(rem);
+            } else {
+                bail!("path ({}) contains '[' without matching ']'", path);
+            }
+        } else {
+            reg_exp_source += &regex::escape(segment);
+        }
+    }
+    reg_exp_source += "$";
+    Ok(RegexVc::cell(Regex::new(&reg_exp_source)?))
+}
+
 /// Handles a single page file in the pages directory
 #[turbo_tasks::function]
-async fn create_server_rendered_source_for_file(
+fn create_server_rendered_source_for_file(
     context_path: FileSystemPathVc,
     context: AssetContextVc,
     page_file: FileSystemPathVc,
@@ -137,7 +187,7 @@ async fn create_server_rendered_source_for_file(
     server_root: FileSystemPathVc,
     server_path: FileSystemPathVc,
     intermediate_output_path: FileSystemPathVc,
-) -> Result<AssetGraphContentSourceVc> {
+) -> ContentSourceVc {
     let source_asset = SourceAssetVc::new(page_file).into();
     let entry_asset = context.process(source_asset);
 
@@ -149,19 +199,19 @@ async fn create_server_rendered_source_for_file(
     )
     .into();
 
-    let asset = ServerRenderedAssetVc::new(
-        server_path,
-        context,
-        entry_asset,
-        runtime_entries,
-        chunking_context,
-        intermediate_output_path,
-        JsonValueVc::cell(json!({ "props": {} })),
-    );
-    Ok(AssetGraphContentSourceVc::new_lazy(
+    create_node_rendered_source(
         server_root,
-        asset.into(),
-    ))
+        regular_expression_for_path(server_root, server_path),
+        SsrRenderer {
+            context,
+            entry_asset,
+        }
+        .cell()
+        .into(),
+        chunking_context,
+        runtime_entries,
+        intermediate_output_path,
+    )
 }
 
 /// Handles a directory in the pages directory (or the pages directory itself).
@@ -196,18 +246,15 @@ async fn create_server_rendered_source_for_directory(
                                         intermediate_output_path.join(name),
                                     )
                                 };
-                                sources.push(
-                                    create_server_rendered_source_for_file(
-                                        context_path,
-                                        context,
-                                        *file,
-                                        runtime_entries,
-                                        server_root,
-                                        dev_server_path,
-                                        intermediate_output_path,
-                                    )
-                                    .into(),
-                                );
+                                sources.push(create_server_rendered_source_for_file(
+                                    context_path,
+                                    context,
+                                    *file,
+                                    runtime_entries,
+                                    server_root,
+                                    dev_server_path,
+                                    intermediate_output_path,
+                                ));
                             }
                             _ => {}
                         }
@@ -232,4 +279,31 @@ async fn create_server_rendered_source_for_directory(
         }
     }
     Ok(CombinedContentSource { sources }.cell())
+}
+
+/// The node.js renderer for SSR of pages.
+#[turbo_tasks::value]
+struct SsrRenderer {
+    context: AssetContextVc,
+    entry_asset: AssetVc,
+}
+
+#[turbo_tasks::value_impl]
+impl NodeRenderer for SsrRenderer {
+    #[turbo_tasks::function]
+    fn module(&self) -> EcmascriptModuleAssetVc {
+        EcmascriptModuleAssetVc::new(
+            VirtualAssetVc::new(
+                self.entry_asset.path().join("server-renderer.js"),
+                embed_next_file!("internal/server-renderer.js").into(),
+            )
+            .into(),
+            self.context,
+            Value::new(EcmascriptModuleAssetType::Ecmascript),
+            EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::React {
+                refresh: false,
+            }]),
+            self.context.environment(),
+        )
+    }
 }
