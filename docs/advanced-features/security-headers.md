@@ -130,7 +130,7 @@ const ContentSecurityPolicy = `
 
 When a directive uses a keyword such as `self`, wrap it in single quotes `''`.
 
-In the header's value, replace the new line with an empty string.
+In the header's value, replace the new line with a space.
 
 ```jsx
 {
