@@ -319,6 +319,30 @@ export async function ncc_edge_runtime(task, opts) {
   )
 }
 
+externals['react'] = 'next/dist/compiled/react'
+externals['react-dom'] = 'next/dist/compiled/react-dom'
+export async function ncc_react(task, opts) {
+  await task
+    .source(require.resolve(`react/package.json`))
+    .target(`compiled/react`)
+  await task
+    .source(require.resolve(`react-dom/package.json`))
+    .target(`compiled/react-dom`)
+
+  const reactDir = dirname(
+    relative(__dirname, require.resolve(`react/package.json`))
+  )
+  const reactDomDir = dirname(
+    relative(__dirname, require.resolve(`react-dom/package.json`))
+  )
+  await task
+    .source(join(reactDomDir, '*.js'))
+    .ncc({})
+    .target(`compiled/react-dom`)
+
+  await task.source(join(reactDir, '*.js')).ncc({}).target(`compiled/react`)
+}
+
 // eslint-disable-next-line camelcase
 export async function ncc_next__react_dev_overlay(task, opts) {
   const overlayExternals = {
@@ -1445,6 +1469,7 @@ export async function ncc_icss_utils(task, opts) {
     })
     .target('compiled/icss-utils')
 }
+
 // eslint-disable-next-line camelcase
 export async function copy_react_server_dom_webpack(task, opts) {
   await fs.mkdir(join(__dirname, 'compiled/react-server-dom-webpack'), {
@@ -1494,8 +1519,8 @@ export async function copy_react_server_dom_webpack(task, opts) {
     .target('compiled/react-server-dom-webpack')
 }
 
-// eslint-disable-next-line camelcase
 externals['sass-loader'] = 'next/dist/compiled/sass-loader'
+// eslint-disable-next-line camelcase
 export async function ncc_sass_loader(task, opts) {
   const sassLoaderPath = require.resolve('sass-loader')
   const utilsPath = join(dirname(sassLoaderPath), 'utils.js')
@@ -1952,6 +1977,7 @@ export async function ncc(task, opts) {
       'copy_regenerator_runtime',
       'copy_babel_runtime',
       'copy_constants_browserify',
+      'ncc_react',
       'copy_react_server_dom_webpack',
       'copy_react_is',
       'ncc_sass_loader',

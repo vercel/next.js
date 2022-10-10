@@ -9,6 +9,25 @@ export default function loadRequireHook(aliases: [string, string][] = []) {
       // Use `require.resolve` explicitly to make them statically analyzable
       ['styled-jsx', require.resolve('styled-jsx')],
       ['styled-jsx/style', require.resolve('styled-jsx/style')],
+      ['styled-jsx/style', require.resolve('styled-jsx/style')],
+      ['react', require.resolve('next/dist/compiled/react')],
+      [
+        'react/jsx-runtime',
+        require.resolve('next/dist/compiled/react/jsx-runtime'),
+      ],
+      [
+        'react/jsx-dev-runtime',
+        require.resolve('next/dist/compiled/react/jsx-dev-runtime'),
+      ],
+      ['react-dom', require.resolve('next/dist/compiled/react-dom')],
+      [
+        'react-dom/server',
+        require.resolve('next/dist/compiled/react-dom/server'),
+      ],
+      [
+        'react-dom/server.browser',
+        require.resolve('next/dist/compiled/react-dom/server.browser'),
+      ],
     ].map(([request, replacement]) => [request, replacement])
   )
 

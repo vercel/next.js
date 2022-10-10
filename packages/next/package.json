@@ -241,6 +241,8 @@
     "punycode": "2.1.1",
     "querystring-es3": "0.2.1",
     "raw-body": "2.4.1",
+    "react": "0.0.0-experimental-cb5084d1c-20220924",
+    "react-dom": "0.0.0-experimental-cb5084d1c-20220924",
     "react-is": "17.0.2",
     "react-refresh": "0.12.0",
     "react-server-dom-webpack": "0.0.0-experimental-cb5084d1c-20220924",
