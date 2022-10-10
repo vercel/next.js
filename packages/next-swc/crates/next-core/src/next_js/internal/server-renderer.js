@@ -3,6 +3,7 @@ const END_OF_OPERATION = process.argv[2];
 import App from "@vercel/turbopack-next/pages/_app";
 import Document from "@vercel/turbopack-next/pages/_document";
 import { HtmlContext } from "@vercel/turbopack-next/internal/html-context";
+import { loadGetInitialProps } from "@vercel/turbopack-next/internal/shared-utils";
 import Component, * as otherExports from ".";
 import { renderToString, renderToStaticMarkup } from "react-dom/server";
 ("TURBOPACK { transition: next-client }");
@@ -46,17 +47,24 @@ async function operation(data) {
     }
   }
 
+  const initialProps = await loadGetInitialProps(App, {
+    Component,
+    // TODO(alexkirsz) Pass in `context`
+    ctx: {},
+  });
+  const props = { ...initialProps, ...data.props, pageProps: { ...initialProps.pageProps, ...data.props } };
+
   const urls = chunkGroup.map((p) => `/${p}`);
   const scripts = urls.filter((url) => url.endsWith(".js"));
   const styles = urls.filter((url) => url.endsWith(".css"));
+  const htmlProps = {
+    scripts,
+    styles,
+    __NEXT_DATA__: { props },
+  };
+
   const documentHTML = renderToStaticMarkup(
-    <HtmlContext.Provider
-      value={{
-        scripts,
-        styles,
-        data,
-      }}
-    >
+    <HtmlContext.Provider value={htmlProps}>
       <Document />
     </HtmlContext.Provider>
   );
@@ -70,11 +78,12 @@ async function operation(data) {
     result.push(DOCTYPE);
   }
   result.push(renderTargetPrefix);
-  // TODO capture meta info during rendering
+
   result.push(
+    // TODO capture meta info during rendering
     renderToString(
       <Body>
-        <App Component={Component} pageProps={data} />
+        <App {...props} Component={Component} />
       </Body>
     )
   );
