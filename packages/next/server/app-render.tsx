@@ -5,7 +5,7 @@ import type { FontLoaderManifest } from '../build/webpack/plugins/font-loader-ma
 
 // TODO-APP: change to React.use once it becomes stable
 // @ts-ignore
-import React, { experimental_use as use } from 'next/dist/compiled/react'
+import React, { experimental_use as use } from 'react'
 
 import { ParsedUrlQuery, stringify as stringifyQuery } from 'querystring'
 import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
@@ -130,8 +130,8 @@ class ReadonlyNextCookies {
 // this needs to be required lazily so that `next-server` can set
 // the env before we require
 const ReactDOMServer = shouldUseReactRoot
-  ? require('next/dist/compiled/react-dom/server.browser')
-  : require('next/dist/compiled/react-dom/server')
+  ? require('react-dom/server.browser')
+  : require('react-dom/server')
 
 export type RenderOptsPartial = {
   err?: Error | null

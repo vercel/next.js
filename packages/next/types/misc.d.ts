@@ -339,6 +339,15 @@ declare module 'next/dist/compiled/@segment/ajv-human-errors' {
   export = m
 }
 
+declare module 'next/dist/compiled/react' {
+  import * as m from 'react'
+  export = m
+}
+declare module 'next/dist/compiled/react-dom' {
+  import * as m from 'react-dom'
+  export = m
+}
+
 declare namespace NodeJS {
   interface ProcessVersions {
     pnp?: string

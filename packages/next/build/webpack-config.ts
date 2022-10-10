@@ -94,8 +94,8 @@ const nodePathList = (process.env.NODE_PATH || '')
   .split(process.platform === 'win32' ? ';' : ':')
   .filter((p) => !!p)
 
-const reactDir = dirname(require.resolve('react/package.json'))
-const reactDomDir = dirname(require.resolve('react-dom/package.json'))
+// const reactDir = dirname(require.resolve('react/package.json'))
+// const reactDomDir = dirname(require.resolve('react-dom/package.json'))
 
 const watchOptions = Object.freeze({
   aggregateTimeout: 5,
@@ -1592,17 +1592,26 @@ export default async function getBaseWebpackConfig(
               } as any,
             ]
           : []),
-        // Alias `next/dynamic` to React.lazy implementation for RSC
+
         ...(hasServerComponents
           ? [
+              // Alias `next/dynamic` to React.lazy implementation for RSC
               {
                 test: codeCondition.test,
-                include: [appDir, dir, NEXT_PROJECT_ROOT, /node_modules/],
+                include: [appDir],
                 resolve: {
                   alias: {
                     [require.resolve('next/dynamic')]: require.resolve(
                       'next/dist/client/components/dynamic'
                     ),
+                  },
+                },
+              },
+              {
+                test: codeCondition.test,
+                include: [appDir, dir, NEXT_PROJECT_ROOT_DIST, /node_modules/],
+                resolve: {
+                  alias: {
                     'react-dom': 'next/dist/compiled/react-dom',
                     react: 'next/dist/compiled/react',
                   },

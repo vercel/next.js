@@ -10,7 +10,7 @@ export default function loadRequireHook(aliases: [string, string][] = []) {
       ['styled-jsx', require.resolve('styled-jsx')],
       ['styled-jsx/style', require.resolve('styled-jsx/style')],
       ['styled-jsx/style', require.resolve('styled-jsx/style')],
-      // TODO: alias for layouts
+      // TODO: only alias when appDir is enabled
       ['react', require.resolve('next/dist/compiled/react')],
       [
         'react/jsx-runtime',
