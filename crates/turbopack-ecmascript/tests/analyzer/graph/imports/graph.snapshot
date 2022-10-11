@@ -1,0 +1,51 @@
+[
+    (
+        "aa",
+        Member(
+            3,
+            Module(
+                ModuleValue {
+                    module: Atom('x2' type=inline),
+                    annotations: ImportAnnotations {
+                        map: {},
+                    },
+                },
+            ),
+            Constant(
+                StrWord(
+                    Atom('a' type=static),
+                ),
+            ),
+        ),
+    ),
+    (
+        "xx",
+        Member(
+            3,
+            Module(
+                ModuleValue {
+                    module: Atom('x1' type=inline),
+                    annotations: ImportAnnotations {
+                        map: {},
+                    },
+                },
+            ),
+            Constant(
+                StrWord(
+                    Atom('default' type=static),
+                ),
+            ),
+        ),
+    ),
+    (
+        "yy",
+        Module(
+            ModuleValue {
+                module: Atom('x3' type=inline),
+                annotations: ImportAnnotations {
+                    map: {},
+                },
+            },
+        ),
+    ),
+]

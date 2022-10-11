@@ -1,0 +1,250 @@
+[
+    (
+        "*anonymous function 66*",
+        Function(
+            2,
+            FreeVar(
+                Other(
+                    Atom('undefined' type=static),
+                ),
+            ),
+        ),
+    ),
+    (
+        "*arrow function 118*",
+        Function(
+            2,
+            FreeVar(
+                Other(
+                    Atom('undefined' type=static),
+                ),
+            ),
+        ),
+    ),
+    (
+        "*arrow function 229*",
+        Function(
+            2,
+            FreeVar(
+                Other(
+                    Atom('undefined' type=static),
+                ),
+            ),
+        ),
+    ),
+    (
+        "a",
+        Function(
+            2,
+            FreeVar(
+                Other(
+                    Atom('undefined' type=static),
+                ),
+            ),
+        ),
+    ),
+    (
+        "b",
+        Variable(
+            (
+                Atom('*anonymous function 66*' type=dynamic),
+                #0,
+            ),
+        ),
+    ),
+    (
+        "c",
+        Variable(
+            (
+                Atom('*arrow function 118*' type=dynamic),
+                #0,
+            ),
+        ),
+    ),
+    (
+        "d",
+        Unknown(
+            None,
+            "unsupported expression",
+        ),
+    ),
+    (
+        "e",
+        Function(
+            2,
+            FreeVar(
+                Other(
+                    Atom('undefined' type=static),
+                ),
+            ),
+        ),
+    ),
+    (
+        "f",
+        Variable(
+            (
+                Atom('e' type=inline),
+                #7,
+            ),
+        ),
+    ),
+    (
+        "x#2",
+        Constant(
+            Num(
+                ConstantNumber(
+                    1.0,
+                ),
+            ),
+        ),
+    ),
+    (
+        "x#3",
+        Constant(
+            Num(
+                ConstantNumber(
+                    1.0,
+                ),
+            ),
+        ),
+    ),
+    (
+        "x#4",
+        Constant(
+            Num(
+                ConstantNumber(
+                    1.0,
+                ),
+            ),
+        ),
+    ),
+    (
+        "x#5",
+        Constant(
+            Num(
+                ConstantNumber(
+                    1.0,
+                ),
+            ),
+        ),
+    ),
+    (
+        "x#6",
+        Constant(
+            Num(
+                ConstantNumber(
+                    1.0,
+                ),
+            ),
+        ),
+    ),
+    (
+        "x#8",
+        Constant(
+            Num(
+                ConstantNumber(
+                    1.0,
+                ),
+            ),
+        ),
+    ),
+    (
+        "y#2",
+        Variable(
+            (
+                Atom('x' type=static),
+                #2,
+            ),
+        ),
+    ),
+    (
+        "y#3",
+        Variable(
+            (
+                Atom('x' type=static),
+                #3,
+            ),
+        ),
+    ),
+    (
+        "y#4",
+        Variable(
+            (
+                Atom('x' type=static),
+                #4,
+            ),
+        ),
+    ),
+    (
+        "y#5",
+        Variable(
+            (
+                Atom('x' type=static),
+                #5,
+            ),
+        ),
+    ),
+    (
+        "y#6",
+        Variable(
+            (
+                Atom('x' type=static),
+                #6,
+            ),
+        ),
+    ),
+    (
+        "y#8",
+        Variable(
+            (
+                Atom('x' type=static),
+                #8,
+            ),
+        ),
+    ),
+    (
+        "z#2",
+        Variable(
+            (
+                Atom('a' type=static),
+                #1,
+            ),
+        ),
+    ),
+    (
+        "z#5",
+        Variable(
+            (
+                Atom('d' type=inline),
+                #1,
+            ),
+        ),
+    ),
+    (
+        "z#6",
+        Variable(
+            (
+                Atom('d' type=inline),
+                #1,
+            ),
+        ),
+    ),
+    (
+        "z#8",
+        Variable(
+            (
+                Atom('e' type=inline),
+                #7,
+            ),
+        ),
+    ),
+    (
+        "z2",
+        Variable(
+            (
+                Atom('f' type=inline),
+                #1,
+            ),
+        ),
+    ),
+]

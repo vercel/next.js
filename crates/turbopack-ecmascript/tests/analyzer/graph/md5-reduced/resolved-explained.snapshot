@@ -1,0 +1,104 @@
+a#2 = ???*0*
+- *0* max number of linking steps reached
+
+a#3 = arguments[1]
+
+a#5 = arguments[0]
+
+b#2 = ???*0*
+- *0* max number of linking steps reached
+
+b#3 = arguments[2]
+
+b#5 = arguments[1]
+
+c#2 = ???*0*
+- *0* max number of linking steps reached
+
+c#5 = arguments[2]
+
+d#2 = ???*0*
+- *0* max number of linking steps reached
+
+d#5 = arguments[3]
+
+i = (???*0* | 0)
+- *0* i
+  ⚠️  pattern without value
+
+len = arguments[1]
+
+md5cmn = (...) => ???*0*
+- *0* ???*1*(???*2*, arguments[2])
+  ⚠️  call of unknown function
+- *1* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *2* ???*3*(???*4*, arguments[4])
+  ⚠️  call of unknown function
+- *3* FreeVar(bitRotateLeft)
+  ⚠️  unknown global
+- *4* ???*5*(???*6*, ???*8*)
+  ⚠️  call of unknown function
+- *5* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *6* ???*7*(arguments[1], arguments[0])
+  ⚠️  call of unknown function
+- *7* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *8* ???*9*(arguments[3], arguments[5])
+  ⚠️  call of unknown function
+- *9* FreeVar(safeAdd)
+  ⚠️  unknown global
+
+md5ff = (...) => ???*0*
+- *0* ???*1*(???*2*, arguments[2])
+  ⚠️  call of unknown function
+- *1* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *2* ???*3*(???*4*, arguments[4])
+  ⚠️  call of unknown function
+- *3* FreeVar(bitRotateLeft)
+  ⚠️  unknown global
+- *4* ???*5*(???*6*, ???*8*)
+  ⚠️  call of unknown function
+- *5* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *6* ???*7*(arguments[1], arguments[0])
+  ⚠️  call of unknown function
+- *7* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *8* ???*9*(arguments[3], arguments[5])
+  ⚠️  call of unknown function
+- *9* FreeVar(safeAdd)
+  ⚠️  unknown global
+
+olda = ???*0*
+- *0* max number of linking steps reached
+
+oldb = ???*0*
+- *0* max number of linking steps reached
+
+oldc = ???*0*
+- *0* max number of linking steps reached
+
+oldd = ???*0*
+- *0* max number of linking steps reached
+
+q = arguments[0]
+
+s#3 = arguments[4]
+
+s#5 = arguments[5]
+
+t#3 = arguments[5]
+
+t#5 = arguments[6]
+
+wordsToMd5 = ???*0*
+- *0* max number of linking steps reached
+
+x#2 = arguments[0]
+
+x#3 = arguments[3]
+
+x#5 = arguments[4]

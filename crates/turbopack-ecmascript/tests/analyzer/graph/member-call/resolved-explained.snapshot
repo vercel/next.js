@@ -1,0 +1,19 @@
+array = [1, 2, 3]
+
+arrays = ([1, 2, 3] | [4, 5, 6])
+
+concatenated_array = [1, 2, 3, 4, 5, 6, 7, 8, 9, `hello ${2}`]
+
+concatenated_array_options = [1, 2, 3, 7, 8, 9]
+
+item = 2
+
+item_options = (2 | 5)
+
+pick_array1 = [1, 2, 3, 4, 5, 6, ???*0*]
+- *0* FreeVar(unknown)
+  ⚠️  unknown global
+
+pick_array2 = [1, 2, 3]["concat"](4, 5, 6, ???*0*)
+- *0* FreeVar(unknown)
+  ⚠️  unknown global

@@ -1,0 +1,9 @@
+a = (...) => FreeVar(undefined)
+
+b = (...) => FreeVar(undefined)
+
+c = (...) => FreeVar(undefined)
+
+x = (1 | `${y}.js`)
+
+y = ("hello" | "world")

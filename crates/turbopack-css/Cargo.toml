@@ -1,0 +1,35 @@
+[package]
+name = "turbopack-css"
+version = "0.1.0"
+edition = "2021"
+autobenches = false
+
+[lib]
+bench = false
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.47"
+async-trait = "0.1.56"
+serde = "1.0.136"
+
+turbo-tasks = { path = "../turbo-tasks" }
+turbo-tasks-fs = { path = "../turbo-tasks-fs" }
+turbopack-core = { path = "../turbopack-core" }
+turbopack-ecmascript = { path = "../turbopack-ecmascript" }
+
+swc_core = { workspace = true, features = [
+  "ecma_ast",
+  "css_ast",
+  "css_codegen",
+  "css_parser",
+  "css_utils",
+  "css_visit",
+  "css_visit_path",
+  "common",
+  "common_concurrent",
+] }
+
+[build-dependencies]
+turbo-tasks-build = { path = "../turbo-tasks-build" }

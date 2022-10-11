@@ -1,0 +1,66 @@
+[package]
+name = "turbopack-ecmascript"
+version = "0.1.0"
+edition = "2021"
+autobenches = false
+
+[lib]
+bench = false
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.47"
+async-trait = "0.1.56"
+indexmap = { workspace = true }
+lazy_static = "1.4.0"
+once_cell = "1.13.0"
+rand = "0.8.5"
+regex = "1.5.4"
+serde = "1.0.136"
+serde_json = "1.0.85"
+serde_regex = "1.1.0"
+styled_jsx = "0.22.0"
+swc_ecma_preset_env = "0.173.5"
+tokio = "1.11.0"
+turbo-tasks = { path = "../turbo-tasks" }
+turbo-tasks-fs = { path = "../turbo-tasks-fs" }
+turbopack-core = { path = "../turbopack-core" }
+turbopack-hash = { path = "../turbopack-hash" }
+url = "2.2.2"
+
+swc_core = { workspace = true, features = [
+  "ecma_ast",
+  "common",
+  "common_concurrent",
+  "common_sourcemap",
+  "ecma_codegen",
+  "ecma_parser",
+  "ecma_transforms",
+  "ecma_transforms_module",
+  "ecma_transforms_react",
+  "ecma_transforms_typescript",
+  "ecma_quote",
+  "ecma_visit",
+  "ecma_visit_path",
+  "ecma_utils",
+  "testing",
+  "base",
+] }
+
+[dependencies.num-bigint]
+version = "0.4"
+
+[dev-dependencies]
+criterion = { version = "0.3.5", features = ["async_tokio"] }
+difference = "2.0"
+rstest = "0.12.0"
+turbo-tasks-memory = { path = "../turbo-tasks-memory" }
+turbo-tasks-testing = { path = "../turbo-tasks-testing" }
+
+[build-dependencies]
+turbo-tasks-build = { path = "../turbo-tasks-build" }
+
+[[bench]]
+name = "mod"
+harness = false

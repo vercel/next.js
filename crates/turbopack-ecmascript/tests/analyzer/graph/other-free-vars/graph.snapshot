@@ -1,0 +1,52 @@
+[
+    (
+        "O",
+        FreeVar(
+            Object,
+        ),
+    ),
+    (
+        "a",
+        MemberCall(
+            4,
+            FreeVar(
+                Object,
+            ),
+            Constant(
+                StrWord(
+                    Atom('keys' type=inline),
+                ),
+            ),
+            [
+                Variable(
+                    (
+                        Atom('O' type=inline),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "b",
+        MemberCall(
+            4,
+            Variable(
+                (
+                    Atom('O' type=inline),
+                    #1,
+                ),
+            ),
+            Constant(
+                StrWord(
+                    Atom('keys' type=inline),
+                ),
+            ),
+            [
+                FreeVar(
+                    Object,
+                ),
+            ],
+        ),
+    ),
+]

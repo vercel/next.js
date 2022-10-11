@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["/[project]/crates/turbopack/tests/snapshot/integration/json/input/index.js"],"sourcesContent":["import pkg from \"./package.json\";\nconsole.log(pkg.name);\nimport invalid from \"./invalid.json\";\nconsole.log(invalid[\"this-is\"]);\n"],"names":[],"mappings":"AAAA;;;;AACA,QAAQ,GAAG,CAAC,yJAAI,IAAI;;AAEpB,QAAQ,GAAG,CAAC,wJAAO,CAAC,UAAU"}},
+    {"offset": {"line": 11, "column": 0}, "map": {"version": 3, "names": [], "sources": [], "mappings": "A"}}]
+}

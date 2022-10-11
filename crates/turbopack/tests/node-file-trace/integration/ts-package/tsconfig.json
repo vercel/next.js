@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "baseUrl": "./base",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "paths": {
+      "utils": ["../utils.ts"],
+      "utils/*": ["../utils/*", "../more-utils/*"]
+    }
+  },
+  // comment
+  /*
+  comment
+  */
+  "ts-node": {
+    "require": ["tsconfig-paths/register"]
+  }
+}

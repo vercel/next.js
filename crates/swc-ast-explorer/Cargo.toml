@@ -1,0 +1,22 @@
+[package]
+name = "swc-ast-explorer"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "swc-ast-explorer"
+path = "src/main.rs"
+bench = false
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.47"
+clap = { version = "3.2.15", features = ["derive"] }
+regex = "1.6.0"
+swc_core = { workspace = true, features = [
+  "base",
+  "common",
+  "ecma_ast",
+  "ecma_parser",
+] }

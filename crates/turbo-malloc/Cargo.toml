@@ -1,0 +1,16 @@
+[package]
+name = "turbo-malloc"
+version = "0.1.0"
+edition = "2021"
+autobenches = false
+
+[lib]
+bench = false
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[target.'cfg(not(target_os = "linux"))'.dependencies]
+mimalloc-rust = { version = "0.2" }
+
+[target.'cfg(all(target_os = "linux", not(all(target_env = "musl", target_arch = "aarch64"))))'.dependencies]
+mimalloc-rust = { version = "0.2", features = ["local-dynamic-tls"] }

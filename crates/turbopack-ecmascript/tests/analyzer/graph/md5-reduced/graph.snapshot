@@ -1,0 +1,1621 @@
+[
+    (
+        "a#2",
+        Alternatives(
+            52,
+            [
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            1732584193.0,
+                        ),
+                    ),
+                ),
+                Call(
+                    11,
+                    Variable(
+                        (
+                            Atom('md5ff' type=inline),
+                            #1,
+                        ),
+                    ),
+                    [
+                        Variable(
+                            (
+                                Atom('a' type=static),
+                                #2,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('b' type=static),
+                                #2,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('c' type=inline),
+                                #2,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('d' type=inline),
+                                #2,
+                            ),
+                        ),
+                        Member(
+                            3,
+                            Variable(
+                                (
+                                    Atom('x' type=static),
+                                    #2,
+                                ),
+                            ),
+                            Variable(
+                                (
+                                    Atom('i' type=static),
+                                    #2,
+                                ),
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    7.0,
+                                ),
+                            ),
+                        ),
+                        Unknown(
+                            None,
+                            "unsupported expression",
+                        ),
+                    ],
+                ),
+                Call(
+                    13,
+                    Variable(
+                        (
+                            Atom('md5ff' type=inline),
+                            #1,
+                        ),
+                    ),
+                    [
+                        Variable(
+                            (
+                                Atom('a' type=static),
+                                #2,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('b' type=static),
+                                #2,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('c' type=inline),
+                                #2,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('d' type=inline),
+                                #2,
+                            ),
+                        ),
+                        Member(
+                            5,
+                            Variable(
+                                (
+                                    Atom('x' type=static),
+                                    #2,
+                                ),
+                            ),
+                            Add(
+                                3,
+                                [
+                                    Variable(
+                                        (
+                                            Atom('i' type=static),
+                                            #2,
+                                        ),
+                                    ),
+                                    Constant(
+                                        Num(
+                                            ConstantNumber(
+                                                4.0,
+                                            ),
+                                        ),
+                                    ),
+                                ],
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    7.0,
+                                ),
+                            ),
+                        ),
+                        Unknown(
+                            None,
+                            "unsupported expression",
+                        ),
+                    ],
+                ),
+                Call(
+                    13,
+                    Variable(
+                        (
+                            Atom('md5ff' type=inline),
+                            #1,
+                        ),
+                    ),
+                    [
+                        Variable(
+                            (
+                                Atom('a' type=static),
+                                #2,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('b' type=static),
+                                #2,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('c' type=inline),
+                                #2,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('d' type=inline),
+                                #2,
+                            ),
+                        ),
+                        Member(
+                            5,
+                            Variable(
+                                (
+                                    Atom('x' type=static),
+                                    #2,
+                                ),
+                            ),
+                            Add(
+                                3,
+                                [
+                                    Variable(
+                                        (
+                                            Atom('i' type=static),
+                                            #2,
+                                        ),
+                                    ),
+                                    Constant(
+                                        Num(
+                                            ConstantNumber(
+                                                8.0,
+                                            ),
+                                        ),
+                                    ),
+                                ],
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    7.0,
+                                ),
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    1770035416.0,
+                                ),
+                            ),
+                        ),
+                    ],
+                ),
+                Call(
+                    13,
+                    Variable(
+                        (
+                            Atom('md5ff' type=inline),
+                            #1,
+                        ),
+                    ),
+                    [
+                        Variable(
+                            (
+                                Atom('a' type=static),
+                                #2,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('b' type=static),
+                                #2,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('c' type=inline),
+                                #2,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('d' type=inline),
+                                #2,
+                            ),
+                        ),
+                        Member(
+                            5,
+                            Variable(
+                                (
+                                    Atom('x' type=static),
+                                    #2,
+                                ),
+                            ),
+                            Add(
+                                3,
+                                [
+                                    Variable(
+                                        (
+                                            Atom('i' type=static),
+                                            #2,
+                                        ),
+                                    ),
+                                    Constant(
+                                        Num(
+                                            ConstantNumber(
+                                                12.0,
+                                            ),
+                                        ),
+                                    ),
+                                ],
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    7.0,
+                                ),
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    1804603682.0,
+                                ),
+                            ),
+                        ),
+                    ],
+                ),
+            ],
+        ),
+    ),
+    (
+        "a#3",
+        Argument(
+            1,
+        ),
+    ),
+    (
+        "a#5",
+        Argument(
+            0,
+        ),
+    ),
+    (
+        "b#2",
+        Alternatives(
+            54,
+            [
+                Unknown(
+                    None,
+                    "unsupported expression",
+                ),
+                Call(
+                    13,
+                    Variable(
+                        (
+                            Atom('md5ff' type=inline),
+                            #1,
+                        ),
+                    ),
+                    [
+                        Variable(
+                            (
+                                Atom('b' type=static),
+                                #2,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('c' type=inline),
+                                #2,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('d' type=inline),
+                                #2,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('a' type=static),
+                                #2,
+                            ),
+                        ),
+                        Member(
+                            5,
+                            Variable(
+                                (
+                                    Atom('x' type=static),
+                                    #2,
+                                ),
+                            ),
+                            Add(
+                                3,
+                                [
+                                    Variable(
+                                        (
+                                            Atom('i' type=static),
+                                            #2,
+                                        ),
+                                    ),
+                                    Constant(
+                                        Num(
+                                            ConstantNumber(
+                                                3.0,
+                                            ),
+                                        ),
+                                    ),
+                                ],
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    22.0,
+                                ),
+                            ),
+                        ),
+                        Unknown(
+                            None,
+                            "unsupported expression",
+                        ),
+                    ],
+                ),
+                Call(
+                    13,
+                    Variable(
+                        (
+                            Atom('md5ff' type=inline),
+                            #1,
+                        ),
+                    ),
+                    [
+                        Variable(
+                            (
+                                Atom('b' type=static),
+                                #2,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('c' type=inline),
+                                #2,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('d' type=inline),
+                                #2,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('a' type=static),
+                                #2,
+                            ),
+                        ),
+                        Member(
+                            5,
+                            Variable(
+                                (
+                                    Atom('x' type=static),
+                                    #2,
+                                ),
+                            ),
+                            Add(
+                                3,
+                                [
+                                    Variable(
+                                        (
+                                            Atom('i' type=static),
+                                            #2,
+                                        ),
+                                    ),
+                                    Constant(
+                                        Num(
+                                            ConstantNumber(
+                                                7.0,
+                                            ),
+                                        ),
+                                    ),
+                                ],
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    22.0,
+                                ),
+                            ),
+                        ),
+                        Unknown(
+                            None,
+                            "unsupported expression",
+                        ),
+                    ],
+                ),
+                Call(
+                    13,
+                    Variable(
+                        (
+                            Atom('md5ff' type=inline),
+                            #1,
+                        ),
+                    ),
+                    [
+                        Variable(
+                            (
+                                Atom('b' type=static),
+                                #2,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('c' type=inline),
+                                #2,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('d' type=inline),
+                                #2,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('a' type=static),
+                                #2,
+                            ),
+                        ),
+                        Member(
+                            5,
+                            Variable(
+                                (
+                                    Atom('x' type=static),
+                                    #2,
+                                ),
+                            ),
+                            Add(
+                                3,
+                                [
+                                    Variable(
+                                        (
+                                            Atom('i' type=static),
+                                            #2,
+                                        ),
+                                    ),
+                                    Constant(
+                                        Num(
+                                            ConstantNumber(
+                                                11.0,
+                                            ),
+                                        ),
+                                    ),
+                                ],
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    22.0,
+                                ),
+                            ),
+                        ),
+                        Unknown(
+                            None,
+                            "unsupported expression",
+                        ),
+                    ],
+                ),
+                Call(
+                    13,
+                    Variable(
+                        (
+                            Atom('md5ff' type=inline),
+                            #1,
+                        ),
+                    ),
+                    [
+                        Variable(
+                            (
+                                Atom('b' type=static),
+                                #2,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('c' type=inline),
+                                #2,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('d' type=inline),
+                                #2,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('a' type=static),
+                                #2,
+                            ),
+                        ),
+                        Member(
+                            5,
+                            Variable(
+                                (
+                                    Atom('x' type=static),
+                                    #2,
+                                ),
+                            ),
+                            Add(
+                                3,
+                                [
+                                    Variable(
+                                        (
+                                            Atom('i' type=static),
+                                            #2,
+                                        ),
+                                    ),
+                                    Constant(
+                                        Num(
+                                            ConstantNumber(
+                                                15.0,
+                                            ),
+                                        ),
+                                    ),
+                                ],
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    22.0,
+                                ),
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    1236535329.0,
+                                ),
+                            ),
+                        ),
+                    ],
+                ),
+            ],
+        ),
+    ),
+    (
+        "b#3",
+        Argument(
+            2,
+        ),
+    ),
+    (
+        "b#5",
+        Argument(
+            1,
+        ),
+    ),
+    (
+        "c#2",
+        Alternatives(
+            54,
+            [
+                Unknown(
+                    None,
+                    "unsupported expression",
+                ),
+                Call(
+                    13,
+                    Variable(
+                        (
+                            Atom('md5ff' type=inline),
+                            #1,
+                        ),
+                    ),
+                    [
+                        Variable(
+                            (
+                                Atom('c' type=inline),
+                                #2,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('d' type=inline),
+                                #2,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('a' type=static),
+                                #2,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('b' type=static),
+                                #2,
+                            ),
+                        ),
+                        Member(
+                            5,
+                            Variable(
+                                (
+                                    Atom('x' type=static),
+                                    #2,
+                                ),
+                            ),
+                            Add(
+                                3,
+                                [
+                                    Variable(
+                                        (
+                                            Atom('i' type=static),
+                                            #2,
+                                        ),
+                                    ),
+                                    Constant(
+                                        Num(
+                                            ConstantNumber(
+                                                2.0,
+                                            ),
+                                        ),
+                                    ),
+                                ],
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    17.0,
+                                ),
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    606105819.0,
+                                ),
+                            ),
+                        ),
+                    ],
+                ),
+                Call(
+                    13,
+                    Variable(
+                        (
+                            Atom('md5ff' type=inline),
+                            #1,
+                        ),
+                    ),
+                    [
+                        Variable(
+                            (
+                                Atom('c' type=inline),
+                                #2,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('d' type=inline),
+                                #2,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('a' type=static),
+                                #2,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('b' type=static),
+                                #2,
+                            ),
+                        ),
+                        Member(
+                            5,
+                            Variable(
+                                (
+                                    Atom('x' type=static),
+                                    #2,
+                                ),
+                            ),
+                            Add(
+                                3,
+                                [
+                                    Variable(
+                                        (
+                                            Atom('i' type=static),
+                                            #2,
+                                        ),
+                                    ),
+                                    Constant(
+                                        Num(
+                                            ConstantNumber(
+                                                6.0,
+                                            ),
+                                        ),
+                                    ),
+                                ],
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    17.0,
+                                ),
+                            ),
+                        ),
+                        Unknown(
+                            None,
+                            "unsupported expression",
+                        ),
+                    ],
+                ),
+                Call(
+                    13,
+                    Variable(
+                        (
+                            Atom('md5ff' type=inline),
+                            #1,
+                        ),
+                    ),
+                    [
+                        Variable(
+                            (
+                                Atom('c' type=inline),
+                                #2,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('d' type=inline),
+                                #2,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('a' type=static),
+                                #2,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('b' type=static),
+                                #2,
+                            ),
+                        ),
+                        Member(
+                            5,
+                            Variable(
+                                (
+                                    Atom('x' type=static),
+                                    #2,
+                                ),
+                            ),
+                            Add(
+                                3,
+                                [
+                                    Variable(
+                                        (
+                                            Atom('i' type=static),
+                                            #2,
+                                        ),
+                                    ),
+                                    Constant(
+                                        Num(
+                                            ConstantNumber(
+                                                10.0,
+                                            ),
+                                        ),
+                                    ),
+                                ],
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    17.0,
+                                ),
+                            ),
+                        ),
+                        Unknown(
+                            None,
+                            "unsupported expression",
+                        ),
+                    ],
+                ),
+                Call(
+                    13,
+                    Variable(
+                        (
+                            Atom('md5ff' type=inline),
+                            #1,
+                        ),
+                    ),
+                    [
+                        Variable(
+                            (
+                                Atom('c' type=inline),
+                                #2,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('d' type=inline),
+                                #2,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('a' type=static),
+                                #2,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('b' type=static),
+                                #2,
+                            ),
+                        ),
+                        Member(
+                            5,
+                            Variable(
+                                (
+                                    Atom('x' type=static),
+                                    #2,
+                                ),
+                            ),
+                            Add(
+                                3,
+                                [
+                                    Variable(
+                                        (
+                                            Atom('i' type=static),
+                                            #2,
+                                        ),
+                                    ),
+                                    Constant(
+                                        Num(
+                                            ConstantNumber(
+                                                14.0,
+                                            ),
+                                        ),
+                                    ),
+                                ],
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    17.0,
+                                ),
+                            ),
+                        ),
+                        Unknown(
+                            None,
+                            "unsupported expression",
+                        ),
+                    ],
+                ),
+            ],
+        ),
+    ),
+    (
+        "c#5",
+        Argument(
+            2,
+        ),
+    ),
+    (
+        "d#2",
+        Alternatives(
+            54,
+            [
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            271733878.0,
+                        ),
+                    ),
+                ),
+                Call(
+                    13,
+                    Variable(
+                        (
+                            Atom('md5ff' type=inline),
+                            #1,
+                        ),
+                    ),
+                    [
+                        Variable(
+                            (
+                                Atom('d' type=inline),
+                                #2,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('a' type=static),
+                                #2,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('b' type=static),
+                                #2,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('c' type=inline),
+                                #2,
+                            ),
+                        ),
+                        Member(
+                            5,
+                            Variable(
+                                (
+                                    Atom('x' type=static),
+                                    #2,
+                                ),
+                            ),
+                            Add(
+                                3,
+                                [
+                                    Variable(
+                                        (
+                                            Atom('i' type=static),
+                                            #2,
+                                        ),
+                                    ),
+                                    Constant(
+                                        Num(
+                                            ConstantNumber(
+                                                1.0,
+                                            ),
+                                        ),
+                                    ),
+                                ],
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    12.0,
+                                ),
+                            ),
+                        ),
+                        Unknown(
+                            None,
+                            "unsupported expression",
+                        ),
+                    ],
+                ),
+                Call(
+                    13,
+                    Variable(
+                        (
+                            Atom('md5ff' type=inline),
+                            #1,
+                        ),
+                    ),
+                    [
+                        Variable(
+                            (
+                                Atom('d' type=inline),
+                                #2,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('a' type=static),
+                                #2,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('b' type=static),
+                                #2,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('c' type=inline),
+                                #2,
+                            ),
+                        ),
+                        Member(
+                            5,
+                            Variable(
+                                (
+                                    Atom('x' type=static),
+                                    #2,
+                                ),
+                            ),
+                            Add(
+                                3,
+                                [
+                                    Variable(
+                                        (
+                                            Atom('i' type=static),
+                                            #2,
+                                        ),
+                                    ),
+                                    Constant(
+                                        Num(
+                                            ConstantNumber(
+                                                5.0,
+                                            ),
+                                        ),
+                                    ),
+                                ],
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    12.0,
+                                ),
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    1200080426.0,
+                                ),
+                            ),
+                        ),
+                    ],
+                ),
+                Call(
+                    13,
+                    Variable(
+                        (
+                            Atom('md5ff' type=inline),
+                            #1,
+                        ),
+                    ),
+                    [
+                        Variable(
+                            (
+                                Atom('d' type=inline),
+                                #2,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('a' type=static),
+                                #2,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('b' type=static),
+                                #2,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('c' type=inline),
+                                #2,
+                            ),
+                        ),
+                        Member(
+                            5,
+                            Variable(
+                                (
+                                    Atom('x' type=static),
+                                    #2,
+                                ),
+                            ),
+                            Add(
+                                3,
+                                [
+                                    Variable(
+                                        (
+                                            Atom('i' type=static),
+                                            #2,
+                                        ),
+                                    ),
+                                    Constant(
+                                        Num(
+                                            ConstantNumber(
+                                                9.0,
+                                            ),
+                                        ),
+                                    ),
+                                ],
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    12.0,
+                                ),
+                            ),
+                        ),
+                        Unknown(
+                            None,
+                            "unsupported expression",
+                        ),
+                    ],
+                ),
+                Call(
+                    13,
+                    Variable(
+                        (
+                            Atom('md5ff' type=inline),
+                            #1,
+                        ),
+                    ),
+                    [
+                        Variable(
+                            (
+                                Atom('d' type=inline),
+                                #2,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('a' type=static),
+                                #2,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('b' type=static),
+                                #2,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('c' type=inline),
+                                #2,
+                            ),
+                        ),
+                        Member(
+                            5,
+                            Variable(
+                                (
+                                    Atom('x' type=static),
+                                    #2,
+                                ),
+                            ),
+                            Add(
+                                3,
+                                [
+                                    Variable(
+                                        (
+                                            Atom('i' type=static),
+                                            #2,
+                                        ),
+                                    ),
+                                    Constant(
+                                        Num(
+                                            ConstantNumber(
+                                                13.0,
+                                            ),
+                                        ),
+                                    ),
+                                ],
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    12.0,
+                                ),
+                            ),
+                        ),
+                        Unknown(
+                            None,
+                            "unsupported expression",
+                        ),
+                    ],
+                ),
+            ],
+        ),
+    ),
+    (
+        "d#5",
+        Argument(
+            3,
+        ),
+    ),
+    (
+        "i",
+        Alternatives(
+            3,
+            [
+                Unknown(
+                    Some(
+                        Variable(
+                            (
+                                Atom('i' type=static),
+                                #2,
+                            ),
+                        ),
+                    ),
+                    "pattern without value",
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            0.0,
+                        ),
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "len",
+        Argument(
+            1,
+        ),
+    ),
+    (
+        "md5cmn",
+        Function(
+            17,
+            Call(
+                16,
+                FreeVar(
+                    Other(
+                        Atom('safeAdd' type=inline),
+                    ),
+                ),
+                [
+                    Call(
+                        13,
+                        FreeVar(
+                            Other(
+                                Atom('bitRotateLeft' type=dynamic),
+                            ),
+                        ),
+                        [
+                            Call(
+                                10,
+                                FreeVar(
+                                    Other(
+                                        Atom('safeAdd' type=inline),
+                                    ),
+                                ),
+                                [
+                                    Call(
+                                        4,
+                                        FreeVar(
+                                            Other(
+                                                Atom('safeAdd' type=inline),
+                                            ),
+                                        ),
+                                        [
+                                            Variable(
+                                                (
+                                                    Atom('a' type=static),
+                                                    #3,
+                                                ),
+                                            ),
+                                            Variable(
+                                                (
+                                                    Atom('q' type=static),
+                                                    #3,
+                                                ),
+                                            ),
+                                        ],
+                                    ),
+                                    Call(
+                                        4,
+                                        FreeVar(
+                                            Other(
+                                                Atom('safeAdd' type=inline),
+                                            ),
+                                        ),
+                                        [
+                                            Variable(
+                                                (
+                                                    Atom('x' type=static),
+                                                    #3,
+                                                ),
+                                            ),
+                                            Variable(
+                                                (
+                                                    Atom('t' type=inline),
+                                                    #3,
+                                                ),
+                                            ),
+                                        ],
+                                    ),
+                                ],
+                            ),
+                            Variable(
+                                (
+                                    Atom('s' type=static),
+                                    #3,
+                                ),
+                            ),
+                        ],
+                    ),
+                    Variable(
+                        (
+                            Atom('b' type=static),
+                            #3,
+                        ),
+                    ),
+                ],
+            ),
+        ),
+    ),
+    (
+        "md5ff",
+        Function(
+            9,
+            Call(
+                8,
+                Variable(
+                    (
+                        Atom('md5cmn' type=inline),
+                        #1,
+                    ),
+                ),
+                [
+                    Unknown(
+                        None,
+                        "unsupported expression",
+                    ),
+                    Variable(
+                        (
+                            Atom('a' type=static),
+                            #5,
+                        ),
+                    ),
+                    Variable(
+                        (
+                            Atom('b' type=static),
+                            #5,
+                        ),
+                    ),
+                    Variable(
+                        (
+                            Atom('x' type=static),
+                            #5,
+                        ),
+                    ),
+                    Variable(
+                        (
+                            Atom('s' type=static),
+                            #5,
+                        ),
+                    ),
+                    Variable(
+                        (
+                            Atom('t' type=inline),
+                            #5,
+                        ),
+                    ),
+                ],
+            ),
+        ),
+    ),
+    (
+        "olda",
+        Alternatives(
+            3,
+            [
+                Unknown(
+                    Some(
+                        Variable(
+                            (
+                                Atom('olda' type=inline),
+                                #2,
+                            ),
+                        ),
+                    ),
+                    "pattern without value",
+                ),
+                Variable(
+                    (
+                        Atom('a' type=static),
+                        #2,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "oldb",
+        Alternatives(
+            3,
+            [
+                Unknown(
+                    Some(
+                        Variable(
+                            (
+                                Atom('oldb' type=inline),
+                                #2,
+                            ),
+                        ),
+                    ),
+                    "pattern without value",
+                ),
+                Variable(
+                    (
+                        Atom('b' type=static),
+                        #2,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "oldc",
+        Alternatives(
+            3,
+            [
+                Unknown(
+                    Some(
+                        Variable(
+                            (
+                                Atom('oldc' type=inline),
+                                #2,
+                            ),
+                        ),
+                    ),
+                    "pattern without value",
+                ),
+                Variable(
+                    (
+                        Atom('c' type=inline),
+                        #2,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "oldd",
+        Alternatives(
+            3,
+            [
+                Unknown(
+                    Some(
+                        Variable(
+                            (
+                                Atom('oldd' type=inline),
+                                #2,
+                            ),
+                        ),
+                    ),
+                    "pattern without value",
+                ),
+                Variable(
+                    (
+                        Atom('d' type=inline),
+                        #2,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "q",
+        Argument(
+            0,
+        ),
+    ),
+    (
+        "s#3",
+        Argument(
+            4,
+        ),
+    ),
+    (
+        "s#5",
+        Argument(
+            5,
+        ),
+    ),
+    (
+        "t#3",
+        Argument(
+            5,
+        ),
+    ),
+    (
+        "t#5",
+        Argument(
+            6,
+        ),
+    ),
+    (
+        "wordsToMd5",
+        Function(
+            6,
+            Array(
+                5,
+                [
+                    Variable(
+                        (
+                            Atom('a' type=static),
+                            #2,
+                        ),
+                    ),
+                    Variable(
+                        (
+                            Atom('b' type=static),
+                            #2,
+                        ),
+                    ),
+                    Variable(
+                        (
+                            Atom('c' type=inline),
+                            #2,
+                        ),
+                    ),
+                    Variable(
+                        (
+                            Atom('d' type=inline),
+                            #2,
+                        ),
+                    ),
+                ],
+            ),
+        ),
+    ),
+    (
+        "x#2",
+        Argument(
+            0,
+        ),
+    ),
+    (
+        "x#3",
+        Argument(
+            3,
+        ),
+    ),
+    (
+        "x#5",
+        Argument(
+            4,
+        ),
+    ),
+]

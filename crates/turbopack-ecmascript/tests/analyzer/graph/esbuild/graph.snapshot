@@ -1,0 +1,912 @@
+[
+    (
+        "*arrow function 2666*",
+        Function(
+            16,
+            Alternatives(
+                15,
+                [
+                    Array(
+                        10,
+                        [
+                            Constant(
+                                StrWord(
+                                    Atom('node' type=inline),
+                                ),
+                            ),
+                            Array(
+                                8,
+                                [
+                                    MemberCall(
+                                        7,
+                                        Variable(
+                                            (
+                                                Atom('path2' type=inline),
+                                                #1,
+                                            ),
+                                        ),
+                                        Constant(
+                                            StrWord(
+                                                Atom('join' type=inline),
+                                            ),
+                                        ),
+                                        [
+                                            FreeVar(
+                                                Dirname,
+                                            ),
+                                            Constant(
+                                                StrWord(
+                                                    Atom('..' type=inline),
+                                                ),
+                                            ),
+                                            Constant(
+                                                StrWord(
+                                                    Atom('bin' type=inline),
+                                                ),
+                                            ),
+                                            Constant(
+                                                StrWord(
+                                                    Atom('esbuild' type=inline),
+                                                ),
+                                            ),
+                                        ],
+                                    ),
+                                ],
+                            ),
+                        ],
+                    ),
+                    Array(
+                        4,
+                        [
+                            Call(
+                                2,
+                                Variable(
+                                    (
+                                        Atom('generateBinPath' type=dynamic),
+                                        #1,
+                                    ),
+                                ),
+                                [],
+                            ),
+                            Array(
+                                1,
+                                [],
+                            ),
+                        ],
+                    ),
+                ],
+            ),
+        ),
+    ),
+    (
+        "args",
+        Member(
+            4,
+            Call(
+                2,
+                Variable(
+                    (
+                        Atom('esbuildCommandAndArgs' type=dynamic),
+                        #1,
+                    ),
+                ),
+                [],
+            ),
+            Constant(
+                Num(
+                    ConstantNumber(
+                        1.0,
+                    ),
+                ),
+            ),
+        ),
+    ),
+    (
+        "binPath",
+        Alternatives(
+            13,
+            [
+                Unknown(
+                    Some(
+                        Variable(
+                            (
+                                Atom('binPath' type=inline),
+                                #4,
+                            ),
+                        ),
+                    ),
+                    "pattern without value",
+                ),
+                MemberCall(
+                    7,
+                    FreeVar(
+                        Require,
+                    ),
+                    Constant(
+                        StrWord(
+                            Atom('resolve' type=inline),
+                        ),
+                    ),
+                    [
+                        Concat(
+                            4,
+                            [
+                                Variable(
+                                    (
+                                        Atom('pkg' type=inline),
+                                        #4,
+                                    ),
+                                ),
+                                Constant(
+                                    StrAtom(
+                                        "/",
+                                    ),
+                                ),
+                                Variable(
+                                    (
+                                        Atom('subpath' type=inline),
+                                        #4,
+                                    ),
+                                ),
+                            ],
+                        ),
+                    ],
+                ),
+                Call(
+                    4,
+                    FreeVar(
+                        Other(
+                            Atom('downloadedBinPath' type=dynamic),
+                        ),
+                    ),
+                    [
+                        Variable(
+                            (
+                                Atom('pkg' type=inline),
+                                #4,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('subpath' type=inline),
+                                #4,
+                            ),
+                        ),
+                    ],
+                ),
+            ],
+        ),
+    ),
+    (
+        "binTargetPath",
+        MemberCall(
+            12,
+            Variable(
+                (
+                    Atom('path' type=static),
+                    #1,
+                ),
+            ),
+            Constant(
+                StrWord(
+                    Atom('join' type=inline),
+                ),
+            ),
+            [
+                Variable(
+                    (
+                        Atom('esbuildLibDir' type=dynamic),
+                        #7,
+                    ),
+                ),
+                Concat(
+                    8,
+                    [
+                        Constant(
+                            StrAtom(
+                                "pnpapi-",
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('pkg' type=inline),
+                                #4,
+                            ),
+                        ),
+                        Constant(
+                            StrAtom(
+                                "-",
+                            ),
+                        ),
+                        MemberCall(
+                            4,
+                            Variable(
+                                (
+                                    Atom('path' type=static),
+                                    #1,
+                                ),
+                            ),
+                            Constant(
+                                StrWord(
+                                    Atom('basename' type=dynamic),
+                                ),
+                            ),
+                            [
+                                Variable(
+                                    (
+                                        Atom('subpath' type=inline),
+                                        #4,
+                                    ),
+                                ),
+                            ],
+                        ),
+                    ],
+                ),
+            ],
+        ),
+    ),
+    (
+        "command",
+        Member(
+            4,
+            Call(
+                2,
+                Variable(
+                    (
+                        Atom('esbuildCommandAndArgs' type=dynamic),
+                        #1,
+                    ),
+                ),
+                [],
+            ),
+            Constant(
+                Num(
+                    ConstantNumber(
+                        0.0,
+                    ),
+                ),
+            ),
+        ),
+    ),
+    (
+        "e#5",
+        Unknown(
+            Some(
+                Variable(
+                    (
+                        Atom('e' type=inline),
+                        #5,
+                    ),
+                ),
+            ),
+            "pattern without value",
+        ),
+    ),
+    (
+        "e#6",
+        Unknown(
+            Some(
+                Variable(
+                    (
+                        Atom('e' type=inline),
+                        #6,
+                    ),
+                ),
+            ),
+            "pattern without value",
+        ),
+    ),
+    (
+        "esbuildCommandAndArgs",
+        Variable(
+            (
+                Atom('*arrow function 2666*' type=dynamic),
+                #0,
+            ),
+        ),
+    ),
+    (
+        "esbuildLibDir",
+        MemberCall(
+            7,
+            Variable(
+                (
+                    Atom('path' type=static),
+                    #1,
+                ),
+            ),
+            Constant(
+                StrWord(
+                    Atom('dirname' type=inline),
+                ),
+            ),
+            [
+                MemberCall(
+                    4,
+                    FreeVar(
+                        Require,
+                    ),
+                    Constant(
+                        StrWord(
+                            Atom('resolve' type=inline),
+                        ),
+                    ),
+                    [
+                        Constant(
+                            StrWord(
+                                Atom('esbuild' type=inline),
+                            ),
+                        ),
+                    ],
+                ),
+            ],
+        ),
+    ),
+    (
+        "generateBinPath",
+        Function(
+            5,
+            Alternatives(
+                4,
+                [
+                    FreeVar(
+                        Other(
+                            Atom('ESBUILD_BINARY_PATH' type=dynamic),
+                        ),
+                    ),
+                    Variable(
+                        (
+                            Atom('binTargetPath' type=dynamic),
+                            #7,
+                        ),
+                    ),
+                    Variable(
+                        (
+                            Atom('binPath' type=inline),
+                            #4,
+                        ),
+                    ),
+                ],
+            ),
+        ),
+    ),
+    (
+        "isYarnPnP",
+        Alternatives(
+            3,
+            [
+                Constant(
+                    False,
+                ),
+                Constant(
+                    True,
+                ),
+            ],
+        ),
+    ),
+    (
+        "knownUnixlikePackages",
+        Object(
+            31,
+            [
+                KeyValue(
+                    Constant(
+                        StrWord(
+                            Atom('android arm64 LE' type=dynamic),
+                        ),
+                    ),
+                    Constant(
+                        StrWord(
+                            Atom('esbuild-android-arm64' type=dynamic),
+                        ),
+                    ),
+                ),
+                KeyValue(
+                    Constant(
+                        StrWord(
+                            Atom('darwin arm64 LE' type=dynamic),
+                        ),
+                    ),
+                    Constant(
+                        StrWord(
+                            Atom('esbuild-darwin-arm64' type=dynamic),
+                        ),
+                    ),
+                ),
+                KeyValue(
+                    Constant(
+                        StrWord(
+                            Atom('darwin x64 LE' type=dynamic),
+                        ),
+                    ),
+                    Constant(
+                        StrWord(
+                            Atom('esbuild-darwin-64' type=dynamic),
+                        ),
+                    ),
+                ),
+                KeyValue(
+                    Constant(
+                        StrWord(
+                            Atom('freebsd arm64 LE' type=dynamic),
+                        ),
+                    ),
+                    Constant(
+                        StrWord(
+                            Atom('esbuild-freebsd-arm64' type=dynamic),
+                        ),
+                    ),
+                ),
+                KeyValue(
+                    Constant(
+                        StrWord(
+                            Atom('freebsd x64 LE' type=dynamic),
+                        ),
+                    ),
+                    Constant(
+                        StrWord(
+                            Atom('esbuild-freebsd-64' type=dynamic),
+                        ),
+                    ),
+                ),
+                KeyValue(
+                    Constant(
+                        StrWord(
+                            Atom('linux arm LE' type=dynamic),
+                        ),
+                    ),
+                    Constant(
+                        StrWord(
+                            Atom('esbuild-linux-arm' type=dynamic),
+                        ),
+                    ),
+                ),
+                KeyValue(
+                    Constant(
+                        StrWord(
+                            Atom('linux arm64 LE' type=dynamic),
+                        ),
+                    ),
+                    Constant(
+                        StrWord(
+                            Atom('esbuild-linux-arm64' type=dynamic),
+                        ),
+                    ),
+                ),
+                KeyValue(
+                    Constant(
+                        StrWord(
+                            Atom('linux ia32 LE' type=dynamic),
+                        ),
+                    ),
+                    Constant(
+                        StrWord(
+                            Atom('esbuild-linux-32' type=dynamic),
+                        ),
+                    ),
+                ),
+                KeyValue(
+                    Constant(
+                        StrWord(
+                            Atom('linux mips64el LE' type=dynamic),
+                        ),
+                    ),
+                    Constant(
+                        StrWord(
+                            Atom('esbuild-linux-mips64le' type=dynamic),
+                        ),
+                    ),
+                ),
+                KeyValue(
+                    Constant(
+                        StrWord(
+                            Atom('linux ppc64 LE' type=dynamic),
+                        ),
+                    ),
+                    Constant(
+                        StrWord(
+                            Atom('esbuild-linux-ppc64le' type=dynamic),
+                        ),
+                    ),
+                ),
+                KeyValue(
+                    Constant(
+                        StrWord(
+                            Atom('linux s390x BE' type=dynamic),
+                        ),
+                    ),
+                    Constant(
+                        StrWord(
+                            Atom('esbuild-linux-s390x' type=dynamic),
+                        ),
+                    ),
+                ),
+                KeyValue(
+                    Constant(
+                        StrWord(
+                            Atom('linux x64 LE' type=dynamic),
+                        ),
+                    ),
+                    Constant(
+                        StrWord(
+                            Atom('esbuild-linux-64' type=dynamic),
+                        ),
+                    ),
+                ),
+                KeyValue(
+                    Constant(
+                        StrWord(
+                            Atom('netbsd x64 LE' type=dynamic),
+                        ),
+                    ),
+                    Constant(
+                        StrWord(
+                            Atom('esbuild-netbsd-64' type=dynamic),
+                        ),
+                    ),
+                ),
+                KeyValue(
+                    Constant(
+                        StrWord(
+                            Atom('openbsd x64 LE' type=dynamic),
+                        ),
+                    ),
+                    Constant(
+                        StrWord(
+                            Atom('esbuild-openbsd-64' type=dynamic),
+                        ),
+                    ),
+                ),
+                KeyValue(
+                    Constant(
+                        StrWord(
+                            Atom('sunos x64 LE' type=dynamic),
+                        ),
+                    ),
+                    Constant(
+                        StrWord(
+                            Atom('esbuild-sunos-64' type=dynamic),
+                        ),
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "knownWindowsPackages",
+        Object(
+            7,
+            [
+                KeyValue(
+                    Constant(
+                        StrWord(
+                            Atom('win32 arm64 LE' type=dynamic),
+                        ),
+                    ),
+                    Constant(
+                        StrWord(
+                            Atom('esbuild-windows-arm64' type=dynamic),
+                        ),
+                    ),
+                ),
+                KeyValue(
+                    Constant(
+                        StrWord(
+                            Atom('win32 ia32 LE' type=dynamic),
+                        ),
+                    ),
+                    Constant(
+                        StrWord(
+                            Atom('esbuild-windows-32' type=dynamic),
+                        ),
+                    ),
+                ),
+                KeyValue(
+                    Constant(
+                        StrWord(
+                            Atom('win32 x64 LE' type=dynamic),
+                        ),
+                    ),
+                    Constant(
+                        StrWord(
+                            Atom('esbuild-windows-64' type=dynamic),
+                        ),
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "os",
+        Call(
+            3,
+            FreeVar(
+                Require,
+            ),
+            [
+                Constant(
+                    StrWord(
+                        Atom('os' type=inline),
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "path",
+        Call(
+            3,
+            FreeVar(
+                Require,
+            ),
+            [
+                Constant(
+                    StrWord(
+                        Atom('path' type=static),
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "path2",
+        Call(
+            3,
+            FreeVar(
+                Require,
+            ),
+            [
+                Constant(
+                    StrWord(
+                        Atom('path' type=static),
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "pkg#3",
+        Alternatives(
+            8,
+            [
+                Unknown(
+                    Some(
+                        Variable(
+                            (
+                                Atom('pkg' type=inline),
+                                #3,
+                            ),
+                        ),
+                    ),
+                    "pattern without value",
+                ),
+                Member(
+                    3,
+                    Variable(
+                        (
+                            Atom('knownWindowsPackages' type=dynamic),
+                            #1,
+                        ),
+                    ),
+                    Variable(
+                        (
+                            Atom('platformKey' type=dynamic),
+                            #3,
+                        ),
+                    ),
+                ),
+                Member(
+                    3,
+                    Variable(
+                        (
+                            Atom('knownUnixlikePackages' type=dynamic),
+                            #1,
+                        ),
+                    ),
+                    Variable(
+                        (
+                            Atom('platformKey' type=dynamic),
+                            #3,
+                        ),
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "pkg#4",
+        Member(
+            4,
+            Call(
+                2,
+                Variable(
+                    (
+                        Atom('pkgAndSubpathForCurrentPlatform' type=dynamic),
+                        #1,
+                    ),
+                ),
+                [],
+            ),
+            Constant(
+                StrWord(
+                    Atom('pkg' type=inline),
+                ),
+            ),
+        ),
+    ),
+    (
+        "pkgAndSubpathForCurrentPlatform",
+        Function(
+            6,
+            Object(
+                5,
+                [
+                    KeyValue(
+                        Constant(
+                            StrWord(
+                                Atom('pkg' type=inline),
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('pkg' type=inline),
+                                #3,
+                            ),
+                        ),
+                    ),
+                    KeyValue(
+                        Constant(
+                            StrWord(
+                                Atom('subpath' type=inline),
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('subpath' type=inline),
+                                #3,
+                            ),
+                        ),
+                    ),
+                ],
+            ),
+        ),
+    ),
+    (
+        "platformKey",
+        Concat(
+            12,
+            [
+                Member(
+                    3,
+                    FreeVar(
+                        NodeProcess,
+                    ),
+                    Constant(
+                        StrWord(
+                            Atom('platform' type=dynamic),
+                        ),
+                    ),
+                ),
+                Constant(
+                    StrAtom(
+                        " ",
+                    ),
+                ),
+                MemberCall(
+                    3,
+                    Variable(
+                        (
+                            Atom('os' type=inline),
+                            #1,
+                        ),
+                    ),
+                    Constant(
+                        StrWord(
+                            Atom('arch' type=inline),
+                        ),
+                    ),
+                    [],
+                ),
+                Constant(
+                    StrAtom(
+                        " ",
+                    ),
+                ),
+                MemberCall(
+                    3,
+                    Variable(
+                        (
+                            Atom('os' type=inline),
+                            #1,
+                        ),
+                    ),
+                    Constant(
+                        StrWord(
+                            Atom('endianness' type=dynamic),
+                        ),
+                    ),
+                    [],
+                ),
+            ],
+        ),
+    ),
+    (
+        "subpath#3",
+        Alternatives(
+            4,
+            [
+                Unknown(
+                    Some(
+                        Variable(
+                            (
+                                Atom('subpath' type=inline),
+                                #3,
+                            ),
+                        ),
+                    ),
+                    "pattern without value",
+                ),
+                Constant(
+                    StrWord(
+                        Atom('esbuild.exe' type=dynamic),
+                    ),
+                ),
+                Constant(
+                    StrWord(
+                        Atom('bin/esbuild' type=dynamic),
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "subpath#4",
+        Member(
+            4,
+            Call(
+                2,
+                Variable(
+                    (
+                        Atom('pkgAndSubpathForCurrentPlatform' type=dynamic),
+                        #1,
+                    ),
+                ),
+                [],
+            ),
+            Constant(
+                StrWord(
+                    Atom('subpath' type=inline),
+                ),
+            ),
+        ),
+    ),
+    (
+        "x",
+        MemberCall(
+            5,
+            Variable(
+                (
+                    Atom('args' type=inline),
+                    #1,
+                ),
+            ),
+            Constant(
+                StrWord(
+                    Atom('concat' type=static),
+                ),
+            ),
+            [
+                Constant(
+                    StrWord(
+                        Atom('--service=0.14.12' type=dynamic),
+                    ),
+                ),
+                Constant(
+                    StrWord(
+                        Atom('--ping' type=inline),
+                    ),
+                ),
+            ],
+        ),
+    ),
+]

@@ -1,0 +1,62 @@
+[
+    (
+        "a",
+        FreeVar(
+            Require,
+        ),
+    ),
+    (
+        "b",
+        Variable(
+            (
+                Atom('a' type=static),
+                #1,
+            ),
+        ),
+    ),
+    (
+        "c",
+        Variable(
+            (
+                Atom('b' type=static),
+                #3,
+            ),
+        ),
+    ),
+    (
+        "d",
+        Variable(
+            (
+                Atom('a' type=static),
+                #1,
+            ),
+        ),
+    ),
+    (
+        "e",
+        Variable(
+            (
+                Atom('d' type=inline),
+                #4,
+            ),
+        ),
+    ),
+    (
+        "f",
+        Variable(
+            (
+                Atom('a' type=static),
+                #1,
+            ),
+        ),
+    ),
+    (
+        "g",
+        Variable(
+            (
+                Atom('f' type=inline),
+                #5,
+            ),
+        ),
+    ),
+]

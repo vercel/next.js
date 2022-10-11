@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["/[project]/crates/turbopack/tests/snapshot/integration/chunked/input/index.js"],"sourcesContent":["import { foo } from \"foo\";\n\nfoo(true);\n"],"names":[],"mappings":"AAAA;;;AAEA,2KAAI,IAAI"}},
+    {"offset": {"line": 8, "column": 0}, "map": {"version": 3, "names": [], "sources": [], "mappings": "A"}}]
+}

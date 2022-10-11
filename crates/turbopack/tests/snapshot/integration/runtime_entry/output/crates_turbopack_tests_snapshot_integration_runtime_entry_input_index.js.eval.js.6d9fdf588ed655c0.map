@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["/[project]/crates/turbopack/tests/snapshot/integration/runtime_entry/input/index.js"],"sourcesContent":["console.log(\"hello world\");\n"],"names":[],"mappings":"AAAA,QAAQ,GAAG,CAAC"}},
+    {"offset": {"line": 5, "column": 0}, "map": {"version": 3, "names": [], "sources": [], "mappings": "A"}}]
+}

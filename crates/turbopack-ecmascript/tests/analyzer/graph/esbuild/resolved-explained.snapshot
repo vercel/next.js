@@ -1,0 +1,308 @@
+*arrow function 2666* = (...) => (
+  | ["node", ["bin/esbuild"]]
+  | [
+        (
+          | ???*0*
+          | `"esbuild"/resolved/lib${("/" | "")}pnpapi-${(???*1* | ???*2* | "esbuild-linux-64")}-${???*3*}`
+          | ???*7*
+          | ???*8*
+          | ???*13*
+        ),
+        []
+    ]
+)
+- *0* FreeVar(ESBUILD_BINARY_PATH)
+  ⚠️  unknown global
+- *1* pkg
+  ⚠️  pattern without value
+- *2* FreeVar(undefined)
+  ⚠️  unknown global
+- *3* ???*4*((???*6* | "esbuild.exe" | "bin/esbuild"))
+  ⚠️  call of unknown function
+- *4* path*5*["basename"]
+  ⚠️  unsupported property on Node.js path module
+- *5* path: The Node.js path module: https://nodejs.org/api/path.html
+- *6* subpath
+  ⚠️  pattern without value
+- *7* binPath
+  ⚠️  pattern without value
+- *8* require.resolve*9*(
+        `${(???*10* | ???*11* | "esbuild-linux-64")}/${(???*12* | "esbuild.exe" | "bin/esbuild")}`
+    )
+  ⚠️  resolve.resolve non constant
+- *9* require.resolve: The require.resolve method from CommonJS
+- *10* pkg
+  ⚠️  pattern without value
+- *11* FreeVar(undefined)
+  ⚠️  unknown global
+- *12* subpath
+  ⚠️  pattern without value
+- *13* ???*14*((???*15* | ???*16* | "esbuild-linux-64"), (???*17* | "esbuild.exe" | "bin/esbuild"))
+  ⚠️  call of unknown function
+- *14* FreeVar(downloadedBinPath)
+  ⚠️  unknown global
+- *15* pkg
+  ⚠️  pattern without value
+- *16* FreeVar(undefined)
+  ⚠️  unknown global
+- *17* subpath
+  ⚠️  pattern without value
+
+args = (["bin/esbuild"] | [])
+
+binPath = (???*0* | ???*1* | ???*6*)
+- *0* binPath
+  ⚠️  pattern without value
+- *1* require.resolve*2*(
+        `${(???*3* | ???*4* | "esbuild-linux-64")}/${(???*5* | "esbuild.exe" | "bin/esbuild")}`
+    )
+  ⚠️  resolve.resolve non constant
+- *2* require.resolve: The require.resolve method from CommonJS
+- *3* pkg
+  ⚠️  pattern without value
+- *4* FreeVar(undefined)
+  ⚠️  unknown global
+- *5* subpath
+  ⚠️  pattern without value
+- *6* ???*7*((???*8* | ???*9* | "esbuild-linux-64"), (???*10* | "esbuild.exe" | "bin/esbuild"))
+  ⚠️  call of unknown function
+- *7* FreeVar(downloadedBinPath)
+  ⚠️  unknown global
+- *8* pkg
+  ⚠️  pattern without value
+- *9* FreeVar(undefined)
+  ⚠️  unknown global
+- *10* subpath
+  ⚠️  pattern without value
+
+binTargetPath = `"esbuild"/resolved/lib${("/" | "")}pnpapi-${(???*0* | ???*1* | "esbuild-linux-64")}-${???*2*}`
+- *0* pkg
+  ⚠️  pattern without value
+- *1* FreeVar(undefined)
+  ⚠️  unknown global
+- *2* ???*3*((???*5* | "esbuild.exe" | "bin/esbuild"))
+  ⚠️  call of unknown function
+- *3* path*4*["basename"]
+  ⚠️  unsupported property on Node.js path module
+- *4* path: The Node.js path module: https://nodejs.org/api/path.html
+- *5* subpath
+  ⚠️  pattern without value
+
+command = (
+  | "node"
+  | ???*0*
+  | `"esbuild"/resolved/lib${("/" | "")}pnpapi-${(???*1* | ???*2* | "esbuild-linux-64")}-${???*3*}`
+  | ???*7*
+  | ???*8*
+  | ???*13*
+)
+- *0* FreeVar(ESBUILD_BINARY_PATH)
+  ⚠️  unknown global
+- *1* pkg
+  ⚠️  pattern without value
+- *2* FreeVar(undefined)
+  ⚠️  unknown global
+- *3* ???*4*((???*6* | "esbuild.exe" | "bin/esbuild"))
+  ⚠️  call of unknown function
+- *4* path*5*["basename"]
+  ⚠️  unsupported property on Node.js path module
+- *5* path: The Node.js path module: https://nodejs.org/api/path.html
+- *6* subpath
+  ⚠️  pattern without value
+- *7* binPath
+  ⚠️  pattern without value
+- *8* require.resolve*9*(
+        `${(???*10* | ???*11* | "esbuild-linux-64")}/${(???*12* | "esbuild.exe" | "bin/esbuild")}`
+    )
+  ⚠️  resolve.resolve non constant
+- *9* require.resolve: The require.resolve method from CommonJS
+- *10* pkg
+  ⚠️  pattern without value
+- *11* FreeVar(undefined)
+  ⚠️  unknown global
+- *12* subpath
+  ⚠️  pattern without value
+- *13* ???*14*((???*15* | ???*16* | "esbuild-linux-64"), (???*17* | "esbuild.exe" | "bin/esbuild"))
+  ⚠️  call of unknown function
+- *14* FreeVar(downloadedBinPath)
+  ⚠️  unknown global
+- *15* pkg
+  ⚠️  pattern without value
+- *16* FreeVar(undefined)
+  ⚠️  unknown global
+- *17* subpath
+  ⚠️  pattern without value
+
+e#5 = ???*0*
+- *0* e
+  ⚠️  pattern without value
+
+e#6 = ???*0*
+- *0* e
+  ⚠️  pattern without value
+
+esbuildCommandAndArgs = (...) => (
+  | ["node", ["bin/esbuild"]]
+  | [
+        (
+          | ???*0*
+          | `"esbuild"/resolved/lib${("/" | "")}pnpapi-${(???*1* | ???*2* | "esbuild-linux-64")}-${???*3*}`
+          | ???*7*
+          | ???*8*
+          | ???*13*
+        ),
+        []
+    ]
+)
+- *0* FreeVar(ESBUILD_BINARY_PATH)
+  ⚠️  unknown global
+- *1* pkg
+  ⚠️  pattern without value
+- *2* FreeVar(undefined)
+  ⚠️  unknown global
+- *3* ???*4*((???*6* | "esbuild.exe" | "bin/esbuild"))
+  ⚠️  call of unknown function
+- *4* path*5*["basename"]
+  ⚠️  unsupported property on Node.js path module
+- *5* path: The Node.js path module: https://nodejs.org/api/path.html
+- *6* subpath
+  ⚠️  pattern without value
+- *7* binPath
+  ⚠️  pattern without value
+- *8* require.resolve*9*(
+        `${(???*10* | ???*11* | "esbuild-linux-64")}/${(???*12* | "esbuild.exe" | "bin/esbuild")}`
+    )
+  ⚠️  resolve.resolve non constant
+- *9* require.resolve: The require.resolve method from CommonJS
+- *10* pkg
+  ⚠️  pattern without value
+- *11* FreeVar(undefined)
+  ⚠️  unknown global
+- *12* subpath
+  ⚠️  pattern without value
+- *13* ???*14*((???*15* | ???*16* | "esbuild-linux-64"), (???*17* | "esbuild.exe" | "bin/esbuild"))
+  ⚠️  call of unknown function
+- *14* FreeVar(downloadedBinPath)
+  ⚠️  unknown global
+- *15* pkg
+  ⚠️  pattern without value
+- *16* FreeVar(undefined)
+  ⚠️  unknown global
+- *17* subpath
+  ⚠️  pattern without value
+
+esbuildLibDir = ""esbuild"/resolved/lib"
+
+generateBinPath = (...) => (
+  | ???*0*
+  | `"esbuild"/resolved/lib${("/" | "")}pnpapi-${(???*1* | ???*2* | "esbuild-linux-64")}-${???*3*}`
+  | ???*7*
+  | ???*8*
+  | ???*13*
+)
+- *0* FreeVar(ESBUILD_BINARY_PATH)
+  ⚠️  unknown global
+- *1* pkg
+  ⚠️  pattern without value
+- *2* FreeVar(undefined)
+  ⚠️  unknown global
+- *3* ???*4*((???*6* | "esbuild.exe" | "bin/esbuild"))
+  ⚠️  call of unknown function
+- *4* path*5*["basename"]
+  ⚠️  unsupported property on Node.js path module
+- *5* path: The Node.js path module: https://nodejs.org/api/path.html
+- *6* subpath
+  ⚠️  pattern without value
+- *7* binPath
+  ⚠️  pattern without value
+- *8* require.resolve*9*(
+        `${(???*10* | ???*11* | "esbuild-linux-64")}/${(???*12* | "esbuild.exe" | "bin/esbuild")}`
+    )
+  ⚠️  resolve.resolve non constant
+- *9* require.resolve: The require.resolve method from CommonJS
+- *10* pkg
+  ⚠️  pattern without value
+- *11* FreeVar(undefined)
+  ⚠️  unknown global
+- *12* subpath
+  ⚠️  pattern without value
+- *13* ???*14*((???*15* | ???*16* | "esbuild-linux-64"), (???*17* | "esbuild.exe" | "bin/esbuild"))
+  ⚠️  call of unknown function
+- *14* FreeVar(downloadedBinPath)
+  ⚠️  unknown global
+- *15* pkg
+  ⚠️  pattern without value
+- *16* FreeVar(undefined)
+  ⚠️  unknown global
+- *17* subpath
+  ⚠️  pattern without value
+
+isYarnPnP = (false | true)
+
+knownUnixlikePackages = {
+    "android arm64 LE": "esbuild-android-arm64",
+    "darwin arm64 LE": "esbuild-darwin-arm64",
+    "darwin x64 LE": "esbuild-darwin-64",
+    "freebsd arm64 LE": "esbuild-freebsd-arm64",
+    "freebsd x64 LE": "esbuild-freebsd-64",
+    "linux arm LE": "esbuild-linux-arm",
+    "linux arm64 LE": "esbuild-linux-arm64",
+    "linux ia32 LE": "esbuild-linux-32",
+    "linux mips64el LE": "esbuild-linux-mips64le",
+    "linux ppc64 LE": "esbuild-linux-ppc64le",
+    "linux s390x BE": "esbuild-linux-s390x",
+    "linux x64 LE": "esbuild-linux-64",
+    "netbsd x64 LE": "esbuild-netbsd-64",
+    "openbsd x64 LE": "esbuild-openbsd-64",
+    "sunos x64 LE": "esbuild-sunos-64"
+}
+
+knownWindowsPackages = {
+    "win32 arm64 LE": "esbuild-windows-arm64",
+    "win32 ia32 LE": "esbuild-windows-32",
+    "win32 x64 LE": "esbuild-windows-64"
+}
+
+os = os*0*
+- *0* os: The Node.js os module: https://nodejs.org/api/os.html
+
+path = path*0*
+- *0* path: The Node.js path module: https://nodejs.org/api/path.html
+
+path2 = path*0*
+- *0* path: The Node.js path module: https://nodejs.org/api/path.html
+
+pkg#3 = (???*0* | ???*1* | "esbuild-linux-64")
+- *0* pkg
+  ⚠️  pattern without value
+- *1* FreeVar(undefined)
+  ⚠️  unknown global
+
+pkg#4 = (???*0* | ???*1* | "esbuild-linux-64")
+- *0* pkg
+  ⚠️  pattern without value
+- *1* FreeVar(undefined)
+  ⚠️  unknown global
+
+pkgAndSubpathForCurrentPlatform = (...) => {
+    "pkg": (???*0* | ???*1* | "esbuild-linux-64"),
+    "subpath": (???*2* | "esbuild.exe" | "bin/esbuild")
+}
+- *0* pkg
+  ⚠️  pattern without value
+- *1* FreeVar(undefined)
+  ⚠️  unknown global
+- *2* subpath
+  ⚠️  pattern without value
+
+platformKey = "linux x64 LE"
+
+subpath#3 = (???*0* | "esbuild.exe" | "bin/esbuild")
+- *0* subpath
+  ⚠️  pattern without value
+
+subpath#4 = (???*0* | "esbuild.exe" | "bin/esbuild")
+- *0* subpath
+  ⚠️  pattern without value
+
+x = (["bin/esbuild", "--service=0.14.12", "--ping"] | ["--service=0.14.12", "--ping"])

@@ -1,0 +1,52 @@
+*anonymous function 66* = (...) => FreeVar(undefined)
+
+*arrow function 118* = (...) => FreeVar(undefined)
+
+*arrow function 229* = (...) => FreeVar(undefined)
+
+a = (...) => FreeVar(undefined)
+
+b = *anonymous function 66*
+
+c = *arrow function 118*
+
+d = ???*0*
+- *0* unsupported expression
+
+e = (...) => FreeVar(undefined)
+
+f = e
+
+x#2 = 1
+
+x#3 = 1
+
+x#4 = 1
+
+x#5 = 1
+
+x#6 = 1
+
+x#8 = 1
+
+y#2 = x
+
+y#3 = x
+
+y#4 = x
+
+y#5 = x
+
+y#6 = x
+
+y#8 = x
+
+z#2 = a
+
+z#5 = d
+
+z#6 = d
+
+z#8 = e
+
+z2 = f

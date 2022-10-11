@@ -1,0 +1,26 @@
+[package]
+name = "turbopack-cli-utils"
+version = "0.1.0"
+edition = "2021"
+autobenches = false
+
+[lib]
+bench = false
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.47"
+clap = { version = "3", features = ["derive"] }
+crossterm = "0.25"
+lazy_static = "1.4.0"
+owo-colors = "3"
+serde = "1.0.136"
+serde_json = "1.0.85"
+tokio = "1.11.0"
+turbo-tasks = { path = "../turbo-tasks" }
+turbo-tasks-fs = { path = "../turbo-tasks-fs" }
+turbopack-core = { path = "../turbopack-core" }
+
+[build-dependencies]
+turbo-tasks-build = { path = "../turbo-tasks-build" }

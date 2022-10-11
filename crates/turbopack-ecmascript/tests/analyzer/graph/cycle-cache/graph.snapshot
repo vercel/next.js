@@ -1,0 +1,1760 @@
+[
+    (
+        "*arrow function 425*",
+        Function(
+            2,
+            Variable(
+                (
+                    Atom('*arrow function 431*' type=dynamic),
+                    #0,
+                ),
+            ),
+        ),
+    ),
+    (
+        "*arrow function 431*",
+        Function(
+            2,
+            Variable(
+                (
+                    Atom('*arrow function 437*' type=dynamic),
+                    #0,
+                ),
+            ),
+        ),
+    ),
+    (
+        "*arrow function 437*",
+        Function(
+            2,
+            Variable(
+                (
+                    Atom('*arrow function 443*' type=dynamic),
+                    #0,
+                ),
+            ),
+        ),
+    ),
+    (
+        "*arrow function 443*",
+        Function(
+            2,
+            Variable(
+                (
+                    Atom('*arrow function 449*' type=dynamic),
+                    #0,
+                ),
+            ),
+        ),
+    ),
+    (
+        "*arrow function 449*",
+        Function(
+            2,
+            Constant(
+                Num(
+                    ConstantNumber(
+                        1.0,
+                    ),
+                ),
+            ),
+        ),
+    ),
+    (
+        "*arrow function 468*",
+        Function(
+            2,
+            Variable(
+                (
+                    Atom('*arrow function 474*' type=dynamic),
+                    #0,
+                ),
+            ),
+        ),
+    ),
+    (
+        "*arrow function 474*",
+        Function(
+            2,
+            Variable(
+                (
+                    Atom('*arrow function 480*' type=dynamic),
+                    #0,
+                ),
+            ),
+        ),
+    ),
+    (
+        "*arrow function 480*",
+        Function(
+            2,
+            Variable(
+                (
+                    Atom('*arrow function 486*' type=dynamic),
+                    #0,
+                ),
+            ),
+        ),
+    ),
+    (
+        "*arrow function 486*",
+        Function(
+            2,
+            Variable(
+                (
+                    Atom('*arrow function 492*' type=dynamic),
+                    #0,
+                ),
+            ),
+        ),
+    ),
+    (
+        "*arrow function 492*",
+        Function(
+            2,
+            Constant(
+                Num(
+                    ConstantNumber(
+                        2.0,
+                    ),
+                ),
+            ),
+        ),
+    ),
+    (
+        "*arrow function 511*",
+        Function(
+            2,
+            Variable(
+                (
+                    Atom('*arrow function 517*' type=dynamic),
+                    #0,
+                ),
+            ),
+        ),
+    ),
+    (
+        "*arrow function 517*",
+        Function(
+            2,
+            Variable(
+                (
+                    Atom('*arrow function 523*' type=dynamic),
+                    #0,
+                ),
+            ),
+        ),
+    ),
+    (
+        "*arrow function 523*",
+        Function(
+            2,
+            Variable(
+                (
+                    Atom('*arrow function 529*' type=dynamic),
+                    #0,
+                ),
+            ),
+        ),
+    ),
+    (
+        "*arrow function 529*",
+        Function(
+            2,
+            Variable(
+                (
+                    Atom('*arrow function 535*' type=dynamic),
+                    #0,
+                ),
+            ),
+        ),
+    ),
+    (
+        "*arrow function 535*",
+        Function(
+            2,
+            Constant(
+                Num(
+                    ConstantNumber(
+                        2.0,
+                    ),
+                ),
+            ),
+        ),
+    ),
+    (
+        "*arrow function 554*",
+        Function(
+            2,
+            Variable(
+                (
+                    Atom('*arrow function 560*' type=dynamic),
+                    #0,
+                ),
+            ),
+        ),
+    ),
+    (
+        "*arrow function 560*",
+        Function(
+            2,
+            Variable(
+                (
+                    Atom('*arrow function 566*' type=dynamic),
+                    #0,
+                ),
+            ),
+        ),
+    ),
+    (
+        "*arrow function 566*",
+        Function(
+            2,
+            Variable(
+                (
+                    Atom('*arrow function 572*' type=dynamic),
+                    #0,
+                ),
+            ),
+        ),
+    ),
+    (
+        "*arrow function 572*",
+        Function(
+            2,
+            Variable(
+                (
+                    Atom('*arrow function 578*' type=dynamic),
+                    #0,
+                ),
+            ),
+        ),
+    ),
+    (
+        "*arrow function 578*",
+        Function(
+            2,
+            Constant(
+                Num(
+                    ConstantNumber(
+                        1.0,
+                    ),
+                ),
+            ),
+        ),
+    ),
+    (
+        "a",
+        Alternatives(
+            5,
+            [
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            1.0,
+                        ),
+                    ),
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            2.0,
+                        ),
+                    ),
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            3.0,
+                        ),
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('b' type=static),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "b",
+        Alternatives(
+            5,
+            [
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            4.0,
+                        ),
+                    ),
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            5.0,
+                        ),
+                    ),
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            6.0,
+                        ),
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('c' type=inline),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "c",
+        Alternatives(
+            5,
+            [
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            7.0,
+                        ),
+                    ),
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            8.0,
+                        ),
+                    ),
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            9.0,
+                        ),
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('a' type=static),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "d",
+        Alternatives(
+            22,
+            [
+                Variable(
+                    (
+                        Atom('f11' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('f22' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('f32' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('f42' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('f52' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('f62' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('f72' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('f82' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('f92' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('fa2' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('fb2' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('fc2' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('fd2' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('fe2' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('ff2' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('fg2' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('fh2' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('fi2' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('fj2' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('fk2' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('fl2' type=inline),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "f11",
+        Alternatives(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('*arrow function 425*' type=dynamic),
+                        #0,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('*arrow function 468*' type=dynamic),
+                        #0,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "f12",
+        Alternatives(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('*arrow function 511*' type=dynamic),
+                        #0,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('*arrow function 554*' type=dynamic),
+                        #0,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "f21",
+        Alternatives(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('f11' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('f12' type=inline),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "f22",
+        Alternatives(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('f12' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('f11' type=inline),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "f31",
+        Alternatives(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('f21' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('f22' type=inline),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "f32",
+        Alternatives(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('f22' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('f21' type=inline),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "f41",
+        Alternatives(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('f31' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('f32' type=inline),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "f42",
+        Alternatives(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('f32' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('f31' type=inline),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "f51",
+        Alternatives(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('f41' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('f42' type=inline),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "f52",
+        Alternatives(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('f42' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('f41' type=inline),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "f61",
+        Alternatives(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('f51' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('f52' type=inline),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "f62",
+        Alternatives(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('f52' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('f51' type=inline),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "f71",
+        Alternatives(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('f61' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('f62' type=inline),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "f72",
+        Alternatives(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('f62' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('f61' type=inline),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "f81",
+        Alternatives(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('f71' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('f72' type=inline),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "f82",
+        Alternatives(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('f72' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('f71' type=inline),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "f91",
+        Alternatives(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('f81' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('f82' type=inline),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "f92",
+        Alternatives(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('f82' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('f81' type=inline),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "fa1",
+        Alternatives(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('f91' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('f92' type=inline),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "fa2",
+        Alternatives(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('f92' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('f91' type=inline),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "fb1",
+        Alternatives(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('fa1' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('fa2' type=inline),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "fb2",
+        Alternatives(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('fa2' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('fa1' type=inline),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "fc1",
+        Alternatives(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('fb1' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('fb2' type=inline),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "fc2",
+        Alternatives(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('fb2' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('fb1' type=inline),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "fd1",
+        Alternatives(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('fc1' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('fc2' type=inline),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "fd2",
+        Alternatives(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('fc2' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('fc1' type=inline),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "fe1",
+        Alternatives(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('fd1' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('fd2' type=inline),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "fe2",
+        Alternatives(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('fd2' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('fd1' type=inline),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "ff1",
+        Alternatives(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('fe1' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('fe2' type=inline),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "ff2",
+        Alternatives(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('fe2' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('fe1' type=inline),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "fg1",
+        Alternatives(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('ff1' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('ff2' type=inline),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "fg2",
+        Alternatives(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('ff2' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('ff1' type=inline),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "fh1",
+        Alternatives(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('fg1' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('fg2' type=inline),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "fh2",
+        Alternatives(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('fg2' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('fg1' type=inline),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "fi1",
+        Alternatives(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('fh1' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('fh2' type=inline),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "fi2",
+        Alternatives(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('fh2' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('fh1' type=inline),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "fj1",
+        Alternatives(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('fi1' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('fi2' type=inline),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "fj2",
+        Alternatives(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('fi2' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('fi1' type=inline),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "fk1",
+        Alternatives(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('fj1' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('fj2' type=inline),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "fk2",
+        Alternatives(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('fj2' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('fj1' type=inline),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "fl1",
+        Alternatives(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('fk1' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('fk2' type=inline),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "fl2",
+        Alternatives(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('fk2' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('fk1' type=inline),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "x",
+        Alternatives(
+            4,
+            [
+                Variable(
+                    (
+                        Atom('a' type=static),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('b' type=static),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('c' type=inline),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "x1",
+        Alternatives(
+            7,
+            [
+                Variable(
+                    (
+                        Atom('x1' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('x2' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('x3' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('x4' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('x5' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('x6' type=inline),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "x2",
+        Alternatives(
+            7,
+            [
+                Variable(
+                    (
+                        Atom('x1' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('x2' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('x3' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('x4' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('x5' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('x6' type=inline),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "x3",
+        Alternatives(
+            7,
+            [
+                Variable(
+                    (
+                        Atom('x1' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('x2' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('x3' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('x4' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('x5' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('x6' type=inline),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "x4",
+        Alternatives(
+            7,
+            [
+                Variable(
+                    (
+                        Atom('x1' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('x2' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('x3' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('x4' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('x5' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('x6' type=inline),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "x5",
+        Alternatives(
+            7,
+            [
+                Variable(
+                    (
+                        Atom('x1' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('x2' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('x3' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('x4' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('x5' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('x6' type=inline),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "x6",
+        Alternatives(
+            7,
+            [
+                Variable(
+                    (
+                        Atom('x1' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('x2' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('x3' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('x4' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('x5' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('x6' type=inline),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "y",
+        Alternatives(
+            5,
+            [
+                Variable(
+                    (
+                        Atom('a' type=static),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('b' type=static),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('c' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('x' type=static),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "z",
+        Alternatives(
+            5,
+            [
+                Variable(
+                    (
+                        Atom('a' type=static),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('b' type=static),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('c' type=inline),
+                        #1,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('y' type=inline),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "z1",
+        Variable(
+            (
+                Atom('z' type=inline),
+                #1,
+            ),
+        ),
+    ),
+    (
+        "z2",
+        Variable(
+            (
+                Atom('z1' type=inline),
+                #1,
+            ),
+        ),
+    ),
+    (
+        "z3",
+        Variable(
+            (
+                Atom('z2' type=inline),
+                #1,
+            ),
+        ),
+    ),
+    (
+        "z4",
+        Variable(
+            (
+                Atom('z3' type=inline),
+                #1,
+            ),
+        ),
+    ),
+    (
+        "z5",
+        Variable(
+            (
+                Atom('z4' type=inline),
+                #1,
+            ),
+        ),
+    ),
+    (
+        "z6",
+        Variable(
+            (
+                Atom('z5' type=inline),
+                #1,
+            ),
+        ),
+    ),
+    (
+        "z7",
+        Variable(
+            (
+                Atom('z6' type=inline),
+                #1,
+            ),
+        ),
+    ),
+    (
+        "z8",
+        Variable(
+            (
+                Atom('z7' type=inline),
+                #1,
+            ),
+        ),
+    ),
+    (
+        "z9",
+        Variable(
+            (
+                Atom('z8' type=inline),
+                #1,
+            ),
+        ),
+    ),
+]

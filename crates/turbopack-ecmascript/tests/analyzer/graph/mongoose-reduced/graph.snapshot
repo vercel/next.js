@@ -1,0 +1,82 @@
+[
+    (
+        "Collection",
+        Call(
+            5,
+            FreeVar(
+                Require,
+            ),
+            [
+                Concat(
+                    3,
+                    [
+                        Variable(
+                            (
+                                Atom('driver' type=inline),
+                                #1,
+                            ),
+                        ),
+                        Constant(
+                            StrWord(
+                                Atom('/collection' type=dynamic),
+                            ),
+                        ),
+                    ],
+                ),
+            ],
+        ),
+    ),
+    (
+        "Connection",
+        Call(
+            5,
+            FreeVar(
+                Require,
+            ),
+            [
+                Concat(
+                    3,
+                    [
+                        Variable(
+                            (
+                                Atom('driver' type=inline),
+                                #1,
+                            ),
+                        ),
+                        Constant(
+                            StrWord(
+                                Atom('/connection' type=dynamic),
+                            ),
+                        ),
+                    ],
+                ),
+            ],
+        ),
+    ),
+    (
+        "driver",
+        Alternatives(
+            5,
+            [
+                Member(
+                    3,
+                    FreeVar(
+                        Other(
+                            Atom('global' type=static),
+                        ),
+                    ),
+                    Constant(
+                        StrWord(
+                            Atom('MONGOOSE_DRIVER_PATH' type=dynamic),
+                        ),
+                    ),
+                ),
+                Constant(
+                    StrWord(
+                        Atom('./drivers/node-mongodb-native' type=dynamic),
+                    ),
+                ),
+            ],
+        ),
+    ),
+]
