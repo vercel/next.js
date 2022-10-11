@@ -12,7 +12,7 @@ export type CacheNode = {
    * In-flight request for this node.
    */
   data: ReturnType<
-    typeof import('../../client/components/app-router.client').fetchServerResponse
+    typeof import('../../client/components/app-router').fetchServerResponse
   > | null
   /**
    * React Component for this node.
