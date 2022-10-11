@@ -348,7 +348,10 @@ declare module 'next/dist/compiled/react-dom' {
   export = m
 }
 
-declare module 'next/dist/compiled/react-dom/server.browser'
+declare module 'next/dist/compiled/react-dom/server.browser' {
+  import * as m from 'react-dom/server'
+  export = m
+}
 declare namespace NodeJS {
   interface ProcessVersions {
     pnp?: string

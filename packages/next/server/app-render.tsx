@@ -4,12 +4,14 @@ import type { ServerRuntime } from '../types'
 import type { FontLoaderManifest } from '../build/webpack/plugins/font-loader-manifest-plugin'
 
 // TODO-APP: change to React.use once it becomes stable
-// @ts-ignore
-import React, { experimental_use as use } from 'react'
+import React, {
+  // @ts-ignore
+  experimental_use as use,
+} from 'react'
+
 // this needs to be required lazily so that `next-server` can set
 // the env before we require
-// @ts-ignore
-import ReactDOMServer from 'react-dom/server.browser'
+import ReactDOMServer from 'next/dist/compiled/react-dom/server.browser'
 
 import { ParsedUrlQuery, stringify as stringifyQuery } from 'querystring'
 import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'

@@ -1312,16 +1312,17 @@ export default async function getBaseWebpackConfig(
         // For the edge runtime, we have to bundle all dependencies inside without dynamic `require`s.
         // To make some dependencies like `react` to be shared between entrypoints, we use a special
         // cache group here even under dev mode.
-        const edgeRSCCacheGroups = hasServerComponents
-          ? {
-              rscDeps: {
-                enforce: true,
-                name: 'rsc-runtime-deps',
-                filename: 'rsc-runtime-deps.js',
-                test: rscSharedRegex,
-              },
-            }
-          : undefined
+        const edgeRSCCacheGroups = undefined
+        // hasServerComponents
+        //   ? {
+        //       rscDeps: {
+        //         enforce: true,
+        //         name: 'rsc-runtime-deps',
+        //         filename: 'rsc-runtime-deps.js',
+        //         test: rscSharedRegex,
+        //       },
+        //     }
+        //   : undefined
         if (isEdgeServer && edgeRSCCacheGroups) {
           return {
             cacheGroups: edgeRSCCacheGroups,
@@ -1570,8 +1571,10 @@ export default async function getBaseWebpackConfig(
                   {
                     conditionNames: ['react-server', 'node', 'require'],
                     alias: {
-                      react: 'next/dist/compiled/react',
-                      'react-dom': 'next/dist/compiled/react-dom',
+                      react: require.resolve(
+                        'next/dist/compiled/react/react.shared-subset'
+                      ),
+                      // 'react-dom': 'next/dist/compiled/react-dom',
                     },
                     //   // If missing the alias override here, the default alias will be used which aliases
                     //   // react to the direct file path, not the package name. In that case the condition
@@ -1611,16 +1614,16 @@ export default async function getBaseWebpackConfig(
                   },
                 },
               },
-              // {
-              //   test: codeCondition.test,
-              //   include: [appDir, dir, NEXT_PROJECT_ROOT_DIST, /node_modules/],
-              //   resolve: {
-              //     alias: {
-              //       'react-dom': 'next/dist/compiled/react-dom',
-              //       react: 'next/dist/compiled/react',
-              //     },
-              //   },
-              // },
+              {
+                test: codeCondition.test,
+                // include: [appDir, dir, NEXT_PROJECT_ROOT_DIST, /node_modules/],
+                resolve: {
+                  alias: {
+                    'react-dom': 'next/dist/compiled/react-dom',
+                    react: 'next/dist/compiled/react',
+                  },
+                },
+              },
             ]
           : []),
         ...(hasServerComponents && (isNodeServer || isEdgeServer)
@@ -1640,22 +1643,16 @@ export default async function getBaseWebpackConfig(
               },
             ]
           : []),
-        ...(hasServerComponents && isEdgeServer
-          ? [
-              // Move shared dependencies from sc_server and sc_client into the
-              // same layer.
-              {
-                test: rscSharedRegex,
-                layer: WEBPACK_LAYERS.rscShared,
-                // resolve: {
-                //   alias: {
-                //     'react': 'next/dist/compiled/react',
-                //     'react-dom': 'next/dist/compiled/react-dom',
-                //   }
-                // }
-              },
-            ]
-          : []),
+        // ...(hasServerComponents && isEdgeServer
+        //   ? [
+        //       // Move shared dependencies from sc_server and sc_client into the
+        //       // same layer.
+        //       {
+        //         test: rscSharedRegex,
+        //         layer: WEBPACK_LAYERS.rscShared,
+        //       },
+        //     ]
+        //   : []),
         {
           test: /\.(js|cjs|mjs)$/,
           issuerLayer: WEBPACK_LAYERS.api,

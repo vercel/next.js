@@ -1494,31 +1494,31 @@ export async function copy_react_server_dom_webpack(task, opts) {
     .source(require.resolve('react-server-dom-webpack'))
     .target('compiled/react-server-dom-webpack')
 
-  // await task
-  //   .source(
-  //     join(
-  //       dirname(require.resolve('react-server-dom-webpack')),
-  //       'cjs/react-server-dom-webpack.*'
-  //     )
-  //   )
-  //   // eslint-disable-next-line require-yield
-  //   .run({ every: true }, function* (file) {
-  //     const source = file.data.toString()
-  //     // We replace the module/chunk loading code with our own implementaion in Next.js.
-  //     file.data = source
-  //       .replace(/__webpack_chunk_load__/g, 'globalThis.__next_chunk_load__')
-  //       .replace(/__webpack_require__/g, 'globalThis.__next_require__')
-  //   })
-  //   .target('compiled/react-server-dom-webpack/cjs')
+  await task
+    .source(
+      join(
+        dirname(require.resolve('react-server-dom-webpack')),
+        'cjs/react-server-dom-webpack.*'
+      )
+    )
+    // eslint-disable-next-line require-yield
+    .run({ every: true }, function* (file) {
+      const source = file.data.toString()
+      // We replace the module/chunk loading code with our own implementaion in Next.js.
+      file.data = source
+        .replace(/__webpack_chunk_load__/g, 'globalThis.__next_chunk_load__')
+        .replace(/__webpack_require__/g, 'globalThis.__next_require__')
+    })
+    .target('compiled/react-server-dom-webpack/cjs')
 
-  // await task
-  //   .source(
-  //     join(
-  //       dirname(require.resolve('react-server-dom-webpack')),
-  //       'cjs/react-server-dom-webpack-writer.browser.*'
-  //     )
-  //   )
-  //   .target('compiled/react-server-dom-webpack/cjs')
+  await task
+    .source(
+      join(
+        dirname(require.resolve('react-server-dom-webpack')),
+        'cjs/react-server-dom-webpack-writer.browser.*'
+      )
+    )
+    .target('compiled/react-server-dom-webpack/cjs')
 
   await task
     .source(
@@ -1547,13 +1547,14 @@ export async function copy_react_server_dom_webpack(task, opts) {
 
   await task
     .source(
-      join(
-        relative(
-          __dirname,
-          dirname(require.resolve('react-server-dom-webpack'))
-        ),
-        'index.js'
-      )
+      join('compiled/react-server-dom-webpack/index.js')
+      // join(
+      //   relative(
+      //     __dirname,
+      //     dirname(require.resolve('react-server-dom-webpack'))
+      //   ),
+      //   'index.js'
+      // )
     )
     .ncc({
       minify: false,
