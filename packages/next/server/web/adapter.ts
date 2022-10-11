@@ -114,7 +114,7 @@ export async function adapter(params: {
       typeof response.statusText === 'string'
     )
   ) {
-    throw new Error('Response must be an instance of Response type')
+    throw new TypeError('Response must be an instance of Response type')
   }
 
   /**
