@@ -26,13 +26,8 @@ const fetchFonts: FontLoader = async ({
     fallback,
     preload,
     variable,
-    ascentOverride,
-    descentOverride,
-    lineGapOverride,
-    fontStretch,
-    fontFeatureSettings,
-    sizeAdjust,
     adjustFontFallback,
+    declarations,
   } = validateData(functionName, data)
 
   const resolved = await resolve(src)
@@ -74,19 +69,14 @@ const fetchFonts: FontLoader = async ({
   }
 
   const fontFaceProperties = [
+    ...(declarations
+      ? declarations.map(({ prop, value }) => [prop, value])
+      : []),
     ['font-family', `'${fontMetadata?.familyName ?? family}'`],
     ['src', `url(${fontUrl}) format('${format}')`],
     ['font-display', display],
     ...(weight ? [['font-weight', weight]] : []),
     ...(style ? [['font-style', style]] : []),
-    ...(ascentOverride ? [['ascent-override', ascentOverride]] : []),
-    ...(descentOverride ? [['descent-override', descentOverride]] : []),
-    ...(lineGapOverride ? [['line-gap-override', lineGapOverride]] : []),
-    ...(fontStretch ? [['font-stretch', fontStretch]] : []),
-    ...(fontFeatureSettings
-      ? [['font-feature-settings', fontFeatureSettings]]
-      : []),
-    ...(sizeAdjust ? [['size-adjust', sizeAdjust]] : []),
   ]
 
   const css = `@font-face {
