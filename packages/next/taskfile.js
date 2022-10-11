@@ -336,7 +336,7 @@ export async function ncc_react(task, opts) {
     .ncc({
       minify: false,
       externals: {
-        react: 'next/dist/compiled/react',
+        react: 'react',
       },
     })
     .target(`compiled/react`)
@@ -348,7 +348,7 @@ export async function ncc_react(task, opts) {
     .ncc({
       minify: false,
       externals: {
-        react: 'next/dist/compiled/react',
+        react: 'react',
       },
     })
     .target(`compiled/react-dom`)
@@ -1540,7 +1540,7 @@ export async function copy_react_server_dom_webpack(task, opts) {
     .ncc({
       minify: false,
       externals: {
-        react: 'next/dist/compiled/react',
+        react: 'react',
       },
     })
     .target('compiled/react-server-dom-webpack')
@@ -1559,7 +1559,7 @@ export async function copy_react_server_dom_webpack(task, opts) {
     .ncc({
       minify: false,
       externals: {
-        react: 'next/dist/compiled/react',
+        react: 'react',
       },
     })
     .target('compiled/react-server-dom-webpack')

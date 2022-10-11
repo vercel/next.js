@@ -21,7 +21,7 @@ if (process.env.NODE_ENV !== "production") {
   (function() {
 'use strict';
 
-var React = __nccwpck_require__(533);
+var React = __nccwpck_require__(522);
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -2169,7 +2169,7 @@ exports.renderToReadableStream = renderToReadableStream;
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  */
-var e=__nccwpck_require__(533),l=null,m=0;function n(a,b){if(0!==b.length)if(512<b.length)0<m&&(a.enqueue(new Uint8Array(l.buffer,0,m)),l=new Uint8Array(512),m=0),a.enqueue(b);else{var d=l.length-m;d<b.length&&(0===d?a.enqueue(l):(l.set(b.subarray(0,d),m),a.enqueue(l),b=b.subarray(d)),l=new Uint8Array(512),m=0);l.set(b,m);m+=b.length}return!0}var p=new TextEncoder;function q(a){return p.encode(a)}function t(a,b){"function"===typeof a.error?a.error(b):a.close()}
+var e=__nccwpck_require__(522),l=null,m=0;function n(a,b){if(0!==b.length)if(512<b.length)0<m&&(a.enqueue(new Uint8Array(l.buffer,0,m)),l=new Uint8Array(512),m=0),a.enqueue(b);else{var d=l.length-m;d<b.length&&(0===d?a.enqueue(l):(l.set(b.subarray(0,d),m),a.enqueue(l),b=b.subarray(d)),l=new Uint8Array(512),m=0);l.set(b,m);m+=b.length}return!0}var p=new TextEncoder;function q(a){return p.encode(a)}function t(a,b){"function"===typeof a.error?a.error(b):a.close()}
 var u=JSON.stringify,w=Symbol.for("react.module.reference"),x=Symbol.for("react.element"),aa=Symbol.for("react.fragment"),ba=Symbol.for("react.provider"),ca=Symbol.for("react.server_context"),da=Symbol.for("react.forward_ref"),ea=Symbol.for("react.memo"),y=Symbol.for("react.lazy"),fa=Symbol.for("react.default_value");
 function z(a,b,d,c,f,g,h){this.acceptsBooleans=2===b||3===b||4===b;this.attributeName=c;this.attributeNamespace=f;this.mustUseProperty=d;this.propertyName=a;this.type=b;this.sanitizeURL=g;this.removeEmptyString=h}var ha="children dangerouslySetInnerHTML defaultValue defaultChecked innerHTML suppressContentEditableWarning suppressHydrationWarning style".split(" ");ha.push("innerText","textContent");ha.forEach(function(a){new z(a,0,!1,a,null,!1,!1)});
 [["acceptCharset","accept-charset"],["className","class"],["htmlFor","for"],["httpEquiv","http-equiv"]].forEach(function(a){new z(a[0],1,!1,a[1],null,!1,!1)});["contentEditable","draggable","spellCheck","value"].forEach(function(a){new z(a,2,!1,a.toLowerCase(),null,!1,!1)});["autoReverse","externalResourcesRequired","focusable","preserveAlpha"].forEach(function(a){new z(a,2,!1,a,null,!1,!1)});
@@ -2229,10 +2229,10 @@ if (process.env.NODE_ENV === 'production') {
 
 /***/ }),
 
-/***/ 533:
+/***/ 522:
 /***/ ((module) => {
 
-module.exports = require("next/dist/compiled/react");
+module.exports = require("react");
 
 /***/ })
 

@@ -30,7 +30,7 @@ if (
 ) {
   __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(new Error());
 }
-          var React = __nccwpck_require__(533);
+          var React = __nccwpck_require__(522);
 var Scheduler = __nccwpck_require__(41);
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
@@ -32058,7 +32058,7 @@ if (
 /*
  Modernizr 3.0.0pre (Custom Build) | MIT
 */
-var aa=__nccwpck_require__(533),ba=__nccwpck_require__(41),p=Object.assign;function y(a){for(var b="https://reactjs.org/docs/error-decoder.html?invariant="+a,c=1;c<arguments.length;c++)b+="&args[]="+encodeURIComponent(arguments[c]);return"Minified React error #"+a+"; visit "+b+" for the full message or use the non-minified dev environment for full errors and additional helpful warnings."}
+var aa=__nccwpck_require__(522),ba=__nccwpck_require__(41),p=Object.assign;function y(a){for(var b="https://reactjs.org/docs/error-decoder.html?invariant="+a,c=1;c<arguments.length;c++)b+="&args[]="+encodeURIComponent(arguments[c]);return"Minified React error #"+a+"; visit "+b+" for the full message or use the non-minified dev environment for full errors and additional helpful warnings."}
 var ca=aa.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED,ea=Symbol.for("react.element"),fa=Symbol.for("react.portal"),ha=Symbol.for("react.fragment"),ia=Symbol.for("react.strict_mode"),ja=Symbol.for("react.profiler"),ka=Symbol.for("react.provider"),la=Symbol.for("react.context"),ma=Symbol.for("react.server_context"),na=Symbol.for("react.forward_ref"),oa=Symbol.for("react.suspense"),pa=Symbol.for("react.suspense_list"),qa=Symbol.for("react.memo"),ra=Symbol.for("react.lazy"),sa=Symbol.for("react.scope");
 Symbol.for("react.debug_trace_mode");var ta=Symbol.for("react.offscreen"),ua=Symbol.for("react.legacy_hidden"),va=Symbol.for("react.cache");Symbol.for("react.tracing_marker");var wa=Symbol.for("react.default_value"),xa=Symbol.iterator;function ya(a){if(null===a||"object"!==typeof a)return null;a=xa&&a[xa]||a["@@iterator"];return"function"===typeof a?a:null}
 function Ba(a){if(null==a)return null;if("function"===typeof a)return a.displayName||a.name||null;if("string"===typeof a)return a;switch(a){case ha:return"Fragment";case fa:return"Portal";case ja:return"Profiler";case ia:return"StrictMode";case oa:return"Suspense";case pa:return"SuspenseList";case va:return"Cache"}if("object"===typeof a)switch(a.$$typeof){case la:return(a.displayName||"Context")+".Consumer";case ka:return(a._context.displayName||"Context")+".Provider";case na:var b=a.render;a=a.displayName;
@@ -33136,10 +33136,10 @@ if (process.env.NODE_ENV === 'production') {
 
 /***/ }),
 
-/***/ 533:
+/***/ 522:
 /***/ ((module) => {
 
-module.exports = require("next/dist/compiled/react");
+module.exports = require("react");
 
 /***/ })
 

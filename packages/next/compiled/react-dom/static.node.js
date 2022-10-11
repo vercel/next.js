@@ -22,7 +22,7 @@ if (process.env.NODE_ENV !== "production") {
 'use strict';
 
 var stream = __nccwpck_require__(781);
-var React = __nccwpck_require__(533);
+var React = __nccwpck_require__(522);
 var util = __nccwpck_require__(837);
 
 var ReactVersion = '18.3.0-experimental-cb5084d1c-20220924';
@@ -7481,7 +7481,7 @@ exports.version = ReactVersion;
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  */
-var aa=__nccwpck_require__(781),ba=__nccwpck_require__(837),ca=__nccwpck_require__(533);function da(a){"function"===typeof a.flush&&a.flush()}var k=null,m=0,r=!0;
+var aa=__nccwpck_require__(781),ba=__nccwpck_require__(837),ca=__nccwpck_require__(522);function da(a){"function"===typeof a.flush&&a.flush()}var k=null,m=0,r=!0;
 function t(a,b){if("string"===typeof b){if(0!==b.length)if(2048<3*b.length)0<m&&(u(a,k.subarray(0,m)),k=new Uint8Array(2048),m=0),u(a,ea.encode(b));else{var c=k;0<m&&(c=k.subarray(m));c=ea.encodeInto(b,c);var d=c.read;m+=c.written;d<b.length&&(u(a,k),k=new Uint8Array(2048),m=ea.encodeInto(b.slice(d),k).written);2048===m&&(u(a,k),k=new Uint8Array(2048),m=0)}}else 0!==b.byteLength&&(2048<b.byteLength?(0<m&&(u(a,k.subarray(0,m)),k=new Uint8Array(2048),m=0),u(a,b)):(c=k.length-m,c<b.byteLength&&(0===
 c?u(a,k):(k.set(b.subarray(0,c),m),m+=c,u(a,k),b=b.subarray(c)),k=new Uint8Array(2048),m=0),k.set(b,m),m+=b.byteLength,2048===m&&(u(a,k),k=new Uint8Array(2048),m=0)))}function u(a,b){a=a.write(b);r=r&&a}function v(a,b){t(a,b);return r}function fa(a){k&&0<m&&a.write(k.subarray(0,m));k=null;m=0;r=!0}var ea=new ba.TextEncoder;function w(a){return ea.encode(a)}
 var y=Object.prototype.hasOwnProperty,ha=/^[:A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD][:A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD\-.0-9\u00B7\u0300-\u036F\u203F-\u2040]*$/,ia={},ja={};
@@ -7597,10 +7597,10 @@ if (process.env.NODE_ENV === 'production') {
 
 /***/ }),
 
-/***/ 533:
+/***/ 522:
 /***/ ((module) => {
 
-module.exports = require("next/dist/compiled/react");
+module.exports = require("react");
 
 /***/ }),
 

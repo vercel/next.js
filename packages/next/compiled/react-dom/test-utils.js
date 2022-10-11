@@ -21,7 +21,7 @@ if (process.env.NODE_ENV !== "production") {
   (function() {
 'use strict';
 
-var React = __nccwpck_require__(533);
+var React = __nccwpck_require__(522);
 var ReactDOM = __nccwpck_require__(977);
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
@@ -1772,7 +1772,7 @@ exports.traverseTwoPhase = traverseTwoPhase;
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  */
-var k=__nccwpck_require__(533),l=__nccwpck_require__(977);function m(a){var b=a,c=a;if(a.alternate)for(;b.return;)b=b.return;else{a=b;do b=a,0!==(b.flags&2050)&&(c=b.return),a=b.return;while(a)}return 3===b.tag?c:null}function n(a){if(m(a)!==a)throw Error("Unable to find node on an unmounted component.");}
+var k=__nccwpck_require__(522),l=__nccwpck_require__(977);function m(a){var b=a,c=a;if(a.alternate)for(;b.return;)b=b.return;else{a=b;do b=a,0!==(b.flags&2050)&&(c=b.return),a=b.return;while(a)}return 3===b.tag?c:null}function n(a){if(m(a)!==a)throw Error("Unable to find node on an unmounted component.");}
 function p(a){var b=a.alternate;if(!b){b=m(a);if(null===b)throw Error("Unable to find node on an unmounted component.");return b!==a?null:a}for(var c=a,d=b;;){var f=c.return;if(null===f)break;var g=f.alternate;if(null===g){d=f.return;if(null!==d){c=d;continue}break}if(f.child===g.child){for(g=f.child;g;){if(g===c)return n(f),a;if(g===d)return n(f),b;g=g.sibling}throw Error("Unable to find node on an unmounted component.");}if(c.return!==d.return)c=f,d=g;else{for(var e=!1,h=f.child;h;){if(h===c){e=
 !0;c=f;d=g;break}if(h===d){e=!0;d=f;c=g;break}h=h.sibling}if(!e){for(h=g.child;h;){if(h===c){e=!0;c=g;d=f;break}if(h===d){e=!0;d=g;c=f;break}h=h.sibling}if(!e)throw Error("Child was not found in either parent set. This indicates a bug in React related to the return pointer. Please file an issue.");}}if(c.alternate!==d)throw Error("Return fibers should always be each others' alternates. This error is likely caused by a bug in React. Please file an issue.");}if(3!==c.tag)throw Error("Unable to find node on an unmounted component.");
 return c.stateNode.current===c?a:b}var q=Object.assign;function r(a){var b=a.keyCode;"charCode"in a?(a=a.charCode,0===a&&13===b&&(a=13)):a=b;10===a&&(a=13);return 32<=a||13===a?a:0}function t(){return!0}function u(){return!1}
@@ -1835,7 +1835,7 @@ if (
 ) {
   __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(new Error());
 }
-          var React = __nccwpck_require__(533);
+          var React = __nccwpck_require__(522);
 var Scheduler = __nccwpck_require__(41);
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
@@ -33863,7 +33863,7 @@ if (
 /*
  Modernizr 3.0.0pre (Custom Build) | MIT
 */
-var aa=__nccwpck_require__(533),ba=__nccwpck_require__(41),p=Object.assign;function y(a){for(var b="https://reactjs.org/docs/error-decoder.html?invariant="+a,c=1;c<arguments.length;c++)b+="&args[]="+encodeURIComponent(arguments[c]);return"Minified React error #"+a+"; visit "+b+" for the full message or use the non-minified dev environment for full errors and additional helpful warnings."}
+var aa=__nccwpck_require__(522),ba=__nccwpck_require__(41),p=Object.assign;function y(a){for(var b="https://reactjs.org/docs/error-decoder.html?invariant="+a,c=1;c<arguments.length;c++)b+="&args[]="+encodeURIComponent(arguments[c]);return"Minified React error #"+a+"; visit "+b+" for the full message or use the non-minified dev environment for full errors and additional helpful warnings."}
 var ca=aa.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED,ea=Symbol.for("react.element"),fa=Symbol.for("react.portal"),ha=Symbol.for("react.fragment"),ia=Symbol.for("react.strict_mode"),ja=Symbol.for("react.profiler"),ka=Symbol.for("react.provider"),la=Symbol.for("react.context"),ma=Symbol.for("react.server_context"),na=Symbol.for("react.forward_ref"),oa=Symbol.for("react.suspense"),pa=Symbol.for("react.suspense_list"),qa=Symbol.for("react.memo"),ra=Symbol.for("react.lazy"),sa=Symbol.for("react.scope");
 Symbol.for("react.debug_trace_mode");var ta=Symbol.for("react.offscreen"),ua=Symbol.for("react.legacy_hidden"),va=Symbol.for("react.cache");Symbol.for("react.tracing_marker");var wa=Symbol.for("react.default_value"),xa=Symbol.iterator;function ya(a){if(null===a||"object"!==typeof a)return null;a=xa&&a[xa]||a["@@iterator"];return"function"===typeof a?a:null}
 function Ba(a){if(null==a)return null;if("function"===typeof a)return a.displayName||a.name||null;if("string"===typeof a)return a;switch(a){case ha:return"Fragment";case fa:return"Portal";case ja:return"Profiler";case ia:return"StrictMode";case oa:return"Suspense";case pa:return"SuspenseList";case va:return"Cache"}if("object"===typeof a)switch(a.$$typeof){case la:return(a.displayName||"Context")+".Consumer";case ka:return(a._context.displayName||"Context")+".Provider";case na:var b=a.render;a=a.displayName;
@@ -34955,10 +34955,10 @@ if (process.env.NODE_ENV === 'production') {
 
 /***/ }),
 
-/***/ 533:
+/***/ 522:
 /***/ ((module) => {
 
-module.exports = require("next/dist/compiled/react");
+module.exports = require("react");
 
 /***/ })
 
