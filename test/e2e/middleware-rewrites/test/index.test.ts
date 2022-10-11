@@ -23,23 +23,6 @@ describe('Middleware Rewrite', () => {
   })
 
   function tests() {
-    it('should allow rewriting invalid buildId correctly', async () => {
-      const res = await fetchViaHTTP(
-        next.url,
-        '/_next/data/missing-id/hello.json',
-        undefined,
-        {
-          headers: {
-            'x-nextjs-data': '1',
-          },
-        }
-      )
-      expect(res.status).toBe(200)
-      expect(await res.text()).toContain('Example Domain')
-      await check(() => next.cliOutput, /missing-id rewrite/)
-      expect(next.cliOutput).toContain('/_next/data/missing-id/hello.json')
-    })
-
     it('should not have un-necessary data request on rewrite', async () => {
       const browser = await webdriver(next.url, '/to-blog/first', {
         waitHydration: false,

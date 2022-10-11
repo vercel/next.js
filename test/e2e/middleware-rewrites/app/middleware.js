@@ -13,11 +13,6 @@ export async function middleware(request) {
     return NextResponse.next()
   }
 
-  if (url.pathname.startsWith('/_next/data/missing-id')) {
-    console.log(`missing-id rewrite: ${url.toString()}`)
-    return NextResponse.rewrite('https://example.vercel.sh')
-  }
-
   if (url.pathname.includes('/to/some/404/path')) {
     return NextResponse.next({
       'x-matched-path': '/404',
