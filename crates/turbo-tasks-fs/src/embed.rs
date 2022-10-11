@@ -14,7 +14,7 @@ pub async fn content_from_relative_path(package_path: &str, path: &str) -> Resul
     let path = resolved_path.file_name().unwrap().to_str().unwrap();
 
     let disk_fs = DiskFileSystemVc::new(
-        resolved_path.to_string_lossy().to_string(),
+        root_path.to_string_lossy().to_string(),
         root_path.to_string_lossy().to_string(),
     );
     disk_fs.await?.start_watching()?;
