@@ -1,4 +1,4 @@
-'client'
+'use client'
 
 import React from 'react'
 import { StyleRegistry, createStyleRegistry } from 'styled-jsx'

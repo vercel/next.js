@@ -8,8 +8,10 @@ use next_swc::{
 use std::path::PathBuf;
 use swc_core::{
     common::FileName,
-    ecma::parser::{EsConfig, Syntax},
-    ecma::transforms::testing::test_fixture_allowing_error,
+    ecma::{
+        parser::{EsConfig, Syntax},
+        transforms::testing::{test_fixture, FixtureTestConfig},
+    },
 };
 use testing::fixture;
 
@@ -23,18 +25,22 @@ fn syntax() -> Syntax {
 #[fixture("tests/errors/re-export-all-in-page/**/input.js")]
 fn re_export_all_in_page(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
-    test_fixture_allowing_error(
+    test_fixture(
         syntax(),
         &|_tr| disallow_re_export_all_in_page(true),
         &input,
         &output,
+        FixtureTestConfig {
+            allow_error: true,
+            ..Default::default()
+        },
     );
 }
 
 #[fixture("tests/errors/next-dynamic/**/input.js")]
 fn next_dynamic_errors(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
-    test_fixture_allowing_error(
+    test_fixture(
         syntax(),
         &|_tr| {
             next_dynamic(
@@ -46,24 +52,32 @@ fn next_dynamic_errors(input: PathBuf) {
         },
         &input,
         &output,
+        FixtureTestConfig {
+            allow_error: true,
+            ..Default::default()
+        },
     );
 }
 
 #[fixture("tests/errors/next-ssg/**/input.js")]
 fn next_ssg_errors(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
-    test_fixture_allowing_error(
+    test_fixture(
         syntax(),
         &|_tr| next_ssg(Default::default()),
         &input,
         &output,
+        FixtureTestConfig {
+            allow_error: true,
+            ..Default::default()
+        },
     );
 }
 
 #[fixture("tests/errors/react-server-components/server-graph/**/input.js")]
 fn react_server_components_server_graph_errors(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
-    test_fixture_allowing_error(
+    test_fixture(
         syntax(),
         &|tr| {
             server_components(
@@ -76,13 +90,17 @@ fn react_server_components_server_graph_errors(input: PathBuf) {
         },
         &input,
         &output,
+        FixtureTestConfig {
+            allow_error: true,
+            ..Default::default()
+        },
     );
 }
 
 #[fixture("tests/errors/react-server-components/client-graph/**/input.js")]
 fn react_server_components_client_graph_errors(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
-    test_fixture_allowing_error(
+    test_fixture(
         syntax(),
         &|tr| {
             server_components(
@@ -95,13 +113,17 @@ fn react_server_components_client_graph_errors(input: PathBuf) {
         },
         &input,
         &output,
+        FixtureTestConfig {
+            allow_error: true,
+            ..Default::default()
+        },
     );
 }
 
 #[fixture("tests/errors/next-font-loaders/**/input.js")]
 fn next_font_loaders_errors(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
-    test_fixture_allowing_error(
+    test_fixture(
         syntax(),
         &|_tr| {
             next_font_loaders(FontLoaderConfig {
@@ -111,5 +133,9 @@ fn next_font_loaders_errors(input: PathBuf) {
         },
         &input,
         &output,
+        FixtureTestConfig {
+            allow_error: true,
+            ..Default::default()
+        },
     );
 }

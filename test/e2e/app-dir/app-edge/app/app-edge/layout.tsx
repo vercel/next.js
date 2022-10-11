@@ -1,4 +1,4 @@
-'client'
+'use client'
 
 // TODO-APP: support typing for useSelectedLayoutSegment
 // @ts-ignore
