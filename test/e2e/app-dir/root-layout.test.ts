@@ -2,7 +2,7 @@ import path from 'path'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import webdriver from 'next-webdriver'
-import { check, renderViaHTTP } from 'next-test-utils'
+import { getRedboxDescription, hasRedbox } from 'next-test-utils'
 
 describe('app-dir root layout', () => {
   const isDev = (global as any).isNextDev
@@ -38,9 +38,13 @@ describe('app-dir root layout', () => {
     describe('Missing required tags', () => {
       it('should error on page load', async () => {
         const outputIndex = next.cliOutput.length
-        renderViaHTTP(next.url, '/missing-tags').catch(() => {})
-        await check(
-          () => next.cliOutput.slice(outputIndex),
+        const browser = await webdriver(next.url, '/missing-tags')
+
+        expect(await hasRedbox(browser, true)).toBe(true)
+        expect(await getRedboxDescription(browser)).toInclude(
+          'Missing required root layout tags: html, head, body'
+        )
+        expect(next.cliOutput.slice(outputIndex)).toMatch(
           /Missing required root layout tags: html, head, body/
         )
       })
@@ -50,8 +54,11 @@ describe('app-dir root layout', () => {
         const browser = await webdriver(next.url, '/has-tags')
         await browser.elementByCss('a').click()
 
-        await check(
-          () => next.cliOutput.slice(outputIndex),
+        expect(await hasRedbox(browser, true)).toBe(true)
+        expect(await getRedboxDescription(browser)).toInclude(
+          'Missing required root layout tags: html, head, body'
+        )
+        expect(next.cliOutput.slice(outputIndex)).toMatch(
           /Missing required root layout tags: html, head, body/
         )
       })

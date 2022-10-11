@@ -21,7 +21,7 @@ import {
   streamToString,
 } from './node-web-streams-helper'
 import { ESCAPE_REGEX, htmlEscapeJsonString } from './htmlescape'
-import { shouldUseReactRoot } from './utils'
+import { validateRootLayout, shouldUseReactRoot } from './utils'
 import { matchSegment } from '../client/components/match-segments'
 import {
   FlightCSSManifest,
@@ -1486,7 +1486,6 @@ export async function renderToHTMLOrFlight(
           generateStaticHTML: isStaticGeneration,
           getServerInsertedHTML,
           serverInsertedHTMLToHead: true,
-          dev,
         })
       } catch (err: any) {
         // TODO-APP: show error overlay in development. `element` should probably be wrapped in AppRouter for this case.
@@ -1517,11 +1516,17 @@ export async function renderToHTMLOrFlight(
           generateStaticHTML: isStaticGeneration,
           getServerInsertedHTML,
           serverInsertedHTMLToHead: true,
-          dev,
         })
       }
     }
-    const renderResult = new RenderResult(await bodyResult())
+    let renderResult = new RenderResult(await bodyResult())
+
+    // Check for required root layout tags in dev
+    if (dev) {
+      const htmlResult = await streamToBufferedResult(renderResult)
+      validateRootLayout(htmlResult)
+      renderResult = new RenderResult(htmlResult)
+    }
 
     if (isStaticGeneration) {
       const htmlResult = await streamToBufferedResult(renderResult)

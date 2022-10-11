@@ -24,3 +24,17 @@ export function isTargetLikeServerless(target: string) {
 
 // When react version is >= 18 opt-in using reactRoot
 export const shouldUseReactRoot = parseInt(React.version) >= 18
+
+export function validateRootLayout(htmlResult: string) {
+  const missingTags = [
+    htmlResult.includes('<html') ? null : 'html',
+    htmlResult.includes('<head') ? null : 'head',
+    htmlResult.includes('<body') ? null : 'body',
+  ].filter(Boolean)
+
+  if (missingTags.length > 0) {
+    throw new Error(
+      'Missing required root layout tags: ' + missingTags.join(', ')
+    )
+  }
+}
