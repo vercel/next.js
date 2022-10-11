@@ -145,6 +145,7 @@ export async function createApp({
         )
         console.log()
         await retry(() => downloadAndExtractRepo(root, repoInfo2), {
+          // @ts-expect-error TODO-APP: somehow the type is wrong
           retries: 3,
         })
       } else {
@@ -155,6 +156,7 @@ export async function createApp({
         )
         console.log()
         await retry(() => downloadAndExtractExample(root, example), {
+          // @ts-expect-error TODO-APP: somehow the type is wrong
           retries: 3,
         })
       }
