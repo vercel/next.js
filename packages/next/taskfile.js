@@ -319,8 +319,8 @@ export async function ncc_edge_runtime(task, opts) {
   )
 }
 
-externals['react'] = 'next/dist/compiled/react'
-externals['react-dom'] = 'next/dist/compiled/react-dom'
+// externals['react'] = 'next/dist/compiled/react'
+// externals['react-dom'] = 'next/dist/compiled/react-dom'
 export async function ncc_react(task, opts) {
   const reactDir = dirname(
     relative(__dirname, require.resolve(`react/package.json`))
@@ -329,20 +329,29 @@ export async function ncc_react(task, opts) {
     relative(__dirname, require.resolve(`react-dom/package.json`))
   )
 
-  await task.source(join(reactDomDir, '*.json')).target(`compiled/react`)
-  await task.source(join(reactDomDir, '*.json')).target(`compiled/react-dom`)
-  await task.source(join(reactDomDir, 'LICENSE')).target(`compiled/react`)
-  await task.source(join(reactDomDir, 'LICENSE')).target(`compiled/react-dom`)
-
-  await task
-    .source(join(reactDomDir, '*.js'))
-    .ncc({ minify: false, externals })
-    .target(`compiled/react-dom`)
-
+  await task.source(join(reactDir, '*.json')).target(`compiled/react`)
+  await task.source(join(reactDir, 'LICENSE')).target(`compiled/react`)
   await task
     .source(join(reactDir, '*.js'))
-    .ncc({ minify: false, externals })
+    .ncc({
+      minify: false,
+      externals: {
+        react: 'next/dist/compiled/react',
+      },
+    })
     .target(`compiled/react`)
+
+  await task.source(join(reactDomDir, '*.json')).target(`compiled/react-dom`)
+  await task.source(join(reactDomDir, 'LICENSE')).target(`compiled/react-dom`)
+  await task
+    .source(join(reactDomDir, '*.js'))
+    .ncc({
+      minify: false,
+      externals: {
+        react: 'next/dist/compiled/react',
+      },
+    })
+    .target(`compiled/react-dom`)
 }
 
 // eslint-disable-next-line camelcase
@@ -1521,13 +1530,36 @@ export async function copy_react_server_dom_webpack(task, opts) {
         'writer.browser.server.js'
       )
     )
-    .ncc({ minify: false, externals })
     .run({ every: true }, function* (file) {
       const source = file.data.toString()
       // We replace the module/chunk loading code with our own implementaion in Next.js.
       file.data = source
         .replace(/__webpack_chunk_load__/g, 'globalThis.__next_chunk_load__')
         .replace(/__webpack_require__/g, 'globalThis.__next_require__')
+    })
+    .ncc({
+      minify: false,
+      externals: {
+        react: 'next/dist/compiled/react',
+      },
+    })
+    .target('compiled/react-server-dom-webpack')
+
+  await task
+    .source(
+      join(
+        relative(
+          __dirname,
+          dirname(require.resolve('react-server-dom-webpack'))
+        ),
+        'index.js'
+      )
+    )
+    .ncc({
+      minify: false,
+      externals: {
+        react: 'next/dist/compiled/react',
+      },
     })
     .target('compiled/react-server-dom-webpack')
 }

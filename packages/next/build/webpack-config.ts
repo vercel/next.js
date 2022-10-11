@@ -874,19 +874,9 @@ export default async function getBaseWebpackConfig(
             'react-dom/server$': 'next/dist/compiled/react-dom/server',
             'react-dom/server.browser$':
               'next/dist/compiled/react-dom/server.browser',
-            react: 'next/dist/compiled/react',
-
-            // 'react-dom/server': 'next/dist/compiled/react-dom/server',
-            // 'react-dom/server.browser': 'next/dist/compiled/react-dom/server.browser',
-            // 'react-dom/client': 'next/dist/compiled/react-dom/client',
+            react$: 'next/dist/compiled/react',
           }
         : undefined),
-
-      // react: reactDir,
-      // 'react-dom$': reactDomDir,
-      // 'react-dom/server$': `${reactDomDir}/server`,
-      // 'react-dom/server.browser$': `${reactDomDir}/server.browser`,
-      // 'react-dom/client$': `${reactDomDir}/client`,
 
       'styled-jsx/style$': require.resolve(`styled-jsx/style`),
       'styled-jsx$': require.resolve(`styled-jsx`),
@@ -1650,16 +1640,22 @@ export default async function getBaseWebpackConfig(
               },
             ]
           : []),
-        // ...(hasServerComponents && isEdgeServer
-        //   ? [
-        //       // Move shared dependencies from sc_server and sc_client into the
-        //       // same layer.
-        //       {
-        //         test: rscSharedRegex,
-        //         layer: WEBPACK_LAYERS.rscShared,
-        //       },
-        //     ]
-        //   : []),
+        ...(hasServerComponents && isEdgeServer
+          ? [
+              // Move shared dependencies from sc_server and sc_client into the
+              // same layer.
+              {
+                test: rscSharedRegex,
+                layer: WEBPACK_LAYERS.rscShared,
+                // resolve: {
+                //   alias: {
+                //     'react': 'next/dist/compiled/react',
+                //     'react-dom': 'next/dist/compiled/react-dom',
+                //   }
+                // }
+              },
+            ]
+          : []),
         {
           test: /\.(js|cjs|mjs)$/,
           issuerLayer: WEBPACK_LAYERS.api,
