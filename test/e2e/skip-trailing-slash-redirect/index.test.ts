@@ -11,32 +11,16 @@ describe('skip-trailing-slash-redirect', () => {
     next = await createNext({
       files: new FileRef(join(__dirname, 'app')),
       dependencies: {},
-      nextConfig: {
-        experimental: {
-          skipTrailingSlashRedirect: true,
-          skipMiddlewareUrlNormalize: true,
-        },
-        async redirects() {
-          return [
-            {
-              source: '/redirect-me',
-              destination: '/another',
-              permanent: false,
-            },
-          ]
-        },
-        async rewrites() {
-          return [
-            {
-              source: '/rewrite-me',
-              destination: '/another',
-            },
-          ]
-        },
-      },
     })
   })
   afterAll(() => next.destroy())
+
+  it('should allow response body from middleware with flag', async () => {
+    const res = await fetchViaHTTP(next.url, '/middleware-response-body')
+    expect(res.status).toBe(200)
+    expect(res.headers.get('x-from-middleware')).toBe('true')
+    expect(await res.text()).toBe('hello from middleware')
+  })
 
   it('should merge cookies from middleware and API routes correctly', async () => {
     const res = await fetchViaHTTP(next.url, '/api/test-cookie', undefined, {
