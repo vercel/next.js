@@ -18,7 +18,7 @@ const nextDev: cliCommand = (argv) => {
     '--help': Boolean,
     '--port': Number,
     '--hostname': String,
-    '--diagnostics': Boolean,
+    '--turbo': Boolean,
 
     // Aliases
     '-h': '--help',
@@ -96,17 +96,11 @@ const nextDev: cliCommand = (argv) => {
     port,
   }
 
-  if (args['--diagnostics']) {
-    Log.warn('running diagnostics...')
+  if (args['--turbo']) {
+    Log.info('Booting up turbo devserver')
 
     loadBindings().then((bindings: any) => {
-      const packagePath = require('next/dist/compiled/find-up').sync(
-        'package.json'
-      )
-      let r = bindings.diagnostics.startDiagnostics({
-        ...devServerOptions,
-        rootDir: path.dirname(packagePath),
-      })
+      let r = bindings.turbo.startDev(devServerOptions)
       // Start preflight after server is listening and ignore errors:
       preflight().catch(() => {})
       return r
