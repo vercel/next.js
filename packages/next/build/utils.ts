@@ -1637,7 +1637,7 @@ export async function copyTracedFiles(
   const serverOutputPath = path.join(
     outputPath,
     path.relative(tracingRoot, dir),
-    moduleType ? 'server.mjs' : 'server.js'
+    'server.js'
   )
   await fs.writeFile(
     serverOutputPath,

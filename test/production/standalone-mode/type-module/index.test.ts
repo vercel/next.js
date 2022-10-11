@@ -39,7 +39,7 @@ describe('type-module', () => {
 
     await fs.move(staticSrc, staticDest)
 
-    const serverFile = join(standalonePath, 'server.mjs')
+    const serverFile = join(standalonePath, 'server.js')
     const appPort = await findPort()
     const server = await initNextServerScript(
       serverFile,
