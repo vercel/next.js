@@ -23,9 +23,9 @@ describe('pnpm support', () => {
   it('should build with dependencies installed via pnpm', async () => {
     next = await createNext({
       files: {
-        pages: new FileRef(path.join(__dirname, '..', 'app/pages')),
+        pages: new FileRef(path.join(__dirname, 'app/pages')),
         'next.config.js': new FileRef(
-          path.join(__dirname, '..', 'app/next.config.js')
+          path.join(__dirname, 'app/next.config.js')
         ),
       },
       packageJson: {
@@ -48,12 +48,10 @@ describe('pnpm support', () => {
   it('should execute client-side JS on each page in output: "standalone"', async () => {
     next = await createNext({
       files: {
-        pages: new FileRef(path.join(__dirname, '..', 'app-multi-page/pages')),
-        '.npmrc': new FileRef(
-          path.join(__dirname, '..', 'app-multi-page/.npmrc')
-        ),
+        pages: new FileRef(path.join(__dirname, 'app-multi-page/pages')),
+        '.npmrc': new FileRef(path.join(__dirname, 'app-multi-page/.npmrc')),
         'next.config.js': new FileRef(
-          path.join(__dirname, '..', 'app-multi-page/next.config.js')
+          path.join(__dirname, 'app-multi-page/next.config.js')
         ),
       },
       packageJson: {
