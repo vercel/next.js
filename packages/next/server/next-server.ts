@@ -54,7 +54,7 @@ import HttpProxy from 'next/dist/compiled/http-proxy'
 import { getPathMatch } from '../shared/lib/router/utils/path-match'
 import { createHeaderRoute, createRedirectRoute } from './server-route-utils'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
-import { run } from './web/sandbox'
+
 import { detectDomainLocale } from '../shared/lib/i18n/detect-domain-locale'
 
 import { NodeNextRequest, NodeNextResponse } from './base-http/node'
@@ -68,7 +68,6 @@ import { ParsedUrl, parseUrl } from '../shared/lib/router/utils/parse-url'
 import { parse as nodeParseUrl } from 'url'
 import * as Log from '../build/output/log'
 import loadRequireHook from '../build/webpack/require-hook'
-import { consumeUint8ArrayReadableStream } from 'next/dist/compiled/edge-runtime'
 
 import BaseServer, {
   Options,
@@ -1766,6 +1765,7 @@ export default class NextNodeServer extends BaseServer {
     }
 
     const method = (params.request.method || 'GET').toUpperCase()
+    const { run } = require('./web/sandbox') as typeof import('./web/sandbox')
 
     const result = await run({
       distDir: this.distDir,
@@ -2089,6 +2089,7 @@ export default class NextNodeServer extends BaseServer {
       )
     }
 
+    const { run } = require('./web/sandbox') as typeof import('./web/sandbox')
     const result = await run({
       distDir: this.distDir,
       name: edgeInfo.name,
@@ -2129,6 +2130,8 @@ export default class NextNodeServer extends BaseServer {
     if (result.response.body) {
       // TODO(gal): not sure that we always need to stream
       const nodeResStream = (params.res as NodeNextResponse).originalResponse
+      const { consumeUint8ArrayReadableStream } =
+        require('next/dist/compiled/edge-runtime') as typeof import('next/dist/compiled/edge-runtime')
       try {
         for await (const chunk of consumeUint8ArrayReadableStream(
           result.response.body
