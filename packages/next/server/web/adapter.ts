@@ -103,6 +103,20 @@ export async function adapter(params: {
   const event = new NextFetchEvent({ request, page: params.page })
   let response = await params.handler(request, event)
 
+  // check if response is a Response object
+  if (
+    response &&
+    !(
+      typeof response === 'object' &&
+      (!response.headers || typeof response.headers.get === 'function') &&
+      (!response.body || typeof response.body.getReader === 'function') &&
+      typeof response.status === 'number' &&
+      typeof response.statusText === 'string'
+    )
+  ) {
+    throw new Error('Response must be an instance of Response type')
+  }
+
   /**
    * For rewrites we must always include the locale in the final pathname
    * so we re-create the NextURL forcing it to include it when the it is
