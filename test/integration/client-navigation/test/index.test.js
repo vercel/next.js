@@ -237,17 +237,13 @@ describe('Client Navigation', () => {
 
     it('should not reload when link in svg is clicked', async () => {
       const browser = await webdriver(context.appPort, '/nav')
-
-      const counterText = await browser
-        .elementByCss('#increase')
-        .click()
+      await browser.eval('window.hello = true')
+      await browser
         .elementByCss('#in-svg-link')
         .click()
         .waitForElementByCss('.nav-about')
-        .elementByCss('#counter')
-        .text()
 
-      expect(counterText).toBe('Counter: 1')
+      expect(await browser.eval('window.hello')).toBe(true)
       await browser.close()
     })
   })
