@@ -102,10 +102,11 @@ describe('@next/font/google loader', () => {
         fs: {} as any,
       })
       expect(adjustFontFallback).toEqual({
-        ascentOverride: '96.88',
-        descentOverride: '24.15',
+        ascentOverride: '47.65%',
+        descentOverride: '11.88%',
         fallbackFont: 'Arial',
-        lineGapOverride: '0.00',
+        lineGapOverride: '0.00%',
+        sizeAdjust: '203.32%',
       })
       expect(fallbackFonts).toBeUndefined()
     })
@@ -124,10 +125,11 @@ describe('@next/font/google loader', () => {
         fs: {} as any,
       })
       expect(adjustFontFallback).toEqual({
-        ascentOverride: '98.40',
-        descentOverride: '27.30',
+        ascentOverride: '148.26%',
+        descentOverride: '41.13%',
         fallbackFont: 'Arial',
-        lineGapOverride: '0.00',
+        lineGapOverride: '0.00%',
+        sizeAdjust: '66.37%',
       })
       expect(fallbackFonts).toBeUndefined()
     })
@@ -146,10 +148,11 @@ describe('@next/font/google loader', () => {
         fs: {} as any,
       })
       expect(adjustFontFallback).toEqual({
-        ascentOverride: '97.80',
-        descentOverride: '25.50',
+        ascentOverride: '63.47%',
+        descentOverride: '16.55%',
         fallbackFont: 'Times New Roman',
-        lineGapOverride: '0.00',
+        lineGapOverride: '0.00%',
+        sizeAdjust: '154.08%',
       })
       expect(fallbackFonts).toEqual(['Abc', 'Def'])
     })

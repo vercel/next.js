@@ -20,12 +20,17 @@ const Header = ({ user, loading }: HeaderProps) => {
               <a>About</a>
             </Link>
           </li>
+          <li>
+            <Link href="/advanced/api-profile">
+              <a>API rendered profile (advanced)</a>
+            </Link>
+          </li>
           {!loading &&
             (user ? (
               <>
                 <li>
                   <Link href="/profile">
-                    <a>Client-rendered profile</a>
+                    <a>Client rendered profile</a>
                   </Link>
                 </li>
                 <li>
@@ -34,12 +39,12 @@ const Header = ({ user, loading }: HeaderProps) => {
                   </Link>
                 </li>
                 <li>
-                  <a href="/api/logout">Logout</a>
+                  <a href="/api/auth/logout">Logout</a>
                 </li>
               </>
             ) : (
               <li>
-                <a href="/api/login">Login</a>
+                <a href="/api/auth/login">Login</a>
               </li>
             ))}
         </ul>
@@ -63,8 +68,9 @@ const Header = ({ user, loading }: HeaderProps) => {
         }
         li {
           margin-right: 1rem;
+          padding-right: 2rem;
         }
-        li:nth-child(2) {
+        li:nth-child(3) {
           margin-right: auto;
         }
         a {
