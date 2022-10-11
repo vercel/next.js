@@ -79,6 +79,7 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  dangerouslyAllowMiddlewareResponseBody?: boolean
   skipMiddlewareUrlNormalize?: boolean
   skipTrailingSlashRedirect?: boolean
   optimisticClientCache?: boolean

@@ -1,6 +1,6 @@
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
-import { fetchViaHTTP } from 'next-test-utils'
+import { check, fetchViaHTTP } from 'next-test-utils'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 
@@ -11,32 +11,36 @@ describe('skip-trailing-slash-redirect', () => {
     next = await createNext({
       files: new FileRef(join(__dirname, 'app')),
       dependencies: {},
-      nextConfig: {
-        experimental: {
-          skipTrailingSlashRedirect: true,
-          skipMiddlewareUrlNormalize: true,
-        },
-        async redirects() {
-          return [
-            {
-              source: '/redirect-me',
-              destination: '/another',
-              permanent: false,
-            },
-          ]
-        },
-        async rewrites() {
-          return [
-            {
-              source: '/rewrite-me',
-              destination: '/another',
-            },
-          ]
-        },
-      },
     })
   })
   afterAll(() => next.destroy())
+
+  it('should allow rewriting invalid buildId correctly', async () => {
+    const res = await fetchViaHTTP(
+      next.url,
+      '/_next/data/missing-id/hello.json',
+      undefined,
+      {
+        headers: {
+          'x-nextjs-data': '1',
+        },
+      }
+    )
+    expect(res.status).toBe(200)
+    expect(await res.text()).toContain('Example Domain')
+
+    if (!(global as any).isNextDeploy) {
+      await check(() => next.cliOutput, /missing-id rewrite/)
+      expect(next.cliOutput).toContain('/_next/data/missing-id/hello.json')
+    }
+  })
+
+  it('should allow response body from middleware with flag', async () => {
+    const res = await fetchViaHTTP(next.url, '/middleware-response-body')
+    expect(res.status).toBe(200)
+    expect(res.headers.get('x-from-middleware')).toBe('true')
+    expect(await res.text()).toBe('hello from middleware')
+  })
 
   it('should merge cookies from middleware and API routes correctly', async () => {
     const res = await fetchViaHTTP(next.url, '/api/test-cookie', undefined, {

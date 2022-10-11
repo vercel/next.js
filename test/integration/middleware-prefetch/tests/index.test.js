@@ -3,7 +3,6 @@
 import { join } from 'path'
 import fs from 'fs-extra'
 import webdriver from 'next-webdriver'
-import assert from 'assert'
 import { check, findPort, killApp, nextBuild, nextStart } from 'next-test-utils'
 
 jest.setTimeout(1000 * 60 * 2)
@@ -59,19 +58,6 @@ describe('Middleware Production Prefetch', () => {
         scripts.map((script) => script.getAttribute('src'))
       )
       return attrs.find((src) => src.includes('/ssg-page')) ? 'yes' : 'nope'
-    }, 'yes')
-  })
-
-  it(`prefetches data when it is ssg`, async () => {
-    const browser = await webdriver(context.appPort, `/`)
-    await browser.elementByCss('#made-up-link').moveTo()
-    await check(async () => {
-      const hrefs = await browser.eval(`Object.keys(window.next.router.sdc)`)
-      const mapped = hrefs.map((href) =>
-        new URL(href).pathname.replace(/^\/_next\/data\/[^/]+/, '')
-      )
-      assert.deepEqual(mapped, ['/index.json'])
-      return 'yes'
     }, 'yes')
   })
 

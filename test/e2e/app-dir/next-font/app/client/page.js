@@ -1,4 +1,4 @@
-'client'
+'use client'
 import Comp from './Comp'
 import font5 from '../../fonts/font5'
 

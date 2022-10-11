@@ -73,7 +73,7 @@ describe('Mixed getStaticProps and getServerSideProps error', () => {
     runTests(false)
   })
 
-  describe('serverless mode', () => {
+  describe.skip('serverless mode', () => {
     runTests(true)
   })
 })

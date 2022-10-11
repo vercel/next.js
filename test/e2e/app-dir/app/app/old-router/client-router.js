@@ -1,4 +1,4 @@
-'client'
+'use client'
 
 import { useRouter, withRouter } from 'next/router'
 import IsNull from './is-null'

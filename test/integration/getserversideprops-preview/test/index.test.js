@@ -294,7 +294,7 @@ describe('ServerSide Props Preview Mode', () => {
     runTests()
   })
 
-  describe('Serverless Mode', () => {
+  describe.skip('Serverless Mode', () => {
     beforeAll(async () => {
       await fs.writeFile(
         nextConfigPath,
@@ -308,7 +308,7 @@ describe('ServerSide Props Preview Mode', () => {
     runTests()
   })
 
-  describe('Emulated Serverless Mode', () => {
+  describe.skip('Emulated Serverless Mode', () => {
     beforeAll(async () => {
       await fs.writeFile(
         nextConfigPath,

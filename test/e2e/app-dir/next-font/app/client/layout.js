@@ -1,4 +1,4 @@
-'client'
+'use client'
 import font4 from '../../fonts/font4'
 
 export default function Root({ children }) {

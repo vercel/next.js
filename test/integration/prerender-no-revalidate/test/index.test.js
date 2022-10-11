@@ -79,7 +79,7 @@ function runTests(route, routePath, serverless) {
 describe('SSG Prerender No Revalidate', () => {
   afterAll(() => fs.remove(nextConfig))
 
-  describe('serverless mode', () => {
+  describe.skip('serverless mode', () => {
     beforeAll(async () => {
       await fs.writeFile(
         nextConfig,
