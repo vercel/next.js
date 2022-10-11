@@ -8,8 +8,12 @@ pub mod source;
 pub mod update;
 
 use std::{
-    collections::btree_map::Entry, future::Future, net::SocketAddr, pin::Pin, sync::Arc,
-    time::Instant,
+    collections::btree_map::Entry,
+    future::Future,
+    net::SocketAddr,
+    pin::Pin,
+    sync::Arc,
+    time::{Duration, Instant},
 };
 
 use anyhow::{anyhow, Result};
@@ -150,6 +154,14 @@ impl DevServer {
                                                 .body(Body::from(bytes))?,
                                         )
                                         .map_err(|_| anyhow!("receiver dropped"))?;
+                                        let elapsed = start.elapsed();
+                                        if elapsed > Duration::from_secs(1) {
+                                            println!(
+                                                "[200] {} ({})",
+                                                path,
+                                                FormatDuration(elapsed)
+                                            );
+                                        }
                                         return Ok(());
                                     }
                                 }
