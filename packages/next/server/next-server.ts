@@ -1724,15 +1724,7 @@ export default class NextNodeServer extends BaseServer {
     }
     const normalizedPathname = removeTrailingSlash(params.parsed.pathname || '')
 
-    // For middleware to "fetch" we must always provide an absolute URL
-    const query = urlQueryToSearchParams(params.parsed.query).toString()
-    const locale = params.parsed.query.__nextLocale
-
-    const url = `${getRequestMeta(params.request, '_protocol')}://${
-      this.hostname
-    }:${this.port}${locale ? `/${locale}` : ''}${params.parsed.pathname}${
-      query ? `?${query}` : ''
-    }`
+    const url = getRequestMeta(params.request, '__NEXT_INIT_URL')!
 
     if (!url.startsWith('http')) {
       throw new Error(
