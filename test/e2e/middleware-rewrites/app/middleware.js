@@ -7,7 +7,7 @@ const PUBLIC_FILE = /\.(.*)$/
  */
 export async function middleware(request) {
   const url = request.nextUrl
-  console.log('middleware', url)
+
   // this is needed for tests to get the BUILD_ID
   if (url.pathname.startsWith('/_next/static/__BUILD_ID')) {
     return NextResponse.next()
