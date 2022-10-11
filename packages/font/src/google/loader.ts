@@ -1,6 +1,6 @@
 import type { AdjustFontFallback, FontLoader } from 'next/font'
 // @ts-ignore
-import { calculateOverrideValues } from 'next/dist/server/font-utils'
+import { calculateSizeAdjustValues } from 'next/dist/server/font-utils'
 import {
   fetchCSSFromGoogleFonts,
   fetchFontFile,
@@ -109,16 +109,16 @@ const downloadGoogleFonts: FontLoader = async ({
   let adjustFontFallbackMetrics: AdjustFontFallback | undefined
   if (adjustFontFallback) {
     try {
-      const { ascent, descent, lineGap, fallbackFont } =
-        calculateOverrideValues(
-          fontFamily,
-          require('next/dist/server/google-font-metrics.json')
+      const { ascent, descent, lineGap, fallbackFont, sizeAdjust } =
+        calculateSizeAdjustValues(
+          require('next/dist/server/google-font-metrics.json')[fontFamily]
         )
       adjustFontFallbackMetrics = {
         fallbackFont,
-        ascentOverride: ascent,
-        descentOverride: descent,
-        lineGapOverride: lineGap,
+        ascentOverride: `${ascent}%`,
+        descentOverride: `${descent}%`,
+        lineGapOverride: `${lineGap}%`,
+        sizeAdjust: `${sizeAdjust}%`,
       }
     } catch {
       console.error(

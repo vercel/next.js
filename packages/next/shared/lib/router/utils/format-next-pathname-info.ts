@@ -17,6 +17,10 @@ export function formatNextPathnameInfo(info: ExtendedInfo) {
     info.ignorePrefix
   )
 
+  if (info.buildId || !info.trailingSlash) {
+    pathname = removeTrailingSlash(pathname)
+  }
+
   if (info.buildId) {
     pathname = addPathSuffix(
       addPathPrefix(pathname, `/_next/data/${info.buildId}`),
@@ -25,8 +29,8 @@ export function formatNextPathnameInfo(info: ExtendedInfo) {
   }
 
   pathname = addPathPrefix(pathname, info.basePath)
-  return info.trailingSlash
-    ? !info.buildId && !pathname.endsWith('/')
+  return !info.buildId && info.trailingSlash
+    ? !pathname.endsWith('/')
       ? addPathSuffix(pathname, '/')
       : pathname
     : removeTrailingSlash(pathname)
