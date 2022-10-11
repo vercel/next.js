@@ -115,7 +115,7 @@ throw new Error("An error occurred while importing a JSON module: \"File is not 
   }
 
   function loadFile(id, path) {
-    if (chunks.has(id)) return;
+    if (chunks.has(id)) return Promise.resolve();
     if (loading[id]) return loading[id].promise;
 
     var load = (loading[id] = {});

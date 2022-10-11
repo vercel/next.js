@@ -1,6 +1,6 @@
 use std::{collections::HashSet, fmt::Write as FmtWrite};
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
@@ -96,7 +96,11 @@ impl EcmascriptChunkItem for ManifestLoaderItem {
         // relative path.
         let root = chunk.path().root().await?;
         let asset_path = &*chunk.as_asset().path().await?;
-        let pathname = root.get_relative_path_to(asset_path).unwrap();
+        let pathname = format!(
+            "/{}",
+            root.get_path_to(asset_path)
+                .ok_or_else(|| anyhow!("asset is not in server root"))?
+        );
 
         // We also need the manifest chunk item's id, which points to a CJS module that
         // exports a promise for all of the necessary chunk loads.
@@ -106,7 +110,7 @@ impl EcmascriptChunkItem for ManifestLoaderItem {
         // dynamically import.
         let placeable = EcmascriptChunkPlaceableVc::resolve_from(asset)
             .await?
-            .unwrap();
+            .ok_or_else(|| anyhow!("asset is not placeable in ecmascript chunk"))?;
         let dynamic_id = &*placeable.as_chunk_item(self.context).id().await?;
 
         // TODO: a dedent macro with expression interpolation would be awesome.
@@ -252,7 +256,11 @@ impl EcmascriptChunkItem for ManifestChunkItem {
             // The pathname is the file path necessary to load the chunk from the server.
             let root = fs.root().await?;
             let asset_path = &*chunk.as_asset().path().await?;
-            let pathname = root.get_relative_path_to(asset_path).unwrap();
+            let pathname = format!(
+                "/{}",
+                root.get_path_to(asset_path)
+                    .ok_or_else(|| anyhow!("asset is not in server root"))?
+            );
             chunk_ids.insert((id, pathname));
         }
 

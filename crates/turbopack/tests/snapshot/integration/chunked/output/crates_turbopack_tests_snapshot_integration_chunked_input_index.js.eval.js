@@ -104,7 +104,7 @@ __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$
   }
 
   function loadFile(id, path) {
-    if (chunks.has(id)) return;
+    if (chunks.has(id)) return Promise.resolve();
     if (loading[id]) return loading[id].promise;
 
     var load = (loading[id] = {});

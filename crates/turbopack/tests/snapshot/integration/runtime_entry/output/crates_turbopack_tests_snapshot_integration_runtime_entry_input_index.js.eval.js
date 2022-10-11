@@ -101,7 +101,7 @@ console.log("hello world");
   }
 
   function loadFile(id, path) {
-    if (chunks.has(id)) return;
+    if (chunks.has(id)) return Promise.resolve();
     if (loading[id]) return loading[id].promise;
 
     var load = (loading[id] = {});
