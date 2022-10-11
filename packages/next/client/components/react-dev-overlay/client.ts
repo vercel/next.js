@@ -1,12 +1,12 @@
 import { Dispatch, ReducerAction } from 'react'
-import type { errorOverlayReducer } from './internal/reducer'
+import type { errorOverlayReducer } from './internal/error-overlay-reducer'
 import {
   ACTION_BUILD_OK,
   ACTION_BUILD_ERROR,
   ACTION_REFRESH,
   ACTION_UNHANDLED_ERROR,
   ACTION_UNHANDLED_REJECTION,
-} from './internal/reducer'
+} from './internal/error-overlay-reducer'
 import { parseStack } from './internal/helpers/parseStack'
 
 export type DispatchFn = Dispatch<ReducerAction<typeof errorOverlayReducer>>

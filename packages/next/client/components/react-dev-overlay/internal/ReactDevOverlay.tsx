@@ -1,5 +1,5 @@
 import * as React from 'react'
-import type { OverlayState } from './reducer'
+import type { OverlayState } from './error-overlay-reducer'
 
 import { ShadowPortal } from './components/ShadowPortal'
 import { BuildError } from './container/BuildError'

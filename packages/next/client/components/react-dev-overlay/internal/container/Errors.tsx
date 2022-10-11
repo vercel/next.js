@@ -4,7 +4,7 @@ import {
   ACTION_UNHANDLED_REJECTION,
   UnhandledErrorAction,
   UnhandledRejectionAction,
-} from '../reducer'
+} from '../error-overlay-reducer'
 import {
   Dialog,
   DialogBody,
