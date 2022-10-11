@@ -23,6 +23,7 @@ export interface RequestMeta {
   _nextRewroteUrl?: string
   _nextMiddlewareCookie?: string[]
   _protocol?: string
+  _nextDataNormalizing?: boolean
 }
 
 export function getRequestMeta(
