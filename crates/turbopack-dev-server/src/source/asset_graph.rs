@@ -6,7 +6,10 @@ use std::{
 use anyhow::Result;
 use turbo_tasks::{get_invalidator, Invalidator, Value, ValueToString};
 use turbo_tasks_fs::FileSystemPathVc;
-use turbopack_core::{asset::AssetVc, reference::all_referenced_assets};
+use turbopack_core::{
+    asset::{AssetVc, AssetsSetVc},
+    reference::all_referenced_assets,
+};
 
 use super::{
     ContentSource, ContentSourceData, ContentSourceResult, ContentSourceResultVc, ContentSourceVc,
@@ -23,27 +26,54 @@ struct AssetsMap(HashMap<String, AssetVc>);
 #[turbo_tasks::value(serialization = "none", eq = "manual", cell = "new")]
 pub struct AssetGraphContentSource {
     root_path: FileSystemPathVc,
-    root_asset: AssetVc,
+    root_assets: AssetsSetVc,
     #[turbo_tasks(debug_ignore, trace_ignore)]
     state: Option<Arc<Mutex<State>>>,
 }
 
 #[turbo_tasks::value_impl]
 impl AssetGraphContentSourceVc {
+    /// Serves all assets references by root_asset.
     #[turbo_tasks::function]
     pub fn new_eager(root_path: FileSystemPathVc, root_asset: AssetVc) -> Self {
         Self::cell(AssetGraphContentSource {
             root_path,
-            root_asset,
+            root_assets: AssetsSetVc::cell([root_asset].into()),
             state: None,
         })
     }
 
+    /// Serves all assets references by root_asset. Only serve references of an
+    /// asset when it has served its content before.
     #[turbo_tasks::function]
     pub fn new_lazy(root_path: FileSystemPathVc, root_asset: AssetVc) -> Self {
         Self::cell(AssetGraphContentSource {
             root_path,
-            root_asset,
+            root_assets: AssetsSetVc::cell([root_asset].into()),
+            state: Some(Arc::new(Mutex::new(State {
+                expanded: HashSet::new(),
+                invalidator: None,
+            }))),
+        })
+    }
+
+    /// Serves all assets references by all root_assets.
+    #[turbo_tasks::function]
+    pub fn new_eager_multiple(root_path: FileSystemPathVc, root_assets: AssetsSetVc) -> Self {
+        Self::cell(AssetGraphContentSource {
+            root_path,
+            root_assets,
+            state: None,
+        })
+    }
+
+    /// Serves all assets references by all root_assets. Only serve references
+    /// of an asset when it has served its content before.
+    #[turbo_tasks::function]
+    pub fn new_lazy_multiple(root_path: FileSystemPathVc, root_assets: AssetsSetVc) -> Self {
+        Self::cell(AssetGraphContentSource {
+            root_path,
+            root_assets,
             state: Some(Arc::new(Mutex::new(State {
                 expanded: HashSet::new(),
                 invalidator: None,
@@ -54,39 +84,44 @@ impl AssetGraphContentSourceVc {
     #[turbo_tasks::function]
     async fn all_assets_map(self) -> Result<AssetsMapVc> {
         let this = self.await?;
-        if let Some(state) = &this.state {
-            let mut state = state.lock().unwrap();
-            state.invalidator = Some(get_invalidator());
-        }
         let mut map = HashMap::new();
         let root_path = this.root_path.await?;
         let mut assets = Vec::new();
-        assets.push((this.root_asset.path(), this.root_asset));
-        let expanded = if let Some(state) = &this.state {
-            let state = state.lock().unwrap();
-            state.expanded.contains(&this.root_asset)
+        let mut queue = VecDeque::new();
+        let mut assets_set = HashSet::new();
+        let root_assets = this.root_assets.await?;
+        if let Some(state) = &this.state {
+            let mut state = state.lock().unwrap();
+            state.invalidator = Some(get_invalidator());
+            for root_asset in root_assets.iter() {
+                let expanded = state.expanded.contains(root_asset);
+                assets.push((root_asset.path(), *root_asset));
+                assets_set.insert(*root_asset);
+                if expanded {
+                    queue.push_back(all_referenced_assets(*root_asset));
+                }
+            }
         } else {
-            true
-        };
-        if expanded {
-            let mut queue = VecDeque::new();
-            queue.push_back(all_referenced_assets(this.root_asset));
-            let mut assets_set = HashSet::new();
-            assets_set.insert(this.root_asset);
-            while let Some(references) = queue.pop_front() {
-                for asset in references.await?.iter() {
-                    if assets_set.insert(*asset) {
-                        let expanded = if let Some(state) = &this.state {
-                            let state = state.lock().unwrap();
-                            state.expanded.contains(asset)
-                        } else {
-                            true
-                        };
-                        if expanded {
-                            queue.push_back(all_referenced_assets(*asset));
-                        }
-                        assets.push((asset.path(), *asset));
+            for root_asset in root_assets.iter() {
+                assets.push((root_asset.path(), *root_asset));
+                assets_set.insert(*root_asset);
+                queue.push_back(all_referenced_assets(*root_asset));
+            }
+        }
+
+        while let Some(references) = queue.pop_front() {
+            for asset in references.await?.iter() {
+                if assets_set.insert(*asset) {
+                    let expanded = if let Some(state) = &this.state {
+                        let state = state.lock().unwrap();
+                        state.expanded.contains(asset)
+                    } else {
+                        true
+                    };
+                    if expanded {
+                        queue.push_back(all_referenced_assets(*asset));
                     }
+                    assets.push((asset.path(), *asset));
                 }
             }
         }

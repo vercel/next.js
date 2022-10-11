@@ -5,7 +5,6 @@ use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::chunk::ChunkingContextVc;
 use turbopack_dev_server::source::{
     asset_graph::AssetGraphContentSourceVc,
-    combined::CombinedContentSource,
     conditional::ConditionalContentSourceVc,
     lazy_instatiated::{GetContentSource, GetContentSourceVc, LazyInstantiatedContentSource},
     ContentSource, ContentSourceData, ContentSourceDataFilter, ContentSourceDataVary,
@@ -95,21 +94,17 @@ impl GetContentSource for NodeRenderContentSource {
     /// Returns the [ContentSource] that the serves all referenced external
     /// assets. This is wrapped into [LazyInstantiatedContentSource].
     #[turbo_tasks::function]
-    async fn content_source(&self) -> Result<ContentSourceVc> {
-        Ok(CombinedContentSource {
-            sources: external_asset_entrypoints(
+    fn content_source(&self) -> ContentSourceVc {
+        AssetGraphContentSourceVc::new_lazy_multiple(
+            self.server_root,
+            external_asset_entrypoints(
                 self.renderer.module(),
                 self.runtime_entries,
                 self.chunking_context,
                 self.intermediate_output_path,
-            )
-            .await?
-            .iter()
-            .map(|asset| AssetGraphContentSourceVc::new_lazy(self.server_root, *asset).into())
-            .collect(),
-        }
-        .cell()
-        .into())
+            ),
+        )
+        .into()
     }
 }
 
