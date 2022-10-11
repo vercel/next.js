@@ -808,9 +808,9 @@ export async function renderToHTMLOrFlight(
     stripInternalQueries(query)
 
     const LayoutRouter =
-      ComponentMod.LayoutRouter as typeof import('../client/components/layout-router.client').default
+      ComponentMod.LayoutRouter as typeof import('../client/components/layout-router').default
     const RenderFromTemplateContext =
-      ComponentMod.RenderFromTemplateContext as typeof import('../client/components/render-from-template-context.client').default
+      ComponentMod.RenderFromTemplateContext as typeof import('../client/components/render-from-template-context').default
 
     /**
      * Server Context is specifically only available in Server Components.
@@ -1337,7 +1337,7 @@ export async function renderToHTMLOrFlight(
 
     // AppRouter is provided by next-app-loader
     const AppRouter =
-      ComponentMod.AppRouter as typeof import('../client/components/app-router.client').default
+      ComponentMod.AppRouter as typeof import('../client/components/app-router').default
 
     let serverComponentsInlinedTransformStream: TransformStream<
       Uint8Array,

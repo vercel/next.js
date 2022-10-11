@@ -1,4 +1,4 @@
-'client'
+'use client'
 
 import ReactDOM from 'react-dom'
 import React, { useEffect, useContext, useRef } from 'react'

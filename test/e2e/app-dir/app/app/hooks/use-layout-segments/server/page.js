@@ -1,4 +1,4 @@
-'client'
+'use client'
 // TODO-APP: enable once test is not skipped.
 // import { useLayoutSegments } from 'next/dist/client/components/hooks-client'
 

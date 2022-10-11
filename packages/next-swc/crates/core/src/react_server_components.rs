@@ -94,7 +94,7 @@ impl<C: Comments> ReactServerComponents<C> {
                             Some(expr_stmt) => {
                                 match &*expr_stmt.expr {
                                     Expr::Lit(Lit::Str(Str { value, .. })) => {
-                                        if &**value == "client" {
+                                        if &**value == "use client" {
                                             is_client_entry = true;
 
                                             // Remove the directive.
