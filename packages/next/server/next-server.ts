@@ -1062,9 +1062,17 @@ export default class NextNodeServer extends BaseServer {
         name: '_next/data catchall',
         check: true,
         fn: async (req, res, params, _parsedUrl) => {
+          const isNextDataNormalizing = getRequestMeta(
+            req,
+            '_nextDataNormalizing'
+          )
+
           // Make sure to 404 for /_next/data/ itself and
           // we also want to 404 if the buildId isn't correct
           if (!params.path || params.path[0] !== this.buildId) {
+            if (isNextDataNormalizing) {
+              return { finished: false }
+            }
             await this.render404(req, res, _parsedUrl)
             return {
               finished: true,
