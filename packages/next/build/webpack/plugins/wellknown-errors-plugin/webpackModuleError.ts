@@ -5,7 +5,7 @@ import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { getBabelError } from './parseBabel'
 import { getCssError } from './parseCss'
 import { getScssError } from './parseScss'
-import { getNotFoundError } from './parseNotFoundError'
+import { getNotFoundError, getImageError } from './parseNotFoundError'
 import { SimpleWebpackError } from './simpleWebpackError'
 import isError from '../../../../lib/is-error'
 import { getRscError } from './parseRSC'
@@ -69,6 +69,11 @@ export async function getModuleBuildError(
   )
   if (notFoundError !== false) {
     return notFoundError
+  }
+
+  const imageError = await getImageError(compilation, input, err)
+  if (imageError !== false) {
+    return imageError
   }
 
   const babel = getBabelError(sourceFilename, err)
