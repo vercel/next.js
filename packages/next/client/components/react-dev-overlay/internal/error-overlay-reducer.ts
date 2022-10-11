@@ -7,18 +7,22 @@ export const ACTION_REFRESH = 'fast-refresh'
 export const ACTION_UNHANDLED_ERROR = 'unhandled-error'
 export const ACTION_UNHANDLED_REJECTION = 'unhandled-rejection'
 
-type BuildOkAction = { type: typeof ACTION_BUILD_OK }
-type BuildErrorAction = {
+interface BuildOkAction {
+  type: typeof ACTION_BUILD_OK
+}
+interface BuildErrorAction {
   type: typeof ACTION_BUILD_ERROR
   message: string
 }
-type FastRefreshAction = { type: typeof ACTION_REFRESH }
-export type UnhandledErrorAction = {
+interface FastRefreshAction {
+  type: typeof ACTION_REFRESH
+}
+export interface UnhandledErrorAction {
   type: typeof ACTION_UNHANDLED_ERROR
   reason: Error
   frames: StackFrame[]
 }
-export type UnhandledRejectionAction = {
+export interface UnhandledRejectionAction {
   type: typeof ACTION_UNHANDLED_REJECTION
   reason: Error
   frames: StackFrame[]
@@ -32,7 +36,7 @@ export interface OverlayState {
 
 export function errorOverlayReducer(
   state: Readonly<OverlayState>,
-  ev: Readonly<
+  action: Readonly<
     | BuildOkAction
     | BuildErrorAction
     | FastRefreshAction
@@ -40,12 +44,12 @@ export function errorOverlayReducer(
     | UnhandledRejectionAction
   >
 ): OverlayState {
-  switch (ev.type) {
+  switch (action.type) {
     case ACTION_BUILD_OK: {
       return { ...state, buildError: null }
     }
     case ACTION_BUILD_ERROR: {
-      return { ...state, buildError: ev.message }
+      return { ...state, buildError: action.message }
     }
     case ACTION_REFRESH: {
       return { ...state, buildError: null, errors: [] }
@@ -58,15 +62,15 @@ export function errorOverlayReducer(
         errors: [
           ...state.errors.filter((err) => {
             // Filter out duplicate errors
-            return err.event.reason !== ev.reason
+            return err.event.reason !== action.reason
           }),
-          { id: state.nextId, event: ev },
+          { id: state.nextId, event: action },
         ],
       }
     }
     default: {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const _: never = ev
+      const _: never = action
       return state
     }
   }
