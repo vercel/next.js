@@ -17,7 +17,6 @@ function nextImageLoader(content) {
       opts
     )
     const outputPath = assetPrefix + '/_next' + interpolatedName
-
     let extension = loaderUtils.interpolateName(this, '[ext]', opts)
     if (extension === 'jpg') {
       extension = 'jpeg'
@@ -25,8 +24,15 @@ function nextImageLoader(content) {
 
     const imageSizeSpan = imageLoaderSpan.traceChild('image-size-calculation')
     const imageSize = await imageSizeSpan.traceAsyncFn(() =>
-      getImageSize(content, extension)
+      getImageSize(content, extension).catch((err) => err)
     )
+
+    if (imageSize instanceof Error) {
+      const err = imageSize
+      err.name = 'InvalidImageFormatError'
+      throw err
+    }
+
     let blurDataURL
     let blurWidth
     let blurHeight

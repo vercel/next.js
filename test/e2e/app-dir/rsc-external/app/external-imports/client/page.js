@@ -1,4 +1,4 @@
-'client'
+'use client'
 
 import getType, { named, value, array, obj } from 'non-isomorphic-text'
 
