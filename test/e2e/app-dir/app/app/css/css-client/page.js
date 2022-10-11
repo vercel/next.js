@@ -1,4 +1,4 @@
-'client'
+'use client'
 
 import './client-page.css'
 

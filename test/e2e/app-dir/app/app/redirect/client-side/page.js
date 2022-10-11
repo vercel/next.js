@@ -1,4 +1,4 @@
-'client'
+'use client'
 
 import { redirect } from 'next/dist/client/components/redirect'
 import React from 'react'

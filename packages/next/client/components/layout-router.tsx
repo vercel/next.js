@@ -1,4 +1,4 @@
-'client'
+'use client'
 
 import React, {
   useContext,
@@ -27,7 +27,7 @@ import {
   TemplateContext,
   AppRouterContext,
 } from '../../shared/lib/app-router-context'
-import { fetchServerResponse } from './app-router.client'
+import { fetchServerResponse } from './app-router'
 import { createInfinitePromise } from './infinite-promise'
 import { ErrorBoundary } from './error-boundary'
 import { matchSegment } from './match-segments'
