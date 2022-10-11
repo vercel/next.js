@@ -169,6 +169,76 @@ export async function ncc_node_fetch(task, opts) {
     .target('compiled/node-fetch')
 }
 
+externals['anser'] = 'next/dist/compiled/anser'
+export async function ncc_node_anser(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('anser')))
+    .ncc({ packageName: 'anser', externals })
+    .target('compiled/anser')
+}
+
+externals['stacktrace-parser'] = 'next/dist/compiled/stacktrace-parser'
+export async function ncc_node_stacktrace_parser(task, opts) {
+  await task
+    .source(
+      opts.src || relative(__dirname, require.resolve('stacktrace-parser'))
+    )
+    .ncc({ packageName: 'stacktrace-parser', externals })
+    .target('compiled/stacktrace-parser')
+}
+
+externals['data-uri-to-buffer'] = 'next/dist/compiled/data-uri-to-buffer'
+export async function ncc_node_data_uri_to_buffer(task, opts) {
+  await task
+    .source(
+      opts.src || relative(__dirname, require.resolve('data-uri-to-buffer'))
+    )
+    .ncc({ packageName: 'data-uri-to-buffer', externals })
+    .target('compiled/data-uri-to-buffer')
+}
+
+externals['css.escape'] = 'next/dist/compiled/css.escape'
+export async function ncc_node_cssescape(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('css.escape')))
+    .ncc({ packageName: 'css.escape', externals })
+    .target('compiled/css.escape')
+}
+
+externals['shell-quote'] = 'next/dist/compiled/shell-quote'
+export async function ncc_node_shell_quote(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('shell-quote')))
+    .ncc({ packageName: 'shell-quote', externals })
+    .target('compiled/shell-quote')
+}
+
+externals['platform'] = 'next/dist/compiled/platform'
+export async function ncc_node_platform(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('platform')))
+    .ncc({ packageName: 'platform', externals })
+    .target('compiled/platform')
+
+  const clientFile = join(__dirname, 'compiled/platform/platform.js')
+  const content = fs.readFileSync(clientFile, 'utf8')
+  // remove AMD define branch as this forces the module to not
+  // be treated as commonjs in serverless/client mode
+  fs.writeFileSync(
+    clientFile,
+    content.replace(
+      new RegExp(
+        'if(typeof define=="function"&&typeof define.amd=="object"&&define.amd){r.platform=d;define((function(){return d}))}else '.replace(
+          /[|\\{}()[\]^$+*?.-]/g,
+          '\\$&'
+        ),
+        'g'
+      ),
+      ''
+    )
+  )
+}
+
 externals['undici'] = 'next/dist/compiled/undici'
 export async function ncc_undici(task, opts) {
   await task
@@ -1850,6 +1920,12 @@ export async function ncc(task, opts) {
         'ncc_get_orientation',
         'ncc_hapi_accept',
         'ncc_node_fetch',
+        'ncc_node_anser',
+        'ncc_node_stacktrace_parser',
+        'ncc_node_data_uri_to_buffer',
+        'ncc_node_cssescape',
+        'ncc_node_platform',
+        'ncc_node_shell_quote',
         'ncc_undici',
         'ncc_acorn',
         'ncc_amphtml_validator',
