@@ -224,14 +224,13 @@ describe('Middleware Runtime', () => {
 
       await check(
         () => browser.eval('document.documentElement.innerHTML'),
-        /"from":"middleware"/
+        /"slug":"hello"/
       )
 
       await check(() => browser.elementByCss('body').text(), /\/to-ssg/)
 
       expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
         slug: 'hello',
-        from: 'middleware',
       })
       expect(
         JSON.parse(await browser.elementByCss('#props').text()).params

@@ -253,6 +253,9 @@ export function getDefineEnv({
     'process.env.__NEXT_I18N_SUPPORT': JSON.stringify(!!config.i18n),
     'process.env.__NEXT_I18N_DOMAINS': JSON.stringify(config.i18n?.domains),
     'process.env.__NEXT_ANALYTICS_ID': JSON.stringify(config.analyticsId),
+    'process.env.__NEXT_ALLOW_MIDDLEWARE_RESPONSE_BODY': JSON.stringify(
+      config.experimental.dangerouslyAllowMiddlewareResponseBody
+    ),
     'process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE': JSON.stringify(
       config.experimental.skipMiddlewareUrlNormalize
     ),
@@ -563,7 +566,7 @@ export default async function getBaseWebpackConfig(
     rewrites.afterFiles.length > 0 ||
     rewrites.fallback.length > 0
 
-  const hasAppDir = !!config.experimental.appDir
+  const hasAppDir = !!config.experimental.appDir && !!appDir
   const hasConcurrentFeatures = hasReactRoot
   const hasServerComponents = hasAppDir
 
@@ -1202,8 +1205,8 @@ export default async function getBaseWebpackConfig(
 
   const fontLoaderTargets =
     config.experimental.fontLoaders &&
-    Object.keys(config.experimental.fontLoaders).map((fontLoader) => {
-      const resolved = require.resolve(fontLoader)
+    config.experimental.fontLoaders.map(({ loader }) => {
+      const resolved = require.resolve(loader)
       return path.join(resolved, '../target.css')
     })
 
@@ -1587,7 +1590,7 @@ export default async function getBaseWebpackConfig(
             ]
           : []),
         // Alias `next/dynamic` to React.lazy implementation for RSC
-        ...(hasServerComponents && appDir
+        ...(hasServerComponents
           ? [
               {
                 test: codeCondition.test,
@@ -1909,6 +1912,8 @@ export default async function getBaseWebpackConfig(
           dev,
           sriEnabled: !dev && !!config.experimental.sri?.algorithm,
           hasFontLoaders: !!config.experimental.fontLoaders,
+          dangerouslyAllowMiddlewareResponseBody:
+            !!config.experimental.dangerouslyAllowMiddlewareResponseBody,
         }),
       isClient &&
         new BuildManifestPlugin({

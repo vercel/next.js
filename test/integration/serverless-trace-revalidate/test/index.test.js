@@ -27,7 +27,7 @@ const nextStart = async (appDir, appPort) => {
   )
 }
 
-describe('Serverless Trace', () => {
+describe.skip('Serverless Trace', () => {
   beforeAll(async () => {
     await nextBuild(appDir)
     appPort = await findPort()

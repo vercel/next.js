@@ -5,15 +5,12 @@ const myFont1 = localFont({
   style: 'italic',
   weight: 100,
   fallback: ['system-ui'],
+  adjustFontFallback: 'Times New Roman',
 })
 const myFont2 = localFont({
-  src: '../fonts/my-other-font.woff',
+  src: '../fonts/my-other-font.woff2',
   preload: false,
   variable: '--my-font',
-  adjustFontFallback: {
-    fallbackFont: 'Arial',
-    sizeAdjust: '120%',
-  },
 })
 
 export default function WithFonts() {

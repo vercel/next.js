@@ -339,6 +339,35 @@ declare module 'next/dist/compiled/@segment/ajv-human-errors' {
   export = m
 }
 
+declare module 'next/dist/compiled/stacktrace-parser' {
+  import * as m from 'stacktrace-parser'
+  export = m
+}
+
+declare module 'next/dist/compiled/anser' {
+  import * as m from 'anser'
+  export = m
+}
+
+declare module 'next/dist/compiled/platform' {
+  import * as m from 'platform'
+  export = m
+}
+
+declare module 'next/dist/compiled/css.escape' {
+  export = CSS.escape
+}
+
+declare module 'next/dist/compiled/data-uri-to-buffer' {
+  import * as m from 'data-uri-to-buffer'
+  export = m
+}
+
+declare module 'next/dist/compiled/shell-quote' {
+  import * as m from 'shell-quote'
+  export = m
+}
+
 declare namespace NodeJS {
   interface ProcessVersions {
     pnp?: string

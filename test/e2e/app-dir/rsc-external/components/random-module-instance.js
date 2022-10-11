@@ -1,4 +1,4 @@
-'client'
+'use client'
 
 import { name } from 'random-module-instance'
 
