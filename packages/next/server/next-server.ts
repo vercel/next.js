@@ -1765,8 +1765,9 @@ export default class NextNodeServer extends BaseServer {
     }
 
     const method = (params.request.method || 'GET').toUpperCase()
+    const { run } = require('./web/sandbox') as typeof import('./web/sandbox')
 
-    const result = await require('./web/sandbox').run({
+    const result = await run({
       distDir: this.distDir,
       name: middlewareInfo.name,
       paths: middlewareInfo.paths,
@@ -2088,7 +2089,8 @@ export default class NextNodeServer extends BaseServer {
       )
     }
 
-    const result = await require('./web/sandbox').run({
+    const { run } = require('./web/sandbox') as typeof import('./web/sandbox')
+    const result = await run({
       distDir: this.distDir,
       name: edgeInfo.name,
       paths: edgeInfo.paths,
@@ -2128,9 +2130,8 @@ export default class NextNodeServer extends BaseServer {
     if (result.response.body) {
       // TODO(gal): not sure that we always need to stream
       const nodeResStream = (params.res as NodeNextResponse).originalResponse
-      const {
-        consumeUint8ArrayReadableStream,
-      } = require('next/dist/compiled/edge-runtime')
+      const { consumeUint8ArrayReadableStream } =
+        require('next/dist/compiled/edge-runtime') as typeof import('next/dist/compiled/edge-runtime')
       try {
         for await (const chunk of consumeUint8ArrayReadableStream(
           result.response.body
