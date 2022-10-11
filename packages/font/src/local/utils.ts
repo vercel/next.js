@@ -1,5 +1,3 @@
-import { AdjustFontFallback } from 'next/font'
-
 const allowedDisplayValues = ['auto', 'block', 'swap', 'fallback', 'optional']
 
 const formatValues = (values: string[]) =>
@@ -15,27 +13,17 @@ const extToFormat = {
 
 type FontOptions = {
   family: string
-  files: Array<{
-    file: string
-    ext: string
-    format: string
-    unicodeRange?: string
-  }>
+  src: string
+  ext: string
+  format: string
   display: string
-  weight?: string
+  weight?: number
   style?: string
   fallback?: string[]
   preload: boolean
   variable?: string
-  ascentOverride?: string
-  descentOverride?: string
-  fontStretch?: string
-  fontVariant?: string
-  fontFeatureSettings?: string
-  fontVariationSettings?: string
-  lineGapOverride?: string
-  sizeAdjust?: string
-  adjustFontFallback?: AdjustFontFallback
+  adjustFontFallback?: string | false
+  declarations?: Array<{ prop: string; value: string }>
 }
 export function validateData(functionName: string, data: any): FontOptions {
   if (functionName) {
@@ -49,15 +37,8 @@ export function validateData(functionName: string, data: any): FontOptions {
     fallback,
     preload = true,
     variable,
-    ascentOverride,
-    descentOverride,
-    fontStretch,
-    fontVariant,
-    fontFeatureSettings,
-    fontVariationSettings,
-    lineGapOverride,
-    sizeAdjust,
     adjustFontFallback,
+    declarations,
   } = data[0] || ({} as any)
 
   if (!allowedDisplayValues.includes(display)) {
@@ -68,53 +49,45 @@ export function validateData(functionName: string, data: any): FontOptions {
     )
   }
 
-  const srcArray = Array.isArray(src) ? src : [{ file: src }]
-
-  if (srcArray.length === 0) {
-    throw new Error('Src must contain one or more files')
+  if (!src) {
+    throw new Error('Missing required `src` property')
   }
 
-  const files = srcArray.map(({ file, unicodeRange }) => {
-    if (!file) {
-      throw new Error('Src array objects must have a `file` property')
-    }
-    if (srcArray.length > 1 && !unicodeRange) {
-      throw new Error(
-        "Files must have a unicode-range if there's more than one"
-      )
-    }
+  const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(src)?.[1]
+  if (!ext) {
+    throw new Error(`Unexpected file \`${src}\``)
+  }
 
-    const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(file)?.[1]
-    if (!ext) {
-      throw new Error(`Unexpected file \`${file}\``)
-    }
-    return {
-      file,
-      unicodeRange,
-      ext,
-      format: extToFormat[ext as 'woff' | 'woff2' | 'eot' | 'ttf' | 'otf'],
-    }
-  })
+  const family = /.+\/(.+?)\./.exec(src)![1]
 
-  const family = /.+\/(.+?)\./.exec(files[0].file)![1]
+  if (Array.isArray(declarations)) {
+    declarations.forEach((declaration) => {
+      if (
+        [
+          'font-family',
+          'src',
+          'font-display',
+          'font-weight',
+          'font-style',
+        ].includes(declaration?.prop)
+      ) {
+        throw new Error(`Invalid declaration prop: \`${declaration.prop}\``)
+      }
+    })
+  }
 
   return {
     family,
-    files,
+    src,
+    ext,
+    format: extToFormat[ext as 'woff' | 'woff2' | 'eot' | 'ttf' | 'otf'],
     display,
     weight,
     style,
     fallback,
     preload,
     variable,
-    ascentOverride,
-    descentOverride,
-    fontStretch,
-    fontVariant,
-    fontFeatureSettings,
-    fontVariationSettings,
-    lineGapOverride,
-    sizeAdjust,
     adjustFontFallback,
+    declarations,
   }
 }

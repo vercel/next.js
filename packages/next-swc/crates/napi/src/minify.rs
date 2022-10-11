@@ -35,7 +35,7 @@ use serde::Deserialize;
 use std::sync::Arc;
 use swc_core::{
     base::{config::JsMinifyOptions, try_with_handler, TransformOutput},
-    common::{errors::ColorConfig, sync::Lrc, FileName, SourceFile, SourceMap},
+    common::{errors::ColorConfig, sync::Lrc, FileName, SourceFile, SourceMap, GLOBALS},
 };
 
 struct MinifyTask {
@@ -85,15 +85,17 @@ impl Task for MinifyTask {
                 skip_filename: true,
             },
             |handler| {
-                let fm = self.code.to_file(self.c.cm.clone());
+                GLOBALS.set(&Default::default(), || {
+                    let fm = self.code.to_file(self.c.cm.clone());
 
-                self.c.minify(
-                    fm,
-                    handler,
-                    &JsMinifyOptions {
-                        ..self.opts.clone()
-                    },
-                )
+                    self.c.minify(
+                        fm,
+                        handler,
+                        &JsMinifyOptions {
+                            ..self.opts.clone()
+                        },
+                    )
+                })
             },
         )
         .convert_err()
@@ -131,7 +133,7 @@ pub fn minify_sync(cx: CallContext) -> napi::Result<JsObject> {
             color: ColorConfig::Never,
             skip_filename: true,
         },
-        |handler| c.minify(fm, handler, &opts),
+        |handler| GLOBALS.set(&Default::default(), || c.minify(fm, handler, &opts)),
     )
     .convert_err()?;
 

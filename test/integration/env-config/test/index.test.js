@@ -385,7 +385,7 @@ describe('Env Config', () => {
     runTests('server')
   })
 
-  describe('serverless mode', () => {
+  describe.skip('serverless mode', () => {
     let nextConfigContent = ''
     const nextConfigPath = join(appDir, 'next.config.js')
     const envFiles = [

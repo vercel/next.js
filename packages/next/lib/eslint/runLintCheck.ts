@@ -154,7 +154,6 @@ async function lint(
 
     let nextEslintPluginIsEnabled = false
     const nextRulesEnabled = new Map<string, Severity>()
-    const pagesDirRules = ['@next/next/no-html-link-for-pages']
 
     for (const configFile of [eslintrcFile, pkgJsonPath]) {
       if (!configFile) continue
@@ -186,7 +185,8 @@ async function lint(
       }
     }
 
-    const pagesDir = findPagesDir(baseDir, hasAppDir).pages
+    const pagesDir = findPagesDir(baseDir, hasAppDir).pagesDir
+    const pagesDirRules = pagesDir ? ['@next/next/no-html-link-for-pages'] : []
 
     if (nextEslintPluginIsEnabled) {
       let updatedPagesDir = false
@@ -277,6 +277,7 @@ async function lint(
 export async function runLintCheck(
   baseDir: string,
   lintDirs: string[],
+  hasAppDir: boolean,
   opts: {
     lintDuringBuild?: boolean
     eslintOptions?: any
@@ -285,7 +286,6 @@ export async function runLintCheck(
     formatter?: string | null
     outputFile?: string | null
     strict?: boolean
-    hasAppDir: boolean
   }
 ): ReturnType<typeof lint> {
   const {
@@ -296,7 +296,6 @@ export async function runLintCheck(
     formatter = null,
     outputFile = null,
     strict = false,
-    hasAppDir,
   } = opts
   try {
     // Find user's .eslintrc file

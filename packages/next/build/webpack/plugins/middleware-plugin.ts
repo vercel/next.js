@@ -340,12 +340,14 @@ function getCodeAnalyzer(params: {
   dev: boolean
   compiler: webpack.Compiler
   compilation: webpack.Compilation
+  dangerouslyAllowMiddlewareResponseBody: boolean
 }) {
   return (parser: webpack.javascript.JavascriptParser) => {
     const {
       dev,
       compiler: { webpack: wp },
       compilation,
+      dangerouslyAllowMiddlewareResponseBody,
     } = params
     const { hooks } = parser
 
@@ -553,8 +555,6 @@ Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime`,
       hooks.call.for(`${prefix}eval`).tap(NAME, handleWrapExpression)
       hooks.call.for(`${prefix}Function`).tap(NAME, handleWrapExpression)
       hooks.new.for(`${prefix}Function`).tap(NAME, handleWrapExpression)
-      hooks.expression.for(`${prefix}eval`).tap(NAME, handleExpression)
-      hooks.expression.for(`${prefix}Function`).tap(NAME, handleExpression)
       hooks.call
         .for(`${prefix}WebAssembly.compile`)
         .tap(NAME, handleWrapWasmCompileExpression)
@@ -562,8 +562,11 @@ Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime`,
         .for(`${prefix}WebAssembly.instantiate`)
         .tap(NAME, handleWrapWasmInstantiateExpression)
     }
-    hooks.new.for('Response').tap(NAME, handleNewResponseExpression)
-    hooks.new.for('NextResponse').tap(NAME, handleNewResponseExpression)
+
+    if (!dangerouslyAllowMiddlewareResponseBody) {
+      hooks.new.for('Response').tap(NAME, handleNewResponseExpression)
+      hooks.new.for('NextResponse').tap(NAME, handleNewResponseExpression)
+    }
     hooks.callMemberChain.for('process').tap(NAME, handleCallMemberChain)
     hooks.expressionMemberChain.for('process').tap(NAME, handleCallMemberChain)
     hooks.importCall.tap(NAME, handleImport)
@@ -803,19 +806,24 @@ export default class MiddlewarePlugin {
   private readonly dev: boolean
   private readonly sriEnabled: boolean
   private readonly hasFontLoaders: boolean
+  private readonly dangerouslyAllowMiddlewareResponseBody: boolean
 
   constructor({
     dev,
     sriEnabled,
     hasFontLoaders,
+    dangerouslyAllowMiddlewareResponseBody,
   }: {
     dev: boolean
     sriEnabled: boolean
     hasFontLoaders: boolean
+    dangerouslyAllowMiddlewareResponseBody: boolean
   }) {
     this.dev = dev
     this.sriEnabled = sriEnabled
     this.hasFontLoaders = hasFontLoaders
+    this.dangerouslyAllowMiddlewareResponseBody =
+      dangerouslyAllowMiddlewareResponseBody
   }
 
   public apply(compiler: webpack.Compiler) {
@@ -828,6 +836,8 @@ export default class MiddlewarePlugin {
         dev: this.dev,
         compiler,
         compilation,
+        dangerouslyAllowMiddlewareResponseBody:
+          this.dangerouslyAllowMiddlewareResponseBody,
       })
       hooks.parser.for('javascript/auto').tap(NAME, codeAnalyzer)
       hooks.parser.for('javascript/dynamic').tap(NAME, codeAnalyzer)
@@ -868,7 +878,7 @@ export default class MiddlewarePlugin {
   }
 }
 
-export async function handleWebpackExtenalForEdgeRuntime({
+export async function handleWebpackExternalForEdgeRuntime({
   request,
   context,
   contextInfo,

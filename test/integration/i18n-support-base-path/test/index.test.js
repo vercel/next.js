@@ -72,7 +72,7 @@ describe('i18n Support basePath', () => {
     runTests(ctx)
   })
 
-  describe('serverless mode', () => {
+  describe.skip('serverless mode', () => {
     beforeAll(async () => {
       await fs.remove(join(appDir, '.next'))
       nextConfig.replace('// target', 'target')

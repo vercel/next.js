@@ -46,6 +46,7 @@ async function loaderTransform(parentTrace, source, inputSourceMap) {
     jsConfig,
     supportedBrowsers,
     swcCacheDir,
+    hasServerComponents,
   } = loaderOptions
   const isPageFile = filename.startsWith(pagesDir)
   const relativeFilePathFromRoot = path.relative(rootDir, filename)
@@ -63,6 +64,7 @@ async function loaderTransform(parentTrace, source, inputSourceMap) {
     supportedBrowsers,
     swcCacheDir,
     relativeFilePathFromRoot,
+    hasServerComponents,
   })
 
   const programmaticOptions = {

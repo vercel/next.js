@@ -1,14 +1,16 @@
 import type { AdjustFontFallback, FontLoader } from 'next/font'
 // @ts-ignore
-import fetch from 'next/dist/compiled/node-fetch'
-// @ts-ignore
-import { calculateOverrideValues } from 'next/dist/server/font-utils'
+import { calculateSizeAdjustValues } from 'next/dist/server/font-utils'
 import {
   fetchCSSFromGoogleFonts,
+  fetchFontFile,
   getFontAxes,
   getUrl,
   validateData,
 } from './utils'
+
+const cssCache = new Map<string, Promise<string>>()
+const fontCache = new Map<string, any>()
 
 const downloadGoogleFonts: FontLoader = async ({
   functionName,
@@ -31,11 +33,19 @@ const downloadGoogleFonts: FontLoader = async ({
     selectedVariableAxes,
     fallback,
     adjustFontFallback,
+    variable,
   } = validateData(functionName, data)
   const fontAxes = getFontAxes(fontFamily, weight, style, selectedVariableAxes)
   const url = getUrl(fontFamily, fontAxes, display)
 
-  const fontFaceDeclarations = await fetchCSSFromGoogleFonts(url, fontFamily)
+  let cachedCssRequest = cssCache.get(url)
+  const fontFaceDeclarations =
+    cachedCssRequest ?? (await fetchCSSFromGoogleFonts(url, fontFamily))
+  if (!cachedCssRequest) {
+    cssCache.set(url, fontFaceDeclarations)
+  } else {
+    cssCache.delete(url)
+  }
 
   // Find font files to download
   const fontFiles: Array<{
@@ -62,14 +72,13 @@ const downloadGoogleFonts: FontLoader = async ({
   // Download font files
   const downloadedFiles = await Promise.all(
     fontFiles.map(async ({ googleFontFileUrl, preloadFontFile }) => {
-      let fontFileBuffer: Buffer
-      if (process.env.NEXT_FONT_GOOGLE_MOCKED_RESPONSES) {
-        fontFileBuffer = Buffer.from(googleFontFileUrl)
+      let cachedFontRequest = fontCache.get(googleFontFileUrl)
+      const fontFileBuffer =
+        cachedFontRequest ?? (await fetchFontFile(googleFontFileUrl))
+      if (!cachedFontRequest) {
+        fontCache.set(googleFontFileUrl, fontFileBuffer)
       } else {
-        const arrayBuffer = await fetch(googleFontFileUrl).then((r: any) =>
-          r.arrayBuffer()
-        )
-        fontFileBuffer = Buffer.from(arrayBuffer)
+        fontCache.delete(googleFontFileUrl)
       }
 
       const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(googleFontFileUrl)![1]
@@ -100,16 +109,16 @@ const downloadGoogleFonts: FontLoader = async ({
   let adjustFontFallbackMetrics: AdjustFontFallback | undefined
   if (adjustFontFallback) {
     try {
-      const { ascent, descent, lineGap, fallbackFont } =
-        calculateOverrideValues(
-          fontFamily,
-          require('next/dist/server/google-font-metrics.json')
+      const { ascent, descent, lineGap, fallbackFont, sizeAdjust } =
+        calculateSizeAdjustValues(
+          require('next/dist/server/google-font-metrics.json')[fontFamily]
         )
       adjustFontFallbackMetrics = {
         fallbackFont,
-        ascentOverride: ascent,
-        descentOverride: descent,
-        lineGapOverride: lineGap,
+        ascentOverride: `${ascent}%`,
+        descentOverride: `${descent}%`,
+        lineGapOverride: `${lineGap}%`,
+        sizeAdjust: `${sizeAdjust}%`,
       }
     } catch {
       console.error(
@@ -121,11 +130,9 @@ const downloadGoogleFonts: FontLoader = async ({
   return {
     css: updatedCssResponse,
     fallbackFonts: fallback,
-    weight: weight === 'variable' ? undefined : weight,
+    weight: weight === 'variable' ? undefined : Number(weight),
     style,
-    variable: `--next-font-${fontFamily.toLowerCase().replace(/ /g, '-')}${
-      weight !== 'variable' ? `-${weight}` : ''
-    }${style === 'italic' ? `-italic` : ''}`,
+    variable,
     adjustFontFallback: adjustFontFallbackMetrics,
   }
 }

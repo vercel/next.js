@@ -6,6 +6,10 @@ import { NextResponse } from 'next/server'
  * @returns {NextResponse | undefined}
  */
 export function middleware(request) {
+  if (request.nextUrl.pathname === '/exists-but-not-routed') {
+    return NextResponse.rewrite(new URL('/dashboard', request.url))
+  }
+
   if (request.nextUrl.pathname === '/middleware-to-dashboard') {
     return NextResponse.rewrite(new URL('/dashboard', request.url))
   }

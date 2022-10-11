@@ -1,4 +1,4 @@
-import rule from '@next/eslint-plugin-next/lib/rules/no-unwanted-polyfillio'
+import rule from '@next/eslint-plugin-next/dist/rules/no-unwanted-polyfillio'
 import { RuleTester } from 'eslint'
 ;(RuleTester as any).setDefaultConfig({
   parserOptions: {

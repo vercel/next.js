@@ -32,5 +32,6 @@ fn fixture(input: PathBuf) {
         },
         &input,
         &dir.join("output.js"),
+        Default::default(),
     )
 }

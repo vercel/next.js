@@ -127,6 +127,15 @@ function getDecorateUnhandledError(runtime: EdgeRuntime) {
   }
 }
 
+function getDecorateUnhandledRejection(runtime: EdgeRuntime) {
+  const EdgeRuntimeError = runtime.evaluate(`Error`)
+  return (rejected: { reason: typeof EdgeRuntimeError }) => {
+    if (rejected.reason instanceof EdgeRuntimeError) {
+      decorateServerError(rejected.reason, COMPILER_NAMES.edgeServer)
+    }
+  }
+}
+
 /**
  * Create a module cache specific for the provided parameters. It includes
  * a runtime context, require cache and paths cache.
@@ -282,8 +291,12 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
   })
 
   const decorateUnhandledError = getDecorateUnhandledError(runtime)
-  runtime.context.addEventListener('unhandledrejection', decorateUnhandledError)
   runtime.context.addEventListener('error', decorateUnhandledError)
+  const decorateUnhandledRejection = getDecorateUnhandledRejection(runtime)
+  runtime.context.addEventListener(
+    'unhandledrejection',
+    decorateUnhandledRejection
+  )
 
   return {
     runtime,
