@@ -34,6 +34,8 @@ macro_rules! define_id {
                 Self { id }
             }
         }
+
+        impl nohash_hasher::IsEnabled for $name {}
     };
     ($name:ident) => {
         define_id!(internal $name);

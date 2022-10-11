@@ -1,13 +1,14 @@
 use std::{
     collections::{HashMap, HashSet},
     fmt::{Debug, Display},
-    hash::{BuildHasher, Hash, Hasher},
+    hash::Hash,
     mem::take,
     ops::Deref,
     sync::atomic::{AtomicUsize, Ordering},
 };
 
 use event_listener::{Event, EventListener};
+use nohash_hasher::BuildNoHashHasher;
 use parking_lot::Mutex;
 use turbo_tasks::{RawVc, TaskId, TraitTypeId};
 
@@ -55,49 +56,21 @@ impl From<usize> for TaskScopeId {
     }
 }
 
-struct RawHasher(u64);
-#[derive(Copy, Clone, Default)]
-struct BuildRawHasher;
-
-impl BuildHasher for BuildRawHasher {
-    type Hasher = RawHasher;
-
-    fn build_hasher(&self) -> Self::Hasher {
-        RawHasher(0)
-    }
-}
-
-impl Hasher for RawHasher {
-    fn finish(&self) -> u64 {
-        self.0
-    }
-
-    fn write_u64(&mut self, i: u64) {
-        self.0 ^= i;
-    }
-
-    fn write_u32(&mut self, i: u32) {
-        self.0 ^= i as u64;
-    }
-
-    fn write_usize(&mut self, i: usize) {
-        self.0 ^= i as u64;
-    }
-
-    fn write(&mut self, _bytes: &[u8]) {
-        panic!("RawHasher is only usable with u32 or u64")
-    }
-}
+impl nohash_hasher::IsEnabled for TaskScopeId {}
 
 #[derive(Clone, Debug)]
 pub enum TaskScopes {
     Root(TaskScopeId),
-    Inner(CountHashSet<TaskScopeId>),
+    /// inner scopes and a flag tell if this is scheduled to become a root scope
+    Inner(
+        CountHashSet<TaskScopeId, BuildNoHashHasher<TaskScopeId>>,
+        bool,
+    ),
 }
 
 impl Default for TaskScopes {
     fn default() -> Self {
-        TaskScopes::Inner(CountHashSet::default())
+        TaskScopes::Inner(CountHashSet::default(), false)
     }
 }
 
@@ -105,7 +78,7 @@ impl TaskScopes {
     pub fn iter(&self) -> TaskScopesIterator {
         match self {
             TaskScopes::Root(r) => TaskScopesIterator::Root(*r),
-            TaskScopes::Inner(set) => TaskScopesIterator::Inner(set.iter()),
+            TaskScopes::Inner(set, _) => TaskScopesIterator::Inner(set.iter()),
         }
     }
 
@@ -161,7 +134,7 @@ pub struct TaskScopeState {
     dirty_tasks: HashSet<TaskId>,
     /// All child scopes, when the scope becomes active, child scopes need to
     /// become active too
-    children: CountHashSet<TaskScopeId>,
+    children: CountHashSet<TaskScopeId, BuildNoHashHasher<TaskScopeId>>,
     /// Tasks that have read children
     /// When they change these tasks are invalidated
     dependent_tasks: HashSet<TaskId>,
@@ -337,7 +310,13 @@ impl TaskScope {
         reader: TaskId,
         backend: &MemoryBackend,
     ) -> HashSet<RawVc> {
-        let collectibles = self.read_collectibles_recursive(self_id, trait_id, reader, backend);
+        let collectibles = self.read_collectibles_recursive(
+            self_id,
+            trait_id,
+            reader,
+            backend,
+            &mut HashMap::with_hasher(BuildNoHashHasher::default()),
+        );
         HashSet::from_iter(collectibles.iter().copied())
     }
 
@@ -347,6 +326,7 @@ impl TaskScope {
         trait_id: TraitTypeId,
         reader: TaskId,
         backend: &MemoryBackend,
+        cache: &mut HashMap<TaskScopeId, CountHashSet<RawVc>, BuildNoHashHasher<TaskScopeId>>,
     ) -> CountHashSet<RawVc> {
         // TODO add reverse edges from task to scopes and (scope, trait_id)
         let mut state = self.state.lock();
@@ -364,7 +344,13 @@ impl TaskScope {
 
         for id in children {
             backend.with_scope(id, |scope| {
-                let child = scope.read_collectibles_recursive(id, trait_id, reader, backend);
+                let child = if let Some(cached) = cache.get(&id) {
+                    cached
+                } else {
+                    let child =
+                        scope.read_collectibles_recursive(id, trait_id, reader, backend, cache);
+                    cache.entry(id).or_insert(child)
+                };
                 for v in child.iter() {
                     current.add(*v);
                 }

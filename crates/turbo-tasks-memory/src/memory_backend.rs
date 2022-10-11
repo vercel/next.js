@@ -493,31 +493,22 @@ impl Backend for MemoryBackend {
 }
 
 pub(crate) enum Job {
-    RemoveFromScopes(
-        HashSet<TaskId>,
-        Vec<TaskScopeId>,
-        bool, /* will_be_optimized */
-    ),
+    RemoveFromScopes(HashSet<TaskId>, Vec<TaskScopeId>),
     RemoveFromScope(HashSet<TaskId>, TaskScopeId),
     RemoveRootScope(TaskId),
     MakeRootScoped(TaskId),
     ScheduleWhenDirty(Vec<TaskId>),
     AddToScopeQueue(Vec<(Vec<TaskId>, bool)>, usize, TaskScopeId),
-    RemoveFromScopeQueue(Vec<(Vec<TaskId>, bool)>, usize, TaskScopeId),
+    RemoveFromScopeQueue(Vec<Vec<TaskId>>, usize, TaskScopeId),
 }
 
 impl Job {
     async fn run(self, backend: &MemoryBackend, turbo_tasks: &dyn TurboTasksBackendApi) {
         match self {
-            Job::RemoveFromScopes(tasks, scopes, will_be_optimized) => {
+            Job::RemoveFromScopes(tasks, scopes) => {
                 for task in tasks {
                     backend.with_task(task, |task| {
-                        task.remove_from_scopes(
-                            scopes.iter().cloned(),
-                            will_be_optimized,
-                            backend,
-                            turbo_tasks,
-                        )
+                        task.remove_from_scopes(scopes.iter().cloned(), backend, turbo_tasks)
                     });
                 }
             }

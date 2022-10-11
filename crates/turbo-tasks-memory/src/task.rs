@@ -413,14 +413,11 @@ impl Task {
                                 backend.create_backend_job(Job::RemoveFromScope(set, *scope)),
                             );
                         }
-                        TaskScopes::Inner(ref scopes) => {
-                            // TODO potentially convert something to a root scope to make it more
-                            // efficient
+                        TaskScopes::Inner(ref scopes, _) => {
                             turbo_tasks.schedule_backend_background_job(
                                 backend.create_backend_job(Job::RemoveFromScopes(
                                     set,
                                     scopes.iter().copied().collect(),
-                                    false,
                                 )),
                             );
                         }
@@ -622,7 +619,10 @@ impl Task {
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Option<(Vec<TaskId>, bool)> {
         let mut state = self.state.write();
-        match state.scopes {
+        let TaskState {
+            scopes, children, ..
+        } = &mut *state;
+        match *scopes {
             TaskScopes::Root(root) => {
                 if root != id {
                     if let Some(ScopeChildChangeEffect { notify, active }) =
@@ -638,15 +638,18 @@ impl Task {
                     }
                 }
             }
-            TaskScopes::Inner(ref mut list) => {
+            TaskScopes::Inner(ref mut list, ref mut optimization_scheduled) => {
                 if list.add(id) {
-                    if !will_be_optimized && list.len() == 100 {
+                    if *optimization_scheduled {
+                        will_be_optimized = true;
+                    } else if !will_be_optimized && list.len() >= 100 && children.len() >= 100 {
                         turbo_tasks.schedule_backend_background_job(
                             backend.create_backend_job(Job::MakeRootScoped(self.id)),
                         );
+                        *optimization_scheduled = true;
                         will_be_optimized = true;
                     }
-                    let children = state.children.iter().copied().collect::<Vec<_>>();
+                    let children = children.iter().copied().collect::<Vec<_>>();
 
                     // add to dirty list of the scope (potentially schedule)
                     let schedule_self =
@@ -776,10 +779,9 @@ impl Task {
     fn remove_from_scope_internal_shallow(
         &self,
         id: TaskScopeId,
-        will_be_optimized: bool,
         backend: &MemoryBackend,
         turbo_tasks: &dyn TurboTasksBackendApi,
-    ) -> Option<(Vec<TaskId>, bool)> {
+    ) -> Option<Vec<TaskId>> {
         let mut state = self.state.write();
         match state.scopes {
             TaskScopes::Root(root) => {
@@ -797,14 +799,14 @@ impl Task {
                     }
                 }
             }
-            TaskScopes::Inner(ref mut set) => {
+            TaskScopes::Inner(ref mut set, _) => {
                 if set.remove(id) {
                     self.remove_self_from_scope(&mut state, id, backend, turbo_tasks);
                     let children = state.children.iter().copied().collect::<Vec<_>>();
                     drop(state);
 
                     if !children.is_empty() {
-                        return Some((children, will_be_optimized));
+                        return Some(children);
                     }
                 }
             }
@@ -816,15 +818,12 @@ impl Task {
     fn remove_from_scope_internal(
         &self,
         id: TaskScopeId,
-        will_be_optimized: bool,
         backend: &MemoryBackend,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) {
-        if let Some((children, will_be_optimized)) =
-            self.remove_from_scope_internal_shallow(id, will_be_optimized, backend, turbo_tasks)
-        {
+        if let Some(children) = self.remove_from_scope_internal_shallow(id, backend, turbo_tasks) {
             let queue_size = children.len();
-            let queue = vec![(children, will_be_optimized)];
+            let queue = vec![children];
 
             run_remove_from_scope_queue(queue, queue_size, id, backend, turbo_tasks);
         }
@@ -836,18 +835,17 @@ impl Task {
         backend: &MemoryBackend,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) {
-        self.remove_from_scope_internal(id, false, backend, turbo_tasks)
+        self.remove_from_scope_internal(id, backend, turbo_tasks)
     }
 
     pub(crate) fn remove_from_scopes(
         &self,
         scopes: impl Iterator<Item = TaskScopeId>,
-        will_be_optimized: bool,
         backend: &MemoryBackend,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) {
         for id in scopes {
-            self.remove_from_scope_internal(id, will_be_optimized, backend, turbo_tasks)
+            self.remove_from_scope_internal(id, backend, turbo_tasks)
         }
     }
 
@@ -901,32 +899,33 @@ impl Task {
         }
         let root_scope = backend.create_new_scope(0);
         // Set the root scope of the current task
-        if let TaskScopes::Inner(set) = replace(&mut state.scopes, TaskScopes::Root(root_scope)) {
+        if let TaskScopes::Inner(set, _) = replace(&mut state.scopes, TaskScopes::Root(root_scope))
+        {
             let scopes = set.into_counts().collect::<Vec<_>>();
             log_scope_update!(
                 "new {root_scope} for {:?} as internal root scope (replacing {scopes:?})",
                 self.ty
             );
             let mut active_counter = 0;
-            for ScopeChildChangeEffect { notify, active } in
-                scopes.iter().filter_map(|(scope, count)| {
-                    backend.with_scope(*scope, |scope| {
-                        // add the new root scope as child of old scopes
-                        let mut state = scope.state.lock();
-                        if *count > 0 {
-                            state.add_child_count(root_scope, *count as usize)
-                        } else {
-                            state.remove_child_count(root_scope, (-*count) as usize)
+            let mut tasks = HashSet::new();
+            for (scope, count) in scopes.iter() {
+                backend.with_scope(*scope, |scope| {
+                    // add the new root scope as child of old scopes
+                    let mut state = scope.state.lock();
+                    if let Some(ScopeChildChangeEffect { notify, active }) = if *count > 0 {
+                        state.add_child_count(root_scope, *count as usize)
+                    } else {
+                        state.remove_child_count(root_scope, (-*count) as usize)
+                    } {
+                        tasks.extend(notify);
+                        if active {
+                            active_counter += 1;
                         }
-                    })
-                })
-            {
-                if !notify.is_empty() {
-                    turbo_tasks.schedule_notify_tasks_set(&notify);
-                }
-                if active {
-                    active_counter += 1;
-                }
+                    }
+                });
+            }
+            if !tasks.is_empty() {
+                turbo_tasks.schedule_notify_tasks_set(&tasks);
             }
 
             // We collected how often the new root scope is considered as active by the old
@@ -965,11 +964,7 @@ impl Task {
 
                 // Remove children from old scopes
                 turbo_tasks.schedule_backend_foreground_job(backend.create_backend_job(
-                    Job::RemoveFromScopes(
-                        children,
-                        scopes.into_iter().map(|(id, _)| id).collect(),
-                        true,
-                    ),
+                    Job::RemoveFromScopes(children, scopes.into_iter().map(|(id, _)| id).collect()),
                 ));
                 None
             } else {
@@ -1092,7 +1087,7 @@ impl Task {
             root_scoped: matches!(state.scopes, TaskScopes::Root(_)),
             child_scopes: match state.scopes {
                 TaskScopes::Root(_) => 1,
-                TaskScopes::Inner(ref list) => list.len(),
+                TaskScopes::Inner(ref list, _) => list.len(),
             },
             active: state
                 .scopes
@@ -1161,11 +1156,14 @@ impl Task {
             TaskScopes::Root(root) => {
                 write!(state_str, " (root scope {})", root).unwrap();
             }
-            TaskScopes::Inner(ref list) => {
-                if !list.is_empty() {
+            TaskScopes::Inner(ref list, scheduled_for_root_scope) => {
+                if !list.is_empty() || scheduled_for_root_scope {
                     write!(state_str, " (scopes").unwrap();
                     for scope in list.iter() {
                         write!(state_str, " {}", *scope).unwrap();
+                    }
+                    if scheduled_for_root_scope {
+                        state_str += " scheduled for root";
                     }
                     write!(state_str, ")").unwrap();
                 }
@@ -1416,23 +1414,19 @@ pub fn run_add_to_scope_queue(
 }
 
 pub fn run_remove_from_scope_queue(
-    mut queue: Vec<(Vec<TaskId>, bool)>,
+    mut queue: Vec<Vec<TaskId>>,
     mut queue_size: usize,
     id: TaskScopeId,
     backend: &MemoryBackend,
     turbo_tasks: &dyn TurboTasksBackendApi,
 ) {
-    while let Some((children, will_be_optimized)) = queue.pop() {
+    while let Some(children) = queue.pop() {
         queue_size -= children.len();
         for child in children {
             backend.with_task(child, |child| {
-                if let Some(r) = child.remove_from_scope_internal_shallow(
-                    id,
-                    will_be_optimized,
-                    backend,
-                    turbo_tasks,
-                ) {
-                    queue_size += r.0.len();
+                if let Some(r) = child.remove_from_scope_internal_shallow(id, backend, turbo_tasks)
+                {
+                    queue_size += r.len();
                     queue.push(r);
                 }
             })
@@ -1443,7 +1437,7 @@ pub fn run_remove_from_scope_queue(
             let mut split_off_queue = Vec::new();
             while queue.len() > 2 && queue_size > queue_size_goal {
                 let item = queue.pop().unwrap();
-                queue_size -= item.0.len();
+                queue_size -= item.len();
                 split_off_queue.push(item);
             }
             turbo_tasks.schedule_backend_background_job(backend.create_backend_job(

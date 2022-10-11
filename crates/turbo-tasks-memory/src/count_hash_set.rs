@@ -1,19 +1,19 @@
 use std::{
     collections::{
-        hash_map::{Entry, IntoIter, Iter},
+        hash_map::{Entry, IntoIter, Iter, RandomState},
         HashMap,
     },
-    hash::Hash,
+    hash::{BuildHasher, Hash},
     iter::FilterMap,
 };
 
 #[derive(Clone, Debug)]
-pub struct CountHashSet<T> {
-    inner: HashMap<T, isize>,
+pub struct CountHashSet<T, H = RandomState> {
+    inner: HashMap<T, isize, H>,
     negative_entries: usize,
 }
 
-impl<T> Default for CountHashSet<T> {
+impl<T, H: Default> Default for CountHashSet<T, H> {
     fn default() -> Self {
         Self {
             inner: Default::default(),
@@ -22,11 +22,13 @@ impl<T> Default for CountHashSet<T> {
     }
 }
 
-impl<T> CountHashSet<T> {
+impl<T, H: Default> CountHashSet<T, H> {
     pub fn new() -> Self {
         Self::default()
     }
+}
 
+impl<T, H> CountHashSet<T, H> {
     pub fn len(&self) -> usize {
         self.inner.len() - self.negative_entries
     }
@@ -36,7 +38,7 @@ impl<T> CountHashSet<T> {
     }
 }
 
-impl<T: Eq + Hash> CountHashSet<T> {
+impl<T: Eq + Hash, H: BuildHasher> CountHashSet<T, H> {
     /// Returns true, when the value has become visible from outside
     pub fn add_count(&mut self, item: T, count: usize) -> bool {
         match self.inner.entry(item) {
