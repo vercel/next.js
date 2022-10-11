@@ -183,17 +183,17 @@ describe('@next/font/google loader', () => {
 
       await expect(
         loader({
-          functionName: 'Inter',
-          data: [],
+          functionName: 'Alkalami',
+          data: [{ variant: '400' }],
           config: { subsets: [] },
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
           fs: {} as any,
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(`
-                        "Failed to fetch font  \`Inter\`.
-                        URL: https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=optional"
-                    `)
+              "Failed to fetch font  \`Alkalami\`.
+              URL: https://fonts.googleapis.com/css2?family=Alkalami:wght@400&display=optional"
+            `)
     })
 
     test('Missing config with subsets', async () => {
