@@ -7,10 +7,15 @@ const PUBLIC_FILE = /\.(.*)$/
  */
 export async function middleware(request) {
   const url = request.nextUrl
-
+  console.log('middleware', url)
   // this is needed for tests to get the BUILD_ID
   if (url.pathname.startsWith('/_next/static/__BUILD_ID')) {
     return NextResponse.next()
+  }
+
+  if (url.pathname.startsWith('/_next/data/missing-id')) {
+    console.log(`missing-id rewrite: ${url.toString()}`)
+    return NextResponse.rewrite('https://example.vercel.sh')
   }
 
   if (url.pathname.includes('/to/some/404/path')) {
