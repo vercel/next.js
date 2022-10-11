@@ -5,7 +5,7 @@ use clap::Parser;
 use regex::{NoExpand, Regex};
 use swc_core::{
     base::{config::IsModule, try_with_handler, Compiler, HandlerOpts},
-    common::{errors::ColorConfig, source_map::FileName, SourceMap},
+    common::{errors::ColorConfig, source_map::FileName, Globals, SourceMap, GLOBALS},
     ecma::{
         ast::EsVersion,
         parser::{Syntax, TsConfig},
@@ -37,14 +37,16 @@ fn main() -> Result<()> {
     });
 
     let compiler = Compiler::new(sm.clone());
-    let res = try_with_handler(
-        sm,
-        HandlerOpts {
-            color: ColorConfig::Always,
-            skip_filename: false,
-        },
-        |handler| compiler.parse_js(file, handler, target, syntax, IsModule::Unknown, None),
-    );
+    let res = GLOBALS.set(&Globals::new(), || {
+        try_with_handler(
+            sm,
+            HandlerOpts {
+                color: ColorConfig::Always,
+                skip_filename: false,
+            },
+            |handler| compiler.parse_js(file, handler, target, syntax, IsModule::Unknown, None),
+        )
+    });
 
     let print = format!("{:#?}", res?);
 
