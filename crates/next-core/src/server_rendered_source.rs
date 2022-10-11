@@ -155,21 +155,80 @@ async fn regular_expression_for_path(
     let path = path.strip_suffix("/index").unwrap_or(path);
     let mut reg_exp_source = "^".to_string();
     for segment in path.split('/') {
-        if reg_exp_source.len() > 1 {
-            reg_exp_source += "/";
-        }
-        if let Some(segment) = segment.strip_prefix('[') {
-            if let Some((placeholder, rem)) = segment.split_once(']') {
-                if let Some(placeholder) = placeholder.strip_prefix("...") {
-                    write!(reg_exp_source, "(?P<{placeholder}>[^?]+)")?;
+        /// Writes regex for handling an optional catch all placeholder.
+        fn write_optional_catch_all(
+            reg_exp_source: &mut String,
+            segment: &str,
+            include_slash: bool,
+            path: &str,
+        ) -> Result<()> {
+            if let Some((placeholder, rem)) = segment.split_once("]]") {
+                if include_slash {
+                    write!(*reg_exp_source, "(/?P<{placeholder}>[^?]+)?")?;
                 } else {
-                    write!(reg_exp_source, "(?P<{placeholder}>[^?/]+)")?;
+                    write!(*reg_exp_source, "(?P<{placeholder}>[^?]+)?")?;
                 }
-                reg_exp_source += &regex::escape(rem);
+                *reg_exp_source += &regex::escape(rem);
+                Ok(())
             } else {
-                bail!("path ({}) contains '[' without matching ']'", path);
+                bail!(
+                    "path ({}) contains '[[' without matching ']]' at '[[...{}'",
+                    path,
+                    segment
+                );
+            }
+        }
+        /// Writes regex for handling a required catch all placeholder.
+        fn write_catch_all(reg_exp_source: &mut String, segment: &str, path: &str) -> Result<()> {
+            if let Some((placeholder, rem)) = segment.split_once(']') {
+                write!(*reg_exp_source, "(?P<{placeholder}>[^?]+)")?;
+                *reg_exp_source += &regex::escape(rem);
+                Ok(())
+            } else {
+                bail!(
+                    "path ({}) contains '[' without matching ']' at '[...{}'",
+                    path,
+                    segment
+                );
+            }
+        }
+        /// Writes regex for handling a normal placeholder.
+        fn write_dynamic_segment(
+            reg_exp_source: &mut String,
+            segment: &str,
+            path: &str,
+        ) -> Result<()> {
+            if let Some((placeholder, rem)) = segment.split_once(']') {
+                write!(*reg_exp_source, "(?P<{placeholder}>[^?/]+)")?;
+                *reg_exp_source += &regex::escape(rem);
+                Ok(())
+            } else {
+                bail!(
+                    "path ({}) contains '[' without matching ']' at '[{}'",
+                    path,
+                    segment
+                );
+            }
+        }
+
+        let include_slash = reg_exp_source.len() > 1;
+        if let Some(segment) = segment.strip_prefix('[') {
+            if let Some(segment) = segment.strip_prefix("[...") {
+                write_optional_catch_all(&mut reg_exp_source, segment, include_slash, path)?;
+            } else {
+                if include_slash {
+                    reg_exp_source += "/";
+                }
+                if let Some(segment) = segment.strip_prefix("...") {
+                    write_catch_all(&mut reg_exp_source, segment, path)?;
+                } else {
+                    write_dynamic_segment(&mut reg_exp_source, segment, path)?;
+                }
             }
         } else {
+            if include_slash {
+                reg_exp_source += "/";
+            }
             reg_exp_source += &regex::escape(segment);
         }
     }
@@ -227,9 +286,18 @@ async fn create_server_rendered_source_for_directory(
     server_path: FileSystemPathVc,
     intermediate_output_path: FileSystemPathVc,
 ) -> Result<CombinedContentSourceVc> {
-    let mut sources = Vec::new();
+    let mut predefined_sources = vec![];
+    let mut named_placeholder_sources = vec![];
+    let mut catch_all_sources = vec![];
     if let DirectoryContent::Entries(entries) = &*input_dir.read_dir().await? {
         for (name, entry) in entries.iter() {
+            let sources = if name.starts_with("[[") || name.starts_with("[...") {
+                &mut catch_all_sources
+            } else if name.starts_with('[') {
+                &mut named_placeholder_sources
+            } else {
+                &mut predefined_sources
+            };
             match entry {
                 DirectoryEntry::File(file) => {
                     if let Some((name, extension)) = name.rsplit_once('.') {
@@ -278,7 +346,13 @@ async fn create_server_rendered_source_for_directory(
             }
         }
     }
-    Ok(CombinedContentSource { sources }.cell())
+    let mut ordered_sources = predefined_sources;
+    ordered_sources.append(&mut named_placeholder_sources);
+    ordered_sources.append(&mut catch_all_sources);
+    Ok(CombinedContentSource {
+        sources: ordered_sources,
+    }
+    .cell())
 }
 
 /// The node.js renderer for SSR of pages.
