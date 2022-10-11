@@ -80,7 +80,7 @@ describe('Edge runtime code with imports', () => {
       context.app = await nextStart(context.appDir, context.appPort, appOption)
       const res = await fetchViaHTTP(context.appPort, url)
       expect(context.logs.stderr).toContain(
-        'Response must be an instance of Response type'
+        'Expected an instance of Response to be returned'
       )
       expect(res.status).toBe(500)
     })
