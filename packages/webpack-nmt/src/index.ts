@@ -14,7 +14,15 @@ export interface NodeModuleTracePluginOptions {
     all?: boolean;
     detail?: boolean;
     // Default is `error`
-    level?: "bug" | "fatal" | "error" | "warning" | "hint" | "note" | "suggestions" | "info";
+    level?:
+      | "bug"
+      | "fatal"
+      | "error"
+      | "warning"
+      | "hint"
+      | "note"
+      | "suggestions"
+      | "info";
   };
 }
 
@@ -26,22 +34,28 @@ export class NodeModuleTracePlugin implements WebpackPluginInstance {
   constructor(private readonly options?: NodeModuleTracePluginOptions) {}
 
   apply(compiler: Compiler) {
-    compiler.hooks.compilation.tap(NodeModuleTracePlugin.PluginName, (compilation) => {
-      compilation.hooks.processAssets.tap(
-        {
-          name: NodeModuleTracePlugin.PluginName,
-          stage: Compilation.PROCESS_ASSETS_STAGE_SUMMARIZE,
-        },
-        () => this.createTraceAssets(compilation)
-      );
-    });
-    compiler.hooks.afterEmit.tapPromise(NodeModuleTracePlugin.PluginName, () => this.runTrace());
+    compiler.hooks.compilation.tap(
+      NodeModuleTracePlugin.PluginName,
+      (compilation) => {
+        compilation.hooks.processAssets.tap(
+          {
+            name: NodeModuleTracePlugin.PluginName,
+            stage: Compilation.PROCESS_ASSETS_STAGE_SUMMARIZE,
+          },
+          () => this.createTraceAssets(compilation)
+        );
+      }
+    );
+    compiler.hooks.afterEmit.tapPromise(NodeModuleTracePlugin.PluginName, () =>
+      this.runTrace()
+    );
   }
 
   private createTraceAssets(compilation: Compilation) {
     const outputPath = compilation.outputOptions.path!;
 
-    const isTraceable = (file: string) => !file.endsWith(".wasm") && !file.endsWith(".map");
+    const isTraceable = (file: string) =>
+      !file.endsWith(".wasm") && !file.endsWith(".map");
 
     for (const entrypoint of compilation.entrypoints.values()) {
       const file = entrypoint.getFiles().pop();
@@ -59,7 +73,10 @@ export class NodeModuleTracePlugin implements WebpackPluginInstance {
       "--context-directory",
       // `npm_config_local_prefix` set by `npm` to the root of the project, include workspaces
       // `PROJECT_CWD` set by `yarn` to the root of the project, include workspaces
-      this.options?.contextDirectory ?? process.env.npm_config_local_prefix ?? process.env.PROJECT_CWD ?? cwd,
+      this.options?.contextDirectory ??
+        process.env.npm_config_local_prefix ??
+        process.env.PROJECT_CWD ??
+        cwd,
       "--exact",
     ];
     if (this.options?.log?.detail) {
@@ -76,9 +93,13 @@ export class NodeModuleTracePlugin implements WebpackPluginInstance {
     let turboTracingPackagePath = "";
     let turboTracingBinPath = "";
     try {
-      turboTracingPackagePath = require.resolve("@vercel/experimental-nft/package.json");
+      turboTracingPackagePath = require.resolve(
+        "@vercel/experimental-nft/package.json"
+      );
     } catch (e) {
-      console.warn(`Could not resolve the @vercel/experimental-nft directory, turbo tracing may fail.`);
+      console.warn(
+        `Could not resolve the @vercel/experimental-nft directory, turbo tracing may fail.`
+      );
     }
     if (turboTracingPackagePath) {
       try {
@@ -112,7 +133,12 @@ export class NodeModuleTracePlugin implements WebpackPluginInstance {
   }
 }
 
-function traceChunks(args: string[], paths: string, chunks: string[], cwd?: string) {
+function traceChunks(
+  args: string[],
+  paths: string,
+  chunks: string[],
+  cwd?: string
+) {
   const turboTracingProcess = spawn("node-file-trace", [...args, ...chunks], {
     stdio: "pipe",
     env: {
