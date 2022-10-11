@@ -1724,15 +1724,21 @@ export default class NextNodeServer extends BaseServer {
     }
     const normalizedPathname = removeTrailingSlash(params.parsed.pathname || '')
 
-    // For middleware to "fetch" we must always provide an absolute URL
-    const query = urlQueryToSearchParams(params.parsed.query).toString()
-    const locale = params.parsed.query.__nextLocale
+    let url: string
 
-    const url = `${getRequestMeta(params.request, '_protocol')}://${
-      this.hostname
-    }:${this.port}${locale ? `/${locale}` : ''}${params.parsed.pathname}${
-      query ? `?${query}` : ''
-    }`
+    if (this.nextConfig.experimental.skipMiddlewareUrlNormalize) {
+      url = getRequestMeta(params.request, '__NEXT_INIT_URL')!
+    } else {
+      // For middleware to "fetch" we must always provide an absolute URL
+      const query = urlQueryToSearchParams(params.parsed.query).toString()
+      const locale = params.parsed.query.__nextLocale
+
+      url = `${getRequestMeta(params.request, '_protocol')}://${
+        this.hostname
+      }:${this.port}${locale ? `/${locale}` : ''}${params.parsed.pathname}${
+        query ? `?${query}` : ''
+      }`
+    }
 
     if (!url.startsWith('http')) {
       throw new Error(
