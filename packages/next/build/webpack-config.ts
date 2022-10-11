@@ -2,7 +2,7 @@ import ReactRefreshWebpackPlugin from 'next/dist/compiled/@next/react-refresh-ut
 import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
-import path, { dirname, join as pathJoin, relative as relativePath } from 'path'
+import path, { join as pathJoin, relative as relativePath } from 'path'
 import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import {
   DOT_NEXT_ALIAS,
@@ -868,6 +868,20 @@ export default async function getBaseWebpackConfig(
 
       next: NEXT_PROJECT_ROOT,
 
+      ...(hasServerComponents
+        ? {
+            'react-dom$': 'next/dist/compiled/react-dom',
+            'react-dom/server$': 'next/dist/compiled/react-dom/server',
+            'react-dom/server.browser$':
+              'next/dist/compiled/react-dom/server.browser',
+            react: 'next/dist/compiled/react',
+
+            // 'react-dom/server': 'next/dist/compiled/react-dom/server',
+            // 'react-dom/server.browser': 'next/dist/compiled/react-dom/server.browser',
+            // 'react-dom/client': 'next/dist/compiled/react-dom/client',
+          }
+        : undefined),
+
       // react: reactDir,
       // 'react-dom$': reactDomDir,
       // 'react-dom/server$': `${reactDomDir}/server`,
@@ -1607,16 +1621,16 @@ export default async function getBaseWebpackConfig(
                   },
                 },
               },
-              {
-                test: codeCondition.test,
-                include: [appDir, dir, NEXT_PROJECT_ROOT_DIST, /node_modules/],
-                resolve: {
-                  alias: {
-                    'react-dom': 'next/dist/compiled/react-dom',
-                    react: 'next/dist/compiled/react',
-                  },
-                },
-              },
+              // {
+              //   test: codeCondition.test,
+              //   include: [appDir, dir, NEXT_PROJECT_ROOT_DIST, /node_modules/],
+              //   resolve: {
+              //     alias: {
+              //       'react-dom': 'next/dist/compiled/react-dom',
+              //       react: 'next/dist/compiled/react',
+              //     },
+              //   },
+              // },
             ]
           : []),
         ...(hasServerComponents && (isNodeServer || isEdgeServer)
@@ -1627,7 +1641,7 @@ export default async function getBaseWebpackConfig(
                 include: [
                   dir,
                   // To let the internal client components passing through flight loader
-                  /next[\\/]dist/,
+                  NEXT_PROJECT_ROOT_DIST,
                 ],
                 issuerLayer: WEBPACK_LAYERS.server,
                 use: {
@@ -1636,16 +1650,16 @@ export default async function getBaseWebpackConfig(
               },
             ]
           : []),
-        ...(hasServerComponents && isEdgeServer
-          ? [
-              // Move shared dependencies from sc_server and sc_client into the
-              // same layer.
-              {
-                test: rscSharedRegex,
-                layer: WEBPACK_LAYERS.rscShared,
-              },
-            ]
-          : []),
+        // ...(hasServerComponents && isEdgeServer
+        //   ? [
+        //       // Move shared dependencies from sc_server and sc_client into the
+        //       // same layer.
+        //       {
+        //         test: rscSharedRegex,
+        //         layer: WEBPACK_LAYERS.rscShared,
+        //       },
+        //     ]
+        //   : []),
         {
           test: /\.(js|cjs|mjs)$/,
           issuerLayer: WEBPACK_LAYERS.api,

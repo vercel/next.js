@@ -107,6 +107,7 @@ if (shouldUseReactRoot) {
   ;(process.env as any).__NEXT_REACT_ROOT = 'true'
 }
 
+// require hook for custom server
 loadRequireHook()
 
 export * from './base-server'

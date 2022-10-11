@@ -322,19 +322,18 @@ export async function ncc_edge_runtime(task, opts) {
 externals['react'] = 'next/dist/compiled/react'
 externals['react-dom'] = 'next/dist/compiled/react-dom'
 export async function ncc_react(task, opts) {
-  await task
-    .source(require.resolve(`react/package.json`))
-    .target(`compiled/react`)
-  await task
-    .source(require.resolve(`react-dom/package.json`))
-    .target(`compiled/react-dom`)
-
   const reactDir = dirname(
     relative(__dirname, require.resolve(`react/package.json`))
   )
   const reactDomDir = dirname(
     relative(__dirname, require.resolve(`react-dom/package.json`))
   )
+
+  await task.source(join(reactDomDir, '*.json')).target(`compiled/react`)
+  await task.source(join(reactDomDir, '*.json')).target(`compiled/react-dom`)
+  await task.source(join(reactDomDir, 'LICENSE')).target(`compiled/react`)
+  await task.source(join(reactDomDir, 'LICENSE')).target(`compiled/react-dom`)
+
   await task
     .source(join(reactDomDir, '*.js'))
     .ncc({ minify: false, externals })
