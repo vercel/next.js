@@ -1558,9 +1558,12 @@ export async function copyTracedFiles(
   middlewareManifest: MiddlewareManifest
 ) {
   const outputPath = path.join(distDir, 'standalone')
-  const packageJsonPath = path.join(distDir, '../package.json')
-  const packageJson = JSON.parse(await fs.readFile(packageJsonPath, 'utf8'))
-  const moduleType = packageJson.type === 'module'
+  let moduleType = false
+  try {
+    const packageJsonPath = path.join(distDir, '../package.json')
+    const packageJson = JSON.parse(await fs.readFile(packageJsonPath, 'utf8'))
+    moduleType = packageJson.type === 'module'
+  } catch {}
   const copiedFiles = new Set()
   await recursiveDelete(outputPath)
 
