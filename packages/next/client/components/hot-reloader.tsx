@@ -15,7 +15,7 @@ import {
   onBuildOk,
   onRefresh,
   ReactDevOverlay,
-} from 'next/dist/compiled/@next/react-dev-overlay/dist/client'
+} from './react-dev-overlay/src/client'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import formatWebpackMessages from '../dev/error-overlay/format-webpack-messages'
 import { useRouter } from './hooks-client'

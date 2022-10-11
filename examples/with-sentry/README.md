@@ -7,7 +7,6 @@ This is an example showing how to use [Sentry](https://sentry.io) to catch and r
 - `sentry.server.config.js` and `sentry.client.config.js` are used to configure and initialize Sentry
 - `next.config.js` automatically injects Sentry into your app using `withSentryConfig`
 - `_error.js` (which is rendered by Next.js when handling certain types of exceptions) is overridden so those exceptions can be passed along to Sentry
-- Each API route is handled with `withSentry`
 
 ## Preview
 

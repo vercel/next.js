@@ -186,6 +186,10 @@ export async function adapter(params: {
 export function blockUnallowedResponse(
   promise: Promise<FetchEventResult>
 ): Promise<FetchEventResult> {
+  if (process.env.__NEXT_ALLOW_MIDDLEWARE_RESPONSE_BODY) {
+    return promise
+  }
+
   return promise.then((result) => {
     if (result.response?.body) {
       console.error(
