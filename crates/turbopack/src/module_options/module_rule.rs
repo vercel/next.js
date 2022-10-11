@@ -92,6 +92,7 @@ pub enum ModuleType {
     Json,
     Raw,
     Css(CssInputTransformsVc),
+    CssModule(CssInputTransformsVc),
     Static,
     // TODO allow custom function when we support function pointers
     Custom(u8),

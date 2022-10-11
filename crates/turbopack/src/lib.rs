@@ -14,7 +14,11 @@ use std::{
 };
 
 use anyhow::Result;
-use ecmascript::typescript::resolve::TypescriptTypesAssetReferenceVc;
+use css::{GlobalCssModuleAssetVc, ModuleCssModuleAssetVc};
+use ecmascript::{
+    typescript::resolve::TypescriptTypesAssetReferenceVc, EcmascriptModuleAssetType,
+    EcmascriptModuleAssetVc,
+};
 use graph::{aggregate, AggregatedGraphNodeContent, AggregatedGraphVc};
 use module_options::{
     ModuleOptionsContextVc, ModuleOptionsVc, ModuleRuleEffect, ModuleRuleEffectKey, ModuleType,
@@ -42,6 +46,8 @@ pub mod transition;
 
 pub use turbopack_css as css;
 pub use turbopack_ecmascript as ecmascript;
+use turbopack_json::JsonModuleAssetVc;
+use turbopack_static::StaticModuleAssetVc;
 
 use self::{
     resolve_options_context::ResolveOptionsContextVc,
@@ -74,50 +80,39 @@ async fn module(source: AssetVc, context: ModuleAssetContextVc) -> Result<AssetV
             })
             .unwrap_or_else(|| &ModuleType::Raw)
         {
-            ModuleType::Ecmascript(transforms) => {
-                turbopack_ecmascript::EcmascriptModuleAssetVc::new(
-                    source,
-                    context.into(),
-                    Value::new(turbopack_ecmascript::EcmascriptModuleAssetType::Ecmascript),
-                    *transforms,
-                    context.environment(),
-                )
-                .into()
-            }
-            ModuleType::Typescript(transforms) => {
-                turbopack_ecmascript::EcmascriptModuleAssetVc::new(
-                    source,
-                    context.with_typescript_resolving_enabled().into(),
-                    Value::new(turbopack_ecmascript::EcmascriptModuleAssetType::Typescript),
-                    *transforms,
-                    context.environment(),
-                )
-                .into()
-            }
-            ModuleType::TypescriptDeclaration(transforms) => {
-                turbopack_ecmascript::EcmascriptModuleAssetVc::new(
-                    source,
-                    context.with_typescript_resolving_enabled().into(),
-                    Value::new(
-                        turbopack_ecmascript::EcmascriptModuleAssetType::TypescriptDeclaration,
-                    ),
-                    *transforms,
-                    context.environment(),
-                )
-                .into()
-            }
-            ModuleType::Json => turbopack_json::JsonModuleAssetVc::new(source).into(),
-            ModuleType::Raw => source,
-            ModuleType::Css(transforms) => turbopack_css::CssModuleAssetVc::new(
+            ModuleType::Ecmascript(transforms) => EcmascriptModuleAssetVc::new(
                 source,
                 context.into(),
-                Value::new(turbopack_css::CssModuleAssetType::Global),
+                Value::new(EcmascriptModuleAssetType::Ecmascript),
                 *transforms,
+                context.environment(),
             )
             .into(),
-            ModuleType::Static => {
-                turbopack_static::StaticModuleAssetVc::new(source, context.into()).into()
+            ModuleType::Typescript(transforms) => EcmascriptModuleAssetVc::new(
+                source,
+                context.with_typescript_resolving_enabled().into(),
+                Value::new(EcmascriptModuleAssetType::Typescript),
+                *transforms,
+                context.environment(),
+            )
+            .into(),
+            ModuleType::TypescriptDeclaration(transforms) => EcmascriptModuleAssetVc::new(
+                source,
+                context.with_typescript_resolving_enabled().into(),
+                Value::new(EcmascriptModuleAssetType::TypescriptDeclaration),
+                *transforms,
+                context.environment(),
+            )
+            .into(),
+            ModuleType::Json => JsonModuleAssetVc::new(source).into(),
+            ModuleType::Raw => source,
+            ModuleType::Css(transforms) => {
+                GlobalCssModuleAssetVc::new(source, context.into(), *transforms).into()
             }
+            ModuleType::CssModule(transforms) => {
+                ModuleCssModuleAssetVc::new(source, context.into(), *transforms).into()
+            }
+            ModuleType::Static => StaticModuleAssetVc::new(source, context.into()).into(),
             ModuleType::Custom(_) => todo!(),
         },
     )

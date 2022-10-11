@@ -150,11 +150,11 @@ impl ContentSource for NodeRenderContentSource {
                         method: data
                             .method
                             .clone()
-                            .ok_or_else(|| anyhow!("method need to be provided"))?,
+                            .ok_or_else(|| anyhow!("method needs to be provided"))?,
                         url: data
                             .url
                             .clone()
-                            .ok_or_else(|| anyhow!("url need to be provided"))?,
+                            .ok_or_else(|| anyhow!("url needs to be provided"))?,
                         query: data.query.clone(),
                         headers: data.headers.clone(),
                     }
