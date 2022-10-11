@@ -15,7 +15,7 @@ use super::{
 /// This is a laziness optimization when the content of the second source can
 /// only be reached via references from the first source.
 ///
-/// For example, we use that in the content source that handled SSR rendering of
+/// For example, we use that in the content source that handles SSR rendering of
 /// pages. Here HTML and "other assets" are in different content sources. So we
 /// use this source to only serve (and process) "other assets" when the HTML was
 /// served once.

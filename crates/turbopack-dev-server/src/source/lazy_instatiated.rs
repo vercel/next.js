@@ -12,6 +12,7 @@ pub trait GetContentSource {
 }
 
 /// Wraps the [ContentSource] creation in a way that only creates it when
+/// actually used.
 #[turbo_tasks::value(shared)]
 pub struct LazyInstantiatedContentSource {
     pub get_source: GetContentSourceVc,
