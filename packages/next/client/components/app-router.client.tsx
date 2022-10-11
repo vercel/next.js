@@ -28,6 +28,7 @@ import {
   // LayoutSegmentsContext,
 } from './hooks-client-context'
 import { useReducerWithReduxDevtools } from './use-reducer-with-devtools'
+import { ErrorBoundary, GlobalErrorComponent } from './error-boundary'
 
 function urlToUrlWithoutFlightMarker(url: string): URL {
   const urlWithoutFlightParameters = new URL(url, location.origin)
@@ -91,20 +92,22 @@ let initialParallelRoutes: CacheNode['parallelRoutes'] =
 
 const prefetched = new Set<string>()
 
-/**
- * The global router that wraps the application components.
- */
-export default function AppRouter({
-  initialTree,
-  initialCanonicalUrl,
-  children,
-  assetPrefix,
-}: {
+type AppRouterProps = {
   initialTree: FlightRouterState
   initialCanonicalUrl: string
   children: ReactNode
   assetPrefix: string
-}) {
+}
+
+/**
+ * The global router that wraps the application components.
+ */
+function Router({
+  initialTree,
+  initialCanonicalUrl,
+  children,
+  assetPrefix,
+}: AppRouterProps) {
   const initialState = useMemo(() => {
     return {
       tree: initialTree,
@@ -365,5 +368,13 @@ export default function AppRouter({
         </GlobalLayoutRouterContext.Provider>
       </SearchParamsContext.Provider>
     </PathnameContext.Provider>
+  )
+}
+
+export default function AppRouter(props: AppRouterProps) {
+  return (
+    <ErrorBoundary errorComponent={GlobalErrorComponent}>
+      <Router {...props} />
+    </ErrorBoundary>
   )
 }
