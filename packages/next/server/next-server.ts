@@ -54,7 +54,7 @@ import HttpProxy from 'next/dist/compiled/http-proxy'
 import { getPathMatch } from '../shared/lib/router/utils/path-match'
 import { createHeaderRoute, createRedirectRoute } from './server-route-utils'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
-import { run } from './web/sandbox'
+
 import { detectDomainLocale } from '../shared/lib/i18n/detect-domain-locale'
 
 import { NodeNextRequest, NodeNextResponse } from './base-http/node'
@@ -95,7 +95,7 @@ import { getCustomRoute, stringifyQuery } from './server-route-utils'
 import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
-import { bodyStreamToNodeStream, getClonableBody } from './body-streams'
+import { getClonableBody } from './body-streams'
 import { checkIsManualRevalidate } from './api-utils'
 import { shouldUseReactRoot, isTargetLikeServerless } from './utils'
 import ResponseCache from './response-cache'
@@ -474,11 +474,16 @@ export default class NextNodeServer extends BaseServer {
     ]
   }
 
-  protected getHasAppDir(): boolean {
-    const appDirectory = join(this.dir, 'app')
-    return (
-      fs.existsSync(appDirectory) && fs.statSync(appDirectory).isDirectory()
-    )
+  protected getHasAppDir(dev: boolean): boolean {
+    const appDirectory = dev
+      ? join(this.dir, 'app')
+      : join(this.serverDistDir, 'app')
+
+    try {
+      return fs.statSync(appDirectory).isDirectory()
+    } catch (err) {
+      return false
+    }
   }
 
   protected generateStaticRoutes(): Route[] {
@@ -1057,9 +1062,17 @@ export default class NextNodeServer extends BaseServer {
         name: '_next/data catchall',
         check: true,
         fn: async (req, res, params, _parsedUrl) => {
+          const isNextDataNormalizing = getRequestMeta(
+            req,
+            '_nextDataNormalizing'
+          )
+
           // Make sure to 404 for /_next/data/ itself and
           // we also want to 404 if the buildId isn't correct
           if (!params.path || params.path[0] !== this.buildId) {
+            if (isNextDataNormalizing) {
+              return { finished: false }
+            }
             await this.render404(req, res, _parsedUrl)
             return {
               finished: true,
@@ -1760,6 +1773,7 @@ export default class NextNodeServer extends BaseServer {
     }
 
     const method = (params.request.method || 'GET').toUpperCase()
+    const { run } = require('./web/sandbox') as typeof import('./web/sandbox')
 
     const result = await run({
       distDir: this.distDir,
@@ -2083,6 +2097,7 @@ export default class NextNodeServer extends BaseServer {
       )
     }
 
+    const { run } = require('./web/sandbox') as typeof import('./web/sandbox')
     const result = await run({
       distDir: this.distDir,
       name: edgeInfo.name,
@@ -2122,9 +2137,18 @@ export default class NextNodeServer extends BaseServer {
 
     if (result.response.body) {
       // TODO(gal): not sure that we always need to stream
-      bodyStreamToNodeStream(result.response.body).pipe(
-        (params.res as NodeNextResponse).originalResponse
-      )
+      const nodeResStream = (params.res as NodeNextResponse).originalResponse
+      const { consumeUint8ArrayReadableStream } =
+        require('next/dist/compiled/edge-runtime') as typeof import('next/dist/compiled/edge-runtime')
+      try {
+        for await (const chunk of consumeUint8ArrayReadableStream(
+          result.response.body
+        )) {
+          nodeResStream.write(chunk)
+        }
+      } finally {
+        nodeResStream.end()
+      }
     } else {
       ;(params.res as NodeNextResponse).originalResponse.end()
     }

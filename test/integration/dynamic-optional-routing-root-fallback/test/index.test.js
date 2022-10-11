@@ -82,7 +82,7 @@ describe('Dynamic Optional Routing Root Fallback', () => {
     runTests()
   })
 
-  describe('serverless mode', () => {
+  describe.skip('serverless mode', () => {
     let origNextConfig
 
     beforeAll(async () => {

@@ -1,12 +1,10 @@
-import { hydrate, version } from './app-index'
+import { appBootstrap } from './app-bootstrap'
 
-// Include app-router and layout-router in the main chunk
-import 'next/dist/client/components/app-router.client.js'
-import 'next/dist/client/components/layout-router.client.js'
+appBootstrap(() => {
+  // Include app-router and layout-router in the main chunk
+  import('next/dist/client/components/app-router.js')
+  import('next/dist/client/components/layout-router.js')
 
-window.next = {
-  version,
-  appDir: true,
-}
-
-hydrate()
+  const { hydrate } = require('./app-index')
+  hydrate()
+})

@@ -8,7 +8,7 @@ import type {
 } from '../../server/app-render'
 // TODO-APP: change to React.use once it becomes stable
 import { matchSegment } from './match-segments'
-import { fetchServerResponse } from './app-router.client'
+import { fetchServerResponse } from './app-router'
 
 /**
  * Create data fetching record for Promise.
@@ -237,7 +237,6 @@ function fillCacheWithPrefetchedSubTreeData(
 
   const existingChildCacheNode = existingChildSegmentMap.get(segmentForCache)
 
-  // In case of last segment start the fetch at this level and don't copy further down.
   if (isLastEntry) {
     if (!existingChildCacheNode) {
       existingChildSegmentMap.set(segmentForCache, {
@@ -472,11 +471,16 @@ function shouldHardNavigate(
     string
   ]
 
-  // If dynamic parameter in tree doesn't match up with segment path a hard navigation is triggered.
-  if (Array.isArray(currentSegment) && !matchSegment(currentSegment, segment)) {
-    return true
-  }
+  // Check if current segment matches the existing segment.
+  if (!matchSegment(currentSegment, segment)) {
+    // If dynamic parameter in tree doesn't match up with segment path a hard navigation is triggered.
+    if (Array.isArray(currentSegment)) {
+      return true
+    }
 
+    // If the existing segment did not match soft navigation is triggered.
+    return false
+  }
   const lastSegment = flightSegmentPath.length <= 2
 
   if (lastSegment) {
@@ -772,8 +776,6 @@ function clientReducer(
           href
         )
 
-        // Fill in the cache with blank that holds the `data` field.
-        // TODO-APP: segments.slice(1) strips '', we can get rid of '' altogether.
         // Copy subTreeData for the root node of the cache.
         cache.subTreeData = state.cache.subTreeData
 
@@ -782,6 +784,7 @@ function clientReducer(
         const res = fillCacheWithDataProperty(
           cache,
           state.cache,
+          // TODO-APP: segments.slice(1) strips '', we can get rid of '' altogether.
           segments.slice(1),
           () => fetchServerResponse(url, optimisticTree)
         )
@@ -839,7 +842,7 @@ function clientReducer(
       const flightDataPath = flightData[0]
 
       // The one before last item is the router state tree patch
-      const [treePatch] = flightDataPath.slice(-2)
+      const [treePatch, subTreeData] = flightDataPath.slice(-2)
 
       // Path without the last segment, router state, and the subTreeData
       const flightSegmentPath = flightDataPath.slice(0, -3)
@@ -865,10 +868,14 @@ function clientReducer(
       mutable.previousTree = state.tree
       mutable.patchedTree = newTree
 
-      // Copy subTreeData for the root node of the cache.
-      cache.subTreeData = state.cache.subTreeData
-      // Create a copy of the existing cache with the subTreeData applied.
-      fillCacheWithNewSubTreeData(cache, state.cache, flightDataPath)
+      if (flightDataPath.length === 2) {
+        cache.subTreeData = subTreeData
+      } else {
+        // Copy subTreeData for the root node of the cache.
+        cache.subTreeData = state.cache.subTreeData
+        // Create a copy of the existing cache with the subTreeData applied.
+        fillCacheWithNewSubTreeData(cache, state.cache, flightDataPath)
+      }
 
       return {
         // Set href.
@@ -939,7 +946,7 @@ function clientReducer(
 
       // Slices off the last segment (which is at -3) as it doesn't exist in the tree yet
       const treePath = flightDataPath.slice(0, -3)
-      const [treePatch] = flightDataPath.slice(-2)
+      const [treePatch, subTreeData] = flightDataPath.slice(-2)
 
       const newTree = applyRouterStatePatchToTree(
         // TODO-APP: remove ''
@@ -962,9 +969,14 @@ function clientReducer(
 
       mutable.patchedTree = newTree
 
-      // Copy subTreeData for the root node of the cache.
-      cache.subTreeData = state.cache.subTreeData
-      fillCacheWithNewSubTreeData(cache, state.cache, flightDataPath)
+      // Root refresh
+      if (flightDataPath.length === 2) {
+        cache.subTreeData = subTreeData
+      } else {
+        // Copy subTreeData for the root node of the cache.
+        cache.subTreeData = state.cache.subTreeData
+        fillCacheWithNewSubTreeData(cache, state.cache, flightDataPath)
+      }
 
       return {
         // Keep href as it was set during navigate / restore
