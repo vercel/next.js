@@ -70,25 +70,6 @@ describe('Middleware Runtime', () => {
   }
 
   function runTests({ i18n }: { i18n?: boolean }) {
-    it('should allow rewriting invalid buildId correctly', async () => {
-      const res = await fetchViaHTTP(
-        next.url,
-        `/_next/data/missing-id/hello.json`,
-        undefined,
-        {
-          headers: {
-            'x-nextjs-data': '1',
-          },
-        }
-      )
-      expect(res.status).toBe(200)
-      expect(await res.text()).toContain('Example Domain')
-
-      if (!(global as any).isNextDeploy) {
-        await check(() => next.cliOutput, /missing-id rewrite/)
-      }
-    })
-
     if ((global as any).isNextDev) {
       it('refreshes the page when middleware changes ', async () => {
         const browser = await webdriver(next.url, `/about`)
