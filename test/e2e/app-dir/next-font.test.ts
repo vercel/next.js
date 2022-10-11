@@ -296,6 +296,58 @@ describe('app dir next-font', () => {
         type: 'font/woff2',
       })
     })
+
+    it('should preload correctly with layout using fonts', async () => {
+      const html = await renderViaHTTP(next.url, '/layout-with-fonts')
+      const $ = cheerio.load(html)
+
+      // Preconnect
+      expect($('link[rel="preconnect"]').length).toBe(0)
+
+      expect($('link[as="font"]').length).toBe(2)
+      // From root layout
+      expect($('link[as="font"]').get(0).attribs).toEqual({
+        as: 'font',
+        crossorigin: '',
+        href: '/_next/static/media/e9b9dc0d8ba35f48.p.woff2',
+        rel: 'preload',
+        type: 'font/woff2',
+      })
+
+      expect($('link[as="font"]').get(1).attribs).toEqual({
+        as: 'font',
+        crossorigin: '',
+        href: '/_next/static/media/75c5faeeb9c86969.p.woff2',
+        rel: 'preload',
+        type: 'font/woff2',
+      })
+    })
+
+    it('should preload correctly with page using fonts', async () => {
+      const html = await renderViaHTTP(next.url, '/page-with-fonts')
+      const $ = cheerio.load(html)
+
+      // Preconnect
+      expect($('link[rel="preconnect"]').length).toBe(0)
+
+      expect($('link[as="font"]').length).toBe(2)
+      // From root layout
+      expect($('link[as="font"]').get(0).attribs).toEqual({
+        as: 'font',
+        crossorigin: '',
+        href: '/_next/static/media/e9b9dc0d8ba35f48.p.woff2',
+        rel: 'preload',
+        type: 'font/woff2',
+      })
+
+      expect($('link[as="font"]').get(1).attribs).toEqual({
+        as: 'font',
+        crossorigin: '',
+        href: '/_next/static/media/568e4c6d8123c4d6.p.woff2',
+        rel: 'preload',
+        type: 'font/woff2',
+      })
+    })
   })
 
   if (isDev) {
