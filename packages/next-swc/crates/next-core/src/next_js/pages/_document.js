@@ -15,7 +15,7 @@ export function Head({ children, ...props }) {
     <head {...props}>
       {children}
       {styles.map((url) => (
-        <link key={url} href={url} type="text/css" />
+        <link key={url} href={url} rel="stylesheet" />
       ))}
       {scripts.map((url) => (
         <link key={url} type="preload" href={url} as="script" />
