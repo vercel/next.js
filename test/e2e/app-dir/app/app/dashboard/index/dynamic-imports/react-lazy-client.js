@@ -1,11 +1,11 @@
-'client'
+'use client'
 
 import { useState, lazy } from 'react'
 
 const Lazy = lazy(() => import('../text-lazy-client.js'))
 
 export function LazyClientComponent() {
-  let [state] = useState('client')
+  let [state] = useState('use client')
   return (
     <>
       <Lazy />
