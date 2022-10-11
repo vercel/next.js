@@ -1,5 +1,5 @@
 import { StackFrame } from 'next/dist/compiled/stacktrace-parser'
-import { OriginalStackFrameResponse } from '../../middleware'
+// import type { OriginalStackFrameResponse } from '../../middleware'
 
 export type OriginalStackFrame =
   | {
@@ -62,7 +62,7 @@ export function getOriginalStackFrame(
       return Promise.reject(new Error(await res.text()))
     }
 
-    const body: OriginalStackFrameResponse = await res.json()
+    const body: /* OriginalStackFrameResponse */ any = await res.json()
     return {
       error: false,
       reason: null,

@@ -349,6 +349,25 @@ declare module 'next/dist/compiled/anser' {
   export = m
 }
 
+declare module 'next/dist/compiled/platform' {
+  import * as m from 'platform'
+  export = m
+}
+
+declare module 'next/dist/compiled/css.escape' {
+  export = CSS.escape
+}
+
+declare module 'next/dist/compiled/data-uri-to-buffer' {
+  import * as m from 'data-uri-to-buffer'
+  export = m
+}
+
+declare module 'next/dist/compiled/shell-quote' {
+  import * as m from 'shell-quote'
+  export = m
+}
+
 declare namespace NodeJS {
   interface ProcessVersions {
     pnp?: string

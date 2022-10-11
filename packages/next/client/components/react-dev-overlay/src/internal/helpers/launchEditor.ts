@@ -214,7 +214,8 @@ function getArgumentsForLineNumber(
 function guessEditor(): string[] {
   // Explicit config always wins
   if (process.env.REACT_EDITOR) {
-    return shellQuote.parse(process.env.REACT_EDITOR)
+    // TODO-APP: fix this type
+    return shellQuote.parse(process.env.REACT_EDITOR) as any
   }
 
   // We can find out which editor is currently running by:
