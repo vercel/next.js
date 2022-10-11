@@ -7,19 +7,22 @@ const PLUGIN_NAME = 'FlightTypesPlugin'
 
 interface Options {
   appDir: string
+  dev: boolean
 }
 
-enum FileType {
-  serverOnly,
-  clientOnly,
-  both,
-}
+// enum FileType {
+//   serverOnly,
+//   clientOnly,
+//   both,
+// }
 
 export class FlightTypesPlugin {
   appDir: string
+  dev: boolean
 
   constructor(options: Options) {
     this.appDir = options.appDir
+    this.dev = options.dev
   }
 
   apply(compiler: webpack.Compiler) {
@@ -45,9 +48,13 @@ export class FlightTypesPlugin {
         'app',
         relativePath.replace(/\.(js|jsx|ts|tsx|mjs)$/, '')
       )
+      const assetPath = path.join(
+        this.dev ? '..' : path.join('..', '..'),
+        typePath
+      )
 
       if (IS_LAYOUT) {
-        assets[path.join('..', typePath)] = new sources.RawSource(`
+        assets[assetPath] = new sources.RawSource(`
 import * as Self from '${relativeImportPath}'
 
 type Impossible<K extends keyof any> = {
@@ -65,7 +72,7 @@ interface Layout {
   }
 }`) as unknown as webpack.sources.RawSource
       } else if (IS_PAGE) {
-        assets[path.join('..', typePath)] = new sources.RawSource(`
+        assets[assetPath] = new sources.RawSource(`
 import * as Self from '${relativeImportPath}'
 
 type Impossible<K extends keyof any> = {

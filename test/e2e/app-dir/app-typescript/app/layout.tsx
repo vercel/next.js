@@ -1,7 +1,7 @@
-import React, { experimental_use as use } from 'react'
+import { experimental_use as use } from 'react'
 
 export const config = {
-  revalidate: 1,
+  revalidate: 'foo',
 }
 
 async function getData() {
