@@ -13,6 +13,6 @@ export default function DashboardPage(props) {
   )
 }
 
-// export const config = {
-//   runtime: 'experimental-edge',
-// }
+export const config = {
+  runtime: 'experimental-edge',
+}
