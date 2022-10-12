@@ -40,7 +40,7 @@ module.exports = {
 }
 ```
 
-Rewrites are not applied to client-side routing.
+Rewrites are not applied to client-side routing, unless [Middleware](/docs/advanced-features/middleware) is present.
 
 `rewrites` is an async function that expects to return either an array or an object of arrays (see below) holding objects with `source` and `destination` properties:
 
