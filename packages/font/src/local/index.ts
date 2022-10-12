@@ -7,20 +7,11 @@ type LocalFont = {
   display?: Display
   weight?: number
   style?: string
+  adjustFontFallback?: 'Arial' | 'Times New Roman' | false
   fallback?: string[]
   preload?: boolean
   variable?: CssVariable
-
-  fontStretch?: string
-  fontVariant?: string
-  fontFeatureSettings?: string
-  fontVariationSettings?: string
-  ascentOverride?: string
-  descentOverride?: string
-  lineGapOverride?: string
-  sizeAdjust?: string
-
-  adjustFontFallback?: 'Arial' | 'Times New Roman' | false
+  declarations?: Array<{ prop: string; value: string }>
 }
 
 export default function localFont(options: LocalFont): FontModule {

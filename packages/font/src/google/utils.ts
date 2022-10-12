@@ -141,6 +141,14 @@ export async function fetchCSSFromGoogleFonts(url: string, fontFamily: string) {
   return cssResponse
 }
 
+export async function fetchFontFile(url: string) {
+  if (process.env.NEXT_FONT_GOOGLE_MOCKED_RESPONSES) {
+    return Buffer.from(url)
+  }
+  const arrayBuffer = await fetch(url).then((r: any) => r.arrayBuffer())
+  return Buffer.from(arrayBuffer)
+}
+
 export function getFontAxes(
   fontFamily: string,
   weight: string,
