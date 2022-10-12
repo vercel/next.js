@@ -1,4 +1,7 @@
-import { TYPE_UNHANDLED_ERROR, TYPE_UNHANDLED_REJECTION } from '../bus'
+import {
+  ACTION_UNHANDLED_ERROR,
+  ACTION_UNHANDLED_REJECTION,
+} from '../error-overlay-reducer'
 import { SupportedErrorEvent } from '../container/Errors'
 import { getErrorSource } from './nodeStackFrames'
 import { getOriginalStackFrames, OriginalStackFrame } from './stack-frame'
@@ -15,8 +18,8 @@ export async function getErrorByType(
 ): Promise<ReadyRuntimeError> {
   const { id, event } = ev
   switch (event.type) {
-    case TYPE_UNHANDLED_ERROR:
-    case TYPE_UNHANDLED_REJECTION: {
+    case ACTION_UNHANDLED_ERROR:
+    case ACTION_UNHANDLED_REJECTION: {
       return {
         id,
         runtime: true,
