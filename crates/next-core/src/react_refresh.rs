@@ -1,8 +1,5 @@
 use anyhow::{anyhow, Result};
-use turbo_tasks::{
-    debug::ValueDebug,
-    primitives::{BoolVc, StringVc},
-};
+use turbo_tasks::{debug::ValueDebug, primitives::StringVc};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack::{
     ecmascript::{
@@ -17,8 +14,34 @@ use turbopack_core::{
 };
 
 #[turbo_tasks::function]
-pub fn react_refresh_request() -> RequestVc {
+fn react_refresh_request() -> RequestVc {
     RequestVc::parse_string("@next/react-refresh-utils/dist/runtime".to_string())
+}
+
+#[turbo_tasks::function]
+fn react_refresh_request_in_next() -> RequestVc {
+    RequestVc::parse_string("next/dist/compiled/@next/react-refresh-utils/dist/runtime".to_string())
+}
+
+#[turbo_tasks::value]
+pub enum AssertReactRefreshResult {
+    NotFound,
+    Found(RequestVc),
+}
+
+impl AssertReactRefreshResult {
+    pub fn as_request(&self) -> Option<RequestVc> {
+        match self {
+            AssertReactRefreshResult::NotFound => None,
+            AssertReactRefreshResult::Found(r) => Some(*r),
+        }
+    }
+    pub fn is_found(&self) -> bool {
+        match self {
+            AssertReactRefreshResult::NotFound => false,
+            AssertReactRefreshResult::Found(_) => true,
+        }
+    }
 }
 
 /// Checks whether we can resolve the React Refresh runtime module from the
@@ -30,27 +53,30 @@ pub fn react_refresh_request() -> RequestVc {
 pub async fn assert_can_resolve_react_refresh(
     path: FileSystemPathVc,
     resolve_options_context: ResolveOptionsContextVc,
-) -> Result<BoolVc> {
+) -> Result<AssertReactRefreshResultVc> {
     let resolve_options =
         apply_cjs_specific_options(turbopack::resolve_options(path, resolve_options_context));
-    let result = turbopack_core::resolve::resolve(path, react_refresh_request(), resolve_options);
+    for request in [react_refresh_request_in_next(), react_refresh_request()] {
+        let result = turbopack_core::resolve::resolve(path, request, resolve_options);
 
-    Ok(match &*result.await? {
-        ResolveResult::Single(_, _) | ResolveResult::Alternatives(_, _) => BoolVc::cell(true),
-        _ => {
-            ReactRefreshResolvingIssue {
-                path,
-                detail: StringVc::cell(format!(
-                    "resolve options: {:?}",
-                    resolve_options.dbg().await?
-                )),
+        match &*result.await? {
+            ResolveResult::Single(_, _) | ResolveResult::Alternatives(_, _) => {
+                return Ok(AssertReactRefreshResult::Found(request).cell())
             }
-            .cell()
-            .as_issue()
-            .emit();
-            BoolVc::cell(false)
+            _ => {}
         }
-    })
+    }
+    ReactRefreshResolvingIssue {
+        path,
+        detail: StringVc::cell(format!(
+            "resolve options: {:?}",
+            resolve_options.dbg().await?
+        )),
+    }
+    .cell()
+    .as_issue()
+    .emit();
+    Ok(AssertReactRefreshResult::NotFound.cell())
 }
 
 /// Resolves the React Refresh runtime module from the given [AssetContextVc].
