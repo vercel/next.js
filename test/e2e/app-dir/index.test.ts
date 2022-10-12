@@ -1269,8 +1269,7 @@ describe('app dir', () => {
             ).toBe(false)
           })
 
-          // TODO-APP: Should not include unused css modules in pages
-          it.skip('should not include unused css modules in nested pages in prod', async () => {
+          it('should not include unused css modules in nested pages in prod', async () => {
             const browser = await webdriver(
               next.url,
               '/css/css-page/unused-nested/inner'
