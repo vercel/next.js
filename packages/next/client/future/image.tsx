@@ -408,6 +408,7 @@ const ImageElement = ({
             onLoadingCompleteRef,
             setBlurComplete,
             onError,
+            onLoad,
           ]
         )}
         onLoad={(event) => {
