@@ -107,10 +107,7 @@ export async function adapter(params: {
   let response = await params.handler(request, event)
 
   // check if response is a Response object
-  if (
-    response &&
-    !(response instanceof Response)
-  ) {
+  if (response && !(response instanceof Response)) {
     throw new TypeError('Expected an instance of Response to be returned')
   }
 
