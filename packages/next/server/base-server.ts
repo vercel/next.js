@@ -64,7 +64,10 @@ import { addRequestMeta, getRequestMeta } from './request-meta'
 
 import { ImageConfigComplete } from '../shared/lib/image-config'
 import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
-import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
+import {
+  normalizeAppPath,
+  normalizeRscPath,
+} from '../shared/lib/router/utils/app-paths'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { getHostname } from '../shared/lib/get-hostname'
@@ -495,6 +498,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       if (typeof parsedUrl.query === 'string') {
         parsedUrl.query = parseQs(parsedUrl.query)
       }
+      req.url = normalizeRscPath(req.url, this.hasAppDir)
+      parsedUrl.pathname = normalizeRscPath(
+        parsedUrl.pathname || '',
+        this.hasAppDir
+      )
 
       this.attachRequestMeta(req, parsedUrl)
 
@@ -525,10 +533,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         try {
           // x-matched-path is the source of truth, it tells what page
           // should be rendered because we don't process rewrites in minimalMode
-          let matchedPath = new URL(
-            req.headers['x-matched-path'],
-            'http://localhost'
-          ).pathname
+          let matchedPath = normalizeRscPath(
+            new URL(req.headers['x-matched-path'], 'http://localhost').pathname,
+            this.hasAppDir
+          )
 
           let urlPathname = new URL(req.url, 'http://localhost').pathname
 
