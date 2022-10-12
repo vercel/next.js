@@ -10,12 +10,6 @@ interface Options {
   dev: boolean
 }
 
-// enum FileType {
-//   serverOnly,
-//   clientOnly,
-//   both,
-// }
-
 export class FlightTypesPlugin {
   appDir: string
   dev: boolean

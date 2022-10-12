@@ -162,11 +162,25 @@ export async function writeConfigurationDefaults(
   }
 
   if (!('include' in rawConfig)) {
-    userTsConfig.include = ['next-env.d.ts', '**/*.ts', '**/*.tsx']
+    userTsConfig.include = [
+      'next-env.d.ts',
+      '**/*.ts',
+      '**/*.tsx',
+      '.next/types/**/*.ts',
+    ]
     suggestedActions.push(
       chalk.cyan('include') +
         ' was set to ' +
-        chalk.bold(`['next-env.d.ts', '**/*.ts', '**/*.tsx']`)
+        chalk.bold(
+          `['next-env.d.ts', '**/*.ts', '**/*.tsx', '.next/types/**/*.ts']`
+        )
+    )
+  } else if (!rawConfig.include.includes('.next/types/**/*.ts')) {
+    userTsConfig.include.push('.next/types/**/*.ts')
+    suggestedActions.push(
+      chalk.cyan('include') +
+        ' was updated to have ' +
+        chalk.bold(`'.next/types/**/*.ts'`)
     )
   }
 

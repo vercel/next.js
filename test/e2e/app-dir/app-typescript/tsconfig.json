@@ -16,6 +16,5 @@
     "jsx": "preserve"
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules"],
-  "plugins": ["next/typescript"]
+  "exclude": ["node_modules"]
 }
