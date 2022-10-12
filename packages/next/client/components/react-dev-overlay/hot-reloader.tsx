@@ -7,18 +7,20 @@ import React, {
   // @ts-expect-error TODO-APP: startTransition exists
   startTransition,
 } from 'react'
-import { GlobalLayoutRouterContext } from '../../shared/lib/app-router-context'
+import { GlobalLayoutRouterContext } from '../../../shared/lib/app-router-context'
 import {
-  register,
-  unregister,
   onBuildError,
   onBuildOk,
   onRefresh,
+  onUnhandledError,
+  onUnhandledRejection,
   ReactDevOverlay,
-} from './react-dev-overlay/src/client'
+} from './client'
+import type { DispatchFn } from './client'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
-import formatWebpackMessages from '../dev/error-overlay/format-webpack-messages'
-import { useRouter } from './hooks-client'
+import formatWebpackMessages from '../../dev/error-overlay/format-webpack-messages'
+import { useRouter } from '../hooks-client'
+import { errorOverlayReducer } from './internal/error-overlay-reducer'
 
 function getSocketProtocol(assetPrefix: string): string {
   let protocol = window.location.protocol
@@ -42,10 +44,10 @@ let hadRuntimeError = false
 
 // let startLatency = undefined
 
-function onFastRefresh(hasUpdates: boolean) {
-  onBuildOk()
+function onFastRefresh(dispatch: DispatchFn, hasUpdates: boolean) {
+  onBuildOk(dispatch)
   if (hasUpdates) {
-    onRefresh()
+    onRefresh(dispatch)
   }
 
   // if (startLatency) {
@@ -120,7 +122,11 @@ function performFullReload(err: any, sendMessage: any) {
 }
 
 // Attempt to update code on the fly, fall back to a hard reload.
-function tryApplyUpdates(onHotUpdateSuccess: any, sendMessage: any) {
+function tryApplyUpdates(
+  onHotUpdateSuccess: any,
+  sendMessage: any,
+  dispatch: DispatchFn
+) {
   // @ts-expect-error module.hot exists
   if (!module.hot) {
     // HotModuleReplacementPlugin is not in Webpack configuration.
@@ -130,7 +136,7 @@ function tryApplyUpdates(onHotUpdateSuccess: any, sendMessage: any) {
   }
 
   if (!isUpdateAvailable() || !canApplyUpdates()) {
-    onBuildOk()
+    onBuildOk(dispatch)
     return
   }
 
@@ -162,9 +168,13 @@ function tryApplyUpdates(onHotUpdateSuccess: any, sendMessage: any) {
 
     if (isUpdateAvailable()) {
       // While we were updating, there was a new update! Do it again.
-      tryApplyUpdates(hasUpdates ? onBuildOk : onHotUpdateSuccess, sendMessage)
+      tryApplyUpdates(
+        hasUpdates ? onBuildOk : onHotUpdateSuccess,
+        sendMessage,
+        dispatch
+      )
     } else {
-      onBuildOk()
+      onBuildOk(dispatch)
       // if (process.env.__NEXT_TEST_MODE) {
       //   afterApplyUpdates(() => {
       //     if (self.__NEXT_HMR_CB) {
@@ -191,7 +201,8 @@ function tryApplyUpdates(onHotUpdateSuccess: any, sendMessage: any) {
 function processMessage(
   e: any,
   sendMessage: any,
-  router: ReturnType<typeof useRouter>
+  router: ReturnType<typeof useRouter>,
+  dispatch: DispatchFn
 ) {
   const obj = JSON.parse(e.data)
 
@@ -226,7 +237,7 @@ function processMessage(
         })
 
         // Only show the first error.
-        onBuildError(formatted.errors[0])
+        onBuildError(dispatch, formatted.errors[0])
 
         // Also log them to the console.
         for (let i = 0; i < formatted.errors.length; i++) {
@@ -276,11 +287,15 @@ function processMessage(
 
         // Attempt to apply hot updates or reload.
         if (isHotUpdate) {
-          tryApplyUpdates(function onSuccessfulHotUpdate(hasUpdates: any) {
-            // Only dismiss it when we're sure it's a hot update.
-            // Otherwise it would flicker right before the reload.
-            onFastRefresh(hasUpdates)
-          }, sendMessage)
+          tryApplyUpdates(
+            function onSuccessfulHotUpdate(hasUpdates: any) {
+              // Only dismiss it when we're sure it's a hot update.
+              // Otherwise it would flicker right before the reload.
+              onFastRefresh(dispatch, hasUpdates)
+            },
+            sendMessage,
+            dispatch
+          )
         }
         return
       }
@@ -299,11 +314,15 @@ function processMessage(
 
       // Attempt to apply hot updates or reload.
       if (isHotUpdate) {
-        tryApplyUpdates(function onSuccessfulHotUpdate(hasUpdates: any) {
-          // Only dismiss it when we're sure it's a hot update.
-          // Otherwise it would flicker right before the reload.
-          onFastRefresh(hasUpdates)
-        }, sendMessage)
+        tryApplyUpdates(
+          function onSuccessfulHotUpdate(hasUpdates: any) {
+            // Only dismiss it when we're sure it's a hot update.
+            // Otherwise it would flicker right before the reload.
+            onFastRefresh(dispatch, hasUpdates)
+          },
+          sendMessage,
+          dispatch
+        )
       }
       return
     }
@@ -320,7 +339,7 @@ function processMessage(
       }
       startTransition(() => {
         router.reload()
-        onRefresh()
+        onRefresh(dispatch)
       })
 
       return
@@ -405,6 +424,22 @@ export default function HotReload({
   assetPrefix: string
   children?: ReactNode
 }) {
+  const stacktraceLimitRef = useRef<undefined | number>()
+  const [state, dispatch] = React.useReducer(errorOverlayReducer, {
+    nextId: 1,
+    buildError: null,
+    errors: [],
+  })
+
+  const handleOnUnhandledError = useCallback((ev) => {
+    hadRuntimeError = true
+    onUnhandledError(dispatch, ev)
+  }, [])
+  const handleOnUnhandledRejection = useCallback((ev) => {
+    hadRuntimeError = true
+    onUnhandledRejection(dispatch, ev)
+  }, [])
+
   const { tree } = useContext(GlobalLayoutRouterContext)
   const router = useRouter()
 
@@ -416,18 +451,29 @@ export default function HotReload({
   }, [])
 
   useEffect(() => {
-    register()
-    const onError = () => {
-      hadRuntimeError = true
-    }
-    window.addEventListener('error', onError)
-    window.addEventListener('unhandledrejection', onError)
+    try {
+      const limit = Error.stackTraceLimit
+      Error.stackTraceLimit = 50
+      stacktraceLimitRef.current = limit
+    } catch {}
+
+    window.addEventListener('error', handleOnUnhandledError)
+    window.addEventListener('unhandledrejection', handleOnUnhandledRejection)
     return () => {
-      unregister()
-      window.removeEventListener('error', onError)
-      window.removeEventListener('unhandledrejection', onError)
+      if (stacktraceLimitRef.current !== undefined) {
+        try {
+          Error.stackTraceLimit = stacktraceLimitRef.current
+        } catch {}
+        stacktraceLimitRef.current = undefined
+      }
+
+      window.removeEventListener('error', handleOnUnhandledError)
+      window.removeEventListener(
+        'unhandledrejection',
+        handleOnUnhandledRejection
+      )
     }
-  }, [])
+  }, [handleOnUnhandledError, handleOnUnhandledRejection])
 
   useEffect(() => {
     if (webSocketRef.current) {
@@ -474,7 +520,7 @@ export default function HotReload({
       }
 
       try {
-        processMessage(event, sendMessage, router)
+        processMessage(event, sendMessage, router, dispatch)
       } catch (ex) {
         console.warn('Invalid HMR message: ' + event.data + '\n', ex)
       }
@@ -501,5 +547,5 @@ export default function HotReload({
   //   return () => clearInterval(interval)
   // })
 
-  return <ReactDevOverlay globalOverlay>{children}</ReactDevOverlay>
+  return <ReactDevOverlay state={state}>{children}</ReactDevOverlay>
 }

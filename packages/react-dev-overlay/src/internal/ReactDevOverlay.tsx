@@ -92,8 +92,12 @@ const ReactDevOverlay: React.FunctionComponent<ReactDevOverlayProps> =
 
     const hasBuildError = state.buildError != null
     const hasRuntimeErrors = Boolean(state.errors.length)
-
-    const isMounted = hasBuildError || hasRuntimeErrors
+    const errorType = hasBuildError
+      ? 'build'
+      : hasRuntimeErrors
+      ? 'runtime'
+      : null
+    const isMounted = errorType !== null
 
     return (
       <React.Fragment>
@@ -111,7 +115,7 @@ const ReactDevOverlay: React.FunctionComponent<ReactDevOverlayProps> =
             <ComponentStyles />
 
             {shouldPreventDisplay(
-              hasBuildError ? 'build' : hasRuntimeErrors ? 'runtime' : null,
+              errorType,
               preventDisplay
             ) ? null : hasBuildError ? (
               <BuildError message={state.buildError!} />
