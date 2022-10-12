@@ -329,12 +329,7 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected async hasPage(pathname: string): Promise<boolean> {
-    let found = false
-    try {
-      found = !!this.getPagePath(pathname, this.nextConfig.i18n?.locales)
-    } catch (_) {}
-
-    return found
+    return !!this.getPagePath(pathname, this.nextConfig.i18n?.locales)
   }
 
   protected getBuildId(): string {
