@@ -38,6 +38,11 @@ function setUpEnv(dir: string, nextConfig: NextConfigComplete) {
   }
 }
 
+export type NextJestOptions = {
+  dir?: string
+  experimentalEsm?: boolean
+}
+
 /*
 // Usage in jest.config.js
 const nextJest = require('next/jest');
@@ -53,7 +58,9 @@ const customJestConfig = {
 // createJestConfig is exported in this way to ensure that next/jest can load the Next.js config which is async
 module.exports = createJestConfig(customJestConfig)
 */
-export default function nextJest(options: { dir?: string } = {}) {
+export default function nextJest(
+  options: NextJestOptions = { experimentalEsm: false }
+) {
   // createJestConfig
   return (customJestConfig?: any) => {
     // Function that is provided as the module.exports of jest.config.js
@@ -87,6 +94,19 @@ export default function nextJest(options: { dir?: string } = {}) {
         (typeof customJestConfig === 'function'
           ? await customJestConfig()
           : customJestConfig) ?? {}
+
+      // To match Next.js behavior node_modules is not transformed, unless the
+      // experimentalEsm flag is passed to nextJest
+      if (options.experimentalEsm === true && !isEsmProject) {
+        Log.warn(
+          'Jest configuration has experimentalEsm set, but project does not appear to be an ESM project'
+        )
+      }
+
+      const ignoreNodeModulesWhenTransforming = []
+      if (options.experimentalEsm !== true) {
+        ignoreNodeModulesWhenTransforming.push('/node_modules/')
+      }
 
       // eagerly load swc bindings instead of waiting for transform calls
       await loadBindings()
@@ -148,8 +168,8 @@ export default function nextJest(options: { dir?: string } = {}) {
         },
 
         transformIgnorePatterns: [
-          // To match Next.js behavior node_modules is not transformed
-          '/node_modules/',
+          ...ignoreNodeModulesWhenTransforming,
+
           // CSS modules are mocked so they don't need to be transformed
           '^.+\\.module\\.(css|sass|scss)$',
 
