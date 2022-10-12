@@ -43,7 +43,10 @@ use turbopack_core::{
 use turbopack_swc_utils::emitter::IssueEmitter;
 
 use self::{
-    amd::{AmdDefineAssetReferenceVc, AmdDefineWithDependenciesCodeGenVc},
+    amd::{
+        AmdDefineAssetReferenceVc, AmdDefineDependencyElement, AmdDefineFactoryType,
+        AmdDefineWithDependenciesCodeGenVc,
+    },
     cjs::CjsAssetReferenceVc,
     esm::{
         export::EsmExport, EsmAssetReferenceVc, EsmAsyncAssetReferenceVc, EsmExports,
@@ -1168,9 +1171,7 @@ fn analyze_amd_define(
     args: Vec<JsValue>,
 ) {
     match &args[..] {
-        [JsValue::Constant(id), JsValue::Array(_, deps), JsValue::Function(_, _)]
-            if id.as_str().is_some() =>
-        {
+        [JsValue::Constant(id), JsValue::Array(_, deps), _] if id.as_str().is_some() => {
             analyze_amd_define_with_deps(
                 analysis,
                 origin,
@@ -1181,8 +1182,64 @@ fn analyze_amd_define(
                 deps,
             );
         }
-        [JsValue::Array(_, deps), JsValue::Function(_, _)] => {
+        [JsValue::Array(_, deps), _] => {
             analyze_amd_define_with_deps(analysis, origin, handler, span, ast_path, None, deps);
+        }
+        [JsValue::Constant(id), JsValue::Function(..)] if id.as_str().is_some() => {
+            analysis.add_code_gen(AmdDefineWithDependenciesCodeGenVc::new(
+                vec![
+                    AmdDefineDependencyElement::Require,
+                    AmdDefineDependencyElement::Exports,
+                    AmdDefineDependencyElement::Module,
+                ],
+                origin,
+                AstPathVc::cell(ast_path.to_vec()),
+                AmdDefineFactoryType::Function,
+            ));
+        }
+        [JsValue::Constant(id), _] if id.as_str().is_some() => {
+            analysis.add_code_gen(AmdDefineWithDependenciesCodeGenVc::new(
+                vec![
+                    AmdDefineDependencyElement::Require,
+                    AmdDefineDependencyElement::Exports,
+                    AmdDefineDependencyElement::Module,
+                ],
+                origin,
+                AstPathVc::cell(ast_path.to_vec()),
+                AmdDefineFactoryType::Unknown,
+            ));
+        }
+        [JsValue::Function(..)] => {
+            analysis.add_code_gen(AmdDefineWithDependenciesCodeGenVc::new(
+                vec![
+                    AmdDefineDependencyElement::Require,
+                    AmdDefineDependencyElement::Exports,
+                    AmdDefineDependencyElement::Module,
+                ],
+                origin,
+                AstPathVc::cell(ast_path.to_vec()),
+                AmdDefineFactoryType::Function,
+            ));
+        }
+        [JsValue::Object(..)] => {
+            analysis.add_code_gen(AmdDefineWithDependenciesCodeGenVc::new(
+                vec![],
+                origin,
+                AstPathVc::cell(ast_path.to_vec()),
+                AmdDefineFactoryType::Value,
+            ));
+        }
+        [_] => {
+            analysis.add_code_gen(AmdDefineWithDependenciesCodeGenVc::new(
+                vec![
+                    AmdDefineDependencyElement::Require,
+                    AmdDefineDependencyElement::Exports,
+                    AmdDefineDependencyElement::Module,
+                ],
+                origin,
+                AstPathVc::cell(ast_path.to_vec()),
+                AmdDefineFactoryType::Unknown,
+            ));
         }
         _ => {
             handler.span_err_with_code(
@@ -1206,10 +1263,30 @@ fn analyze_amd_define_with_deps(
     let mut requests = Vec::new();
     for dep in deps {
         if let Some(dep) = dep.as_str() {
-            let request = RequestVc::parse_string(dep.to_string());
-            let reference = AmdDefineAssetReferenceVc::new(origin, request);
-            requests.push(request);
-            analysis.add_reference(reference);
+            match dep {
+                "exports" => {
+                    requests.push(AmdDefineDependencyElement::Exports);
+                }
+                "require" => {
+                    handler.span_warn_with_code(
+                        span,
+                        "using \"require\" as dependency in an AMD define() is not yet supported",
+                        DiagnosticId::Error(
+                            errors::failed_to_analyse::ecmascript::AMD_DEFINE.to_string(),
+                        ),
+                    );
+                    requests.push(AmdDefineDependencyElement::Require);
+                }
+                "module" => {
+                    requests.push(AmdDefineDependencyElement::Module);
+                }
+                _ => {
+                    let request = RequestVc::parse_string(dep.to_string());
+                    let reference = AmdDefineAssetReferenceVc::new(origin, request);
+                    requests.push(AmdDefineDependencyElement::Request(request));
+                    analysis.add_reference(reference);
+                }
+            }
         } else {
             handler.span_err_with_code(
                 // TODO(alexkirsz) It'd be best to highlight the argument's span, but
@@ -1224,8 +1301,8 @@ fn analyze_amd_define_with_deps(
     if id.is_some() {
         handler.span_warn_with_code(
             span,
-            "passing an ID to AMD define() is not supported",
-            DiagnosticId::Error(errors::failed_to_analyse::ecmascript::AMD_DEFINE.to_string()),
+            "passing an ID to AMD define() is not yet fully supported",
+            DiagnosticId::Lint(errors::failed_to_analyse::ecmascript::AMD_DEFINE.to_string()),
         );
     }
 
@@ -1233,6 +1310,7 @@ fn analyze_amd_define_with_deps(
         requests,
         origin,
         AstPathVc::cell(ast_path.to_vec()),
+        AmdDefineFactoryType::Function,
     ));
 }
 
