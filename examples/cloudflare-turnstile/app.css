@@ -1,0 +1,30 @@
+html,
+body {
+  display: grid;
+  place-content: center;
+  margin: 0;
+  height: 100%;
+}
+
+main {
+  height: 50vh;
+  width: 300px;
+  text-align: center;
+}
+
+button[type='submit'] {
+  cursor: pointer;
+  width: 100%;
+  outline: none;
+  border: none;
+  padding: 0.5rem 1rem;
+  margin-top: 1rem;
+  border-radius: 0.25rem;
+  background: #0d6efd;
+  font-size: 1.25rem;
+  color: #ffffff;
+}
+
+.checkbox {
+  min-height: 70px;
+}
