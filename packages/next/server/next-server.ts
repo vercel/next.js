@@ -66,7 +66,7 @@ import { renderToHTMLOrFlight as appRenderToHTMLOrFlight } from './app-render'
 import { ParsedUrl, parseUrl } from '../shared/lib/router/utils/parse-url'
 import { parse as nodeParseUrl } from 'url'
 import * as Log from '../build/output/log'
-import loadRequireHook from '../build/webpack/require-hook'
+import { addRequireHook, loadRequireHook } from '../build/webpack/require-hook'
 
 import BaseServer, {
   Options,
@@ -216,6 +216,10 @@ export default class NextNodeServer extends BaseServer {
   constructor(options: Options) {
     // Initialize super class
     super(options)
+
+    if (this.nextConfig.experimental.appDir) {
+      require('../build/webpack/overriding-builtin-react')
+    }
 
     /**
      * This sets environment variable to be used at the time of SSR by head.tsx.

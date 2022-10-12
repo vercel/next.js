@@ -32,7 +32,6 @@ import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
 import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
 import { NOT_FOUND_ERROR_CODE } from '../client/components/not-found'
 
-loadRequireHook()
 const envConfig = require('../shared/lib/runtime-config')
 
 ;(global as any).__NEXT_DATA__ = {
@@ -149,6 +148,9 @@ export default async function exportPage({
       if (isAppDir) {
         outDir = join(distDir, 'server/app')
       }
+
+      loadRequireHook([], isAppDir)
+
       let updatedPath = query.__nextSsgPath || path
       let locale = query.__nextLocale || renderOpts.locale
       delete query.__nextLocale

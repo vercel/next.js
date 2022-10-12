@@ -3,11 +3,12 @@ import type { LoadComponentsReturnType } from './load-components'
 import type { ServerRuntime } from '../types'
 import type { FontLoaderManifest } from '../build/webpack/plugins/font-loader-manifest-plugin'
 
+import '../build/webpack/overriding-builtin-react'
 // TODO-APP: change to React.use once it becomes stable
 import React, {
   // @ts-ignore
   experimental_use as use,
-} from 'react'
+} from 'next/dist/compiled/react'
 
 // this needs to be required lazily so that `next-server` can set
 // the env before we require

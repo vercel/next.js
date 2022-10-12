@@ -1035,9 +1035,7 @@ export default async function getBaseWebpackConfig(
       if (
         request.startsWith('next/dist/compiled/react') ||
         request === 'react' ||
-        request === 'react/jsx-runtime' ||
-        request ===
-          'next/dist/compiled/react-server-dom-webpack/writer.browser.server'
+        request === 'react/jsx-runtime'
       ) {
         return
       }
@@ -1564,15 +1562,23 @@ export default async function getBaseWebpackConfig(
           ? [
               {
                 test: codeCondition.test,
+                include: [appDir],
+                resolve: {
+                  alias: {
+                    // Alias `next/dynamic` to React.lazy implementation for RSC
+                    [require.resolve('next/dynamic')]: require.resolve(
+                      'next/dist/client/components/dynamic'
+                    ),
+                  },
+                },
+              },
+              {
+                test: codeCondition.test,
                 oneOf: [
                   {
                     issuerLayer: WEBPACK_LAYERS.server,
                     resolve: {
                       alias: {
-                        // Alias `next/dynamic` to React.lazy implementation for RSC
-                        [require.resolve('next/dynamic')]: require.resolve(
-                          'next/dist/client/components/dynamic'
-                        ),
                         react: 'next/dist/compiled/react/react.shared-subset',
                       },
                     },
