@@ -1558,6 +1558,12 @@ export async function copyTracedFiles(
   middlewareManifest: MiddlewareManifest
 ) {
   const outputPath = path.join(distDir, 'standalone')
+  let moduleType = false
+  try {
+    const packageJsonPath = path.join(distDir, '../package.json')
+    const packageJson = JSON.parse(await fs.readFile(packageJsonPath, 'utf8'))
+    moduleType = packageJson.type === 'module'
+  } catch {}
   const copiedFiles = new Set()
   await recursiveDelete(outputPath)
 
@@ -1635,12 +1641,21 @@ export async function copyTracedFiles(
   )
   await fs.writeFile(
     serverOutputPath,
-    `
-process.env.NODE_ENV = 'production'
-process.chdir(__dirname)
+    `${
+      moduleType
+        ? `import Server from 'next/dist/server/next-server.js'
+import http from 'http'
+import path from 'path'
+import { fileURLToPath } from 'url'
+const __dirname = fileURLToPath(new URL('.', import.meta.url))
+const NextServer = Server.default`
+        : `
 const NextServer = require('next/dist/server/next-server').default
 const http = require('http')
-const path = require('path')
+const path = require('path')`
+    }
+process.env.NODE_ENV = 'production'
+process.chdir(__dirname)
 
 // Make sure commands gracefully respect termination signals (e.g. from Docker)
 // Allow the graceful termination to be manually configurable
@@ -1680,9 +1695,12 @@ server.listen(currentPort, (err) => {
   })
   handler = nextServer.getRequestHandler()
 
-  console.log("Listening on port", currentPort)
-})
-    `
+  console.log(
+    'Listening on port',
+    currentPort,
+    'url: http://localhost:' + currentPort
+  )
+})`
   )
 }
 export function isReservedPage(page: string) {

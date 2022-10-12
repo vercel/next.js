@@ -1,6 +1,5 @@
 import { stringify } from 'querystring'
 import path from 'path'
-import { relative } from 'path'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import {
   getInvalidator,
@@ -96,7 +95,7 @@ export class FlightClientEntryPlugin {
           // Note that this isn't that reliable as webpack is still possible to assign
           // additional queries to make sure there's no conflict even using the `named`
           // module ID strategy.
-          let ssrNamedModuleId = relative(compiler.context, modResource)
+          let ssrNamedModuleId = path.relative(compiler.context, modResource)
           if (!ssrNamedModuleId.startsWith('.')) {
             // TODO use getModuleId instead
             ssrNamedModuleId = `./${ssrNamedModuleId.replace(/\\/g, '/')}`
@@ -248,8 +247,56 @@ export class FlightClientEntryPlugin {
       )
     })
 
-    // After optimizing all the modules, we collect the CSS that are still used.
+    // After optimizing all the modules, we collect the CSS that are still used
+    // by the certain chunk.
     compilation.hooks.afterOptimizeModules.tap(PLUGIN_NAME, () => {
+      const cssImportsForChunk: Record<string, string[]> = {}
+
+      function collectModule(entryName: string, mod: any) {
+        const resource = mod.resource
+        if (resource) {
+          if (regexCSS.test(resource)) {
+            cssImportsForChunk[entryName].push(resource)
+          }
+        }
+      }
+
+      compilation.chunkGroups.forEach((chunkGroup: any) => {
+        chunkGroup.chunks.forEach((chunk: webpack.Chunk) => {
+          // Here we only track page chunks.
+          if (!chunk.name) return
+          if (!chunk.name.endsWith('/page')) return
+
+          const entryName = path.join(compiler.context, chunk.name)
+
+          if (!cssImportsForChunk[entryName]) {
+            cssImportsForChunk[entryName] = []
+          }
+
+          const chunkModules = compilation.chunkGraph.getChunkModulesIterable(
+            chunk
+          ) as Iterable<webpack.NormalModule>
+          for (const mod of chunkModules) {
+            collectModule(entryName, mod)
+
+            const anyModule = mod as any
+            if (anyModule.modules) {
+              anyModule.modules.forEach((concatenatedMod: any) => {
+                collectModule(entryName, concatenatedMod)
+              })
+            }
+          }
+
+          const entryCSSInfo: Record<string, string[]> =
+            flightCSSManifest.__entry_css__ || {}
+          entryCSSInfo[entryName] = cssImportsForChunk[entryName]
+
+          Object.assign(flightCSSManifest, {
+            __entry_css__: entryCSSInfo,
+          })
+        })
+      })
+
       forEachEntryModule(({ entryModule }) => {
         for (const connection of compilation.moduleGraph.getOutgoingConnections(
           entryModule
