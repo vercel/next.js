@@ -24,7 +24,7 @@ export function headers(): Headers {
       ? requestAsyncStorage.getStore()!
       : requestAsyncStorage
 
-  return requestStore.headers()
+  return requestStore.headers
 }
 
 export function previewData() {

@@ -84,16 +84,6 @@ function readonlyCookiesError() {
   return new Error('ReadonlyCookies cannot be modified')
 }
 
-function lazy<T>(fn: () => T) {
-  let value: any
-  return () => {
-    if (!value) {
-      value = fn()
-    }
-    return value
-  }
-}
-
 class ReadonlyNextCookies {
   [INTERNAL_COOKIES_INSTANCE]: NextCookies
 
@@ -1582,18 +1572,33 @@ export async function renderToHTMLOrFlight(
     (renderOpts as any).previewProps
   )
 
+  let cachedHeadersInstance: ReadonlyHeaders | undefined
+  let cachedCookiesInstance: ReadonlyNextCookies | undefined
+
   const requestStore = {
-    headers: lazy(() => new ReadonlyHeaders(headersWithoutFlight(req.headers))),
-    cookies: new ReadonlyNextCookies({
-      headers: {
-        get: (key) => {
-          if (key !== 'cookie') {
-            throw new Error('Only cookie header is supported')
-          }
-          return req.headers.cookie
-        },
-      },
-    }),
+    get headers() {
+      if (!cachedHeadersInstance) {
+        cachedHeadersInstance = new ReadonlyHeaders(
+          headersWithoutFlight(req.headers)
+        )
+      }
+      return cachedHeadersInstance
+    },
+    get cookies() {
+      if (!cachedCookiesInstance) {
+        cachedCookiesInstance = new ReadonlyNextCookies({
+          headers: {
+            get: (key) => {
+              if (key !== 'cookie') {
+                throw new Error('Only cookie header is supported')
+              }
+              return req.headers.cookie
+            },
+          },
+        })
+      }
+      return cachedCookiesInstance
+    },
     previewData,
   }
 

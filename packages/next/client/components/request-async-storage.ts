@@ -2,7 +2,7 @@ import type { AsyncLocalStorage } from 'async_hooks'
 import { Cookies } from '../../server/web/spec-extension/cookies'
 
 export interface RequestStore {
-  headers: () => Headers
+  headers: Headers
   cookies: Cookies
   previewData: any
 }
