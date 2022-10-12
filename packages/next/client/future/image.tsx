@@ -357,10 +357,10 @@ const ImageElement = ({
             if (!img) {
               return
             }
-            if (onError) {
-              // If the image has an error before react hydrates, then the error is lost.
+            if (onLoad || onError) {
+              // If the image loads or errors before react hydrates, then the event is lost.
               // The workaround is to wait until the image is mounted which is after hydration,
-              // then we set the src again to trigger the error handler (if there was an error).
+              // then we set the src again to trigger the handler (if there was an event).
               // eslint-disable-next-line no-self-assign
               img.src = img.src
             }
