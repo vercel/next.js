@@ -106,13 +106,7 @@ export async function adapter(params: {
   // check if response is a Response object
   if (
     response &&
-    !(
-      typeof response === 'object' &&
-      (!response.headers || typeof response.headers.get === 'function') &&
-      (!response.body || typeof response.body.getReader === 'function') &&
-      typeof response.status === 'number' &&
-      typeof response.statusText === 'string'
-    )
+    !(response instanceof Response)
   ) {
     throw new TypeError('Expected an instance of Response to be returned')
   }
