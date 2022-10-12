@@ -8,6 +8,7 @@ export function Html(props) {
   return <html {...props} />;
 }
 
+// TODO(alexkirsz) This should be a class component.
 export function Head({ children, ...props }) {
   const { styles, scripts } = React.useContext(HtmlContext);
 
@@ -41,6 +42,7 @@ export function htmlEscapeJsonString(str) {
   return str.replace(ESCAPE_REGEX, (match) => ESCAPE_LOOKUP[match]);
 }
 
+// TODO(alexkirsz) This should be a class component.
 export function NextScript() {
   const { scripts, __NEXT_DATA__ } = React.useContext(HtmlContext);
 
@@ -66,14 +68,21 @@ export function Main() {
   return <next-js-internal-body-render-target />;
 }
 
-export default function Document() {
-  return (
-    <Html>
-      <Head />
-      <body>
-        <Main />
-        <NextScript />
-      </body>
-    </Html>
-  );
+// This *must* be a class component, because it can be extended in user code.
+export default class Document extends React.Component {
+  static getInitialProps(ctx) {
+    return ctx.defaultGetInitialProps(ctx);
+  }
+
+  render() {
+    return (
+      <Html>
+        <Head />
+        <body>
+          <Main />
+          <NextScript />
+        </body>
+      </Html>
+    );
+  }
 }
