@@ -512,7 +512,8 @@ function getSegmentParam(segment: string): {
 function getCssInlinedLinkTags(
   serverComponentManifest: FlightManifest,
   serverCSSManifest: FlightCSSManifest,
-  filePath: string
+  filePath: string,
+  serverCSSForEntries: string[]
 ): string[] {
   const layoutOrPageCss =
     serverCSSManifest[filePath] ||
@@ -525,15 +526,36 @@ function getCssInlinedLinkTags(
   const chunks = new Set<string>()
 
   for (const css of layoutOrPageCss) {
-    const mod = serverComponentManifest[css]
-    if (mod) {
-      for (const chunk of mod.default.chunks) {
-        chunks.add(chunk)
+    // We only include the CSS if it's a global CSS, or it is used by this
+    // entrypoint.
+    if (serverCSSForEntries.includes(css) || !/\.module\.css/.test(css)) {
+      const mod = serverComponentManifest[css]
+      if (mod) {
+        for (const chunk of mod.default.chunks) {
+          chunks.add(chunk)
+        }
       }
     }
   }
 
   return [...chunks]
+}
+
+function getServerCSSForEntries(
+  serverCSSManifest: FlightCSSManifest,
+  entries: string[]
+) {
+  const css = []
+  for (const entry of entries) {
+    const entryName = entry.replace(/\.[^.]+$/, '')
+    if (
+      serverCSSManifest.__entry_css__ &&
+      serverCSSManifest.__entry_css__[entryName]
+    ) {
+      css.push(...serverCSSManifest.__entry_css__[entryName])
+    }
+  }
+  return css
 }
 
 /**
@@ -543,6 +565,7 @@ function getPreloadedFontFilesInlineLinkTags(
   serverComponentManifest: FlightManifest,
   serverCSSManifest: FlightCSSManifest,
   fontLoaderManifest: FontLoaderManifest | undefined,
+  serverCSSForEntries: string[],
   filePath?: string
 ): string[] {
   if (!fontLoaderManifest || !filePath) {
@@ -559,10 +582,14 @@ function getPreloadedFontFilesInlineLinkTags(
   const fontFiles = new Set<string>()
 
   for (const css of layoutOrPageCss) {
-    const preloadedFontFiles = fontLoaderManifest.app[css]
-    if (preloadedFontFiles) {
-      for (const fontFile of preloadedFontFiles) {
-        fontFiles.add(fontFile)
+    // We only include the CSS if it's a global CSS, or it is used by this
+    // entrypoint.
+    if (serverCSSForEntries.includes(css) || !/\.module\.css/.test(css)) {
+      const preloadedFontFiles = fontLoaderManifest.app[css]
+      if (preloadedFontFiles) {
+        for (const fontFile of preloadedFontFiles) {
+          fontFiles.add(fontFile)
+        }
       }
     }
   }
@@ -908,6 +935,15 @@ export async function renderToHTMLOrFlight(
 
     let defaultRevalidate: false | undefined | number = false
 
+    // Collect all server CSS imports used by this specific entry (or entries, for parallel routes).
+    // Not that we can't rely on the CSS manifest because it tracks CSS imports per module,
+    // which can be used by multiple entries and cannot be tree-shaked in the module graph.
+    // More info: https://github.com/vercel/next.js/issues/41018
+    const serverCSSForEntries = getServerCSSForEntries(
+      serverCSSManifest!,
+      ComponentMod.pages
+    )
+
     /**
      * Use the provided loader tree to create the React Component tree.
      */
@@ -941,13 +977,16 @@ export async function renderToHTMLOrFlight(
         ? getCssInlinedLinkTags(
             serverComponentManifest,
             serverCSSManifest!,
-            layoutOrPagePath
+            layoutOrPagePath,
+            serverCSSForEntries
           )
         : []
+
       const preloadedFontFiles = getPreloadedFontFilesInlineLinkTags(
         serverComponentManifest,
         serverCSSManifest!,
         fontLoaderManifest,
+        serverCSSForEntries,
         layoutOrPagePath
       )
       const Template = template
