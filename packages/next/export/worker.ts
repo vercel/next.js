@@ -6,7 +6,7 @@ import type { DomainLocale, NextConfigComplete } from '../server/config-shared'
 import type { NextParsedUrlQuery } from '../server/request-meta'
 
 import '../server/node-polyfill-fetch'
-import loadRequireHook from '../build/webpack/require-hook'
+import { loadRequireHook } from '../build/webpack/require-hook'
 
 import url from 'url'
 import { extname, join, dirname, sep } from 'path'
@@ -32,6 +32,7 @@ import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
 import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
 import { NOT_FOUND_ERROR_CODE } from '../client/components/not-found'
 
+loadRequireHook()
 const envConfig = require('../shared/lib/runtime-config')
 
 ;(global as any).__NEXT_DATA__ = {
@@ -148,8 +149,6 @@ export default async function exportPage({
       if (isAppDir) {
         outDir = join(distDir, 'server/app')
       }
-
-      loadRequireHook([], isAppDir)
 
       let updatedPath = query.__nextSsgPath || path
       let locale = query.__nextLocale || renderOpts.locale
