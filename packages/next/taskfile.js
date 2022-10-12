@@ -1598,7 +1598,8 @@ export async function copy_react_server_dom_webpack(task, opts) {
         'writer.browser.server.js'
       )
     )
-    .run({ every: true }, function (file) {
+    // eslint-disable-next-line require-yield
+    .run({ every: true }, function* (file) {
       const source = file.data.toString()
       // We replace the module/chunk loading code with our own implementation in Next.js.
       file.data = source
