@@ -50,11 +50,10 @@ import {
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { format as formatUrl, UrlWithParsedQuery } from 'url'
 import compression from 'next/dist/compiled/compression'
-import HttpProxy from 'next/dist/compiled/http-proxy'
 import { getPathMatch } from '../shared/lib/router/utils/path-match'
 import { createHeaderRoute, createRedirectRoute } from './server-route-utils'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
-import { run } from './web/sandbox'
+
 import { detectDomainLocale } from '../shared/lib/i18n/detect-domain-locale'
 
 import { NodeNextRequest, NodeNextResponse } from './base-http/node'
@@ -68,7 +67,6 @@ import { ParsedUrl, parseUrl } from '../shared/lib/router/utils/parse-url'
 import { parse as nodeParseUrl } from 'url'
 import * as Log from '../build/output/log'
 import loadRequireHook from '../build/webpack/require-hook'
-import { consumeUint8ArrayReadableStream } from 'next/dist/compiled/edge-runtime'
 
 import BaseServer, {
   Options,
@@ -704,6 +702,8 @@ export default class NextNodeServer extends BaseServer {
     parsedUrl.search = stringifyQuery(req, query)
 
     const target = formatUrl(parsedUrl)
+    const HttpProxy =
+      require('next/dist/compiled/http-proxy') as typeof import('next/dist/compiled/http-proxy')
     const proxy = new HttpProxy({
       target,
       changeOrigin: true,
@@ -1063,9 +1063,17 @@ export default class NextNodeServer extends BaseServer {
         name: '_next/data catchall',
         check: true,
         fn: async (req, res, params, _parsedUrl) => {
+          const isNextDataNormalizing = getRequestMeta(
+            req,
+            '_nextDataNormalizing'
+          )
+
           // Make sure to 404 for /_next/data/ itself and
           // we also want to 404 if the buildId isn't correct
           if (!params.path || params.path[0] !== this.buildId) {
+            if (isNextDataNormalizing) {
+              return { finished: false }
+            }
             await this.render404(req, res, _parsedUrl)
             return {
               finished: true,
@@ -1717,15 +1725,21 @@ export default class NextNodeServer extends BaseServer {
     }
     const normalizedPathname = removeTrailingSlash(params.parsed.pathname || '')
 
-    // For middleware to "fetch" we must always provide an absolute URL
-    const query = urlQueryToSearchParams(params.parsed.query).toString()
-    const locale = params.parsed.query.__nextLocale
+    let url: string
 
-    const url = `${getRequestMeta(params.request, '_protocol')}://${
-      this.hostname
-    }:${this.port}${locale ? `/${locale}` : ''}${params.parsed.pathname}${
-      query ? `?${query}` : ''
-    }`
+    if (this.nextConfig.experimental.skipMiddlewareUrlNormalize) {
+      url = getRequestMeta(params.request, '__NEXT_INIT_URL')!
+    } else {
+      // For middleware to "fetch" we must always provide an absolute URL
+      const query = urlQueryToSearchParams(params.parsed.query).toString()
+      const locale = params.parsed.query.__nextLocale
+
+      url = `${getRequestMeta(params.request, '_protocol')}://${
+        this.hostname
+      }:${this.port}${locale ? `/${locale}` : ''}${params.parsed.pathname}${
+        query ? `?${query}` : ''
+      }`
+    }
 
     if (!url.startsWith('http')) {
       throw new Error(
@@ -1766,6 +1780,7 @@ export default class NextNodeServer extends BaseServer {
     }
 
     const method = (params.request.method || 'GET').toUpperCase()
+    const { run } = require('./web/sandbox') as typeof import('./web/sandbox')
 
     const result = await run({
       distDir: this.distDir,
@@ -2089,6 +2104,7 @@ export default class NextNodeServer extends BaseServer {
       )
     }
 
+    const { run } = require('./web/sandbox') as typeof import('./web/sandbox')
     const result = await run({
       distDir: this.distDir,
       name: edgeInfo.name,
@@ -2129,6 +2145,8 @@ export default class NextNodeServer extends BaseServer {
     if (result.response.body) {
       // TODO(gal): not sure that we always need to stream
       const nodeResStream = (params.res as NodeNextResponse).originalResponse
+      const { consumeUint8ArrayReadableStream } =
+        require('next/dist/compiled/edge-runtime') as typeof import('next/dist/compiled/edge-runtime')
       try {
         for await (const chunk of consumeUint8ArrayReadableStream(
           result.response.body
