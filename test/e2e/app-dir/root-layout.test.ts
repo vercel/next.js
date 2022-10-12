@@ -62,6 +62,19 @@ describe('app-dir root layout', () => {
           /Missing required root layout tags: html, head, body/
         )
       })
+
+      it('should error on page load on static generation', async () => {
+        const outputIndex = next.cliOutput.length
+        const browser = await webdriver(next.url, '/static-missing-tags/slug')
+
+        expect(await hasRedbox(browser, true)).toBe(true)
+        expect(await getRedboxDescription(browser)).toInclude(
+          'Missing required root layout tags: html, head, body'
+        )
+        expect(next.cliOutput.slice(outputIndex)).toMatch(
+          /Missing required root layout tags: html, head, body/
+        )
+      })
     })
   }
 

@@ -1531,17 +1531,21 @@ export async function renderToHTMLOrFlight(
         })
       }
     }
-    let renderResult = new RenderResult(await bodyResult())
+    const renderResult = new RenderResult(await bodyResult())
 
-    // Check for required root layout tags in dev
-    if (dev) {
+    if (dev && !isStaticGeneration) {
+      // Check for required root layout tags in dev
       const htmlResult = await streamToBufferedResult(renderResult)
       validateRootLayout(htmlResult)
-      renderResult = new RenderResult(htmlResult)
+      return new RenderResult(htmlResult)
     }
 
     if (isStaticGeneration) {
       const htmlResult = await streamToBufferedResult(renderResult)
+      if (dev) {
+        // Check for required root layout tags in dev
+        validateRootLayout(htmlResult)
+      }
       // if we encountered any unexpected errors during build
       // we fail the prerendering phase and the build
       if (capturedErrors.length > 0) {
@@ -1565,6 +1569,7 @@ export async function renderToHTMLOrFlight(
 
       return new RenderResult(htmlResult)
     }
+
     return renderResult
   }
 
