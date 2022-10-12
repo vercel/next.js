@@ -27,6 +27,7 @@ swc_core = { workspace = true, features = [
   "css_utils",
   "css_visit",
   "css_visit_path",
+  "css_compat",
   "common",
   "common_concurrent",
 ] }

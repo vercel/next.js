@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_tasks_fs::FileSystemPathVc;
-use turbopack_css::CssInputTransformsVc;
+use turbopack_css::{CssInputTransform, CssInputTransformsVc};
 use turbopack_ecmascript::{EcmascriptInputTransform, EcmascriptInputTransformsVc};
 
 pub mod module_options_context;
@@ -59,7 +59,7 @@ impl ModuleOptionsVc {
             (no_transforms, app_transforms)
         };
 
-        let css_transforms = CssInputTransformsVc::cell(Vec::new());
+        let css_transforms = CssInputTransformsVc::cell(vec![CssInputTransform::Nested]);
 
         Ok(ModuleOptionsVc::cell(ModuleOptions {
             rules: vec![
