@@ -51,7 +51,9 @@ module.exports = {
 - `locale`: `false` or `undefined` - whether the locale should not be included when matching.
 - `has` is an array of [has objects](#header-cookie-and-query-matching) with the `type`, `key` and `value` properties.
 
-Redirects are checked before the filesystem which includes pages and `/public` files. Redirects are not applied to client-side routing, unless [Middleware](/docs/advanced-features/middleware) is present.
+Redirects are checked before the filesystem which includes pages and `/public` files.
+
+Redirects are not applied to client-side routing (`Link`, `router.push`), unless [Middleware](/docs/advanced-features/middleware) is present.
 
 When a redirect is applied, any query values provided in the request will be passed through to the redirect destination. For example, see the following redirect configuration:
 
