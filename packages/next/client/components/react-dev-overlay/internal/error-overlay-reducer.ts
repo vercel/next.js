@@ -69,8 +69,6 @@ export function errorOverlayReducer(
       }
     }
     default: {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const _: never = action
       return state
     }
   }
