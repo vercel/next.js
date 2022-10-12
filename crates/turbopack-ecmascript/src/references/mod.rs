@@ -40,6 +40,7 @@ use turbopack_core::{
         FindContextFileResult, ResolveResult,
     },
 };
+use turbopack_swc_utils::emitter::IssueEmitter;
 
 use self::{
     amd::{AmdDefineAssetReferenceVc, AmdDefineWithDependenciesCodeGenVc},
@@ -78,7 +79,6 @@ use crate::{
     analyzer::{graph::EvalContext, imports::Reexport, ModuleValue},
     chunk::{EcmascriptExports, EcmascriptExportsVc},
     code_gen::{CodeGenerateableVc, CodeGenerateablesVc},
-    emitter::IssueEmitter,
     magic_identifier,
     references::{
         cjs::{

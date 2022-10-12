@@ -25,11 +25,11 @@ use turbopack_core::{
     asset::{AssetContent, AssetVc},
     code_builder::{EncodedSourceMap, EncodedSourceMapVc},
 };
+use turbopack_swc_utils::emitter::IssueEmitter;
 
 use super::EcmascriptModuleAssetType;
 use crate::{
     analyzer::graph::EvalContext,
-    emitter::IssueEmitter,
     transform::{EcmascriptInputTransformsVc, TransformContext},
     utils::WrapFuture,
     EcmascriptInputTransform,
@@ -169,7 +169,7 @@ async fn parse_content(
         box IssueEmitter {
             source,
             source_map: source_map.clone(),
-            title: Some("Parsing failed".to_string()),
+            title: Some("Parsing ecmascript source code failed".to_string()),
         },
     );
     let globals = Globals::new();

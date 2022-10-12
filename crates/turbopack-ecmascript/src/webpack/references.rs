@@ -11,10 +11,10 @@ use turbopack_core::{
     asset::AssetVc,
     reference::{AssetReferenceVc, AssetReferencesVc},
 };
+use turbopack_swc_utils::emitter::IssueEmitter;
 
 use super::{parse::WebpackRuntimeVc, WebpackChunkAssetReference};
 use crate::{
-    emitter::IssueEmitter,
     parse::{parse, ParseResult},
     EcmascriptInputTransformsVc, EcmascriptModuleAssetType,
 };

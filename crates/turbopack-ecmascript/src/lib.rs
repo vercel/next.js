@@ -10,7 +10,6 @@ pub mod analyzer;
 pub mod chunk;
 pub mod chunk_group_files_asset;
 pub mod code_gen;
-mod emitter;
 mod errors;
 pub mod magic_identifier;
 pub(crate) mod parse;

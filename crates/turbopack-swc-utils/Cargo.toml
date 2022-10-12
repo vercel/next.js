@@ -1,5 +1,5 @@
 [package]
-name = "turbopack-css"
+name = "turbopack-swc-utils"
 version = "0.1.0"
 edition = "2021"
 autobenches = false
@@ -12,25 +12,15 @@ bench = false
 [dependencies]
 anyhow = "1.0.47"
 async-trait = "0.1.56"
-serde = "1.0.136"
-
 turbo-tasks = { path = "../turbo-tasks" }
 turbo-tasks-fs = { path = "../turbo-tasks-fs" }
 turbopack-core = { path = "../turbopack-core" }
-turbopack-ecmascript = { path = "../turbopack-ecmascript" }
-turbopack-swc-utils = { path = "../turbopack-swc-utils" }
 
 swc_core = { workspace = true, features = [
-  "ecma_ast",
-  "css_ast",
-  "css_codegen",
-  "css_parser",
-  "css_utils",
-  "css_visit",
-  "css_visit_path",
-  "css_compat",
+  "base",
   "common",
   "common_concurrent",
+  "common_sourcemap",
 ] }
 
 [build-dependencies]

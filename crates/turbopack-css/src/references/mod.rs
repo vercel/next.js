@@ -15,9 +15,10 @@ use turbopack_core::{
     reference::{AssetReferenceVc, AssetReferencesVc},
     resolve::{handle_resolve_error, origin::ResolveOriginVc, parse::RequestVc, ResolveResultVc},
 };
+use turbopack_swc_utils::emitter::IssueEmitter;
 
 use crate::{
-    parse::{parse, Buffer, ParseResult},
+    parse::{parse, ParseResult},
     references::{
         import::{ImportAssetReferenceVc, ImportAttributes},
         url::UrlAssetReferenceVc,
@@ -45,8 +46,15 @@ pub async fn analyze_css_stylesheet(
         ..
     } = &*parsed
     {
-        let buf = Buffer::new();
-        let handler = Handler::with_emitter_writer(Box::new(buf.clone()), Some(source_map.clone()));
+        let handler = Handler::with_emitter(
+            true,
+            false,
+            box IssueEmitter {
+                source,
+                source_map: source_map.clone(),
+                title: None,
+            },
+        );
         let globals = Globals::new();
         HANDLER.set(&handler, || {
             GLOBALS.set(&globals, || {
@@ -55,11 +63,6 @@ pub async fn analyze_css_stylesheet(
                 stylesheet.visit_with_path(&mut visitor, &mut Default::default());
             })
         });
-
-        if !buf.is_empty() {
-            // TODO report them in a stream
-            println!("{}", buf);
-        }
     }
     Ok(AssetReferencesVc::cell(references))
 }
