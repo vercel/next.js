@@ -83,6 +83,17 @@ const INTERNAL_COOKIES_INSTANCE = Symbol('internal for cookies readonly')
 function readonlyCookiesError() {
   return new Error('ReadonlyCookies cannot be modified')
 }
+
+function lazy<T>(fn: () => T) {
+  let value: any
+  return () => {
+    if (!value) {
+      value = fn()
+    }
+    return value
+  }
+}
+
 class ReadonlyNextCookies {
   [INTERNAL_COOKIES_INSTANCE]: NextCookies
 
@@ -1572,7 +1583,7 @@ export async function renderToHTMLOrFlight(
   )
 
   const requestStore = {
-    headers: () => new ReadonlyHeaders(headersWithoutFlight(req.headers)),
+    headers: lazy(() => new ReadonlyHeaders(headersWithoutFlight(req.headers))),
     cookies: new ReadonlyNextCookies({
       headers: {
         get: (key) => {
