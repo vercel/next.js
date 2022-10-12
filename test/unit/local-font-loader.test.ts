@@ -15,12 +15,12 @@ describe('@next/font/local', () => {
       })
 
       expect(css).toMatchInlineSnapshot(`
-"@font-face {
-font-family: 'my-font';
-src: url(/_next/static/media/my-font.woff2) format('woff2');
-font-display: optional;
-}"
-`)
+        "@font-face {
+        font-family: 'my-font';
+        src: url(/_next/static/media/my-font.woff2) format('woff2');
+        font-display: optional;
+        }"
+      `)
     })
 
     test('Weight and style', async () => {
@@ -36,14 +36,14 @@ font-display: optional;
       })
 
       expect(css).toMatchInlineSnapshot(`
-"@font-face {
-font-family: 'my-font';
-src: url(/_next/static/media/my-font.woff2) format('woff2');
-font-display: optional;
-font-weight: 100 900;
-font-style: italic;
-}"
-`)
+        "@font-face {
+        font-family: 'my-font';
+        src: url(/_next/static/media/my-font.woff2) format('woff2');
+        font-display: optional;
+        font-weight: 100 900;
+        font-style: italic;
+        }"
+      `)
     })
 
     test('Other properties', async () => {
@@ -52,14 +52,10 @@ font-style: italic;
         data: [
           {
             src: './my-font.woff2',
-            weight: '100 900',
-            style: 'italic',
-            ascentOverride: 'ascentOverride',
-            descentOverride: 'descentOverride',
-            lineGapOverride: 'lineGapOverride',
-            fontStretch: 'fontStretch',
-            fontFeatureSettings: 'fontFeatureSettings',
-            sizeAdjust: 'sizeAdjust',
+            declarations: [
+              { prop: 'font-feature-settings', value: '"smcp" on' },
+              { prop: 'ascent-override', value: '90%' },
+            ],
           },
         ],
         config: {},
@@ -71,20 +67,14 @@ font-style: italic;
       })
 
       expect(css).toMatchInlineSnapshot(`
-"@font-face {
-font-family: 'my-font';
-src: url(/_next/static/media/my-font.woff2) format('woff2');
-font-display: optional;
-font-weight: 100 900;
-font-style: italic;
-ascent-override: ascentOverride;
-descent-override: descentOverride;
-line-gap-override: lineGapOverride;
-font-stretch: fontStretch;
-font-feature-settings: fontFeatureSettings;
-size-adjust: sizeAdjust;
-}"
-`)
+        "@font-face {
+        font-feature-settings: \\"smcp\\" on;
+        ascent-override: 90%;
+        font-family: 'my-font';
+        src: url(/_next/static/media/my-font.woff2) format('woff2');
+        font-display: optional;
+        }"
+      `)
     })
   })
 
@@ -101,6 +91,21 @@ size-adjust: sizeAdjust;
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(
         `"@next/font/local has no named exports"`
+      )
+    })
+
+    test('Missing src', async () => {
+      await expect(
+        loader({
+          functionName: '',
+          data: [],
+          config: {},
+          emitFontFile: jest.fn(),
+          resolve: jest.fn(),
+          fs: {},
+        })
+      ).rejects.toThrowErrorMatchingInlineSnapshot(
+        `"Missing required \`src\` property"`
       )
     })
 
@@ -133,6 +138,27 @@ size-adjust: sizeAdjust;
               "Invalid display value \`invalid\`.
               Available display values: \`auto\`, \`block\`, \`swap\`, \`fallback\`, \`optional\`"
             `)
+    })
+
+    test('Invalid declaration', async () => {
+      await expect(
+        loader({
+          functionName: '',
+          data: [
+            {
+              src: './font-file.woff2',
+              declarations: [{ prop: 'src', value: '/hello.woff2' }],
+            },
+          ],
+
+          config: {},
+          emitFontFile: jest.fn(),
+          resolve: jest.fn(),
+          fs: {},
+        })
+      ).rejects.toThrowErrorMatchingInlineSnapshot(
+        `"Invalid declaration prop: \`src\`"`
+      )
     })
   })
 })

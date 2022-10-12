@@ -1,4 +1,4 @@
-'client'
+'use client'
 
 import React, { useContext } from 'react'
 import Effect from './side-effect'
