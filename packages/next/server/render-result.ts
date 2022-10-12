@@ -28,7 +28,11 @@ export default class RenderResult {
     return this._result
   }
 
-  pipe(res: ServerResponse | Writable): Promise<void> {
+  pipe(
+    res: ServerResponse | Writable | WritableStream<Uint8Array>
+  ): Promise<void> {
+    const isWritableStream = res instanceof WritableStream
+    const writableStreamWriter = isWritableStream ? res.getWriter() : undefined
     if (typeof this._result === 'string') {
       throw new Error(
         'invariant: static responses cannot be piped. This is a bug in Next.js'
@@ -49,17 +53,25 @@ export default class RenderResult {
           const { done, value } = await reader.read()
 
           if (done) {
-            res.end()
+            if (!isWritableStream) {
+              res.end()
+            }
             return
           }
 
           fatalError = true
-          res.write(value)
+          if (isWritableStream) {
+            await writableStreamWriter!.write(value)
+          } else {
+            res.write(value)
+          }
           flush()
         }
       } catch (err) {
         if (fatalError) {
-          res.destroy(err as any)
+          if (!isWritableStream) {
+            res.destroy(err as any)
+          }
         }
         throw err
       }
