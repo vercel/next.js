@@ -1,8 +1,7 @@
-use std::{collections::HashMap, fmt::Write};
+use std::collections::HashMap;
 
 use anyhow::{anyhow, bail, Result};
-use regex::Regex;
-use turbo_tasks::{primitives::RegexVc, Value, ValueToString};
+use turbo_tasks::{Value, ValueToString};
 use turbo_tasks_env::ProcessEnvVc;
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc};
 use turbopack::{
@@ -40,6 +39,7 @@ use crate::{
     },
     next_import_map::get_next_import_map,
     nodejs::node_rendered_source::{create_node_rendered_source, NodeRenderer, NodeRendererVc},
+    path_regex::{PathRegexBuilder, PathRegexVc},
 };
 
 /// Create a content source serving the `pages` or `src/pages` directory as
@@ -138,7 +138,7 @@ pub async fn create_server_rendered_source(
 async fn regular_expression_for_path(
     server_root: FileSystemPathVc,
     server_path: FileSystemPathVc,
-) -> Result<RegexVc> {
+) -> Result<PathRegexVc> {
     let server_path_value = &*server_path.await?;
     let path = if let Some(path) = server_root.await?.get_path_to(server_path_value) {
         path
@@ -152,56 +152,36 @@ async fn regular_expression_for_path(
     let (path, _) = path
         .rsplit_once('.')
         .ok_or_else(|| anyhow!("path ({}) has no extension", path))?;
-    let path = path.strip_suffix("/index").unwrap_or(path);
-    let mut reg_exp_source = "^".to_string();
+    let path = if path == "index" {
+        ""
+    } else {
+        path.strip_suffix("/index").unwrap_or(path)
+    };
+    let mut path_regex = PathRegexBuilder::new();
     for segment in path.split('/') {
-        /// Writes regex for handling an optional catch all placeholder.
-        fn write_optional_catch_all(
-            reg_exp_source: &mut String,
-            segment: &str,
-            include_slash: bool,
-            path: &str,
-        ) -> Result<()> {
-            if let Some((placeholder, rem)) = segment.split_once("]]") {
-                if include_slash {
-                    write!(*reg_exp_source, "(/?P<{placeholder}>[^?]+)?")?;
+        if let Some(segment) = segment.strip_prefix('[') {
+            if let Some(segment) = segment.strip_prefix("[...") {
+                if let Some((placeholder, rem)) = segment.split_once("]]") {
+                    path_regex.push_optional_catch_all(placeholder, rem);
                 } else {
-                    write!(*reg_exp_source, "(?P<{placeholder}>[^?]+)?")?;
+                    bail!(
+                        "path ({}) contains '[[' without matching ']]' at '[[...{}'",
+                        path,
+                        segment
+                    );
                 }
-                *reg_exp_source += &regex::escape(rem);
-                Ok(())
-            } else {
-                bail!(
-                    "path ({}) contains '[[' without matching ']]' at '[[...{}'",
-                    path,
-                    segment
-                );
-            }
-        }
-        /// Writes regex for handling a required catch all placeholder.
-        fn write_catch_all(reg_exp_source: &mut String, segment: &str, path: &str) -> Result<()> {
-            if let Some((placeholder, rem)) = segment.split_once(']') {
-                write!(*reg_exp_source, "(?P<{placeholder}>[^?]+)")?;
-                *reg_exp_source += &regex::escape(rem);
-                Ok(())
-            } else {
-                bail!(
-                    "path ({}) contains '[' without matching ']' at '[...{}'",
-                    path,
-                    segment
-                );
-            }
-        }
-        /// Writes regex for handling a normal placeholder.
-        fn write_dynamic_segment(
-            reg_exp_source: &mut String,
-            segment: &str,
-            path: &str,
-        ) -> Result<()> {
-            if let Some((placeholder, rem)) = segment.split_once(']') {
-                write!(*reg_exp_source, "(?P<{placeholder}>[^?/]+)")?;
-                *reg_exp_source += &regex::escape(rem);
-                Ok(())
+            } else if let Some(segment) = segment.strip_prefix("...") {
+                if let Some((placeholder, rem)) = segment.split_once(']') {
+                    path_regex.push_catch_all(placeholder, rem);
+                } else {
+                    bail!(
+                        "path ({}) contains '[' without matching ']' at '[...{}'",
+                        path,
+                        segment
+                    );
+                }
+            } else if let Some((placeholder, rem)) = segment.split_once(']') {
+                path_regex.push_dynamic_segment(placeholder, rem);
             } else {
                 bail!(
                     "path ({}) contains '[' without matching ']' at '[{}'",
@@ -209,31 +189,11 @@ async fn regular_expression_for_path(
                     segment
                 );
             }
-        }
-
-        let include_slash = reg_exp_source.len() > 1;
-        if let Some(segment) = segment.strip_prefix('[') {
-            if let Some(segment) = segment.strip_prefix("[...") {
-                write_optional_catch_all(&mut reg_exp_source, segment, include_slash, path)?;
-            } else {
-                if include_slash {
-                    reg_exp_source += "/";
-                }
-                if let Some(segment) = segment.strip_prefix("...") {
-                    write_catch_all(&mut reg_exp_source, segment, path)?;
-                } else {
-                    write_dynamic_segment(&mut reg_exp_source, segment, path)?;
-                }
-            }
         } else {
-            if include_slash {
-                reg_exp_source += "/";
-            }
-            reg_exp_source += &regex::escape(segment);
+            path_regex.push_static_segment(segment);
         }
     }
-    reg_exp_source += "$";
-    Ok(RegexVc::cell(Regex::new(&reg_exp_source)?))
+    Ok(PathRegexVc::cell(path_regex.build()?))
 }
 
 /// Handles a single page file in the pages directory

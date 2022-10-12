@@ -1,6 +1,5 @@
 use anyhow::{anyhow, Result};
 use indexmap::IndexMap;
-use turbo_tasks::primitives::RegexVc;
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::chunk::ChunkingContextVc;
 use turbopack_dev_server::source::{
@@ -13,6 +12,7 @@ use turbopack_dev_server::source::{
 use turbopack_ecmascript::{chunk::EcmascriptChunkPlaceablesVc, EcmascriptModuleAssetVc};
 
 use super::{external_asset_entrypoints, render_static, RenderData};
+use crate::path_regex::PathRegexVc;
 
 /// Trait that allows to get the entry module for rendering something in Node.js
 #[turbo_tasks::value_trait]
@@ -21,7 +21,7 @@ pub trait NodeRenderer {
 }
 
 /// Creates a content source that renders something in Node.js with the passed
-/// `renderer` when it matches a `regular_expression`. Once rendered it serves
+/// `renderer` when it matches a `path_regex`. Once rendered it serves
 /// all assets referenced by the `renderer` that are within the `server_root`.
 /// It needs a temporary directory (`intermediate_output_path`) to place file
 /// for Node.js execution during rendering. The `chunking_context` should emit
@@ -29,7 +29,7 @@ pub trait NodeRenderer {
 #[turbo_tasks::function]
 pub fn create_node_rendered_source(
     server_root: FileSystemPathVc,
-    regular_expression: RegexVc,
+    path_regex: PathRegexVc,
     renderer: NodeRendererVc,
     chunking_context: ChunkingContextVc,
     runtime_entries: EcmascriptChunkPlaceablesVc,
@@ -37,7 +37,7 @@ pub fn create_node_rendered_source(
 ) -> ContentSourceVc {
     let source = NodeRenderContentSource {
         server_root,
-        regular_expression,
+        path_regex,
         renderer,
         chunking_context,
         runtime_entries,
@@ -59,7 +59,7 @@ pub fn create_node_rendered_source(
 #[turbo_tasks::value]
 struct NodeRenderContentSource {
     server_root: FileSystemPathVc,
-    regular_expression: RegexVc,
+    path_regex: PathRegexVc,
     renderer: NodeRendererVc,
     chunking_context: ChunkingContextVc,
     runtime_entries: EcmascriptChunkPlaceablesVc,
@@ -69,23 +69,13 @@ struct NodeRenderContentSource {
 impl NodeRenderContentSource {
     /// Checks if a path matches the regular expression
     async fn is_matching_path(&self, path: &str) -> Result<bool> {
-        Ok(self.regular_expression.await?.is_match(path))
+        Ok(self.path_regex.await?.is_match(path))
     }
 
     /// Matches a path with the regular expression and returns a JSON object
     /// with the named captures
     async fn get_matches(&self, path: &str) -> Result<Option<IndexMap<String, String>>> {
-        let regexp = self.regular_expression.await?;
-        Ok(regexp.captures(path).map(|capture| {
-            regexp
-                .capture_names()
-                .flatten()
-                .filter_map(|name| {
-                    let value = capture.name(name)?;
-                    Some((name.to_string(), value.as_str().to_string()))
-                })
-                .collect()
-        }))
+        Ok(self.path_regex.await?.get_matches(path))
     }
 }
 
