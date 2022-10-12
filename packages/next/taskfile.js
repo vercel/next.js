@@ -1598,9 +1598,9 @@ export async function copy_react_server_dom_webpack(task, opts) {
         'writer.browser.server.js'
       )
     )
-    .run({ every: true }, function* (file) {
+    .run({ every: true }, function (file) {
       const source = file.data.toString()
-      // We replace the module/chunk loading code with our own implementaion in Next.js.
+      // We replace the module/chunk loading code with our own implementation in Next.js.
       file.data = source
         .replace(/__webpack_chunk_load__/g, 'globalThis.__next_chunk_load__')
         .replace(/__webpack_require__/g, 'globalThis.__next_require__')
@@ -1614,16 +1614,7 @@ export async function copy_react_server_dom_webpack(task, opts) {
     .target('compiled/react-server-dom-webpack')
 
   await task
-    .source(
-      join('compiled/react-server-dom-webpack/index.js')
-      // join(
-      //   relative(
-      //     __dirname,
-      //     dirname(require.resolve('react-server-dom-webpack'))
-      //   ),
-      //   'index.js'
-      // )
-    )
+    .source(join('compiled/react-server-dom-webpack/index.js'))
     .ncc({
       minify: false,
       externals: {
