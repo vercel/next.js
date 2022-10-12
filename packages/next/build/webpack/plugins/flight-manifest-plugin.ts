@@ -70,6 +70,10 @@ export type FlightManifest = {
 
 export type FlightCSSManifest = {
   [modulePath: string]: string[]
+} & {
+  __entry_css__?: {
+    [entry: string]: string[]
+  }
 }
 
 const PLUGIN_NAME = 'FlightManifestPlugin'
