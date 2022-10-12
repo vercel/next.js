@@ -50,7 +50,6 @@ import {
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { format as formatUrl, UrlWithParsedQuery } from 'url'
 import compression from 'next/dist/compiled/compression'
-import HttpProxy from 'next/dist/compiled/http-proxy'
 import { getPathMatch } from '../shared/lib/router/utils/path-match'
 import { createHeaderRoute, createRedirectRoute } from './server-route-utils'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
@@ -703,6 +702,8 @@ export default class NextNodeServer extends BaseServer {
     parsedUrl.search = stringifyQuery(req, query)
 
     const target = formatUrl(parsedUrl)
+    const HttpProxy =
+      require('next/dist/compiled/http-proxy') as typeof import('next/dist/compiled/http-proxy')
     const proxy = new HttpProxy({
       target,
       changeOrigin: true,
