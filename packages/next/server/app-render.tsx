@@ -35,6 +35,7 @@ import { NextCookies } from './web/spec-extension/cookies'
 import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
 import { NOT_FOUND_ERROR_CODE } from '../client/components/not-found'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
+import { Writable } from 'stream'
 
 const INTERNAL_HEADERS_INSTANCE = Symbol('internal for headers readonly')
 
@@ -1174,15 +1175,25 @@ export async function renderToHTMLOrFlight(
       renderResult: RenderResult
     ): Promise<string> => {
       const renderChunks: Buffer[] = []
-      const writable = new WritableStream({
-        write(chunk) {
-          return new Promise((resolve) => {
+      if (process.env.NEXT_RUNTIME === 'edge') {
+        const writableStream = new WritableStream({
+          write(chunk) {
+            return new Promise((resolve) => {
+              renderChunks.push(chunk)
+              resolve()
+            })
+          },
+        })
+        await renderResult.pipeToWritableStream(writableStream)
+      } else {
+        const writable = new Writable({
+          write(chunk, _encoding, callback) {
             renderChunks.push(chunk)
-            resolve()
-          })
-        },
-      })
-      await renderResult.pipe(writable)
+            callback()
+          },
+        })
+        await renderResult.pipe(writable)
+      }
       return Buffer.concat(renderChunks).toString()
     }
 
