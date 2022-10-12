@@ -9,6 +9,7 @@ import { relativizeURL } from '../../shared/lib/router/utils/relativize-url'
 import { waitUntilSymbol } from './spec-extension/fetch-event'
 import { NextURL } from './next-url'
 import { stripInternalSearchParams } from '../internal-utils'
+import { normalizeRscPath } from '../../shared/lib/router/utils/app-paths'
 
 class NextRequestHint extends NextRequest {
   sourcePage: string
@@ -48,6 +49,8 @@ export async function adapter(params: {
 }): Promise<FetchEventResult> {
   // TODO-APP: use explicit marker for this
   const isEdgeRendering = typeof self.__BUILD_MANIFEST !== 'undefined'
+
+  params.request.url = normalizeRscPath(params.request.url, true)
 
   const requestUrl = new NextURL(params.request.url, {
     headers: params.request.headers,
