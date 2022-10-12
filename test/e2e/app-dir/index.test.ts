@@ -121,7 +121,9 @@ describe('app dir', () => {
 
     it('should serve polyfills for browsers that do not support modules', async () => {
       const html = await renderViaHTTP(next.url, '/dashboard/index')
-      expect(html).toMatch(/\/_next\/static\/chunks\/polyfills(-.+)?\.js/)
+      expect(html).toMatch(
+        /<script src="\/_next\/static\/chunks\/polyfills(-\w+)?\.js" nomodule="">/
+      )
     })
 
     // TODO-APP: handle css modules fouc in dev

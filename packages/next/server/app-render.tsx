@@ -1479,17 +1479,10 @@ export async function renderToHTMLOrFlight(
                   return (
                     <script
                       key={polyfill.src}
+                      src={polyfill.src}
+                      integrity={polyfill.integrity}
                       noModule={true}
                       nonce={nonce}
-                      dangerouslySetInnerHTML={{
-                        __html: `(self.__next_s=self.__next_s||[]).push([${JSON.stringify(
-                          polyfill.src
-                        )},${
-                          polyfill.integrity
-                            ? JSON.stringify({ integrity: polyfill.integrity })
-                            : '{}'
-                        }])`,
-                      }}
                     />
                   )
                 })}
