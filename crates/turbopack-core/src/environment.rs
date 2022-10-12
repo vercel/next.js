@@ -1,5 +1,5 @@
 use anyhow::Result;
-use preset_env_base::Versions;
+use swc_core::ecma::preset_env::Versions;
 use turbo_tasks::{
     primitives::{BoolVc, StringsVc},
     Value,

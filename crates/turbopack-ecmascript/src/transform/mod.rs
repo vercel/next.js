@@ -6,6 +6,7 @@ use swc_core::{
     common::{chain, util::take::Take, FileName, Mark, SourceMap},
     ecma::{
         ast::{Module, ModuleItem, Program},
+        preset_env::{self, Mode, Targets},
         transforms::{
             base::{feature::FeatureFlag, helpers::inject_helpers, Assumptions},
             react::react,
@@ -13,7 +14,6 @@ use swc_core::{
         visit::{FoldWith, VisitMutWith},
     },
 };
-use swc_ecma_preset_env::{Mode, Targets};
 use turbopack_core::environment::EnvironmentVc;
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
@@ -89,7 +89,7 @@ impl EcmascriptInputTransform {
             }
             EcmascriptInputTransform::PresetEnv(env) => {
                 let versions = env.runtime_versions().await?;
-                let config = swc_ecma_preset_env::Config {
+                let config = swc_core::ecma::preset_env::Config {
                     targets: Some(Targets::Versions(*versions)),
                     mode: Some(Mode::Usage),
                     ..Default::default()
@@ -111,7 +111,7 @@ impl EcmascriptInputTransform {
                 };
 
                 *program = module_program.fold_with(&mut chain!(
-                    swc_ecma_preset_env::preset_env(
+                    preset_env::preset_env(
                         top_level_mark,
                         Some(comments.clone()),
                         config,
@@ -124,7 +124,7 @@ impl EcmascriptInputTransform {
             EcmascriptInputTransform::StyledJsx => {
                 // Modeled after https://github.com/swc-project/plugins/blob/ae735894cdb7e6cfd776626fe2bc580d3e80fed9/packages/styled-jsx/src/lib.rs
                 let real_program = std::mem::replace(program, Program::Module(Module::dummy()));
-                *program = real_program.fold_with(&mut styled_jsx::styled_jsx(
+                *program = real_program.fold_with(&mut swc_plugin_styled_jsx::visitor::styled_jsx(
                     source_map.clone(),
                     // styled_jsx don't really use that in a relevant way
                     FileName::Anon,

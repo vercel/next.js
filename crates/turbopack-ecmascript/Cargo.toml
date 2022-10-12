@@ -20,8 +20,7 @@ regex = "1.5.4"
 serde = "1.0.136"
 serde_json = "1.0.85"
 serde_regex = "1.1.0"
-styled_jsx = "0.22.0"
-swc_ecma_preset_env = "0.173.5"
+swc_plugin_styled_jsx = "0.6.0"
 tokio = "1.11.0"
 turbo-tasks = { path = "../turbo-tasks" }
 turbo-tasks-fs = { path = "../turbo-tasks-fs" }
@@ -36,6 +35,7 @@ swc_core = { workspace = true, features = [
   "common_sourcemap",
   "ecma_codegen",
   "ecma_parser",
+  "ecma_preset_env",
   "ecma_transforms",
   "ecma_transforms_module",
   "ecma_transforms_react",
