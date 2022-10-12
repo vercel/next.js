@@ -88,13 +88,37 @@ export function getPagePath(
   return path
 }
 
+export function getPagePathOrThrow(
+  page: string,
+  distDir: string,
+  serverless: boolean,
+  dev?: boolean,
+  locales?: string[],
+  appDirEnabled?: boolean
+): string {
+  const pagePath = getPagePath(
+    page,
+    distDir,
+    serverless,
+    dev,
+    locales,
+    appDirEnabled
+  )
+
+  if (!pagePath) {
+    throw new PageNotFoundError(page)
+  }
+
+  return pagePath
+}
+
 export function requirePage(
   page: string,
   distDir: string,
   serverless: boolean,
   appDirEnabled?: boolean
 ): any {
-  const pagePath = getPagePath(
+  const pagePath = getPagePathOrThrow(
     page,
     distDir,
     serverless,
@@ -102,10 +126,6 @@ export function requirePage(
     undefined,
     appDirEnabled
   )
-
-  if (!pagePath) {
-    throw new PageNotFoundError(page)
-  }
 
   if (pagePath.endsWith('.html')) {
     return promises.readFile(pagePath, 'utf8').catch((err) => {

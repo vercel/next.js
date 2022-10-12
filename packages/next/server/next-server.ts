@@ -77,7 +77,7 @@ import BaseServer, {
   NoFallbackError,
   RequestContext,
 } from './base-server'
-import { getPagePath, requireFontManifest } from './require'
+import { getPagePath, getPagePathOrThrow, requireFontManifest } from './require'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { loadComponents } from './load-components'
@@ -329,7 +329,14 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected async hasPage(pathname: string): Promise<boolean> {
-    return !!this.getPagePath(pathname, this.nextConfig.i18n?.locales)
+    return !!getPagePath(
+      pathname,
+      this.distDir,
+      this._isLikeServerless,
+      this.renderOpts.dev,
+      this.nextConfig.i18n?.locales,
+      this.hasAppDir
+    )
   }
 
   protected getBuildId(): string {
@@ -884,7 +891,7 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getPagePath(pathname: string, locales?: string[]): string {
-    return getPagePath(
+    return getPagePathOrThrow(
       pathname,
       this.distDir,
       this._isLikeServerless,

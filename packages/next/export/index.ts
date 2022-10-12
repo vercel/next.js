@@ -42,7 +42,7 @@ import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-pa
 import { loadEnvConfig } from '@next/env'
 import { PrerenderManifest } from '../build'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
-import { getPagePath } from '../server/require'
+import { getPagePathOrThrow } from '../server/require'
 import { Span } from '../trace'
 import { FontConfig } from '../server/font-utils'
 
@@ -673,7 +673,11 @@ export default async function exportApp(
           }
           route = normalizePagePath(route)
 
-          const pagePath = getPagePath(pageName, distDir, isLikeServerless)
+          const pagePath = getPagePathOrThrow(
+            pageName,
+            distDir,
+            isLikeServerless
+          )
           const distPagesDir = join(
             pagePath,
             // strip leading / and then recurse number of nested dirs
