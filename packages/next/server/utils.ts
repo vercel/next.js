@@ -34,7 +34,9 @@ export function validateRootLayout(htmlResult: string) {
 
   if (missingTags.length > 0) {
     throw new Error(
-      `Missing required root layout tag${missingTags.length === 1 ? '' : 's'}: ` + missingTags.join(', ')
+      `Missing required root layout tag${
+        missingTags.length === 1 ? '' : 's'
+      }: ` + missingTags.join(', ')
     )
   }
 }
