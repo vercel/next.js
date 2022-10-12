@@ -61,6 +61,42 @@ export default function transformer(
       )
     })
 
+  // Before: const Image = require("next/image")
+  //  After: const Image = require("next/legacy/image")
+  root.find(j.CallExpression).forEach((requireExp) => {
+    if (
+      requireExp?.value?.callee?.type === 'Identifier' &&
+      requireExp.value.callee.name === 'require'
+    ) {
+      let firstArg = requireExp.value.arguments[0]
+      if (
+        firstArg &&
+        firstArg.type === 'Literal' &&
+        firstArg.value === 'next/image'
+      ) {
+        requireExp.value.arguments[0] = j.literal('next/legacy/image')
+      }
+    }
+  })
+
+  // Before: const Image = require("next/future/image")
+  //  After: const Image = require("next/image")
+  root.find(j.CallExpression).forEach((requireExp) => {
+    if (
+      requireExp?.value?.callee?.type === 'Identifier' &&
+      requireExp.value.callee.name === 'require'
+    ) {
+      let firstArg = requireExp.value.arguments[0]
+      if (
+        firstArg &&
+        firstArg.type === 'Literal' &&
+        firstArg.value === 'next/future/image'
+      ) {
+        requireExp.value.arguments[0] = j.literal('next/image')
+      }
+    }
+  })
+
   // Learn more about renaming an import declaration here:
   // https://www.codeshiftcommunity.com/docs/import-manipulation/#replacerename-an-import-declaration
 
