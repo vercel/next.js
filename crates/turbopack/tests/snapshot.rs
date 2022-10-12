@@ -48,12 +48,15 @@ lazy_static! {
 struct SnapshotOptions {
     #[serde(default = "default_browserslist")]
     browserslist: String,
+    #[serde(default = "default_entry")]
+    entry: String,
 }
 
 impl Default for SnapshotOptions {
     fn default() -> Self {
         SnapshotOptions {
             browserslist: default_browserslist(),
+            entry: default_entry(),
         }
     }
 }
@@ -62,6 +65,10 @@ fn default_browserslist() -> String {
     // Use a specific version to avoid churn in transform over time as the
     // preset_env crate data changes
     "Chrome 102".to_owned()
+}
+
+fn default_entry() -> String {
+    "input/index.js".to_owned()
 }
 
 #[test_resources("crates/turbopack/tests/snapshot/integration/*")]
@@ -110,7 +117,7 @@ async fn run(resource: &'static str) -> Result<()> {
 
         let path = Path::new(resource);
 
-        let test_entry = path.join("input/index.js");
+        let test_entry = path.join(options.entry);
         let entry_asset = sys_to_unix(test_entry.to_str().unwrap());
         let entry_paths = vec![FileSystemPathVc::new(project_fs.into(), &entry_asset)];
 

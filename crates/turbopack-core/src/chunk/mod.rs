@@ -1,11 +1,9 @@
 pub mod dev;
 
-use std::{
-    collections::{HashSet, VecDeque},
-    fmt::Debug,
-};
+use std::{collections::VecDeque, fmt::Debug};
 
 use anyhow::{anyhow, Result};
+use indexmap::IndexSet;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     debug::ValueDebugFormat,
@@ -95,7 +93,7 @@ impl ChunkGroupVc {
     /// All chunks should be loaded in parallel.
     #[turbo_tasks::function]
     pub async fn chunks(self) -> Result<ChunksVc> {
-        let mut chunks = HashSet::new();
+        let mut chunks = IndexSet::new();
 
         let mut queue = vec![self.await?.entry];
         while let Some(chunk) = queue.pop() {
@@ -333,7 +331,7 @@ async fn chunk_content_internal<I: FromChunkableAsset>(
     split: bool,
 ) -> Result<Option<ChunkContentResult<I>>> {
     let mut chunk_items = Vec::new();
-    let mut processed_assets = HashSet::new();
+    let mut processed_assets = IndexSet::new();
     let mut chunks = Vec::new();
     let mut async_chunk_groups = Vec::new();
     let mut external_asset_references = Vec::new();
