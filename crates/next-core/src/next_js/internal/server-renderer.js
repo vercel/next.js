@@ -67,7 +67,12 @@ async function operation(renderData) {
   const initialProps = await loadGetInitialProps(App, {
     Component,
     // TODO(alexkirsz) Pass in `context`
-    ctx: {},
+    ctx: {
+      // This is necessary for the default Document.getInitialProps to work.
+      defaultGetInitialProps: async (docCtx, options = {}) => {
+        return {};
+      },
+    },
   });
   const props = { ...initialProps, ...data.props, pageProps: { ...initialProps.pageProps, ...data.props } };
 
