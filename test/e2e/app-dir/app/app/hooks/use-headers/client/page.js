@@ -1,4 +1,4 @@
-'client'
+'use client'
 
 import { headers } from 'next/dist/client/components/hooks-server'
 

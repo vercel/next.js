@@ -8,7 +8,7 @@ import type {
 } from '../../server/app-render'
 // TODO-APP: change to React.use once it becomes stable
 import { matchSegment } from './match-segments'
-import { fetchServerResponse } from './app-router.client'
+import { fetchServerResponse } from './app-router'
 
 /**
  * Create data fetching record for Promise.

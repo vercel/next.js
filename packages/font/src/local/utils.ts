@@ -22,15 +22,8 @@ type FontOptions = {
   fallback?: string[]
   preload: boolean
   variable?: string
-  ascentOverride?: string
-  descentOverride?: string
-  fontStretch?: string
-  fontVariant?: string
-  fontFeatureSettings?: string
-  fontVariationSettings?: string
-  lineGapOverride?: string
-  sizeAdjust?: string
   adjustFontFallback?: string | false
+  declarations?: Array<{ prop: string; value: string }>
 }
 export function validateData(functionName: string, data: any): FontOptions {
   if (functionName) {
@@ -44,15 +37,8 @@ export function validateData(functionName: string, data: any): FontOptions {
     fallback,
     preload = true,
     variable,
-    ascentOverride,
-    descentOverride,
-    fontStretch,
-    fontVariant,
-    fontFeatureSettings,
-    fontVariationSettings,
-    lineGapOverride,
-    sizeAdjust,
     adjustFontFallback,
+    declarations,
   } = data[0] || ({} as any)
 
   if (!allowedDisplayValues.includes(display)) {
@@ -74,6 +60,22 @@ export function validateData(functionName: string, data: any): FontOptions {
 
   const family = /.+\/(.+?)\./.exec(src)![1]
 
+  if (Array.isArray(declarations)) {
+    declarations.forEach((declaration) => {
+      if (
+        [
+          'font-family',
+          'src',
+          'font-display',
+          'font-weight',
+          'font-style',
+        ].includes(declaration?.prop)
+      ) {
+        throw new Error(`Invalid declaration prop: \`${declaration.prop}\``)
+      }
+    })
+  }
+
   return {
     family,
     src,
@@ -85,14 +87,7 @@ export function validateData(functionName: string, data: any): FontOptions {
     fallback,
     preload,
     variable,
-    ascentOverride,
-    descentOverride,
-    fontStretch,
-    fontVariant,
-    fontFeatureSettings,
-    fontVariationSettings,
-    lineGapOverride,
-    sizeAdjust,
     adjustFontFallback,
+    declarations,
   }
 }

@@ -121,7 +121,9 @@ describe('app dir', () => {
 
     it('should serve polyfills for browsers that do not support modules', async () => {
       const html = await renderViaHTTP(next.url, '/dashboard/index')
-      expect(html).toMatch(/\/_next\/static\/chunks\/polyfills(-.+)?\.js/)
+      expect(html).toMatch(
+        /<script src="\/_next\/static\/chunks\/polyfills(-\w+)?\.js" nomodule="">/
+      )
     })
 
     // TODO-APP: handle css modules fouc in dev
@@ -1261,10 +1263,22 @@ describe('app dir', () => {
 
         if (!isDev) {
           it('should not include unused css modules in the page in prod', async () => {
-            const browser = await webdriver(next.url, '/css/css-page')
+            const browser = await webdriver(next.url, '/css/css-page/unused')
             expect(
               await browser.eval(
                 `[...document.styleSheets].some(({ rules }) => [...rules].some(rule => rule.selectorText.includes('this_should_not_be_included')))`
+              )
+            ).toBe(false)
+          })
+
+          it('should not include unused css modules in nested pages in prod', async () => {
+            const browser = await webdriver(
+              next.url,
+              '/css/css-page/unused-nested/inner'
+            )
+            expect(
+              await browser.eval(
+                `[...document.styleSheets].some(({ rules }) => [...rules].some(rule => rule.selectorText.includes('this_should_not_be_included_in_inner_path')))`
               )
             ).toBe(false)
           })
