@@ -40,7 +40,7 @@ module.exports = {
 }
 ```
 
-Rewrites are not applied to client-side routing (`Link`, `router.push`), unless [Middleware](/docs/advanced-features/middleware) is present.
+Rewrites are applied to client-side routing, a `<Link href="/about">` will have the rewrite applied in the above example.
 
 `rewrites` is an async function that expects to return either an array or an object of arrays (see below) holding objects with `source` and `destination` properties:
 
