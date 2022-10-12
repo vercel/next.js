@@ -389,8 +389,6 @@ export async function ncc_edge_runtime(task, opts) {
   )
 }
 
-// externals['react'] = 'next/dist/compiled/react'
-// externals['react-dom'] = 'next/dist/compiled/react-dom'
 export async function ncc_react(task, opts) {
   const reactDir = dirname(
     relative(__dirname, require.resolve(`react/package.json`))

@@ -3,6 +3,7 @@ declare module 'next/dist/compiled/babel/plugin-transform-modules-commonjs'
 declare module 'next/dist/compiled/babel/plugin-syntax-jsx'
 declare module 'next/dist/compiled/react-server-dom-webpack'
 declare module 'next/dist/compiled/react-server-dom-webpack/writer.browser.server'
+declare module 'next/dist/compiled/react-dom/server.browser'
 declare module 'next/dist/compiled/browserslist'
 
 declare module 'next/dist/compiled/@next/react-dev-overlay/dist/client' {
@@ -345,11 +346,6 @@ declare module 'next/dist/compiled/react' {
 }
 declare module 'next/dist/compiled/react-dom' {
   import * as m from 'react-dom'
-  export = m
-}
-
-declare module 'next/dist/compiled/react-dom/server.browser' {
-  import * as m from 'react-dom/server'
   export = m
 }
 

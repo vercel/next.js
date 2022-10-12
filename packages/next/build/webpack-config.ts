@@ -86,16 +86,10 @@ const BABEL_CONFIG_FILES = [
   'babel.config.cjs',
 ]
 
-const rscSharedRegex =
-  /next[\\/]dist[\\/]compiled[\\/](react|react-dom)|([\\/]shared[\\/]lib[\\/](head-manager-context|router-context|server-inserted-html)\.js|node_modules[\\/]styled-jsx[\\/])/
-
 // Support for NODE_PATH
 const nodePathList = (process.env.NODE_PATH || '')
   .split(process.platform === 'win32' ? ';' : ':')
   .filter((p) => !!p)
-
-// const reactDir = dirname(require.resolve('react/package.json'))
-// const reactDomDir = dirname(require.resolve('react-dom/package.json'))
 
 const watchOptions = Object.freeze({
   aggregateTimeout: 5,
@@ -578,11 +572,6 @@ export default async function getBaseWebpackConfig(
           '`experimental.runtime` requires React 18 to be installed.'
         )
       }
-      // if (hasAppDir) {
-      //   throw new Error(
-      //     '`experimental.appDir` requires React 18 to be installed.'
-      //   )
-      // }
     }
   }
 
@@ -877,9 +866,9 @@ export default async function getBaseWebpackConfig(
             'react-dom/server$': 'next/dist/compiled/react-dom/server',
             'react-dom/server.browser$':
               'next/dist/compiled/react-dom/server.browser',
-            // react$: 'next/dist/compiled/react',
             'react/jsx-dev-runtime$':
               'next/dist/compiled/react/jsx-dev-runtime',
+            'react/jsx-runtime$': 'next/dist/compiled/react/jsx-runtime',
           }
         : undefined),
 
@@ -1314,26 +1303,6 @@ export default async function getBaseWebpackConfig(
       splitChunks: (():
         | Required<webpack.Configuration>['optimization']['splitChunks']
         | false => {
-        // For the edge runtime, we have to bundle all dependencies inside without dynamic `require`s.
-        // To make some dependencies like `react` to be shared between entrypoints, we use a special
-        // cache group here even under dev mode.
-        const edgeRSCCacheGroups = undefined
-        // hasServerComponents
-        //   ? {
-        //       rscDeps: {
-        //         enforce: true,
-        //         name: 'rsc-runtime-deps',
-        //         filename: 'rsc-runtime-deps.js',
-        //         test: rscSharedRegex,
-        //       },
-        //     }
-        //   : undefined
-        if (isEdgeServer && edgeRSCCacheGroups) {
-          return {
-            cacheGroups: edgeRSCCacheGroups,
-          }
-        }
-
         if (dev) {
           return false
         }
@@ -1344,16 +1313,6 @@ export default async function getBaseWebpackConfig(
             filename: '[name].js',
             chunks: 'all',
             minSize: 1000,
-          }
-        }
-
-        if (isEdgeServer) {
-          return {
-            // @ts-ignore
-            filename: 'edge-chunks/[name].js',
-            chunks: 'all',
-            minChunks: 2,
-            cacheGroups: edgeRSCCacheGroups,
           }
         }
 
@@ -1647,16 +1606,6 @@ export default async function getBaseWebpackConfig(
               },
             ]
           : []),
-        // ...(hasServerComponents && isEdgeServer
-        //   ? [
-        //       // Move shared dependencies from sc_server and sc_client into the
-        //       // same layer.
-        //       {
-        //         test: rscSharedRegex,
-        //         layer: WEBPACK_LAYERS.rscShared,
-        //       },
-        //     ]
-        //   : []),
         {
           test: /\.(js|cjs|mjs)$/,
           issuerLayer: WEBPACK_LAYERS.api,
