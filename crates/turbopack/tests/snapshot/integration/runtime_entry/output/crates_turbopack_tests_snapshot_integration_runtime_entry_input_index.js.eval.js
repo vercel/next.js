@@ -1,10 +1,10 @@
 (self.TURBOPACK = self.TURBOPACK || []).push(["[workspace]/crates/turbopack/tests/snapshot/integration/runtime_entry/output/crates_turbopack_tests_snapshot_integration_runtime_entry_input_index.js.eval.js", {
 
-"[project]/crates/turbopack/tests/snapshot/integration/runtime_entry/input/index.js (ecmascript)": (({ r: __turbopack_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, m: module, e: exports }) => (() => {
+"[project]/crates/turbopack/tests/snapshot/integration/runtime_entry/input/index.js (ecmascript)": (function({ r: __turbopack_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, m: module, e: exports }) { !function() {
 
 console.log("hello world");
 
-})()),
+}.call(this) }),
 }, ({ chunks, instantiateRuntimeModule }) => {
     if(!(true)) return true;
     instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/runtime_entry/input/index.js (ecmascript)");
@@ -698,4 +698,4 @@ console.log("hello world");
 })();
 
 
-//# sourceMappingURL=crates_turbopack_tests_snapshot_integration_runtime_entry_input_index.js.eval.js.6d9fdf588ed655c0.map
+//# sourceMappingURL=crates_turbopack_tests_snapshot_integration_runtime_entry_input_index.js.eval.js.694f75faea6fdb93.map

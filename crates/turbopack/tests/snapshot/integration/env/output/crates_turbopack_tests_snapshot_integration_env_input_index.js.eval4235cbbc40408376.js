@@ -1,10 +1,10 @@
 (self.TURBOPACK = self.TURBOPACK || []).push(["[workspace]/crates/turbopack/tests/snapshot/integration/env/output/crates_turbopack_tests_snapshot_integration_env_input_index.js.eval4235cbbc40408376.js", {
 
-"[project]/crates/turbopack/tests/snapshot/integration/env/input/index.js (ecmascript)": (({ r: __turbopack_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, m: module, e: exports }) => (() => {
+"[project]/crates/turbopack/tests/snapshot/integration/env/input/index.js (ecmascript)": (function({ r: __turbopack_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, m: module, e: exports }) { !function() {
 
 console.log(process.env.FOOBAR);
 
-})()),
+}.call(this) }),
 "[project]/crates/turbopack/tests/snapshot/integration/env/input/.env/.env.js": (({ r: __turbopack_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
 
 const env = process.env;
@@ -707,4 +707,4 @@ instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/
 })();
 
 
-//# sourceMappingURL=crates_turbopack_tests_snapshot_integration_env_input_index.js.eval4235cbbc40408376.js.00ccce92a16632be.map
+//# sourceMappingURL=crates_turbopack_tests_snapshot_integration_env_input_index.js.eval4235cbbc40408376.js.f82e7d0b750fe2af.map

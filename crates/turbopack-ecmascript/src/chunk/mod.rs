@@ -299,14 +299,19 @@ async fn module_factory(content: EcmascriptChunkItemContentVc) -> Result<CodeVc>
         args.push("e: exports");
     }
     let mut code = Code::new();
-    write!(
-        code,
-        "(({{ {} }}) => (() => {{\n\n",
-        FormatIter(|| args.iter().copied().intersperse(", ")),
-    )?;
+    let args = FormatIter(|| args.iter().copied().intersperse(", "));
+    if content.options.this {
+        write!(code, "(function({{ {} }}) {{ !function() {{\n\n", args,)?;
+    } else {
+        write!(code, "(({{ {} }}) => (() => {{\n\n", args,)?;
+    }
     let source_map = content.source_map.map(|sm| sm.as_encoded_source_map());
     code.push_source(&content.inner_code, source_map);
-    code += "\n})())";
+    if content.options.this {
+        code += "\n}.call(this) })";
+    } else {
+        code += "\n})())";
+    }
     Ok(code.cell())
 }
 
@@ -778,6 +783,7 @@ pub struct EcmascriptChunkItemContent {
 pub struct EcmascriptChunkItemOptions {
     pub module: bool,
     pub exports: bool,
+    pub this: bool,
     pub placeholder_for_future_extensions: (),
 }
 

@@ -145,6 +145,10 @@ impl EvalContext {
         }
     }
 
+    pub fn is_esm(&self) -> bool {
+        self.imports.is_esm()
+    }
+
     fn eval_prop_name(&self, prop: &PropName) -> JsValue {
         match prop {
             PropName::Ident(ident) => ident.sym.clone().into(),

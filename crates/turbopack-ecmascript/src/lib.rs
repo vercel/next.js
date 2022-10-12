@@ -251,6 +251,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
             program,
             source_map,
             globals,
+            eval_context,
             ..
         } = &*parsed
         {
@@ -291,11 +292,18 @@ impl EcmascriptChunkItem for ModuleChunkItem {
             Ok(EcmascriptChunkItemContent {
                 inner_code: String::from_utf8(bytes)?,
                 source_map: Some(srcmap),
-                options: EcmascriptChunkItemOptions {
-                    // TODO disable that for ESM
-                    module: true,
-                    exports: true,
-                    ..Default::default()
+                options: if eval_context.is_esm() {
+                    EcmascriptChunkItemOptions {
+                        ..Default::default()
+                    }
+                } else {
+                    EcmascriptChunkItemOptions {
+                        // These things are not available in ESM
+                        module: true,
+                        exports: true,
+                        this: true,
+                        ..Default::default()
+                    }
                 },
                 ..Default::default()
             }

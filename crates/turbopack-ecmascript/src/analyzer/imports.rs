@@ -99,9 +99,16 @@ pub(crate) struct ImportMap {
 
     /// Ordered list of (module path, annotations)
     references: IndexSet<(JsWord, ImportAnnotations)>,
+
+    /// True, when the module has exports
+    has_exports: bool,
 }
 
 impl ImportMap {
+    pub fn is_esm(&self) -> bool {
+        self.has_exports || !self.imports.is_empty()
+    }
+
     pub fn get_import(&self, id: &Id) -> Option<JsValue> {
         if let Some((i, i_sym)) = self.imports.get(id) {
             let (i_src, annotations) = &self.references[*i];
@@ -237,11 +244,13 @@ impl Visit for Analyzer<'_> {
     }
 
     fn visit_export_all(&mut self, export: &ExportAll) {
+        self.data.has_exports = true;
         let i = self.ensure_reference(export.src.value.clone());
         self.data.reexports.push((i, Reexport::Star));
     }
 
     fn visit_named_export(&mut self, export: &NamedExport) {
+        self.data.has_exports = true;
         if let Some(ref src) = export.src {
             let i = self.ensure_reference(src.value.clone());
             for spec in export.specifiers.iter() {
@@ -276,6 +285,19 @@ impl Visit for Analyzer<'_> {
             }
             self.data.reexports.push((i, Reexport::Star));
         }
+    }
+
+    fn visit_export_decl(&mut self, _: &ExportDecl) {
+        self.data.has_exports = true;
+    }
+    fn visit_export_default_decl(&mut self, _: &ExportDefaultDecl) {
+        self.data.has_exports = true;
+    }
+    fn visit_export_default_expr(&mut self, _: &ExportDefaultExpr) {
+        self.data.has_exports = true;
+    }
+    fn visit_stmt(&mut self, _: &Stmt) {
+        // don't visit children
     }
 }
 
