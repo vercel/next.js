@@ -37,7 +37,9 @@ function ReactDevOverlay({
 
   return (
     <>
-      <ErrorBoundary isMounted={isMounted}>{children}</ErrorBoundary>
+      <ErrorBoundary hasRuntimeErrors={hasRuntimeErrors}>
+        {children}
+      </ErrorBoundary>
       {isMounted ? (
         <ShadowPortal>
           <CssReset />
