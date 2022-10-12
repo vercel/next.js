@@ -23,7 +23,7 @@ use turbopack_env::ProcessEnvAssetVc;
 use crate::{
     env::filter_for_client,
     next_client::runtime_entry::{RuntimeEntriesVc, RuntimeEntry},
-    react_refresh::{assert_can_resolve_react_refresh, react_refresh_request},
+    react_refresh::assert_can_resolve_react_refresh,
 };
 
 #[turbo_tasks::function]
@@ -61,7 +61,9 @@ pub async fn get_client_module_options_context(
 ) -> Result<ModuleOptionsContextVc> {
     let resolve_options_context = get_client_resolve_options_context();
     let enable_react_refresh =
-        *assert_can_resolve_react_refresh(project_root, resolve_options_context).await?;
+        assert_can_resolve_react_refresh(project_root, resolve_options_context)
+            .await?
+            .is_found();
 
     Ok(ModuleOptionsContext {
         // We don't need to resolve React Refresh for each module. Instead,
@@ -122,7 +124,9 @@ pub async fn get_client_runtime_entries(
 ) -> Result<RuntimeEntriesVc> {
     let resolve_options_context = get_client_resolve_options_context();
     let enable_react_refresh =
-        *assert_can_resolve_react_refresh(project_root, resolve_options_context).await?;
+        assert_can_resolve_react_refresh(project_root, resolve_options_context)
+            .await?
+            .as_request();
 
     let mut runtime_entries = vec![
         RuntimeEntry::Ecmascript(
@@ -131,9 +135,8 @@ pub async fn get_client_runtime_entries(
         .cell(),
         RuntimeEntry::Ecmascript(HtmlRuntimeAssetVc::new().into()).cell(),
     ];
-    if enable_react_refresh {
-        runtime_entries
-            .push(RuntimeEntry::Request(react_refresh_request(), project_root.join("_")).cell())
+    if let Some(request) = enable_react_refresh {
+        runtime_entries.push(RuntimeEntry::Request(request, project_root.join("_")).cell())
     };
 
     Ok(RuntimeEntriesVc::cell(runtime_entries))
