@@ -1,10 +1,10 @@
 import * as React from 'react'
 import {
-  TYPE_UNHANDLED_ERROR,
-  TYPE_UNHANDLED_REJECTION,
-  UnhandledError,
-  UnhandledRejection,
-} from '../bus'
+  ACTION_UNHANDLED_ERROR,
+  ACTION_UNHANDLED_REJECTION,
+  UnhandledErrorAction,
+  UnhandledRejectionAction,
+} from '../error-overlay-reducer'
 import {
   Dialog,
   DialogBody,
@@ -22,7 +22,7 @@ import { RuntimeError } from './RuntimeError'
 
 export type SupportedErrorEvent = {
   id: number
-  event: UnhandledError | UnhandledRejection
+  event: UnhandledErrorAction | UnhandledRejectionAction
 }
 export type ErrorsProps = { errors: SupportedErrorEvent[] }
 
@@ -31,8 +31,8 @@ type ReadyErrorEvent = ReadyRuntimeError
 function getErrorSignature(ev: SupportedErrorEvent): string {
   const { event } = ev
   switch (event.type) {
-    case TYPE_UNHANDLED_ERROR:
-    case TYPE_UNHANDLED_REJECTION: {
+    case ACTION_UNHANDLED_ERROR:
+    case ACTION_UNHANDLED_REJECTION: {
       return `${event.reason.name}::${event.reason.message}::${event.reason.stack}`
     }
     default: {
