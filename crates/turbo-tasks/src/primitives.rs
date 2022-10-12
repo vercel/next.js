@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, ops::Deref};
 
 use anyhow::Result;
 
@@ -47,11 +47,20 @@ impl ValueToString for JsonValue {
 }
 
 #[turbo_tasks::value(transparent, eq = "manual")]
+#[derive(Debug)]
 pub struct Regex(
     #[turbo_tasks(trace_ignore)]
     #[serde(with = "serde_regex")]
-    regex::Regex,
+    pub regex::Regex,
 );
+
+impl Deref for Regex {
+    type Target = regex::Regex;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 impl PartialEq for Regex {
     fn eq(&self, other: &Regex) -> bool {

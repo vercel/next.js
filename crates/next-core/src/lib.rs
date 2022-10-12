@@ -6,6 +6,7 @@ pub mod env;
 pub mod next_client;
 mod next_import_map;
 mod nodejs;
+mod path_regex;
 pub mod react_refresh;
 mod server_rendered_source;
 mod web_entry_source;
