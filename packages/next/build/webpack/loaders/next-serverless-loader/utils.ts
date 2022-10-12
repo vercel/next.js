@@ -371,11 +371,11 @@ export function getUtils({
         value = normalizeRscPath(value, true)
       }
       if (Array.isArray(value)) {
-        value = value.map((value) => {
-          if (typeof value === 'string') {
-            value = normalizeRscPath(value, true)
+        value = value.map((val) => {
+          if (typeof val === 'string') {
+            val = normalizeRscPath(val, true)
           }
-          return value
+          return val
         })
       }
 
