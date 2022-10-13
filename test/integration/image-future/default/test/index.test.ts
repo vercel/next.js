@@ -300,10 +300,8 @@ function runTests(mode) {
     )
   })
 
-  it('should callback native onLoad in most cases', async () => {
+  it('should callback native onLoad with sythetic event', async () => {
     let browser = await webdriver(appPort, '/on-load')
-
-    await browser.eval('document.getElementById("toggle").click()')
 
     await browser.eval(
       `document.getElementById("footer").scrollIntoView({behavior: "smooth"})`
@@ -311,23 +309,27 @@ function runTests(mode) {
 
     await check(
       () => browser.eval(`document.getElementById("msg1").textContent`),
-      'loaded img1 with native onLoad'
+      'loaded img1 with native onLoad, count 1'
     )
     await check(
       () => browser.eval(`document.getElementById("msg2").textContent`),
-      'loaded img2 with native onLoad'
+      'loaded img2 with native onLoad, count 1'
     )
     await check(
       () => browser.eval(`document.getElementById("msg3").textContent`),
-      'loaded img3 with native onLoad'
+      'loaded img3 with native onLoad, count 1'
     )
     await check(
       () => browser.eval(`document.getElementById("msg4").textContent`),
-      'loaded img4 with native onLoad'
+      'loaded img4 with native onLoad, count 1'
     )
     await check(
       () => browser.eval(`document.getElementById("msg5").textContent`),
-      'loaded img5 with native onLoad'
+      'loaded img5 with native onLoad, count 1'
+    )
+    await check(
+      () => browser.eval(`document.getElementById("msg6").textContent`),
+      'loaded img6 with native onLoad, count 1'
     )
     await check(
       () =>
@@ -335,6 +337,33 @@ function runTests(mode) {
           `document.getElementById("img5").getAttribute("data-nimg")`
         ),
       'future'
+    )
+
+    await browser.eval('document.getElementById("toggle").click()')
+
+    await check(
+      () => browser.eval(`document.getElementById("msg1").textContent`),
+      'loaded img1 with native onLoad, count 2'
+    )
+    await check(
+      () => browser.eval(`document.getElementById("msg2").textContent`),
+      'loaded img2 with native onLoad, count 2'
+    )
+    await check(
+      () => browser.eval(`document.getElementById("msg3").textContent`),
+      'loaded img3 with native onLoad, count 2'
+    )
+    await check(
+      () => browser.eval(`document.getElementById("msg4").textContent`),
+      'loaded img4 with native onLoad, count 2'
+    )
+    await check(
+      () => browser.eval(`document.getElementById("msg5").textContent`),
+      'loaded img5 with native onLoad, count 1'
+    )
+    await check(
+      () => browser.eval(`document.getElementById("msg6").textContent`),
+      'loaded img6 with native onLoad, count 1'
     )
 
     await check(
@@ -356,6 +385,10 @@ function runTests(mode) {
     await check(
       () => browser.eval(`document.getElementById("img5").currentSrc`),
       /wide.png/
+    )
+    await check(
+      () => browser.eval(`document.getElementById("img6").currentSrc`),
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mO8ysv7HwAEngHwC+JqOgAAAABJRU5ErkJggg=='
     )
   })
 
