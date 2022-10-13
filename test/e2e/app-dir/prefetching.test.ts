@@ -55,4 +55,13 @@ describe('app dir prefetching', () => {
       'Welcome to the dashboard'
     )
   })
+
+  it('should not have prefetch error for static path', async () => {
+    const browser = await webdriver(next.url, '/')
+    await browser.eval('window.nd.router.prefetch("/dashboard/123")')
+    await browser.eval('window.nd.router.push("/dashboard/123")')
+    await waitFor(1000)
+    expect(next.cliOutput).not.toContain('ReferenceError')
+    expect(next.cliOutput).not.toContain('is not defined')
+  })
 })
