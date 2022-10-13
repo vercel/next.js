@@ -1184,7 +1184,9 @@ export async function renderToHTMLOrFlight(
                 ? stylesheets.map((href) => (
                     <link
                       rel="stylesheet"
-                      href={`/_next/${href}?ts=${Date.now()}`}
+                      // Add extra cache busting (DEV only) for https://github.com/vercel/next.js/issues/5860
+                      // See also https://bugs.webkit.org/show_bug.cgi?id=187726
+                      href={`/_next/${href}${dev ? `?ts=${Date.now()}` : ''}`}
                       // `Precedence` is an opt-in signal for React to handle
                       // resource loading and deduplication, etc:
                       // https://github.com/facebook/react/pull/25060

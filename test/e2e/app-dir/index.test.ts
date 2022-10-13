@@ -264,6 +264,20 @@ describe('app dir', () => {
       expect(html).toContain('hello from app/partial-match-[id]. ID is: 123')
     })
 
+    // This is a workaround to fix https://github.com/vercel/next.js/issues/5860
+    // TODO: remove this workaround when https://bugs.webkit.org/show_bug.cgi?id=187726 is fixed.
+    it('should use cache busting when loading css (dev only)', async () => {
+      const html = await renderViaHTTP(next.url, '/')
+      const $ = cheerio.load(html)
+      const links = $('link[rel=stylesheet]')
+      links.each((_, link) => {
+        const href = $(link).attr('href')
+        isDev
+          ? expect(href).toMatch(/\?ts=/)
+          : expect(href).not.toMatch(/\?ts=/)
+      })
+    })
+
     describe('rewrites', () => {
       // TODO-APP: rewrite url is broken
       it('should support rewrites on initial load', async () => {
