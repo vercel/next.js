@@ -15,10 +15,14 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/deploym
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/with-sfcc) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example::
 
 ```bash
-npx create-next-app --example with-sfcc nextjs-sfcc-app
-# or
+ npx create-next-app --example with-sfcc nextjs-sfcc-app
+```
+
+```bash
 yarn create next-app --example with-sfcc nextjs-sfcc-app
-# or
+```
+
+```bash
 pnpm create next-app --example with-sfcc nextjs-sfcc-app
 ```
 
