@@ -1967,12 +1967,10 @@ export default async function getBaseWebpackConfig(
         (isClient
           ? new FlightManifestPlugin({
               dev,
-              fontLoaderTargets,
             })
           : new FlightClientEntryPlugin({
               dev,
               isEdgeServer,
-              fontLoaderTargets,
             })),
       !dev &&
         isClient &&
