@@ -1,6 +1,6 @@
 'use client'
 
-import { cookies } from 'next/dist/client/components/hooks-server'
+import { cookies } from 'next/headers'
 
 export default function Page() {
   // This should throw an error.

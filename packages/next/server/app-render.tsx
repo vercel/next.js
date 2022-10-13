@@ -83,6 +83,7 @@ const INTERNAL_COOKIES_INSTANCE = Symbol('internal for cookies readonly')
 function readonlyCookiesError() {
   return new Error('ReadonlyCookies cannot be modified')
 }
+
 class ReadonlyNextCookies {
   [INTERNAL_COOKIES_INSTANCE]: NextCookies
 
@@ -582,9 +583,8 @@ function getPreloadedFontFilesInlineLinkTags(
   const fontFiles = new Set<string>()
 
   for (const css of layoutOrPageCss) {
-    // We only include the CSS if it's a global CSS, or it is used by this
-    // entrypoint.
-    if (serverCSSForEntries.includes(css) || !/\.module\.css/.test(css)) {
+    // We only include the CSS if it is used by this entrypoint.
+    if (serverCSSForEntries.includes(css)) {
       const preloadedFontFiles = fontLoaderManifest.app[css]
       if (preloadedFontFiles) {
         for (const fontFile of preloadedFontFiles) {
@@ -1603,18 +1603,33 @@ export async function renderToHTMLOrFlight(
     (renderOpts as any).previewProps
   )
 
+  let cachedHeadersInstance: ReadonlyHeaders | undefined
+  let cachedCookiesInstance: ReadonlyNextCookies | undefined
+
   const requestStore = {
-    headers: new ReadonlyHeaders(headersWithoutFlight(req.headers)),
-    cookies: new ReadonlyNextCookies({
-      headers: {
-        get: (key) => {
-          if (key !== 'cookie') {
-            throw new Error('Only cookie header is supported')
-          }
-          return req.headers.cookie
-        },
-      },
-    }),
+    get headers() {
+      if (!cachedHeadersInstance) {
+        cachedHeadersInstance = new ReadonlyHeaders(
+          headersWithoutFlight(req.headers)
+        )
+      }
+      return cachedHeadersInstance
+    },
+    get cookies() {
+      if (!cachedCookiesInstance) {
+        cachedCookiesInstance = new ReadonlyNextCookies({
+          headers: {
+            get: (key) => {
+              if (key !== 'cookie') {
+                throw new Error('Only cookie header is supported')
+              }
+              return req.headers.cookie
+            },
+          },
+        })
+      }
+      return cachedCookiesInstance
+    },
     previewData,
   }
 
