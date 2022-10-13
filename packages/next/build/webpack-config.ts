@@ -151,13 +151,15 @@ export function getDefineEnv({
   middlewareMatchers?: MiddlewareMatcher[]
   config: NextConfigComplete
 }) {
+  const disablePublicEnvInlining =
+    isNodeServer && config.experimental.disableServerPublicEnvInlining
   return {
     // internal field to identify the plugin config
     __NEXT_DEFINE_ENV: 'true',
 
     ...Object.keys(process.env).reduce(
       (prev: { [key: string]: string }, key: string) => {
-        if (key.startsWith('NEXT_PUBLIC_')) {
+        if (key.startsWith('NEXT_PUBLIC_') && !disablePublicEnvInlining) {
           prev[`process.env.${key}`] = JSON.stringify(process.env[key]!)
         }
         return prev

@@ -99,6 +99,7 @@ export interface ExperimentalConfig {
   isrFlushToDisk?: boolean
   workerThreads?: boolean
   pageEnv?: boolean
+  disableServerPublicEnvInlining: boolean
   // optimizeCss can be boolean or critters' option object
   // Use Record<string, unknown> as critters doesn't export its Option type
   // https://github.com/GoogleChromeLabs/critters/blob/a590c05f9197b656d2aeaae9369df2483c26b072/packages/critters/src/index.d.ts
