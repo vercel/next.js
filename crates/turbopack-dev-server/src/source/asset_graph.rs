@@ -4,6 +4,7 @@ use std::{
 };
 
 use anyhow::Result;
+use indexmap::indexset;
 use turbo_tasks::{get_invalidator, Invalidator, Value, ValueToString};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
@@ -38,7 +39,7 @@ impl AssetGraphContentSourceVc {
     pub fn new_eager(root_path: FileSystemPathVc, root_asset: AssetVc) -> Self {
         Self::cell(AssetGraphContentSource {
             root_path,
-            root_assets: AssetsSetVc::cell([root_asset].into_iter().collect()),
+            root_assets: AssetsSetVc::cell(indexset! { root_asset }),
             state: None,
         })
     }
@@ -49,7 +50,7 @@ impl AssetGraphContentSourceVc {
     pub fn new_lazy(root_path: FileSystemPathVc, root_asset: AssetVc) -> Self {
         Self::cell(AssetGraphContentSource {
             root_path,
-            root_assets: AssetsSetVc::cell([root_asset].into_iter().collect()),
+            root_assets: AssetsSetVc::cell(indexset! { root_asset }),
             state: Some(Arc::new(Mutex::new(State {
                 expanded: HashSet::new(),
                 invalidator: None,
