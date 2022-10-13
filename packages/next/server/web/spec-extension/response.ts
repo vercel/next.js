@@ -7,6 +7,25 @@ import { NextCookies } from './cookies'
 const INTERNALS = Symbol('internal response')
 const REDIRECTS = new Set([301, 302, 303, 307, 308])
 
+function handleMiddlewareField(
+  init: MiddlewareResponseInit | undefined,
+  headers: Headers
+) {
+  if (init?.request?.headers) {
+    if (!(init.request.headers instanceof Headers)) {
+      throw new Error('request.headers must be an instance of Headers')
+    }
+
+    const keys = []
+    for (const [key, value] of init.request.headers) {
+      headers.set('x-middleware-request-' + key, value)
+      keys.push(key)
+    }
+
+    headers.set('x-middleware-override-headers', keys.join(','))
+  }
+}
+
 export class NextResponse extends Response {
   [INTERNALS]: {
     cookies: NextCookies
@@ -88,25 +107,6 @@ export class NextResponse extends Response {
 
     handleMiddlewareField(init, headers)
     return new NextResponse(null, { ...init, headers })
-  }
-}
-
-function handleMiddlewareField(
-  init: MiddlewareResponseInit | undefined,
-  headers: Headers
-) {
-  if (init?.request?.headers) {
-    if (!(init.request.headers instanceof Headers)) {
-      throw new Error('request.headers must be an instance of Headers')
-    }
-
-    const keys = []
-    for (const [key, value] of init.request.headers) {
-      headers.set('x-middleware-request-' + key, value)
-      keys.push(key)
-    }
-
-    headers.set('x-middleware-override-headers', keys.join(','))
   }
 }
 
