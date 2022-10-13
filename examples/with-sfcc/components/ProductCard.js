@@ -2,11 +2,13 @@ import Image from 'next/future/image'
 import Link from 'next/link'
 import { useState } from 'react'
 
+function cn(...classes) {
+  return classes.filter(Boolean).join(' ')
+}
+
 export default function ProductCard({ product }) {
   const [isLoading, setLoading] = useState(true)
-  function cn(...classes) {
-    return classes.filter(Boolean).join(' ')
-  }
+
   return (
     <Link href={`/products/${product.id}`}>
       <a className="group">
