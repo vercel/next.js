@@ -18,7 +18,7 @@ const pagePathCache = new LRUCache<string, string | null>({
   max: 1000,
 })
 
-export function getPagePath(
+export function getMaybePagePath(
   page: string,
   distDir: string,
   serverless: boolean,
@@ -88,7 +88,7 @@ export function getPagePath(
   return path
 }
 
-export function getPagePathOrThrow(
+export function getPagePath(
   page: string,
   distDir: string,
   serverless: boolean,
@@ -96,7 +96,7 @@ export function getPagePathOrThrow(
   locales?: string[],
   appDirEnabled?: boolean
 ): string {
-  const pagePath = getPagePath(
+  const pagePath = getMaybePagePath(
     page,
     distDir,
     serverless,
@@ -118,7 +118,7 @@ export function requirePage(
   serverless: boolean,
   appDirEnabled?: boolean
 ): any {
-  const pagePath = getPagePathOrThrow(
+  const pagePath = getPagePath(
     page,
     distDir,
     serverless,

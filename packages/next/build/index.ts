@@ -67,7 +67,7 @@ import loadConfig from '../server/config'
 import { isTargetLikeServerless } from '../server/utils'
 import { BuildManifest } from '../server/get-page-files'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
-import { getPagePathOrThrow } from '../server/require'
+import { getPagePath } from '../server/require'
 import * as ciEnvironment from '../telemetry/ci-info'
 import {
   eventBuildCompleted,
@@ -2145,11 +2145,7 @@ export default async function build(
 
           // remove server bundles that were exported
           for (const page of staticPages) {
-            const serverBundle = getPagePathOrThrow(
-              page,
-              distDir,
-              isLikeServerless
-            )
+            const serverBundle = getPagePath(page, distDir, isLikeServerless)
             await promises.unlink(serverBundle)
           }
 
@@ -2218,7 +2214,7 @@ export default async function build(
               .traceAsyncFn(async () => {
                 file = `${file}.${ext}`
                 const orig = path.join(exportOptions.outdir, file)
-                const pagePath = getPagePathOrThrow(
+                const pagePath = getPagePath(
                   originPage,
                   distDir,
                   isLikeServerless
