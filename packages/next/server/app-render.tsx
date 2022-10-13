@@ -582,9 +582,8 @@ function getPreloadedFontFilesInlineLinkTags(
   const fontFiles = new Set<string>()
 
   for (const css of layoutOrPageCss) {
-    // We only include the CSS if it's a global CSS, or it is used by this
-    // entrypoint.
-    if (serverCSSForEntries.includes(css) || !/\.module\.css/.test(css)) {
+    // We only include the CSS if it is used by this entrypoint.
+    if (serverCSSForEntries.includes(css)) {
       const preloadedFontFiles = fontLoaderManifest.app[css]
       if (preloadedFontFiles) {
         for (const fontFile of preloadedFontFiles) {
