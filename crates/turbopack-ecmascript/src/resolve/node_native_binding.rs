@@ -1,6 +1,5 @@
-use std::collections::HashSet;
-
 use anyhow::Result;
+use indexmap::IndexSet;
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -102,7 +101,7 @@ pub async fn resolve_node_pre_gyp_files(
                 let config_file_dir = config_file_path.parent();
                 let node_pre_gyp_config: NodePreGypConfigJson =
                     serde_json::from_slice(config_file.content())?;
-                let mut assets: HashSet<AssetVc> = HashSet::default();
+                let mut assets: IndexSet<AssetVc> = IndexSet::new();
                 for version in node_pre_gyp_config.binary.napi_versions.iter() {
                     let native_binding_path = NAPI_VERSION_TEMPLATE.replace(
                         node_pre_gyp_config.binary.module_path.as_str(),
@@ -239,7 +238,7 @@ pub async fn resolve_node_gyp_build_files(
                 if let Some(captured) =
                     GYP_BUILD_TARGET_NAME.captures(std::str::from_utf8(config_file.content())?)
                 {
-                    let mut resolved: HashSet<AssetVc> = HashSet::with_capacity(captured.len());
+                    let mut resolved: IndexSet<AssetVc> = IndexSet::with_capacity(captured.len());
                     for found in captured.iter().skip(1).flatten() {
                         let name = found.as_str();
                         let target_path = context.join("build").join("Release");
@@ -352,7 +351,7 @@ pub async fn resolve_node_bindings_files(
         }
         root_context = parent;
     }
-    let bindings_try: HashSet<AssetVc> = BINDINGS_TRY
+    let bindings_try: Vec<AssetVc> = BINDINGS_TRY
         .iter()
         .map(|try_dir| {
             SourceAssetVc::new(root_context.join(&format!("{}/{}", try_dir, &file_name))).into()
@@ -360,7 +359,7 @@ pub async fn resolve_node_bindings_files(
         .collect();
 
     Ok(ResolveResult::Alternatives(
-        bindings_try.into_iter().collect(),
+        bindings_try,
         vec![SourceAssetReferenceVc::new(
             SourceAssetVc::new(root_context).into(),
             Pattern::Concatenation(vec![Pattern::Dynamic, Pattern::Constant(file_name)]).into(),

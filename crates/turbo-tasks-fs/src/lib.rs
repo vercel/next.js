@@ -873,6 +873,10 @@ impl FileSystemPathVc {
         self.fs().read(self).parse_json()
     }
 
+    /// Reads content of a directory.
+    ///
+    /// DETERMINISM: Result is in random order. Either sort result or do not
+    /// depend on the order.
     #[turbo_tasks::function]
     pub async fn read_dir(self) -> DirectoryContentVc {
         self.fs().read_dir(self)

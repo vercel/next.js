@@ -1,6 +1,5 @@
-use std::collections::HashMap;
-
 use anyhow::Result;
+use indexmap::IndexMap;
 use swc_core::{
     ecma::ast::{Expr, Lit},
     quote,
@@ -38,7 +37,7 @@ pub(crate) enum PatternMapping {
     /// ```js
     /// require(`./images/${name}.png`)
     /// ```
-    Map(HashMap<String, ModuleId>),
+    Map(IndexMap<String, ModuleId>),
     /// Original reference
     OriginalReferenceExternal,
     /// Original reference with different request

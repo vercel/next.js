@@ -249,7 +249,8 @@ async fn create_server_rendered_source_for_directory(
     let mut predefined_sources = vec![];
     let mut named_placeholder_sources = vec![];
     let mut catch_all_sources = vec![];
-    if let DirectoryContent::Entries(entries) = &*input_dir.read_dir().await? {
+    let dir_content = input_dir.read_dir().await?;
+    if let DirectoryContent::Entries(entries) = &*dir_content {
         for (name, entry) in entries.iter() {
             let sources = if name.starts_with("[[") || name.starts_with("[...") {
                 &mut catch_all_sources
@@ -260,28 +261,31 @@ async fn create_server_rendered_source_for_directory(
             };
             match entry {
                 DirectoryEntry::File(file) => {
-                    if let Some((name, extension)) = name.rsplit_once('.') {
+                    if let Some((basename, extension)) = name.rsplit_once('.') {
                         match extension {
                             // pageExtensions option from next.js
                             // defaults: https://github.com/vercel/next.js/blob/611e13f5159457fedf96d850845650616a1f75dd/packages/next/server/config-shared.ts#L499
                             "js" | "ts" | "jsx" | "tsx" => {
-                                let (dev_server_path, intermediate_output_path) = if name == "index"
-                                {
-                                    (server_path.join("index.html"), intermediate_output_path)
-                                } else {
-                                    (
-                                        server_path.join(name).join("index.html"),
-                                        intermediate_output_path.join(name),
-                                    )
-                                };
-                                sources.push(create_server_rendered_source_for_file(
-                                    context_path,
-                                    context,
-                                    *file,
-                                    runtime_entries,
-                                    server_root,
-                                    dev_server_path,
-                                    intermediate_output_path,
+                                let (dev_server_path, intermediate_output_path) =
+                                    if basename == "index" {
+                                        (server_path.join("index.html"), intermediate_output_path)
+                                    } else {
+                                        (
+                                            server_path.join(basename).join("index.html"),
+                                            intermediate_output_path.join(basename),
+                                        )
+                                    };
+                                sources.push((
+                                    name,
+                                    create_server_rendered_source_for_file(
+                                        context_path,
+                                        context,
+                                        *file,
+                                        runtime_entries,
+                                        server_root,
+                                        dev_server_path,
+                                        intermediate_output_path,
+                                    ),
                                 ));
                             }
                             _ => {}
@@ -289,7 +293,8 @@ async fn create_server_rendered_source_for_directory(
                     }
                 }
                 DirectoryEntry::Directory(dir) => {
-                    sources.push(
+                    sources.push((
+                        name,
                         create_server_rendered_source_for_directory(
                             context_path,
                             context,
@@ -300,17 +305,23 @@ async fn create_server_rendered_source_for_directory(
                             intermediate_output_path.join(name),
                         )
                         .into(),
-                    );
+                    ));
                 }
                 _ => {}
             }
         }
     }
-    let mut ordered_sources = predefined_sources;
-    ordered_sources.append(&mut named_placeholder_sources);
-    ordered_sources.append(&mut catch_all_sources);
+    predefined_sources.sort_by_key(|(k, _)| *k);
+    named_placeholder_sources.sort_by_key(|(k, _)| *k);
+    catch_all_sources.sort_by_key(|(k, _)| *k);
+
     Ok(CombinedContentSource {
-        sources: ordered_sources,
+        sources: predefined_sources
+            .into_iter()
+            .chain(named_placeholder_sources.into_iter())
+            .chain(catch_all_sources.into_iter())
+            .map(|(_, v)| v)
+            .collect(),
     }
     .cell())
 }

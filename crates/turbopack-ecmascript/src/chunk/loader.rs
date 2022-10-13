@@ -1,6 +1,7 @@
-use std::{collections::HashSet, fmt::Write as FmtWrite};
+use std::fmt::Write as FmtWrite;
 
 use anyhow::{anyhow, Result};
+use indexmap::IndexSet;
 use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
@@ -245,7 +246,7 @@ impl EcmascriptChunkItem for ManifestChunkItem {
     async fn content(&self) -> Result<EcmascriptChunkItemContentVc> {
         let chunks = self.manifest.chunks().await?;
 
-        let mut chunk_ids = HashSet::new();
+        let mut chunk_ids = IndexSet::new();
         for chunk in chunks.iter() {
             // The "id" in this case is the chunk's id, not the chunk item's id. The
             // difference is a chunk is a file served by the dev server, and an

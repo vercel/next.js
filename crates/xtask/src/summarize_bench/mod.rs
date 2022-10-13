@@ -1,7 +1,7 @@
 pub(crate) mod data;
 
 use std::{
-    collections::{hash_map::Entry, BTreeMap, HashMap, HashSet},
+    collections::{hash_map::Entry, BTreeMap, HashMap},
     convert::{TryFrom, TryInto},
     fs::File,
     path::{Path, PathBuf},
@@ -10,6 +10,7 @@ use std::{
 
 use anyhow::{anyhow, Context};
 use chrono::{DateTime, Utc};
+use indexmap::IndexSet;
 use walkdir::WalkDir;
 
 use self::data::Benchmark;
@@ -143,7 +144,7 @@ pub fn process_all(path: PathBuf) {
             let all_benchmark_keys = items
                 .iter()
                 .flat_map(|b| b.benchmarks.keys())
-                .collect::<HashSet<_>>();
+                .collect::<IndexSet<_>>();
             for key in all_benchmark_keys {
                 let (ts, bench) = items
                     .iter()

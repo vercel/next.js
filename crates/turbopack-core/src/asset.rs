@@ -1,6 +1,5 @@
-use std::collections::HashSet;
-
 use anyhow::Result;
+use indexmap::IndexSet;
 use turbo_tasks::CompletionVc;
 use turbo_tasks_fs::{
     FileContent, FileContentVc, FileJsonContent, FileJsonContentVc, FileLinesContent,
@@ -19,7 +18,7 @@ pub struct Assets(Vec<AssetVc>);
 
 /// A set of [Asset]s
 #[turbo_tasks::value(shared, transparent)]
-pub struct AssetsSet(HashSet<AssetVc>);
+pub struct AssetsSet(IndexSet<AssetVc>);
 
 #[turbo_tasks::value_impl]
 impl AssetsVc {

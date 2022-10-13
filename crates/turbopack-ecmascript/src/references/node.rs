@@ -1,6 +1,7 @@
-use std::{collections::HashSet, future::Future, pin::Pin};
+use std::{future::Future, pin::Pin};
 
 use anyhow::Result;
+use indexmap::IndexSet;
 use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::{
     DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc, FileSystemVc,
@@ -74,7 +75,7 @@ impl AssetReference for DirAssetReference {
         }
         let context = self.source.path().parent();
         let pat = self.path.await?;
-        let mut result = HashSet::default();
+        let mut result = IndexSet::default();
         let fs = context.fs();
         match &*pat {
             Pattern::Constant(p) => {
@@ -109,7 +110,7 @@ impl ValueToString for DirAssetReference {
 async fn extend_with_constant_pattern(
     pattern: &str,
     fs: FileSystemVc,
-    result: &mut HashSet<AssetVc>,
+    result: &mut IndexSet<AssetVc>,
 ) -> Result<()> {
     let dest_file_path = FileSystemPathVc::new(fs, pattern.trim_start_matches("/ROOT/"));
     // ignore error
@@ -140,11 +141,13 @@ async fn extend_with_constant_pattern(
     Ok(())
 }
 
-async fn read_dir(p: FileSystemPathVc) -> Result<HashSet<AssetVc>> {
-    let mut result = HashSet::default();
+async fn read_dir(p: FileSystemPathVc) -> Result<IndexSet<AssetVc>> {
+    let mut result = IndexSet::new();
     let dir_entries = p.read_dir().await?;
     if let DirectoryContent::Entries(entries) = &*dir_entries {
-        for (_, entry) in entries.iter() {
+        let mut entries = entries.iter().collect::<Vec<_>>();
+        entries.sort_by_key(|(k, _)| *k);
+        for (_, entry) in entries {
             match entry {
                 DirectoryEntry::File(file) => {
                     result.insert(SourceAssetVc::new(*file).into());
@@ -162,6 +165,6 @@ async fn read_dir(p: FileSystemPathVc) -> Result<HashSet<AssetVc>> {
 
 fn read_dir_boxed(
     p: FileSystemPathVc,
-) -> Pin<Box<dyn Future<Output = Result<HashSet<AssetVc>>> + Send>> {
+) -> Pin<Box<dyn Future<Output = Result<IndexSet<AssetVc>>> + Send>> {
     Box::pin(read_dir(p))
 }

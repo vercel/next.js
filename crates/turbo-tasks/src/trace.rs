@@ -6,7 +6,7 @@ use std::{
     time::Duration,
 };
 
-use indexmap::IndexMap;
+use indexmap::{IndexMap, IndexSet};
 
 use crate::RawVc;
 
@@ -123,6 +123,14 @@ impl<T: TraceRawVcs> TraceRawVcs for HashSet<T> {
 }
 
 impl<T: TraceRawVcs> TraceRawVcs for BTreeSet<T> {
+    fn trace_raw_vcs(&self, context: &mut TraceRawVcsContext) {
+        for item in self.iter() {
+            TraceRawVcs::trace_raw_vcs(item, context);
+        }
+    }
+}
+
+impl<T: TraceRawVcs> TraceRawVcs for IndexSet<T> {
     fn trace_raw_vcs(&self, context: &mut TraceRawVcsContext) {
         for item in self.iter() {
             TraceRawVcs::trace_raw_vcs(item, context);
