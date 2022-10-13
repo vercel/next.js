@@ -1,4 +1,4 @@
-// import { usePathname } from 'next/dist/client/components/hooks-client'
+// import { usePathname } from 'next/navigation'
 
 export default function Page() {
   // This should throw an error.

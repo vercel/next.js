@@ -19,7 +19,7 @@ import {
 import type { DispatchFn } from './client'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import formatWebpackMessages from '../../dev/error-overlay/format-webpack-messages'
-import { useRouter } from '../hooks-client'
+import { useRouter } from '../navigation'
 import { errorOverlayReducer } from './internal/error-overlay-reducer'
 
 function getSocketProtocol(assetPrefix: string): string {
