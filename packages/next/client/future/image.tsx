@@ -267,7 +267,7 @@ function handleLoading(
     if (placeholder === 'blur') {
       setBlurComplete(true)
     }
-    if (onLoadRef.current) {
+    if (onLoadRef?.current) {
       const event = new Event('load')
       Object.defineProperty(event, 'target', { writable: false, value: img })
       let prevented = false
