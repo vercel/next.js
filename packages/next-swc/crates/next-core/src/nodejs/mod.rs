@@ -5,7 +5,7 @@ use std::{
 
 use anyhow::{anyhow, Result};
 use futures::{stream::FuturesUnordered, TryStreamExt};
-use indexmap::IndexMap;
+use indexmap::{IndexMap, IndexSet};
 use mime::TEXT_HTML_UTF_8;
 pub use node_rendered_source::{create_node_rendered_source, NodeRenderer, NodeRendererVc};
 use serde_json::Value as JsonValue;
@@ -125,8 +125,10 @@ async fn separate_assets(
     };
     queue.push(process_asset(intermediate_asset));
     let mut processed = HashSet::new();
-    let mut internal_assets = HashSet::new();
-    let mut external_asset_entrypoints = HashSet::new();
+    let mut internal_assets = IndexSet::new();
+    let mut external_asset_entrypoints = IndexSet::new();
+    // TODO(sokra) This is not deterministic, since it's using FuturesUnordered.
+    // This need to be fixed!
     while let Some(item) = queue.try_next().await? {
         match item {
             Type::Internal(asset, assets) => {
