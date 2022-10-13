@@ -48,7 +48,7 @@ type ImageLoaderPropsWithConfig = ImageLoaderProps & {
 }
 
 type PlaceholderValue = 'blur' | 'empty'
-
+type OnLoad = React.ReactEventHandler<HTMLImageElement> | undefined
 type OnLoadingComplete = (img: HTMLImageElement) => void
 
 type ImgElementStyle = NonNullable<JSX.IntrinsicElements['img']['style']>
@@ -128,6 +128,7 @@ type ImageElementProps = Omit<ImageProps, 'src' | 'alt' | 'loader'> & {
   unoptimized: boolean
   loader: ImageLoaderWithConfig
   placeholder: PlaceholderValue
+  onLoadRef: React.MutableRefObject<OnLoad | undefined>
   onLoadingCompleteRef: React.MutableRefObject<OnLoadingComplete | undefined>
   setBlurComplete: (b: boolean) => void
   setShowAltText: (b: boolean) => void
@@ -245,6 +246,7 @@ function handleLoading(
   img: ImgElementWithDataProp,
   src: string,
   placeholder: PlaceholderValue,
+  onLoadRef: React.MutableRefObject<OnLoad | undefined>,
   onLoadingCompleteRef: React.MutableRefObject<OnLoadingComplete | undefined>,
   setBlurComplete: (b: boolean) => void
 ) {
@@ -264,6 +266,30 @@ function handleLoading(
     }
     if (placeholder === 'blur') {
       setBlurComplete(true)
+    }
+    if (onLoadRef?.current) {
+      const event = new Event('load')
+      Object.defineProperty(event, 'target', { writable: false, value: img })
+      let prevented = false
+      let stopped = false
+      const sytheticEvent = {
+        ...event,
+        nativeEvent: event,
+        currentTarget: img,
+        target: img,
+        isDefaultPrevented: () => prevented,
+        isPropagationStopped: () => stopped,
+        persist: () => {},
+        preventDefault: () => {
+          prevented = true
+          event.preventDefault()
+        },
+        stopPropagation: () => {
+          stopped = true
+          event.stopPropagation()
+        },
+      }
+      onLoadRef.current(sytheticEvent)
     }
     if (onLoadingCompleteRef?.current) {
       onLoadingCompleteRef.current(img)
@@ -331,6 +357,7 @@ const ImageElement = ({
   config,
   unoptimized,
   loader,
+  onLoadRef,
   onLoadingCompleteRef,
   setBlurComplete,
   setShowAltText,
@@ -397,6 +424,7 @@ const ImageElement = ({
                 img,
                 srcString,
                 placeholder,
+                onLoadRef,
                 onLoadingCompleteRef,
                 setBlurComplete
               )
@@ -405,6 +433,7 @@ const ImageElement = ({
           [
             srcString,
             placeholder,
+            onLoadRef,
             onLoadingCompleteRef,
             setBlurComplete,
             onError,
@@ -416,12 +445,10 @@ const ImageElement = ({
             img,
             srcString,
             placeholder,
+            onLoadRef,
             onLoadingCompleteRef,
             setBlurComplete
           )
-          if (onLoad) {
-            onLoad(event)
-          }
         }}
         onError={(event) => {
           // if the real image fails to load, this will ensure "alt" is visible
@@ -515,6 +542,7 @@ export default function Image({
   height,
   fill,
   style,
+  onLoad,
   onLoadingComplete,
   placeholder = 'empty',
   blurDataURL,
@@ -837,6 +865,12 @@ export default function Image({
     crossOrigin: rest.crossOrigin,
   }
 
+  const onLoadRef = useRef(onLoad)
+
+  useEffect(() => {
+    onLoadRef.current = onLoad
+  }, [onLoad])
+
   const onLoadingCompleteRef = useRef(onLoadingComplete)
 
   useEffect(() => {
@@ -859,6 +893,7 @@ export default function Image({
     placeholder,
     loader,
     srcString,
+    onLoadRef,
     onLoadingCompleteRef,
     setBlurComplete,
     setShowAltText,
