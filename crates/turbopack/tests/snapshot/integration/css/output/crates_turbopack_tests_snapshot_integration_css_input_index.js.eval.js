@@ -16,6 +16,7 @@ console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$
 "[project]/crates/turbopack/tests/snapshot/integration/css/input/style.module.css (css module)": (({ r: __turbopack_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
 
 __turbopack_export_value__({
+  "inner": "inner◽[project]/crates/turbopack/tests/snapshot/integration/css/input/style.module.css",
   "module-style": "module-style◽[project]/crates/turbopack/tests/snapshot/integration/css/input/style.module.css",
 });
 
@@ -713,4 +714,4 @@ __turbopack_export_value__({
 })();
 
 
-//# sourceMappingURL=crates_turbopack_tests_snapshot_integration_css_input_index.js.eval.js.bec61418999fb05d.map
+//# sourceMappingURL=crates_turbopack_tests_snapshot_integration_css_input_index.js.eval.js.2c0fa7fbb728389c.map

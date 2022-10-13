@@ -63,18 +63,20 @@ impl ImportAttributes {
     }
 
     pub fn print_block(&self) -> Result<(String, usize, String)> {
-        let token = |token| TokenAndSpan {
-            span: DUMMY_SP,
-            token,
-        };
+        fn token(token: Token) -> TokenAndSpan {
+            TokenAndSpan {
+                span: DUMMY_SP,
+                token,
+            }
+        }
 
         // something random that's never gonna be in real css
-        let mut rule = Rule::Invalid(Tokens {
+        let mut rule = Rule::ListOfComponentValues(box ListOfComponentValues {
             span: DUMMY_SP,
-            tokens: vec![token(Token::String {
+            children: vec![ComponentValue::PreservedToken(token(Token::String {
                 value: Default::default(),
                 raw: r#""""__turbopack_placeholder__""""#.into(),
-            })],
+            }))],
         });
         let mut indent = 0;
 
@@ -89,7 +91,7 @@ impl ImportAttributes {
                 prelude: Some(box prelude),
                 block: Some(SimpleBlock {
                     span: DUMMY_SP,
-                    name: '{',
+                    name: token(Token::LBrace),
                     value: vec![ComponentValue::Rule(inner_rule)],
                 }),
             })

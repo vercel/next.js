@@ -92,7 +92,11 @@ async fn parse_content(
 
     let fm = source_map.new_source_file(FileName::Custom(fs_path_str.to_string()), string);
 
-    let config = ParserConfig::default();
+    let config = ParserConfig {
+        css_modules: matches!(ty, CssModuleAssetType::Module),
+        legacy_nesting: true,
+        ..Default::default()
+    };
 
     let mut errors = Vec::new();
     let mut parsed_stylesheet = match parse_file::<Stylesheet>(&fm, config, &mut errors) {

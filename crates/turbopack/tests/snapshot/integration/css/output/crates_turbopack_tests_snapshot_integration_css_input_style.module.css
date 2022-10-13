@@ -3,3 +3,7 @@
 .module-style◽\[project\]\/crates\/turbopack\/tests\/snapshot\/integration\/css\/input\/style\.module\.css {
   color: magenta;
 }
+.module-style◽\[project\]\/crates\/turbopack\/tests\/snapshot\/integration\/css\/input\/style\.module\.css > h1, 
+.module-style◽\[project\]\/crates\/turbopack\/tests\/snapshot\/integration\/css\/input\/style\.module\.css + .inner◽\[project\]\/crates\/turbopack\/tests\/snapshot\/integration\/css\/input\/style\.module\.css {
+  background: purple;
+}
