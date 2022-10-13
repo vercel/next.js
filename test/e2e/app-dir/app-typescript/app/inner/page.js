@@ -5,6 +5,7 @@ export default function Page() {
 // export const not_used = 1
 
 // export const dynamic = 'auto'
-// export const config = {
-//   dynamic: 'auto',
-// }
+
+export const config = {
+  runtime: 'nodejs',
+}

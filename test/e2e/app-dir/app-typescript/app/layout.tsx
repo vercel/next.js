@@ -1,22 +1,12 @@
-import { experimental_use as use } from 'react'
-
 export const config = {
-  revalidate: 'foo',
-}
-
-async function getData() {
-  return {
-    world: 'world',
-  }
+  foo: 1,
 }
 
 export default function Root({ children }) {
-  const { world } = use(getData())
-
   return (
     <html className="this-is-the-document-html">
       <head>
-        <title>{`hello ${world}`}</title>
+        <title>Hello</title>
       </head>
       <body className="this-is-the-document-body">{children}</body>
     </html>

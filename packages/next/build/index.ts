@@ -172,7 +172,8 @@ function verifyTypeScriptSetup(
   disableStaticImages: boolean,
   cacheDir: string | undefined,
   numWorkers: number | undefined,
-  enableWorkerThreads: boolean | undefined
+  enableWorkerThreads: boolean | undefined,
+  isAppDirEnabled: boolean
 ) {
   const typeCheckWorker = new JestWorker(
     require.resolve('../lib/verifyTypeScriptSetup'),
@@ -196,6 +197,7 @@ function verifyTypeScriptSetup(
       tsconfigPath,
       disableStaticImages,
       cacheDir,
+      isAppDirEnabled,
     })
     .then((result) => {
       typeCheckWorker.end()
@@ -381,7 +383,8 @@ export default async function build(
                   config.images.disableStaticImages,
                   cacheDir,
                   config.experimental.cpus,
-                  config.experimental.workerThreads
+                  config.experimental.workerThreads,
+                  isAppDirEnabled
                 ).then((resolved) => {
                   const checkEnd = process.hrtime(typeCheckStart)
                   return [resolved, checkEnd] as const

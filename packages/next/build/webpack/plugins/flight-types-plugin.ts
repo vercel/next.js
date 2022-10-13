@@ -48,7 +48,8 @@ export class FlightTypesPlugin {
       )
 
       if (IS_LAYOUT) {
-        assets[assetPath] = new sources.RawSource(`
+        assets[assetPath] = new sources.RawSource(
+          `// File: ${mod.resource}
 import * as Self from '${relativeImportPath}'
 
 type Impossible<K extends keyof any> = {
@@ -62,11 +63,17 @@ check<Layout, typeof Self>(Self)
 interface Layout {
   default:({ children }: { children: any; }) => JSX.Element
   config?: {
-    revalidate?: number;
+    revalidate?: number | boolean;
+    dynamic?: string;
+    dynamicParams?: boolean;
+    fetchCache?: string;
+    preferredRegion?: string;
   }
-}`) as unknown as webpack.sources.RawSource
+}`
+        ) as unknown as webpack.sources.RawSource
       } else if (IS_PAGE) {
-        assets[assetPath] = new sources.RawSource(`
+        assets[assetPath] = new sources.RawSource(
+          `// File: ${mod.resource}
 import * as Self from '${relativeImportPath}'
 
 type Impossible<K extends keyof any> = {
@@ -80,11 +87,16 @@ check<Page, typeof Self>(Self)
 interface Page {
   default:() => JSX.Element
   config?: {
-    revalidate?: number;
-    runtime?: 'nodejs' | 'experimental-edge';
+    revalidate?: number | boolean;
+    dynamic?: string;
+    dynamicParams?: boolean;
+    fetchCache?: string;
+    preferredRegion?: string;
+    runtime?: string;
   }
 }
-`) as unknown as webpack.sources.RawSource
+`
+        ) as unknown as webpack.sources.RawSource
       }
     }
 
