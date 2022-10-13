@@ -863,6 +863,16 @@ export default async function getBaseWebpackConfig(
       // let this alias hit before `next` alias.
       ...(isEdgeServer
         ? {
+            // app-router-context can not be ESM and CJS so force CJS
+            'next/dist/shared/lib/app-router-context': path.join(
+              __dirname,
+              '../dist/shared/lib/app-router-context.js'
+            ),
+            'next/dist/client/components': path.join(
+              __dirname,
+              '../client/components'
+            ),
+
             'next/dist/client': 'next/dist/esm/client',
             'next/dist/shared': 'next/dist/esm/shared',
             'next/dist/pages': 'next/dist/esm/pages',
