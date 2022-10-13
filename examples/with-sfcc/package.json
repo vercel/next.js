@@ -1,5 +1,4 @@
 {
-  "name": "sfdc-nextjs-app",
   "private": true,
   "scripts": {
     "dev": "next dev",
