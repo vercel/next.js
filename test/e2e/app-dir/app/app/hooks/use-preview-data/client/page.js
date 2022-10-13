@@ -1,6 +1,6 @@
 'use client'
 
-import { previewData } from 'next/dist/client/components/hooks-server'
+import { previewData } from 'next/headers'
 
 export default function Page() {
   // This should throw an error.
