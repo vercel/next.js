@@ -1,6 +1,6 @@
 'use client'
 
-import { headers } from 'next/dist/client/components/hooks-server'
+import { headers } from 'next/headers'
 
 export default function Page() {
   // This should throw an error.

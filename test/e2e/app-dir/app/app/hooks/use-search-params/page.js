@@ -1,6 +1,6 @@
 'use client'
 
-import { useSearchParams } from 'next/dist/client/components/hooks-client'
+import { useSearchParams } from 'next/navigation'
 
 export default function Page() {
   const params = useSearchParams()
