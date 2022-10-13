@@ -52,7 +52,7 @@ describe('getInitialProps', () => {
     runTests()
   })
 
-  describe('serverless mode', () => {
+  describe.skip('serverless mode', () => {
     beforeAll(async () => {
       await nextConfig.replace('// replace me', `target: 'serverless', `)
       await nextBuild(appDir)

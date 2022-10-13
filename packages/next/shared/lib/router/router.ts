@@ -1187,7 +1187,7 @@ export default class Router implements BaseRouter {
     // hydration. Your app should _never_ use this property. It may change at
     // any time without notice.
     const isQueryUpdating = (options as any)._h
-    const shouldResolveHref =
+    let shouldResolveHref =
       isQueryUpdating ||
       (options as any)._shouldResolveHref ||
       parsePath(url).pathname === parsePath(as).pathname
@@ -1416,6 +1416,10 @@ export default class Router implements BaseRouter {
 
     if (options.shallow && isMiddlewareMatch) {
       pathname = this.pathname
+    }
+
+    if (isQueryUpdating && isMiddlewareMatch) {
+      shouldResolveHref = false
     }
 
     if (shouldResolveHref && pathname !== '/_error') {
@@ -1955,12 +1959,14 @@ export default class Router implements BaseRouter {
         isBackground: isQueryUpdating,
       }
 
-      const data = await withMiddlewareEffects({
-        fetchData: () => fetchNextData(fetchNextDataParams),
-        asPath: resolvedAs,
-        locale: locale,
-        router: this,
-      })
+      const data = isQueryUpdating
+        ? ({} as any)
+        : await withMiddlewareEffects({
+            fetchData: () => fetchNextData(fetchNextDataParams),
+            asPath: resolvedAs,
+            locale: locale,
+            router: this,
+          })
 
       if (isQueryUpdating && data) {
         data.json = self.__NEXT_DATA__.props
@@ -2079,7 +2085,8 @@ export default class Router implements BaseRouter {
       if (
         !this.isPreview &&
         routeInfo.__N_SSG &&
-        process.env.NODE_ENV !== 'development'
+        process.env.NODE_ENV !== 'development' &&
+        !isQueryUpdating
       ) {
         fetchNextData(
           Object.assign({}, fetchNextDataParams, {

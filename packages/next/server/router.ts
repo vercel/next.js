@@ -7,7 +7,11 @@ import type {
 } from '../shared/lib/router/utils/route-matcher'
 import type { RouteHas } from '../lib/load-custom-routes'
 
-import { getNextInternalQuery, NextUrlWithParsedQuery } from './request-meta'
+import {
+  addRequestMeta,
+  getNextInternalQuery,
+  NextUrlWithParsedQuery,
+} from './request-meta'
 import { getPathMatch } from '../shared/lib/router/utils/path-match'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
@@ -189,7 +193,11 @@ export default class Router {
       ...(middlewareCatchAllRoute
         ? this.fsRoutes
             .filter((route) => route.name === '_next/data catchall')
-            .map((route) => ({ ...route, check: false }))
+            .map((route) => ({
+              ...route,
+              name: '_next/data normalizing',
+              check: false,
+            }))
         : []),
       ...this.headers,
       ...this.redirects,
@@ -433,6 +441,11 @@ export default class Router {
         }
 
         if (params) {
+          const isNextDataNormalizing = route.name === '_next/data normalizing'
+
+          if (isNextDataNormalizing) {
+            addRequestMeta(req, '_nextDataNormalizing', true)
+          }
           parsedUrlUpdated.pathname = matchPathname
           const result = await route.fn(
             req,
@@ -441,6 +454,10 @@ export default class Router {
             parsedUrlUpdated,
             upgradeHead
           )
+
+          if (isNextDataNormalizing) {
+            addRequestMeta(req, '_nextDataNormalizing', false)
+          }
           if (result.finished) {
             return true
           }

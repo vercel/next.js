@@ -79,6 +79,9 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  dangerouslyAllowMiddlewareResponseBody?: boolean
+  skipMiddlewareUrlNormalize?: boolean
+  skipTrailingSlashRedirect?: boolean
   optimisticClientCache?: boolean
   legacyBrowsers?: boolean
   browsersListForSwc?: boolean
@@ -157,7 +160,7 @@ export interface ExperimentalConfig {
   // A list of packages that should be treated as external in the RSC server build
   serverComponentsExternalPackages?: string[]
 
-  fontLoaders?: { [fontLoader: string]: any }
+  fontLoaders?: [{ loader: string; options?: any }]
 
   webVitalsAttribution?: Array<typeof WEB_VITALS[number]>
 }

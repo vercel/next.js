@@ -36,7 +36,7 @@ describe('Auto Export _error bail', () => {
     runTests()
   })
 
-  describe('serverless mode', () => {
+  describe.skip('serverless mode', () => {
     beforeAll(() =>
       fs.writeFile(
         nextConfig,

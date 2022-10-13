@@ -23,21 +23,27 @@ function findDir(dir: string, name: 'pages' | 'app'): string | null {
 
 export function findPagesDir(
   dir: string,
-  appDirEnabled?: boolean
-): { pages: string | undefined; appDir: string | undefined } {
+  isAppDirEnabled: boolean
+): {
+  pagesDir: string | undefined
+  appDir: string | undefined
+} {
   const pagesDir = findDir(dir, 'pages') || undefined
   let appDir: undefined | string
 
-  if (appDirEnabled) {
+  if (isAppDirEnabled) {
     appDir = findDir(dir, 'app') || undefined
-    if (appDirEnabled == null && pagesDir == null) {
-      throw new Error(
-        "> Couldn't find any `pages` or `app` directory. Please create one under the project root"
-      )
-    }
+  }
+  const hasAppDir =
+    !!appDir && fs.existsSync(appDir) && fs.statSync(appDir).isDirectory()
+
+  if (hasAppDir && appDir == null && pagesDir == null) {
+    throw new Error(
+      "> Couldn't find any `pages` or `app` directory. Please create one under the project root"
+    )
   }
 
-  if (!appDirEnabled) {
+  if (!isAppDirEnabled) {
     if (pagesDir == null) {
       throw new Error(
         "> Couldn't find a `pages` directory. Please create one under the project root"
@@ -46,7 +52,7 @@ export function findPagesDir(
   }
 
   return {
-    pages: pagesDir,
+    pagesDir,
     appDir,
   }
 }

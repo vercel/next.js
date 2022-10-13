@@ -1,4 +1,4 @@
-'client'
+'use client'
 
 import { useSearchParams } from 'next/dist/client/components/hooks-client'
 

@@ -20,8 +20,8 @@ describe('with babel', () => {
     next = await createNext({
       files: new FileRef(path.join(__dirname, 'with-babel')),
       dependencies: {
-        react: '0.0.0-experimental-cb5084d1c-20220924',
-        'react-dom': '0.0.0-experimental-cb5084d1c-20220924',
+        react: 'experimental',
+        'react-dom': 'experimental',
       },
     })
   })

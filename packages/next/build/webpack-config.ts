@@ -33,9 +33,9 @@ import { execOnce } from '../shared/lib/utils'
 import { NextConfigComplete } from '../server/config-shared'
 import { finalizeEntrypoint } from './entries'
 import * as Log from './output/log'
-import { build as buildConfiguration } from './webpack/config'
+import { buildConfiguration } from './webpack/config'
 import MiddlewarePlugin, {
-  handleWebpackExtenalForEdgeRuntime,
+  handleWebpackExternalForEdgeRuntime,
 } from './webpack/plugins/middleware-plugin'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import { JsConfigPathsPlugin } from './webpack/plugins/jsconfig-paths-plugin'
@@ -253,6 +253,12 @@ export function getDefineEnv({
     'process.env.__NEXT_I18N_SUPPORT': JSON.stringify(!!config.i18n),
     'process.env.__NEXT_I18N_DOMAINS': JSON.stringify(config.i18n?.domains),
     'process.env.__NEXT_ANALYTICS_ID': JSON.stringify(config.analyticsId),
+    'process.env.__NEXT_ALLOW_MIDDLEWARE_RESPONSE_BODY': JSON.stringify(
+      config.experimental.dangerouslyAllowMiddlewareResponseBody
+    ),
+    'process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE': JSON.stringify(
+      config.experimental.skipMiddlewareUrlNormalize
+    ),
     'process.env.__NEXT_HAS_WEB_VITALS_ATTRIBUTION': JSON.stringify(
       config.experimental.webVitalsAttribution &&
         config.experimental.webVitalsAttribution.length > 0
@@ -560,6 +566,10 @@ export default async function getBaseWebpackConfig(
     rewrites.afterFiles.length > 0 ||
     rewrites.fallback.length > 0
 
+  const hasAppDir = !!config.experimental.appDir && !!appDir
+  const hasConcurrentFeatures = hasReactRoot
+  const hasServerComponents = hasAppDir
+
   // Only error in first one compiler (client) once
   if (isClient) {
     if (!hasReactRoot) {
@@ -568,7 +578,7 @@ export default async function getBaseWebpackConfig(
           '`experimental.runtime` requires React 18 to be installed.'
         )
       }
-      if (config.experimental.appDir) {
+      if (hasAppDir) {
         throw new Error(
           '`experimental.appDir` requires React 18 to be installed.'
         )
@@ -576,8 +586,6 @@ export default async function getBaseWebpackConfig(
     }
   }
 
-  const hasConcurrentFeatures = hasReactRoot
-  const hasServerComponents = !!config.experimental.appDir
   const disableOptimizedLoading = hasConcurrentFeatures
     ? true
     : config.experimental.disableOptimizedLoading
@@ -641,6 +649,16 @@ export default async function getBaseWebpackConfig(
     loggedIgnoredCompilerOptions = true
   }
 
+  if (babelConfigFile && config.experimental.fontLoaders) {
+    Log.error(
+      `"experimental.fontLoaders" is enabled which requires SWC although Babel is being used due to custom babel config being present "${path.relative(
+        dir,
+        babelConfigFile
+      )}".\nSee more info here: https://nextjs.org/docs/messages/babel-font-loader-conflict`
+    )
+    process.exit(1)
+  }
+
   const getBabelLoader = () => {
     return {
       loader: require.resolve('./babel/loader/index'),
@@ -651,6 +669,7 @@ export default async function getBaseWebpackConfig(
         pagesDir,
         cwd: dir,
         development: dev,
+        hasServerComponents,
         hasReactRefresh: dev && isClient,
         hasJsxRuntime: true,
       },
@@ -679,6 +698,7 @@ export default async function getBaseWebpackConfig(
         isServer: isNodeServer || isEdgeServer,
         rootDir: dir,
         pagesDir,
+        hasServerComponents,
         hasReactRefresh: dev && isClient,
         fileReading: config.experimental.swcFileReading,
         nextConfig: config,
@@ -742,7 +762,7 @@ export default async function getBaseWebpackConfig(
               )
             )
             .replace(/\\/g, '/'),
-        ...(config.experimental.appDir
+        ...(hasAppDir
           ? {
               [CLIENT_STATIC_FILES_RUNTIME_MAIN_APP]: dev
                 ? [
@@ -1032,7 +1052,7 @@ export default async function getBaseWebpackConfig(
     // Absolute requires (require('/foo')) are extremely uncommon, but
     // also have no need for customization as they're already resolved.
     if (!isLocal) {
-      if (/^(?:next$|react(?:$|\/))/.test(request)) {
+      if (/^(?:next$|react(?:$|\/)|react-dom(?:$|\/))/.test(request)) {
         return `commonjs ${request}`
       }
 
@@ -1185,8 +1205,8 @@ export default async function getBaseWebpackConfig(
 
   const fontLoaderTargets =
     config.experimental.fontLoaders &&
-    Object.keys(config.experimental.fontLoaders).map((fontLoader) => {
-      const resolved = require.resolve(fontLoader)
+    config.experimental.fontLoaders.map(({ loader }) => {
+      const resolved = require.resolve(loader)
       return path.join(resolved, '../target.css')
     })
 
@@ -1210,9 +1230,8 @@ export default async function getBaseWebpackConfig(
                       '{}',
                     './cjs/react-dom-server-legacy.browser.development.js':
                       '{}',
-                    'react-dom': '{}',
                   },
-                  handleWebpackExtenalForEdgeRuntime,
+                  handleWebpackExternalForEdgeRuntime,
                 ]
               : []),
           ]
@@ -1285,7 +1304,6 @@ export default async function getBaseWebpackConfig(
       emitOnErrors: !dev,
       checkWasmTypes: false,
       nodeEnv: false,
-      ...(hasServerComponents ? { moduleIds: 'deterministic' } : {}),
       splitChunks: (():
         | Required<webpack.Configuration>['optimization']['splitChunks']
         | false => {
@@ -1518,7 +1536,7 @@ export default async function getBaseWebpackConfig(
     },
     module: {
       rules: [
-        ...(config.experimental.appDir && !isClient && !isEdgeServer
+        ...(hasAppDir && !isClient && !isEdgeServer
           ? [
               {
                 issuerLayer: WEBPACK_LAYERS.server,
@@ -1571,6 +1589,21 @@ export default async function getBaseWebpackConfig(
               } as any,
             ]
           : []),
+        // Alias `next/dynamic` to React.lazy implementation for RSC
+        ...(hasServerComponents
+          ? [
+              {
+                test: codeCondition.test,
+                include: [appDir],
+                resolve: {
+                  alias: {
+                    [require.resolve('next/dynamic')]:
+                      'next/dist/client/components/dynamic',
+                  },
+                },
+              },
+            ]
+          : []),
         ...(hasServerComponents && (isNodeServer || isEdgeServer)
           ? [
               // RSC server compilation loaders
@@ -1620,7 +1653,7 @@ export default async function getBaseWebpackConfig(
             {
               ...codeCondition,
               issuerLayer: WEBPACK_LAYERS.middleware,
-              use: getBabelOrSwcLoader(),
+              use: defaultLoaders.babel,
             },
             ...(hasServerComponents
               ? [
@@ -1825,7 +1858,7 @@ export default async function getBaseWebpackConfig(
             appDir: dir,
             esmExternals: config.experimental.esmExternals,
             outputFileTracingRoot: config.experimental.outputFileTracingRoot,
-            appDirEnabled: !!config.experimental.appDir,
+            appDirEnabled: hasAppDir,
           }
         ),
       // Moment.js is an extremely popular library that bundles large locale files
@@ -1870,7 +1903,7 @@ export default async function getBaseWebpackConfig(
           serverless: isLikeServerless,
           dev,
           isEdgeRuntime: isEdgeServer,
-          appDirEnabled: !!config.experimental.appDir,
+          appDirEnabled: hasAppDir,
         }),
       // MiddlewarePlugin should be after DefinePlugin so  NEXT_PUBLIC_*
       // replacement is done before its process.env.* handling
@@ -1879,6 +1912,8 @@ export default async function getBaseWebpackConfig(
           dev,
           sriEnabled: !dev && !!config.experimental.sri?.algorithm,
           hasFontLoaders: !!config.experimental.fontLoaders,
+          dangerouslyAllowMiddlewareResponseBody:
+            !!config.experimental.dangerouslyAllowMiddlewareResponseBody,
         }),
       isClient &&
         new BuildManifestPlugin({
@@ -1886,7 +1921,7 @@ export default async function getBaseWebpackConfig(
           rewrites,
           isDevFallback,
           exportRuntime: hasConcurrentFeatures,
-          appDirEnabled: !!config.experimental.appDir,
+          appDirEnabled: hasAppDir,
         }),
       new ProfilingPlugin({ runWebpackSpan }),
       config.optimizeFonts &&
@@ -1917,9 +1952,7 @@ export default async function getBaseWebpackConfig(
             minimized: true,
           },
         }),
-      !!config.experimental.appDir &&
-        isClient &&
-        new AppBuildManifestPlugin({ dev }),
+      hasAppDir && isClient && new AppBuildManifestPlugin({ dev }),
       hasServerComponents &&
         (isClient
           ? new FlightManifestPlugin({
@@ -1936,8 +1969,11 @@ export default async function getBaseWebpackConfig(
         !!config.experimental.sri?.algorithm &&
         new SubresourceIntegrityPlugin(config.experimental.sri.algorithm),
       isClient &&
-        config.experimental.fontLoaders &&
-        new FontLoaderManifestPlugin(),
+        fontLoaderTargets &&
+        new FontLoaderManifestPlugin({
+          appDirEnabled: !!config.experimental.appDir,
+          fontLoaderTargets,
+        }),
       !dev &&
         isClient &&
         new (require('./webpack/plugins/telemetry-plugin').TelemetryPlugin)(
@@ -2198,6 +2234,7 @@ export default async function getBaseWebpackConfig(
     customAppFile: pagesDir
       ? new RegExp(escapeStringRegexp(path.join(pagesDir, `_app`)))
       : undefined,
+    hasAppDir,
     isDevelopment: dev,
     isServer: isNodeServer || isEdgeServer,
     isEdgeRuntime: isEdgeServer,
@@ -2586,7 +2623,7 @@ export default async function getBaseWebpackConfig(
           value: entry[name],
           compilerType,
           name,
-          appDir: config.experimental.appDir,
+          hasAppDir,
         })
       }
 
