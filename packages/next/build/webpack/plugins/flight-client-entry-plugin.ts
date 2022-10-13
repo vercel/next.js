@@ -377,7 +377,7 @@ export class FlightClientEntryPlugin {
         !rawRequest.startsWith('/') &&
         !rawRequest.startsWith(APP_DIR_ALIAS)
           ? rawRequest
-          : mod.userRequest
+          : mod.resourceResolveData?.path + mod.resourceResolveData?.query
 
       // Ensure module is not walked again if it's already been visited
       if (!visitedBySegment[layoutOrPageRequest]) {
