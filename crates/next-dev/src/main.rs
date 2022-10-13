@@ -74,16 +74,17 @@ async fn main() -> Result<()> {
     let dir = args
         .dir
         .map(|dir| dir.canonicalize())
-        .unwrap_or_else(current_dir)?
+        .unwrap_or_else(current_dir)
+        .context("project directory can't be found")?
         .to_str()
-        .context("current directory contains invalid characters")?
+        .context("project directory contains invalid characters")?
         .to_string();
 
     let root_dir = if let Some(root) = args.root {
         root.canonicalize()
-            .unwrap()
+            .context("root directory can't be found")?
             .to_str()
-            .context("current directory contains invalid characters")?
+            .context("root directory contains invalid characters")?
             .to_string()
     } else {
         dir.clone()
