@@ -1,61 +1,80 @@
 import * as React from 'react'
-import type { OverlayState } from './error-overlay-reducer'
+import {
+  ACTION_UNHANDLED_ERROR,
+  OverlayState,
+  UnhandledErrorAction,
+} from './error-overlay-reducer'
 
 import { ShadowPortal } from './components/ShadowPortal'
 import { BuildError } from './container/BuildError'
-import { Errors } from './container/Errors'
-import { ErrorBoundary } from './ErrorBoundary'
+import { Errors, SupportedErrorEvent } from './container/Errors'
 import { Base } from './styles/Base'
 import { ComponentStyles } from './styles/ComponentStyles'
 import { CssReset } from './styles/CssReset'
+import { parseStack } from './helpers/parseStack'
 
-type ErrorType = 'runtime' | 'build'
-
-const shouldPreventDisplay = (
-  errorType?: ErrorType | null,
-  preventType?: ErrorType[] | null
-) => {
-  if (!preventType || !errorType) {
-    return false
-  }
-  return preventType.includes(errorType)
+interface ReactDevOverlayState {
+  reactError: SupportedErrorEvent | null
 }
+class ReactDevOverlay extends React.PureComponent<
+  {
+    state: OverlayState
+    children: React.ReactNode
+  },
+  ReactDevOverlayState
+> {
+  state = { reactError: null }
 
-function ReactDevOverlay({
-  state,
-  children,
-  preventDisplay,
-}: {
-  state: OverlayState
-  children?: React.ReactNode
-  preventDisplay?: ErrorType[]
-}) {
-  const hasBuildError = state.buildError != null
-  const hasRuntimeErrors = Boolean(state.errors.length)
+  static getDerivedStateFromError(error: Error): ReactDevOverlayState {
+    const e = error
+    const event: UnhandledErrorAction = {
+      type: ACTION_UNHANDLED_ERROR,
+      reason: error,
+      frames: parseStack(e.stack!),
+    }
+    const errorEvent: SupportedErrorEvent = {
+      id: 0,
+      event,
+    }
+    return { reactError: errorEvent }
+  }
 
-  const isMounted = hasBuildError || hasRuntimeErrors
+  render() {
+    const { state, children } = this.props
+    const { reactError } = this.state
 
-  return (
-    <>
-      <ErrorBoundary isMounted={isMounted}>{children}</ErrorBoundary>
-      {isMounted ? (
-        <ShadowPortal>
-          <CssReset />
-          <Base />
-          <ComponentStyles />
+    const hasBuildError = state.buildError != null
+    const hasRuntimeErrors = Boolean(state.errors.length)
+    const isMounted = hasBuildError || hasRuntimeErrors || reactError
 
-          {shouldPreventDisplay(
-            hasBuildError ? 'build' : hasRuntimeErrors ? 'runtime' : null,
-            preventDisplay
-          ) ? null : hasBuildError ? (
-            <BuildError message={state.buildError!} />
-          ) : hasRuntimeErrors ? (
-            <Errors errors={state.errors} />
-          ) : undefined}
-        </ShadowPortal>
-      ) : undefined}
-    </>
-  )
+    return (
+      <>
+        {reactError ? (
+          <html>
+            <head></head>
+            <body></body>
+          </html>
+        ) : (
+          children
+        )}
+        {isMounted ? (
+          <ShadowPortal>
+            <CssReset />
+            <Base />
+            <ComponentStyles />
+
+            {hasBuildError ? (
+              <BuildError message={state.buildError!} />
+            ) : hasRuntimeErrors ? (
+              <Errors errors={state.errors} />
+            ) : reactError ? (
+              <Errors errors={[reactError]} />
+            ) : undefined}
+          </ShadowPortal>
+        ) : undefined}
+      </>
+    )
+  }
 }
 
 export default ReactDevOverlay

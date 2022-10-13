@@ -1,6 +1,6 @@
 'use client'
 
-import { usePathname } from 'next/dist/client/components/hooks-client'
+import { usePathname } from 'next/navigation'
 
 export default function Page() {
   const pathname = usePathname()

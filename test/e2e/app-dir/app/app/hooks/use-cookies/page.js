@@ -1,4 +1,4 @@
-import { cookies } from 'next/dist/client/components/hooks-server'
+import { cookies } from 'next/headers'
 
 export default function Page() {
   const cookiesList = cookies()

@@ -1,5 +1,5 @@
 import Nav from '../components/nav'
-import { headers } from 'next/dist/client/components/hooks-server'
+import { headers } from 'next/headers'
 
 const envVar = process.env.ENV_VAR_TEST
 const headerKey = 'x-next-test-client'
