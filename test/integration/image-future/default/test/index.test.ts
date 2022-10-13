@@ -300,7 +300,7 @@ function runTests(mode) {
     )
   })
 
-  it('should callback native onLoad in most cases', async () => {
+  it('should callback native onLoad with sythetic event', async () => {
     let browser = await webdriver(appPort, '/on-load')
 
     await browser.eval(
