@@ -1,13 +1,10 @@
 pub mod loader;
 pub(crate) mod source_map;
 
-use std::{
-    collections::{HashMap, HashSet},
-    fmt::Write as _,
-    slice::Iter,
-};
+use std::{fmt::Write as _, slice::Iter};
 
 use anyhow::{anyhow, Context, Result};
+use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     primitives::{StringVc, StringsVc},
@@ -317,9 +314,9 @@ async fn module_factory(content: EcmascriptChunkItemContentVc) -> Result<CodeVc>
 
 #[derive(Serialize)]
 struct EcmascriptChunkUpdate<'a> {
-    added: HashMap<&'a ModuleId, HmrUpdateEntry<'a>>,
-    modified: HashMap<&'a ModuleId, HmrUpdateEntry<'a>>,
-    deleted: HashSet<&'a ModuleId>,
+    added: IndexMap<&'a ModuleId, HmrUpdateEntry<'a>>,
+    modified: IndexMap<&'a ModuleId, HmrUpdateEntry<'a>>,
+    deleted: IndexSet<&'a ModuleId>,
 }
 
 #[turbo_tasks::value_impl]
@@ -457,14 +454,14 @@ impl VersionedContent for EcmascriptChunkContent {
         let chunk_path = &this.chunk_path.await?.path;
 
         // TODO(alexkirsz) This should probably be stored as a HashMap already.
-        let mut module_factories: HashMap<_, _> = this
+        let mut module_factories: IndexMap<_, _> = this
             .module_factories
             .iter()
             .map(|entry| (entry.id(), entry))
             .collect();
-        let mut added = HashMap::new();
-        let mut modified = HashMap::new();
-        let mut deleted = HashSet::new();
+        let mut added = IndexMap::new();
+        let mut modified = IndexMap::new();
+        let mut deleted = IndexSet::new();
 
         for (id, hash) in &from.module_factories_hashes {
             let id = &**id;
@@ -521,7 +518,7 @@ impl<'a> HmrUpdateEntry<'a> {
 
 #[turbo_tasks::value(serialization = "none")]
 struct EcmascriptChunkVersion {
-    module_factories_hashes: HashMap<ModuleIdReadRef, u64>,
+    module_factories_hashes: IndexMap<ModuleIdReadRef, u64>,
 }
 
 #[turbo_tasks::value_impl]

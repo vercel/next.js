@@ -15,6 +15,7 @@ anyhow = "1.0.65"
 cargo-lock = "8.0.2"
 chrono = "0.4.22"
 clap = { version = "3.2.1", features = ["derive"] }
+indexmap = { workspace = true }
 inquire = { version = "0.3.0-alpha.2" }
 owo-colors = "3"
 plotters = { version = "0.3.4", features = ["full_palette"] }

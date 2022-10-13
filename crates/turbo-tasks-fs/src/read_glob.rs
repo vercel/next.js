@@ -11,6 +11,10 @@ pub struct ReadGlobResult {
     pub inner: HashMap<String, ReadGlobResultVc>,
 }
 
+/// Reads matches of a glob pattern.
+///
+/// DETERMINISM: Result is in random order. Either sort result or do not depend
+/// on the order.
 #[turbo_tasks::function]
 pub async fn read_glob(
     directory: FileSystemPathVc,
@@ -21,7 +25,7 @@ pub async fn read_glob(
 }
 
 #[turbo_tasks::function]
-pub async fn read_glob_inner(
+async fn read_glob_inner(
     prefix: String,
     directory: FileSystemPathVc,
     glob: GlobVc,

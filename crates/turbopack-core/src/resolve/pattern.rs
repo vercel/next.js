@@ -619,7 +619,7 @@ impl ValueToString for Pattern {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, TraceRawVcs, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord, TraceRawVcs, Serialize, Deserialize)]
 pub enum PatternMatch {
     File(String, FileSystemPathVc),
     Directory(String, FileSystemPathVc),
@@ -845,6 +845,7 @@ pub async fn read_matches(
         for nested in nested.into_iter() {
             results.extend(nested.await?.iter().cloned());
         }
+        results.sort();
         Ok(PatternMatchesVc::cell(results))
     }
 }

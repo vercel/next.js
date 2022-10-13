@@ -1,14 +1,11 @@
 use std::{collections::BTreeMap, fmt::Display, mem::take};
 
-use indexmap::IndexSet;
+use indexmap::{IndexMap, IndexSet};
 use once_cell::sync::Lazy;
-use swc_core::{
-    common::collections::AHashMap,
-    ecma::{
-        ast::*,
-        atoms::{js_word, JsWord},
-        visit::{Visit, VisitWith},
-    },
+use swc_core::ecma::{
+    ast::*,
+    atoms::{js_word, JsWord},
+    visit::{Visit, VisitWith},
 };
 
 use super::{JsValue, ModuleValue};
@@ -89,10 +86,10 @@ pub(crate) enum Reexport {
 #[derive(Default, Debug)]
 pub(crate) struct ImportMap {
     /// Map from identifier to (index in references, exported symbol)
-    imports: AHashMap<Id, (usize, JsWord)>,
+    imports: IndexMap<Id, (usize, JsWord)>,
 
     /// Map from identifier to index in references
-    namespace_imports: AHashMap<Id, usize>,
+    namespace_imports: IndexMap<Id, usize>,
 
     /// List of (index in references, imported symbol, exported symbol)
     reexports: Vec<(usize, Reexport)>,

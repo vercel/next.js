@@ -38,7 +38,7 @@ impl AssetGraphContentSourceVc {
     pub fn new_eager(root_path: FileSystemPathVc, root_asset: AssetVc) -> Self {
         Self::cell(AssetGraphContentSource {
             root_path,
-            root_assets: AssetsSetVc::cell([root_asset].into()),
+            root_assets: AssetsSetVc::cell([root_asset].into_iter().collect()),
             state: None,
         })
     }
@@ -49,7 +49,7 @@ impl AssetGraphContentSourceVc {
     pub fn new_lazy(root_path: FileSystemPathVc, root_asset: AssetVc) -> Self {
         Self::cell(AssetGraphContentSource {
             root_path,
-            root_assets: AssetsSetVc::cell([root_asset].into()),
+            root_assets: AssetsSetVc::cell([root_asset].into_iter().collect()),
             state: Some(Arc::new(Mutex::new(State {
                 expanded: HashSet::new(),
                 invalidator: None,
