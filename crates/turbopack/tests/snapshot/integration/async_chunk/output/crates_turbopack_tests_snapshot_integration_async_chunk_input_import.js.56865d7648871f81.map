@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sections": [
+    {"offset": {"line": 2, "column": 0}, "map": {"version":3,"sources":["/[project]/crates/turbopack/tests/snapshot/integration/async_chunk/input/import.js"],"sourcesContent":["import { foo } from \"foo\";\n\nfoo(true);\n"],"names":[],"mappings":"AAAA;;;AAEA,+KAAI,IAAI"}},
+    {"offset": {"line": 6, "column": 0}, "map": {"version": 3, "names": [], "sources": [], "mappings": "A"}}]
+}

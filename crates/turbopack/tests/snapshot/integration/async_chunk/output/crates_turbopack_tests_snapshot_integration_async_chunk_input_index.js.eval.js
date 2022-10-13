@@ -1,8 +1,20 @@
 (self.TURBOPACK = self.TURBOPACK || []).push(["[workspace]/crates/turbopack/tests/snapshot/integration/async_chunk/output/crates_turbopack_tests_snapshot_integration_async_chunk_input_index.js.eval.js", {
 
-"[project]/crates/turbopack/tests/snapshot/integration/async_chunk/input/index.js (ecmascript)": (({ r: __turbopack_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
+"[project]/crates/turbopack/tests/snapshot/integration/async_chunk/input/index.js (ecmascript)": (function({ r: __turbopack_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, m: module, e: exports }) { !function() {
 
-/* unparseable [project]/crates/turbopack/tests/snapshot/integration/async_chunk/input/index.js */
+__turbopack_require__("[project]/crates/turbopack/tests/snapshot/integration/async_chunk/input/import.js/manifest-loader.js")(__turbopack_import__).then(({ foo  })=>{
+    foo(true);
+});
+
+}.call(this) }),
+"[project]/crates/turbopack/tests/snapshot/integration/async_chunk/input/import.js/manifest-loader.js": (({ r: __turbopack_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
+
+
+__turbopack_export_value__((__turbopack_import__) => {
+    return __turbopack_load__("[workspace]/crates/turbopack/tests/snapshot/integration/async_chunk/output/crates_turbopack_tests_snapshot_integration_async_chunk_input_import.js_manifest-chunk.js", "/crates/turbopack/tests/snapshot/integration/async_chunk/output/crates_turbopack_tests_snapshot_integration_async_chunk_input_import.js_manifest-chunk.js").then(() => {
+        return __turbopack_require__("[project]/crates/turbopack/tests/snapshot/integration/async_chunk/input/import.js/manifest-chunk.js");
+    }).then(() => __turbopack_import__("[project]/crates/turbopack/tests/snapshot/integration/async_chunk/input/import.js (ecmascript)"));
+});
 })()),
 }, ({ chunks, instantiateRuntimeModule }) => {
     if(!(true)) return true;
@@ -695,3 +707,6 @@
   self.TURBOPACK = { push: registerChunk };
   chunksToRegister.forEach(registerChunk);
 })();
+
+
+//# sourceMappingURL=crates_turbopack_tests_snapshot_integration_async_chunk_input_index.js.eval.js.3b571ea2ee98a1bb.map
