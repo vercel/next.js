@@ -41,6 +41,7 @@ pub struct CssModuleAsset {
 
 #[turbo_tasks::value_impl]
 impl CssModuleAssetVc {
+    /// Creates a new CSS asset. The CSS is treated as global CSS.
     #[turbo_tasks::function]
     pub fn new(source: AssetVc, context: AssetContextVc, transforms: CssInputTransformsVc) -> Self {
         Self::cell(CssModuleAsset {
@@ -51,6 +52,7 @@ impl CssModuleAssetVc {
         })
     }
 
+    /// Creates a new CSS asset. The CSS is treated as CSS module.
     #[turbo_tasks::function]
     pub fn new_module(
         source: AssetVc,
@@ -65,8 +67,9 @@ impl CssModuleAssetVc {
         })
     }
 
+    /// Returns the parsed css.
     #[turbo_tasks::function]
-    pub async fn parse(self) -> Result<ParseResultVc> {
+    pub(crate) async fn parse(self) -> Result<ParseResultVc> {
         let this = self.await?;
         Ok(parse(this.source, Value::new(this.ty), this.transforms))
     }
