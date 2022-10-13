@@ -14,7 +14,7 @@ use std::{
 };
 
 use anyhow::Result;
-use css::{GlobalCssModuleAssetVc, ModuleCssModuleAssetVc};
+use css::{CssModuleAssetVc, ModuleCssModuleAssetVc};
 use ecmascript::{
     typescript::resolve::TypescriptTypesAssetReferenceVc, EcmascriptModuleAssetType,
     EcmascriptModuleAssetVc,
@@ -107,7 +107,7 @@ async fn module(source: AssetVc, context: ModuleAssetContextVc) -> Result<AssetV
             ModuleType::Json => JsonModuleAssetVc::new(source).into(),
             ModuleType::Raw => source,
             ModuleType::Css(transforms) => {
-                GlobalCssModuleAssetVc::new(source, context.into(), *transforms).into()
+                CssModuleAssetVc::new(source, context.into(), *transforms).into()
             }
             ModuleType::CssModule(transforms) => {
                 ModuleCssModuleAssetVc::new(source, context.into(), *transforms).into()

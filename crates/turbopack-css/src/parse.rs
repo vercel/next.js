@@ -1,13 +1,16 @@
 use std::sync::Arc;
 
 use anyhow::Result;
+use indexmap::IndexMap;
 use swc_core::{
     common::{errors::Handler, FileName, SourceMap},
     css::{
         ast::Stylesheet,
         parser::{parse_file, parser::ParserConfig},
     },
+    ecma::atoms::JsWord,
 };
+use swc_css_modules::{CssClassName, TransformConfig};
 use turbo_tasks::{Value, ValueToString};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::asset::{AssetContent, AssetVc};
@@ -25,6 +28,10 @@ pub enum ParseResult {
         stylesheet: Stylesheet,
         #[turbo_tasks(debug_ignore, trace_ignore)]
         source_map: Arc<SourceMap>,
+        #[turbo_tasks(debug_ignore, trace_ignore)]
+        imports: Vec<JsWord>,
+        #[turbo_tasks(debug_ignore, trace_ignore)]
+        exports: IndexMap<JsWord, Vec<CssClassName>>,
     },
     Unparseable,
     NotFound,
@@ -69,7 +76,7 @@ async fn parse_content(
     fs_path: &FileSystemPath,
     fs_path_str: &str,
     source: AssetVc,
-    _ty: CssModuleAssetType,
+    ty: CssModuleAssetType,
     transforms: &[CssInputTransform],
 ) -> Result<ParseResultVc> {
     let source_map: Arc<SourceMap> = Default::default();
@@ -115,9 +122,41 @@ async fn parse_content(
         transform.apply(&mut parsed_stylesheet, &context).await?;
     }
 
+    let (imports, exports) = match ty {
+        CssModuleAssetType::Global => Default::default(),
+        CssModuleAssetType::Module => {
+            let imports = swc_css_modules::imports::analyze_imports(&parsed_stylesheet);
+            let result = swc_css_modules::compile(
+                &mut parsed_stylesheet,
+                // TODO swc_css_modules should take `impl TransformConfig + '_`
+                ModuleTransformConfig {
+                    suffix: format!("◽{}", fs_path_str),
+                },
+            );
+            let mut exports = result.renamed.into_iter().collect::<IndexMap<_, _>>();
+            // exports should be reported deterministically
+            // TODO(sokra) report in order of occurance within swc_css_modules using an
+            // IndexMap
+            exports.sort_keys();
+            (imports, exports)
+        }
+    };
+
     Ok(ParseResult::Ok {
         stylesheet: parsed_stylesheet,
         source_map,
+        imports,
+        exports,
     }
     .into())
+}
+
+struct ModuleTransformConfig {
+    suffix: String,
+}
+
+impl TransformConfig for ModuleTransformConfig {
+    fn new_name_for(&self, local: &JsWord) -> JsWord {
+        format!("{}{}", *local, self.suffix).into()
+    }
 }

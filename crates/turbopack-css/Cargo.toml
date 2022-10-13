@@ -12,6 +12,7 @@ bench = false
 [dependencies]
 anyhow = "1.0.47"
 async-trait = "0.1.56"
+indexmap = { workspace = true }
 serde = "1.0.136"
 
 turbo-tasks = { path = "../turbo-tasks" }
@@ -32,6 +33,7 @@ swc_core = { workspace = true, features = [
   "common",
   "common_concurrent",
 ] }
+swc_css_modules = "=0.4.1"
 
 [build-dependencies]
 turbo-tasks-build = { path = "../turbo-tasks-build" }

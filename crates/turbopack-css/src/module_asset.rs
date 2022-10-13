@@ -1,29 +1,38 @@
+use std::fmt::Write;
+
 use anyhow::Result;
-use turbo_tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
+use swc_css_modules::CssClassName;
+use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
-    chunk::{ChunkItem, ChunkItemVc, ChunkVc, ChunkableAsset, ChunkableAssetVc, ChunkingContextVc},
+    chunk::{
+        ChunkItem, ChunkItemVc, ChunkVc, ChunkableAsset, ChunkableAssetReference,
+        ChunkableAssetReferenceVc, ChunkableAssetVc, ChunkingContextVc, ChunkingType,
+        ChunkingTypeOptionVc,
+    },
     context::AssetContextVc,
-    reference::AssetReferencesVc,
-    resolve::origin::{ResolveOrigin, ResolveOriginVc},
+    reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
+    resolve::{
+        origin::{ResolveOrigin, ResolveOriginVc},
+        ResolveResult, ResolveResultVc,
+    },
 };
-use turbopack_ecmascript::chunk::{
-    EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemContentVc,
-    EcmascriptChunkItemVc, EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc, EcmascriptChunkVc,
-    EcmascriptExports, EcmascriptExportsVc,
+use turbopack_ecmascript::{
+    chunk::{
+        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemContentVc,
+        EcmascriptChunkItemVc, EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc,
+        EcmascriptChunkVc, EcmascriptExports, EcmascriptExportsVc,
+    },
+    utils::stringify_str,
 };
 
-use crate::{
-    references::analyze_css_stylesheet, transform::CssInputTransformsVc, CssModuleAssetType,
-};
+use crate::{parse::ParseResult, transform::CssInputTransformsVc, CssModuleAssetVc};
 
 #[turbo_tasks::value]
 #[derive(Clone)]
 pub struct ModuleCssModuleAsset {
-    pub source: AssetVc,
-    pub context: AssetContextVc,
-    pub transforms: CssInputTransformsVc,
+    pub inner: CssModuleAssetVc,
 }
 
 #[turbo_tasks::value_impl]
@@ -31,9 +40,7 @@ impl ModuleCssModuleAssetVc {
     #[turbo_tasks::function]
     pub fn new(source: AssetVc, context: AssetContextVc, transforms: CssInputTransformsVc) -> Self {
         Self::cell(ModuleCssModuleAsset {
-            source,
-            context,
-            transforms,
+            inner: CssModuleAssetVc::new_module(source, context, transforms),
         })
     }
 }
@@ -42,24 +49,17 @@ impl ModuleCssModuleAssetVc {
 impl Asset for ModuleCssModuleAsset {
     #[turbo_tasks::function]
     fn path(&self) -> FileSystemPathVc {
-        self.source.path()
+        self.inner.path()
     }
 
     #[turbo_tasks::function]
     fn content(&self) -> AssetContentVc {
-        self.source.content()
+        self.inner.content()
     }
 
     #[turbo_tasks::function]
-    async fn references(self_vc: ModuleCssModuleAssetVc) -> Result<AssetReferencesVc> {
-        let this = self_vc.await?;
-        // TODO: include CSS source map
-        Ok(analyze_css_stylesheet(
-            this.source,
-            self_vc.as_resolve_origin(),
-            Value::new(CssModuleAssetType::Module),
-            this.transforms,
-        ))
+    fn references(&self) -> AssetReferencesVc {
+        self.inner.references()
     }
 }
 
@@ -74,13 +74,10 @@ impl ChunkableAsset for ModuleCssModuleAsset {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for ModuleCssModuleAsset {
     #[turbo_tasks::function]
-    fn as_chunk_item(
-        self_vc: ModuleCssModuleAssetVc,
-        context: ChunkingContextVc,
-    ) -> EcmascriptChunkItemVc {
+    fn as_chunk_item(&self, context: ChunkingContextVc) -> EcmascriptChunkItemVc {
         ModuleChunkItem {
             context,
-            module: self_vc,
+            module: self.inner,
         }
         .cell()
         .into()
@@ -96,18 +93,18 @@ impl EcmascriptChunkPlaceable for ModuleCssModuleAsset {
 impl ResolveOrigin for ModuleCssModuleAsset {
     #[turbo_tasks::function]
     fn origin_path(&self) -> FileSystemPathVc {
-        self.source.path()
+        self.inner.path()
     }
 
     #[turbo_tasks::function]
     fn context(&self) -> AssetContextVc {
-        self.context
+        self.inner.context()
     }
 }
 
 #[turbo_tasks::value]
 struct ModuleChunkItem {
-    module: ModuleCssModuleAssetVc,
+    module: CssModuleAssetVc,
     context: ChunkingContextVc,
 }
 
@@ -126,7 +123,42 @@ impl ValueToString for ModuleChunkItem {
 impl ChunkItem for ModuleChunkItem {
     #[turbo_tasks::function]
     fn references(&self) -> AssetReferencesVc {
-        self.module.references()
+        AssetReferencesVc::cell(vec![CssProxyToCssAssetReference {
+            module: self.module,
+            context: self.context,
+        }
+        .cell()
+        .into()])
+    }
+}
+
+#[turbo_tasks::value]
+struct CssProxyToCssAssetReference {
+    module: CssModuleAssetVc,
+    context: ChunkingContextVc,
+}
+
+#[turbo_tasks::value_impl]
+impl ValueToString for CssProxyToCssAssetReference {
+    #[turbo_tasks::function]
+    fn to_string(&self) -> StringVc {
+        StringVc::cell("css".to_string())
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl AssetReference for CssProxyToCssAssetReference {
+    #[turbo_tasks::function]
+    fn resolve_reference(&self) -> ResolveResultVc {
+        ResolveResult::Single(self.module.into(), Vec::new()).cell()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ChunkableAssetReference for CssProxyToCssAssetReference {
+    #[turbo_tasks::function]
+    fn chunking_type(&self, _context: ChunkingContextVc) -> ChunkingTypeOptionVc {
+        ChunkingTypeOptionVc::cell(Some(ChunkingType::Parallel))
     }
 }
 
@@ -139,21 +171,42 @@ impl EcmascriptChunkItem for ModuleChunkItem {
 
     #[turbo_tasks::function]
     async fn content(&self) -> Result<EcmascriptChunkItemContentVc> {
-        Ok(EcmascriptChunkItemContent {
-            inner_code: r#"const proxy = new Proxy(
-    {},
-    {
-        get(target, prop, receiver) {
-            return `css_modules_unimplemented_{prop}`;
-        },
-    }
-);
-__turbopack_export_value__({}, proxy);
-"#
-            .to_string(),
-            // TODO: We generate a minimal map for runtime code so that the filename is
-            // displayed in dev tools.
-            ..Default::default()
+        let parsed = self.module.parse().await?;
+        Ok(match &*parsed {
+            ParseResult::Ok { exports, .. } => {
+                let mut code = "__turbopack_export_value__({\n".to_string();
+                for (key, elements) in exports {
+                    let content = elements
+                        .iter()
+                        .map(|element| match element {
+                            CssClassName::Local { name } | CssClassName::Global { name } => &**name,
+                            CssClassName::Import { .. } => "TODO",
+                        })
+                        .collect::<Vec<_>>()
+                        .join(" ");
+                    writeln!(
+                        code,
+                        "  {}: {},",
+                        stringify_str(key),
+                        stringify_str(&content)
+                    )?;
+                }
+                code += "});\n";
+                EcmascriptChunkItemContent {
+                    inner_code: code,
+                    // TODO: We generate a minimal map for runtime code so that the filename is
+                    // displayed in dev tools.
+                    ..Default::default()
+                }
+            }
+            ParseResult::NotFound | ParseResult::Unparseable => {
+                EcmascriptChunkItemContent {
+                    inner_code: "__turbopack_export_value__({});\n".to_string(),
+                    // TODO: We generate a minimal map for runtime code so that the filename is
+                    // displayed in dev tools.
+                    ..Default::default()
+                }
+            }
         }
         .cell())
     }

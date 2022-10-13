@@ -312,12 +312,12 @@
                     KeyValue(
                         Constant(
                             StrWord(
-                                Atom('property' type=dynamic),
+                                Atom('property' type=static),
                             ),
                         ),
                         Variable(
                             (
-                                Atom('property' type=dynamic),
+                                Atom('property' type=static),
                                 #53,
                             ),
                         ),
@@ -480,12 +480,12 @@
                     KeyValue(
                         Constant(
                             StrWord(
-                                Atom('property' type=dynamic),
+                                Atom('property' type=static),
                             ),
                         ),
                         Variable(
                             (
-                                Atom('property' type=dynamic),
+                                Atom('property' type=static),
                                 #58,
                             ),
                         ),
@@ -514,12 +514,12 @@
                     KeyValue(
                         Constant(
                             StrWord(
-                                Atom('property' type=dynamic),
+                                Atom('property' type=static),
                             ),
                         ),
                         Variable(
                             (
-                                Atom('property' type=dynamic),
+                                Atom('property' type=static),
                                 #59,
                             ),
                         ),
@@ -1341,12 +1341,12 @@
                     KeyValue(
                         Constant(
                             StrWord(
-                                Atom('top' type=inline),
+                                Atom('top' type=static),
                             ),
                         ),
                         Variable(
                             (
-                                Atom('top' type=inline),
+                                Atom('top' type=static),
                                 #27,
                             ),
                         ),
@@ -3734,7 +3734,7 @@
             Some(
                 Variable(
                     (
-                        Atom('left' type=inline),
+                        Atom('left' type=static),
                         #178,
                     ),
                 ),
@@ -6789,7 +6789,7 @@
         "peg$c69",
         Constant(
             StrWord(
-                Atom('top' type=inline),
+                Atom('top' type=static),
             ),
         ),
     ),
@@ -10186,7 +10186,7 @@
             Some(
                 Variable(
                     (
-                        Atom('right' type=inline),
+                        Atom('right' type=static),
                         #178,
                     ),
                 ),

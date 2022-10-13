@@ -23,7 +23,7 @@ use crate::{
         CssChunkPlaceable, CssChunkPlaceableVc, CssChunkVc,
     },
     code_gen::CodeGenerateableVc,
-    parse::{parse, ParseResult},
+    parse::{parse, ParseResult, ParseResultVc},
     path_visitor::ApplyVisitors,
     references::{analyze_css_stylesheet, import::ImportAssetReferenceVc},
     transform::CssInputTransformsVc,
@@ -32,26 +32,48 @@ use crate::{
 
 #[turbo_tasks::value]
 #[derive(Clone)]
-pub struct GlobalCssModuleAsset {
+pub struct CssModuleAsset {
     pub source: AssetVc,
     pub context: AssetContextVc,
     pub transforms: CssInputTransformsVc,
+    pub ty: CssModuleAssetType,
 }
 
 #[turbo_tasks::value_impl]
-impl GlobalCssModuleAssetVc {
+impl CssModuleAssetVc {
     #[turbo_tasks::function]
     pub fn new(source: AssetVc, context: AssetContextVc, transforms: CssInputTransformsVc) -> Self {
-        Self::cell(GlobalCssModuleAsset {
+        Self::cell(CssModuleAsset {
             source,
             context,
             transforms,
+            ty: CssModuleAssetType::Global,
         })
+    }
+
+    #[turbo_tasks::function]
+    pub fn new_module(
+        source: AssetVc,
+        context: AssetContextVc,
+        transforms: CssInputTransformsVc,
+    ) -> Self {
+        Self::cell(CssModuleAsset {
+            source,
+            context,
+            transforms,
+            ty: CssModuleAssetType::Module,
+        })
+    }
+
+    #[turbo_tasks::function]
+    pub async fn parse(self) -> Result<ParseResultVc> {
+        let this = self.await?;
+        Ok(parse(this.source, Value::new(this.ty), this.transforms))
     }
 }
 
 #[turbo_tasks::value_impl]
-impl Asset for GlobalCssModuleAsset {
+impl Asset for CssModuleAsset {
     #[turbo_tasks::function]
     fn path(&self) -> FileSystemPathVc {
         self.source.path()
@@ -63,33 +85,30 @@ impl Asset for GlobalCssModuleAsset {
     }
 
     #[turbo_tasks::function]
-    async fn references(self_vc: GlobalCssModuleAssetVc) -> Result<AssetReferencesVc> {
+    async fn references(self_vc: CssModuleAssetVc) -> Result<AssetReferencesVc> {
         let this = self_vc.await?;
         // TODO: include CSS source map
         Ok(analyze_css_stylesheet(
             this.source,
             self_vc.as_resolve_origin(),
-            Value::new(CssModuleAssetType::Global),
+            Value::new(this.ty),
             this.transforms,
         ))
     }
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkableAsset for GlobalCssModuleAsset {
+impl ChunkableAsset for CssModuleAsset {
     #[turbo_tasks::function]
-    fn as_chunk(self_vc: GlobalCssModuleAssetVc, context: ChunkingContextVc) -> ChunkVc {
+    fn as_chunk(self_vc: CssModuleAssetVc, context: ChunkingContextVc) -> ChunkVc {
         CssChunkVc::new(context, self_vc.into()).into()
     }
 }
 
 #[turbo_tasks::value_impl]
-impl CssChunkPlaceable for GlobalCssModuleAsset {
+impl CssChunkPlaceable for CssModuleAsset {
     #[turbo_tasks::function]
-    fn as_chunk_item(
-        self_vc: GlobalCssModuleAssetVc,
-        context: ChunkingContextVc,
-    ) -> CssChunkItemVc {
+    fn as_chunk_item(self_vc: CssModuleAssetVc, context: ChunkingContextVc) -> CssChunkItemVc {
         ModuleChunkItemVc::cell(ModuleChunkItem {
             module: self_vc,
             context,
@@ -99,7 +118,7 @@ impl CssChunkPlaceable for GlobalCssModuleAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl ResolveOrigin for GlobalCssModuleAsset {
+impl ResolveOrigin for CssModuleAsset {
     #[turbo_tasks::function]
     fn origin_path(&self) -> FileSystemPathVc {
         self.source.path()
@@ -113,7 +132,7 @@ impl ResolveOrigin for GlobalCssModuleAsset {
 
 #[turbo_tasks::value]
 struct ModuleChunkItem {
-    module: GlobalCssModuleAssetVc,
+    module: CssModuleAssetVc,
     context: ChunkingContextVc,
 }
 
@@ -176,13 +195,7 @@ impl CssChunkItem for ModuleChunkItem {
             }
         }
 
-        let module = self.module.await?;
-        let parsed = parse(
-            module.source,
-            Value::new(CssModuleAssetType::Global),
-            module.transforms,
-        )
-        .await?;
+        let parsed = self.module.parse().await?;
 
         if let ParseResult::Ok { stylesheet, .. } = &*parsed {
             let mut stylesheet = stylesheet.clone();
