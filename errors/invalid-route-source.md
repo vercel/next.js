@@ -2,9 +2,9 @@
 
 #### Why This Error Occurred
 
-When defining custom routes, or a middleware matcher, a pattern can not be parsed.
+When defining custom routes, or a middleware `matcher`, a pattern could not be parsed.
 
-This can be due to trying to use normal `RegExp` syntax like negative lookaheads (`?!exclude`) without following `path-to-regexp`'s syntax for it.
+This could have been due to trying to use normal `RegExp` syntax like negative lookaheads (`?!exclude`) without following [`path-to-regexp`](https://github.com/pillarjs/path-to-regexp)'s syntax for it.
 
 #### Possible Ways to Fix It
 
