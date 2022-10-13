@@ -1,6 +1,7 @@
 import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from 'http'
 import type { LoadComponentsReturnType } from './load-components'
 import type { ServerRuntime } from '../types'
+import type { FontLoaderManifest } from '../build/webpack/plugins/font-loader-manifest-plugin'
 
 // TODO-APP: change to React.use once it becomes stable
 // @ts-ignore
@@ -33,6 +34,8 @@ import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
 import { NextCookies } from './web/spec-extension/cookies'
 import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
 import { NOT_FOUND_ERROR_CODE } from '../client/components/not-found'
+import { HeadManagerContext } from '../shared/lib/head-manager-context'
+import { Writable } from 'stream'
 
 const INTERNAL_HEADERS_INSTANCE = Symbol('internal for headers readonly')
 
@@ -80,6 +83,7 @@ const INTERNAL_COOKIES_INSTANCE = Symbol('internal for cookies readonly')
 function readonlyCookiesError() {
   return new Error('ReadonlyCookies cannot be modified')
 }
+
 class ReadonlyNextCookies {
   [INTERNAL_COOKIES_INSTANCE]: NextCookies
 
@@ -139,6 +143,7 @@ export type RenderOptsPartial = {
   runtime?: ServerRuntime
   serverComponents?: boolean
   assetPrefix?: string
+  fontLoaderManifest?: FontLoaderManifest
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -284,7 +289,7 @@ function useFlightResponse(
         bootstrapped = true
         writer.write(
           encodeText(
-            `${startScriptTag}(self.__next_s=self.__next_s||[]).push(${htmlEscapeJsonString(
+            `${startScriptTag}(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
               JSON.stringify([0])
             )})</script>`
           )
@@ -295,7 +300,7 @@ function useFlightResponse(
         writer.close()
       } else {
         const responsePartial = decodeText(value)
-        const scripts = `${startScriptTag}(self.__next_s=self.__next_s||[]).push(${htmlEscapeJsonString(
+        const scripts = `${startScriptTag}self.__next_f.push(${htmlEscapeJsonString(
           JSON.stringify([1, responsePartial])
         )})</script>`
 
@@ -508,7 +513,8 @@ function getSegmentParam(segment: string): {
 function getCssInlinedLinkTags(
   serverComponentManifest: FlightManifest,
   serverCSSManifest: FlightCSSManifest,
-  filePath: string
+  filePath: string,
+  serverCSSForEntries: string[]
 ): string[] {
   const layoutOrPageCss =
     serverCSSManifest[filePath] ||
@@ -521,15 +527,74 @@ function getCssInlinedLinkTags(
   const chunks = new Set<string>()
 
   for (const css of layoutOrPageCss) {
-    const mod = serverComponentManifest[css]
-    if (mod) {
-      for (const chunk of mod.default.chunks) {
-        chunks.add(chunk)
+    // We only include the CSS if it's a global CSS, or it is used by this
+    // entrypoint.
+    if (serverCSSForEntries.includes(css) || !/\.module\.css/.test(css)) {
+      const mod = serverComponentManifest[css]
+      if (mod) {
+        for (const chunk of mod.default.chunks) {
+          chunks.add(chunk)
+        }
       }
     }
   }
 
   return [...chunks]
+}
+
+function getServerCSSForEntries(
+  serverCSSManifest: FlightCSSManifest,
+  entries: string[]
+) {
+  const css = []
+  for (const entry of entries) {
+    const entryName = entry.replace(/\.[^.]+$/, '')
+    if (
+      serverCSSManifest.__entry_css__ &&
+      serverCSSManifest.__entry_css__[entryName]
+    ) {
+      css.push(...serverCSSManifest.__entry_css__[entryName])
+    }
+  }
+  return css
+}
+
+/**
+ * Get inline <link rel="preload" as="font"> tags based on server CSS manifest and font loader manifest. Only used when rendering to HTML.
+ */
+function getPreloadedFontFilesInlineLinkTags(
+  serverComponentManifest: FlightManifest,
+  serverCSSManifest: FlightCSSManifest,
+  fontLoaderManifest: FontLoaderManifest | undefined,
+  serverCSSForEntries: string[],
+  filePath?: string
+): string[] {
+  if (!fontLoaderManifest || !filePath) {
+    return []
+  }
+  const layoutOrPageCss =
+    serverCSSManifest[filePath] ||
+    serverComponentManifest.__client_css_manifest__?.[filePath]
+
+  if (!layoutOrPageCss) {
+    return []
+  }
+
+  const fontFiles = new Set<string>()
+
+  for (const css of layoutOrPageCss) {
+    // We only include the CSS if it is used by this entrypoint.
+    if (serverCSSForEntries.includes(css)) {
+      const preloadedFontFiles = fontLoaderManifest.app[css]
+      if (preloadedFontFiles) {
+        for (const fontFile of preloadedFontFiles) {
+          fontFiles.add(fontFile)
+        }
+      }
+    }
+  }
+
+  return [...fontFiles]
 }
 
 function getScriptNonceFromHeader(cspHeaderValue: string): string | undefined {
@@ -658,9 +723,22 @@ export async function renderToHTMLOrFlight(
   res: ServerResponse,
   pathname: string,
   query: NextParsedUrlQuery,
-  renderOpts: RenderOpts,
-  isStaticGeneration: boolean = false
+  renderOpts: RenderOpts
 ): Promise<RenderResult | null> {
+  /**
+   * Rules of Static & Dynamic HTML:
+   *
+   *    1.) We must generate static HTML unless the caller explicitly opts
+   *        in to dynamic HTML support.
+   *
+   *    2.) If dynamic HTML support is requested, we must honor that request
+   *        or throw an error. It is the sole responsibility of the caller to
+   *        ensure they aren't e.g. requesting dynamic HTML for an AMP page.
+   *
+   * These rules help ensure that other existing features like request caching,
+   * coalescing, and ISR continue working as intended.
+   */
+  const isStaticGeneration = renderOpts.supportsDynamicHTML !== true
   const isFlight = req.headers.__rsc__ !== undefined
 
   const capturedErrors: Error[] = []
@@ -683,9 +761,9 @@ export async function renderToHTMLOrFlight(
     subresourceIntegrityManifest,
     serverComponentManifest,
     serverCSSManifest = {},
-    supportsDynamicHTML,
     ComponentMod,
     dev,
+    fontLoaderManifest,
   } = renderOpts
 
   patchFetch(ComponentMod)
@@ -721,10 +799,10 @@ export async function renderToHTMLOrFlight(
     /**
      * Router state provided from the client-side router. Used to handle rendering from the common layout down.
      */
-    const providedFlightRouterState: FlightRouterState = isFlight
+    let providedFlightRouterState: FlightRouterState = isFlight
       ? req.headers.__next_router_state_tree__
         ? JSON.parse(req.headers.__next_router_state_tree__ as string)
-        : {}
+        : undefined
       : undefined
 
     /**
@@ -757,12 +835,9 @@ export async function renderToHTMLOrFlight(
     stripInternalQueries(query)
 
     const LayoutRouter =
-      ComponentMod.LayoutRouter as typeof import('../client/components/layout-router.client').default
+      ComponentMod.LayoutRouter as typeof import('../client/components/layout-router').default
     const RenderFromTemplateContext =
-      ComponentMod.RenderFromTemplateContext as typeof import('../client/components/render-from-template-context.client').default
-    const HotReloader = ComponentMod.HotReloader as
-      | typeof import('../client/components/hot-reloader.client').default
-      | null
+      ComponentMod.RenderFromTemplateContext as typeof import('../client/components/render-from-template-context').default
 
     /**
      * Server Context is specifically only available in Server Components.
@@ -860,6 +935,15 @@ export async function renderToHTMLOrFlight(
 
     let defaultRevalidate: false | undefined | number = false
 
+    // Collect all server CSS imports used by this specific entry (or entries, for parallel routes).
+    // Not that we can't rely on the CSS manifest because it tracks CSS imports per module,
+    // which can be used by multiple entries and cannot be tree-shaked in the module graph.
+    // More info: https://github.com/vercel/next.js/issues/41018
+    const serverCSSForEntries = getServerCSSForEntries(
+      serverCSSManifest!,
+      ComponentMod.pages
+    )
+
     /**
      * Use the provided loader tree to create the React Component tree.
      */
@@ -893,9 +977,18 @@ export async function renderToHTMLOrFlight(
         ? getCssInlinedLinkTags(
             serverComponentManifest,
             serverCSSManifest!,
-            layoutOrPagePath
+            layoutOrPagePath,
+            serverCSSForEntries
           )
         : []
+
+      const preloadedFontFiles = getPreloadedFontFilesInlineLinkTags(
+        serverComponentManifest,
+        serverCSSManifest!,
+        fontLoaderManifest,
+        serverCSSForEntries,
+        layoutOrPagePath
+      )
       const Template = template
         ? await interopDefault(template())
         : React.Fragment
@@ -1074,11 +1167,26 @@ export async function renderToHTMLOrFlight(
 
           return (
             <>
+              {preloadedFontFiles.map((fontFile) => {
+                const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(fontFile)![1]
+                return (
+                  <link
+                    key={fontFile}
+                    rel="preload"
+                    href={`/_next/${fontFile}`}
+                    as="font"
+                    type={`font/${ext}`}
+                    crossOrigin="anonymous"
+                  />
+                )
+              })}
               {stylesheets
                 ? stylesheets.map((href) => (
                     <link
                       rel="stylesheet"
-                      href={`/_next/${href}?ts=${Date.now()}`}
+                      // Add extra cache busting (DEV only) for https://github.com/vercel/next.js/issues/5860
+                      // See also https://bugs.webkit.org/show_bug.cgi?id=187726
+                      href={`/_next/${href}${dev ? `?ts=${Date.now()}` : ''}`}
                       // `Precedence` is an opt-in signal for React to handle
                       // resource loading and deduplication, etc:
                       // https://github.com/facebook/react/pull/25060
@@ -1104,34 +1212,42 @@ export async function renderToHTMLOrFlight(
       }
     }
 
-    /**
-     * Rules of Static & Dynamic HTML:
-     *
-     *    1.) We must generate static HTML unless the caller explicitly opts
-     *        in to dynamic HTML support.
-     *
-     *    2.) If dynamic HTML support is requested, we must honor that request
-     *        or throw an error. It is the sole responsibility of the caller to
-     *        ensure they aren't e.g. requesting dynamic HTML for an AMP page.
-     *
-     * These rules help ensure that other existing features like request caching,
-     * coalescing, and ISR continue working as intended.
-     */
-    const generateStaticHTML = supportsDynamicHTML !== true
+    const streamToBufferedResult = async (
+      renderResult: RenderResult
+    ): Promise<string> => {
+      const renderChunks: Buffer[] = []
+      const writable = new Writable({
+        write(chunk, _encoding, callback) {
+          renderChunks.push(chunk)
+          callback()
+        },
+      })
+      await renderResult.pipe(writable)
+      return Buffer.concat(renderChunks).toString()
+    }
 
     // Handle Flight render request. This is only used when client-side navigating. E.g. when you `router.push('/dashboard')` or `router.reload()`.
-    if (isFlight) {
+    const generateFlight = async (): Promise<RenderResult> => {
       // TODO-APP: throw on invalid flightRouterState
       /**
        * Use router state to decide at what common layout to render the page.
        * This can either be the common layout between two pages or a specific place to start rendering from using the "refetch" marker in the tree.
        */
-      const walkTreeWithFlightRouterState = async (
-        loaderTreeToFilter: LoaderTree,
-        parentParams: { [key: string]: string | string[] },
-        flightRouterState?: FlightRouterState,
+      const walkTreeWithFlightRouterState = async ({
+        createSegmentPath,
+        loaderTreeToFilter,
+        parentParams,
+        isFirst,
+        flightRouterState,
+        parentRendered,
+      }: {
+        createSegmentPath: CreateSegmentPath
+        loaderTreeToFilter: LoaderTree
+        parentParams: { [key: string]: string | string[] }
+        isFirst: boolean
+        flightRouterState?: FlightRouterState
         parentRendered?: boolean
-      ): Promise<FlightDataPath> => {
+      }): Promise<FlightDataPath> => {
         const [segment, parallelRoutes] = loaderTreeToFilter
         const parallelRoutesKeys = Object.keys(parallelRoutes)
 
@@ -1176,10 +1292,12 @@ export async function renderToHTMLOrFlight(
                     await createComponentTree(
                       // This ensures flightRouterPath is valid and filters down the tree
                       {
-                        createSegmentPath: (child) => child,
+                        createSegmentPath: (child) => {
+                          return createSegmentPath(child)
+                        },
                         loaderTree: loaderTreeToFilter,
                         parentParams: currentParams,
-                        firstItem: true,
+                        firstItem: isFirst,
                       }
                     )
                   ).Component
@@ -1190,12 +1308,22 @@ export async function renderToHTMLOrFlight(
         // Walk through all parallel routes.
         for (const parallelRouteKey of parallelRoutesKeys) {
           const parallelRoute = parallelRoutes[parallelRouteKey]
-          const path = await walkTreeWithFlightRouterState(
-            parallelRoute,
-            currentParams,
-            flightRouterState && flightRouterState[1][parallelRouteKey],
-            parentRendered || renderComponentsOnThisLevel
-          )
+
+          const currentSegmentPath: FlightSegmentPath = isFirst
+            ? [parallelRouteKey]
+            : [actualSegment, parallelRouteKey]
+
+          const path = await walkTreeWithFlightRouterState({
+            createSegmentPath: (child) => {
+              return createSegmentPath([...currentSegmentPath, ...child])
+            },
+            loaderTreeToFilter: parallelRoute,
+            parentParams: currentParams,
+            flightRouterState:
+              flightRouterState && flightRouterState[1][parallelRouteKey],
+            parentRendered: parentRendered || renderComponentsOnThisLevel,
+            isFirst: false,
+          })
 
           if (typeof path[path.length - 1] !== 'string') {
             return [actualSegment, parallelRouteKey, ...path]
@@ -1210,11 +1338,13 @@ export async function renderToHTMLOrFlight(
       const flightData: FlightData = [
         // TODO-APP: change walk to output without ''
         (
-          await walkTreeWithFlightRouterState(
-            loaderTree,
-            {},
-            providedFlightRouterState
-          )
+          await walkTreeWithFlightRouterState({
+            createSegmentPath: (child) => child,
+            loaderTreeToFilter: loaderTree,
+            parentParams: {},
+            flightRouterState: providedFlightRouterState,
+            isFirst: true,
+          })
         ).slice(1),
       ]
 
@@ -1229,13 +1359,11 @@ export async function renderToHTMLOrFlight(
         }
       ).pipeThrough(createBufferedTransformStream())
 
-      if (generateStaticHTML) {
-        let staticHtml = Buffer.from(
-          (await readable.getReader().read()).value || ''
-        ).toString()
-        return new FlightRenderResult(staticHtml)
-      }
       return new FlightRenderResult(readable)
+    }
+
+    if (isFlight && !isStaticGeneration) {
+      return generateFlight()
     }
 
     // Below this line is handling for rendering to HTML.
@@ -1250,7 +1378,7 @@ export async function renderToHTMLOrFlight(
 
     // AppRouter is provided by next-app-loader
     const AppRouter =
-      ComponentMod.AppRouter as typeof import('../client/components/app-router.client').default
+      ComponentMod.AppRouter as typeof import('../client/components/app-router').default
 
     let serverComponentsInlinedTransformStream: TransformStream<
       Uint8Array,
@@ -1284,11 +1412,7 @@ export async function renderToHTMLOrFlight(
 
         return (
           <AppRouter
-            hotReloader={
-              HotReloader && (
-                <HotReloader assetPrefix={renderOpts.assetPrefix || ''} />
-              )
-            }
+            assetPrefix={renderOpts.assetPrefix || ''}
             initialCanonicalUrl={initialCanonicalUrl}
             initialTree={initialTree}
           >
@@ -1314,30 +1438,20 @@ export async function renderToHTMLOrFlight(
       )
 
       return (
-        <ServerInsertedHTMLContext.Provider value={addInsertedHtml}>
-          {children}
-        </ServerInsertedHTMLContext.Provider>
+        <HeadManagerContext.Provider
+          value={{
+            appDir: true,
+            nonce,
+          }}
+        >
+          <ServerInsertedHTMLContext.Provider value={addInsertedHtml}>
+            {children}
+          </ServerInsertedHTMLContext.Provider>
+        </HeadManagerContext.Provider>
       )
     }
 
     const bodyResult = async () => {
-      const content = (
-        <InsertedHTML>
-          <ServerComponentsRenderer />
-        </InsertedHTML>
-      )
-
-      const getServerInsertedHTML = (): Promise<string> => {
-        const flushed = renderToString(
-          <>
-            {Array.from(serverInsertedHTMLCallbacks).map((callback) =>
-              callback()
-            )}
-          </>
-        )
-        return flushed
-      }
-
       const polyfills = buildManifest.polyfillFiles
         .filter(
           (polyfill) =>
@@ -1347,6 +1461,38 @@ export async function renderToHTMLOrFlight(
           src: `${renderOpts.assetPrefix || ''}/_next/${polyfill}`,
           integrity: subresourceIntegrityManifest?.[polyfill],
         }))
+
+      const content = (
+        <InsertedHTML>
+          <ServerComponentsRenderer />
+        </InsertedHTML>
+      )
+
+      let polyfillsFlushed = false
+      const getServerInsertedHTML = (): Promise<string> => {
+        const flushed = renderToString(
+          <>
+            {Array.from(serverInsertedHTMLCallbacks).map((callback) =>
+              callback()
+            )}
+            {polyfillsFlushed
+              ? null
+              : polyfills?.map((polyfill) => {
+                  return (
+                    <script
+                      key={polyfill.src}
+                      src={polyfill.src}
+                      integrity={polyfill.integrity}
+                      noModule={true}
+                      nonce={nonce}
+                    />
+                  )
+                })}
+          </>
+        )
+        polyfillsFlushed = true
+        return flushed
+      }
 
       try {
         const renderStream = await renderToInitialStream({
@@ -1371,10 +1517,9 @@ export async function renderToHTMLOrFlight(
 
         return await continueFromInitialStream(renderStream, {
           dataStream: serverComponentsInlinedTransformStream?.readable,
-          generateStaticHTML: generateStaticHTML,
+          generateStaticHTML: isStaticGeneration,
           getServerInsertedHTML,
           serverInsertedHTMLToHead: true,
-          polyfills,
           dev,
         })
       } catch (err: any) {
@@ -1403,39 +1548,41 @@ export async function renderToHTMLOrFlight(
 
         return await continueFromInitialStream(renderStream, {
           dataStream: serverComponentsInlinedTransformStream?.readable,
-          generateStaticHTML: generateStaticHTML,
+          generateStaticHTML: isStaticGeneration,
           getServerInsertedHTML,
           serverInsertedHTMLToHead: true,
-          polyfills,
           dev,
         })
       }
     }
+    const renderResult = new RenderResult(await bodyResult())
 
-    if (generateStaticHTML) {
-      const readable = await bodyResult()
-      let staticHtml = Buffer.from(
-        (await readable.getReader().read()).value || ''
-      ).toString()
-
+    if (isStaticGeneration) {
+      const htmlResult = await streamToBufferedResult(renderResult)
       // if we encountered any unexpected errors during build
       // we fail the prerendering phase and the build
       if (capturedErrors.length > 0) {
         throw capturedErrors[0]
       }
+      // const before = Buffer.concat(
+      //   serverComponentsRenderOpts.rscChunks
+      // ).toString()
 
-      ;(renderOpts as any).pageData = Buffer.concat(
-        serverComponentsRenderOpts.rscChunks
-      ).toString()
+      // TODO-APP: derive this from same pass to prevent additional
+      // render during static generation
+      const filteredFlightData = await streamToBufferedResult(
+        await generateFlight()
+      )
+
+      ;(renderOpts as any).pageData = filteredFlightData
       ;(renderOpts as any).revalidate =
         typeof staticGenerationStore?.revalidate === 'undefined'
           ? defaultRevalidate
           : staticGenerationStore?.revalidate
 
-      return new RenderResult(staticHtml)
+      return new RenderResult(htmlResult)
     }
-
-    return new RenderResult(await bodyResult())
+    return renderResult
   }
 
   const initialStaticGenerationStore = {
@@ -1458,18 +1605,33 @@ export async function renderToHTMLOrFlight(
     (renderOpts as any).previewProps
   )
 
+  let cachedHeadersInstance: ReadonlyHeaders | undefined
+  let cachedCookiesInstance: ReadonlyNextCookies | undefined
+
   const requestStore = {
-    headers: new ReadonlyHeaders(headersWithoutFlight(req.headers)),
-    cookies: new ReadonlyNextCookies({
-      headers: {
-        get: (key) => {
-          if (key !== 'cookie') {
-            throw new Error('Only cookie header is supported')
-          }
-          return req.headers.cookie
-        },
-      },
-    }),
+    get headers() {
+      if (!cachedHeadersInstance) {
+        cachedHeadersInstance = new ReadonlyHeaders(
+          headersWithoutFlight(req.headers)
+        )
+      }
+      return cachedHeadersInstance
+    },
+    get cookies() {
+      if (!cachedCookiesInstance) {
+        cachedCookiesInstance = new ReadonlyNextCookies({
+          headers: {
+            get: (key) => {
+              if (key !== 'cookie') {
+                throw new Error('Only cookie header is supported')
+              }
+              return req.headers.cookie
+            },
+          },
+        })
+      }
+      return cachedCookiesInstance
+    },
     previewData,
   }
 

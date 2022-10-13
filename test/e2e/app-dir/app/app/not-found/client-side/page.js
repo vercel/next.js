@@ -1,4 +1,4 @@
-'client'
+'use client'
 
 import { notFound } from 'next/dist/client/components/not-found'
 import React from 'react'

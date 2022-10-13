@@ -102,9 +102,8 @@ function formatOverrideValue(val: number) {
   return Math.abs(val * 100).toFixed(2)
 }
 
-export function calculateOverrideValues(font: string, fontMetrics: any) {
-  const fontKey = font.trim()
-  let { category, ascent, descent, lineGap, unitsPerEm } = fontMetrics[fontKey]
+export function calculateOverrideValues(fontMetrics: any) {
+  let { category, ascent, descent, lineGap, unitsPerEm } = fontMetrics
   const fallbackFont =
     category === 'serif' ? DEFAULT_SERIF_FONT : DEFAULT_SANS_SERIF_FONT
   ascent = formatOverrideValue(ascent / unitsPerEm)
@@ -119,14 +118,15 @@ export function calculateOverrideValues(font: string, fontMetrics: any) {
   }
 }
 
-export function calculateSizeAdjustValues(font: string, fontMetrics: any) {
-  const fontKey = font.trim()
+export function calculateSizeAdjustValues(fontMetrics: any) {
   let { category, ascent, descent, lineGap, unitsPerEm, xAvgCharWidth } =
-    fontMetrics[fontKey]
+    fontMetrics
   const fallbackFont =
     category === 'serif' ? DEFAULT_SERIF_FONT : DEFAULT_SANS_SERIF_FONT
 
-  let sizeAdjust = xAvgCharWidth / fallbackFont.xAvgCharWidth
+  let sizeAdjust = xAvgCharWidth
+    ? xAvgCharWidth / fallbackFont.xAvgCharWidth
+    : 1
 
   ascent = formatOverrideValue(ascent / (unitsPerEm * sizeAdjust))
   descent = formatOverrideValue(descent / (unitsPerEm * sizeAdjust))
@@ -145,8 +145,7 @@ function calculateOverrideCSS(font: string, fontMetrics: any) {
   const fontName = font.trim()
 
   const { ascent, descent, lineGap, fallbackFont } = calculateOverrideValues(
-    font,
-    fontMetrics
+    fontMetrics[fontName]
   )
 
   return `
@@ -164,7 +163,7 @@ function calculateSizeAdjustCSS(font: string, fontMetrics: any) {
   const fontName = font.trim()
 
   const { ascent, descent, lineGap, fallbackFont, sizeAdjust } =
-    calculateSizeAdjustValues(font, fontMetrics)
+    calculateSizeAdjustValues(fontMetrics[fontName])
 
   return `
     @font-face {

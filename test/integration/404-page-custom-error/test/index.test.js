@@ -71,7 +71,7 @@ describe('Default 404 Page with custom _error', () => {
     runTests('server')
   })
 
-  describe('serverless mode', () => {
+  describe.skip('serverless mode', () => {
     afterAll(async () => {
       await fs.remove(nextConfig)
       await killApp(app)
