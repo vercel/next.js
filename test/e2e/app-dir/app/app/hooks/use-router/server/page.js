@@ -1,4 +1,4 @@
-// import { useRouter } from 'next/dist/client/components/hooks-client'
+// import { useRouter } from 'next/navigation'
 
 export default function Page() {
   // This should throw an error.
