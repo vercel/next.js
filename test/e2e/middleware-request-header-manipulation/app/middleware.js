@@ -1,4 +1,4 @@
-import { NextResponse, NextCookies } from 'next/server'
+import { NextResponse } from 'next/server'
 
 /**
  * @param {import('next/server').NextRequest} request

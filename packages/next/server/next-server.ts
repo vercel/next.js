@@ -1881,6 +1881,8 @@ export default class NextNodeServer extends BaseServer {
                 overriddenHeaders.add(key.trim())
               }
 
+              result.response.headers.delete('x-middleware-override-headers')
+
               // Delete headers.
               for (const key of Object.keys(req.headers)) {
                 if (!overriddenHeaders.has(key)) {
@@ -1890,14 +1892,15 @@ export default class NextNodeServer extends BaseServer {
 
               // Update or add headers.
               for (const key of overriddenHeaders.keys()) {
+                const valueKey = 'x-middleware-request-' + key
+                const newValue = result.response.headers.get(valueKey)
                 const oldValue = req.headers[key]
-                const newValue = result.response.headers.get(
-                  'x-middleware-request-' + key
-                )
 
                 if (oldValue !== newValue) {
                   req.headers[key] = newValue === null ? undefined : newValue
                 }
+
+                result.response.headers.delete(valueKey)
               }
             }
 
