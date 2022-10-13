@@ -505,7 +505,7 @@ const ImageElement = ({
         className={className}
         style={{ ...imgStyle, ...blurStyle }}
         // https://web.dev/priority-hints/#increase-the-priority-of-the-lcp-image
-        fetchPriority={priority ? "high" : undefined}
+        fetchPriority={priority ? "high" : rest.fetchPriority}
         ref={useCallback(
           (img: ImgElementWithDataProp) => {
             if (process.env.NODE_ENV !== 'production') {
@@ -572,7 +572,7 @@ const ImageElement = ({
               sizes: noscriptSizes,
               loader,
             })}
-            fetchPriority={priority ? "high" : undefined}
+            fetchPriority={priority ? "high" :  rest.fetchPriority}
             decoding="async"
             data-nimg={layout}
             style={imgStyle}
