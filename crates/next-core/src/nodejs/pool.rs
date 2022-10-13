@@ -38,6 +38,11 @@ impl NodeJsPoolProcess {
             "PATH",
             std::env::var("PATH").expect("PATH should always be set"),
         );
+        #[cfg(target_family = "windows")]
+        cmd.env(
+            "SystemRoot",
+            std::env::var("SystemRoot").expect("SystemRoot should always be set"),
+        );
         cmd.envs(env);
         cmd.stdin(Stdio::piped());
         cmd.stdout(Stdio::piped());
