@@ -232,133 +232,135 @@ describe('app dir next-font', () => {
     })
   })
 
-  describe('preload', () => {
-    it('should preload correctly with server components', async () => {
-      const html = await renderViaHTTP(next.url, '/')
-      const $ = cheerio.load(html)
+  if (!isDev) {
+    describe('preload', () => {
+      it('should preload correctly with server components', async () => {
+        const html = await renderViaHTTP(next.url, '/')
+        const $ = cheerio.load(html)
 
-      // Preconnect
-      expect($('link[rel="preconnect"]').length).toBe(0)
+        // Preconnect
+        expect($('link[rel="preconnect"]').length).toBe(0)
 
-      expect($('link[as="font"]').length).toBe(3)
-      expect($('link[as="font"]').get(0).attribs).toEqual({
-        as: 'font',
-        crossorigin: '',
-        href: '/_next/static/media/e9b9dc0d8ba35f48.p.woff2',
-        rel: 'preload',
-        type: 'font/woff2',
+        expect($('link[as="font"]').length).toBe(3)
+        expect($('link[as="font"]').get(0).attribs).toEqual({
+          as: 'font',
+          crossorigin: '',
+          href: '/_next/static/media/e9b9dc0d8ba35f48.p.woff2',
+          rel: 'preload',
+          type: 'font/woff2',
+        })
+        expect($('link[as="font"]').get(1).attribs).toEqual({
+          as: 'font',
+          crossorigin: '',
+          href: '/_next/static/media/b61859a50be14c53.p.woff2',
+          rel: 'preload',
+          type: 'font/woff2',
+        })
+        expect($('link[as="font"]').get(2).attribs).toEqual({
+          as: 'font',
+          crossorigin: '',
+          href: '/_next/static/media/b2104791981359ae.p.woff2',
+          rel: 'preload',
+          type: 'font/woff2',
+        })
       })
-      expect($('link[as="font"]').get(1).attribs).toEqual({
-        as: 'font',
-        crossorigin: '',
-        href: '/_next/static/media/b2104791981359ae.p.woff2',
-        rel: 'preload',
-        type: 'font/woff2',
+
+      it('should preload correctly with client components', async () => {
+        const html = await renderViaHTTP(next.url, '/client')
+        const $ = cheerio.load(html)
+
+        // Preconnect
+        expect($('link[rel="preconnect"]').length).toBe(0)
+
+        expect($('link[as="font"]').length).toBe(3)
+        // From root layout
+        expect($('link[as="font"]').get(0).attribs).toEqual({
+          as: 'font',
+          crossorigin: '',
+          href: '/_next/static/media/e9b9dc0d8ba35f48.p.woff2',
+          rel: 'preload',
+          type: 'font/woff2',
+        })
+
+        expect($('link[as="font"]').get(1).attribs).toEqual({
+          as: 'font',
+          crossorigin: '',
+          href: '/_next/static/media/e1053f04babc7571.p.woff2',
+          rel: 'preload',
+          type: 'font/woff2',
+        })
+        expect($('link[as="font"]').get(2).attribs).toEqual({
+          as: 'font',
+          crossorigin: '',
+          href: '/_next/static/media/feab2c68f2a8e9a4.p.woff2',
+          rel: 'preload',
+          type: 'font/woff2',
+        })
       })
-      expect($('link[as="font"]').get(2).attribs).toEqual({
-        as: 'font',
-        crossorigin: '',
-        href: '/_next/static/media/b61859a50be14c53.p.woff2',
-        rel: 'preload',
-        type: 'font/woff2',
+
+      it('should preload correctly with layout using fonts', async () => {
+        const html = await renderViaHTTP(next.url, '/layout-with-fonts')
+        const $ = cheerio.load(html)
+
+        // Preconnect
+        expect($('link[rel="preconnect"]').length).toBe(0)
+
+        expect($('link[as="font"]').length).toBe(2)
+        // From root layout
+        expect($('link[as="font"]').get(0).attribs).toEqual({
+          as: 'font',
+          crossorigin: '',
+          href: '/_next/static/media/e9b9dc0d8ba35f48.p.woff2',
+          rel: 'preload',
+          type: 'font/woff2',
+        })
+
+        expect($('link[as="font"]').get(1).attribs).toEqual({
+          as: 'font',
+          crossorigin: '',
+          href: '/_next/static/media/75c5faeeb9c86969.p.woff2',
+          rel: 'preload',
+          type: 'font/woff2',
+        })
+      })
+
+      it('should preload correctly with page using fonts', async () => {
+        const html = await renderViaHTTP(next.url, '/page-with-fonts')
+        const $ = cheerio.load(html)
+
+        // Preconnect
+        expect($('link[rel="preconnect"]').length).toBe(0)
+
+        expect($('link[as="font"]').length).toBe(2)
+        // From root layout
+        expect($('link[as="font"]').get(0).attribs).toEqual({
+          as: 'font',
+          crossorigin: '',
+          href: '/_next/static/media/e9b9dc0d8ba35f48.p.woff2',
+          rel: 'preload',
+          type: 'font/woff2',
+        })
+
+        expect($('link[as="font"]').get(1).attribs).toEqual({
+          as: 'font',
+          crossorigin: '',
+          href: '/_next/static/media/568e4c6d8123c4d6.p.woff2',
+          rel: 'preload',
+          type: 'font/woff2',
+        })
       })
     })
-
-    it('should preload correctly with client components', async () => {
-      const html = await renderViaHTTP(next.url, '/client')
-      const $ = cheerio.load(html)
-
-      // Preconnect
-      expect($('link[rel="preconnect"]').length).toBe(0)
-
-      expect($('link[as="font"]').length).toBe(3)
-      // From root layout
-      expect($('link[as="font"]').get(0).attribs).toEqual({
-        as: 'font',
-        crossorigin: '',
-        href: '/_next/static/media/e9b9dc0d8ba35f48.p.woff2',
-        rel: 'preload',
-        type: 'font/woff2',
-      })
-
-      expect($('link[as="font"]').get(1).attribs).toEqual({
-        as: 'font',
-        crossorigin: '',
-        href: '/_next/static/media/e1053f04babc7571.p.woff2',
-        rel: 'preload',
-        type: 'font/woff2',
-      })
-      expect($('link[as="font"]').get(2).attribs).toEqual({
-        as: 'font',
-        crossorigin: '',
-        href: '/_next/static/media/feab2c68f2a8e9a4.p.woff2',
-        rel: 'preload',
-        type: 'font/woff2',
-      })
-    })
-
-    it('should preload correctly with layout using fonts', async () => {
-      const html = await renderViaHTTP(next.url, '/layout-with-fonts')
-      const $ = cheerio.load(html)
-
-      // Preconnect
-      expect($('link[rel="preconnect"]').length).toBe(0)
-
-      expect($('link[as="font"]').length).toBe(2)
-      // From root layout
-      expect($('link[as="font"]').get(0).attribs).toEqual({
-        as: 'font',
-        crossorigin: '',
-        href: '/_next/static/media/e9b9dc0d8ba35f48.p.woff2',
-        rel: 'preload',
-        type: 'font/woff2',
-      })
-
-      expect($('link[as="font"]').get(1).attribs).toEqual({
-        as: 'font',
-        crossorigin: '',
-        href: '/_next/static/media/75c5faeeb9c86969.p.woff2',
-        rel: 'preload',
-        type: 'font/woff2',
-      })
-    })
-
-    it('should preload correctly with page using fonts', async () => {
-      const html = await renderViaHTTP(next.url, '/page-with-fonts')
-      const $ = cheerio.load(html)
-
-      // Preconnect
-      expect($('link[rel="preconnect"]').length).toBe(0)
-
-      expect($('link[as="font"]').length).toBe(2)
-      // From root layout
-      expect($('link[as="font"]').get(0).attribs).toEqual({
-        as: 'font',
-        crossorigin: '',
-        href: '/_next/static/media/e9b9dc0d8ba35f48.p.woff2',
-        rel: 'preload',
-        type: 'font/woff2',
-      })
-
-      expect($('link[as="font"]').get(1).attribs).toEqual({
-        as: 'font',
-        crossorigin: '',
-        href: '/_next/static/media/568e4c6d8123c4d6.p.woff2',
-        rel: 'preload',
-        type: 'font/woff2',
-      })
-    })
-  })
+  }
 
   if (isDev) {
     describe('Dev errors', () => {
       it('should recover on font loader error', async () => {
         const browser = await webdriver(next.url, '/')
-        const font1Content = await next.readFile('fonts/font1.js')
+        const font1Content = await next.readFile('fonts/index.js')
 
         // Break file
         await next.patchFile(
-          'fonts/font1.js',
+          'fonts/index.js',
           font1Content.replace('./font1.woff2', './does-not-exist.woff2')
         )
         expect(await hasRedbox(browser, true)).toBeTrue()
@@ -367,7 +369,7 @@ describe('app dir next-font', () => {
         )
 
         // Fix file
-        await next.patchFile('fonts/font1.js', font1Content)
+        await next.patchFile('fonts/index.js', font1Content)
         await browser.waitForElementByCss('#root-page')
       })
     })
