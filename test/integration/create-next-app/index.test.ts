@@ -649,9 +649,9 @@ describe('create next app', () => {
 
 it('should infer pnpm as the package manager with example', async () => {
   try {
-    await execa('yarn', ['--version'])
+    await execa('pnpm', ['--version'])
   } catch (_) {
-    // install yarn if not available
+    // install pnpm if not available
     await execa('npm', ['i', '-g', 'pnpm'])
   }
 
