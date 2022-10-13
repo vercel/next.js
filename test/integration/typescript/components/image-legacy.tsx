@@ -1,5 +1,5 @@
 import React from 'react'
-import Image, { ImageProps } from 'next/image'
+import Image, { ImageProps } from 'next/legacy/image'
 
 export default () => {
   const props: ImageProps = {
@@ -10,9 +10,9 @@ export default () => {
   }
 
   const filledProps: ImageProps = {
-    alt: 'test-fill-true',
+    alt: 'test-layout-fill',
     src: '/noop.jpg',
-    fill: true,
+    layout: 'fill',
   }
 
   return (
