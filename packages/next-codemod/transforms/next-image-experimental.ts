@@ -34,7 +34,7 @@ function findAndReplaceProps(
         el.value.openingElement.name.name === tagName
     )
     .forEach((el) => {
-      let layout = 'intrisic'
+      let layout = 'intrinsic'
       let objectFit = null
       let objectPosition = null
       let styleExpProps = []
