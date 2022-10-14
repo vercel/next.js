@@ -13,6 +13,9 @@ import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
 import { IncomingMessage, ServerResponse } from 'http'
 import { NextUrlWithParsedQuery } from './request-meta'
 import { shouldUseReactRoot } from './utils'
+import { loadRequireHook } from '../build/webpack/require-hook'
+
+loadRequireHook()
 
 let ServerImpl: typeof Server
 

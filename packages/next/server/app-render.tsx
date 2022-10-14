@@ -3,15 +3,16 @@ import type { LoadComponentsReturnType } from './load-components'
 import type { ServerRuntime } from '../types'
 import type { FontLoaderManifest } from '../build/webpack/plugins/font-loader-manifest-plugin'
 
+// TODO-APP: investigate why require-hook doesn't work for app-render
 // TODO-APP: change to React.use once it becomes stable
 import React, {
   // @ts-ignore
   experimental_use as use,
-} from 'react'
+} from 'next/dist/compiled/react'
 
 // this needs to be required lazily so that `next-server` can set
 // the env before we require
-import ReactDOMServer from 'react-dom/server.browser'
+import ReactDOMServer from 'next/dist/compiled/react-dom/server.browser'
 
 import { ParsedUrlQuery, stringify as stringifyQuery } from 'querystring'
 import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
