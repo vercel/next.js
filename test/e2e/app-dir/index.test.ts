@@ -1687,7 +1687,7 @@ describe('app dir', () => {
     })
 
     describe('not-found', () => {
-      it.skip('should trigger not-found in a server component', async () => {
+      it('should trigger not-found in a server component', async () => {
         const browser = await webdriver(next.url, '/not-found/servercomponent')
 
         expect(
