@@ -134,10 +134,6 @@ module.exports = {
       renames,
       configFiles: [
         {
-          path: 'pages/image.js',
-          content: imagePageData,
-        },
-        {
           path: 'next.config.js',
           content: `
             module.exports = {
