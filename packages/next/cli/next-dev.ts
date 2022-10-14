@@ -10,6 +10,7 @@ import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
 import { CONFIG_FILES } from '../shared/lib/constants'
 import path from 'path'
+import { loadBindings } from '../build/swc'
 
 const nextDev: cliCommand = (argv) => {
   const validArgs: arg.Spec = {
@@ -17,6 +18,7 @@ const nextDev: cliCommand = (argv) => {
     '--help': Boolean,
     '--port': Number,
     '--hostname': String,
+    '--diagnostics': Boolean,
 
     // Aliases
     '-h': '--help',
@@ -85,46 +87,65 @@ const nextDev: cliCommand = (argv) => {
   // some set-ups that rely on listening on other interfaces
   const host = args['--hostname']
 
-  startServer({
+  const devServerOptions = {
     allowRetry,
     dev: true,
     dir,
     hostname: host,
     isNextDevCommand: true,
     port,
-  })
-    .then(async (app) => {
-      const appUrl = `http://${app.hostname}:${app.port}`
-      startedDevelopmentServer(appUrl, `${host || '0.0.0.0'}:${app.port}`)
+  }
+
+  if (args['--diagnostics']) {
+    Log.warn('running diagnostics...')
+
+    loadBindings().then((bindings: any) => {
+      const packagePath = require('next/dist/compiled/find-up').sync(
+        'package.json'
+      )
+      let r = bindings.diagnostics.startDiagnostics({
+        ...devServerOptions,
+        rootDir: path.dirname(packagePath),
+      })
       // Start preflight after server is listening and ignore errors:
       preflight().catch(() => {})
-      // Finalize server bootup:
-      await app.prepare()
+      return r
     })
-    .catch((err) => {
-      if (err.code === 'EADDRINUSE') {
-        let errorMessage = `Port ${port} is already in use.`
-        const pkgAppPath = require('next/dist/compiled/find-up').sync(
-          'package.json',
-          {
-            cwd: dir,
-          }
-        )
-        const appPackage = require(pkgAppPath)
-        if (appPackage.scripts) {
-          const nextScript = Object.entries(appPackage.scripts).find(
-            (scriptLine) => scriptLine[1] === 'next'
+  } else {
+    startServer(devServerOptions)
+      .then(async (app) => {
+        const appUrl = `http://${app.hostname}:${app.port}`
+        startedDevelopmentServer(appUrl, `${host || '0.0.0.0'}:${app.port}`)
+        // Start preflight after server is listening and ignore errors:
+        preflight().catch(() => {})
+        // Finalize server bootup:
+        await app.prepare()
+      })
+      .catch((err) => {
+        if (err.code === 'EADDRINUSE') {
+          let errorMessage = `Port ${port} is already in use.`
+          const pkgAppPath = require('next/dist/compiled/find-up').sync(
+            'package.json',
+            {
+              cwd: dir,
+            }
           )
-          if (nextScript) {
-            errorMessage += `\nUse \`npm run ${nextScript[0]} -- -p <some other port>\`.`
+          const appPackage = require(pkgAppPath)
+          if (appPackage.scripts) {
+            const nextScript = Object.entries(appPackage.scripts).find(
+              (scriptLine) => scriptLine[1] === 'next'
+            )
+            if (nextScript) {
+              errorMessage += `\nUse \`npm run ${nextScript[0]} -- -p <some other port>\`.`
+            }
           }
+          console.error(errorMessage)
+        } else {
+          console.error(err)
         }
-        console.error(errorMessage)
-      } else {
-        console.error(err)
-      }
-      process.nextTick(() => process.exit(1))
-    })
+        process.nextTick(() => process.exit(1))
+      })
+  }
 
   for (const CONFIG_FILE of CONFIG_FILES) {
     watchFile(path.join(dir, CONFIG_FILE), (cur: any, prev: any) => {
