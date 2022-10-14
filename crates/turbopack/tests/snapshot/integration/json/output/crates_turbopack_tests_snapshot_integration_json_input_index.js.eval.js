@@ -63,7 +63,12 @@ throw new Error("An error occurred while importing a JSON module: \"File is not 
    */
   const moduleChunksMap = new Map();
   var hOP = Object.prototype.hasOwnProperty;
-  var _process = typeof process !== "undefined" ? process : { env: {} };
+  const _process = typeof process !== "undefined" ? process : {
+    env: {},
+    // Some modules rely on `process.browser` to execute browser-specific code.
+    // NOTE: `process.browser` is specific to Webpack.
+    browser: true,
+  };
 
   var toStringTag = typeof Symbol !== "undefined" && Symbol.toStringTag;
 

@@ -52,7 +52,12 @@ __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$
    */
   const moduleChunksMap = new Map();
   var hOP = Object.prototype.hasOwnProperty;
-  var _process = typeof process !== "undefined" ? process : { env: {} };
+  const _process = typeof process !== "undefined" ? process : {
+    env: {},
+    // Some modules rely on `process.browser` to execute browser-specific code.
+    // NOTE: `process.browser` is specific to Webpack.
+    browser: true,
+  };
 
   var toStringTag = typeof Symbol !== "undefined" && Symbol.toStringTag;
 
