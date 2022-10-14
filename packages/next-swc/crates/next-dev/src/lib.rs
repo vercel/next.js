@@ -5,14 +5,11 @@ use std::{env::current_dir, net::IpAddr, path::MAIN_SEPARATOR, sync::Arc};
 
 use anyhow::{anyhow, Context, Result};
 use next_core::{create_server_rendered_source, create_web_entry_source, env::load_env};
-use turbo_tasks::{CollectiblesSource, TransientInstance, TurboTasks, Value};
+use turbo_tasks::{RawVc, TransientInstance, TransientValue, TurboTasks, Value};
 use turbo_tasks_fs::{DiskFileSystemVc, FileSystemPathVc, FileSystemVc};
 use turbo_tasks_memory::MemoryBackend;
-use turbopack_cli_utils::issue::{group_and_display_issues, LogOptions, LogOptionsVc};
-use turbopack_core::{
-    issue::{IssueSeverity, IssueVc},
-    resolve::parse::RequestVc,
-};
+use turbopack_cli_utils::issue::{ConsoleUi, ConsoleUiVc, LogOptions};
+use turbopack_core::{issue::IssueSeverity, resolve::parse::RequestVc};
 use turbopack_dev_server::{
     fs::DevServerFileSystemVc,
     source::{combined::CombinedContentSource, router::RouterContentSource, ContentSourceVc},
@@ -108,13 +105,14 @@ impl NextDevServerBuilder {
         let show_all = self.show_all;
         let log_detail = self.log_detail;
         let browserslist_query = self.browserslist_query;
-        let log_options = Arc::new(LogOptions {
+        let log_options = LogOptions {
             current_dir: current_dir().unwrap(),
             show_all,
             log_detail,
             log_level: self.log_level,
-        });
-        let log_options_to_dev_server = log_options.clone();
+        };
+        let console_ui = Arc::new(ConsoleUi::new(log_options));
+        let console_ui_to_dev_server = console_ui.clone();
 
         let server = DevServer::listen(
             turbo_tasks.clone(),
@@ -125,7 +123,7 @@ impl NextDevServerBuilder {
                     entry_requests.clone(),
                     eager_compile,
                     turbo_tasks.clone().into(),
-                    log_options.clone().into(),
+                    console_ui.clone().into(),
                     browserslist_query.clone(),
                 )
             },
@@ -134,21 +132,19 @@ impl NextDevServerBuilder {
                 self.port.context("port must be set")?,
             )
                 .into(),
-            log_options_to_dev_server,
+            console_ui_to_dev_server,
         );
 
         Ok(server)
     }
 }
 
-async fn handle_issues<T: CollectiblesSource + Copy>(
-    source: T,
-    options: LogOptionsVc,
-) -> Result<()> {
-    let issues = IssueVc::peek_issues_with_path(source).await?;
-    let fatal = *group_and_display_issues(options, issues).await?;
+async fn handle_issues<T: Into<RawVc>>(source: T, console_ui: ConsoleUiVc) -> Result<()> {
+    let state = console_ui
+        .group_and_display_issues(TransientValue::new(source.into()))
+        .await?;
 
-    if fatal {
+    if state.has_fatal {
         Err(anyhow!("Fatal issue(s) occurred"))
     } else {
         Ok(())
@@ -156,20 +152,20 @@ async fn handle_issues<T: CollectiblesSource + Copy>(
 }
 
 #[turbo_tasks::function]
-async fn project_fs(project_dir: &str, log_options: LogOptionsVc) -> Result<FileSystemVc> {
+async fn project_fs(project_dir: &str, console_ui: ConsoleUiVc) -> Result<FileSystemVc> {
     let disk_fs = DiskFileSystemVc::new("project".to_string(), project_dir.to_string());
-    handle_issues(disk_fs, log_options).await?;
+    handle_issues(disk_fs, console_ui).await?;
     disk_fs.await?.start_watching()?;
     Ok(disk_fs.into())
 }
 
 #[turbo_tasks::function]
-async fn output_fs(project_dir: &str, log_options: LogOptionsVc) -> Result<FileSystemVc> {
+async fn output_fs(project_dir: &str, console_ui: ConsoleUiVc) -> Result<FileSystemVc> {
     let disk_fs = DiskFileSystemVc::new(
         "output".to_string(),
         format!("{project_dir}{s}.next{s}server", s = MAIN_SEPARATOR),
     );
-    handle_issues(disk_fs, log_options).await?;
+    handle_issues(disk_fs, console_ui).await?;
     disk_fs.await?.start_watching()?;
     Ok(disk_fs.into())
 }
@@ -181,12 +177,12 @@ async fn source(
     entry_requests: Vec<String>,
     eager_compile: bool,
     turbo_tasks: TransientInstance<TurboTasks<MemoryBackend>>,
-    log_options: TransientInstance<LogOptions>,
+    console_ui: TransientInstance<ConsoleUi>,
     browserslist_query: String,
 ) -> Result<ContentSourceVc> {
-    let log_options = (*log_options).clone().cell();
-    let output_fs = output_fs(&project_dir, log_options);
-    let fs = project_fs(&root_dir, log_options);
+    let console_ui = (*console_ui).clone().cell();
+    let output_fs = output_fs(&project_dir, console_ui);
+    let fs = project_fs(&root_dir, console_ui);
     let project_relative = project_dir.strip_prefix(&root_dir).unwrap();
     let project_relative = project_relative
         .strip_prefix(MAIN_SEPARATOR)
@@ -231,9 +227,9 @@ async fn source(
     .cell()
     .into();
 
-    handle_issues(dev_server_fs, log_options).await?;
-    handle_issues(web_source, log_options).await?;
-    handle_issues(rendered_source, log_options).await?;
+    handle_issues(dev_server_fs, console_ui).await?;
+    handle_issues(web_source, console_ui).await?;
+    handle_issues(rendered_source, console_ui).await?;
 
     Ok(source)
 }
