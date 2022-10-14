@@ -1307,7 +1307,6 @@ export default async function getBaseWebpackConfig(
             ...(config.experimental.optimizeCss ? [] : ['critters']),
           ],
     optimization: {
-      // @ts-ignore: TODO remove ts-ignore when webpack 4 is removed
       emitOnErrors: !dev,
       checkWasmTypes: false,
       nodeEnv: false,
@@ -1320,10 +1319,17 @@ export default async function getBaseWebpackConfig(
 
         if (isNodeServer) {
           return {
-            // @ts-ignore
             filename: '[name].js',
             chunks: 'all',
             minSize: 1000,
+          }
+        }
+
+        if (isEdgeServer) {
+          return {
+            filename: 'edge-chunks/[name].js',
+            chunks: 'all',
+            minChunks: 2,
           }
         }
 
@@ -1439,7 +1445,6 @@ export default async function getBaseWebpackConfig(
     },
     context: dir,
     // Kept as function to be backwards compatible
-    // @ts-ignore TODO webpack 5 typings needed
     entry: async () => {
       return {
         ...(clientEntries ? clientEntries : {}),
