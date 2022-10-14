@@ -13,18 +13,13 @@ export enum DiagnosticCategory {
 
 function getFormattedLayoutAndPageDiagnosticMessageText(
   baseDir: string,
-  diagnostic: import('typescript').Diagnostic,
-  program: import('typescript').Program
+  diagnostic: import('typescript').Diagnostic
 ) {
-  const ts = require('typescript') as typeof import('typescript')
-
   const message = diagnostic.messageText
   const sourceFilepath =
     diagnostic.file?.text.trim().match(/^\/\/ File: (.+)\n/)?.[1] || ''
 
   if (sourceFilepath && typeof message !== 'string') {
-    const sourceFile = program.getSourceFile(sourceFilepath)
-
     const relativeSourceFile = path.relative(baseDir, sourceFilepath)
     const type = /'typeof import\(".+page"\)'/.test(message.messageText)
       ? 'Page'
@@ -44,7 +39,8 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
 
           function processNext(
             indent: number,
-            next?: import('typescript').DiagnosticMessageChain[]
+            next?: import('typescript').DiagnosticMessageChain[],
+            parent?: null
           ) {
             if (!next) return
 
@@ -67,7 +63,10 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
                   if (types) {
                     main += '\n' + ' '.repeat(indent * 2)
                     main += `Expected "${chalk.bold(
-                      types[2]
+                      types[2].replace(
+                        '"__invalid_negative_number__"',
+                        'number (>= 0)'
+                      )
                     )}", got "${chalk.bold(types[1])}".`
                   }
                   break
@@ -113,7 +112,6 @@ export async function getFormattedDiagnostic(
   ts: typeof import('typescript'),
   baseDir: string,
   diagnostic: import('typescript').Diagnostic,
-  program: import('typescript').Program,
   isAppDirEnabled?: boolean
 ): Promise<string> {
   // If the error comes from .next/types/, we handle it specially.
@@ -124,11 +122,7 @@ export async function getFormattedDiagnostic(
   let message = ''
 
   const layoutReason = isLayoutOrPageError
-    ? getFormattedLayoutAndPageDiagnosticMessageText(
-        baseDir,
-        diagnostic,
-        program
-      )
+    ? getFormattedLayoutAndPageDiagnosticMessageText(baseDir, diagnostic)
     : null
   const reason =
     layoutReason ||

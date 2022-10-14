@@ -97,28 +97,14 @@ export async function runTypeCheck(
 
   if (firstError) {
     throw new CompileError(
-      await getFormattedDiagnostic(
-        ts,
-        baseDir,
-        firstError,
-        program as import('typescript').Program,
-        isAppDirEnabled
-      )
+      await getFormattedDiagnostic(ts, baseDir, firstError, isAppDirEnabled)
     )
   }
 
   const warnings = await Promise.all(
     allDiagnostics
       .filter((d) => d.category === DiagnosticCategory.Warning)
-      .map((d) =>
-        getFormattedDiagnostic(
-          ts,
-          baseDir,
-          d,
-          program as import('typescript').Program,
-          isAppDirEnabled
-        )
-      )
+      .map((d) => getFormattedDiagnostic(ts, baseDir, d, isAppDirEnabled))
   )
   return {
     hasWarnings: true,

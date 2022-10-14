@@ -10,6 +10,46 @@ interface Options {
   dev: boolean
 }
 
+function createTypeGuardFile(
+  fullPath: string,
+  relativePath: string,
+  options: {
+    type: 'layout' | 'page'
+  }
+) {
+  return `// File: ${fullPath}
+import * as entry from '${relativePath}'
+type TEntry = typeof entry
+
+check<IEntry, TEntry>(entry)
+
+interface IEntry {
+  default: ({ children }: { children: any }) => JSX.Element
+  config?: {
+    revalidate?: number | boolean
+    dynamic?: string
+    dynamicParams?: boolean
+    fetchCache?: string
+    preferredRegion?: string
+    ${options.type === 'page' ? 'runtime?: string' : ''}
+  }
+  revalidate?: RevalidateRange<TEntry> | false
+}
+
+// =============
+// Utility types
+type RevalidateRange<T> = T extends { revalidate: any } ? NonNegative<T['revalidate']> : never
+type Impossible<K extends keyof any> = { [P in K]: never }
+function check<Base, T extends Base>(_mod: T & Impossible<Exclude<keyof T, keyof Base>>): void {}
+
+// https://github.com/sindresorhus/type-fest
+type Numeric = number | bigint
+type Zero = 0 | 0n
+type Negative<T extends Numeric> = T extends Zero ? never : \`\${T}\` extends \`-\${string}\` ? T : never
+type NonNegative<T extends Numeric> = T extends Zero ? T : Negative<T> extends never ? T : '__invalid_negative_number__'
+`
+}
+
 export class FlightTypesPlugin {
   appDir: string
   dev: boolean
@@ -49,53 +89,15 @@ export class FlightTypesPlugin {
 
       if (IS_LAYOUT) {
         assets[assetPath] = new sources.RawSource(
-          `// File: ${mod.resource}
-import * as Self from '${relativeImportPath}'
-
-type Impossible<K extends keyof any> = {
-  [P in K]: never;
-};
-
-function check<Base, T extends Base>(_mod: T & Impossible<Exclude<keyof T, keyof Base>>): void {}
-
-check<Layout, typeof Self>(Self)
-
-interface Layout {
-  default:({ children }: { children: any; }) => JSX.Element
-  config?: {
-    revalidate?: number | boolean;
-    dynamic?: string;
-    dynamicParams?: boolean;
-    fetchCache?: string;
-    preferredRegion?: string;
-  }
-}`
+          createTypeGuardFile(mod.resource, relativeImportPath, {
+            type: 'layout',
+          })
         ) as unknown as webpack.sources.RawSource
       } else if (IS_PAGE) {
         assets[assetPath] = new sources.RawSource(
-          `// File: ${mod.resource}
-import * as Self from '${relativeImportPath}'
-
-type Impossible<K extends keyof any> = {
-  [P in K]: never;
-};
-
-function check<Base, T extends Base>(_mod: T & Impossible<Exclude<keyof T, keyof Base>>): void {}
-
-check<Page, typeof Self>(Self)
-
-interface Page {
-  default:() => JSX.Element
-  config?: {
-    revalidate?: number | boolean;
-    dynamic?: string;
-    dynamicParams?: boolean;
-    fetchCache?: string;
-    preferredRegion?: string;
-    runtime?: string;
-  }
-}
-`
+          createTypeGuardFile(mod.resource, relativeImportPath, {
+            type: 'page',
+          })
         ) as unknown as webpack.sources.RawSource
       }
     }

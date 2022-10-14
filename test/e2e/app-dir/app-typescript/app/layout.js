@@ -1,6 +1,6 @@
-export const config = {
-  foo: 1,
-}
+export const config = {}
+
+export const revalidate = -1
 
 export default function Root({ children }) {
   return (
