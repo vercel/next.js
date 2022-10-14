@@ -1213,25 +1213,13 @@ export async function renderToHTMLOrFlight(
       renderResult: RenderResult
     ): Promise<string> => {
       const renderChunks: Buffer[] = []
-      if (process.env.NEXT_RUNTIME === 'edge') {
-        const writableStream = new WritableStream({
-          write(chunk) {
-            return new Promise((resolve) => {
-              renderChunks.push(chunk)
-              resolve()
-            })
-          },
-        })
-        await renderResult.pipeToWritableStream(writableStream)
-      } else {
-        const writable = new Writable({
-          write(chunk, _encoding, callback) {
-            renderChunks.push(chunk)
-            callback()
-          },
-        })
-        await renderResult.pipe(writable)
-      }
+      const writable = new Writable({
+        write(chunk, _encoding, callback) {
+          renderChunks.push(chunk)
+          callback()
+        },
+      })
+      await renderResult.pipe(writable)
       return Buffer.concat(renderChunks).toString()
     }
 

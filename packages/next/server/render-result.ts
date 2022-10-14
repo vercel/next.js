@@ -66,36 +66,6 @@ export default class RenderResult {
     })()
   }
 
-  pipeToWritableStream(stream: WritableStream<Uint8Array>): Promise<void> {
-    if (typeof this._result === 'string') {
-      throw new Error(
-        'invariant: static responses cannot be piped. This is a bug in Next.js'
-      )
-    }
-    const response = this._result
-
-    return (async () => {
-      const reader = response.getReader()
-      const writer = stream.getWriter()
-
-      try {
-        while (true) {
-          const { done, value } = await reader.read()
-
-          if (done) {
-            await writer.close()
-            return
-          }
-
-          await writer.write(value)
-        }
-      } catch (err) {
-        await writer.abort(err)
-        throw err
-      }
-    })()
-  }
-
   isDynamic(): boolean {
     return typeof this._result !== 'string'
   }
