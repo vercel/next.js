@@ -82,6 +82,7 @@ function getPolyfillScripts(context: HtmlProps, props: OriginProps) {
         crossOrigin={props.crossOrigin || crossOrigin}
         noModule={true}
         src={`${assetPrefix}/_next/${polyfill}${devOnlyCacheBusterQueryString}`}
+        fetchPriority="high"
       />
     ))
 }
@@ -161,6 +162,7 @@ function getDynamicChunks(
         )}${devOnlyCacheBusterQueryString}`}
         nonce={props.nonce}
         crossOrigin={props.crossOrigin || crossOrigin}
+        fetchPriority="high"
       />
     )
   })
@@ -196,6 +198,7 @@ function getScripts(
         async={!isDevelopment && disableOptimizedLoading}
         defer={!disableOptimizedLoading}
         crossOrigin={props.crossOrigin || crossOrigin}
+        fetchPriority="high"
       />
     )
   })
