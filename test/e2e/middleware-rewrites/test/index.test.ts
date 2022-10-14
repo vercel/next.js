@@ -419,24 +419,11 @@ describe('Middleware Rewrite', () => {
     })
 
     it('should handle shallow navigation correctly (dynamic page)', async () => {
-      const browser = await webdriver(next.url, '/fallback-true-blog/first', {
-        waitHydration: false,
-      })
-      let requests = []
+      const browser = await webdriver(next.url, '/fallback-true-blog/first')
 
       browser.on('request', (req) => {
-        const url = req.url()
-        if (url.includes('_next/data')) requests.push(url)
+        console.warn('!got browser request!', req.url())
       })
-
-      // wait for initial query update request
-      await check(async () => {
-        const didReq = await browser.eval('next.router.isReady')
-        if (didReq || requests.length > 0) {
-          requests = []
-          return 'yup'
-        }
-      }, 'yup')
 
       await browser.eval(
         `next.router.push('/fallback-true-blog/first?hello=world', undefined, { shallow: true })`
