@@ -132,6 +132,7 @@ export type EventBuildFeatureUsage = {
   // *before* you make changes here.
   featureName:
     | 'next/image'
+    | 'next/legacy/image'
     | 'next/future/image'
     | 'next/script'
     | 'next/dynamic'
