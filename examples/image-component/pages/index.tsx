@@ -1,5 +1,5 @@
 import styles from '../styles.module.css'
-import Image from 'next/legacy/image'
+import Image from 'next/image'
 import Link from 'next/link'
 import ViewSource from '../components/view-source'
 import vercel from '../public/vercel.png'
@@ -106,7 +106,16 @@ const Index = () => (
         This image is intentionally large so you have to scroll down to the next
         image.
       </p>
-      <Image alt="Vercel logo" src={vercel} width={1000} height={1000} />
+      <Image
+        alt="Vercel logo"
+        src={vercel}
+        width={1000}
+        height={1000}
+        style={{
+          maxWidth: '100%',
+          height: 'auto',
+        }}
+      />
       <hr className={styles.hr} />
       <h2 id="external">External Image</h2>
       <p>
@@ -122,6 +131,10 @@ const Index = () => (
         src="https://assets.vercel.com/image/upload/v1538361091/repositories/next-js/next-js-bg.png"
         width={1200}
         height={400}
+        style={{
+          maxWidth: '100%',
+          height: 'auto',
+        }}
       />
       <hr className={styles.hr} />
       <h2 id="more">Learn More</h2>

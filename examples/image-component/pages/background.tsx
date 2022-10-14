@@ -1,4 +1,4 @@
-import Image from 'next/legacy/image'
+import Image from 'next/image'
 import ViewSource from '../components/view-source'
 import styles from '../styles.module.css'
 
@@ -9,9 +9,12 @@ const BackgroundPage = () => (
       <Image
         alt="Mountains"
         src="/mountains.jpg"
-        layout="fill"
-        objectFit="cover"
         quality={100}
+        fill
+        sizes="100vw"
+        style={{
+          objectFit: 'cover',
+        }}
       />
     </div>
     <p className={styles.bgText}>

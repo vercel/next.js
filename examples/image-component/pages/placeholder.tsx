@@ -1,4 +1,4 @@
-import Image from 'next/legacy/image'
+import Image from 'next/image'
 import ViewSource from '../components/view-source'
 import mountains from '../public/mountains.jpg'
 
@@ -12,6 +12,10 @@ const PlaceholderBlur = () => (
       placeholder="blur"
       width={700}
       height={475}
+      style={{
+        maxWidth: '100%',
+        height: 'auto',
+      }}
     />
   </div>
 )

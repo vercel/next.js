@@ -1,4 +1,4 @@
-import Image from 'next/legacy/image'
+import Image from 'next/image'
 import ViewSource from '../components/view-source'
 import mountains from '../public/mountains.jpg'
 
@@ -9,9 +9,13 @@ const Responsive = () => (
     <Image
       alt="Mountains"
       src={mountains}
-      layout="responsive"
       width={700}
       height={475}
+      sizes="100vw"
+      style={{
+        width: '100%',
+        height: 'auto',
+      }}
     />
   </div>
 )
