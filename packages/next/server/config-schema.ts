@@ -268,7 +268,7 @@ const configSchema = {
         appDir: {
           type: 'boolean',
         },
-        dangerouslyAllowMiddlewareResponseBody: {
+        allowMiddlewareResponseBody: {
           type: 'boolean',
         },
         externalDir: {
