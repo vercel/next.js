@@ -257,15 +257,62 @@ export function createSuffixStream(
   })
 }
 
+export function createRootLayoutValidatorStream(
+  assetPrefix?: string
+): TransformStream<Uint8Array, Uint8Array> {
+  let foundHtml = false
+  let foundHead = false
+  let foundBody = false
+
+  return new TransformStream({
+    async transform(chunk, controller) {
+      if (!foundHtml || !foundHead || !foundBody) {
+        const content = decodeText(chunk)
+        if (!foundHtml && content.includes('<html')) {
+          foundHtml = true
+        }
+        if (!foundHead && content.includes('<head')) {
+          foundHead = true
+        }
+        if (!foundBody && content.includes('<body')) {
+          foundBody = true
+        }
+      }
+      controller.enqueue(chunk)
+    },
+    flush(controller) {
+      const missingTags = [
+        foundHtml ? null : 'html',
+        foundHead ? null : 'head',
+        foundBody ? null : 'body',
+      ].filter(nonNullable)
+
+      if (missingTags.length > 0) {
+        controller.enqueue(
+          encodeText(
+            `<script>self.__next_root_layout_missing_tags_error=${JSON.stringify(
+              { missingTags, assetPrefix: assetPrefix ?? '' }
+            )}</script>`
+          )
+        )
+      }
+    },
+  })
+}
+
 export async function continueFromInitialStream(
   renderStream: ReactReadableStream,
   {
+    dev,
     suffix,
     dataStream,
     generateStaticHTML,
     getServerInsertedHTML,
     serverInsertedHTMLToHead,
+    assetPrefix,
   }: {
+    dev?: boolean
+    assetPrefix?: string
     suffix?: string
     dataStream?: ReadableStream<Uint8Array>
     generateStaticHTML: boolean
@@ -297,6 +344,7 @@ export async function continueFromInitialStream(
           : ''
       return serverInsertedHTML
     }),
+    dev ? createRootLayoutValidatorStream(assetPrefix) : null,
   ].filter(nonNullable)
 
   return transforms.reduce(

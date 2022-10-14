@@ -1530,6 +1530,7 @@ export async function renderToHTMLOrFlight(
           getServerInsertedHTML,
           serverInsertedHTMLToHead: true,
           dev: !!dev,
+          assetPrefix: renderOpts.assetPrefix,
         })
       } catch (err: any) {
         // TODO-APP: show error overlay in development. `element` should probably be wrapped in AppRouter for this case.
@@ -1561,6 +1562,7 @@ export async function renderToHTMLOrFlight(
           getServerInsertedHTML,
           serverInsertedHTMLToHead: true,
           dev: !!dev,
+          assetPrefix: renderOpts.assetPrefix,
         })
       }
     }
