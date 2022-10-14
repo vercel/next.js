@@ -1064,6 +1064,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         ) {
           delete req.headers['__rsc__']
           delete req.headers['__next_router_state_tree__']
+          delete req.headers['__next_router_prefetch__']
         }
       }
     }

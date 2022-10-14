@@ -11,8 +11,6 @@ import type { CookieSerializeOptions } from 'next/dist/compiled/cookie'
 import type { PreviewData } from 'next/types'
 
 import bytes from 'next/dist/compiled/bytes'
-import jsonwebtoken from 'next/dist/compiled/jsonwebtoken'
-import { decryptWithSecret, encryptWithSecret } from '../crypto-utils'
 import { generateETag } from '../lib/etag'
 import { sendEtagResponse } from '../send-payload'
 import { Stream } from 'stream'
@@ -88,6 +86,8 @@ export function tryGetPreviewData(
     data: string
   }
   try {
+    const jsonwebtoken =
+      require('next/dist/compiled/jsonwebtoken') as typeof import('next/dist/compiled/jsonwebtoken')
     encryptedPreviewData = jsonwebtoken.verify(
       tokenPreviewData,
       options.previewModeSigningKey
@@ -98,6 +98,8 @@ export function tryGetPreviewData(
     return false
   }
 
+  const { decryptWithSecret } =
+    require('../crypto-utils') as typeof import('../crypto-utils')
   const decryptedPreviewData = decryptWithSecret(
     Buffer.from(options.previewModeEncryptionKey),
     encryptedPreviewData.data
@@ -286,6 +288,10 @@ function setPreviewData<T>(
     throw new Error('invariant: invalid previewModeSigningKey')
   }
 
+  const jsonwebtoken =
+    require('next/dist/compiled/jsonwebtoken') as typeof import('next/dist/compiled/jsonwebtoken')
+  const { encryptWithSecret } =
+    require('../crypto-utils') as typeof import('../crypto-utils')
   const payload = jsonwebtoken.sign(
     {
       data: encryptWithSecret(

@@ -14,6 +14,7 @@
     "./*.d.ts",
     "future/*.d.ts",
     "image-types/global.d.ts",
+    "legacy/*.d.ts",
     "types/compiled.d.ts"
   ]
 }

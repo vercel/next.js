@@ -83,6 +83,7 @@ const INTERNAL_COOKIES_INSTANCE = Symbol('internal for cookies readonly')
 function readonlyCookiesError() {
   return new Error('ReadonlyCookies cannot be modified')
 }
+
 class ReadonlyNextCookies {
   [INTERNAL_COOKIES_INSTANCE]: NextCookies
 
@@ -1183,7 +1184,9 @@ export async function renderToHTMLOrFlight(
                 ? stylesheets.map((href) => (
                     <link
                       rel="stylesheet"
-                      href={`/_next/${href}?ts=${Date.now()}`}
+                      // Add extra cache busting (DEV only) for https://github.com/vercel/next.js/issues/5860
+                      // See also https://bugs.webkit.org/show_bug.cgi?id=187726
+                      href={`/_next/${href}${dev ? `?ts=${Date.now()}` : ''}`}
                       // `Precedence` is an opt-in signal for React to handle
                       // resource loading and deduplication, etc:
                       // https://github.com/facebook/react/pull/25060
@@ -1606,18 +1609,33 @@ export async function renderToHTMLOrFlight(
     (renderOpts as any).previewProps
   )
 
+  let cachedHeadersInstance: ReadonlyHeaders | undefined
+  let cachedCookiesInstance: ReadonlyNextCookies | undefined
+
   const requestStore = {
-    headers: new ReadonlyHeaders(headersWithoutFlight(req.headers)),
-    cookies: new ReadonlyNextCookies({
-      headers: {
-        get: (key) => {
-          if (key !== 'cookie') {
-            throw new Error('Only cookie header is supported')
-          }
-          return req.headers.cookie
-        },
-      },
-    }),
+    get headers() {
+      if (!cachedHeadersInstance) {
+        cachedHeadersInstance = new ReadonlyHeaders(
+          headersWithoutFlight(req.headers)
+        )
+      }
+      return cachedHeadersInstance
+    },
+    get cookies() {
+      if (!cachedCookiesInstance) {
+        cachedCookiesInstance = new ReadonlyNextCookies({
+          headers: {
+            get: (key) => {
+              if (key !== 'cookie') {
+                throw new Error('Only cookie header is supported')
+              }
+              return req.headers.cookie
+            },
+          },
+        })
+      }
+      return cachedCookiesInstance
+    },
     previewData,
   }
 
