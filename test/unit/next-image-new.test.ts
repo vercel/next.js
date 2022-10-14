@@ -7,6 +7,7 @@ import cheerio from 'cheerio'
 describe('Image rendering', () => {
   it('should render Image on its own', async () => {
     const element = React.createElement(Image, {
+      alt: 'unit-image',
       id: 'unit-image',
       src: '/test.png',
       width: 100,
@@ -23,18 +24,21 @@ describe('Image rendering', () => {
 
   it('should only render noscript element when lazy loading', async () => {
     const element = React.createElement(Image, {
+      alt: 'test',
       src: '/test.png',
       width: 100,
       height: 100,
       loading: 'eager',
     })
     const element2 = React.createElement(Image, {
+      alt: 'test',
       src: '/test.png',
       width: 100,
       height: 100,
       priority: true,
     })
     const elementLazy = React.createElement(Image, {
+      alt: 'test',
       src: '/test.png',
       width: 100,
       height: 100,
@@ -49,6 +53,7 @@ describe('Image rendering', () => {
 
   it('should not render noscript', async () => {
     const element1 = React.createElement(Image, {
+      alt: 'test',
       src: '/test.png',
       width: 100,
       height: 100,
@@ -57,6 +62,7 @@ describe('Image rendering', () => {
       blurDataURL: 'data:image/png;base64',
     })
     const element2 = React.createElement(Image, {
+      alt: 'test',
       src: '/test.png',
       width: 100,
       height: 100,
@@ -65,6 +71,7 @@ describe('Image rendering', () => {
       loading: 'eager',
     })
     const element3 = React.createElement(Image, {
+      alt: 'test',
       src: '/test.png',
       width: 100,
       height: 100,
