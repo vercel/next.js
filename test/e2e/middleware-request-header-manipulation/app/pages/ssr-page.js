@@ -1,11 +1,15 @@
-export default function SSRPage(props) {
-  return <h1>{props.message}</h1>
+export default function SSRPage({ headers }) {
+  return (
+    <>
+      <p id="headers">{JSON.stringify({ headers })}</p>
+    </>
+  )
 }
 
-export const getServerSideProps = (req) => {
+export const getServerSideProps = (ctx) => {
   return {
     props: {
-      message: 'Hello World',
+      headers: ctx.req.headers,
     },
   }
 }

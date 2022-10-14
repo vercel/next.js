@@ -4,6 +4,7 @@ import { join } from 'path'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { fetchViaHTTP } from 'next-test-utils'
 import { createNext, FileRef } from 'e2e-utils'
+import cheerio from 'cheerio'
 
 describe('Middleware Request Headers Manipulation', () => {
   let next: NextInstance
@@ -20,16 +21,30 @@ describe('Middleware Request Headers Manipulation', () => {
   })
 
   describe.each([
-    { title: 'Serverless Functions', apiPath: '/api/dump-headers-serverless' },
-    { title: 'Edge Functions', apiPath: '/api/dump-headers-edge' },
-  ])('$title Backend', ({ apiPath }) => {
+    {
+      title: 'Serverless Functions',
+      path: '/api/dump-headers-serverless',
+      toJson: (res: Response) => res.json(),
+    },
+    {
+      title: 'Edge Functions',
+      path: '/api/dump-headers-edge',
+      toJson: (res: Response) => res.json(),
+    },
+    {
+      title: 'getServerSideProps',
+      path: '/api/ssr-page',
+      toJson: async (res: Response) =>
+        cheerio.load(await res.text())('#headers'),
+    },
+  ])('$title Backend', ({ path, toJson }) => {
     it(`Adds new headers`, async () => {
-      const res = await fetchViaHTTP(next.url, apiPath, null, {
+      const res = await fetchViaHTTP(next.url, path, null, {
         headers: {
           'x-from-client': 'hello-from-client',
         },
       })
-      expect(await res.json()).toMatchObject({
+      expect(await toJson(res)).toMatchObject({
         'x-from-client': 'hello-from-client',
         'x-from-middleware': 'hello-from-middleware',
       })
@@ -38,7 +53,7 @@ describe('Middleware Request Headers Manipulation', () => {
     it(`Deletes headers`, async () => {
       const res = await fetchViaHTTP(
         next.url,
-        apiPath,
+        path,
         {
           'remove-headers': 'x-from-client1,x-from-client2',
         },
@@ -50,7 +65,7 @@ describe('Middleware Request Headers Manipulation', () => {
         }
       )
 
-      const json = await res.json()
+      const json = await toJson(res)
       expect(json).not.toHaveProperty('x-from-client1')
       expect(json).not.toHaveProperty('X-From-Client2')
       expect(json).toMatchObject({
@@ -69,7 +84,7 @@ describe('Middleware Request Headers Manipulation', () => {
     it(`Updates headers`, async () => {
       const res = await fetchViaHTTP(
         next.url,
-        apiPath,
+        path,
         {
           'update-headers':
             'x-from-client1=new-value1,x-from-client2=new-value2',
@@ -82,7 +97,7 @@ describe('Middleware Request Headers Manipulation', () => {
           },
         }
       )
-      expect(await res.json()).toMatchObject({
+      expect(await toJson(res)).toMatchObject({
         'x-from-client1': 'new-value1',
         'x-from-client2': 'new-value2',
         'x-from-client3': 'old-value3',
