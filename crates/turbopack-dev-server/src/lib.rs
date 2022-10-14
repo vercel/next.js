@@ -56,13 +56,7 @@ async fn handle_issues<T: Into<RawVc>>(
         .group_and_display_issues(TransientValue::new(source.into()))
         .await?;
     if state.has_fatal {
-        bail!("Fatal issue(s) occurred")
-    }
-
-    if state.has_new_issues {
-        println!("{path} has new issues ({operation}):\n");
-    } else if state.has_issues {
-        println!("{path} has old issues ({operation}):\n");
+        bail!("Fatal issue(s) occurred in {path} ({operation}")
     }
     Ok(())
 }
