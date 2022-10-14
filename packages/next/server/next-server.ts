@@ -1921,7 +1921,7 @@ export default class NextNodeServer extends BaseServer {
               // Delete headers.
               for (const key of Object.keys(req.headers)) {
                 if (!overriddenHeaders.has(key)) {
-                  req.headers[key] = undefined
+                  delete req.headers[key]
                 }
               }
 
