@@ -142,7 +142,7 @@ module.exports = {
       benchOptions: {
         reqTimeout: 60,
         concurrency: 50,
-        numRequests: 2500,
+        numRequests: 1000,
       },
     },
     {
