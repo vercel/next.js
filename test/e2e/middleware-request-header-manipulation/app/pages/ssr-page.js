@@ -1,7 +1,7 @@
 export default function SSRPage({ headers }) {
   return (
     <>
-      <p id="headers">{JSON.stringify({ headers })}</p>
+      <p id="headers">{JSON.stringify(headers)}</p>
     </>
   )
 }

@@ -33,9 +33,11 @@ describe('Middleware Request Headers Manipulation', () => {
     },
     {
       title: 'getServerSideProps',
-      path: '/api/ssr-page',
-      toJson: async (res: Response) =>
-        cheerio.load(await res.text())('#headers'),
+      path: '/ssr-page',
+      toJson: async (res: Response) => {
+        const $ = cheerio.load(await res.text())
+        return JSON.parse($('#headers').text())
+      },
     },
   ])('$title Backend', ({ path, toJson }) => {
     it(`Adds new headers`, async () => {
