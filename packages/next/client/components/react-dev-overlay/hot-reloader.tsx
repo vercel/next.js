@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import type { FlightRouterState } from '../../../server/app-render'
 import React, {
   useCallback,
   useContext,
@@ -425,10 +426,12 @@ export default function HotReload({
   assetPrefix,
   children,
   initialState,
+  initialTree,
 }: {
   assetPrefix: string
   children?: ReactNode
   initialState?: Partial<OverlayState>
+  initialTree?: FlightRouterState
 }) {
   if (initialState?.rootLayoutMissingTagsError) {
     hadRootlayoutError = true
@@ -450,7 +453,9 @@ export default function HotReload({
     onUnhandledRejection(dispatch, ev)
   }, [])
 
-  const { tree } = useContext(GlobalLayoutRouterContext) ?? {}
+  const { tree } = useContext(GlobalLayoutRouterContext) ?? {
+    tree: initialTree,
+  }
   const router = useRouter()
 
   const webSocketRef = useRef<WebSocket>()
@@ -505,7 +510,6 @@ export default function HotReload({
     webSocketRef.current = new window.WebSocket(`${url}/_next/webpack-hmr`)
   }, [assetPrefix])
   useEffect(() => {
-    if (!tree) return
     // Taken from on-demand-entries-client.js
     // TODO-APP: check 404 case
     const interval = setInterval(() => {

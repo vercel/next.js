@@ -1,3 +1,4 @@
+import type { FlightRouterState } from './app-render'
 import { nonNullable } from '../lib/non-nullable'
 
 export type ReactReadableStream = ReadableStream<Uint8Array> & {
@@ -258,7 +259,8 @@ export function createSuffixStream(
 }
 
 export function createRootLayoutValidatorStream(
-  assetPrefix?: string
+  assetPrefix = '',
+  getTree: () => FlightRouterState
 ): TransformStream<Uint8Array, Uint8Array> {
   let foundHtml = false
   let foundHead = false
@@ -291,7 +293,7 @@ export function createRootLayoutValidatorStream(
         controller.enqueue(
           encodeText(
             `<script>self.__next_root_layout_missing_tags_error=${JSON.stringify(
-              { missingTags, assetPrefix: assetPrefix ?? '' }
+              { missingTags, assetPrefix: assetPrefix ?? '', tree: getTree() }
             )}</script>`
           )
         )
@@ -303,21 +305,22 @@ export function createRootLayoutValidatorStream(
 export async function continueFromInitialStream(
   renderStream: ReactReadableStream,
   {
-    dev,
     suffix,
     dataStream,
     generateStaticHTML,
     getServerInsertedHTML,
     serverInsertedHTMLToHead,
-    assetPrefix,
+    validateRootLayout,
   }: {
-    dev?: boolean
-    assetPrefix?: string
     suffix?: string
     dataStream?: ReadableStream<Uint8Array>
     generateStaticHTML: boolean
     getServerInsertedHTML?: () => Promise<string>
     serverInsertedHTMLToHead: boolean
+    validateRootLayout?: {
+      assetPrefix?: string
+      getTree: () => FlightRouterState
+    }
   }
 ): Promise<ReadableStream<Uint8Array>> {
   const closeTag = '</body></html>'
@@ -344,7 +347,12 @@ export async function continueFromInitialStream(
           : ''
       return serverInsertedHTML
     }),
-    dev ? createRootLayoutValidatorStream(assetPrefix) : null,
+    validateRootLayout
+      ? createRootLayoutValidatorStream(
+          validateRootLayout.assetPrefix,
+          validateRootLayout.getTree
+        )
+      : null,
   ].filter(nonNullable)
 
   return transforms.reduce(

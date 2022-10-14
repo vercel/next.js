@@ -193,6 +193,7 @@ export function hydrate() {
               missingTags: rootLayoutMissingTagsError.missingTags,
             },
           }}
+          initialTree={rootLayoutMissingTagsError.tree}
         />
       )
 

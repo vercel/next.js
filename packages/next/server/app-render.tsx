@@ -1402,6 +1402,15 @@ export async function renderToHTMLOrFlight(
       rscChunks: [],
     }
 
+    const validateRootLayout = dev
+      ? {
+          validateRootLayout: {
+            assetPrefix: renderOpts.assetPrefix,
+            getTree: () => createFlightRouterStateFromLoaderTree(loaderTree),
+          },
+        }
+      : {}
+
     /**
      * A new React Component that renders the provided React Component
      * using Flight which can then be rendered to HTML.
@@ -1520,8 +1529,7 @@ export async function renderToHTMLOrFlight(
           generateStaticHTML: isStaticGeneration,
           getServerInsertedHTML,
           serverInsertedHTMLToHead: true,
-          dev: !!dev,
-          assetPrefix: renderOpts.assetPrefix,
+          ...validateRootLayout,
         })
       } catch (err: any) {
         // TODO-APP: show error overlay in development. `element` should probably be wrapped in AppRouter for this case.
@@ -1552,8 +1560,7 @@ export async function renderToHTMLOrFlight(
           generateStaticHTML: isStaticGeneration,
           getServerInsertedHTML,
           serverInsertedHTMLToHead: true,
-          dev: !!dev,
-          assetPrefix: renderOpts.assetPrefix,
+          ...validateRootLayout,
         })
       }
     }
