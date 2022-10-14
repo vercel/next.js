@@ -247,7 +247,7 @@ describe('app dir - rsc basics', () => {
     const imageHTML = await renderViaHTTP(next.url, '/next-api/image-new')
     const imageTag = getNodeBySelector(imageHTML, '#myimg')
 
-    expect(imageTag.attr('src')).toContain(/test.+jpg/)
+    expect(imageTag.attr('src')).toMatch(/test.+jpg/)
   })
 
   it('should handle various kinds of exports correctly', async () => {
