@@ -18,7 +18,7 @@ importers:
       '@babel/plugin-proposal-object-rest-spread': 7.14.7
       '@babel/preset-flow': 7.14.5
       '@babel/preset-react': 7.14.5
-      '@edge-runtime/jest-environment': 1.1.0-beta.34
+      '@edge-runtime/jest-environment': 1.1.0-beta.35
       '@fullhuman/postcss-purgecss': 1.3.0
       '@mdx-js/loader': 0.18.0
       '@next/bundle-analyzer': workspace:*
@@ -177,7 +177,7 @@ importers:
       '@babel/plugin-proposal-object-rest-spread': 7.14.7_@babel+core@7.18.0
       '@babel/preset-flow': 7.14.5_@babel+core@7.18.0
       '@babel/preset-react': 7.14.5_@babel+core@7.18.0
-      '@edge-runtime/jest-environment': 1.1.0-beta.34
+      '@edge-runtime/jest-environment': 1.1.0-beta.35
       '@fullhuman/postcss-purgecss': 1.3.0
       '@mdx-js/loader': 0.18.0_uuaxwgga6hqycsez5ok7v2wg4i
       '@next/bundle-analyzer': link:packages/next-bundle-analyzer
@@ -547,7 +547,7 @@ importers:
       debug: 4.1.1
       devalue: 2.0.1
       domain-browser: 4.19.0
-      edge-runtime: 1.1.0-beta.37
+      edge-runtime: 1.1.0-beta.39
       events: 3.3.0
       find-cache-dir: 3.3.1
       find-up: 4.1.0
@@ -746,7 +746,7 @@ importers:
       debug: 4.1.1
       devalue: 2.0.1
       domain-browser: 4.19.0
-      edge-runtime: 1.1.0-beta.37
+      edge-runtime: 1.1.0-beta.39
       events: 3.3.0
       find-cache-dir: 3.3.1
       find-up: 4.1.0
@@ -4000,17 +4000,17 @@ packages:
       protobufjs: 6.11.2
     dev: true
 
-  /@edge-runtime/format/1.1.0-beta.33:
+  /@edge-runtime/format/1.1.0-beta.34:
     resolution:
       {
-        integrity: sha512-t34oTdZOqYSiguCGnt9GYzh9mrnhCHNRPGDvxt5PB5T3LZpSVk+vfSXRqpvTxy51sxQpxvTZry8QLC+E+Fm67w==,
+        integrity: sha512-AdV7FlpBDDiwdPxmrCmq2ICMxzJr3Zoq/bUuIMC09jEmx8fpIAepAABVTEqr+X/6vhIiD2ermIog8qvAG4RZMg==,
       }
     dev: true
 
-  /@edge-runtime/jest-environment/1.1.0-beta.34:
+  /@edge-runtime/jest-environment/1.1.0-beta.35:
     resolution:
       {
-        integrity: sha512-kv2we4QY4pyW4fsf5Q+ssLW6x6HB7BY1X24DFN7RHInmgbzgVZAopy1iv9GmcaUGIt0neU48rq3woqDjcTrsHQ==,
+        integrity: sha512-CBMGtry4W/BLtmWpyHcbOwY+nn96YOEUVUWhob1SPQURGsxGnFU5r2fxrd99TDy/oTujw5jAbK4syOyUbna4KQ==,
       }
     dependencies:
       '@edge-runtime/vm': 1.1.0-beta.36
@@ -13463,14 +13463,14 @@ packages:
       safe-buffer: 5.2.0
     dev: true
 
-  /edge-runtime/1.1.0-beta.37:
+  /edge-runtime/1.1.0-beta.39:
     resolution:
       {
-        integrity: sha512-IP0xYNmp0XXoXVnrAf/e67224ZkMUUBMyUUohVxWWI5XdyetIGRNWp3GifDy3LpbuE02yv42rgtoE+tm+whcLA==,
+        integrity: sha512-PNIxASuGT/46ZsFKSGXfUOcTomvTj+U5VgRSIPUjGu3piTDjE1cxQwTJLXPJkQa/OrZLebJUuszNXM/1AG2lHg==,
       }
     hasBin: true
     dependencies:
-      '@edge-runtime/format': 1.1.0-beta.33
+      '@edge-runtime/format': 1.1.0-beta.34
       '@edge-runtime/vm': 1.1.0-beta.36
       exit-hook: 2.2.1
       http-status: 1.5.3
