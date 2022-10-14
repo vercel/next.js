@@ -24,16 +24,18 @@ type TEntry = typeof entry
 check<IEntry, TEntry>(entry)
 
 interface IEntry {
-  default: ({ children }: { children: any }) => JSX.Element
+  default: (props: { children: any; params?: any }) => React.ReactElement | null
+  generateStaticParams?: (params?:any) => Promise<any[]>
   config?: {
+    // TODO: remove revalidate here
     revalidate?: number | boolean
-    dynamic?: string
-    dynamicParams?: boolean
-    fetchCache?: string
-    preferredRegion?: string
     ${options.type === 'page' ? 'runtime?: string' : ''}
   }
   revalidate?: RevalidateRange<TEntry> | false
+  dynamic?: 'auto' | 'force-dynamic' | 'error' | 'force-static'
+  dynamicParams?: boolean
+  fetchCache?: 'auto' | 'force-no-store' | 'only-no-store' | 'default-no-store' | 'default-cache' | 'only-cache' | 'force-cache'
+  preferredRegion?: 'auto' | 'home' | 'edge'
 }
 
 // =============
