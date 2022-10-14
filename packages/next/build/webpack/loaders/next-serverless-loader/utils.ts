@@ -29,6 +29,7 @@ import cookie from 'next/dist/compiled/cookie'
 import { TEMPORARY_REDIRECT_STATUS } from '../../../../shared/lib/constants'
 import { addRequestMeta } from '../../../../server/request-meta'
 import { removeTrailingSlash } from '../../../../shared/lib/router/utils/remove-trailing-slash'
+import { normalizeRscPath } from '../../../../shared/lib/router/utils/app-paths'
 
 export const vercelHeader = 'x-vercel-id'
 
@@ -365,6 +366,18 @@ export function getUtils({
 
     params = Object.keys(defaultRouteRegex.groups).reduce((prev, key) => {
       let value: string | string[] | undefined = params[key]
+
+      if (typeof value === 'string') {
+        value = normalizeRscPath(value, true)
+      }
+      if (Array.isArray(value)) {
+        value = value.map((val) => {
+          if (typeof val === 'string') {
+            val = normalizeRscPath(val, true)
+          }
+          return val
+        })
+      }
 
       // if the value matches the default value we can't rely
       // on the parsed params, this is used to signal if we need

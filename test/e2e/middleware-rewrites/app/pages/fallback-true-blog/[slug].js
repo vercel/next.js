@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { useRouter } from 'next/router'
 
 export default function Page(props) {
@@ -5,7 +6,19 @@ export default function Page(props) {
     return <p>Loading...</p>
   }
 
-  return <p id="props">{JSON.stringify(props)}</p>
+  return (
+    <>
+      <p id="props">{JSON.stringify(props)}</p>
+      <Link href="/fallback-true-blog/first?hello=world" shallow>
+        <a id="to-query-shallow">to /fallback-true-blog/first?hello=world</a>
+      </Link>
+      <br />
+      <Link href="/fallback-true-blog/second" shallow>
+        <a id="to-no-query-shallow">to /fallback-true-blog/second</a>
+      </Link>
+      <br />
+    </>
+  )
 }
 
 export function getStaticPaths() {

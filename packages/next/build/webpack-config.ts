@@ -86,9 +86,6 @@ const BABEL_CONFIG_FILES = [
   'babel.config.cjs',
 ]
 
-const rscSharedRegex =
-  /(node_modules[\\/]react\/|[\\/]shared[\\/]lib[\\/](head-manager-context|router-context|server-inserted-html)\.js|node_modules[\\/]styled-jsx[\\/])/
-
 // Support for NODE_PATH
 const nodePathList = (process.env.NODE_PATH || '')
   .split(process.platform === 'win32' ? ';' : ':')
@@ -863,6 +860,16 @@ export default async function getBaseWebpackConfig(
       // let this alias hit before `next` alias.
       ...(isEdgeServer
         ? {
+            // app-router-context can not be ESM and CJS so force CJS
+            'next/dist/shared/lib/app-router-context': path.join(
+              __dirname,
+              '../dist/shared/lib/app-router-context.js'
+            ),
+            'next/dist/client/components': path.join(
+              __dirname,
+              '../client/components'
+            ),
+
             'next/dist/client': 'next/dist/esm/client',
             'next/dist/shared': 'next/dist/esm/shared',
             'next/dist/pages': 'next/dist/esm/pages',
@@ -1057,7 +1064,7 @@ export default async function getBaseWebpackConfig(
       }
 
       const notExternalModules =
-        /^(?:private-next-pages\/|next\/(?:dist\/pages\/|(?:app|document|link|image|future\/image|constants|dynamic|script)$)|string-hash|private-next-rsc-mod-ref-proxy$)/
+        /^(?:private-next-pages\/|next\/(?:dist\/pages\/|(?:app|document|link|image|legacy\/image|constants|dynamic|script|navigation|headers)$)|string-hash|private-next-rsc-mod-ref-proxy$)/
       if (notExternalModules.test(request)) {
         return
       }
@@ -1300,39 +1307,18 @@ export default async function getBaseWebpackConfig(
             ...(config.experimental.optimizeCss ? [] : ['critters']),
           ],
     optimization: {
-      // @ts-ignore: TODO remove ts-ignore when webpack 4 is removed
       emitOnErrors: !dev,
       checkWasmTypes: false,
       nodeEnv: false,
       splitChunks: (():
         | Required<webpack.Configuration>['optimization']['splitChunks']
         | false => {
-        // For the edge runtime, we have to bundle all dependencies inside without dynamic `require`s.
-        // To make some dependencies like `react` to be shared between entrypoints, we use a special
-        // cache group here even under dev mode.
-        const edgeRSCCacheGroups = hasServerComponents
-          ? {
-              rscDeps: {
-                enforce: true,
-                name: 'rsc-runtime-deps',
-                filename: 'rsc-runtime-deps.js',
-                test: rscSharedRegex,
-              },
-            }
-          : undefined
-        if (isEdgeServer && edgeRSCCacheGroups) {
-          return {
-            cacheGroups: edgeRSCCacheGroups,
-          }
-        }
-
         if (dev) {
           return false
         }
 
         if (isNodeServer) {
           return {
-            // @ts-ignore
             filename: '[name].js',
             chunks: 'all',
             minSize: 1000,
@@ -1341,11 +1327,8 @@ export default async function getBaseWebpackConfig(
 
         if (isEdgeServer) {
           return {
-            // @ts-ignore
             filename: 'edge-chunks/[name].js',
-            chunks: 'all',
             minChunks: 2,
-            cacheGroups: edgeRSCCacheGroups,
           }
         }
 
@@ -1461,7 +1444,6 @@ export default async function getBaseWebpackConfig(
     },
     context: dir,
     // Kept as function to be backwards compatible
-    // @ts-ignore TODO webpack 5 typings needed
     entry: async () => {
       return {
         ...(clientEntries ? clientEntries : {}),
@@ -1589,6 +1571,17 @@ export default async function getBaseWebpackConfig(
               } as any,
             ]
           : []),
+        ...(hasAppDir && isEdgeServer
+          ? [
+              // The Edge bundle includes the server in its entrypoint, so it has to
+              // be in the SSR layer — here we convert the actual page request to
+              // the RSC layer via a webpack rule.
+              {
+                resourceQuery: /__edge_ssr_entry__/,
+                layer: WEBPACK_LAYERS.server,
+              },
+            ]
+          : []),
         // Alias `next/dynamic` to React.lazy implementation for RSC
         ...(hasServerComponents
           ? [
@@ -1618,16 +1611,6 @@ export default async function getBaseWebpackConfig(
                 use: {
                   loader: 'next-flight-loader',
                 },
-              },
-            ]
-          : []),
-        ...(hasServerComponents && isEdgeServer
-          ? [
-              // Move shared dependencies from sc_server and sc_client into the
-              // same layer.
-              {
-                test: rscSharedRegex,
-                layer: WEBPACK_LAYERS.rscShared,
               },
             ]
           : []),
@@ -1957,12 +1940,10 @@ export default async function getBaseWebpackConfig(
         (isClient
           ? new FlightManifestPlugin({
               dev,
-              fontLoaderTargets,
             })
           : new FlightClientEntryPlugin({
               dev,
               isEdgeServer,
-              fontLoaderTargets,
             })),
       !dev &&
         isClient &&
