@@ -15,10 +15,7 @@ use super::EsmAssetReferenceVc;
 use crate::{
     code_gen::{CodeGenerateable, CodeGenerateableVc, CodeGeneration, CodeGenerationVc},
     create_visitor,
-    references::{
-        esm::base::{get_ident, ReferencedAsset},
-        AstPathVc,
-    },
+    references::AstPathVc,
 };
 
 #[turbo_tasks::value(shared)]
@@ -64,12 +61,7 @@ impl CodeGenerateable for EsmBinding {
         }
 
         let mut ast_path = this.ast_path.await?.clone_value();
-        let imported_module =
-            if let ReferencedAsset::Some(imported_module) = &*imported_module.await? {
-                Some(get_ident(*imported_module).await?)
-            } else {
-                None
-            };
+        let imported_module = imported_module.await?.get_ident().await?;
 
         loop {
             match ast_path.last() {

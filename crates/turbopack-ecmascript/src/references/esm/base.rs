@@ -13,7 +13,9 @@ use turbopack_core::{
         ChunkingTypeOptionVc, ModuleId,
     },
     reference::{AssetReference, AssetReferenceVc},
-    resolve::{origin::ResolveOriginVc, parse::RequestVc, ResolveResultVc},
+    resolve::{
+        origin::ResolveOriginVc, parse::RequestVc, ResolveResult, ResolveResultVc, SpecialType,
+    },
 };
 
 use crate::{
@@ -27,15 +29,26 @@ use crate::{
 #[turbo_tasks::value]
 pub enum ReferencedAsset {
     Some(EcmascriptChunkPlaceableVc),
+    OriginalReferenceTypeExternal(String),
     None,
 }
 
-pub(super) async fn get_ident(asset: EcmascriptChunkPlaceableVc) -> Result<String> {
-    let path = asset.path().to_string().await?;
-    Ok(magic_identifier::encode(&format!(
-        "imported module {}",
-        path
-    )))
+impl ReferencedAsset {
+    pub async fn get_ident(&self) -> Result<Option<String>> {
+        Ok(match self {
+            ReferencedAsset::Some(asset) => {
+                let path = asset.path().to_string().await?;
+                Some(magic_identifier::encode(&format!(
+                    "imported module {}",
+                    path
+                )))
+            }
+            ReferencedAsset::OriginalReferenceTypeExternal(request) => {
+                Some(magic_identifier::encode(&format!("external {}", request)))
+            }
+            ReferencedAsset::None => None,
+        })
+    }
 }
 
 #[turbo_tasks::value]
@@ -61,7 +74,21 @@ impl EsmAssetReferenceVc {
     #[turbo_tasks::function]
     pub(super) async fn get_referenced_asset(self) -> Result<ReferencedAssetVc> {
         let this = self.await?;
-        let assets = esm_resolve(this.get_origin(), this.request).primary_assets();
+        let resolve_result = esm_resolve(this.get_origin(), this.request);
+        match &*resolve_result.await? {
+            ResolveResult::Special(SpecialType::OriginalReferenceExternal, _) => {
+                if let Some(request) = this.request.await?.request() {
+                    return Ok(ReferencedAsset::OriginalReferenceTypeExternal(request).cell());
+                } else {
+                    return Ok(ReferencedAssetVc::cell(ReferencedAsset::None));
+                }
+            }
+            ResolveResult::Special(SpecialType::OriginalReferenceTypeExternal(request), _) => {
+                return Ok(ReferencedAsset::OriginalReferenceTypeExternal(request.clone()).cell());
+            }
+            _ => {}
+        }
+        let assets = resolve_result.primary_assets();
         for asset in assets.await?.iter() {
             if let Some(placeable) = EcmascriptChunkPlaceableVc::resolve_from(asset).await? {
                 return Ok(ReferencedAssetVc::cell(ReferencedAsset::Some(placeable)));
@@ -135,20 +162,37 @@ impl CodeGenerateable for EsmAssetReference {
 
         // separate chunks can't be imported as the modules are not available
         if !matches!(*chunking_type, None | Some(ChunkingType::Separate)) {
-            if let ReferencedAsset::Some(asset) = &*self_vc.get_referenced_asset().await? {
-                let ident = get_ident(*asset).await?;
-                let id = asset.as_chunk_item(context).id().await?;
-                visitors.push(create_visitor!(visit_mut_program(program: &mut Program) {
-                    let stmt = quote!(
-                        "var $name = __turbopack_import__($id);" as Stmt,
-                        name = Ident::new(ident.clone().into(), DUMMY_SP),
-                        id: Expr = Expr::Lit(match &*id {
-                            ModuleId::String(s) => s.clone().into(),
-                            ModuleId::Number(n) => (*n as f64).into(),
-                        })
-                    );
-                    insert_hoisted_stmt(program, stmt);
-                }));
+            let referenced_asset = self_vc.get_referenced_asset().await?;
+            if let Some(ident) = referenced_asset.get_ident().await? {
+                match &*referenced_asset {
+                    ReferencedAsset::Some(asset) => {
+                        let id = asset.as_chunk_item(context).id().await?;
+                        visitors.push(create_visitor!(visit_mut_program(program: &mut Program) {
+                            let stmt = quote!(
+                                "var $name = __turbopack_import__($id);" as Stmt,
+                                name = Ident::new(ident.clone().into(), DUMMY_SP),
+                                id: Expr = Expr::Lit(match &*id {
+                                    ModuleId::String(s) => s.clone().into(),
+                                    ModuleId::Number(n) => (*n as f64).into(),
+                                })
+                            );
+                            insert_hoisted_stmt(program, stmt);
+                        }));
+                    }
+                    ReferencedAsset::OriginalReferenceTypeExternal(request) => {
+                        let request = request.clone();
+                        visitors.push(create_visitor!(visit_mut_program(program: &mut Program) {
+                            // TODO Technically this should insert a ESM external, but we don't support that yet
+                            let stmt = quote!(
+                                "var $name = require($id);" as Stmt,
+                                name = Ident::new(ident.clone().into(), DUMMY_SP),
+                                id: Expr = Expr::Lit(request.clone().into())
+                            );
+                            insert_hoisted_stmt(program, stmt);
+                        }));
+                    }
+                    ReferencedAsset::None => {}
+                }
             }
         }
 

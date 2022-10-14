@@ -24,10 +24,7 @@ use turbopack_core::{
     issue::{analyze::AnalyzeIssue, IssueSeverity},
 };
 
-use super::{
-    base::{get_ident, ReferencedAsset},
-    EsmAssetReferenceVc,
-};
+use super::{base::ReferencedAsset, EsmAssetReferenceVc};
 use crate::{
     chunk::{EcmascriptChunkPlaceableVc, EcmascriptExports},
     code_gen::{CodeGenerateable, CodeGenerateableVc, CodeGeneration, CodeGenerationVc},
@@ -162,8 +159,8 @@ impl CodeGenerateable for EsmExports {
                     local = Ident::new((name as &str).into(), DUMMY_SP)
                 )),
                 EsmExport::ImportedBinding(esm_ref, name) => {
-                    if let ReferencedAsset::Some(asset) = &*esm_ref.get_referenced_asset().await? {
-                        let ident = get_ident(*asset).await?;
+                    let referenced_asset = esm_ref.get_referenced_asset().await?;
+                    if let Some(ident) = referenced_asset.get_ident().await? {
                         Some(quote!(
                             "(() => $expr)" as Expr,
                             expr: Expr = Expr::Member(MemberExpr {
@@ -184,8 +181,8 @@ impl CodeGenerateable for EsmExports {
                     }
                 }
                 EsmExport::ImportedNamespace(esm_ref) => {
-                    if let ReferencedAsset::Some(asset) = &*esm_ref.get_referenced_asset().await? {
-                        let ident = get_ident(*asset).await?;
+                    let referenced_asset = esm_ref.get_referenced_asset().await?;
+                    if let Some(ident) = referenced_asset.get_ident().await? {
                         Some(quote!(
                             "(() => $imported)" as Expr,
                             imported = Ident::new(ident.into(), DUMMY_SP)
