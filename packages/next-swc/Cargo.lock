@@ -1525,38 +1525,60 @@ checksum = "7843ec2de400bcbc6a6328c958dc38e5359da6e93e72e37bc5246bf1ae776389"
 
 [[package]]
 name = "napi"
-version = "1.8.0"
+version = "2.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a5586ff59e18f42d41f68139a8ca72ef1dbcc243ec62c5696e6383169a8a05a4"
+checksum = "bace9a4026eaa6631804e2ff9030c47beb0483fbb12dc17950fe1530c4961f84"
 dependencies = [
+ "bitflags",
+ "ctor",
  "napi-sys",
+ "once_cell",
  "serde",
  "serde_json",
- "winapi",
+ "thread_local",
 ]
 
 [[package]]
 name = "napi-build"
-version = "1.2.1"
+version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ebd4419172727423cf30351406c54f6cc1b354a2cfb4f1dba3e6cd07f6d5522b"
+checksum = "882a73d9ef23e8dc2ebbffb6a6ae2ef467c0f18ac10711e4cc59c5485d41df0e"
 
 [[package]]
 name = "napi-derive"
-version = "1.1.2"
+version = "2.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6ee880798e942fc785e2e234544b9db578019a1d7676f45dad7f38d432ab0fe4"
+checksum = "39f3d8b02ef355898ea98f69082d9a183c8701c836942c2daf3e92364e88a0fa"
 dependencies = [
+ "convert_case",
+ "napi-derive-backend",
  "proc-macro2",
  "quote",
  "syn",
 ]
 
 [[package]]
-name = "napi-sys"
-version = "1.1.2"
+name = "napi-derive-backend"
+version = "1.0.38"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "67cf20e0081fea04e044aa4adf74cfea8ddc0324eec2894b1c700f4cafc72a56"
+checksum = "6c35640513eb442fcbd1653a1c112fb6b2cc12b54d82f9c141f5859c721cab36"
+dependencies = [
+ "convert_case",
+ "once_cell",
+ "proc-macro2",
+ "quote",
+ "regex",
+ "syn",
+]
+
+[[package]]
+name = "napi-sys"
+version = "2.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "529671ebfae679f2ce9630b62dd53c72c56b3eb8b2c852e7e2fa91704ff93d67"
+dependencies = [
+ "libloading",
+]
 
 [[package]]
 name = "native-tls"
@@ -2955,6 +2977,8 @@ dependencies = [
  "indexmap",
  "json_comments",
  "lru",
+ "napi",
+ "napi-derive",
  "once_cell",
  "parking_lot",
  "pathdiff",
@@ -3143,6 +3167,7 @@ dependencies = [
  "swc_ecma_utils",
  "swc_ecma_visit",
  "swc_node_base",
+ "swc_nodejs_common",
  "swc_plugin_proxy",
  "swc_plugin_runner",
  "swc_trace_macro",
@@ -3826,6 +3851,21 @@ dependencies = [
  "dashmap",
  "swc_atoms",
  "swc_common",
+]
+
+[[package]]
+name = "swc_nodejs_common"
+version = "0.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a61f704db0d5bbf239312cf2bfdd47ad7c497e407726deff80be2ea4021719c4"
+dependencies = [
+ "anyhow",
+ "napi",
+ "serde",
+ "serde_json",
+ "swc_node_base",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
