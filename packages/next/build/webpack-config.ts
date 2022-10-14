@@ -1328,7 +1328,6 @@ export default async function getBaseWebpackConfig(
         if (isEdgeServer) {
           return {
             filename: 'edge-chunks/[name].js',
-            chunks: 'all',
             minChunks: 2,
           }
         }
