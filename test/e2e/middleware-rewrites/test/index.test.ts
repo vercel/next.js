@@ -441,7 +441,15 @@ describe('Middleware Rewrite', () => {
       await browser.eval(
         `next.router.push('/fallback-true-blog/first?hello=world', undefined, { shallow: true })`
       )
-      await check(() => browser.eval(`next.router.query.hello`), 'world')
+      await check(async () => {
+        const query = await browser.eval('next.router.query')
+
+        return query.hello === 'world'
+          ? 'success'
+          : await browser.eval(
+              `JSON.stringify({ router: next.router, href: location.href }, null, 2)`
+            )
+      }, 'success')
 
       expect(await browser.eval(`next.router.pathname`)).toBe(
         '/fallback-true-blog/[slug]'
