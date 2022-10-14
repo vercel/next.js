@@ -8,6 +8,10 @@ async function getData() {
   }
 }
 
+export function generateStaticParams() {
+  return [{ id: 'static' }]
+}
+
 export default function IdPage({ params }) {
   const data = use(getData())
   console.log(data)

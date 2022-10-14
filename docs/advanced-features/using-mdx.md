@@ -16,7 +16,7 @@ However, because markdown is essentially static content, you can't create _dynam
 
 ## MDX Plugins
 
-Internally MDX uses remark and rehype. Remark is a markdown processor powered by a plugins ecosystem. This plugin ecosystem lets you parse code, transform `HTML` elements, change syntax, extract frontmatter, and more.
+Internally MDX uses remark and rehype. Remark is a markdown processor powered by a plugins ecosystem. This plugin ecosystem lets you parse code, transform `HTML` elements, change syntax, extract frontmatter, and more. Using [remark-gfm to enable GitHub flavored markdown (GFM)](https://mdxjs.com/guides/gfm/) is a popular option.
 
 Rehype is an `HTML` processor, also powered by a plugin ecosystem. Similar to remark, these plugins let you manipulate, sanitize, compile and configure all types of data, elements and content.
 
@@ -44,6 +44,9 @@ The following steps outline how to setup `@next/mdx` in your Next.js project:
    const withMDX = require('@next/mdx')({
      extension: /\.mdx?$/,
      options: {
+       // If you use remark-gfm, you'll need to use next.config.mjs
+       // as the package is ESM only
+       // https://github.com/remarkjs/remark-gfm#install
        remarkPlugins: [],
        rehypePlugins: [],
        // If you use `MDXProvider`, uncomment the following line.

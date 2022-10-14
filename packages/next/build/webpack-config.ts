@@ -852,6 +852,16 @@ export default async function getBaseWebpackConfig(
       // let this alias hit before `next` alias.
       ...(isEdgeServer
         ? {
+            // app-router-context can not be ESM and CJS so force CJS
+            'next/dist/shared/lib/app-router-context': path.join(
+              __dirname,
+              '../dist/shared/lib/app-router-context.js'
+            ),
+            'next/dist/client/components': path.join(
+              __dirname,
+              '../client/components'
+            ),
+
             'next/dist/client': 'next/dist/esm/client',
             'next/dist/shared': 'next/dist/esm/shared',
             'next/dist/pages': 'next/dist/esm/pages',
@@ -1051,7 +1061,7 @@ export default async function getBaseWebpackConfig(
       }
 
       const notExternalModules =
-        /^(?:private-next-pages\/|next\/(?:dist\/pages\/|(?:app|document|link|image|future\/image|constants|dynamic|script)$)|string-hash|private-next-rsc-mod-ref-proxy$)/
+        /^(?:private-next-pages\/|next\/(?:dist\/pages\/|(?:app|document|link|image|legacy\/image|constants|dynamic|script|navigation|headers)$)|string-hash|private-next-rsc-mod-ref-proxy$)/
       if (notExternalModules.test(request)) {
         return
       }
@@ -1294,7 +1304,6 @@ export default async function getBaseWebpackConfig(
             ...(config.experimental.optimizeCss ? [] : ['critters']),
           ],
     optimization: {
-      // @ts-ignore: TODO remove ts-ignore when webpack 4 is removed
       emitOnErrors: !dev,
       checkWasmTypes: false,
       nodeEnv: false,
@@ -1307,10 +1316,16 @@ export default async function getBaseWebpackConfig(
 
         if (isNodeServer) {
           return {
-            // @ts-ignore
             filename: '[name].js',
             chunks: 'all',
             minSize: 1000,
+          }
+        }
+
+        if (isEdgeServer) {
+          return {
+            filename: 'edge-chunks/[name].js',
+            minChunks: 2,
           }
         }
 
@@ -1426,7 +1441,6 @@ export default async function getBaseWebpackConfig(
     },
     context: dir,
     // Kept as function to be backwards compatible
-    // @ts-ignore TODO webpack 5 typings needed
     entry: async () => {
       return {
         ...(clientEntries ? clientEntries : {}),
@@ -1501,17 +1515,6 @@ export default async function getBaseWebpackConfig(
     },
     module: {
       rules: [
-        ...(hasAppDir && isEdgeServer
-          ? [
-              // The Edge bundle includes the server in its entrypoint, so it has to
-              // be in the SSR layer — here we convert the actual page request to
-              // the RSC layer via a webpack rule.
-              {
-                resourceQuery: /__edge_ssr_entry__/,
-                layer: WEBPACK_LAYERS.server,
-              },
-            ]
-          : []),
         ...(hasAppDir && !isClient && !isEdgeServer
           ? [
               {
@@ -1557,7 +1560,18 @@ export default async function getBaseWebpackConfig(
               } as any,
             ]
           : []),
-
+        ...(hasAppDir && isEdgeServer
+          ? [
+              // The Edge bundle includes the server in its entrypoint, so it has to
+              // be in the SSR layer — here we convert the actual page request to
+              // the RSC layer via a webpack rule.
+              {
+                resourceQuery: /__edge_ssr_entry__/,
+                layer: WEBPACK_LAYERS.server,
+              },
+            ]
+          : []),
+        // Alias `next/dynamic` to React.lazy implementation for RSC
         ...(hasServerComponents
           ? [
               {
@@ -1938,12 +1952,10 @@ export default async function getBaseWebpackConfig(
         (isClient
           ? new FlightManifestPlugin({
               dev,
-              fontLoaderTargets,
             })
           : new FlightClientEntryPlugin({
               dev,
               isEdgeServer,
-              fontLoaderTargets,
             })),
       !dev &&
         isClient &&

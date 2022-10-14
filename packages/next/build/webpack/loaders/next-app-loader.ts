@@ -33,6 +33,7 @@ async function createTreeCodeFromPath({
 }) {
   const splittedPath = pagePath.split(/[\\/]/)
   const appDirPrefix = splittedPath[0]
+  const pages: string[] = []
 
   async function createSubtreePropsFromSegmentPath(
     segments: string[]
@@ -56,6 +57,8 @@ async function createTreeCodeFromPath({
       if (parallelSegment === 'page') {
         const matchedPagePath = `${appDirPrefix}${parallelSegmentPath}`
         const resolvedPagePath = await resolve(matchedPagePath)
+        if (resolvedPagePath) pages.push(resolvedPagePath)
+
         // Use '' for segment as it's the page. There can't be a segment called '' so this is the safest way to add it.
         props[parallelKey] = `['', {}, {layoutOrPagePath: ${JSON.stringify(
           resolvedPagePath
@@ -107,7 +110,7 @@ async function createTreeCodeFromPath({
   }
 
   const tree = await createSubtreePropsFromSegmentPath([])
-  return `const tree = ${tree}.children;`
+  return [`const tree = ${tree}.children;`, pages]
 }
 
 function createAbsolutePath(appDir: string, pathToTurnAbsolute: string) {
@@ -173,7 +176,7 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
     }
   }
 
-  const treeCode = await createTreeCodeFromPath({
+  const [treeCode, pages] = await createTreeCodeFromPath({
     pagePath,
     resolve: resolver,
     resolveParallelSegments,
@@ -181,6 +184,7 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
 
   const result = `
     export ${treeCode}
+    export const pages = ${JSON.stringify(pages)}
 
     export const AppRouter = require('next/dist/client/components/app-router.js').default
     export const LayoutRouter = require('next/dist/client/components/layout-router.js').default

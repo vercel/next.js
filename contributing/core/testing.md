@@ -2,6 +2,14 @@
 
 ## Running tests
 
+Before you start to run tests, you need to build project first:
+
+```bash
+pnpm build
+```
+
+And for more detail about building, you can check out [building.md](./building.md)
+
 We recommend running the tests in headless mode (with the browser windows hidden) and with a specific directory pattern and/or test name (`-t`) which ensures only a small part of the test suite is run locally:
 
 For example, running one test in the production test suite:
