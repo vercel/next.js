@@ -124,6 +124,9 @@ function isResourceInPackages(resource: string, packageNames?: string[]) {
   )
 }
 
+const builtInReactPackagesRegex =
+  /next[\\/]dist[\\/]compiled[\\/](react|react-dom|react-server-dom-webpack)/
+
 export function getDefineEnv({
   dev,
   config,
@@ -1043,7 +1046,7 @@ export default async function getBaseWebpackConfig(
     // Special internal modules that must be bundled for Server Components.
     if (layer === WEBPACK_LAYERS.server) {
       if (
-        request.startsWith('next/dist/compiled/react') ||
+        builtInReactPackagesRegex.test(request) ||
         request === 'react' ||
         request === 'react/jsx-runtime'
       ) {
@@ -1587,9 +1590,9 @@ export default async function getBaseWebpackConfig(
                 },
               },
               {
-                test: codeCondition.test,
                 oneOf: [
                   {
+                    test: codeCondition.test,
                     issuerLayer: WEBPACK_LAYERS.server,
                     resolve: {
                       alias: {
@@ -1598,6 +1601,7 @@ export default async function getBaseWebpackConfig(
                     },
                   },
                   {
+                    test: codeCondition.test,
                     resolve: {
                       alias: {
                         'react-dom': 'next/dist/compiled/react-dom',
