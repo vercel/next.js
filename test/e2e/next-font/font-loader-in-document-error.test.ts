@@ -1,6 +1,6 @@
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
-import { check, getRedboxSource } from 'next-test-utils'
+import { getRedboxSource, hasRedbox } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
@@ -30,7 +30,8 @@ describe('font-loader-in-document-error', () => {
 
   test('font loader inside _document', async () => {
     const browser = await webdriver(next.appPort, '/')
-    await check(() => getRedboxSource(browser), /Font loaders/)
+    expect(await hasRedbox(browser, true)).toBeTrue()
+    expect(await getRedboxSource(browser)).toMatch(/Font loaders/)
     expect(await getRedboxSource(browser)).toInclude(
       'Font loaders cannot be used within pages/_document.js'
     )

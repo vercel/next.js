@@ -325,10 +325,6 @@ function loadNative() {
         return bindings.minifySync(toBuffer(src), toBuffer(options ?? {}))
       },
 
-      bundle(options) {
-        return bindings.bundle(toBuffer(options))
-      },
-
       parse(src, options) {
         return bindings.parse(src, toBuffer(options ?? {}))
       },
@@ -371,11 +367,6 @@ export async function minify(src, options) {
 export function minifySync(src, options) {
   let bindings = loadBindingsSync()
   return bindings.minifySync(src, options)
-}
-
-export async function bundle(options) {
-  let bindings = loadBindingsSync()
-  return bindings.bundle(toBuffer(options))
 }
 
 export async function parse(src, options) {

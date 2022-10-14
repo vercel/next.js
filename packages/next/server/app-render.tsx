@@ -34,6 +34,7 @@ import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
 import { NextCookies } from './web/spec-extension/cookies'
 import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
 import { NOT_FOUND_ERROR_CODE } from '../client/components/not-found'
+import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import { Writable } from 'stream'
 
 const INTERNAL_HEADERS_INSTANCE = Symbol('internal for headers readonly')
@@ -82,6 +83,7 @@ const INTERNAL_COOKIES_INSTANCE = Symbol('internal for cookies readonly')
 function readonlyCookiesError() {
   return new Error('ReadonlyCookies cannot be modified')
 }
+
 class ReadonlyNextCookies {
   [INTERNAL_COOKIES_INSTANCE]: NextCookies
 
@@ -287,7 +289,7 @@ function useFlightResponse(
         bootstrapped = true
         writer.write(
           encodeText(
-            `${startScriptTag}(self.__next_s=self.__next_s||[]).push(${htmlEscapeJsonString(
+            `${startScriptTag}(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
               JSON.stringify([0])
             )})</script>`
           )
@@ -298,7 +300,7 @@ function useFlightResponse(
         writer.close()
       } else {
         const responsePartial = decodeText(value)
-        const scripts = `${startScriptTag}(self.__next_s=self.__next_s||[]).push(${htmlEscapeJsonString(
+        const scripts = `${startScriptTag}self.__next_f.push(${htmlEscapeJsonString(
           JSON.stringify([1, responsePartial])
         )})</script>`
 
@@ -511,7 +513,8 @@ function getSegmentParam(segment: string): {
 function getCssInlinedLinkTags(
   serverComponentManifest: FlightManifest,
   serverCSSManifest: FlightCSSManifest,
-  filePath: string
+  filePath: string,
+  serverCSSForEntries: string[]
 ): string[] {
   const layoutOrPageCss =
     serverCSSManifest[filePath] ||
@@ -524,15 +527,36 @@ function getCssInlinedLinkTags(
   const chunks = new Set<string>()
 
   for (const css of layoutOrPageCss) {
-    const mod = serverComponentManifest[css]
-    if (mod) {
-      for (const chunk of mod.default.chunks) {
-        chunks.add(chunk)
+    // We only include the CSS if it's a global CSS, or it is used by this
+    // entrypoint.
+    if (serverCSSForEntries.includes(css) || !/\.module\.css/.test(css)) {
+      const mod = serverComponentManifest[css]
+      if (mod) {
+        for (const chunk of mod.default.chunks) {
+          chunks.add(chunk)
+        }
       }
     }
   }
 
   return [...chunks]
+}
+
+function getServerCSSForEntries(
+  serverCSSManifest: FlightCSSManifest,
+  entries: string[]
+) {
+  const css = []
+  for (const entry of entries) {
+    const entryName = entry.replace(/\.[^.]+$/, '')
+    if (
+      serverCSSManifest.__entry_css__ &&
+      serverCSSManifest.__entry_css__[entryName]
+    ) {
+      css.push(...serverCSSManifest.__entry_css__[entryName])
+    }
+  }
+  return css
 }
 
 /**
@@ -542,6 +566,7 @@ function getPreloadedFontFilesInlineLinkTags(
   serverComponentManifest: FlightManifest,
   serverCSSManifest: FlightCSSManifest,
   fontLoaderManifest: FontLoaderManifest | undefined,
+  serverCSSForEntries: string[],
   filePath?: string
 ): string[] {
   if (!fontLoaderManifest || !filePath) {
@@ -558,10 +583,13 @@ function getPreloadedFontFilesInlineLinkTags(
   const fontFiles = new Set<string>()
 
   for (const css of layoutOrPageCss) {
-    const preloadedFontFiles = fontLoaderManifest.app[css]
-    if (preloadedFontFiles) {
-      for (const fontFile of preloadedFontFiles) {
-        fontFiles.add(fontFile)
+    // We only include the CSS if it is used by this entrypoint.
+    if (serverCSSForEntries.includes(css)) {
+      const preloadedFontFiles = fontLoaderManifest.app[css]
+      if (preloadedFontFiles) {
+        for (const fontFile of preloadedFontFiles) {
+          fontFiles.add(fontFile)
+        }
       }
     }
   }
@@ -807,9 +835,9 @@ export async function renderToHTMLOrFlight(
     stripInternalQueries(query)
 
     const LayoutRouter =
-      ComponentMod.LayoutRouter as typeof import('../client/components/layout-router.client').default
+      ComponentMod.LayoutRouter as typeof import('../client/components/layout-router').default
     const RenderFromTemplateContext =
-      ComponentMod.RenderFromTemplateContext as typeof import('../client/components/render-from-template-context.client').default
+      ComponentMod.RenderFromTemplateContext as typeof import('../client/components/render-from-template-context').default
 
     /**
      * Server Context is specifically only available in Server Components.
@@ -907,6 +935,15 @@ export async function renderToHTMLOrFlight(
 
     let defaultRevalidate: false | undefined | number = false
 
+    // Collect all server CSS imports used by this specific entry (or entries, for parallel routes).
+    // Not that we can't rely on the CSS manifest because it tracks CSS imports per module,
+    // which can be used by multiple entries and cannot be tree-shaked in the module graph.
+    // More info: https://github.com/vercel/next.js/issues/41018
+    const serverCSSForEntries = getServerCSSForEntries(
+      serverCSSManifest!,
+      ComponentMod.pages
+    )
+
     /**
      * Use the provided loader tree to create the React Component tree.
      */
@@ -940,13 +977,16 @@ export async function renderToHTMLOrFlight(
         ? getCssInlinedLinkTags(
             serverComponentManifest,
             serverCSSManifest!,
-            layoutOrPagePath
+            layoutOrPagePath,
+            serverCSSForEntries
           )
         : []
+
       const preloadedFontFiles = getPreloadedFontFilesInlineLinkTags(
         serverComponentManifest,
         serverCSSManifest!,
         fontLoaderManifest,
+        serverCSSForEntries,
         layoutOrPagePath
       )
       const Template = template
@@ -1144,7 +1184,9 @@ export async function renderToHTMLOrFlight(
                 ? stylesheets.map((href) => (
                     <link
                       rel="stylesheet"
-                      href={`/_next/${href}?ts=${Date.now()}`}
+                      // Add extra cache busting (DEV only) for https://github.com/vercel/next.js/issues/5860
+                      // See also https://bugs.webkit.org/show_bug.cgi?id=187726
+                      href={`/_next/${href}${dev ? `?ts=${Date.now()}` : ''}`}
                       // `Precedence` is an opt-in signal for React to handle
                       // resource loading and deduplication, etc:
                       // https://github.com/facebook/react/pull/25060
@@ -1336,7 +1378,7 @@ export async function renderToHTMLOrFlight(
 
     // AppRouter is provided by next-app-loader
     const AppRouter =
-      ComponentMod.AppRouter as typeof import('../client/components/app-router.client').default
+      ComponentMod.AppRouter as typeof import('../client/components/app-router').default
 
     let serverComponentsInlinedTransformStream: TransformStream<
       Uint8Array,
@@ -1396,30 +1438,20 @@ export async function renderToHTMLOrFlight(
       )
 
       return (
-        <ServerInsertedHTMLContext.Provider value={addInsertedHtml}>
-          {children}
-        </ServerInsertedHTMLContext.Provider>
+        <HeadManagerContext.Provider
+          value={{
+            appDir: true,
+            nonce,
+          }}
+        >
+          <ServerInsertedHTMLContext.Provider value={addInsertedHtml}>
+            {children}
+          </ServerInsertedHTMLContext.Provider>
+        </HeadManagerContext.Provider>
       )
     }
 
     const bodyResult = async () => {
-      const content = (
-        <InsertedHTML>
-          <ServerComponentsRenderer />
-        </InsertedHTML>
-      )
-
-      const getServerInsertedHTML = (): Promise<string> => {
-        const flushed = renderToString(
-          <>
-            {Array.from(serverInsertedHTMLCallbacks).map((callback) =>
-              callback()
-            )}
-          </>
-        )
-        return flushed
-      }
-
       const polyfills = buildManifest.polyfillFiles
         .filter(
           (polyfill) =>
@@ -1429,6 +1461,38 @@ export async function renderToHTMLOrFlight(
           src: `${renderOpts.assetPrefix || ''}/_next/${polyfill}`,
           integrity: subresourceIntegrityManifest?.[polyfill],
         }))
+
+      const content = (
+        <InsertedHTML>
+          <ServerComponentsRenderer />
+        </InsertedHTML>
+      )
+
+      let polyfillsFlushed = false
+      const getServerInsertedHTML = (): Promise<string> => {
+        const flushed = renderToString(
+          <>
+            {Array.from(serverInsertedHTMLCallbacks).map((callback) =>
+              callback()
+            )}
+            {polyfillsFlushed
+              ? null
+              : polyfills?.map((polyfill) => {
+                  return (
+                    <script
+                      key={polyfill.src}
+                      src={polyfill.src}
+                      integrity={polyfill.integrity}
+                      noModule={true}
+                      nonce={nonce}
+                    />
+                  )
+                })}
+          </>
+        )
+        polyfillsFlushed = true
+        return flushed
+      }
 
       try {
         const renderStream = await renderToInitialStream({
@@ -1456,7 +1520,6 @@ export async function renderToHTMLOrFlight(
           generateStaticHTML: isStaticGeneration,
           getServerInsertedHTML,
           serverInsertedHTMLToHead: true,
-          polyfills,
           dev,
         })
       } catch (err: any) {
@@ -1488,7 +1551,6 @@ export async function renderToHTMLOrFlight(
           generateStaticHTML: isStaticGeneration,
           getServerInsertedHTML,
           serverInsertedHTMLToHead: true,
-          polyfills,
           dev,
         })
       }
@@ -1543,18 +1605,33 @@ export async function renderToHTMLOrFlight(
     (renderOpts as any).previewProps
   )
 
+  let cachedHeadersInstance: ReadonlyHeaders | undefined
+  let cachedCookiesInstance: ReadonlyNextCookies | undefined
+
   const requestStore = {
-    headers: new ReadonlyHeaders(headersWithoutFlight(req.headers)),
-    cookies: new ReadonlyNextCookies({
-      headers: {
-        get: (key) => {
-          if (key !== 'cookie') {
-            throw new Error('Only cookie header is supported')
-          }
-          return req.headers.cookie
-        },
-      },
-    }),
+    get headers() {
+      if (!cachedHeadersInstance) {
+        cachedHeadersInstance = new ReadonlyHeaders(
+          headersWithoutFlight(req.headers)
+        )
+      }
+      return cachedHeadersInstance
+    },
+    get cookies() {
+      if (!cachedCookiesInstance) {
+        cachedCookiesInstance = new ReadonlyNextCookies({
+          headers: {
+            get: (key) => {
+              if (key !== 'cookie') {
+                throw new Error('Only cookie header is supported')
+              }
+              return req.headers.cookie
+            },
+          },
+        })
+      }
+      return cachedCookiesInstance
+    },
     previewData,
   }
 

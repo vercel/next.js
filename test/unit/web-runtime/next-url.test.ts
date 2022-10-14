@@ -263,6 +263,39 @@ it('correctly parses a prefetch url', async () => {
   )
 })
 
+it('correctly handles trailing slash in _next/data', async () => {
+  const url = new NextURL('/abc/', 'http://127.0.0.1:3000')
+  url.buildId = '1234'
+
+  expect(url.pathname).toEqual('/abc/')
+  expect(url.locale).toEqual('')
+  expect(String(url)).toEqual('http://localhost:3000/_next/data/1234/abc.json')
+})
+
+it('correctly handles trailing slash in _next/data with config', async () => {
+  const url = new NextURL('/abc/', 'http://127.0.0.1:3000', {
+    nextConfig: { trailingSlash: true },
+  })
+  url.buildId = '1234'
+
+  expect(url.pathname).toEqual('/abc/')
+  expect(url.locale).toEqual('')
+  expect(String(url)).toEqual('http://localhost:3000/_next/data/1234/abc.json')
+})
+
+it('correctly handles trailing slash in _next/data with basePath', async () => {
+  const url = new NextURL('/docs/abc/', 'http://127.0.0.1:3000', {
+    nextConfig: { basePath: '/docs', trailingSlash: true },
+  })
+  url.buildId = '1234'
+
+  expect(url.pathname).toEqual('/abc/')
+  expect(url.locale).toEqual('')
+  expect(String(url)).toEqual(
+    'http://localhost:3000/docs/_next/data/1234/abc.json'
+  )
+})
+
 it('correctly parses a prefetch index url', async () => {
   const url = new NextURL(
     '/_next/data/development/index.json',
