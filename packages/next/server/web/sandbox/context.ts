@@ -314,15 +314,8 @@ interface ModuleContextOptions {
   edgeFunctionEntry: Pick<EdgeFunctionDefinition, 'assets' | 'wasm'>
 }
 
-const pendingModuleCaches = new Map<string, Promise<ModuleContext>>()
-
 function getModuleContextShared(options: ModuleContextOptions) {
-  let deferredModuleContext = pendingModuleCaches.get(options.moduleName)
-  if (!deferredModuleContext) {
-    deferredModuleContext = createModuleContext(options)
-    pendingModuleCaches.set(options.moduleName, deferredModuleContext)
-  }
-  return deferredModuleContext
+  return createModuleContext(options)
 }
 
 /**

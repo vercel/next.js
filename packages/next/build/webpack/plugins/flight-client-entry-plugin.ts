@@ -19,12 +19,11 @@ import {
 } from '../../../shared/lib/constants'
 import { FlightCSSManifest, traverseModules } from './flight-manifest-plugin'
 import { ASYNC_CLIENT_MODULES } from './flight-manifest-plugin'
-import { isClientComponentModule } from '../loaders/utils'
+import { isClientComponentModule, regexCSS } from '../loaders/utils'
 
 interface Options {
   dev: boolean
   isEdgeServer: boolean
-  fontLoaderTargets?: string[]
 }
 
 const PLUGIN_NAME = 'ClientEntryPlugin'
@@ -34,21 +33,16 @@ export const injectedClientEntries = new Map()
 export const serverModuleIds = new Map<string, string | number>()
 export const edgeServerModuleIds = new Map<string, string | number>()
 
-// TODO-APP: ensure .scss / .sass also works.
-const regexCSS = /\.css$/
-
 // TODO-APP: move CSS manifest generation to the flight manifest plugin.
 const flightCSSManifest: FlightCSSManifest = {}
 
 export class FlightClientEntryPlugin {
   dev: boolean
   isEdgeServer: boolean
-  fontLoaderTargets?: string[]
 
   constructor(options: Options) {
     this.dev = options.dev
     this.isEdgeServer = options.isEdgeServer
-    this.fontLoaderTargets = options.fontLoaderTargets
   }
 
   apply(compiler: webpack.Compiler) {
@@ -376,18 +370,14 @@ export class FlightClientEntryPlugin {
       // Request could be undefined or ''
       if (!rawRequest) return
 
-      const isFontLoader = this.fontLoaderTargets?.some((fontLoaderTarget) =>
-        mod.userRequest.startsWith(`${fontLoaderTarget}?`)
-      )
+      const isCSS = regexCSS.test(rawRequest)
       const modRequest: string | undefined =
-        !rawRequest.endsWith('.css') &&
+        !isCSS &&
         !rawRequest.startsWith('.') &&
         !rawRequest.startsWith('/') &&
         !rawRequest.startsWith(APP_DIR_ALIAS)
-          ? isFontLoader
-            ? mod.userRequest
-            : rawRequest
-          : mod.resourceResolveData?.path
+          ? rawRequest
+          : mod.resourceResolveData?.path + mod.resourceResolveData?.query
 
       // Ensure module is not walked again if it's already been visited
       if (!visitedBySegment[layoutOrPageRequest]) {
@@ -401,7 +391,6 @@ export class FlightClientEntryPlugin {
       }
       visitedBySegment[layoutOrPageRequest].add(modRequest)
 
-      const isCSS = isFontLoader || regexCSS.test(modRequest)
       const isClientComponent = isClientComponentModule(mod)
 
       if (isCSS) {
