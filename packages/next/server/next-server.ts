@@ -62,11 +62,9 @@ import { getExtension, serveStatic } from './serve-static'
 import { ParsedUrlQuery } from 'querystring'
 import { apiResolver } from './api-utils/node'
 import { RenderOpts, renderToHTML } from './render'
-import { renderToHTMLOrFlight as appRenderToHTMLOrFlight } from './app-render'
 import { ParsedUrl, parseUrl } from '../shared/lib/router/utils/parse-url'
 import { parse as nodeParseUrl } from 'url'
 import * as Log from '../build/output/log'
-import { addRequireHook, loadRequireHook } from '../build/webpack/require-hook'
 
 import BaseServer, {
   Options,
@@ -100,13 +98,18 @@ import { shouldUseReactRoot, isTargetLikeServerless } from './utils'
 import ResponseCache from './response-cache'
 import { IncrementalCache } from './lib/incremental-cache'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
+// import { loadRequireHook } from '../build/webpack/require-hook'
 
 if (shouldUseReactRoot) {
   ;(process.env as any).__NEXT_REACT_ROOT = 'true'
 }
 
 // require hook for custom server
-loadRequireHook()
+// loadRequireHook()
+
+const {
+  renderToHTMLOrFlight: appRenderToHTMLOrFlight,
+} = require('./app-render')
 
 export * from './base-server'
 
@@ -216,10 +219,6 @@ export default class NextNodeServer extends BaseServer {
   constructor(options: Options) {
     // Initialize super class
     super(options)
-
-    if (this.nextConfig.experimental.appDir) {
-      require('../build/webpack/overriding-builtin-react')
-    }
 
     /**
      * This sets environment variable to be used at the time of SSR by head.tsx.

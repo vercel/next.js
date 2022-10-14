@@ -17,8 +17,9 @@ import { shouldUseReactRoot } from './utils'
 let ServerImpl: typeof Server
 
 const getServerImpl = async () => {
-  if (ServerImpl === undefined)
+  if (ServerImpl === undefined) {
     ServerImpl = (await Promise.resolve(require('./next-server'))).default
+  }
   return ServerImpl
 }
 
@@ -144,8 +145,12 @@ export class NextServer {
 
   private async getServer() {
     if (!this.serverPromise) {
-      setTimeout(getServerImpl, 10)
+      // setTimeout(getServerImpl, 10)
       this.serverPromise = this.loadConfig().then(async (conf) => {
+        if (conf.experimental.appDir) {
+          require('../build/webpack/overriding-builtin-react')
+        }
+
         this.server = await this.createServer({
           ...this.options,
           conf,

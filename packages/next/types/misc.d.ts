@@ -5,6 +5,7 @@ declare module 'next/dist/compiled/react-server-dom-webpack'
 declare module 'next/dist/compiled/react-server-dom-webpack/writer.browser.server'
 declare module 'next/dist/compiled/react-dom/server.browser'
 declare module 'next/dist/compiled/browserslist'
+declare module 'react-dom/server.browser'
 
 declare module 'next/dist/compiled/@next/react-dev-overlay/dist/client' {
   export * from '@next/react-dev-overlay/dist/client'
