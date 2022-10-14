@@ -15,7 +15,6 @@ if (process.env.NODE_ENV !== "production") {
 'use strict';
 
 var React = require('react');
-var ReactDOM = require('react-dom');
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -133,7 +132,6 @@ function stringToPrecomputedChunk(content) {
   return textEncoder.encode(content);
 }
 function closeWithError(destination, error) {
-  // $FlowFixMe[method-unbinding]
   if (typeof destination.error === 'function') {
     // $FlowFixMe: This is an Error object or the destination accepts other types.
     destination.error(error);
@@ -178,6 +176,7 @@ function processErrorChunkDev(request, id, digest, message, stack) {
   return stringToChunk(row);
 }
 function processModelChunk(request, id, model) {
+  // $FlowFixMe: `json` might be `undefined` when model is a symbol.
   var json = stringify(model, request.toJSON);
   var row = serializeRowHeader('J', id) + json + '\n';
   return stringToChunk(row);
@@ -188,6 +187,7 @@ function processReferenceChunk(request, id, reference) {
   return stringToChunk(row);
 }
 function processModuleChunk(request, id, moduleMetaData) {
+  // $FlowFixMe: `json` might be `undefined` when moduleMetaData is a symbol.
   var json = stringify(moduleMetaData);
   var row = serializeRowHeader('M', id) + json + '\n';
   return stringToChunk(row);
@@ -291,7 +291,6 @@ var reservedProps = ['children', 'dangerouslySetInnerHTML', // TODO: This preven
 }
 
 reservedProps.forEach(function (name) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
   properties[name] = new PropertyInfoRecord(name, RESERVED, false, // mustUseProperty
   name, // attributeName
   null, // attributeNamespace
@@ -303,7 +302,6 @@ reservedProps.forEach(function (name) {
 [['acceptCharset', 'accept-charset'], ['className', 'class'], ['htmlFor', 'for'], ['httpEquiv', 'http-equiv']].forEach(function (_ref) {
   var name = _ref[0],
       attributeName = _ref[1];
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
   properties[name] = new PropertyInfoRecord(name, STRING, false, // mustUseProperty
   attributeName, // attributeName
   null, // attributeNamespace
@@ -314,7 +312,6 @@ reservedProps.forEach(function (name) {
 // these aren't boolean attributes (they are coerced to strings).
 
 ['contentEditable', 'draggable', 'spellCheck', 'value'].forEach(function (name) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
   properties[name] = new PropertyInfoRecord(name, BOOLEANISH_STRING, false, // mustUseProperty
   name.toLowerCase(), // attributeName
   null, // attributeNamespace
@@ -326,7 +323,6 @@ reservedProps.forEach(function (name) {
 // Since these are SVG attributes, their attribute names are case-sensitive.
 
 ['autoReverse', 'externalResourcesRequired', 'focusable', 'preserveAlpha'].forEach(function (name) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
   properties[name] = new PropertyInfoRecord(name, BOOLEANISH_STRING, false, // mustUseProperty
   name, // attributeName
   null, // attributeNamespace
@@ -338,7 +334,6 @@ reservedProps.forEach(function (name) {
 // on the client side because the browsers are inconsistent. Instead we call focus().
 'autoFocus', 'autoPlay', 'controls', 'default', 'defer', 'disabled', 'disablePictureInPicture', 'disableRemotePlayback', 'formNoValidate', 'hidden', 'loop', 'noModule', 'noValidate', 'open', 'playsInline', 'readOnly', 'required', 'reversed', 'scoped', 'seamless', // Microdata
 'itemScope'].forEach(function (name) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
   properties[name] = new PropertyInfoRecord(name, BOOLEAN, false, // mustUseProperty
   name.toLowerCase(), // attributeName
   null, // attributeNamespace
@@ -353,7 +348,6 @@ reservedProps.forEach(function (name) {
 // you'll need to set attributeName to name.toLowerCase()
 // instead in the assignment below.
 ].forEach(function (name) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
   properties[name] = new PropertyInfoRecord(name, BOOLEAN, true, // mustUseProperty
   name, // attributeName
   null, // attributeNamespace
@@ -366,7 +360,6 @@ reservedProps.forEach(function (name) {
 // you'll need to set attributeName to name.toLowerCase()
 // instead in the assignment below.
 ].forEach(function (name) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
   properties[name] = new PropertyInfoRecord(name, OVERLOADED_BOOLEAN, false, // mustUseProperty
   name, // attributeName
   null, // attributeNamespace
@@ -378,7 +371,6 @@ reservedProps.forEach(function (name) {
 // you'll need to set attributeName to name.toLowerCase()
 // instead in the assignment below.
 ].forEach(function (name) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
   properties[name] = new PropertyInfoRecord(name, POSITIVE_NUMERIC, false, // mustUseProperty
   name, // attributeName
   null, // attributeNamespace
@@ -387,7 +379,6 @@ reservedProps.forEach(function (name) {
 }); // These are HTML attributes that must be numbers.
 
 ['rowSpan', 'start'].forEach(function (name) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
   properties[name] = new PropertyInfoRecord(name, NUMERIC, false, // mustUseProperty
   name.toLowerCase(), // attributeName
   null, // attributeNamespace
@@ -409,8 +400,7 @@ var capitalize = function (token) {
 // you'll need to set attributeName to name.toLowerCase()
 // instead in the assignment below.
 ].forEach(function (attributeName) {
-  var name = attributeName.replace(CAMELIZE, capitalize); // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-
+  var name = attributeName.replace(CAMELIZE, capitalize);
   properties[name] = new PropertyInfoRecord(name, STRING, false, // mustUseProperty
   attributeName, null, // attributeNamespace
   false, // sanitizeURL
@@ -421,8 +411,7 @@ var capitalize = function (token) {
 // you'll need to set attributeName to name.toLowerCase()
 // instead in the assignment below.
 ].forEach(function (attributeName) {
-  var name = attributeName.replace(CAMELIZE, capitalize); // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-
+  var name = attributeName.replace(CAMELIZE, capitalize);
   properties[name] = new PropertyInfoRecord(name, STRING, false, // mustUseProperty
   attributeName, 'http://www.w3.org/1999/xlink', false, // sanitizeURL
   false);
@@ -432,8 +421,7 @@ var capitalize = function (token) {
 // you'll need to set attributeName to name.toLowerCase()
 // instead in the assignment below.
 ].forEach(function (attributeName) {
-  var name = attributeName.replace(CAMELIZE, capitalize); // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-
+  var name = attributeName.replace(CAMELIZE, capitalize);
   properties[name] = new PropertyInfoRecord(name, STRING, false, // mustUseProperty
   attributeName, 'http://www.w3.org/XML/1998/namespace', false, // sanitizeURL
   false);
@@ -442,7 +430,6 @@ var capitalize = function (token) {
 // the React name like we do for attributes that exist only in HTML.
 
 ['tabIndex', 'crossOrigin'].forEach(function (attributeName) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
   properties[attributeName] = new PropertyInfoRecord(attributeName, STRING, false, // mustUseProperty
   attributeName.toLowerCase(), // attributeName
   null, // attributeNamespace
@@ -451,13 +438,11 @@ var capitalize = function (token) {
 }); // These attributes accept URLs. These must not allow javascript: URLS.
 // These will also need to accept Trusted Types object in the future.
 
-var xlinkHref = 'xlinkHref'; // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-
+var xlinkHref = 'xlinkHref';
 properties[xlinkHref] = new PropertyInfoRecord('xlinkHref', STRING, false, // mustUseProperty
 'xlink:href', 'http://www.w3.org/1999/xlink', true, // sanitizeURL
 false);
 ['src', 'href', 'action', 'formAction'].forEach(function (attributeName) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
   properties[attributeName] = new PropertyInfoRecord(attributeName, STRING, false, // mustUseProperty
   attributeName.toLowerCase(), // attributeName
   null, // attributeNamespace
@@ -545,10 +530,6 @@ function isArray(a) {
   return isArrayImpl(a);
 }
 
-var ReactDOMSharedInternals = ReactDOM.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
-
-var ReactDOMCurrentDispatcher = ReactDOMSharedInternals.Dispatcher;
-
 var startInlineScript = stringToPrecomputedChunk('<script>');
 var endInlineScript = stringToPrecomputedChunk('</script>');
 var startScriptSrc = stringToPrecomputedChunk('<script src="');
@@ -623,8 +604,7 @@ var endSegmentColGroup = stringToPrecomputedChunk('</colgroup></table>');
 // const SUSPENSE_END_DATA = '/$';
 // const SUSPENSE_PENDING_START_DATA = '$?';
 // const SUSPENSE_FALLBACK_START_DATA = '$!';
-// const LOADED = 'l';
-// const ERRORED = 'e';
+//
 // function clientRenderBoundary(suspenseBoundaryID, errorDigest, errorMsg, errorComponentStack) {
 //   // Find the fallback's first element.
 //   const suspenseIdNode = document.getElementById(suspenseBoundaryID);
@@ -647,88 +627,14 @@ var endSegmentColGroup = stringToPrecomputedChunk('</colgroup></table>');
 //     suspenseNode._reactRetry();
 //   }
 // }
-// resourceMap = new Map();
-// function completeBoundaryWithStyles(suspenseBoundaryID, contentID, styles) {
-//   const precedences = new Map();
-//   const thisDocument = document;
-//   let lastResource, node;
-//   // Seed the precedence list with existing resources
-//   let nodes = thisDocument.querySelectorAll('link[data-rprec]');
-//   for (let i = 0;node = nodes[i++];) {
-//     precedences.set(node.dataset.rprec, lastResource = node);
-//   }
-//   let i = 0;
-//   let dependencies = [];
-//   let style, href, precedence, attr, loadingState, resourceEl;
-//   function setStatus(s) {
-//     this.s = s;
-//   }
-//   while (style = styles[i++]) {
-//     let j = 0;
-//     href = style[j++];
-//     // We check if this resource is already in our resourceMap and reuse it if so.
-//     // If it is already loaded we don't return it as a depenendency since there is nothing
-//     // to wait for
-//     loadingState = resourceMap.get(href);
-//     if (loadingState) {
-//       if (loadingState.s !== 'l') {
-//         dependencies.push(loadingState);
-//       }
-//       continue;
-//     }
-//     // We construct our new resource element, looping over remaining attributes if any
-//     // setting them to the Element.
-//     resourceEl = thisDocument.createElement("link");
-//     resourceEl.href = href;
-//     resourceEl.rel = 'stylesheet';
-//     resourceEl.dataset.rprec = precedence = style[j++];
-//     while(attr = style[j++]) {
-//       resourceEl.setAttribute(attr, style[j++]);
-//     }
-//     // We stash a pending promise in our map by href which will resolve or reject
-//     // when the underlying resource loads or errors. We add it to the dependencies
-//     // array to be returned.
-//     loadingState = resourceEl._p = new Promise((re, rj) => {
-//       resourceEl.onload = re;
-//       resourceEl.onerror = rj;
-//     })
-//     loadingState.then(
-//       setStatus.bind(loadingState, LOADED),
-//       setStatus.bind(loadingState, ERRORED)
-//     );
-//     resourceMap.set(href, loadingState);
-//     dependencies.push(loadingState);
-//     // The prior style resource is the last one placed at a given
-//     // precedence or the last resource itself which may be null.
-//     // We grab this value and then update the last resource for this
-//     // precedence to be the inserted element, updating the lastResource
-//     // pointer if needed.
-//     let prior = precedences.get(precedence) || lastResource;
-//     if (prior === lastResource) {
-//       lastResource = resourceEl
-//     }
-//     precedences.set(precedence, resourceEl)
-//     // Finally, we insert the newly constructed instance at an appropriate location
-//     // in the Document.
-//     if (prior) {
-//       prior.parentNode.insertBefore(resourceEl, prior.nextSibling);
-//     } else {
-//       let head = thisDocument.head;
-//       head.insertBefore(resourceEl, head.firstChild);
-//     }
-//   }
-//   Promise.all(dependencies).then(
-//     completeBoundary.bind(null, suspenseBoundaryID, contentID, ''),
-//     completeBoundary.bind(null, suspenseBoundaryID, contentID, "Resource failed to load")
-//   );
-// }
-// function completeBoundary(suspenseBoundaryID, contentID, errorDigest) {
+//
+// function completeBoundary(suspenseBoundaryID, contentID) {
+//   // Find the fallback's first element.
+//   const suspenseIdNode = document.getElementById(suspenseBoundaryID);
 //   const contentNode = document.getElementById(contentID);
 //   // We'll detach the content node so that regardless of what happens next we don't leave in the tree.
 //   // This might also help by not causing recalcing each time we move a child from here to the target.
 //   contentNode.parentNode.removeChild(contentNode);
-//   // Find the fallback's first element.
-//   const suspenseIdNode = document.getElementById(suspenseBoundaryID);
 //   if (!suspenseIdNode) {
 //     // The user must have already navigated away from this tree.
 //     // E.g. because the parent was hydrated. That's fine there's nothing to do
@@ -737,50 +643,50 @@ var endSegmentColGroup = stringToPrecomputedChunk('</colgroup></table>');
 //   }
 //   // Find the boundary around the fallback. This is always the previous node.
 //   const suspenseNode = suspenseIdNode.previousSibling;
-//   if (!errorDigest) {
-//     // Clear all the existing children. This is complicated because
-//     // there can be embedded Suspense boundaries in the fallback.
-//     // This is similar to clearSuspenseBoundary in ReactDOMHostConfig.
-//     // TODO: We could avoid this if we never emitted suspense boundaries in fallback trees.
-//     // They never hydrate anyway. However, currently we support incrementally loading the fallback.
-//     const parentInstance = suspenseNode.parentNode;
-//     let node = suspenseNode.nextSibling;
-//     let depth = 0;
-//     do {
-//       if (node && node.nodeType === COMMENT_NODE) {
-//         const data = node.data;
-//         if (data === SUSPENSE_END_DATA) {
-//           if (depth === 0) {
-//             break;
-//           } else {
-//             depth--;
-//           }
-//         } else if (
-//           data === SUSPENSE_START_DATA ||
-//           data === SUSPENSE_PENDING_START_DATA ||
-//           data === SUSPENSE_FALLBACK_START_DATA
-//         ) {
-//           depth++;
+//
+//   // Clear all the existing children. This is complicated because
+//   // there can be embedded Suspense boundaries in the fallback.
+//   // This is similar to clearSuspenseBoundary in ReactDOMHostConfig.
+//   // TODO: We could avoid this if we never emitted suspense boundaries in fallback trees.
+//   // They never hydrate anyway. However, currently we support incrementally loading the fallback.
+//   const parentInstance = suspenseNode.parentNode;
+//   let node = suspenseNode.nextSibling;
+//   let depth = 0;
+//   do {
+//     if (node && node.nodeType === COMMENT_NODE) {
+//       const data = node.data;
+//       if (data === SUSPENSE_END_DATA) {
+//         if (depth === 0) {
+//           break;
+//         } else {
+//           depth--;
 //         }
+//       } else if (
+//         data === SUSPENSE_START_DATA ||
+//         data === SUSPENSE_PENDING_START_DATA ||
+//         data === SUSPENSE_FALLBACK_START_DATA
+//       ) {
+//         depth++;
 //       }
-//       const nextNode = node.nextSibling;
-//       parentInstance.removeChild(node);
-//       node = nextNode;
-//     } while (node);
-//     const endOfBoundary = node;
-//     // Insert all the children from the contentNode between the start and end of suspense boundary.
-//     while (contentNode.firstChild) {
-//       parentInstance.insertBefore(contentNode.firstChild, endOfBoundary);
 //     }
-//     suspenseNode.data = SUSPENSE_START_DATA;
-//   } else {
-//     suspenseNode.data = SUSPENSE_FALLBACK_START_DATA;
-//     suspenseIdNode.setAttribute('data-dgst', errorDigest)
+//
+//     const nextNode = node.nextSibling;
+//     parentInstance.removeChild(node);
+//     node = nextNode;
+//   } while (node);
+//
+//   const endOfBoundary = node;
+//
+//   // Insert all the children from the contentNode between the start and end of suspense boundary.
+//   while (contentNode.firstChild) {
+//     parentInstance.insertBefore(contentNode.firstChild, endOfBoundary);
 //   }
+//   suspenseNode.data = SUSPENSE_START_DATA;
 //   if (suspenseNode._reactRetry) {
 //     suspenseNode._reactRetry();
 //   }
 // }
+//
 // function completeSegment(containerID, placeholderID) {
 //   const segmentContainer = document.getElementById(containerID);
 //   const placeholderNode = document.getElementById(placeholderID);
@@ -798,8 +704,7 @@ var endSegmentColGroup = stringToPrecomputedChunk('</colgroup></table>');
 // }
 
 var completeSegmentFunction = 'function $RS(a,b){a=document.getElementById(a);b=document.getElementById(b);for(a.parentNode.removeChild(a);a.firstChild;)b.parentNode.insertBefore(a.firstChild,b);b.parentNode.removeChild(b)}';
-var completeBoundaryFunction = 'function $RC(b,c,d){c=document.getElementById(c);c.parentNode.removeChild(c);var a=document.getElementById(b);if(a){b=a.previousSibling;if(d)b.data="$!",a.setAttribute("data-dgst",d);else{d=b.parentNode;a=b.nextSibling;var e=0;do{if(a&&a.nodeType===8){var h=a.data;if(h==="/$")if(0===e)break;else e--;else h!=="$"&&h!=="$?"&&h!=="$!"||e++}h=a.nextSibling;d.removeChild(a);a=h}while(a);for(;c.firstChild;)d.insertBefore(c.firstChild,a);b.data="$"}b._reactRetry&&b._reactRetry()}}';
-var styleInsertionFunction = '$RM=new Map;function $RR(p,q,t){function r(l){this.s=l}for(var m=new Map,n=document,g,e,f=n.querySelectorAll("link[data-rprec]"),d=0;e=f[d++];)m.set(e.dataset.rprec,g=e);e=0;f=[];for(var c,h,b,a;c=t[e++];){var k=0;h=c[k++];if(b=$RM.get(h))"l"!==b.s&&f.push(b);else{a=n.createElement("link");a.href=h;a.rel="stylesheet";for(a.dataset.rprec=d=c[k++];b=c[k++];)a.setAttribute(b,c[k++]);b=a._p=new Promise(function(l,u){a.onload=l;a.onerror=u});b.then(r.bind(b,"l"),r.bind(b,"e"));$RM.set(h,b);f.push(b);c=m.get(d)||g;c===g&&(g=a);m.set(d,a);c?c.parentNode.insertBefore(a,c.nextSibling):(d=n.head,d.insertBefore(a,d.firstChild))}}Promise.all(f).then($RC.bind(null,p,q,""),$RC.bind(null,p,q,"Resource failed to load"))}';
+var completeBoundaryFunction = 'function $RC(a,b){a=document.getElementById(a);b=document.getElementById(b);b.parentNode.removeChild(b);if(a){a=a.previousSibling;var f=a.parentNode,c=a.nextSibling,e=0;do{if(c&&8===c.nodeType){var d=c.data;if("/$"===d)if(0===e)break;else e--;else"$"!==d&&"$?"!==d&&"$!"!==d||e++}d=c.nextSibling;f.removeChild(c);c=d}while(c);for(;b.firstChild;)f.insertBefore(b.firstChild,c);a.data="$";a._reactRetry&&a._reactRetry()}}';
 var clientRenderFunction = 'function $RX(b,c,d,e){var a=document.getElementById(b);a&&(b=a.previousSibling,b.data="$!",a=a.dataset,c&&(a.dgst=c),d&&(a.msg=d),e&&(a.stck=e),b._reactRetry&&b._reactRetry())}';
 var completeSegmentScript1Full = stringToPrecomputedChunk(completeSegmentFunction + ';$RS("');
 var completeSegmentScript1Partial = stringToPrecomputedChunk('$RS("');
@@ -807,23 +712,13 @@ var completeSegmentScript2 = stringToPrecomputedChunk('","');
 var completeSegmentScript3 = stringToPrecomputedChunk('")</script>');
 var completeBoundaryScript1Full = stringToPrecomputedChunk(completeBoundaryFunction + ';$RC("');
 var completeBoundaryScript1Partial = stringToPrecomputedChunk('$RC("');
-var completeBoundaryWithStylesScript1FullBoth = stringToPrecomputedChunk(completeBoundaryFunction + ';' + styleInsertionFunction + ';$RR("');
-var completeBoundaryWithStylesScript1FullPartial = stringToPrecomputedChunk(styleInsertionFunction + ';$RR("');
-var completeBoundaryWithStylesScript1Partial = stringToPrecomputedChunk('$RR("');
 var completeBoundaryScript2 = stringToPrecomputedChunk('","');
-var completeBoundaryScript2a = stringToPrecomputedChunk('",');
-var completeBoundaryScript3 = stringToPrecomputedChunk('"');
-var completeBoundaryScript4 = stringToPrecomputedChunk(')</script>');
+var completeBoundaryScript3 = stringToPrecomputedChunk('")</script>');
 var clientRenderScript1Full = stringToPrecomputedChunk(clientRenderFunction + ';$RX("');
 var clientRenderScript1Partial = stringToPrecomputedChunk('$RX("');
 var clientRenderScript1A = stringToPrecomputedChunk('"');
 var clientRenderScript2 = stringToPrecomputedChunk(')</script>');
 var clientRenderErrorScriptArgInterstitial = stringToPrecomputedChunk(',');
-
-var arrayFirstOpenBracket = stringToPrecomputedChunk('[');
-var arraySubsequentOpenBracket = stringToPrecomputedChunk(',[');
-var arrayInterstitial = stringToPrecomputedChunk(',');
-var arrayCloseBracket = stringToPrecomputedChunk(']');
 
 var rendererSigil;
 
@@ -1121,7 +1016,7 @@ function readContext$1(context) {
       error('Only createServerContext is supported in Server Components.');
     }
 
-    if (currentRequest === null) {
+    if (currentCache === null) {
       error('Context can only be read while React is rendering. ' + 'In classes, you can read it in the render method or getDerivedStateFromProps. ' + 'In function components, you can read it directly in the function body, but not ' + 'inside Hooks like useReducer() or useMemo().');
     }
   }
@@ -1129,7 +1024,7 @@ function readContext$1(context) {
   return readContext(context);
 }
 
-var HooksDispatcher = {
+var Dispatcher = {
   useMemo: function (nextCreate) {
     return nextCreate();
   },
@@ -1139,6 +1034,21 @@ var HooksDispatcher = {
   useDebugValue: function () {},
   useDeferredValue: unsupportedHook,
   useTransition: unsupportedHook,
+  getCacheForType: function (resourceType) {
+    if (!currentCache) {
+      throw new Error('Reading the cache is only supported while rendering.');
+    }
+
+    var entry = currentCache.get(resourceType);
+
+    if (entry === undefined) {
+      entry = resourceType(); // TODO: Warn if undefined?
+
+      currentCache.set(resourceType, entry);
+    }
+
+    return entry;
+  },
   readContext: readContext$1,
   useContext: readContext$1,
   useReducer: unsupportedHook,
@@ -1165,7 +1075,18 @@ function unsupportedHook() {
 }
 
 function unsupportedRefresh() {
-  throw new Error('Refreshing the cache is not supported in Server Components.');
+  if (!currentCache) {
+    throw new Error('Refreshing the cache is not supported in Server Components.');
+  }
+}
+
+var currentCache = null;
+function setCurrentCache(cache) {
+  currentCache = cache;
+  return currentCache;
+}
+function getCurrentCache() {
+  return currentCache;
 }
 
 function useId() {
@@ -1180,7 +1101,6 @@ function useId() {
 
 function use(usable) {
   if (usable !== null && typeof usable === 'object') {
-    // $FlowFixMe[method-unbinding]
     if (typeof usable.then === 'function') {
       // This is a thenable.
       var thenable = usable; // Track the position of the thenable within this fiber.
@@ -1256,36 +1176,6 @@ function use(usable) {
   throw new Error('An unsupported type was passed to use(): ' + String(usable));
 }
 
-var DefaultCacheDispatcher = {
-  getCacheSignal: function () {
-    throw new Error('Not implemented.');
-  },
-  getCacheForType: function (resourceType) {
-    if (!currentCache) {
-      throw new Error('Reading the cache is only supported while rendering.');
-    }
-
-    var entry = currentCache.get(resourceType);
-
-    if (entry === undefined) {
-      entry = resourceType(); // TODO: Warn if undefined?
-      // $FlowFixMe[incompatible-use] found when upgrading Flow
-
-      currentCache.set(resourceType, entry);
-    }
-
-    return entry;
-  }
-};
-var currentCache = null;
-function setCurrentCache(cache) {
-  currentCache = cache;
-  return currentCache;
-}
-function getCurrentCache() {
-  return currentCache;
-}
-
 var ContextRegistry = ReactSharedInternals.ContextRegistry;
 function getOrCreateServerContext(globalName) {
   if (!ContextRegistry[globalName]) {
@@ -1301,7 +1191,6 @@ var COMPLETED = 1;
 var ABORTED = 3;
 var ERRORED = 4;
 var ReactCurrentDispatcher = ReactSharedInternals.ReactCurrentDispatcher;
-var ReactCurrentCache = ReactSharedInternals.ReactCurrentCache;
 
 function defaultErrorHandler(error) {
   console['error'](error); // Don't transform to our wrapper
@@ -1424,7 +1313,8 @@ function attemptResolveElement(type, key, ref, props, prevThenableState) {
             if (extraKeys.length !== 0) {
               error('ServerContext can only have a value prop and children. Found: %s', JSON.stringify(extraKeys));
             }
-          }
+          } // $FlowFixMe issue discovered when updating Flow
+
 
           return [REACT_ELEMENT_TYPE, type, key, // Rely on __popProvider being serialized last to pop the provider.
           {
@@ -1594,7 +1484,6 @@ function isSimpleObject(object) {
 }
 
 function objectName(object) {
-  // $FlowFixMe[method-unbinding]
   var name = Object.prototype.toString.call(object);
   return name.replace(/^\[object (.*)\]$/, function (m, p0) {
     return p0;
@@ -1655,7 +1544,6 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
       var _value = array[i];
 
       if ('' + i === expandedName && typeof _value === 'object' && _value !== null) {
-        // $FlowFixMe[incompatible-call] found when upgrading Flow
         str += describeObjectForErrorMessage(_value);
       } else {
         str += describeValueForErrorMessage(_value);
@@ -1684,7 +1572,6 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
       var _value2 = object[name];
 
       if (name === expandedName && typeof _value2 === 'object' && _value2 !== null) {
-        // $FlowFixMe[incompatible-call] found when upgrading Flow
         _str += describeObjectForErrorMessage(_value2);
       } else {
         _str += describeValueForErrorMessage(_value2);
@@ -1865,7 +1752,7 @@ function resolveModelToJSON(request, parent, key, value) {
     } // $FlowFixMe `description` might be undefined
 
 
-    var name = value.description;
+    var name = value.description; // $FlowFixMe `name` might be undefined
 
     if (Symbol.for(name) !== value) {
       throw new Error('Only global symbols received from Symbol.for(...) can be passed to client components. ' + ("The symbol Symbol.for(" + // $FlowFixMe `description` might be undefined
@@ -1946,6 +1833,7 @@ function emitErrorChunkDev(request, id, digest, message, stack) {
 }
 
 function emitModuleChunk(request, id, moduleMetaData) {
+  // $FlowFixMe ModuleMetaData is not a ReactModel
   var processedChunk = processModuleChunk(request, id, moduleMetaData);
   request.completedModuleChunks.push(processedChunk);
 }
@@ -2027,10 +1915,8 @@ function retryTask(request, task) {
 
 function performWork(request) {
   var prevDispatcher = ReactCurrentDispatcher.current;
-  var prevCacheDispatcher = ReactCurrentCache.current;
   var prevCache = getCurrentCache();
-  ReactCurrentDispatcher.current = HooksDispatcher;
-  ReactCurrentCache.current = DefaultCacheDispatcher;
+  ReactCurrentDispatcher.current = Dispatcher;
   setCurrentCache(request.cache);
   prepareToUseHooksForRequest(request);
 
@@ -2051,7 +1937,6 @@ function performWork(request) {
     fatalError(request, error);
   } finally {
     ReactCurrentDispatcher.current = prevDispatcher;
-    ReactCurrentCache.current = prevCacheDispatcher;
     setCurrentCache(prevCache);
     resetHooksForRequest();
   }
