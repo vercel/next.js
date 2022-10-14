@@ -33,7 +33,7 @@ use turbopack::{
     emit, rebase::RebasedAssetVc, resolve_options_context::ResolveOptionsContext,
     transition::TransitionsByNameVc, ModuleAssetContextVc,
 };
-use turbopack_cli_utils::issue::{group_and_display_issues, IssueSeverityCliOption, LogOptions};
+use turbopack_cli_utils::issue::{ConsoleUi, IssueSeverityCliOption, LogOptions};
 use turbopack_core::{
     asset::{AssetVc, AssetsVc},
     context::AssetContextVc,
@@ -346,7 +346,13 @@ async fn run<B: Backend + 'static, F: Future<Output = ()>>(
     create_tt: impl Fn() -> Arc<TurboTasks<B>>,
     final_finish: impl FnOnce(Arc<TurboTasks<B>>, TaskId, Duration) -> F,
 ) -> Result<()> {
-    let &CommonArgs { watch, .. } = args.common();
+    let &CommonArgs {
+        watch,
+        show_all,
+        log_detail,
+        log_level,
+        ..
+    } = args.common();
 
     let start = Instant::now();
     let finish = |tt: Arc<TurboTasks<B>>, root_task: TaskId| async move {
@@ -385,27 +391,23 @@ async fn run<B: Backend + 'static, F: Future<Output = ()>>(
 
     let dir = current_dir().unwrap();
     let tt = create_tt();
+    let console_ui = Arc::new(ConsoleUi::new(LogOptions {
+        current_dir: dir.clone(),
+        show_all,
+        log_detail,
+        log_level: log_level.map_or_else(|| IssueSeverity::Error, |l| l.0),
+    }));
     let task = tt.spawn_root_task(move || {
         let dir = dir.clone();
         let args = args.clone();
+        let console_ui = console_ui.clone();
         Box::pin(async move {
-            let common_args = args.common();
             let output = main_operation(TransientValue::new(dir.clone()), args.clone().into());
 
-            let issues = IssueVc::peek_issues_with_path(output).await?;
-            group_and_display_issues(
-                LogOptions {
-                    current_dir: dir,
-                    show_all: common_args.show_all,
-                    log_detail: common_args.log_detail,
-                    log_level: common_args
-                        .log_level
-                        .map_or_else(|| IssueSeverity::Error, |l| l.0),
-                }
-                .cell(),
-                issues,
-            )
-            .await?;
+            let console_ui = (*console_ui).clone().cell();
+            console_ui
+                .group_and_display_issues(TransientValue::new(output.into()))
+                .await?;
 
             for line in output.await?.iter() {
                 println!("{line}");

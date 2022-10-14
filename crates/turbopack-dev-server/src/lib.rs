@@ -16,18 +16,18 @@ use std::{
     time::{Duration, Instant},
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, bail, Result};
 use hyper::{
     service::{make_service_fn, service_fn},
     Body, Request, Response, Server,
 };
 use mime_guess::mime;
 use turbo_tasks::{
-    trace::TraceRawVcs, util::FormatDuration, CollectiblesSource, TurboTasksApi, Value,
+    trace::TraceRawVcs, util::FormatDuration, RawVc, TransientValue, TurboTasksApi, Value,
 };
 use turbo_tasks_fs::FileContent;
-use turbopack_cli_utils::issue::{group_and_display_issues, LogOptions, LogOptionsVc};
-use turbopack_core::{asset::AssetContent, issue::IssueVc};
+use turbopack_cli_utils::issue::{ConsoleUi, ConsoleUiVc};
+use turbopack_core::asset::AssetContent;
 
 use self::{
     source::{query::Query, ContentSourceDataVary, ContentSourceVc},
@@ -46,16 +46,23 @@ pub struct DevServer {
 }
 
 // Just print issues to console for now...
-async fn handle_issues<T: CollectiblesSource + Copy>(
+async fn handle_issues<T: Into<RawVc>>(
     source: T,
     path: &str,
     operation: &str,
-    options: LogOptionsVc,
+    console_ui: ConsoleUiVc,
 ) -> Result<()> {
-    let issues = IssueVc::peek_issues_with_path(source).await?;
-    if !*issues.is_empty().await? {
-        println!("{path} has some issues ({operation}):\n");
-        group_and_display_issues(options, issues);
+    let state = console_ui
+        .group_and_display_issues(TransientValue::new(source.into()))
+        .await?;
+    if state.has_fatal {
+        bail!("Fatal issue(s) occurred")
+    }
+
+    if state.has_new_issues {
+        println!("{path} has new issues ({operation}):\n");
+    } else if state.has_issues {
+        println!("{path} has old issues ({operation}):\n");
     }
     Ok(())
 }
@@ -66,15 +73,15 @@ impl DevServer {
         turbo_tasks: Arc<dyn TurboTasksApi>,
         get_source: S,
         addr: SocketAddr,
-        log_options: Arc<LogOptions>,
+        console_ui: Arc<ConsoleUi>,
     ) -> Self {
         let make_svc = make_service_fn(move |_| {
             let tt = turbo_tasks.clone();
             let get_source = get_source.clone();
-            let log_options = log_options.clone();
+            let console_ui = console_ui.clone();
             async move {
                 let handler = move |request: Request<Body>| {
-                    let log_options = log_options.clone();
+                    let console_ui = console_ui.clone();
                     let start = Instant::now();
                     let tt = tt.clone();
                     let get_source = get_source.clone();
@@ -87,19 +94,19 @@ impl DevServer {
                         }
                         let (tx, rx) = tokio::sync::oneshot::channel();
                         let task_id = tt.run_once(Box::pin(async move {
-                            let log_options = (*log_options).clone().cell();
+                            let console_ui = (*console_ui).clone().cell();
                             let uri = request.uri();
                             let path = uri.path();
                             let asset_path = path[1..].to_string();
                             let source = get_source();
-                            handle_issues(source, path, "get source", log_options).await?;
+                            handle_issues(source, path, "get source", console_ui).await?;
                             let resolved_source = source.resolve_strongly_consistent().await?;
                             let content_source_vary = resolved_source.vary(&asset_path);
                             handle_issues(
                                 content_source_vary,
                                 path,
                                 "get vary from source",
-                                log_options,
+                                console_ui,
                             )
                             .await?;
                             let vary = &*content_source_vary.strongly_consistent().await?;
@@ -110,7 +117,7 @@ impl DevServer {
                                 content_source_result,
                                 path,
                                 "get content from source",
-                                log_options,
+                                console_ui,
                             )
                             .await?;
                             if let ContentSourceResult::Static(v_content) =
@@ -119,7 +126,7 @@ impl DevServer {
                                 let resolved_v_content =
                                     v_content.resolve_strongly_consistent().await?;
                                 let content_vc = resolved_v_content.content();
-                                handle_issues(content_vc, path, "content", log_options).await?;
+                                handle_issues(content_vc, path, "content", console_ui).await?;
                                 if let AssetContent::File(file) =
                                     &*content_vc.strongly_consistent().await?
                                 {

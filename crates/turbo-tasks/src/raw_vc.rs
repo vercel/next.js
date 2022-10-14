@@ -25,7 +25,8 @@ use crate::{
     registry::get_value_type,
     turbo_tasks,
     value_type::ValueTraitVc,
-    ReadRef, SharedReference, TaskId, TraitTypeId, Typed, TypedForInput, ValueTypeId,
+    CollectiblesSource, ReadRef, SharedReference, TaskId, TraitTypeId, Typed, TypedForInput,
+    ValueTypeId,
 };
 
 #[derive(Error, Debug)]
@@ -90,7 +91,9 @@ impl RawVc {
         self,
         turbo_tasks: &dyn TurboTasksApi,
     ) -> Result<ReadRef<T>> {
-        self.into_read_untracked_internal(false, turbo_tasks).await
+        self.into_read_untracked_internal(false, turbo_tasks)
+            .await?
+            .cast::<T>()
     }
 
     /// INVALIDATION: Be careful with this, it will not track dependencies, so
@@ -99,14 +102,30 @@ impl RawVc {
         self,
         turbo_tasks: &dyn TurboTasksApi,
     ) -> Result<ReadRef<T>> {
-        self.into_read_untracked_internal(true, turbo_tasks).await
+        self.into_read_untracked_internal(true, turbo_tasks)
+            .await?
+            .cast::<T>()
     }
 
-    async fn into_read_untracked_internal<T: Any + Send + Sync>(
+    /// Returns the hash of the pointer that holds the Vc's current data. This
+    /// value will change every time the TaskCell recomputes.
+    ///
+    /// INVALIDATION: Be careful with this, it will not track dependencies, so
+    /// using it could break cache invalidation.
+    pub async fn internal_pointer_untracked(
+        self,
+        turbo_tasks: &dyn TurboTasksApi,
+    ) -> Result<SharedReference> {
+        let read = self.into_read_untracked_internal(true, turbo_tasks).await?;
+        read.0
+            .ok_or_else(|| anyhow!("failed to read cell content into hash"))
+    }
+
+    async fn into_read_untracked_internal(
         self,
         strongly_consistent: bool,
         turbo_tasks: &dyn TurboTasksApi,
-    ) -> Result<ReadRef<T>> {
+    ) -> Result<CellContent> {
         turbo_tasks.notify_scheduled_tasks();
         let mut current = self;
         loop {
@@ -116,9 +135,7 @@ impl RawVc {
                         read_task_output_untracked(turbo_tasks, task, strongly_consistent).await?
                 }
                 RawVc::TaskCell(task, index) => {
-                    return read_task_cell_untracked(turbo_tasks, task, index)
-                        .await?
-                        .cast::<T>();
+                    return read_task_cell_untracked(turbo_tasks, task, index).await;
                 }
             }
         }
@@ -311,12 +328,20 @@ impl RawVc {
             .await
     }
 
-    pub fn peek_collectibles<T: ValueTraitVc>(&self) -> CollectiblesFuture<T> {
+    pub fn get_task_id(&self) -> TaskId {
+        match self {
+            RawVc::TaskOutput(t) | RawVc::TaskCell(t, _) => *t,
+        }
+    }
+}
+
+impl CollectiblesSource for RawVc {
+    fn peek_collectibles<T: ValueTraitVc>(self) -> CollectiblesFuture<T> {
         let tt = turbo_tasks();
         let set: RawVcSetVc = tt
             .native_call(
                 *crate::collectibles::READ_COLLECTIBLES_FUNCTION_ID,
-                vec![(*self).into(), (*T::get_trait_type_id()).into()],
+                vec![self.into(), (*T::get_trait_type_id()).into()],
             )
             .into();
         CollectiblesFuture {
@@ -327,12 +352,12 @@ impl RawVc {
         }
     }
 
-    pub fn take_collectibles<T: ValueTraitVc>(&self) -> CollectiblesFuture<T> {
+    fn take_collectibles<T: ValueTraitVc>(self) -> CollectiblesFuture<T> {
         let tt = turbo_tasks();
         let set: RawVcSetVc = tt
             .native_call(
                 *crate::collectibles::READ_COLLECTIBLES_FUNCTION_ID,
-                vec![(*self).into(), (*T::get_trait_type_id()).into()],
+                vec![self.into(), (*T::get_trait_type_id()).into()],
             )
             .into();
         CollectiblesFuture {
@@ -340,12 +365,6 @@ impl RawVc {
             inner: set.into_future(),
             take: true,
             phantom: PhantomData,
-        }
-    }
-
-    pub fn get_task_id(&self) -> TaskId {
-        match self {
-            RawVc::TaskOutput(t) | RawVc::TaskCell(t, _) => *t,
         }
     }
 }

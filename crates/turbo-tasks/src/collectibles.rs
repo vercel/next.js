@@ -14,7 +14,7 @@ pub async fn read_collectibles(raw: RawVc, trait_type: usize) -> Result<RawVcSet
         Ok(RawVcSetVc::cell(set))
     } else {
         Err(anyhow!(
-            "peek/task_collectibles was called on Vc that points to a cell (instead of a Vc that \
+            "peek/take_collectibles was called on Vc that points to a cell (instead of a Vc that \
              points to a task output)"
         ))
     }

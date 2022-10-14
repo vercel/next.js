@@ -1,3 +1,4 @@
+#![feature(async_closure)]
 #![feature(min_specialization)]
 #![feature(round_char_boundary)]
 

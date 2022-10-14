@@ -1,20 +1,22 @@
 use std::{
     borrow::Cow,
     cmp::{min, Ordering},
-    collections::HashMap,
+    collections::{hash_map::Entry, HashMap, HashSet},
     fmt::Write as _,
     path::PathBuf,
     str::FromStr,
+    sync::{Arc, Mutex},
 };
 
 use anyhow::{anyhow, Result};
 use crossterm::style::{StyledContent, Stylize};
 use owo_colors::{OwoColorize as _, Style};
-use turbo_tasks::{primitives::BoolVc, ValueToString};
+use turbo_tasks::{
+    turbo_tasks, RawVc, SharedReference, TransientValue, TryJoinIterExt, ValueToString,
+};
 use turbo_tasks_fs::{DiskFileSystemVc, FileLinesContent, FileSystemPathVc};
 use turbopack_core::issue::{
-    CapturedIssuesVc, IssueProcessingPathItem, IssueSeverity, IssueSource,
-    OptionIssueProcessingPathItemsVc,
+    IssueProcessingPathItem, IssueSeverity, IssueSource, IssueVc, OptionIssueProcessingPathItemsVc,
 };
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -201,159 +203,334 @@ pub struct LogOptions {
     pub log_level: IssueSeverity,
 }
 
-#[turbo_tasks::function]
-pub async fn group_and_display_issues(
-    options: LogOptionsVc,
-    issues: CapturedIssuesVc,
-) -> Result<BoolVc> {
-    let issues = issues.await?;
-    let &LogOptions {
-        ref current_dir,
-        show_all,
-        log_detail,
-        log_level,
-        ..
-    } = &*options.await?;
-    let mut grouped_issues: GroupedIssues = HashMap::new();
-    let mut has_fatal = false;
+/// Tracks the state of currently seen issues.
+///
+/// An issue is considered seen as long as a single source has pulled the issue.
+/// When a source repulls emitted issues due to a recomputation somewhere in its
+/// graph, there are a few possibilities:
+///
+/// 1. An issue from this pull is brand new to all sources, in which case it
+/// will be logged and the issue's count is inremented.
+/// 2. An issue from this pull is brand new to this source but another source
+/// has already pulled it, in which case it will be logged and the issue's count
+/// is incremented.
+/// 3. The previous pull from this source had already seen the issue, in which
+/// case the issue will be skipped and the issue's count remains constant.
+/// 4. An issue seen in a previous pull was not repulled, and the issue's
+/// count is decremented.
+///
+/// Once an issue's count reaches zero, it's removed. If it is ever seen again,
+/// it is considered new and will be relogged.
+#[derive(Default)]
+struct SeenIssues {
+    /// Keeps track of all issue pulled from the source. Used so that we can
+    /// decrement issues that are not pulled in the current synchronization.
+    source_to_issue_ids: HashMap<RawVc, HashSet<SharedReference>>,
 
-    for (issue, path) in issues.iter_with_shortest_path() {
-        let severity = &*issue.severity().await?;
-        let context_path = make_relative_to_cwd(issue.context(), current_dir).await?;
-        let category = &*issue.category().await?;
-        let title = &*issue.title().await?;
-        has_fatal = severity == &IssueSeverity::Fatal;
-        let severity_map = grouped_issues
-            .entry(*severity)
-            .or_insert_with(Default::default);
-        let category_map = severity_map
-            .entry(category.clone())
-            .or_insert_with(Default::default);
-        let issues = category_map
-            .entry(context_path.clone())
-            .or_insert_with(Default::default);
+    /// Counts the number of times a particular issue is seen across all
+    /// sources. As long as the count is positive, an issue is considered
+    /// "seen" and will not be relogged. Once the count reaches zero, the
+    /// issue is removed and the next time its seen it will be considered new.
+    issues_count: HashMap<SharedReference, usize>,
+}
 
-        let mut styled_issue = if let Some(source) = &*issue.source().await? {
-            let source = &*source.await?;
-            let mut styled_issue = format!(
-                "{}:{}:{}  {}",
-                context_path,
-                source.start.line + 1,
-                source.start.column,
-                title.bold()
-            );
-            styled_issue.push('\n');
-            format_source_content(source, &mut styled_issue).await?;
-            styled_issue
-        } else {
-            format!("{}", title.bold())
-        };
-
-        let description = issue.description().await?;
-        if !description.is_empty() {
-            writeln!(&mut styled_issue, "\n{description}")?;
-        }
-
-        if log_detail {
-            styled_issue.push('\n');
-            let detail = issue.detail().await?;
-            if !detail.is_empty() {
-                for line in detail.split('\n') {
-                    writeln!(&mut styled_issue, "| {line}")?;
-                }
-            }
-            let documentation_link = issue.documentation_link().await?;
-            if !documentation_link.is_empty() {
-                writeln!(&mut styled_issue, "\ndocumentation: {documentation_link}")?;
-            }
-            format_optional_path(&path, &mut styled_issue).await?;
-        }
-        issues.push(styled_issue);
+impl SeenIssues {
+    fn new() -> Self {
+        Default::default()
     }
-    for severity in ORDERED_GROUPS.iter().filter(|l| **l <= log_level) {
-        if let Some(severity_map) = grouped_issues.get_mut(severity) {
-            let severity_map_size = severity_map.len();
-            let indent = if severity_map_size == 1 {
-                print!("{} ", severity.style(severity_to_style(severity)));
-                ""
-            } else {
-                println!("{}", severity.style(severity_to_style(severity)));
-                "  "
-            };
-            let severity_map_take_count = if show_all {
-                severity_map_size
-            } else {
-                DEFAULT_SHOW_COUNT
-            };
-            let mut categories = severity_map.keys().cloned().collect::<Vec<_>>();
-            categories.sort();
-            for category in categories.iter().take(severity_map_take_count) {
-                let category_issues = severity_map.get_mut(category).unwrap();
-                let category_issues_size = category_issues.len();
-                let indent = if category_issues_size == 1 && indent.is_empty() {
-                    print!("[{category}] ");
-                    "".to_string()
-                } else {
-                    println!("{indent}[{category}]");
-                    format!("{indent}  ")
-                };
-                let (mut contextes, mut vendor_contextes): (Vec<_>, Vec<_>) = category_issues
-                    .iter_mut()
-                    .partition(|(context, _)| !context.contains("node_modules"));
-                contextes.sort_by_key(|(c, _)| *c);
-                if show_all {
-                    vendor_contextes.sort_by_key(|(c, _)| *c);
-                    contextes.extend(vendor_contextes);
+
+    /// Synchronizes state between the issues previously pulled from this
+    /// source, to the issues now pulled.
+    fn new_ids(
+        &mut self,
+        source: RawVc,
+        issue_ids: HashSet<SharedReference>,
+    ) -> HashSet<SharedReference> {
+        let old = self.source_to_issue_ids.entry(source).or_default();
+
+        // difference is the issues that were never counted before.
+        let difference = issue_ids
+            .iter()
+            .filter(|id| match self.issues_count.entry((*id).clone()) {
+                Entry::Vacant(e) => {
+                    // If the issue not currently counted, then it's new and should be logged.
+                    e.insert(1);
+                    true
                 }
-                let category_issues_take_count = if show_all {
-                    category_issues_size
-                } else {
-                    min(contextes.len(), DEFAULT_SHOW_COUNT)
-                };
-                for (context, issues) in contextes.into_iter().take(category_issues_take_count) {
-                    issues.sort();
-                    println!("{indent}{}", context.bright_blue());
-                    let issues_size = issues.len();
-                    let issues_take_count = if show_all {
-                        issues_size
+                Entry::Occupied(mut e) => {
+                    if old.contains(*id) {
+                        // If old contains the id, then we don't need to change the count, but we
+                        // do need to remove the entry. Doing so allows us to iterate the final old
+                        // state and decrement old issues.
+                        old.remove(*id);
                     } else {
-                        DEFAULT_SHOW_COUNT
-                    };
-                    for issue in issues.iter().take(issues_take_count) {
-                        let mut i = 0;
-                        for line in issue.lines() {
-                            println!("{indent}  {line}");
-                            i += 1;
-                        }
-                        if i > 1 {
-                            // Spacing after multi line issues
-                            println!();
-                        }
+                        // If old didn't contain the entry, then this issue was already counted
+                        // from a difference source.
+                        *e.get_mut() += 1;
                     }
-                    if issues_size > issues_take_count {
-                        println!("{indent}  {}", show_all_message("issues", issues_size));
+                    false
+                }
+            })
+            .cloned()
+            .collect::<HashSet<_>>();
+
+        // Old now contains only the ids that were not present in the new issue_ids.
+        for id in old.iter() {
+            match self.issues_count.entry(id.clone()) {
+                Entry::Vacant(_) => unreachable!("issue must already be tracked to appear in old"),
+                Entry::Occupied(mut e) => {
+                    let v = e.get_mut();
+                    if *v == 1 {
+                        // If this was the last counter of the issue, then we need to prune the
+                        // value to free memory.
+                        e.remove();
+                    } else {
+                        // Another source counted the issue, and it must not be relogged until all
+                        // sources remove it.
+                        *v -= 1;
                     }
                 }
-                if category_issues_size > category_issues_take_count {
+            }
+        }
+
+        *old = issue_ids;
+        difference
+    }
+}
+
+/// Logs emitted issues to console logs, deduplicating issues between peeks of
+/// the collected issues. The ConsoleUi can be shared and capture issues from
+/// multiple sources, with deduplication operating across all issues.
+#[turbo_tasks::value(shared, serialization = "none", eq = "manual")]
+#[derive(Clone)]
+pub struct ConsoleUi {
+    options: LogOptions,
+
+    #[turbo_tasks(trace_ignore, debug_ignore)]
+    seen: Arc<Mutex<SeenIssues>>,
+}
+
+impl PartialEq for ConsoleUi {
+    fn eq(&self, other: &Self) -> bool {
+        self.options == other.options
+    }
+}
+
+impl ConsoleUi {
+    pub fn new(options: LogOptions) -> Self {
+        ConsoleUi {
+            options,
+            seen: Arc::new(Mutex::new(SeenIssues::new())),
+        }
+    }
+}
+
+#[turbo_tasks::value(transparent)]
+pub struct DisplayIssueState {
+    pub has_fatal: bool,
+    pub has_issues: bool,
+    pub has_new_issues: bool,
+}
+
+/// When an issue is emitted, we store a copy of its pointer hash to perform
+/// deduplication. This hash is the same for an issue despite the source that
+/// pulls the emitted issue. As long as the task that emits the issue is not
+/// recomputed, then the internal hash will be constant.
+async fn internal_hash(raw: RawVc) -> Result<SharedReference> {
+    let tt = turbo_tasks();
+    raw.internal_pointer_untracked(&*tt).await
+}
+
+#[turbo_tasks::value_impl]
+impl ConsoleUiVc {
+    #[turbo_tasks::function]
+    pub async fn group_and_display_issues(
+        self,
+        source: TransientValue<RawVc>,
+    ) -> Result<DisplayIssueStateVc> {
+        let source = source.into_value();
+        let this = self.await?;
+
+        let issues = IssueVc::peek_issues_with_path(source).await?;
+        let issues = issues.await?;
+        let &LogOptions {
+            ref current_dir,
+            show_all,
+            log_detail,
+            log_level,
+            ..
+        } = &this.options;
+        let mut grouped_issues: GroupedIssues = HashMap::new();
+
+        let issues = issues
+            .iter_with_shortest_path()
+            .map(async move |(issue, path)| {
+                let id = internal_hash(issue.into()).await?;
+                Ok((issue, path, id))
+            })
+            .try_join()
+            .await?;
+
+        let issue_ids = issues
+            .iter()
+            .map(|(_, _, id)| id.clone())
+            .collect::<HashSet<_>>();
+        let new_ids = this.seen.lock().unwrap().new_ids(source, issue_ids);
+
+        let mut has_fatal = false;
+        let has_issues = !issues.is_empty();
+        let has_new_issues = !new_ids.is_empty();
+
+        for (issue, path, id) in issues {
+            if !new_ids.contains(&id) {
+                continue;
+            }
+
+            let severity = &*issue.severity().await?;
+            let context_path = make_relative_to_cwd(issue.context(), current_dir).await?;
+            let category = &*issue.category().await?;
+            let title = &*issue.title().await?;
+            has_fatal = severity == &IssueSeverity::Fatal;
+            let severity_map = grouped_issues
+                .entry(*severity)
+                .or_insert_with(Default::default);
+            let category_map = severity_map
+                .entry(category.clone())
+                .or_insert_with(Default::default);
+            let issues = category_map
+                .entry(context_path.clone())
+                .or_insert_with(Default::default);
+
+            let mut styled_issue = if let Some(source) = &*issue.source().await? {
+                let source = &*source.await?;
+                let mut styled_issue = format!(
+                    "{}:{}:{}  {}",
+                    context_path,
+                    source.start.line + 1,
+                    source.start.column,
+                    title.bold()
+                );
+                styled_issue.push('\n');
+                format_source_content(source, &mut styled_issue).await?;
+                styled_issue
+            } else {
+                format!("{}", title.bold())
+            };
+
+            let description = issue.description().await?;
+            if !description.is_empty() {
+                writeln!(&mut styled_issue, "\n{description}")?;
+            }
+
+            if log_detail {
+                styled_issue.push('\n');
+                let detail = issue.detail().await?;
+                if !detail.is_empty() {
+                    for line in detail.split('\n') {
+                        writeln!(&mut styled_issue, "| {line}")?;
+                    }
+                }
+                let documentation_link = issue.documentation_link().await?;
+                if !documentation_link.is_empty() {
+                    writeln!(&mut styled_issue, "\ndocumentation: {documentation_link}")?;
+                }
+                format_optional_path(&path, &mut styled_issue).await?;
+            }
+            issues.push(styled_issue);
+        }
+
+        for severity in ORDERED_GROUPS.iter().filter(|l| **l <= log_level) {
+            if let Some(severity_map) = grouped_issues.get_mut(severity) {
+                let severity_map_size = severity_map.len();
+                let indent = if severity_map_size == 1 {
+                    print!("{} ", severity.style(severity_to_style(severity)));
+                    ""
+                } else {
+                    println!("{}", severity.style(severity_to_style(severity)));
+                    "  "
+                };
+                let severity_map_take_count = if show_all {
+                    severity_map_size
+                } else {
+                    DEFAULT_SHOW_COUNT
+                };
+                let mut categories = severity_map.keys().cloned().collect::<Vec<_>>();
+                categories.sort();
+                for category in categories.iter().take(severity_map_take_count) {
+                    let category_issues = severity_map.get_mut(category).unwrap();
+                    let category_issues_size = category_issues.len();
+                    let indent = if category_issues_size == 1 && indent.is_empty() {
+                        print!("[{category}] ");
+                        "".to_string()
+                    } else {
+                        println!("{indent}[{category}]");
+                        format!("{indent}  ")
+                    };
+                    let (mut contextes, mut vendor_contextes): (Vec<_>, Vec<_>) = category_issues
+                        .iter_mut()
+                        .partition(|(context, _)| !context.contains("node_modules"));
+                    contextes.sort_by_key(|(c, _)| *c);
+                    if show_all {
+                        vendor_contextes.sort_by_key(|(c, _)| *c);
+                        contextes.extend(vendor_contextes);
+                    }
+                    let category_issues_take_count = if show_all {
+                        category_issues_size
+                    } else {
+                        min(contextes.len(), DEFAULT_SHOW_COUNT)
+                    };
+                    for (context, issues) in contextes.into_iter().take(category_issues_take_count)
+                    {
+                        issues.sort();
+                        println!("{indent}{}", context.bright_blue());
+                        let issues_size = issues.len();
+                        let issues_take_count = if show_all {
+                            issues_size
+                        } else {
+                            DEFAULT_SHOW_COUNT
+                        };
+                        for issue in issues.iter().take(issues_take_count) {
+                            let mut i = 0;
+                            for line in issue.lines() {
+                                println!("{indent}  {line}");
+                                i += 1;
+                            }
+                            if i > 1 {
+                                // Spacing after multi line issues
+                                println!();
+                            }
+                        }
+                        if issues_size > issues_take_count {
+                            println!("{indent}  {}", show_all_message("issues", issues_size));
+                        }
+                    }
+                    if category_issues_size > category_issues_take_count {
+                        println!(
+                            "{indent}{}",
+                            show_all_message_with_shown_count(
+                                "paths",
+                                category_issues_size,
+                                category_issues_take_count
+                            )
+                        );
+                    }
+                }
+                if severity_map_size > severity_map_take_count {
                     println!(
                         "{indent}{}",
-                        show_all_message_with_shown_count(
-                            "paths",
-                            category_issues_size,
-                            category_issues_take_count
-                        )
-                    );
+                        show_all_message("categories", severity_map_size)
+                    )
                 }
             }
-            if severity_map_size > severity_map_take_count {
-                println!(
-                    "{indent}{}",
-                    show_all_message("categories", severity_map_size)
-                )
-            }
         }
+
+        Ok(DisplayIssueState {
+            has_fatal,
+            has_issues,
+            has_new_issues,
+        }
+        .cell())
     }
-    Ok(BoolVc::cell(has_fatal))
 }
 
 async fn make_relative_to_cwd(path: FileSystemPathVc, cwd: &PathBuf) -> Result<String> {
