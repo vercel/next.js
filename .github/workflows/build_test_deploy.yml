@@ -452,7 +452,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1]
+        group: [1, 2, 3]
     steps:
       - name: Setup node
         uses: actions/setup-node@v3
@@ -487,7 +487,7 @@ jobs:
         timeout-minutes: 10
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
-      - run: NEXT_TEST_MODE=dev node run-tests.js test/e2e/middleware-rewrites/test/index.test.ts
+      - run: NEXT_TEST_MODE=dev node run-tests.js --type e2e --timings -g ${{ matrix.group }}/3
         name: Run test/e2e (dev)
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
