@@ -339,7 +339,8 @@ function loadNative() {
       teardownTraceSubscriber: bindings.teardownTraceSubscriber,
       teardownCrashReporter: bindings.teardownCrashReporter,
       diagnostics: {
-        startDiagnostics: (options) => bindings.startDiagnostics(toBuffer(options)),
+        startDiagnostics: (options) =>
+          bindings.startDiagnostics(toBuffer(options)),
       },
     }
     return nativeBindings
