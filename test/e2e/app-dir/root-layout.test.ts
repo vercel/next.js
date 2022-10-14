@@ -2,7 +2,7 @@ import path from 'path'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import webdriver from 'next-webdriver'
-import { getRedboxDescription, hasRedbox } from 'next-test-utils'
+import { getRedboxSource, hasRedbox } from 'next-test-utils'
 
 describe('app-dir root layout', () => {
   const isDev = (global as any).isNextDev
@@ -37,43 +37,43 @@ describe('app-dir root layout', () => {
   if (isDev) {
     describe('Missing required tags', () => {
       it('should error on page load', async () => {
-        const outputIndex = next.cliOutput.length
-        const browser = await webdriver(next.url, '/missing-tags')
+        const browser = await webdriver(next.url, '/missing-tags', {
+          waitHydration: false,
+        })
 
         expect(await hasRedbox(browser, true)).toBe(true)
-        expect(await getRedboxDescription(browser)).toInclude(
-          'Missing required root layout tags: html, head, body'
-        )
-        expect(next.cliOutput.slice(outputIndex)).toMatch(
-          /Missing required root layout tags: html, head, body/
-        )
+        expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
+          "Please make sure to include the following tags in your root layout: <html>, <head>, <body>.
+
+          Missing required root layout tags: html, head, body"
+        `)
       })
 
       it('should error on page navigation', async () => {
-        const outputIndex = next.cliOutput.length
-        const browser = await webdriver(next.url, '/has-tags')
+        const browser = await webdriver(next.url, '/has-tags', {
+          waitHydration: false,
+        })
         await browser.elementByCss('a').click()
 
         expect(await hasRedbox(browser, true)).toBe(true)
-        expect(await getRedboxDescription(browser)).toInclude(
-          'Missing required root layout tags: html, head, body'
-        )
-        expect(next.cliOutput.slice(outputIndex)).toMatch(
-          /Missing required root layout tags: html, head, body/
-        )
+        expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
+          "Please make sure to include the following tags in your root layout: <html>, <head>, <body>.
+
+          Missing required root layout tags: html, head, body"
+        `)
       })
 
       it('should error on page load on static generation', async () => {
-        const outputIndex = next.cliOutput.length
-        const browser = await webdriver(next.url, '/static-missing-tags/slug')
+        const browser = await webdriver(next.url, '/static-missing-tags/slug', {
+          waitHydration: false,
+        })
 
         expect(await hasRedbox(browser, true)).toBe(true)
-        expect(await getRedboxDescription(browser)).toInclude(
-          'Missing required root layout tags: html, head, body'
-        )
-        expect(next.cliOutput.slice(outputIndex)).toMatch(
-          /Missing required root layout tags: html, head, body/
-        )
+        expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
+          "Please make sure to include the following tags in your root layout: <html>, <head>, <body>.
+
+          Missing required root layout tags: html, head, body"
+        `)
       })
     })
   }
