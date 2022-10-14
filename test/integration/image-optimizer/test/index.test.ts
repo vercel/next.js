@@ -8,7 +8,6 @@ import {
   launchApp,
   nextBuild,
   nextStart,
-  renderViaHTTP,
   waitFor,
 } from 'next-test-utils'
 import { join } from 'path'
