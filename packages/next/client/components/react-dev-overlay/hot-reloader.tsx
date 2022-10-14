@@ -20,7 +20,10 @@ import type { DispatchFn } from './client'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import formatWebpackMessages from '../../dev/error-overlay/format-webpack-messages'
 import { useRouter } from '../navigation'
-import { errorOverlayReducer } from './internal/error-overlay-reducer'
+import {
+  errorOverlayReducer,
+  OverlayState,
+} from './internal/error-overlay-reducer'
 
 function getSocketProtocol(assetPrefix: string): string {
   let protocol = window.location.protocol
@@ -41,6 +44,7 @@ type PongEvent = any
 let mostRecentCompilationHash: any = null
 let __nextDevClientId = Math.round(Math.random() * 100 + Date.now())
 let hadRuntimeError = false
+let hadRootlayoutError = false
 
 // let startLatency = undefined
 
@@ -141,7 +145,7 @@ function tryApplyUpdates(
   }
 
   function handleApplyUpdates(err: any, updatedModules: any) {
-    if (err || hadRuntimeError || !updatedModules) {
+    if (err || hadRuntimeError || hadRootlayoutError || !updatedModules) {
       if (err) {
         console.warn(
           '[Fast Refresh] performing full reload\n\n' +
@@ -334,7 +338,7 @@ function processMessage(
           clientId: __nextDevClientId,
         })
       )
-      if (hadRuntimeError) {
+      if (hadRuntimeError || hadRootlayoutError) {
         return window.location.reload()
       }
       startTransition(() => {
@@ -420,15 +424,21 @@ function processMessage(
 export default function HotReload({
   assetPrefix,
   children,
+  initialState,
 }: {
   assetPrefix: string
   children?: ReactNode
+  initialState?: Partial<OverlayState>
 }) {
+  if (initialState?.rootLayoutMissingTagsError) {
+    hadRootlayoutError = true
+  }
   const stacktraceLimitRef = useRef<undefined | number>()
   const [state, dispatch] = React.useReducer(errorOverlayReducer, {
     nextId: 1,
     buildError: null,
     errors: [],
+    ...initialState,
   })
 
   const handleOnUnhandledError = useCallback((ev) => {
@@ -440,7 +450,7 @@ export default function HotReload({
     onUnhandledRejection(dispatch, ev)
   }, [])
 
-  const { tree } = useContext(GlobalLayoutRouterContext)
+  const { tree } = useContext(GlobalLayoutRouterContext) ?? {}
   const router = useRouter()
 
   const webSocketRef = useRef<WebSocket>()
@@ -495,6 +505,7 @@ export default function HotReload({
     webSocketRef.current = new window.WebSocket(`${url}/_next/webpack-hmr`)
   }, [assetPrefix])
   useEffect(() => {
+    if (!tree) return
     // Taken from on-demand-entries-client.js
     // TODO-APP: check 404 case
     const interval = setInterval(() => {
