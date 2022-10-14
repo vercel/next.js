@@ -4,9 +4,6 @@ name = "next-swc"
 version = "0.0.0"
 publish = false
 
-[lib]
-crate-type = ["cdylib", "rlib"]
-
 [features]
 plugin = [
   "swc_core/plugin_transform_host_native"

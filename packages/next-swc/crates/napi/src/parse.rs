@@ -1,7 +1,7 @@
-use crate::util::{deserialize_json, CtxtExt, MapErr};
-use anyhow::Context as _;
-use napi::{CallContext, Either, Env, JsObject, JsString, JsUndefined, Task};
 use std::sync::Arc;
+
+use anyhow::Context as _;
+use napi::bindgen_prelude::*;
 use swc_core::{
     base::{config::ParseOptions, try_with_handler},
     common::{
@@ -9,26 +9,25 @@ use swc_core::{
     },
 };
 
+use crate::util::MapErr;
+
 pub struct ParseTask {
     pub filename: FileName,
     pub src: String,
-    pub options: String,
+    pub options: Buffer,
 }
 
-pub fn complete_parse(env: &Env, ast_json: String) -> napi::Result<JsString> {
-    env.create_string_from_std(ast_json)
-}
-
+#[napi]
 impl Task for ParseTask {
     type Output = String;
-    type JsValue = JsString;
+    type JsValue = String;
 
     fn compute(&mut self) -> napi::Result<Self::Output> {
         GLOBALS.set(&Default::default(), || {
             let c =
                 swc_core::base::Compiler::new(Arc::new(SourceMap::new(FilePathMapping::empty())));
 
-            let options: ParseOptions = deserialize_json(&self.options).convert_err()?;
+            let options: ParseOptions = serde_json::from_slice(self.options.as_ref())?;
             let comments = c.comments().clone();
             let comments: Option<&dyn Comments> = if options.comments {
                 Some(&comments)
@@ -64,27 +63,29 @@ impl Task for ParseTask {
         })
     }
 
-    fn resolve(self, env: Env, result: Self::Output) -> napi::Result<Self::JsValue> {
-        complete_parse(&env, result)
+    fn resolve(&mut self, _env: Env, result: Self::Output) -> napi::Result<Self::JsValue> {
+        Ok(result)
     }
 }
 
-#[js_function(3)]
-pub fn parse(ctx: CallContext) -> napi::Result<JsObject> {
-    let src = ctx.get::<JsString>(0)?.into_utf8()?.as_str()?.to_string();
-    let options = ctx.get_buffer_as_string(1)?;
-    let filename = ctx.get::<Either<JsString, JsUndefined>>(2)?;
-    let filename = if let Either::A(value) = filename {
-        FileName::Real(value.into_utf8()?.as_str()?.to_owned().into())
+#[napi]
+pub fn parse(
+    src: String,
+    options: Buffer,
+    filename: Option<String>,
+    signal: Option<AbortSignal>,
+) -> AsyncTask<ParseTask> {
+    let filename = if let Some(value) = filename {
+        FileName::Real(value.into())
     } else {
         FileName::Anon
     };
-
-    ctx.env
-        .spawn(ParseTask {
+    AsyncTask::with_optional_signal(
+        ParseTask {
             filename,
             src,
             options,
-        })
-        .map(|t| t.promise_object())
+        },
+        signal,
+    )
 }
