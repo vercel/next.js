@@ -118,6 +118,8 @@ impl EcmascriptChunkItem for ProcessEnvChunkItem {
         let asset = self.inner.await?;
         let env = asset.env.read_all().await?;
 
+        // TODO this is not completely correct as env vars need to ignore casing
+        // So `process.env.path === process.env.PATH === process.env.PaTh`
         let mut code = "const env = process.env;\n\n".to_string();
         for (name, val) in &*env {
             writeln!(

@@ -35,12 +35,25 @@ pub trait ProcessEnv {
     /// Reads all env variables into a Map
     fn read_all(&self) -> EnvMapVc;
 
-    /// Reads a single env variable
+    /// Reads a single env variable. Ignores casing.
     async fn read(&self, name: &str) -> Result<OptionStringVc> {
         Ok(OptionStringVc::cell(
-            self.read_all().await?.get(name).cloned(),
+            to_uppercase_map(self.read_all())
+                .await?
+                .get(&name.to_uppercase())
+                .cloned(),
         ))
     }
+}
+
+#[turbo_tasks::function]
+async fn to_uppercase_map(map: EnvMapVc) -> Result<EnvMapVc> {
+    let map = &*map.await?;
+    let mut new = IndexMap::with_capacity(map.len());
+    for (k, v) in map {
+        new.insert(k.to_uppercase(), v.clone());
+    }
+    Ok(EnvMapVc::cell(new))
 }
 
 pub static GLOBAL_ENV_LOCK: Mutex<()> = Mutex::new(());
