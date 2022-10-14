@@ -32,6 +32,9 @@ export interface OverlayState {
   nextId: number
   buildError: string | null
   errors: SupportedErrorEvent[]
+  rootLayoutMissingTagsError?: {
+    missingTags: string[]
+  }
 }
 
 export function errorOverlayReducer(
