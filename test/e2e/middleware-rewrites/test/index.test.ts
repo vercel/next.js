@@ -421,22 +421,10 @@ describe('Middleware Rewrite', () => {
     it('should handle shallow navigation correctly (dynamic page)', async () => {
       const browser = await webdriver(next.url, '/fallback-true-blog/first')
 
-      browser.on('request', (req) => {
-        console.warn('!got browser request!', req.url())
-      })
-
-      await browser.eval(
-        `next.router.push('/fallback-true-blog/first?hello=world', undefined, { shallow: true })`
-      )
       await check(async () => {
-        const query = await browser.eval('next.router.query')
-
-        return query.hello === 'world'
-          ? 'success'
-          : await browser.eval(
-              `JSON.stringify({ router: next.router, href: location.href }, null, 2)`
-            )
-      }, 'success')
+        await browser.elementByCss('#to-query-shallow').click()
+        return browser.eval('location.search')
+      }, '?hello=world')
 
       expect(await browser.eval(`next.router.pathname`)).toBe(
         '/fallback-true-blog/[slug]'
@@ -449,9 +437,7 @@ describe('Middleware Rewrite', () => {
       )
       expect(await browser.eval('location.search')).toBe('?hello=world')
 
-      await browser.eval(
-        `next.router.push('/fallback-true-blog/second', undefined, { shallow: true })`
-      )
+      await browser.elementByCss('#to-no-query-shallow').click()
       await check(() => browser.eval(`next.router.query.slug`), 'second')
 
       expect(await browser.eval(`next.router.pathname`)).toBe(
