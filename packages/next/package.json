@@ -27,6 +27,7 @@
     "error.js",
     "error.d.ts",
     "future",
+    "legacy",
     "script.js",
     "script.d.ts",
     "server.js",

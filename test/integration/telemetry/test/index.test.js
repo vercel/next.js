@@ -838,14 +838,18 @@ describe('Telemetry CLI', () => {
     ])
   })
 
-  it('emits telemetry for usage of next/future/image', async () => {
+  it('emits telemetry for usage of next/legacy/image', async () => {
     const { stderr } = await nextBuild(appDir, [], {
       stderr: true,
       env: { NEXT_TELEMETRY_DEBUG: 1 },
     })
     const featureUsageEvents = findAllEvents(stderr, 'NEXT_BUILD_FEATURE_USAGE')
     expect(featureUsageEvents).toContainEqual({
-      featureName: 'next/future/image',
+      featureName: 'next/legacy/image',
+      invocationCount: 1,
+    })
+    expect(featureUsageEvents).toContainEqual({
+      featureName: 'next/image',
       invocationCount: 1,
     })
   })
