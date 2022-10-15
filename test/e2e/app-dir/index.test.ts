@@ -1693,6 +1693,11 @@ describe('app dir', () => {
         expect(
           await browser.waitForElementByCss('#not-found-component').text()
         ).toBe('Not Found!')
+        expect(
+          await browser
+            .waitForElementByCss('meta[name="robots"]')
+            .getAttribute('content')
+        ).toBe('noindex')
       })
 
       it.skip('should trigger not-found in a client component', async () => {
@@ -1700,6 +1705,11 @@ describe('app dir', () => {
         expect(
           await browser.waitForElementByCss('#not-found-component').text()
         ).toBe('Not Found!')
+        expect(
+          await browser
+            .waitForElementByCss('meta[name="robots"]')
+            .getAttribute('content')
+        ).toBe('noindex')
       })
       ;(isDev ? it.skip : it)(
         'should trigger not-found client-side',
@@ -1712,6 +1722,11 @@ describe('app dir', () => {
           expect(
             await browser.elementByCss('#not-found-component').text()
           ).toBe('Not Found!')
+          expect(
+            await browser
+              .waitForElementByCss('meta[name="robots"]')
+              .getAttribute('content')
+          ).toBe('noindex')
         }
       )
     })
