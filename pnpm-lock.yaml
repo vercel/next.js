@@ -18,7 +18,7 @@ importers:
       '@babel/plugin-proposal-object-rest-spread': 7.14.7
       '@babel/preset-flow': 7.14.5
       '@babel/preset-react': 7.14.5
-      '@edge-runtime/jest-environment': 1.1.0-beta.34
+      '@edge-runtime/jest-environment': 1.1.0-beta.35
       '@fullhuman/postcss-purgecss': 1.3.0
       '@mdx-js/loader': 0.18.0
       '@next/bundle-analyzer': workspace:*
@@ -144,8 +144,8 @@ importers:
       react-17: npm:react@17.0.2
       react-dom: 18.2.0
       react-dom-17: npm:react-dom@17.0.2
-      react-dom-exp: npm:react-dom@0.0.0-experimental-cb5084d1c-20220924
-      react-exp: npm:react@0.0.0-experimental-cb5084d1c-20220924
+      react-dom-exp: npm:react-dom@0.0.0-experimental-a8c16a004-20221012
+      react-exp: npm:react@0.0.0-experimental-a8c16a004-20221012
       react-ssr-prepass: 1.0.8
       react-virtualized: 9.22.3
       relay-compiler: 13.0.2
@@ -177,7 +177,7 @@ importers:
       '@babel/plugin-proposal-object-rest-spread': 7.14.7_@babel+core@7.18.0
       '@babel/preset-flow': 7.14.5_@babel+core@7.18.0
       '@babel/preset-react': 7.14.5_@babel+core@7.18.0
-      '@edge-runtime/jest-environment': 1.1.0-beta.34
+      '@edge-runtime/jest-environment': 1.1.0-beta.35
       '@fullhuman/postcss-purgecss': 1.3.0
       '@mdx-js/loader': 0.18.0_uuaxwgga6hqycsez5ok7v2wg4i
       '@next/bundle-analyzer': link:packages/next-bundle-analyzer
@@ -303,8 +303,8 @@ importers:
       react-17: /react/17.0.2
       react-dom: 18.2.0_react@18.2.0
       react-dom-17: /react-dom/17.0.2_react@18.2.0
-      react-dom-exp: /react-dom/0.0.0-experimental-cb5084d1c-20220924_react@18.2.0
-      react-exp: /react/0.0.0-experimental-cb5084d1c-20220924
+      react-dom-exp: /react-dom/0.0.0-experimental-a8c16a004-20221012_react@18.2.0
+      react-exp: /react/0.0.0-experimental-a8c16a004-20221012
       react-ssr-prepass: 1.0.8_qncsgtzehe3fgiqp6tr7lwq6fm
       react-virtualized: 9.22.3_biqbaboplfbrettd7655fr4n2y
       relay-compiler: 13.0.2
@@ -547,7 +547,7 @@ importers:
       debug: 4.1.1
       devalue: 2.0.1
       domain-browser: 4.19.0
-      edge-runtime: 1.1.0-beta.37
+      edge-runtime: 1.1.0-beta.39
       events: 3.3.0
       find-cache-dir: 3.3.1
       find-up: 4.1.0
@@ -748,7 +748,7 @@ importers:
       debug: 4.1.1
       devalue: 2.0.1
       domain-browser: 4.19.0
-      edge-runtime: 1.1.0-beta.37
+      edge-runtime: 1.1.0-beta.39
       events: 3.3.0
       find-cache-dir: 3.3.1
       find-up: 4.1.0
@@ -4004,17 +4004,17 @@ packages:
       protobufjs: 6.11.2
     dev: true
 
-  /@edge-runtime/format/1.1.0-beta.33:
+  /@edge-runtime/format/1.1.0-beta.34:
     resolution:
       {
-        integrity: sha512-t34oTdZOqYSiguCGnt9GYzh9mrnhCHNRPGDvxt5PB5T3LZpSVk+vfSXRqpvTxy51sxQpxvTZry8QLC+E+Fm67w==,
+        integrity: sha512-AdV7FlpBDDiwdPxmrCmq2ICMxzJr3Zoq/bUuIMC09jEmx8fpIAepAABVTEqr+X/6vhIiD2ermIog8qvAG4RZMg==,
       }
     dev: true
 
-  /@edge-runtime/jest-environment/1.1.0-beta.34:
+  /@edge-runtime/jest-environment/1.1.0-beta.35:
     resolution:
       {
-        integrity: sha512-kv2we4QY4pyW4fsf5Q+ssLW6x6HB7BY1X24DFN7RHInmgbzgVZAopy1iv9GmcaUGIt0neU48rq3woqDjcTrsHQ==,
+        integrity: sha512-CBMGtry4W/BLtmWpyHcbOwY+nn96YOEUVUWhob1SPQURGsxGnFU5r2fxrd99TDy/oTujw5jAbK4syOyUbna4KQ==,
       }
     dependencies:
       '@edge-runtime/vm': 1.1.0-beta.36
@@ -13467,14 +13467,14 @@ packages:
       safe-buffer: 5.2.0
     dev: true
 
-  /edge-runtime/1.1.0-beta.37:
+  /edge-runtime/1.1.0-beta.39:
     resolution:
       {
-        integrity: sha512-IP0xYNmp0XXoXVnrAf/e67224ZkMUUBMyUUohVxWWI5XdyetIGRNWp3GifDy3LpbuE02yv42rgtoE+tm+whcLA==,
+        integrity: sha512-PNIxASuGT/46ZsFKSGXfUOcTomvTj+U5VgRSIPUjGu3piTDjE1cxQwTJLXPJkQa/OrZLebJUuszNXM/1AG2lHg==,
       }
     hasBin: true
     dependencies:
-      '@edge-runtime/format': 1.1.0-beta.33
+      '@edge-runtime/format': 1.1.0-beta.34
       '@edge-runtime/vm': 1.1.0-beta.36
       exit-hook: 2.2.1
       http-status: 1.5.3
@@ -25331,17 +25331,17 @@ packages:
       scheduler: 0.0.0-experimental-a8c16a004-20221012
     dev: true
 
-  /react-dom/0.0.0-experimental-cb5084d1c-20220924_react@18.2.0:
+  /react-dom/0.0.0-experimental-a8c16a004-20221012_react@18.2.0:
     resolution:
       {
-        integrity: sha512-0IHzPGHESn3uu8nI1w5596GX8bCGCE94DpaHkKSGWOlB6uhoVecU0fyOCkkNuB4cMc9WeOWiH2gsM100EWZDPQ==,
+        integrity: sha512-NCn6ylD0cXdWfYdnlwkbgX9mgHo9i8XupcrDnJ3hvu0NzzzoFN0IQRjidY2MgBQZaf0ThnbJ30WKEEQzyZQtjQ==,
       }
     peerDependencies:
-      react: 0.0.0-experimental-cb5084d1c-20220924
+      react: 0.0.0-experimental-a8c16a004-20221012
     dependencies:
       loose-envify: 1.4.0
       react: 18.2.0
-      scheduler: 0.0.0-experimental-cb5084d1c-20220924
+      scheduler: 0.0.0-experimental-a8c16a004-20221012
     dev: true
 
   /react-dom/17.0.2_react@18.2.0:
@@ -25464,16 +25464,6 @@ packages:
     engines: { node: '>=0.10.0' }
     dependencies:
       loose-envify: 1.4.0
-
-  /react/0.0.0-experimental-cb5084d1c-20220924:
-    resolution:
-      {
-        integrity: sha512-66AdfxkJrwCaCEKT0LQRd9J9GQ9T+yN7Wx9XT+tNxKycYQ0Exm+DZxOTedagWDlsFMXroyhrTWzgdC18R2PaOQ==,
-      }
-    engines: { node: '>=0.10.0' }
-    dependencies:
-      loose-envify: 1.4.0
-    dev: true
 
   /react/17.0.2:
     resolution:
@@ -26852,15 +26842,6 @@ packages:
     resolution:
       {
         integrity: sha512-vSxtNfzJ5qoR8rM3AOE8jFLYfaro3RcBqe6zFfRgH8gdiGPKznXnETSDITSLPeMPgtYJhhC7Ihe9l5p3rusqhQ==,
-      }
-    dependencies:
-      loose-envify: 1.4.0
-    dev: true
-
-  /scheduler/0.0.0-experimental-cb5084d1c-20220924:
-    resolution:
-      {
-        integrity: sha512-SeszKCdhM5OHxNMStjpKIAaloARUMZqIpDZjkZeGuRsyr7YlAqvlsCXyee4ZQOOU1pbr7BIvQntKy5Hil+DQJA==,
       }
     dependencies:
       loose-envify: 1.4.0

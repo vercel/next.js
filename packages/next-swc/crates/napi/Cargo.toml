@@ -50,7 +50,7 @@ swc_core = { features = [
   "ecma_transforms_typescript",
   "ecma_utils",
   "ecma_visit",
-], version = "0.32.8" }
+], version = "0.38.4" }
 tracing = { version = "0.1.32", features = ["release_max_level_info"] }
 tracing-futures = "0.2.5"
 tracing-subscriber = "0.3.9"
