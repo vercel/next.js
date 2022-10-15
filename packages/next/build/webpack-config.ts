@@ -1590,6 +1590,8 @@ export default async function getBaseWebpackConfig(
                 },
               },
               {
+                // Alias react-dom for ReactDOM.preload usage.
+                // Alias react for switching between default set and share subset.
                 oneOf: [
                   {
                     test: codeCondition.test,
@@ -1597,6 +1599,7 @@ export default async function getBaseWebpackConfig(
                     resolve: {
                       alias: {
                         react: 'next/dist/compiled/react/react.shared-subset',
+                        'react-dom': 'next/dist/compiled/react-dom',
                       },
                     },
                   },
@@ -1604,8 +1607,8 @@ export default async function getBaseWebpackConfig(
                     test: codeCondition.test,
                     resolve: {
                       alias: {
-                        'react-dom': 'next/dist/compiled/react-dom',
                         react: 'next/dist/compiled/react',
+                        'react-dom': 'next/dist/compiled/react-dom',
                       },
                     },
                   },
