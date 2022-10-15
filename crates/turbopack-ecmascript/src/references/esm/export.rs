@@ -160,8 +160,8 @@ impl CodeGenerateable for EsmExports {
                 )),
                 EsmExport::ImportedBinding(esm_ref, name) => {
                     let referenced_asset = esm_ref.get_referenced_asset().await?;
-                    if let Some(ident) = referenced_asset.get_ident().await? {
-                        Some(quote!(
+                    referenced_asset.get_ident().await?.map(|ident| {
+                        quote!(
                             "(() => $expr)" as Expr,
                             expr: Expr = Expr::Member(MemberExpr {
                                 span: DUMMY_SP,
@@ -175,21 +175,17 @@ impl CodeGenerateable for EsmExports {
                                     }))
                                 })
                             })
-                        ))
-                    } else {
-                        None
-                    }
+                        )
+                    })
                 }
                 EsmExport::ImportedNamespace(esm_ref) => {
                     let referenced_asset = esm_ref.get_referenced_asset().await?;
-                    if let Some(ident) = referenced_asset.get_ident().await? {
-                        Some(quote!(
+                    referenced_asset.get_ident().await?.map(|ident| {
+                        quote!(
                             "(() => $imported)" as Expr,
                             imported = Ident::new(ident.into(), DUMMY_SP)
-                        ))
-                    } else {
-                        None
-                    }
+                        )
+                    })
                 }
             };
             if let Some(expr) = expr {
