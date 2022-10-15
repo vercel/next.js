@@ -348,7 +348,12 @@ class NotFoundErrorBoundary extends React.Component<
 
   render() {
     if (this.state.notFoundTriggered) {
-      return this.props.notFound
+      return (
+        <>
+          <meta name="robots" content="noindex" />
+          {this.props.notFound}
+        </>
+      )
     }
 
     return this.props.children
