@@ -1,8 +1,8 @@
 use anyhow::Result;
 use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
-use turbo_tasks_fs::{File, FileContent, FileSystemPathVc};
+use turbo_tasks_fs::{File, FileSystemPathVc};
 use turbopack_core::{
-    asset::{Asset, AssetContent, AssetContentVc, AssetVc},
+    asset::{Asset, AssetContentVc, AssetVc},
     code_builder::CodeVc,
     reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
     resolve::{ResolveResult, ResolveResultVc},
@@ -38,10 +38,7 @@ impl Asset for EcmascriptChunkSourceMapAsset {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<AssetContentVc> {
         let sm = self.chunk.chunk_content().code().source_map().await?;
-        Ok(
-            AssetContent::File(FileContent::Content(File::from_source(sm.clone_value())).cell())
-                .cell(),
-        )
+        Ok(File::from(sm).into())
     }
 
     #[turbo_tasks::function]
@@ -82,10 +79,7 @@ impl Asset for EcmascriptChunkEntrySourceMapAsset {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<AssetContentVc> {
         let sm = self.code.source_map().await?;
-        Ok(
-            AssetContent::File(FileContent::Content(File::from_source(sm.clone_value())).cell())
-                .cell(),
-        )
+        Ok(File::from(sm).into())
     }
 
     #[turbo_tasks::function]

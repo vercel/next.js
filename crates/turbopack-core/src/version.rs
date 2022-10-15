@@ -83,6 +83,12 @@ impl From<AssetContent> for VersionedAssetContentVc {
     }
 }
 
+impl From<AssetContentVc> for VersionedAssetContentVc {
+    fn from(asset_content: AssetContentVc) -> Self {
+        VersionedAssetContentVc::new(asset_content)
+    }
+}
+
 impl From<AssetContent> for VersionedContentVc {
     fn from(asset_content: AssetContent) -> Self {
         VersionedAssetContentVc::new(asset_content.cell()).into()

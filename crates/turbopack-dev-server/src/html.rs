@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anyhow::{anyhow, Result};
 use mime_guess::mime::TEXT_HTML_UTF_8;
 use turbo_tasks::{debug::ValueDebug, primitives::StringVc, ValueToString};
-use turbo_tasks_fs::{File, FileContent, FileSystemPathVc};
+use turbo_tasks_fs::{File, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
     chunk::{ChunkGroupVc, ChunkReferenceVc},
@@ -123,7 +123,7 @@ impl DevHtmlAssetContentVc {
             scripts.join("\n"),
         );
 
-        Ok(FileContent::Content(File::from_source(html).with_content_type(TEXT_HTML_UTF_8)).into())
+        Ok(File::from(html).with_content_type(TEXT_HTML_UTF_8).into())
     }
 
     #[turbo_tasks::function]

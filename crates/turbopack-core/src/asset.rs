@@ -2,7 +2,7 @@ use anyhow::Result;
 use indexmap::IndexSet;
 use turbo_tasks::CompletionVc;
 use turbo_tasks_fs::{
-    FileContent, FileContentVc, FileJsonContent, FileJsonContentVc, FileLinesContent,
+    File, FileContent, FileContentVc, FileJsonContent, FileJsonContentVc, FileLinesContent,
     FileLinesContentVc, FileSystemPathVc, LinkContent, LinkType,
 };
 
@@ -73,6 +73,12 @@ impl From<FileContentVc> for AssetContentVc {
 impl From<FileContent> for AssetContentVc {
     fn from(content: FileContent) -> Self {
         AssetContent::File(content.cell()).cell()
+    }
+}
+
+impl From<File> for AssetContentVc {
+    fn from(file: File) -> Self {
+        AssetContent::File(file.into()).cell()
     }
 }
 

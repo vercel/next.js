@@ -13,7 +13,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::{embed_file, File, FileContent, FileContentVc, FileSystemPathVc};
 use turbopack_core::{
-    asset::{Asset, AssetContent, AssetContentVc, AssetVc, AssetsVc},
+    asset::{Asset, AssetContentVc, AssetVc, AssetsVc},
     chunk::{
         chunk_content, chunk_content_split, Chunk, ChunkContentResult, ChunkGroupReferenceVc,
         ChunkGroupVc, ChunkItem, ChunkItemVc, ChunkReferenceVc, ChunkVc, ChunkableAsset,
@@ -414,7 +414,7 @@ impl EcmascriptChunkContentVc {
     #[turbo_tasks::function]
     async fn content(self) -> Result<AssetContentVc> {
         let code = self.code().source_code().await?;
-        Ok(AssetContent::File(FileContent::Content(File::from_source(code.clone())).cell()).cell())
+        Ok(File::from(code).into())
     }
 }
 

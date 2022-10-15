@@ -41,8 +41,10 @@ use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
 };
 use turbo_tasks::{
-    primitives::StringVc, spawn_thread, trace::TraceRawVcs, CompletionVc, Invalidator,
-    ValueToString, ValueToStringVc,
+    primitives::{StringReadRef, StringVc},
+    spawn_thread,
+    trace::TraceRawVcs,
+    CompletionVc, Invalidator, ValueToString, ValueToStringVc,
 };
 use util::{join_path, normalize_path, sys_to_unix, unix_to_sys};
 
@@ -1073,6 +1075,18 @@ pub enum FileContent {
     NotFound,
 }
 
+impl From<File> for FileContent {
+    fn from(file: File) -> Self {
+        FileContent::Content(file)
+    }
+}
+
+impl From<File> for FileContentVc {
+    fn from(file: File) -> Self {
+        FileContent::Content(file).cell()
+    }
+}
+
 bitflags! {
   #[derive(Serialize, Deserialize, TraceRawVcs)]
   pub struct LinkType: u8 {
@@ -1105,7 +1119,8 @@ pub struct File {
 }
 
 impl File {
-    pub async fn from_path(p: PathBuf) -> io::Result<Self> {
+    /// Reads a [File] from the given path
+    async fn from_path(p: PathBuf) -> io::Result<Self> {
         let mut file = fs::File::open(p).await?;
         let metadata = file.metadata().await?;
 
@@ -1118,13 +1133,11 @@ impl File {
         })
     }
 
-    pub fn from_source(str: String) -> Self {
+    /// Creates a [File] from raw bytes.
+    fn from_bytes(content: Vec<u8>) -> Self {
         File {
-            meta: FileMeta {
-                permissions: Default::default(),
-                content_type: None,
-            },
-            content: str.into_bytes(),
+            meta: FileMeta::default(),
+            content,
         }
     }
 
@@ -1135,6 +1148,36 @@ impl File {
     pub fn with_content_type(mut self, content_type: Mime) -> Self {
         self.meta.content_type = Some(content_type);
         self
+    }
+}
+
+impl From<String> for File {
+    fn from(s: String) -> Self {
+        File::from_bytes(s.into_bytes())
+    }
+}
+
+impl From<StringReadRef> for File {
+    fn from(s: StringReadRef) -> Self {
+        File::from_bytes(s.as_bytes().to_vec())
+    }
+}
+
+impl From<&str> for File {
+    fn from(s: &str) -> Self {
+        File::from_bytes(s.as_bytes().to_vec())
+    }
+}
+
+impl From<Vec<u8>> for File {
+    fn from(bytes: Vec<u8>) -> Self {
+        File::from_bytes(bytes)
+    }
+}
+
+impl From<&[u8]> for File {
+    fn from(bytes: &[u8]) -> Self {
+        File::from_bytes(bytes.to_vec())
     }
 }
 
@@ -1207,7 +1250,7 @@ mod mime_option_serde {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct FileMeta {
     permissions: Permissions,
     #[serde(with = "mime_option_serde")]

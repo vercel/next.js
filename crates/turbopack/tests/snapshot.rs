@@ -297,7 +297,7 @@ async fn diff(
 
     if changeset.distance > 0 {
         if *UPDATE {
-            let content = FileContent::Content(File::from_source(actual)).into();
+            let content = File::from(actual).into();
             path.write(content).await?;
             println!("updated contents of {}", path_str);
         } else {

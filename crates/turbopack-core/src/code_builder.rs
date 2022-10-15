@@ -21,8 +21,8 @@ pub trait EncodedSourceMap {
 const EMPTY_MAP: &str = r#"{"version": 3, "names": [], "sources": [], "mappings": "A"}"#;
 
 /// Code stores combined output code and the source map of that output code.
-#[derive(Debug, Clone, Default)]
 #[turbo_tasks::value(shared)]
+#[derive(Debug, Clone, Default)]
 pub struct Code {
     code: String,
 

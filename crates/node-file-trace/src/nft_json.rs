@@ -1,6 +1,6 @@
 use anyhow::Result;
 use serde_json::json;
-use turbo_tasks_fs::{File, FileContent, FileSystemPathVc};
+use turbo_tasks_fs::{File, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
     reference::{all_assets, AssetReferencesVc},
@@ -51,7 +51,7 @@ impl Asset for NftJsonAsset {
           "files": result
         });
 
-        Ok(FileContent::Content(File::from_source(json.to_string())).into())
+        Ok(File::from(json.to_string()).into())
     }
 
     #[turbo_tasks::function]

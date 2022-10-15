@@ -2,7 +2,7 @@ mod writer;
 
 use anyhow::Result;
 use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
-use turbo_tasks_fs::{File, FileContent, FileSystemPathVc};
+use turbo_tasks_fs::{File, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
     chunk::{
@@ -99,7 +99,7 @@ impl Asset for CssChunk {
         let writer = WriterWithIndent::new(&mut code);
         expand_imports(writer, entry_content).await?;
 
-        Ok(FileContent::Content(File::from_source(code)).cell().into())
+        Ok(File::from(code).into())
     }
 
     #[turbo_tasks::function]

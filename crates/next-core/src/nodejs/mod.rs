@@ -10,7 +10,7 @@ use mime::TEXT_HTML_UTF_8;
 pub use node_rendered_source::{create_node_rendered_source, NodeRenderer, NodeRendererVc};
 use serde_json::Value as JsonValue;
 use turbo_tasks::{primitives::StringVc, spawn_blocking, CompletionVc, CompletionsVc};
-use turbo_tasks_fs::{DiskFileSystemVc, File, FileContent, FileSystemPathVc};
+use turbo_tasks_fs::{DiskFileSystemVc, File, FileSystemPathVc};
 use turbopack::ecmascript::EcmascriptModuleAssetVc;
 use turbopack_core::{
     asset::{AssetContentVc, AssetVc, AssetsSetVc},
@@ -207,10 +207,9 @@ async fn render_static(
     data: RenderDataVc,
 ) -> Result<AssetContentVc> {
     fn into_result(content: String) -> Result<AssetContentVc> {
-        Ok(
-            FileContent::Content(File::from_source(content).with_content_type(TEXT_HTML_UTF_8))
-                .into(),
-        )
+        Ok(File::from(content)
+            .with_content_type(TEXT_HTML_UTF_8)
+            .into())
     }
     let renderer_pool = get_renderer_pool(
         get_intermediate_asset(

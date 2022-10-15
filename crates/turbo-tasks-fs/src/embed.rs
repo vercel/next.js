@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 
-use crate::{DiskFileSystemVc, File, FileContent, FileContentVc, FileSystem};
+use crate::{DiskFileSystemVc, File, FileContentVc, FileSystem};
 
 #[turbo_tasks::function]
 pub async fn content_from_relative_path(package_path: &str, path: &str) -> Result<FileContentVc> {
@@ -25,7 +25,7 @@ pub async fn content_from_relative_path(package_path: &str, path: &str) -> Resul
 
 #[turbo_tasks::function]
 pub async fn content_from_str(string: &str) -> Result<FileContentVc> {
-    Ok(FileContent::Content(File::from_source(string.to_string())).cell())
+    Ok(File::from(string).into())
 }
 
 /// Loads a file's content from disk and invalidates on change (debug builds).
