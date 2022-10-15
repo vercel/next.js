@@ -343,7 +343,7 @@ function processMessage(
         return window.location.reload()
       }
       startTransition(() => {
-        router.reload()
+        router.refresh()
         onRefresh(dispatch)
       })
 

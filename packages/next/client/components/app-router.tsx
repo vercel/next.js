@@ -16,7 +16,7 @@ import type { FlightRouterState, FlightData } from '../../server/app-render'
 import {
   ACTION_NAVIGATE,
   ACTION_PREFETCH,
-  ACTION_RELOAD,
+  ACTION_REFRESH,
   ACTION_RESTORE,
   ACTION_SERVER_PATCH,
   reducer,
@@ -245,11 +245,11 @@ function Router({
           navigate(href, 'push', Boolean(options.forceOptimisticNavigation))
         })
       },
-      reload: () => {
+      refresh: () => {
         // @ts-ignore startTransition exists
         React.startTransition(() => {
           dispatch({
-            type: ACTION_RELOAD,
+            type: ACTION_REFRESH,
 
             // TODO-APP: revisit if this needs to be passed.
             cache: {
