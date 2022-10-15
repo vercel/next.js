@@ -65,7 +65,8 @@ module.exports = function (task) {
         },
         env: {
           targets: {
-            node: '12.0.0',
+            // follow the version defined in packages/next/package.json#engine
+            node: '14.0.0',
           },
         },
         jsc: {
