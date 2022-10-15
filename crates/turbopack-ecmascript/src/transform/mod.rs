@@ -124,7 +124,7 @@ impl EcmascriptInputTransform {
             EcmascriptInputTransform::StyledJsx => {
                 // Modeled after https://github.com/swc-project/plugins/blob/ae735894cdb7e6cfd776626fe2bc580d3e80fed9/packages/styled-jsx/src/lib.rs
                 let real_program = std::mem::replace(program, Program::Module(Module::dummy()));
-                *program = real_program.fold_with(&mut swc_plugin_styled_jsx::visitor::styled_jsx(
+                *program = real_program.fold_with(&mut styled_jsx::visitor::styled_jsx(
                     source_map.clone(),
                     // styled_jsx don't really use that in a relevant way
                     FileName::Anon,
