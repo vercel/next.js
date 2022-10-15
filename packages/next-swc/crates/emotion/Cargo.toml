@@ -19,9 +19,9 @@ regex = "1.5"
 serde = "1"
 sourcemap = "6.0.1"
 tracing = { version = "0.1.32", features = ["release_max_level_info"] }
-swc_core = { features = ["common", "ecma_ast","ecma_codegen", "ecma_utils", "ecma_visit", "trace_macro"], version = "0.32.8" }
+swc_core = { features = ["common", "ecma_ast","ecma_codegen", "ecma_utils", "ecma_visit", "trace_macro"], version = "0.38.4" }
 
 [dev-dependencies]
-swc_core = { features = ["testing_transform", "ecma_transforms_react"], version = "0.32.8" }
-testing = "0.31.5"
+swc_core = { features = ["testing_transform", "ecma_transforms_react"], version = "0.38.4" }
+testing = "0.31.8"
 serde_json = "1"

@@ -207,6 +207,11 @@ async function loadWasm(importPath = '') {
         getTargetTriple() {
           return undefined
         },
+        diagnostics: {
+          startDiagnostics: () => {
+            Log.error('Wasm binding does not support --diagnostics yet')
+          },
+        },
       }
       return wasmBindings
     } catch (e) {
@@ -333,6 +338,10 @@ function loadNative() {
       initCustomTraceSubscriber: bindings.initCustomTraceSubscriber,
       teardownTraceSubscriber: bindings.teardownTraceSubscriber,
       teardownCrashReporter: bindings.teardownCrashReporter,
+      diagnostics: {
+        startDiagnostics: (options) =>
+          bindings.startDiagnostics(toBuffer(options)),
+      },
     }
     return nativeBindings
   }
