@@ -32,7 +32,7 @@ export interface AppRouterInstance {
   /**
    * Reload the current page. Fetches new data from the server.
    */
-  reload(): void
+  refresh(): void
   /**
    * Hard navigate to the provided href. Fetches new data from the server.
    * Pushes a new history entry.
