@@ -501,19 +501,19 @@ export type FocusAndScrollRef = {
   apply: boolean
 }
 
-export const ACTION_RELOAD = 'reload'
+export const ACTION_REFRESH = 'refresh'
 export const ACTION_NAVIGATE = 'navigate'
 export const ACTION_RESTORE = 'restore'
 export const ACTION_SERVER_PATCH = 'server-patch'
 export const ACTION_PREFETCH = 'prefetch'
 
 /**
- * Reload triggers a reload of the full page data.
+ * Refresh triggers a refresh of the full page data.
  * - fetches the Flight data and fills subTreeData at the root of the cache.
  * - The router state is updated at the root of the state tree.
  */
-interface ReloadAction {
-  type: typeof ACTION_RELOAD
+interface RefreshAction {
+  type: typeof ACTION_REFRESH
   cache: CacheNode
   mutable: {
     previousTree?: FlightRouterState
@@ -656,7 +656,7 @@ type AppRouterState = {
 function clientReducer(
   state: Readonly<AppRouterState>,
   action: Readonly<
-    | ReloadAction
+    | RefreshAction
     | NavigateAction
     | RestoreAction
     | ServerPatchAction
@@ -1009,7 +1009,7 @@ function clientReducer(
         tree: tree,
       }
     }
-    case ACTION_RELOAD: {
+    case ACTION_REFRESH: {
       const { cache, mutable } = action
       const href = state.canonicalUrl
 
@@ -1068,7 +1068,7 @@ function clientReducer(
       // FlightDataPath with more than two items means unexpected Flight data was returned
       if (flightDataPath.length !== 2) {
         // TODO-APP: handle this case better
-        console.log('RELOAD FAILED')
+        console.log('REFRESH FAILED')
         return state
       }
 
@@ -1172,7 +1172,7 @@ function clientReducer(
 function serverReducer(
   state: Readonly<AppRouterState>,
   _action: Readonly<
-    | ReloadAction
+    | RefreshAction
     | NavigateAction
     | RestoreAction
     | ServerPatchAction
