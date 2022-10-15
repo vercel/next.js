@@ -24,7 +24,7 @@ function setupResolve() {
   }
 }
 
-export function addRequireHook(aliases: [string, string][]) {
+export function setRequireOverrides(aliases: [string, string][]) {
   for (const [key, value] of aliases) {
     hookPropertyMap.set(key, value)
   }
@@ -37,15 +37,21 @@ export function loadRequireHook(aliases: [string, string][] = []) {
     ['styled-jsx', require.resolve('styled-jsx')],
     ['styled-jsx/style', require.resolve('styled-jsx/style')],
     ['styled-jsx/style', require.resolve('styled-jsx/style')],
+
+    // Default aliases
+    ['react', require.resolve('react')],
+    ['react-dom', require.resolve('react-dom')],
+    ['react-dom/server', require.resolve('react-dom/server')],
+    ['react-dom/server.browser', require.resolve('react-dom/server.browser')],
   ] as [string, string][]
 
-  addRequireHook(defaultAliases)
+  setRequireOverrides(defaultAliases)
 
   setupResolve()
 }
 
 export function overrideBuiltInReactPackages() {
-  addRequireHook([
+  setRequireOverrides([
     ['react', require.resolve('next/dist/compiled/react')],
     [
       'react/jsx-runtime',

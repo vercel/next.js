@@ -21,7 +21,7 @@ if (process.env.NODE_ENV !== "production") {
   (function() {
 'use strict';
 
-var React = __nccwpck_require__(522);
+var React = __nccwpck_require__(533);
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -1349,10 +1349,10 @@ if (process.env.NODE_ENV === 'production') {
 
 /***/ }),
 
-/***/ 522:
+/***/ 533:
 /***/ ((module) => {
 
-module.exports = require("react");
+module.exports = require("next/dist/compiled/react");
 
 /***/ })
 

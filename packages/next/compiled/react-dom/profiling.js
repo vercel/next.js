@@ -2,7 +2,7 @@
 /******/ 	"use strict";
 /******/ 	var __webpack_modules__ = ({
 
-/***/ 778:
+/***/ 276:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 /**
@@ -30,7 +30,7 @@ if (
 ) {
   __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(new Error());
 }
-          var React = __nccwpck_require__(522);
+          var React = __nccwpck_require__(533);
 var Scheduler = __nccwpck_require__(937);
 
 var Internals = {
@@ -33762,7 +33762,7 @@ if (
 
 /***/ }),
 
-/***/ 849:
+/***/ 361:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 /**
@@ -33788,7 +33788,7 @@ if (
           /*
  Modernizr 3.0.0pre (Custom Build) | MIT
 */
-'use strict';var aa=__nccwpck_require__(522),m=__nccwpck_require__(937),ba={usingClientEntryPoint:!1,Events:null,Dispatcher:{current:null}};function r(a){for(var b="https://reactjs.org/docs/error-decoder.html?invariant="+a,c=1;c<arguments.length;c++)b+="&args[]="+encodeURIComponent(arguments[c]);return"Minified React error #"+a+"; visit "+b+" for the full message or use the non-minified dev environment for full errors and additional helpful warnings."}var ca=new Set,da={};
+'use strict';var aa=__nccwpck_require__(533),m=__nccwpck_require__(937),ba={usingClientEntryPoint:!1,Events:null,Dispatcher:{current:null}};function r(a){for(var b="https://reactjs.org/docs/error-decoder.html?invariant="+a,c=1;c<arguments.length;c++)b+="&args[]="+encodeURIComponent(arguments[c]);return"Minified React error #"+a+"; visit "+b+" for the full message or use the non-minified dev environment for full errors and additional helpful warnings."}var ca=new Set,da={};
 function ea(a,b){fa(a,b);fa(a+"Capture",b)}function fa(a,b){da[a]=b;for(a=0;a<b.length;a++)ca.add(b[a])}
 var ja=!("undefined"===typeof window||"undefined"===typeof window.document||"undefined"===typeof window.document.createElement),ka=Object.prototype.hasOwnProperty,la=/^[:A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD][:A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD\-.0-9\u00B7\u0300-\u036F\u203F-\u2040]*$/,ma=
 {},na={};function oa(a){if(ka.call(na,a))return!0;if(ka.call(ma,a))return!1;if(la.test(a))return na[a]=!0;ma[a]=!0;return!1}function pa(a,b,c,d){if(null!==c&&0===c.type)return!1;switch(typeof b){case "function":case "symbol":return!0;case "boolean":if(d)return!1;if(null!==c)return!c.acceptsBooleans;a=a.toLowerCase().slice(0,5);return"data-"!==a&&"aria-"!==a;default:return!1}}
@@ -34182,7 +34182,7 @@ if (
 
 /***/ }),
 
-/***/ 334:
+/***/ 410:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 
@@ -34219,9 +34219,9 @@ if (process.env.NODE_ENV === 'production') {
   // DCE check should happen before ReactDOM bundle executes so that
   // DevTools can report bad minification during injection.
   checkDCE();
-  module.exports = __nccwpck_require__(849);
+  module.exports = __nccwpck_require__(361);
 } else {
-  module.exports = __nccwpck_require__(778);
+  module.exports = __nccwpck_require__(276);
 }
 
 
@@ -34927,10 +34927,10 @@ if (process.env.NODE_ENV === 'production') {
 
 /***/ }),
 
-/***/ 522:
+/***/ 533:
 /***/ ((module) => {
 
-module.exports = require("react");
+module.exports = require("next/dist/compiled/react");
 
 /***/ })
 
@@ -34976,7 +34976,7 @@ module.exports = require("react");
 /******/ 	// startup
 /******/ 	// Load entry module and return exports
 /******/ 	// This entry module used 'module' so it can't be inlined
-/******/ 	var __webpack_exports__ = __nccwpck_require__(334);
+/******/ 	var __webpack_exports__ = __nccwpck_require__(410);
 /******/ 	module.exports = __webpack_exports__;
 /******/ 	
 /******/ })()

@@ -391,12 +391,13 @@ export async function ncc_edge_runtime(task, opts) {
 
 export async function ncc_react(task, opts) {
   const reactDir = dirname(
-    relative(__dirname, require.resolve(`react/package.json`))
+    relative(__dirname, require.resolve(`react-builtin/package.json`))
   )
   const reactDomDir = dirname(
-    relative(__dirname, require.resolve(`react-dom/package.json`))
+    relative(__dirname, require.resolve(`react-dom-builtin/package.json`))
   )
 
+  // TODO-APP: remove unused fields from package.json
   await task.source(join(reactDir, '*.json')).target(`compiled/react`)
   await task.source(join(reactDir, 'LICENSE')).target(`compiled/react`)
   await task
@@ -404,7 +405,7 @@ export async function ncc_react(task, opts) {
     .ncc({
       minify: false,
       externals: {
-        react: 'react',
+        react: 'next/dist/compiled/react',
       },
     })
     .target(`compiled/react`)
@@ -416,7 +417,7 @@ export async function ncc_react(task, opts) {
     .ncc({
       minify: false,
       externals: {
-        react: 'react',
+        react: 'next/dist/compiled/react',
       },
     })
     .target(`compiled/react-dom`)
@@ -1609,7 +1610,7 @@ export async function copy_react_server_dom_webpack(task, opts) {
     .ncc({
       minify: false,
       externals: {
-        react: 'react',
+        react: 'next/dist/compiled/react',
       },
     })
     .target('compiled/react-server-dom-webpack')
@@ -1619,7 +1620,7 @@ export async function copy_react_server_dom_webpack(task, opts) {
     .ncc({
       minify: false,
       externals: {
-        react: 'react',
+        react: 'next/dist/compiled/react',
       },
     })
     .target('compiled/react-server-dom-webpack')
