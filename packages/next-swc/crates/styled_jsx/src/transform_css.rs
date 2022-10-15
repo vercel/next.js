@@ -15,7 +15,10 @@ use swc_core::{
             writer::basic::{BasicCssWriter, BasicCssWriterConfig},
             CodeGenerator, CodegenConfig, Emit,
         },
-        parser::{parse_str, parse_tokens, parser::ParserConfig},
+        parser::{
+            parse_str, parse_tokens,
+            parser::{input::Tokens, ParserConfig},
+        },
         visit::{VisitMut, VisitMutWith},
     },
     ecma::ast::{Expr, Tpl, TplElement},
@@ -38,6 +41,7 @@ pub fn transform_css(
         style_info.css_span.hi,
         ParserConfig {
             allow_wrong_line_comments: true,
+            ..Default::default()
         },
         // We ignore errors because we inject placeholders for expressions which is
         // not a valid css.
@@ -230,6 +234,7 @@ impl Namespacer {
                             PseudoClassSelectorChildren::ForgivingRelativeSelectorList(v) => {
                                 to_tokens(v).tokens
                             }
+                            PseudoClassSelectorChildren::ComplexSelector(v) => to_tokens(v).tokens,
                         })
                         .collect::<Vec<_>>();
 
@@ -245,6 +250,9 @@ impl Namespacer {
                             PseudoElementSelectorChildren::PreservedToken(v) => vec![v.clone()],
                             PseudoElementSelectorChildren::Ident(v) => to_tokens(v).tokens,
                             PseudoElementSelectorChildren::CompoundSelector(v) => {
+                                to_tokens(v).tokens
+                            }
+                            PseudoElementSelectorChildren::CustomHighlightName(v) => {
                                 to_tokens(v).tokens
                             }
                         })
@@ -279,6 +287,7 @@ impl Namespacer {
                         &args,
                         ParserConfig {
                             allow_wrong_line_comments: true,
+                            ..Default::default()
                         },
                         // TODO(kdy1): We might be able to report syntax errors.
                         &mut vec![],
@@ -516,6 +525,7 @@ where
         StringInput::new(&s, span.lo, span.hi),
         ParserConfig {
             allow_wrong_line_comments: true,
+            ..Default::default()
         },
     );
 
