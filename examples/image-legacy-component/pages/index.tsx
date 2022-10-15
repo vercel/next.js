@@ -16,8 +16,8 @@ const Index = () => (
       <h1>Image Component with Next.js</h1>
       <p>
         This page demonstrates the usage of the{' '}
-        <a href="https://nextjs.org/docs/api-reference/next/image">
-          next/image
+        <a href="https://nextjs.org/docs/api-reference/next/legacy/image">
+          next/legacy/image
         </a>{' '}
         component with live examples.
       </p>
@@ -31,8 +31,8 @@ const Index = () => (
       <hr className={styles.hr} />
       <h2 id="layout">Layout</h2>
       <p>
-        The <Code>layout</Code> property tells the image to respond differently
-        depending on the device size or the container size.
+        External images must be configured in <Code>next.config.js</Code> using
+        the <Code>remotePatterns</Code> property.
       </p>
       <p>
         Select a layout below and try resizing the window or rotating your
@@ -114,8 +114,8 @@ const Index = () => (
         <Code>assets.vercel.com</Code>.
       </p>
       <p>
-        External domains must be configured in <Code>next.config.js</Code> using
-        the <Code>domains</Code> property.
+        External images must be configured in <Code>next.config.js</Code> using
+        the <Code>remotePatterns</Code> property.
       </p>
       <Image
         alt="Next.js logo"

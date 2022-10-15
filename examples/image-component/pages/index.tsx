@@ -29,70 +29,40 @@ const Index = () => (
         images on-demand as the browser requests them.
       </p>
       <hr className={styles.hr} />
-      <h2 id="layout">Layout</h2>
+      <h2 id="examples">Examples</h2>
       <p>
-        The <Code>layout</Code> property tells the image to respond differently
-        depending on the device size or the container size.
-      </p>
-      <p>
-        Select a layout below and try resizing the window or rotating your
-        device to see how the image reacts.
+        Try it the examples below (you may need to disable cache in dev tools to
+        see the effect if you already visited):
       </p>
       <ul>
         <li>
-          <Link href="/layout-intrinsic">
-            <a>layout="intrinsic"</a>
+          <Link href="/responsive">
+            <a>Responsive to viewport</a>
           </Link>
         </li>
         <li>
-          <Link href="/layout-responsive">
-            <a>layout="responsive"</a>
+          <Link href="/fill">
+            <a>Fill dimensions of parent element</a>
           </Link>
         </li>
-        <li>
-          <Link href="/layout-fixed">
-            <a>layout="fixed"</a>
-          </Link>
-        </li>
-        <li>
-          <Link href="/layout-fill">
-            <a>layout="fill"</a>
-          </Link>
-        </li>
-        <li>
-          <Link href="/background">
-            <a>background demo</a>
-          </Link>
-        </li>
-      </ul>
-      <hr className={styles.hr} />
-      <h2 id="placeholder">Placeholder</h2>
-      <p>
-        The <Code>placeholder</Code> property tells the image what to do while
-        loading.
-      </p>
-      <p>
-        You can optionally enable a blur-up placeholder while the high
-        resolution image loads.
-      </p>
-      <p>
-        Try it out below (you may need to disable cache in dev tools to see the
-        effect if you already visited):
-      </p>
-      <ul>
         <li>
           <Link href="/placeholder">
-            <a>placeholder="blur"</a>
+            <a>Blur-up placeholder</a>
           </Link>
         </li>
         <li>
           <Link href="/shimmer">
-            <a>placeholder="blur" with animated shimmer blurDataURL</a>
+            <a>Shimmer placeholder</a>
           </Link>
         </li>
         <li>
           <Link href="/color">
-            <a>placeholder="blur" with solid color blurDataURL</a>
+            <a>Color placeholder</a>
+          </Link>
+        </li>
+        <li>
+          <Link href="/background">
+            <a>Text on background image</a>
           </Link>
         </li>
       </ul>
@@ -123,8 +93,8 @@ const Index = () => (
         <Code>assets.vercel.com</Code>.
       </p>
       <p>
-        External domains must be configured in <Code>next.config.js</Code> using
-        the <Code>domains</Code> property.
+        External images must be configured in <Code>next.config.js</Code> using
+        the <Code>remotePatterns</Code> property.
       </p>
       <Image
         alt="Next.js logo"
