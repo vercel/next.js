@@ -85,7 +85,7 @@ export default async function edgeSSRLoader(this: any) {
   const pageModPath = `${appDirLoader}${stringifiedPagePath.substring(
     1,
     stringifiedPagePath.length - 1
-  )}`
+  )}${isAppDir ? '?__edge_ssr_entry__' : ''}`
 
   const transformed = `
     import { adapter, enhanceGlobals } from 'next/dist/esm/server/web/adapter'

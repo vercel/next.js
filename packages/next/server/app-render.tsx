@@ -83,6 +83,7 @@ const INTERNAL_COOKIES_INSTANCE = Symbol('internal for cookies readonly')
 function readonlyCookiesError() {
   return new Error('ReadonlyCookies cannot be modified')
 }
+
 class ReadonlyNextCookies {
   [INTERNAL_COOKIES_INSTANCE]: NextCookies
 
@@ -582,9 +583,8 @@ function getPreloadedFontFilesInlineLinkTags(
   const fontFiles = new Set<string>()
 
   for (const css of layoutOrPageCss) {
-    // We only include the CSS if it's a global CSS, or it is used by this
-    // entrypoint.
-    if (serverCSSForEntries.includes(css) || !/\.module\.css/.test(css)) {
+    // We only include the CSS if it is used by this entrypoint.
+    if (serverCSSForEntries.includes(css)) {
       const preloadedFontFiles = fontLoaderManifest.app[css]
       if (preloadedFontFiles) {
         for (const fontFile of preloadedFontFiles) {
@@ -1184,7 +1184,9 @@ export async function renderToHTMLOrFlight(
                 ? stylesheets.map((href) => (
                     <link
                       rel="stylesheet"
-                      href={`/_next/${href}?ts=${Date.now()}`}
+                      // Add extra cache busting (DEV only) for https://github.com/vercel/next.js/issues/5860
+                      // See also https://bugs.webkit.org/show_bug.cgi?id=187726
+                      href={`/_next/${href}${dev ? `?ts=${Date.now()}` : ''}`}
                       // `Precedence` is an opt-in signal for React to handle
                       // resource loading and deduplication, etc:
                       // https://github.com/facebook/react/pull/25060
@@ -1400,6 +1402,15 @@ export async function renderToHTMLOrFlight(
       rscChunks: [],
     }
 
+    const validateRootLayout = dev
+      ? {
+          validateRootLayout: {
+            assetPrefix: renderOpts.assetPrefix,
+            getTree: () => createFlightRouterStateFromLoaderTree(loaderTree),
+          },
+        }
+      : {}
+
     /**
      * A new React Component that renders the provided React Component
      * using Flight which can then be rendered to HTML.
@@ -1518,7 +1529,7 @@ export async function renderToHTMLOrFlight(
           generateStaticHTML: isStaticGeneration,
           getServerInsertedHTML,
           serverInsertedHTMLToHead: true,
-          dev,
+          ...validateRootLayout,
         })
       } catch (err: any) {
         // TODO-APP: show error overlay in development. `element` should probably be wrapped in AppRouter for this case.
@@ -1549,7 +1560,7 @@ export async function renderToHTMLOrFlight(
           generateStaticHTML: isStaticGeneration,
           getServerInsertedHTML,
           serverInsertedHTMLToHead: true,
-          dev,
+          ...validateRootLayout,
         })
       }
     }
@@ -1557,6 +1568,7 @@ export async function renderToHTMLOrFlight(
 
     if (isStaticGeneration) {
       const htmlResult = await streamToBufferedResult(renderResult)
+
       // if we encountered any unexpected errors during build
       // we fail the prerendering phase and the build
       if (capturedErrors.length > 0) {
@@ -1580,6 +1592,7 @@ export async function renderToHTMLOrFlight(
 
       return new RenderResult(htmlResult)
     }
+
     return renderResult
   }
 
@@ -1603,18 +1616,33 @@ export async function renderToHTMLOrFlight(
     (renderOpts as any).previewProps
   )
 
+  let cachedHeadersInstance: ReadonlyHeaders | undefined
+  let cachedCookiesInstance: ReadonlyNextCookies | undefined
+
   const requestStore = {
-    headers: new ReadonlyHeaders(headersWithoutFlight(req.headers)),
-    cookies: new ReadonlyNextCookies({
-      headers: {
-        get: (key) => {
-          if (key !== 'cookie') {
-            throw new Error('Only cookie header is supported')
-          }
-          return req.headers.cookie
-        },
-      },
-    }),
+    get headers() {
+      if (!cachedHeadersInstance) {
+        cachedHeadersInstance = new ReadonlyHeaders(
+          headersWithoutFlight(req.headers)
+        )
+      }
+      return cachedHeadersInstance
+    },
+    get cookies() {
+      if (!cachedCookiesInstance) {
+        cachedCookiesInstance = new ReadonlyNextCookies({
+          headers: {
+            get: (key) => {
+              if (key !== 'cookie') {
+                throw new Error('Only cookie header is supported')
+              }
+              return req.headers.cookie
+            },
+          },
+        })
+      }
+      return cachedCookiesInstance
+    },
     previewData,
   }
 
