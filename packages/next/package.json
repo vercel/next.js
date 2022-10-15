@@ -252,6 +252,8 @@
     "punycode": "2.1.1",
     "querystring-es3": "0.2.1",
     "raw-body": "2.4.1",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
     "react-is": "17.0.2",
     "react-refresh": "0.12.0",
     "react-server-dom-webpack": "0.0.0-experimental-a8c16a004-20221012",

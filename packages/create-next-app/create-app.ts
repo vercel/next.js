@@ -145,6 +145,7 @@ export async function createApp({
         )
         console.log()
         await retry(() => downloadAndExtractRepo(root, repoInfo2), {
+          // @ts-ignore
           retries: 3,
         })
       } else {
@@ -155,6 +156,7 @@ export async function createApp({
         )
         console.log()
         await retry(() => downloadAndExtractExample(root, example), {
+          // @ts-ignore
           retries: 3,
         })
       }
