@@ -2,7 +2,7 @@
 /******/ 	"use strict";
 /******/ 	var __webpack_modules__ = ({
 
-/***/ 884:
+/***/ 778:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 /**
@@ -31,7 +31,15 @@ if (
   __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(new Error());
 }
           var React = __nccwpck_require__(522);
-var Scheduler = __nccwpck_require__(41);
+var Scheduler = __nccwpck_require__(937);
+
+var Internals = {
+  usingClientEntryPoint: false,
+  Events: null,
+  Dispatcher: {
+    current: null
+  }
+};
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -94,26 +102,36 @@ function printWarning(level, format, args) {
   }
 }
 
-var assign = Object.assign;
+var FunctionComponent = 0;
+var ClassComponent = 1;
+var IndeterminateComponent = 2; // Before we know whether it is function or class
 
-/**
- * `ReactInstanceMap` maintains a mapping from a public facing stateful
- * instance (key) and the internal representation (value). This allows public
- * methods to accept the user facing instance as an argument and map them back
- * to internal methods.
- *
- * Note that this module is currently shared and assumed to be stateless.
- * If this becomes an actual Map, that will break.
- */
-function get(key) {
-  return key._reactInternals;
-}
-function has(key) {
-  return key._reactInternals !== undefined;
-}
-function set(key, value) {
-  key._reactInternals = value;
-}
+var HostRoot = 3; // Root of a host tree. Could be nested inside another node.
+
+var HostPortal = 4; // A subtree. Could be an entry point to a different renderer.
+
+var HostComponent = 5;
+var HostText = 6;
+var Fragment = 7;
+var Mode = 8;
+var ContextConsumer = 9;
+var ContextProvider = 10;
+var ForwardRef = 11;
+var Profiler = 12;
+var SuspenseComponent = 13;
+var MemoComponent = 14;
+var SimpleMemoComponent = 15;
+var LazyComponent = 16;
+var IncompleteClassComponent = 17;
+var DehydratedFragment = 18;
+var SuspenseListComponent = 19;
+var ScopeComponent = 21;
+var OffscreenComponent = 22;
+var LegacyHiddenComponent = 23;
+var CacheComponent = 24;
+var TracingMarkerComponent = 25;
+var HostResource = 26;
+var HostSingleton = 27;
 
 // -----------------------------------------------------------------------------
 
@@ -170,858 +188,6 @@ var enableProfilerCommitHooks = true; // Phase param passed to onRender callback
 
 var enableProfilerNestedUpdatePhase = true; // Adds verbose console logging for e.g. state updates, suspense, and work loop
 
-var FunctionComponent = 0;
-var ClassComponent = 1;
-var IndeterminateComponent = 2; // Before we know whether it is function or class
-
-var HostRoot = 3; // Root of a host tree. Could be nested inside another node.
-
-var HostPortal = 4; // A subtree. Could be an entry point to a different renderer.
-
-var HostComponent = 5;
-var HostText = 6;
-var Fragment = 7;
-var Mode = 8;
-var ContextConsumer = 9;
-var ContextProvider = 10;
-var ForwardRef = 11;
-var Profiler = 12;
-var SuspenseComponent = 13;
-var MemoComponent = 14;
-var SimpleMemoComponent = 15;
-var LazyComponent = 16;
-var IncompleteClassComponent = 17;
-var DehydratedFragment = 18;
-var SuspenseListComponent = 19;
-var ScopeComponent = 21;
-var OffscreenComponent = 22;
-var LegacyHiddenComponent = 23;
-var CacheComponent = 24;
-var TracingMarkerComponent = 25;
-
-// ATTENTION
-// When adding new symbols to this file,
-// Please consider also adding to 'react-devtools-shared/src/backend/ReactSymbols'
-// The Symbol used to tag the ReactElement-like types.
-var REACT_ELEMENT_TYPE = Symbol.for('react.element');
-var REACT_PORTAL_TYPE = Symbol.for('react.portal');
-var REACT_FRAGMENT_TYPE = Symbol.for('react.fragment');
-var REACT_STRICT_MODE_TYPE = Symbol.for('react.strict_mode');
-var REACT_PROFILER_TYPE = Symbol.for('react.profiler');
-var REACT_PROVIDER_TYPE = Symbol.for('react.provider');
-var REACT_CONTEXT_TYPE = Symbol.for('react.context');
-var REACT_SERVER_CONTEXT_TYPE = Symbol.for('react.server_context');
-var REACT_FORWARD_REF_TYPE = Symbol.for('react.forward_ref');
-var REACT_SUSPENSE_TYPE = Symbol.for('react.suspense');
-var REACT_SUSPENSE_LIST_TYPE = Symbol.for('react.suspense_list');
-var REACT_MEMO_TYPE = Symbol.for('react.memo');
-var REACT_LAZY_TYPE = Symbol.for('react.lazy');
-var REACT_SCOPE_TYPE = Symbol.for('react.scope');
-var REACT_DEBUG_TRACING_MODE_TYPE = Symbol.for('react.debug_trace_mode');
-var REACT_OFFSCREEN_TYPE = Symbol.for('react.offscreen');
-var REACT_LEGACY_HIDDEN_TYPE = Symbol.for('react.legacy_hidden');
-var REACT_CACHE_TYPE = Symbol.for('react.cache');
-var REACT_TRACING_MARKER_TYPE = Symbol.for('react.tracing_marker');
-var REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED = Symbol.for('react.default_value');
-var MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
-var FAUX_ITERATOR_SYMBOL = '@@iterator';
-function getIteratorFn(maybeIterable) {
-  if (maybeIterable === null || typeof maybeIterable !== 'object') {
-    return null;
-  }
-
-  var maybeIterator = MAYBE_ITERATOR_SYMBOL && maybeIterable[MAYBE_ITERATOR_SYMBOL] || maybeIterable[FAUX_ITERATOR_SYMBOL];
-
-  if (typeof maybeIterator === 'function') {
-    return maybeIterator;
-  }
-
-  return null;
-}
-
-function getWrappedName(outerType, innerType, wrapperName) {
-  var displayName = outerType.displayName;
-
-  if (displayName) {
-    return displayName;
-  }
-
-  var functionName = innerType.displayName || innerType.name || '';
-  return functionName !== '' ? wrapperName + "(" + functionName + ")" : wrapperName;
-} // Keep in sync with react-reconciler/getComponentNameFromFiber
-
-
-function getContextName(type) {
-  return type.displayName || 'Context';
-} // Note that the reconciler package should generally prefer to use getComponentNameFromFiber() instead.
-
-
-function getComponentNameFromType(type) {
-  if (type == null) {
-    // Host root, text node or just invalid type.
-    return null;
-  }
-
-  {
-    if (typeof type.tag === 'number') {
-      error('Received an unexpected object in getComponentNameFromType(). ' + 'This is likely a bug in React. Please file an issue.');
-    }
-  }
-
-  if (typeof type === 'function') {
-    return type.displayName || type.name || null;
-  }
-
-  if (typeof type === 'string') {
-    return type;
-  }
-
-  switch (type) {
-    case REACT_FRAGMENT_TYPE:
-      return 'Fragment';
-
-    case REACT_PORTAL_TYPE:
-      return 'Portal';
-
-    case REACT_PROFILER_TYPE:
-      return 'Profiler';
-
-    case REACT_STRICT_MODE_TYPE:
-      return 'StrictMode';
-
-    case REACT_SUSPENSE_TYPE:
-      return 'Suspense';
-
-    case REACT_SUSPENSE_LIST_TYPE:
-      return 'SuspenseList';
-
-    case REACT_CACHE_TYPE:
-      {
-        return 'Cache';
-      }
-
-  }
-
-  if (typeof type === 'object') {
-    switch (type.$$typeof) {
-      case REACT_CONTEXT_TYPE:
-        var context = type;
-        return getContextName(context) + '.Consumer';
-
-      case REACT_PROVIDER_TYPE:
-        var provider = type;
-        return getContextName(provider._context) + '.Provider';
-
-      case REACT_FORWARD_REF_TYPE:
-        return getWrappedName(type, type.render, 'ForwardRef');
-
-      case REACT_MEMO_TYPE:
-        var outerName = type.displayName || null;
-
-        if (outerName !== null) {
-          return outerName;
-        }
-
-        return getComponentNameFromType(type.type) || 'Memo';
-
-      case REACT_LAZY_TYPE:
-        {
-          var lazyComponent = type;
-          var payload = lazyComponent._payload;
-          var init = lazyComponent._init;
-
-          try {
-            return getComponentNameFromType(init(payload));
-          } catch (x) {
-            return null;
-          }
-        }
-
-      case REACT_SERVER_CONTEXT_TYPE:
-        {
-          var context2 = type;
-          return (context2.displayName || context2._globalName) + '.Provider';
-        }
-
-      // eslint-disable-next-line no-fallthrough
-    }
-  }
-
-  return null;
-}
-
-function getWrappedName$1(outerType, innerType, wrapperName) {
-  var functionName = innerType.displayName || innerType.name || '';
-  return outerType.displayName || (functionName !== '' ? wrapperName + "(" + functionName + ")" : wrapperName);
-} // Keep in sync with shared/getComponentNameFromType
-
-
-function getContextName$1(type) {
-  return type.displayName || 'Context';
-}
-
-function getComponentNameFromFiber(fiber) {
-  var tag = fiber.tag,
-      type = fiber.type;
-
-  switch (tag) {
-    case CacheComponent:
-      return 'Cache';
-
-    case ContextConsumer:
-      var context = type;
-      return getContextName$1(context) + '.Consumer';
-
-    case ContextProvider:
-      var provider = type;
-      return getContextName$1(provider._context) + '.Provider';
-
-    case DehydratedFragment:
-      return 'DehydratedFragment';
-
-    case ForwardRef:
-      return getWrappedName$1(type, type.render, 'ForwardRef');
-
-    case Fragment:
-      return 'Fragment';
-
-    case HostComponent:
-      // Host component type is the display name (e.g. "div", "View")
-      return type;
-
-    case HostPortal:
-      return 'Portal';
-
-    case HostRoot:
-      return 'Root';
-
-    case HostText:
-      return 'Text';
-
-    case LazyComponent:
-      // Name comes from the type in this case; we don't have a tag.
-      return getComponentNameFromType(type);
-
-    case Mode:
-      if (type === REACT_STRICT_MODE_TYPE) {
-        // Don't be less specific than shared/getComponentNameFromType
-        return 'StrictMode';
-      }
-
-      return 'Mode';
-
-    case OffscreenComponent:
-      return 'Offscreen';
-
-    case Profiler:
-      return 'Profiler';
-
-    case ScopeComponent:
-      return 'Scope';
-
-    case SuspenseComponent:
-      return 'Suspense';
-
-    case SuspenseListComponent:
-      return 'SuspenseList';
-
-    case TracingMarkerComponent:
-      return 'TracingMarker';
-    // The display name for this tags come from the user-provided type:
-
-    case ClassComponent:
-    case FunctionComponent:
-    case IncompleteClassComponent:
-    case IndeterminateComponent:
-    case MemoComponent:
-    case SimpleMemoComponent:
-      if (typeof type === 'function') {
-        return type.displayName || type.name || null;
-      }
-
-      if (typeof type === 'string') {
-        return type;
-      }
-
-      break;
-
-  }
-
-  return null;
-}
-
-// Don't change these two values. They're used by React Dev Tools.
-var NoFlags =
-/*                      */
-0;
-var PerformedWork =
-/*                */
-1; // You can change the rest (and add more).
-
-var Placement =
-/*                    */
-2;
-var Update =
-/*                       */
-4;
-var ChildDeletion =
-/*                */
-8;
-var ContentReset =
-/*                 */
-16;
-var Callback =
-/*                     */
-32;
-var DidCapture =
-/*                   */
-64;
-var ForceClientRender =
-/*            */
-128;
-var Ref =
-/*                          */
-256;
-var Snapshot =
-/*                     */
-512;
-var Passive =
-/*                      */
-1024;
-var Hydrating =
-/*                    */
-2048;
-var Visibility =
-/*                   */
-4096;
-var StoreConsistency =
-/*             */
-8192;
-var LifecycleEffectMask = Passive | Update | Callback | Ref | Snapshot | StoreConsistency; // Union of all commit flags (flags with the lifetime of a particular commit)
-
-var HostEffectMask =
-/*               */
-16383; // These are not really side effects, but we still reuse this field.
-
-var Incomplete =
-/*                   */
-16384;
-var ShouldCapture =
-/*                */
-32768;
-var ForceUpdateForLegacySuspense =
-/* */
-65536;
-var Forked =
-/*                       */
-524288; // Static tags describe aspects of a fiber that are not specific to a render,
-// e.g. a fiber uses a passive effect (even if there are no updates on this particular render).
-// This enables us to defer more work in the unmount case,
-// since we can defer traversing the tree during layout to look for Passive effects,
-// and instead rely on the static flag as a signal that there may be cleanup work.
-
-var RefStatic =
-/*                    */
-1048576;
-var LayoutStatic =
-/*                 */
-2097152;
-var PassiveStatic =
-/*                */
-4194304; // Flag used to identify newly inserted fibers. It isn't reset after commit unlike `Placement`.
-
-var PlacementDEV =
-/*                 */
-8388608; // Groups of flags that are used in the commit phase to skip over trees that
-// don't contain effects, by checking subtreeFlags.
-
-var BeforeMutationMask = // TODO: Remove Update flag from before mutation phase by re-landing Visibility
-// flag logic (see #20043)
-Update | Snapshot | ( 0);
-var MutationMask = Placement | Update | ChildDeletion | ContentReset | Ref | Hydrating | Visibility;
-var LayoutMask = Update | Callback | Ref | Visibility; // TODO: Split into PassiveMountMask and PassiveUnmountMask
-
-var PassiveMask = Passive | Visibility | ChildDeletion; // Union of tags that don't get reset on clones.
-// This allows certain concepts to persist without recalculating them,
-// e.g. whether a subtree contains passive effects or portals.
-
-var StaticMask = LayoutStatic | PassiveStatic | RefStatic;
-
-var ReactCurrentOwner = ReactSharedInternals.ReactCurrentOwner;
-function getNearestMountedFiber(fiber) {
-  var node = fiber;
-  var nearestMounted = fiber;
-
-  if (!fiber.alternate) {
-    // If there is no alternate, this might be a new tree that isn't inserted
-    // yet. If it is, then it will have a pending insertion effect on it.
-    var nextNode = node;
-
-    do {
-      node = nextNode;
-
-      if ((node.flags & (Placement | Hydrating)) !== NoFlags) {
-        // This is an insertion or in-progress hydration. The nearest possible
-        // mounted fiber is the parent but we need to continue to figure out
-        // if that one is still mounted.
-        nearestMounted = node.return;
-      }
-
-      nextNode = node.return;
-    } while (nextNode);
-  } else {
-    while (node.return) {
-      node = node.return;
-    }
-  }
-
-  if (node.tag === HostRoot) {
-    // TODO: Check if this was a nested HostRoot when used with
-    // renderContainerIntoSubtree.
-    return nearestMounted;
-  } // If we didn't hit the root, that means that we're in an disconnected tree
-  // that has been unmounted.
-
-
-  return null;
-}
-function getSuspenseInstanceFromFiber(fiber) {
-  if (fiber.tag === SuspenseComponent) {
-    var suspenseState = fiber.memoizedState;
-
-    if (suspenseState === null) {
-      var current = fiber.alternate;
-
-      if (current !== null) {
-        suspenseState = current.memoizedState;
-      }
-    }
-
-    if (suspenseState !== null) {
-      return suspenseState.dehydrated;
-    }
-  }
-
-  return null;
-}
-function getContainerFromFiber(fiber) {
-  return fiber.tag === HostRoot ? fiber.stateNode.containerInfo : null;
-}
-function isFiberMounted(fiber) {
-  return getNearestMountedFiber(fiber) === fiber;
-}
-function isMounted(component) {
-  {
-    var owner = ReactCurrentOwner.current;
-
-    if (owner !== null && owner.tag === ClassComponent) {
-      var ownerFiber = owner;
-      var instance = ownerFiber.stateNode;
-
-      if (!instance._warnedAboutRefsInRender) {
-        error('%s is accessing isMounted inside its render() function. ' + 'render() should be a pure function of props and state. It should ' + 'never access something that requires stale data from the previous ' + 'render, such as refs. Move this logic to componentDidMount and ' + 'componentDidUpdate instead.', getComponentNameFromFiber(ownerFiber) || 'A component');
-      }
-
-      instance._warnedAboutRefsInRender = true;
-    }
-  }
-
-  var fiber = get(component);
-
-  if (!fiber) {
-    return false;
-  }
-
-  return getNearestMountedFiber(fiber) === fiber;
-}
-
-function assertIsMounted(fiber) {
-  if (getNearestMountedFiber(fiber) !== fiber) {
-    throw new Error('Unable to find node on an unmounted component.');
-  }
-}
-
-function findCurrentFiberUsingSlowPath(fiber) {
-  var alternate = fiber.alternate;
-
-  if (!alternate) {
-    // If there is no alternate, then we only need to check if it is mounted.
-    var nearestMounted = getNearestMountedFiber(fiber);
-
-    if (nearestMounted === null) {
-      throw new Error('Unable to find node on an unmounted component.');
-    }
-
-    if (nearestMounted !== fiber) {
-      return null;
-    }
-
-    return fiber;
-  } // If we have two possible branches, we'll walk backwards up to the root
-  // to see what path the root points to. On the way we may hit one of the
-  // special cases and we'll deal with them.
-
-
-  var a = fiber;
-  var b = alternate;
-
-  while (true) {
-    var parentA = a.return;
-
-    if (parentA === null) {
-      // We're at the root.
-      break;
-    }
-
-    var parentB = parentA.alternate;
-
-    if (parentB === null) {
-      // There is no alternate. This is an unusual case. Currently, it only
-      // happens when a Suspense component is hidden. An extra fragment fiber
-      // is inserted in between the Suspense fiber and its children. Skip
-      // over this extra fragment fiber and proceed to the next parent.
-      var nextParent = parentA.return;
-
-      if (nextParent !== null) {
-        a = b = nextParent;
-        continue;
-      } // If there's no parent, we're at the root.
-
-
-      break;
-    } // If both copies of the parent fiber point to the same child, we can
-    // assume that the child is current. This happens when we bailout on low
-    // priority: the bailed out fiber's child reuses the current child.
-
-
-    if (parentA.child === parentB.child) {
-      var child = parentA.child;
-
-      while (child) {
-        if (child === a) {
-          // We've determined that A is the current branch.
-          assertIsMounted(parentA);
-          return fiber;
-        }
-
-        if (child === b) {
-          // We've determined that B is the current branch.
-          assertIsMounted(parentA);
-          return alternate;
-        }
-
-        child = child.sibling;
-      } // We should never have an alternate for any mounting node. So the only
-      // way this could possibly happen is if this was unmounted, if at all.
-
-
-      throw new Error('Unable to find node on an unmounted component.');
-    }
-
-    if (a.return !== b.return) {
-      // The return pointer of A and the return pointer of B point to different
-      // fibers. We assume that return pointers never criss-cross, so A must
-      // belong to the child set of A.return, and B must belong to the child
-      // set of B.return.
-      a = parentA;
-      b = parentB;
-    } else {
-      // The return pointers point to the same fiber. We'll have to use the
-      // default, slow path: scan the child sets of each parent alternate to see
-      // which child belongs to which set.
-      //
-      // Search parent A's child set
-      var didFindChild = false;
-      var _child = parentA.child;
-
-      while (_child) {
-        if (_child === a) {
-          didFindChild = true;
-          a = parentA;
-          b = parentB;
-          break;
-        }
-
-        if (_child === b) {
-          didFindChild = true;
-          b = parentA;
-          a = parentB;
-          break;
-        }
-
-        _child = _child.sibling;
-      }
-
-      if (!didFindChild) {
-        // Search parent B's child set
-        _child = parentB.child;
-
-        while (_child) {
-          if (_child === a) {
-            didFindChild = true;
-            a = parentB;
-            b = parentA;
-            break;
-          }
-
-          if (_child === b) {
-            didFindChild = true;
-            b = parentB;
-            a = parentA;
-            break;
-          }
-
-          _child = _child.sibling;
-        }
-
-        if (!didFindChild) {
-          throw new Error('Child was not found in either parent set. This indicates a bug ' + 'in React related to the return pointer. Please file an issue.');
-        }
-      }
-    }
-
-    if (a.alternate !== b) {
-      throw new Error("Return fibers should always be each others' alternates. " + 'This error is likely caused by a bug in React. Please file an issue.');
-    }
-  } // If the root is not a host container, we're in a disconnected tree. I.e.
-  // unmounted.
-
-
-  if (a.tag !== HostRoot) {
-    throw new Error('Unable to find node on an unmounted component.');
-  }
-
-  if (a.stateNode.current === a) {
-    // We've determined that A is the current branch.
-    return fiber;
-  } // Otherwise B has to be current branch.
-
-
-  return alternate;
-}
-function findCurrentHostFiber(parent) {
-  var currentParent = findCurrentFiberUsingSlowPath(parent);
-  return currentParent !== null ? findCurrentHostFiberImpl(currentParent) : null;
-}
-
-function findCurrentHostFiberImpl(node) {
-  // Next we'll drill down this component to find the first HostComponent/Text.
-  if (node.tag === HostComponent || node.tag === HostText) {
-    return node;
-  }
-
-  var child = node.child;
-
-  while (child !== null) {
-    var match = findCurrentHostFiberImpl(child);
-
-    if (match !== null) {
-      return match;
-    }
-
-    child = child.sibling;
-  }
-
-  return null;
-}
-
-function findCurrentHostFiberWithNoPortals(parent) {
-  var currentParent = findCurrentFiberUsingSlowPath(parent);
-  return currentParent !== null ? findCurrentHostFiberWithNoPortalsImpl(currentParent) : null;
-}
-
-function findCurrentHostFiberWithNoPortalsImpl(node) {
-  // Next we'll drill down this component to find the first HostComponent/Text.
-  if (node.tag === HostComponent || node.tag === HostText) {
-    return node;
-  }
-
-  var child = node.child;
-
-  while (child !== null) {
-    if (child.tag !== HostPortal) {
-      var match = findCurrentHostFiberWithNoPortalsImpl(child);
-
-      if (match !== null) {
-        return match;
-      }
-    }
-
-    child = child.sibling;
-  }
-
-  return null;
-}
-
-var isArrayImpl = Array.isArray; // eslint-disable-next-line no-redeclare
-
-function isArray(a) {
-  return isArrayImpl(a);
-}
-
-var randomKey = Math.random().toString(36).slice(2);
-var internalInstanceKey = '__reactFiber$' + randomKey;
-var internalPropsKey = '__reactProps$' + randomKey;
-var internalContainerInstanceKey = '__reactContainer$' + randomKey;
-var internalEventHandlersKey = '__reactEvents$' + randomKey;
-var internalEventHandlerListenersKey = '__reactListeners$' + randomKey;
-var internalEventHandlesSetKey = '__reactHandles$' + randomKey;
-function detachDeletedInstance(node) {
-  // TODO: This function is only called on host components. I don't think all of
-  // these fields are relevant.
-  delete node[internalInstanceKey];
-  delete node[internalPropsKey];
-  delete node[internalEventHandlersKey];
-  delete node[internalEventHandlerListenersKey];
-  delete node[internalEventHandlesSetKey];
-}
-function precacheFiberNode(hostInst, node) {
-  node[internalInstanceKey] = hostInst;
-}
-function markContainerAsRoot(hostRoot, node) {
-  node[internalContainerInstanceKey] = hostRoot;
-}
-function unmarkContainerAsRoot(node) {
-  node[internalContainerInstanceKey] = null;
-}
-function isContainerMarkedAsRoot(node) {
-  return !!node[internalContainerInstanceKey];
-} // Given a DOM node, return the closest HostComponent or HostText fiber ancestor.
-// If the target node is part of a hydrated or not yet rendered subtree, then
-// this may also return a SuspenseComponent or HostRoot to indicate that.
-// Conceptually the HostRoot fiber is a child of the Container node. So if you
-// pass the Container node as the targetNode, you will not actually get the
-// HostRoot back. To get to the HostRoot, you need to pass a child of it.
-// The same thing applies to Suspense boundaries.
-
-function getClosestInstanceFromNode(targetNode) {
-  var targetInst = targetNode[internalInstanceKey];
-
-  if (targetInst) {
-    // Don't return HostRoot or SuspenseComponent here.
-    return targetInst;
-  } // If the direct event target isn't a React owned DOM node, we need to look
-  // to see if one of its parents is a React owned DOM node.
-
-
-  var parentNode = targetNode.parentNode;
-
-  while (parentNode) {
-    // We'll check if this is a container root that could include
-    // React nodes in the future. We need to check this first because
-    // if we're a child of a dehydrated container, we need to first
-    // find that inner container before moving on to finding the parent
-    // instance. Note that we don't check this field on  the targetNode
-    // itself because the fibers are conceptually between the container
-    // node and the first child. It isn't surrounding the container node.
-    // If it's not a container, we check if it's an instance.
-    targetInst = parentNode[internalContainerInstanceKey] || parentNode[internalInstanceKey];
-
-    if (targetInst) {
-      // Since this wasn't the direct target of the event, we might have
-      // stepped past dehydrated DOM nodes to get here. However they could
-      // also have been non-React nodes. We need to answer which one.
-      // If we the instance doesn't have any children, then there can't be
-      // a nested suspense boundary within it. So we can use this as a fast
-      // bailout. Most of the time, when people add non-React children to
-      // the tree, it is using a ref to a child-less DOM node.
-      // Normally we'd only need to check one of the fibers because if it
-      // has ever gone from having children to deleting them or vice versa
-      // it would have deleted the dehydrated boundary nested inside already.
-      // However, since the HostRoot starts out with an alternate it might
-      // have one on the alternate so we need to check in case this was a
-      // root.
-      var alternate = targetInst.alternate;
-
-      if (targetInst.child !== null || alternate !== null && alternate.child !== null) {
-        // Next we need to figure out if the node that skipped past is
-        // nested within a dehydrated boundary and if so, which one.
-        var suspenseInstance = getParentSuspenseInstance(targetNode);
-
-        while (suspenseInstance !== null) {
-          // We found a suspense instance. That means that we haven't
-          // hydrated it yet. Even though we leave the comments in the
-          // DOM after hydrating, and there are boundaries in the DOM
-          // that could already be hydrated, we wouldn't have found them
-          // through this pass since if the target is hydrated it would
-          // have had an internalInstanceKey on it.
-          // Let's get the fiber associated with the SuspenseComponent
-          // as the deepest instance.
-          var targetSuspenseInst = suspenseInstance[internalInstanceKey];
-
-          if (targetSuspenseInst) {
-            return targetSuspenseInst;
-          } // If we don't find a Fiber on the comment, it might be because
-          // we haven't gotten to hydrate it yet. There might still be a
-          // parent boundary that hasn't above this one so we need to find
-          // the outer most that is known.
-
-
-          suspenseInstance = getParentSuspenseInstance(suspenseInstance); // If we don't find one, then that should mean that the parent
-          // host component also hasn't hydrated yet. We can return it
-          // below since it will bail out on the isMounted check later.
-        }
-      }
-
-      return targetInst;
-    }
-
-    targetNode = parentNode;
-    parentNode = targetNode.parentNode;
-  }
-
-  return null;
-}
-/**
- * Given a DOM node, return the ReactDOMComponent or ReactDOMTextComponent
- * instance, or null if the node was not rendered by this React.
- */
-
-function getInstanceFromNode(node) {
-  var inst = node[internalInstanceKey] || node[internalContainerInstanceKey];
-
-  if (inst) {
-    if (inst.tag === HostComponent || inst.tag === HostText || inst.tag === SuspenseComponent || inst.tag === HostRoot) {
-      return inst;
-    } else {
-      return null;
-    }
-  }
-
-  return null;
-}
-/**
- * Given a ReactDOMComponent or ReactDOMTextComponent, return the corresponding
- * DOM node.
- */
-
-function getNodeFromInstance(inst) {
-  if (inst.tag === HostComponent || inst.tag === HostText) {
-    // In Fiber this, is just the state node right now. We assume it will be
-    // a host component or host text.
-    return inst.stateNode;
-  } // Without this first invariant, passing a non-DOM-component triggers the next
-  // invariant for a missing parent, which is super confusing.
-
-
-  throw new Error('getNodeFromInstance: Invalid argument.');
-}
-function getFiberCurrentPropsFromNode(node) {
-  return node[internalPropsKey] || null;
-}
-function updateFiberProps(node, props) {
-  node[internalPropsKey] = props;
-}
-function getEventListenerSet(node) {
-  var elementListenerSet = node[internalEventHandlersKey];
-
-  if (elementListenerSet === undefined) {
-    elementListenerSet = node[internalEventHandlersKey] = new Set();
-  }
-
-  return elementListenerSet;
-}
-
 var allNativeEvents = new Set();
 /**
  * Mapping from registration name to event name
@@ -1052,8 +218,9 @@ function registerDirectEvent(registrationName, dependencies) {
   registrationNameDependencies[registrationName] = dependencies;
 
   {
-    var lowerCasedName = registrationName.toLowerCase();
-    possibleRegistrationNames[lowerCasedName] = registrationName;
+    var _lowerCasedName = registrationName.toLowerCase();
+
+    possibleRegistrationNames[_lowerCasedName] = registrationName;
 
     if (registrationName === 'onDoubleClick') {
       possibleRegistrationNames.ondblclick = registrationName;
@@ -1067,10 +234,11 @@ function registerDirectEvent(registrationName, dependencies) {
 
 var canUseDOM = !!(typeof window !== 'undefined' && typeof window.document !== 'undefined' && typeof window.document.createElement !== 'undefined');
 
+// $FlowFixMe[method-unbinding]
 var hasOwnProperty = Object.prototype.hasOwnProperty;
 
 /*
- * The `'' + value` pattern (used in in perf-sensitive code) throws for Symbol
+ * The `'' + value` pattern (used in perf-sensitive code) throws for Symbol
  * and Temporal.* types. See https://github.com/facebook/react/pull/22064.
  *
  * The functions in this module will throw an easier-to-understand,
@@ -1261,8 +429,7 @@ function shouldRemoveAttributeWithWarning(name, value, propertyInfo, isCustomCom
   }
 
   switch (typeof value) {
-    case 'function': // $FlowFixMe symbol is perfectly valid here
-
+    case 'function':
     case 'symbol':
       // eslint-disable-line
       return true;
@@ -1353,6 +520,7 @@ var reservedProps = ['children', 'dangerouslySetInnerHTML', // TODO: This preven
 }
 
 reservedProps.forEach(function (name) {
+  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
   properties[name] = new PropertyInfoRecord(name, RESERVED, false, // mustUseProperty
   name, // attributeName
   null, // attributeNamespace
@@ -1364,6 +532,7 @@ reservedProps.forEach(function (name) {
 [['acceptCharset', 'accept-charset'], ['className', 'class'], ['htmlFor', 'for'], ['httpEquiv', 'http-equiv']].forEach(function (_ref) {
   var name = _ref[0],
       attributeName = _ref[1];
+  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
   properties[name] = new PropertyInfoRecord(name, STRING, false, // mustUseProperty
   attributeName, // attributeName
   null, // attributeNamespace
@@ -1374,6 +543,7 @@ reservedProps.forEach(function (name) {
 // these aren't boolean attributes (they are coerced to strings).
 
 ['contentEditable', 'draggable', 'spellCheck', 'value'].forEach(function (name) {
+  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
   properties[name] = new PropertyInfoRecord(name, BOOLEANISH_STRING, false, // mustUseProperty
   name.toLowerCase(), // attributeName
   null, // attributeNamespace
@@ -1385,6 +555,7 @@ reservedProps.forEach(function (name) {
 // Since these are SVG attributes, their attribute names are case-sensitive.
 
 ['autoReverse', 'externalResourcesRequired', 'focusable', 'preserveAlpha'].forEach(function (name) {
+  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
   properties[name] = new PropertyInfoRecord(name, BOOLEANISH_STRING, false, // mustUseProperty
   name, // attributeName
   null, // attributeNamespace
@@ -1396,6 +567,7 @@ reservedProps.forEach(function (name) {
 // on the client side because the browsers are inconsistent. Instead we call focus().
 'autoFocus', 'autoPlay', 'controls', 'default', 'defer', 'disabled', 'disablePictureInPicture', 'disableRemotePlayback', 'formNoValidate', 'hidden', 'loop', 'noModule', 'noValidate', 'open', 'playsInline', 'readOnly', 'required', 'reversed', 'scoped', 'seamless', // Microdata
 'itemScope'].forEach(function (name) {
+  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
   properties[name] = new PropertyInfoRecord(name, BOOLEAN, false, // mustUseProperty
   name.toLowerCase(), // attributeName
   null, // attributeNamespace
@@ -1410,6 +582,7 @@ reservedProps.forEach(function (name) {
 // you'll need to set attributeName to name.toLowerCase()
 // instead in the assignment below.
 ].forEach(function (name) {
+  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
   properties[name] = new PropertyInfoRecord(name, BOOLEAN, true, // mustUseProperty
   name, // attributeName
   null, // attributeNamespace
@@ -1422,6 +595,7 @@ reservedProps.forEach(function (name) {
 // you'll need to set attributeName to name.toLowerCase()
 // instead in the assignment below.
 ].forEach(function (name) {
+  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
   properties[name] = new PropertyInfoRecord(name, OVERLOADED_BOOLEAN, false, // mustUseProperty
   name, // attributeName
   null, // attributeNamespace
@@ -1433,6 +607,7 @@ reservedProps.forEach(function (name) {
 // you'll need to set attributeName to name.toLowerCase()
 // instead in the assignment below.
 ].forEach(function (name) {
+  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
   properties[name] = new PropertyInfoRecord(name, POSITIVE_NUMERIC, false, // mustUseProperty
   name, // attributeName
   null, // attributeNamespace
@@ -1441,6 +616,7 @@ reservedProps.forEach(function (name) {
 }); // These are HTML attributes that must be numbers.
 
 ['rowSpan', 'start'].forEach(function (name) {
+  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
   properties[name] = new PropertyInfoRecord(name, NUMERIC, false, // mustUseProperty
   name.toLowerCase(), // attributeName
   null, // attributeNamespace
@@ -1462,7 +638,8 @@ var capitalize = function (token) {
 // you'll need to set attributeName to name.toLowerCase()
 // instead in the assignment below.
 ].forEach(function (attributeName) {
-  var name = attributeName.replace(CAMELIZE, capitalize);
+  var name = attributeName.replace(CAMELIZE, capitalize); // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
+
   properties[name] = new PropertyInfoRecord(name, STRING, false, // mustUseProperty
   attributeName, null, // attributeNamespace
   false, // sanitizeURL
@@ -1473,7 +650,8 @@ var capitalize = function (token) {
 // you'll need to set attributeName to name.toLowerCase()
 // instead in the assignment below.
 ].forEach(function (attributeName) {
-  var name = attributeName.replace(CAMELIZE, capitalize);
+  var name = attributeName.replace(CAMELIZE, capitalize); // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
+
   properties[name] = new PropertyInfoRecord(name, STRING, false, // mustUseProperty
   attributeName, 'http://www.w3.org/1999/xlink', false, // sanitizeURL
   false);
@@ -1483,7 +661,8 @@ var capitalize = function (token) {
 // you'll need to set attributeName to name.toLowerCase()
 // instead in the assignment below.
 ].forEach(function (attributeName) {
-  var name = attributeName.replace(CAMELIZE, capitalize);
+  var name = attributeName.replace(CAMELIZE, capitalize); // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
+
   properties[name] = new PropertyInfoRecord(name, STRING, false, // mustUseProperty
   attributeName, 'http://www.w3.org/XML/1998/namespace', false, // sanitizeURL
   false);
@@ -1492,6 +671,7 @@ var capitalize = function (token) {
 // the React name like we do for attributes that exist only in HTML.
 
 ['tabIndex', 'crossOrigin'].forEach(function (attributeName) {
+  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
   properties[attributeName] = new PropertyInfoRecord(attributeName, STRING, false, // mustUseProperty
   attributeName.toLowerCase(), // attributeName
   null, // attributeNamespace
@@ -1500,11 +680,13 @@ var capitalize = function (token) {
 }); // These attributes accept URLs. These must not allow javascript: URLS.
 // These will also need to accept Trusted Types object in the future.
 
-var xlinkHref = 'xlinkHref';
+var xlinkHref = 'xlinkHref'; // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
+
 properties[xlinkHref] = new PropertyInfoRecord('xlinkHref', STRING, false, // mustUseProperty
 'xlink:href', 'http://www.w3.org/1999/xlink', true, // sanitizeURL
 false);
 ['src', 'href', 'action', 'formAction'].forEach(function (attributeName) {
+  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
   properties[attributeName] = new PropertyInfoRecord(attributeName, STRING, false, // mustUseProperty
   attributeName.toLowerCase(), // attributeName
   null, // attributeNamespace
@@ -1780,6 +962,48 @@ function setValueForProperty(node, name, value, isCustomComponentTag) {
   }
 }
 
+// ATTENTION
+// When adding new symbols to this file,
+// Please consider also adding to 'react-devtools-shared/src/backend/ReactSymbols'
+// The Symbol used to tag the ReactElement-like types.
+var REACT_ELEMENT_TYPE = Symbol.for('react.element');
+var REACT_PORTAL_TYPE = Symbol.for('react.portal');
+var REACT_FRAGMENT_TYPE = Symbol.for('react.fragment');
+var REACT_STRICT_MODE_TYPE = Symbol.for('react.strict_mode');
+var REACT_PROFILER_TYPE = Symbol.for('react.profiler');
+var REACT_PROVIDER_TYPE = Symbol.for('react.provider');
+var REACT_CONTEXT_TYPE = Symbol.for('react.context');
+var REACT_SERVER_CONTEXT_TYPE = Symbol.for('react.server_context');
+var REACT_FORWARD_REF_TYPE = Symbol.for('react.forward_ref');
+var REACT_SUSPENSE_TYPE = Symbol.for('react.suspense');
+var REACT_SUSPENSE_LIST_TYPE = Symbol.for('react.suspense_list');
+var REACT_MEMO_TYPE = Symbol.for('react.memo');
+var REACT_LAZY_TYPE = Symbol.for('react.lazy');
+var REACT_SCOPE_TYPE = Symbol.for('react.scope');
+var REACT_DEBUG_TRACING_MODE_TYPE = Symbol.for('react.debug_trace_mode');
+var REACT_OFFSCREEN_TYPE = Symbol.for('react.offscreen');
+var REACT_LEGACY_HIDDEN_TYPE = Symbol.for('react.legacy_hidden');
+var REACT_CACHE_TYPE = Symbol.for('react.cache');
+var REACT_TRACING_MARKER_TYPE = Symbol.for('react.tracing_marker');
+var REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED = Symbol.for('react.default_value');
+var MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
+var FAUX_ITERATOR_SYMBOL = '@@iterator';
+function getIteratorFn(maybeIterable) {
+  if (maybeIterable === null || typeof maybeIterable !== 'object') {
+    return null;
+  }
+
+  var maybeIterator = MAYBE_ITERATOR_SYMBOL && maybeIterable[MAYBE_ITERATOR_SYMBOL] || maybeIterable[FAUX_ITERATOR_SYMBOL];
+
+  if (typeof maybeIterator === 'function') {
+    return maybeIterator;
+  }
+
+  return null;
+}
+
+var assign = Object.assign;
+
 // Helpers to patch console.logs to avoid logging during side-effect free
 // replaying on render function. This currently only patches the object
 // lazily which won't cover if the log function was extracted eagerly.
@@ -1961,7 +1185,8 @@ function describeNativeComponentFrame(fn, construct) {
           Fake.call();
         } catch (x) {
           control = x;
-        }
+        } // $FlowFixMe[prop-missing] found when upgrading Flow
+
 
         fn.call(Fake.prototype);
       }
@@ -2134,6 +1359,8 @@ function describeFiber(fiber) {
   var source =  fiber._debugSource ;
 
   switch (fiber.tag) {
+    case HostResource:
+    case HostSingleton:
     case HostComponent:
       return describeBuiltInComponentFrame(fiber.type);
 
@@ -2168,7 +1395,8 @@ function getStackByFiberInDevAndProd(workInProgress) {
     var node = workInProgress;
 
     do {
-      info += describeFiber(node);
+      info += describeFiber(node); // $FlowFixMe[incompatible-type] we bail out when we get a null
+
       node = node.return;
     } while (node);
 
@@ -2176,6 +1404,219 @@ function getStackByFiberInDevAndProd(workInProgress) {
   } catch (x) {
     return '\nError generating stack: ' + x.message + '\n' + x.stack;
   }
+}
+
+function getWrappedName(outerType, innerType, wrapperName) {
+  var displayName = outerType.displayName;
+
+  if (displayName) {
+    return displayName;
+  }
+
+  var functionName = innerType.displayName || innerType.name || '';
+  return functionName !== '' ? wrapperName + "(" + functionName + ")" : wrapperName;
+} // Keep in sync with react-reconciler/getComponentNameFromFiber
+
+
+function getContextName(type) {
+  return type.displayName || 'Context';
+} // Note that the reconciler package should generally prefer to use getComponentNameFromFiber() instead.
+
+
+function getComponentNameFromType(type) {
+  if (type == null) {
+    // Host root, text node or just invalid type.
+    return null;
+  }
+
+  {
+    if (typeof type.tag === 'number') {
+      error('Received an unexpected object in getComponentNameFromType(). ' + 'This is likely a bug in React. Please file an issue.');
+    }
+  }
+
+  if (typeof type === 'function') {
+    return type.displayName || type.name || null;
+  }
+
+  if (typeof type === 'string') {
+    return type;
+  }
+
+  switch (type) {
+    case REACT_FRAGMENT_TYPE:
+      return 'Fragment';
+
+    case REACT_PORTAL_TYPE:
+      return 'Portal';
+
+    case REACT_PROFILER_TYPE:
+      return 'Profiler';
+
+    case REACT_STRICT_MODE_TYPE:
+      return 'StrictMode';
+
+    case REACT_SUSPENSE_TYPE:
+      return 'Suspense';
+
+    case REACT_SUSPENSE_LIST_TYPE:
+      return 'SuspenseList';
+
+    case REACT_CACHE_TYPE:
+      {
+        return 'Cache';
+      }
+
+  }
+
+  if (typeof type === 'object') {
+    switch (type.$$typeof) {
+      case REACT_CONTEXT_TYPE:
+        var context = type;
+        return getContextName(context) + '.Consumer';
+
+      case REACT_PROVIDER_TYPE:
+        var provider = type;
+        return getContextName(provider._context) + '.Provider';
+
+      case REACT_FORWARD_REF_TYPE:
+        return getWrappedName(type, type.render, 'ForwardRef');
+
+      case REACT_MEMO_TYPE:
+        var outerName = type.displayName || null;
+
+        if (outerName !== null) {
+          return outerName;
+        }
+
+        return getComponentNameFromType(type.type) || 'Memo';
+
+      case REACT_LAZY_TYPE:
+        {
+          var lazyComponent = type;
+          var payload = lazyComponent._payload;
+          var init = lazyComponent._init;
+
+          try {
+            return getComponentNameFromType(init(payload));
+          } catch (x) {
+            return null;
+          }
+        }
+
+      case REACT_SERVER_CONTEXT_TYPE:
+        {
+          var context2 = type;
+          return (context2.displayName || context2._globalName) + '.Provider';
+        }
+
+      // eslint-disable-next-line no-fallthrough
+    }
+  }
+
+  return null;
+}
+
+function getWrappedName$1(outerType, innerType, wrapperName) {
+  var functionName = innerType.displayName || innerType.name || '';
+  return outerType.displayName || (functionName !== '' ? wrapperName + "(" + functionName + ")" : wrapperName);
+} // Keep in sync with shared/getComponentNameFromType
+
+
+function getContextName$1(type) {
+  return type.displayName || 'Context';
+}
+
+function getComponentNameFromFiber(fiber) {
+  var tag = fiber.tag,
+      type = fiber.type;
+
+  switch (tag) {
+    case CacheComponent:
+      return 'Cache';
+
+    case ContextConsumer:
+      var context = type;
+      return getContextName$1(context) + '.Consumer';
+
+    case ContextProvider:
+      var provider = type;
+      return getContextName$1(provider._context) + '.Provider';
+
+    case DehydratedFragment:
+      return 'DehydratedFragment';
+
+    case ForwardRef:
+      return getWrappedName$1(type, type.render, 'ForwardRef');
+
+    case Fragment:
+      return 'Fragment';
+
+    case HostResource:
+    case HostSingleton:
+    case HostComponent:
+      // Host component type is the display name (e.g. "div", "View")
+      return type;
+
+    case HostPortal:
+      return 'Portal';
+
+    case HostRoot:
+      return 'Root';
+
+    case HostText:
+      return 'Text';
+
+    case LazyComponent:
+      // Name comes from the type in this case; we don't have a tag.
+      return getComponentNameFromType(type);
+
+    case Mode:
+      if (type === REACT_STRICT_MODE_TYPE) {
+        // Don't be less specific than shared/getComponentNameFromType
+        return 'StrictMode';
+      }
+
+      return 'Mode';
+
+    case OffscreenComponent:
+      return 'Offscreen';
+
+    case Profiler:
+      return 'Profiler';
+
+    case ScopeComponent:
+      return 'Scope';
+
+    case SuspenseComponent:
+      return 'Suspense';
+
+    case SuspenseListComponent:
+      return 'SuspenseList';
+
+    case TracingMarkerComponent:
+      return 'TracingMarker';
+    // The display name for this tags come from the user-provided type:
+
+    case ClassComponent:
+    case FunctionComponent:
+    case IncompleteClassComponent:
+    case IndeterminateComponent:
+    case MemoComponent:
+    case SimpleMemoComponent:
+      if (typeof type === 'function') {
+        return type.displayName || type.name || null;
+      }
+
+      if (typeof type === 'string') {
+        return type;
+      }
+
+      break;
+
+  }
+
+  return null;
 }
 
 var ReactDebugCurrentFrame = ReactSharedInternals.ReactDebugCurrentFrame;
@@ -2740,6 +2181,12 @@ function postMountWrapper$1(element, props) {
   if (props.value != null) {
     element.setAttribute('value', toString(getToStringValue(props.value)));
   }
+}
+
+var isArrayImpl = Array.isArray; // eslint-disable-next-line no-redeclare
+
+function isArray(a) {
+  return isArrayImpl(a);
 }
 
 var didWarnValueDefaultValue$1;
@@ -4743,8 +4190,7 @@ var passiveBrowserEventsSupported = false; // Check if browser support events wi
 
 if (canUseDOM) {
   try {
-    var options = {}; // $FlowFixMe: Ignore Flow complaining about needing a value
-
+    var options = {};
     Object.defineProperty(options, 'passive', {
       get: function () {
         passiveBrowserEventsSupported = true;
@@ -4757,10 +4203,12 @@ if (canUseDOM) {
   }
 }
 
-function invokeGuardedCallbackProd(name, func, context, a, b, c, d, e, f) {
+function invokeGuardedCallbackProd(name, func, context) {
+  // $FlowFixMe[method-unbinding]
   var funcArgs = Array.prototype.slice.call(arguments, 3);
 
   try {
+    // $FlowFixMe[incompatible-call] Flow doesn't understand the arguments splicing.
     func.apply(context, funcArgs);
   } catch (error) {
     this.onError(error);
@@ -4790,10 +4238,11 @@ var invokeGuardedCallbackImpl = invokeGuardedCallbackProd;
   // try-catch. Neat!
   // Check that the browser supports the APIs we need to implement our special
   // DEV version of invokeGuardedCallback
-  if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function' && typeof document !== 'undefined' && typeof document.createEvent === 'function') {
+  if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function' && typeof document !== 'undefined' && // $FlowFixMe[method-unbinding]
+  typeof document.createEvent === 'function') {
     var fakeNode = document.createElement('react');
 
-    invokeGuardedCallbackImpl = function invokeGuardedCallbackDev(name, func, context, a, b, c, d, e, f) {
+    invokeGuardedCallbackImpl = function invokeGuardedCallbackDev(name, func, context) {
       // If document doesn't exist we know for sure we will crash in this method
       // when we call document.createEvent(). However this can cause confusing
       // errors: https://github.com/facebook/create-react-app/issues/3482
@@ -4835,13 +4284,15 @@ var invokeGuardedCallbackImpl = invokeGuardedCallbackProd;
       } // Create an event handler for our fake event. We will synchronously
       // dispatch our fake event using `dispatchEvent`. Inside the handler, we
       // call the user-provided callback.
+      // $FlowFixMe[method-unbinding]
 
 
       var funcArgs = Array.prototype.slice.call(arguments, 3);
 
       function callCallback() {
         didCall = true;
-        restoreAfterDispatch();
+        restoreAfterDispatch(); // $FlowFixMe[incompatible-call] Flow doesn't understand the arguments splicing.
+
         func.apply(context, funcArgs);
         didError = false;
       } // Create a global error event handler. We use this to capture the value
@@ -5005,6 +4456,439 @@ function clearCaughtError() {
   } else {
     throw new Error('clearCaughtError was called but no error was captured. This error ' + 'is likely caused by a bug in React. Please file an issue.');
   }
+}
+
+/**
+ * `ReactInstanceMap` maintains a mapping from a public facing stateful
+ * instance (key) and the internal representation (value). This allows public
+ * methods to accept the user facing instance as an argument and map them back
+ * to internal methods.
+ *
+ * Note that this module is currently shared and assumed to be stateless.
+ * If this becomes an actual Map, that will break.
+ */
+function get(key) {
+  return key._reactInternals;
+}
+function has(key) {
+  return key._reactInternals !== undefined;
+}
+function set(key, value) {
+  key._reactInternals = value;
+}
+
+// Don't change these two values. They're used by React Dev Tools.
+var NoFlags =
+/*                      */
+0;
+var PerformedWork =
+/*                */
+1; // You can change the rest (and add more).
+
+var Placement =
+/*                    */
+2;
+var Update =
+/*                       */
+4;
+var ChildDeletion =
+/*                */
+8;
+var ContentReset =
+/*                 */
+16;
+var Callback =
+/*                     */
+32;
+var DidCapture =
+/*                   */
+64;
+var ForceClientRender =
+/*            */
+128;
+var Ref =
+/*                          */
+256;
+var Snapshot =
+/*                     */
+512;
+var Passive =
+/*                      */
+1024;
+var Hydrating =
+/*                    */
+2048;
+var Visibility =
+/*                   */
+4096;
+var StoreConsistency =
+/*             */
+8192;
+var LifecycleEffectMask = Passive | Update | Callback | Ref | Snapshot | StoreConsistency; // Union of all commit flags (flags with the lifetime of a particular commit)
+
+var HostEffectMask =
+/*               */
+16383; // These are not really side effects, but we still reuse this field.
+
+var Incomplete =
+/*                   */
+16384;
+var ShouldCapture =
+/*                */
+32768;
+var ForceUpdateForLegacySuspense =
+/* */
+65536;
+var Forked =
+/*                       */
+524288; // Static tags describe aspects of a fiber that are not specific to a render,
+// e.g. a fiber uses a passive effect (even if there are no updates on this particular render).
+// This enables us to defer more work in the unmount case,
+// since we can defer traversing the tree during layout to look for Passive effects,
+// and instead rely on the static flag as a signal that there may be cleanup work.
+
+var RefStatic =
+/*                    */
+1048576;
+var LayoutStatic =
+/*                 */
+2097152;
+var PassiveStatic =
+/*                */
+4194304; // Flag used to identify newly inserted fibers. It isn't reset after commit unlike `Placement`.
+
+var PlacementDEV =
+/*                 */
+8388608;
+var MountLayoutDev =
+/*               */
+16777216;
+var MountPassiveDev =
+/*              */
+33554432; // Groups of flags that are used in the commit phase to skip over trees that
+// don't contain effects, by checking subtreeFlags.
+
+var BeforeMutationMask = // TODO: Remove Update flag from before mutation phase by re-landing Visibility
+// flag logic (see #20043)
+Update | Snapshot | ( 0);
+var MutationMask = Placement | Update | ChildDeletion | ContentReset | Ref | Hydrating | Visibility;
+var LayoutMask = Update | Callback | Ref | Visibility; // TODO: Split into PassiveMountMask and PassiveUnmountMask
+
+var PassiveMask = Passive | Visibility | ChildDeletion; // Union of tags that don't get reset on clones.
+// This allows certain concepts to persist without recalculating them,
+// e.g. whether a subtree contains passive effects or portals.
+
+var StaticMask = LayoutStatic | PassiveStatic | RefStatic;
+
+var ReactCurrentOwner = ReactSharedInternals.ReactCurrentOwner;
+function getNearestMountedFiber(fiber) {
+  var node = fiber;
+  var nearestMounted = fiber;
+
+  if (!fiber.alternate) {
+    // If there is no alternate, this might be a new tree that isn't inserted
+    // yet. If it is, then it will have a pending insertion effect on it.
+    var nextNode = node;
+
+    do {
+      node = nextNode;
+
+      if ((node.flags & (Placement | Hydrating)) !== NoFlags) {
+        // This is an insertion or in-progress hydration. The nearest possible
+        // mounted fiber is the parent but we need to continue to figure out
+        // if that one is still mounted.
+        nearestMounted = node.return;
+      } // $FlowFixMe[incompatible-type] we bail out when we get a null
+
+
+      nextNode = node.return;
+    } while (nextNode);
+  } else {
+    while (node.return) {
+      node = node.return;
+    }
+  }
+
+  if (node.tag === HostRoot) {
+    // TODO: Check if this was a nested HostRoot when used with
+    // renderContainerIntoSubtree.
+    return nearestMounted;
+  } // If we didn't hit the root, that means that we're in an disconnected tree
+  // that has been unmounted.
+
+
+  return null;
+}
+function getSuspenseInstanceFromFiber(fiber) {
+  if (fiber.tag === SuspenseComponent) {
+    var suspenseState = fiber.memoizedState;
+
+    if (suspenseState === null) {
+      var current = fiber.alternate;
+
+      if (current !== null) {
+        suspenseState = current.memoizedState;
+      }
+    }
+
+    if (suspenseState !== null) {
+      return suspenseState.dehydrated;
+    }
+  }
+
+  return null;
+}
+function getContainerFromFiber(fiber) {
+  return fiber.tag === HostRoot ? fiber.stateNode.containerInfo : null;
+}
+function isFiberMounted(fiber) {
+  return getNearestMountedFiber(fiber) === fiber;
+}
+function isMounted(component) {
+  {
+    var owner = ReactCurrentOwner.current;
+
+    if (owner !== null && owner.tag === ClassComponent) {
+      var ownerFiber = owner;
+      var instance = ownerFiber.stateNode;
+
+      if (!instance._warnedAboutRefsInRender) {
+        error('%s is accessing isMounted inside its render() function. ' + 'render() should be a pure function of props and state. It should ' + 'never access something that requires stale data from the previous ' + 'render, such as refs. Move this logic to componentDidMount and ' + 'componentDidUpdate instead.', getComponentNameFromFiber(ownerFiber) || 'A component');
+      }
+
+      instance._warnedAboutRefsInRender = true;
+    }
+  }
+
+  var fiber = get(component);
+
+  if (!fiber) {
+    return false;
+  }
+
+  return getNearestMountedFiber(fiber) === fiber;
+}
+
+function assertIsMounted(fiber) {
+  if (getNearestMountedFiber(fiber) !== fiber) {
+    throw new Error('Unable to find node on an unmounted component.');
+  }
+}
+
+function findCurrentFiberUsingSlowPath(fiber) {
+  var alternate = fiber.alternate;
+
+  if (!alternate) {
+    // If there is no alternate, then we only need to check if it is mounted.
+    var nearestMounted = getNearestMountedFiber(fiber);
+
+    if (nearestMounted === null) {
+      throw new Error('Unable to find node on an unmounted component.');
+    }
+
+    if (nearestMounted !== fiber) {
+      return null;
+    }
+
+    return fiber;
+  } // If we have two possible branches, we'll walk backwards up to the root
+  // to see what path the root points to. On the way we may hit one of the
+  // special cases and we'll deal with them.
+
+
+  var a = fiber;
+  var b = alternate;
+
+  while (true) {
+    var parentA = a.return;
+
+    if (parentA === null) {
+      // We're at the root.
+      break;
+    }
+
+    var parentB = parentA.alternate;
+
+    if (parentB === null) {
+      // There is no alternate. This is an unusual case. Currently, it only
+      // happens when a Suspense component is hidden. An extra fragment fiber
+      // is inserted in between the Suspense fiber and its children. Skip
+      // over this extra fragment fiber and proceed to the next parent.
+      var nextParent = parentA.return;
+
+      if (nextParent !== null) {
+        a = b = nextParent;
+        continue;
+      } // If there's no parent, we're at the root.
+
+
+      break;
+    } // If both copies of the parent fiber point to the same child, we can
+    // assume that the child is current. This happens when we bailout on low
+    // priority: the bailed out fiber's child reuses the current child.
+
+
+    if (parentA.child === parentB.child) {
+      var child = parentA.child;
+
+      while (child) {
+        if (child === a) {
+          // We've determined that A is the current branch.
+          assertIsMounted(parentA);
+          return fiber;
+        }
+
+        if (child === b) {
+          // We've determined that B is the current branch.
+          assertIsMounted(parentA);
+          return alternate;
+        }
+
+        child = child.sibling;
+      } // We should never have an alternate for any mounting node. So the only
+      // way this could possibly happen is if this was unmounted, if at all.
+
+
+      throw new Error('Unable to find node on an unmounted component.');
+    }
+
+    if (a.return !== b.return) {
+      // The return pointer of A and the return pointer of B point to different
+      // fibers. We assume that return pointers never criss-cross, so A must
+      // belong to the child set of A.return, and B must belong to the child
+      // set of B.return.
+      a = parentA;
+      b = parentB;
+    } else {
+      // The return pointers point to the same fiber. We'll have to use the
+      // default, slow path: scan the child sets of each parent alternate to see
+      // which child belongs to which set.
+      //
+      // Search parent A's child set
+      var didFindChild = false;
+      var _child = parentA.child;
+
+      while (_child) {
+        if (_child === a) {
+          didFindChild = true;
+          a = parentA;
+          b = parentB;
+          break;
+        }
+
+        if (_child === b) {
+          didFindChild = true;
+          b = parentA;
+          a = parentB;
+          break;
+        }
+
+        _child = _child.sibling;
+      }
+
+      if (!didFindChild) {
+        // Search parent B's child set
+        _child = parentB.child;
+
+        while (_child) {
+          if (_child === a) {
+            didFindChild = true;
+            a = parentB;
+            b = parentA;
+            break;
+          }
+
+          if (_child === b) {
+            didFindChild = true;
+            b = parentB;
+            a = parentA;
+            break;
+          }
+
+          _child = _child.sibling;
+        }
+
+        if (!didFindChild) {
+          throw new Error('Child was not found in either parent set. This indicates a bug ' + 'in React related to the return pointer. Please file an issue.');
+        }
+      }
+    }
+
+    if (a.alternate !== b) {
+      throw new Error("Return fibers should always be each others' alternates. " + 'This error is likely caused by a bug in React. Please file an issue.');
+    }
+  } // If the root is not a host container, we're in a disconnected tree. I.e.
+  // unmounted.
+
+
+  if (a.tag !== HostRoot) {
+    throw new Error('Unable to find node on an unmounted component.');
+  }
+
+  if (a.stateNode.current === a) {
+    // We've determined that A is the current branch.
+    return fiber;
+  } // Otherwise B has to be current branch.
+
+
+  return alternate;
+}
+function findCurrentHostFiber(parent) {
+  var currentParent = findCurrentFiberUsingSlowPath(parent);
+  return currentParent !== null ? findCurrentHostFiberImpl(currentParent) : null;
+}
+
+function findCurrentHostFiberImpl(node) {
+  // Next we'll drill down this component to find the first HostComponent/Text.
+  var tag = node.tag;
+
+  if (tag === HostComponent || ( tag === HostResource ) || ( tag === HostSingleton ) || tag === HostText) {
+    return node;
+  }
+
+  var child = node.child;
+
+  while (child !== null) {
+    var match = findCurrentHostFiberImpl(child);
+
+    if (match !== null) {
+      return match;
+    }
+
+    child = child.sibling;
+  }
+
+  return null;
+}
+
+function findCurrentHostFiberWithNoPortals(parent) {
+  var currentParent = findCurrentFiberUsingSlowPath(parent);
+  return currentParent !== null ? findCurrentHostFiberWithNoPortalsImpl(currentParent) : null;
+}
+
+function findCurrentHostFiberWithNoPortalsImpl(node) {
+  // Next we'll drill down this component to find the first HostComponent/Text.
+  var tag = node.tag;
+
+  if (tag === HostComponent || ( tag === HostResource ) || ( tag === HostSingleton ) || tag === HostText) {
+    return node;
+  }
+
+  var child = node.child;
+
+  while (child !== null) {
+    if (child.tag !== HostPortal) {
+      var match = findCurrentHostFiberWithNoPortalsImpl(child);
+
+      if (match !== null) {
+        return match;
+      }
+    }
+
+    child = child.sibling;
+  }
+
+  return null;
 }
 
 // This module only exists as an ESM wrapper around the external CommonJS
@@ -7158,7 +7042,8 @@ function createSyntheticEvent(Interface) {
 
     this.isPropagationStopped = functionThatReturnsFalse;
     return this;
-  }
+  } // $FlowFixMe[prop-missing] found when upgrading Flow
+
 
   assign(SyntheticBaseEvent.prototype, {
     preventDefault: function () {
@@ -7800,7 +7685,6 @@ function extractCompositionEvent(dispatchQueue, domEventName, targetInst, native
   var listeners = accumulateTwoPhaseListeners(targetInst, eventType);
 
   if (listeners.length > 0) {
-    // $FlowFixMe[incompatible-type]
     var event = new SyntheticCompositionEvent(eventType, domEventName, null, nativeEvent, nativeEventTarget);
     dispatchQueue.push({
       event: event,
@@ -7963,7 +7847,6 @@ function extractBeforeInputEvent(dispatchQueue, domEventName, targetInst, native
   var listeners = accumulateTwoPhaseListeners(targetInst, 'onBeforeInput');
 
   if (listeners.length > 0) {
-    // $FlowFixMe[incompatible-type]
     var event = new SyntheticInputEvent('onBeforeInput', 'beforeinput', null, nativeEvent, nativeEventTarget);
     dispatchQueue.push({
       event: event,
@@ -8074,7 +7957,6 @@ function createAndAccumulateChangeEvent(dispatchQueue, inst, nativeEvent, target
   var listeners = accumulateTwoPhaseListeners(inst, 'onChange');
 
   if (listeners.length > 0) {
-    // $FlowFixMe[incompatible-type]
     var event = new SyntheticEvent('onChange', 'change', null, nativeEvent, target);
     dispatchQueue.push({
       event: event,
@@ -8376,8 +8258,9 @@ function extractEvents$2(dispatchQueue, domEventName, targetInst, nativeEvent, n
 
     if (to !== null) {
       var nearestMounted = getNearestMountedFiber(to);
+      var tag = to.tag;
 
-      if (to !== nearestMounted || to.tag !== HostComponent && to.tag !== HostText) {
+      if (to !== nearestMounted || tag !== HostComponent && ( tag !== HostSingleton) && tag !== HostText) {
         to = null;
       }
     }
@@ -8405,9 +8288,7 @@ function extractEvents$2(dispatchQueue, domEventName, targetInst, nativeEvent, n
   }
 
   var fromNode = from == null ? win : getNodeFromInstance(from);
-  var toNode = to == null ? win : getNodeFromInstance(to); // $FlowFixMe[prop-missing]
-  // $FlowFixMe[incompatible-type]
-
+  var toNode = to == null ? win : getNodeFromInstance(to);
   var leave = new SyntheticEventCtor(leaveEventType, eventTypePrefix + 'leave', from, nativeEvent, nativeEventTarget);
   leave.target = fromNode;
   leave.relatedTarget = toNode;
@@ -8417,7 +8298,6 @@ function extractEvents$2(dispatchQueue, domEventName, targetInst, nativeEvent, n
   var nativeTargetInst = getClosestInstanceFromNode(nativeEventTarget);
 
   if (nativeTargetInst === targetInst) {
-    // $FlowFixMe[prop-missing]
     var enterEvent = new SyntheticEventCtor(enterEventType, eventTypePrefix + 'enter', to, nativeEvent, nativeEventTarget);
     enterEvent.target = toNode;
     enterEvent.relatedTarget = fromNode;
@@ -8436,7 +8316,8 @@ function is(x, y) {
   ;
 }
 
-var objectIs = typeof Object.is === 'function' ? Object.is : is;
+var objectIs = // $FlowFixMe[method-unbinding]
+typeof Object.is === 'function' ? Object.is : is;
 
 /**
  * Performs equality by iterating through keys on an object and returning false
@@ -8955,7 +8836,6 @@ function constructSelectEvent(dispatchQueue, nativeEvent, nativeEventTarget) {
     var listeners = accumulateTwoPhaseListeners(activeElementInst$1, 'onSelect');
 
     if (listeners.length > 0) {
-      // $FlowFixMe[incompatible-type]
       var event = new SyntheticEvent('onSelect', 'select', null, nativeEvent, nativeEventTarget);
       dispatchQueue.push({
         event: event,
@@ -9294,7 +9174,6 @@ function extractEvents$4(dispatchQueue, domEventName, targetInst, nativeEvent, n
 
     if (_listeners.length > 0) {
       // Intentionally create event lazily.
-      // $FlowFixMe[incompatible-type]
       var _event = new SyntheticEventCtor(reactName, reactEventType, null, nativeEvent, nativeEventTarget);
 
       dispatchQueue.push({
@@ -9588,7 +9467,7 @@ function dispatchEventForPluginEventSystem(domEventName, eventSystemFlags, nativ
 
             var parentTag = parentNode.tag;
 
-            if (parentTag === HostComponent || parentTag === HostText) {
+            if (parentTag === HostComponent || parentTag === HostText || ( parentTag === HostResource ) || ( parentTag === HostSingleton )) {
               node = ancestorInst = parentNode;
               continue mainLoop;
             }
@@ -9627,7 +9506,7 @@ function accumulateSinglePhaseListeners(targetFiber, reactName, nativeEventType,
         stateNode = _instance2.stateNode,
         tag = _instance2.tag; // Handle listeners that are on HostComponents (i.e. <div>)
 
-    if (tag === HostComponent && stateNode !== null) {
+    if ((tag === HostComponent || ( tag === HostResource ) || ( tag === HostSingleton )) && stateNode !== null) {
       lastHostComponent = stateNode; // createEventHandle listeners
 
 
@@ -9669,7 +9548,7 @@ function accumulateTwoPhaseListeners(targetFiber, reactName) {
         stateNode = _instance3.stateNode,
         tag = _instance3.tag; // Handle listeners that are on HostComponents (i.e. <div>)
 
-    if (tag === HostComponent && stateNode !== null) {
+    if ((tag === HostComponent || ( tag === HostResource ) || ( tag === HostSingleton )) && stateNode !== null) {
       var currentTarget = stateNode;
       var captureListener = getListener(instance, captureName);
 
@@ -9696,12 +9575,13 @@ function getParent(inst) {
   }
 
   do {
+    // $FlowFixMe[incompatible-use] found when upgrading Flow
     inst = inst.return; // TODO: If this is a HostRoot we might want to bail out.
     // That is depending on if we want nested subtrees (layers) to bubble
     // events to their parent. We could also go through parentNode on the
     // host node but that wouldn't work for React Native and doesn't let us
     // do the portal feature.
-  } while (inst && inst.tag !== HostComponent);
+  } while (inst && inst.tag !== HostComponent && ( inst.tag !== HostSingleton));
 
   if (inst) {
     return inst;
@@ -9776,7 +9656,7 @@ function accumulateEnterLeaveListenersForEvent(dispatchQueue, event, target, com
       break;
     }
 
-    if (tag === HostComponent && stateNode !== null) {
+    if ((tag === HostComponent || ( tag === HostResource ) || ( tag === HostSingleton )) && stateNode !== null) {
       var currentTarget = stateNode;
 
       if (inCapturePhase) {
@@ -10015,13 +9895,17 @@ function setInitialDOMProperties(tag, domElement, nextProps, isCustomComponentTa
         // textContent on a <textarea> will cause the placeholder to not
         // show within the <textarea> until it has been focused and blurred again.
         // https://github.com/facebook/react/issues/6731#issuecomment-254874553
-        var canSetTextContent = tag !== 'textarea' || nextProp !== '';
+        var canSetTextContent = ( tag !== 'body') && (tag !== 'textarea' || nextProp !== '');
 
         if (canSetTextContent) {
           setTextContent(domElement, nextProp);
         }
       } else if (typeof nextProp === 'number') {
-        setTextContent(domElement, '' + nextProp);
+        var _canSetTextContent =  tag !== 'body';
+
+        if (_canSetTextContent) {
+          setTextContent(domElement, '' + nextProp);
+        }
       }
     } else if (propKey === SUPPRESS_CONTENT_EDITABLE_WARNING || propKey === SUPPRESS_HYDRATION_WARNING) ; else if (propKey === AUTOFOCUS) ; else if (registrationNameDependencies.hasOwnProperty(propKey)) {
       if (nextProp != null) {
@@ -10090,7 +9974,6 @@ function createElement(type, props, rootContainerElement, parentNamespace) {
       var firstChild = div.firstChild;
       domElement = div.removeChild(firstChild);
     } else if (typeof props.is === 'string') {
-      // $FlowFixMe `createElement` should be updated for Web Components
       domElement = ownerDocument.createElement(type, {
         is: props.is
       });
@@ -10127,7 +10010,8 @@ function createElement(type, props, rootContainerElement, parentNamespace) {
 
   {
     if (namespaceURI === HTML_NAMESPACE) {
-      if (!isCustomComponentTag && Object.prototype.toString.call(domElement) === '[object HTMLUnknownElement]' && !hasOwnProperty.call(warnedUnknownTags, type)) {
+      if (!isCustomComponentTag && // $FlowFixMe[method-unbinding]
+      Object.prototype.toString.call(domElement) === '[object HTMLUnknownElement]' && !hasOwnProperty.call(warnedUnknownTags, type)) {
         warnedUnknownTags[type] = true;
 
         error('The tag <%s> is unrecognized in this browser. ' + 'If you meant to render a React component, start its name with ' + 'an uppercase letter.', type);
@@ -10654,13 +10538,7 @@ function diffHydratedProperties(domElement, tag, rawProps, parentNamespace, isCo
       var serverValue = void 0;
       var propertyInfo = isCustomComponentTag && enableCustomElementPropertySupport ? null : getPropertyInfo(propKey);
 
-      if (rawProps[SUPPRESS_HYDRATION_WARNING] === true) ; else if ( tag === 'link' && rawProps.rel === 'stylesheet' && propKey === 'precedence') {
-        // @TODO this is a temporary rule while we haven't implemented HostResources yet. This is used to allow
-        // for hydrating Resources (at the moment, stylesheets with a precedence prop) by using a data attribute.
-        // When we implement HostResources there will be no hydration directly so this code can be deleted
-        // $FlowFixMe - Should be inferred as not undefined.
-        extraAttributeNames.delete('data-rprec');
-      } else if (propKey === SUPPRESS_CONTENT_EDITABLE_WARNING || propKey === SUPPRESS_HYDRATION_WARNING || // Controlled attributes are not validated
+      if (rawProps[SUPPRESS_HYDRATION_WARNING] === true) ; else if (propKey === SUPPRESS_CONTENT_EDITABLE_WARNING || propKey === SUPPRESS_HYDRATION_WARNING || // Controlled attributes are not validated
       // TODO: Only ignore them on controlled tags.
       propKey === 'value' || propKey === 'checked' || propKey === 'selected') ; else if (propKey === DANGEROUSLY_SET_INNER_HTML) {
         var serverHTML = domElement.innerHTML;
@@ -11181,6 +11059,1140 @@ var updatedAncestorInfo = function () {};
   };
 }
 
+function validateUnmatchedLinkResourceProps(pendingProps, currentProps) {
+  {
+    if (currentProps != null) {
+      var originalResourceName = typeof currentProps.href === 'string' ? "Resource with href \"" + currentProps.href + "\"" : 'Resource';
+      var originalRelStatement = getValueDescriptorExpectingEnumForWarning(currentProps.rel);
+      var pendingRelStatement = getValueDescriptorExpectingEnumForWarning(pendingProps.rel);
+      var pendingHrefStatement = typeof pendingProps.href === 'string' ? " and the updated href is \"" + pendingProps.href + "\"" : '';
+
+      error('A <link> previously rendered as a %s but was updated with a rel type that is not' + ' valid for a Resource type. Generally Resources are not expected to ever have updated' + ' props however in some limited circumstances it can be valid when changing the href.' + ' When React encounters props that invalidate the Resource it is the same as not rendering' + ' a Resource at all. valid rel types for Resources are "stylesheet" and "preload". The previous' + ' rel for this instance was %s. The updated rel is %s%s.', originalResourceName, originalRelStatement, pendingRelStatement, pendingHrefStatement);
+    } else {
+      var _pendingRelStatement = getValueDescriptorExpectingEnumForWarning(pendingProps.rel);
+
+      error('A <link> is rendering as a Resource but has an invalid rel property. The rel encountered is %s.' + ' This is a bug in React.', _pendingRelStatement);
+    }
+  }
+}
+function validatePreloadResourceDifference(originalProps, originalImplicit, latestProps, latestImplicit) {
+  {
+    var href = originalProps.href;
+    var originalWarningName = getResourceNameForWarning('preload', originalProps, originalImplicit);
+    var latestWarningName = getResourceNameForWarning('preload', latestProps, latestImplicit);
+
+    if (latestProps.as !== originalProps.as) {
+      error('A %s is using the same href "%s" as a %s. This is always an error and React will only keep the first preload' + ' for any given href, discarding subsequent instances. To fix, find where you are using this href in link' + ' tags or in calls to ReactDOM.preload() or ReactDOM.preinit() and either make the Resource types agree or' + ' update the hrefs to be distinct for different Resource types.', latestWarningName, href, originalWarningName);
+    } else {
+      var missingProps = null;
+      var extraProps = null;
+      var differentProps = null;
+
+      if (originalProps.media != null && latestProps.media == null) {
+        missingProps = missingProps || {};
+        missingProps.media = originalProps.media;
+      }
+
+      for (var propName in latestProps) {
+        var propValue = latestProps[propName];
+        var originalValue = originalProps[propName];
+
+        if (propValue != null && propValue !== originalValue) {
+          if (originalValue == null) {
+            extraProps = extraProps || {};
+            extraProps[propName] = propValue;
+          } else {
+            differentProps = differentProps || {};
+            differentProps[propName] = {
+              original: originalValue,
+              latest: propValue
+            };
+          }
+        }
+      }
+
+      if (missingProps || extraProps || differentProps) {
+        warnDifferentProps(href, originalWarningName, latestWarningName, extraProps, missingProps, differentProps);
+      }
+    }
+  }
+}
+function validateStyleResourceDifference(originalProps, latestProps) {
+  {
+    var href = originalProps.href; // eslint-disable-next-line no-labels
+
+    var originalWarningName = getResourceNameForWarning('style', originalProps, false);
+    var latestWarningName = getResourceNameForWarning('style', latestProps, false);
+    var missingProps = null;
+    var extraProps = null;
+    var differentProps = null;
+
+    if (originalProps.media != null && latestProps.media == null) {
+      missingProps = missingProps || {};
+      missingProps.media = originalProps.media;
+    }
+
+    for (var propName in latestProps) {
+      var propValue = latestProps[propName];
+      var originalValue = originalProps[propName];
+
+      if (propValue != null && propValue !== originalValue) {
+        propName = propName === 'data-rprec' ? 'precedence' : propName;
+
+        if (originalValue == null) {
+          extraProps = extraProps || {};
+          extraProps[propName] = propValue;
+        } else {
+          differentProps = differentProps || {};
+          differentProps[propName] = {
+            original: originalValue,
+            latest: propValue
+          };
+        }
+      }
+    }
+
+    if (missingProps || extraProps || differentProps) {
+      warnDifferentProps(href, originalWarningName, latestWarningName, extraProps, missingProps, differentProps);
+    }
+  }
+}
+
+function warnDifferentProps(href, originalName, latestName, extraProps, missingProps, differentProps) {
+  {
+    var juxtaposedNameStatement = latestName === originalName ? 'an earlier instance of this Resource' : "a " + originalName + " with the same href";
+    var comparisonStatement = '';
+
+    if (missingProps !== null && typeof missingProps === 'object') {
+      for (var propName in missingProps) {
+        comparisonStatement += "\n  " + propName + ": missing or null in latest props, \"" + missingProps[propName] + "\" in original props";
+      }
+    }
+
+    if (extraProps !== null && typeof extraProps === 'object') {
+      for (var _propName in extraProps) {
+        comparisonStatement += "\n  " + _propName + ": \"" + extraProps[_propName] + "\" in latest props, missing or null in original props";
+      }
+    }
+
+    if (differentProps !== null && typeof differentProps === 'object') {
+      for (var _propName2 in differentProps) {
+        comparisonStatement += "\n  " + _propName2 + ": \"" + differentProps[_propName2].latest + "\" in latest props, \"" + differentProps[_propName2].original + "\" in original props";
+      }
+    }
+
+    error('A %s with href "%s" has props that disagree with those found on %s. Resources always use the props' + ' that were provided the first time they are encountered so any differences will be ignored. Please' + ' update Resources that share an href to have props that agree. The differences are described below.%s', latestName, href, juxtaposedNameStatement, comparisonStatement);
+  }
+}
+
+function getResourceNameForWarning(type, props, implicit) {
+  {
+    switch (type) {
+      case 'style':
+        {
+          return 'style Resource';
+        }
+
+      case 'preload':
+        {
+          if (implicit) {
+            return "preload for a " + props.as + " Resource";
+          }
+
+          return "preload Resource (as \"" + props.as + "\")";
+        }
+    }
+  }
+
+  return 'Resource';
+}
+
+function validateHrefKeyedUpdatedProps(pendingProps, currentProps) {
+  {
+    // This function should never be called if we don't have hrefs so we don't bother considering
+    // Whether they are null or undefined
+    if (pendingProps.href === currentProps.href) {
+      // If we have the same href we need all other props to be the same
+      var missingProps;
+      var extraProps;
+      var differentProps;
+      var allProps = Array.from(new Set(Object.keys(currentProps).concat(Object.keys(pendingProps))));
+
+      for (var i = 0; i < allProps.length; i++) {
+        var propName = allProps[i];
+        var pendingValue = pendingProps[propName];
+        var currentValue = currentProps[propName];
+
+        if (pendingValue !== currentValue && !(pendingValue == null && currentValue == null)) {
+          if (pendingValue == null) {
+            missingProps = missingProps || {};
+            missingProps[propName] = currentValue;
+          } else if (currentValue == null) {
+            extraProps = extraProps || {};
+            extraProps[propName] = pendingValue;
+          } else {
+            differentProps = differentProps || {};
+            differentProps[propName] = {
+              original: currentValue,
+              latest: pendingValue
+            };
+          }
+        }
+      }
+
+      if (missingProps || extraProps || differentProps) {
+        var latestWarningName = getResourceNameForWarning('style', currentProps, false);
+        var comparisonStatement = '';
+
+        if (missingProps !== null && typeof missingProps === 'object') {
+          for (var _propName3 in missingProps) {
+            comparisonStatement += "\n  " + _propName3 + ": missing or null in latest props, \"" + missingProps[_propName3] + "\" in original props";
+          }
+        }
+
+        if (extraProps !== null && typeof extraProps === 'object') {
+          for (var _propName4 in extraProps) {
+            comparisonStatement += "\n  " + _propName4 + ": \"" + extraProps[_propName4] + "\" in latest props, missing or null in original props";
+          }
+        }
+
+        if (differentProps !== null && typeof differentProps === 'object') {
+          for (var _propName5 in differentProps) {
+            comparisonStatement += "\n  " + _propName5 + ": \"" + differentProps[_propName5].latest + "\" in latest props, \"" + differentProps[_propName5].original + "\" in original props";
+          }
+        }
+
+        error('A %s with href "%s" recieved new props with different values from the props used' + ' when this Resource was first rendered. React will only use the props provided when' + ' this resource was first rendered until a new href is provided. Unlike conventional' + ' DOM elements, Resources instances do not have a one to one correspondence with Elements' + ' in the DOM and as such, every instance of a Resource for a single Resource identifier' + ' (href) must have props that agree with each other. The differences are described below.%s', latestWarningName, currentProps.href, comparisonStatement);
+
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+function validateLinkPropsForStyleResource(props) {
+  {
+    // This should only be called when we know we are opting into Resource semantics (i.e. precedence is not null)
+    var href = props.href,
+        onLoad = props.onLoad,
+        onError = props.onError,
+        disabled = props.disabled;
+    var allProps = ['onLoad', 'onError', 'disabled'];
+    var includedProps = [];
+    if (onLoad) includedProps.push('onLoad');
+    if (onError) includedProps.push('onError');
+    if (disabled != null) includedProps.push('disabled');
+    var allPropsUnionPhrase = propNamesListJoin(allProps, 'or');
+    var includedPropsPhrase = propNamesListJoin(includedProps, 'and');
+    includedPropsPhrase += includedProps.length === 1 ? ' prop' : ' props';
+
+    if (includedProps.length) {
+      error('A link (rel="stylesheet") element with href "%s" has the precedence prop but also included the %s.' + ' When using %s React will opt out of Resource behavior. If you meant for this' + ' element to be treated as a Resource remove the %s. Otherwise remove the precedence prop.', href, includedPropsPhrase, allPropsUnionPhrase, includedPropsPhrase);
+
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function propNamesListJoin(list, combinator) {
+  switch (list.length) {
+    case 0:
+      return '';
+
+    case 1:
+      return list[0];
+
+    case 2:
+      return list[0] + ' ' + combinator + ' ' + list[1];
+
+    default:
+      return list.slice(0, -1).join(', ') + ', ' + combinator + ' ' + list[list.length - 1];
+  }
+}
+
+function validateLinkPropsForPreloadResource(linkProps) {
+  {
+    var href = linkProps.href,
+        as = linkProps.as;
+
+    if (as === 'font') {
+      var name = getResourceNameForWarning('preload', linkProps, false);
+
+      if (!hasOwnProperty.call(linkProps, 'crossOrigin')) {
+        error('A %s with href "%s" did not specify the crossOrigin prop. Font preloads must always use' + ' anonymouse CORS mode. To fix add an empty string, "anonymous", or any other string' + ' value except "use-credentials" for the crossOrigin prop of all font preloads.', name, href);
+      } else if (linkProps.crossOrigin === 'use-credentials') {
+        error('A %s with href "%s" specified a crossOrigin value of "use-credentials". Font preloads must always use' + ' anonymouse CORS mode. To fix use an empty string, "anonymous", or any other string' + ' value except "use-credentials" for the crossOrigin prop of all font preloads.', name, href);
+      }
+    }
+  }
+}
+function validatePreloadArguments(href, options) {
+  {
+    if (!href || typeof href !== 'string') {
+      var typeOfArg = getValueDescriptorExpectingObjectForWarning(href);
+
+      error('ReactDOM.preload() expected the first argument to be a string representing an href but found %s instead.', typeOfArg);
+    } else if (typeof options !== 'object' || options === null) {
+      var _typeOfArg = getValueDescriptorExpectingObjectForWarning(options);
+
+      error('ReactDOM.preload() expected the second argument to be an options argument containing at least an "as" property' + ' specifying the Resource type. It found %s instead. The href for the preload call where this warning originated is "%s".', _typeOfArg, href);
+    } else {
+      var as = options.as;
+
+      switch (as) {
+        // Font specific validation of options
+        case 'font':
+          {
+            if (options.crossOrigin === 'use-credentials') {
+              error('ReactDOM.preload() was called with an "as" type of "font" and with a "crossOrigin" option of "use-credentials".' + ' Fonts preloading must use crossOrigin "anonymous" to be functional. Please update your font preload to omit' + ' the crossOrigin option or change it to any other value than "use-credentials" (Browsers default all other values' + ' to anonymous mode). The href for the preload call where this warning originated is "%s"', href);
+            }
+
+            break;
+          }
+
+        case 'script':
+        case 'style':
+          {
+            break;
+          }
+        // We have an invalid as type and need to warn
+
+        default:
+          {
+            var typeOfAs = getValueDescriptorExpectingEnumForWarning(as);
+
+            error('ReactDOM.preload() expected a valid "as" type in the options (second) argument but found %s instead.' + ' Please use one of the following valid values instead: %s. The href for the preload call where this' + ' warning originated is "%s".', typeOfAs, '"style", "font", or "script"', href);
+          }
+      }
+    }
+  }
+}
+function validatePreinitArguments(href, options) {
+  {
+    if (!href || typeof href !== 'string') {
+      var typeOfArg = getValueDescriptorExpectingObjectForWarning(href);
+
+      error('ReactDOM.preinit() expected the first argument to be a string representing an href but found %s instead.', typeOfArg);
+    } else if (typeof options !== 'object' || options === null) {
+      var _typeOfArg2 = getValueDescriptorExpectingObjectForWarning(options);
+
+      error('ReactDOM.preinit() expected the second argument to be an options argument containing at least an "as" property' + ' specifying the Resource type. It found %s instead. The href for the preload call where this warning originated is "%s".', _typeOfArg2, href);
+    } else {
+      var as = options.as;
+
+      switch (as) {
+        case 'style':
+          {
+            break;
+          }
+        // We have an invalid as type and need to warn
+
+        default:
+          {
+            var typeOfAs = getValueDescriptorExpectingEnumForWarning(as);
+
+            error('ReactDOM.preinit() expected the second argument to be an options argument containing at least an "as" property' + ' specifying the Resource type. It found %s instead. Currently, the only valid resource type for preinit is "style".' + ' The href for the preinit call where this warning originated is "%s".', typeOfAs, href);
+          }
+      }
+    }
+  }
+}
+
+function getValueDescriptorExpectingObjectForWarning(thing) {
+  return thing === null ? 'null' : thing === undefined ? 'undefined' : thing === '' ? 'an empty string' : "something with type \"" + typeof thing + "\"";
+}
+
+function getValueDescriptorExpectingEnumForWarning(thing) {
+  return thing === null ? 'null' : thing === undefined ? 'undefined' : thing === '' ? 'an empty string' : typeof thing === 'string' ? JSON.stringify(thing) : "something with type \"" + typeof thing + "\"";
+}
+
+var valueStack = [];
+var fiberStack;
+
+{
+  fiberStack = [];
+}
+
+var index = -1;
+
+function createCursor(defaultValue) {
+  return {
+    current: defaultValue
+  };
+}
+
+function pop(cursor, fiber) {
+  if (index < 0) {
+    {
+      error('Unexpected pop.');
+    }
+
+    return;
+  }
+
+  {
+    if (fiber !== fiberStack[index]) {
+      error('Unexpected Fiber popped.');
+    }
+  }
+
+  cursor.current = valueStack[index];
+  valueStack[index] = null;
+
+  {
+    fiberStack[index] = null;
+  }
+
+  index--;
+}
+
+function push(cursor, value, fiber) {
+  index++;
+  valueStack[index] = cursor.current;
+
+  {
+    fiberStack[index] = fiber;
+  }
+
+  cursor.current = value;
+}
+
+var NO_CONTEXT = {};
+var contextStackCursor = createCursor(NO_CONTEXT);
+var contextFiberStackCursor = createCursor(NO_CONTEXT);
+var rootInstanceStackCursor = createCursor(NO_CONTEXT);
+
+function requiredContext(c) {
+  if (c === NO_CONTEXT) {
+    throw new Error('Expected host context to exist. This error is likely caused by a bug ' + 'in React. Please file an issue.');
+  }
+
+  return c;
+}
+
+function getCurrentRootHostContainer() {
+  var container = rootInstanceStackCursor.current;
+  return container === NO_CONTEXT ? null : container;
+}
+
+function getRootHostContainer() {
+  var rootInstance = requiredContext(rootInstanceStackCursor.current);
+  return rootInstance;
+}
+
+function pushHostContainer(fiber, nextRootInstance) {
+  // Push current root instance onto the stack;
+  // This allows us to reset root when portals are popped.
+  push(rootInstanceStackCursor, nextRootInstance, fiber); // Track the context and the Fiber that provided it.
+  // This enables us to pop only Fibers that provide unique contexts.
+
+  push(contextFiberStackCursor, fiber, fiber); // Finally, we need to push the host context to the stack.
+  // However, we can't just call getRootHostContext() and push it because
+  // we'd have a different number of entries on the stack depending on
+  // whether getRootHostContext() throws somewhere in renderer code or not.
+  // So we push an empty value first. This lets us safely unwind on errors.
+
+  push(contextStackCursor, NO_CONTEXT, fiber);
+  var nextRootContext = getRootHostContext(nextRootInstance); // Now that we know this function doesn't throw, replace it.
+
+  pop(contextStackCursor, fiber);
+  push(contextStackCursor, nextRootContext, fiber);
+}
+
+function popHostContainer(fiber) {
+  pop(contextStackCursor, fiber);
+  pop(contextFiberStackCursor, fiber);
+  pop(rootInstanceStackCursor, fiber);
+}
+
+function getHostContext() {
+  var context = requiredContext(contextStackCursor.current);
+  return context;
+}
+
+function pushHostContext(fiber) {
+  var context = requiredContext(contextStackCursor.current);
+  var nextContext = getChildHostContext(context, fiber.type); // Don't push this Fiber's context unless it's unique.
+
+  if (context === nextContext) {
+    return;
+  } // Track the context and the Fiber that provided it.
+  // This enables us to pop only Fibers that provide unique contexts.
+
+
+  push(contextFiberStackCursor, fiber, fiber);
+  push(contextStackCursor, nextContext, fiber);
+}
+
+function popHostContext(fiber) {
+  // Do not pop unless this Fiber provided the current context.
+  // pushHostContext() only pushes Fibers that provide unique contexts.
+  if (contextFiberStackCursor.current !== fiber) {
+    return;
+  }
+
+  pop(contextStackCursor, fiber);
+  pop(contextFiberStackCursor, fiber);
+}
+
+function getCurrentRootHostContainer$1() {
+  return  getCurrentRootHostContainer();
+}
+
+var Dispatcher = Internals.Dispatcher;
+// In the future this may need to change, especially when modules / scripts are supported
+
+// It is valid to preload even when we aren't actively rendering. For cases where Float functions are
+// called when there is no rendering we track the last used document. It is not safe to insert
+// arbitrary resources into the lastCurrentDocument b/c it may not actually be the document
+// that the resource is meant to apply too (for example stylesheets or scripts). This is only
+// appropriate for resources that don't really have a strict tie to the document itself for example
+// preloads
+var lastCurrentDocument = null;
+var previousDispatcher = null;
+function prepareToRenderResources(rootContainer) {
+  // Flot thinks that getRootNode returns a Node but it actually returns a
+  // Document or ShadowRoot
+  var rootNode = rootContainer.getRootNode();
+  lastCurrentDocument = getDocumentFromRoot(rootNode);
+  previousDispatcher = Dispatcher.current;
+  Dispatcher.current = ReactDOMClientDispatcher;
+}
+function cleanupAfterRenderResources() {
+  Dispatcher.current = previousDispatcher;
+  previousDispatcher = null;
+} // We want this to be the default dispatcher on ReactDOMSharedInternals but we don't want to mutate
+// internals in Module scope. Instead we export it and Internals will import it. There is already a cycle
+// from Internals -> ReactDOM -> FloatClient -> Internals so this doesn't introduce a new one.
+
+var ReactDOMClientDispatcher = {
+  preload: preload,
+  preinit: preinit
+};
+// global maps of Resources
+var preloadResources = new Map();
+
+function getCurrentResourceRoot() {
+  var currentContainer = getCurrentRootHostContainer$1(); // $FlowFixMe flow should know currentContainer is a Node and has getRootNode
+
+  return currentContainer ? currentContainer.getRootNode() : null;
+} // Preloads are somewhat special. Even if we don't have the Document
+// used by the root that is rendering a component trying to insert a preload
+// we can still seed the file cache by doing the preload on any document we have
+// access to. We prefer the currentDocument if it exists, we also prefer the
+// lastCurrentDocument if that exists. As a fallback we will use the window.document
+// if available.
+
+
+function getDocumentForPreloads() {
+  var root = getCurrentResourceRoot();
+
+  if (root) {
+    return root.ownerDocument || root;
+  } else {
+    try {
+      return lastCurrentDocument || window.document;
+    } catch (error) {
+      return null;
+    }
+  }
+}
+
+function getDocumentFromRoot(root) {
+  return root.ownerDocument || root;
+} // --------------------------------------
+//      ReactDOM.Preload
+// --------------------------------------
+
+
+function preload(href, options) {
+  {
+    validatePreloadArguments(href, options);
+  }
+
+  var ownerDocument = getDocumentForPreloads();
+
+  if (typeof href === 'string' && href && typeof options === 'object' && options !== null && ownerDocument) {
+    var as = options.as;
+    var resource = preloadResources.get(href);
+
+    if (resource) {
+      {
+        var originallyImplicit = resource._dev_implicit_construction === true;
+        var latestProps = preloadPropsFromPreloadOptions(href, as, options);
+        validatePreloadResourceDifference(resource.props, originallyImplicit, latestProps, false);
+      }
+    } else {
+      var resourceProps = preloadPropsFromPreloadOptions(href, as, options);
+      createPreloadResource(ownerDocument, href, resourceProps);
+    }
+  }
+}
+
+function preloadPropsFromPreloadOptions(href, as, options) {
+  return {
+    href: href,
+    rel: 'preload',
+    as: as,
+    crossOrigin: as === 'font' ? '' : options.crossOrigin,
+    integrity: options.integrity
+  };
+} // --------------------------------------
+//      ReactDOM.preinit
+// --------------------------------------
+
+
+function preinit(href, options) {
+  {
+    validatePreinitArguments(href, options);
+  }
+
+  if (typeof href === 'string' && href && typeof options === 'object' && options !== null) {
+    var resourceRoot = getCurrentResourceRoot();
+    var as = options.as;
+
+    if (!resourceRoot) {
+      // We are going to emit a preload as a best effort fallback since this preinit
+      // was called outside of a render. Given the passive nature of this fallback
+      // we do not warn in dev when props disagree if there happens to already be a
+      // matching preload with this href
+      var preloadDocument = getDocumentForPreloads();
+
+      if (preloadDocument) {
+        var preloadResource = preloadResources.get(href);
+
+        if (!preloadResource) {
+          var preloadProps = preloadPropsFromPreinitOptions(href, as, options);
+          createPreloadResource(preloadDocument, href, preloadProps);
+        }
+      }
+
+      return;
+    }
+
+    switch (as) {
+      case 'style':
+        {
+          var styleResources = getStylesFromRoot(resourceRoot);
+          var precedence = options.precedence || 'default';
+          var resource = styleResources.get(href);
+
+          if (resource) {
+            {
+              var latestProps = stylePropsFromPreinitOptions(href, precedence, options);
+              validateStyleResourceDifference(resource.props, latestProps);
+            }
+          } else {
+            var resourceProps = stylePropsFromPreinitOptions(href, precedence, options);
+            resource = createStyleResource(styleResources, resourceRoot, href, precedence, resourceProps);
+          }
+
+          acquireResource(resource);
+        }
+    }
+  }
+}
+
+function preloadPropsFromPreinitOptions(href, as, options) {
+  return {
+    href: href,
+    rel: 'preload',
+    as: as,
+    crossOrigin: as === 'font' ? '' : options.crossOrigin
+  };
+}
+
+function stylePropsFromPreinitOptions(href, precedence, options) {
+  return {
+    rel: 'stylesheet',
+    href: href,
+    'data-rprec': precedence,
+    crossOrigin: options.crossOrigin
+  };
+} // --------------------------------------
+//      Resources from render
+// --------------------------------------
+
+
+// This function is called in begin work and we should always have a currentDocument set
+function getResource(type, pendingProps, currentProps) {
+  var resourceRoot = getCurrentResourceRoot();
+
+  if (!resourceRoot) {
+    throw new Error('"resourceRoot" was expected to exist. This is a bug in React.');
+  }
+
+  switch (type) {
+    case 'link':
+      {
+        var rel = pendingProps.rel;
+
+        switch (rel) {
+          case 'stylesheet':
+            {
+              var styleResources = getStylesFromRoot(resourceRoot);
+              var didWarn;
+
+              {
+                if (currentProps) {
+                  didWarn = validateHrefKeyedUpdatedProps(pendingProps, currentProps);
+                }
+
+                if (!didWarn) {
+                  didWarn = validateLinkPropsForStyleResource(pendingProps);
+                }
+              }
+
+              var precedence = pendingProps.precedence,
+                  href = pendingProps.href;
+
+              if (typeof href === 'string' && typeof precedence === 'string') {
+                // We've asserted all the specific types for StyleQualifyingProps
+                var styleRawProps = pendingProps; // We construct or get an existing resource for the style itself and return it
+
+                var resource = styleResources.get(href);
+
+                if (resource) {
+                  {
+                    if (!didWarn) {
+                      var latestProps = stylePropsFromRawProps(styleRawProps);
+
+                      if (resource._dev_preload_props) {
+                        adoptPreloadProps(latestProps, resource._dev_preload_props);
+                      }
+
+                      validateStyleResourceDifference(resource.props, latestProps);
+                    }
+                  }
+                } else {
+                  var resourceProps = stylePropsFromRawProps(styleRawProps);
+                  resource = createStyleResource(styleResources, resourceRoot, href, precedence, resourceProps);
+                  immediatelyPreloadStyleResource(resource);
+                }
+
+                return resource;
+              }
+
+              return null;
+            }
+
+          case 'preload':
+            {
+              {
+                validateLinkPropsForPreloadResource(pendingProps);
+              }
+
+              var _href = pendingProps.href,
+                  as = pendingProps.as;
+
+              if (typeof _href === 'string' && isResourceAsType(as)) {
+                // We've asserted all the specific types for PreloadQualifyingProps
+                var preloadRawProps = pendingProps;
+
+                var _resource = preloadResources.get(_href);
+
+                if (_resource) {
+                  {
+                    var originallyImplicit = _resource._dev_implicit_construction === true;
+
+                    var _latestProps = preloadPropsFromRawProps(preloadRawProps);
+
+                    validatePreloadResourceDifference(_resource.props, originallyImplicit, _latestProps, false);
+                  }
+                } else {
+                  var _resourceProps = preloadPropsFromRawProps(preloadRawProps);
+
+                  _resource = createPreloadResource(getDocumentFromRoot(resourceRoot), _href, _resourceProps);
+                }
+
+                return _resource;
+              }
+
+              return null;
+            }
+
+          default:
+            {
+              {
+                validateUnmatchedLinkResourceProps(pendingProps, currentProps);
+              }
+
+              return null;
+            }
+        }
+      }
+
+    default:
+      {
+        throw new Error("getResource encountered a resource type it did not expect: \"" + type + "\". this is a bug in React.");
+      }
+  }
+}
+
+function preloadPropsFromRawProps(rawBorrowedProps) {
+  return assign({}, rawBorrowedProps);
+}
+
+function stylePropsFromRawProps(rawProps) {
+  var props = assign({}, rawProps);
+
+  props['data-rprec'] = rawProps.precedence;
+  props.precedence = null;
+  return props;
+} // --------------------------------------
+//      Resource Reconciliation
+// --------------------------------------
+
+
+function acquireResource(resource) {
+  switch (resource.type) {
+    case 'style':
+      {
+        return acquireStyleResource(resource);
+      }
+
+    case 'preload':
+      {
+        return resource.instance;
+      }
+
+    default:
+      {
+        throw new Error("acquireResource encountered a resource type it did not expect: \"" + resource.type + "\". this is a bug in React.");
+      }
+  }
+}
+function releaseResource(resource) {
+  switch (resource.type) {
+    case 'style':
+      {
+        resource.count--;
+      }
+  }
+}
+
+function createResourceInstance(type, props, ownerDocument) {
+  var element = createElement(type, props, ownerDocument, HTML_NAMESPACE);
+  setInitialProperties(element, type, props);
+  return element;
+}
+
+function createStyleResource(styleResources, root, href, precedence, props) {
+  {
+    if (styleResources.has(href)) {
+      error('createStyleResource was called when a style Resource matching the same href already exists. This is a bug in React.');
+    }
+  }
+
+  var limitedEscapedHref = escapeSelectorAttributeValueInsideDoubleQuotes(href);
+  var existingEl = root.querySelector("link[rel=\"stylesheet\"][href=\"" + limitedEscapedHref + "\"]");
+  var resource = {
+    type: 'style',
+    count: 0,
+    href: href,
+    precedence: precedence,
+    props: props,
+    hint: null,
+    preloaded: false,
+    loaded: false,
+    error: false,
+    root: root,
+    instance: null
+  };
+  styleResources.set(href, resource);
+
+  if (existingEl) {
+    // If we have an existing element in the DOM we don't need to preload this resource nor can we
+    // adopt props from any preload that might exist already for this resource. We do need to try
+    // to reify the Resource loading state the best we can.
+    var loadingState = existingEl._p;
+
+    if (loadingState) {
+      switch (loadingState.s) {
+        case 'l':
+          {
+            resource.loaded = true;
+            break;
+          }
+
+        case 'e':
+          {
+            resource.error = true;
+            break;
+          }
+
+        default:
+          {
+            attachLoadListeners(existingEl, resource);
+          }
+      }
+    } else {
+      // This is unfortunately just an assumption. The rationale here is that stylesheets without
+      // a loading state must have been flushed in the shell and would have blocked until loading
+      // or error. we can't know afterwards which happened for all types of stylesheets (cross origin)
+      // for instance) and the techniques for determining if a sheet has loaded that we do have still
+      // fail if the sheet loaded zero rules. At the moment we are going to just opt to assume the
+      // sheet is loaded if it was flushed in the shell
+      resource.loaded = true;
+    }
+  } else {
+    var hint = preloadResources.get(href);
+
+    if (hint) {
+      // $FlowFixMe[incompatible-type]: found when upgrading Flow
+      resource.hint = hint; // If a preload for this style Resource already exists there are certain props we want to adopt
+      // on the style Resource, primarily focussed on making sure the style network pathways utilize
+      // the preload pathways. For instance if you have diffreent crossOrigin attributes for a preload
+      // and a stylesheet the stylesheet will make a new request even if the preload had already loaded
+
+      var preloadProps = hint.props;
+      adoptPreloadProps(resource.props, hint.props);
+
+      {
+        resource._dev_preload_props = preloadProps;
+      }
+    }
+  }
+
+  return resource;
+}
+
+function adoptPreloadProps(styleProps, preloadProps) {
+  if (styleProps.crossOrigin == null) styleProps.crossOrigin = preloadProps.crossOrigin;
+  if (styleProps.referrerPolicy == null) styleProps.referrerPolicy = preloadProps.referrerPolicy;
+  if (styleProps.media == null) styleProps.media = preloadProps.media;
+  if (styleProps.title == null) styleProps.title = preloadProps.title;
+}
+
+function immediatelyPreloadStyleResource(resource) {
+  // This function must be called synchronously after creating a styleResource otherwise it may
+  // violate assumptions around the existence of a preload. The reason it is extracted out is we
+  // don't always want to preload a style, in particular when we are going to synchronously insert
+  // that style. We confirm the style resource has no preload already and then construct it. If
+  // we wait and call this later it is possible a preload will already exist for this href
+  if (resource.loaded === false && resource.hint === null) {
+    var href = resource.href,
+        props = resource.props;
+    var preloadProps = preloadPropsFromStyleProps(props);
+    resource.hint = createPreloadResource(getDocumentFromRoot(resource.root), href, preloadProps);
+  }
+}
+
+function preloadPropsFromStyleProps(props) {
+  return {
+    rel: 'preload',
+    as: 'style',
+    href: props.href,
+    crossOrigin: props.crossOrigin,
+    integrity: props.integrity,
+    media: props.media,
+    hrefLang: props.hrefLang,
+    referrerPolicy: props.referrerPolicy
+  };
+}
+
+function createPreloadResource(ownerDocument, href, props) {
+  var limitedEscapedHref = escapeSelectorAttributeValueInsideDoubleQuotes(href);
+  var element = ownerDocument.querySelector("link[rel=\"preload\"][href=\"" + limitedEscapedHref + "\"]");
+
+  if (!element) {
+    element = createResourceInstance('link', props, ownerDocument);
+    insertPreloadInstance(element, ownerDocument);
+  }
+
+  return {
+    type: 'preload',
+    href: href,
+    ownerDocument: ownerDocument,
+    props: props,
+    instance: element
+  };
+}
+
+function acquireStyleResource(resource) {
+  if (!resource.instance) {
+    var props = resource.props,
+        root = resource.root,
+        precedence = resource.precedence;
+    var limitedEscapedHref = escapeSelectorAttributeValueInsideDoubleQuotes(props.href);
+    var existingEl = root.querySelector("link[rel=\"stylesheet\"][data-rprec][href=\"" + limitedEscapedHref + "\"]");
+
+    if (existingEl) {
+      resource.instance = existingEl;
+      resource.preloaded = true;
+      var loadingState = existingEl._p;
+
+      if (loadingState) {
+        // if an existingEl is found there should always be a loadingState because if
+        // the resource was flushed in the head it should have already been found when
+        // the resource was first created. Still defensively we gate this
+        switch (loadingState.s) {
+          case 'l':
+            {
+              resource.loaded = true;
+              resource.error = false;
+              break;
+            }
+
+          case 'e':
+            {
+              resource.error = true;
+              break;
+            }
+
+          default:
+            {
+              attachLoadListeners(existingEl, resource);
+            }
+        }
+      } else {
+        resource.loaded = true;
+      }
+    } else {
+      var instance = createResourceInstance('link', resource.props, getDocumentFromRoot(root));
+      attachLoadListeners(instance, resource);
+      insertStyleInstance(instance, precedence, root);
+      resource.instance = instance;
+    }
+  }
+
+  resource.count++; // $FlowFixMe[incompatible-return] found when upgrading Flow
+
+  return resource.instance;
+}
+
+function attachLoadListeners(instance, resource) {
+  var listeners = {};
+  listeners.load = onResourceLoad.bind(null, instance, resource, listeners, loadAndErrorEventListenerOptions);
+  listeners.error = onResourceError.bind(null, instance, resource, listeners, loadAndErrorEventListenerOptions);
+  instance.addEventListener('load', listeners.load, loadAndErrorEventListenerOptions);
+  instance.addEventListener('error', listeners.error, loadAndErrorEventListenerOptions);
+}
+
+var loadAndErrorEventListenerOptions = {
+  passive: true
+};
+
+function onResourceLoad(instance, resource, listeners, listenerOptions) {
+  resource.loaded = true;
+  resource.error = false;
+
+  for (var event in listeners) {
+    instance.removeEventListener(event, listeners[event], listenerOptions);
+  }
+}
+
+function onResourceError(instance, resource, listeners, listenerOptions) {
+  resource.loaded = false;
+  resource.error = true;
+
+  for (var event in listeners) {
+    instance.removeEventListener(event, listeners[event], listenerOptions);
+  }
+}
+
+function insertStyleInstance(instance, precedence, root) {
+  var nodes = root.querySelectorAll('link[rel="stylesheet"][data-rprec]');
+  var last = nodes.length ? nodes[nodes.length - 1] : null;
+  var prior = last;
+
+  for (var i = 0; i < nodes.length; i++) {
+    var node = nodes[i];
+    var nodePrecedence = node.dataset.rprec;
+
+    if (nodePrecedence === precedence) {
+      prior = node;
+    } else if (prior !== last) {
+      break;
+    }
+  }
+
+  if (prior) {
+    // We get the prior from the document so we know it is in the tree.
+    // We also know that links can't be the topmost Node so the parentNode
+    // must exist.
+    prior.parentNode.insertBefore(instance, prior.nextSibling);
+  } else {
+    var parent = root.nodeType === DOCUMENT_NODE ? root.head : root;
+
+    if (parent) {
+      parent.insertBefore(instance, parent.firstChild);
+    } else {
+      throw new Error('While attempting to insert a Resource, React expected the Document to contain' + ' a head element but it was not found.');
+    }
+  }
+}
+
+function insertPreloadInstance(instance, ownerDocument) {
+  if (!ownerDocument.contains(instance)) {
+    var parent = ownerDocument.head;
+
+    if (parent) {
+      parent.appendChild(instance);
+    } else {
+      throw new Error('While attempting to insert a Resource, React expected the Document to contain' + ' a head element but it was not found.');
+    }
+  }
+}
+
+function isHostResourceType(type, props) {
+  switch (type) {
+    case 'link':
+      {
+        switch (props.rel) {
+          case 'stylesheet':
+            {
+              {
+                validateLinkPropsForStyleResource(props);
+              }
+
+              var href = props.href,
+                  precedence = props.precedence,
+                  onLoad = props.onLoad,
+                  onError = props.onError,
+                  disabled = props.disabled;
+              return typeof href === 'string' && typeof precedence === 'string' && !onLoad && !onError && disabled == null;
+            }
+
+          case 'preload':
+            {
+              {
+                validateLinkPropsForStyleResource(props);
+              }
+
+              var _href2 = props.href,
+                  as = props.as,
+                  _onLoad = props.onLoad,
+                  _onError = props.onError;
+              return !_onLoad && !_onError && typeof _href2 === 'string' && isResourceAsType(as);
+            }
+        }
+      }
+  }
+
+  return false;
+}
+
+function isResourceAsType(as) {
+  return as === 'style' || as === 'font' || as === 'script';
+} // When passing user input into querySelector(All) the embedded string must not alter
+// the semantics of the query. This escape function is safe to use when we know the
+// provided value is going to be wrapped in double quotes as part of an attribute selector
+// Do not use it anywhere else
+// we escape double quotes and backslashes
+
+
+var escapeSelectorAttributeValueInsideDoubleQuotesRegex = /[\n\"\\]/g;
+
+function escapeSelectorAttributeValueInsideDoubleQuotes(value) {
+  return value.replace(escapeSelectorAttributeValueInsideDoubleQuotesRegex, function (ch) {
+    return '\\' + ch.charCodeAt(0).toString(16);
+  });
+}
+
 var SUPPRESS_HYDRATION_WARNING$1 = 'suppressHydrationWarning';
 var SUSPENSE_START_DATA = '$';
 var SUSPENSE_END_DATA = '/$';
@@ -11335,6 +12347,9 @@ var scheduleTimeout = typeof setTimeout === 'function' ? setTimeout : undefined;
 var cancelTimeout = typeof clearTimeout === 'function' ? clearTimeout : undefined;
 var noTimeout = -1;
 var localPromise = typeof Promise === 'function' ? Promise : undefined;
+function preparePortalMount(portalInstance) {
+  listenToAllSupportedEvents(portalInstance);
+}
 var scheduleMicrotask = typeof queueMicrotask === 'function' ? queueMicrotask : typeof localPromise !== 'undefined' ? function (callback) {
   return localPromise.resolve(null).then(callback).catch(handleErrorInNextTick);
 } : scheduleTimeout; // TODO: Determine the best fallback here.
@@ -11461,7 +12476,8 @@ function clearSuspenseBoundary(parentInstance, suspenseInstance) {
       } else if (data === SUSPENSE_START_DATA || data === SUSPENSE_PENDING_START_DATA || data === SUSPENSE_FALLBACK_START_DATA) {
         depth++;
       }
-    }
+    } // $FlowFixMe[incompatible-type] we bail out when we get a null
+
 
     node = nextNode;
   } while (node); // TODO: Warn, we didn't find the end comment boundary.
@@ -11484,7 +12500,7 @@ function hideInstance(instance) {
   // TODO: Does this work for all element types? What about MathML? Should we
   // pass host context to this method?
   instance = instance;
-  var style = instance.style;
+  var style = instance.style; // $FlowFixMe[method-unbinding]
 
   if (typeof style.setProperty === 'function') {
     style.setProperty('display', 'none', 'important');
@@ -11505,17 +12521,70 @@ function unhideTextInstance(textInstance, text) {
   textInstance.nodeValue = text;
 }
 function clearContainer(container) {
-  if (container.nodeType === ELEMENT_NODE) {
-    container.textContent = '';
-  } else if (container.nodeType === DOCUMENT_NODE) {
-    if (container.documentElement) {
-      container.removeChild(container.documentElement);
+  {
+    // We have refined the container to Element type
+    var nodeType = container.nodeType;
+
+    if (nodeType === DOCUMENT_NODE || nodeType === ELEMENT_NODE) {
+      switch (container.nodeName) {
+        case '#document':
+        case 'HTML':
+        case 'HEAD':
+        case 'BODY':
+          {
+            var node = container.firstChild;
+
+            while (node) {
+              var nextNode = node.nextSibling;
+              var nodeName = node.nodeName;
+
+              switch (nodeName) {
+                case 'HTML':
+                case 'HEAD':
+                case 'BODY':
+                  {
+                    clearContainer(node); // If these singleton instances had previously been rendered with React they
+                    // may still hold on to references to the previous fiber tree. We detatch them
+                    // prospectiveyl to reset them to a baseline starting state since we cannot create
+                    // new instances.
+
+                    detachDeletedInstance(node);
+                    break;
+                  }
+
+                case 'STYLE':
+                  {
+                    break;
+                  }
+
+                case 'LINK':
+                  {
+                    if (node.rel.toLowerCase() === 'stylesheet') {
+                      break;
+                    }
+                  }
+                // eslint-disable-next-line no-fallthrough
+
+                default:
+                  {
+                    container.removeChild(node);
+                  }
+              }
+
+              node = nextNode;
+            }
+
+            return;
+          }
+
+        default:
+          {
+            container.textContent = '';
+          }
+      }
     }
   }
-} // -------------------
-function isHydratableResource(type, props) {
-  return type === 'link' && typeof props.precedence === 'string' && props.rel === 'stylesheet';
-}
+} // Making this so we can eventually move all of the instance caching to the commit phase.
 function canHydrateInstance(instance, type, props) {
   if (instance.nodeType !== ELEMENT_NODE || type.toLowerCase() !== instance.nodeName.toLowerCase()) {
     return null;
@@ -11567,18 +12636,7 @@ function getSuspenseInstanceFallbackErrorDetails(instance) {
       digest: digest,
       stack: stack
     };
-  } // let value = {message: undefined, hash: undefined};
-  // const nextSibling = instance.nextSibling;
-  // if (nextSibling) {
-  //   const dataset = ((nextSibling: any): HTMLTemplateElement).dataset;
-  //   value.message = dataset.msg;
-  //   value.hash = dataset.hash;
-  //   if (true) {
-  //     value.stack = dataset.stack;
-  //   }
-  // }
-  // return value;
-
+  }
 }
 function registerSuspenseInstanceRetry(instance, callback) {
   instance._reactRetry = callback;
@@ -11591,14 +12649,31 @@ function getNextHydratable(node) {
 
     {
       if (nodeType === ELEMENT_NODE) {
-        if (node.tagName === 'LINK' && node.hasAttribute('data-rprec')) {
-          continue;
+        var element = node;
+
+        switch (element.tagName) {
+          case 'LINK':
+            {
+              var linkEl = element;
+              var rel = linkEl.rel;
+
+              if (rel === 'preload' || rel === 'stylesheet' && linkEl.hasAttribute('data-rprec')) {
+                continue;
+              }
+
+              break;
+            }
+
+          case 'HTML':
+          case 'HEAD':
+          case 'BODY':
+            {
+              continue;
+            }
         }
 
         break;
-      }
-
-      if (nodeType === TEXT_NODE) {
+      } else if (nodeType === TEXT_NODE) {
         break;
       }
     }
@@ -11657,33 +12732,6 @@ function hydrateTextInstance(textInstance, text, internalInstanceHandle, shouldW
 }
 function hydrateSuspenseInstance(suspenseInstance, internalInstanceHandle) {
   precacheFiberNode(internalInstanceHandle, suspenseInstance);
-}
-function getMatchingResourceInstance(type, props, rootHostContainer) {
-  {
-    switch (type) {
-      case 'link':
-        {
-          if (typeof props.href !== 'string') {
-            return null;
-          }
-
-          var selector = "link[rel=\"stylesheet\"][data-rprec][href=\"" + props.href + "\"]";
-          var link = getOwnerDocumentFromRootContainer(rootHostContainer).querySelector(selector);
-
-          {
-            var allLinks = getOwnerDocumentFromRootContainer(rootHostContainer).querySelectorAll(selector);
-
-            if (allLinks.length > 1) {
-              error('Stylesheet resources need a unique representation in the DOM while hydrating' + ' and more than one matching DOM Node was found. To fix, ensure you are only' + ' rendering one stylesheet link with an href attribute of "%s".', props.href);
-            }
-          }
-
-          return link;
-        }
-    }
-  }
-
-  return null;
 }
 function getNextHydratableInstanceAfterSuspenseInstance(suspenseInstance) {
   var node = suspenseInstance.nextSibling; // Skip past all nodes within this suspense boundary.
@@ -11750,10 +12798,7 @@ function commitHydratedContainer(container) {
 function commitHydratedSuspenseInstance(suspenseInstance) {
   // Retry if any event replaying was blocked on this.
   retryIfBlockedOn(suspenseInstance);
-}
-function shouldDeleteUnhydratedTailInstances(parentType) {
-  return parentType !== 'head' && parentType !== 'body';
-}
+} // @TODO remove this function once float lands and hydrated tail nodes
 function didNotMatchHydratedContainerTextInstance(parentContainer, textInstance, text, isConcurrentMode, shouldWarnDev) {
   checkForUnmatchedText(textInstance.nodeValue, text, isConcurrentMode, shouldWarnDev);
 }
@@ -11840,9 +12885,311 @@ function errorHydratingContainer(parentContainer) {
     // able to remove it.
     error('An error occurred during hydration. The server HTML was replaced with client content in <%s>.', parentContainer.nodeName.toLowerCase());
   }
+} // -------------------
+function prepareRendererToRender(rootContainer) {
+  {
+    prepareToRenderResources(rootContainer);
+  }
 }
-function preparePortalMount(portalInstance) {
-  listenToAllSupportedEvents(portalInstance);
+function resetRendererAfterRender() {
+  {
+    cleanupAfterRenderResources();
+  }
+}
+function isHostSingletonType(type) {
+  return type === 'html' || type === 'head' || type === 'body';
+}
+function resolveSingletonInstance(type, props, rootContainerInstance, hostContext, validateDOMNestingDev) {
+  {
+    if (validateDOMNestingDev) {
+      var hostContextDev = hostContext;
+      validateDOMNesting(type, null, hostContextDev.ancestorInfo);
+    }
+  }
+
+  var ownerDocument = getOwnerDocumentFromRootContainer(rootContainerInstance);
+
+  switch (type) {
+    case 'html':
+      {
+        var documentElement = ownerDocument.documentElement;
+
+        if (!documentElement) {
+          throw new Error('React expected an <html> element (document.documentElement) to exist in the Document but one was' + ' not found. React never removes the documentElement for any Document it renders into so' + ' the cause is likely in some other script running on this page.');
+        }
+
+        return documentElement;
+      }
+
+    case 'head':
+      {
+        var head = ownerDocument.head;
+
+        if (!head) {
+          throw new Error('React expected a <head> element (document.head) to exist in the Document but one was' + ' not found. React never removes the head for any Document it renders into so' + ' the cause is likely in some other script running on this page.');
+        }
+
+        return head;
+      }
+
+    case 'body':
+      {
+        var body = ownerDocument.body;
+
+        if (!body) {
+          throw new Error('React expected a <body> element (document.body) to exist in the Document but one was' + ' not found. React never removes the body for any Document it renders into so' + ' the cause is likely in some other script running on this page.');
+        }
+
+        return body;
+      }
+
+    default:
+      {
+        throw new Error('resolveSingletonInstance was called with an element type that is not supported. This is a bug in React.');
+      }
+  }
+}
+function acquireSingletonInstance(type, props, instance, internalInstanceHandle) {
+  {
+    var currentInstanceHandle = getInstanceFromNode(instance);
+
+    if (currentInstanceHandle) {
+      var tagName = instance.tagName.toLowerCase();
+
+      error('You are mounting a new %s component when a previous one has not first unmounted. It is an' + ' error to render more than one %s component at a time and attributes and children of these' + ' components will likely fail in unpredictable ways. Please only render a single instance of' + ' <%s> and if you need to mount a new one, ensure any previous ones have unmounted first.', tagName, tagName, tagName);
+    }
+
+    switch (type) {
+      case 'html':
+      case 'head':
+      case 'body':
+        {
+          break;
+        }
+
+      default:
+        {
+          error('acquireSingletonInstance was called with an element type that is not supported. This is a bug in React.');
+        }
+    }
+  }
+
+  var attributes = instance.attributes;
+
+  while (attributes.length) {
+    instance.removeAttributeNode(attributes[0]);
+  }
+
+  setInitialProperties(instance, type, props);
+  precacheFiberNode(internalInstanceHandle, instance);
+  updateFiberProps(instance, props);
+}
+function releaseSingletonInstance(instance) {
+  var attributes = instance.attributes;
+
+  while (attributes.length) {
+    instance.removeAttributeNode(attributes[0]);
+  }
+
+  detachDeletedInstance(instance);
+}
+function clearSingleton(instance) {
+  var element = instance;
+  var node = element.firstChild;
+
+  while (node) {
+    var nextNode = node.nextSibling;
+    var nodeName = node.nodeName;
+
+    if (getInstanceFromNode(node)) ; else if (nodeName === 'HEAD' || nodeName === 'BODY' || nodeName === 'STYLE' || nodeName === 'LINK' && node.rel.toLowerCase() === 'stylesheet') ; else {
+      element.removeChild(node);
+    }
+
+    node = nextNode;
+  }
+
+  return;
+}
+
+var randomKey = Math.random().toString(36).slice(2);
+var internalInstanceKey = '__reactFiber$' + randomKey;
+var internalPropsKey = '__reactProps$' + randomKey;
+var internalContainerInstanceKey = '__reactContainer$' + randomKey;
+var internalEventHandlersKey = '__reactEvents$' + randomKey;
+var internalEventHandlerListenersKey = '__reactListeners$' + randomKey;
+var internalEventHandlesSetKey = '__reactHandles$' + randomKey;
+var internalRootNodeStylesSetKey = '__reactStyles$' + randomKey;
+function detachDeletedInstance(node) {
+  // TODO: This function is only called on host components. I don't think all of
+  // these fields are relevant.
+  delete node[internalInstanceKey];
+  delete node[internalPropsKey];
+  delete node[internalEventHandlersKey];
+  delete node[internalEventHandlerListenersKey];
+  delete node[internalEventHandlesSetKey];
+}
+function precacheFiberNode(hostInst, node) {
+  node[internalInstanceKey] = hostInst;
+}
+function markContainerAsRoot(hostRoot, node) {
+  // $FlowFixMe[prop-missing]
+  node[internalContainerInstanceKey] = hostRoot;
+}
+function unmarkContainerAsRoot(node) {
+  // $FlowFixMe[prop-missing]
+  node[internalContainerInstanceKey] = null;
+}
+function isContainerMarkedAsRoot(node) {
+  // $FlowFixMe[prop-missing]
+  return !!node[internalContainerInstanceKey];
+} // Given a DOM node, return the closest HostComponent or HostText fiber ancestor.
+// If the target node is part of a hydrated or not yet rendered subtree, then
+// this may also return a SuspenseComponent or HostRoot to indicate that.
+// Conceptually the HostRoot fiber is a child of the Container node. So if you
+// pass the Container node as the targetNode, you will not actually get the
+// HostRoot back. To get to the HostRoot, you need to pass a child of it.
+// The same thing applies to Suspense boundaries.
+
+function getClosestInstanceFromNode(targetNode) {
+  var targetInst = targetNode[internalInstanceKey];
+
+  if (targetInst) {
+    // Don't return HostRoot or SuspenseComponent here.
+    return targetInst;
+  } // If the direct event target isn't a React owned DOM node, we need to look
+  // to see if one of its parents is a React owned DOM node.
+
+
+  var parentNode = targetNode.parentNode;
+
+  while (parentNode) {
+    // We'll check if this is a container root that could include
+    // React nodes in the future. We need to check this first because
+    // if we're a child of a dehydrated container, we need to first
+    // find that inner container before moving on to finding the parent
+    // instance. Note that we don't check this field on  the targetNode
+    // itself because the fibers are conceptually between the container
+    // node and the first child. It isn't surrounding the container node.
+    // If it's not a container, we check if it's an instance.
+    targetInst = parentNode[internalContainerInstanceKey] || parentNode[internalInstanceKey];
+
+    if (targetInst) {
+      // Since this wasn't the direct target of the event, we might have
+      // stepped past dehydrated DOM nodes to get here. However they could
+      // also have been non-React nodes. We need to answer which one.
+      // If we the instance doesn't have any children, then there can't be
+      // a nested suspense boundary within it. So we can use this as a fast
+      // bailout. Most of the time, when people add non-React children to
+      // the tree, it is using a ref to a child-less DOM node.
+      // Normally we'd only need to check one of the fibers because if it
+      // has ever gone from having children to deleting them or vice versa
+      // it would have deleted the dehydrated boundary nested inside already.
+      // However, since the HostRoot starts out with an alternate it might
+      // have one on the alternate so we need to check in case this was a
+      // root.
+      var alternate = targetInst.alternate;
+
+      if (targetInst.child !== null || alternate !== null && alternate.child !== null) {
+        // Next we need to figure out if the node that skipped past is
+        // nested within a dehydrated boundary and if so, which one.
+        var suspenseInstance = getParentSuspenseInstance(targetNode);
+
+        while (suspenseInstance !== null) {
+          // We found a suspense instance. That means that we haven't
+          // hydrated it yet. Even though we leave the comments in the
+          // DOM after hydrating, and there are boundaries in the DOM
+          // that could already be hydrated, we wouldn't have found them
+          // through this pass since if the target is hydrated it would
+          // have had an internalInstanceKey on it.
+          // Let's get the fiber associated with the SuspenseComponent
+          // as the deepest instance.
+          // $FlowFixMe[prop-missing]
+          var targetSuspenseInst = suspenseInstance[internalInstanceKey];
+
+          if (targetSuspenseInst) {
+            return targetSuspenseInst;
+          } // If we don't find a Fiber on the comment, it might be because
+          // we haven't gotten to hydrate it yet. There might still be a
+          // parent boundary that hasn't above this one so we need to find
+          // the outer most that is known.
+
+
+          suspenseInstance = getParentSuspenseInstance(suspenseInstance); // If we don't find one, then that should mean that the parent
+          // host component also hasn't hydrated yet. We can return it
+          // below since it will bail out on the isMounted check later.
+        }
+      }
+
+      return targetInst;
+    }
+
+    targetNode = parentNode;
+    parentNode = targetNode.parentNode;
+  }
+
+  return null;
+}
+/**
+ * Given a DOM node, return the ReactDOMComponent or ReactDOMTextComponent
+ * instance, or null if the node was not rendered by this React.
+ */
+
+function getInstanceFromNode(node) {
+  var inst = node[internalInstanceKey] || node[internalContainerInstanceKey];
+
+  if (inst) {
+    var tag = inst.tag;
+
+    if (tag === HostComponent || tag === HostText || tag === SuspenseComponent || ( tag === HostResource ) || ( tag === HostSingleton ) || tag === HostRoot) {
+      return inst;
+    } else {
+      return null;
+    }
+  }
+
+  return null;
+}
+/**
+ * Given a ReactDOMComponent or ReactDOMTextComponent, return the corresponding
+ * DOM node.
+ */
+
+function getNodeFromInstance(inst) {
+  var tag = inst.tag;
+
+  if (tag === HostComponent || ( tag === HostResource ) || ( tag === HostSingleton ) || tag === HostText) {
+    // In Fiber this, is just the state node right now. We assume it will be
+    // a host component or host text.
+    return inst.stateNode;
+  } // Without this first invariant, passing a non-DOM-component triggers the next
+  // invariant for a missing parent, which is super confusing.
+
+
+  throw new Error('getNodeFromInstance: Invalid argument.');
+}
+function getFiberCurrentPropsFromNode(node) {
+  return node[internalPropsKey] || null;
+}
+function updateFiberProps(node, props) {
+  node[internalPropsKey] = props;
+}
+function getEventListenerSet(node) {
+  var elementListenerSet = node[internalEventHandlersKey];
+
+  if (elementListenerSet === undefined) {
+    elementListenerSet = node[internalEventHandlersKey] = new Set();
+  }
+
+  return elementListenerSet;
+}
+function getStylesFromRoot(root) {
+  var styles = root[internalRootNodeStylesSetKey];
+
+  if (!styles) {
+    styles = root[internalRootNodeStylesSetKey] = new Map();
+  }
+
+  return styles;
 }
 
 var loggedTypeFailures = {};
@@ -11909,62 +13256,12 @@ function checkPropTypes(typeSpecs, values, location, componentName, element) {
   }
 }
 
-var valueStack = [];
-var fiberStack;
-
-{
-  fiberStack = [];
-}
-
-var index = -1;
-
-function createCursor(defaultValue) {
-  return {
-    current: defaultValue
-  };
-}
-
-function pop(cursor, fiber) {
-  if (index < 0) {
-    {
-      error('Unexpected pop.');
-    }
-
-    return;
-  }
-
-  {
-    if (fiber !== fiberStack[index]) {
-      error('Unexpected Fiber popped.');
-    }
-  }
-
-  cursor.current = valueStack[index];
-  valueStack[index] = null;
-
-  {
-    fiberStack[index] = null;
-  }
-
-  index--;
-}
-
-function push(cursor, value, fiber) {
-  index++;
-  valueStack[index] = cursor.current;
-
-  {
-    fiberStack[index] = fiber;
-  }
-
-  cursor.current = value;
-}
-
 var warnedAboutMissingGetChildContext;
 
 {
   warnedAboutMissingGetChildContext = {};
-}
+} // $FlowFixMe[incompatible-exact]
+
 
 var emptyContextObject = {};
 
@@ -11973,7 +13270,7 @@ var emptyContextObject = {};
 } // A cursor to the current merged context object on the stack.
 
 
-var contextStackCursor = createCursor(emptyContextObject); // A cursor to a boolean indicating whether the context has changed.
+var contextStackCursor$1 = createCursor(emptyContextObject); // A cursor to a boolean indicating whether the context has changed.
 
 var didPerformWorkStackCursor = createCursor(false); // Keep track of the previous context object that was on the stack.
 // We use this to get access to the parent context after we have already
@@ -11991,7 +13288,7 @@ function getUnmaskedContext(workInProgress, Component, didPushOwnContextIfProvid
       return previousContext;
     }
 
-    return contextStackCursor.current;
+    return contextStackCursor$1.current;
   }
 }
 
@@ -12058,24 +13355,24 @@ function isContextProvider(type) {
 function popContext(fiber) {
   {
     pop(didPerformWorkStackCursor, fiber);
-    pop(contextStackCursor, fiber);
+    pop(contextStackCursor$1, fiber);
   }
 }
 
 function popTopLevelContextObject(fiber) {
   {
     pop(didPerformWorkStackCursor, fiber);
-    pop(contextStackCursor, fiber);
+    pop(contextStackCursor$1, fiber);
   }
 }
 
 function pushTopLevelContextObject(fiber, context, didChange) {
   {
-    if (contextStackCursor.current !== emptyContextObject) {
+    if (contextStackCursor$1.current !== emptyContextObject) {
       throw new Error('Unexpected context found on stack. ' + 'This error is likely caused by a bug in React. Please file an issue.');
     }
 
-    push(contextStackCursor, context, fiber);
+    push(contextStackCursor$1, context, fiber);
     push(didPerformWorkStackCursor, didChange, fiber);
   }
 }
@@ -12126,8 +13423,8 @@ function pushContextProvider(workInProgress) {
     var memoizedMergedChildContext = instance && instance.__reactInternalMemoizedMergedChildContext || emptyContextObject; // Remember the parent context so we can merge with it later.
     // Inherit the parent's did-perform-work value to avoid inadvertently blocking updates.
 
-    previousContext = contextStackCursor.current;
-    push(contextStackCursor, memoizedMergedChildContext, workInProgress);
+    previousContext = contextStackCursor$1.current;
+    push(contextStackCursor$1, memoizedMergedChildContext, workInProgress);
     push(didPerformWorkStackCursor, didPerformWorkStackCursor.current, workInProgress);
     return true;
   }
@@ -12150,9 +13447,9 @@ function invalidateContextProvider(workInProgress, type, didChange) {
       // It is important to unwind the context in the reverse order.
 
       pop(didPerformWorkStackCursor, workInProgress);
-      pop(contextStackCursor, workInProgress); // Now push the new context and mark that it has changed.
+      pop(contextStackCursor$1, workInProgress); // Now push the new context and mark that it has changed.
 
-      push(contextStackCursor, mergedContext, workInProgress);
+      push(contextStackCursor$1, mergedContext, workInProgress);
       push(didPerformWorkStackCursor, didChange, workInProgress);
     } else {
       pop(didPerformWorkStackCursor, workInProgress);
@@ -12186,7 +13483,8 @@ function findCurrentUnmaskedContext(fiber) {
 
             break;
           }
-      }
+      } // $FlowFixMe[incompatible-type] we bail out when we get a null
+
 
       node = node.return;
     } while (node !== null);
@@ -12247,12 +13545,14 @@ function flushSyncCallbacks() {
       var queue = syncQueue; // TODO: Is this necessary anymore? The only user code that runs in this
       // queue is in the render or commit phases.
 
-      setCurrentUpdatePriority(DiscreteEventPriority);
+      setCurrentUpdatePriority(DiscreteEventPriority); // $FlowFixMe[incompatible-use] found when upgrading Flow
 
       for (; i < queue.length; i++) {
+        // $FlowFixMe[incompatible-use] found when upgrading Flow
         var callback = queue[i];
 
         do {
+          // $FlowFixMe[incompatible-type] we bail out when we get a null
           callback = callback(isSync);
         } while (callback !== null);
       }
@@ -12456,79 +13756,6 @@ function warnIfNotHydrating() {
   }
 }
 
-var NO_CONTEXT = {};
-var contextStackCursor$1 = createCursor(NO_CONTEXT);
-var contextFiberStackCursor = createCursor(NO_CONTEXT);
-var rootInstanceStackCursor = createCursor(NO_CONTEXT);
-
-function requiredContext(c) {
-  if (c === NO_CONTEXT) {
-    throw new Error('Expected host context to exist. This error is likely caused by a bug ' + 'in React. Please file an issue.');
-  }
-
-  return c;
-}
-
-function getRootHostContainer() {
-  var rootInstance = requiredContext(rootInstanceStackCursor.current);
-  return rootInstance;
-}
-
-function pushHostContainer(fiber, nextRootInstance) {
-  // Push current root instance onto the stack;
-  // This allows us to reset root when portals are popped.
-  push(rootInstanceStackCursor, nextRootInstance, fiber); // Track the context and the Fiber that provided it.
-  // This enables us to pop only Fibers that provide unique contexts.
-
-  push(contextFiberStackCursor, fiber, fiber); // Finally, we need to push the host context to the stack.
-  // However, we can't just call getRootHostContext() and push it because
-  // we'd have a different number of entries on the stack depending on
-  // whether getRootHostContext() throws somewhere in renderer code or not.
-  // So we push an empty value first. This lets us safely unwind on errors.
-
-  push(contextStackCursor$1, NO_CONTEXT, fiber);
-  var nextRootContext = getRootHostContext(nextRootInstance); // Now that we know this function doesn't throw, replace it.
-
-  pop(contextStackCursor$1, fiber);
-  push(contextStackCursor$1, nextRootContext, fiber);
-}
-
-function popHostContainer(fiber) {
-  pop(contextStackCursor$1, fiber);
-  pop(contextFiberStackCursor, fiber);
-  pop(rootInstanceStackCursor, fiber);
-}
-
-function getHostContext() {
-  var context = requiredContext(contextStackCursor$1.current);
-  return context;
-}
-
-function pushHostContext(fiber) {
-  var context = requiredContext(contextStackCursor$1.current);
-  var nextContext = getChildHostContext(context, fiber.type); // Don't push this Fiber's context unless it's unique.
-
-  if (context === nextContext) {
-    return;
-  } // Track the context and the Fiber that provided it.
-  // This enables us to pop only Fibers that provide unique contexts.
-
-
-  push(contextFiberStackCursor, fiber, fiber);
-  push(contextStackCursor$1, nextContext, fiber);
-}
-
-function popHostContext(fiber) {
-  // Do not pop unless this Fiber provided the current context.
-  // pushHostContext() only pushes Fibers that provide unique contexts.
-  if (contextFiberStackCursor.current !== fiber) {
-    return;
-  }
-
-  pop(contextStackCursor$1, fiber);
-  pop(contextFiberStackCursor, fiber);
-}
-
 // This may have been an insertion or a hydration.
 
 var hydrationParentFiber = null;
@@ -12594,6 +13821,7 @@ function warnUnhydratedInstance(returnFiber, instance) {
           break;
         }
 
+      case HostSingleton:
       case HostComponent:
         {
           var isConcurrentMode = (returnFiber.mode & ConcurrentMode) !== NoMode;
@@ -12642,6 +13870,7 @@ function warnNonhydratedInstance(returnFiber, fiber) {
           var parentContainer = returnFiber.stateNode.containerInfo;
 
           switch (fiber.tag) {
+            case HostSingleton:
             case HostComponent:
               var type = fiber.type;
               var props = fiber.pendingProps;
@@ -12657,6 +13886,7 @@ function warnNonhydratedInstance(returnFiber, fiber) {
           break;
         }
 
+      case HostSingleton:
       case HostComponent:
         {
           var parentType = returnFiber.type;
@@ -12664,6 +13894,7 @@ function warnNonhydratedInstance(returnFiber, fiber) {
           var parentInstance = returnFiber.stateNode;
 
           switch (fiber.tag) {
+            case HostSingleton:
             case HostComponent:
               {
                 var _type = fiber.type;
@@ -12694,6 +13925,7 @@ function warnNonhydratedInstance(returnFiber, fiber) {
           var suspenseState = returnFiber.memoizedState;
           var _parentInstance = suspenseState.dehydrated;
           if (_parentInstance !== null) switch (fiber.tag) {
+            case HostSingleton:
             case HostComponent:
               var _type2 = fiber.type;
               var _props2 = fiber.pendingProps;
@@ -12721,6 +13953,8 @@ function insertNonHydratedInstance(returnFiber, fiber) {
 
 function tryHydrate(fiber, nextInstance) {
   switch (fiber.tag) {
+    // HostSingleton is intentionally omitted. the hydration pathway for singletons is non-fallible
+    // you can find it inlined in claimHydratableSingleton
     case HostComponent:
       {
         var type = fiber.type;
@@ -12794,16 +14028,23 @@ function throwOnHydrationMismatch(fiber) {
   throw new Error('Hydration failed because the initial UI does not match what was ' + 'rendered on the server.');
 }
 
+function claimHydratableSingleton(fiber) {
+  {
+    if (!isHydrating) {
+      return;
+    }
+
+    var currentRootContainer = getRootHostContainer();
+    var currentHostContext = getHostContext();
+    var instance = fiber.stateNode = resolveSingletonInstance(fiber.type, fiber.pendingProps, currentRootContainer, currentHostContext, false);
+    hydrationParentFiber = fiber;
+    nextHydratableInstance = getFirstHydratableChild(instance);
+  }
+}
+
 function tryToClaimNextHydratableInstance(fiber) {
   if (!isHydrating) {
     return;
-  }
-
-  {
-    if (fiber.tag === HostComponent && isHydratableResource(fiber.type, fiber.pendingProps)) {
-      fiber.stateNode = getMatchingResourceInstance(fiber.type, fiber.pendingProps, getRootHostContainer());
-      return;
-    }
   }
 
   var nextInstance = nextHydratableInstance;
@@ -12890,6 +14131,7 @@ function prepareToHydrateHostTextInstance(fiber) {
             break;
           }
 
+        case HostSingleton:
         case HostComponent:
           {
             var parentType = returnFiber.type;
@@ -12936,7 +14178,7 @@ function skipPastDehydratedSuspenseInstance(fiber) {
 function popToNextHostParent(fiber) {
   var parent = fiber.return;
 
-  while (parent !== null && parent.tag !== HostComponent && parent.tag !== HostRoot && parent.tag !== SuspenseComponent) {
+  while (parent !== null && parent.tag !== HostComponent && parent.tag !== HostRoot && parent.tag !== SuspenseComponent && ( parent.tag !== HostSingleton)) {
     parent = parent.return;
   }
 
@@ -12944,21 +14186,6 @@ function popToNextHostParent(fiber) {
 }
 
 function popHydrationState(fiber) {
-
-  if ( isHydrating && isHydratableResource(fiber.type, fiber.memoizedProps)) {
-    if (fiber.stateNode === null) {
-      {
-        var rel = fiber.memoizedProps.rel ? "rel=\"" + fiber.memoizedProps.rel + "\" " : '';
-        var href = fiber.memoizedProps.href ? "href=\"" + fiber.memoizedProps.href + "\"" : '';
-
-        error('A matching Hydratable Resource was not found in the DOM for <%s %s%s>.', fiber.type, rel, href);
-      }
-
-      throwOnHydrationMismatch();
-    }
-
-    return true;
-  }
 
   if (fiber !== hydrationParentFiber) {
     // We're deeper than the current hydration context, inside an inserted
@@ -12973,13 +14200,19 @@ function popHydrationState(fiber) {
     popToNextHostParent(fiber);
     isHydrating = true;
     return false;
-  } // If we have any remaining hydratable nodes, we need to delete them now.
-  // We only do this deeper than head and body since they tend to have random
-  // other nodes in them. We also ignore components with pure text content in
-  // side of them. We also don't delete anything inside the root container.
+  }
 
+  var shouldClear = false;
 
-  if (fiber.tag !== HostRoot && (fiber.tag !== HostComponent || shouldDeleteUnhydratedTailInstances(fiber.type) && !shouldSetTextContent(fiber.type, fiber.memoizedProps))) {
+  {
+    // With float we never clear the Root, or Singleton instances. We also do not clear Instances
+    // that have singleton text content
+    if (fiber.tag !== HostRoot && fiber.tag !== HostSingleton && !(fiber.tag === HostComponent && shouldSetTextContent(fiber.type, fiber.memoizedProps))) {
+      shouldClear = true;
+    }
+  }
+
+  if (shouldClear) {
     var nextInstance = nextHydratableInstance;
 
     if (nextInstance) {
@@ -13973,7 +15206,8 @@ function enqueueCapturedUpdate(workInProgress, capturedUpdate) {
           } else {
             newLast.next = clone;
             newLast = clone;
-          }
+          } // $FlowFixMe[incompatible-type] we bail out when we get a null
+
 
           update = update.next;
         } while (update !== null); // Append the captured update the end of the cloned list.
@@ -14244,7 +15478,8 @@ function processUpdateQueue(workInProgress, props, instance, renderLanes) {
             callbacks.push(callback);
           }
         }
-      }
+      } // $FlowFixMe[incompatible-type] we bail out when we get a null
+
 
       update = update.next;
 
@@ -14912,6 +16147,11 @@ function mountClassInstance(workInProgress, ctor, newProps, renderLanes) {
 
   if (typeof instance.componentDidMount === 'function') {
     var fiberFlags = Update | LayoutStatic;
+
+    if ( (workInProgress.mode & StrictEffectsMode) !== NoMode) {
+      fiberFlags |= MountLayoutDev;
+    }
+
     workInProgress.flags |= fiberFlags;
   }
 }
@@ -14955,6 +16195,11 @@ function resumeMountClassInstance(workInProgress, ctor, newProps, renderLanes) {
     // effect even though we're bailing out, so that cWU/cDU are called.
     if (typeof instance.componentDidMount === 'function') {
       var fiberFlags = Update | LayoutStatic;
+
+      if ( (workInProgress.mode & StrictEffectsMode) !== NoMode) {
+        fiberFlags |= MountLayoutDev;
+      }
+
       workInProgress.flags |= fiberFlags;
     }
 
@@ -14984,6 +16229,10 @@ function resumeMountClassInstance(workInProgress, ctor, newProps, renderLanes) {
     if (typeof instance.componentDidMount === 'function') {
       var _fiberFlags = Update | LayoutStatic;
 
+      if ( (workInProgress.mode & StrictEffectsMode) !== NoMode) {
+        _fiberFlags |= MountLayoutDev;
+      }
+
       workInProgress.flags |= _fiberFlags;
     }
   } else {
@@ -14991,6 +16240,10 @@ function resumeMountClassInstance(workInProgress, ctor, newProps, renderLanes) {
     // effect even though we're bailing out, so that cWU/cDU are called.
     if (typeof instance.componentDidMount === 'function') {
       var _fiberFlags2 = Update | LayoutStatic;
+
+      if ( (workInProgress.mode & StrictEffectsMode) !== NoMode) {
+        _fiberFlags2 |= MountLayoutDev;
+      }
 
       workInProgress.flags |= _fiberFlags2;
     } // If shouldComponentUpdate returned false, we should still update the
@@ -15259,6 +16512,7 @@ function coerceRef(returnFiber, current, element) {
 }
 
 function throwOnInvalidObjectType(returnFiber, newChild) {
+  // $FlowFixMe[method-unbinding]
   var childString = Object.prototype.toString.call(newChild);
   throw new Error("Objects are not valid as a React child (found: " + (childString === '[object Object]' ? 'object with keys {' + Object.keys(newChild).join(', ') + '}' : childString) + "). " + 'If you meant to render a collection of children, use an array ' + 'instead.');
 }
@@ -15281,13 +16535,13 @@ function resolveLazy(lazyType) {
   var payload = lazyType._payload;
   var init = lazyType._init;
   return init(payload);
-} // This wrapper function exists because I expect to clone the code in each path
+}
+
+// This wrapper function exists because I expect to clone the code in each path
 // to be able to optimize each path individually by branching early. This needs
 // a compiler or we can do it manually. Helpers that don't need this branching
 // live outside of this function.
-
-
-function ChildReconciler(shouldTrackSideEffects) {
+function createChildReconciler(shouldTrackSideEffects) {
   function deleteChild(returnFiber, childToDelete) {
     if (!shouldTrackSideEffects) {
       // Noop.
@@ -16221,8 +17475,8 @@ function ChildReconciler(shouldTrackSideEffects) {
   return reconcileChildFibers;
 }
 
-var reconcileChildFibers = ChildReconciler(true);
-var mountChildFibers = ChildReconciler(false);
+var reconcileChildFibers = createChildReconciler(true);
+var mountChildFibers = createChildReconciler(false);
 function cloneChildFibers(current, workInProgress) {
   if (current !== null && workInProgress.child !== current.child) {
     throw new Error('Resuming work not yet implemented.');
@@ -16401,18 +17655,15 @@ var HasEffect =
 /* */
 1; // Represents the phase in which the effect (not the clean-up) fires.
 
-var Snapshot$1 =
-/*  */
-2;
 var Insertion =
 /* */
-4;
+2;
 var Layout =
 /*    */
-8;
+4;
 var Passive$1 =
 /*   */
-16;
+8;
 
 // and should be reset before starting a new render.
 // This tracks which mutable sources need to be reset after a render.
@@ -16769,9 +18020,11 @@ function areHookInputsEqual(nextDeps, prevDeps) {
     if (nextDeps.length !== prevDeps.length) {
       error('The final argument passed to %s changed size between renders. The ' + 'order and size of this array must remain constant.\n\n' + 'Previous: %s\n' + 'Incoming: %s', currentHookNameInDev, "[" + prevDeps.join(', ') + "]", "[" + nextDeps.join(', ') + "]");
     }
-  }
+  } // $FlowFixMe[incompatible-use] found when upgrading Flow
+
 
   for (var i = 0; i < prevDeps.length && i < nextDeps.length; i++) {
+    // $FlowFixMe[incompatible-use] found when upgrading Flow
     if (objectIs(nextDeps[i], prevDeps[i])) {
       continue;
     }
@@ -16916,8 +18169,15 @@ function checkDidRenderIdHook() {
   return didRenderIdHook;
 }
 function bailoutHooks(current, workInProgress, lanes) {
-  workInProgress.updateQueue = current.updateQueue;
-  workInProgress.flags &= ~(Passive | Update);
+  workInProgress.updateQueue = current.updateQueue; // TODO: Don't need to reset the flags here, because they're reset in the
+  // complete phase (bubbleProperties).
+
+  if ( (workInProgress.mode & StrictEffectsMode) !== NoMode) {
+    workInProgress.flags &= ~(MountPassiveDev | MountLayoutDev | Passive | Update);
+  } else {
+    workInProgress.flags &= ~(Passive | Update);
+  }
+
   current.lanes = removeLanes(current.lanes, lanes);
 }
 function resetHooksAfterThrow() {
@@ -17054,6 +18314,7 @@ var createFunctionComponentUpdateQueue;
   createFunctionComponentUpdateQueue = function () {
     return {
       lastEffect: null,
+      events: null,
       stores: null,
       memoCache: null
     };
@@ -17062,6 +18323,7 @@ var createFunctionComponentUpdateQueue;
 
 function use(usable) {
   if (usable !== null && typeof usable === 'object') {
+    // $FlowFixMe[method-unbinding]
     if (typeof usable.then === 'function') {
       // This is a thenable.
       var thenable = usable; // Track the position of the thenable within this fiber.
@@ -17739,43 +19001,59 @@ function updateEffectImpl(fiberFlags, hookFlags, create, deps) {
 }
 
 function mountEffect(create, deps) {
-  return mountEffectImpl(Passive | PassiveStatic, Passive$1, create, deps);
+  if ( (currentlyRenderingFiber$1.mode & StrictEffectsMode) !== NoMode) {
+    return mountEffectImpl(MountPassiveDev | Passive | PassiveStatic, Passive$1, create, deps);
+  } else {
+    return mountEffectImpl(Passive | PassiveStatic, Passive$1, create, deps);
+  }
 }
 
 function updateEffect(create, deps) {
   return updateEffectImpl(Passive, Passive$1, create, deps);
 }
 
+function useEventImpl(event, nextImpl) {
+  currentlyRenderingFiber$1.flags |= Update;
+  var componentUpdateQueue = currentlyRenderingFiber$1.updateQueue;
+
+  if (componentUpdateQueue === null) {
+    componentUpdateQueue = createFunctionComponentUpdateQueue();
+    currentlyRenderingFiber$1.updateQueue = componentUpdateQueue;
+    componentUpdateQueue.events = [event, nextImpl];
+  } else {
+    var events = componentUpdateQueue.events;
+
+    if (events === null) {
+      componentUpdateQueue.events = [event, nextImpl];
+    } else {
+      events.push(event, nextImpl);
+    }
+  }
+}
+
 function mountEvent(callback) {
   var hook = mountWorkInProgressHook();
-  var ref = {
-    current: callback
+
+  var eventFn = function eventFn() {
+    if (isInvalidExecutionContextForEventFunction()) {
+      throw new Error("A function wrapped in useEvent can't be called during rendering.");
+    } // $FlowFixMe[prop-missing] found when upgrading Flow
+
+
+    return eventFn._impl.apply(undefined, arguments);
   };
 
-  function event() {
-    if (isInvalidExecutionContextForEventFunction()) {
-      throw new Error('An event from useEvent was called during render.');
-    }
-
-    return ref.current.apply(undefined, arguments);
-  } // TODO: We don't need all the overhead of an effect object since there are no deps and no
-  // clean up functions.
-
-
-  mountEffectImpl(Update, Snapshot$1, function () {
-    ref.current = callback;
-  }, [ref, callback]);
-  hook.memoizedState = [ref, event];
-  return event;
+  eventFn._impl = callback;
+  useEventImpl(eventFn, callback);
+  hook.memoizedState = eventFn;
+  return eventFn;
 }
 
 function updateEvent(callback) {
   var hook = updateWorkInProgressHook();
-  var ref = hook.memoizedState[0];
-  updateEffectImpl(Update, Snapshot$1, function () {
-    ref.current = callback;
-  }, [ref, callback]);
-  return hook.memoizedState[1];
+  var eventFn = hook.memoizedState;
+  useEventImpl(eventFn, callback);
+  return eventFn;
 }
 
 function mountInsertionEffect(create, deps) {
@@ -17788,6 +19066,11 @@ function updateInsertionEffect(create, deps) {
 
 function mountLayoutEffect(create, deps) {
   var fiberFlags = Update | LayoutStatic;
+
+  if ( (currentlyRenderingFiber$1.mode & StrictEffectsMode) !== NoMode) {
+    fiberFlags |= MountLayoutDev;
+  }
+
   return mountEffectImpl(fiberFlags, Layout, create, deps);
 }
 
@@ -17833,6 +19116,11 @@ function mountImperativeHandle(ref, create, deps) {
 
   var effectDeps = deps !== null && deps !== undefined ? deps.concat([ref]) : null;
   var fiberFlags = Update | LayoutStatic;
+
+  if ( (currentlyRenderingFiber$1.mode & StrictEffectsMode) !== NoMode) {
+    fiberFlags |= MountLayoutDev;
+  }
+
   return mountEffectImpl(fiberFlags, Layout, imperativeHandleEffect.bind(null, create, ref), effectDeps);
 }
 
@@ -18302,25 +19590,6 @@ function markUpdateInDevTools(fiber, lane, action) {
   }
 }
 
-function getCacheSignal() {
-
-  var cache = readContext(CacheContext);
-  return cache.controller.signal;
-}
-
-function getCacheForType(resourceType) {
-
-  var cache = readContext(CacheContext);
-  var cacheForType = cache.data.get(resourceType);
-
-  if (cacheForType === undefined) {
-    cacheForType = resourceType();
-    cache.data.set(resourceType, cacheForType);
-  }
-
-  return cacheForType;
-}
-
 var ContextOnlyDispatcher = {
   readContext: readContext,
   useCallback: throwInvalidHookError,
@@ -18343,8 +19612,6 @@ var ContextOnlyDispatcher = {
 };
 
 {
-  ContextOnlyDispatcher.getCacheSignal = getCacheSignal;
-  ContextOnlyDispatcher.getCacheForType = getCacheForType;
   ContextOnlyDispatcher.useCacheRefresh = throwInvalidHookError;
 }
 
@@ -18492,9 +19759,6 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
   };
 
   {
-    HooksDispatcherOnMountInDEV.getCacheSignal = getCacheSignal;
-    HooksDispatcherOnMountInDEV.getCacheForType = getCacheForType;
-
     HooksDispatcherOnMountInDEV.useCacheRefresh = function useCacheRefresh() {
       currentHookNameInDev = 'useCacheRefresh';
       mountHookTypesDev();
@@ -18627,9 +19891,6 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
   };
 
   {
-    HooksDispatcherOnMountWithHookTypesInDEV.getCacheSignal = getCacheSignal;
-    HooksDispatcherOnMountWithHookTypesInDEV.getCacheForType = getCacheForType;
-
     HooksDispatcherOnMountWithHookTypesInDEV.useCacheRefresh = function useCacheRefresh() {
       currentHookNameInDev = 'useCacheRefresh';
       updateHookTypesDev();
@@ -18762,9 +20023,6 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
   };
 
   {
-    HooksDispatcherOnUpdateInDEV.getCacheSignal = getCacheSignal;
-    HooksDispatcherOnUpdateInDEV.getCacheForType = getCacheForType;
-
     HooksDispatcherOnUpdateInDEV.useCacheRefresh = function useCacheRefresh() {
       currentHookNameInDev = 'useCacheRefresh';
       updateHookTypesDev();
@@ -18897,9 +20155,6 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
   };
 
   {
-    HooksDispatcherOnRerenderInDEV.getCacheSignal = getCacheSignal;
-    HooksDispatcherOnRerenderInDEV.getCacheForType = getCacheForType;
-
     HooksDispatcherOnRerenderInDEV.useCacheRefresh = function useCacheRefresh() {
       currentHookNameInDev = 'useCacheRefresh';
       updateHookTypesDev();
@@ -19049,9 +20304,6 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
   };
 
   {
-    InvalidNestedHooksDispatcherOnMountInDEV.getCacheSignal = getCacheSignal;
-    InvalidNestedHooksDispatcherOnMountInDEV.getCacheForType = getCacheForType;
-
     InvalidNestedHooksDispatcherOnMountInDEV.useCacheRefresh = function useCacheRefresh() {
       currentHookNameInDev = 'useCacheRefresh';
       mountHookTypesDev();
@@ -19208,9 +20460,6 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
   };
 
   {
-    InvalidNestedHooksDispatcherOnUpdateInDEV.getCacheSignal = getCacheSignal;
-    InvalidNestedHooksDispatcherOnUpdateInDEV.getCacheForType = getCacheForType;
-
     InvalidNestedHooksDispatcherOnUpdateInDEV.useCacheRefresh = function useCacheRefresh() {
       currentHookNameInDev = 'useCacheRefresh';
       updateHookTypesDev();
@@ -19367,9 +20616,6 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
   };
 
   {
-    InvalidNestedHooksDispatcherOnRerenderInDEV.getCacheSignal = getCacheSignal;
-    InvalidNestedHooksDispatcherOnRerenderInDEV.getCacheForType = getCacheForType;
-
     InvalidNestedHooksDispatcherOnRerenderInDEV.useCacheRefresh = function useCacheRefresh() {
       currentHookNameInDev = 'useCacheRefresh';
       updateHookTypesDev();
@@ -20060,7 +21306,8 @@ function throwException(root, returnFiber, sourceFiber, value, rootRenderLanes) 
         }
 
         break;
-    }
+    } // $FlowFixMe[incompatible-type] we bail out when we get a null
+
 
     workInProgress = workInProgress.return;
   } while (workInProgress !== null);
@@ -20394,6 +21641,7 @@ function updateSimpleMemoComponent(current, workInProgress, Component, nextProps
         try {
           outerMemoType = init(payload);
         } catch (x) {
+          // $FlowFixMe[incompatible-type] found when upgrading Flow
           outerMemoType = null;
         } // Inner propTypes will be validated in the function component path.
 
@@ -21100,6 +22348,37 @@ function updateHostComponent(current, workInProgress, renderLanes) {
 
   markRef(current, workInProgress);
   reconcileChildren(current, workInProgress, nextChildren, renderLanes);
+  return workInProgress.child;
+}
+
+function updateHostResource(current, workInProgress, renderLanes) {
+  pushHostContext(workInProgress);
+  markRef(current, workInProgress);
+  var currentProps = current === null ? null : current.memoizedProps;
+  workInProgress.memoizedState = getResource(workInProgress.type, workInProgress.pendingProps, currentProps);
+  reconcileChildren(current, workInProgress, workInProgress.pendingProps.children, renderLanes);
+  return workInProgress.child;
+}
+
+function updateHostSingleton(current, workInProgress, renderLanes) {
+  pushHostContext(workInProgress);
+
+  if (current === null) {
+    claimHydratableSingleton(workInProgress);
+  }
+
+  var nextChildren = workInProgress.pendingProps.children;
+
+  if (current === null && !getIsHydrating()) {
+    // Similar to Portals we append Singleton children in the commit phase. So we
+    // Track insertions even on mount.
+    // TODO: Consider unifying this with how the root works.
+    workInProgress.child = reconcileChildFibers(workInProgress, null, nextChildren, renderLanes);
+  } else {
+    reconcileChildren(current, workInProgress, nextChildren, renderLanes);
+  }
+
+  markRef(current, workInProgress);
   return workInProgress.child;
 }
 
@@ -22039,15 +23318,18 @@ function propagateSuspenseContextChange(workInProgress, firstChild, renderLanes)
 
     if (node === workInProgress) {
       return;
-    }
+    } // $FlowFixMe[incompatible-use] found when upgrading Flow
+
 
     while (node.sibling === null) {
+      // $FlowFixMe[incompatible-use] found when upgrading Flow
       if (node.return === null || node.return === workInProgress) {
         return;
       }
 
       node = node.return;
-    }
+    } // $FlowFixMe[incompatible-use] found when upgrading Flow
+
 
     node.sibling.return = node.return;
     node = node.sibling;
@@ -22527,16 +23809,19 @@ function remountFiber(current, oldWorkInProgress, newWorkInProgress) {
       if (prevSibling === null) {
         // eslint-disable-next-line react-internal/prod-error-codes
         throw new Error('Expected parent to have a child.');
-      }
+      } // $FlowFixMe[incompatible-use] found when upgrading Flow
+
 
       while (prevSibling.sibling !== oldWorkInProgress) {
+        // $FlowFixMe[incompatible-use] found when upgrading Flow
         prevSibling = prevSibling.sibling;
 
         if (prevSibling === null) {
           // eslint-disable-next-line react-internal/prod-error-codes
           throw new Error('Expected to find the previous sibling.');
         }
-      }
+      } // $FlowFixMe[incompatible-use] found when upgrading Flow
+
 
       prevSibling.sibling = newWorkInProgress;
     } // Delete the old fiber and place the new one.
@@ -22587,6 +23872,8 @@ function attemptEarlyBailoutIfNoScheduledUpdate(current, workInProgress, renderL
       resetHydrationState();
       break;
 
+    case HostResource:
+    case HostSingleton:
     case HostComponent:
       pushHostContext(workInProgress);
       break;
@@ -22866,6 +24153,20 @@ function beginWork(current, workInProgress, renderLanes) {
     case HostRoot:
       return updateHostRoot(current, workInProgress, renderLanes);
 
+    case HostResource:
+      {
+        return updateHostResource(current, workInProgress, renderLanes);
+      }
+
+    // eslint-disable-next-line no-fallthrough
+
+    case HostSingleton:
+      {
+        return updateHostSingleton(current, workInProgress, renderLanes);
+      }
+
+    // eslint-disable-next-line no-fallthrough
+
     case HostComponent:
       return updateHostComponent(current, workInProgress, renderLanes);
 
@@ -22998,7 +24299,7 @@ var updateHostText$1;
     while (node !== null) {
       if (node.tag === HostComponent || node.tag === HostText) {
         appendInitialChild(parent, node.stateNode);
-      } else if (node.tag === HostPortal) ; else if (node.child !== null) {
+      } else if (node.tag === HostPortal || ( node.tag === HostSingleton )) ; else if (node.child !== null) {
         node.child.return = node;
         node = node.child;
         continue;
@@ -23006,15 +24307,18 @@ var updateHostText$1;
 
       if (node === workInProgress) {
         return;
-      }
+      } // $FlowFixMe[incompatible-use] found when upgrading Flow
+
 
       while (node.sibling === null) {
+        // $FlowFixMe[incompatible-use] found when upgrading Flow
         if (node.return === null || node.return === workInProgress) {
           return;
         }
 
         node = node.return;
-      }
+      } // $FlowFixMe[incompatible-use] found when upgrading Flow
+
 
       node.sibling.return = node.return;
       node = node.sibling;
@@ -23426,13 +24730,85 @@ function completeWork(current, workInProgress, renderLanes) {
         return null;
       }
 
+    case HostResource:
+      {
+        {
+          popHostContext(workInProgress);
+          var currentRef = current ? current.ref : null;
+
+          if (currentRef !== workInProgress.ref) {
+            markRef$1(workInProgress);
+          }
+
+          if (current === null || current.memoizedState !== workInProgress.memoizedState) {
+            // The workInProgress resource is different than the current one or the current
+            // one does not exist
+            markUpdate(workInProgress);
+          }
+
+          bubbleProperties(workInProgress);
+          return null;
+        }
+      }
+    // eslint-disable-next-line-no-fallthrough
+
+    case HostSingleton:
+      {
+        {
+          popHostContext(workInProgress);
+          var rootContainerInstance = getRootHostContainer();
+          var type = workInProgress.type;
+
+          if (current !== null && workInProgress.stateNode != null) {
+            updateHostComponent$1(current, workInProgress, type, newProps);
+
+            if (current.ref !== workInProgress.ref) {
+              markRef$1(workInProgress);
+            }
+          } else {
+            if (!newProps) {
+              if (workInProgress.stateNode === null) {
+                throw new Error('We must have new props for new mounts. This error is likely ' + 'caused by a bug in React. Please file an issue.');
+              } // This can happen when we abort work.
+
+
+              bubbleProperties(workInProgress);
+              return null;
+            }
+
+            var currentHostContext = getHostContext();
+
+            var _wasHydrated = popHydrationState(workInProgress);
+
+            if (_wasHydrated) {
+              // We ignore the boolean indicating there is an updateQueue because
+              // it is used only to set text children and HostSingletons do not
+              // use them.
+              prepareToHydrateHostInstance(workInProgress, currentHostContext);
+            } else {
+              workInProgress.stateNode = resolveSingletonInstance(type, newProps, rootContainerInstance, currentHostContext, true);
+              markUpdate(workInProgress);
+            }
+
+            if (workInProgress.ref !== null) {
+              // If there is a ref on a host node we need to schedule a callback
+              markRef$1(workInProgress);
+            }
+          }
+
+          bubbleProperties(workInProgress);
+          return null;
+        }
+      }
+    // eslint-disable-next-line-no-fallthrough
+
     case HostComponent:
       {
         popHostContext(workInProgress);
-        var type = workInProgress.type;
+        var _type = workInProgress.type;
 
         if (current !== null && workInProgress.stateNode != null) {
-          updateHostComponent$1(current, workInProgress, type, newProps);
+          updateHostComponent$1(current, workInProgress, _type, newProps);
 
           if (current.ref !== workInProgress.ref) {
             markRef$1(workInProgress);
@@ -23448,30 +24824,32 @@ function completeWork(current, workInProgress, renderLanes) {
             return null;
           }
 
-          var currentHostContext = getHostContext(); // TODO: Move createInstance to beginWork and keep it on a context
+          var _currentHostContext = getHostContext(); // TODO: Move createInstance to beginWork and keep it on a context
           // "stack" as the parent. Then append children as we go in beginWork
           // or completeWork depending on whether we want to add them top->down or
           // bottom->up. Top->down is faster in IE11.
 
-          var _wasHydrated = popHydrationState(workInProgress);
 
-          if (_wasHydrated) {
+          var _wasHydrated2 = popHydrationState(workInProgress);
+
+          if (_wasHydrated2) {
             // TODO: Move this and createInstance step into the beginPhase
             // to consolidate.
-            if (prepareToHydrateHostInstance(workInProgress, currentHostContext)) {
+            if (prepareToHydrateHostInstance(workInProgress, _currentHostContext)) {
               // If changes to the hydrated node need to be applied at the
               // commit-phase we mark this as such.
               markUpdate(workInProgress);
             }
           } else {
-            var rootContainerInstance = getRootHostContainer();
-            var instance = createInstance(type, newProps, rootContainerInstance, currentHostContext, workInProgress);
+            var _rootContainerInstance = getRootHostContainer();
+
+            var instance = createInstance(_type, newProps, _rootContainerInstance, _currentHostContext, workInProgress);
             appendAllChildren(instance, workInProgress, false, false);
             workInProgress.stateNode = instance; // Certain renderers require commit-time effects for initial mount.
             // (eg DOM renderer supports auto-focus for certain elements).
             // Make sure such renderers get scheduled for later work.
 
-            if (finalizeInitialChildren(instance, type, newProps)) {
+            if (finalizeInitialChildren(instance, _type, newProps)) {
               markUpdate(workInProgress);
             }
           }
@@ -23503,18 +24881,18 @@ function completeWork(current, workInProgress, renderLanes) {
 
           }
 
-          var _rootContainerInstance = getRootHostContainer();
+          var _rootContainerInstance2 = getRootHostContainer();
 
-          var _currentHostContext = getHostContext();
+          var _currentHostContext2 = getHostContext();
 
-          var _wasHydrated2 = popHydrationState(workInProgress);
+          var _wasHydrated3 = popHydrationState(workInProgress);
 
-          if (_wasHydrated2) {
+          if (_wasHydrated3) {
             if (prepareToHydrateHostTextInstance(workInProgress)) {
               markUpdate(workInProgress);
             }
           } else {
-            workInProgress.stateNode = createTextInstance(newText, _rootContainerInstance, _currentHostContext, workInProgress);
+            workInProgress.stateNode = createTextInstance(newText, _rootContainerInstance2, _currentHostContext2, workInProgress);
           }
         }
 
@@ -24046,6 +25424,8 @@ function unwindWork(current, workInProgress, renderLanes) {
         return null;
       }
 
+    case HostResource:
+    case HostSingleton:
     case HostComponent:
       {
         // TODO: popHydrationState
@@ -24169,6 +25549,8 @@ function unwindInterruptedWork(current, interruptedWork, renderLanes) {
         break;
       }
 
+    case HostResource:
+    case HostSingleton:
     case HostComponent:
       {
         popHostContext(interruptedWork);
@@ -24384,8 +25766,7 @@ function commitBeforeMutationEffectsOnFiber(finishedWork) {
       {
         {
           if ((flags & Update) !== NoFlags) {
-            // useEvent doesn't need to be cleaned up
-            commitHookEffectListMount(Snapshot$1 | HasEffect, finishedWork);
+            commitUseEventMount(finishedWork);
           }
         }
 
@@ -24452,6 +25833,8 @@ function commitBeforeMutationEffectsOnFiber(finishedWork) {
       }
 
     case HostComponent:
+    case HostResource:
+    case HostSingleton:
     case HostText:
     case HostPortal:
     case IncompleteClassComponent:
@@ -24597,6 +25980,22 @@ function commitHookEffectListMount(flags, finishedWork) {
 
       effect = effect.next;
     } while (effect !== firstEffect);
+  }
+}
+
+function commitUseEventMount(finishedWork) {
+  var updateQueue = finishedWork.updateQueue;
+  var eventPayloads = updateQueue !== null ? updateQueue.events : null;
+
+  if (eventPayloads !== null) {
+    // FunctionComponentUpdateQueue.events is a flat array of
+    // [EventFunctionWrapper, EventFunction, ...], so increment by 2 each iteration to find the next
+    // pair.
+    for (var ii = 0; ii < eventPayloads.length; ii += 2) {
+      var eventFn = eventPayloads[ii];
+      var nextImpl = eventPayloads[ii + 1];
+      eventFn._impl = nextImpl;
+    }
   }
 }
 
@@ -24898,6 +26297,7 @@ function commitLayoutEffectOnFiber(finishedRoot, current, finishedWork, committe
 
             if (finishedWork.child !== null) {
               switch (finishedWork.child.tag) {
+                case HostSingleton:
                 case HostComponent:
                   instance = getPublicInstance(finishedWork.child.stateNode);
                   break;
@@ -24919,6 +26319,35 @@ function commitLayoutEffectOnFiber(finishedRoot, current, finishedWork, committe
         break;
       }
 
+    case HostResource:
+      {
+        {
+          recursivelyTraverseLayoutEffects(finishedRoot, finishedWork);
+
+          if (flags & Update) {
+            var newResource = finishedWork.memoizedState;
+
+            if (current !== null) {
+              var currentResource = current.memoizedState;
+
+              if (currentResource !== newResource) {
+                releaseResource(currentResource);
+              }
+            }
+
+            finishedWork.stateNode = newResource ? acquireResource(newResource) : null;
+          }
+
+          if (flags & Ref) {
+            safelyAttachRef(finishedWork, finishedWork.return);
+          }
+
+          break;
+        }
+      }
+    // eslint-disable-next-line-no-fallthrough
+
+    case HostSingleton:
     case HostComponent:
       {
         recursivelyTraverseLayoutEffects(finishedRoot, finishedWork); // Renderers may schedule work to be done after host components are mounted
@@ -25026,7 +26455,7 @@ function hideOrUnhideAllChildren(finishedWork, isHidden) {
     var node = finishedWork;
 
     while (true) {
-      if (node.tag === HostComponent) {
+      if (node.tag === HostComponent || ( node.tag === HostResource ) || ( node.tag === HostSingleton )) {
         if (hostSubtreeRoot === null) {
           hostSubtreeRoot = node;
 
@@ -25096,6 +26525,8 @@ function commitAttachRef(finishedWork) {
     var instanceToUse;
 
     switch (finishedWork.tag) {
+      case HostResource:
+      case HostSingleton:
       case HostComponent:
         instanceToUse = getPublicInstance(instance);
         break;
@@ -25239,7 +26670,7 @@ function getHostParentFiber(fiber) {
 }
 
 function isHostParent(fiber) {
-  return fiber.tag === HostComponent || fiber.tag === HostRoot || fiber.tag === HostPortal;
+  return fiber.tag === HostComponent || fiber.tag === HostRoot || ( fiber.tag === HostResource ) || ( fiber.tag === HostSingleton ) || fiber.tag === HostPortal;
 }
 
 function getHostSibling(fiber) {
@@ -25256,7 +26687,8 @@ function getHostSibling(fiber) {
         // If we pop out of the root or hit the parent the fiber we are the
         // last sibling.
         return null;
-      }
+      } // $FlowFixMe[incompatible-type] found when upgrading Flow
+
 
       node = node.return;
     }
@@ -25264,7 +26696,7 @@ function getHostSibling(fiber) {
     node.sibling.return = node.return;
     node = node.sibling;
 
-    while (node.tag !== HostComponent && node.tag !== HostText && node.tag !== DehydratedFragment) {
+    while (node.tag !== HostComponent && node.tag !== HostText && ( node.tag !== HostSingleton) && node.tag !== DehydratedFragment) {
       // If it is not host node and, we might have a host node inside it.
       // Try to search down until we find one.
       if (node.flags & Placement) {
@@ -25292,36 +26724,59 @@ function getHostSibling(fiber) {
 
 function commitPlacement(finishedWork) {
 
+  {
+    if (finishedWork.tag === HostSingleton) {
+      // Singletons are already in the Host and don't need to be placed
+      // Since they operate somewhat like Portals though their children will
+      // have Placement and will get placed inside them
+      return;
+    }
+  } // Recursively insert all host nodes into the parent.
 
-  var parentFiber = getHostParentFiber(finishedWork); // Note: these two variables *must* always be updated together.
+
+  var parentFiber = getHostParentFiber(finishedWork);
 
   switch (parentFiber.tag) {
+    case HostSingleton:
+      {
+        {
+          var parent = parentFiber.stateNode;
+          var before = getHostSibling(finishedWork); // We only have the top Fiber that was inserted but we need to recurse down its
+          // children to find all the terminal nodes.
+
+          insertOrAppendPlacementNode(finishedWork, before, parent);
+          break;
+        }
+      }
+    // eslint-disable-next-line no-fallthrough
+
     case HostComponent:
       {
-        var parent = parentFiber.stateNode;
+        var _parent = parentFiber.stateNode;
 
         if (parentFiber.flags & ContentReset) {
           // Reset the text content of the parent before doing any insertions
-          resetTextContent(parent); // Clear ContentReset from the effect tag
+          resetTextContent(_parent); // Clear ContentReset from the effect tag
 
           parentFiber.flags &= ~ContentReset;
         }
 
-        var before = getHostSibling(finishedWork); // We only have the top Fiber that was inserted but we need to recurse down its
+        var _before = getHostSibling(finishedWork); // We only have the top Fiber that was inserted but we need to recurse down its
         // children to find all the terminal nodes.
 
-        insertOrAppendPlacementNode(finishedWork, before, parent);
+
+        insertOrAppendPlacementNode(finishedWork, _before, _parent);
         break;
       }
 
     case HostRoot:
     case HostPortal:
       {
-        var _parent = parentFiber.stateNode.containerInfo;
+        var _parent2 = parentFiber.stateNode.containerInfo;
 
-        var _before = getHostSibling(finishedWork);
+        var _before2 = getHostSibling(finishedWork);
 
-        insertOrAppendPlacementNodeIntoContainer(finishedWork, _before, _parent);
+        insertOrAppendPlacementNodeIntoContainer(finishedWork, _before2, _parent2);
         break;
       }
     // eslint-disable-next-line-no-fallthrough
@@ -25343,7 +26798,7 @@ function insertOrAppendPlacementNodeIntoContainer(node, before, parent) {
     } else {
       appendChildToContainer(parent, stateNode);
     }
-  } else if (tag === HostPortal) ; else {
+  } else if (tag === HostPortal || ( tag === HostSingleton )) ; else {
     var child = node.child;
 
     if (child !== null) {
@@ -25370,7 +26825,7 @@ function insertOrAppendPlacementNode(node, before, parent) {
     } else {
       appendChild(parent, stateNode);
     }
-  } else if (tag === HostPortal) ; else {
+  } else if (tag === HostPortal || ( tag === HostSingleton )) ; else {
     var child = node.child;
 
     if (child !== null) {
@@ -25413,6 +26868,7 @@ function commitDeletionEffects(root, returnFiber, deletedFiber) {
 
     findParent: while (parent !== null) {
       switch (parent.tag) {
+        case HostSingleton:
         case HostComponent:
           {
             hostParent = parent.stateNode;
@@ -25466,6 +26922,44 @@ function commitDeletionEffectsOnFiber(finishedRoot, nearestMountedAncestor, dele
   // that don't modify the stack.
 
   switch (deletedFiber.tag) {
+    case HostResource:
+      {
+        {
+          if (!offscreenSubtreeWasHidden) {
+            safelyDetachRef(deletedFiber, nearestMountedAncestor);
+          }
+
+          recursivelyTraverseDeletionEffects(finishedRoot, nearestMountedAncestor, deletedFiber);
+          releaseResource(deletedFiber.memoizedState);
+          return;
+        }
+      }
+    // eslint-disable-next-line no-fallthrough
+
+    case HostSingleton:
+      {
+        {
+          if (!offscreenSubtreeWasHidden) {
+            safelyDetachRef(deletedFiber, nearestMountedAncestor);
+          }
+
+          var prevHostParent = hostParent;
+          var prevHostParentIsContainer = hostParentIsContainer;
+          hostParent = deletedFiber.stateNode;
+          recursivelyTraverseDeletionEffects(finishedRoot, nearestMountedAncestor, deletedFiber); // Normally this is called in passive unmount effect phase however with
+          // HostSingleton we warn if you acquire one that is already associated to
+          // a different fiber. To increase our chances of avoiding this, specifically
+          // if you keyed a HostSingleton so there will be a delete followed by a Placement
+          // we treat detach eagerly here
+
+          releaseSingletonInstance(deletedFiber.stateNode);
+          hostParent = prevHostParent;
+          hostParentIsContainer = prevHostParentIsContainer;
+          return;
+        }
+      }
+    // eslint-disable-next-line no-fallthrough
+
     case HostComponent:
       {
         if (!offscreenSubtreeWasHidden) {
@@ -25481,12 +26975,12 @@ function commitDeletionEffectsOnFiber(finishedRoot, nearestMountedAncestor, dele
         // to `null` on the stack to indicate that nested children don't
         // need to be removed.
         {
-          var prevHostParent = hostParent;
-          var prevHostParentIsContainer = hostParentIsContainer;
+          var _prevHostParent = hostParent;
+          var _prevHostParentIsContainer = hostParentIsContainer;
           hostParent = null;
           recursivelyTraverseDeletionEffects(finishedRoot, nearestMountedAncestor, deletedFiber);
-          hostParent = prevHostParent;
-          hostParentIsContainer = prevHostParentIsContainer;
+          hostParent = _prevHostParent;
+          hostParentIsContainer = _prevHostParentIsContainer;
 
           if (hostParent !== null) {
             // Now that all the child effects have unmounted, we can remove the
@@ -25524,13 +27018,13 @@ function commitDeletionEffectsOnFiber(finishedRoot, nearestMountedAncestor, dele
       {
         {
           // When we go into a portal, it becomes the parent to remove from.
-          var _prevHostParent = hostParent;
-          var _prevHostParentIsContainer = hostParentIsContainer;
+          var _prevHostParent2 = hostParent;
+          var _prevHostParentIsContainer2 = hostParentIsContainer;
           hostParent = deletedFiber.stateNode.containerInfo;
           hostParentIsContainer = true;
           recursivelyTraverseDeletionEffects(finishedRoot, nearestMountedAncestor, deletedFiber);
-          hostParent = _prevHostParent;
-          hostParentIsContainer = _prevHostParentIsContainer;
+          hostParent = _prevHostParent2;
+          hostParentIsContainer = _prevHostParentIsContainer2;
         }
 
         return;
@@ -25703,10 +27197,13 @@ function getRetryCache(finishedWork) {
 
     case OffscreenComponent:
       {
-        var instance = finishedWork.stateNode;
-        var _retryCache = instance._retryCache;
+        var instance = finishedWork.stateNode; // $FlowFixMe[incompatible-type-arg] found when upgrading Flow
+
+        var _retryCache = // $FlowFixMe[incompatible-type] found when upgrading Flow
+        instance._retryCache;
 
         if (_retryCache === null) {
+          // $FlowFixMe[incompatible-type]
           _retryCache = instance._retryCache = new PossiblyWeakSet();
         }
 
@@ -25793,7 +27290,7 @@ function commitMutationEffectsOnFiber(finishedWork, root, lanes) {
   var current = finishedWork.alternate;
   var flags = finishedWork.flags; // The effect flag should be checked *after* we refine the type of fiber,
   // because the fiber tag is more specific. An exception is any flag related
-  // to reconcilation, because those can be set on all fiber types.
+  // to reconciliation, because those can be set on all fiber types.
 
   switch (finishedWork.tag) {
     case FunctionComponent:
@@ -25859,6 +27356,41 @@ function commitMutationEffectsOnFiber(finishedWork, root, lanes) {
 
         return;
       }
+
+    case HostResource:
+      {
+        {
+          recursivelyTraverseMutationEffects(root, finishedWork);
+          commitReconciliationEffects(finishedWork);
+
+          if (flags & Ref) {
+            if (current !== null) {
+              safelyDetachRef(current, current.return);
+            }
+          }
+
+          return;
+        }
+      }
+    // eslint-disable-next-line-no-fallthrough
+
+    case HostSingleton:
+      {
+        {
+          if (flags & Update) {
+            var previousWork = finishedWork.alternate;
+
+            if (previousWork === null) {
+              var singleton = finishedWork.stateNode;
+              var props = finishedWork.memoizedProps; // This was a new mount, we need to clear and set initial properties
+
+              clearSingleton(singleton);
+              acquireSingletonInstance(finishedWork.type, props, singleton, finishedWork);
+            }
+          }
+        }
+      }
+    // eslint-disable-next-line-no-fallthrough
 
     case HostComponent:
       {
@@ -26211,6 +27743,8 @@ function disappearLayoutEffects(finishedWork) {
         break;
       }
 
+    case HostResource:
+    case HostSingleton:
     case HostComponent:
       {
         // TODO (Offscreen) Check: flags & RefStatic
@@ -26306,6 +27840,8 @@ includeWorkInProgressEffects) {
     //  ...
     // }
 
+    case HostResource:
+    case HostSingleton:
     case HostComponent:
       {
         recursivelyTraverseReappearLayoutEffects(finishedRoot, finishedWork, includeWorkInProgressEffects); // Renderers may schedule work to be done after host components are mounted
@@ -26534,15 +28070,20 @@ function commitPassiveMountOnFiber(finishedRoot, finishedWork, committedLanes, c
       }
 
     case LegacyHiddenComponent:
+      {
+
+        break;
+      }
+
     case OffscreenComponent:
       {
         // TODO: Pass `current` as argument to this function
-        var instance = finishedWork.stateNode;
+        var _instance3 = finishedWork.stateNode;
         var nextState = finishedWork.memoizedState;
         var isHidden = nextState !== null;
 
         if (isHidden) {
-          if (instance._visibility & OffscreenPassiveEffectsConnected) {
+          if (_instance3._visibility & OffscreenPassiveEffectsConnected) {
             // The effects are currently connected. Update them.
             recursivelyTraversePassiveMountEffects(finishedRoot, finishedWork, committedLanes, committedTransitions);
           } else {
@@ -26557,28 +28098,28 @@ function commitPassiveMountOnFiber(finishedRoot, finishedWork, committedLanes, c
               }
             } else {
               // Legacy Mode: Fire the effects even if the tree is hidden.
-              instance._visibility |= OffscreenPassiveEffectsConnected;
+              _instance3._visibility |= OffscreenPassiveEffectsConnected;
               recursivelyTraversePassiveMountEffects(finishedRoot, finishedWork, committedLanes, committedTransitions);
             }
           }
         } else {
           // Tree is visible
-          if (instance._visibility & OffscreenPassiveEffectsConnected) {
+          if (_instance3._visibility & OffscreenPassiveEffectsConnected) {
             // The effects are currently connected. Update them.
             recursivelyTraversePassiveMountEffects(finishedRoot, finishedWork, committedLanes, committedTransitions);
           } else {
             // The effects are currently disconnected. Reconnect them, while also
             // firing effects inside newly mounted trees. This also applies to
             // the initial render.
-            instance._visibility |= OffscreenPassiveEffectsConnected;
+            _instance3._visibility |= OffscreenPassiveEffectsConnected;
             var includeWorkInProgressEffects = (finishedWork.subtreeFlags & PassiveMask) !== NoFlags;
             recursivelyTraverseReconnectPassiveEffects(finishedRoot, finishedWork, committedLanes, committedTransitions, includeWorkInProgressEffects);
           }
         }
 
         if (flags & Passive) {
-          var current = finishedWork.alternate;
-          commitOffscreenPassiveMountEffects(current, finishedWork);
+          var _current = finishedWork.alternate;
+          commitOffscreenPassiveMountEffects(_current, finishedWork);
         }
 
         break;
@@ -26590,8 +28131,8 @@ function commitPassiveMountOnFiber(finishedRoot, finishedWork, committedLanes, c
 
         if (flags & Passive) {
           // TODO: Pass `current` as argument to this function
-          var _current = finishedWork.alternate;
-          commitCachePassiveMountEffect(_current, finishedWork);
+          var _current2 = finishedWork.alternate;
+          commitCachePassiveMountEffect(_current2, finishedWork);
         }
 
         break;
@@ -26649,14 +28190,19 @@ includeWorkInProgressEffects) {
     // }
 
     case LegacyHiddenComponent:
+      {
+
+        break;
+      }
+
     case OffscreenComponent:
       {
-        var instance = finishedWork.stateNode;
+        var _instance4 = finishedWork.stateNode;
         var nextState = finishedWork.memoizedState;
         var isHidden = nextState !== null;
 
         if (isHidden) {
-          if (instance._visibility & OffscreenPassiveEffectsConnected) {
+          if (_instance4._visibility & OffscreenPassiveEffectsConnected) {
             // The effects are currently connected. Update them.
             recursivelyTraverseReconnectPassiveEffects(finishedRoot, finishedWork, committedLanes, committedTransitions, includeWorkInProgressEffects);
           } else {
@@ -26671,7 +28217,7 @@ includeWorkInProgressEffects) {
               }
             } else {
               // Legacy Mode: Fire the effects even if the tree is hidden.
-              instance._visibility |= OffscreenPassiveEffectsConnected;
+              _instance4._visibility |= OffscreenPassiveEffectsConnected;
               recursivelyTraverseReconnectPassiveEffects(finishedRoot, finishedWork, committedLanes, committedTransitions, includeWorkInProgressEffects);
             }
           }
@@ -26682,14 +28228,14 @@ includeWorkInProgressEffects) {
           // continue traversing the tree and firing all the effects.
           //
           // We do need to set the "connected" flag on the instance, though.
-          instance._visibility |= OffscreenPassiveEffectsConnected;
+          _instance4._visibility |= OffscreenPassiveEffectsConnected;
           recursivelyTraverseReconnectPassiveEffects(finishedRoot, finishedWork, committedLanes, committedTransitions, includeWorkInProgressEffects);
         }
 
         if (includeWorkInProgressEffects && flags & Passive) {
           // TODO: Pass `current` as argument to this function
-          var current = finishedWork.alternate;
-          commitOffscreenPassiveMountEffects(current, finishedWork);
+          var _current3 = finishedWork.alternate;
+          commitOffscreenPassiveMountEffects(_current3, finishedWork);
         }
 
         break;
@@ -26701,8 +28247,8 @@ includeWorkInProgressEffects) {
 
         if (includeWorkInProgressEffects && flags & Passive) {
           // TODO: Pass `current` as argument to this function
-          var _current2 = finishedWork.alternate;
-          commitCachePassiveMountEffect(_current2, finishedWork);
+          var _current4 = finishedWork.alternate;
+          commitCachePassiveMountEffect(_current4, finishedWork);
         }
 
         break;
@@ -26765,8 +28311,8 @@ function commitAtomicPassiveEffects(finishedRoot, finishedWork, committedLanes, 
 
         if (flags & Passive) {
           // TODO: Pass `current` as argument to this function
-          var _current3 = finishedWork.alternate;
-          commitCachePassiveMountEffect(_current3, finishedWork);
+          var _current5 = finishedWork.alternate;
+          commitCachePassiveMountEffect(_current5, finishedWork);
         }
 
         break;
@@ -26808,7 +28354,9 @@ function detachAlternateSiblings(parentFiber) {
         previousFiber.child = null;
 
         do {
-          var detachedSibling = detachedChild.sibling;
+          // $FlowFixMe[incompatible-use] found when upgrading Flow
+          var detachedSibling = detachedChild.sibling; // $FlowFixMe[incompatible-use] found when upgrading Flow
+
           detachedChild.sibling = null;
           detachedChild = detachedSibling;
         } while (detachedChild !== null);
@@ -27076,6 +28624,136 @@ function commitPassiveUnmountInsideDeletedTreeOnFiber(current, nearestMountedAnc
   }
 }
 
+function invokeLayoutEffectMountInDEV(fiber) {
+  {
+    // We don't need to re-check StrictEffectsMode here.
+    // This function is only called if that check has already passed.
+    switch (fiber.tag) {
+      case FunctionComponent:
+      case ForwardRef:
+      case SimpleMemoComponent:
+        {
+          try {
+            commitHookEffectListMount(Layout | HasEffect, fiber);
+          } catch (error) {
+            captureCommitPhaseError(fiber, fiber.return, error);
+          }
+
+          break;
+        }
+
+      case ClassComponent:
+        {
+          var instance = fiber.stateNode;
+
+          try {
+            instance.componentDidMount();
+          } catch (error) {
+            captureCommitPhaseError(fiber, fiber.return, error);
+          }
+
+          break;
+        }
+    }
+  }
+}
+
+function invokePassiveEffectMountInDEV(fiber) {
+  {
+    // We don't need to re-check StrictEffectsMode here.
+    // This function is only called if that check has already passed.
+    switch (fiber.tag) {
+      case FunctionComponent:
+      case ForwardRef:
+      case SimpleMemoComponent:
+        {
+          try {
+            commitHookEffectListMount(Passive$1 | HasEffect, fiber);
+          } catch (error) {
+            captureCommitPhaseError(fiber, fiber.return, error);
+          }
+
+          break;
+        }
+    }
+  }
+}
+
+function invokeLayoutEffectUnmountInDEV(fiber) {
+  {
+    // We don't need to re-check StrictEffectsMode here.
+    // This function is only called if that check has already passed.
+    switch (fiber.tag) {
+      case FunctionComponent:
+      case ForwardRef:
+      case SimpleMemoComponent:
+        {
+          try {
+            commitHookEffectListUnmount(Layout | HasEffect, fiber, fiber.return);
+          } catch (error) {
+            captureCommitPhaseError(fiber, fiber.return, error);
+          }
+
+          break;
+        }
+
+      case ClassComponent:
+        {
+          var instance = fiber.stateNode;
+
+          if (typeof instance.componentWillUnmount === 'function') {
+            safelyCallComponentWillUnmount(fiber, fiber.return, instance);
+          }
+
+          break;
+        }
+    }
+  }
+}
+
+function invokePassiveEffectUnmountInDEV(fiber) {
+  {
+    // We don't need to re-check StrictEffectsMode here.
+    // This function is only called if that check has already passed.
+    switch (fiber.tag) {
+      case FunctionComponent:
+      case ForwardRef:
+      case SimpleMemoComponent:
+        {
+          try {
+            commitHookEffectListUnmount(Passive$1 | HasEffect, fiber, fiber.return);
+          } catch (error) {
+            captureCommitPhaseError(fiber, fiber.return, error);
+          }
+        }
+    }
+  }
+}
+
+function getCacheSignal() {
+
+  var cache = readContext(CacheContext);
+  return cache.controller.signal;
+}
+
+function getCacheForType(resourceType) {
+
+  var cache = readContext(CacheContext);
+  var cacheForType = cache.data.get(resourceType);
+
+  if (cacheForType === undefined) {
+    cacheForType = resourceType();
+    cache.data.set(resourceType, cacheForType);
+  }
+
+  return cacheForType;
+}
+
+var DefaultCacheDispatcher = {
+  getCacheSignal: getCacheSignal,
+  getCacheForType: getCacheForType
+};
+
 var COMPONENT_TYPE = 0;
 var HAS_PSEUDO_CLASS_TYPE = 1;
 var ROLE_TYPE = 2;
@@ -27115,8 +28793,7 @@ function isLegacyActEnvironment(fiber) {
 }
 function isConcurrentActEnvironment() {
   {
-    var isReactActEnvironmentGlobal = // $FlowFixMe – Flow doesn't know about IS_REACT_ACT_ENVIRONMENT global
-    typeof IS_REACT_ACT_ENVIRONMENT !== 'undefined' ? IS_REACT_ACT_ENVIRONMENT : undefined;
+    var isReactActEnvironmentGlobal = typeof IS_REACT_ACT_ENVIRONMENT !== 'undefined' ? IS_REACT_ACT_ENVIRONMENT : undefined;
 
     if (!isReactActEnvironmentGlobal && ReactCurrentActQueue.current !== null) {
       // TODO: Include link to relevant documentation page.
@@ -27130,6 +28807,7 @@ function isConcurrentActEnvironment() {
 var ceil = Math.ceil;
 var PossiblyWeakMap$1 = typeof WeakMap === 'function' ? WeakMap : Map;
 var ReactCurrentDispatcher$2 = ReactSharedInternals.ReactCurrentDispatcher,
+    ReactCurrentCache = ReactSharedInternals.ReactCurrentCache,
     ReactCurrentOwner$2 = ReactSharedInternals.ReactCurrentOwner,
     ReactCurrentBatchConfig$3 = ReactSharedInternals.ReactCurrentBatchConfig,
     ReactCurrentActQueue$1 = ReactSharedInternals.ReactCurrentActQueue;
@@ -27766,6 +29444,7 @@ function queueRecoverableErrors(errors) {
   if (workInProgressRootRecoverableErrors === null) {
     workInProgressRootRecoverableErrors = errors;
   } else {
+    // $FlowFixMe[method-unbinding]
     workInProgressRootRecoverableErrors.push.apply(workInProgressRootRecoverableErrors, errors);
   }
 }
@@ -27954,7 +29633,8 @@ function markRootSuspended$1(root, suspendedLanes) {
   // TODO: Lol maybe there's a better way to factor this besides this
   // obnoxiously named function :)
   suspendedLanes = removeLanes(suspendedLanes, workInProgressRootPingedLanes);
-  suspendedLanes = removeLanes(suspendedLanes, workInProgressRootInterleavedUpdatedLanes);
+  suspendedLanes = removeLanes(suspendedLanes, workInProgressRootInterleavedUpdatedLanes); // $FlowFixMe[incompatible-call] found when upgrading Flow
+
   markRootSuspended(root, suspendedLanes);
 } // This is the entry point for synchronous tasks that don't go
 // through Scheduler
@@ -28220,7 +29900,8 @@ function handleThrow(root, thrownValue) {
   }
 }
 
-function pushDispatcher() {
+function pushDispatcher(container) {
+  prepareRendererToRender(container);
   var prevDispatcher = ReactCurrentDispatcher$2.current;
   ReactCurrentDispatcher$2.current = ContextOnlyDispatcher;
 
@@ -28235,7 +29916,22 @@ function pushDispatcher() {
 }
 
 function popDispatcher(prevDispatcher) {
+  resetRendererAfterRender();
   ReactCurrentDispatcher$2.current = prevDispatcher;
+}
+
+function pushCacheDispatcher() {
+  {
+    var prevCacheDispatcher = ReactCurrentCache.current;
+    ReactCurrentCache.current = DefaultCacheDispatcher;
+    return prevCacheDispatcher;
+  }
+}
+
+function popCacheDispatcher(prevCacheDispatcher) {
+  {
+    ReactCurrentCache.current = prevCacheDispatcher;
+  }
 }
 
 function markCommitTimeOfFallback() {
@@ -28289,7 +29985,8 @@ function renderHasNotSuspendedYet() {
 function renderRootSync(root, lanes) {
   var prevExecutionContext = executionContext;
   executionContext |= RenderContext;
-  var prevDispatcher = pushDispatcher(); // If the root or lanes have changed, throw out the existing stack
+  var prevDispatcher = pushDispatcher(root.containerInfo);
+  var prevCacheDispatcher = pushCacheDispatcher(); // If the root or lanes have changed, throw out the existing stack
   // and prepare a fresh one. Otherwise we'll continue where we left off.
 
   if (workInProgressRoot !== root || workInProgressRootRenderLanes !== lanes) {
@@ -28330,6 +30027,7 @@ function renderRootSync(root, lanes) {
   resetContextDependencies();
   executionContext = prevExecutionContext;
   popDispatcher(prevDispatcher);
+  popCacheDispatcher(prevCacheDispatcher);
 
   if (workInProgress !== null) {
     // This is a sync render, so we should have finished the whole tree.
@@ -28373,7 +30071,8 @@ function workLoopSync() {
 function renderRootConcurrent(root, lanes) {
   var prevExecutionContext = executionContext;
   executionContext |= RenderContext;
-  var prevDispatcher = pushDispatcher(); // If the root or lanes have changed, throw out the existing stack
+  var prevDispatcher = pushDispatcher(root.containerInfo);
+  var prevCacheDispatcher = pushCacheDispatcher(); // If the root or lanes have changed, throw out the existing stack
   // and prepare a fresh one. Otherwise we'll continue where we left off.
 
   if (workInProgressRoot !== root || workInProgressRootRenderLanes !== lanes) {
@@ -28421,6 +30120,7 @@ function renderRootConcurrent(root, lanes) {
 
   resetContextDependencies();
   popDispatcher(prevDispatcher);
+  popCacheDispatcher(prevCacheDispatcher);
   executionContext = prevExecutionContext;
 
 
@@ -28464,6 +30164,7 @@ function workLoopConcurrent() {
   }
 
   while (workInProgress !== null && !shouldYield()) {
+    // $FlowFixMe[incompatible-call] found when upgrading Flow
     performUnitOfWork(workInProgress);
   }
 }
@@ -28665,6 +30366,7 @@ function completeUnitOfWork(unitOfWork) {
       workInProgress = siblingFiber;
       return;
     } // Otherwise, return to the parent
+    // $FlowFixMe[incompatible-type] we bail out when we get a null
 
 
     completedWork = returnFiber; // Update the next thing we're working on in case something throws.
@@ -28896,7 +30598,7 @@ function commitRootImpl(root, recoverableErrors, transitions, renderPriorityLeve
 
   {
     if (!rootDidHavePassiveEffects) {
-      commitDoubleInvokeEffectsInDEV(root);
+      commitDoubleInvokeEffectsInDEV(root, false);
     }
   }
 
@@ -29103,8 +30805,8 @@ function flushPassiveEffectsImpl() {
     pendingPassiveProfilerEffects = [];
 
     for (var i = 0; i < profilerEffects.length; i++) {
-      var fiber = profilerEffects[i];
-      commitPassiveEffectDurations(root, fiber);
+      var _fiber = profilerEffects[i];
+      commitPassiveEffectDurations(root, _fiber);
     }
   }
 
@@ -29113,7 +30815,7 @@ function flushPassiveEffectsImpl() {
   }
 
   {
-    commitDoubleInvokeEffectsInDEV(root);
+    commitDoubleInvokeEffectsInDEV(root, true);
   }
 
   executionContext = prevExecutionContext;
@@ -29368,7 +31070,8 @@ function resolveRetryWakeable(boundaryFiber, wakeable) {
 
     case OffscreenComponent:
       {
-        var instance = boundaryFiber.stateNode;
+        var instance = boundaryFiber.stateNode; // $FlowFixMe[incompatible-type] found when upgrading Flow
+
         retryCache = instance._retryCache;
         break;
       }
@@ -29427,84 +31130,54 @@ function flushRenderPhaseStrictModeWarningsInDEV() {
   }
 }
 
-function recursivelyTraverseAndDoubleInvokeEffectsInDEV(root, parentFiber, isInStrictMode) {
-  if ((parentFiber.subtreeFlags & (PlacementDEV | Visibility)) === NoFlags) {
-    // Parent's descendants have already had effects double invoked.
-    // Early exit to avoid unnecessary tree traversal.
-    return;
+function commitDoubleInvokeEffectsInDEV(root, hasPassiveEffects) {
+  {
+    {
+      legacyCommitDoubleInvokeEffectsInDEV(root.current, hasPassiveEffects);
+    }
   }
-
-  var child = parentFiber.child;
-
-  while (child !== null) {
-    doubleInvokeEffectsInDEVIfNecessary(root, child, isInStrictMode);
-    child = child.sibling;
-  }
-} // Unconditionally disconnects and connects passive and layout effects.
-
-
-function doubleInvokeEffectsOnFiber(root, fiber) {
-  disappearLayoutEffects(fiber);
-  disconnectPassiveEffect(fiber);
-  reappearLayoutEffects(root, fiber.alternate, fiber, false);
-  reconnectPassiveEffects(root, fiber, NoLanes, null, false);
 }
 
-function doubleInvokeEffectsInDEVIfNecessary(root, fiber, parentIsInStrictMode) {
-  var isStrictModeFiber = fiber.type === REACT_STRICT_MODE_TYPE;
-  var isInStrictMode = parentIsInStrictMode || isStrictModeFiber; // First case: the fiber **is not** of type OffscreenComponent. No
-  // special rules apply to double invoking effects.
+function legacyCommitDoubleInvokeEffectsInDEV(fiber, hasPassiveEffects) {
+  // TODO (StrictEffects) Should we set a marker on the root if it contains strict effects
+  // so we don't traverse unnecessarily? similar to subtreeFlags but just at the root level.
+  // Maybe not a big deal since this is DEV only behavior.
+  setCurrentFiber(fiber);
+  invokeEffectsInDev(fiber, MountLayoutDev, invokeLayoutEffectUnmountInDEV);
 
-  if (fiber.tag !== OffscreenComponent) {
-    if (fiber.flags & PlacementDEV) {
-      setCurrentFiber(fiber);
+  if (hasPassiveEffects) {
+    invokeEffectsInDev(fiber, MountPassiveDev, invokePassiveEffectUnmountInDEV);
+  }
 
-      if (isInStrictMode) {
-        doubleInvokeEffectsOnFiber(root, fiber);
+  invokeEffectsInDev(fiber, MountLayoutDev, invokeLayoutEffectMountInDEV);
+
+  if (hasPassiveEffects) {
+    invokeEffectsInDev(fiber, MountPassiveDev, invokePassiveEffectMountInDEV);
+  }
+
+  resetCurrentFiber();
+}
+
+function invokeEffectsInDev(firstChild, fiberFlags, invokeEffectFn) {
+  var current = firstChild;
+  var subtreeRoot = null;
+
+  while (current != null) {
+    var primarySubtreeFlag = current.subtreeFlags & fiberFlags;
+
+    if (current !== subtreeRoot && current.child != null && primarySubtreeFlag !== NoFlags) {
+      current = current.child;
+    } else {
+      if ((current.flags & fiberFlags) !== NoFlags) {
+        invokeEffectFn(current);
       }
 
-      resetCurrentFiber();
-    } else {
-      recursivelyTraverseAndDoubleInvokeEffectsInDEV(root, fiber, isInStrictMode);
+      if (current.sibling !== null) {
+        current = current.sibling;
+      } else {
+        current = subtreeRoot = current.return;
+      }
     }
-
-    return;
-  } // Second case: the fiber **is** of type OffscreenComponent.
-  // This branch contains cases specific to Offscreen.
-
-
-  if (fiber.memoizedState === null) {
-    // Only consider Offscreen that is visible.
-    // TODO (Offscreen) Handle manual mode.
-    setCurrentFiber(fiber);
-
-    if (isInStrictMode && fiber.flags & Visibility) {
-      // Double invoke effects on Offscreen's subtree only
-      // if it is visible and its visibility has changed.
-      doubleInvokeEffectsOnFiber(root, fiber);
-    } else if (fiber.subtreeFlags & PlacementDEV) {
-      // Something in the subtree could have been suspended.
-      // We need to continue traversal and find newly inserted fibers.
-      recursivelyTraverseAndDoubleInvokeEffectsInDEV(root, fiber, isInStrictMode);
-    }
-
-    resetCurrentFiber();
-  }
-}
-
-function commitDoubleInvokeEffectsInDEV(root) {
-  {
-    var doubleInvokeEffects = true;
-
-    if (root.tag === LegacyRoot && !(root.current.mode & StrictLegacyMode)) {
-      doubleInvokeEffects = false;
-    }
-
-    if (root.tag === ConcurrentRoot && !(root.current.mode & (StrictLegacyMode | StrictEffectsMode))) {
-      doubleInvokeEffects = false;
-    }
-
-    recursivelyTraverseAndDoubleInvokeEffectsInDEV(root, root.current, doubleInvokeEffects);
   }
 }
 
@@ -29534,7 +31207,8 @@ function warnAboutUpdateOnNotYetMountedFiberInDEV(fiber) {
     if (didWarnStateUpdateForNotYetMountedComponent !== null) {
       if (didWarnStateUpdateForNotYetMountedComponent.has(componentName)) {
         return;
-      }
+      } // $FlowFixMe[incompatible-use] found when upgrading Flow
+
 
       didWarnStateUpdateForNotYetMountedComponent.add(componentName);
     } else {
@@ -29760,8 +31434,7 @@ function setIsRunningInsertionEffect(isRunning) {
 }
 
 /* eslint-disable react-internal/prod-error-codes */
-var resolveFamily = null; // $FlowFixMe Flow gets confused by a WeakSet feature check below.
-
+var resolveFamily = null;
 var failedBoundaries = null;
 var setRefreshHandler = function (handler) {
   {
@@ -29901,7 +31574,7 @@ function isCompatibleFamilyForHotReloading(fiber, element) {
       // If we unwrapped and compared the inner types for wrappers instead,
       // then we would risk falsely saying two separate memo(Foo)
       // calls are equivalent because they wrap the same Foo function.
-      var prevFamily = resolveFamily(prevType);
+      var prevFamily = resolveFamily(prevType); // $FlowFixMe[not-a-function] found when upgrading Flow
 
       if (prevFamily !== undefined && prevFamily === resolveFamily(nextType)) {
         return true;
@@ -29923,7 +31596,6 @@ function markFailedErrorBoundaryForHotReloading(fiber) {
     }
 
     if (failedBoundaries === null) {
-      // $FlowFixMe Flow got confused by the feature check above.
       failedBoundaries = new WeakSet();
     }
 
@@ -30006,7 +31678,8 @@ function scheduleFibersWithFamiliesRecursively(fiber, updatedFamilies, staleFami
     }
 
     if (failedBoundaries !== null) {
-      if (failedBoundaries.has(fiber) || alternate !== null && failedBoundaries.has(alternate)) {
+      if (failedBoundaries.has(fiber) || // $FlowFixMe[incompatible-use] found when upgrading Flow
+      alternate !== null && failedBoundaries.has(alternate)) {
         needsRemount = true;
       }
     }
@@ -30103,6 +31776,7 @@ function findHostInstancesForFiberShallowly(fiber, hostInstances) {
 
     while (true) {
       switch (node.tag) {
+        case HostSingleton:
         case HostComponent:
           hostInstances.add(node.stateNode);
           return;
@@ -30131,7 +31805,7 @@ function findChildHostInstancesForFiberShallowly(fiber, hostInstances) {
     var foundHostInstances = false;
 
     while (true) {
-      if (node.tag === HostComponent) {
+      if (node.tag === HostComponent || ( node.tag === HostResource ) || ( node.tag === HostSingleton )) {
         // We got a match.
         foundHostInstances = true;
         hostInstances.add(node.stateNode); // There may still be more, so keep searching.
@@ -30488,7 +32162,9 @@ key, pendingProps, owner, mode, lanes) {
       }
     }
   } else if (typeof type === 'string') {
-    fiberTag = HostComponent;
+    {
+      fiberTag = isHostResourceType(type, pendingProps) ? HostResource : isHostSingletonType(type) ? HostSingleton : HostComponent;
+    }
   } else {
     getTag: switch (type) {
       case REACT_FRAGMENT_TYPE:
@@ -30827,6 +32503,7 @@ function createFiberRoot(containerInfo, tag, hydrate, initialChildren, hydration
 // them through the root constructor. Perhaps we should put them all into a
 // single type, like a DynamicHostConfig that is defined by the renderer.
 identifierPrefix, onRecoverableError, transitionCallbacks) {
+  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
   var root = new FiberRootNode(containerInfo, tag, hydrate, identifierPrefix, onRecoverableError);
   // stateNode is any.
 
@@ -30859,7 +32536,7 @@ identifierPrefix, onRecoverableError, transitionCallbacks) {
   return root;
 }
 
-var ReactVersion = '18.3.0-experimental-cb5084d1c-20220924';
+var ReactVersion = '18.3.0-experimental-a8c16a004-20221012';
 
 function createPortal(children, containerInfo, // TODO: figure out the API for cross-renderer implementation.
 implementation) {
@@ -31046,6 +32723,7 @@ function getPublicRootInstance(container) {
   }
 
   switch (containerFiber.child.tag) {
+    case HostSingleton:
     case HostComponent:
       return getPublicInstance(containerFiber.child.stateNode);
 
@@ -31445,13 +33123,7 @@ function injectIntoDevTools(devToolsConfig) {
   });
 }
 
-var Internals = {
-  usingClientEntryPoint: false,
-  // Keep in sync with ReactTestUtils.js.
-  // This is an array for better minification.
-  Events: [getInstanceFromNode, getNodeFromInstance, getFiberCurrentPropsFromNode, enqueueStateRestore, restoreStateIfNeeded, batchedUpdates$1]
-};
-
+var Dispatcher$1 = Internals.Dispatcher;
 /* global reportError */
 
 var defaultOnRecoverableError = typeof reportError === 'function' ? // In modern browsers, reportError will dispatch an error event,
@@ -31464,7 +33136,8 @@ reportError : function (error) {
 
 function ReactDOMRoot(internalRoot) {
   this._internalRoot = internalRoot;
-}
+} // $FlowFixMe[prop-missing] found when upgrading Flow
+
 
 ReactDOMHydrationRoot.prototype.render = ReactDOMRoot.prototype.render = function (children) {
   var root = this._internalRoot;
@@ -31486,7 +33159,8 @@ ReactDOMHydrationRoot.prototype.render = ReactDOMRoot.prototype.render = functio
   }
 
   updateContainer(children, root, null, null);
-};
+}; // $FlowFixMe[prop-missing] found when upgrading Flow
+
 
 ReactDOMHydrationRoot.prototype.unmount = ReactDOMRoot.prototype.unmount = function () {
   {
@@ -31556,8 +33230,15 @@ function createRoot(container, options) {
 
   var root = createContainer(container, ConcurrentRoot, null, isStrictMode, concurrentUpdatesByDefaultOverride, identifierPrefix, onRecoverableError);
   markContainerAsRoot(root.current, container);
+
+  {
+    // Set the default dispatcher to the client dispatcher
+    Dispatcher$1.current = ReactDOMClientDispatcher;
+  }
+
   var rootContainerElement = container.nodeType === COMMENT_NODE ? container.parentNode : container;
-  listenToAllSupportedEvents(rootContainerElement);
+  listenToAllSupportedEvents(rootContainerElement); // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
+
   return new ReactDOMRoot(root);
 }
 
@@ -31569,7 +33250,8 @@ function scheduleHydration(target) {
   if (target) {
     queueExplicitHydrationTarget(target);
   }
-}
+} // $FlowFixMe[prop-missing] found when upgrading Flow
+
 
 ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = scheduleHydration;
 function hydrateRoot(container, initialChildren, options) {
@@ -31615,7 +33297,13 @@ function hydrateRoot(container, initialChildren, options) {
   }
 
   var root = createHydrationContainer(initialChildren, null, container, ConcurrentRoot, hydrationCallbacks, isStrictMode, concurrentUpdatesByDefaultOverride, identifierPrefix, onRecoverableError);
-  markContainerAsRoot(root.current, container); // This can't be a comment node since hydration doesn't work on comment nodes anyway.
+  markContainerAsRoot(root.current, container);
+
+  {
+    // Set the default dispatcher to the client dispatcher
+    Dispatcher$1.current = ReactDOMClientDispatcher;
+  } // This can't be a comment node since hydration doesn't work on comment nodes anyway.
+
 
   listenToAllSupportedEvents(container);
 
@@ -31624,7 +33312,8 @@ function hydrateRoot(container, initialChildren, options) {
       var mutableSource = mutableSources[i];
       registerMutableSourceForHydration(root, mutableSource);
     }
-  }
+  } // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
+
 
   return new ReactDOMHydrationRoot(root);
 }
@@ -31716,7 +33405,8 @@ function legacyCreateRootFromDOMContainer(container, initialChildren, parentComp
     noopOnRecoverableError);
     container._reactRootContainer = root;
     markContainerAsRoot(root.current, container);
-    var rootContainerElement = container.nodeType === COMMENT_NODE ? container.parentNode : container;
+    var rootContainerElement = container.nodeType === COMMENT_NODE ? container.parentNode : container; // $FlowFixMe[incompatible-call]
+
     listenToAllSupportedEvents(rootContainerElement);
     flushSync();
     return root;
@@ -31747,7 +33437,8 @@ function legacyCreateRootFromDOMContainer(container, initialChildren, parentComp
     container._reactRootContainer = _root;
     markContainerAsRoot(_root.current, container);
 
-    var _rootContainerElement = container.nodeType === COMMENT_NODE ? container.parentNode : container;
+    var _rootContainerElement = container.nodeType === COMMENT_NODE ? container.parentNode : container; // $FlowFixMe[incompatible-call]
+
 
     listenToAllSupportedEvents(_rootContainerElement); // Initial mount should not be batched.
 
@@ -31918,7 +33609,9 @@ function unmountComponentAtNode(container) {
 
       var hasNonRootReactChild = !!(_rootEl && getInstanceFromNode(_rootEl)); // Check if the container itself is a React root node.
 
-      var isContainerReactRoot = container.nodeType === ELEMENT_NODE && isValidContainerLegacy(container.parentNode) && !!container.parentNode._reactRootContainer;
+      var isContainerReactRoot = container.nodeType === ELEMENT_NODE && isValidContainerLegacy(container.parentNode) && // $FlowFixMe[prop-missing]
+      // $FlowFixMe[incompatible-use]
+      !!container.parentNode._reactRootContainer;
 
       if (hasNonRootReactChild) {
         error("unmountComponentAtNode(): The node you're attempting to unmount " + 'was rendered by React and is not a top-level container. %s', isContainerReactRoot ? 'You may have accidentally passed in a React root node instead ' + 'of its container.' : 'Instead, have the parent component update its state and ' + 'rerender in order to remove this component.');
@@ -31994,6 +33687,9 @@ function flushSync$1(fn) {
 
   return flushSync(fn);
 }
+// This is an array for better minification.
+
+Internals.Events = [getInstanceFromNode, getNodeFromInstance, getFiberCurrentPropsFromNode, enqueueStateRestore, restoreStateIfNeeded, batchedUpdates$1];
 var foundDevTools = injectIntoDevTools({
   findFiberByHostInstance: getClosestInstanceFromNode,
   bundleType:  1 ,
@@ -32015,6 +33711,27 @@ var foundDevTools = injectIntoDevTools({
   }
 }
 
+function preinit$1() {
+  var dispatcher = Internals.Dispatcher.current;
+
+  if (dispatcher) {
+    dispatcher.preinit.apply(this, arguments);
+  } // We don't error because preinit needs to be resilient to being called in a variety of scopes
+  // and the runtime may not be capable of responding. The function is optimistic and not critical
+  // so we favor silent bailout over warning or erroring.
+
+}
+function preload$1() {
+  var dispatcher = Internals.Dispatcher.current;
+
+  if (dispatcher) {
+    dispatcher.preload.apply(this, arguments);
+  } // We don't error because preload needs to be resilient to being called in a variety of scopes
+  // and the runtime may not be capable of responding. The function is optimistic and not critical
+  // so we favor silent bailout over warning or erroring.
+
+}
+
 exports.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = Internals;
 exports.createPortal = createPortal$1;
 exports.createRoot = createRoot$1;
@@ -32022,6 +33739,8 @@ exports.findDOMNode = findDOMNode;
 exports.flushSync = flushSync$1;
 exports.hydrate = hydrate;
 exports.hydrateRoot = hydrateRoot$1;
+exports.preinit = preinit$1;
+exports.preload = preload$1;
 exports.render = render;
 exports.unmountComponentAtNode = unmountComponentAtNode;
 exports.unstable_batchedUpdates = batchedUpdates$1;
@@ -32043,7 +33762,7 @@ if (
 
 /***/ }),
 
-/***/ 269:
+/***/ 849:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 /**
@@ -32069,367 +33788,386 @@ if (
           /*
  Modernizr 3.0.0pre (Custom Build) | MIT
 */
-'use strict';var aa=__nccwpck_require__(522),p=__nccwpck_require__(41),q=Object.assign;function z(a){for(var b="https://reactjs.org/docs/error-decoder.html?invariant="+a,c=1;c<arguments.length;c++)b+="&args[]="+encodeURIComponent(arguments[c]);return"Minified React error #"+a+"; visit "+b+" for the full message or use the non-minified dev environment for full errors and additional helpful warnings."}
-var ba=aa.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED,ca=Symbol.for("react.element"),da=Symbol.for("react.portal"),ea=Symbol.for("react.fragment"),ha=Symbol.for("react.strict_mode"),ia=Symbol.for("react.profiler"),ja=Symbol.for("react.provider"),ka=Symbol.for("react.context"),la=Symbol.for("react.server_context"),ma=Symbol.for("react.forward_ref"),na=Symbol.for("react.suspense"),oa=Symbol.for("react.suspense_list"),pa=Symbol.for("react.memo"),qa=Symbol.for("react.lazy"),ra=Symbol.for("react.scope");
-Symbol.for("react.debug_trace_mode");var sa=Symbol.for("react.offscreen"),ta=Symbol.for("react.legacy_hidden"),ua=Symbol.for("react.cache");Symbol.for("react.tracing_marker");var va=Symbol.for("react.default_value"),wa=Symbol.iterator;function xa(a){if(null===a||"object"!==typeof a)return null;a=wa&&a[wa]||a["@@iterator"];return"function"===typeof a?a:null}
-function ya(a){if(null==a)return null;if("function"===typeof a)return a.displayName||a.name||null;if("string"===typeof a)return a;switch(a){case ea:return"Fragment";case da:return"Portal";case ia:return"Profiler";case ha:return"StrictMode";case na:return"Suspense";case oa:return"SuspenseList";case ua:return"Cache"}if("object"===typeof a)switch(a.$$typeof){case ka:return(a.displayName||"Context")+".Consumer";case ja:return(a._context.displayName||"Context")+".Provider";case ma:var b=a.render;a=a.displayName;
-a||(a=b.displayName||b.name||"",a=""!==a?"ForwardRef("+a+")":"ForwardRef");return a;case pa:return b=a.displayName||null,null!==b?b:ya(a.type)||"Memo";case qa:b=a._payload;a=a._init;try{return ya(a(b))}catch(c){break}case la:return(a.displayName||a._globalName)+".Provider"}return null}
-function za(a){var b=a.type;switch(a.tag){case 24:return"Cache";case 9:return(b.displayName||"Context")+".Consumer";case 10:return(b._context.displayName||"Context")+".Provider";case 18:return"DehydratedFragment";case 11:return a=b.render,a=a.displayName||a.name||"",b.displayName||(""!==a?"ForwardRef("+a+")":"ForwardRef");case 7:return"Fragment";case 5:return b;case 4:return"Portal";case 3:return"Root";case 6:return"Text";case 16:return ya(b);case 8:return b===ha?"StrictMode":"Mode";case 22:return"Offscreen";
-case 12:return"Profiler";case 21:return"Scope";case 13:return"Suspense";case 19:return"SuspenseList";case 25:return"TracingMarker";case 1:case 0:case 17:case 2:case 14:case 15:if("function"===typeof b)return b.displayName||b.name||null;if("string"===typeof b)return b}return null}function Aa(a){var b=a,c=a;if(a.alternate)for(;b.return;)b=b.return;else{a=b;do b=a,0!==(b.flags&2050)&&(c=b.return),a=b.return;while(a)}return 3===b.tag?c:null}
-function Ba(a){if(13===a.tag){var b=a.memoizedState;null===b&&(a=a.alternate,null!==a&&(b=a.memoizedState));if(null!==b)return b.dehydrated}return null}function Ea(a){if(Aa(a)!==a)throw Error(z(188));}
-function Fa(a){var b=a.alternate;if(!b){b=Aa(a);if(null===b)throw Error(z(188));return b!==a?null:a}for(var c=a,d=b;;){var e=c.return;if(null===e)break;var f=e.alternate;if(null===f){d=e.return;if(null!==d){c=d;continue}break}if(e.child===f.child){for(f=e.child;f;){if(f===c)return Ea(e),a;if(f===d)return Ea(e),b;f=f.sibling}throw Error(z(188));}if(c.return!==d.return)c=e,d=f;else{for(var g=!1,h=e.child;h;){if(h===c){g=!0;c=e;d=f;break}if(h===d){g=!0;d=e;c=f;break}h=h.sibling}if(!g){for(h=f.child;h;){if(h===
-c){g=!0;c=f;d=e;break}if(h===d){g=!0;d=f;c=e;break}h=h.sibling}if(!g)throw Error(z(189));}}if(c.alternate!==d)throw Error(z(190));}if(3!==c.tag)throw Error(z(188));return c.stateNode.current===c?a:b}function Ga(a){a=Fa(a);return null!==a?Ha(a):null}function Ha(a){if(5===a.tag||6===a.tag)return a;for(a=a.child;null!==a;){var b=Ha(a);if(null!==b)return b;a=a.sibling}return null}
-var Ia=Array.isArray,Ja=Math.random().toString(36).slice(2),Ka="__reactFiber$"+Ja,La="__reactProps$"+Ja,Ma="__reactContainer$"+Ja,Na="__reactEvents$"+Ja,Oa="__reactListeners$"+Ja,Pa="__reactHandles$"+Ja;function Qa(a){var b=a[Ka];if(b)return b;for(var c=a.parentNode;c;){if(b=c[Ma]||c[Ka]){c=b.alternate;if(null!==b.child||null!==c&&null!==c.child)for(a=Ra(a);null!==a;){if(c=a[Ka])return c;a=Ra(a)}return b}a=c;c=a.parentNode}return null}
-function Sa(a){a=a[Ka]||a[Ma];return!a||5!==a.tag&&6!==a.tag&&13!==a.tag&&3!==a.tag?null:a}function Ta(a){if(5===a.tag||6===a.tag)return a.stateNode;throw Error(z(33));}function Ua(a){return a[La]||null}var Va=new Set,Wa={};function Xa(a,b){Ya(a,b);Ya(a+"Capture",b)}function Ya(a,b){Wa[a]=b;for(a=0;a<b.length;a++)Va.add(b[a])}
-var Za=!("undefined"===typeof window||"undefined"===typeof window.document||"undefined"===typeof window.document.createElement),$a=Object.prototype.hasOwnProperty,ab=/^[:A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD][:A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD\-.0-9\u00B7\u0300-\u036F\u203F-\u2040]*$/,bb=
-{},cb={};function db(a){if($a.call(cb,a))return!0;if($a.call(bb,a))return!1;if(ab.test(a))return cb[a]=!0;bb[a]=!0;return!1}function eb(a,b,c,d){if(null!==c&&0===c.type)return!1;switch(typeof b){case "function":case "symbol":return!0;case "boolean":if(d)return!1;if(null!==c)return!c.acceptsBooleans;a=a.toLowerCase().slice(0,5);return"data-"!==a&&"aria-"!==a;default:return!1}}
-function fb(a,b,c,d){if(null===b||"undefined"===typeof b||eb(a,b,c,d))return!0;if(d)return!1===b?!0:!1;if(null!==c)switch(c.type){case 3:return!b;case 4:return!1===b;case 5:return isNaN(b);case 6:return isNaN(b)||1>b}return!1}function gb(a,b,c,d,e,f,g){this.acceptsBooleans=2===b||3===b||4===b;this.attributeName=d;this.attributeNamespace=e;this.mustUseProperty=c;this.propertyName=a;this.type=b;this.sanitizeURL=f;this.removeEmptyString=g}var B={},hb="children dangerouslySetInnerHTML defaultValue defaultChecked innerHTML suppressContentEditableWarning suppressHydrationWarning style".split(" ");
-hb.push("innerText","textContent");hb.forEach(function(a){B[a]=new gb(a,0,!1,a,null,!1,!1)});[["acceptCharset","accept-charset"],["className","class"],["htmlFor","for"],["httpEquiv","http-equiv"]].forEach(function(a){var b=a[0];B[b]=new gb(b,1,!1,a[1],null,!1,!1)});["contentEditable","draggable","spellCheck","value"].forEach(function(a){B[a]=new gb(a,2,!1,a.toLowerCase(),null,!1,!1)});
-["autoReverse","externalResourcesRequired","focusable","preserveAlpha"].forEach(function(a){B[a]=new gb(a,2,!1,a,null,!1,!1)});"allowFullScreen async autoFocus autoPlay controls default defer disabled disablePictureInPicture disableRemotePlayback formNoValidate hidden loop noModule noValidate open playsInline readOnly required reversed scoped seamless itemScope".split(" ").forEach(function(a){B[a]=new gb(a,3,!1,a.toLowerCase(),null,!1,!1)});
-["checked","multiple","muted","selected"].forEach(function(a){B[a]=new gb(a,3,!0,a,null,!1,!1)});["capture","download"].forEach(function(a){B[a]=new gb(a,4,!1,a,null,!1,!1)});["cols","rows","size","span"].forEach(function(a){B[a]=new gb(a,6,!1,a,null,!1,!1)});["rowSpan","start"].forEach(function(a){B[a]=new gb(a,5,!1,a.toLowerCase(),null,!1,!1)});var ib=/[\-:]([a-z])/g;function jb(a){return a[1].toUpperCase()}
-"accent-height alignment-baseline arabic-form baseline-shift cap-height clip-path clip-rule color-interpolation color-interpolation-filters color-profile color-rendering dominant-baseline enable-background fill-opacity fill-rule flood-color flood-opacity font-family font-size font-size-adjust font-stretch font-style font-variant font-weight glyph-name glyph-orientation-horizontal glyph-orientation-vertical horiz-adv-x horiz-origin-x image-rendering letter-spacing lighting-color marker-end marker-mid marker-start overline-position overline-thickness paint-order panose-1 pointer-events rendering-intent shape-rendering stop-color stop-opacity strikethrough-position strikethrough-thickness stroke-dasharray stroke-dashoffset stroke-linecap stroke-linejoin stroke-miterlimit stroke-opacity stroke-width text-anchor text-decoration text-rendering underline-position underline-thickness unicode-bidi unicode-range units-per-em v-alphabetic v-hanging v-ideographic v-mathematical vector-effect vert-adv-y vert-origin-x vert-origin-y word-spacing writing-mode xmlns:xlink x-height".split(" ").forEach(function(a){var b=a.replace(ib,
-jb);B[b]=new gb(b,1,!1,a,null,!1,!1)});"xlink:actuate xlink:arcrole xlink:role xlink:show xlink:title xlink:type".split(" ").forEach(function(a){var b=a.replace(ib,jb);B[b]=new gb(b,1,!1,a,"http://www.w3.org/1999/xlink",!1,!1)});["xml:base","xml:lang","xml:space"].forEach(function(a){var b=a.replace(ib,jb);B[b]=new gb(b,1,!1,a,"http://www.w3.org/XML/1998/namespace",!1,!1)});["tabIndex","crossOrigin"].forEach(function(a){B[a]=new gb(a,1,!1,a.toLowerCase(),null,!1,!1)});
-B.xlinkHref=new gb("xlinkHref",1,!1,"xlink:href","http://www.w3.org/1999/xlink",!0,!1);["src","href","action","formAction"].forEach(function(a){B[a]=new gb(a,1,!1,a.toLowerCase(),null,!0,!0)});
-function kb(a,b,c,d){var e=B.hasOwnProperty(b)?B[b]:null;if(null!==e?0!==e.type:d||!(2<b.length)||"o"!==b[0]&&"O"!==b[0]||"n"!==b[1]&&"N"!==b[1]){if(d&&"o"===b[0]&&"n"===b[1]){var f=b.replace(/Capture$/,""),g=b!==f;f=f.slice(2);var h=Ua(a);h=null!=h?h[b]:null;"function"===typeof h&&a.removeEventListener(f,h,g);if("function"===typeof c){"function"!==typeof h&&null!==h&&(b in a?a[b]=null:a.hasAttribute(b)&&a.removeAttribute(b));a.addEventListener(f,c,g);return}}d&&b in a?a[b]=c:(fb(b,c,e,d)&&(c=null),
-d&&!0===c&&(c=""),d||null===e?db(b)&&(null===c?a.removeAttribute(b):a.setAttribute(b,""+c)):e.mustUseProperty?a[e.propertyName]=null===c?3===e.type?!1:"":c:(b=e.attributeName,d=e.attributeNamespace,null===c?a.removeAttribute(b):(e=e.type,c=3===e||4===e&&!0===c?"":""+c,d?a.setAttributeNS(d,b,c):a.setAttribute(b,c))))}}var lb;function mb(a){if(void 0===lb)try{throw Error();}catch(c){var b=c.stack.trim().match(/\n( *(at )?)/);lb=b&&b[1]||""}return"\n"+lb+a}var nb=!1;
-function ob(a,b){if(!a||nb)return"";nb=!0;var c=Error.prepareStackTrace;Error.prepareStackTrace=void 0;try{if(b)if(b=function(){throw Error();},Object.defineProperty(b.prototype,"props",{set:function(){throw Error();}}),"object"===typeof Reflect&&Reflect.construct){try{Reflect.construct(b,[])}catch(l){var d=l}Reflect.construct(a,[],b)}else{try{b.call()}catch(l){d=l}a.call(b.prototype)}else{try{throw Error();}catch(l){d=l}a()}}catch(l){if(l&&d&&"string"===typeof l.stack){for(var e=l.stack.split("\n"),
-f=d.stack.split("\n"),g=e.length-1,h=f.length-1;1<=g&&0<=h&&e[g]!==f[h];)h--;for(;1<=g&&0<=h;g--,h--)if(e[g]!==f[h]){if(1!==g||1!==h){do if(g--,h--,0>h||e[g]!==f[h]){var k="\n"+e[g].replace(" at new "," at ");a.displayName&&k.includes("<anonymous>")&&(k=k.replace("<anonymous>",a.displayName));return k}while(1<=g&&0<=h)}break}}}finally{nb=!1,Error.prepareStackTrace=c}return(a=a?a.displayName||a.name:"")?mb(a):""}
-function pb(a){switch(a.tag){case 5:return mb(a.type);case 16:return mb("Lazy");case 13:return mb("Suspense");case 19:return mb("SuspenseList");case 0:case 2:case 15:return a=ob(a.type,!1),a;case 11:return a=ob(a.type.render,!1),a;case 1:return a=ob(a.type,!0),a;default:return""}}function rb(a){switch(typeof a){case "boolean":case "number":case "string":case "undefined":return a;case "object":return a;default:return""}}
-function sb(a){var b=a.type;return(a=a.nodeName)&&"input"===a.toLowerCase()&&("checkbox"===b||"radio"===b)}
-function tb(a){var b=sb(a)?"checked":"value",c=Object.getOwnPropertyDescriptor(a.constructor.prototype,b),d=""+a[b];if(!a.hasOwnProperty(b)&&"undefined"!==typeof c&&"function"===typeof c.get&&"function"===typeof c.set){var e=c.get,f=c.set;Object.defineProperty(a,b,{configurable:!0,get:function(){return e.call(this)},set:function(a){d=""+a;f.call(this,a)}});Object.defineProperty(a,b,{enumerable:c.enumerable});return{getValue:function(){return d},setValue:function(a){d=""+a},stopTracking:function(){a._valueTracker=
-null;delete a[b]}}}}function ub(a){a._valueTracker||(a._valueTracker=tb(a))}function vb(a){if(!a)return!1;var b=a._valueTracker;if(!b)return!0;var c=b.getValue();var d="";a&&(d=sb(a)?a.checked?"true":"false":a.value);a=d;return a!==c?(b.setValue(a),!0):!1}function wb(a){a=a||("undefined"!==typeof document?document:void 0);if("undefined"===typeof a)return null;try{return a.activeElement||a.body}catch(b){return a.body}}
-function xb(a,b){var c=b.checked;return q({},b,{defaultChecked:void 0,defaultValue:void 0,value:void 0,checked:null!=c?c:a._wrapperState.initialChecked})}function yb(a,b){var c=null==b.defaultValue?"":b.defaultValue,d=null!=b.checked?b.checked:b.defaultChecked;c=rb(null!=b.value?b.value:c);a._wrapperState={initialChecked:d,initialValue:c,controlled:"checkbox"===b.type||"radio"===b.type?null!=b.checked:null!=b.value}}function zb(a,b){b=b.checked;null!=b&&kb(a,"checked",b,!1)}
-function Ab(a,b){zb(a,b);var c=rb(b.value),d=b.type;if(null!=c)if("number"===d){if(0===c&&""===a.value||a.value!=c)a.value=""+c}else a.value!==""+c&&(a.value=""+c);else if("submit"===d||"reset"===d){a.removeAttribute("value");return}b.hasOwnProperty("value")?Bb(a,b.type,c):b.hasOwnProperty("defaultValue")&&Bb(a,b.type,rb(b.defaultValue));null==b.checked&&null!=b.defaultChecked&&(a.defaultChecked=!!b.defaultChecked)}
-function Cb(a,b,c){if(b.hasOwnProperty("value")||b.hasOwnProperty("defaultValue")){var d=b.type;if(!("submit"!==d&&"reset"!==d||void 0!==b.value&&null!==b.value))return;b=""+a._wrapperState.initialValue;c||b===a.value||(a.value=b);a.defaultValue=b}c=a.name;""!==c&&(a.name="");a.defaultChecked=!!a._wrapperState.initialChecked;""!==c&&(a.name=c)}
-function Bb(a,b,c){if("number"!==b||wb(a.ownerDocument)!==a)null==c?a.defaultValue=""+a._wrapperState.initialValue:a.defaultValue!==""+c&&(a.defaultValue=""+c)}
-function Db(a,b,c,d){a=a.options;if(b){b={};for(var e=0;e<c.length;e++)b["$"+c[e]]=!0;for(c=0;c<a.length;c++)e=b.hasOwnProperty("$"+a[c].value),a[c].selected!==e&&(a[c].selected=e),e&&d&&(a[c].defaultSelected=!0)}else{c=""+rb(c);b=null;for(e=0;e<a.length;e++){if(a[e].value===c){a[e].selected=!0;d&&(a[e].defaultSelected=!0);return}null!==b||a[e].disabled||(b=a[e])}null!==b&&(b.selected=!0)}}
-function Eb(a,b){if(null!=b.dangerouslySetInnerHTML)throw Error(z(91));return q({},b,{value:void 0,defaultValue:void 0,children:""+a._wrapperState.initialValue})}function Fb(a,b){var c=b.value;if(null==c){c=b.children;b=b.defaultValue;if(null!=c){if(null!=b)throw Error(z(92));if(Ia(c)){if(1<c.length)throw Error(z(93));c=c[0]}b=c}null==b&&(b="");c=b}a._wrapperState={initialValue:rb(c)}}
-function Gb(a,b){var c=rb(b.value),d=rb(b.defaultValue);null!=c&&(c=""+c,c!==a.value&&(a.value=c),null==b.defaultValue&&a.defaultValue!==c&&(a.defaultValue=c));null!=d&&(a.defaultValue=""+d)}function Hb(a){var b=a.textContent;b===a._wrapperState.initialValue&&""!==b&&null!==b&&(a.value=b)}function Ib(a){switch(a){case "svg":return"http://www.w3.org/2000/svg";case "math":return"http://www.w3.org/1998/Math/MathML";default:return"http://www.w3.org/1999/xhtml"}}
-function Jb(a,b){return null==a||"http://www.w3.org/1999/xhtml"===a?Ib(b):"http://www.w3.org/2000/svg"===a&&"foreignObject"===b?"http://www.w3.org/1999/xhtml":a}
-var Kb,Lb=function(a){return"undefined"!==typeof MSApp&&MSApp.execUnsafeLocalFunction?function(b,c,d,e){MSApp.execUnsafeLocalFunction(function(){return a(b,c,d,e)})}:a}(function(a,b){if("http://www.w3.org/2000/svg"!==a.namespaceURI||"innerHTML"in a)a.innerHTML=b;else{Kb=Kb||document.createElement("div");Kb.innerHTML="<svg>"+b.valueOf().toString()+"</svg>";for(b=Kb.firstChild;a.firstChild;)a.removeChild(a.firstChild);for(;b.firstChild;)a.appendChild(b.firstChild)}});
-function Mb(a,b){if(b){var c=a.firstChild;if(c&&c===a.lastChild&&3===c.nodeType){c.nodeValue=b;return}}a.textContent=b}
-var Nb={animationIterationCount:!0,aspectRatio:!0,borderImageOutset:!0,borderImageSlice:!0,borderImageWidth:!0,boxFlex:!0,boxFlexGroup:!0,boxOrdinalGroup:!0,columnCount:!0,columns:!0,flex:!0,flexGrow:!0,flexPositive:!0,flexShrink:!0,flexNegative:!0,flexOrder:!0,gridArea:!0,gridRow:!0,gridRowEnd:!0,gridRowSpan:!0,gridRowStart:!0,gridColumn:!0,gridColumnEnd:!0,gridColumnSpan:!0,gridColumnStart:!0,fontWeight:!0,lineClamp:!0,lineHeight:!0,opacity:!0,order:!0,orphans:!0,tabSize:!0,widows:!0,zIndex:!0,
-zoom:!0,fillOpacity:!0,floodOpacity:!0,stopOpacity:!0,strokeDasharray:!0,strokeDashoffset:!0,strokeMiterlimit:!0,strokeOpacity:!0,strokeWidth:!0},Ob=["Webkit","ms","Moz","O"];Object.keys(Nb).forEach(function(a){Ob.forEach(function(b){b=b+a.charAt(0).toUpperCase()+a.substring(1);Nb[b]=Nb[a]})});function Pb(a,b,c){return null==b||"boolean"===typeof b||""===b?"":c||"number"!==typeof b||0===b||Nb.hasOwnProperty(a)&&Nb[a]?(""+b).trim():b+"px"}
-function Qb(a,b){a=a.style;for(var c in b)if(b.hasOwnProperty(c)){var d=0===c.indexOf("--"),e=Pb(c,b[c],d);"float"===c&&(c="cssFloat");d?a.setProperty(c,e):a[c]=e}}var Rb=q({menuitem:!0},{area:!0,base:!0,br:!0,col:!0,embed:!0,hr:!0,img:!0,input:!0,keygen:!0,link:!0,meta:!0,param:!0,source:!0,track:!0,wbr:!0});
-function Sb(a,b){if(b){if(Rb[a]&&(null!=b.children||null!=b.dangerouslySetInnerHTML))throw Error(z(137,a));if(null!=b.dangerouslySetInnerHTML){if(null!=b.children)throw Error(z(60));if("object"!==typeof b.dangerouslySetInnerHTML||!("__html"in b.dangerouslySetInnerHTML))throw Error(z(61));}if(null!=b.style&&"object"!==typeof b.style)throw Error(z(62));}}
-function Tb(a,b){if(-1===a.indexOf("-"))return"string"===typeof b.is;switch(a){case "annotation-xml":case "color-profile":case "font-face":case "font-face-src":case "font-face-uri":case "font-face-format":case "font-face-name":case "missing-glyph":return!1;default:return!0}}var Ub=null;function Vb(a){a=a.target||a.srcElement||window;a.correspondingUseElement&&(a=a.correspondingUseElement);return 3===a.nodeType?a.parentNode:a}var Wb=null,Xb=null,Yb=null;
-function Zb(a){if(a=Sa(a)){if("function"!==typeof Wb)throw Error(z(280));var b=a.stateNode;b&&(b=Ua(b),Wb(a.stateNode,a.type,b))}}function $b(a){Xb?Yb?Yb.push(a):Yb=[a]:Xb=a}function ac(){if(Xb){var a=Xb,b=Yb;Yb=Xb=null;Zb(a);if(b)for(a=0;a<b.length;a++)Zb(b[a])}}function bc(a,b){return a(b)}function cc(){}var dc=!1;function ec(a,b,c){if(dc)return a(b,c);dc=!0;try{return bc(a,b,c)}finally{if(dc=!1,null!==Xb||null!==Yb)cc(),ac()}}
-function fc(a,b){var c=a.stateNode;if(null===c)return null;var d=Ua(c);if(null===d)return null;c=d[b];a:switch(b){case "onClick":case "onClickCapture":case "onDoubleClick":case "onDoubleClickCapture":case "onMouseDown":case "onMouseDownCapture":case "onMouseMove":case "onMouseMoveCapture":case "onMouseUp":case "onMouseUpCapture":case "onMouseEnter":(d=!d.disabled)||(a=a.type,d=!("button"===a||"input"===a||"select"===a||"textarea"===a));a=!d;break a;default:a=!1}if(a)return null;if(c&&"function"!==
-typeof c)throw Error(z(231,b,typeof c));return c}var gc=!1;if(Za)try{var hc={};Object.defineProperty(hc,"passive",{get:function(){gc=!0}});window.addEventListener("test",hc,hc);window.removeEventListener("test",hc,hc)}catch(a){gc=!1}function ic(a,b,c,d,e,f,g,h,k){var l=Array.prototype.slice.call(arguments,3);try{b.apply(c,l)}catch(m){this.onError(m)}}var jc=!1,kc=null,lc=!1,mc=null,nc={onError:function(a){jc=!0;kc=a}};function oc(a,b,c,d,e,f,g,h,k){jc=!1;kc=null;ic.apply(nc,arguments)}
-function pc(a,b,c,d,e,f,g,h,k){oc.apply(this,arguments);if(jc){if(jc){var l=kc;jc=!1;kc=null}else throw Error(z(198));lc||(lc=!0,mc=l)}}var qc=p.unstable_scheduleCallback,rc=p.unstable_cancelCallback,sc=p.unstable_shouldYield,tc=p.unstable_requestPaint,C=p.unstable_now,uc=p.unstable_getCurrentPriorityLevel,vc=p.unstable_ImmediatePriority,wc=p.unstable_UserBlockingPriority,xc=p.unstable_NormalPriority,yc=p.unstable_LowPriority,zc=p.unstable_IdlePriority,Ac=null,Bc=null,D=null,Cc="undefined"!==typeof __REACT_DEVTOOLS_GLOBAL_HOOK__;
-function Dc(a,b){if(Bc&&"function"===typeof Bc.onCommitFiberRoot)try{var c=64===(a.current.flags&64);switch(b){case 1:var d=vc;break;case 4:d=wc;break;case 16:d=xc;break;case 536870912:d=zc;break;default:d=xc}Bc.onCommitFiberRoot(Ac,a,d,c)}catch(e){}}function Ec(a){D=a}function Fc(){for(var a=new Map,b=1,c=0;31>c;c++){var d=Gc(b);a.set(b,d);b*=2}return a}function Hc(){null!==D&&"function"===typeof D.markCommitStopped&&D.markCommitStopped()}
-function Ic(a){null!==D&&"function"===typeof D.markComponentRenderStarted&&D.markComponentRenderStarted(a)}function Jc(){null!==D&&"function"===typeof D.markComponentRenderStopped&&D.markComponentRenderStopped()}function Kc(a){null!==D&&"function"===typeof D.markComponentLayoutEffectUnmountStarted&&D.markComponentLayoutEffectUnmountStarted(a)}function Lc(){null!==D&&"function"===typeof D.markComponentLayoutEffectUnmountStopped&&D.markComponentLayoutEffectUnmountStopped()}
-function Mc(a){null!==D&&"function"===typeof D.markRenderStarted&&D.markRenderStarted(a)}function Nc(){null!==D&&"function"===typeof D.markRenderStopped&&D.markRenderStopped()}function Oc(a,b){null!==D&&"function"===typeof D.markStateUpdateScheduled&&D.markStateUpdateScheduled(a,b)}var Qc=Math.clz32?Math.clz32:Pc,Rc=Math.log,Sc=Math.LN2;function Pc(a){a>>>=0;return 0===a?32:31-(Rc(a)/Sc|0)|0}
-function Gc(a){if(a&1)return"Sync";if(a&2)return"InputContinuousHydration";if(a&4)return"InputContinuous";if(a&8)return"DefaultHydration";if(a&16)return"Default";if(a&32)return"TransitionHydration";if(a&4194240)return"Transition";if(a&130023424)return"Retry";if(a&134217728)return"SelectiveHydration";if(a&268435456)return"IdleHydration";if(a&536870912)return"Idle";if(a&1073741824)return"Offscreen"}var Tc=64,Uc=4194304;
-function Vc(a){switch(a&-a){case 1:return 1;case 2:return 2;case 4:return 4;case 8:return 8;case 16:return 16;case 32:return 32;case 64:case 128:case 256:case 512:case 1024:case 2048:case 4096:case 8192:case 16384:case 32768:case 65536:case 131072:case 262144:case 524288:case 1048576:case 2097152:return a&4194240;case 4194304:case 8388608:case 16777216:case 33554432:case 67108864:return a&130023424;case 134217728:return 134217728;case 268435456:return 268435456;case 536870912:return 536870912;case 1073741824:return 1073741824;
-default:return a}}function Wc(a,b){var c=a.pendingLanes;if(0===c)return 0;var d=0,e=a.suspendedLanes,f=a.pingedLanes,g=c&268435455;if(0!==g){var h=g&~e;0!==h?d=Vc(h):(f&=g,0!==f&&(d=Vc(f)))}else g=c&~e,0!==g?d=Vc(g):0!==f&&(d=Vc(f));if(0===d)return 0;if(0!==b&&b!==d&&0===(b&e)&&(e=d&-d,f=b&-b,e>=f||16===e&&0!==(f&4194240)))return b;0!==(d&4)&&(d|=c&16);b=a.entangledLanes;if(0!==b)for(a=a.entanglements,b&=d;0<b;)c=31-Qc(b),e=1<<c,d|=a[c],b&=~e;return d}
-function Xc(a,b){switch(a){case 1:case 2:case 4:return b+250;case 8:case 16:case 32:case 64:case 128:case 256:case 512:case 1024:case 2048:case 4096:case 8192:case 16384:case 32768:case 65536:case 131072:case 262144:case 524288:case 1048576:case 2097152:return b+5E3;case 4194304:case 8388608:case 16777216:case 33554432:case 67108864:return-1;case 134217728:case 268435456:case 536870912:case 1073741824:return-1;default:return-1}}
-function Yc(a,b){for(var c=a.suspendedLanes,d=a.pingedLanes,e=a.expirationTimes,f=a.pendingLanes&-130023425;0<f;){var g=31-Qc(f),h=1<<g,k=e[g];if(-1===k){if(0===(h&c)||0!==(h&d))e[g]=Xc(h,b)}else k<=b&&(a.expiredLanes|=h);f&=~h}}function Zc(a,b){if(a.errorRecoveryDisabledLanes&b)return 0;a=a.pendingLanes&-1073741825;return 0!==a?a:a&1073741824?1073741824:0}function $c(){var a=Tc;Tc<<=1;0===(Tc&4194240)&&(Tc=64);return a}function ad(a){for(var b=[],c=0;31>c;c++)b.push(a);return b}
-function bd(a,b,c){a.pendingLanes|=b;536870912!==b&&(a.suspendedLanes=0,a.pingedLanes=0);a=a.eventTimes;b=31-Qc(b);a[b]=c}
-function cd(a,b){var c=a.pendingLanes&~b;a.pendingLanes=b;a.suspendedLanes=0;a.pingedLanes=0;a.expiredLanes&=b;a.mutableReadLanes&=b;a.entangledLanes&=b;a.errorRecoveryDisabledLanes&=b;b=a.entanglements;var d=a.eventTimes,e=a.expirationTimes;for(a=a.hiddenUpdates;0<c;){var f=31-Qc(c),g=1<<f;b[f]=0;d[f]=-1;e[f]=-1;var h=a[f];if(null!==h)for(a[f]=null,f=0;f<h.length;f++){var k=h[f];null!==k&&(k.lane&=-1073741825)}c&=~g}}
-function dd(a,b){var c=a.entangledLanes|=b;for(a=a.entanglements;c;){var d=31-Qc(c),e=1<<d;e&b|a[d]&b&&(a[d]|=b);c&=~e}}function ed(a,b,c){if(Cc)for(a=a.pendingUpdatersLaneMap;0<c;){var d=31-Qc(c),e=1<<d;a[d].add(b);c&=~e}}function fd(a,b){if(Cc)for(var c=a.pendingUpdatersLaneMap,d=a.memoizedUpdaters;0<b;){var e=31-Qc(b);a=1<<e;e=c[e];0<e.size&&(e.forEach(function(a){var b=a.alternate;null!==b&&d.has(b)||d.add(a)}),e.clear());b&=~a}}var E=0;
-function gd(a,b){var c=E;try{return E=a,b()}finally{E=c}}function hd(a){a&=-a;return 1<a?4<a?0!==(a&268435455)?16:536870912:4:1}var id,jd,kd,ld,md,nd=!1,od=[],pd=null,qd=null,rd=null,sd=new Map,td=new Map,ud=[],vd="mousedown mouseup touchcancel touchend touchstart auxclick dblclick pointercancel pointerdown pointerup dragend dragstart drop compositionend compositionstart keydown keypress keyup input textInput copy cut paste click change contextmenu reset submit".split(" ");
-function wd(a,b){switch(a){case "focusin":case "focusout":pd=null;break;case "dragenter":case "dragleave":qd=null;break;case "mouseover":case "mouseout":rd=null;break;case "pointerover":case "pointerout":sd.delete(b.pointerId);break;case "gotpointercapture":case "lostpointercapture":td.delete(b.pointerId)}}
-function xd(a,b,c,d,e,f){if(null===a||a.nativeEvent!==f)return a={blockedOn:b,domEventName:c,eventSystemFlags:d,nativeEvent:f,targetContainers:[e]},null!==b&&(b=Sa(b),null!==b&&jd(b)),a;a.eventSystemFlags|=d;b=a.targetContainers;null!==e&&-1===b.indexOf(e)&&b.push(e);return a}
-function yd(a,b,c,d,e){switch(b){case "focusin":return pd=xd(pd,a,b,c,d,e),!0;case "dragenter":return qd=xd(qd,a,b,c,d,e),!0;case "mouseover":return rd=xd(rd,a,b,c,d,e),!0;case "pointerover":var f=e.pointerId;sd.set(f,xd(sd.get(f)||null,a,b,c,d,e));return!0;case "gotpointercapture":return f=e.pointerId,td.set(f,xd(td.get(f)||null,a,b,c,d,e)),!0}return!1}
-function zd(a){var b=Qa(a.target);if(null!==b){var c=Aa(b);if(null!==c)if(b=c.tag,13===b){if(b=Ba(c),null!==b){a.blockedOn=b;md(a.priority,function(){kd(c)});return}}else if(3===b&&c.stateNode.current.memoizedState.isDehydrated){a.blockedOn=3===c.tag?c.stateNode.containerInfo:null;return}}a.blockedOn=null}
-function Ad(a){if(null!==a.blockedOn)return!1;for(var b=a.targetContainers;0<b.length;){var c=Bd(a.domEventName,a.eventSystemFlags,b[0],a.nativeEvent);if(null===c){c=a.nativeEvent;var d=new c.constructor(c.type,c);Ub=d;c.target.dispatchEvent(d);Ub=null}else return b=Sa(c),null!==b&&jd(b),a.blockedOn=c,!1;b.shift()}return!0}function Cd(a,b,c){Ad(a)&&c.delete(b)}function Dd(){nd=!1;null!==pd&&Ad(pd)&&(pd=null);null!==qd&&Ad(qd)&&(qd=null);null!==rd&&Ad(rd)&&(rd=null);sd.forEach(Cd);td.forEach(Cd)}
-function Ed(a,b){a.blockedOn===b&&(a.blockedOn=null,nd||(nd=!0,p.unstable_scheduleCallback(p.unstable_NormalPriority,Dd)))}
-function Fd(a){function b(b){return Ed(b,a)}if(0<od.length){Ed(od[0],a);for(var c=1;c<od.length;c++){var d=od[c];d.blockedOn===a&&(d.blockedOn=null)}}null!==pd&&Ed(pd,a);null!==qd&&Ed(qd,a);null!==rd&&Ed(rd,a);sd.forEach(b);td.forEach(b);for(c=0;c<ud.length;c++)d=ud[c],d.blockedOn===a&&(d.blockedOn=null);for(;0<ud.length&&(c=ud[0],null===c.blockedOn);)zd(c),null===c.blockedOn&&ud.shift()}var Gd=ba.ReactCurrentBatchConfig,Hd=!0;
-function Id(a,b,c,d){var e=E,f=Gd.transition;Gd.transition=null;try{E=1,Jd(a,b,c,d)}finally{E=e,Gd.transition=f}}function Kd(a,b,c,d){var e=E,f=Gd.transition;Gd.transition=null;try{E=4,Jd(a,b,c,d)}finally{E=e,Gd.transition=f}}
-function Jd(a,b,c,d){if(Hd){var e=Bd(a,b,c,d);if(null===e)Ld(a,b,d,Md,c),wd(a,d);else if(yd(e,a,b,c,d))d.stopPropagation();else if(wd(a,d),b&4&&-1<vd.indexOf(a)){for(;null!==e;){var f=Sa(e);null!==f&&id(f);f=Bd(a,b,c,d);null===f&&Ld(a,b,d,Md,c);if(f===e)break;e=f}null!==e&&d.stopPropagation()}else Ld(a,b,d,null,c)}}var Md=null;
-function Bd(a,b,c,d){Md=null;a=Vb(d);a=Qa(a);if(null!==a)if(b=Aa(a),null===b)a=null;else if(c=b.tag,13===c){a=Ba(b);if(null!==a)return a;a=null}else if(3===c){if(b.stateNode.current.memoizedState.isDehydrated)return 3===b.tag?b.stateNode.containerInfo:null;a=null}else b!==a&&(a=null);Md=a;return null}
-function Nd(a){switch(a){case "cancel":case "click":case "close":case "contextmenu":case "copy":case "cut":case "auxclick":case "dblclick":case "dragend":case "dragstart":case "drop":case "focusin":case "focusout":case "input":case "invalid":case "keydown":case "keypress":case "keyup":case "mousedown":case "mouseup":case "paste":case "pause":case "play":case "pointercancel":case "pointerdown":case "pointerup":case "ratechange":case "reset":case "resize":case "seeked":case "submit":case "touchcancel":case "touchend":case "touchstart":case "volumechange":case "change":case "selectionchange":case "textInput":case "compositionstart":case "compositionend":case "compositionupdate":case "beforeblur":case "afterblur":case "beforeinput":case "blur":case "fullscreenchange":case "focus":case "hashchange":case "popstate":case "select":case "selectstart":return 1;case "drag":case "dragenter":case "dragexit":case "dragleave":case "dragover":case "mousemove":case "mouseout":case "mouseover":case "pointermove":case "pointerout":case "pointerover":case "scroll":case "toggle":case "touchmove":case "wheel":case "mouseenter":case "mouseleave":case "pointerenter":case "pointerleave":return 4;
-case "message":switch(uc()){case vc:return 1;case wc:return 4;case xc:case yc:return 16;case zc:return 536870912;default:return 16}default:return 16}}var Od=null,Pd=null,Qd=null;function Rd(){if(Qd)return Qd;var a,b=Pd,c=b.length,d,e="value"in Od?Od.value:Od.textContent,f=e.length;for(a=0;a<c&&b[a]===e[a];a++);var g=c-a;for(d=1;d<=g&&b[c-d]===e[f-d];d++);return Qd=e.slice(a,1<d?1-d:void 0)}
-function Sd(a){var b=a.keyCode;"charCode"in a?(a=a.charCode,0===a&&13===b&&(a=13)):a=b;10===a&&(a=13);return 32<=a||13===a?a:0}function Td(){return!0}function Ud(){return!1}
-function Vd(a){function b(b,d,e,f,g){this._reactName=b;this._targetInst=e;this.type=d;this.nativeEvent=f;this.target=g;this.currentTarget=null;for(var c in a)a.hasOwnProperty(c)&&(b=a[c],this[c]=b?b(f):f[c]);this.isDefaultPrevented=(null!=f.defaultPrevented?f.defaultPrevented:!1===f.returnValue)?Td:Ud;this.isPropagationStopped=Ud;return this}q(b.prototype,{preventDefault:function(){this.defaultPrevented=!0;var a=this.nativeEvent;a&&(a.preventDefault?a.preventDefault():"unknown"!==typeof a.returnValue&&
-(a.returnValue=!1),this.isDefaultPrevented=Td)},stopPropagation:function(){var a=this.nativeEvent;a&&(a.stopPropagation?a.stopPropagation():"unknown"!==typeof a.cancelBubble&&(a.cancelBubble=!0),this.isPropagationStopped=Td)},persist:function(){},isPersistent:Td});return b}
-var Wd={eventPhase:0,bubbles:0,cancelable:0,timeStamp:function(a){return a.timeStamp||Date.now()},defaultPrevented:0,isTrusted:0},Xd=Vd(Wd),Yd=q({},Wd,{view:0,detail:0}),Zd=Vd(Yd),$d,ae,be,de=q({},Yd,{screenX:0,screenY:0,clientX:0,clientY:0,pageX:0,pageY:0,ctrlKey:0,shiftKey:0,altKey:0,metaKey:0,getModifierState:ce,button:0,buttons:0,relatedTarget:function(a){return void 0===a.relatedTarget?a.fromElement===a.srcElement?a.toElement:a.fromElement:a.relatedTarget},movementX:function(a){if("movementX"in
-a)return a.movementX;a!==be&&(be&&"mousemove"===a.type?($d=a.screenX-be.screenX,ae=a.screenY-be.screenY):ae=$d=0,be=a);return $d},movementY:function(a){return"movementY"in a?a.movementY:ae}}),ee=Vd(de),fe=q({},de,{dataTransfer:0}),ge=Vd(fe),he=q({},Yd,{relatedTarget:0}),ie=Vd(he),je=q({},Wd,{animationName:0,elapsedTime:0,pseudoElement:0}),ke=Vd(je),le=q({},Wd,{clipboardData:function(a){return"clipboardData"in a?a.clipboardData:window.clipboardData}}),me=Vd(le),ne=q({},Wd,{data:0}),oe=Vd(ne),pe={Esc:"Escape",
-Spacebar:" ",Left:"ArrowLeft",Up:"ArrowUp",Right:"ArrowRight",Down:"ArrowDown",Del:"Delete",Win:"OS",Menu:"ContextMenu",Apps:"ContextMenu",Scroll:"ScrollLock",MozPrintableKey:"Unidentified"},qe={8:"Backspace",9:"Tab",12:"Clear",13:"Enter",16:"Shift",17:"Control",18:"Alt",19:"Pause",20:"CapsLock",27:"Escape",32:" ",33:"PageUp",34:"PageDown",35:"End",36:"Home",37:"ArrowLeft",38:"ArrowUp",39:"ArrowRight",40:"ArrowDown",45:"Insert",46:"Delete",112:"F1",113:"F2",114:"F3",115:"F4",116:"F5",117:"F6",118:"F7",
-119:"F8",120:"F9",121:"F10",122:"F11",123:"F12",144:"NumLock",145:"ScrollLock",224:"Meta"},re={Alt:"altKey",Control:"ctrlKey",Meta:"metaKey",Shift:"shiftKey"};function se(a){var b=this.nativeEvent;return b.getModifierState?b.getModifierState(a):(a=re[a])?!!b[a]:!1}function ce(){return se}
-var te=q({},Yd,{key:function(a){if(a.key){var b=pe[a.key]||a.key;if("Unidentified"!==b)return b}return"keypress"===a.type?(a=Sd(a),13===a?"Enter":String.fromCharCode(a)):"keydown"===a.type||"keyup"===a.type?qe[a.keyCode]||"Unidentified":""},code:0,location:0,ctrlKey:0,shiftKey:0,altKey:0,metaKey:0,repeat:0,locale:0,getModifierState:ce,charCode:function(a){return"keypress"===a.type?Sd(a):0},keyCode:function(a){return"keydown"===a.type||"keyup"===a.type?a.keyCode:0},which:function(a){return"keypress"===
-a.type?Sd(a):"keydown"===a.type||"keyup"===a.type?a.keyCode:0}}),ue=Vd(te),ve=q({},de,{pointerId:0,width:0,height:0,pressure:0,tangentialPressure:0,tiltX:0,tiltY:0,twist:0,pointerType:0,isPrimary:0}),we=Vd(ve),xe=q({},Yd,{touches:0,targetTouches:0,changedTouches:0,altKey:0,metaKey:0,ctrlKey:0,shiftKey:0,getModifierState:ce}),ye=Vd(xe),ze=q({},Wd,{propertyName:0,elapsedTime:0,pseudoElement:0}),Ae=Vd(ze),Be=q({},de,{deltaX:function(a){return"deltaX"in a?a.deltaX:"wheelDeltaX"in a?-a.wheelDeltaX:0},
-deltaY:function(a){return"deltaY"in a?a.deltaY:"wheelDeltaY"in a?-a.wheelDeltaY:"wheelDelta"in a?-a.wheelDelta:0},deltaZ:0,deltaMode:0}),Ce=Vd(Be),De=[9,13,27,32],Ee=Za&&"CompositionEvent"in window,Fe=null;Za&&"documentMode"in document&&(Fe=document.documentMode);var Ge=Za&&"TextEvent"in window&&!Fe,He=Za&&(!Ee||Fe&&8<Fe&&11>=Fe),Ie=String.fromCharCode(32),Je=!1;
-function Ke(a,b){switch(a){case "keyup":return-1!==De.indexOf(b.keyCode);case "keydown":return 229!==b.keyCode;case "keypress":case "mousedown":case "focusout":return!0;default:return!1}}function Le(a){a=a.detail;return"object"===typeof a&&"data"in a?a.data:null}var Me=!1;function Ne(a,b){switch(a){case "compositionend":return Le(b);case "keypress":if(32!==b.which)return null;Je=!0;return Ie;case "textInput":return a=b.data,a===Ie&&Je?null:a;default:return null}}
-function Oe(a,b){if(Me)return"compositionend"===a||!Ee&&Ke(a,b)?(a=Rd(),Qd=Pd=Od=null,Me=!1,a):null;switch(a){case "paste":return null;case "keypress":if(!(b.ctrlKey||b.altKey||b.metaKey)||b.ctrlKey&&b.altKey){if(b.char&&1<b.char.length)return b.char;if(b.which)return String.fromCharCode(b.which)}return null;case "compositionend":return He&&"ko"!==b.locale?null:b.data;default:return null}}
-var Pe={color:!0,date:!0,datetime:!0,"datetime-local":!0,email:!0,month:!0,number:!0,password:!0,range:!0,search:!0,tel:!0,text:!0,time:!0,url:!0,week:!0};function Qe(a){var b=a&&a.nodeName&&a.nodeName.toLowerCase();return"input"===b?!!Pe[a.type]:"textarea"===b?!0:!1}function Re(a,b,c,d){$b(d);b=Se(b,"onChange");0<b.length&&(c=new Xd("onChange","change",null,c,d),a.push({event:c,listeners:b}))}var Te=null,Ue=null;function Ve(a){We(a,0)}function Xe(a){var b=Ta(a);if(vb(b))return a}
-function Ye(a,b){if("change"===a)return b}var Ze=!1;if(Za){var $e;if(Za){var af="oninput"in document;if(!af){var bf=document.createElement("div");bf.setAttribute("oninput","return;");af="function"===typeof bf.oninput}$e=af}else $e=!1;Ze=$e&&(!document.documentMode||9<document.documentMode)}function cf(){Te&&(Te.detachEvent("onpropertychange",df),Ue=Te=null)}function df(a){if("value"===a.propertyName&&Xe(Ue)){var b=[];Re(b,Ue,a,Vb(a));ec(Ve,b)}}
-function ef(a,b,c){"focusin"===a?(cf(),Te=b,Ue=c,Te.attachEvent("onpropertychange",df)):"focusout"===a&&cf()}function ff(a){if("selectionchange"===a||"keyup"===a||"keydown"===a)return Xe(Ue)}function gf(a,b){if("click"===a)return Xe(b)}function hf(a,b){if("input"===a||"change"===a)return Xe(b)}function jf(a,b){return a===b&&(0!==a||1/a===1/b)||a!==a&&b!==b}var kf="function"===typeof Object.is?Object.is:jf;
-function lf(a,b){if(kf(a,b))return!0;if("object"!==typeof a||null===a||"object"!==typeof b||null===b)return!1;var c=Object.keys(a),d=Object.keys(b);if(c.length!==d.length)return!1;for(d=0;d<c.length;d++){var e=c[d];if(!$a.call(b,e)||!kf(a[e],b[e]))return!1}return!0}function mf(a){for(;a&&a.firstChild;)a=a.firstChild;return a}
-function nf(a,b){var c=mf(a);a=0;for(var d;c;){if(3===c.nodeType){d=a+c.textContent.length;if(a<=b&&d>=b)return{node:c,offset:b-a};a=d}a:{for(;c;){if(c.nextSibling){c=c.nextSibling;break a}c=c.parentNode}c=void 0}c=mf(c)}}function of(a,b){return a&&b?a===b?!0:a&&3===a.nodeType?!1:b&&3===b.nodeType?of(a,b.parentNode):"contains"in a?a.contains(b):a.compareDocumentPosition?!!(a.compareDocumentPosition(b)&16):!1:!1}
-function pf(){for(var a=window,b=wb();b instanceof a.HTMLIFrameElement;){try{var c="string"===typeof b.contentWindow.location.href}catch(d){c=!1}if(c)a=b.contentWindow;else break;b=wb(a.document)}return b}function qf(a){var b=a&&a.nodeName&&a.nodeName.toLowerCase();return b&&("input"===b&&("text"===a.type||"search"===a.type||"tel"===a.type||"url"===a.type||"password"===a.type)||"textarea"===b||"true"===a.contentEditable)}
-function rf(a){var b=pf(),c=a.focusedElem,d=a.selectionRange;if(b!==c&&c&&c.ownerDocument&&of(c.ownerDocument.documentElement,c)){if(null!==d&&qf(c))if(b=d.start,a=d.end,void 0===a&&(a=b),"selectionStart"in c)c.selectionStart=b,c.selectionEnd=Math.min(a,c.value.length);else if(a=(b=c.ownerDocument||document)&&b.defaultView||window,a.getSelection){a=a.getSelection();var e=c.textContent.length,f=Math.min(d.start,e);d=void 0===d.end?f:Math.min(d.end,e);!a.extend&&f>d&&(e=d,d=f,f=e);e=nf(c,f);var g=nf(c,
+'use strict';var aa=__nccwpck_require__(522),m=__nccwpck_require__(937),ba={usingClientEntryPoint:!1,Events:null,Dispatcher:{current:null}};function r(a){for(var b="https://reactjs.org/docs/error-decoder.html?invariant="+a,c=1;c<arguments.length;c++)b+="&args[]="+encodeURIComponent(arguments[c]);return"Minified React error #"+a+"; visit "+b+" for the full message or use the non-minified dev environment for full errors and additional helpful warnings."}var ca=new Set,da={};
+function ea(a,b){fa(a,b);fa(a+"Capture",b)}function fa(a,b){da[a]=b;for(a=0;a<b.length;a++)ca.add(b[a])}
+var ja=!("undefined"===typeof window||"undefined"===typeof window.document||"undefined"===typeof window.document.createElement),ka=Object.prototype.hasOwnProperty,la=/^[:A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD][:A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD\-.0-9\u00B7\u0300-\u036F\u203F-\u2040]*$/,ma=
+{},na={};function oa(a){if(ka.call(na,a))return!0;if(ka.call(ma,a))return!1;if(la.test(a))return na[a]=!0;ma[a]=!0;return!1}function pa(a,b,c,d){if(null!==c&&0===c.type)return!1;switch(typeof b){case "function":case "symbol":return!0;case "boolean":if(d)return!1;if(null!==c)return!c.acceptsBooleans;a=a.toLowerCase().slice(0,5);return"data-"!==a&&"aria-"!==a;default:return!1}}
+function qa(a,b,c,d){if(null===b||"undefined"===typeof b||pa(a,b,c,d))return!0;if(d)return!1===b?!0:!1;if(null!==c)switch(c.type){case 3:return!b;case 4:return!1===b;case 5:return isNaN(b);case 6:return isNaN(b)||1>b}return!1}function ra(a,b,c,d,e,f,g){this.acceptsBooleans=2===b||3===b||4===b;this.attributeName=d;this.attributeNamespace=e;this.mustUseProperty=c;this.propertyName=a;this.type=b;this.sanitizeURL=f;this.removeEmptyString=g}var z={},sa="children dangerouslySetInnerHTML defaultValue defaultChecked innerHTML suppressContentEditableWarning suppressHydrationWarning style".split(" ");
+sa.push("innerText","textContent");sa.forEach(function(a){z[a]=new ra(a,0,!1,a,null,!1,!1)});[["acceptCharset","accept-charset"],["className","class"],["htmlFor","for"],["httpEquiv","http-equiv"]].forEach(function(a){var b=a[0];z[b]=new ra(b,1,!1,a[1],null,!1,!1)});["contentEditable","draggable","spellCheck","value"].forEach(function(a){z[a]=new ra(a,2,!1,a.toLowerCase(),null,!1,!1)});
+["autoReverse","externalResourcesRequired","focusable","preserveAlpha"].forEach(function(a){z[a]=new ra(a,2,!1,a,null,!1,!1)});"allowFullScreen async autoFocus autoPlay controls default defer disabled disablePictureInPicture disableRemotePlayback formNoValidate hidden loop noModule noValidate open playsInline readOnly required reversed scoped seamless itemScope".split(" ").forEach(function(a){z[a]=new ra(a,3,!1,a.toLowerCase(),null,!1,!1)});
+["checked","multiple","muted","selected"].forEach(function(a){z[a]=new ra(a,3,!0,a,null,!1,!1)});["capture","download"].forEach(function(a){z[a]=new ra(a,4,!1,a,null,!1,!1)});["cols","rows","size","span"].forEach(function(a){z[a]=new ra(a,6,!1,a,null,!1,!1)});["rowSpan","start"].forEach(function(a){z[a]=new ra(a,5,!1,a.toLowerCase(),null,!1,!1)});var ta=/[\-:]([a-z])/g;function ua(a){return a[1].toUpperCase()}
+"accent-height alignment-baseline arabic-form baseline-shift cap-height clip-path clip-rule color-interpolation color-interpolation-filters color-profile color-rendering dominant-baseline enable-background fill-opacity fill-rule flood-color flood-opacity font-family font-size font-size-adjust font-stretch font-style font-variant font-weight glyph-name glyph-orientation-horizontal glyph-orientation-vertical horiz-adv-x horiz-origin-x image-rendering letter-spacing lighting-color marker-end marker-mid marker-start overline-position overline-thickness paint-order panose-1 pointer-events rendering-intent shape-rendering stop-color stop-opacity strikethrough-position strikethrough-thickness stroke-dasharray stroke-dashoffset stroke-linecap stroke-linejoin stroke-miterlimit stroke-opacity stroke-width text-anchor text-decoration text-rendering underline-position underline-thickness unicode-bidi unicode-range units-per-em v-alphabetic v-hanging v-ideographic v-mathematical vector-effect vert-adv-y vert-origin-x vert-origin-y word-spacing writing-mode xmlns:xlink x-height".split(" ").forEach(function(a){var b=a.replace(ta,
+ua);z[b]=new ra(b,1,!1,a,null,!1,!1)});"xlink:actuate xlink:arcrole xlink:role xlink:show xlink:title xlink:type".split(" ").forEach(function(a){var b=a.replace(ta,ua);z[b]=new ra(b,1,!1,a,"http://www.w3.org/1999/xlink",!1,!1)});["xml:base","xml:lang","xml:space"].forEach(function(a){var b=a.replace(ta,ua);z[b]=new ra(b,1,!1,a,"http://www.w3.org/XML/1998/namespace",!1,!1)});["tabIndex","crossOrigin"].forEach(function(a){z[a]=new ra(a,1,!1,a.toLowerCase(),null,!1,!1)});
+z.xlinkHref=new ra("xlinkHref",1,!1,"xlink:href","http://www.w3.org/1999/xlink",!0,!1);["src","href","action","formAction"].forEach(function(a){z[a]=new ra(a,1,!1,a.toLowerCase(),null,!0,!0)});
+function va(a,b,c,d){var e=z.hasOwnProperty(b)?z[b]:null;if(null!==e?0!==e.type:d||!(2<b.length)||"o"!==b[0]&&"O"!==b[0]||"n"!==b[1]&&"N"!==b[1]){if(d&&"o"===b[0]&&"n"===b[1]){var f=b.replace(/Capture$/,""),g=b!==f;f=f.slice(2);var h=wa(a);h=null!=h?h[b]:null;"function"===typeof h&&a.removeEventListener(f,h,g);if("function"===typeof c){"function"!==typeof h&&null!==h&&(b in a?a[b]=null:a.hasAttribute(b)&&a.removeAttribute(b));a.addEventListener(f,c,g);return}}d&&b in a?a[b]=c:(qa(b,c,e,d)&&(c=null),
+d&&!0===c&&(c=""),d||null===e?oa(b)&&(null===c?a.removeAttribute(b):a.setAttribute(b,""+c)):e.mustUseProperty?a[e.propertyName]=null===c?3===e.type?!1:"":c:(b=e.attributeName,d=e.attributeNamespace,null===c?a.removeAttribute(b):(e=e.type,c=3===e||4===e&&!0===c?"":""+c,d?a.setAttributeNS(d,b,c):a.setAttribute(b,c))))}}
+var xa=aa.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED,ya=Symbol.for("react.element"),za=Symbol.for("react.portal"),Aa=Symbol.for("react.fragment"),Ba=Symbol.for("react.strict_mode"),Ca=Symbol.for("react.profiler"),Da=Symbol.for("react.provider"),Ea=Symbol.for("react.context"),Fa=Symbol.for("react.server_context"),Ga=Symbol.for("react.forward_ref"),Ha=Symbol.for("react.suspense"),Ia=Symbol.for("react.suspense_list"),Ja=Symbol.for("react.memo"),Ka=Symbol.for("react.lazy"),La=Symbol.for("react.scope");
+Symbol.for("react.debug_trace_mode");var Ma=Symbol.for("react.offscreen"),Na=Symbol.for("react.legacy_hidden"),Oa=Symbol.for("react.cache");Symbol.for("react.tracing_marker");var Qa=Symbol.for("react.default_value"),Ra=Symbol.iterator;function Sa(a){if(null===a||"object"!==typeof a)return null;a=Ra&&a[Ra]||a["@@iterator"];return"function"===typeof a?a:null}var A=Object.assign,Ta;
+function Ua(a){if(void 0===Ta)try{throw Error();}catch(c){var b=c.stack.trim().match(/\n( *(at )?)/);Ta=b&&b[1]||""}return"\n"+Ta+a}var Va=!1;
+function Wa(a,b){if(!a||Va)return"";Va=!0;var c=Error.prepareStackTrace;Error.prepareStackTrace=void 0;try{if(b)if(b=function(){throw Error();},Object.defineProperty(b.prototype,"props",{set:function(){throw Error();}}),"object"===typeof Reflect&&Reflect.construct){try{Reflect.construct(b,[])}catch(l){var d=l}Reflect.construct(a,[],b)}else{try{b.call()}catch(l){d=l}a.call(b.prototype)}else{try{throw Error();}catch(l){d=l}a()}}catch(l){if(l&&d&&"string"===typeof l.stack){for(var e=l.stack.split("\n"),
+f=d.stack.split("\n"),g=e.length-1,h=f.length-1;1<=g&&0<=h&&e[g]!==f[h];)h--;for(;1<=g&&0<=h;g--,h--)if(e[g]!==f[h]){if(1!==g||1!==h){do if(g--,h--,0>h||e[g]!==f[h]){var k="\n"+e[g].replace(" at new "," at ");a.displayName&&k.includes("<anonymous>")&&(k=k.replace("<anonymous>",a.displayName));return k}while(1<=g&&0<=h)}break}}}finally{Va=!1,Error.prepareStackTrace=c}return(a=a?a.displayName||a.name:"")?Ua(a):""}
+function Xa(a){switch(a.tag){case 26:case 27:case 5:return Ua(a.type);case 16:return Ua("Lazy");case 13:return Ua("Suspense");case 19:return Ua("SuspenseList");case 0:case 2:case 15:return a=Wa(a.type,!1),a;case 11:return a=Wa(a.type.render,!1),a;case 1:return a=Wa(a.type,!0),a;default:return""}}
+function Ya(a){if(null==a)return null;if("function"===typeof a)return a.displayName||a.name||null;if("string"===typeof a)return a;switch(a){case Aa:return"Fragment";case za:return"Portal";case Ca:return"Profiler";case Ba:return"StrictMode";case Ha:return"Suspense";case Ia:return"SuspenseList";case Oa:return"Cache"}if("object"===typeof a)switch(a.$$typeof){case Ea:return(a.displayName||"Context")+".Consumer";case Da:return(a._context.displayName||"Context")+".Provider";case Ga:var b=a.render;a=a.displayName;
+a||(a=b.displayName||b.name||"",a=""!==a?"ForwardRef("+a+")":"ForwardRef");return a;case Ja:return b=a.displayName||null,null!==b?b:Ya(a.type)||"Memo";case Ka:b=a._payload;a=a._init;try{return Ya(a(b))}catch(c){break}case Fa:return(a.displayName||a._globalName)+".Provider"}return null}
+function Za(a){var b=a.type;switch(a.tag){case 24:return"Cache";case 9:return(b.displayName||"Context")+".Consumer";case 10:return(b._context.displayName||"Context")+".Provider";case 18:return"DehydratedFragment";case 11:return a=b.render,a=a.displayName||a.name||"",b.displayName||(""!==a?"ForwardRef("+a+")":"ForwardRef");case 7:return"Fragment";case 26:case 27:case 5:return b;case 4:return"Portal";case 3:return"Root";case 6:return"Text";case 16:return Ya(b);case 8:return b===Ba?"StrictMode":"Mode";
+case 22:return"Offscreen";case 12:return"Profiler";case 21:return"Scope";case 13:return"Suspense";case 19:return"SuspenseList";case 25:return"TracingMarker";case 1:case 0:case 17:case 2:case 14:case 15:if("function"===typeof b)return b.displayName||b.name||null;if("string"===typeof b)return b}return null}function $a(a){switch(typeof a){case "boolean":case "number":case "string":case "undefined":return a;case "object":return a;default:return""}}
+function ab(a){var b=a.type;return(a=a.nodeName)&&"input"===a.toLowerCase()&&("checkbox"===b||"radio"===b)}
+function bb(a){var b=ab(a)?"checked":"value",c=Object.getOwnPropertyDescriptor(a.constructor.prototype,b),d=""+a[b];if(!a.hasOwnProperty(b)&&"undefined"!==typeof c&&"function"===typeof c.get&&"function"===typeof c.set){var e=c.get,f=c.set;Object.defineProperty(a,b,{configurable:!0,get:function(){return e.call(this)},set:function(a){d=""+a;f.call(this,a)}});Object.defineProperty(a,b,{enumerable:c.enumerable});return{getValue:function(){return d},setValue:function(a){d=""+a},stopTracking:function(){a._valueTracker=
+null;delete a[b]}}}}function cb(a){a._valueTracker||(a._valueTracker=bb(a))}function db(a){if(!a)return!1;var b=a._valueTracker;if(!b)return!0;var c=b.getValue();var d="";a&&(d=ab(a)?a.checked?"true":"false":a.value);a=d;return a!==c?(b.setValue(a),!0):!1}function eb(a){a=a||("undefined"!==typeof document?document:void 0);if("undefined"===typeof a)return null;try{return a.activeElement||a.body}catch(b){return a.body}}
+function fb(a,b){var c=b.checked;return A({},b,{defaultChecked:void 0,defaultValue:void 0,value:void 0,checked:null!=c?c:a._wrapperState.initialChecked})}function gb(a,b){var c=null==b.defaultValue?"":b.defaultValue,d=null!=b.checked?b.checked:b.defaultChecked;c=$a(null!=b.value?b.value:c);a._wrapperState={initialChecked:d,initialValue:c,controlled:"checkbox"===b.type||"radio"===b.type?null!=b.checked:null!=b.value}}function hb(a,b){b=b.checked;null!=b&&va(a,"checked",b,!1)}
+function ib(a,b){hb(a,b);var c=$a(b.value),d=b.type;if(null!=c)if("number"===d){if(0===c&&""===a.value||a.value!=c)a.value=""+c}else a.value!==""+c&&(a.value=""+c);else if("submit"===d||"reset"===d){a.removeAttribute("value");return}b.hasOwnProperty("value")?jb(a,b.type,c):b.hasOwnProperty("defaultValue")&&jb(a,b.type,$a(b.defaultValue));null==b.checked&&null!=b.defaultChecked&&(a.defaultChecked=!!b.defaultChecked)}
+function kb(a,b,c){if(b.hasOwnProperty("value")||b.hasOwnProperty("defaultValue")){var d=b.type;if(!("submit"!==d&&"reset"!==d||void 0!==b.value&&null!==b.value))return;b=""+a._wrapperState.initialValue;c||b===a.value||(a.value=b);a.defaultValue=b}c=a.name;""!==c&&(a.name="");a.defaultChecked=!!a._wrapperState.initialChecked;""!==c&&(a.name=c)}
+function jb(a,b,c){if("number"!==b||eb(a.ownerDocument)!==a)null==c?a.defaultValue=""+a._wrapperState.initialValue:a.defaultValue!==""+c&&(a.defaultValue=""+c)}var lb=Array.isArray;
+function mb(a,b,c,d){a=a.options;if(b){b={};for(var e=0;e<c.length;e++)b["$"+c[e]]=!0;for(c=0;c<a.length;c++)e=b.hasOwnProperty("$"+a[c].value),a[c].selected!==e&&(a[c].selected=e),e&&d&&(a[c].defaultSelected=!0)}else{c=""+$a(c);b=null;for(e=0;e<a.length;e++){if(a[e].value===c){a[e].selected=!0;d&&(a[e].defaultSelected=!0);return}null!==b||a[e].disabled||(b=a[e])}null!==b&&(b.selected=!0)}}
+function nb(a,b){if(null!=b.dangerouslySetInnerHTML)throw Error(r(91));return A({},b,{value:void 0,defaultValue:void 0,children:""+a._wrapperState.initialValue})}function ob(a,b){var c=b.value;if(null==c){c=b.children;b=b.defaultValue;if(null!=c){if(null!=b)throw Error(r(92));if(lb(c)){if(1<c.length)throw Error(r(93));c=c[0]}b=c}null==b&&(b="");c=b}a._wrapperState={initialValue:$a(c)}}
+function pb(a,b){var c=$a(b.value),d=$a(b.defaultValue);null!=c&&(c=""+c,c!==a.value&&(a.value=c),null==b.defaultValue&&a.defaultValue!==c&&(a.defaultValue=c));null!=d&&(a.defaultValue=""+d)}function qb(a){var b=a.textContent;b===a._wrapperState.initialValue&&""!==b&&null!==b&&(a.value=b)}function rb(a){switch(a){case "svg":return"http://www.w3.org/2000/svg";case "math":return"http://www.w3.org/1998/Math/MathML";default:return"http://www.w3.org/1999/xhtml"}}
+function tb(a,b){return null==a||"http://www.w3.org/1999/xhtml"===a?rb(b):"http://www.w3.org/2000/svg"===a&&"foreignObject"===b?"http://www.w3.org/1999/xhtml":a}
+var ub,vb=function(a){return"undefined"!==typeof MSApp&&MSApp.execUnsafeLocalFunction?function(b,c,d,e){MSApp.execUnsafeLocalFunction(function(){return a(b,c,d,e)})}:a}(function(a,b){if("http://www.w3.org/2000/svg"!==a.namespaceURI||"innerHTML"in a)a.innerHTML=b;else{ub=ub||document.createElement("div");ub.innerHTML="<svg>"+b.valueOf().toString()+"</svg>";for(b=ub.firstChild;a.firstChild;)a.removeChild(a.firstChild);for(;b.firstChild;)a.appendChild(b.firstChild)}});
+function wb(a,b){if(b){var c=a.firstChild;if(c&&c===a.lastChild&&3===c.nodeType){c.nodeValue=b;return}}a.textContent=b}
+var xb={animationIterationCount:!0,aspectRatio:!0,borderImageOutset:!0,borderImageSlice:!0,borderImageWidth:!0,boxFlex:!0,boxFlexGroup:!0,boxOrdinalGroup:!0,columnCount:!0,columns:!0,flex:!0,flexGrow:!0,flexPositive:!0,flexShrink:!0,flexNegative:!0,flexOrder:!0,gridArea:!0,gridRow:!0,gridRowEnd:!0,gridRowSpan:!0,gridRowStart:!0,gridColumn:!0,gridColumnEnd:!0,gridColumnSpan:!0,gridColumnStart:!0,fontWeight:!0,lineClamp:!0,lineHeight:!0,opacity:!0,order:!0,orphans:!0,tabSize:!0,widows:!0,zIndex:!0,
+zoom:!0,fillOpacity:!0,floodOpacity:!0,stopOpacity:!0,strokeDasharray:!0,strokeDashoffset:!0,strokeMiterlimit:!0,strokeOpacity:!0,strokeWidth:!0},yb=["Webkit","ms","Moz","O"];Object.keys(xb).forEach(function(a){yb.forEach(function(b){b=b+a.charAt(0).toUpperCase()+a.substring(1);xb[b]=xb[a]})});function zb(a,b,c){return null==b||"boolean"===typeof b||""===b?"":c||"number"!==typeof b||0===b||xb.hasOwnProperty(a)&&xb[a]?(""+b).trim():b+"px"}
+function Ab(a,b){a=a.style;for(var c in b)if(b.hasOwnProperty(c)){var d=0===c.indexOf("--"),e=zb(c,b[c],d);"float"===c&&(c="cssFloat");d?a.setProperty(c,e):a[c]=e}}var Bb=A({menuitem:!0},{area:!0,base:!0,br:!0,col:!0,embed:!0,hr:!0,img:!0,input:!0,keygen:!0,link:!0,meta:!0,param:!0,source:!0,track:!0,wbr:!0});
+function Cb(a,b){if(b){if(Bb[a]&&(null!=b.children||null!=b.dangerouslySetInnerHTML))throw Error(r(137,a));if(null!=b.dangerouslySetInnerHTML){if(null!=b.children)throw Error(r(60));if("object"!==typeof b.dangerouslySetInnerHTML||!("__html"in b.dangerouslySetInnerHTML))throw Error(r(61));}if(null!=b.style&&"object"!==typeof b.style)throw Error(r(62));}}
+function Db(a,b){if(-1===a.indexOf("-"))return"string"===typeof b.is;switch(a){case "annotation-xml":case "color-profile":case "font-face":case "font-face-src":case "font-face-uri":case "font-face-format":case "font-face-name":case "missing-glyph":return!1;default:return!0}}var Eb=null;function Fb(a){a=a.target||a.srcElement||window;a.correspondingUseElement&&(a=a.correspondingUseElement);return 3===a.nodeType?a.parentNode:a}var Gb=null,Hb=null,Ib=null;
+function Jb(a){if(a=Kb(a)){if("function"!==typeof Gb)throw Error(r(280));var b=a.stateNode;b&&(b=wa(b),Gb(a.stateNode,a.type,b))}}function Lb(a){Hb?Ib?Ib.push(a):Ib=[a]:Hb=a}function Mb(){if(Hb){var a=Hb,b=Ib;Ib=Hb=null;Jb(a);if(b)for(a=0;a<b.length;a++)Jb(b[a])}}function Nb(a,b){return a(b)}function Ob(){}var Pb=!1;function Qb(a,b,c){if(Pb)return a(b,c);Pb=!0;try{return Nb(a,b,c)}finally{if(Pb=!1,null!==Hb||null!==Ib)Ob(),Mb()}}
+function Rb(a,b){var c=a.stateNode;if(null===c)return null;var d=wa(c);if(null===d)return null;c=d[b];a:switch(b){case "onClick":case "onClickCapture":case "onDoubleClick":case "onDoubleClickCapture":case "onMouseDown":case "onMouseDownCapture":case "onMouseMove":case "onMouseMoveCapture":case "onMouseUp":case "onMouseUpCapture":case "onMouseEnter":(d=!d.disabled)||(a=a.type,d=!("button"===a||"input"===a||"select"===a||"textarea"===a));a=!d;break a;default:a=!1}if(a)return null;if(c&&"function"!==
+typeof c)throw Error(r(231,b,typeof c));return c}var Sb=!1;if(ja)try{var Tb={};Object.defineProperty(Tb,"passive",{get:function(){Sb=!0}});window.addEventListener("test",Tb,Tb);window.removeEventListener("test",Tb,Tb)}catch(a){Sb=!1}function Ub(a,b,c){var d=Array.prototype.slice.call(arguments,3);try{b.apply(c,d)}catch(e){this.onError(e)}}var Vb=!1,Wb=null,Xb=!1,Yb=null,Zb={onError:function(a){Vb=!0;Wb=a}};function $b(a,b,c,d,e,f,g,h,k){Vb=!1;Wb=null;Ub.apply(Zb,arguments)}
+function ac(a,b,c,d,e,f,g,h,k){$b.apply(this,arguments);if(Vb){if(Vb){var l=Wb;Vb=!1;Wb=null}else throw Error(r(198));Xb||(Xb=!0,Yb=l)}}function bc(a){var b=a,c=a;if(a.alternate)for(;b.return;)b=b.return;else{a=b;do b=a,0!==(b.flags&2050)&&(c=b.return),a=b.return;while(a)}return 3===b.tag?c:null}function cc(a){if(13===a.tag){var b=a.memoizedState;null===b&&(a=a.alternate,null!==a&&(b=a.memoizedState));if(null!==b)return b.dehydrated}return null}function dc(a){if(bc(a)!==a)throw Error(r(188));}
+function ec(a){var b=a.alternate;if(!b){b=bc(a);if(null===b)throw Error(r(188));return b!==a?null:a}for(var c=a,d=b;;){var e=c.return;if(null===e)break;var f=e.alternate;if(null===f){d=e.return;if(null!==d){c=d;continue}break}if(e.child===f.child){for(f=e.child;f;){if(f===c)return dc(e),a;if(f===d)return dc(e),b;f=f.sibling}throw Error(r(188));}if(c.return!==d.return)c=e,d=f;else{for(var g=!1,h=e.child;h;){if(h===c){g=!0;c=e;d=f;break}if(h===d){g=!0;d=e;c=f;break}h=h.sibling}if(!g){for(h=f.child;h;){if(h===
+c){g=!0;c=f;d=e;break}if(h===d){g=!0;d=f;c=e;break}h=h.sibling}if(!g)throw Error(r(189));}}if(c.alternate!==d)throw Error(r(190));}if(3!==c.tag)throw Error(r(188));return c.stateNode.current===c?a:b}function fc(a){a=ec(a);return null!==a?gc(a):null}function gc(a){var b=a.tag;if(5===b||26===b||27===b||6===b)return a;for(a=a.child;null!==a;){b=gc(a);if(null!==b)return b;a=a.sibling}return null}
+var hc=m.unstable_scheduleCallback,ic=m.unstable_cancelCallback,jc=m.unstable_shouldYield,kc=m.unstable_requestPaint,C=m.unstable_now,lc=m.unstable_getCurrentPriorityLevel,mc=m.unstable_ImmediatePriority,nc=m.unstable_UserBlockingPriority,oc=m.unstable_NormalPriority,pc=m.unstable_LowPriority,qc=m.unstable_IdlePriority,rc=null,sc=null,D=null,tc="undefined"!==typeof __REACT_DEVTOOLS_GLOBAL_HOOK__;
+function uc(a,b){if(sc&&"function"===typeof sc.onCommitFiberRoot)try{var c=64===(a.current.flags&64);switch(b){case 1:var d=mc;break;case 4:d=nc;break;case 16:d=oc;break;case 536870912:d=qc;break;default:d=oc}sc.onCommitFiberRoot(rc,a,d,c)}catch(e){}}function vc(a){D=a}function wc(){for(var a=new Map,b=1,c=0;31>c;c++){var d=xc(b);a.set(b,d);b*=2}return a}function yc(){null!==D&&"function"===typeof D.markCommitStopped&&D.markCommitStopped()}
+function zc(a){null!==D&&"function"===typeof D.markComponentRenderStarted&&D.markComponentRenderStarted(a)}function Ac(){null!==D&&"function"===typeof D.markComponentRenderStopped&&D.markComponentRenderStopped()}function Bc(a){null!==D&&"function"===typeof D.markComponentLayoutEffectUnmountStarted&&D.markComponentLayoutEffectUnmountStarted(a)}function Cc(){null!==D&&"function"===typeof D.markComponentLayoutEffectUnmountStopped&&D.markComponentLayoutEffectUnmountStopped()}
+function Dc(a){null!==D&&"function"===typeof D.markRenderStarted&&D.markRenderStarted(a)}function Ec(){null!==D&&"function"===typeof D.markRenderStopped&&D.markRenderStopped()}function Fc(a,b){null!==D&&"function"===typeof D.markStateUpdateScheduled&&D.markStateUpdateScheduled(a,b)}var Hc=Math.clz32?Math.clz32:Gc,Ic=Math.log,Jc=Math.LN2;function Gc(a){a>>>=0;return 0===a?32:31-(Ic(a)/Jc|0)|0}
+function xc(a){if(a&1)return"Sync";if(a&2)return"InputContinuousHydration";if(a&4)return"InputContinuous";if(a&8)return"DefaultHydration";if(a&16)return"Default";if(a&32)return"TransitionHydration";if(a&4194240)return"Transition";if(a&130023424)return"Retry";if(a&134217728)return"SelectiveHydration";if(a&268435456)return"IdleHydration";if(a&536870912)return"Idle";if(a&1073741824)return"Offscreen"}var Kc=64,Lc=4194304;
+function Mc(a){switch(a&-a){case 1:return 1;case 2:return 2;case 4:return 4;case 8:return 8;case 16:return 16;case 32:return 32;case 64:case 128:case 256:case 512:case 1024:case 2048:case 4096:case 8192:case 16384:case 32768:case 65536:case 131072:case 262144:case 524288:case 1048576:case 2097152:return a&4194240;case 4194304:case 8388608:case 16777216:case 33554432:case 67108864:return a&130023424;case 134217728:return 134217728;case 268435456:return 268435456;case 536870912:return 536870912;case 1073741824:return 1073741824;
+default:return a}}function Nc(a,b){var c=a.pendingLanes;if(0===c)return 0;var d=0,e=a.suspendedLanes,f=a.pingedLanes,g=c&268435455;if(0!==g){var h=g&~e;0!==h?d=Mc(h):(f&=g,0!==f&&(d=Mc(f)))}else g=c&~e,0!==g?d=Mc(g):0!==f&&(d=Mc(f));if(0===d)return 0;if(0!==b&&b!==d&&0===(b&e)&&(e=d&-d,f=b&-b,e>=f||16===e&&0!==(f&4194240)))return b;0!==(d&4)&&(d|=c&16);b=a.entangledLanes;if(0!==b)for(a=a.entanglements,b&=d;0<b;)c=31-Hc(b),e=1<<c,d|=a[c],b&=~e;return d}
+function Oc(a,b){switch(a){case 1:case 2:case 4:return b+250;case 8:case 16:case 32:case 64:case 128:case 256:case 512:case 1024:case 2048:case 4096:case 8192:case 16384:case 32768:case 65536:case 131072:case 262144:case 524288:case 1048576:case 2097152:return b+5E3;case 4194304:case 8388608:case 16777216:case 33554432:case 67108864:return-1;case 134217728:case 268435456:case 536870912:case 1073741824:return-1;default:return-1}}
+function Pc(a,b){for(var c=a.suspendedLanes,d=a.pingedLanes,e=a.expirationTimes,f=a.pendingLanes&-130023425;0<f;){var g=31-Hc(f),h=1<<g,k=e[g];if(-1===k){if(0===(h&c)||0!==(h&d))e[g]=Oc(h,b)}else k<=b&&(a.expiredLanes|=h);f&=~h}}function Qc(a,b){if(a.errorRecoveryDisabledLanes&b)return 0;a=a.pendingLanes&-1073741825;return 0!==a?a:a&1073741824?1073741824:0}function Rc(){var a=Kc;Kc<<=1;0===(Kc&4194240)&&(Kc=64);return a}function Sc(a){for(var b=[],c=0;31>c;c++)b.push(a);return b}
+function Tc(a,b,c){a.pendingLanes|=b;536870912!==b&&(a.suspendedLanes=0,a.pingedLanes=0);a=a.eventTimes;b=31-Hc(b);a[b]=c}
+function Uc(a,b){var c=a.pendingLanes&~b;a.pendingLanes=b;a.suspendedLanes=0;a.pingedLanes=0;a.expiredLanes&=b;a.mutableReadLanes&=b;a.entangledLanes&=b;a.errorRecoveryDisabledLanes&=b;b=a.entanglements;var d=a.eventTimes,e=a.expirationTimes;for(a=a.hiddenUpdates;0<c;){var f=31-Hc(c),g=1<<f;b[f]=0;d[f]=-1;e[f]=-1;var h=a[f];if(null!==h)for(a[f]=null,f=0;f<h.length;f++){var k=h[f];null!==k&&(k.lane&=-1073741825)}c&=~g}}
+function Vc(a,b){var c=a.entangledLanes|=b;for(a=a.entanglements;c;){var d=31-Hc(c),e=1<<d;e&b|a[d]&b&&(a[d]|=b);c&=~e}}function Wc(a,b,c){if(tc)for(a=a.pendingUpdatersLaneMap;0<c;){var d=31-Hc(c),e=1<<d;a[d].add(b);c&=~e}}function Xc(a,b){if(tc)for(var c=a.pendingUpdatersLaneMap,d=a.memoizedUpdaters;0<b;){var e=31-Hc(b);a=1<<e;e=c[e];0<e.size&&(e.forEach(function(a){var b=a.alternate;null!==b&&d.has(b)||d.add(a)}),e.clear());b&=~a}}var E=0;
+function Yc(a,b){var c=E;try{return E=a,b()}finally{E=c}}function Zc(a){a&=-a;return 1<a?4<a?0!==(a&268435455)?16:536870912:4:1}var $c,ad,bd,cd,dd,ed=!1,fd=[],gd=null,hd=null,id=null,jd=new Map,kd=new Map,ld=[],md="mousedown mouseup touchcancel touchend touchstart auxclick dblclick pointercancel pointerdown pointerup dragend dragstart drop compositionend compositionstart keydown keypress keyup input textInput copy cut paste click change contextmenu reset submit".split(" ");
+function nd(a,b){switch(a){case "focusin":case "focusout":gd=null;break;case "dragenter":case "dragleave":hd=null;break;case "mouseover":case "mouseout":id=null;break;case "pointerover":case "pointerout":jd.delete(b.pointerId);break;case "gotpointercapture":case "lostpointercapture":kd.delete(b.pointerId)}}
+function od(a,b,c,d,e,f){if(null===a||a.nativeEvent!==f)return a={blockedOn:b,domEventName:c,eventSystemFlags:d,nativeEvent:f,targetContainers:[e]},null!==b&&(b=Kb(b),null!==b&&ad(b)),a;a.eventSystemFlags|=d;b=a.targetContainers;null!==e&&-1===b.indexOf(e)&&b.push(e);return a}
+function pd(a,b,c,d,e){switch(b){case "focusin":return gd=od(gd,a,b,c,d,e),!0;case "dragenter":return hd=od(hd,a,b,c,d,e),!0;case "mouseover":return id=od(id,a,b,c,d,e),!0;case "pointerover":var f=e.pointerId;jd.set(f,od(jd.get(f)||null,a,b,c,d,e));return!0;case "gotpointercapture":return f=e.pointerId,kd.set(f,od(kd.get(f)||null,a,b,c,d,e)),!0}return!1}
+function qd(a){var b=rd(a.target);if(null!==b){var c=bc(b);if(null!==c)if(b=c.tag,13===b){if(b=cc(c),null!==b){a.blockedOn=b;dd(a.priority,function(){bd(c)});return}}else if(3===b&&c.stateNode.current.memoizedState.isDehydrated){a.blockedOn=3===c.tag?c.stateNode.containerInfo:null;return}}a.blockedOn=null}
+function sd(a){if(null!==a.blockedOn)return!1;for(var b=a.targetContainers;0<b.length;){var c=td(a.domEventName,a.eventSystemFlags,b[0],a.nativeEvent);if(null===c){c=a.nativeEvent;var d=new c.constructor(c.type,c);Eb=d;c.target.dispatchEvent(d);Eb=null}else return b=Kb(c),null!==b&&ad(b),a.blockedOn=c,!1;b.shift()}return!0}function ud(a,b,c){sd(a)&&c.delete(b)}function vd(){ed=!1;null!==gd&&sd(gd)&&(gd=null);null!==hd&&sd(hd)&&(hd=null);null!==id&&sd(id)&&(id=null);jd.forEach(ud);kd.forEach(ud)}
+function wd(a,b){a.blockedOn===b&&(a.blockedOn=null,ed||(ed=!0,m.unstable_scheduleCallback(m.unstable_NormalPriority,vd)))}
+function xd(a){function b(b){return wd(b,a)}if(0<fd.length){wd(fd[0],a);for(var c=1;c<fd.length;c++){var d=fd[c];d.blockedOn===a&&(d.blockedOn=null)}}null!==gd&&wd(gd,a);null!==hd&&wd(hd,a);null!==id&&wd(id,a);jd.forEach(b);kd.forEach(b);for(c=0;c<ld.length;c++)d=ld[c],d.blockedOn===a&&(d.blockedOn=null);for(;0<ld.length&&(c=ld[0],null===c.blockedOn);)qd(c),null===c.blockedOn&&ld.shift()}var yd=xa.ReactCurrentBatchConfig,zd=!0;
+function Ad(a,b,c,d){var e=E,f=yd.transition;yd.transition=null;try{E=1,Bd(a,b,c,d)}finally{E=e,yd.transition=f}}function Cd(a,b,c,d){var e=E,f=yd.transition;yd.transition=null;try{E=4,Bd(a,b,c,d)}finally{E=e,yd.transition=f}}
+function Bd(a,b,c,d){if(zd){var e=td(a,b,c,d);if(null===e)Dd(a,b,d,Ed,c),nd(a,d);else if(pd(e,a,b,c,d))d.stopPropagation();else if(nd(a,d),b&4&&-1<md.indexOf(a)){for(;null!==e;){var f=Kb(e);null!==f&&$c(f);f=td(a,b,c,d);null===f&&Dd(a,b,d,Ed,c);if(f===e)break;e=f}null!==e&&d.stopPropagation()}else Dd(a,b,d,null,c)}}var Ed=null;
+function td(a,b,c,d){Ed=null;a=Fb(d);a=rd(a);if(null!==a)if(b=bc(a),null===b)a=null;else if(c=b.tag,13===c){a=cc(b);if(null!==a)return a;a=null}else if(3===c){if(b.stateNode.current.memoizedState.isDehydrated)return 3===b.tag?b.stateNode.containerInfo:null;a=null}else b!==a&&(a=null);Ed=a;return null}
+function Fd(a){switch(a){case "cancel":case "click":case "close":case "contextmenu":case "copy":case "cut":case "auxclick":case "dblclick":case "dragend":case "dragstart":case "drop":case "focusin":case "focusout":case "input":case "invalid":case "keydown":case "keypress":case "keyup":case "mousedown":case "mouseup":case "paste":case "pause":case "play":case "pointercancel":case "pointerdown":case "pointerup":case "ratechange":case "reset":case "resize":case "seeked":case "submit":case "touchcancel":case "touchend":case "touchstart":case "volumechange":case "change":case "selectionchange":case "textInput":case "compositionstart":case "compositionend":case "compositionupdate":case "beforeblur":case "afterblur":case "beforeinput":case "blur":case "fullscreenchange":case "focus":case "hashchange":case "popstate":case "select":case "selectstart":return 1;case "drag":case "dragenter":case "dragexit":case "dragleave":case "dragover":case "mousemove":case "mouseout":case "mouseover":case "pointermove":case "pointerout":case "pointerover":case "scroll":case "toggle":case "touchmove":case "wheel":case "mouseenter":case "mouseleave":case "pointerenter":case "pointerleave":return 4;
+case "message":switch(lc()){case mc:return 1;case nc:return 4;case oc:case pc:return 16;case qc:return 536870912;default:return 16}default:return 16}}var Gd=null,Hd=null,Id=null;function Jd(){if(Id)return Id;var a,b=Hd,c=b.length,d,e="value"in Gd?Gd.value:Gd.textContent,f=e.length;for(a=0;a<c&&b[a]===e[a];a++);var g=c-a;for(d=1;d<=g&&b[c-d]===e[f-d];d++);return Id=e.slice(a,1<d?1-d:void 0)}
+function Kd(a){var b=a.keyCode;"charCode"in a?(a=a.charCode,0===a&&13===b&&(a=13)):a=b;10===a&&(a=13);return 32<=a||13===a?a:0}function Ld(){return!0}function Md(){return!1}
+function Nd(a){function b(b,d,e,f,g){this._reactName=b;this._targetInst=e;this.type=d;this.nativeEvent=f;this.target=g;this.currentTarget=null;for(var c in a)a.hasOwnProperty(c)&&(b=a[c],this[c]=b?b(f):f[c]);this.isDefaultPrevented=(null!=f.defaultPrevented?f.defaultPrevented:!1===f.returnValue)?Ld:Md;this.isPropagationStopped=Md;return this}A(b.prototype,{preventDefault:function(){this.defaultPrevented=!0;var a=this.nativeEvent;a&&(a.preventDefault?a.preventDefault():"unknown"!==typeof a.returnValue&&
+(a.returnValue=!1),this.isDefaultPrevented=Ld)},stopPropagation:function(){var a=this.nativeEvent;a&&(a.stopPropagation?a.stopPropagation():"unknown"!==typeof a.cancelBubble&&(a.cancelBubble=!0),this.isPropagationStopped=Ld)},persist:function(){},isPersistent:Ld});return b}
+var Od={eventPhase:0,bubbles:0,cancelable:0,timeStamp:function(a){return a.timeStamp||Date.now()},defaultPrevented:0,isTrusted:0},Pd=Nd(Od),Qd=A({},Od,{view:0,detail:0}),Rd=Nd(Qd),Sd,Td,Ud,Wd=A({},Qd,{screenX:0,screenY:0,clientX:0,clientY:0,pageX:0,pageY:0,ctrlKey:0,shiftKey:0,altKey:0,metaKey:0,getModifierState:Vd,button:0,buttons:0,relatedTarget:function(a){return void 0===a.relatedTarget?a.fromElement===a.srcElement?a.toElement:a.fromElement:a.relatedTarget},movementX:function(a){if("movementX"in
+a)return a.movementX;a!==Ud&&(Ud&&"mousemove"===a.type?(Sd=a.screenX-Ud.screenX,Td=a.screenY-Ud.screenY):Td=Sd=0,Ud=a);return Sd},movementY:function(a){return"movementY"in a?a.movementY:Td}}),Xd=Nd(Wd),Yd=A({},Wd,{dataTransfer:0}),Zd=Nd(Yd),$d=A({},Qd,{relatedTarget:0}),ae=Nd($d),be=A({},Od,{animationName:0,elapsedTime:0,pseudoElement:0}),ce=Nd(be),de=A({},Od,{clipboardData:function(a){return"clipboardData"in a?a.clipboardData:window.clipboardData}}),ee=Nd(de),fe=A({},Od,{data:0}),ge=Nd(fe),he={Esc:"Escape",
+Spacebar:" ",Left:"ArrowLeft",Up:"ArrowUp",Right:"ArrowRight",Down:"ArrowDown",Del:"Delete",Win:"OS",Menu:"ContextMenu",Apps:"ContextMenu",Scroll:"ScrollLock",MozPrintableKey:"Unidentified"},ie={8:"Backspace",9:"Tab",12:"Clear",13:"Enter",16:"Shift",17:"Control",18:"Alt",19:"Pause",20:"CapsLock",27:"Escape",32:" ",33:"PageUp",34:"PageDown",35:"End",36:"Home",37:"ArrowLeft",38:"ArrowUp",39:"ArrowRight",40:"ArrowDown",45:"Insert",46:"Delete",112:"F1",113:"F2",114:"F3",115:"F4",116:"F5",117:"F6",118:"F7",
+119:"F8",120:"F9",121:"F10",122:"F11",123:"F12",144:"NumLock",145:"ScrollLock",224:"Meta"},je={Alt:"altKey",Control:"ctrlKey",Meta:"metaKey",Shift:"shiftKey"};function ke(a){var b=this.nativeEvent;return b.getModifierState?b.getModifierState(a):(a=je[a])?!!b[a]:!1}function Vd(){return ke}
+var le=A({},Qd,{key:function(a){if(a.key){var b=he[a.key]||a.key;if("Unidentified"!==b)return b}return"keypress"===a.type?(a=Kd(a),13===a?"Enter":String.fromCharCode(a)):"keydown"===a.type||"keyup"===a.type?ie[a.keyCode]||"Unidentified":""},code:0,location:0,ctrlKey:0,shiftKey:0,altKey:0,metaKey:0,repeat:0,locale:0,getModifierState:Vd,charCode:function(a){return"keypress"===a.type?Kd(a):0},keyCode:function(a){return"keydown"===a.type||"keyup"===a.type?a.keyCode:0},which:function(a){return"keypress"===
+a.type?Kd(a):"keydown"===a.type||"keyup"===a.type?a.keyCode:0}}),me=Nd(le),ne=A({},Wd,{pointerId:0,width:0,height:0,pressure:0,tangentialPressure:0,tiltX:0,tiltY:0,twist:0,pointerType:0,isPrimary:0}),oe=Nd(ne),pe=A({},Qd,{touches:0,targetTouches:0,changedTouches:0,altKey:0,metaKey:0,ctrlKey:0,shiftKey:0,getModifierState:Vd}),qe=Nd(pe),re=A({},Od,{propertyName:0,elapsedTime:0,pseudoElement:0}),se=Nd(re),te=A({},Wd,{deltaX:function(a){return"deltaX"in a?a.deltaX:"wheelDeltaX"in a?-a.wheelDeltaX:0},
+deltaY:function(a){return"deltaY"in a?a.deltaY:"wheelDeltaY"in a?-a.wheelDeltaY:"wheelDelta"in a?-a.wheelDelta:0},deltaZ:0,deltaMode:0}),ue=Nd(te),ve=[9,13,27,32],we=ja&&"CompositionEvent"in window,xe=null;ja&&"documentMode"in document&&(xe=document.documentMode);var ye=ja&&"TextEvent"in window&&!xe,ze=ja&&(!we||xe&&8<xe&&11>=xe),Ae=String.fromCharCode(32),Be=!1;
+function Ce(a,b){switch(a){case "keyup":return-1!==ve.indexOf(b.keyCode);case "keydown":return 229!==b.keyCode;case "keypress":case "mousedown":case "focusout":return!0;default:return!1}}function De(a){a=a.detail;return"object"===typeof a&&"data"in a?a.data:null}var Ee=!1;function Fe(a,b){switch(a){case "compositionend":return De(b);case "keypress":if(32!==b.which)return null;Be=!0;return Ae;case "textInput":return a=b.data,a===Ae&&Be?null:a;default:return null}}
+function Ge(a,b){if(Ee)return"compositionend"===a||!we&&Ce(a,b)?(a=Jd(),Id=Hd=Gd=null,Ee=!1,a):null;switch(a){case "paste":return null;case "keypress":if(!(b.ctrlKey||b.altKey||b.metaKey)||b.ctrlKey&&b.altKey){if(b.char&&1<b.char.length)return b.char;if(b.which)return String.fromCharCode(b.which)}return null;case "compositionend":return ze&&"ko"!==b.locale?null:b.data;default:return null}}
+var He={color:!0,date:!0,datetime:!0,"datetime-local":!0,email:!0,month:!0,number:!0,password:!0,range:!0,search:!0,tel:!0,text:!0,time:!0,url:!0,week:!0};function Ie(a){var b=a&&a.nodeName&&a.nodeName.toLowerCase();return"input"===b?!!He[a.type]:"textarea"===b?!0:!1}function Je(a,b,c,d){Lb(d);b=Ke(b,"onChange");0<b.length&&(c=new Pd("onChange","change",null,c,d),a.push({event:c,listeners:b}))}var Le=null,Me=null;function Ne(a){Oe(a,0)}function Pe(a){var b=Qe(a);if(db(b))return a}
+function Re(a,b){if("change"===a)return b}var Se=!1;if(ja){var Te;if(ja){var Ue="oninput"in document;if(!Ue){var Ve=document.createElement("div");Ve.setAttribute("oninput","return;");Ue="function"===typeof Ve.oninput}Te=Ue}else Te=!1;Se=Te&&(!document.documentMode||9<document.documentMode)}function We(){Le&&(Le.detachEvent("onpropertychange",Xe),Me=Le=null)}function Xe(a){if("value"===a.propertyName&&Pe(Me)){var b=[];Je(b,Me,a,Fb(a));Qb(Ne,b)}}
+function Ye(a,b,c){"focusin"===a?(We(),Le=b,Me=c,Le.attachEvent("onpropertychange",Xe)):"focusout"===a&&We()}function Ze(a){if("selectionchange"===a||"keyup"===a||"keydown"===a)return Pe(Me)}function $e(a,b){if("click"===a)return Pe(b)}function af(a,b){if("input"===a||"change"===a)return Pe(b)}function bf(a,b){return a===b&&(0!==a||1/a===1/b)||a!==a&&b!==b}var cf="function"===typeof Object.is?Object.is:bf;
+function df(a,b){if(cf(a,b))return!0;if("object"!==typeof a||null===a||"object"!==typeof b||null===b)return!1;var c=Object.keys(a),d=Object.keys(b);if(c.length!==d.length)return!1;for(d=0;d<c.length;d++){var e=c[d];if(!ka.call(b,e)||!cf(a[e],b[e]))return!1}return!0}function ef(a){for(;a&&a.firstChild;)a=a.firstChild;return a}
+function ff(a,b){var c=ef(a);a=0;for(var d;c;){if(3===c.nodeType){d=a+c.textContent.length;if(a<=b&&d>=b)return{node:c,offset:b-a};a=d}a:{for(;c;){if(c.nextSibling){c=c.nextSibling;break a}c=c.parentNode}c=void 0}c=ef(c)}}function gf(a,b){return a&&b?a===b?!0:a&&3===a.nodeType?!1:b&&3===b.nodeType?gf(a,b.parentNode):"contains"in a?a.contains(b):a.compareDocumentPosition?!!(a.compareDocumentPosition(b)&16):!1:!1}
+function hf(){for(var a=window,b=eb();b instanceof a.HTMLIFrameElement;){try{var c="string"===typeof b.contentWindow.location.href}catch(d){c=!1}if(c)a=b.contentWindow;else break;b=eb(a.document)}return b}function jf(a){var b=a&&a.nodeName&&a.nodeName.toLowerCase();return b&&("input"===b&&("text"===a.type||"search"===a.type||"tel"===a.type||"url"===a.type||"password"===a.type)||"textarea"===b||"true"===a.contentEditable)}
+function kf(a){var b=hf(),c=a.focusedElem,d=a.selectionRange;if(b!==c&&c&&c.ownerDocument&&gf(c.ownerDocument.documentElement,c)){if(null!==d&&jf(c))if(b=d.start,a=d.end,void 0===a&&(a=b),"selectionStart"in c)c.selectionStart=b,c.selectionEnd=Math.min(a,c.value.length);else if(a=(b=c.ownerDocument||document)&&b.defaultView||window,a.getSelection){a=a.getSelection();var e=c.textContent.length,f=Math.min(d.start,e);d=void 0===d.end?f:Math.min(d.end,e);!a.extend&&f>d&&(e=d,d=f,f=e);e=ff(c,f);var g=ff(c,
 d);e&&g&&(1!==a.rangeCount||a.anchorNode!==e.node||a.anchorOffset!==e.offset||a.focusNode!==g.node||a.focusOffset!==g.offset)&&(b=b.createRange(),b.setStart(e.node,e.offset),a.removeAllRanges(),f>d?(a.addRange(b),a.extend(g.node,g.offset)):(b.setEnd(g.node,g.offset),a.addRange(b)))}b=[];for(a=c;a=a.parentNode;)1===a.nodeType&&b.push({element:a,left:a.scrollLeft,top:a.scrollTop});"function"===typeof c.focus&&c.focus();for(c=0;c<b.length;c++)a=b[c],a.element.scrollLeft=a.left,a.element.scrollTop=a.top}}
-var sf=Za&&"documentMode"in document&&11>=document.documentMode,tf=null,uf=null,vf=null,wf=!1;
-function xf(a,b,c){var d=c.window===c?c.document:9===c.nodeType?c:c.ownerDocument;wf||null==tf||tf!==wb(d)||(d=tf,"selectionStart"in d&&qf(d)?d={start:d.selectionStart,end:d.selectionEnd}:(d=(d.ownerDocument&&d.ownerDocument.defaultView||window).getSelection(),d={anchorNode:d.anchorNode,anchorOffset:d.anchorOffset,focusNode:d.focusNode,focusOffset:d.focusOffset}),vf&&lf(vf,d)||(vf=d,d=Se(uf,"onSelect"),0<d.length&&(b=new Xd("onSelect","select",null,b,c),a.push({event:b,listeners:d}),b.target=tf)))}
-function yf(a,b){var c={};c[a.toLowerCase()]=b.toLowerCase();c["Webkit"+a]="webkit"+b;c["Moz"+a]="moz"+b;return c}var zf={animationend:yf("Animation","AnimationEnd"),animationiteration:yf("Animation","AnimationIteration"),animationstart:yf("Animation","AnimationStart"),transitionend:yf("Transition","TransitionEnd")},Af={},Bf={};
-Za&&(Bf=document.createElement("div").style,"AnimationEvent"in window||(delete zf.animationend.animation,delete zf.animationiteration.animation,delete zf.animationstart.animation),"TransitionEvent"in window||delete zf.transitionend.transition);function Cf(a){if(Af[a])return Af[a];if(!zf[a])return a;var b=zf[a],c;for(c in b)if(b.hasOwnProperty(c)&&c in Bf)return Af[a]=b[c];return a}var Df=Cf("animationend"),Ef=Cf("animationiteration"),Ff=Cf("animationstart"),Gf=Cf("transitionend"),Hf=new Map,If="abort auxClick cancel canPlay canPlayThrough click close contextMenu copy cut drag dragEnd dragEnter dragExit dragLeave dragOver dragStart drop durationChange emptied encrypted ended error gotPointerCapture input invalid keyDown keyPress keyUp load loadedData loadedMetadata loadStart lostPointerCapture mouseDown mouseMove mouseOut mouseOver mouseUp paste pause play playing pointerCancel pointerDown pointerMove pointerOut pointerOver pointerUp progress rateChange reset resize seeked seeking stalled submit suspend timeUpdate touchCancel touchEnd touchStart volumeChange scroll toggle touchMove waiting wheel".split(" ");
-function Jf(a,b){Hf.set(a,b);Xa(b,[a])}for(var Kf=0;Kf<If.length;Kf++){var Lf=If[Kf],Mf=Lf.toLowerCase(),Nf=Lf[0].toUpperCase()+Lf.slice(1);Jf(Mf,"on"+Nf)}Jf(Df,"onAnimationEnd");Jf(Ef,"onAnimationIteration");Jf(Ff,"onAnimationStart");Jf("dblclick","onDoubleClick");Jf("focusin","onFocus");Jf("focusout","onBlur");Jf(Gf,"onTransitionEnd");Ya("onMouseEnter",["mouseout","mouseover"]);Ya("onMouseLeave",["mouseout","mouseover"]);Ya("onPointerEnter",["pointerout","pointerover"]);
-Ya("onPointerLeave",["pointerout","pointerover"]);Xa("onChange","change click focusin focusout input keydown keyup selectionchange".split(" "));Xa("onSelect","focusout contextmenu dragend focusin keydown keyup mousedown mouseup selectionchange".split(" "));Xa("onBeforeInput",["compositionend","keypress","textInput","paste"]);Xa("onCompositionEnd","compositionend focusout keydown keypress keyup mousedown".split(" "));Xa("onCompositionStart","compositionstart focusout keydown keypress keyup mousedown".split(" "));
-Xa("onCompositionUpdate","compositionupdate focusout keydown keypress keyup mousedown".split(" "));var Of="abort canplay canplaythrough durationchange emptied encrypted ended error loadeddata loadedmetadata loadstart pause play playing progress ratechange resize seeked seeking stalled suspend timeupdate volumechange waiting".split(" "),Pf=new Set("cancel close invalid load scroll toggle".split(" ").concat(Of));
-function Qf(a,b,c){var d=a.type||"unknown-event";a.currentTarget=c;pc(d,b,void 0,a);a.currentTarget=null}
-function We(a,b){b=0!==(b&4);for(var c=0;c<a.length;c++){var d=a[c],e=d.event;d=d.listeners;a:{var f=void 0;if(b)for(var g=d.length-1;0<=g;g--){var h=d[g],k=h.instance,l=h.currentTarget;h=h.listener;if(k!==f&&e.isPropagationStopped())break a;Qf(e,h,l);f=k}else for(g=0;g<d.length;g++){h=d[g];k=h.instance;l=h.currentTarget;h=h.listener;if(k!==f&&e.isPropagationStopped())break a;Qf(e,h,l);f=k}}}if(lc)throw a=mc,lc=!1,mc=null,a;}
-function F(a,b){var c=b[Na];void 0===c&&(c=b[Na]=new Set);var d=a+"__bubble";c.has(d)||(Rf(b,a,2,!1),c.add(d))}function Sf(a,b,c){var d=0;b&&(d|=4);Rf(c,a,d,b)}var Tf="_reactListening"+Math.random().toString(36).slice(2);function Uf(a){if(!a[Tf]){a[Tf]=!0;Va.forEach(function(b){"selectionchange"!==b&&(Pf.has(b)||Sf(b,!1,a),Sf(b,!0,a))});var b=9===a.nodeType?a:a.ownerDocument;null===b||b[Tf]||(b[Tf]=!0,Sf("selectionchange",!1,b))}}
-function Rf(a,b,c,d){switch(Nd(b)){case 1:var e=Id;break;case 4:e=Kd;break;default:e=Jd}c=e.bind(null,b,c,a);e=void 0;!gc||"touchstart"!==b&&"touchmove"!==b&&"wheel"!==b||(e=!0);d?void 0!==e?a.addEventListener(b,c,{capture:!0,passive:e}):a.addEventListener(b,c,!0):void 0!==e?a.addEventListener(b,c,{passive:e}):a.addEventListener(b,c,!1)}
-function Ld(a,b,c,d,e){var f=d;if(0===(b&1)&&0===(b&2)&&null!==d)a:for(;;){if(null===d)return;var g=d.tag;if(3===g||4===g){var h=d.stateNode.containerInfo;if(h===e||8===h.nodeType&&h.parentNode===e)break;if(4===g)for(g=d.return;null!==g;){var k=g.tag;if(3===k||4===k)if(k=g.stateNode.containerInfo,k===e||8===k.nodeType&&k.parentNode===e)return;g=g.return}for(;null!==h;){g=Qa(h);if(null===g)return;k=g.tag;if(5===k||6===k){d=f=g;continue a}h=h.parentNode}}d=d.return}ec(function(){var d=f,e=Vb(c),g=[];
-a:{var h=Hf.get(a);if(void 0!==h){var k=Xd,n=a;switch(a){case "keypress":if(0===Sd(c))break a;case "keydown":case "keyup":k=ue;break;case "focusin":n="focus";k=ie;break;case "focusout":n="blur";k=ie;break;case "beforeblur":case "afterblur":k=ie;break;case "click":if(2===c.button)break a;case "auxclick":case "dblclick":case "mousedown":case "mousemove":case "mouseup":case "mouseout":case "mouseover":case "contextmenu":k=ee;break;case "drag":case "dragend":case "dragenter":case "dragexit":case "dragleave":case "dragover":case "dragstart":case "drop":k=
-ge;break;case "touchcancel":case "touchend":case "touchmove":case "touchstart":k=ye;break;case Df:case Ef:case Ff:k=ke;break;case Gf:k=Ae;break;case "scroll":k=Zd;break;case "wheel":k=Ce;break;case "copy":case "cut":case "paste":k=me;break;case "gotpointercapture":case "lostpointercapture":case "pointercancel":case "pointerdown":case "pointermove":case "pointerout":case "pointerover":case "pointerup":k=we}var r=0!==(b&4),A=!r&&"scroll"===a,w=r?null!==h?h+"Capture":null:h;r=[];for(var t=d,u;null!==
-t;){u=t;var M=u.stateNode;5===u.tag&&null!==M&&(u=M,null!==w&&(M=fc(t,w),null!=M&&r.push(Vf(t,M,u))));if(A)break;t=t.return}0<r.length&&(h=new k(h,n,null,c,e),g.push({event:h,listeners:r}))}}if(0===(b&7)){a:{h="mouseover"===a||"pointerover"===a;k="mouseout"===a||"pointerout"===a;if(h&&c!==Ub&&(n=c.relatedTarget||c.fromElement)&&(Qa(n)||n[Ma]))break a;if(k||h){h=e.window===e?e:(h=e.ownerDocument)?h.defaultView||h.parentWindow:window;if(k){if(n=c.relatedTarget||c.toElement,k=d,n=n?Qa(n):null,null!==
-n&&(A=Aa(n),n!==A||5!==n.tag&&6!==n.tag))n=null}else k=null,n=d;if(k!==n){r=ee;M="onMouseLeave";w="onMouseEnter";t="mouse";if("pointerout"===a||"pointerover"===a)r=we,M="onPointerLeave",w="onPointerEnter",t="pointer";A=null==k?h:Ta(k);u=null==n?h:Ta(n);h=new r(M,t+"leave",k,c,e);h.target=A;h.relatedTarget=u;M=null;Qa(e)===d&&(r=new r(w,t+"enter",n,c,e),r.target=u,r.relatedTarget=A,M=r);A=M;if(k&&n)b:{r=k;w=n;t=0;for(u=r;u;u=Wf(u))t++;u=0;for(M=w;M;M=Wf(M))u++;for(;0<t-u;)r=Wf(r),t--;for(;0<u-t;)w=
-Wf(w),u--;for(;t--;){if(r===w||null!==w&&r===w.alternate)break b;r=Wf(r);w=Wf(w)}r=null}else r=null;null!==k&&Xf(g,h,k,r,!1);null!==n&&null!==A&&Xf(g,A,n,r,!0)}}}a:{h=d?Ta(d):window;k=h.nodeName&&h.nodeName.toLowerCase();if("select"===k||"input"===k&&"file"===h.type)var Ca=Ye;else if(Qe(h))if(Ze)Ca=hf;else{Ca=ff;var Da=ef}else k=h.nodeName,!k||"input"!==k.toLowerCase()||"checkbox"!==h.type&&"radio"!==h.type?d&&Tb(d.elementType,d.memoizedProps)&&(Ca=Ye):Ca=gf;if(Ca&&(Ca=Ca(a,d))){Re(g,Ca,c,e);break a}Da&&
-Da(a,h,d);"focusout"===a&&(Da=h._wrapperState)&&Da.controlled&&"number"===h.type&&Bb(h,"number",h.value)}Da=d?Ta(d):window;switch(a){case "focusin":if(Qe(Da)||"true"===Da.contentEditable)tf=Da,uf=d,vf=null;break;case "focusout":vf=uf=tf=null;break;case "mousedown":wf=!0;break;case "contextmenu":case "mouseup":case "dragend":wf=!1;xf(g,c,e);break;case "selectionchange":if(sf)break;case "keydown":case "keyup":xf(g,c,e)}var qb;if(Ee)b:{switch(a){case "compositionstart":var fa="onCompositionStart";break b;
-case "compositionend":fa="onCompositionEnd";break b;case "compositionupdate":fa="onCompositionUpdate";break b}fa=void 0}else Me?Ke(a,c)&&(fa="onCompositionEnd"):"keydown"===a&&229===c.keyCode&&(fa="onCompositionStart");fa&&(He&&"ko"!==c.locale&&(Me||"onCompositionStart"!==fa?"onCompositionEnd"===fa&&Me&&(qb=Rd()):(Od=e,Pd="value"in Od?Od.value:Od.textContent,Me=!0)),Da=Se(d,fa),0<Da.length&&(fa=new oe(fa,a,null,c,e),g.push({event:fa,listeners:Da}),qb?fa.data=qb:(qb=Le(c),null!==qb&&(fa.data=qb))));
-if(qb=Ge?Ne(a,c):Oe(a,c))d=Se(d,"onBeforeInput"),0<d.length&&(e=new oe("onBeforeInput","beforeinput",null,c,e),g.push({event:e,listeners:d}),e.data=qb)}We(g,b)})}function Vf(a,b,c){return{instance:a,listener:b,currentTarget:c}}function Se(a,b){for(var c=b+"Capture",d=[];null!==a;){var e=a,f=e.stateNode;5===e.tag&&null!==f&&(e=f,f=fc(a,c),null!=f&&d.unshift(Vf(a,f,e)),f=fc(a,b),null!=f&&d.push(Vf(a,f,e)));a=a.return}return d}
-function Wf(a){if(null===a)return null;do a=a.return;while(a&&5!==a.tag);return a?a:null}function Xf(a,b,c,d,e){for(var f=b._reactName,g=[];null!==c&&c!==d;){var h=c,k=h.alternate,l=h.stateNode;if(null!==k&&k===d)break;5===h.tag&&null!==l&&(h=l,e?(k=fc(c,f),null!=k&&g.unshift(Vf(c,k,h))):e||(k=fc(c,f),null!=k&&g.push(Vf(c,k,h))));c=c.return}0!==g.length&&a.push({event:b,listeners:g})}var Yf=/\r\n?/g,Zf=/\u0000|\uFFFD/g;
-function $f(a){return("string"===typeof a?a:""+a).replace(Yf,"\n").replace(Zf,"")}function ag(a,b,c){b=$f(b);if($f(a)!==b&&c)throw Error(z(425));}function bg(){}var cg=null,dg=null;function eg(a,b){return"textarea"===a||"noscript"===a||"string"===typeof b.children||"number"===typeof b.children||"object"===typeof b.dangerouslySetInnerHTML&&null!==b.dangerouslySetInnerHTML&&null!=b.dangerouslySetInnerHTML.__html}
-var fg="function"===typeof setTimeout?setTimeout:void 0,gg="function"===typeof clearTimeout?clearTimeout:void 0,hg="function"===typeof Promise?Promise:void 0,jg="function"===typeof queueMicrotask?queueMicrotask:"undefined"!==typeof hg?function(a){return hg.resolve(null).then(a).catch(ig)}:fg;function ig(a){setTimeout(function(){throw a;})}
-function kg(a,b){var c=b,d=0;do{var e=c.nextSibling;a.removeChild(c);if(e&&8===e.nodeType)if(c=e.data,"/$"===c){if(0===d){a.removeChild(e);Fd(b);return}d--}else"$"!==c&&"$?"!==c&&"$!"!==c||d++;c=e}while(c);Fd(b)}function lg(a,b){return"link"===a&&"string"===typeof b.precedence&&"stylesheet"===b.rel}
-function mg(a){for(;null!=a;a=a.nextSibling){var b=a.nodeType;if(1===b){if("LINK"===a.tagName&&a.hasAttribute("data-rprec"))continue;break}if(3===b)break;if(8===b){b=a.data;if("$"===b||"$!"===b||"$?"===b)break;if("/$"===b)return null}}return a}function Ra(a){a=a.previousSibling;for(var b=0;a;){if(8===a.nodeType){var c=a.data;if("$"===c||"$!"===c||"$?"===c){if(0===b)return a;b--}else"/$"===c&&b++}a=a.previousSibling}return null}var ng=[],og=-1;function pg(a){return{current:a}}
-function G(a){0>og||(a.current=ng[og],ng[og]=null,og--)}function H(a,b){og++;ng[og]=a.current;a.current=b}var qg={},I=pg(qg),rg=pg(!1),sg=qg;function tg(a,b){var c=a.type.contextTypes;if(!c)return qg;var d=a.stateNode;if(d&&d.__reactInternalMemoizedUnmaskedChildContext===b)return d.__reactInternalMemoizedMaskedChildContext;var e={},f;for(f in c)e[f]=b[f];d&&(a=a.stateNode,a.__reactInternalMemoizedUnmaskedChildContext=b,a.__reactInternalMemoizedMaskedChildContext=e);return e}
-function ug(a){a=a.childContextTypes;return null!==a&&void 0!==a}function vg(){G(rg);G(I)}function wg(a,b,c){if(I.current!==qg)throw Error(z(168));H(I,b);H(rg,c)}function xg(a,b,c){var d=a.stateNode;b=b.childContextTypes;if("function"!==typeof d.getChildContext)return c;d=d.getChildContext();for(var e in d)if(!(e in b))throw Error(z(108,za(a)||"Unknown",e));return q({},c,d)}
-function yg(a){a=(a=a.stateNode)&&a.__reactInternalMemoizedMergedChildContext||qg;sg=I.current;H(I,a);H(rg,rg.current);return!0}function zg(a,b,c){var d=a.stateNode;if(!d)throw Error(z(169));c?(a=xg(a,b,sg),d.__reactInternalMemoizedMergedChildContext=a,G(rg),G(I),H(I,a)):G(rg);H(rg,c)}var Ag=null,Bg=!1,Cg=!1;function Dg(a){null===Ag?Ag=[a]:Ag.push(a)}function Eg(a){Bg=!0;Dg(a)}
-function Fg(){if(!Cg&&null!==Ag){Cg=!0;var a=0,b=E;try{var c=Ag;for(E=1;a<c.length;a++){var d=c[a];do d=d(!0);while(null!==d)}Ag=null;Bg=!1}catch(e){throw null!==Ag&&(Ag=Ag.slice(a+1)),qc(vc,Fg),e;}finally{E=b,Cg=!1}}return null}var Gg=[],Hg=0,Ig=null,Jg=0,Kg=[],Lg=0,Mg=null,Ng=1,Og="";function Pg(a,b){Gg[Hg++]=Jg;Gg[Hg++]=Ig;Ig=a;Jg=b}
-function Qg(a,b,c){Kg[Lg++]=Ng;Kg[Lg++]=Og;Kg[Lg++]=Mg;Mg=a;var d=Ng;a=Og;var e=32-Qc(d)-1;d&=~(1<<e);c+=1;var f=32-Qc(b)+e;if(30<f){var g=e-e%5;f=(d&(1<<g)-1).toString(32);d>>=g;e-=g;Ng=1<<32-Qc(b)+e|c<<e|d;Og=f+a}else Ng=1<<f|c<<e|d,Og=a}function Rg(a){null!==a.return&&(Pg(a,1),Qg(a,1,0))}function Sg(a){for(;a===Ig;)Ig=Gg[--Hg],Gg[Hg]=null,Jg=Gg[--Hg],Gg[Hg]=null;for(;a===Mg;)Mg=Kg[--Lg],Kg[Lg]=null,Og=Kg[--Lg],Kg[Lg]=null,Ng=Kg[--Lg],Kg[Lg]=null}var Tg={},Ug=pg(Tg),Vg=pg(Tg),Wg=pg(Tg);
-function Xg(a){if(a===Tg)throw Error(z(174));return a}function Yg(a,b){H(Wg,b);H(Vg,a);H(Ug,Tg);a=b.nodeType;switch(a){case 9:case 11:b=(b=b.documentElement)?b.namespaceURI:Jb(null,"");break;default:a=8===a?b.parentNode:b,b=a.namespaceURI||null,a=a.tagName,b=Jb(b,a)}G(Ug);H(Ug,b)}function Zg(){G(Ug);G(Vg);G(Wg)}function $g(a){var b=Xg(Ug.current);var c=Jb(b,a.type);b!==c&&(H(Vg,a),H(Ug,c))}function ah(a){Vg.current===a&&(G(Ug),G(Vg))}var bh=null,ch=null,J=!1,dh=null;
-function eh(a,b){var c=fh(5,null,null,0);c.elementType="DELETED";c.stateNode=b;c.return=a;b=a.deletions;null===b?(a.deletions=[c],a.flags|=8):b.push(c)}
-function gh(a,b){switch(a.tag){case 5:var c=a.type;b=1!==b.nodeType||c.toLowerCase()!==b.nodeName.toLowerCase()?null:b;return null!==b?(a.stateNode=b,bh=a,ch=mg(b.firstChild),!0):!1;case 6:return b=""===a.pendingProps||3!==b.nodeType?null:b,null!==b?(a.stateNode=b,bh=a,ch=null,!0):!1;case 13:return b=8!==b.nodeType?null:b,null!==b?(c=null!==Mg?{id:Ng,overflow:Og}:null,a.memoizedState={dehydrated:b,treeContext:c,retryLane:1073741824},c=fh(18,null,null,0),c.stateNode=b,c.return=a,a.child=c,bh=a,ch=
-null,!0):!1;default:return!1}}function hh(a){return 0!==(a.mode&1)&&0===(a.flags&64)}function ih(){throw Error(z(418));}
-function jh(a){if(J)if(5===a.tag&&lg(a.type,a.pendingProps)){a:{var b=a.pendingProps;var c=Xg(Wg.current);switch(a.type){case "link":if("string"!==typeof b.href){b=null;break a}b=(9===c.nodeType?c:c.ownerDocument).querySelector('link[rel="stylesheet"][data-rprec][href="'+b.href+'"]');break a}b=null}a.stateNode=b}else if(b=ch){if(c=b,!gh(a,b)){hh(a)&&ih();b=mg(c.nextSibling);var d=bh;b&&gh(a,b)?eh(d,c):(a.flags=a.flags&-2049|2,J=!1,bh=a)}}else hh(a)&&ih(),a.flags=a.flags&-2049|2,J=!1,bh=a}
-function kh(a){for(a=a.return;null!==a&&5!==a.tag&&3!==a.tag&&13!==a.tag;)a=a.return;bh=a}
-function lh(a){if(J&&lg(a.type,a.memoizedProps))return null===a.stateNode&&ih(),!0;if(a!==bh)return!1;if(!J)return kh(a),J=!0,!1;var b;(b=3!==a.tag)&&!(b=5!==a.tag)&&(b=a.type,b="head"!==b&&"body"!==b&&!eg(a.type,a.memoizedProps));if(b&&(b=ch))if(hh(a))mh(),ih();else for(;b;)eh(a,b),b=mg(b.nextSibling);kh(a);if(13===a.tag){a=a.memoizedState;a=null!==a?a.dehydrated:null;if(!a)throw Error(z(317));a:{a=a.nextSibling;for(b=0;a;){if(8===a.nodeType){var c=a.data;if("/$"===c){if(0===b){ch=mg(a.nextSibling);
-break a}b--}else"$"!==c&&"$!"!==c&&"$?"!==c||b++}a=a.nextSibling}ch=null}}else ch=bh?mg(a.stateNode.nextSibling):null;return!0}function mh(){for(var a=ch;a;)a=mg(a.nextSibling)}function nh(){ch=bh=null;J=!1}function oh(a){null===dh?dh=[a]:dh.push(a)}var ph=ba.ReactCurrentBatchConfig;function qh(a,b){if(a&&a.defaultProps){b=q({},b);a=a.defaultProps;for(var c in a)void 0===b[c]&&(b[c]=a[c]);return b}return b}var rh=pg(null),sh=null,th=null,uh=null;function vh(){uh=th=sh=null}
-function wh(a,b,c){H(rh,b._currentValue);b._currentValue=c}function xh(a){var b=rh.current;G(rh);a._currentValue=b===va?a._defaultValue:b}function yh(a,b,c){for(;null!==a;){var d=a.alternate;(a.childLanes&b)!==b?(a.childLanes|=b,null!==d&&(d.childLanes|=b)):null!==d&&(d.childLanes&b)!==b&&(d.childLanes|=b);if(a===c)break;a=a.return}}
-function zh(a,b,c){var d=a.child;null!==d&&(d.return=a);for(;null!==d;){var e=d.dependencies;if(null!==e){var f=d.child;for(var g=e.firstContext;null!==g;){if(g.context===b){if(1===d.tag){g=Ah(-1,c&-c);g.tag=2;var h=d.updateQueue;if(null!==h){h=h.shared;var k=h.pending;null===k?g.next=g:(g.next=k.next,k.next=g);h.pending=g}}d.lanes|=c;g=d.alternate;null!==g&&(g.lanes|=c);yh(d.return,c,a);e.lanes|=c;break}g=g.next}}else if(10===d.tag)f=d.type===a.type?null:d.child;else if(18===d.tag){f=d.return;if(null===
-f)throw Error(z(341));f.lanes|=c;e=f.alternate;null!==e&&(e.lanes|=c);yh(f,c,a);f=d.sibling}else f=d.child;if(null!==f)f.return=d;else for(f=d;null!==f;){if(f===a){f=null;break}d=f.sibling;if(null!==d){d.return=f.return;f=d;break}f=f.return}d=f}}function Bh(a,b){sh=a;uh=th=null;a=a.dependencies;null!==a&&null!==a.firstContext&&(0!==(a.lanes&b)&&(Ch=!0),a.firstContext=null)}
-function Dh(a){var b=a._currentValue;if(uh!==a)if(a={context:a,memoizedValue:b,next:null},null===th){if(null===sh)throw Error(z(308));th=a;sh.dependencies={lanes:0,firstContext:a}}else th=th.next=a;return b}var Eh=[],Fh=0,Gh=0;function Hh(){for(var a=Fh,b=Gh=Fh=0;b<a;){var c=Eh[b];Eh[b++]=null;var d=Eh[b];Eh[b++]=null;var e=Eh[b];Eh[b++]=null;var f=Eh[b];Eh[b++]=null;if(null!==d&&null!==e){var g=d.pending;null===g?e.next=e:(e.next=g.next,g.next=e);d.pending=e}0!==f&&Ih(c,e,f)}}
-function Jh(a,b,c,d){Eh[Fh++]=a;Eh[Fh++]=b;Eh[Fh++]=c;Eh[Fh++]=d;Gh|=d;a.lanes|=d;a=a.alternate;null!==a&&(a.lanes|=d)}function Kh(a,b){Jh(a,null,null,b);return Lh(a)}
-function Ih(a,b,c){a.lanes|=c;var d=a.alternate;null!==d&&(d.lanes|=c);for(var e=!1,f=a.return;null!==f;)f.childLanes|=c,d=f.alternate,null!==d&&(d.childLanes|=c),22===f.tag&&(a=f.stateNode,null===a||a._visibility&1||(e=!0)),a=f,f=f.return;e&&null!==b&&3===a.tag&&(f=a.stateNode,e=31-Qc(c),f=f.hiddenUpdates,a=f[e],null===a?f[e]=[b]:a.push(b),b.lane=c|1073741824)}function Lh(a){if(50<Mh)throw Mh=0,Nh=null,Error(z(185));for(var b=a.return;null!==b;)a=b,b=a.return;return 3===a.tag?a.stateNode:null}
-var Oh=!1;function Ph(a){a.updateQueue={baseState:a.memoizedState,firstBaseUpdate:null,lastBaseUpdate:null,shared:{pending:null,lanes:0,hiddenCallbacks:null},callbacks:null}}function Qh(a,b){a=a.updateQueue;b.updateQueue===a&&(b.updateQueue={baseState:a.baseState,firstBaseUpdate:a.firstBaseUpdate,lastBaseUpdate:a.lastBaseUpdate,shared:a.shared,callbacks:null})}function Ah(a,b){return{eventTime:a,lane:b,tag:0,payload:null,callback:null,next:null}}
-function Rh(a,b,c){var d=a.updateQueue;if(null===d)return null;d=d.shared;if(0!==(K&2)){var e=d.pending;null===e?b.next=b:(b.next=e.next,e.next=b);d.pending=b;b=Lh(a);Ih(a,null,c);return b}Jh(a,d,b,c);return Lh(a)}function Sh(a,b,c){b=b.updateQueue;if(null!==b&&(b=b.shared,0!==(c&4194240))){var d=b.lanes;d&=a.pendingLanes;c|=d;b.lanes=c;dd(a,c)}}
-function Th(a,b){var c=a.updateQueue,d=a.alternate;if(null!==d&&(d=d.updateQueue,c===d)){var e=null,f=null;c=c.firstBaseUpdate;if(null!==c){do{var g={eventTime:c.eventTime,lane:c.lane,tag:c.tag,payload:c.payload,callback:null,next:null};null===f?e=f=g:f=f.next=g;c=c.next}while(null!==c);null===f?e=f=b:f=f.next=b}else e=f=b;c={baseState:d.baseState,firstBaseUpdate:e,lastBaseUpdate:f,shared:d.shared,callbacks:d.callbacks};a.updateQueue=c;return}a=c.lastBaseUpdate;null===a?c.firstBaseUpdate=b:a.next=
+var lf=ja&&"documentMode"in document&&11>=document.documentMode,mf=null,nf=null,of=null,pf=!1;
+function qf(a,b,c){var d=c.window===c?c.document:9===c.nodeType?c:c.ownerDocument;pf||null==mf||mf!==eb(d)||(d=mf,"selectionStart"in d&&jf(d)?d={start:d.selectionStart,end:d.selectionEnd}:(d=(d.ownerDocument&&d.ownerDocument.defaultView||window).getSelection(),d={anchorNode:d.anchorNode,anchorOffset:d.anchorOffset,focusNode:d.focusNode,focusOffset:d.focusOffset}),of&&df(of,d)||(of=d,d=Ke(nf,"onSelect"),0<d.length&&(b=new Pd("onSelect","select",null,b,c),a.push({event:b,listeners:d}),b.target=mf)))}
+function rf(a,b){var c={};c[a.toLowerCase()]=b.toLowerCase();c["Webkit"+a]="webkit"+b;c["Moz"+a]="moz"+b;return c}var sf={animationend:rf("Animation","AnimationEnd"),animationiteration:rf("Animation","AnimationIteration"),animationstart:rf("Animation","AnimationStart"),transitionend:rf("Transition","TransitionEnd")},tf={},uf={};
+ja&&(uf=document.createElement("div").style,"AnimationEvent"in window||(delete sf.animationend.animation,delete sf.animationiteration.animation,delete sf.animationstart.animation),"TransitionEvent"in window||delete sf.transitionend.transition);function vf(a){if(tf[a])return tf[a];if(!sf[a])return a;var b=sf[a],c;for(c in b)if(b.hasOwnProperty(c)&&c in uf)return tf[a]=b[c];return a}var wf=vf("animationend"),xf=vf("animationiteration"),yf=vf("animationstart"),zf=vf("transitionend"),Af=new Map,Bf="abort auxClick cancel canPlay canPlayThrough click close contextMenu copy cut drag dragEnd dragEnter dragExit dragLeave dragOver dragStart drop durationChange emptied encrypted ended error gotPointerCapture input invalid keyDown keyPress keyUp load loadedData loadedMetadata loadStart lostPointerCapture mouseDown mouseMove mouseOut mouseOver mouseUp paste pause play playing pointerCancel pointerDown pointerMove pointerOut pointerOver pointerUp progress rateChange reset resize seeked seeking stalled submit suspend timeUpdate touchCancel touchEnd touchStart volumeChange scroll toggle touchMove waiting wheel".split(" ");
+function Cf(a,b){Af.set(a,b);ea(b,[a])}for(var Df=0;Df<Bf.length;Df++){var Ef=Bf[Df],Ff=Ef.toLowerCase(),Gf=Ef[0].toUpperCase()+Ef.slice(1);Cf(Ff,"on"+Gf)}Cf(wf,"onAnimationEnd");Cf(xf,"onAnimationIteration");Cf(yf,"onAnimationStart");Cf("dblclick","onDoubleClick");Cf("focusin","onFocus");Cf("focusout","onBlur");Cf(zf,"onTransitionEnd");fa("onMouseEnter",["mouseout","mouseover"]);fa("onMouseLeave",["mouseout","mouseover"]);fa("onPointerEnter",["pointerout","pointerover"]);
+fa("onPointerLeave",["pointerout","pointerover"]);ea("onChange","change click focusin focusout input keydown keyup selectionchange".split(" "));ea("onSelect","focusout contextmenu dragend focusin keydown keyup mousedown mouseup selectionchange".split(" "));ea("onBeforeInput",["compositionend","keypress","textInput","paste"]);ea("onCompositionEnd","compositionend focusout keydown keypress keyup mousedown".split(" "));ea("onCompositionStart","compositionstart focusout keydown keypress keyup mousedown".split(" "));
+ea("onCompositionUpdate","compositionupdate focusout keydown keypress keyup mousedown".split(" "));var Hf="abort canplay canplaythrough durationchange emptied encrypted ended error loadeddata loadedmetadata loadstart pause play playing progress ratechange resize seeked seeking stalled suspend timeupdate volumechange waiting".split(" "),If=new Set("cancel close invalid load scroll toggle".split(" ").concat(Hf));
+function Jf(a,b,c){var d=a.type||"unknown-event";a.currentTarget=c;ac(d,b,void 0,a);a.currentTarget=null}
+function Oe(a,b){b=0!==(b&4);for(var c=0;c<a.length;c++){var d=a[c],e=d.event;d=d.listeners;a:{var f=void 0;if(b)for(var g=d.length-1;0<=g;g--){var h=d[g],k=h.instance,l=h.currentTarget;h=h.listener;if(k!==f&&e.isPropagationStopped())break a;Jf(e,h,l);f=k}else for(g=0;g<d.length;g++){h=d[g];k=h.instance;l=h.currentTarget;h=h.listener;if(k!==f&&e.isPropagationStopped())break a;Jf(e,h,l);f=k}}}if(Xb)throw a=Yb,Xb=!1,Yb=null,a;}
+function F(a,b){var c=b[Kf];void 0===c&&(c=b[Kf]=new Set);var d=a+"__bubble";c.has(d)||(Lf(b,a,2,!1),c.add(d))}function Mf(a,b,c){var d=0;b&&(d|=4);Lf(c,a,d,b)}var Nf="_reactListening"+Math.random().toString(36).slice(2);function Of(a){if(!a[Nf]){a[Nf]=!0;ca.forEach(function(b){"selectionchange"!==b&&(If.has(b)||Mf(b,!1,a),Mf(b,!0,a))});var b=9===a.nodeType?a:a.ownerDocument;null===b||b[Nf]||(b[Nf]=!0,Mf("selectionchange",!1,b))}}
+function Lf(a,b,c,d){switch(Fd(b)){case 1:var e=Ad;break;case 4:e=Cd;break;default:e=Bd}c=e.bind(null,b,c,a);e=void 0;!Sb||"touchstart"!==b&&"touchmove"!==b&&"wheel"!==b||(e=!0);d?void 0!==e?a.addEventListener(b,c,{capture:!0,passive:e}):a.addEventListener(b,c,!0):void 0!==e?a.addEventListener(b,c,{passive:e}):a.addEventListener(b,c,!1)}
+function Dd(a,b,c,d,e){var f=d;if(0===(b&1)&&0===(b&2)&&null!==d)a:for(;;){if(null===d)return;var g=d.tag;if(3===g||4===g){var h=d.stateNode.containerInfo;if(h===e||8===h.nodeType&&h.parentNode===e)break;if(4===g)for(g=d.return;null!==g;){var k=g.tag;if(3===k||4===k)if(k=g.stateNode.containerInfo,k===e||8===k.nodeType&&k.parentNode===e)return;g=g.return}for(;null!==h;){g=rd(h);if(null===g)return;k=g.tag;if(5===k||6===k||26===k||27===k){d=f=g;continue a}h=h.parentNode}}d=d.return}Qb(function(){var d=
+f,e=Fb(c),g=[];a:{var h=Af.get(a);if(void 0!==h){var k=Pd,n=a;switch(a){case "keypress":if(0===Kd(c))break a;case "keydown":case "keyup":k=me;break;case "focusin":n="focus";k=ae;break;case "focusout":n="blur";k=ae;break;case "beforeblur":case "afterblur":k=ae;break;case "click":if(2===c.button)break a;case "auxclick":case "dblclick":case "mousedown":case "mousemove":case "mouseup":case "mouseout":case "mouseover":case "contextmenu":k=Xd;break;case "drag":case "dragend":case "dragenter":case "dragexit":case "dragleave":case "dragover":case "dragstart":case "drop":k=
+Zd;break;case "touchcancel":case "touchend":case "touchmove":case "touchstart":k=qe;break;case wf:case xf:case yf:k=ce;break;case zf:k=se;break;case "scroll":k=Rd;break;case "wheel":k=ue;break;case "copy":case "cut":case "paste":k=ee;break;case "gotpointercapture":case "lostpointercapture":case "pointercancel":case "pointerdown":case "pointermove":case "pointerout":case "pointerover":case "pointerup":k=oe}var u=0!==(b&4),B=!u&&"scroll"===a,t=u?null!==h?h+"Capture":null:h;u=[];for(var w=d,v;null!==
+w;){var M=w;v=M.stateNode;M=M.tag;5!==M&&26!==M&&27!==M||null===v||null===t||(M=Rb(w,t),null!=M&&u.push(Pf(w,M,v)));if(B)break;w=w.return}0<u.length&&(h=new k(h,n,null,c,e),g.push({event:h,listeners:u}))}}if(0===(b&7)){a:{h="mouseover"===a||"pointerover"===a;k="mouseout"===a||"pointerout"===a;if(h&&c!==Eb&&(n=c.relatedTarget||c.fromElement)&&(rd(n)||n[Qf]))break a;if(k||h){h=e.window===e?e:(h=e.ownerDocument)?h.defaultView||h.parentWindow:window;if(k){if(n=c.relatedTarget||c.toElement,k=d,n=n?rd(n):
+null,null!==n&&(B=bc(n),u=n.tag,n!==B||5!==u&&27!==u&&6!==u))n=null}else k=null,n=d;if(k!==n){u=Xd;M="onMouseLeave";t="onMouseEnter";w="mouse";if("pointerout"===a||"pointerover"===a)u=oe,M="onPointerLeave",t="onPointerEnter",w="pointer";B=null==k?h:Qe(k);v=null==n?h:Qe(n);h=new u(M,w+"leave",k,c,e);h.target=B;h.relatedTarget=v;M=null;rd(e)===d&&(u=new u(t,w+"enter",n,c,e),u.target=v,u.relatedTarget=B,M=u);B=M;if(k&&n)b:{u=k;t=n;w=0;for(v=u;v;v=Rf(v))w++;v=0;for(M=t;M;M=Rf(M))v++;for(;0<w-v;)u=Rf(u),
+w--;for(;0<v-w;)t=Rf(t),v--;for(;w--;){if(u===t||null!==t&&u===t.alternate)break b;u=Rf(u);t=Rf(t)}u=null}else u=null;null!==k&&Sf(g,h,k,u,!1);null!==n&&null!==B&&Sf(g,B,n,u,!0)}}}a:{h=d?Qe(d):window;k=h.nodeName&&h.nodeName.toLowerCase();if("select"===k||"input"===k&&"file"===h.type)var Pa=Re;else if(Ie(h))if(Se)Pa=af;else{Pa=Ze;var ha=Ye}else k=h.nodeName,!k||"input"!==k.toLowerCase()||"checkbox"!==h.type&&"radio"!==h.type?d&&Db(d.elementType,d.memoizedProps)&&(Pa=Re):Pa=$e;if(Pa&&(Pa=Pa(a,d))){Je(g,
+Pa,c,e);break a}ha&&ha(a,h,d);"focusout"===a&&(ha=h._wrapperState)&&ha.controlled&&"number"===h.type&&jb(h,"number",h.value)}ha=d?Qe(d):window;switch(a){case "focusin":if(Ie(ha)||"true"===ha.contentEditable)mf=ha,nf=d,of=null;break;case "focusout":of=nf=mf=null;break;case "mousedown":pf=!0;break;case "contextmenu":case "mouseup":case "dragend":pf=!1;qf(g,c,e);break;case "selectionchange":if(lf)break;case "keydown":case "keyup":qf(g,c,e)}var sb;if(we)b:{switch(a){case "compositionstart":var ia="onCompositionStart";
+break b;case "compositionend":ia="onCompositionEnd";break b;case "compositionupdate":ia="onCompositionUpdate";break b}ia=void 0}else Ee?Ce(a,c)&&(ia="onCompositionEnd"):"keydown"===a&&229===c.keyCode&&(ia="onCompositionStart");ia&&(ze&&"ko"!==c.locale&&(Ee||"onCompositionStart"!==ia?"onCompositionEnd"===ia&&Ee&&(sb=Jd()):(Gd=e,Hd="value"in Gd?Gd.value:Gd.textContent,Ee=!0)),ha=Ke(d,ia),0<ha.length&&(ia=new ge(ia,a,null,c,e),g.push({event:ia,listeners:ha}),sb?ia.data=sb:(sb=De(c),null!==sb&&(ia.data=
+sb))));if(sb=ye?Fe(a,c):Ge(a,c))d=Ke(d,"onBeforeInput"),0<d.length&&(e=new ge("onBeforeInput","beforeinput",null,c,e),g.push({event:e,listeners:d}),e.data=sb)}Oe(g,b)})}function Pf(a,b,c){return{instance:a,listener:b,currentTarget:c}}function Ke(a,b){for(var c=b+"Capture",d=[];null!==a;){var e=a,f=e.stateNode;e=e.tag;5!==e&&26!==e&&27!==e||null===f||(e=Rb(a,c),null!=e&&d.unshift(Pf(a,e,f)),e=Rb(a,b),null!=e&&d.push(Pf(a,e,f)));a=a.return}return d}
+function Rf(a){if(null===a)return null;do a=a.return;while(a&&5!==a.tag&&27!==a.tag);return a?a:null}function Sf(a,b,c,d,e){for(var f=b._reactName,g=[];null!==c&&c!==d;){var h=c,k=h.alternate,l=h.stateNode;h=h.tag;if(null!==k&&k===d)break;5!==h&&26!==h&&27!==h||null===l||(k=l,e?(l=Rb(c,f),null!=l&&g.unshift(Pf(c,l,k))):e||(l=Rb(c,f),null!=l&&g.push(Pf(c,l,k))));c=c.return}0!==g.length&&a.push({event:b,listeners:g})}var Tf=/\r\n?/g,Uf=/\u0000|\uFFFD/g;
+function Vf(a){return("string"===typeof a?a:""+a).replace(Tf,"\n").replace(Uf,"")}function Wf(a,b,c){b=Vf(b);if(Vf(a)!==b&&c)throw Error(r(425));}function Xf(){}
+function Yf(a,b,c,d){c=9===c.nodeType?c:c.ownerDocument;"http://www.w3.org/1999/xhtml"===d&&(d=rb(a));"http://www.w3.org/1999/xhtml"===d?"script"===a?(b=c.createElement("div"),b.innerHTML="<script>\x3c/script>",d=b.removeChild(b.firstChild)):"string"===typeof b.is?d=c.createElement(a,{is:b.is}):(d=c.createElement(a),"select"===a&&(a=d,b.multiple?a.multiple=!0:b.size&&(a.size=b.size))):d=c.createElementNS(d,a);return d}
+function Zf(a,b,c){var d=Db(b,c);switch(b){case "dialog":F("cancel",a);F("close",a);var e=c;break;case "iframe":case "object":case "embed":F("load",a);e=c;break;case "video":case "audio":for(e=0;e<Hf.length;e++)F(Hf[e],a);e=c;break;case "source":F("error",a);e=c;break;case "img":case "image":case "link":F("error",a);F("load",a);e=c;break;case "details":F("toggle",a);e=c;break;case "input":gb(a,c);e=fb(a,c);F("invalid",a);break;case "option":e=c;break;case "select":a._wrapperState={wasMultiple:!!c.multiple};
+e=A({},c,{value:void 0});F("invalid",a);break;case "textarea":ob(a,c);e=nb(a,c);F("invalid",a);break;default:e=c}Cb(b,e);var f=e,g;for(g in f)if(f.hasOwnProperty(g)){var h=f[g];"style"===g?Ab(a,h):"dangerouslySetInnerHTML"===g?(h=h?h.__html:void 0,null!=h&&vb(a,h)):"children"===g?"string"===typeof h?"body"===b||"textarea"===b&&""===h||wb(a,h):"number"===typeof h&&"body"!==b&&wb(a,""+h):"suppressContentEditableWarning"!==g&&"suppressHydrationWarning"!==g&&"autoFocus"!==g&&(da.hasOwnProperty(g)?null!=
+h&&"onScroll"===g&&F("scroll",a):null!=h&&va(a,g,h,d))}switch(b){case "input":cb(a);kb(a,c,!1);break;case "textarea":cb(a);qb(a);break;case "option":null!=c.value&&a.setAttribute("value",""+$a(c.value));break;case "select":a.multiple=!!c.multiple;b=c.value;null!=b?mb(a,!!c.multiple,b,!1):null!=c.defaultValue&&mb(a,!!c.multiple,c.defaultValue,!0);break;default:"function"===typeof e.onClick&&(a.onclick=Xf)}}var $f=[],ag=-1;function bg(a){return{current:a}}
+function G(a){0>ag||(a.current=$f[ag],$f[ag]=null,ag--)}function H(a,b){ag++;$f[ag]=a.current;a.current=b}var cg={},dg=bg(cg),eg=bg(cg),fg=bg(cg);function gg(a){if(a===cg)throw Error(r(174));return a}function hg(a,b){H(fg,b);H(eg,a);H(dg,cg);a=b.nodeType;switch(a){case 9:case 11:b=(b=b.documentElement)?b.namespaceURI:tb(null,"");break;default:a=8===a?b.parentNode:b,b=a.namespaceURI||null,a=a.tagName,b=tb(b,a)}G(dg);H(dg,b)}function ig(){G(dg);G(eg);G(fg)}
+function jg(a){var b=gg(dg.current);var c=tb(b,a.type);b!==c&&(H(eg,a),H(dg,c))}function kg(a){eg.current===a&&(G(dg),G(eg))}var lg=ba.Dispatcher,mg=null,ng=null,qg={preload:og,preinit:pg},rg=new Map;function sg(){var a=fg.current;return(a=a===cg?null:a)?a.getRootNode():null}function tg(){var a=sg();if(a)return a.ownerDocument||a;try{return mg||window.document}catch(b){return null}}
+function og(a,b){var c=tg();if("string"===typeof a&&a&&"object"===typeof b&&null!==b&&c){var d=b.as;rg.get(a)||ug(c,a,{href:a,rel:"preload",as:d,crossOrigin:"font"===d?"":b.crossOrigin,integrity:b.integrity})}}
+function pg(a,b){if("string"===typeof a&&a&&"object"===typeof b&&null!==b){var c=sg(),d=b.as;if(c)switch(d){case "style":d=vg(c);var e=b.precedence||"default",f=d.get(a);f||(f=wg(d,c,a,e,{rel:"stylesheet",href:a,"data-rprec":e,crossOrigin:b.crossOrigin}));xg(f)}else(c=tg())&&(rg.get(a)||ug(c,a,{href:a,rel:"preload",as:d,crossOrigin:"font"===d?"":b.crossOrigin}))}}
+function yg(a,b){var c=sg();if(!c)throw Error(r(446));switch(a){case "link":switch(b.rel){case "stylesheet":var d=vg(c),e=b.precedence,f=b.href;return"string"===typeof f&&"string"===typeof e?(a=d.get(f),a||(a=A({},b),a["data-rprec"]=b.precedence,a.precedence=null,c=a=wg(d,c,f,e,a),!1===c.loaded&&null===c.hint&&(b=c.props,d=c.root,c.hint=ug(d.ownerDocument||d,c.href,{rel:"preload",as:"style",href:b.href,crossOrigin:b.crossOrigin,integrity:b.integrity,media:b.media,hrefLang:b.hrefLang,referrerPolicy:b.referrerPolicy}))),
+a):null;case "preload":return a=b.href,d=b.as,"string"===typeof a&&zg(d)?(d=rg.get(a),d||(b=A({},b),d=ug(c.ownerDocument||c,a,b)),d):null;default:return null}default:throw Error(r(444,a));}}
+function xg(a){switch(a.type){case "style":if(!a.instance){var b=a.root,c=a.precedence,d=Ag(a.props.href);if(d=b.querySelector('link[rel="stylesheet"][data-rprec][href="'+d+'"]'))if(a.instance=d,a.preloaded=!0,b=d._p)switch(b.s){case "l":a.loaded=!0;a.error=!1;break;case "e":a.error=!0;break;default:Bg(d,a)}else a.loaded=!0;else{d=Cg("link",a.props,b.ownerDocument||b);Bg(d,a);for(var e=b.querySelectorAll('link[rel="stylesheet"][data-rprec]'),f=e.length?e[e.length-1]:null,g=f,h=0;h<e.length;h++){var k=
+e[h];if(k.dataset.rprec===c)g=k;else if(g!==f)break}if(g)g.parentNode.insertBefore(d,g.nextSibling);else if(b=9===b.nodeType?b.head:b)b.insertBefore(d,b.firstChild);else throw Error(r(447));a.instance=d}}a.count++;return a.instance;case "preload":return a.instance;default:throw Error(r(443,a.type));}}function Dg(a){switch(a.type){case "style":a.count--}}function Cg(a,b,c){c=Yf(a,b,c,"http://www.w3.org/1999/xhtml");Zf(c,a,b);return c}
+function wg(a,b,c,d,e){var f=Ag(c);f=b.querySelector('link[rel="stylesheet"][href="'+f+'"]');b={type:"style",count:0,href:c,precedence:d,props:e,hint:null,preloaded:!1,loaded:!1,error:!1,root:b,instance:null};a.set(c,b);if(f)if(a=f._p)switch(a.s){case "l":b.loaded=!0;break;case "e":b.error=!0;break;default:Bg(f,b)}else b.loaded=!0;else if(c=rg.get(c))b.hint=c,a=b.props,c=c.props,null==a.crossOrigin&&(a.crossOrigin=c.crossOrigin),null==a.referrerPolicy&&(a.referrerPolicy=c.referrerPolicy),null==a.media&&
+(a.media=c.media),null==a.title&&(a.title=c.title);return b}function ug(a,b,c){var d=Ag(b);d=a.querySelector('link[rel="preload"][href="'+d+'"]');if(!d){var e=d=Cg("link",c,a);if(!a.contains(e)){var f=a.head;if(f)f.appendChild(e);else throw Error(r(447));}}return{type:"preload",href:b,ownerDocument:a,props:c,instance:d}}function Bg(a,b){var c={};c.load=Eg.bind(null,a,b,c,Fg);c.error=Gg.bind(null,a,b,c,Fg);a.addEventListener("load",c.load,Fg);a.addEventListener("error",c.error,Fg)}var Fg={passive:!0};
+function Eg(a,b,c,d){b.loaded=!0;b.error=!1;for(var e in c)a.removeEventListener(e,c[e],d)}function Gg(a,b,c,d){b.loaded=!1;b.error=!0;for(var e in c)a.removeEventListener(e,c[e],d)}function zg(a){return"style"===a||"font"===a||"script"===a}var Hg=/[\n"\\]/g;function Ag(a){return a.replace(Hg,function(a){return"\\"+a.charCodeAt(0).toString(16)})}var Ig=null,Jg=null;
+function Kg(a,b){return"textarea"===a||"noscript"===a||"string"===typeof b.children||"number"===typeof b.children||"object"===typeof b.dangerouslySetInnerHTML&&null!==b.dangerouslySetInnerHTML&&null!=b.dangerouslySetInnerHTML.__html}
+var Lg="function"===typeof setTimeout?setTimeout:void 0,Mg="function"===typeof clearTimeout?clearTimeout:void 0,Ng="function"===typeof Promise?Promise:void 0,Pg="function"===typeof queueMicrotask?queueMicrotask:"undefined"!==typeof Ng?function(a){return Ng.resolve(null).then(a).catch(Og)}:Lg;function Og(a){setTimeout(function(){throw a;})}
+function Qg(a,b){var c=b,d=0;do{var e=c.nextSibling;a.removeChild(c);if(e&&8===e.nodeType)if(c=e.data,"/$"===c){if(0===d){a.removeChild(e);xd(b);return}d--}else"$"!==c&&"$?"!==c&&"$!"!==c||d++;c=e}while(c);xd(b)}
+function Rg(a){var b=a.nodeType;if(9===b||1===b)switch(a.nodeName){case "#document":case "HTML":case "HEAD":case "BODY":for(b=a.firstChild;b;){var c=b.nextSibling;switch(b.nodeName){case "HTML":case "HEAD":case "BODY":Rg(b);Sg(b);break;case "STYLE":break;case "LINK":if("stylesheet"===b.rel.toLowerCase())break;default:a.removeChild(b)}b=c}break;default:a.textContent=""}}
+function Tg(a){for(;null!=a;a=a.nextSibling){var b=a.nodeType;if(1===b){b=a;switch(b.tagName){case "LINK":var c=b.rel;if("preload"===c||"stylesheet"===c&&b.hasAttribute("data-rprec"))continue;break;case "HTML":case "HEAD":case "BODY":continue}break}else if(3===b)break;if(8===b){b=a.data;if("$"===b||"$!"===b||"$?"===b)break;if("/$"===b)return null}}return a}
+function Ug(a){a=a.previousSibling;for(var b=0;a;){if(8===a.nodeType){var c=a.data;if("$"===c||"$!"===c||"$?"===c){if(0===b)return a;b--}else"/$"===c&&b++}a=a.previousSibling}return null}function Vg(a,b,c){b=9===c.nodeType?c:c.ownerDocument;switch(a){case "html":a=b.documentElement;if(!a)throw Error(r(452));return a;case "head":a=b.head;if(!a)throw Error(r(453));return a;case "body":a=b.body;if(!a)throw Error(r(454));return a;default:throw Error(r(451));}}
+var Wg=Math.random().toString(36).slice(2),Xg="__reactFiber$"+Wg,Yg="__reactProps$"+Wg,Qf="__reactContainer$"+Wg,Kf="__reactEvents$"+Wg,Zg="__reactListeners$"+Wg,$g="__reactHandles$"+Wg,ah="__reactStyles$"+Wg;function Sg(a){delete a[Xg];delete a[Yg];delete a[Kf];delete a[Zg];delete a[$g]}
+function rd(a){var b=a[Xg];if(b)return b;for(var c=a.parentNode;c;){if(b=c[Qf]||c[Xg]){c=b.alternate;if(null!==b.child||null!==c&&null!==c.child)for(a=Ug(a);null!==a;){if(c=a[Xg])return c;a=Ug(a)}return b}a=c;c=a.parentNode}return null}function Kb(a){if(a=a[Xg]||a[Qf]){var b=a.tag;if(5===b||6===b||13===b||26===b||27===b||3===b)return a}return null}function Qe(a){var b=a.tag;if(5===b||26===b||27===b||6===b)return a.stateNode;throw Error(r(33));}function wa(a){return a[Yg]||null}
+function vg(a){var b=a[ah];b||(b=a[ah]=new Map);return b}var bh={},ch=bg(bh),dh=bg(!1),eh=bh;function fh(a,b){var c=a.type.contextTypes;if(!c)return bh;var d=a.stateNode;if(d&&d.__reactInternalMemoizedUnmaskedChildContext===b)return d.__reactInternalMemoizedMaskedChildContext;var e={},f;for(f in c)e[f]=b[f];d&&(a=a.stateNode,a.__reactInternalMemoizedUnmaskedChildContext=b,a.__reactInternalMemoizedMaskedChildContext=e);return e}function gh(a){a=a.childContextTypes;return null!==a&&void 0!==a}
+function hh(){G(dh);G(ch)}function ih(a,b,c){if(ch.current!==bh)throw Error(r(168));H(ch,b);H(dh,c)}function jh(a,b,c){var d=a.stateNode;b=b.childContextTypes;if("function"!==typeof d.getChildContext)return c;d=d.getChildContext();for(var e in d)if(!(e in b))throw Error(r(108,Za(a)||"Unknown",e));return A({},c,d)}function kh(a){a=(a=a.stateNode)&&a.__reactInternalMemoizedMergedChildContext||bh;eh=ch.current;H(ch,a);H(dh,dh.current);return!0}
+function lh(a,b,c){var d=a.stateNode;if(!d)throw Error(r(169));c?(a=jh(a,b,eh),d.__reactInternalMemoizedMergedChildContext=a,G(dh),G(ch),H(ch,a)):G(dh);H(dh,c)}var mh=null,nh=!1,oh=!1;function ph(a){null===mh?mh=[a]:mh.push(a)}function qh(a){nh=!0;ph(a)}function rh(){if(!oh&&null!==mh){oh=!0;var a=0,b=E;try{var c=mh;for(E=1;a<c.length;a++){var d=c[a];do d=d(!0);while(null!==d)}mh=null;nh=!1}catch(e){throw null!==mh&&(mh=mh.slice(a+1)),hc(mc,rh),e;}finally{E=b,oh=!1}}return null}
+var sh=[],th=0,uh=null,vh=0,wh=[],xh=0,yh=null,zh=1,Ah="";function Bh(a,b){sh[th++]=vh;sh[th++]=uh;uh=a;vh=b}function Ch(a,b,c){wh[xh++]=zh;wh[xh++]=Ah;wh[xh++]=yh;yh=a;var d=zh;a=Ah;var e=32-Hc(d)-1;d&=~(1<<e);c+=1;var f=32-Hc(b)+e;if(30<f){var g=e-e%5;f=(d&(1<<g)-1).toString(32);d>>=g;e-=g;zh=1<<32-Hc(b)+e|c<<e|d;Ah=f+a}else zh=1<<f|c<<e|d,Ah=a}function Dh(a){null!==a.return&&(Bh(a,1),Ch(a,1,0))}
+function Eh(a){for(;a===uh;)uh=sh[--th],sh[th]=null,vh=sh[--th],sh[th]=null;for(;a===yh;)yh=wh[--xh],wh[xh]=null,Ah=wh[--xh],wh[xh]=null,zh=wh[--xh],wh[xh]=null}var Fh=null,Gh=null,I=!1,Hh=null;function Ih(a,b){var c=Jh(5,null,null,0);c.elementType="DELETED";c.stateNode=b;c.return=a;b=a.deletions;null===b?(a.deletions=[c],a.flags|=8):b.push(c)}
+function Kh(a,b){switch(a.tag){case 5:var c=a.type;b=1!==b.nodeType||c.toLowerCase()!==b.nodeName.toLowerCase()?null:b;return null!==b?(a.stateNode=b,Fh=a,Gh=Tg(b.firstChild),!0):!1;case 6:return b=""===a.pendingProps||3!==b.nodeType?null:b,null!==b?(a.stateNode=b,Fh=a,Gh=null,!0):!1;case 13:return b=8!==b.nodeType?null:b,null!==b?(c=null!==yh?{id:zh,overflow:Ah}:null,a.memoizedState={dehydrated:b,treeContext:c,retryLane:1073741824},c=Jh(18,null,null,0),c.stateNode=b,c.return=a,a.child=c,Fh=a,Gh=
+null,!0):!1;default:return!1}}function Lh(a){return 0!==(a.mode&1)&&0===(a.flags&64)}function Mh(a){if(I){var b=Gh;if(b){var c=b;if(!Kh(a,b)){if(Lh(a))throw Error(r(418));b=Tg(c.nextSibling);var d=Fh;b&&Kh(a,b)?Ih(d,c):(a.flags=a.flags&-2049|2,I=!1,Fh=a)}}else{if(Lh(a))throw Error(r(418));a.flags=a.flags&-2049|2;I=!1;Fh=a}}}
+function Nh(a){var b=a.stateNode,c=a.type,d=a.memoizedProps;b[Xg]=a;b[Yg]=d;var e=0!==(a.mode&1);switch(c){case "dialog":F("cancel",b);F("close",b);break;case "iframe":case "object":case "embed":F("load",b);break;case "video":case "audio":for(var f=0;f<Hf.length;f++)F(Hf[f],b);break;case "source":F("error",b);break;case "img":case "image":case "link":F("error",b);F("load",b);break;case "details":F("toggle",b);break;case "input":gb(b,d);F("invalid",b);break;case "select":b._wrapperState={wasMultiple:!!d.multiple};
+F("invalid",b);break;case "textarea":ob(b,d),F("invalid",b)}Cb(c,d);f=null;for(var g in d)if(d.hasOwnProperty(g)){var h=d[g];"children"===g?"string"===typeof h?b.textContent!==h&&(!0!==d.suppressHydrationWarning&&Wf(b.textContent,h,e),f=["children",h]):"number"===typeof h&&b.textContent!==""+h&&(!0!==d.suppressHydrationWarning&&Wf(b.textContent,h,e),f=["children",""+h]):da.hasOwnProperty(g)&&null!=h&&"onScroll"===g&&F("scroll",b)}switch(c){case "input":cb(b);kb(b,d,!0);break;case "textarea":cb(b);
+qb(b);break;case "select":case "option":break;default:"function"===typeof d.onClick&&(b.onclick=Xf)}b=f;a.updateQueue=b;return null!==b?!0:!1}function Oh(a){for(a=a.return;null!==a&&5!==a.tag&&3!==a.tag&&13!==a.tag&&27!==a.tag;)a=a.return;Fh=a}
+function Ph(a){if(a!==Fh)return!1;if(!I)return Oh(a),I=!0,!1;var b=!1;3===a.tag||27===a.tag||5===a.tag&&Kg(a.type,a.memoizedProps)||(b=!0);if(b&&(b=Gh)){if(Lh(a))throw Qh(),Error(r(418));for(;b;)Ih(a,b),b=Tg(b.nextSibling)}Oh(a);if(13===a.tag){a=a.memoizedState;a=null!==a?a.dehydrated:null;if(!a)throw Error(r(317));a:{a=a.nextSibling;for(b=0;a;){if(8===a.nodeType){var c=a.data;if("/$"===c){if(0===b){Gh=Tg(a.nextSibling);break a}b--}else"$"!==c&&"$!"!==c&&"$?"!==c||b++}a=a.nextSibling}Gh=null}}else Gh=
+Fh?Tg(a.stateNode.nextSibling):null;return!0}function Qh(){for(var a=Gh;a;)a=Tg(a.nextSibling)}function Rh(){Gh=Fh=null;I=!1}function Sh(a){null===Hh?Hh=[a]:Hh.push(a)}var Th=xa.ReactCurrentBatchConfig;function Uh(a,b){if(a&&a.defaultProps){b=A({},b);a=a.defaultProps;for(var c in a)void 0===b[c]&&(b[c]=a[c]);return b}return b}var Vh=bg(null),Wh=null,Xh=null,Yh=null;function Zh(){Yh=Xh=Wh=null}function $h(a,b,c){H(Vh,b._currentValue);b._currentValue=c}
+function ai(a){var b=Vh.current;G(Vh);a._currentValue=b===Qa?a._defaultValue:b}function bi(a,b,c){for(;null!==a;){var d=a.alternate;(a.childLanes&b)!==b?(a.childLanes|=b,null!==d&&(d.childLanes|=b)):null!==d&&(d.childLanes&b)!==b&&(d.childLanes|=b);if(a===c)break;a=a.return}}
+function ci(a,b,c){var d=a.child;null!==d&&(d.return=a);for(;null!==d;){var e=d.dependencies;if(null!==e){var f=d.child;for(var g=e.firstContext;null!==g;){if(g.context===b){if(1===d.tag){g=di(-1,c&-c);g.tag=2;var h=d.updateQueue;if(null!==h){h=h.shared;var k=h.pending;null===k?g.next=g:(g.next=k.next,k.next=g);h.pending=g}}d.lanes|=c;g=d.alternate;null!==g&&(g.lanes|=c);bi(d.return,c,a);e.lanes|=c;break}g=g.next}}else if(10===d.tag)f=d.type===a.type?null:d.child;else if(18===d.tag){f=d.return;if(null===
+f)throw Error(r(341));f.lanes|=c;e=f.alternate;null!==e&&(e.lanes|=c);bi(f,c,a);f=d.sibling}else f=d.child;if(null!==f)f.return=d;else for(f=d;null!==f;){if(f===a){f=null;break}d=f.sibling;if(null!==d){d.return=f.return;f=d;break}f=f.return}d=f}}function ei(a,b){Wh=a;Yh=Xh=null;a=a.dependencies;null!==a&&null!==a.firstContext&&(0!==(a.lanes&b)&&(fi=!0),a.firstContext=null)}
+function gi(a){var b=a._currentValue;if(Yh!==a)if(a={context:a,memoizedValue:b,next:null},null===Xh){if(null===Wh)throw Error(r(308));Xh=a;Wh.dependencies={lanes:0,firstContext:a}}else Xh=Xh.next=a;return b}var hi=[],ii=0,ji=0;function ki(){for(var a=ii,b=ji=ii=0;b<a;){var c=hi[b];hi[b++]=null;var d=hi[b];hi[b++]=null;var e=hi[b];hi[b++]=null;var f=hi[b];hi[b++]=null;if(null!==d&&null!==e){var g=d.pending;null===g?e.next=e:(e.next=g.next,g.next=e);d.pending=e}0!==f&&li(c,e,f)}}
+function mi(a,b,c,d){hi[ii++]=a;hi[ii++]=b;hi[ii++]=c;hi[ii++]=d;ji|=d;a.lanes|=d;a=a.alternate;null!==a&&(a.lanes|=d)}function ni(a,b){mi(a,null,null,b);return oi(a)}
+function li(a,b,c){a.lanes|=c;var d=a.alternate;null!==d&&(d.lanes|=c);for(var e=!1,f=a.return;null!==f;)f.childLanes|=c,d=f.alternate,null!==d&&(d.childLanes|=c),22===f.tag&&(a=f.stateNode,null===a||a._visibility&1||(e=!0)),a=f,f=f.return;e&&null!==b&&3===a.tag&&(f=a.stateNode,e=31-Hc(c),f=f.hiddenUpdates,a=f[e],null===a?f[e]=[b]:a.push(b),b.lane=c|1073741824)}function oi(a){if(50<pi)throw pi=0,qi=null,Error(r(185));for(var b=a.return;null!==b;)a=b,b=a.return;return 3===a.tag?a.stateNode:null}
+var ri=!1;function si(a){a.updateQueue={baseState:a.memoizedState,firstBaseUpdate:null,lastBaseUpdate:null,shared:{pending:null,lanes:0,hiddenCallbacks:null},callbacks:null}}function ti(a,b){a=a.updateQueue;b.updateQueue===a&&(b.updateQueue={baseState:a.baseState,firstBaseUpdate:a.firstBaseUpdate,lastBaseUpdate:a.lastBaseUpdate,shared:a.shared,callbacks:null})}function di(a,b){return{eventTime:a,lane:b,tag:0,payload:null,callback:null,next:null}}
+function ui(a,b,c){var d=a.updateQueue;if(null===d)return null;d=d.shared;if(0!==(J&2)){var e=d.pending;null===e?b.next=b:(b.next=e.next,e.next=b);d.pending=b;b=oi(a);li(a,null,c);return b}mi(a,d,b,c);return oi(a)}function vi(a,b,c){b=b.updateQueue;if(null!==b&&(b=b.shared,0!==(c&4194240))){var d=b.lanes;d&=a.pendingLanes;c|=d;b.lanes=c;Vc(a,c)}}
+function wi(a,b){var c=a.updateQueue,d=a.alternate;if(null!==d&&(d=d.updateQueue,c===d)){var e=null,f=null;c=c.firstBaseUpdate;if(null!==c){do{var g={eventTime:c.eventTime,lane:c.lane,tag:c.tag,payload:c.payload,callback:null,next:null};null===f?e=f=g:f=f.next=g;c=c.next}while(null!==c);null===f?e=f=b:f=f.next=b}else e=f=b;c={baseState:d.baseState,firstBaseUpdate:e,lastBaseUpdate:f,shared:d.shared,callbacks:d.callbacks};a.updateQueue=c;return}a=c.lastBaseUpdate;null===a?c.firstBaseUpdate=b:a.next=
 b;c.lastBaseUpdate=b}
-function Uh(a,b,c,d){var e=a.updateQueue;Oh=!1;var f=e.firstBaseUpdate,g=e.lastBaseUpdate,h=e.shared.pending;if(null!==h){e.shared.pending=null;var k=h,l=k.next;k.next=null;null===g?f=l:g.next=l;g=k;var m=a.alternate;null!==m&&(m=m.updateQueue,h=m.lastBaseUpdate,h!==g&&(null===h?m.firstBaseUpdate=l:h.next=l,m.lastBaseUpdate=k))}if(null!==f){var v=e.baseState;g=0;m=l=k=null;h=f;do{var x=h.eventTime,y=h.lane&-1073741825,n=y!==h.lane;if(n?(L&y)===y:(d&y)===y){null!==m&&(m=m.next={eventTime:x,lane:0,
-tag:h.tag,payload:h.payload,callback:null,next:null});a:{var r=a,A=h;y=b;x=c;switch(A.tag){case 1:r=A.payload;if("function"===typeof r){v=r.call(x,v,y);break a}v=r;break a;case 3:r.flags=r.flags&-32769|64;case 0:r=A.payload;y="function"===typeof r?r.call(x,v,y):r;if(null===y||void 0===y)break a;v=q({},v,y);break a;case 2:Oh=!0}}y=h.callback;null!==y&&(a.flags|=32,n&&(a.flags|=4096),n=e.callbacks,null===n?e.callbacks=[y]:n.push(y))}else n={eventTime:x,lane:y,tag:h.tag,payload:h.payload,callback:h.callback,
-next:null},null===m?(l=m=n,k=v):m=m.next=n,g|=y;h=h.next;if(null===h)if(h=e.shared.pending,null===h)break;else n=h,h=n.next,n.next=null,e.lastBaseUpdate=n,e.shared.pending=null}while(1);null===m&&(k=v);e.baseState=k;e.firstBaseUpdate=l;e.lastBaseUpdate=m;null===f&&(e.shared.lanes=0);Vh|=g;a.lanes=g;a.memoizedState=v}}function Wh(a,b){if("function"!==typeof a)throw Error(z(191,a));a.call(b)}function Xh(a,b){var c=a.callbacks;if(null!==c)for(a.callbacks=null,a=0;a<c.length;a++)Wh(c[a],b)}var Yh=(new aa.Component).refs;
-function Zh(a,b,c,d){b=a.memoizedState;c=c(d,b);c=null===c||void 0===c?b:q({},b,c);a.memoizedState=c;0===a.lanes&&(a.updateQueue.baseState=c)}
-var ci={isMounted:function(a){return(a=a._reactInternals)?Aa(a)===a:!1},enqueueSetState:function(a,b,c){a=a._reactInternals;var d=$h(),e=ai(a),f=Ah(d,e);f.payload=b;void 0!==c&&null!==c&&(f.callback=c);b=Rh(a,f,e);null!==b&&(bi(b,a,e,d),Sh(b,a,e));Oc(a,e)},enqueueReplaceState:function(a,b,c){a=a._reactInternals;var d=$h(),e=ai(a),f=Ah(d,e);f.tag=1;f.payload=b;void 0!==c&&null!==c&&(f.callback=c);b=Rh(a,f,e);null!==b&&(bi(b,a,e,d),Sh(b,a,e));Oc(a,e)},enqueueForceUpdate:function(a,b){a=a._reactInternals;
-var c=$h(),d=ai(a),e=Ah(c,d);e.tag=2;void 0!==b&&null!==b&&(e.callback=b);b=Rh(a,e,d);null!==b&&(bi(b,a,d,c),Sh(b,a,d));null!==D&&"function"===typeof D.markForceUpdateScheduled&&D.markForceUpdateScheduled(a,d)}};function di(a,b,c,d,e,f,g){a=a.stateNode;return"function"===typeof a.shouldComponentUpdate?a.shouldComponentUpdate(d,f,g):b.prototype&&b.prototype.isPureReactComponent?!lf(c,d)||!lf(e,f):!0}
-function ei(a,b,c){var d=!1,e=qg;var f=b.contextType;"object"===typeof f&&null!==f?f=Dh(f):(e=ug(b)?sg:I.current,d=b.contextTypes,f=(d=null!==d&&void 0!==d)?tg(a,e):qg);b=new b(c,f);a.memoizedState=null!==b.state&&void 0!==b.state?b.state:null;b.updater=ci;a.stateNode=b;b._reactInternals=a;d&&(a=a.stateNode,a.__reactInternalMemoizedUnmaskedChildContext=e,a.__reactInternalMemoizedMaskedChildContext=f);return b}
-function fi(a,b,c,d){a=b.state;"function"===typeof b.componentWillReceiveProps&&b.componentWillReceiveProps(c,d);"function"===typeof b.UNSAFE_componentWillReceiveProps&&b.UNSAFE_componentWillReceiveProps(c,d);b.state!==a&&ci.enqueueReplaceState(b,b.state,null)}
-function gi(a,b,c,d){var e=a.stateNode;e.props=c;e.state=a.memoizedState;e.refs=Yh;Ph(a);var f=b.contextType;"object"===typeof f&&null!==f?e.context=Dh(f):(f=ug(b)?sg:I.current,e.context=tg(a,f));e.state=a.memoizedState;f=b.getDerivedStateFromProps;"function"===typeof f&&(Zh(a,b,f,c),e.state=a.memoizedState);"function"===typeof b.getDerivedStateFromProps||"function"===typeof e.getSnapshotBeforeUpdate||"function"!==typeof e.UNSAFE_componentWillMount&&"function"!==typeof e.componentWillMount||(b=e.state,
-"function"===typeof e.componentWillMount&&e.componentWillMount(),"function"===typeof e.UNSAFE_componentWillMount&&e.UNSAFE_componentWillMount(),b!==e.state&&ci.enqueueReplaceState(e,e.state,null),Uh(a,c,e,d),e.state=a.memoizedState);"function"===typeof e.componentDidMount&&(a.flags|=2097156)}
-function hi(a,b,c){a=c.ref;if(null!==a&&"function"!==typeof a&&"object"!==typeof a){if(c._owner){c=c._owner;if(c){if(1!==c.tag)throw Error(z(309));var d=c.stateNode}if(!d)throw Error(z(147,a));var e=d,f=""+a;if(null!==b&&null!==b.ref&&"function"===typeof b.ref&&b.ref._stringRef===f)return b.ref;b=function(a){var b=e.refs;b===Yh&&(b=e.refs={});null===a?delete b[f]:b[f]=a};b._stringRef=f;return b}if("string"!==typeof a)throw Error(z(284));if(!c._owner)throw Error(z(290,a));}return a}
-function ii(a,b){a=Object.prototype.toString.call(b);throw Error(z(31,"[object Object]"===a?"object with keys {"+Object.keys(b).join(", ")+"}":a));}function ji(a){var b=a._init;return b(a._payload)}
-function ki(a){function b(b,c){if(a){var d=b.deletions;null===d?(b.deletions=[c],b.flags|=8):d.push(c)}}function c(c,d){if(!a)return null;for(;null!==d;)b(c,d),d=d.sibling;return null}function d(a,b){for(a=new Map;null!==b;)null!==b.key?a.set(b.key,b):a.set(b.index,b),b=b.sibling;return a}function e(a,b){a=li(a,b);a.index=0;a.sibling=null;return a}function f(b,c,d){b.index=d;if(!a)return b.flags|=524288,c;d=b.alternate;if(null!==d)return d=d.index,d<c?(b.flags|=8388610,c):d;b.flags|=8388610;return c}
-function g(b){a&&null===b.alternate&&(b.flags|=8388610);return b}function h(a,b,c,d){if(null===b||6!==b.tag)return b=mi(c,a.mode,d),b.return=a,b;b=e(b,c);b.return=a;return b}function k(a,b,c,d){var f=c.type;if(f===ea)return m(a,b,c.props.children,d,c.key);if(null!==b&&(b.elementType===f||"object"===typeof f&&null!==f&&f.$$typeof===qa&&ji(f)===b.type))return d=e(b,c.props),d.ref=hi(a,b,c),d.return=a,d;d=ni(c.type,c.key,c.props,null,a.mode,d);d.ref=hi(a,b,c);d.return=a;return d}function l(a,b,c,d){if(null===
-b||4!==b.tag||b.stateNode.containerInfo!==c.containerInfo||b.stateNode.implementation!==c.implementation)return b=oi(c,a.mode,d),b.return=a,b;b=e(b,c.children||[]);b.return=a;return b}function m(a,b,c,d,f){if(null===b||7!==b.tag)return b=pi(c,a.mode,d,f),b.return=a,b;b=e(b,c);b.return=a;return b}function v(a,b,c){if("string"===typeof b&&""!==b||"number"===typeof b)return b=mi(""+b,a.mode,c),b.return=a,b;if("object"===typeof b&&null!==b){switch(b.$$typeof){case ca:return c=ni(b.type,b.key,b.props,
-null,a.mode,c),c.ref=hi(a,null,b),c.return=a,c;case da:return b=oi(b,a.mode,c),b.return=a,b;case qa:var d=b._init;return v(a,d(b._payload),c)}if(Ia(b)||xa(b))return b=pi(b,a.mode,c,null),b.return=a,b;ii(a,b)}return null}function x(a,b,c,d){var e=null!==b?b.key:null;if("string"===typeof c&&""!==c||"number"===typeof c)return null!==e?null:h(a,b,""+c,d);if("object"===typeof c&&null!==c){switch(c.$$typeof){case ca:return c.key===e?k(a,b,c,d):null;case da:return c.key===e?l(a,b,c,d):null;case qa:return e=
-c._init,x(a,b,e(c._payload),d)}if(Ia(c)||xa(c))return null!==e?null:m(a,b,c,d,null);ii(a,c)}return null}function y(a,b,c,d,e){if("string"===typeof d&&""!==d||"number"===typeof d)return a=a.get(c)||null,h(b,a,""+d,e);if("object"===typeof d&&null!==d){switch(d.$$typeof){case ca:return a=a.get(null===d.key?c:d.key)||null,k(b,a,d,e);case da:return a=a.get(null===d.key?c:d.key)||null,l(b,a,d,e);case qa:var f=d._init;return y(a,b,c,f(d._payload),e)}if(Ia(d)||xa(d))return a=a.get(c)||null,m(b,a,d,e,null);
-ii(b,d)}return null}function n(e,g,h,k){for(var l=null,m=null,n=g,t=g=0,w=null;null!==n&&t<h.length;t++){n.index>t?(w=n,n=null):w=n.sibling;var u=x(e,n,h[t],k);if(null===u){null===n&&(n=w);break}a&&n&&null===u.alternate&&b(e,n);g=f(u,g,t);null===m?l=u:m.sibling=u;m=u;n=w}if(t===h.length)return c(e,n),J&&Pg(e,t),l;if(null===n){for(;t<h.length;t++)n=v(e,h[t],k),null!==n&&(g=f(n,g,t),null===m?l=n:m.sibling=n,m=n);J&&Pg(e,t);return l}for(n=d(e,n);t<h.length;t++)w=y(n,e,t,h[t],k),null!==w&&(a&&null!==
-w.alternate&&n.delete(null===w.key?t:w.key),g=f(w,g,t),null===m?l=w:m.sibling=w,m=w);a&&n.forEach(function(a){return b(e,a)});J&&Pg(e,t);return l}function r(e,g,h,k){var l=xa(h);if("function"!==typeof l)throw Error(z(150));h=l.call(h);if(null==h)throw Error(z(151));for(var m=l=null,n=g,t=g=0,w=null,u=h.next();null!==n&&!u.done;t++,u=h.next()){n.index>t?(w=n,n=null):w=n.sibling;var r=x(e,n,u.value,k);if(null===r){null===n&&(n=w);break}a&&n&&null===r.alternate&&b(e,n);g=f(r,g,t);null===m?l=r:m.sibling=
-r;m=r;n=w}if(u.done)return c(e,n),J&&Pg(e,t),l;if(null===n){for(;!u.done;t++,u=h.next())u=v(e,u.value,k),null!==u&&(g=f(u,g,t),null===m?l=u:m.sibling=u,m=u);J&&Pg(e,t);return l}for(n=d(e,n);!u.done;t++,u=h.next())u=y(n,e,t,u.value,k),null!==u&&(a&&null!==u.alternate&&n.delete(null===u.key?t:u.key),g=f(u,g,t),null===m?l=u:m.sibling=u,m=u);a&&n.forEach(function(a){return b(e,a)});J&&Pg(e,t);return l}function A(a,d,f,h){"object"===typeof f&&null!==f&&f.type===ea&&null===f.key&&(f=f.props.children);if("object"===
-typeof f&&null!==f){switch(f.$$typeof){case ca:a:{for(var k=f.key,l=d;null!==l;){if(l.key===k){k=f.type;if(k===ea){if(7===l.tag){c(a,l.sibling);d=e(l,f.props.children);d.return=a;a=d;break a}}else if(l.elementType===k||"object"===typeof k&&null!==k&&k.$$typeof===qa&&ji(k)===l.type){c(a,l.sibling);d=e(l,f.props);d.ref=hi(a,l,f);d.return=a;a=d;break a}c(a,l);break}else b(a,l);l=l.sibling}f.type===ea?(d=pi(f.props.children,a.mode,h,f.key),d.return=a,a=d):(h=ni(f.type,f.key,f.props,null,a.mode,h),h.ref=
-hi(a,d,f),h.return=a,a=h)}return g(a);case da:a:{for(l=f.key;null!==d;){if(d.key===l)if(4===d.tag&&d.stateNode.containerInfo===f.containerInfo&&d.stateNode.implementation===f.implementation){c(a,d.sibling);d=e(d,f.children||[]);d.return=a;a=d;break a}else{c(a,d);break}else b(a,d);d=d.sibling}d=oi(f,a.mode,h);d.return=a;a=d}return g(a);case qa:return l=f._init,A(a,d,l(f._payload),h)}if(Ia(f))return n(a,d,f,h);if(xa(f))return r(a,d,f,h);ii(a,f)}return"string"===typeof f&&""!==f||"number"===typeof f?
-(f=""+f,null!==d&&6===d.tag?(c(a,d.sibling),d=e(d,f),d.return=a,a=d):(c(a,d),d=mi(f,a.mode,h),d.return=a,a=d),g(a)):c(a,d)}return A}var qi=ki(!0),ri=ki(!1),si=pg(null),ti=pg(0);function ui(a,b){a=vi;H(ti,a);H(si,b);vi=a|b.baseLanes}function wi(){H(ti,vi);H(si,si.current)}function xi(){vi=ti.current;G(si);G(ti)}var N=pg(null);function yi(a){22===a.tag?H(N,a):zi()}function zi(){H(N,N.current)}var Ai=pg(0);
-function Bi(a){for(var b=a;null!==b;){if(13===b.tag){var c=b.memoizedState;if(null!==c&&(c=c.dehydrated,null===c||"$?"===c.data||"$!"===c.data))return b}else if(19===b.tag&&void 0!==b.memoizedProps.revealOrder){if(0!==(b.flags&64))return b}else if(null!==b.child){b.child.return=b;b=b.child;continue}if(b===a)break;for(;null===b.sibling;){if(null===b.return||b.return===a)return null;b=b.return}b.sibling.return=b.return;b=b.sibling}return null}var Ci=[];
-function Di(){for(var a=0;a<Ci.length;a++)Ci[a]._workInProgressVersionPrimary=null;Ci.length=0}var Ei="undefined"!==typeof AbortController?AbortController:function(){var a=[],b=this.signal={aborted:!1,addEventListener:function(b,d){a.push(d)}};this.abort=function(){b.aborted=!0;a.forEach(function(a){return a()})}},Fi=p.unstable_scheduleCallback,Gi=p.unstable_NormalPriority,O={$$typeof:ka,Consumer:null,Provider:null,_currentValue:null,_currentValue2:null,_threadCount:0,_defaultValue:null,_globalName:null};
-function Hi(){return{controller:new Ei,data:new Map,refCount:0}}function Ii(a){a.refCount--;0===a.refCount&&Fi(Gi,function(){a.controller.abort()})}var Ji=null,Ki=null;function Li(a){Ji=a;switch(a.status){case "fulfilled":case "rejected":Ji=null;break;default:"string"!==typeof a.status&&(a.status="pending",a.then(function(b){"pending"===a.status&&(a.status="fulfilled",a.value=b)},function(b){"pending"===a.status&&(a.status="rejected",a.reason=b)}))}}
-var Mi=ba.ReactCurrentDispatcher,Ni=ba.ReactCurrentBatchConfig,Oi=0,P=null,Q=null,R=null,Pi=!1,Qi=!1,Ri=0,Si=0,Ti=0;function S(){throw Error(z(321));}function Ui(a,b){if(null===b)return!1;for(var c=0;c<b.length&&c<a.length;c++)if(!kf(a[c],b[c]))return!1;return!0}
-function Vi(a,b,c,d,e,f){Oi=f;P=b;b.memoizedState=null;b.updateQueue=null;b.lanes=0;Mi.current=null===a||null===a.memoizedState?Wi:Xi;a=c(d,e);if(Qi){f=0;do{Qi=!1;Si=Ri=0;if(25<=f)throw Error(z(301));f+=1;R=Q=null;b.updateQueue=null;Mi.current=Yi;a=c(d,e)}while(Qi)}Mi.current=Zi;b=null!==Q&&null!==Q.next;Oi=0;R=Q=P=null;Pi=!1;Si=0;if(b)throw Error(z(300));return a}function $i(){var a=0!==Ri;Ri=0;return a}
-function aj(){var a={memoizedState:null,baseState:null,baseQueue:null,queue:null,next:null};null===R?P.memoizedState=R=a:R=R.next=a;return R}function bj(){if(null===Q){var a=P.alternate;a=null!==a?a.memoizedState:null}else a=Q.next;var b=null===R?P.memoizedState:R.next;if(null!==b)R=b,Q=a;else{if(null===a)throw Error(z(310));Q=a;a={memoizedState:Q.memoizedState,baseState:Q.baseState,baseQueue:Q.baseQueue,queue:Q.queue,next:null};null===R?P.memoizedState=R=a:R=R.next=a}return R}var cj;
-cj=function(){return{lastEffect:null,stores:null,memoCache:null}};
-function dj(a){if(null!==a&&"object"===typeof a)if("function"===typeof a.then){var b=Si;Si+=1;switch(a.status){case "fulfilled":return a.value;case "rejected":throw a.reason;default:a:{if(null!==Ki){var c=Ki[b];if(void 0!==c)break a}c=null}if(null!==c)switch(c.status){case "fulfilled":return c.value;case "rejected":throw c.reason;default:throw c;}else throw null===Ki&&(Ki=[]),Ki[b]=a,a;}}else if(a.$$typeof===ka||a.$$typeof===la)return Dh(a);throw Error(z(438,String(a)));}
-function ej(a){var b=null,c=P.updateQueue;null!==c&&(b=c.memoCache);if(null==b){var d=P.alternate;null!==d&&(d=d.updateQueue,null!==d&&(d=d.memoCache,null!=d&&(b={data:d.data.map(function(a){return a.slice()}),index:0})))}null==b&&(b={data:[],index:0});null===c&&(c=cj(),P.updateQueue=c);c.memoCache=b;c=b.data[b.index];void 0===c&&(c=b.data[b.index]=Array(a));b.index++;return c}function fj(a,b){return"function"===typeof b?b(a):b}
-function gj(a){var b=bj(),c=b.queue;if(null===c)throw Error(z(311));c.lastRenderedReducer=a;var d=Q,e=d.baseQueue,f=c.pending;if(null!==f){if(null!==e){var g=e.next;e.next=f.next;f.next=g}d.baseQueue=e=f;c.pending=null}if(null!==e){f=e.next;d=d.baseState;var h=g=null,k=null,l=f;do{var m=l.lane&-1073741825;if(m!==l.lane?(L&m)===m:(Oi&m)===m)null!==k&&(k=k.next={lane:0,action:l.action,hasEagerState:l.hasEagerState,eagerState:l.eagerState,next:null}),d=l.hasEagerState?l.eagerState:a(d,l.action);else{var v=
-{lane:m,action:l.action,hasEagerState:l.hasEagerState,eagerState:l.eagerState,next:null};null===k?(h=k=v,g=d):k=k.next=v;P.lanes|=m;Vh|=m}l=l.next}while(null!==l&&l!==f);null===k?g=d:k.next=h;kf(d,b.memoizedState)||(Ch=!0);b.memoizedState=d;b.baseState=g;b.baseQueue=k;c.lastRenderedState=d}null===e&&(c.lanes=0);return[b.memoizedState,c.dispatch]}
-function hj(a){var b=bj(),c=b.queue;if(null===c)throw Error(z(311));c.lastRenderedReducer=a;var d=c.dispatch,e=c.pending,f=b.memoizedState;if(null!==e){c.pending=null;var g=e=e.next;do f=a(f,g.action),g=g.next;while(g!==e);kf(f,b.memoizedState)||(Ch=!0);b.memoizedState=f;null===b.baseQueue&&(b.baseState=f);c.lastRenderedState=f}return[f,d]}function ij(){}
-function jj(a,b){var c=P,d=bj(),e=b(),f=!kf(d.memoizedState,e);f&&(d.memoizedState=e,Ch=!0);d=d.queue;kj(lj.bind(null,c,d,a),[a]);if(d.getSnapshot!==b||f||null!==R&&R.memoizedState.tag&1){c.flags|=1024;mj(17,nj.bind(null,c,d,e,b),void 0,null);if(null===T)throw Error(z(349));0!==(Oi&30)||oj(c,b,e)}return e}function oj(a,b,c){a.flags|=8192;a={getSnapshot:b,value:c};b=P.updateQueue;null===b?(b=cj(),P.updateQueue=b,b.stores=[a]):(c=b.stores,null===c?b.stores=[a]:c.push(a))}
-function nj(a,b,c,d){b.value=c;b.getSnapshot=d;pj(b)&&qj(a)}function lj(a,b,c){return c(function(){pj(b)&&qj(a)})}function pj(a){var b=a.getSnapshot;a=a.value;try{var c=b();return!kf(a,c)}catch(d){return!0}}function qj(a){var b=Kh(a,1);null!==b&&bi(b,a,1,-1)}function rj(a){var b=aj();"function"===typeof a&&(a=a());b.memoizedState=b.baseState=a;a={pending:null,lanes:0,dispatch:null,lastRenderedReducer:fj,lastRenderedState:a};b.queue=a;a=a.dispatch=sj.bind(null,P,a);return[b.memoizedState,a]}
-function mj(a,b,c,d){a={tag:a,create:b,destroy:c,deps:d,next:null};b=P.updateQueue;null===b?(b=cj(),P.updateQueue=b,b.lastEffect=a.next=a):(c=b.lastEffect,null===c?b.lastEffect=a.next=a:(d=c.next,c.next=a,a.next=d,b.lastEffect=a));return a}function tj(){return bj().memoizedState}function uj(a,b,c,d){var e=aj();P.flags|=a;e.memoizedState=mj(1|b,c,void 0,void 0===d?null:d)}
-function vj(a,b,c,d){var e=bj();d=void 0===d?null:d;var f=void 0;if(null!==Q){var g=Q.memoizedState;f=g.destroy;if(null!==d&&Ui(d,g.deps)){e.memoizedState=mj(b,c,f,d);return}}P.flags|=a;e.memoizedState=mj(1|b,c,f,d)}function wj(a,b){return uj(4195328,16,a,b)}function kj(a,b){return vj(1024,16,a,b)}function xj(a){var b=bj(),c=b.memoizedState[0];vj(4,2,function(){c.current=a},[c,a]);return b.memoizedState[1]}function yj(a,b){return vj(4,4,a,b)}function zj(a,b){return vj(4,8,a,b)}
-function Aj(a,b){if("function"===typeof b)return a=a(),b(a),function(){b(null)};if(null!==b&&void 0!==b)return a=a(),b.current=a,function(){b.current=null}}function Bj(a,b,c){c=null!==c&&void 0!==c?c.concat([a]):null;return vj(4,8,Aj.bind(null,b,a),c)}function Cj(){}function Dj(a,b){var c=bj();b=void 0===b?null:b;var d=c.memoizedState;if(null!==d&&null!==b&&Ui(b,d[1]))return d[0];c.memoizedState=[a,b];return a}
-function Ej(a,b){var c=bj();b=void 0===b?null:b;var d=c.memoizedState;if(null!==d&&null!==b&&Ui(b,d[1]))return d[0];a=a();c.memoizedState=[a,b];return a}function Fj(a,b,c){if(0===(Oi&21))return a.baseState&&(a.baseState=!1,Ch=!0),a.memoizedState=c;kf(c,b)||(c=$c(),P.lanes|=c,Vh|=c,a.baseState=!0);return b}function Gj(a,b){var c=E;E=0!==c&&4>c?c:4;a(!0);var d=Ni.transition;Ni.transition={};try{a(!1),b()}finally{E=c,Ni.transition=d}}function Hj(){return bj().memoizedState}
-function Ij(){return bj().memoizedState}function Jj(a,b,c){for(var d=a.return;null!==d;){switch(d.tag){case 24:case 3:var e=ai(d),f=$h();a=Ah(f,e);var g=Rh(d,a,e);null!==g&&(bi(g,d,e,f),Sh(g,d,e));d=Hi();null!==b&&void 0!==b&&null!==g&&d.data.set(b,c);a.payload={cache:d};return}d=d.return}}function Kj(a,b,c){var d=ai(a);c={lane:d,action:c,hasEagerState:!1,eagerState:null,next:null};if(Lj(a))Mj(b,c);else if(Jh(a,b,c,d),c=Lh(a),null!==c){var e=$h();bi(c,a,d,e);Nj(c,b,d)}Oc(a,d)}
-function sj(a,b,c){var d=ai(a),e={lane:d,action:c,hasEagerState:!1,eagerState:null,next:null};if(Lj(a))Mj(b,e);else{var f=a.alternate;if(0===a.lanes&&(null===f||0===f.lanes)&&(f=b.lastRenderedReducer,null!==f))try{var g=b.lastRenderedState,h=f(g,c);e.hasEagerState=!0;e.eagerState=h;if(kf(h,g)){Jh(a,b,e,0);null===T&&Hh();return}}catch(k){}finally{}Jh(a,b,e,d);c=Lh(a);null!==c&&(e=$h(),bi(c,a,d,e),Nj(c,b,d))}Oc(a,d)}function Lj(a){var b=a.alternate;return a===P||null!==b&&b===P}
-function Mj(a,b){Qi=Pi=!0;var c=a.pending;null===c?b.next=b:(b.next=c.next,c.next=b);a.pending=b}function Nj(a,b,c){if(0!==(c&4194240)){var d=b.lanes;d&=a.pendingLanes;c|=d;b.lanes=c;dd(a,c)}}function Oj(){return Dh(O).controller.signal}function Pj(a){var b=Dh(O),c=b.data.get(a);void 0===c&&(c=a(),b.data.set(a,c));return c}
-var Zi={readContext:Dh,useCallback:S,useContext:S,useEffect:S,useImperativeHandle:S,useInsertionEffect:S,useLayoutEffect:S,useMemo:S,useReducer:S,useRef:S,useState:S,useDebugValue:S,useDeferredValue:S,useTransition:S,useMutableSource:S,useSyncExternalStore:S,useId:S,unstable_isNewReconciler:!1};Zi.getCacheSignal=Oj;Zi.getCacheForType=Pj;Zi.useCacheRefresh=S;Zi.use=S;Zi.useMemoCache=S;Zi.useEvent=S;
-var Wi={readContext:Dh,useCallback:function(a,b){aj().memoizedState=[a,void 0===b?null:b];return a},useContext:Dh,useEffect:wj,useImperativeHandle:function(a,b,c){c=null!==c&&void 0!==c?c.concat([a]):null;return uj(2097156,8,Aj.bind(null,b,a),c)},useLayoutEffect:function(a,b){return uj(2097156,8,a,b)},useInsertionEffect:function(a,b){return uj(4,4,a,b)},useMemo:function(a,b){var c=aj();b=void 0===b?null:b;a=a();c.memoizedState=[a,b];return a},useReducer:function(a,b,c){var d=aj();b=void 0!==c?c(b):
-b;d.memoizedState=d.baseState=b;a={pending:null,lanes:0,dispatch:null,lastRenderedReducer:a,lastRenderedState:b};d.queue=a;a=a.dispatch=Kj.bind(null,P,a);return[d.memoizedState,a]},useRef:function(a){var b=aj();a={current:a};return b.memoizedState=a},useState:rj,useDebugValue:Cj,useDeferredValue:function(a){return aj().memoizedState=a},useTransition:function(){var a=rj(!1),b=a[0];a=Gj.bind(null,a[1]);aj().memoizedState=a;return[b,a]},useMutableSource:function(){},useSyncExternalStore:function(a,b,
-c){var d=P,e=aj();if(J){if(void 0===c)throw Error(z(407));c=c()}else{c=b();if(null===T)throw Error(z(349));0!==(Oi&30)||oj(d,b,c)}e.memoizedState=c;var f={value:c,getSnapshot:b};e.queue=f;wj(lj.bind(null,d,f,a),[a]);d.flags|=1024;mj(17,nj.bind(null,d,f,c,b),void 0,null);return c},useId:function(){var a=aj(),b=T.identifierPrefix;if(J){var c=Og;var d=Ng;c=(d&~(1<<32-Qc(d)-1)).toString(32)+c;b=":"+b+"R"+c;c=Ri++;0<c&&(b+="H"+c.toString(32));b+=":"}else c=Ti++,b=":"+b+"r"+c.toString(32)+":";return a.memoizedState=
-b},unstable_isNewReconciler:!1};Wi.getCacheSignal=Oj;Wi.getCacheForType=Pj;Wi.useCacheRefresh=function(){return aj().memoizedState=Jj.bind(null,P)};Wi.use=dj;Wi.useMemoCache=ej;Wi.useEvent=function(a){function b(){if(0!==(K&2))throw Error(z(440));return d.current.apply(void 0,arguments)}var c=aj(),d={current:a};uj(4,2,function(){d.current=a},[d,a]);c.memoizedState=[d,b];return b};
-var Xi={readContext:Dh,useCallback:Dj,useContext:Dh,useEffect:kj,useImperativeHandle:Bj,useInsertionEffect:yj,useLayoutEffect:zj,useMemo:Ej,useReducer:gj,useRef:tj,useState:function(){return gj(fj)},useDebugValue:Cj,useDeferredValue:function(a){var b=bj();return Fj(b,Q.memoizedState,a)},useTransition:function(){var a=gj(fj)[0],b=bj().memoizedState;return[a,b]},useMutableSource:ij,useSyncExternalStore:jj,useId:Hj,unstable_isNewReconciler:!1};Xi.getCacheSignal=Oj;Xi.getCacheForType=Pj;
-Xi.useCacheRefresh=Ij;Xi.useMemoCache=ej;Xi.use=dj;Xi.useEvent=xj;
-var Yi={readContext:Dh,useCallback:Dj,useContext:Dh,useEffect:kj,useImperativeHandle:Bj,useInsertionEffect:yj,useLayoutEffect:zj,useMemo:Ej,useReducer:hj,useRef:tj,useState:function(){return hj(fj)},useDebugValue:Cj,useDeferredValue:function(a){var b=bj();return null===Q?b.memoizedState=a:Fj(b,Q.memoizedState,a)},useTransition:function(){var a=hj(fj)[0],b=bj().memoizedState;return[a,b]},useMutableSource:ij,useSyncExternalStore:jj,useId:Hj,unstable_isNewReconciler:!1};Yi.getCacheSignal=Oj;
-Yi.getCacheForType=Pj;Yi.useCacheRefresh=Ij;Yi.use=dj;Yi.useMemoCache=ej;Yi.useEvent=xj;var Qj=p.unstable_now,Rj=0,Sj=-1,Tj=-1,Uj=-1,Vj=!1,Wj=!1;function Xj(a){Tj=Qj();0>a.actualStartTime&&(a.actualStartTime=Qj())}function Yj(a,b){if(0<=Tj){var c=Qj()-Tj;a.actualDuration+=c;b&&(a.selfBaseDuration=c);Tj=-1}}function Zj(a){if(0<=Sj){var b=Qj()-Sj;Sj=-1;for(a=a.return;null!==a;){switch(a.tag){case 3:a.stateNode.effectDuration+=b;return;case 12:a.stateNode.effectDuration+=b;return}a=a.return}}}
-function ak(a){if(0<=Uj){var b=Qj()-Uj;Uj=-1;for(a=a.return;null!==a;){switch(a.tag){case 3:a=a.stateNode;null!==a&&(a.passiveEffectDuration+=b);return;case 12:a=a.stateNode;null!==a&&(a.passiveEffectDuration+=b);return}a=a.return}}}function bk(){Sj=Qj()}function ck(a){for(var b=a.child;b;)a.actualDuration+=b.actualDuration,b=b.sibling}
-function dk(a,b){try{var c="",d=b;do c+=pb(d),d=d.return;while(d);var e=c}catch(f){e="\nError generating stack: "+f.message+"\n"+f.stack}return{value:a,source:b,stack:e,digest:null}}function ek(a,b,c){return{value:a,source:null,stack:null!=c?c:null,digest:null!=b?b:null}}function fk(a,b){try{console.error(b.value)}catch(c){setTimeout(function(){throw c;})}}function gk(a,b,c){c=Ah(-1,c);c.tag=3;c.payload={element:null};var d=b.value;c.callback=function(){hk||(hk=!0,ik=d);fk(a,b)};return c}
-function jk(a,b,c){c=Ah(-1,c);c.tag=3;var d=a.type.getDerivedStateFromError;if("function"===typeof d){var e=b.value;c.payload=function(){return d(e)};c.callback=function(){fk(a,b)}}var f=a.stateNode;null!==f&&"function"===typeof f.componentDidCatch&&(c.callback=function(){fk(a,b);"function"!==typeof d&&(null===kk?kk=new Set([this]):kk.add(this));var c=b.stack;this.componentDidCatch(b.value,{componentStack:null!==c?c:""})});return c}
-function lk(a,b,c,d,e){if(0===(a.mode&1))return a===b?a.flags|=32768:(a.flags|=64,c.flags|=65536,c.flags&=-26405,1===c.tag&&(null===c.alternate?c.tag=17:(b=Ah(-1,1),b.tag=2,Rh(c,b,1))),c.lanes|=1),a;a.flags|=32768;a.lanes=e;return a}var mk=pg(null);function nk(){var a=mk.current;return null!==a?a:T.pooledCache}function ok(a,b){null===b?H(mk,mk.current):H(mk,b.pool)}function pk(){var a=nk();return null===a?null:{parent:O._currentValue,pool:a}}var qk=ba.ReactCurrentOwner,Ch=!1;
-function rk(a,b,c,d){b.child=null===a?ri(b,null,c,d):qi(b,a.child,c,d)}function sk(a,b,c,d,e){c=c.render;var f=b.ref;Bh(b,e);Ic(b);d=Vi(a,b,c,d,f,e);c=$i();Jc();if(null!==a&&!Ch)return b.updateQueue=a.updateQueue,b.flags&=-1029,a.lanes&=~e,tk(a,b,e);J&&c&&Rg(b);b.flags|=1;rk(a,b,d,e);return b.child}
-function uk(a,b,c,d,e){if(null===a){var f=c.type;if("function"===typeof f&&!vk(f)&&void 0===f.defaultProps&&null===c.compare&&void 0===c.defaultProps)return b.tag=15,b.type=f,wk(a,b,f,d,e);a=ni(c.type,null,d,b,b.mode,e);a.ref=b.ref;a.return=b;return b.child=a}f=a.child;if(0===(a.lanes&e)){var g=f.memoizedProps;c=c.compare;c=null!==c?c:lf;if(c(g,d)&&a.ref===b.ref)return tk(a,b,e)}b.flags|=1;a=li(f,d);a.ref=b.ref;a.return=b;return b.child=a}
-function wk(a,b,c,d,e){if(null!==a){var f=a.memoizedProps;if(lf(f,d)&&a.ref===b.ref)if(Ch=!1,b.pendingProps=d=f,0!==(a.lanes&e))0!==(a.flags&65536)&&(Ch=!0);else return b.lanes=a.lanes,tk(a,b,e)}return xk(a,b,c,d,e)}
-function yk(a,b,c){var d=b.pendingProps,e=d.children,f=null!==a?a.memoizedState:null;zk(a,b);if("hidden"===d.mode){if(0!==(b.flags&64)){c=null!==f?f.baseLanes|c:c;if(null!==a){d=b.child=a.child;for(e=0;null!==d;)e=e|d.lanes|d.childLanes,d=d.sibling;b.childLanes=e&~c}else b.childLanes=0,b.child=null;return Ak(a,b,c)}if(0===(b.mode&1))b.memoizedState={baseLanes:0,cachePool:null},null!==a&&ok(b,null),wi(),yi(b);else if(0!==(c&1073741824))b.memoizedState={baseLanes:0,cachePool:null},null!==a&&ok(b,null!==
-f?f.cachePool:null),null!==f?ui(b,f):wi(),yi(b);else return b.lanes=b.childLanes=1073741824,Ak(a,b,null!==f?f.baseLanes|c:c)}else null!==f?(ok(b,f.cachePool),ui(b,f),zi(),b.memoizedState=null):(null!==a&&ok(b,null),wi(),zi());rk(a,b,e,c);return b.child}function Ak(a,b,c){var d=nk();d=null===d?null:{parent:O._currentValue,pool:d};b.memoizedState={baseLanes:c,cachePool:d};null!==a&&ok(b,null);wi();yi(b);return null}
-function zk(a,b){var c=b.ref;if(null===a&&null!==c||null!==a&&a.ref!==c)b.flags|=256,b.flags|=1048576}function xk(a,b,c,d,e){var f=ug(c)?sg:I.current;f=tg(b,f);Bh(b,e);Ic(b);c=Vi(a,b,c,d,f,e);d=$i();Jc();if(null!==a&&!Ch)return b.updateQueue=a.updateQueue,b.flags&=-1029,a.lanes&=~e,tk(a,b,e);J&&d&&Rg(b);b.flags|=1;rk(a,b,c,e);return b.child}
-function Bk(a,b,c,d,e){if(ug(c)){var f=!0;yg(b)}else f=!1;Bh(b,e);if(null===b.stateNode)Ck(a,b),ei(b,c,d),gi(b,c,d,e),d=!0;else if(null===a){var g=b.stateNode,h=b.memoizedProps;g.props=h;var k=g.context,l=c.contextType;"object"===typeof l&&null!==l?l=Dh(l):(l=ug(c)?sg:I.current,l=tg(b,l));var m=c.getDerivedStateFromProps,v="function"===typeof m||"function"===typeof g.getSnapshotBeforeUpdate;v||"function"!==typeof g.UNSAFE_componentWillReceiveProps&&"function"!==typeof g.componentWillReceiveProps||
-(h!==d||k!==l)&&fi(b,g,d,l);Oh=!1;var x=b.memoizedState;g.state=x;Uh(b,d,g,e);k=b.memoizedState;h!==d||x!==k||rg.current||Oh?("function"===typeof m&&(Zh(b,c,m,d),k=b.memoizedState),(h=Oh||di(b,c,h,d,x,k,l))?(v||"function"!==typeof g.UNSAFE_componentWillMount&&"function"!==typeof g.componentWillMount||("function"===typeof g.componentWillMount&&g.componentWillMount(),"function"===typeof g.UNSAFE_componentWillMount&&g.UNSAFE_componentWillMount()),"function"===typeof g.componentDidMount&&(b.flags|=2097156)):
-("function"===typeof g.componentDidMount&&(b.flags|=2097156),b.memoizedProps=d,b.memoizedState=k),g.props=d,g.state=k,g.context=l,d=h):("function"===typeof g.componentDidMount&&(b.flags|=2097156),d=!1)}else{g=b.stateNode;Qh(a,b);h=b.memoizedProps;l=b.type===b.elementType?h:qh(b.type,h);g.props=l;v=b.pendingProps;x=g.context;k=c.contextType;"object"===typeof k&&null!==k?k=Dh(k):(k=ug(c)?sg:I.current,k=tg(b,k));var y=c.getDerivedStateFromProps;(m="function"===typeof y||"function"===typeof g.getSnapshotBeforeUpdate)||
-"function"!==typeof g.UNSAFE_componentWillReceiveProps&&"function"!==typeof g.componentWillReceiveProps||(h!==v||x!==k)&&fi(b,g,d,k);Oh=!1;x=b.memoizedState;g.state=x;Uh(b,d,g,e);var n=b.memoizedState;h!==v||x!==n||rg.current||Oh?("function"===typeof y&&(Zh(b,c,y,d),n=b.memoizedState),(l=Oh||di(b,c,l,d,x,n,k)||!1)?(m||"function"!==typeof g.UNSAFE_componentWillUpdate&&"function"!==typeof g.componentWillUpdate||("function"===typeof g.componentWillUpdate&&g.componentWillUpdate(d,n,k),"function"===typeof g.UNSAFE_componentWillUpdate&&
+function xi(a,b,c,d){var e=a.updateQueue;ri=!1;var f=e.firstBaseUpdate,g=e.lastBaseUpdate,h=e.shared.pending;if(null!==h){e.shared.pending=null;var k=h,l=k.next;k.next=null;null===g?f=l:g.next=l;g=k;var p=a.alternate;null!==p&&(p=p.updateQueue,h=p.lastBaseUpdate,h!==g&&(null===h?p.firstBaseUpdate=l:h.next=l,p.lastBaseUpdate=k))}if(null!==f){var q=e.baseState;g=0;p=l=k=null;h=f;do{var x=h.eventTime,y=h.lane&-1073741825,n=y!==h.lane;if(n?(K&y)===y:(d&y)===y){null!==p&&(p=p.next={eventTime:x,lane:0,
+tag:h.tag,payload:h.payload,callback:null,next:null});a:{var u=a,B=h;y=b;x=c;switch(B.tag){case 1:u=B.payload;if("function"===typeof u){q=u.call(x,q,y);break a}q=u;break a;case 3:u.flags=u.flags&-32769|64;case 0:u=B.payload;y="function"===typeof u?u.call(x,q,y):u;if(null===y||void 0===y)break a;q=A({},q,y);break a;case 2:ri=!0}}y=h.callback;null!==y&&(a.flags|=32,n&&(a.flags|=4096),n=e.callbacks,null===n?e.callbacks=[y]:n.push(y))}else n={eventTime:x,lane:y,tag:h.tag,payload:h.payload,callback:h.callback,
+next:null},null===p?(l=p=n,k=q):p=p.next=n,g|=y;h=h.next;if(null===h)if(h=e.shared.pending,null===h)break;else n=h,h=n.next,n.next=null,e.lastBaseUpdate=n,e.shared.pending=null}while(1);null===p&&(k=q);e.baseState=k;e.firstBaseUpdate=l;e.lastBaseUpdate=p;null===f&&(e.shared.lanes=0);yi|=g;a.lanes=g;a.memoizedState=q}}function zi(a,b){if("function"!==typeof a)throw Error(r(191,a));a.call(b)}function Ai(a,b){var c=a.callbacks;if(null!==c)for(a.callbacks=null,a=0;a<c.length;a++)zi(c[a],b)}var Bi=(new aa.Component).refs;
+function Ci(a,b,c,d){b=a.memoizedState;c=c(d,b);c=null===c||void 0===c?b:A({},b,c);a.memoizedState=c;0===a.lanes&&(a.updateQueue.baseState=c)}
+var Gi={isMounted:function(a){return(a=a._reactInternals)?bc(a)===a:!1},enqueueSetState:function(a,b,c){a=a._reactInternals;var d=Di(),e=Ei(a),f=di(d,e);f.payload=b;void 0!==c&&null!==c&&(f.callback=c);b=ui(a,f,e);null!==b&&(Fi(b,a,e,d),vi(b,a,e));Fc(a,e)},enqueueReplaceState:function(a,b,c){a=a._reactInternals;var d=Di(),e=Ei(a),f=di(d,e);f.tag=1;f.payload=b;void 0!==c&&null!==c&&(f.callback=c);b=ui(a,f,e);null!==b&&(Fi(b,a,e,d),vi(b,a,e));Fc(a,e)},enqueueForceUpdate:function(a,b){a=a._reactInternals;
+var c=Di(),d=Ei(a),e=di(c,d);e.tag=2;void 0!==b&&null!==b&&(e.callback=b);b=ui(a,e,d);null!==b&&(Fi(b,a,d,c),vi(b,a,d));null!==D&&"function"===typeof D.markForceUpdateScheduled&&D.markForceUpdateScheduled(a,d)}};function Hi(a,b,c,d,e,f,g){a=a.stateNode;return"function"===typeof a.shouldComponentUpdate?a.shouldComponentUpdate(d,f,g):b.prototype&&b.prototype.isPureReactComponent?!df(c,d)||!df(e,f):!0}
+function Ii(a,b,c){var d=!1,e=bh;var f=b.contextType;"object"===typeof f&&null!==f?f=gi(f):(e=gh(b)?eh:ch.current,d=b.contextTypes,f=(d=null!==d&&void 0!==d)?fh(a,e):bh);b=new b(c,f);a.memoizedState=null!==b.state&&void 0!==b.state?b.state:null;b.updater=Gi;a.stateNode=b;b._reactInternals=a;d&&(a=a.stateNode,a.__reactInternalMemoizedUnmaskedChildContext=e,a.__reactInternalMemoizedMaskedChildContext=f);return b}
+function Ji(a,b,c,d){a=b.state;"function"===typeof b.componentWillReceiveProps&&b.componentWillReceiveProps(c,d);"function"===typeof b.UNSAFE_componentWillReceiveProps&&b.UNSAFE_componentWillReceiveProps(c,d);b.state!==a&&Gi.enqueueReplaceState(b,b.state,null)}
+function Ki(a,b,c,d){var e=a.stateNode;e.props=c;e.state=a.memoizedState;e.refs=Bi;si(a);var f=b.contextType;"object"===typeof f&&null!==f?e.context=gi(f):(f=gh(b)?eh:ch.current,e.context=fh(a,f));e.state=a.memoizedState;f=b.getDerivedStateFromProps;"function"===typeof f&&(Ci(a,b,f,c),e.state=a.memoizedState);"function"===typeof b.getDerivedStateFromProps||"function"===typeof e.getSnapshotBeforeUpdate||"function"!==typeof e.UNSAFE_componentWillMount&&"function"!==typeof e.componentWillMount||(b=e.state,
+"function"===typeof e.componentWillMount&&e.componentWillMount(),"function"===typeof e.UNSAFE_componentWillMount&&e.UNSAFE_componentWillMount(),b!==e.state&&Gi.enqueueReplaceState(e,e.state,null),xi(a,c,e,d),e.state=a.memoizedState);"function"===typeof e.componentDidMount&&(a.flags|=2097156)}
+function Li(a,b,c){a=c.ref;if(null!==a&&"function"!==typeof a&&"object"!==typeof a){if(c._owner){c=c._owner;if(c){if(1!==c.tag)throw Error(r(309));var d=c.stateNode}if(!d)throw Error(r(147,a));var e=d,f=""+a;if(null!==b&&null!==b.ref&&"function"===typeof b.ref&&b.ref._stringRef===f)return b.ref;b=function(a){var b=e.refs;b===Bi&&(b=e.refs={});null===a?delete b[f]:b[f]=a};b._stringRef=f;return b}if("string"!==typeof a)throw Error(r(284));if(!c._owner)throw Error(r(290,a));}return a}
+function Mi(a,b){a=Object.prototype.toString.call(b);throw Error(r(31,"[object Object]"===a?"object with keys {"+Object.keys(b).join(", ")+"}":a));}function Ni(a){var b=a._init;return b(a._payload)}
+function Oi(a){function b(b,c){if(a){var d=b.deletions;null===d?(b.deletions=[c],b.flags|=8):d.push(c)}}function c(c,d){if(!a)return null;for(;null!==d;)b(c,d),d=d.sibling;return null}function d(a,b){for(a=new Map;null!==b;)null!==b.key?a.set(b.key,b):a.set(b.index,b),b=b.sibling;return a}function e(a,b){a=Pi(a,b);a.index=0;a.sibling=null;return a}function f(b,c,d){b.index=d;if(!a)return b.flags|=524288,c;d=b.alternate;if(null!==d)return d=d.index,d<c?(b.flags|=8388610,c):d;b.flags|=8388610;return c}
+function g(b){a&&null===b.alternate&&(b.flags|=8388610);return b}function h(a,b,c,d){if(null===b||6!==b.tag)return b=Qi(c,a.mode,d),b.return=a,b;b=e(b,c);b.return=a;return b}function k(a,b,c,d){var f=c.type;if(f===Aa)return p(a,b,c.props.children,d,c.key);if(null!==b&&(b.elementType===f||"object"===typeof f&&null!==f&&f.$$typeof===Ka&&Ni(f)===b.type))return d=e(b,c.props),d.ref=Li(a,b,c),d.return=a,d;d=Ri(c.type,c.key,c.props,null,a.mode,d);d.ref=Li(a,b,c);d.return=a;return d}function l(a,b,c,d){if(null===
+b||4!==b.tag||b.stateNode.containerInfo!==c.containerInfo||b.stateNode.implementation!==c.implementation)return b=Si(c,a.mode,d),b.return=a,b;b=e(b,c.children||[]);b.return=a;return b}function p(a,b,c,d,f){if(null===b||7!==b.tag)return b=Ti(c,a.mode,d,f),b.return=a,b;b=e(b,c);b.return=a;return b}function q(a,b,c){if("string"===typeof b&&""!==b||"number"===typeof b)return b=Qi(""+b,a.mode,c),b.return=a,b;if("object"===typeof b&&null!==b){switch(b.$$typeof){case ya:return c=Ri(b.type,b.key,b.props,
+null,a.mode,c),c.ref=Li(a,null,b),c.return=a,c;case za:return b=Si(b,a.mode,c),b.return=a,b;case Ka:var d=b._init;return q(a,d(b._payload),c)}if(lb(b)||Sa(b))return b=Ti(b,a.mode,c,null),b.return=a,b;Mi(a,b)}return null}function x(a,b,c,d){var e=null!==b?b.key:null;if("string"===typeof c&&""!==c||"number"===typeof c)return null!==e?null:h(a,b,""+c,d);if("object"===typeof c&&null!==c){switch(c.$$typeof){case ya:return c.key===e?k(a,b,c,d):null;case za:return c.key===e?l(a,b,c,d):null;case Ka:return e=
+c._init,x(a,b,e(c._payload),d)}if(lb(c)||Sa(c))return null!==e?null:p(a,b,c,d,null);Mi(a,c)}return null}function y(a,b,c,d,e){if("string"===typeof d&&""!==d||"number"===typeof d)return a=a.get(c)||null,h(b,a,""+d,e);if("object"===typeof d&&null!==d){switch(d.$$typeof){case ya:return a=a.get(null===d.key?c:d.key)||null,k(b,a,d,e);case za:return a=a.get(null===d.key?c:d.key)||null,l(b,a,d,e);case Ka:var f=d._init;return y(a,b,c,f(d._payload),e)}if(lb(d)||Sa(d))return a=a.get(c)||null,p(b,a,d,e,null);
+Mi(b,d)}return null}function n(e,g,h,k){for(var l=null,p=null,t=g,n=g=0,w=null;null!==t&&n<h.length;n++){t.index>n?(w=t,t=null):w=t.sibling;var v=x(e,t,h[n],k);if(null===v){null===t&&(t=w);break}a&&t&&null===v.alternate&&b(e,t);g=f(v,g,n);null===p?l=v:p.sibling=v;p=v;t=w}if(n===h.length)return c(e,t),I&&Bh(e,n),l;if(null===t){for(;n<h.length;n++)t=q(e,h[n],k),null!==t&&(g=f(t,g,n),null===p?l=t:p.sibling=t,p=t);I&&Bh(e,n);return l}for(t=d(e,t);n<h.length;n++)w=y(t,e,n,h[n],k),null!==w&&(a&&null!==
+w.alternate&&t.delete(null===w.key?n:w.key),g=f(w,g,n),null===p?l=w:p.sibling=w,p=w);a&&t.forEach(function(a){return b(e,a)});I&&Bh(e,n);return l}function u(e,g,h,k){var l=Sa(h);if("function"!==typeof l)throw Error(r(150));h=l.call(h);if(null==h)throw Error(r(151));for(var n=l=null,t=g,p=g=0,w=null,v=h.next();null!==t&&!v.done;p++,v=h.next()){t.index>p?(w=t,t=null):w=t.sibling;var u=x(e,t,v.value,k);if(null===u){null===t&&(t=w);break}a&&t&&null===u.alternate&&b(e,t);g=f(u,g,p);null===n?l=u:n.sibling=
+u;n=u;t=w}if(v.done)return c(e,t),I&&Bh(e,p),l;if(null===t){for(;!v.done;p++,v=h.next())v=q(e,v.value,k),null!==v&&(g=f(v,g,p),null===n?l=v:n.sibling=v,n=v);I&&Bh(e,p);return l}for(t=d(e,t);!v.done;p++,v=h.next())v=y(t,e,p,v.value,k),null!==v&&(a&&null!==v.alternate&&t.delete(null===v.key?p:v.key),g=f(v,g,p),null===n?l=v:n.sibling=v,n=v);a&&t.forEach(function(a){return b(e,a)});I&&Bh(e,p);return l}function B(a,d,f,h){"object"===typeof f&&null!==f&&f.type===Aa&&null===f.key&&(f=f.props.children);if("object"===
+typeof f&&null!==f){switch(f.$$typeof){case ya:a:{for(var k=f.key,l=d;null!==l;){if(l.key===k){k=f.type;if(k===Aa){if(7===l.tag){c(a,l.sibling);d=e(l,f.props.children);d.return=a;a=d;break a}}else if(l.elementType===k||"object"===typeof k&&null!==k&&k.$$typeof===Ka&&Ni(k)===l.type){c(a,l.sibling);d=e(l,f.props);d.ref=Li(a,l,f);d.return=a;a=d;break a}c(a,l);break}else b(a,l);l=l.sibling}f.type===Aa?(d=Ti(f.props.children,a.mode,h,f.key),d.return=a,a=d):(h=Ri(f.type,f.key,f.props,null,a.mode,h),h.ref=
+Li(a,d,f),h.return=a,a=h)}return g(a);case za:a:{for(l=f.key;null!==d;){if(d.key===l)if(4===d.tag&&d.stateNode.containerInfo===f.containerInfo&&d.stateNode.implementation===f.implementation){c(a,d.sibling);d=e(d,f.children||[]);d.return=a;a=d;break a}else{c(a,d);break}else b(a,d);d=d.sibling}d=Si(f,a.mode,h);d.return=a;a=d}return g(a);case Ka:return l=f._init,B(a,d,l(f._payload),h)}if(lb(f))return n(a,d,f,h);if(Sa(f))return u(a,d,f,h);Mi(a,f)}return"string"===typeof f&&""!==f||"number"===typeof f?
+(f=""+f,null!==d&&6===d.tag?(c(a,d.sibling),d=e(d,f),d.return=a,a=d):(c(a,d),d=Qi(f,a.mode,h),d.return=a,a=d),g(a)):c(a,d)}return B}var Ui=Oi(!0),Vi=Oi(!1),Wi=bg(null),Xi=bg(0);function Yi(a,b){a=Zi;H(Xi,a);H(Wi,b);Zi=a|b.baseLanes}function $i(){H(Xi,Zi);H(Wi,Wi.current)}function aj(){Zi=Xi.current;G(Wi);G(Xi)}var L=bg(null);function bj(a){22===a.tag?H(L,a):cj()}function cj(){H(L,L.current)}var dj=bg(0);
+function ej(a){for(var b=a;null!==b;){if(13===b.tag){var c=b.memoizedState;if(null!==c&&(c=c.dehydrated,null===c||"$?"===c.data||"$!"===c.data))return b}else if(19===b.tag&&void 0!==b.memoizedProps.revealOrder){if(0!==(b.flags&64))return b}else if(null!==b.child){b.child.return=b;b=b.child;continue}if(b===a)break;for(;null===b.sibling;){if(null===b.return||b.return===a)return null;b=b.return}b.sibling.return=b.return;b=b.sibling}return null}var fj=[];
+function gj(){for(var a=0;a<fj.length;a++)fj[a]._workInProgressVersionPrimary=null;fj.length=0}var hj="undefined"!==typeof AbortController?AbortController:function(){var a=[],b=this.signal={aborted:!1,addEventListener:function(b,d){a.push(d)}};this.abort=function(){b.aborted=!0;a.forEach(function(a){return a()})}},ij=m.unstable_scheduleCallback,jj=m.unstable_NormalPriority,N={$$typeof:Ea,Consumer:null,Provider:null,_currentValue:null,_currentValue2:null,_threadCount:0,_defaultValue:null,_globalName:null};
+function kj(){return{controller:new hj,data:new Map,refCount:0}}function lj(a){a.refCount--;0===a.refCount&&ij(jj,function(){a.controller.abort()})}var mj=null,nj=null;function oj(a){mj=a;switch(a.status){case "fulfilled":case "rejected":mj=null;break;default:"string"!==typeof a.status&&(a.status="pending",a.then(function(b){"pending"===a.status&&(a.status="fulfilled",a.value=b)},function(b){"pending"===a.status&&(a.status="rejected",a.reason=b)}))}}
+var pj=xa.ReactCurrentDispatcher,qj=xa.ReactCurrentBatchConfig,rj=0,O=null,P=null,Q=null,sj=!1,tj=!1,uj=0,vj=0,wj=0;function R(){throw Error(r(321));}function xj(a,b){if(null===b)return!1;for(var c=0;c<b.length&&c<a.length;c++)if(!cf(a[c],b[c]))return!1;return!0}
+function yj(a,b,c,d,e,f){rj=f;O=b;b.memoizedState=null;b.updateQueue=null;b.lanes=0;pj.current=null===a||null===a.memoizedState?zj:Aj;a=c(d,e);if(tj){f=0;do{tj=!1;vj=uj=0;if(25<=f)throw Error(r(301));f+=1;Q=P=null;b.updateQueue=null;pj.current=Bj;a=c(d,e)}while(tj)}pj.current=Cj;b=null!==P&&null!==P.next;rj=0;Q=P=O=null;sj=!1;vj=0;if(b)throw Error(r(300));return a}function Dj(){var a=0!==uj;uj=0;return a}
+function Ej(){var a={memoizedState:null,baseState:null,baseQueue:null,queue:null,next:null};null===Q?O.memoizedState=Q=a:Q=Q.next=a;return Q}function Fj(){if(null===P){var a=O.alternate;a=null!==a?a.memoizedState:null}else a=P.next;var b=null===Q?O.memoizedState:Q.next;if(null!==b)Q=b,P=a;else{if(null===a)throw Error(r(310));P=a;a={memoizedState:P.memoizedState,baseState:P.baseState,baseQueue:P.baseQueue,queue:P.queue,next:null};null===Q?O.memoizedState=Q=a:Q=Q.next=a}return Q}var Gj;
+Gj=function(){return{lastEffect:null,events:null,stores:null,memoCache:null}};
+function Hj(a){if(null!==a&&"object"===typeof a)if("function"===typeof a.then){var b=vj;vj+=1;switch(a.status){case "fulfilled":return a.value;case "rejected":throw a.reason;default:a:{if(null!==nj){var c=nj[b];if(void 0!==c)break a}c=null}if(null!==c)switch(c.status){case "fulfilled":return c.value;case "rejected":throw c.reason;default:throw c;}else throw null===nj&&(nj=[]),nj[b]=a,a;}}else if(a.$$typeof===Ea||a.$$typeof===Fa)return gi(a);throw Error(r(438,String(a)));}
+function Ij(a){var b=null,c=O.updateQueue;null!==c&&(b=c.memoCache);if(null==b){var d=O.alternate;null!==d&&(d=d.updateQueue,null!==d&&(d=d.memoCache,null!=d&&(b={data:d.data.map(function(a){return a.slice()}),index:0})))}null==b&&(b={data:[],index:0});null===c&&(c=Gj(),O.updateQueue=c);c.memoCache=b;c=b.data[b.index];void 0===c&&(c=b.data[b.index]=Array(a));b.index++;return c}function Jj(a,b){return"function"===typeof b?b(a):b}
+function Kj(a){var b=Fj(),c=b.queue;if(null===c)throw Error(r(311));c.lastRenderedReducer=a;var d=P,e=d.baseQueue,f=c.pending;if(null!==f){if(null!==e){var g=e.next;e.next=f.next;f.next=g}d.baseQueue=e=f;c.pending=null}if(null!==e){f=e.next;d=d.baseState;var h=g=null,k=null,l=f;do{var p=l.lane&-1073741825;if(p!==l.lane?(K&p)===p:(rj&p)===p)null!==k&&(k=k.next={lane:0,action:l.action,hasEagerState:l.hasEagerState,eagerState:l.eagerState,next:null}),d=l.hasEagerState?l.eagerState:a(d,l.action);else{var q=
+{lane:p,action:l.action,hasEagerState:l.hasEagerState,eagerState:l.eagerState,next:null};null===k?(h=k=q,g=d):k=k.next=q;O.lanes|=p;yi|=p}l=l.next}while(null!==l&&l!==f);null===k?g=d:k.next=h;cf(d,b.memoizedState)||(fi=!0);b.memoizedState=d;b.baseState=g;b.baseQueue=k;c.lastRenderedState=d}null===e&&(c.lanes=0);return[b.memoizedState,c.dispatch]}
+function Lj(a){var b=Fj(),c=b.queue;if(null===c)throw Error(r(311));c.lastRenderedReducer=a;var d=c.dispatch,e=c.pending,f=b.memoizedState;if(null!==e){c.pending=null;var g=e=e.next;do f=a(f,g.action),g=g.next;while(g!==e);cf(f,b.memoizedState)||(fi=!0);b.memoizedState=f;null===b.baseQueue&&(b.baseState=f);c.lastRenderedState=f}return[f,d]}function Mj(){}
+function Nj(a,b){var c=O,d=Fj(),e=b(),f=!cf(d.memoizedState,e);f&&(d.memoizedState=e,fi=!0);d=d.queue;Oj(Pj.bind(null,c,d,a),[a]);if(d.getSnapshot!==b||f||null!==Q&&Q.memoizedState.tag&1){c.flags|=1024;Qj(9,Rj.bind(null,c,d,e,b),void 0,null);if(null===S)throw Error(r(349));0!==(rj&30)||Sj(c,b,e)}return e}function Sj(a,b,c){a.flags|=8192;a={getSnapshot:b,value:c};b=O.updateQueue;null===b?(b=Gj(),O.updateQueue=b,b.stores=[a]):(c=b.stores,null===c?b.stores=[a]:c.push(a))}
+function Rj(a,b,c,d){b.value=c;b.getSnapshot=d;Tj(b)&&Uj(a)}function Pj(a,b,c){return c(function(){Tj(b)&&Uj(a)})}function Tj(a){var b=a.getSnapshot;a=a.value;try{var c=b();return!cf(a,c)}catch(d){return!0}}function Uj(a){var b=ni(a,1);null!==b&&Fi(b,a,1,-1)}function Vj(a){var b=Ej();"function"===typeof a&&(a=a());b.memoizedState=b.baseState=a;a={pending:null,lanes:0,dispatch:null,lastRenderedReducer:Jj,lastRenderedState:a};b.queue=a;a=a.dispatch=Wj.bind(null,O,a);return[b.memoizedState,a]}
+function Qj(a,b,c,d){a={tag:a,create:b,destroy:c,deps:d,next:null};b=O.updateQueue;null===b?(b=Gj(),O.updateQueue=b,b.lastEffect=a.next=a):(c=b.lastEffect,null===c?b.lastEffect=a.next=a:(d=c.next,c.next=a,a.next=d,b.lastEffect=a));return a}function Xj(){return Fj().memoizedState}function Yj(a,b,c,d){var e=Ej();O.flags|=a;e.memoizedState=Qj(1|b,c,void 0,void 0===d?null:d)}
+function Zj(a,b,c,d){var e=Fj();d=void 0===d?null:d;var f=void 0;if(null!==P){var g=P.memoizedState;f=g.destroy;if(null!==d&&xj(d,g.deps)){e.memoizedState=Qj(b,c,f,d);return}}O.flags|=a;e.memoizedState=Qj(1|b,c,f,d)}function ak(a,b){return Yj(4195328,8,a,b)}function Oj(a,b){return Zj(1024,8,a,b)}function bk(a,b){O.flags|=4;var c=O.updateQueue;if(null===c)c=Gj(),O.updateQueue=c,c.events=[a,b];else{var d=c.events;null===d?c.events=[a,b]:d.push(a,b)}}
+function ck(a){var b=Fj().memoizedState;bk(b,a);return b}function dk(a,b){return Zj(4,2,a,b)}function ek(a,b){return Zj(4,4,a,b)}function fk(a,b){if("function"===typeof b)return a=a(),b(a),function(){b(null)};if(null!==b&&void 0!==b)return a=a(),b.current=a,function(){b.current=null}}function gk(a,b,c){c=null!==c&&void 0!==c?c.concat([a]):null;return Zj(4,4,fk.bind(null,b,a),c)}function hk(){}
+function ik(a,b){var c=Fj();b=void 0===b?null:b;var d=c.memoizedState;if(null!==d&&null!==b&&xj(b,d[1]))return d[0];c.memoizedState=[a,b];return a}function jk(a,b){var c=Fj();b=void 0===b?null:b;var d=c.memoizedState;if(null!==d&&null!==b&&xj(b,d[1]))return d[0];a=a();c.memoizedState=[a,b];return a}function kk(a,b,c){if(0===(rj&21))return a.baseState&&(a.baseState=!1,fi=!0),a.memoizedState=c;cf(c,b)||(c=Rc(),O.lanes|=c,yi|=c,a.baseState=!0);return b}
+function lk(a,b){var c=E;E=0!==c&&4>c?c:4;a(!0);var d=qj.transition;qj.transition={};try{a(!1),b()}finally{E=c,qj.transition=d}}function mk(){return Fj().memoizedState}function nk(){return Fj().memoizedState}function ok(a,b,c){for(var d=a.return;null!==d;){switch(d.tag){case 24:case 3:var e=Ei(d),f=Di();a=di(f,e);var g=ui(d,a,e);null!==g&&(Fi(g,d,e,f),vi(g,d,e));d=kj();null!==b&&void 0!==b&&null!==g&&d.data.set(b,c);a.payload={cache:d};return}d=d.return}}
+function pk(a,b,c){var d=Ei(a);c={lane:d,action:c,hasEagerState:!1,eagerState:null,next:null};if(qk(a))rk(b,c);else if(mi(a,b,c,d),c=oi(a),null!==c){var e=Di();Fi(c,a,d,e);sk(c,b,d)}Fc(a,d)}
+function Wj(a,b,c){var d=Ei(a),e={lane:d,action:c,hasEagerState:!1,eagerState:null,next:null};if(qk(a))rk(b,e);else{var f=a.alternate;if(0===a.lanes&&(null===f||0===f.lanes)&&(f=b.lastRenderedReducer,null!==f))try{var g=b.lastRenderedState,h=f(g,c);e.hasEagerState=!0;e.eagerState=h;if(cf(h,g)){mi(a,b,e,0);null===S&&ki();return}}catch(k){}finally{}mi(a,b,e,d);c=oi(a);null!==c&&(e=Di(),Fi(c,a,d,e),sk(c,b,d))}Fc(a,d)}function qk(a){var b=a.alternate;return a===O||null!==b&&b===O}
+function rk(a,b){tj=sj=!0;var c=a.pending;null===c?b.next=b:(b.next=c.next,c.next=b);a.pending=b}function sk(a,b,c){if(0!==(c&4194240)){var d=b.lanes;d&=a.pendingLanes;c|=d;b.lanes=c;Vc(a,c)}}var Cj={readContext:gi,useCallback:R,useContext:R,useEffect:R,useImperativeHandle:R,useInsertionEffect:R,useLayoutEffect:R,useMemo:R,useReducer:R,useRef:R,useState:R,useDebugValue:R,useDeferredValue:R,useTransition:R,useMutableSource:R,useSyncExternalStore:R,useId:R,unstable_isNewReconciler:!1};
+Cj.useCacheRefresh=R;Cj.use=R;Cj.useMemoCache=R;Cj.useEvent=R;
+var zj={readContext:gi,useCallback:function(a,b){Ej().memoizedState=[a,void 0===b?null:b];return a},useContext:gi,useEffect:ak,useImperativeHandle:function(a,b,c){c=null!==c&&void 0!==c?c.concat([a]):null;return Yj(2097156,4,fk.bind(null,b,a),c)},useLayoutEffect:function(a,b){return Yj(2097156,4,a,b)},useInsertionEffect:function(a,b){return Yj(4,2,a,b)},useMemo:function(a,b){var c=Ej();b=void 0===b?null:b;a=a();c.memoizedState=[a,b];return a},useReducer:function(a,b,c){var d=Ej();b=void 0!==c?c(b):
+b;d.memoizedState=d.baseState=b;a={pending:null,lanes:0,dispatch:null,lastRenderedReducer:a,lastRenderedState:b};d.queue=a;a=a.dispatch=pk.bind(null,O,a);return[d.memoizedState,a]},useRef:function(a){var b=Ej();a={current:a};return b.memoizedState=a},useState:Vj,useDebugValue:hk,useDeferredValue:function(a){return Ej().memoizedState=a},useTransition:function(){var a=Vj(!1),b=a[0];a=lk.bind(null,a[1]);Ej().memoizedState=a;return[b,a]},useMutableSource:function(){},useSyncExternalStore:function(a,b,
+c){var d=O,e=Ej();if(I){if(void 0===c)throw Error(r(407));c=c()}else{c=b();if(null===S)throw Error(r(349));0!==(rj&30)||Sj(d,b,c)}e.memoizedState=c;var f={value:c,getSnapshot:b};e.queue=f;ak(Pj.bind(null,d,f,a),[a]);d.flags|=1024;Qj(9,Rj.bind(null,d,f,c,b),void 0,null);return c},useId:function(){var a=Ej(),b=S.identifierPrefix;if(I){var c=Ah;var d=zh;c=(d&~(1<<32-Hc(d)-1)).toString(32)+c;b=":"+b+"R"+c;c=uj++;0<c&&(b+="H"+c.toString(32));b+=":"}else c=wj++,b=":"+b+"r"+c.toString(32)+":";return a.memoizedState=
+b},unstable_isNewReconciler:!1,useCacheRefresh:function(){return Ej().memoizedState=ok.bind(null,O)}};zj.use=Hj;zj.useMemoCache=Ij;zj.useEvent=function(a){var b=Ej(),c=function e(){if(0!==(J&2))throw Error(r(440));return e._impl.apply(void 0,arguments)};c._impl=a;bk(c,a);return b.memoizedState=c};
+var Aj={readContext:gi,useCallback:ik,useContext:gi,useEffect:Oj,useImperativeHandle:gk,useInsertionEffect:dk,useLayoutEffect:ek,useMemo:jk,useReducer:Kj,useRef:Xj,useState:function(){return Kj(Jj)},useDebugValue:hk,useDeferredValue:function(a){var b=Fj();return kk(b,P.memoizedState,a)},useTransition:function(){var a=Kj(Jj)[0],b=Fj().memoizedState;return[a,b]},useMutableSource:Mj,useSyncExternalStore:Nj,useId:mk,unstable_isNewReconciler:!1};Aj.useCacheRefresh=nk;Aj.useMemoCache=Ij;Aj.use=Hj;
+Aj.useEvent=ck;var Bj={readContext:gi,useCallback:ik,useContext:gi,useEffect:Oj,useImperativeHandle:gk,useInsertionEffect:dk,useLayoutEffect:ek,useMemo:jk,useReducer:Lj,useRef:Xj,useState:function(){return Lj(Jj)},useDebugValue:hk,useDeferredValue:function(a){var b=Fj();return null===P?b.memoizedState=a:kk(b,P.memoizedState,a)},useTransition:function(){var a=Lj(Jj)[0],b=Fj().memoizedState;return[a,b]},useMutableSource:Mj,useSyncExternalStore:Nj,useId:mk,unstable_isNewReconciler:!1};
+Bj.useCacheRefresh=nk;Bj.use=Hj;Bj.useMemoCache=Ij;Bj.useEvent=ck;var tk=m.unstable_now,uk=0,vk=-1,wk=-1,xk=-1,yk=!1,zk=!1;function Ak(a){wk=tk();0>a.actualStartTime&&(a.actualStartTime=tk())}function Bk(a,b){if(0<=wk){var c=tk()-wk;a.actualDuration+=c;b&&(a.selfBaseDuration=c);wk=-1}}function Ck(a){if(0<=vk){var b=tk()-vk;vk=-1;for(a=a.return;null!==a;){switch(a.tag){case 3:a.stateNode.effectDuration+=b;return;case 12:a.stateNode.effectDuration+=b;return}a=a.return}}}
+function Dk(a){if(0<=xk){var b=tk()-xk;xk=-1;for(a=a.return;null!==a;){switch(a.tag){case 3:a=a.stateNode;null!==a&&(a.passiveEffectDuration+=b);return;case 12:a=a.stateNode;null!==a&&(a.passiveEffectDuration+=b);return}a=a.return}}}function Ek(){vk=tk()}function Fk(a){for(var b=a.child;b;)a.actualDuration+=b.actualDuration,b=b.sibling}
+function Gk(a,b){try{var c="",d=b;do c+=Xa(d),d=d.return;while(d);var e=c}catch(f){e="\nError generating stack: "+f.message+"\n"+f.stack}return{value:a,source:b,stack:e,digest:null}}function Hk(a,b,c){return{value:a,source:null,stack:null!=c?c:null,digest:null!=b?b:null}}function Ik(a,b){try{console.error(b.value)}catch(c){setTimeout(function(){throw c;})}}function Jk(a,b,c){c=di(-1,c);c.tag=3;c.payload={element:null};var d=b.value;c.callback=function(){Kk||(Kk=!0,Lk=d);Ik(a,b)};return c}
+function Mk(a,b,c){c=di(-1,c);c.tag=3;var d=a.type.getDerivedStateFromError;if("function"===typeof d){var e=b.value;c.payload=function(){return d(e)};c.callback=function(){Ik(a,b)}}var f=a.stateNode;null!==f&&"function"===typeof f.componentDidCatch&&(c.callback=function(){Ik(a,b);"function"!==typeof d&&(null===Nk?Nk=new Set([this]):Nk.add(this));var c=b.stack;this.componentDidCatch(b.value,{componentStack:null!==c?c:""})});return c}
+function Ok(a,b,c,d,e){if(0===(a.mode&1))return a===b?a.flags|=32768:(a.flags|=64,c.flags|=65536,c.flags&=-26405,1===c.tag&&(null===c.alternate?c.tag=17:(b=di(-1,1),b.tag=2,ui(c,b,1))),c.lanes|=1),a;a.flags|=32768;a.lanes=e;return a}var Pk=bg(null);function Qk(){var a=Pk.current;return null!==a?a:S.pooledCache}function Rk(a,b){null===b?H(Pk,Pk.current):H(Pk,b.pool)}function Sk(){var a=Qk();return null===a?null:{parent:N._currentValue,pool:a}}var Tk=xa.ReactCurrentOwner,fi=!1;
+function T(a,b,c,d){b.child=null===a?Vi(b,null,c,d):Ui(b,a.child,c,d)}function Uk(a,b,c,d,e){c=c.render;var f=b.ref;ei(b,e);zc(b);d=yj(a,b,c,d,f,e);c=Dj();Ac();if(null!==a&&!fi)return b.updateQueue=a.updateQueue,b.flags&=-1029,a.lanes&=~e,Vk(a,b,e);I&&c&&Dh(b);b.flags|=1;T(a,b,d,e);return b.child}
+function Wk(a,b,c,d,e){if(null===a){var f=c.type;if("function"===typeof f&&!Xk(f)&&void 0===f.defaultProps&&null===c.compare&&void 0===c.defaultProps)return b.tag=15,b.type=f,Yk(a,b,f,d,e);a=Ri(c.type,null,d,b,b.mode,e);a.ref=b.ref;a.return=b;return b.child=a}f=a.child;if(0===(a.lanes&e)){var g=f.memoizedProps;c=c.compare;c=null!==c?c:df;if(c(g,d)&&a.ref===b.ref)return Vk(a,b,e)}b.flags|=1;a=Pi(f,d);a.ref=b.ref;a.return=b;return b.child=a}
+function Yk(a,b,c,d,e){if(null!==a){var f=a.memoizedProps;if(df(f,d)&&a.ref===b.ref)if(fi=!1,b.pendingProps=d=f,0!==(a.lanes&e))0!==(a.flags&65536)&&(fi=!0);else return b.lanes=a.lanes,Vk(a,b,e)}return Zk(a,b,c,d,e)}
+function $k(a,b,c){var d=b.pendingProps,e=d.children,f=null!==a?a.memoizedState:null;al(a,b);if("hidden"===d.mode){if(0!==(b.flags&64)){c=null!==f?f.baseLanes|c:c;if(null!==a){d=b.child=a.child;for(e=0;null!==d;)e=e|d.lanes|d.childLanes,d=d.sibling;b.childLanes=e&~c}else b.childLanes=0,b.child=null;return bl(a,b,c)}if(0===(b.mode&1))b.memoizedState={baseLanes:0,cachePool:null},null!==a&&Rk(b,null),$i(),bj(b);else if(0!==(c&1073741824))b.memoizedState={baseLanes:0,cachePool:null},null!==a&&Rk(b,null!==
+f?f.cachePool:null),null!==f?Yi(b,f):$i(),bj(b);else return b.lanes=b.childLanes=1073741824,bl(a,b,null!==f?f.baseLanes|c:c)}else null!==f?(Rk(b,f.cachePool),Yi(b,f),cj(),b.memoizedState=null):(null!==a&&Rk(b,null),$i(),cj());T(a,b,e,c);return b.child}function bl(a,b,c){var d=Qk();d=null===d?null:{parent:N._currentValue,pool:d};b.memoizedState={baseLanes:c,cachePool:d};null!==a&&Rk(b,null);$i();bj(b);return null}
+function al(a,b){var c=b.ref;if(null===a&&null!==c||null!==a&&a.ref!==c)b.flags|=256,b.flags|=1048576}function Zk(a,b,c,d,e){var f=gh(c)?eh:ch.current;f=fh(b,f);ei(b,e);zc(b);c=yj(a,b,c,d,f,e);d=Dj();Ac();if(null!==a&&!fi)return b.updateQueue=a.updateQueue,b.flags&=-1029,a.lanes&=~e,Vk(a,b,e);I&&d&&Dh(b);b.flags|=1;T(a,b,c,e);return b.child}
+function cl(a,b,c,d,e){if(gh(c)){var f=!0;kh(b)}else f=!1;ei(b,e);if(null===b.stateNode)dl(a,b),Ii(b,c,d),Ki(b,c,d,e),d=!0;else if(null===a){var g=b.stateNode,h=b.memoizedProps;g.props=h;var k=g.context,l=c.contextType;"object"===typeof l&&null!==l?l=gi(l):(l=gh(c)?eh:ch.current,l=fh(b,l));var p=c.getDerivedStateFromProps,q="function"===typeof p||"function"===typeof g.getSnapshotBeforeUpdate;q||"function"!==typeof g.UNSAFE_componentWillReceiveProps&&"function"!==typeof g.componentWillReceiveProps||
+(h!==d||k!==l)&&Ji(b,g,d,l);ri=!1;var x=b.memoizedState;g.state=x;xi(b,d,g,e);k=b.memoizedState;h!==d||x!==k||dh.current||ri?("function"===typeof p&&(Ci(b,c,p,d),k=b.memoizedState),(h=ri||Hi(b,c,h,d,x,k,l))?(q||"function"!==typeof g.UNSAFE_componentWillMount&&"function"!==typeof g.componentWillMount||("function"===typeof g.componentWillMount&&g.componentWillMount(),"function"===typeof g.UNSAFE_componentWillMount&&g.UNSAFE_componentWillMount()),"function"===typeof g.componentDidMount&&(b.flags|=2097156)):
+("function"===typeof g.componentDidMount&&(b.flags|=2097156),b.memoizedProps=d,b.memoizedState=k),g.props=d,g.state=k,g.context=l,d=h):("function"===typeof g.componentDidMount&&(b.flags|=2097156),d=!1)}else{g=b.stateNode;ti(a,b);h=b.memoizedProps;l=b.type===b.elementType?h:Uh(b.type,h);g.props=l;q=b.pendingProps;x=g.context;k=c.contextType;"object"===typeof k&&null!==k?k=gi(k):(k=gh(c)?eh:ch.current,k=fh(b,k));var y=c.getDerivedStateFromProps;(p="function"===typeof y||"function"===typeof g.getSnapshotBeforeUpdate)||
+"function"!==typeof g.UNSAFE_componentWillReceiveProps&&"function"!==typeof g.componentWillReceiveProps||(h!==q||x!==k)&&Ji(b,g,d,k);ri=!1;x=b.memoizedState;g.state=x;xi(b,d,g,e);var n=b.memoizedState;h!==q||x!==n||dh.current||ri?("function"===typeof y&&(Ci(b,c,y,d),n=b.memoizedState),(l=ri||Hi(b,c,l,d,x,n,k)||!1)?(p||"function"!==typeof g.UNSAFE_componentWillUpdate&&"function"!==typeof g.componentWillUpdate||("function"===typeof g.componentWillUpdate&&g.componentWillUpdate(d,n,k),"function"===typeof g.UNSAFE_componentWillUpdate&&
 g.UNSAFE_componentWillUpdate(d,n,k)),"function"===typeof g.componentDidUpdate&&(b.flags|=4),"function"===typeof g.getSnapshotBeforeUpdate&&(b.flags|=512)):("function"!==typeof g.componentDidUpdate||h===a.memoizedProps&&x===a.memoizedState||(b.flags|=4),"function"!==typeof g.getSnapshotBeforeUpdate||h===a.memoizedProps&&x===a.memoizedState||(b.flags|=512),b.memoizedProps=d,b.memoizedState=n),g.props=d,g.state=n,g.context=k,d=l):("function"!==typeof g.componentDidUpdate||h===a.memoizedProps&&x===a.memoizedState||
-(b.flags|=4),"function"!==typeof g.getSnapshotBeforeUpdate||h===a.memoizedProps&&x===a.memoizedState||(b.flags|=512),d=!1)}return Dk(a,b,c,d,f,e)}
-function Dk(a,b,c,d,e,f){zk(a,b);var g=0!==(b.flags&64);if(!d&&!g)return e&&zg(b,c,!1),tk(a,b,f);d=b.stateNode;qk.current=b;if(g&&"function"!==typeof c.getDerivedStateFromError){var h=null;Tj=-1}else Ic(b),h=d.render(),Jc();b.flags|=1;null!==a&&g?(g=h,b.child=qi(b,a.child,null,f),b.child=qi(b,null,g,f)):rk(a,b,h,f);b.memoizedState=d.state;e&&zg(b,c,!0);return b.child}
-function Ek(a){var b=a.stateNode;b.pendingContext?wg(a,b.pendingContext,b.pendingContext!==b.context):b.context&&wg(a,b.context,!1);Yg(a,b.containerInfo)}function Fk(a,b,c,d,e){nh();oh(e);b.flags|=128;rk(a,b,c,d);return b.child}var Gk={dehydrated:null,treeContext:null,retryLane:0};function Hk(a){return{baseLanes:a,cachePool:pk()}}
-function Ik(a,b,c){var d=b.pendingProps,e=!1,f=0!==(b.flags&64),g;(g=f)||(g=null!==a&&null===a.memoizedState?!1:0!==(Ai.current&2));g&&(e=!0,b.flags&=-65);if(null===a){if(J){e?H(N,b):zi();jh(b);a=b.memoizedState;if(null!==a&&(a=a.dehydrated,null!==a))return 0===(b.mode&1)?b.lanes=1:"$!"===a.data?b.lanes=8:b.lanes=1073741824,null;G(N)}a=d.children;f=d.fallback;if(e)return zi(),a=Jk(b,a,f,c),b.child.memoizedState=Hk(c),b.memoizedState=Gk,a;if("number"===typeof d.unstable_expectedLoadTime)return zi(),
-a=Jk(b,a,f,c),b.child.memoizedState=Hk(c),b.memoizedState=Gk,b.lanes=4194304,a;H(N,b);return Kk(b,a)}g=a.memoizedState;if(null!==g){var h=g.dehydrated;if(null!==h)return Lk(a,b,f,d,h,g,c)}if(e){zi();e=d.fallback;f=b.mode;g=a.child;h=g.sibling;var k={mode:"hidden",children:d.children};0===(f&1)&&b.child!==g?(d=b.child,d.childLanes=0,d.pendingProps=k,b.mode&2&&(d.actualDuration=0,d.actualStartTime=-1,d.selfBaseDuration=g.selfBaseDuration,d.treeBaseDuration=g.treeBaseDuration),b.deletions=null):(d=li(g,
-k),d.subtreeFlags=g.subtreeFlags&7340032);null!==h?e=li(h,e):(e=pi(e,f,c,null),e.flags|=2);e.return=b;d.return=b;d.sibling=e;b.child=d;d=e;e=b.child;f=a.child.memoizedState;null===f?f=Hk(c):(g=f.cachePool,null!==g?(h=O._currentValue,g=g.parent!==h?{parent:h,pool:h}:g):g=pk(),f={baseLanes:f.baseLanes|c,cachePool:g});e.memoizedState=f;e.childLanes=a.childLanes&~c;b.memoizedState=Gk;return d}H(N,b);e=a.child;a=e.sibling;d=li(e,{mode:"visible",children:d.children});0===(b.mode&1)&&(d.lanes=c);d.return=
-b;d.sibling=null;null!==a&&(c=b.deletions,null===c?(b.deletions=[a],b.flags|=8):c.push(a));b.child=d;b.memoizedState=null;return d}function Kk(a,b){b=Mk({mode:"visible",children:b},a.mode,0,null);b.return=a;return a.child=b}
-function Jk(a,b,c,d){var e=a.mode,f=a.child;b={mode:"hidden",children:b};0===(e&1)&&null!==f?(f.childLanes=0,f.pendingProps=b,a.mode&2&&(f.actualDuration=0,f.actualStartTime=-1,f.selfBaseDuration=0,f.treeBaseDuration=0)):f=Mk(b,e,0,null);c=pi(c,e,d,null);f.return=a;c.return=a;f.sibling=c;a.child=f;return c}function Nk(a,b,c,d){null!==d&&oh(d);qi(b,a.child,null,c);a=Kk(b,b.pendingProps.children);a.flags|=2;b.memoizedState=null;return a}
-function Lk(a,b,c,d,e,f,g){if(c){if(b.flags&128)return H(N,b),b.flags&=-129,d=ek(Error(z(422))),Nk(a,b,g,d);if(null!==b.memoizedState)return zi(),b.child=a.child,b.flags|=64,null;zi();f=d.fallback;e=b.mode;d=Mk({mode:"visible",children:d.children},e,0,null);f=pi(f,e,g,null);f.flags|=2;d.return=b;f.return=b;d.sibling=f;b.child=d;0!==(b.mode&1)&&qi(b,a.child,null,g);b.child.memoizedState=Hk(g);b.memoizedState=Gk;return f}H(N,b);if(0===(b.mode&1))return Nk(a,b,g,null);if("$!"===e.data){d=e.nextSibling&&
-e.nextSibling.dataset;if(d)var h=d.dgst;d=h;f=Error(z(419));f.digest=d;d=ek(f,d,void 0);return Nk(a,b,g,d)}h=0!==(g&a.childLanes);if(Ch||h){d=T;if(null!==d){switch(g&-g){case 4:e=2;break;case 16:e=8;break;case 64:case 128:case 256:case 512:case 1024:case 2048:case 4096:case 8192:case 16384:case 32768:case 65536:case 131072:case 262144:case 524288:case 1048576:case 2097152:case 4194304:case 8388608:case 16777216:case 33554432:case 67108864:e=32;break;case 536870912:e=268435456;break;default:e=0}e=
-0!==(e&(d.suspendedLanes|g))?0:e;0!==e&&e!==f.retryLane&&(f.retryLane=e,Kh(a,e),bi(d,a,e,-1))}Ok();d=ek(Error(z(421)));return Nk(a,b,g,d)}if("$?"===e.data)return b.flags|=64,b.child=a.child,b=Pk.bind(null,a),e._reactRetry=b,null;a=f.treeContext;ch=mg(e.nextSibling);bh=b;J=!0;dh=null;null!==a&&(Kg[Lg++]=Ng,Kg[Lg++]=Og,Kg[Lg++]=Mg,Ng=a.id,Og=a.overflow,Mg=b);b=Kk(b,d.children);b.flags|=2048;return b}function Qk(a,b,c){a.lanes|=b;var d=a.alternate;null!==d&&(d.lanes|=b);yh(a.return,b,c)}
-function Rk(a,b,c,d,e){var f=a.memoizedState;null===f?a.memoizedState={isBackwards:b,rendering:null,renderingStartTime:0,last:d,tail:c,tailMode:e}:(f.isBackwards=b,f.rendering=null,f.renderingStartTime=0,f.last=d,f.tail=c,f.tailMode=e)}
-function Sk(a,b,c){var d=b.pendingProps,e=d.revealOrder,f=d.tail;rk(a,b,d.children,c);d=Ai.current;if(0!==(d&2))d=d&1|2,b.flags|=64;else{if(null!==a&&0!==(a.flags&64))a:for(a=b.child;null!==a;){if(13===a.tag)null!==a.memoizedState&&Qk(a,c,b);else if(19===a.tag)Qk(a,c,b);else if(null!==a.child){a.child.return=a;a=a.child;continue}if(a===b)break a;for(;null===a.sibling;){if(null===a.return||a.return===b)break a;a=a.return}a.sibling.return=a.return;a=a.sibling}d&=1}H(Ai,d);if(0===(b.mode&1))b.memoizedState=
-null;else switch(e){case "forwards":c=b.child;for(e=null;null!==c;)a=c.alternate,null!==a&&null===Bi(a)&&(e=c),c=c.sibling;c=e;null===c?(e=b.child,b.child=null):(e=c.sibling,c.sibling=null);Rk(b,!1,e,c,f);break;case "backwards":c=null;e=b.child;for(b.child=null;null!==e;){a=e.alternate;if(null!==a&&null===Bi(a)){b.child=e;break}a=e.sibling;e.sibling=c;c=e;e=a}Rk(b,!0,c,null,f);break;case "together":Rk(b,!1,null,null,void 0);break;default:b.memoizedState=null}return b.child}
-function Ck(a,b){0===(b.mode&1)&&null!==a&&(a.alternate=null,b.alternate=null,b.flags|=2)}function tk(a,b,c){null!==a&&(b.dependencies=a.dependencies);Tj=-1;Vh|=b.lanes;if(0===(c&b.childLanes))return null;if(null!==a&&b.child!==a.child)throw Error(z(153));if(null!==b.child){a=b.child;c=li(a,a.pendingProps);b.child=c;for(c.return=b;null!==a.sibling;)a=a.sibling,c=c.sibling=li(a,a.pendingProps),c.return=b;c.sibling=null}return b.child}
-function Tk(a,b,c){switch(b.tag){case 3:Ek(b);wh(b,O,a.memoizedState.cache);nh();break;case 5:$g(b);break;case 1:ug(b.type)&&yg(b);break;case 4:Yg(b,b.stateNode.containerInfo);break;case 10:wh(b,b.type._context,b.memoizedProps.value);break;case 12:0!==(c&b.childLanes)&&(b.flags|=4);var d=b.stateNode;d.effectDuration=0;d.passiveEffectDuration=0;break;case 13:d=b.memoizedState;if(null!==d){if(null!==d.dehydrated)return H(N,b),b.flags|=64,null;if(0!==(c&b.child.childLanes))return Ik(a,b,c);H(N,b);a=
-tk(a,b,c);return null!==a?a.sibling:null}H(N,b);break;case 19:d=0!==(c&b.childLanes);if(0!==(a.flags&64)){if(d)return Sk(a,b,c);b.flags|=64}var e=b.memoizedState;null!==e&&(e.rendering=null,e.tail=null,e.lastEffect=null);H(Ai,Ai.current);if(d)break;else return null;case 22:case 23:return b.lanes=0,yk(a,b,c);case 24:wh(b,O,a.memoizedState.cache)}return tk(a,b,c)}var Uk,Vk,Wk,Xk;
-Uk=function(a,b){for(var c=b.child;null!==c;){if(5===c.tag||6===c.tag)a.appendChild(c.stateNode);else if(4!==c.tag&&null!==c.child){c.child.return=c;c=c.child;continue}if(c===b)break;for(;null===c.sibling;){if(null===c.return||c.return===b)return;c=c.return}c.sibling.return=c.return;c=c.sibling}};Vk=function(){};
-Wk=function(a,b,c,d){var e=a.memoizedProps;if(e!==d){a=b.stateNode;Xg(Ug.current);var f=null;switch(c){case "input":e=xb(a,e);d=xb(a,d);f=[];break;case "select":e=q({},e,{value:void 0});d=q({},d,{value:void 0});f=[];break;case "textarea":e=Eb(a,e);d=Eb(a,d);f=[];break;default:"function"!==typeof e.onClick&&"function"===typeof d.onClick&&(a.onclick=bg)}Sb(c,d);var g;c=null;for(l in e)if(!d.hasOwnProperty(l)&&e.hasOwnProperty(l)&&null!=e[l])if("style"===l){var h=e[l];for(g in h)h.hasOwnProperty(g)&&
-(c||(c={}),c[g]="")}else"dangerouslySetInnerHTML"!==l&&"children"!==l&&"suppressContentEditableWarning"!==l&&"suppressHydrationWarning"!==l&&"autoFocus"!==l&&(Wa.hasOwnProperty(l)?f||(f=[]):(f=f||[]).push(l,null));for(l in d){var k=d[l];h=null!=e?e[l]:void 0;if(d.hasOwnProperty(l)&&k!==h&&(null!=k||null!=h))if("style"===l)if(h){for(g in h)!h.hasOwnProperty(g)||k&&k.hasOwnProperty(g)||(c||(c={}),c[g]="");for(g in k)k.hasOwnProperty(g)&&h[g]!==k[g]&&(c||(c={}),c[g]=k[g])}else c||(f||(f=[]),f.push(l,
-c)),c=k;else"dangerouslySetInnerHTML"===l?(k=k?k.__html:void 0,h=h?h.__html:void 0,null!=k&&h!==k&&(f=f||[]).push(l,k)):"children"===l?"string"!==typeof k&&"number"!==typeof k||(f=f||[]).push(l,""+k):"suppressContentEditableWarning"!==l&&"suppressHydrationWarning"!==l&&(Wa.hasOwnProperty(l)?(null!=k&&"onScroll"===l&&F("scroll",a),f||h===k||(f=[])):(f=f||[]).push(l,k))}c&&(f=f||[]).push("style",c);var l=f;if(b.updateQueue=l)b.flags|=4}};Xk=function(a,b,c,d){c!==d&&(b.flags|=4)};
-function Yk(a,b){if(!J)switch(a.tailMode){case "hidden":b=a.tail;for(var c=null;null!==b;)null!==b.alternate&&(c=b),b=b.sibling;null===c?a.tail=null:c.sibling=null;break;case "collapsed":c=a.tail;for(var d=null;null!==c;)null!==c.alternate&&(d=c),c=c.sibling;null===d?b||null===a.tail?a.tail=null:a.tail.sibling=null:d.sibling=null}}
+(b.flags|=4),"function"!==typeof g.getSnapshotBeforeUpdate||h===a.memoizedProps&&x===a.memoizedState||(b.flags|=512),d=!1)}return el(a,b,c,d,f,e)}
+function el(a,b,c,d,e,f){al(a,b);var g=0!==(b.flags&64);if(!d&&!g)return e&&lh(b,c,!1),Vk(a,b,f);d=b.stateNode;Tk.current=b;if(g&&"function"!==typeof c.getDerivedStateFromError){var h=null;wk=-1}else zc(b),h=d.render(),Ac();b.flags|=1;null!==a&&g?(g=h,b.child=Ui(b,a.child,null,f),b.child=Ui(b,null,g,f)):T(a,b,h,f);b.memoizedState=d.state;e&&lh(b,c,!0);return b.child}
+function fl(a){var b=a.stateNode;b.pendingContext?ih(a,b.pendingContext,b.pendingContext!==b.context):b.context&&ih(a,b.context,!1);hg(a,b.containerInfo)}function gl(a,b,c,d,e){Rh();Sh(e);b.flags|=128;T(a,b,c,d);return b.child}var hl={dehydrated:null,treeContext:null,retryLane:0};function il(a){return{baseLanes:a,cachePool:Sk()}}
+function jl(a,b,c){var d=b.pendingProps,e=!1,f=0!==(b.flags&64),g;(g=f)||(g=null!==a&&null===a.memoizedState?!1:0!==(dj.current&2));g&&(e=!0,b.flags&=-65);if(null===a){if(I){e?H(L,b):cj();Mh(b);a=b.memoizedState;if(null!==a&&(a=a.dehydrated,null!==a))return 0===(b.mode&1)?b.lanes=1:"$!"===a.data?b.lanes=8:b.lanes=1073741824,null;G(L)}a=d.children;f=d.fallback;if(e)return cj(),a=kl(b,a,f,c),b.child.memoizedState=il(c),b.memoizedState=hl,a;if("number"===typeof d.unstable_expectedLoadTime)return cj(),
+a=kl(b,a,f,c),b.child.memoizedState=il(c),b.memoizedState=hl,b.lanes=4194304,a;H(L,b);return ll(b,a)}g=a.memoizedState;if(null!==g){var h=g.dehydrated;if(null!==h)return ml(a,b,f,d,h,g,c)}if(e){cj();e=d.fallback;f=b.mode;g=a.child;h=g.sibling;var k={mode:"hidden",children:d.children};0===(f&1)&&b.child!==g?(d=b.child,d.childLanes=0,d.pendingProps=k,b.mode&2&&(d.actualDuration=0,d.actualStartTime=-1,d.selfBaseDuration=g.selfBaseDuration,d.treeBaseDuration=g.treeBaseDuration),b.deletions=null):(d=Pi(g,
+k),d.subtreeFlags=g.subtreeFlags&7340032);null!==h?e=Pi(h,e):(e=Ti(e,f,c,null),e.flags|=2);e.return=b;d.return=b;d.sibling=e;b.child=d;d=e;e=b.child;f=a.child.memoizedState;null===f?f=il(c):(g=f.cachePool,null!==g?(h=N._currentValue,g=g.parent!==h?{parent:h,pool:h}:g):g=Sk(),f={baseLanes:f.baseLanes|c,cachePool:g});e.memoizedState=f;e.childLanes=a.childLanes&~c;b.memoizedState=hl;return d}H(L,b);e=a.child;a=e.sibling;d=Pi(e,{mode:"visible",children:d.children});0===(b.mode&1)&&(d.lanes=c);d.return=
+b;d.sibling=null;null!==a&&(c=b.deletions,null===c?(b.deletions=[a],b.flags|=8):c.push(a));b.child=d;b.memoizedState=null;return d}function ll(a,b){b=nl({mode:"visible",children:b},a.mode,0,null);b.return=a;return a.child=b}
+function kl(a,b,c,d){var e=a.mode,f=a.child;b={mode:"hidden",children:b};0===(e&1)&&null!==f?(f.childLanes=0,f.pendingProps=b,a.mode&2&&(f.actualDuration=0,f.actualStartTime=-1,f.selfBaseDuration=0,f.treeBaseDuration=0)):f=nl(b,e,0,null);c=Ti(c,e,d,null);f.return=a;c.return=a;f.sibling=c;a.child=f;return c}function ol(a,b,c,d){null!==d&&Sh(d);Ui(b,a.child,null,c);a=ll(b,b.pendingProps.children);a.flags|=2;b.memoizedState=null;return a}
+function ml(a,b,c,d,e,f,g){if(c){if(b.flags&128)return H(L,b),b.flags&=-129,d=Hk(Error(r(422))),ol(a,b,g,d);if(null!==b.memoizedState)return cj(),b.child=a.child,b.flags|=64,null;cj();f=d.fallback;e=b.mode;d=nl({mode:"visible",children:d.children},e,0,null);f=Ti(f,e,g,null);f.flags|=2;d.return=b;f.return=b;d.sibling=f;b.child=d;0!==(b.mode&1)&&Ui(b,a.child,null,g);b.child.memoizedState=il(g);b.memoizedState=hl;return f}H(L,b);if(0===(b.mode&1))return ol(a,b,g,null);if("$!"===e.data){d=e.nextSibling&&
+e.nextSibling.dataset;if(d)var h=d.dgst;d=h;f=Error(r(419));f.digest=d;d=Hk(f,d,void 0);return ol(a,b,g,d)}h=0!==(g&a.childLanes);if(fi||h){d=S;if(null!==d){switch(g&-g){case 4:e=2;break;case 16:e=8;break;case 64:case 128:case 256:case 512:case 1024:case 2048:case 4096:case 8192:case 16384:case 32768:case 65536:case 131072:case 262144:case 524288:case 1048576:case 2097152:case 4194304:case 8388608:case 16777216:case 33554432:case 67108864:e=32;break;case 536870912:e=268435456;break;default:e=0}e=
+0!==(e&(d.suspendedLanes|g))?0:e;0!==e&&e!==f.retryLane&&(f.retryLane=e,ni(a,e),Fi(d,a,e,-1))}pl();d=Hk(Error(r(421)));return ol(a,b,g,d)}if("$?"===e.data)return b.flags|=64,b.child=a.child,b=ql.bind(null,a),e._reactRetry=b,null;a=f.treeContext;Gh=Tg(e.nextSibling);Fh=b;I=!0;Hh=null;null!==a&&(wh[xh++]=zh,wh[xh++]=Ah,wh[xh++]=yh,zh=a.id,Ah=a.overflow,yh=b);b=ll(b,d.children);b.flags|=2048;return b}function rl(a,b,c){a.lanes|=b;var d=a.alternate;null!==d&&(d.lanes|=b);bi(a.return,b,c)}
+function sl(a,b,c,d,e){var f=a.memoizedState;null===f?a.memoizedState={isBackwards:b,rendering:null,renderingStartTime:0,last:d,tail:c,tailMode:e}:(f.isBackwards=b,f.rendering=null,f.renderingStartTime=0,f.last=d,f.tail=c,f.tailMode=e)}
+function tl(a,b,c){var d=b.pendingProps,e=d.revealOrder,f=d.tail;T(a,b,d.children,c);d=dj.current;if(0!==(d&2))d=d&1|2,b.flags|=64;else{if(null!==a&&0!==(a.flags&64))a:for(a=b.child;null!==a;){if(13===a.tag)null!==a.memoizedState&&rl(a,c,b);else if(19===a.tag)rl(a,c,b);else if(null!==a.child){a.child.return=a;a=a.child;continue}if(a===b)break a;for(;null===a.sibling;){if(null===a.return||a.return===b)break a;a=a.return}a.sibling.return=a.return;a=a.sibling}d&=1}H(dj,d);if(0===(b.mode&1))b.memoizedState=
+null;else switch(e){case "forwards":c=b.child;for(e=null;null!==c;)a=c.alternate,null!==a&&null===ej(a)&&(e=c),c=c.sibling;c=e;null===c?(e=b.child,b.child=null):(e=c.sibling,c.sibling=null);sl(b,!1,e,c,f);break;case "backwards":c=null;e=b.child;for(b.child=null;null!==e;){a=e.alternate;if(null!==a&&null===ej(a)){b.child=e;break}a=e.sibling;e.sibling=c;c=e;e=a}sl(b,!0,c,null,f);break;case "together":sl(b,!1,null,null,void 0);break;default:b.memoizedState=null}return b.child}
+function dl(a,b){0===(b.mode&1)&&null!==a&&(a.alternate=null,b.alternate=null,b.flags|=2)}function Vk(a,b,c){null!==a&&(b.dependencies=a.dependencies);wk=-1;yi|=b.lanes;if(0===(c&b.childLanes))return null;if(null!==a&&b.child!==a.child)throw Error(r(153));if(null!==b.child){a=b.child;c=Pi(a,a.pendingProps);b.child=c;for(c.return=b;null!==a.sibling;)a=a.sibling,c=c.sibling=Pi(a,a.pendingProps),c.return=b;c.sibling=null}return b.child}
+function ul(a,b,c){switch(b.tag){case 3:fl(b);$h(b,N,a.memoizedState.cache);Rh();break;case 26:case 27:case 5:jg(b);break;case 1:gh(b.type)&&kh(b);break;case 4:hg(b,b.stateNode.containerInfo);break;case 10:$h(b,b.type._context,b.memoizedProps.value);break;case 12:0!==(c&b.childLanes)&&(b.flags|=4);var d=b.stateNode;d.effectDuration=0;d.passiveEffectDuration=0;break;case 13:d=b.memoizedState;if(null!==d){if(null!==d.dehydrated)return H(L,b),b.flags|=64,null;if(0!==(c&b.child.childLanes))return jl(a,
+b,c);H(L,b);a=Vk(a,b,c);return null!==a?a.sibling:null}H(L,b);break;case 19:d=0!==(c&b.childLanes);if(0!==(a.flags&64)){if(d)return tl(a,b,c);b.flags|=64}var e=b.memoizedState;null!==e&&(e.rendering=null,e.tail=null,e.lastEffect=null);H(dj,dj.current);if(d)break;else return null;case 22:case 23:return b.lanes=0,$k(a,b,c);case 24:$h(b,N,a.memoizedState.cache)}return Vk(a,b,c)}function vl(a){a.flags|=1048832}var wl,xl,yl,zl;
+wl=function(a,b){for(var c=b.child;null!==c;){if(5===c.tag||6===c.tag)a.appendChild(c.stateNode);else if(4!==c.tag&&27!==c.tag&&null!==c.child){c.child.return=c;c=c.child;continue}if(c===b)break;for(;null===c.sibling;){if(null===c.return||c.return===b)return;c=c.return}c.sibling.return=c.return;c=c.sibling}};xl=function(){};
+yl=function(a,b,c,d){var e=a.memoizedProps;if(e!==d){a=b.stateNode;gg(dg.current);var f=null;switch(c){case "input":e=fb(a,e);d=fb(a,d);f=[];break;case "select":e=A({},e,{value:void 0});d=A({},d,{value:void 0});f=[];break;case "textarea":e=nb(a,e);d=nb(a,d);f=[];break;default:"function"!==typeof e.onClick&&"function"===typeof d.onClick&&(a.onclick=Xf)}Cb(c,d);var g;c=null;for(l in e)if(!d.hasOwnProperty(l)&&e.hasOwnProperty(l)&&null!=e[l])if("style"===l){var h=e[l];for(g in h)h.hasOwnProperty(g)&&
+(c||(c={}),c[g]="")}else"dangerouslySetInnerHTML"!==l&&"children"!==l&&"suppressContentEditableWarning"!==l&&"suppressHydrationWarning"!==l&&"autoFocus"!==l&&(da.hasOwnProperty(l)?f||(f=[]):(f=f||[]).push(l,null));for(l in d){var k=d[l];h=null!=e?e[l]:void 0;if(d.hasOwnProperty(l)&&k!==h&&(null!=k||null!=h))if("style"===l)if(h){for(g in h)!h.hasOwnProperty(g)||k&&k.hasOwnProperty(g)||(c||(c={}),c[g]="");for(g in k)k.hasOwnProperty(g)&&h[g]!==k[g]&&(c||(c={}),c[g]=k[g])}else c||(f||(f=[]),f.push(l,
+c)),c=k;else"dangerouslySetInnerHTML"===l?(k=k?k.__html:void 0,h=h?h.__html:void 0,null!=k&&h!==k&&(f=f||[]).push(l,k)):"children"===l?"string"!==typeof k&&"number"!==typeof k||(f=f||[]).push(l,""+k):"suppressContentEditableWarning"!==l&&"suppressHydrationWarning"!==l&&(da.hasOwnProperty(l)?(null!=k&&"onScroll"===l&&F("scroll",a),f||h===k||(f=[])):(f=f||[]).push(l,k))}c&&(f=f||[]).push("style",c);var l=f;if(b.updateQueue=l)b.flags|=4}};zl=function(a,b,c,d){c!==d&&(b.flags|=4)};
+function Al(a,b){if(!I)switch(a.tailMode){case "hidden":b=a.tail;for(var c=null;null!==b;)null!==b.alternate&&(c=b),b=b.sibling;null===c?a.tail=null:c.sibling=null;break;case "collapsed":c=a.tail;for(var d=null;null!==c;)null!==c.alternate&&(d=c),c=c.sibling;null===d?b||null===a.tail?a.tail=null:a.tail.sibling=null:d.sibling=null}}
 function U(a){var b=null!==a.alternate&&a.alternate.child===a.child,c=0,d=0;if(b)if(0!==(a.mode&2)){for(var e=a.selfBaseDuration,f=a.child;null!==f;)c|=f.lanes|f.childLanes,d|=f.subtreeFlags&7340032,d|=f.flags&7340032,e+=f.treeBaseDuration,f=f.sibling;a.treeBaseDuration=e}else for(e=a.child;null!==e;)c|=e.lanes|e.childLanes,d|=e.subtreeFlags&7340032,d|=e.flags&7340032,e.return=a,e=e.sibling;else if(0!==(a.mode&2)){e=a.actualDuration;f=a.selfBaseDuration;for(var g=a.child;null!==g;)c|=g.lanes|g.childLanes,
 d|=g.subtreeFlags,d|=g.flags,e+=g.actualDuration,f+=g.treeBaseDuration,g=g.sibling;a.actualDuration=e;a.treeBaseDuration=f}else for(e=a.child;null!==e;)c|=e.lanes|e.childLanes,d|=e.subtreeFlags,d|=e.flags,e.return=a,e=e.sibling;a.subtreeFlags|=d;a.childLanes=c;return b}
-function Zk(a,b,c){var d=b.pendingProps;Sg(b);switch(b.tag){case 2:case 16:case 15:case 0:case 11:case 7:case 8:case 12:case 9:case 14:return U(b),null;case 1:return ug(b.type)&&vg(),U(b),null;case 3:d=b.stateNode;c=null;null!==a&&(c=a.memoizedState.cache);b.memoizedState.cache!==c&&(b.flags|=1024);xh(O);Zg();G(rg);G(I);Di();d.pendingContext&&(d.context=d.pendingContext,d.pendingContext=null);if(null===a||null===a.child)lh(b)?b.flags|=4:null===a||a.memoizedState.isDehydrated&&0===(b.flags&128)||(b.flags|=
-512,null!==dh&&($k(dh),dh=null));Vk(a,b);U(b);return null;case 5:ah(b);c=b.type;if(null!==a&&null!=b.stateNode)Wk(a,b,c,d),a.ref!==b.ref&&(b.flags|=1048832);else{if(!d){if(null===b.stateNode)throw Error(z(166));U(b);return null}a=Xg(Ug.current);if(lh(b)){a=b.stateNode;d=b.type;c=b.memoizedProps;a[Ka]=b;a[La]=c;var e=0!==(b.mode&1);switch(d){case "dialog":F("cancel",a);F("close",a);break;case "iframe":case "object":case "embed":F("load",a);break;case "video":case "audio":for(var f=0;f<Of.length;f++)F(Of[f],
-a);break;case "source":F("error",a);break;case "img":case "image":case "link":F("error",a);F("load",a);break;case "details":F("toggle",a);break;case "input":yb(a,c);F("invalid",a);break;case "select":a._wrapperState={wasMultiple:!!c.multiple};F("invalid",a);break;case "textarea":Fb(a,c),F("invalid",a)}Sb(d,c);f=null;for(var g in c)if(c.hasOwnProperty(g)){var h=c[g];"children"===g?"string"===typeof h?a.textContent!==h&&(!0!==c.suppressHydrationWarning&&ag(a.textContent,h,e),f=["children",h]):"number"===
-typeof h&&a.textContent!==""+h&&(!0!==c.suppressHydrationWarning&&ag(a.textContent,h,e),f=["children",""+h]):Wa.hasOwnProperty(g)&&null!=h&&"onScroll"===g&&F("scroll",a)}switch(d){case "input":ub(a);Cb(a,c,!0);break;case "textarea":ub(a);Hb(a);break;case "select":case "option":break;default:"function"===typeof c.onClick&&(a.onclick=bg)}a=f;b.updateQueue=a;null!==a&&(b.flags|=4)}else{g=Xg(Wg.current);g=9===g.nodeType?g:g.ownerDocument;"http://www.w3.org/1999/xhtml"===a&&(a=Ib(c));"http://www.w3.org/1999/xhtml"===
-a?"script"===c?(a=g.createElement("div"),a.innerHTML="<script>\x3c/script>",a=a.removeChild(a.firstChild)):"string"===typeof d.is?a=g.createElement(c,{is:d.is}):(a=g.createElement(c),"select"===c&&(g=a,d.multiple?g.multiple=!0:d.size&&(g.size=d.size))):a=g.createElementNS(a,c);a[Ka]=b;a[La]=d;Uk(a,b,!1,!1);b.stateNode=a;a:{g=Tb(c,d);switch(c){case "dialog":F("cancel",a);F("close",a);f=d;break;case "iframe":case "object":case "embed":F("load",a);f=d;break;case "video":case "audio":for(f=0;f<Of.length;f++)F(Of[f],
-a);f=d;break;case "source":F("error",a);f=d;break;case "img":case "image":case "link":F("error",a);F("load",a);f=d;break;case "details":F("toggle",a);f=d;break;case "input":yb(a,d);f=xb(a,d);F("invalid",a);break;case "option":f=d;break;case "select":a._wrapperState={wasMultiple:!!d.multiple};f=q({},d,{value:void 0});F("invalid",a);break;case "textarea":Fb(a,d);f=Eb(a,d);F("invalid",a);break;default:f=d}Sb(c,f);h=f;for(e in h)if(h.hasOwnProperty(e)){var k=h[e];"style"===e?Qb(a,k):"dangerouslySetInnerHTML"===
-e?(k=k?k.__html:void 0,null!=k&&Lb(a,k)):"children"===e?"string"===typeof k?("textarea"!==c||""!==k)&&Mb(a,k):"number"===typeof k&&Mb(a,""+k):"suppressContentEditableWarning"!==e&&"suppressHydrationWarning"!==e&&"autoFocus"!==e&&(Wa.hasOwnProperty(e)?null!=k&&"onScroll"===e&&F("scroll",a):null!=k&&kb(a,e,k,g))}switch(c){case "input":ub(a);Cb(a,d,!1);break;case "textarea":ub(a);Hb(a);break;case "option":null!=d.value&&a.setAttribute("value",""+rb(d.value));break;case "select":a.multiple=!!d.multiple;
-e=d.value;null!=e?Db(a,!!d.multiple,e,!1):null!=d.defaultValue&&Db(a,!!d.multiple,d.defaultValue,!0);break;default:"function"===typeof f.onClick&&(a.onclick=bg)}switch(c){case "button":case "input":case "select":case "textarea":a=!!d.autoFocus;break a;case "img":a=!0;break a;default:a=!1}}a&&(b.flags|=4)}null!==b.ref&&(b.flags|=1048832)}U(b);return null;case 6:if(a&&null!=b.stateNode)Xk(a,b,a.memoizedProps,d);else{if("string"!==typeof d&&null===b.stateNode)throw Error(z(166));a=Xg(Wg.current);Xg(Ug.current);
-if(lh(b)){a=b.stateNode;d=b.memoizedProps;a[Ka]=b;if(c=a.nodeValue!==d)if(e=bh,null!==e)switch(e.tag){case 3:ag(a.nodeValue,d,0!==(e.mode&1));break;case 5:!0!==e.memoizedProps.suppressHydrationWarning&&ag(a.nodeValue,d,0!==(e.mode&1))}c&&(b.flags|=4)}else a=(9===a.nodeType?a:a.ownerDocument).createTextNode(d),a[Ka]=b,b.stateNode=a}U(b);return null;case 13:G(N);d=b.memoizedState;if(null===a||null!==a.memoizedState&&null!==a.memoizedState.dehydrated){if(J&&null!==ch&&0!==(b.mode&1)&&0===(b.flags&64))mh(),
-nh(),b.flags|=49280,e=!1;else if(e=lh(b),null!==d&&null!==d.dehydrated){if(null===a){if(!e)throw Error(z(318));e=b.memoizedState;e=null!==e?e.dehydrated:null;if(!e)throw Error(z(317));e[Ka]=b;U(b);0!==(b.mode&2)&&null!==d&&(e=b.child,null!==e&&(b.treeBaseDuration-=e.treeBaseDuration))}else nh(),0===(b.flags&64)&&(b.memoizedState=null),b.flags|=4,U(b),0!==(b.mode&2)&&null!==d&&(e=b.child,null!==e&&(b.treeBaseDuration-=e.treeBaseDuration));e=!1}else null!==dh&&($k(dh),dh=null),e=!0;if(!e)return b.flags&
-32768?b:null}if(0!==(b.flags&64))return b.lanes=c,0!==(b.mode&2)&&ck(b),b;d=null!==d;c=null!==a&&null!==a.memoizedState;d&&(e=b.child,g=null,null!==e.alternate&&null!==e.alternate.memoizedState&&null!==e.alternate.memoizedState.cachePool&&(g=e.alternate.memoizedState.cachePool.pool),f=null,null!==e.memoizedState&&null!==e.memoizedState.cachePool&&(f=e.memoizedState.cachePool.pool),f!==g&&(e.flags|=1024));d!==c&&d&&(b.child.flags|=4096,0!==(b.mode&1)&&(null===a||c||null!==si.current?0===V&&(V=3):Ok()));
-null!==b.updateQueue&&(b.flags|=4);U(b);0!==(b.mode&2)&&d&&(a=b.child,null!==a&&(b.treeBaseDuration-=a.treeBaseDuration));return null;case 4:return Zg(),Vk(a,b),null===a&&Uf(b.stateNode.containerInfo),U(b),null;case 10:return xh(b.type._context),U(b),null;case 17:return ug(b.type)&&vg(),U(b),null;case 19:G(Ai);e=b.memoizedState;if(null===e)return U(b),null;d=0!==(b.flags&64);g=e.rendering;if(null===g)if(d)Yk(e,!1);else{if(0!==V||null!==a&&0!==(a.flags&64))for(a=b.child;null!==a;){g=Bi(a);if(null!==
-g){b.flags|=64;Yk(e,!1);a=g.updateQueue;null!==a&&(b.updateQueue=a,b.flags|=4);b.subtreeFlags=0;a=c;for(d=b.child;null!==d;)al(d,a),d=d.sibling;H(Ai,Ai.current&1|2);return b.child}a=a.sibling}null!==e.tail&&C()>bl&&(b.flags|=64,d=!0,Yk(e,!1),b.lanes=4194304)}else{if(!d)if(a=Bi(g),null!==a){if(b.flags|=64,d=!0,a=a.updateQueue,null!==a&&(b.updateQueue=a,b.flags|=4),Yk(e,!0),null===e.tail&&"hidden"===e.tailMode&&!g.alternate&&!J)return U(b),null}else 2*C()-e.renderingStartTime>bl&&1073741824!==c&&(b.flags|=
-64,d=!0,Yk(e,!1),b.lanes=4194304);e.isBackwards?(g.sibling=b.child,b.child=g):(a=e.last,null!==a?a.sibling=g:b.child=g,e.last=g)}if(null!==e.tail)return b=e.tail,e.rendering=b,e.tail=b.sibling,e.renderingStartTime=C(),b.sibling=null,a=Ai.current,H(Ai,d?a&1|2:a&1),b;U(b);return null;case 22:case 23:return G(N),xi(),d=null!==b.memoizedState,null!==a?null!==a.memoizedState!==d&&(b.flags|=4096):d&&(b.flags|=4096),d&&0!==(b.mode&1)?0!==(c&1073741824)&&0===(b.flags&64)&&(U(b),b.subtreeFlags&6&&(b.flags|=
-4096)):U(b),null!==b.updateQueue&&(b.flags|=4),d=null,null!==a&&null!==a.memoizedState&&null!==a.memoizedState.cachePool&&(d=a.memoizedState.cachePool.pool),c=null,null!==b.memoizedState&&null!==b.memoizedState.cachePool&&(c=b.memoizedState.cachePool.pool),c!==d&&(b.flags|=1024),null!==a&&G(mk),null;case 24:return d=null,null!==a&&(d=a.memoizedState.cache),b.memoizedState.cache!==d&&(b.flags|=1024),xh(O),U(b),null;case 25:return null}throw Error(z(156,b.tag));}
-function cl(a,b){Sg(b);switch(b.tag){case 1:return ug(b.type)&&vg(),a=b.flags,a&32768?(b.flags=a&-32769|64,0!==(b.mode&2)&&ck(b),b):null;case 3:return xh(O),Zg(),G(rg),G(I),Di(),a=b.flags,0!==(a&32768)&&0===(a&64)?(b.flags=a&-32769|64,b):null;case 5:return ah(b),null;case 13:G(N);a=b.memoizedState;if(null!==a&&null!==a.dehydrated){if(null===b.alternate)throw Error(z(340));nh()}a=b.flags;return a&32768?(b.flags=a&-32769|64,0!==(b.mode&2)&&ck(b),b):null;case 19:return G(Ai),null;case 4:return Zg(),
-null;case 10:return xh(b.type._context),null;case 22:case 23:return G(N),xi(),null!==a&&G(mk),a=b.flags,a&32768?(b.flags=a&-32769|64,0!==(b.mode&2)&&ck(b),b):null;case 24:return xh(O),null;case 25:return null;default:return null}}
-function dl(a,b){Sg(b);switch(b.tag){case 1:a=b.type.childContextTypes;null!==a&&void 0!==a&&vg();break;case 3:xh(O);Zg();G(rg);G(I);Di();break;case 5:ah(b);break;case 4:Zg();break;case 13:G(N);break;case 19:G(Ai);break;case 10:xh(b.type._context);break;case 22:case 23:G(N);xi();null!==a&&G(mk);break;case 24:xh(O)}}var el=!1,fl=!1,gl="function"===typeof WeakSet?WeakSet:Set,W=null,hl=null,il=null;function jl(a){return 0!==(a.mode&2)&&0!==(K&4)}
-function kl(a,b){b.props=a.memoizedProps;b.state=a.memoizedState;if(jl(a))try{bk(),b.componentWillUnmount()}finally{Zj(a)}else b.componentWillUnmount()}function ll(a,b){try{var c=a.ref;if(null!==c){var d=a.stateNode;switch(a.tag){case 5:var e=d;break;default:e=d}if("function"===typeof c)if(jl(a))try{bk(),c(e)}finally{Zj(a)}else c(e);else c.current=e}}catch(f){X(a,b,f)}}
-function ml(a,b){var c=a.ref;if(null!==c)if("function"===typeof c)try{if(jl(a))try{bk(),c(null)}finally{Zj(a)}else c(null)}catch(d){X(a,b,d)}else c.current=null}function nl(a,b,c){try{c()}catch(d){X(a,b,d)}}var ol=!1;
-function pl(a,b){cg=Hd;a=pf();if(qf(a)){if("selectionStart"in a)var c={start:a.selectionStart,end:a.selectionEnd};else a:{c=(c=a.ownerDocument)&&c.defaultView||window;var d=c.getSelection&&c.getSelection();if(d&&0!==d.rangeCount){c=d.anchorNode;var e=d.anchorOffset,f=d.focusNode;d=d.focusOffset;try{c.nodeType,f.nodeType}catch(Ca){c=null;break a}var g=0,h=-1,k=-1,l=0,m=0,v=a,x=null;b:for(;;){for(var y;;){v!==c||0!==e&&3!==v.nodeType||(h=g+e);v!==f||0!==d&&3!==v.nodeType||(k=g+d);3===v.nodeType&&(g+=
-v.nodeValue.length);if(null===(y=v.firstChild))break;x=v;v=y}for(;;){if(v===a)break b;x===c&&++l===e&&(h=g);x===f&&++m===d&&(k=g);if(null!==(y=v.nextSibling))break;v=x;x=v.parentNode}v=y}c=-1===h||-1===k?null:{start:h,end:k}}else c=null}c=c||{start:0,end:0}}else c=null;dg={focusedElem:a,selectionRange:c};Hd=!1;for(W=b;null!==W;)if(b=W,a=b.child,0!==(b.subtreeFlags&516)&&null!==a)a.return=b,W=a;else for(;null!==W;){b=W;try{var n=b.alternate,r=b.flags;switch(b.tag){case 0:0!==(r&4)&&ql(3,b);break;case 11:case 15:break;
-case 1:if(0!==(r&512)&&null!==n){var A=n.memoizedProps,w=n.memoizedState,t=b.stateNode,u=t.getSnapshotBeforeUpdate(b.elementType===b.type?A:qh(b.type,A),w);t.__reactInternalSnapshotBeforeUpdate=u}break;case 3:if(0!==(r&512)){var M=b.stateNode.containerInfo;1===M.nodeType?M.textContent="":9===M.nodeType&&M.documentElement&&M.removeChild(M.documentElement)}break;case 5:case 6:case 4:case 17:break;default:if(0!==(r&512))throw Error(z(163));}}catch(Ca){X(b,b.return,Ca)}a=b.sibling;if(null!==a){a.return=
-b.return;W=a;break}W=b.return}n=ol;ol=!1;return n}
-function rl(a,b,c){var d=b.updateQueue;d=null!==d?d.lastEffect:null;if(null!==d){var e=d=d.next;do{if((e.tag&a)===a){var f=e.destroy;e.destroy=void 0;void 0!==f&&(0!==(a&16)?null!==D&&"function"===typeof D.markComponentPassiveEffectUnmountStarted&&D.markComponentPassiveEffectUnmountStarted(b):0!==(a&8)&&Kc(b),nl(b,c,f),0!==(a&16)?null!==D&&"function"===typeof D.markComponentPassiveEffectUnmountStopped&&D.markComponentPassiveEffectUnmountStopped():0!==(a&8)&&Lc())}e=e.next}while(e!==d)}}
-function ql(a,b){var c=b.updateQueue;c=null!==c?c.lastEffect:null;if(null!==c){var d=c=c.next;do{if((d.tag&a)===a){0!==(a&16)?null!==D&&"function"===typeof D.markComponentPassiveEffectMountStarted&&D.markComponentPassiveEffectMountStarted(b):0!==(a&8)&&null!==D&&"function"===typeof D.markComponentLayoutEffectMountStarted&&D.markComponentLayoutEffectMountStarted(b);var e=d.create;d.destroy=e();0!==(a&16)?null!==D&&"function"===typeof D.markComponentPassiveEffectMountStopped&&D.markComponentPassiveEffectMountStopped():
-0!==(a&8)&&null!==D&&"function"===typeof D.markComponentLayoutEffectMountStopped&&D.markComponentLayoutEffectMountStopped()}d=d.next}while(d!==c)}}function sl(a,b){if(jl(a)){try{bk(),ql(b,a)}catch(c){X(a,a.return,c)}Zj(a)}else try{ql(b,a)}catch(c){X(a,a.return,c)}}function tl(a){var b=a.updateQueue;if(null!==b){var c=a.stateNode;try{Xh(b,c)}catch(d){X(a,a.return,d)}}}
-function ul(a){var b=a.type,c=a.memoizedProps,d=a.stateNode;try{a:switch(b){case "button":case "input":case "select":case "textarea":c.autoFocus&&d.focus();break a;case "img":c.src&&(d.src=c.src)}}catch(e){X(a,a.return,e)}}
-function vl(a,b){if(K&4)try{var c=a.memoizedProps,d=c.onCommit,e=c.onRender,f=a.stateNode.effectDuration;c=Rj;b=null===b?"mount":"update";Vj&&(b="nested-update");"function"===typeof e&&e(a.memoizedProps.id,b,a.actualDuration,a.treeBaseDuration,a.actualStartTime,c);"function"===typeof d&&d(a.memoizedProps.id,b,f,c);wl(a);var g=a.return;a:for(;null!==g;){switch(g.tag){case 3:g.stateNode.effectDuration+=f;break a;case 12:g.stateNode.effectDuration+=f;break a}g=g.return}}catch(h){X(a,a.return,h)}}
-function xl(a,b,c){var d=c.flags;switch(c.tag){case 0:case 11:case 15:yl(a,c);d&4&&sl(c,9);break;case 1:yl(a,c);if(d&4)if(a=c.stateNode,null===b)if(jl(c)){try{bk(),a.componentDidMount()}catch(h){X(c,c.return,h)}Zj(c)}else try{a.componentDidMount()}catch(h){X(c,c.return,h)}else{var e=c.elementType===c.type?b.memoizedProps:qh(c.type,b.memoizedProps);b=b.memoizedState;if(jl(c)){try{bk(),a.componentDidUpdate(e,b,a.__reactInternalSnapshotBeforeUpdate)}catch(h){X(c,c.return,h)}Zj(c)}else try{a.componentDidUpdate(e,
-b,a.__reactInternalSnapshotBeforeUpdate)}catch(h){X(c,c.return,h)}}d&32&&tl(c);d&256&&ll(c,c.return);break;case 3:yl(a,c);if(d&32&&(d=c.updateQueue,null!==d)){a=null;if(null!==c.child)switch(c.child.tag){case 5:a=c.child.stateNode;break;case 1:a=c.child.stateNode}try{Xh(d,a)}catch(h){X(c,c.return,h)}}break;case 5:yl(a,c);null===b&&d&4&&ul(c);d&256&&ll(c,c.return);break;case 12:yl(a,c);d&4&&vl(c,b);break;case 13:yl(a,c);d&4&&zl(a,c);break;case 22:if(0!==(c.mode&1)){if(e=null!==c.memoizedState||el,
-!e){b=null!==b&&null!==b.memoizedState||fl;var f=el,g=fl;el=e;(fl=b)&&!g?Al(a,c,0!==(c.subtreeFlags&4388)):yl(a,c);el=f;fl=g}}else yl(a,c);d&256&&("manual"===c.memoizedProps.mode?ll(c,c.return):ml(c,c.return));break;default:yl(a,c)}}
-function Bl(a){var b=a.alternate;null!==b&&(a.alternate=null,Bl(b));a.child=null;a.deletions=null;a.sibling=null;5===a.tag&&(b=a.stateNode,null!==b&&(delete b[Ka],delete b[La],delete b[Na],delete b[Oa],delete b[Pa]));a.stateNode=null;a.return=null;a.dependencies=null;a.memoizedProps=null;a.memoizedState=null;a.pendingProps=null;a.stateNode=null;a.updateQueue=null}function Cl(a){return 5===a.tag||3===a.tag||4===a.tag}
-function Dl(a){a:for(;;){for(;null===a.sibling;){if(null===a.return||Cl(a.return))return null;a=a.return}a.sibling.return=a.return;for(a=a.sibling;5!==a.tag&&6!==a.tag&&18!==a.tag;){if(a.flags&2)continue a;if(null===a.child||4===a.tag)continue a;else a.child.return=a,a=a.child}if(!(a.flags&2))return a.stateNode}}
-function El(a,b,c){var d=a.tag;if(5===d||6===d)a=a.stateNode,b?8===c.nodeType?c.parentNode.insertBefore(a,b):c.insertBefore(a,b):(8===c.nodeType?(b=c.parentNode,b.insertBefore(a,c)):(b=c,b.appendChild(a)),c=c._reactRootContainer,null!==c&&void 0!==c||null!==b.onclick||(b.onclick=bg));else if(4!==d&&(a=a.child,null!==a))for(El(a,b,c),a=a.sibling;null!==a;)El(a,b,c),a=a.sibling}
-function Fl(a,b,c){var d=a.tag;if(5===d||6===d)a=a.stateNode,b?c.insertBefore(a,b):c.appendChild(a);else if(4!==d&&(a=a.child,null!==a))for(Fl(a,b,c),a=a.sibling;null!==a;)Fl(a,b,c),a=a.sibling}var Y=null,Gl=!1;function Hl(a,b,c){for(c=c.child;null!==c;)Il(a,b,c),c=c.sibling}
-function Il(a,b,c){if(Bc&&"function"===typeof Bc.onCommitFiberUnmount)try{Bc.onCommitFiberUnmount(Ac,c)}catch(h){}switch(c.tag){case 5:fl||ml(c,b);case 6:var d=Y,e=Gl;Y=null;Hl(a,b,c);Y=d;Gl=e;null!==Y&&(Gl?(a=Y,c=c.stateNode,8===a.nodeType?a.parentNode.removeChild(c):a.removeChild(c)):Y.removeChild(c.stateNode));break;case 18:null!==Y&&(Gl?(a=Y,c=c.stateNode,8===a.nodeType?kg(a.parentNode,c):1===a.nodeType&&kg(a,c),Fd(a)):kg(Y,c.stateNode));break;case 4:d=Y;e=Gl;Y=c.stateNode.containerInfo;Gl=!0;
-Hl(a,b,c);Y=d;Gl=e;break;case 0:case 11:case 14:case 15:if(!fl&&(d=c.updateQueue,null!==d&&(d=d.lastEffect,null!==d))){e=d=d.next;do{var f=e,g=f.destroy;f=f.tag;void 0!==g&&(0!==(f&4)?nl(c,b,g):0!==(f&8)&&(Kc(c),jl(c)?(bk(),nl(c,b,g),Zj(c)):nl(c,b,g),Lc()));e=e.next}while(e!==d)}Hl(a,b,c);break;case 1:if(!fl&&(ml(c,b),d=c.stateNode,"function"===typeof d.componentWillUnmount))try{kl(c,d)}catch(h){X(c,b,h)}Hl(a,b,c);break;case 21:Hl(a,b,c);break;case 22:ml(c,b);c.mode&1?(fl=(d=fl)||null!==c.memoizedState,
-Hl(a,b,c),fl=d):Hl(a,b,c);break;default:Hl(a,b,c)}}function zl(a,b){if(null===b.memoizedState&&(a=b.alternate,null!==a&&(a=a.memoizedState,null!==a&&(a=a.dehydrated,null!==a))))try{Fd(a)}catch(c){X(b,b.return,c)}}function Jl(a){switch(a.tag){case 13:case 19:var b=a.stateNode;null===b&&(b=a.stateNode=new gl);return b;case 22:return a=a.stateNode,b=a._retryCache,null===b&&(b=a._retryCache=new gl),b;default:throw Error(z(435,a.tag));}}
-function Kl(a,b){var c=Jl(a);b.forEach(function(b){var d=Ll.bind(null,a,b);if(!c.has(b)){c.add(b);if(Cc)if(null!==hl&&null!==il)Ml(il,hl);else throw Error(z(413));b.then(d,d)}})}function Nl(a,b,c){hl=c;il=a;Ol(b,a);il=hl=null}
-function Pl(a,b){var c=b.deletions;if(null!==c)for(var d=0;d<c.length;d++){var e=c[d];try{var f=a,g=b,h=g;a:for(;null!==h;){switch(h.tag){case 5:Y=h.stateNode;Gl=!1;break a;case 3:Y=h.stateNode.containerInfo;Gl=!0;break a;case 4:Y=h.stateNode.containerInfo;Gl=!0;break a}h=h.return}if(null===Y)throw Error(z(160));Il(f,g,e);Y=null;Gl=!1;var k=e.alternate;null!==k&&(k.return=null);e.return=null}catch(l){X(e,b,l)}}if(b.subtreeFlags&6430)for(b=b.child;null!==b;)Ol(b,a),b=b.sibling}
-function Ol(a,b){var c=a.alternate,d=a.flags;switch(a.tag){case 0:case 11:case 14:case 15:Pl(b,a);Ql(a);if(d&4){try{rl(5,a,a.return),ql(5,a)}catch(n){X(a,a.return,n)}if(jl(a)){try{bk(),rl(9,a,a.return)}catch(n){X(a,a.return,n)}Zj(a)}else try{rl(9,a,a.return)}catch(n){X(a,a.return,n)}}break;case 1:Pl(b,a);Ql(a);d&256&&null!==c&&ml(c,c.return);if(d&32&&el&&(a=a.updateQueue,null!==a&&(d=a.callbacks,null!==d))){var e=a.shared.hiddenCallbacks;a.shared.hiddenCallbacks=null===e?d:e.concat(d)}break;case 5:Pl(b,
-a);Ql(a);d&256&&null!==c&&ml(c,c.return);if(a.flags&16){var f=a.stateNode;try{Mb(f,"")}catch(n){X(a,a.return,n)}}if(d&4&&(d=a.stateNode,null!=d)){f=a.memoizedProps;var g=null!==c?c.memoizedProps:f,h=a.type,k=a.updateQueue;a.updateQueue=null;if(null!==k)try{"input"===h&&"radio"===f.type&&null!=f.name&&zb(d,f);Tb(h,g);e=Tb(h,f);for(g=0;g<k.length;g+=2){var l=k[g],m=k[g+1];"style"===l?Qb(d,m):"dangerouslySetInnerHTML"===l?Lb(d,m):"children"===l?Mb(d,m):kb(d,l,m,e)}switch(h){case "input":Ab(d,f);break;
-case "textarea":Gb(d,f);break;case "select":var v=d._wrapperState.wasMultiple;d._wrapperState.wasMultiple=!!f.multiple;var x=f.value;null!=x?Db(d,!!f.multiple,x,!1):v!==!!f.multiple&&(null!=f.defaultValue?Db(d,!!f.multiple,f.defaultValue,!0):Db(d,!!f.multiple,f.multiple?[]:"",!1))}d[La]=f}catch(n){X(a,a.return,n)}}break;case 6:Pl(b,a);Ql(a);if(d&4){if(null===a.stateNode)throw Error(z(162));d=a.stateNode;e=a.memoizedProps;try{d.nodeValue=e}catch(n){X(a,a.return,n)}}break;case 3:Pl(b,a);Ql(a);if(d&
-4&&null!==c&&c.memoizedState.isDehydrated)try{Fd(b.containerInfo)}catch(n){X(a,a.return,n)}break;case 4:Pl(b,a);Ql(a);break;case 13:Pl(b,a);Ql(a);e=a.child;e.flags&4096&&null!==e.memoizedState&&(null===e.alternate||null===e.alternate.memoizedState)&&(Rl=C());d&4&&(d=a.updateQueue,null!==d&&(a.updateQueue=null,Kl(a,d)));break;case 22:d&256&&null!==c&&ml(c,c.return);e=null!==a.memoizedState;l=null!==c&&null!==c.memoizedState;a.mode&1?(m=el,v=fl,el=m||e,fl=v||l,Pl(b,a),fl=v,el=m):Pl(b,a);Ql(a);if(d&
-4096)a:for(m=a.stateNode,m._visibility=e?m._visibility&-2:m._visibility|1,e&&(l||0!==(a.mode&1)&&Sl(a)),l=null,m=a;;){if(5===m.tag){if(null===l){l=m;try{if(f=m.stateNode,e)h=f.style,"function"===typeof h.setProperty?h.setProperty("display","none","important"):h.display="none";else{k=m.stateNode;g=m.memoizedProps.style;var y=void 0!==g&&null!==g&&g.hasOwnProperty("display")?g.display:null;k.style.display=Pb("display",y)}}catch(n){X(a,a.return,n)}}}else if(6===m.tag){if(null===l)try{m.stateNode.nodeValue=
-e?"":m.memoizedProps}catch(n){X(a,a.return,n)}}else if((22!==m.tag&&23!==m.tag||null===m.memoizedState||m===a)&&null!==m.child){m.child.return=m;m=m.child;continue}if(m===a)break a;for(;null===m.sibling;){if(null===m.return||m.return===a)break a;l===m&&(l=null);m=m.return}l===m&&(l=null);m.sibling.return=m.return;m=m.sibling}d&4&&(d=a.updateQueue,null!==d&&(e=d.wakeables,null!==e&&(d.wakeables=null,Kl(a,e))));break;case 19:Pl(b,a);Ql(a);d&4&&(d=a.updateQueue,null!==d&&(a.updateQueue=null,Kl(a,d)));
-break;case 21:break;default:Pl(b,a),Ql(a)}}function Ql(a){var b=a.flags;if(b&2){try{a:{for(var c=a.return;null!==c;){if(Cl(c)){var d=c;break a}c=c.return}throw Error(z(160));}switch(d.tag){case 5:var e=d.stateNode;d.flags&16&&(Mb(e,""),d.flags&=-17);var f=Dl(a);Fl(a,f,e);break;case 3:case 4:var g=d.stateNode.containerInfo,h=Dl(a);El(a,h,g);break;default:throw Error(z(161));}}catch(k){X(a,a.return,k)}a.flags&=-3}b&2048&&(a.flags&=-2049)}function Tl(a,b,c){hl=c;il=b;xl(b,a.alternate,a);il=hl=null}
-function yl(a,b){if(b.subtreeFlags&4388)for(b=b.child;null!==b;)xl(a,b.alternate,b),b=b.sibling}
-function Sl(a){for(a=a.child;null!==a;){var b=a;switch(b.tag){case 0:case 11:case 14:case 15:if(jl(b))try{bk(),rl(8,b,b.return)}finally{Zj(b)}else rl(8,b,b.return);Sl(b);break;case 1:ml(b,b.return);var c=b.stateNode;if("function"===typeof c.componentWillUnmount){var d=b,e=b.return;try{kl(d,c)}catch(f){X(d,e,f)}}Sl(b);break;case 5:ml(b,b.return);Sl(b);break;case 22:ml(b,b.return);null===b.memoizedState&&Sl(b);break;default:Sl(b)}a=a.sibling}}
-function Al(a,b,c){c=c&&0!==(b.subtreeFlags&4388);for(b=b.child;null!==b;){var d=b.alternate,e=a,f=b,g=f.flags;switch(f.tag){case 0:case 11:case 15:Al(e,f,c);sl(f,8);break;case 1:Al(e,f,c);e=f.stateNode;if("function"===typeof e.componentDidMount)try{e.componentDidMount()}catch(k){X(f,f.return,k)}d=f.updateQueue;if(null!==d){var h=d.shared.hiddenCallbacks;if(null!==h)for(d.shared.hiddenCallbacks=null,d=0;d<h.length;d++)Wh(h[d],e)}c&&g&32&&tl(f);ll(f,f.return);break;case 5:Al(e,f,c);c&&null===d&&g&
-4&&ul(f);ll(f,f.return);break;case 12:Al(e,f,c);c&&g&4&&vl(f,d);break;case 13:Al(e,f,c);c&&g&4&&zl(e,f);break;case 22:null===f.memoizedState&&Al(e,f,c);ll(f,f.return);break;default:Al(e,f,c)}b=b.sibling}}function Ul(a,b){if(jl(a)){Uj=Qj();try{ql(b,a)}catch(c){X(a,a.return,c)}ak(a)}else try{ql(b,a)}catch(c){X(a,a.return,c)}}
-function Vl(a,b){var c=null;null!==a&&null!==a.memoizedState&&null!==a.memoizedState.cachePool&&(c=a.memoizedState.cachePool.pool);a=null;null!==b.memoizedState&&null!==b.memoizedState.cachePool&&(a=b.memoizedState.cachePool.pool);a!==c&&(null!=a&&a.refCount++,null!=c&&Ii(c))}function Wl(a,b){a=null;null!==b.alternate&&(a=b.alternate.memoizedState.cache);b=b.memoizedState.cache;b!==a&&(b.refCount++,null!=a&&Ii(a))}
-function Xl(a,b,c,d){if(b.subtreeFlags&5128)for(b=b.child;null!==b;)Yl(a,b,c,d),b=b.sibling}
-function Yl(a,b,c,d){var e=b.flags;switch(b.tag){case 0:case 11:case 15:Xl(a,b,c,d);e&1024&&Ul(b,17);break;case 3:Xl(a,b,c,d);e&1024&&(a=null,null!==b.alternate&&(a=b.alternate.memoizedState.cache),b=b.memoizedState.cache,b!==a&&(b.refCount++,null!=a&&Ii(a)));break;case 23:case 22:var f=b.stateNode;null!==b.memoizedState?f._visibility&2?Xl(a,b,c,d):b.mode&1?Zl(a,b):(f._visibility|=2,Xl(a,b,c,d)):f._visibility&2?Xl(a,b,c,d):(f._visibility|=2,$l(a,b,c,d,0!==(b.subtreeFlags&5128)));e&1024&&Vl(b.alternate,
-b);break;case 24:Xl(a,b,c,d);e&1024&&Wl(b.alternate,b);break;default:Xl(a,b,c,d)}}
-function $l(a,b,c,d,e){e=e&&0!==(b.subtreeFlags&5128);for(b=b.child;null!==b;){var f=a,g=b,h=c,k=d,l=g.flags;switch(g.tag){case 0:case 11:case 15:$l(f,g,h,k,e);Ul(g,16);break;case 23:case 22:var m=g.stateNode;null!==g.memoizedState?m._visibility&2?$l(f,g,h,k,e):g.mode&1?Zl(f,g):(m._visibility|=2,$l(f,g,h,k,e)):(m._visibility|=2,$l(f,g,h,k,e));e&&l&1024&&Vl(g.alternate,g);break;case 24:$l(f,g,h,k,e);e&&l&1024&&Wl(g.alternate,g);break;default:$l(f,g,h,k,e)}b=b.sibling}}
-function Zl(a,b){if(b.subtreeFlags&5128)for(b=b.child;null!==b;){var c=a,d=b,e=d.flags;switch(d.tag){case 22:Zl(c,d);e&1024&&Vl(d.alternate,d);break;case 24:Zl(c,d);e&1024&&Wl(d.alternate,d);break;default:Zl(c,d)}b=b.sibling}}function am(a){var b=a.alternate;if(null!==b&&(a=b.child,null!==a)){b.child=null;do b=a.sibling,a.sibling=null,a=b;while(null!==a)}}function bm(a,b,c){jl(a)?(Uj=Qj(),rl(c,a,b),ak(a)):rl(c,a,b)}
-function cm(a){var b=a.deletions;if(0!==(a.flags&8)){if(null!==b)for(var c=0;c<b.length;c++){var d=b[c];W=d;dm(d,a)}am(a)}if(a.subtreeFlags&5128)for(a=a.child;null!==a;)em(a),a=a.sibling}function em(a){switch(a.tag){case 0:case 11:case 15:cm(a);a.flags&1024&&bm(a,a.return,17);break;case 22:var b=a.stateNode;null!==a.memoizedState&&b._visibility&2&&(null===a.return||13!==a.return.tag)?(b._visibility&=-3,fm(a)):cm(a);break;default:cm(a)}}
-function fm(a){var b=a.deletions;if(0!==(a.flags&8)){if(null!==b)for(var c=0;c<b.length;c++){var d=b[c];W=d;dm(d,a)}am(a)}for(a=a.child;null!==a;){b=a;switch(b.tag){case 0:case 11:case 15:bm(b,b.return,16);fm(b);break;case 22:c=b.stateNode;c._visibility&2&&(c._visibility&=-3,fm(b));break;default:fm(b)}a=a.sibling}}
-function dm(a,b){for(;null!==W;){var c=W;switch(c.tag){case 0:case 11:case 15:bm(c,b,16);break;case 23:case 22:if(null!==c.memoizedState&&null!==c.memoizedState.cachePool){var d=c.memoizedState.cachePool.pool;null!=d&&d.refCount++}break;case 24:Ii(c.memoizedState.cache)}d=c.child;if(null!==d)d.return=c,W=d;else a:for(c=a;null!==W;){d=W;var e=d.sibling,f=d.return;Bl(d);if(d===c){W=null;break a}if(null!==e){e.return=f;W=e;break a}W=f}}}
-var gm=Math.ceil,hm="function"===typeof WeakMap?WeakMap:Map,im=ba.ReactCurrentDispatcher,jm=ba.ReactCurrentOwner,km=ba.ReactCurrentBatchConfig,K=0,T=null,Z=null,L=0,lm=!1,mm=null,nm=!1,vi=0,V=0,om=null,Vh=0,pm=0,qm=0,rm=null,sm=null,Rl=0,bl=Infinity,tm=null,hk=!1,ik=null,kk=null,um=!1,vm=null,wm=0,xm=[],ym=0,zm=null,Mh=0,Nh=null,Am=-1,Bm=0;function $h(){return 0!==(K&6)?C():-1!==Am?Am:Am=C()}
-function ai(a){if(0===(a.mode&1))return 1;if(0!==(K&2)&&0!==L)return L&-L;if(null!==ph.transition)return 0===Bm&&(Bm=$c()),Bm;a=E;if(0!==a)return a;a=window.event;a=void 0===a?16:Nd(a.type);return a}function bi(a,b,c,d){bd(a,c,d);if(0===(K&2)||a!==T)Cc&&ed(a,b,c),a===T&&(0===(K&2)&&(pm|=c),4===V&&Cm(a,L)),Dm(a,d),1===c&&0===K&&0===(b.mode&1)&&(bl=C()+500,Bg&&Fg())}
-function Dm(a,b){var c=a.callbackNode;Yc(a,b);var d=Wc(a,a===T?L:0);if(0===d)null!==c&&rc(c),a.callbackNode=null,a.callbackPriority=0;else if(b=d&-d,a.callbackPriority!==b){null!=c&&rc(c);if(1===b)0===a.tag?Eg(Em.bind(null,a)):Dg(Em.bind(null,a)),jg(function(){0===(K&6)&&Fg()}),c=null;else{switch(hd(d)){case 1:c=vc;break;case 4:c=wc;break;case 16:c=xc;break;case 536870912:c=zc;break;default:c=xc}c=Fm(c,Gm.bind(null,a))}a.callbackPriority=b;a.callbackNode=c}}
-function Gm(a,b){Wj=Vj=!1;Am=-1;Bm=0;if(0!==(K&6))throw Error(z(327));var c=a.callbackNode;if(Hm()&&a.callbackNode!==c)return null;var d=Wc(a,a===T?L:0);if(0===d)return null;if(0!==(d&30)||0!==(d&a.expiredLanes)||b)b=Im(a,d);else{b=d;var e=K;K|=2;var f=Jm();if(T!==a||L!==b){if(Cc){var g=a.memoizedUpdaters;0<g.size&&(Ml(a,L),g.clear());fd(a,b)}tm=null;bl=C()+500;Km(a,b)}Mc(b);do try{Lm();break}catch(h){if(Mm(a,h),null!==Ji)break}while(1);vh();im.current=f;K=e;null!==Z?(null!==D&&"function"===typeof D.markRenderYielded&&
-D.markRenderYielded(),b=0):(Nc(),T=null,L=0,Hh(),b=V)}if(0!==b){2===b&&(e=d,f=Zc(a,e),0!==f&&(d=f,b=Nm(a,e,f)));if(1===b)throw c=om,Km(a,0),Cm(a,d),Dm(a,C()),c;if(6===b)Cm(a,d);else{e=a.current.alternate;if(0===(d&30)&&!Om(e)&&(b=Im(a,d),2===b&&(f=d,g=Zc(a,f),0!==g&&(d=g,b=Nm(a,f,g))),1===b))throw c=om,Km(a,0),Cm(a,d),Dm(a,C()),c;a.finishedWork=e;a.finishedLanes=d;switch(b){case 0:case 1:throw Error(z(345));case 2:Pm(a,sm,tm);break;case 3:Cm(a,d);if((d&130023424)===d&&(b=Rl+500-C(),10<b)){if(0!==
-Wc(a,0))break;e=a.suspendedLanes;if((e&d)!==d){$h();a.pingedLanes|=a.suspendedLanes&e;break}a.timeoutHandle=fg(Pm.bind(null,a,sm,tm),b);break}Pm(a,sm,tm);break;case 4:Cm(a,d);if((d&4194240)===d)break;b=a.eventTimes;for(e=-1;0<d;)g=31-Qc(d),f=1<<g,g=b[g],g>e&&(e=g),d&=~f;d=e;d=C()-d;d=(120>d?120:480>d?480:1080>d?1080:1920>d?1920:3E3>d?3E3:4320>d?4320:1960*gm(d/1960))-d;if(10<d){a.timeoutHandle=fg(Pm.bind(null,a,sm,tm),d);break}Pm(a,sm,tm);break;case 5:Pm(a,sm,tm);break;default:throw Error(z(329));
-}}}Dm(a,C());return a.callbackNode===c?Gm.bind(null,a):null}function Nm(a,b,c){var d=rm,e=a.current.memoizedState.isDehydrated;e&&(Km(a,c).flags|=128);c=Im(a,c);if(2!==c){if(nm&&!e)return a.errorRecoveryDisabledLanes|=b,pm|=b,4;a=sm;sm=d;null!==a&&$k(a)}return c}function $k(a){null===sm?sm=a:sm.push.apply(sm,a)}
-function Om(a){for(var b=a;;){if(b.flags&8192){var c=b.updateQueue;if(null!==c&&(c=c.stores,null!==c))for(var d=0;d<c.length;d++){var e=c[d],f=e.getSnapshot;e=e.value;try{if(!kf(f(),e))return!1}catch(g){return!1}}}c=b.child;if(b.subtreeFlags&8192&&null!==c)c.return=b,b=c;else{if(b===a)break;for(;null===b.sibling;){if(null===b.return||b.return===a)return!0;b=b.return}b.sibling.return=b.return;b=b.sibling}}return!0}
-function Cm(a,b){b&=~qm;b&=~pm;a.suspendedLanes|=b;a.pingedLanes&=~b;for(a=a.expirationTimes;0<b;){var c=31-Qc(b),d=1<<c;a[c]=-1;b&=~d}}function Em(a){Vj=Wj;Wj=!1;if(0!==(K&6))throw Error(z(327));Hm();var b=Wc(a,0);if(0===(b&1))return Dm(a,C()),null;var c=Im(a,b);if(0!==a.tag&&2===c){var d=b,e=Zc(a,d);0!==e&&(b=e,c=Nm(a,d,e))}if(1===c)throw c=om,Km(a,0),Cm(a,b),Dm(a,C()),c;if(6===c)throw Error(z(345));a.finishedWork=a.current.alternate;a.finishedLanes=b;Pm(a,sm,tm);Dm(a,C());return null}
-function Qm(a,b){var c=K;K|=1;try{return a(b)}finally{K=c,0===K&&(bl=C()+500,Bg&&Fg())}}function Rm(a){null!==vm&&0===vm.tag&&0===(K&6)&&Hm();var b=K;K|=1;var c=km.transition,d=E;try{if(km.transition=null,E=1,a)return a()}finally{E=d,km.transition=c,K=b,0===(K&6)&&Fg()}}
-function Km(a,b){a.finishedWork=null;a.finishedLanes=0;var c=a.timeoutHandle;-1!==c&&(a.timeoutHandle=-1,gg(c));if(null!==Z){for(c=lm?Z:Z.return;null!==c;)dl(c.alternate,c),c=c.return;Ki=Ji=null}T=a;Z=a=li(a.current,null);L=vi=b;lm=!1;mm=null;nm=!1;V=0;om=null;qm=pm=Vh=0;sm=rm=null;Hh();return a}
-function Mm(a,b){vh();Mi.current=Zi;if(Pi){for(a=P.memoizedState;null!==a;){var c=a.queue;null!==c&&(c.pending=null);a=a.next}Pi=!1}Oi=0;R=Q=P=null;Qi=!1;Si=Ri=0;jm.current=null;lm=!0;mm=b;a=Z;null===a?(V=1,om=b):(c=null!==b&&"object"===typeof b&&"function"===typeof b.then,a.mode&2&&Yj(a,!0),Jc(),c?null!==D&&"function"===typeof D.markComponentSuspended&&D.markComponentSuspended(a,b,L):null!==D&&"function"===typeof D.markComponentErrored&&D.markComponentErrored(a,b,L),c&&Li(b))}
-function Jm(){var a=im.current;im.current=Zi;return null===a?Zi:a}function Ok(){if(0===V||3===V||2===V)V=4;null===T||0===(Vh&268435455)&&0===(pm&268435455)||Cm(T,L)}function Im(a,b){var c=K;K|=2;var d=Jm();if(T!==a||L!==b){if(Cc){var e=a.memoizedUpdaters;0<e.size&&(Ml(a,L),e.clear());fd(a,b)}tm=null;Km(a,b)}Mc(b);do try{Sm();break}catch(f){Mm(a,f)}while(1);vh();K=c;im.current=d;if(null!==Z)throw Error(z(261));Nc();T=null;L=0;Hh();return V}
-function Sm(){if(lm){var a=mm;lm=!1;mm=null;null!==Z&&Tm(Z,a)}for(;null!==Z;)Um(Z)}function Lm(){if(lm){var a=mm;lm=!1;mm=null;null!==Z&&Tm(Z,a)}for(;null!==Z&&!sc();)Um(Z)}function Um(a){var b=a.alternate;0!==(a.mode&2)?(Xj(a),b=Vm(b,a,vi),Yj(a,!0)):b=Vm(b,a,vi);a.memoizedProps=a.pendingProps;null===b?Wm(a):Z=b;jm.current=null}
-function Tm(a,b){if(null!==Ji){var c=Ji.status;c="fulfilled"===c||"rejected"===c}else c=!1;Ji=null;if(c){var d=a.alternate;dl(d,a);a=Z=al(a,vi);0!==(a.mode&2)?(Xj(a),d=Vm(d,a,vi),Yj(a,!0)):d=Vm(d,a,vi);Ki=null;a.memoizedProps=a.pendingProps;null===d?Wm(a):Z=d;jm.current=null}else if(Ki=null,c=a.return,null===c||null===T)V=1,om=b,Z=null;else{try{a:{var e=T,f=a,g=b;b=L;f.flags|=16384;Cc&&Ml(e,b);if(null!==g&&"object"===typeof g&&"function"===typeof g.then){var h=g,k=f.tag;if(0===(f.mode&1)&&(0===k||
-11===k||15===k)){var l=f.alternate;l?(f.updateQueue=l.updateQueue,f.memoizedState=l.memoizedState,f.lanes=l.lanes):(f.updateQueue=null,f.memoizedState=null)}var m=N.current;if(null!==m){switch(m.tag){case 13:m.flags&=-129;lk(m,c,f,e,b);var v=m.updateQueue;null===v?m.updateQueue=new Set([h]):v.add(h);break;case 22:if(m.mode&1){m.flags|=32768;var x=m.updateQueue;if(null===x){var y={transitions:null,markerInstances:null,wakeables:new Set([h])};m.updateQueue=y}else{var n=x.wakeables;null===n?x.wakeables=
-new Set([h]):n.add(h)}break}default:throw Error(z(435,m.tag));}m.mode&1&&Xm(e,h,b);break a}else{if(0===(b&1)){Xm(e,h,b);Ok();break a}g=Error(z(426))}}else if(J&&f.mode&1&&(h=N.current,null!==h)){0===(h.flags&32768)&&(h.flags|=128);lk(h,c,f,e,b);oh(dk(g,f));break a}k=g=dk(g,f);4!==V&&(V=2);null===rm?rm=[k]:rm.push(k);k=c;do{switch(k.tag){case 3:var r=g;k.flags|=32768;var A=b&-b;k.lanes|=A;d=gk(k,r,A);Th(k,d);break a;case 1:l=g;A=k.type;var w=k.stateNode;if(0===(k.flags&64)&&("function"===typeof A.getDerivedStateFromError||
-null!==w&&"function"===typeof w.componentDidCatch&&(null===kk||!kk.has(w)))){k.flags|=32768;d=b&-b;k.lanes|=d;r=jk(k,l,d);Th(k,r);break a}}k=k.return}while(null!==k)}}catch(t){throw Z=c,t;}Wm(a)}}
-function Wm(a){var b=a;do{var c=b.alternate;a=b.return;if(0===(b.flags&16384)){if(0===(b.mode&2)?c=Zk(c,b,vi):(Xj(b),c=Zk(c,b,vi),Yj(b,!1)),null!==c){Z=c;return}}else{c=cl(c,b);if(null!==c){c.flags&=16383;Z=c;return}if(0!==(b.mode&2)){Yj(b,!1);c=b.actualDuration;for(var d=b.child;null!==d;)c+=d.actualDuration,d=d.sibling;b.actualDuration=c}if(null!==a)a.flags|=16384,a.subtreeFlags=0,a.deletions=null;else{V=6;Z=null;return}}b=b.sibling;if(null!==b){Z=b;return}Z=b=a}while(null!==b);0===V&&(V=5)}
-function Pm(a,b,c){var d=E,e=km.transition;try{km.transition=null,E=1,Ym(a,b,c,d)}finally{km.transition=e,E=d}return null}
-function Ym(a,b,c,d){do Hm();while(null!==vm);if(0!==(K&6))throw Error(z(327));var e=a.finishedWork,f=a.finishedLanes;null!==D&&"function"===typeof D.markCommitStarted&&D.markCommitStarted(f);if(null===e)return Hc(),null;a.finishedWork=null;a.finishedLanes=0;if(e===a.current)throw Error(z(177));a.callbackNode=null;a.callbackPriority=0;var g=e.lanes|e.childLanes;g|=Gh;cd(a,g);a===T&&(Z=T=null,L=0);0===(e.subtreeFlags&5128)&&0===(e.flags&5128)||um||(um=!0,ym=g,zm=c,Fm(xc,function(){Hm();return null}));
-c=0!==(e.flags&7998);if(0!==(e.subtreeFlags&7998)||c){c=km.transition;km.transition=null;var h=E;E=1;var k=K;K|=4;jm.current=null;pl(a,e);Rj=Qj();Nl(a,e,f);rf(dg);Hd=!!cg;dg=cg=null;a.current=e;null!==D&&"function"===typeof D.markLayoutEffectsStarted&&D.markLayoutEffectsStarted(f);Tl(e,a,f);null!==D&&"function"===typeof D.markLayoutEffectsStopped&&D.markLayoutEffectsStopped();tc();K=k;E=h;km.transition=c}else a.current=e,Rj=Qj();um?(um=!1,vm=a,wm=f):Zm(a,g);g=a.pendingLanes;0===g&&(kk=null);Dc(e.stateNode,
-d);Cc&&a.memoizedUpdaters.clear();Dm(a,C());if(null!==b)for(d=a.onRecoverableError,e=0;e<b.length;e++)f=b[e],g={digest:f.digest,componentStack:f.stack},d(f.value,g);if(hk)throw hk=!1,a=ik,ik=null,a;0!==(wm&1)&&0!==a.tag&&Hm();g=a.pendingLanes;0!==(g&1)?(Wj=!0,a===Nh?Mh++:(Mh=0,Nh=a)):Mh=0;Fg();Hc();return null}function Zm(a,b){0===(a.pooledCacheLanes&=b)&&(b=a.pooledCache,null!=b&&(a.pooledCache=null,Ii(b)))}
-function Hm(){if(null!==vm){var a=vm,b=ym;ym=0;var c=hd(wm),d=16>c?16:c;c=km.transition;var e=E;try{km.transition=null;E=d;if(null===vm)var f=!1;else{var g=zm;zm=null;d=vm;var h=wm;vm=null;wm=0;if(0!==(K&6))throw Error(z(331));null!==D&&"function"===typeof D.markPassiveEffectsStarted&&D.markPassiveEffectsStarted(h);var k=K;K|=4;em(d.current);Yl(d,d.current,h,g);g=xm;xm=[];for(h=0;h<g.length;h++){var l=g[h];if(K&4&&0!==(l.flags&4))switch(l.tag){case 12:var m=l.stateNode.passiveEffectDuration,v=l.memoizedProps,
-x=v.id,y=v.onPostCommit,n=Rj,r=null===l.alternate?"mount":"update";Vj&&(r="nested-update");"function"===typeof y&&y(x,r,m,n);var A=l.return;b:for(;null!==A;){switch(A.tag){case 3:A.stateNode.passiveEffectDuration+=m;break b;case 12:A.stateNode.passiveEffectDuration+=m;break b}A=A.return}}}null!==D&&"function"===typeof D.markPassiveEffectsStopped&&D.markPassiveEffectsStopped();K=k;Fg();if(Bc&&"function"===typeof Bc.onPostCommitFiberRoot)try{Bc.onPostCommitFiberRoot(Ac,d)}catch(t){}var w=d.current.stateNode;
-w.effectDuration=0;w.passiveEffectDuration=0;f=!0}return f}finally{E=e,km.transition=c,Zm(a,b)}}return!1}function wl(a){xm.push(a);um||(um=!0,Fm(xc,function(){Hm();return null}))}function $m(a,b,c){b=dk(c,b);b=gk(a,b,1);a=Rh(a,b,1);b=$h();null!==a&&(bd(a,1,b),Dm(a,b))}
-function X(a,b,c){if(3===a.tag)$m(a,a,c);else for(;null!==b;){if(3===b.tag){$m(b,a,c);break}else if(1===b.tag){var d=b.stateNode;if("function"===typeof b.type.getDerivedStateFromError||"function"===typeof d.componentDidCatch&&(null===kk||!kk.has(d))){a=dk(c,a);a=jk(b,a,1);b=Rh(b,a,1);a=$h();null!==b&&(bd(b,1,a),Dm(b,a));break}}b=b.return}}
-function Xm(a,b,c){var d=a.pingCache;if(null===d){d=a.pingCache=new hm;var e=new Set;d.set(b,e)}else e=d.get(b),void 0===e&&(e=new Set,d.set(b,e));e.has(c)||(nm=!0,e.add(c),d=an.bind(null,a,b,c),Cc&&Ml(a,c),b.then(d,d))}function an(a,b,c){var d=a.pingCache;null!==d&&d.delete(b);b=$h();a.pingedLanes|=a.suspendedLanes&c;T===a&&(L&c)===c&&(4===V||3===V&&(L&130023424)===L&&500>C()-Rl?Km(a,0):qm|=c);Dm(a,b)}
-function bn(a,b){0===b&&(0===(a.mode&1)?b=1:(b=Uc,Uc<<=1,0===(Uc&130023424)&&(Uc=4194304)));var c=$h();a=Kh(a,b);null!==a&&(bd(a,b,c),Dm(a,c))}function Pk(a){var b=a.memoizedState,c=0;null!==b&&(c=b.retryLane);bn(a,c)}function Ll(a,b){var c=0;switch(a.tag){case 13:var d=a.stateNode;var e=a.memoizedState;null!==e&&(c=e.retryLane);break;case 19:d=a.stateNode;break;case 22:d=a.stateNode._retryCache;break;default:throw Error(z(314));}null!==d&&d.delete(b);bn(a,c)}var Vm;
-Vm=function(a,b,c){if(null!==a)if(a.memoizedProps!==b.pendingProps||rg.current)Ch=!0;else{if(0===(a.lanes&c)&&0===(b.flags&64))return Ch=!1,Tk(a,b,c);Ch=0!==(a.flags&65536)?!0:!1}else Ch=!1,J&&0!==(b.flags&524288)&&Qg(b,Jg,b.index);b.lanes=0;switch(b.tag){case 2:var d=b.type;Ck(a,b);a=b.pendingProps;var e=tg(b,I.current);Bh(b,c);Ic(b);e=Vi(null,b,d,a,e,c);var f=$i();Jc();b.flags|=1;"object"===typeof e&&null!==e&&"function"===typeof e.render&&void 0===e.$$typeof?(b.tag=1,b.memoizedState=null,b.updateQueue=
-null,ug(d)?(f=!0,yg(b)):f=!1,b.memoizedState=null!==e.state&&void 0!==e.state?e.state:null,Ph(b),e.updater=ci,b.stateNode=e,e._reactInternals=b,gi(b,d,a,c),b=Dk(null,b,d,!0,f,c)):(b.tag=0,J&&f&&Rg(b),rk(null,b,e,c),b=b.child);return b;case 16:d=b.elementType;a:{Ck(a,b);a=b.pendingProps;e=d._init;d=e(d._payload);b.type=d;e=b.tag=cn(d);a=qh(d,a);switch(e){case 0:b=xk(null,b,d,a,c);break a;case 1:b=Bk(null,b,d,a,c);break a;case 11:b=sk(null,b,d,a,c);break a;case 14:b=uk(null,b,d,qh(d.type,a),c);break a}throw Error(z(306,
-d,""));}return b;case 0:return d=b.type,e=b.pendingProps,e=b.elementType===d?e:qh(d,e),xk(a,b,d,e,c);case 1:return d=b.type,e=b.pendingProps,e=b.elementType===d?e:qh(d,e),Bk(a,b,d,e,c);case 3:a:{Ek(b);if(null===a)throw Error(z(387));e=b.pendingProps;f=b.memoizedState;d=f.element;Qh(a,b);Uh(b,e,null,c);var g=b.memoizedState;e=g.cache;wh(b,O,e);e!==f.cache&&zh(b,O,c);e=g.element;if(f.isDehydrated)if(f={element:e,isDehydrated:!1,cache:g.cache},b.updateQueue.baseState=f,b.memoizedState=f,b.flags&128){d=
-dk(Error(z(423)),b);b=Fk(a,b,e,c,d);break a}else if(e!==d){d=dk(Error(z(424)),b);b=Fk(a,b,e,c,d);break a}else for(ch=mg(b.stateNode.containerInfo.firstChild),bh=b,J=!0,dh=null,c=ri(b,null,e,c),b.child=c;c;)c.flags=c.flags&-3|2048,c=c.sibling;else{nh();if(e===d){b=tk(a,b,c);break a}rk(a,b,e,c)}b=b.child}return b;case 5:return $g(b),null===a&&jh(b),d=b.type,e=b.pendingProps,f=null!==a?a.memoizedProps:null,g=e.children,eg(d,e)?g=null:null!==f&&eg(d,f)&&(b.flags|=16),zk(a,b),rk(a,b,g,c),b.child;case 6:return null===
-a&&jh(b),null;case 13:return Ik(a,b,c);case 4:return Yg(b,b.stateNode.containerInfo),d=b.pendingProps,null===a?b.child=qi(b,null,d,c):rk(a,b,d,c),b.child;case 11:return d=b.type,e=b.pendingProps,e=b.elementType===d?e:qh(d,e),sk(a,b,d,e,c);case 7:return rk(a,b,b.pendingProps,c),b.child;case 8:return rk(a,b,b.pendingProps.children,c),b.child;case 12:return b.flags|=4,d=b.stateNode,d.effectDuration=0,d.passiveEffectDuration=0,rk(a,b,b.pendingProps.children,c),b.child;case 10:a:{d=b.type._context;e=b.pendingProps;
-f=b.memoizedProps;g=e.value;wh(b,d,g);if(null!==f)if(kf(f.value,g)){if(f.children===e.children&&!rg.current){b=tk(a,b,c);break a}}else zh(b,d,c);rk(a,b,e.children,c);b=b.child}return b;case 9:return e=b.type,d=b.pendingProps.children,Bh(b,c),e=Dh(e),Ic(b),d=d(e),Jc(),b.flags|=1,rk(a,b,d,c),b.child;case 14:return d=b.type,e=qh(d,b.pendingProps),e=qh(d.type,e),uk(a,b,d,e,c);case 15:return wk(a,b,b.type,b.pendingProps,c);case 17:return d=b.type,e=b.pendingProps,e=b.elementType===d?e:qh(d,e),Ck(a,b),
-b.tag=1,ug(d)?(a=!0,yg(b)):a=!1,Bh(b,c),ei(b,d,e),gi(b,d,e,c),Dk(null,b,d,!0,a,c);case 19:return Sk(a,b,c);case 22:return yk(a,b,c);case 24:return Bh(b,c),d=Dh(O),null===a?(e=nk(),null===e&&(e=T,f=Hi(),e.pooledCache=f,f.refCount++,null!==f&&(e.pooledCacheLanes|=c),e=f),b.memoizedState={parent:d,cache:e},Ph(b),wh(b,O,e)):(0!==(a.lanes&c)&&(Qh(a,b),Uh(b,null,null,c)),e=a.memoizedState,f=b.memoizedState,e.parent!==d?(e={parent:d,cache:d},b.memoizedState=e,0===b.lanes&&(b.memoizedState=b.updateQueue.baseState=
-e),wh(b,O,d)):(d=f.cache,wh(b,O,d),d!==e.cache&&zh(b,O,c))),rk(a,b,b.pendingProps.children,c),b.child}throw Error(z(156,b.tag));};function Ml(a,b){Cc&&a.memoizedUpdaters.forEach(function(c){ed(a,c,b)})}function Fm(a,b){return qc(a,b)}
-function dn(a,b,c,d){this.tag=a;this.key=c;this.sibling=this.child=this.return=this.stateNode=this.type=this.elementType=null;this.index=0;this.ref=null;this.pendingProps=b;this.dependencies=this.memoizedState=this.updateQueue=this.memoizedProps=null;this.mode=d;this.subtreeFlags=this.flags=0;this.deletions=null;this.childLanes=this.lanes=0;this.alternate=null;this.actualDuration=0;this.actualStartTime=-1;this.treeBaseDuration=this.selfBaseDuration=0}function fh(a,b,c,d){return new dn(a,b,c,d)}
-function vk(a){a=a.prototype;return!(!a||!a.isReactComponent)}function cn(a){if("function"===typeof a)return vk(a)?1:0;if(void 0!==a&&null!==a){a=a.$$typeof;if(a===ma)return 11;if(a===pa)return 14}return 2}
-function li(a,b){var c=a.alternate;null===c?(c=fh(a.tag,b,a.key,a.mode),c.elementType=a.elementType,c.type=a.type,c.stateNode=a.stateNode,c.alternate=a,a.alternate=c):(c.pendingProps=b,c.type=a.type,c.flags=0,c.subtreeFlags=0,c.deletions=null,c.actualDuration=0,c.actualStartTime=-1);c.flags=a.flags&7340032;c.childLanes=a.childLanes;c.lanes=a.lanes;c.child=a.child;c.memoizedProps=a.memoizedProps;c.memoizedState=a.memoizedState;c.updateQueue=a.updateQueue;b=a.dependencies;c.dependencies=null===b?null:
+function Bl(a,b,c){var d=b.pendingProps;Eh(b);switch(b.tag){case 2:case 16:case 15:case 0:case 11:case 7:case 8:case 12:case 9:case 14:return U(b),null;case 1:return gh(b.type)&&hh(),U(b),null;case 3:c=b.stateNode;d=null;null!==a&&(d=a.memoizedState.cache);b.memoizedState.cache!==d&&(b.flags|=1024);ai(N);ig();G(dh);G(ch);gj();c.pendingContext&&(c.context=c.pendingContext,c.pendingContext=null);if(null===a||null===a.child)Ph(b)?b.flags|=4:null===a||a.memoizedState.isDehydrated&&0===(b.flags&128)||
+(b.flags|=512,null!==Hh&&(Cl(Hh),Hh=null));xl(a,b);U(b);return null;case 26:kg(b);(a?a.ref:null)!==b.ref&&vl(b);if(null===a||a.memoizedState!==b.memoizedState)b.flags|=4;U(b);return null;case 27:kg(b);c=gg(fg.current);var e=b.type;if(null!==a&&null!=b.stateNode)yl(a,b,e,d),a.ref!==b.ref&&vl(b);else{if(!d){if(null===b.stateNode)throw Error(r(166));U(b);return null}a=gg(dg.current);Ph(b)?Nh(b,a):(b.stateNode=Vg(e,d,c),b.flags|=4);null!==b.ref&&vl(b)}U(b);return null;case 5:kg(b);c=b.type;if(null!==
+a&&null!=b.stateNode)yl(a,b,c,d),a.ref!==b.ref&&vl(b);else{if(!d){if(null===b.stateNode)throw Error(r(166));U(b);return null}a=gg(dg.current);if(Ph(b))Nh(b,a)&&(b.flags|=4);else{e=gg(fg.current);a=Yf(c,d,e,a);a[Xg]=b;a[Yg]=d;wl(a,b,!1,!1);b.stateNode=a;a:switch(Zf(a,c,d),c){case "button":case "input":case "select":case "textarea":a=!!d.autoFocus;break a;case "img":a=!0;break a;default:a=!1}a&&(b.flags|=4)}null!==b.ref&&vl(b)}U(b);return null;case 6:if(a&&null!=b.stateNode)zl(a,b,a.memoizedProps,d);
+else{if("string"!==typeof d&&null===b.stateNode)throw Error(r(166));a=gg(fg.current);gg(dg.current);if(Ph(b)){a=b.stateNode;c=b.memoizedProps;a[Xg]=b;if(d=a.nodeValue!==c)if(e=Fh,null!==e)switch(e.tag){case 3:Wf(a.nodeValue,c,0!==(e.mode&1));break;case 27:case 5:!0!==e.memoizedProps.suppressHydrationWarning&&Wf(a.nodeValue,c,0!==(e.mode&1))}d&&(b.flags|=4)}else a=(9===a.nodeType?a:a.ownerDocument).createTextNode(d),a[Xg]=b,b.stateNode=a}U(b);return null;case 13:G(L);d=b.memoizedState;if(null===a||
+null!==a.memoizedState&&null!==a.memoizedState.dehydrated){if(I&&null!==Gh&&0!==(b.mode&1)&&0===(b.flags&64))Qh(),Rh(),b.flags|=49280,e=!1;else if(e=Ph(b),null!==d&&null!==d.dehydrated){if(null===a){if(!e)throw Error(r(318));e=b.memoizedState;e=null!==e?e.dehydrated:null;if(!e)throw Error(r(317));e[Xg]=b;U(b);0!==(b.mode&2)&&null!==d&&(e=b.child,null!==e&&(b.treeBaseDuration-=e.treeBaseDuration))}else Rh(),0===(b.flags&64)&&(b.memoizedState=null),b.flags|=4,U(b),0!==(b.mode&2)&&null!==d&&(e=b.child,
+null!==e&&(b.treeBaseDuration-=e.treeBaseDuration));e=!1}else null!==Hh&&(Cl(Hh),Hh=null),e=!0;if(!e)return b.flags&32768?b:null}if(0!==(b.flags&64))return b.lanes=c,0!==(b.mode&2)&&Fk(b),b;c=null!==d;d=null!==a&&null!==a.memoizedState;if(c){e=b.child;var f=null;null!==e.alternate&&null!==e.alternate.memoizedState&&null!==e.alternate.memoizedState.cachePool&&(f=e.alternate.memoizedState.cachePool.pool);var g=null;null!==e.memoizedState&&null!==e.memoizedState.cachePool&&(g=e.memoizedState.cachePool.pool);
+g!==f&&(e.flags|=1024)}c!==d&&c&&(b.child.flags|=4096,0!==(b.mode&1)&&(null===a||d||null!==Wi.current?0===V&&(V=3):pl()));null!==b.updateQueue&&(b.flags|=4);U(b);0!==(b.mode&2)&&c&&(a=b.child,null!==a&&(b.treeBaseDuration-=a.treeBaseDuration));return null;case 4:return ig(),xl(a,b),null===a&&Of(b.stateNode.containerInfo),U(b),null;case 10:return ai(b.type._context),U(b),null;case 17:return gh(b.type)&&hh(),U(b),null;case 19:G(dj);e=b.memoizedState;if(null===e)return U(b),null;d=0!==(b.flags&64);f=
+e.rendering;if(null===f)if(d)Al(e,!1);else{if(0!==V||null!==a&&0!==(a.flags&64))for(a=b.child;null!==a;){f=ej(a);if(null!==f){b.flags|=64;Al(e,!1);a=f.updateQueue;null!==a&&(b.updateQueue=a,b.flags|=4);b.subtreeFlags=0;a=c;for(c=b.child;null!==c;)Dl(c,a),c=c.sibling;H(dj,dj.current&1|2);return b.child}a=a.sibling}null!==e.tail&&C()>El&&(b.flags|=64,d=!0,Al(e,!1),b.lanes=4194304)}else{if(!d)if(a=ej(f),null!==a){if(b.flags|=64,d=!0,a=a.updateQueue,null!==a&&(b.updateQueue=a,b.flags|=4),Al(e,!0),null===
+e.tail&&"hidden"===e.tailMode&&!f.alternate&&!I)return U(b),null}else 2*C()-e.renderingStartTime>El&&1073741824!==c&&(b.flags|=64,d=!0,Al(e,!1),b.lanes=4194304);e.isBackwards?(f.sibling=b.child,b.child=f):(a=e.last,null!==a?a.sibling=f:b.child=f,e.last=f)}if(null!==e.tail)return b=e.tail,e.rendering=b,e.tail=b.sibling,e.renderingStartTime=C(),b.sibling=null,a=dj.current,H(dj,d?a&1|2:a&1),b;U(b);return null;case 22:case 23:return G(L),aj(),d=null!==b.memoizedState,null!==a?null!==a.memoizedState!==
+d&&(b.flags|=4096):d&&(b.flags|=4096),d&&0!==(b.mode&1)?0!==(c&1073741824)&&0===(b.flags&64)&&(U(b),b.subtreeFlags&6&&(b.flags|=4096)):U(b),null!==b.updateQueue&&(b.flags|=4),c=null,null!==a&&null!==a.memoizedState&&null!==a.memoizedState.cachePool&&(c=a.memoizedState.cachePool.pool),d=null,null!==b.memoizedState&&null!==b.memoizedState.cachePool&&(d=b.memoizedState.cachePool.pool),d!==c&&(b.flags|=1024),null!==a&&G(Pk),null;case 24:return c=null,null!==a&&(c=a.memoizedState.cache),b.memoizedState.cache!==
+c&&(b.flags|=1024),ai(N),U(b),null;case 25:return null}throw Error(r(156,b.tag));}
+function Fl(a,b){Eh(b);switch(b.tag){case 1:return gh(b.type)&&hh(),a=b.flags,a&32768?(b.flags=a&-32769|64,0!==(b.mode&2)&&Fk(b),b):null;case 3:return ai(N),ig(),G(dh),G(ch),gj(),a=b.flags,0!==(a&32768)&&0===(a&64)?(b.flags=a&-32769|64,b):null;case 26:case 27:case 5:return kg(b),null;case 13:G(L);a=b.memoizedState;if(null!==a&&null!==a.dehydrated){if(null===b.alternate)throw Error(r(340));Rh()}a=b.flags;return a&32768?(b.flags=a&-32769|64,0!==(b.mode&2)&&Fk(b),b):null;case 19:return G(dj),null;case 4:return ig(),
+null;case 10:return ai(b.type._context),null;case 22:case 23:return G(L),aj(),null!==a&&G(Pk),a=b.flags,a&32768?(b.flags=a&-32769|64,0!==(b.mode&2)&&Fk(b),b):null;case 24:return ai(N),null;case 25:return null;default:return null}}
+function Gl(a,b){Eh(b);switch(b.tag){case 1:a=b.type.childContextTypes;null!==a&&void 0!==a&&hh();break;case 3:ai(N);ig();G(dh);G(ch);gj();break;case 26:case 27:case 5:kg(b);break;case 4:ig();break;case 13:G(L);break;case 19:G(dj);break;case 10:ai(b.type._context);break;case 22:case 23:G(L);aj();null!==a&&G(Pk);break;case 24:ai(N)}}var Hl=!1,Il=!1,Jl="function"===typeof WeakSet?WeakSet:Set,W=null,Kl=null,Ll=null;function Ml(a){return 0!==(a.mode&2)&&0!==(J&4)}
+function Nl(a,b){b.props=a.memoizedProps;b.state=a.memoizedState;if(Ml(a))try{Ek(),b.componentWillUnmount()}finally{Ck(a)}else b.componentWillUnmount()}function Ol(a,b){try{var c=a.ref;if(null!==c){var d=a.stateNode;switch(a.tag){case 26:case 27:case 5:var e=d;break;default:e=d}if("function"===typeof c)if(Ml(a))try{Ek(),c(e)}finally{Ck(a)}else c(e);else c.current=e}}catch(f){X(a,b,f)}}
+function Pl(a,b){var c=a.ref;if(null!==c)if("function"===typeof c)try{if(Ml(a))try{Ek(),c(null)}finally{Ck(a)}else c(null)}catch(d){X(a,b,d)}else c.current=null}function Ql(a,b,c){try{c()}catch(d){X(a,b,d)}}var Rl=!1;
+function Sl(a,b){Ig=zd;a=hf();if(jf(a)){if("selectionStart"in a)var c={start:a.selectionStart,end:a.selectionEnd};else a:{c=(c=a.ownerDocument)&&c.defaultView||window;var d=c.getSelection&&c.getSelection();if(d&&0!==d.rangeCount){c=d.anchorNode;var e=d.anchorOffset,f=d.focusNode;d=d.focusOffset;try{c.nodeType,f.nodeType}catch(ha){c=null;break a}var g=0,h=-1,k=-1,l=0,p=0,q=a,x=null;b:for(;;){for(var y;;){q!==c||0!==e&&3!==q.nodeType||(h=g+e);q!==f||0!==d&&3!==q.nodeType||(k=g+d);3===q.nodeType&&(g+=
+q.nodeValue.length);if(null===(y=q.firstChild))break;x=q;q=y}for(;;){if(q===a)break b;x===c&&++l===e&&(h=g);x===f&&++p===d&&(k=g);if(null!==(y=q.nextSibling))break;q=x;x=q.parentNode}q=y}c=-1===h||-1===k?null:{start:h,end:k}}else c=null}c=c||{start:0,end:0}}else c=null;Jg={focusedElem:a,selectionRange:c};zd=!1;for(W=b;null!==W;)if(b=W,a=b.child,0!==(b.subtreeFlags&516)&&null!==a)a.return=b,W=a;else for(;null!==W;){b=W;try{var n=b.alternate,u=b.flags;switch(b.tag){case 0:if(0!==(u&4)){var B=b.updateQueue,
+t=null!==B?B.events:null;if(null!==t)for(a=0;a<t.length;a+=2)t[a]._impl=t[a+1]}break;case 11:case 15:break;case 1:if(0!==(u&512)&&null!==n){var w=n.memoizedProps,v=n.memoizedState,M=b.stateNode,Pa=M.getSnapshotBeforeUpdate(b.elementType===b.type?w:Uh(b.type,w),v);M.__reactInternalSnapshotBeforeUpdate=Pa}break;case 3:0!==(u&512)&&Rg(b.stateNode.containerInfo);break;case 5:case 26:case 27:case 6:case 4:case 17:break;default:if(0!==(u&512))throw Error(r(163));}}catch(ha){X(b,b.return,ha)}a=b.sibling;
+if(null!==a){a.return=b.return;W=a;break}W=b.return}n=Rl;Rl=!1;return n}
+function Tl(a,b,c){var d=b.updateQueue;d=null!==d?d.lastEffect:null;if(null!==d){var e=d=d.next;do{if((e.tag&a)===a){var f=e.destroy;e.destroy=void 0;void 0!==f&&(0!==(a&8)?null!==D&&"function"===typeof D.markComponentPassiveEffectUnmountStarted&&D.markComponentPassiveEffectUnmountStarted(b):0!==(a&4)&&Bc(b),Ql(b,c,f),0!==(a&8)?null!==D&&"function"===typeof D.markComponentPassiveEffectUnmountStopped&&D.markComponentPassiveEffectUnmountStopped():0!==(a&4)&&Cc())}e=e.next}while(e!==d)}}
+function Ul(a,b){var c=b.updateQueue;c=null!==c?c.lastEffect:null;if(null!==c){var d=c=c.next;do{if((d.tag&a)===a){0!==(a&8)?null!==D&&"function"===typeof D.markComponentPassiveEffectMountStarted&&D.markComponentPassiveEffectMountStarted(b):0!==(a&4)&&null!==D&&"function"===typeof D.markComponentLayoutEffectMountStarted&&D.markComponentLayoutEffectMountStarted(b);var e=d.create;d.destroy=e();0!==(a&8)?null!==D&&"function"===typeof D.markComponentPassiveEffectMountStopped&&D.markComponentPassiveEffectMountStopped():
+0!==(a&4)&&null!==D&&"function"===typeof D.markComponentLayoutEffectMountStopped&&D.markComponentLayoutEffectMountStopped()}d=d.next}while(d!==c)}}function Vl(a,b){if(Ml(a)){try{Ek(),Ul(b,a)}catch(c){X(a,a.return,c)}Ck(a)}else try{Ul(b,a)}catch(c){X(a,a.return,c)}}function Wl(a){var b=a.updateQueue;if(null!==b){var c=a.stateNode;try{Ai(b,c)}catch(d){X(a,a.return,d)}}}
+function Xl(a){var b=a.type,c=a.memoizedProps,d=a.stateNode;try{a:switch(b){case "button":case "input":case "select":case "textarea":c.autoFocus&&d.focus();break a;case "img":c.src&&(d.src=c.src)}}catch(e){X(a,a.return,e)}}
+function Yl(a,b){if(J&4)try{var c=a.memoizedProps,d=c.onCommit,e=c.onRender,f=a.stateNode.effectDuration;c=uk;b=null===b?"mount":"update";yk&&(b="nested-update");"function"===typeof e&&e(a.memoizedProps.id,b,a.actualDuration,a.treeBaseDuration,a.actualStartTime,c);"function"===typeof d&&d(a.memoizedProps.id,b,f,c);Zl(a);var g=a.return;a:for(;null!==g;){switch(g.tag){case 3:g.stateNode.effectDuration+=f;break a;case 12:g.stateNode.effectDuration+=f;break a}g=g.return}}catch(h){X(a,a.return,h)}}
+function $l(a,b,c){var d=c.flags;switch(c.tag){case 0:case 11:case 15:am(a,c);d&4&&Vl(c,5);break;case 1:am(a,c);if(d&4)if(a=c.stateNode,null===b)if(Ml(c)){try{Ek(),a.componentDidMount()}catch(h){X(c,c.return,h)}Ck(c)}else try{a.componentDidMount()}catch(h){X(c,c.return,h)}else{var e=c.elementType===c.type?b.memoizedProps:Uh(c.type,b.memoizedProps);b=b.memoizedState;if(Ml(c)){try{Ek(),a.componentDidUpdate(e,b,a.__reactInternalSnapshotBeforeUpdate)}catch(h){X(c,c.return,h)}Ck(c)}else try{a.componentDidUpdate(e,
+b,a.__reactInternalSnapshotBeforeUpdate)}catch(h){X(c,c.return,h)}}d&32&&Wl(c);d&256&&Ol(c,c.return);break;case 3:am(a,c);if(d&32&&(d=c.updateQueue,null!==d)){a=null;if(null!==c.child)switch(c.child.tag){case 27:case 5:a=c.child.stateNode;break;case 1:a=c.child.stateNode}try{Ai(d,a)}catch(h){X(c,c.return,h)}}break;case 26:am(a,c);d&4&&(a=c.memoizedState,null!==b&&(b=b.memoizedState,b!==a&&Dg(b)),c.stateNode=a?xg(a):null);d&256&&Ol(c,c.return);break;case 27:case 5:am(a,c);null===b&&d&4&&Xl(c);d&256&&
+Ol(c,c.return);break;case 12:am(a,c);d&4&&Yl(c,b);break;case 13:am(a,c);d&4&&bm(a,c);break;case 22:if(0!==(c.mode&1)){if(e=null!==c.memoizedState||Hl,!e){b=null!==b&&null!==b.memoizedState||Il;var f=Hl,g=Il;Hl=e;(Il=b)&&!g?cm(a,c,0!==(c.subtreeFlags&4388)):am(a,c);Hl=f;Il=g}}else am(a,c);d&256&&("manual"===c.memoizedProps.mode?Ol(c,c.return):Pl(c,c.return));break;default:am(a,c)}}
+function dm(a){var b=a.alternate;null!==b&&(a.alternate=null,dm(b));a.child=null;a.deletions=null;a.sibling=null;5===a.tag&&(b=a.stateNode,null!==b&&Sg(b));a.stateNode=null;a.return=null;a.dependencies=null;a.memoizedProps=null;a.memoizedState=null;a.pendingProps=null;a.stateNode=null;a.updateQueue=null}function em(a){return 5===a.tag||3===a.tag||26===a.tag||27===a.tag||4===a.tag}
+function fm(a){a:for(;;){for(;null===a.sibling;){if(null===a.return||em(a.return))return null;a=a.return}a.sibling.return=a.return;for(a=a.sibling;5!==a.tag&&6!==a.tag&&27!==a.tag&&18!==a.tag;){if(a.flags&2)continue a;if(null===a.child||4===a.tag)continue a;else a.child.return=a,a=a.child}if(!(a.flags&2))return a.stateNode}}
+function gm(a,b,c){var d=a.tag;if(5===d||6===d)a=a.stateNode,b?8===c.nodeType?c.parentNode.insertBefore(a,b):c.insertBefore(a,b):(8===c.nodeType?(b=c.parentNode,b.insertBefore(a,c)):(b=c,b.appendChild(a)),c=c._reactRootContainer,null!==c&&void 0!==c||null!==b.onclick||(b.onclick=Xf));else if(4!==d&&27!==d&&(a=a.child,null!==a))for(gm(a,b,c),a=a.sibling;null!==a;)gm(a,b,c),a=a.sibling}
+function hm(a,b,c){var d=a.tag;if(5===d||6===d)a=a.stateNode,b?c.insertBefore(a,b):c.appendChild(a);else if(4!==d&&27!==d&&(a=a.child,null!==a))for(hm(a,b,c),a=a.sibling;null!==a;)hm(a,b,c),a=a.sibling}var Y=null,im=!1;function jm(a,b,c){for(c=c.child;null!==c;)km(a,b,c),c=c.sibling}
+function km(a,b,c){if(sc&&"function"===typeof sc.onCommitFiberUnmount)try{sc.onCommitFiberUnmount(rc,c)}catch(h){}switch(c.tag){case 26:Il||Pl(c,b);jm(a,b,c);Dg(c.memoizedState);break;case 27:Il||Pl(c,b);var d=Y,e=im;Y=c.stateNode;jm(a,b,c);c=c.stateNode;for(a=c.attributes;a.length;)c.removeAttributeNode(a[0]);Sg(c);Y=d;im=e;break;case 5:Il||Pl(c,b);case 6:d=Y;e=im;Y=null;jm(a,b,c);Y=d;im=e;null!==Y&&(im?(a=Y,c=c.stateNode,8===a.nodeType?a.parentNode.removeChild(c):a.removeChild(c)):Y.removeChild(c.stateNode));
+break;case 18:null!==Y&&(im?(a=Y,c=c.stateNode,8===a.nodeType?Qg(a.parentNode,c):1===a.nodeType&&Qg(a,c),xd(a)):Qg(Y,c.stateNode));break;case 4:d=Y;e=im;Y=c.stateNode.containerInfo;im=!0;jm(a,b,c);Y=d;im=e;break;case 0:case 11:case 14:case 15:if(!Il&&(d=c.updateQueue,null!==d&&(d=d.lastEffect,null!==d))){e=d=d.next;do{var f=e,g=f.destroy;f=f.tag;void 0!==g&&(0!==(f&2)?Ql(c,b,g):0!==(f&4)&&(Bc(c),Ml(c)?(Ek(),Ql(c,b,g),Ck(c)):Ql(c,b,g),Cc()));e=e.next}while(e!==d)}jm(a,b,c);break;case 1:if(!Il&&(Pl(c,
+b),d=c.stateNode,"function"===typeof d.componentWillUnmount))try{Nl(c,d)}catch(h){X(c,b,h)}jm(a,b,c);break;case 21:jm(a,b,c);break;case 22:Pl(c,b);c.mode&1?(Il=(d=Il)||null!==c.memoizedState,jm(a,b,c),Il=d):jm(a,b,c);break;default:jm(a,b,c)}}function bm(a,b){if(null===b.memoizedState&&(a=b.alternate,null!==a&&(a=a.memoizedState,null!==a&&(a=a.dehydrated,null!==a))))try{xd(a)}catch(c){X(b,b.return,c)}}
+function lm(a){switch(a.tag){case 13:case 19:var b=a.stateNode;null===b&&(b=a.stateNode=new Jl);return b;case 22:return a=a.stateNode,b=a._retryCache,null===b&&(b=a._retryCache=new Jl),b;default:throw Error(r(435,a.tag));}}function mm(a,b){var c=lm(a);b.forEach(function(b){var d=nm.bind(null,a,b);if(!c.has(b)){c.add(b);if(tc)if(null!==Kl&&null!==Ll)om(Ll,Kl);else throw Error(r(413));b.then(d,d)}})}function pm(a,b,c){Kl=c;Ll=a;qm(b,a);Ll=Kl=null}
+function rm(a,b){var c=b.deletions;if(null!==c)for(var d=0;d<c.length;d++){var e=c[d];try{var f=a,g=b,h=g;a:for(;null!==h;){switch(h.tag){case 27:case 5:Y=h.stateNode;im=!1;break a;case 3:Y=h.stateNode.containerInfo;im=!0;break a;case 4:Y=h.stateNode.containerInfo;im=!0;break a}h=h.return}if(null===Y)throw Error(r(160));km(f,g,e);Y=null;im=!1;var k=e.alternate;null!==k&&(k.return=null);e.return=null}catch(l){X(e,b,l)}}if(b.subtreeFlags&6430)for(b=b.child;null!==b;)qm(b,a),b=b.sibling}
+function qm(a,b){var c=a.alternate,d=a.flags;switch(a.tag){case 0:case 11:case 14:case 15:rm(b,a);sm(a);if(d&4){try{Tl(3,a,a.return),Ul(3,a)}catch(n){X(a,a.return,n)}if(Ml(a)){try{Ek(),Tl(5,a,a.return)}catch(n){X(a,a.return,n)}Ck(a)}else try{Tl(5,a,a.return)}catch(n){X(a,a.return,n)}}break;case 1:rm(b,a);sm(a);d&256&&null!==c&&Pl(c,c.return);if(d&32&&Hl&&(a=a.updateQueue,null!==a&&(d=a.callbacks,null!==d))){var e=a.shared.hiddenCallbacks;a.shared.hiddenCallbacks=null===e?d:e.concat(d)}break;case 26:rm(b,
+a);sm(a);d&256&&null!==c&&Pl(c,c.return);break;case 27:if(d&4&&null===a.alternate){for(var f=a.stateNode,g=a.memoizedProps,h=f.firstChild;h;){var k=h.nextSibling,l=h.nodeName;Kb(h)||"HEAD"===l||"BODY"===l||"STYLE"===l||"LINK"===l&&"stylesheet"===h.rel.toLowerCase()||f.removeChild(h);h=k}h=a.type;for(k=f.attributes;k.length;)f.removeAttributeNode(k[0]);Zf(f,h,g);f[Xg]=a;f[Yg]=g}case 5:rm(b,a);sm(a);d&256&&null!==c&&Pl(c,c.return);if(a.flags&16){b=a.stateNode;try{wb(b,"")}catch(n){X(a,a.return,n)}}if(d&
+4&&(d=a.stateNode,null!=d&&(b=a.memoizedProps,g=null!==c?c.memoizedProps:b,c=a.type,f=a.updateQueue,a.updateQueue=null,null!==f)))try{"input"===c&&"radio"===b.type&&null!=b.name&&hb(d,b);Db(c,g);e=Db(c,b);for(g=0;g<f.length;g+=2){var p=f[g],q=f[g+1];"style"===p?Ab(d,q):"dangerouslySetInnerHTML"===p?vb(d,q):"children"===p?wb(d,q):va(d,p,q,e)}switch(c){case "input":ib(d,b);break;case "textarea":pb(d,b);break;case "select":var x=d._wrapperState.wasMultiple;d._wrapperState.wasMultiple=!!b.multiple;var y=
+b.value;null!=y?mb(d,!!b.multiple,y,!1):x!==!!b.multiple&&(null!=b.defaultValue?mb(d,!!b.multiple,b.defaultValue,!0):mb(d,!!b.multiple,b.multiple?[]:"",!1))}d[Yg]=b}catch(n){X(a,a.return,n)}break;case 6:rm(b,a);sm(a);if(d&4){if(null===a.stateNode)throw Error(r(162));d=a.stateNode;e=a.memoizedProps;try{d.nodeValue=e}catch(n){X(a,a.return,n)}}break;case 3:rm(b,a);sm(a);if(d&4&&null!==c&&c.memoizedState.isDehydrated)try{xd(b.containerInfo)}catch(n){X(a,a.return,n)}break;case 4:rm(b,a);sm(a);break;case 13:rm(b,
+a);sm(a);e=a.child;e.flags&4096&&null!==e.memoizedState&&(null===e.alternate||null===e.alternate.memoizedState)&&(tm=C());d&4&&(d=a.updateQueue,null!==d&&(a.updateQueue=null,mm(a,d)));break;case 22:d&256&&null!==c&&Pl(c,c.return);e=null!==a.memoizedState;p=null!==c&&null!==c.memoizedState;a.mode&1?(q=Hl,x=Il,Hl=q||e,Il=x||p,rm(b,a),Il=x,Hl=q):rm(b,a);sm(a);if(d&4096)a:for(q=a.stateNode,q._visibility=e?q._visibility&-2:q._visibility|1,e&&(p||0!==(a.mode&1)&&um(a)),p=null,q=a;;){if(5===q.tag||26===
+q.tag||27===q.tag){if(null===p){p=q;try{f=q.stateNode,e?(g=f.style,"function"===typeof g.setProperty?g.setProperty("display","none","important"):g.display="none"):(h=q.stateNode,k=q.memoizedProps.style,l=void 0!==k&&null!==k&&k.hasOwnProperty("display")?k.display:null,h.style.display=zb("display",l))}catch(n){X(a,a.return,n)}}}else if(6===q.tag){if(null===p)try{q.stateNode.nodeValue=e?"":q.memoizedProps}catch(n){X(a,a.return,n)}}else if((22!==q.tag&&23!==q.tag||null===q.memoizedState||q===a)&&null!==
+q.child){q.child.return=q;q=q.child;continue}if(q===a)break a;for(;null===q.sibling;){if(null===q.return||q.return===a)break a;p===q&&(p=null);q=q.return}p===q&&(p=null);q.sibling.return=q.return;q=q.sibling}d&4&&(d=a.updateQueue,null!==d&&(e=d.wakeables,null!==e&&(d.wakeables=null,mm(a,e))));break;case 19:rm(b,a);sm(a);d&4&&(d=a.updateQueue,null!==d&&(a.updateQueue=null,mm(a,d)));break;case 21:break;default:rm(b,a),sm(a)}}
+function sm(a){var b=a.flags;if(b&2){try{if(27!==a.tag){b:{for(var c=a.return;null!==c;){if(em(c)){var d=c;break b}c=c.return}throw Error(r(160));}switch(d.tag){case 27:var e=d.stateNode,f=fm(a);hm(a,f,e);break;case 5:var g=d.stateNode;d.flags&16&&(wb(g,""),d.flags&=-17);var h=fm(a);hm(a,h,g);break;case 3:case 4:var k=d.stateNode.containerInfo,l=fm(a);gm(a,l,k);break;default:throw Error(r(161));}}}catch(p){X(a,a.return,p)}a.flags&=-3}b&2048&&(a.flags&=-2049)}
+function vm(a,b,c){Kl=c;Ll=b;$l(b,a.alternate,a);Ll=Kl=null}function am(a,b){if(b.subtreeFlags&4388)for(b=b.child;null!==b;)$l(a,b.alternate,b),b=b.sibling}
+function um(a){for(a=a.child;null!==a;){var b=a;switch(b.tag){case 0:case 11:case 14:case 15:if(Ml(b))try{Ek(),Tl(4,b,b.return)}finally{Ck(b)}else Tl(4,b,b.return);um(b);break;case 1:Pl(b,b.return);var c=b.stateNode;if("function"===typeof c.componentWillUnmount){var d=b,e=b.return;try{Nl(d,c)}catch(f){X(d,e,f)}}um(b);break;case 26:case 27:case 5:Pl(b,b.return);um(b);break;case 22:Pl(b,b.return);null===b.memoizedState&&um(b);break;default:um(b)}a=a.sibling}}
+function cm(a,b,c){c=c&&0!==(b.subtreeFlags&4388);for(b=b.child;null!==b;){var d=b.alternate,e=a,f=b,g=f.flags;switch(f.tag){case 0:case 11:case 15:cm(e,f,c);Vl(f,4);break;case 1:cm(e,f,c);e=f.stateNode;if("function"===typeof e.componentDidMount)try{e.componentDidMount()}catch(k){X(f,f.return,k)}d=f.updateQueue;if(null!==d){var h=d.shared.hiddenCallbacks;if(null!==h)for(d.shared.hiddenCallbacks=null,d=0;d<h.length;d++)zi(h[d],e)}c&&g&32&&Wl(f);Ol(f,f.return);break;case 26:case 27:case 5:cm(e,f,c);
+c&&null===d&&g&4&&Xl(f);Ol(f,f.return);break;case 12:cm(e,f,c);c&&g&4&&Yl(f,d);break;case 13:cm(e,f,c);c&&g&4&&bm(e,f);break;case 22:null===f.memoizedState&&cm(e,f,c);Ol(f,f.return);break;default:cm(e,f,c)}b=b.sibling}}function wm(a,b){if(Ml(a)){xk=tk();try{Ul(b,a)}catch(c){X(a,a.return,c)}Dk(a)}else try{Ul(b,a)}catch(c){X(a,a.return,c)}}
+function xm(a,b){var c=null;null!==a&&null!==a.memoizedState&&null!==a.memoizedState.cachePool&&(c=a.memoizedState.cachePool.pool);a=null;null!==b.memoizedState&&null!==b.memoizedState.cachePool&&(a=b.memoizedState.cachePool.pool);a!==c&&(null!=a&&a.refCount++,null!=c&&lj(c))}function ym(a,b){a=null;null!==b.alternate&&(a=b.alternate.memoizedState.cache);b=b.memoizedState.cache;b!==a&&(b.refCount++,null!=a&&lj(a))}
+function zm(a,b,c,d){if(b.subtreeFlags&5128)for(b=b.child;null!==b;)Am(a,b,c,d),b=b.sibling}
+function Am(a,b,c,d){var e=b.flags;switch(b.tag){case 0:case 11:case 15:zm(a,b,c,d);e&1024&&wm(b,9);break;case 3:zm(a,b,c,d);e&1024&&(a=null,null!==b.alternate&&(a=b.alternate.memoizedState.cache),b=b.memoizedState.cache,b!==a&&(b.refCount++,null!=a&&lj(a)));break;case 23:break;case 22:var f=b.stateNode;null!==b.memoizedState?f._visibility&2?zm(a,b,c,d):b.mode&1?Bm(a,b):(f._visibility|=2,zm(a,b,c,d)):f._visibility&2?zm(a,b,c,d):(f._visibility|=2,Cm(a,b,c,d,0!==(b.subtreeFlags&5128)));e&1024&&xm(b.alternate,
+b);break;case 24:zm(a,b,c,d);e&1024&&ym(b.alternate,b);break;default:zm(a,b,c,d)}}
+function Cm(a,b,c,d,e){e=e&&0!==(b.subtreeFlags&5128);for(b=b.child;null!==b;){var f=a,g=b,h=c,k=d,l=g.flags;switch(g.tag){case 0:case 11:case 15:Cm(f,g,h,k,e);wm(g,8);break;case 23:break;case 22:var p=g.stateNode;null!==g.memoizedState?p._visibility&2?Cm(f,g,h,k,e):g.mode&1?Bm(f,g):(p._visibility|=2,Cm(f,g,h,k,e)):(p._visibility|=2,Cm(f,g,h,k,e));e&&l&1024&&xm(g.alternate,g);break;case 24:Cm(f,g,h,k,e);e&&l&1024&&ym(g.alternate,g);break;default:Cm(f,g,h,k,e)}b=b.sibling}}
+function Bm(a,b){if(b.subtreeFlags&5128)for(b=b.child;null!==b;){var c=a,d=b,e=d.flags;switch(d.tag){case 22:Bm(c,d);e&1024&&xm(d.alternate,d);break;case 24:Bm(c,d);e&1024&&ym(d.alternate,d);break;default:Bm(c,d)}b=b.sibling}}function Dm(a){var b=a.alternate;if(null!==b&&(a=b.child,null!==a)){b.child=null;do b=a.sibling,a.sibling=null,a=b;while(null!==a)}}function Em(a,b,c){Ml(a)?(xk=tk(),Tl(c,a,b),Dk(a)):Tl(c,a,b)}
+function Fm(a){var b=a.deletions;if(0!==(a.flags&8)){if(null!==b)for(var c=0;c<b.length;c++){var d=b[c];W=d;Gm(d,a)}Dm(a)}if(a.subtreeFlags&5128)for(a=a.child;null!==a;)Hm(a),a=a.sibling}function Hm(a){switch(a.tag){case 0:case 11:case 15:Fm(a);a.flags&1024&&Em(a,a.return,9);break;case 22:var b=a.stateNode;null!==a.memoizedState&&b._visibility&2&&(null===a.return||13!==a.return.tag)?(b._visibility&=-3,Im(a)):Fm(a);break;default:Fm(a)}}
+function Im(a){var b=a.deletions;if(0!==(a.flags&8)){if(null!==b)for(var c=0;c<b.length;c++){var d=b[c];W=d;Gm(d,a)}Dm(a)}for(a=a.child;null!==a;){b=a;switch(b.tag){case 0:case 11:case 15:Em(b,b.return,8);Im(b);break;case 22:c=b.stateNode;c._visibility&2&&(c._visibility&=-3,Im(b));break;default:Im(b)}a=a.sibling}}
+function Gm(a,b){for(;null!==W;){var c=W;switch(c.tag){case 0:case 11:case 15:Em(c,b,8);break;case 23:case 22:if(null!==c.memoizedState&&null!==c.memoizedState.cachePool){var d=c.memoizedState.cachePool.pool;null!=d&&d.refCount++}break;case 24:lj(c.memoizedState.cache)}d=c.child;if(null!==d)d.return=c,W=d;else a:for(c=a;null!==W;){d=W;var e=d.sibling,f=d.return;dm(d);if(d===c){W=null;break a}if(null!==e){e.return=f;W=e;break a}W=f}}}
+var Jm={getCacheSignal:function(){return gi(N).controller.signal},getCacheForType:function(a){var b=gi(N),c=b.data.get(a);void 0===c&&(c=a(),b.data.set(a,c));return c}},Km=Math.ceil,Lm="function"===typeof WeakMap?WeakMap:Map,Mm=xa.ReactCurrentDispatcher,Nm=xa.ReactCurrentCache,Om=xa.ReactCurrentOwner,Pm=xa.ReactCurrentBatchConfig,J=0,S=null,Z=null,K=0,Qm=!1,Rm=null,Sm=!1,Zi=0,V=0,Tm=null,yi=0,Um=0,Vm=0,Wm=null,Xm=null,tm=0,El=Infinity,Ym=null,Kk=!1,Lk=null,Nk=null,Zm=!1,$m=null,an=0,bn=[],cn=0,dn=
+null,pi=0,qi=null,en=-1,fn=0;function Di(){return 0!==(J&6)?C():-1!==en?en:en=C()}function Ei(a){if(0===(a.mode&1))return 1;if(0!==(J&2)&&0!==K)return K&-K;if(null!==Th.transition)return 0===fn&&(fn=Rc()),fn;a=E;if(0!==a)return a;a=window.event;a=void 0===a?16:Fd(a.type);return a}function Fi(a,b,c,d){Tc(a,c,d);if(0===(J&2)||a!==S)tc&&Wc(a,b,c),a===S&&(0===(J&2)&&(Um|=c),4===V&&gn(a,K)),hn(a,d),1===c&&0===J&&0===(b.mode&1)&&(El=C()+500,nh&&rh())}
+function hn(a,b){var c=a.callbackNode;Pc(a,b);var d=Nc(a,a===S?K:0);if(0===d)null!==c&&ic(c),a.callbackNode=null,a.callbackPriority=0;else if(b=d&-d,a.callbackPriority!==b){null!=c&&ic(c);if(1===b)0===a.tag?qh(jn.bind(null,a)):ph(jn.bind(null,a)),Pg(function(){0===(J&6)&&rh()}),c=null;else{switch(Zc(d)){case 1:c=mc;break;case 4:c=nc;break;case 16:c=oc;break;case 536870912:c=qc;break;default:c=oc}c=kn(c,ln.bind(null,a))}a.callbackPriority=b;a.callbackNode=c}}
+function ln(a,b){zk=yk=!1;en=-1;fn=0;if(0!==(J&6))throw Error(r(327));var c=a.callbackNode;if(mn()&&a.callbackNode!==c)return null;var d=Nc(a,a===S?K:0);if(0===d)return null;if(0!==(d&30)||0!==(d&a.expiredLanes)||b)b=nn(a,d);else{b=d;var e=J;J|=2;var f=on(a.containerInfo),g=pn();if(S!==a||K!==b){if(tc){var h=a.memoizedUpdaters;0<h.size&&(om(a,K),h.clear());Xc(a,b)}Ym=null;El=C()+500;qn(a,b)}Dc(b);do try{rn();break}catch(k){if(sn(a,k),null!==mj)break}while(1);Zh();lg.current=ng;ng=null;Mm.current=
+f;Nm.current=g;J=e;null!==Z?(null!==D&&"function"===typeof D.markRenderYielded&&D.markRenderYielded(),b=0):(Ec(),S=null,K=0,ki(),b=V)}if(0!==b){2===b&&(e=d,f=Qc(a,e),0!==f&&(d=f,b=tn(a,e,f)));if(1===b)throw c=Tm,qn(a,0),gn(a,d),hn(a,C()),c;if(6===b)gn(a,d);else{e=a.current.alternate;if(0===(d&30)&&!un(e)&&(b=nn(a,d),2===b&&(f=d,g=Qc(a,f),0!==g&&(d=g,b=tn(a,f,g))),1===b))throw c=Tm,qn(a,0),gn(a,d),hn(a,C()),c;a.finishedWork=e;a.finishedLanes=d;switch(b){case 0:case 1:throw Error(r(345));case 2:vn(a,
+Xm,Ym);break;case 3:gn(a,d);if((d&130023424)===d&&(b=tm+500-C(),10<b)){if(0!==Nc(a,0))break;e=a.suspendedLanes;if((e&d)!==d){Di();a.pingedLanes|=a.suspendedLanes&e;break}a.timeoutHandle=Lg(vn.bind(null,a,Xm,Ym),b);break}vn(a,Xm,Ym);break;case 4:gn(a,d);if((d&4194240)===d)break;b=a.eventTimes;for(e=-1;0<d;)g=31-Hc(d),f=1<<g,g=b[g],g>e&&(e=g),d&=~f;d=e;d=C()-d;d=(120>d?120:480>d?480:1080>d?1080:1920>d?1920:3E3>d?3E3:4320>d?4320:1960*Km(d/1960))-d;if(10<d){a.timeoutHandle=Lg(vn.bind(null,a,Xm,Ym),d);
+break}vn(a,Xm,Ym);break;case 5:vn(a,Xm,Ym);break;default:throw Error(r(329));}}}hn(a,C());return a.callbackNode===c?ln.bind(null,a):null}function tn(a,b,c){var d=Wm,e=a.current.memoizedState.isDehydrated;e&&(qn(a,c).flags|=128);c=nn(a,c);if(2!==c){if(Sm&&!e)return a.errorRecoveryDisabledLanes|=b,Um|=b,4;a=Xm;Xm=d;null!==a&&Cl(a)}return c}function Cl(a){null===Xm?Xm=a:Xm.push.apply(Xm,a)}
+function un(a){for(var b=a;;){if(b.flags&8192){var c=b.updateQueue;if(null!==c&&(c=c.stores,null!==c))for(var d=0;d<c.length;d++){var e=c[d],f=e.getSnapshot;e=e.value;try{if(!cf(f(),e))return!1}catch(g){return!1}}}c=b.child;if(b.subtreeFlags&8192&&null!==c)c.return=b,b=c;else{if(b===a)break;for(;null===b.sibling;){if(null===b.return||b.return===a)return!0;b=b.return}b.sibling.return=b.return;b=b.sibling}}return!0}
+function gn(a,b){b&=~Vm;b&=~Um;a.suspendedLanes|=b;a.pingedLanes&=~b;for(a=a.expirationTimes;0<b;){var c=31-Hc(b),d=1<<c;a[c]=-1;b&=~d}}function jn(a){yk=zk;zk=!1;if(0!==(J&6))throw Error(r(327));mn();var b=Nc(a,0);if(0===(b&1))return hn(a,C()),null;var c=nn(a,b);if(0!==a.tag&&2===c){var d=b,e=Qc(a,d);0!==e&&(b=e,c=tn(a,d,e))}if(1===c)throw c=Tm,qn(a,0),gn(a,b),hn(a,C()),c;if(6===c)throw Error(r(345));a.finishedWork=a.current.alternate;a.finishedLanes=b;vn(a,Xm,Ym);hn(a,C());return null}
+function wn(a,b){var c=J;J|=1;try{return a(b)}finally{J=c,0===J&&(El=C()+500,nh&&rh())}}function xn(a){null!==$m&&0===$m.tag&&0===(J&6)&&mn();var b=J;J|=1;var c=Pm.transition,d=E;try{if(Pm.transition=null,E=1,a)return a()}finally{E=d,Pm.transition=c,J=b,0===(J&6)&&rh()}}
+function qn(a,b){a.finishedWork=null;a.finishedLanes=0;var c=a.timeoutHandle;-1!==c&&(a.timeoutHandle=-1,Mg(c));if(null!==Z){for(c=Qm?Z:Z.return;null!==c;)Gl(c.alternate,c),c=c.return;nj=mj=null}S=a;Z=a=Pi(a.current,null);K=Zi=b;Qm=!1;Rm=null;Sm=!1;V=0;Tm=null;Vm=Um=yi=0;Xm=Wm=null;ki();return a}
+function sn(a,b){Zh();pj.current=Cj;if(sj){for(a=O.memoizedState;null!==a;){var c=a.queue;null!==c&&(c.pending=null);a=a.next}sj=!1}rj=0;Q=P=O=null;tj=!1;vj=uj=0;Om.current=null;Qm=!0;Rm=b;a=Z;null===a?(V=1,Tm=b):(c=null!==b&&"object"===typeof b&&"function"===typeof b.then,a.mode&2&&Bk(a,!0),Ac(),c?null!==D&&"function"===typeof D.markComponentSuspended&&D.markComponentSuspended(a,b,K):null!==D&&"function"===typeof D.markComponentErrored&&D.markComponentErrored(a,b,K),c&&oj(b))}
+function on(a){a=a.getRootNode();mg=a.ownerDocument||a;ng=lg.current;lg.current=qg;a=Mm.current;Mm.current=Cj;return null===a?Cj:a}function pn(){var a=Nm.current;Nm.current=Jm;return a}function pl(){if(0===V||3===V||2===V)V=4;null===S||0===(yi&268435455)&&0===(Um&268435455)||gn(S,K)}
+function nn(a,b){var c=J;J|=2;var d=on(a.containerInfo),e=pn();if(S!==a||K!==b){if(tc){var f=a.memoizedUpdaters;0<f.size&&(om(a,K),f.clear());Xc(a,b)}Ym=null;qn(a,b)}Dc(b);do try{yn();break}catch(g){sn(a,g)}while(1);Zh();J=c;lg.current=ng;ng=null;Mm.current=d;Nm.current=e;if(null!==Z)throw Error(r(261));Ec();S=null;K=0;ki();return V}function yn(){if(Qm){var a=Rm;Qm=!1;Rm=null;null!==Z&&zn(Z,a)}for(;null!==Z;)An(Z)}
+function rn(){if(Qm){var a=Rm;Qm=!1;Rm=null;null!==Z&&zn(Z,a)}for(;null!==Z&&!jc();)An(Z)}function An(a){var b=a.alternate;0!==(a.mode&2)?(Ak(a),b=Bn(b,a,Zi),Bk(a,!0)):b=Bn(b,a,Zi);a.memoizedProps=a.pendingProps;null===b?Cn(a):Z=b;Om.current=null}
+function zn(a,b){if(null!==mj){var c=mj.status;c="fulfilled"===c||"rejected"===c}else c=!1;mj=null;if(c){var d=a.alternate;Gl(d,a);a=Z=Dl(a,Zi);0!==(a.mode&2)?(Ak(a),d=Bn(d,a,Zi),Bk(a,!0)):d=Bn(d,a,Zi);nj=null;a.memoizedProps=a.pendingProps;null===d?Cn(a):Z=d;Om.current=null}else if(nj=null,c=a.return,null===c||null===S)V=1,Tm=b,Z=null;else{try{a:{var e=S,f=a,g=b;b=K;f.flags|=16384;tc&&om(e,b);if(null!==g&&"object"===typeof g&&"function"===typeof g.then){var h=g,k=f.tag;if(0===(f.mode&1)&&(0===k||
+11===k||15===k)){var l=f.alternate;l?(f.updateQueue=l.updateQueue,f.memoizedState=l.memoizedState,f.lanes=l.lanes):(f.updateQueue=null,f.memoizedState=null)}var p=L.current;if(null!==p){switch(p.tag){case 13:p.flags&=-129;Ok(p,c,f,e,b);var q=p.updateQueue;null===q?p.updateQueue=new Set([h]):q.add(h);break;case 22:if(p.mode&1){p.flags|=32768;var x=p.updateQueue;if(null===x){var y={transitions:null,markerInstances:null,wakeables:new Set([h])};p.updateQueue=y}else{var n=x.wakeables;null===n?x.wakeables=
+new Set([h]):n.add(h)}break}default:throw Error(r(435,p.tag));}p.mode&1&&Dn(e,h,b);break a}else{if(0===(b&1)){Dn(e,h,b);pl();break a}g=Error(r(426))}}else if(I&&f.mode&1&&(h=L.current,null!==h)){0===(h.flags&32768)&&(h.flags|=128);Ok(h,c,f,e,b);Sh(Gk(g,f));break a}k=g=Gk(g,f);4!==V&&(V=2);null===Wm?Wm=[k]:Wm.push(k);k=c;do{switch(k.tag){case 3:var u=g;k.flags|=32768;var B=b&-b;k.lanes|=B;d=Jk(k,u,B);wi(k,d);break a;case 1:l=g;B=k.type;var t=k.stateNode;if(0===(k.flags&64)&&("function"===typeof B.getDerivedStateFromError||
+null!==t&&"function"===typeof t.componentDidCatch&&(null===Nk||!Nk.has(t)))){k.flags|=32768;d=b&-b;k.lanes|=d;u=Mk(k,l,d);wi(k,u);break a}}k=k.return}while(null!==k)}}catch(w){throw Z=c,w;}Cn(a)}}
+function Cn(a){var b=a;do{var c=b.alternate;a=b.return;if(0===(b.flags&16384)){if(0===(b.mode&2)?c=Bl(c,b,Zi):(Ak(b),c=Bl(c,b,Zi),Bk(b,!1)),null!==c){Z=c;return}}else{c=Fl(c,b);if(null!==c){c.flags&=16383;Z=c;return}if(0!==(b.mode&2)){Bk(b,!1);c=b.actualDuration;for(var d=b.child;null!==d;)c+=d.actualDuration,d=d.sibling;b.actualDuration=c}if(null!==a)a.flags|=16384,a.subtreeFlags=0,a.deletions=null;else{V=6;Z=null;return}}b=b.sibling;if(null!==b){Z=b;return}Z=b=a}while(null!==b);0===V&&(V=5)}
+function vn(a,b,c){var d=E,e=Pm.transition;try{Pm.transition=null,E=1,En(a,b,c,d)}finally{Pm.transition=e,E=d}return null}
+function En(a,b,c,d){do mn();while(null!==$m);if(0!==(J&6))throw Error(r(327));var e=a.finishedWork,f=a.finishedLanes;null!==D&&"function"===typeof D.markCommitStarted&&D.markCommitStarted(f);if(null===e)return yc(),null;a.finishedWork=null;a.finishedLanes=0;if(e===a.current)throw Error(r(177));a.callbackNode=null;a.callbackPriority=0;var g=e.lanes|e.childLanes;g|=ji;Uc(a,g);a===S&&(Z=S=null,K=0);0===(e.subtreeFlags&5128)&&0===(e.flags&5128)||Zm||(Zm=!0,cn=g,dn=c,kn(oc,function(){mn();return null}));
+c=0!==(e.flags&7998);if(0!==(e.subtreeFlags&7998)||c){c=Pm.transition;Pm.transition=null;var h=E;E=1;var k=J;J|=4;Om.current=null;Sl(a,e);uk=tk();pm(a,e,f);kf(Jg);zd=!!Ig;Jg=Ig=null;a.current=e;null!==D&&"function"===typeof D.markLayoutEffectsStarted&&D.markLayoutEffectsStarted(f);vm(e,a,f);null!==D&&"function"===typeof D.markLayoutEffectsStopped&&D.markLayoutEffectsStopped();kc();J=k;E=h;Pm.transition=c}else a.current=e,uk=tk();Zm?(Zm=!1,$m=a,an=f):Fn(a,g);g=a.pendingLanes;0===g&&(Nk=null);uc(e.stateNode,
+d);tc&&a.memoizedUpdaters.clear();hn(a,C());if(null!==b)for(d=a.onRecoverableError,e=0;e<b.length;e++)f=b[e],g={digest:f.digest,componentStack:f.stack},d(f.value,g);if(Kk)throw Kk=!1,a=Lk,Lk=null,a;0!==(an&1)&&0!==a.tag&&mn();g=a.pendingLanes;0!==(g&1)?(zk=!0,a===qi?pi++:(pi=0,qi=a)):pi=0;rh();yc();return null}function Fn(a,b){0===(a.pooledCacheLanes&=b)&&(b=a.pooledCache,null!=b&&(a.pooledCache=null,lj(b)))}
+function mn(){if(null!==$m){var a=$m,b=cn;cn=0;var c=Zc(an),d=16>c?16:c;c=Pm.transition;var e=E;try{Pm.transition=null;E=d;if(null===$m)var f=!1;else{var g=dn;dn=null;d=$m;var h=an;$m=null;an=0;if(0!==(J&6))throw Error(r(331));null!==D&&"function"===typeof D.markPassiveEffectsStarted&&D.markPassiveEffectsStarted(h);var k=J;J|=4;Hm(d.current);Am(d,d.current,h,g);g=bn;bn=[];for(h=0;h<g.length;h++){var l=g[h];if(J&4&&0!==(l.flags&4))switch(l.tag){case 12:var p=l.stateNode.passiveEffectDuration,q=l.memoizedProps,
+x=q.id,y=q.onPostCommit,n=uk,u=null===l.alternate?"mount":"update";yk&&(u="nested-update");"function"===typeof y&&y(x,u,p,n);var B=l.return;b:for(;null!==B;){switch(B.tag){case 3:B.stateNode.passiveEffectDuration+=p;break b;case 12:B.stateNode.passiveEffectDuration+=p;break b}B=B.return}}}null!==D&&"function"===typeof D.markPassiveEffectsStopped&&D.markPassiveEffectsStopped();J=k;rh();if(sc&&"function"===typeof sc.onPostCommitFiberRoot)try{sc.onPostCommitFiberRoot(rc,d)}catch(w){}var t=d.current.stateNode;
+t.effectDuration=0;t.passiveEffectDuration=0;f=!0}return f}finally{E=e,Pm.transition=c,Fn(a,b)}}return!1}function Zl(a){bn.push(a);Zm||(Zm=!0,kn(oc,function(){mn();return null}))}function Gn(a,b,c){b=Gk(c,b);b=Jk(a,b,1);a=ui(a,b,1);b=Di();null!==a&&(Tc(a,1,b),hn(a,b))}
+function X(a,b,c){if(3===a.tag)Gn(a,a,c);else for(;null!==b;){if(3===b.tag){Gn(b,a,c);break}else if(1===b.tag){var d=b.stateNode;if("function"===typeof b.type.getDerivedStateFromError||"function"===typeof d.componentDidCatch&&(null===Nk||!Nk.has(d))){a=Gk(c,a);a=Mk(b,a,1);b=ui(b,a,1);a=Di();null!==b&&(Tc(b,1,a),hn(b,a));break}}b=b.return}}
+function Dn(a,b,c){var d=a.pingCache;if(null===d){d=a.pingCache=new Lm;var e=new Set;d.set(b,e)}else e=d.get(b),void 0===e&&(e=new Set,d.set(b,e));e.has(c)||(Sm=!0,e.add(c),d=Hn.bind(null,a,b,c),tc&&om(a,c),b.then(d,d))}function Hn(a,b,c){var d=a.pingCache;null!==d&&d.delete(b);b=Di();a.pingedLanes|=a.suspendedLanes&c;S===a&&(K&c)===c&&(4===V||3===V&&(K&130023424)===K&&500>C()-tm?qn(a,0):Vm|=c);hn(a,b)}
+function In(a,b){0===b&&(0===(a.mode&1)?b=1:(b=Lc,Lc<<=1,0===(Lc&130023424)&&(Lc=4194304)));var c=Di();a=ni(a,b);null!==a&&(Tc(a,b,c),hn(a,c))}function ql(a){var b=a.memoizedState,c=0;null!==b&&(c=b.retryLane);In(a,c)}function nm(a,b){var c=0;switch(a.tag){case 13:var d=a.stateNode;var e=a.memoizedState;null!==e&&(c=e.retryLane);break;case 19:d=a.stateNode;break;case 22:d=a.stateNode._retryCache;break;default:throw Error(r(314));}null!==d&&d.delete(b);In(a,c)}var Bn;
+Bn=function(a,b,c){if(null!==a)if(a.memoizedProps!==b.pendingProps||dh.current)fi=!0;else{if(0===(a.lanes&c)&&0===(b.flags&64))return fi=!1,ul(a,b,c);fi=0!==(a.flags&65536)?!0:!1}else fi=!1,I&&0!==(b.flags&524288)&&Ch(b,vh,b.index);b.lanes=0;switch(b.tag){case 2:var d=b.type;dl(a,b);a=b.pendingProps;var e=fh(b,ch.current);ei(b,c);zc(b);e=yj(null,b,d,a,e,c);var f=Dj();Ac();b.flags|=1;"object"===typeof e&&null!==e&&"function"===typeof e.render&&void 0===e.$$typeof?(b.tag=1,b.memoizedState=null,b.updateQueue=
+null,gh(d)?(f=!0,kh(b)):f=!1,b.memoizedState=null!==e.state&&void 0!==e.state?e.state:null,si(b),e.updater=Gi,b.stateNode=e,e._reactInternals=b,Ki(b,d,a,c),b=el(null,b,d,!0,f,c)):(b.tag=0,I&&f&&Dh(b),T(null,b,e,c),b=b.child);return b;case 16:d=b.elementType;a:{dl(a,b);a=b.pendingProps;e=d._init;d=e(d._payload);b.type=d;e=b.tag=Jn(d);a=Uh(d,a);switch(e){case 0:b=Zk(null,b,d,a,c);break a;case 1:b=cl(null,b,d,a,c);break a;case 11:b=Uk(null,b,d,a,c);break a;case 14:b=Wk(null,b,d,Uh(d.type,a),c);break a}throw Error(r(306,
+d,""));}return b;case 0:return d=b.type,e=b.pendingProps,e=b.elementType===d?e:Uh(d,e),Zk(a,b,d,e,c);case 1:return d=b.type,e=b.pendingProps,e=b.elementType===d?e:Uh(d,e),cl(a,b,d,e,c);case 3:a:{fl(b);if(null===a)throw Error(r(387));e=b.pendingProps;f=b.memoizedState;d=f.element;ti(a,b);xi(b,e,null,c);var g=b.memoizedState;e=g.cache;$h(b,N,e);e!==f.cache&&ci(b,N,c);e=g.element;if(f.isDehydrated)if(f={element:e,isDehydrated:!1,cache:g.cache},b.updateQueue.baseState=f,b.memoizedState=f,b.flags&128){d=
+Gk(Error(r(423)),b);b=gl(a,b,e,c,d);break a}else if(e!==d){d=Gk(Error(r(424)),b);b=gl(a,b,e,c,d);break a}else for(Gh=Tg(b.stateNode.containerInfo.firstChild),Fh=b,I=!0,Hh=null,c=Vi(b,null,e,c),b.child=c;c;)c.flags=c.flags&-3|2048,c=c.sibling;else{Rh();if(e===d){b=Vk(a,b,c);break a}T(a,b,e,c)}b=b.child}return b;case 26:return jg(b),al(a,b),b.memoizedState=yg(b.type,b.pendingProps),T(a,b,b.pendingProps.children,c),b.child;case 27:return jg(b),null===a&&I&&(d=gg(fg.current),gg(dg.current),d=b.stateNode=
+Vg(b.type,b.pendingProps,d),Fh=b,Gh=Tg(d.firstChild)),d=b.pendingProps.children,null!==a||I?T(a,b,d,c):b.child=Ui(b,null,d,c),al(a,b),b.child;case 5:return jg(b),null===a&&Mh(b),d=b.type,e=b.pendingProps,f=null!==a?a.memoizedProps:null,g=e.children,Kg(d,e)?g=null:null!==f&&Kg(d,f)&&(b.flags|=16),al(a,b),T(a,b,g,c),b.child;case 6:return null===a&&Mh(b),null;case 13:return jl(a,b,c);case 4:return hg(b,b.stateNode.containerInfo),d=b.pendingProps,null===a?b.child=Ui(b,null,d,c):T(a,b,d,c),b.child;case 11:return d=
+b.type,e=b.pendingProps,e=b.elementType===d?e:Uh(d,e),Uk(a,b,d,e,c);case 7:return T(a,b,b.pendingProps,c),b.child;case 8:return T(a,b,b.pendingProps.children,c),b.child;case 12:return b.flags|=4,d=b.stateNode,d.effectDuration=0,d.passiveEffectDuration=0,T(a,b,b.pendingProps.children,c),b.child;case 10:a:{d=b.type._context;e=b.pendingProps;f=b.memoizedProps;g=e.value;$h(b,d,g);if(null!==f)if(cf(f.value,g)){if(f.children===e.children&&!dh.current){b=Vk(a,b,c);break a}}else ci(b,d,c);T(a,b,e.children,
+c);b=b.child}return b;case 9:return e=b.type,d=b.pendingProps.children,ei(b,c),e=gi(e),zc(b),d=d(e),Ac(),b.flags|=1,T(a,b,d,c),b.child;case 14:return d=b.type,e=Uh(d,b.pendingProps),e=Uh(d.type,e),Wk(a,b,d,e,c);case 15:return Yk(a,b,b.type,b.pendingProps,c);case 17:return d=b.type,e=b.pendingProps,e=b.elementType===d?e:Uh(d,e),dl(a,b),b.tag=1,gh(d)?(a=!0,kh(b)):a=!1,ei(b,c),Ii(b,d,e),Ki(b,d,e,c),el(null,b,d,!0,a,c);case 19:return tl(a,b,c);case 22:return $k(a,b,c);case 24:return ei(b,c),d=gi(N),null===
+a?(e=Qk(),null===e&&(e=S,f=kj(),e.pooledCache=f,f.refCount++,null!==f&&(e.pooledCacheLanes|=c),e=f),b.memoizedState={parent:d,cache:e},si(b),$h(b,N,e)):(0!==(a.lanes&c)&&(ti(a,b),xi(b,null,null,c)),e=a.memoizedState,f=b.memoizedState,e.parent!==d?(e={parent:d,cache:d},b.memoizedState=e,0===b.lanes&&(b.memoizedState=b.updateQueue.baseState=e),$h(b,N,d)):(d=f.cache,$h(b,N,d),d!==e.cache&&ci(b,N,c))),T(a,b,b.pendingProps.children,c),b.child}throw Error(r(156,b.tag));};
+function om(a,b){tc&&a.memoizedUpdaters.forEach(function(c){Wc(a,c,b)})}function kn(a,b){return hc(a,b)}
+function Kn(a,b,c,d){this.tag=a;this.key=c;this.sibling=this.child=this.return=this.stateNode=this.type=this.elementType=null;this.index=0;this.ref=null;this.pendingProps=b;this.dependencies=this.memoizedState=this.updateQueue=this.memoizedProps=null;this.mode=d;this.subtreeFlags=this.flags=0;this.deletions=null;this.childLanes=this.lanes=0;this.alternate=null;this.actualDuration=0;this.actualStartTime=-1;this.treeBaseDuration=this.selfBaseDuration=0}function Jh(a,b,c,d){return new Kn(a,b,c,d)}
+function Xk(a){a=a.prototype;return!(!a||!a.isReactComponent)}function Jn(a){if("function"===typeof a)return Xk(a)?1:0;if(void 0!==a&&null!==a){a=a.$$typeof;if(a===Ga)return 11;if(a===Ja)return 14}return 2}
+function Pi(a,b){var c=a.alternate;null===c?(c=Jh(a.tag,b,a.key,a.mode),c.elementType=a.elementType,c.type=a.type,c.stateNode=a.stateNode,c.alternate=a,a.alternate=c):(c.pendingProps=b,c.type=a.type,c.flags=0,c.subtreeFlags=0,c.deletions=null,c.actualDuration=0,c.actualStartTime=-1);c.flags=a.flags&7340032;c.childLanes=a.childLanes;c.lanes=a.lanes;c.child=a.child;c.memoizedProps=a.memoizedProps;c.memoizedState=a.memoizedState;c.updateQueue=a.updateQueue;b=a.dependencies;c.dependencies=null===b?null:
 {lanes:b.lanes,firstContext:b.firstContext};c.sibling=a.sibling;c.index=a.index;c.ref=a.ref;c.selfBaseDuration=a.selfBaseDuration;c.treeBaseDuration=a.treeBaseDuration;return c}
-function al(a,b){a.flags&=7340034;var c=a.alternate;null===c?(a.childLanes=0,a.lanes=b,a.child=null,a.subtreeFlags=0,a.memoizedProps=null,a.memoizedState=null,a.updateQueue=null,a.dependencies=null,a.stateNode=null,a.selfBaseDuration=0,a.treeBaseDuration=0):(a.childLanes=c.childLanes,a.lanes=c.lanes,a.child=c.child,a.subtreeFlags=0,a.deletions=null,a.memoizedProps=c.memoizedProps,a.memoizedState=c.memoizedState,a.updateQueue=c.updateQueue,a.type=c.type,b=c.dependencies,a.dependencies=null===b?null:
+function Dl(a,b){a.flags&=7340034;var c=a.alternate;null===c?(a.childLanes=0,a.lanes=b,a.child=null,a.subtreeFlags=0,a.memoizedProps=null,a.memoizedState=null,a.updateQueue=null,a.dependencies=null,a.stateNode=null,a.selfBaseDuration=0,a.treeBaseDuration=0):(a.childLanes=c.childLanes,a.lanes=c.lanes,a.child=c.child,a.subtreeFlags=0,a.deletions=null,a.memoizedProps=c.memoizedProps,a.memoizedState=c.memoizedState,a.updateQueue=c.updateQueue,a.type=c.type,b=c.dependencies,a.dependencies=null===b?null:
 {lanes:b.lanes,firstContext:b.firstContext},a.selfBaseDuration=c.selfBaseDuration,a.treeBaseDuration=c.treeBaseDuration);return a}
-function ni(a,b,c,d,e,f){var g=2;d=a;if("function"===typeof a)vk(a)&&(g=1);else if("string"===typeof a)g=5;else a:switch(a){case ea:return pi(c.children,e,f,b);case ha:g=8;e|=8;break;case ia:return a=fh(12,c,b,e|2),a.elementType=ia,a.lanes=f,a.stateNode={effectDuration:0,passiveEffectDuration:0},a;case na:return a=fh(13,c,b,e),a.elementType=na,a.lanes=f,a;case oa:return a=fh(19,c,b,e),a.elementType=oa,a.lanes=f,a;case sa:return Mk(c,e,f,b);case ta:case ra:case ua:return a=fh(24,c,b,e),a.elementType=
-ua,a.lanes=f,a;default:if("object"===typeof a&&null!==a)switch(a.$$typeof){case ja:g=10;break a;case ka:g=9;break a;case ma:g=11;break a;case pa:g=14;break a;case qa:g=16;d=null;break a}throw Error(z(130,null==a?a:typeof a,""));}b=fh(g,c,b,e);b.elementType=a;b.type=d;b.lanes=f;return b}function pi(a,b,c,d){a=fh(7,a,d,b);a.lanes=c;return a}function Mk(a,b,c,d){a=fh(22,a,d,b);a.elementType=sa;a.lanes=c;a.stateNode={_visibility:1,_pendingMarkers:null,_retryCache:null,_transitions:null};return a}
-function mi(a,b,c){a=fh(6,a,null,b);a.lanes=c;return a}function oi(a,b,c){b=fh(4,null!==a.children?a.children:[],a.key,b);b.lanes=c;b.stateNode={containerInfo:a.containerInfo,pendingChildren:null,implementation:a.implementation};return b}
-function en(a,b,c,d,e){this.tag=b;this.containerInfo=a;this.finishedWork=this.pingCache=this.current=this.pendingChildren=null;this.timeoutHandle=-1;this.callbackNode=this.pendingContext=this.context=null;this.callbackPriority=0;this.eventTimes=ad(0);this.expirationTimes=ad(-1);this.entangledLanes=this.errorRecoveryDisabledLanes=this.finishedLanes=this.mutableReadLanes=this.expiredLanes=this.pingedLanes=this.suspendedLanes=this.pendingLanes=0;this.entanglements=ad(0);this.hiddenUpdates=ad(null);this.identifierPrefix=
+function Ri(a,b,c,d,e,f){var g=2;d=a;if("function"===typeof a)Xk(a)&&(g=1);else if("string"===typeof a){a:{switch(a){case "link":switch(c.rel){case "stylesheet":g=c.precedence;var h=c.onLoad,k=c.onError,l=c.disabled;g="string"===typeof c.href&&"string"===typeof g&&!h&&!k&&null==l;break a;case "preload":g=c.href;h=c.as;k=c.onError;g=!c.onLoad&&!k&&"string"===typeof g&&zg(h);break a}}g=!1}g=g?26:"html"===a||"head"===a||"body"===a?27:5}else a:switch(a){case Aa:return Ti(c.children,e,f,b);case Ba:g=8;
+e|=8;break;case Ca:return a=Jh(12,c,b,e|2),a.elementType=Ca,a.lanes=f,a.stateNode={effectDuration:0,passiveEffectDuration:0},a;case Ha:return a=Jh(13,c,b,e),a.elementType=Ha,a.lanes=f,a;case Ia:return a=Jh(19,c,b,e),a.elementType=Ia,a.lanes=f,a;case Ma:return nl(c,e,f,b);case Na:case La:case Oa:return a=Jh(24,c,b,e),a.elementType=Oa,a.lanes=f,a;default:if("object"===typeof a&&null!==a)switch(a.$$typeof){case Da:g=10;break a;case Ea:g=9;break a;case Ga:g=11;break a;case Ja:g=14;break a;case Ka:g=16;
+d=null;break a}throw Error(r(130,null==a?a:typeof a,""));}b=Jh(g,c,b,e);b.elementType=a;b.type=d;b.lanes=f;return b}function Ti(a,b,c,d){a=Jh(7,a,d,b);a.lanes=c;return a}function nl(a,b,c,d){a=Jh(22,a,d,b);a.elementType=Ma;a.lanes=c;a.stateNode={_visibility:1,_pendingMarkers:null,_retryCache:null,_transitions:null};return a}function Qi(a,b,c){a=Jh(6,a,null,b);a.lanes=c;return a}
+function Si(a,b,c){b=Jh(4,null!==a.children?a.children:[],a.key,b);b.lanes=c;b.stateNode={containerInfo:a.containerInfo,pendingChildren:null,implementation:a.implementation};return b}
+function Ln(a,b,c,d,e){this.tag=b;this.containerInfo=a;this.finishedWork=this.pingCache=this.current=this.pendingChildren=null;this.timeoutHandle=-1;this.callbackNode=this.pendingContext=this.context=null;this.callbackPriority=0;this.eventTimes=Sc(0);this.expirationTimes=Sc(-1);this.entangledLanes=this.errorRecoveryDisabledLanes=this.finishedLanes=this.mutableReadLanes=this.expiredLanes=this.pingedLanes=this.suspendedLanes=this.pendingLanes=0;this.entanglements=Sc(0);this.hiddenUpdates=Sc(null);this.identifierPrefix=
 d;this.onRecoverableError=e;this.pooledCache=null;this.pooledCacheLanes=0;this.mutableSourceEagerHydrationData=null;this.incompleteTransitions=new Map;this.passiveEffectDuration=this.effectDuration=0;this.memoizedUpdaters=new Set;a=this.pendingUpdatersLaneMap=[];for(b=0;31>b;b++)a.push(new Set)}
-function fn(a,b,c,d,e,f,g,h,k){a=new en(a,b,c,h,k);1===b?(b=1,!0===f&&(b|=8)):b=0;Cc&&(b|=2);f=fh(3,null,null,b);a.current=f;f.stateNode=a;b=Hi();b.refCount++;a.pooledCache=b;b.refCount++;f.memoizedState={element:d,isDehydrated:c,cache:b};Ph(f);return a}function gn(a,b,c){var d=3<arguments.length&&void 0!==arguments[3]?arguments[3]:null;return{$$typeof:da,key:null==d?null:""+d,children:a,containerInfo:b,implementation:c}}
-function hn(a){if(!a)return qg;a=a._reactInternals;a:{if(Aa(a)!==a||1!==a.tag)throw Error(z(170));var b=a;do{switch(b.tag){case 3:b=b.stateNode.context;break a;case 1:if(ug(b.type)){b=b.stateNode.__reactInternalMemoizedMergedChildContext;break a}}b=b.return}while(null!==b);throw Error(z(171));}if(1===a.tag){var c=a.type;if(ug(c))return xg(a,c,b)}return b}
-function jn(a,b,c,d,e,f,g,h,k){a=fn(c,d,!0,a,e,f,g,h,k);a.context=hn(null);c=a.current;d=$h();e=ai(c);f=Ah(d,e);f.callback=void 0!==b&&null!==b?b:null;Rh(c,f,e);a.current.lanes=e;bd(a,e,d);Dm(a,d);return a}
-function kn(a,b,c,d){var e=b.current,f=$h(),g=ai(e);null!==D&&"function"===typeof D.markRenderScheduled&&D.markRenderScheduled(g);c=hn(c);null===b.context?b.context=c:b.pendingContext=c;b=Ah(f,g);b.payload={element:a};d=void 0===d?null:d;null!==d&&(b.callback=d);a=Rh(e,b,g);null!==a&&(bi(a,e,g,f),Sh(a,e,g));return g}function ln(a){a=a.current;if(!a.child)return null;switch(a.child.tag){case 5:return a.child.stateNode;default:return a.child.stateNode}}
-function mn(a,b){a=a.memoizedState;if(null!==a&&null!==a.dehydrated){var c=a.retryLane;a.retryLane=0!==c&&c<b?c:b}}function nn(a,b){mn(a,b);(a=a.alternate)&&mn(a,b)}function on(){return null}var pn={usingClientEntryPoint:!1,Events:[Sa,Ta,Ua,$b,ac,Qm]},qn="function"===typeof reportError?reportError:function(a){console.error(a)};function rn(a){this._internalRoot=a}sn.prototype.render=rn.prototype.render=function(a){var b=this._internalRoot;if(null===b)throw Error(z(409));kn(a,b,null,null)};
-sn.prototype.unmount=rn.prototype.unmount=function(){var a=this._internalRoot;if(null!==a){this._internalRoot=null;var b=a.containerInfo;Rm(function(){kn(null,a,null,null)});b[Ma]=null}};function sn(a){this._internalRoot=a}sn.prototype.unstable_scheduleHydration=function(a){if(a){var b=ld();a={blockedOn:null,target:a,priority:b};for(var c=0;c<ud.length&&0!==b&&b<ud[c].priority;c++);ud.splice(c,0,a);0===c&&zd(a)}};function tn(a){return!(!a||1!==a.nodeType&&9!==a.nodeType&&11!==a.nodeType)}
-function un(a){return!(!a||1!==a.nodeType&&9!==a.nodeType&&11!==a.nodeType&&(8!==a.nodeType||" react-mount-point-unstable "!==a.nodeValue))}function vn(){}
-function wn(a,b,c,d,e){if(e){if("function"===typeof d){var f=d;d=function(){var a=ln(g);f.call(a)}}var g=jn(b,d,a,0,null,!1,!1,"",vn);a._reactRootContainer=g;a[Ma]=g.current;Uf(8===a.nodeType?a.parentNode:a);Rm();return g}for(;e=a.lastChild;)a.removeChild(e);if("function"===typeof d){var h=d;d=function(){var a=ln(k);h.call(a)}}var k=fn(a,0,!1,null,null,!1,!1,"",vn);a._reactRootContainer=k;a[Ma]=k.current;Uf(8===a.nodeType?a.parentNode:a);Rm(function(){kn(b,k,c,d)});return k}
-function xn(a,b,c,d,e){var f=c._reactRootContainer;if(f){var g=f;if("function"===typeof e){var h=e;e=function(){var a=ln(g);h.call(a)}}kn(b,g,a,e)}else g=wn(c,b,a,e,d);return ln(g)}id=function(a){switch(a.tag){case 3:var b=a.stateNode;if(b.current.memoizedState.isDehydrated){var c=Vc(b.pendingLanes);0!==c&&(dd(b,c|1),Dm(b,C()),0===(K&6)&&(bl=C()+500,Fg()))}break;case 13:Rm(function(){var b=Kh(a,1);if(null!==b){var c=$h();bi(b,a,1,c)}}),nn(a,1)}};
-jd=function(a){if(13===a.tag){var b=Kh(a,134217728);if(null!==b){var c=$h();bi(b,a,134217728,c)}nn(a,134217728)}};kd=function(a){if(13===a.tag){var b=ai(a),c=Kh(a,b);if(null!==c){var d=$h();bi(c,a,b,d)}nn(a,b)}};ld=function(){return E};md=gd;
-Wb=function(a,b,c){switch(b){case "input":Ab(a,c);b=c.name;if("radio"===c.type&&null!=b){for(c=a;c.parentNode;)c=c.parentNode;c=c.querySelectorAll("input[name="+JSON.stringify(""+b)+'][type="radio"]');for(b=0;b<c.length;b++){var d=c[b];if(d!==a&&d.form===a.form){var e=Ua(d);if(!e)throw Error(z(90));vb(d);Ab(d,e)}}}break;case "textarea":Gb(a,c);break;case "select":b=c.value,null!=b&&Db(a,!!c.multiple,b,!1)}};bc=Qm;cc=Rm;
-var yn={findFiberByHostInstance:Qa,bundleType:0,version:"18.3.0-experimental-cb5084d1c-20220924",rendererPackageName:"react-dom"};
-(function(a){if("undefined"===typeof __REACT_DEVTOOLS_GLOBAL_HOOK__)return!1;var b=__REACT_DEVTOOLS_GLOBAL_HOOK__;if(b.isDisabled||!b.supportsFiber)return!0;try{a=q({},a,{getLaneLabelMap:Fc,injectProfilingHooks:Ec}),Ac=b.inject(a),Bc=b}catch(c){}return b.checkDCE?!0:!1})({bundleType:yn.bundleType,version:yn.version,rendererPackageName:yn.rendererPackageName,rendererConfig:yn.rendererConfig,overrideHookState:null,overrideHookStateDeletePath:null,overrideHookStateRenamePath:null,overrideProps:null,
-overridePropsDeletePath:null,overridePropsRenamePath:null,setErrorHandler:null,setSuspenseHandler:null,scheduleUpdate:null,currentDispatcherRef:ba.ReactCurrentDispatcher,findHostInstanceByFiber:function(a){a=Ga(a);return null===a?null:a.stateNode},findFiberByHostInstance:yn.findFiberByHostInstance||on,findHostInstancesForRefresh:null,scheduleRefresh:null,scheduleRoot:null,setRefreshHandler:null,getCurrentFiber:null,reconcilerVersion:"18.3.0-next-cb5084d1c-20220924"});
-exports.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED=pn;exports.createPortal=function(a,b){var c=2<arguments.length&&void 0!==arguments[2]?arguments[2]:null;if(!tn(b))throw Error(z(200));return gn(a,b,null,c)};
-exports.createRoot=function(a,b){if(!tn(a))throw Error(z(299));var c=!1,d="",e=qn;null!==b&&void 0!==b&&(!0===b.unstable_strictMode&&(c=!0),void 0!==b.identifierPrefix&&(d=b.identifierPrefix),void 0!==b.onRecoverableError&&(e=b.onRecoverableError));b=fn(a,1,!1,null,null,c,!1,d,e);a[Ma]=b.current;Uf(8===a.nodeType?a.parentNode:a);return new rn(b)};
-exports.findDOMNode=function(a){if(null==a)return null;if(1===a.nodeType)return a;var b=a._reactInternals;if(void 0===b){if("function"===typeof a.render)throw Error(z(188));a=Object.keys(a).join(",");throw Error(z(268,a));}a=Ga(b);a=null===a?null:a.stateNode;return a};exports.flushSync=function(a){return Rm(a)};exports.hydrate=function(a,b,c){if(!un(b))throw Error(z(200));return xn(null,a,b,!0,c)};
-exports.hydrateRoot=function(a,b,c){if(!tn(a))throw Error(z(405));var d=null!=c&&c.hydratedSources||null,e=!1,f="",g=qn;null!==c&&void 0!==c&&(!0===c.unstable_strictMode&&(e=!0),void 0!==c.identifierPrefix&&(f=c.identifierPrefix),void 0!==c.onRecoverableError&&(g=c.onRecoverableError));b=jn(b,null,a,1,null!=c?c:null,e,!1,f,g);a[Ma]=b.current;Uf(a);if(d)for(a=0;a<d.length;a++)c=d[a],e=c._getVersion,e=e(c._source),null==b.mutableSourceEagerHydrationData?b.mutableSourceEagerHydrationData=[c,e]:b.mutableSourceEagerHydrationData.push(c,
-e);return new sn(b)};exports.render=function(a,b,c){if(!un(b))throw Error(z(200));return xn(null,a,b,!1,c)};exports.unmountComponentAtNode=function(a){if(!un(a))throw Error(z(40));return a._reactRootContainer?(Rm(function(){xn(null,null,a,!1,function(){a._reactRootContainer=null;a[Ma]=null})}),!0):!1};exports.unstable_batchedUpdates=Qm;
-exports.unstable_renderSubtreeIntoContainer=function(a,b,c,d){if(!un(c))throw Error(z(200));if(null==a||void 0===a._reactInternals)throw Error(z(38));return xn(a,b,c,!1,d)};exports.unstable_runWithPriority=gd;exports.version="18.3.0-next-cb5084d1c-20220924";
+function Mn(a,b,c,d,e,f,g,h,k){a=new Ln(a,b,c,h,k);1===b?(b=1,!0===f&&(b|=8)):b=0;tc&&(b|=2);f=Jh(3,null,null,b);a.current=f;f.stateNode=a;b=kj();b.refCount++;a.pooledCache=b;b.refCount++;f.memoizedState={element:d,isDehydrated:c,cache:b};si(f);return a}function Nn(a,b,c){var d=3<arguments.length&&void 0!==arguments[3]?arguments[3]:null;return{$$typeof:za,key:null==d?null:""+d,children:a,containerInfo:b,implementation:c}}
+function On(a){if(!a)return bh;a=a._reactInternals;a:{if(bc(a)!==a||1!==a.tag)throw Error(r(170));var b=a;do{switch(b.tag){case 3:b=b.stateNode.context;break a;case 1:if(gh(b.type)){b=b.stateNode.__reactInternalMemoizedMergedChildContext;break a}}b=b.return}while(null!==b);throw Error(r(171));}if(1===a.tag){var c=a.type;if(gh(c))return jh(a,c,b)}return b}
+function Pn(a,b,c,d,e,f,g,h,k){a=Mn(c,d,!0,a,e,f,g,h,k);a.context=On(null);c=a.current;d=Di();e=Ei(c);f=di(d,e);f.callback=void 0!==b&&null!==b?b:null;ui(c,f,e);a.current.lanes=e;Tc(a,e,d);hn(a,d);return a}
+function Qn(a,b,c,d){var e=b.current,f=Di(),g=Ei(e);null!==D&&"function"===typeof D.markRenderScheduled&&D.markRenderScheduled(g);c=On(c);null===b.context?b.context=c:b.pendingContext=c;b=di(f,g);b.payload={element:a};d=void 0===d?null:d;null!==d&&(b.callback=d);a=ui(e,b,g);null!==a&&(Fi(a,e,g,f),vi(a,e,g));return g}function Rn(a){a=a.current;if(!a.child)return null;switch(a.child.tag){case 27:case 5:return a.child.stateNode;default:return a.child.stateNode}}
+function Sn(a,b){a=a.memoizedState;if(null!==a&&null!==a.dehydrated){var c=a.retryLane;a.retryLane=0!==c&&c<b?c:b}}function Tn(a,b){Sn(a,b);(a=a.alternate)&&Sn(a,b)}function Un(){return null}var Vn=ba.Dispatcher,Wn="function"===typeof reportError?reportError:function(a){console.error(a)};function Xn(a){this._internalRoot=a}Yn.prototype.render=Xn.prototype.render=function(a){var b=this._internalRoot;if(null===b)throw Error(r(409));Qn(a,b,null,null)};
+Yn.prototype.unmount=Xn.prototype.unmount=function(){var a=this._internalRoot;if(null!==a){this._internalRoot=null;var b=a.containerInfo;xn(function(){Qn(null,a,null,null)});b[Qf]=null}};function Yn(a){this._internalRoot=a}Yn.prototype.unstable_scheduleHydration=function(a){if(a){var b=cd();a={blockedOn:null,target:a,priority:b};for(var c=0;c<ld.length&&0!==b&&b<ld[c].priority;c++);ld.splice(c,0,a);0===c&&qd(a)}};function Zn(a){return!(!a||1!==a.nodeType&&9!==a.nodeType&&11!==a.nodeType)}
+function $n(a){return!(!a||1!==a.nodeType&&9!==a.nodeType&&11!==a.nodeType&&(8!==a.nodeType||" react-mount-point-unstable "!==a.nodeValue))}function ao(){}
+function bo(a,b,c,d,e){if(e){if("function"===typeof d){var f=d;d=function(){var a=Rn(g);f.call(a)}}var g=Pn(b,d,a,0,null,!1,!1,"",ao);a._reactRootContainer=g;a[Qf]=g.current;Of(8===a.nodeType?a.parentNode:a);xn();return g}for(;e=a.lastChild;)a.removeChild(e);if("function"===typeof d){var h=d;d=function(){var a=Rn(k);h.call(a)}}var k=Mn(a,0,!1,null,null,!1,!1,"",ao);a._reactRootContainer=k;a[Qf]=k.current;Of(8===a.nodeType?a.parentNode:a);xn(function(){Qn(b,k,c,d)});return k}
+function co(a,b,c,d,e){var f=c._reactRootContainer;if(f){var g=f;if("function"===typeof e){var h=e;e=function(){var a=Rn(g);h.call(a)}}Qn(b,g,a,e)}else g=bo(c,b,a,e,d);return Rn(g)}$c=function(a){switch(a.tag){case 3:var b=a.stateNode;if(b.current.memoizedState.isDehydrated){var c=Mc(b.pendingLanes);0!==c&&(Vc(b,c|1),hn(b,C()),0===(J&6)&&(El=C()+500,rh()))}break;case 13:xn(function(){var b=ni(a,1);if(null!==b){var c=Di();Fi(b,a,1,c)}}),Tn(a,1)}};
+ad=function(a){if(13===a.tag){var b=ni(a,134217728);if(null!==b){var c=Di();Fi(b,a,134217728,c)}Tn(a,134217728)}};bd=function(a){if(13===a.tag){var b=Ei(a),c=ni(a,b);if(null!==c){var d=Di();Fi(c,a,b,d)}Tn(a,b)}};cd=function(){return E};dd=Yc;
+Gb=function(a,b,c){switch(b){case "input":ib(a,c);b=c.name;if("radio"===c.type&&null!=b){for(c=a;c.parentNode;)c=c.parentNode;c=c.querySelectorAll("input[name="+JSON.stringify(""+b)+'][type="radio"]');for(b=0;b<c.length;b++){var d=c[b];if(d!==a&&d.form===a.form){var e=wa(d);if(!e)throw Error(r(90));db(d);ib(d,e)}}}break;case "textarea":pb(a,c);break;case "select":b=c.value,null!=b&&mb(a,!!c.multiple,b,!1)}};Nb=wn;Ob=xn;ba.Events=[Kb,Qe,wa,Lb,Mb,wn];
+var eo={findFiberByHostInstance:rd,bundleType:0,version:"18.3.0-experimental-a8c16a004-20221012",rendererPackageName:"react-dom"};
+(function(a){if("undefined"===typeof __REACT_DEVTOOLS_GLOBAL_HOOK__)return!1;var b=__REACT_DEVTOOLS_GLOBAL_HOOK__;if(b.isDisabled||!b.supportsFiber)return!0;try{a=A({},a,{getLaneLabelMap:wc,injectProfilingHooks:vc}),rc=b.inject(a),sc=b}catch(c){}return b.checkDCE?!0:!1})({bundleType:eo.bundleType,version:eo.version,rendererPackageName:eo.rendererPackageName,rendererConfig:eo.rendererConfig,overrideHookState:null,overrideHookStateDeletePath:null,overrideHookStateRenamePath:null,overrideProps:null,
+overridePropsDeletePath:null,overridePropsRenamePath:null,setErrorHandler:null,setSuspenseHandler:null,scheduleUpdate:null,currentDispatcherRef:xa.ReactCurrentDispatcher,findHostInstanceByFiber:function(a){a=fc(a);return null===a?null:a.stateNode},findFiberByHostInstance:eo.findFiberByHostInstance||Un,findHostInstancesForRefresh:null,scheduleRefresh:null,scheduleRoot:null,setRefreshHandler:null,getCurrentFiber:null,reconcilerVersion:"18.3.0-next-a8c16a004-20221012"});
+exports.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED=ba;exports.createPortal=function(a,b){var c=2<arguments.length&&void 0!==arguments[2]?arguments[2]:null;if(!Zn(b))throw Error(r(200));return Nn(a,b,null,c)};
+exports.createRoot=function(a,b){if(!Zn(a))throw Error(r(299));var c=!1,d="",e=Wn;null!==b&&void 0!==b&&(!0===b.unstable_strictMode&&(c=!0),void 0!==b.identifierPrefix&&(d=b.identifierPrefix),void 0!==b.onRecoverableError&&(e=b.onRecoverableError));b=Mn(a,1,!1,null,null,c,!1,d,e);a[Qf]=b.current;Vn.current=qg;Of(8===a.nodeType?a.parentNode:a);return new Xn(b)};
+exports.findDOMNode=function(a){if(null==a)return null;if(1===a.nodeType)return a;var b=a._reactInternals;if(void 0===b){if("function"===typeof a.render)throw Error(r(188));a=Object.keys(a).join(",");throw Error(r(268,a));}a=fc(b);a=null===a?null:a.stateNode;return a};exports.flushSync=function(a){return xn(a)};exports.hydrate=function(a,b,c){if(!$n(b))throw Error(r(200));return co(null,a,b,!0,c)};
+exports.hydrateRoot=function(a,b,c){if(!Zn(a))throw Error(r(405));var d=null!=c&&c.hydratedSources||null,e=!1,f="",g=Wn;null!==c&&void 0!==c&&(!0===c.unstable_strictMode&&(e=!0),void 0!==c.identifierPrefix&&(f=c.identifierPrefix),void 0!==c.onRecoverableError&&(g=c.onRecoverableError));b=Pn(b,null,a,1,null!=c?c:null,e,!1,f,g);a[Qf]=b.current;Vn.current=qg;Of(a);if(d)for(a=0;a<d.length;a++)c=d[a],e=c._getVersion,e=e(c._source),null==b.mutableSourceEagerHydrationData?b.mutableSourceEagerHydrationData=
+[c,e]:b.mutableSourceEagerHydrationData.push(c,e);return new Yn(b)};exports.preinit=function(){var a=ba.Dispatcher.current;a&&a.preinit.apply(this,arguments)};exports.preload=function(){var a=ba.Dispatcher.current;a&&a.preload.apply(this,arguments)};exports.render=function(a,b,c){if(!$n(b))throw Error(r(200));return co(null,a,b,!1,c)};
+exports.unmountComponentAtNode=function(a){if(!$n(a))throw Error(r(40));return a._reactRootContainer?(xn(function(){co(null,null,a,!1,function(){a._reactRootContainer=null;a[Qf]=null})}),!0):!1};exports.unstable_batchedUpdates=wn;exports.unstable_renderSubtreeIntoContainer=function(a,b,c,d){if(!$n(c))throw Error(r(200));if(null==a||void 0===a._reactInternals)throw Error(r(38));return co(a,b,c,!1,d)};exports.unstable_runWithPriority=Yc;exports.version="18.3.0-next-a8c16a004-20221012";
 
           /* global __REACT_DEVTOOLS_GLOBAL_HOOK__ */
 if (
@@ -32444,7 +34182,7 @@ if (
 
 /***/ }),
 
-/***/ 610:
+/***/ 334:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 
@@ -32481,15 +34219,15 @@ if (process.env.NODE_ENV === 'production') {
   // DCE check should happen before ReactDOM bundle executes so that
   // DevTools can report bad minification during injection.
   checkDCE();
-  module.exports = __nccwpck_require__(269);
+  module.exports = __nccwpck_require__(849);
 } else {
-  module.exports = __nccwpck_require__(884);
+  module.exports = __nccwpck_require__(778);
 }
 
 
 /***/ }),
 
-/***/ 506:
+/***/ 428:
 /***/ ((__unused_webpack_module, exports) => {
 
 /**
@@ -32614,7 +34352,8 @@ function markTaskErrored(task, ms) {
 
 /* eslint-disable no-var */
 
-var hasPerformanceNow = typeof performance === 'object' && typeof performance.now === 'function';
+var hasPerformanceNow = // $FlowFixMe[method-unbinding]
+typeof performance === 'object' && typeof performance.now === 'function';
 
 if (hasPerformanceNow) {
   var localPerformance = performance;
@@ -32724,8 +34463,10 @@ function flushWork(hasTimeRemaining, initialTime) {
         return workLoop(hasTimeRemaining, initialTime);
       } catch (error) {
         if (currentTask !== null) {
-          var currentTime = exports.unstable_now();
-          markTaskErrored(currentTask, currentTime);
+          var currentTime = exports.unstable_now(); // $FlowFixMe[incompatible-call] found when upgrading Flow
+
+          markTaskErrored(currentTask, currentTime); // $FlowFixMe[incompatible-use] found when upgrading Flow
+
           currentTask.isQueued = false;
         }
 
@@ -32751,13 +34492,17 @@ function workLoop(hasTimeRemaining, initialTime) {
     if (currentTask.expirationTime > currentTime && (!hasTimeRemaining || shouldYieldToHost())) {
       // This currentTask hasn't expired, and we've reached the deadline.
       break;
-    }
+    } // $FlowFixMe[incompatible-use] found when upgrading Flow
+
 
     var callback = currentTask.callback;
 
     if (typeof callback === 'function') {
-      currentTask.callback = null;
-      currentPriorityLevel = currentTask.priorityLevel;
+      // $FlowFixMe[incompatible-use] found when upgrading Flow
+      currentTask.callback = null; // $FlowFixMe[incompatible-use] found when upgrading Flow
+
+      currentPriorityLevel = currentTask.priorityLevel; // $FlowFixMe[incompatible-use] found when upgrading Flow
+
       var didUserCallbackTimeout = currentTask.expirationTime <= currentTime;
 
       var continuationCallback = callback(didUserCallbackTimeout);
@@ -32766,6 +34511,7 @@ function workLoop(hasTimeRemaining, initialTime) {
       if (typeof continuationCallback === 'function') {
         // If a continuation is returned, immediately yield to the main thread
         // regardless of how much time is left in the current time slice.
+        // $FlowFixMe[incompatible-use] found when upgrading Flow
         currentTask.callback = continuationCallback;
 
         advanceTimers(currentTime);
@@ -33033,6 +34779,7 @@ var performWorkUntilDeadline = function () {
     var hasMoreWork = true;
 
     try {
+      // $FlowFixMe[not-a-function] found when upgrading Flow
       hasMoreWork = scheduledHostCallback(_hasTimeRemaining, currentTime);
     } finally {
       if (hasMoreWork) {
@@ -33140,7 +34887,7 @@ if (
 
 /***/ }),
 
-/***/ 602:
+/***/ 104:
 /***/ ((__unused_webpack_module, exports) => {
 
 /**
@@ -33166,15 +34913,15 @@ exports.unstable_shouldYield=M;exports.unstable_wrapCallback=function(a){var b=y
 
 /***/ }),
 
-/***/ 41:
+/***/ 937:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 
 
 if (process.env.NODE_ENV === 'production') {
-  module.exports = __nccwpck_require__(602);
+  module.exports = __nccwpck_require__(104);
 } else {
-  module.exports = __nccwpck_require__(506);
+  module.exports = __nccwpck_require__(428);
 }
 
 
@@ -33229,7 +34976,7 @@ module.exports = require("react");
 /******/ 	// startup
 /******/ 	// Load entry module and return exports
 /******/ 	// This entry module used 'module' so it can't be inlined
-/******/ 	var __webpack_exports__ = __nccwpck_require__(610);
+/******/ 	var __webpack_exports__ = __nccwpck_require__(334);
 /******/ 	module.exports = __webpack_exports__;
 /******/ 	
 /******/ })()
