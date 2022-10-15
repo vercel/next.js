@@ -147,12 +147,11 @@ function Router({
       typeof window === 'undefined' ? 'http://n' : window.location.href
     )
 
-    // Convert searchParams to a plain object to match server-side.
-    const searchParamsObj: { [key: string]: string } = {}
-    url.searchParams.forEach((value, key) => {
-      searchParamsObj[key] = value
-    })
-    return { searchParams: searchParamsObj, pathname: url.pathname }
+    return {
+      // This is turned into a readonly class in `useSearchParams`
+      searchParams: url.searchParams,
+      pathname: url.pathname,
+    }
   }, [canonicalUrl])
 
   /**
