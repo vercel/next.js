@@ -16,7 +16,10 @@ function loadStatsConfig() {
         'stats-config.js'
       ))
       break
-    } catch (_) {
+    } catch (err) {
+      if (err.code !== 'MODULE_NOT_FOUND') {
+        console.error('Failed to load stats-config at', configPath, err)
+      }
       /* */
     }
   }
