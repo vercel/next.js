@@ -1,7 +1,7 @@
 use std::fmt::Write;
 
 use anyhow::Result;
-use turbo_tasks_fs::{File, FileContent, FileSystemPathVc};
+use turbo_tasks_fs::{File, FileSystemPathVc};
 use turbopack::ecmascript::utils::stringify_str;
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
@@ -39,7 +39,7 @@ impl Asset for NodeJsBootstrapAsset {
             }
         }
 
-        Ok(FileContent::Content(File::from_source(output)).into())
+        Ok(File::from(output).into())
     }
 
     #[turbo_tasks::function]

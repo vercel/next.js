@@ -3,12 +3,12 @@ use std::{str::FromStr, sync::Arc, time::Duration};
 use anyhow::Result;
 use mime::Mime;
 use turbo_tasks::{get_invalidator, TurboTasks, Value};
-use turbo_tasks_fs::{File, FileContent};
+use turbo_tasks_fs::File;
 use turbo_tasks_memory::{
     stats::{ReferenceType, Stats},
     viz, MemoryBackend,
 };
-use turbopack_core::asset::AssetContent;
+use turbopack_core::asset::AssetContentVc;
 use turbopack_dev_server::source::{
     ContentSource, ContentSourceData, ContentSourceResult, ContentSourceResultVc, ContentSourceVc,
 };
@@ -80,13 +80,8 @@ impl ContentSource for TurboTasksSource {
             _ => return Ok(ContentSourceResult::NotFound.cell()),
         };
         Ok(ContentSourceResult::Static(
-            AssetContent::File(
-                FileContent::Content(
-                    File::from_source(html).with_content_type(Mime::from_str("text/html")?),
-                )
-                .cell(),
-            )
-            .into(),
+            AssetContentVc::from(File::from(html).with_content_type(Mime::from_str("text/html")?))
+                .into(),
         )
         .cell())
     }
