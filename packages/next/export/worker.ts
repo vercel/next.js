@@ -7,7 +7,7 @@ import type { NextParsedUrlQuery } from '../server/request-meta'
 import type { RenderToHTMLResult } from '../server/render'
 
 if (process.env.HAS_APP_DIR) {
-  require('../build/webpack/overriding-builtin-react')
+  require('../build/webpack/require-hook').overrideBuiltInReactPackages()
 }
 import '../server/node-polyfill-fetch'
 import { loadRequireHook } from '../build/webpack/require-hook'

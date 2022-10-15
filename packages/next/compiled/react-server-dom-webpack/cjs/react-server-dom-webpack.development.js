@@ -75,7 +75,8 @@ function preloadModule(moduleData) {
     if (entry === undefined) {
       var thenable = globalThis.__next_chunk_load__(chunkId);
 
-      promises.push(thenable);
+      promises.push(thenable); // $FlowFixMe[method-unbinding]
+
       var resolve = chunkCache.set.bind(chunkCache, chunkId, null);
       thenable.then(resolve, ignoreReject);
       chunkCache.set(chunkId, thenable);
