@@ -36,7 +36,7 @@ async fn main() -> Result<()> {
 
             // Smart Pointer cast
             let fs: FileSystemVc = disk_fs.into();
-            let input = FileSystemPathVc::new(fs, "demo");
+            let input = fs.root().join("demo");
             let dir_hash = hash_directory(input);
             print_hash(dir_hash);
             Ok(NothingVc::new().into())

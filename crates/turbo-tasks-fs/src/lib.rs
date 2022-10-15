@@ -51,14 +51,17 @@ use crate::retry::{retry_blocking, retry_future};
 use crate::util::is_windows_raw_path;
 
 #[turbo_tasks::value_trait]
-pub trait FileSystem {
+pub trait FileSystem: ValueToString {
+    /// Returns the path to the root of the file system.
+    fn root(self_vc: FileSystemVc) -> FileSystemPathVc {
+        FileSystemPathVc::new_normalized(self_vc, String::new())
+    }
     fn read(&self, fs_path: FileSystemPathVc) -> FileContentVc;
     fn read_link(&self, fs_path: FileSystemPathVc) -> LinkContentVc;
     fn read_dir(&self, fs_path: FileSystemPathVc) -> DirectoryContentVc;
     fn write(&self, fs_path: FileSystemPathVc, content: FileContentVc) -> CompletionVc;
     fn write_link(&self, fs_path: FileSystemPathVc, target: LinkContentVc) -> CompletionVc;
     fn metadata(&self, fs_path: FileSystemPathVc) -> FileMetaVc;
-    fn to_string(&self) -> StringVc;
 }
 
 #[turbo_tasks::value(cell = "new", eq = "manual")]
@@ -593,7 +596,10 @@ impl FileSystem for DiskFileSystem {
 
         Ok(FileMetaVc::cell(meta.into()))
     }
+}
 
+#[turbo_tasks::value_impl]
+impl ValueToString for DiskFileSystem {
     #[turbo_tasks::function]
     fn to_string(&self) -> StringVc {
         StringVc::cell(self.name.clone())
@@ -690,25 +696,6 @@ pub struct FileSystemPathOption(Option<FileSystemPathVc>);
 #[turbo_tasks::value_impl]
 impl FileSystemPathVc {
     /// Create a new FileSystemPathVc from a path withing a FileSystem. The
-    /// /-separated path will be normalized.
-    #[turbo_tasks::function]
-    pub fn new(fs: FileSystemVc, path: &str) -> Result<Self> {
-        // Callers can create the path from anything (eg, a PathBuf or similar disk
-        // access), so we're not guaranteed to have a unix path. Internally, we
-        // represent all paths as unix, and will convert back to Windows when necessary
-        // necessary.
-        let path = sys_to_unix(path);
-        if let Some(path) = normalize_path(&path) {
-            Ok(FileSystemPathVc::new_normalized(fs, path))
-        } else {
-            bail!(
-                "FileSystemPathVc::new(fs, \"{}\") leaves the filesystem root",
-                path
-            );
-        }
-    }
-
-    /// Create a new FileSystemPathVc from a path withing a FileSystem. The
     /// /-separated path is expected to be already normalized (this is asserted
     /// in dev mode).
     #[turbo_tasks::function]
@@ -798,9 +785,8 @@ impl FileSystemPathVc {
     }
 
     #[turbo_tasks::function]
-    pub async fn root(self) -> Result<Self> {
-        let fs = self.await?.fs;
-        Ok(Self::new_normalized(fs, "".to_string()))
+    pub fn root(self) -> Self {
+        self.fs().root()
     }
 
     #[turbo_tasks::function]
@@ -853,7 +839,7 @@ pub async fn rebase(
             new_path = [new_base.path.as_str(), &fs_path.path[old_base.path.len()..]].concat();
         }
     }
-    Ok(FileSystemPathVc::new(new_base.fs, &new_path))
+    Ok(new_base.fs.root().join(&new_path))
 }
 
 #[turbo_tasks::value_impl]
@@ -1542,7 +1528,10 @@ impl FileSystem for NullFileSystem {
     fn write(&self, _fs_path: FileSystemPathVc, _content: FileContentVc) -> CompletionVc {
         CompletionVc::new()
     }
+}
 
+#[turbo_tasks::value_impl]
+impl ValueToString for NullFileSystem {
     #[turbo_tasks::function]
     fn to_string(&self) -> StringVc {
         StringVc::cell(String::from("null"))

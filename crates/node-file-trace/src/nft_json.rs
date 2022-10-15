@@ -24,10 +24,7 @@ impl Asset for NftJsonAsset {
     #[turbo_tasks::function]
     async fn path(&self) -> Result<FileSystemPathVc> {
         let path = self.entry.path().await?;
-        Ok(FileSystemPathVc::new(
-            path.fs,
-            &format!("{}.nft.json", path.path),
-        ))
+        Ok(path.fs.root().join(&format!("{}.nft.json", path.path)))
     }
 
     #[turbo_tasks::function]

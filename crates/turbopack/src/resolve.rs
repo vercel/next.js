@@ -29,7 +29,7 @@ async fn base_resolve_options(
     let context_value = context.await?;
     let opt = options_context.await?;
     let emulating = opt.emulate_environment;
-    let root = FileSystemPathVc::new(context_value.fs, "");
+    let root = context_value.fs.root();
     let mut direct_mappings = AliasMap::new();
     for req in [
         "assert",

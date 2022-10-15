@@ -22,8 +22,7 @@ use turbo_tasks::{
     TransientInstance, TransientValue, TurboTasks, Value,
 };
 use turbo_tasks_fs::{
-    glob::GlobVc, DirectoryEntry, DiskFileSystemVc, FileSystemPathVc, FileSystemVc,
-    ReadGlobResultVc,
+    glob::GlobVc, DirectoryEntry, DiskFileSystemVc, FileSystemVc, ReadGlobResultVc,
 };
 use turbo_tasks_memory::{
     stats::{ReferenceType, Stats},
@@ -178,7 +177,7 @@ async fn input_to_modules<'a>(
     input: Vec<String>,
     exact: bool,
 ) -> Result<AssetsVc> {
-    let root = FileSystemPathVc::new(fs, "");
+    let root = fs.root();
     let env = EnvironmentVc::new(
         Value::new(ExecutionEnvironment::NodeJsLambda(
             NodeJsEnvironment {
@@ -471,8 +470,8 @@ async fn main_operation(
             let input = process_input(&dir, &context, input).unwrap();
             let fs = create_fs("context directory", &context, watch).await?;
             let out_fs = create_fs("output directory", &output, watch).await?;
-            let input_dir = FileSystemPathVc::new(fs, "");
-            let output_dir = FileSystemPathVc::new(out_fs, "");
+            let input_dir = fs.root();
+            let output_dir = out_fs.root();
             for module in input_to_modules(fs, input, exact).await?.iter() {
                 let rebased = RebasedAssetVc::new(*module, input_dir, output_dir).into();
                 emit(rebased);

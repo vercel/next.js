@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
 use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
-use turbo_tasks_fs::{embed_file, FileContent, FileSystemPathVc};
+use turbo_tasks_fs::{embed_file, FileContent, FileSystem, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetContent, AssetContentVc, AssetVc},
     chunk::{ChunkItem, ChunkItemVc, ChunkVc, ChunkableAsset, ChunkableAssetVc, ChunkingContextVc},
@@ -28,7 +28,7 @@ impl HtmlRuntimeAssetVc {
 
 #[turbo_tasks::function]
 fn html_runtime_path() -> FileSystemPathVc {
-    FileSystemPathVc::new(DevServerFileSystemVc::new().into(), "html-runtime.js")
+    DevServerFileSystemVc::new().root().join("html-runtime.js")
 }
 
 #[turbo_tasks::value_impl]

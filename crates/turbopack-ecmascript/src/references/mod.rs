@@ -806,10 +806,8 @@ pub(crate) async fn analyze_ecmascript_module(
                             let first_arg = link_value(args[0].clone()).await?;
                             if let Some(s) = first_arg.as_str() {
                                 // TODO this resolving should happen within NodeGypBuildReferenceVc
-                                let current_context = FileSystemPathVc::new(
-                                    source.path().fs(),
-                                    s.trim_start_matches("/ROOT/"),
-                                );
+                                let current_context =
+                                    source.path().root().join(s.trim_start_matches("/ROOT/"));
                                 analysis.add_reference(NodeGypBuildReferenceVc::new(
                                     current_context,
                                     environment.compile_target(),

@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 
-use crate::{DiskFileSystemVc, File, FileContent, FileContentVc, FileSystemPathVc};
+use crate::{DiskFileSystemVc, File, FileContent, FileContentVc, FileSystem};
 
 #[turbo_tasks::function]
 pub async fn content_from_relative_path(package_path: &str, path: &str) -> Result<FileContentVc> {
@@ -19,7 +19,7 @@ pub async fn content_from_relative_path(package_path: &str, path: &str) -> Resul
     );
     disk_fs.await?.start_watching()?;
 
-    let fs_path = FileSystemPathVc::new(disk_fs.into(), path);
+    let fs_path = disk_fs.root().join(path);
     Ok(fs_path.read())
 }
 

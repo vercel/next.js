@@ -33,7 +33,7 @@ async fn main() -> Result<()> {
 
             // Smart Pointer cast
             let fs: FileSystemVc = disk_fs.into();
-            let input = FileSystemPathVc::new(fs, "crates");
+            let input = fs.root().join("crates");
             let glob = GlobVc::new("**/*.rs");
             let glob_result = input.read_glob(glob, true);
             let dir_hash = hash_glob_result(glob_result);

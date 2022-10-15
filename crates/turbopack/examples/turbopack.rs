@@ -12,7 +12,7 @@ use std::{
 use anyhow::Result;
 use tokio::{spawn, time::sleep};
 use turbo_tasks::{util::FormatDuration, NothingVc, TurboTasks, Value};
-use turbo_tasks_fs::{DiskFileSystemVc, FileSystemPathVc, FileSystemVc};
+use turbo_tasks_fs::{DiskFileSystemVc, FileSystemVc};
 use turbo_tasks_memory::{
     stats::{ReferenceType, Stats},
     viz::graph::{visualize_stats_tree, wrap_html},
@@ -44,9 +44,9 @@ async fn main() -> Result<()> {
 
             // Smart Pointer cast
             let fs: FileSystemVc = disk_fs.into();
-            let input = FileSystemPathVc::new(fs, "demo");
-            let output = FileSystemPathVc::new(fs, "out");
-            let entry = FileSystemPathVc::new(fs, "demo/index.js");
+            let input = fs.root().join("demo");
+            let output = fs.root().join("out");
+            let entry = fs.root().join("demo/index.js");
 
             let source = SourceAssetVc::new(entry);
             let context = turbopack::ModuleAssetContextVc::new(

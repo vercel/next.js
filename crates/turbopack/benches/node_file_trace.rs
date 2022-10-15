@@ -3,7 +3,7 @@ use std::{collections::HashMap, fs, path::PathBuf};
 use criterion::{Bencher, BenchmarkId, Criterion};
 use regex::Regex;
 use turbo_tasks::{NothingVc, TurboTasks, Value};
-use turbo_tasks_fs::{DiskFileSystemVc, FileSystemPathVc, NullFileSystem, NullFileSystemVc};
+use turbo_tasks_fs::{DiskFileSystemVc, FileSystem, NullFileSystem, NullFileSystemVc};
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
     emit, rebase::RebasedAssetVc, register, resolve_options_context::ResolveOptionsContext,
@@ -70,11 +70,11 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
         async move {
             let task = tt.spawn_once_task(async move {
                 let input_fs = DiskFileSystemVc::new("tests".to_string(), tests_root.clone());
-                let input = FileSystemPathVc::new(input_fs.into(), &input);
+                let input = input_fs.root().join(&input);
 
                 let input_dir = input.parent().parent();
                 let output_fs: NullFileSystemVc = NullFileSystem.into();
-                let output_dir = FileSystemPathVc::new(output_fs.into(), "");
+                let output_dir = output_fs.root();
 
                 let source = SourceAssetVc::new(input);
                 let environment = EnvironmentVc::new(

@@ -112,7 +112,7 @@ async fn extend_with_constant_pattern(
     fs: FileSystemVc,
     result: &mut IndexSet<AssetVc>,
 ) -> Result<()> {
-    let dest_file_path = FileSystemPathVc::new(fs, pattern.trim_start_matches("/ROOT/"));
+    let dest_file_path = fs.root().join(pattern.trim_start_matches("/ROOT/"));
     // ignore error
     let realpath_with_links = match dest_file_path.realpath_with_links().await {
         Ok(p) => p,

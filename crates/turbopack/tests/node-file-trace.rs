@@ -27,7 +27,7 @@ use rstest_reuse::{self, *};
 use serde::{Deserialize, Serialize};
 use tokio::{process::Command, time::timeout};
 use turbo_tasks::{backend::Backend, TurboTasks, Value, ValueToString};
-use turbo_tasks_fs::{DiskFileSystemVc, FileSystemPathVc, FileSystemVc};
+use turbo_tasks_fs::{DiskFileSystemVc, FileSystem, FileSystemPathVc, FileSystemVc};
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
     emit_with_completion, rebase::RebasedAssetVc, register,
@@ -377,17 +377,16 @@ fn node_file_trace<B: Backend + 'static>(
                 let before_start = Instant::now();
                 let workspace_fs: FileSystemVc =
                     DiskFileSystemVc::new("workspace".to_string(), workspace_root.clone()).into();
-                let input = FileSystemPathVc::new(
-                    workspace_fs,
-                    &format!("crates/turbopack/tests/{input_string}"),
-                );
-                let input_dir = FileSystemPathVc::new(workspace_fs, "");
+                let input = workspace_fs
+                    .root()
+                    .join(&format!("crates/turbopack/tests/{input_string}"));
+                let input_dir = workspace_fs.root();
 
                 #[cfg(not(feature = "bench_against_node_nft"))]
                 let original_output = exec_node(workspace_root, input);
 
                 let output_fs = DiskFileSystemVc::new("output".to_string(), directory.clone());
-                let output_dir = FileSystemPathVc::new(output_fs.into(), "");
+                let output_dir = output_fs.root();
 
                 let source = SourceAssetVc::new(input);
                 let context = ModuleAssetContextVc::new(

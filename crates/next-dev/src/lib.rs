@@ -6,7 +6,7 @@ use std::{env::current_dir, net::IpAddr, path::MAIN_SEPARATOR, sync::Arc};
 use anyhow::{anyhow, Context, Result};
 use next_core::{create_server_rendered_source, create_web_entry_source, env::load_env};
 use turbo_tasks::{RawVc, TransientInstance, TransientValue, TurboTasks, Value};
-use turbo_tasks_fs::{DiskFileSystemVc, FileSystemPathVc, FileSystemVc};
+use turbo_tasks_fs::{DiskFileSystemVc, FileSystemVc};
 use turbo_tasks_memory::MemoryBackend;
 use turbopack_cli_utils::issue::{ConsoleUi, ConsoleUiVc, LogOptions};
 use turbopack_core::{issue::IssueSeverity, resolve::parse::RequestVc};
@@ -187,12 +187,12 @@ async fn source(
     let project_relative = project_relative
         .strip_prefix(MAIN_SEPARATOR)
         .unwrap_or(project_relative);
-    let project_path = FileSystemPathVc::new(fs, project_relative);
+    let project_path = fs.root().join(project_relative);
 
     let env = load_env(project_path);
 
     let dev_server_fs = DevServerFileSystemVc::new().as_file_system();
-    let dev_server_root = FileSystemPathVc::new(dev_server_fs, "");
+    let dev_server_root = dev_server_fs.root();
     let web_source = create_web_entry_source(
         project_path,
         entry_requests
@@ -206,7 +206,7 @@ async fn source(
     );
     let rendered_source = create_server_rendered_source(
         project_path,
-        FileSystemPathVc::new(output_fs, ""),
+        output_fs.root(),
         dev_server_root,
         env,
         &browserslist_query,

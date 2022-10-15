@@ -17,7 +17,7 @@ use turbo_tasks::{NothingVc, TryJoinIterExt, TurboTasks, Value};
 use turbo_tasks_env::DotenvProcessEnvVc;
 use turbo_tasks_fs::{
     util::sys_to_unix, DirectoryContent, DirectoryEntry, DiskFileSystemVc, File, FileContent,
-    FileSystemEntryType, FileSystemPathVc, FileSystemVc,
+    FileSystem, FileSystemEntryType, FileSystemPathVc, FileSystemVc,
 };
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
@@ -113,15 +113,17 @@ async fn run(resource: &'static str) -> Result<()> {
 
         let root_fs = DiskFileSystemVc::new("workspace".to_string(), workspace_root.to_owned());
         let project_fs = DiskFileSystemVc::new("project".to_string(), workspace_root.to_owned());
-        let fs = FileSystemPathVc::new(project_fs.into(), "");
+        let project_root = project_fs.root();
 
-        let path = Path::new(resource);
+        let fs_path = Path::new(resource);
+        let resource = sys_to_unix(resource);
+        let path = root_fs.root().join(&resource);
+        let project_path = project_root.join(&resource);
 
-        let test_entry = path.join(options.entry);
-        let entry_asset = sys_to_unix(test_entry.to_str().unwrap());
-        let entry_paths = vec![FileSystemPathVc::new(project_fs.into(), &entry_asset)];
+        let entry_asset = project_path.join(&options.entry);
+        let entry_paths = vec![entry_asset];
 
-        let runtime_entries = maybe_load_env(project_fs.into(), path).await?;
+        let runtime_entries = maybe_load_env(project_fs.into(), fs_path).await?;
 
         let env = EnvironmentVc::new(
             Value::new(ExecutionEnvironment::Browser(
@@ -156,15 +158,10 @@ async fn run(resource: &'static str) -> Result<()> {
         )
         .into();
 
-        let chunk_dir = path.join("output/");
-        let static_dir = path.join("static/");
-        let chunk_root_path = FileSystemPathVc::new(root_fs.into(), chunk_dir.to_str().unwrap());
-        let chunking_context = DevChunkingContextVc::new(
-            fs,
-            chunk_root_path,
-            FileSystemPathVc::new(root_fs.into(), static_dir.to_str().unwrap()),
-            true,
-        );
+        let chunk_root_path = path.join("output");
+        let asset_root_path = path.join("static");
+        let chunking_context =
+            DevChunkingContextVc::new(project_root, chunk_root_path, asset_root_path, true);
 
         let existing_dir = chunk_root_path.read_dir().await?;
         let mut expected_paths = HashMap::new();
@@ -322,7 +319,7 @@ async fn maybe_load_env(
 ) -> Result<Option<EcmascriptChunkPlaceablesVc>> {
     let dotenv_path = path.join("input/.env");
     let dotenv_path = sys_to_unix(dotenv_path.to_str().unwrap());
-    let dotenv_path = FileSystemPathVc::new(project_fs, &dotenv_path);
+    let dotenv_path = project_fs.root().join(&dotenv_path);
 
     if !dotenv_path.read().await?.is_content() {
         return Ok(None);
