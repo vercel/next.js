@@ -381,6 +381,30 @@ describe('Middleware Rewrite', () => {
       )
     })
 
+    it('should have correct query info for dynamic route after query hydration', async () => {
+      const browser = await webdriver(
+        next.url,
+        '/fallback-true-blog/first?hello=world'
+      )
+
+      await check(
+        () =>
+          browser.eval(
+            'next.router.query.hello === "world" ? "success" : JSON.stringify(next.router.query)'
+          ),
+        'success'
+      )
+
+      expect(await browser.eval('next.router.query')).toEqual({
+        slug: 'first',
+        hello: 'world',
+      })
+      expect(await browser.eval('location.pathname')).toBe(
+        '/fallback-true-blog/first'
+      )
+      expect(await browser.eval('location.search')).toBe('?hello=world')
+    })
+
     it('should handle shallow navigation correctly (non-dynamic page)', async () => {
       const browser = await webdriver(next.url, '/about')
       const requests = []
