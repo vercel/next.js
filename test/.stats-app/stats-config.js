@@ -122,11 +122,12 @@ module.exports = {
         'http://localhost:$PORT/',
         'http://localhost:$PORT/error-in-render',
       ],
-      benchOptions: {
-        reqTimeout: 60,
-        concurrency: 50,
-        numRequests: 2500,
-      },
+      // TODO: investigate replacing "ab" for this
+      // benchOptions: {
+      //   reqTimeout: 60,
+      //   concurrency: 50,
+      //   numRequests: 2500,
+      // },
     },
     {
       title: 'Default Build with SWC minify',
