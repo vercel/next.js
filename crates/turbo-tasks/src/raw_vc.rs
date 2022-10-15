@@ -511,7 +511,7 @@ pub struct CollectiblesFuture<T: ValueTraitVc> {
 }
 
 impl<T: ValueTraitVc> Future for CollectiblesFuture<T> {
-    type Output = Result<Vec<T>>;
+    type Output = Result<HashSet<T>>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
         let this = unsafe { self.get_unchecked_mut() };

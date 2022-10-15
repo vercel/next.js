@@ -3,7 +3,7 @@ pub mod code_gen;
 pub mod package_json;
 pub mod resolve;
 
-use std::{cmp::Ordering, fmt::Display};
+use std::{cmp::Ordering, collections::HashSet, fmt::Display};
 
 use anyhow::{bail, Result};
 use turbo_tasks::{
@@ -164,7 +164,7 @@ impl IssueProcessingPath for RootIssueProcessingPath {
 #[turbo_tasks::value]
 struct ItemIssueProcessingPath(
     Option<IssueProcessingPathItemVc>,
-    Vec<IssueProcessingPathVc>,
+    HashSet<IssueProcessingPathVc>,
 );
 
 #[turbo_tasks::value_impl]
@@ -312,7 +312,7 @@ pub struct Issues(Vec<IssueVc>);
 /// [`IssueVc::take_issues_with_path`].
 #[turbo_tasks::value]
 pub struct CapturedIssues {
-    issues: Vec<IssueVc>,
+    issues: HashSet<IssueVc>,
     processing_path: ItemIssueProcessingPathVc,
 }
 

@@ -19,12 +19,34 @@ pub trait Typed {
     fn get_value_type_id() -> ValueTypeId;
 }
 
-pub trait ValueVc: From<RawVc> + Into<RawVc> + CollectiblesSource + Copy + Clone {
+pub trait ValueVc:
+    From<RawVc>
+    + Into<RawVc>
+    + CollectiblesSource
+    + Hash
+    + PartialEq
+    + Eq
+    + PartialOrd
+    + Ord
+    + Copy
+    + Clone
+{
     fn get_value_type_id() -> ValueTypeId;
     fn get_trait_type_ids() -> Box<dyn Iterator<Item = TraitTypeId>>;
 }
 
-pub trait ValueTraitVc: From<RawVc> + Into<RawVc> + CollectiblesSource + Copy + Clone {
+pub trait ValueTraitVc:
+    From<RawVc>
+    + Into<RawVc>
+    + CollectiblesSource
+    + Hash
+    + PartialEq
+    + Eq
+    + PartialOrd
+    + Ord
+    + Copy
+    + Clone
+{
     fn get_trait_type_id() -> TraitTypeId;
 }
 
