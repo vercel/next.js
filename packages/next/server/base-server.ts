@@ -44,7 +44,7 @@ import {
   getCookieParser,
   checkIsManualRevalidate,
 } from './api-utils'
-import * as envConfig from '../shared/lib/runtime-config'
+import { setConfig } from '../shared/lib/runtime-config'
 import Router from './router'
 
 import { setRevalidateHeaders } from './send-payload/revalidate-headers'
@@ -64,10 +64,12 @@ import { addRequestMeta, getRequestMeta } from './request-meta'
 
 import { ImageConfigComplete } from '../shared/lib/image-config'
 import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
-import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
+import {
+  normalizeAppPath,
+  normalizeRscPath,
+} from '../shared/lib/router/utils/app-paths'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
-import { getLocaleRedirect } from '../shared/lib/i18n/get-locale-redirect'
 import { getHostname } from '../shared/lib/get-hostname'
 import { parseUrl as parseUrlUtil } from '../shared/lib/router/utils/parse-url'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
@@ -159,7 +161,7 @@ export class WrappedBuildError extends Error {
 }
 
 type ResponsePayload = {
-  type: 'html' | 'json'
+  type: 'html' | 'json' | 'rsc'
   body: RenderResult
   revalidateOptions?: any
 }
@@ -186,6 +188,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected distDir: string
   protected publicDir: string
   protected hasStaticDir: boolean
+  protected hasAppDir: boolean
   protected pagesManifest?: PagesManifest
   protected appPathsManifest?: PagesManifest
   protected buildId: string
@@ -238,6 +241,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
   protected abstract getPublicDir(): string
   protected abstract getHasStaticDir(): boolean
+  protected abstract getHasAppDir(dev: boolean): boolean
   protected abstract getPagesManifest(): PagesManifest | undefined
   protected abstract getAppPathsManifest(): PagesManifest | undefined
   protected abstract getBuildId(): string
@@ -286,7 +290,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     res: BaseNextResponse,
     options: {
       result: RenderResult
-      type: 'html' | 'json'
+      type: 'html' | 'json' | 'rsc'
       generateEtags: boolean
       poweredByHeader: boolean
       options?: PayloadOptions
@@ -367,7 +371,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.buildId = this.getBuildId()
     this.minimalMode = minimalMode || !!process.env.NEXT_PRIVATE_MINIMAL_MODE
 
-    const serverComponents = !!this.nextConfig.experimental.appDir
+    this.hasAppDir =
+      !!this.nextConfig.experimental.appDir && this.getHasAppDir(dev)
+    const serverComponents = this.hasAppDir
     this.serverComponentManifest = serverComponents
       ? this.getServerComponentManifest()
       : undefined
@@ -415,7 +421,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     }
 
     // Initialize next/config with the environment configuration
-    envConfig.setConfig({
+    setConfig({
       serverRuntimeConfig,
       publicRuntimeConfig,
     })
@@ -441,6 +447,33 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     parsedUrl?: NextUrlWithParsedQuery
   ): Promise<void> {
     try {
+      // ensure cookies set in middleware are merged and
+      // not overridden by API routes/getServerSideProps
+      const _res = (res as any).originalResponse || res
+      const origSetHeader = _res.setHeader.bind(_res)
+
+      _res.setHeader = (name: string, val: string | string[]) => {
+        if (name.toLowerCase() === 'set-cookie') {
+          const middlewareValue = getRequestMeta(req, '_nextMiddlewareCookie')
+
+          if (
+            !middlewareValue ||
+            !Array.isArray(val) ||
+            !val.every((item, idx) => item === middlewareValue[idx])
+          ) {
+            val = [
+              ...(middlewareValue || []),
+              ...(typeof val === 'string'
+                ? [val]
+                : Array.isArray(val)
+                ? val
+                : []),
+            ]
+          }
+        }
+        return origSetHeader(name, val)
+      }
+
       const urlParts = (req.url || '').split('?')
       const urlNoQuery = urlParts[0]
 
@@ -465,6 +498,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       if (typeof parsedUrl.query === 'string') {
         parsedUrl.query = parseQs(parsedUrl.query)
       }
+      req.url = normalizeRscPath(req.url, this.hasAppDir)
+      parsedUrl.pathname = normalizeRscPath(
+        parsedUrl.pathname || '',
+        this.hasAppDir
+      )
 
       this.attachRequestMeta(req, parsedUrl)
 
@@ -495,10 +533,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         try {
           // x-matched-path is the source of truth, it tells what page
           // should be rendered because we don't process rewrites in minimalMode
-          let matchedPath = new URL(
-            req.headers['x-matched-path'],
-            'http://localhost'
-          ).pathname
+          let matchedPath = normalizeRscPath(
+            new URL(req.headers['x-matched-path'], 'http://localhost').pathname,
+            this.hasAppDir
+          )
 
           let urlPathname = new URL(req.url, 'http://localhost').pathname
 
@@ -668,7 +706,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         }
       }
 
-      if (!this.minimalMode && defaultLocale) {
+      if (
+        // Edge runtime always has minimal mode enabled.
+        process.env.NEXT_RUNTIME !== 'edge' &&
+        !this.minimalMode &&
+        defaultLocale
+      ) {
+        const { getLocaleRedirect } =
+          require('../shared/lib/i18n/get-locale-redirect') as typeof import('../shared/lib/i18n/get-locale-redirect')
         const redirect = getLocaleRedirect({
           defaultLocale,
           domainLocale,
@@ -965,17 +1010,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const hasGetInitialProps = !!components.Component?.getInitialProps
     let isSSG = !!components.getStaticProps
 
-    // Toggle whether or not this is a Data request
-    const isDataReq =
-      !!(
-        query.__nextDataReq ||
-        (req.headers['x-nextjs-data'] &&
-          (this.serverOptions as any).webServerConfig)
-      ) &&
-      (isSSG || hasServerProps)
-
-    delete query.__nextDataReq
-
     // Compute the iSSG cache key. We use the rewroteUrl since
     // pages with fallback: false are allowed to be rewritten to
     // and we need to look up the path by the rewritten path
@@ -1004,8 +1038,37 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
       if (hasFallback || staticPaths?.includes(resolvedUrlPathname)) {
         isSSG = true
+      } else if (!this.renderOpts.dev) {
+        const manifest = this.getPrerenderManifest()
+        isSSG =
+          isSSG || !!manifest.routes[pathname === '/index' ? '/' : pathname]
       }
     }
+
+    // Toggle whether or not this is a Data request
+    let isDataReq =
+      !!(
+        query.__nextDataReq ||
+        (req.headers['x-nextjs-data'] &&
+          (this.serverOptions as any).webServerConfig)
+      ) &&
+      (isSSG || hasServerProps)
+
+    if (isAppPath && req.headers['__rsc__']) {
+      if (isSSG) {
+        isDataReq = true
+        // strip header so we generate HTML still
+        if (
+          opts.runtime !== 'experimental-edge' ||
+          (this.serverOptions as any).webServerConfig
+        ) {
+          delete req.headers['__rsc__']
+          delete req.headers['__next_router_state_tree__']
+          delete req.headers['__next_router_prefetch__']
+        }
+      }
+    }
+    delete query.__nextDataReq
 
     // normalize req.url for SSG paths as it is not exposed
     // to getStaticProps and the asPath should not expose /_next/data
@@ -1028,9 +1091,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       )
     }
 
-    // Don't delete query.__flight__ yet, it still needs to be used in renderToHTML later
+    // Don't delete query.__rsc__ yet, it still needs to be used in renderToHTML later
     const isFlightRequest = Boolean(
-      this.serverComponentManifest && req.headers.__flight__
+      this.serverComponentManifest && req.headers.__rsc__
     )
 
     // we need to ensure the status code if /404 is visited directly
@@ -1170,7 +1233,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     }
 
     let ssgCacheKey =
-      isPreviewMode || !isSSG || opts.supportsDynamicHTML || isFlightRequest
+      isPreviewMode || !isSSG || opts.supportsDynamicHTML
         ? null // Preview mode, manual revalidate, flight request can bypass the cache
         : `${locale ? `/${locale}` : ''}${
             (pathname === '/' || resolvedUrlPathname === '/') && locale
@@ -1367,6 +1430,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         //   getStaticPaths, then finish the data request on the client-side.
         //
         if (
+          process.env.NEXT_RUNTIME !== 'edge' &&
           this.minimalMode !== true &&
           fallbackMode !== 'blocking' &&
           ssgCacheKey &&
@@ -1527,9 +1591,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       throw new Error('invariant SSG should not return an image cache value')
     } else {
       return {
-        type: isDataReq ? 'json' : 'html',
+        type: isDataReq ? (isAppPath ? 'rsc' : 'json') : 'html',
         body: isDataReq
-          ? RenderResult.fromStatic(JSON.stringify(cachedData.pageData))
+          ? RenderResult.fromStatic(
+              isAppPath
+                ? (cachedData.pageData as string)
+                : JSON.stringify(cachedData.pageData)
+            )
           : cachedData.html,
         revalidateOptions,
       }
@@ -1554,7 +1622,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
   // map the route to the actual bundle name
   protected getOriginalAppPaths(route: string) {
-    if (this.nextConfig.experimental.appDir) {
+    if (this.hasAppDir) {
       const originalAppPath = this.appPathRoutes?.[route]
 
       if (!originalAppPath) {

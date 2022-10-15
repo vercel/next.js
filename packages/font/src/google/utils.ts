@@ -15,6 +15,7 @@ type FontOptions = {
   selectedVariableAxes?: string[]
   fallback?: string[]
   adjustFontFallback: boolean
+  variable?: string
 }
 export function validateData(functionName: string, data: any): FontOptions {
   let {
@@ -24,6 +25,7 @@ export function validateData(functionName: string, data: any): FontOptions {
     axes,
     fallback,
     adjustFontFallback = true,
+    variable,
   } = data[0] || ({} as any)
   if (functionName === '') {
     throw new Error(`@next/font/google has no default export`)
@@ -80,6 +82,7 @@ export function validateData(functionName: string, data: any): FontOptions {
     selectedVariableAxes: axes,
     fallback,
     adjustFontFallback,
+    variable,
   }
 }
 
@@ -136,6 +139,14 @@ export async function fetchCSSFromGoogleFonts(url: string, fontFamily: string) {
   }
 
   return cssResponse
+}
+
+export async function fetchFontFile(url: string) {
+  if (process.env.NEXT_FONT_GOOGLE_MOCKED_RESPONSES) {
+    return Buffer.from(url)
+  }
+  const arrayBuffer = await fetch(url).then((r: any) => r.arrayBuffer())
+  return Buffer.from(arrayBuffer)
 }
 
 export function getFontAxes(

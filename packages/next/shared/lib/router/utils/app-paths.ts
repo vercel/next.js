@@ -21,3 +21,7 @@ export function normalizeAppPath(pathname: string) {
     return acc + `/${segment}`
   }, '')
 }
+
+export function normalizeRscPath(pathname: string, enabled?: boolean) {
+  return enabled ? pathname.replace(/\.rsc($|\?)/, '') : pathname
+}

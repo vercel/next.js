@@ -53,7 +53,7 @@ describe('Optional chaining and nullish coalescing support', () => {
     runTests()
   })
 
-  describe('serverless mode', () => {
+  describe.skip('serverless mode', () => {
     beforeAll(async () => {
       await fs.writeFile(
         nextConfig,

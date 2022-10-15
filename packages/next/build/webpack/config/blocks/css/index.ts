@@ -11,6 +11,7 @@ import {
   getGlobalModuleImportError,
   getLocalModuleImportError,
   getFontLoaderDocumentImportError,
+  getFontLoaderImportError,
 } from './messages'
 import { getPostCssPlugins } from './plugins'
 
@@ -183,12 +184,10 @@ export const css = curry(async function css(
 
   // Resolve the configured font loaders, the resolved files are noop files that next-font-loader will match
   let fontLoaders: [string, string][] | undefined = ctx.experimental.fontLoaders
-    ? Object.entries(ctx.experimental.fontLoaders).map(
-        ([fontLoader, fontLoaderOptions]: any) => [
-          path.join(require.resolve(fontLoader), '../target.css'),
-          fontLoaderOptions,
-        ]
-      )
+    ? ctx.experimental.fontLoaders.map(({ loader: fontLoader, options }) => [
+        path.join(require.resolve(fontLoader), '../target.css'),
+        options,
+      ])
     : undefined
 
   // Font loaders cannot be imported in _document.
@@ -232,6 +231,22 @@ export const css = curry(async function css(
         ],
       })
     )
+
+    fns.push(
+      loader({
+        oneOf: [
+          markRemovable({
+            test: fontLoaderPath,
+            use: {
+              loader: 'error-loader',
+              options: {
+                reason: getFontLoaderImportError(),
+              },
+            },
+          }),
+        ],
+      })
+    )
   })
 
   // CSS cannot be imported in _document. This comes before everything because
@@ -257,7 +272,7 @@ export const css = curry(async function css(
 
   // CSS Modules support must be enabled on the server and client so the class
   // names are available for SSR or Prerendering.
-  if (ctx.experimental.appDir && !ctx.isProduction) {
+  if (ctx.hasAppDir && !ctx.isProduction) {
     fns.push(
       loader({
         oneOf: [
@@ -373,7 +388,7 @@ export const css = curry(async function css(
     )
   }
 
-  if (!ctx.experimental.appDir) {
+  if (!ctx.hasAppDir) {
     // Throw an error for CSS Modules used outside their supported scope
     fns.push(
       loader({
@@ -393,7 +408,7 @@ export const css = curry(async function css(
   }
 
   if (ctx.isServer) {
-    if (ctx.experimental.appDir && !ctx.isProduction) {
+    if (ctx.hasAppDir && !ctx.isProduction) {
       fns.push(
         loader({
           oneOf: [
@@ -420,7 +435,7 @@ export const css = curry(async function css(
       )
     }
   } else {
-    if (ctx.experimental.appDir) {
+    if (ctx.hasAppDir) {
       fns.push(
         loader({
           oneOf: [
@@ -552,7 +567,7 @@ export const css = curry(async function css(
       oneOf: [
         markRemovable({
           test: [regexCssGlobal, regexSassGlobal],
-          issuer: ctx.experimental.appDir
+          issuer: ctx.hasAppDir
             ? {
                 // If it's inside the app dir, but not importing from a layout file,
                 // throw an error.
@@ -597,7 +612,7 @@ export const css = curry(async function css(
   }
 
   // Enable full mini-css-extract-plugin hmr for prod mode pages or app dir
-  if (ctx.isClient && (ctx.isProduction || ctx.experimental.appDir)) {
+  if (ctx.isClient && (ctx.isProduction || ctx.hasAppDir)) {
     // Extract CSS as CSS file(s) in the client-side production bundle.
     const MiniCssExtractPlugin =
       require('../../../plugins/mini-css-extract-plugin').default

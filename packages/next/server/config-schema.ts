@@ -222,6 +222,9 @@ const configSchema = {
         adjustFontFallbacks: {
           type: 'boolean',
         },
+        adjustFontFallbacksWithSizeAdjust: {
+          type: 'boolean',
+        },
         amp: {
           additionalProperties: false,
           properties: {
@@ -236,9 +239,6 @@ const configSchema = {
             },
           },
           type: 'object',
-        },
-        appDir: {
-          type: 'boolean',
         },
         browsersListForSwc: {
           type: 'boolean',
@@ -264,6 +264,12 @@ const configSchema = {
               const: 'loose',
             },
           ] as any,
+        },
+        appDir: {
+          type: 'boolean',
+        },
+        allowMiddlewareResponseBody: {
+          type: 'boolean',
         },
         externalDir: {
           type: 'boolean',
@@ -320,12 +326,6 @@ const configSchema = {
         optimisticClientCache: {
           type: 'boolean',
         },
-        optoutServerComponentsBundle: {
-          items: {
-            type: 'string',
-          },
-          type: 'array',
-        },
         outputFileTracingRoot: {
           minLength: 1,
           type: 'string',
@@ -345,10 +345,22 @@ const configSchema = {
           enum: ['experimental-edge', 'nodejs'] as any,
           type: 'string',
         },
+        serverComponentsExternalPackages: {
+          items: {
+            type: 'string',
+          },
+          type: 'array',
+        },
         scrollRestoration: {
           type: 'boolean',
         },
         sharedPool: {
+          type: 'boolean',
+        },
+        skipMiddlewareUrlNormalize: {
+          type: 'boolean',
+        },
+        skipTrailingSlashRedirect: {
           type: 'boolean',
         },
         sri: {
@@ -397,7 +409,25 @@ const configSchema = {
           type: 'boolean',
         },
         fontLoaders: {
-          type: 'object',
+          items: {
+            additionalProperties: false,
+            properties: {
+              loader: {
+                type: 'string',
+              },
+              options: {},
+            },
+            type: 'object',
+            required: ['loader'],
+          },
+          type: 'array',
+        } as any,
+        webVitalsAttribution: {
+          type: 'array',
+          items: {
+            type: 'string',
+            enum: ['CLS', 'FCP', 'FID', 'INP', 'LCP', 'TTFB'],
+          } as any,
         },
       },
       type: 'object',

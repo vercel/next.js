@@ -78,7 +78,7 @@ describe('CSS optimization for SSR apps', () => {
   runTests()
 })
 
-describe('Font optimization for emulated serverless apps', () => {
+describe.skip('Font optimization for emulated serverless apps', () => {
   beforeAll(async () => {
     await fs.writeFile(
       nextConfig,

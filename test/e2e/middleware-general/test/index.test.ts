@@ -56,7 +56,6 @@ describe('Middleware Runtime', () => {
           ANOTHER_MIDDLEWARE_TEST: 'asdf2',
           STRING_ENV_VAR: 'asdf3',
           MIDDLEWARE_TEST: 'asdf',
-          NEXT_RUNTIME: 'edge',
         },
       })
     })
@@ -213,24 +212,25 @@ describe('Middleware Runtime', () => {
       })
       await browser.eval('window.beforeNav = 1')
 
-      await check(() => {
-        return requests.some((req) =>
-          new URL(req, 'http://n').pathname.endsWith('/to-ssg.json')
-        )
+      await check(async () => {
+        const didReq = await browser.eval('next.router.isReady')
+        return didReq ||
+          requests.some((req) =>
+            new URL(req, 'http://n').pathname.endsWith('/to-ssg.json')
+          )
           ? 'found'
           : JSON.stringify(requests)
       }, 'found')
 
       await check(
         () => browser.eval('document.documentElement.innerHTML'),
-        /"from":"middleware"/
+        /"slug":"hello"/
       )
 
       await check(() => browser.elementByCss('body').text(), /\/to-ssg/)
 
       expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
         slug: 'hello',
-        from: 'middleware',
       })
       expect(
         JSON.parse(await browser.elementByCss('#props').text()).params

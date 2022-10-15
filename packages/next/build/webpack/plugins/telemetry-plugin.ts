@@ -21,6 +21,7 @@ export type SWC_TARGET_TRIPLE =
 export type Feature =
   | 'next/image'
   | 'next/future/image'
+  | 'next/legacy/image'
   | 'next/script'
   | 'next/dynamic'
   | 'swcLoader'
@@ -58,6 +59,7 @@ interface Connection {
 const FEATURE_MODULE_MAP: ReadonlyMap<Feature, string> = new Map([
   ['next/image', '/next/image.js'],
   ['next/future/image', '/next/future/image.js'],
+  ['next/legacy/image', '/next/legacy/image.js'],
   ['next/script', '/next/script.js'],
   ['next/dynamic', '/next/dynamic.js'],
 ])
@@ -110,11 +112,15 @@ function findFeatureInModule(module: Module): Feature | undefined {
  * dependency.
  */
 function findUniqueOriginModulesInConnections(
-  connections: Connection[]
+  connections: Connection[],
+  originModule: Module
 ): Set<unknown> {
   const originModules = new Set()
   for (const connection of connections) {
-    if (!originModules.has(connection.originModule)) {
+    if (
+      !originModules.has(connection.originModule) &&
+      connection.originModule !== originModule
+    ) {
       originModules.add(connection.originModule)
     }
   }
@@ -161,8 +167,10 @@ export class TelemetryPlugin implements webpack.WebpackPluginInstance {
               const connections = (
                 compilation as any
               ).moduleGraph.getIncomingConnections(module)
-              const originModules =
-                findUniqueOriginModulesInConnections(connections)
+              const originModules = findUniqueOriginModulesInConnections(
+                connections,
+                module
+              )
               this.usageTracker.get(feature)!.invocationCount =
                 originModules.size
             }

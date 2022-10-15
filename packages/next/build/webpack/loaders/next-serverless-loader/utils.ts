@@ -29,6 +29,7 @@ import cookie from 'next/dist/compiled/cookie'
 import { TEMPORARY_REDIRECT_STATUS } from '../../../../shared/lib/constants'
 import { addRequestMeta } from '../../../../server/request-meta'
 import { removeTrailingSlash } from '../../../../shared/lib/router/utils/remove-trailing-slash'
+import { normalizeRscPath } from '../../../../shared/lib/router/utils/app-paths'
 
 export const vercelHeader = 'x-vercel-id'
 
@@ -66,6 +67,26 @@ export type ServerlessHandlerCtx = {
   canonicalBase: string
   encodedPreviewProps: __ApiPreviewProps
   i18n?: NextConfig['i18n']
+}
+
+export function normalizeVercelUrl(
+  req: BaseNextRequest | IncomingMessage,
+  trustQuery: boolean,
+  paramKeys?: string[],
+  pageIsDynamic?: boolean,
+  defaultRouteRegex?: ReturnType<typeof getNamedRouteRegex> | undefined
+) {
+  // make sure to normalize req.url on Vercel to strip dynamic params
+  // from the query which are added during routing
+  if (pageIsDynamic && trustQuery && defaultRouteRegex) {
+    const _parsedUrl = parseUrl(req.url!, true)
+    delete (_parsedUrl as any).search
+
+    for (const param of paramKeys || Object.keys(defaultRouteRegex.groups)) {
+      delete _parsedUrl.query[param]
+    }
+    req.url = formatUrl(_parsedUrl)
+  }
 }
 
 export function interpolateDynamicPath(
@@ -336,24 +357,6 @@ export function getUtils({
     )(req.headers['x-now-route-matches'] as string) as ParsedUrlQuery
   }
 
-  function normalizeVercelUrl(
-    req: BaseNextRequest | IncomingMessage,
-    trustQuery: boolean,
-    paramKeys?: string[]
-  ) {
-    // make sure to normalize req.url on Vercel to strip dynamic params
-    // from the query which are added during routing
-    if (pageIsDynamic && trustQuery && defaultRouteRegex) {
-      const _parsedUrl = parseUrl(req.url!, true)
-      delete (_parsedUrl as any).search
-
-      for (const param of paramKeys || Object.keys(defaultRouteRegex.groups)) {
-        delete _parsedUrl.query[param]
-      }
-      req.url = formatUrl(_parsedUrl)
-    }
-  }
-
   function normalizeDynamicRouteParams(
     params: ParsedUrlQuery,
     ignoreOptional?: boolean
@@ -363,6 +366,18 @@ export function getUtils({
 
     params = Object.keys(defaultRouteRegex.groups).reduce((prev, key) => {
       let value: string | string[] | undefined = params[key]
+
+      if (typeof value === 'string') {
+        value = normalizeRscPath(value, true)
+      }
+      if (Array.isArray(value)) {
+        value = value.map((val) => {
+          if (typeof val === 'string') {
+            val = normalizeRscPath(val, true)
+          }
+          return val
+        })
+      }
 
       // if the value matches the default value we can't rely
       // on the parsed params, this is used to signal if we need
@@ -571,11 +586,22 @@ export function getUtils({
     handleRewrites,
     handleBasePath,
     defaultRouteRegex,
-    normalizeVercelUrl,
     dynamicRouteMatcher,
     defaultRouteMatches,
     getParamsFromRouteMatches,
     normalizeDynamicRouteParams,
+    normalizeVercelUrl: (
+      req: BaseNextRequest | IncomingMessage,
+      trustQuery: boolean,
+      paramKeys?: string[]
+    ) =>
+      normalizeVercelUrl(
+        req,
+        trustQuery,
+        paramKeys,
+        pageIsDynamic,
+        defaultRouteRegex
+      ),
     interpolateDynamicPath: (
       pathname: string,
       params: Record<string, string | string[]>

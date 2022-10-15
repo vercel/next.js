@@ -1,4 +1,4 @@
-import rule from '@next/eslint-plugin-next/lib/rules/no-duplicate-head'
+import rule from '@next/eslint-plugin-next/dist/rules/no-duplicate-head'
 import { RuleTester } from 'eslint'
 ;(RuleTester as any).setDefaultConfig({
   parserOptions: {

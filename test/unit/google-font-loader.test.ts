@@ -93,7 +93,7 @@ describe('@next/font/google loader', () => {
         ok: true,
         text: async () => '',
       })
-      const { css, fallbackFonts } = await loader({
+      const { adjustFontFallback, fallbackFonts } = await loader({
         functionName: 'Inter',
         data: [],
         config: { subsets: [] },
@@ -101,17 +101,13 @@ describe('@next/font/google loader', () => {
         resolve: jest.fn(),
         fs: {} as any,
       })
-      expect(css).toMatchInlineSnapshot(`
-"
-    @font-face {
-      font-family: \\"inter-fallback\\";
-      ascent-override: 96.88%;
-      descent-override: 24.15%;
-      line-gap-override: 0.00%;
-      src: local(\\"Arial\\");
-    }
-  "
-`)
+      expect(adjustFontFallback).toEqual({
+        ascentOverride: '47.65%',
+        descentOverride: '11.88%',
+        fallbackFont: 'Arial',
+        lineGapOverride: '0.00%',
+        sizeAdjust: '203.32%',
+      })
       expect(fallbackFonts).toBeUndefined()
     })
 
@@ -120,7 +116,7 @@ describe('@next/font/google loader', () => {
         ok: true,
         text: async () => '',
       })
-      const { css, fallbackFonts } = await loader({
+      const { fallbackFonts, adjustFontFallback } = await loader({
         functionName: 'Source_Code_Pro',
         data: [],
         config: { subsets: [] },
@@ -128,17 +124,13 @@ describe('@next/font/google loader', () => {
         resolve: jest.fn(),
         fs: {} as any,
       })
-      expect(css).toMatchInlineSnapshot(`
-"
-    @font-face {
-      font-family: \\"source-code-pro-fallback\\";
-      ascent-override: 98.40%;
-      descent-override: 27.30%;
-      line-gap-override: 0.00%;
-      src: local(\\"Arial\\");
-    }
-  "
-`)
+      expect(adjustFontFallback).toEqual({
+        ascentOverride: '148.26%',
+        descentOverride: '41.13%',
+        fallbackFont: 'Arial',
+        lineGapOverride: '0.00%',
+        sizeAdjust: '66.37%',
+      })
       expect(fallbackFonts).toBeUndefined()
     })
 
@@ -147,7 +139,7 @@ describe('@next/font/google loader', () => {
         ok: true,
         text: async () => '',
       })
-      const { css, fallbackFonts } = await loader({
+      const { adjustFontFallback, fallbackFonts } = await loader({
         functionName: 'Fraunces',
         data: [{ fallback: ['Abc', 'Def'] }],
         config: { subsets: [] },
@@ -155,17 +147,13 @@ describe('@next/font/google loader', () => {
         resolve: jest.fn(),
         fs: {} as any,
       })
-      expect(css).toMatchInlineSnapshot(`
-"
-    @font-face {
-      font-family: \\"fraunces-fallback\\";
-      ascent-override: 97.80%;
-      descent-override: 25.50%;
-      line-gap-override: 0.00%;
-      src: local(\\"Times New Roman\\");
-    }
-  "
-`)
+      expect(adjustFontFallback).toEqual({
+        ascentOverride: '63.47%',
+        descentOverride: '16.55%',
+        fallbackFont: 'Times New Roman',
+        lineGapOverride: '0.00%',
+        sizeAdjust: '154.08%',
+      })
       expect(fallbackFonts).toEqual(['Abc', 'Def'])
     })
 
@@ -195,17 +183,17 @@ describe('@next/font/google loader', () => {
 
       await expect(
         loader({
-          functionName: 'Inter',
-          data: [],
+          functionName: 'Alkalami',
+          data: [{ variant: '400' }],
           config: { subsets: [] },
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
           fs: {} as any,
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(`
-                        "Failed to fetch font  \`Inter\`.
-                        URL: https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=optional"
-                    `)
+              "Failed to fetch font  \`Alkalami\`.
+              URL: https://fonts.googleapis.com/css2?family=Alkalami:wght@400&display=optional"
+            `)
     })
 
     test('Missing config with subsets', async () => {

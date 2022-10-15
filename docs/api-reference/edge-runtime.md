@@ -121,7 +121,7 @@ Running `console.log` on `process.env` **will not** show all your Environment Va
 console.log(process.env)
 // { NEXT_RUNTIME: 'edge' }
 console.log(process.env.TEST_VARIABLE)
-// { NEXT_RUNTIME: 'edge', TEST_VARIABLE: 'value' }
+// value
 ```
 
 ## Unsupported APIs
