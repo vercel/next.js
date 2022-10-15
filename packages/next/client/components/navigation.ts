@@ -35,6 +35,7 @@ class ReadonlyURLSearchParams {
   has: URLSearchParams['has']
   keys: URLSearchParams['keys']
   values: URLSearchParams['values']
+  toString: URLSearchParams['toString']
 
   constructor(urlSearchParams: URLSearchParams) {
     // Since `new Headers` uses `this.append()` to fill the headers object ReadonlyHeaders can't extend from Headers directly as it would throw.
@@ -47,6 +48,7 @@ class ReadonlyURLSearchParams {
     this.has = urlSearchParams.has.bind(urlSearchParams)
     this.keys = urlSearchParams.keys.bind(urlSearchParams)
     this.values = urlSearchParams.values.bind(urlSearchParams)
+    this.toString = urlSearchParams.toString.bind(urlSearchParams)
   }
   [Symbol.iterator]() {
     return this[INTERNAL_URLSEARCHPARAMS_INSTANCE][Symbol.iterator]()
