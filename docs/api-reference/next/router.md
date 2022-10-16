@@ -361,6 +361,31 @@ export default function Page() {
 }
 ```
 
+### router.go
+
+Navigate in history. It executes `window.history.go(delta)`.
+
+#### Usage
+
+```jsx
+import { useRouter } from 'next/router'
+
+export default function Page() {
+  const router = useRouter()
+
+  return (
+    <div>
+      <button type="button" onClick={() => router.go(-2)}>
+        Click here to go -2(back twice)
+      </button>
+      <button type="button" onClick={() => router.go(1)}>
+        Click here to go 1(forward)
+      </button>
+    </div>
+  )
+}
+```
+
 ### router.reload
 
 Reload the current URL. Equivalent to clicking the browser’s refresh button. It executes `window.location.reload()`.

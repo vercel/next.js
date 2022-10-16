@@ -209,6 +209,14 @@ describe('basePath', () => {
       await browser.eval('window.history.forward()')
       await check(() => browser.elementByCss('p').text(), /second/)
       expect(await browser.eval('window.beforeNav')).toBe(1)
+
+      await browser.eval('window.next.router.go(-1)')
+      await check(() => browser.elementByCss('p').text(), /first/)
+      expect(await browser.eval('window.beforeNav')).toBe(1)
+
+      await browser.eval('window.next.router.go(1)')
+      await check(() => browser.elementByCss('p').text(), /second/)
+      expect(await browser.eval('window.beforeNav')).toBe(1)
     })
 
     it('should respect basePath in amphtml link rel', async () => {

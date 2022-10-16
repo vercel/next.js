@@ -10,6 +10,7 @@ export default withRouter(({ router }) => {
     Router.prefetch('/page')
     Router.push
     Router.back
+    Router.go
     Router.reload
 
     router.events.on('routeChangeComplete', () => {})
@@ -18,6 +19,7 @@ export default withRouter(({ router }) => {
     router.prefetch('/page')
     router.push
     router.back
+    router.go
     router.reload
   })
   return <>{router.pathname}</>

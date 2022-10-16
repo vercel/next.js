@@ -542,6 +542,7 @@ export type NextRouter = BaseRouter &
     | 'replace'
     | 'reload'
     | 'back'
+    | 'go'
     | 'prefetch'
     | 'beforePopState'
     | 'events'
@@ -1135,6 +1136,13 @@ export default class Router implements BaseRouter {
    */
   back() {
     window.history.back()
+  }
+
+  /**
+   * Go delta in history
+   */
+  go(delta?: number | undefined) {
+    window.history.go(delta)
   }
 
   /**

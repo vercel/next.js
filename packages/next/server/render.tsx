@@ -177,6 +177,9 @@ class ServerRouter implements NextRouter {
   back() {
     noRouter()
   }
+  go() {
+    noRouter()
+  }
   prefetch(): any {
     noRouter()
   }
