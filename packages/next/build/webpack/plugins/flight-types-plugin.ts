@@ -68,8 +68,8 @@ export class FlightTypesPlugin {
       if (!mod.resource.startsWith(this.appDir + path.sep)) return
       if (!/\.(js|jsx|ts|tsx|mjs)$/.test(mod.resource)) return
 
-      const IS_LAYOUT = /[/\\]layout\.[^\.]+$/.test(mod.resource)
-      const IS_PAGE = !IS_LAYOUT && /[/\\]page\.[^\.]+$/.test(mod.resource)
+      const IS_LAYOUT = /[/\\]layout\.[^.]+$/.test(mod.resource)
+      const IS_PAGE = !IS_LAYOUT && /[/\\]page\.[^.]+$/.test(mod.resource)
       const relativePath = path.relative(this.appDir, mod.resource)
 
       // const RSC = mod.buildInfo.rsc

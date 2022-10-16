@@ -39,8 +39,7 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
 
           function processNext(
             indent: number,
-            next?: import('typescript').DiagnosticMessageChain[],
-            parent?: null
+            next?: import('typescript').DiagnosticMessageChain[]
           ) {
             if (!next) return
 
@@ -81,6 +80,7 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
                     main += `Type "${chalk.bold(invalid[1])}" isn't allowed.`
                   }
                   break
+                default:
               }
 
               processNext(indent + 1, item.next)
@@ -104,6 +104,7 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
           return main
         }
         break
+      default:
     }
   }
 }
