@@ -944,6 +944,8 @@ export async function renderToHTMLOrFlight(
       ComponentMod.pages
     )
 
+    const assetPrefix = renderOpts.assetPrefix || ''
+
     /**
      * Use the provided loader tree to create the React Component tree.
      */
@@ -1177,7 +1179,7 @@ export async function renderToHTMLOrFlight(
                   <link
                     key={fontFile}
                     rel="preload"
-                    href={`/_next/${fontFile}`}
+                    href={`${assetPrefix}/_next/${fontFile}`}
                     as="font"
                     type={`font/${ext}`}
                     crossOrigin="anonymous"
@@ -1188,7 +1190,7 @@ export async function renderToHTMLOrFlight(
                 ? stylesheets.map((href) => (
                     <link
                       rel="stylesheet"
-                      href={`/_next/${href}${cacheBustingUrlSuffix}`}
+                      href={`${assetPrefix}/_next/${href}${cacheBustingUrlSuffix}`}
                       // `Precedence` is an opt-in signal for React to handle
                       // resource loading and deduplication, etc:
                       // https://github.com/facebook/react/pull/25060
@@ -1423,7 +1425,7 @@ export async function renderToHTMLOrFlight(
 
         return (
           <AppRouter
-            assetPrefix={renderOpts.assetPrefix || ''}
+            assetPrefix={assetPrefix}
             initialCanonicalUrl={initialCanonicalUrl}
             initialTree={initialTree}
           >
@@ -1469,7 +1471,7 @@ export async function renderToHTMLOrFlight(
             polyfill.endsWith('.js') && !polyfill.endsWith('.module.js')
         )
         .map((polyfill) => ({
-          src: `${renderOpts.assetPrefix || ''}/_next/${polyfill}`,
+          src: `${assetPrefix}/_next/${polyfill}`,
           integrity: subresourceIntegrityManifest?.[polyfill],
         }))
 
@@ -1516,11 +1518,11 @@ export async function renderToHTMLOrFlight(
             bootstrapScripts: [
               ...(subresourceIntegrityManifest
                 ? buildManifest.rootMainFiles.map((src) => ({
-                    src: `${renderOpts.assetPrefix || ''}/_next/` + src,
+                    src: `${assetPrefix}/_next/` + src,
                     integrity: subresourceIntegrityManifest[src],
                   }))
                 : buildManifest.rootMainFiles.map(
-                    (src) => `${renderOpts.assetPrefix || ''}/_next/` + src
+                    (src) => `${assetPrefix}/_next/` + src
                   )),
             ],
           },
@@ -1548,11 +1550,11 @@ export async function renderToHTMLOrFlight(
             // Include hydration scripts in the HTML
             bootstrapScripts: subresourceIntegrityManifest
               ? buildManifest.rootMainFiles.map((src) => ({
-                  src: `${renderOpts.assetPrefix || ''}/_next/` + src,
+                  src: `${assetPrefix}/_next/` + src,
                   integrity: subresourceIntegrityManifest[src],
                 }))
               : buildManifest.rootMainFiles.map(
-                  (src) => `${renderOpts.assetPrefix || ''}/_next/` + src
+                  (src) => `${assetPrefix}/_next/` + src
                 ),
           },
         })
