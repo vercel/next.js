@@ -3,6 +3,8 @@ import path from 'path'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import { WEBPACK_LAYERS } from '../../../lib/constants'
 
+import { traverseModules } from '../utils'
+
 const PLUGIN_NAME = 'FlightTypesPlugin'
 
 interface Options {
@@ -121,24 +123,8 @@ export class FlightTypesPlugin {
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH,
         },
         (assets) => {
-          compilation.chunkGroups.forEach((chunkGroup) => {
-            chunkGroup.chunks.forEach((chunk: webpack.Chunk) => {
-              const chunkModules =
-                compilation.chunkGraph.getChunkModulesIterable(
-                  chunk
-                  // TODO: Update type so that it doesn't have to be cast.
-                ) as Iterable<webpack.NormalModule>
-              for (const mod of chunkModules) {
-                handleModule(mod, assets)
-
-                const anyModule = mod as any
-                if (anyModule.modules) {
-                  anyModule.modules.forEach((concatenatedMod: any) => {
-                    handleModule(concatenatedMod, assets)
-                  })
-                }
-              }
-            })
+          traverseModules(compilation, (mod) => {
+            handleModule(mod, assets)
           })
         }
       )
