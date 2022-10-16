@@ -7,12 +7,12 @@ export default function None() {
         This text should be black.
       </div>
       <br />
-      <Link href="/red" prefetch={false}>
-        <a id="link-red">Red</a>
+      <Link href="/red" prefetch={false} id="link-red">
+        Red
       </Link>
       <br />
-      <Link href="/blue" prefetch={false}>
-        <a id="link-blue">Blue</a>
+      <Link href="/blue" prefetch={false} id="link-blue">
+        Blue
       </Link>
     </>
   )

@@ -3,7 +3,7 @@ export default function Page() {
   return (
     <>
       <h1>Home Page</h1>
-      <Link href="/about">
+      <Link href="/about" legacyBehavior>
         About <strong>Additional Children</strong>
       </Link>
     </>
