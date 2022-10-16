@@ -83,11 +83,10 @@ export class FlightTypesPlugin {
       if (!mod.resource.startsWith(this.appDir + path.sep)) return
       if (!/\.(js|jsx|ts|tsx|mjs)$/.test(mod.resource)) return
 
-      const IS_LAYOUT = /[/\\]layout\.[^.]+$/.test(mod.resource)
+      const IS_LAYOUT = /[/\\]layout\.[^./\\]+$/.test(mod.resource)
       const IS_PAGE = !IS_LAYOUT && /[/\\]page\.[^.]+$/.test(mod.resource)
       const relativePath = path.relative(this.appDir, mod.resource)
 
-      // const RSC = mod.buildInfo.rsc
 
       const typePath = path.join(
         'types',
@@ -116,7 +115,7 @@ export class FlightTypesPlugin {
       }
     }
 
-    compiler.hooks.make.tap(PLUGIN_NAME, (compilation) => {
+    compiler.hooks.compilation.tap(PLUGIN_NAME, (compilation) => {
       compilation.hooks.processAssets.tap(
         {
           name: PLUGIN_NAME,
