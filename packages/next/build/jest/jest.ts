@@ -33,9 +33,7 @@ function setUpEnv(dir: string, nextConfig: NextConfigComplete) {
   const dev = false
   loadEnvConfig(dir, dev, Log)
 
-  if (nextConfig.experimental.newNextLinkBehavior) {
-    process.env.__NEXT_NEW_LINK_BEHAVIOR = 'true'
-  }
+  process.env.__NEXT_NEW_LINK_BEHAVIOR = 'true'
 }
 
 /*

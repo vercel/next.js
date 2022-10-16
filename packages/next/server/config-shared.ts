@@ -86,7 +86,6 @@ export interface ExperimentalConfig {
   legacyBrowsers?: boolean
   browsersListForSwc?: boolean
   manualClientBasePath?: boolean
-  newNextLinkBehavior?: boolean
   // custom path to a cache handler to use
   incrementalCacheHandlerPath?: string
   disablePostcssPresetEnv?: boolean
@@ -556,8 +555,6 @@ export const defaultConfig: NextConfig = {
     // TODO: change default in next major release (current v12.1.5)
     legacyBrowsers: true,
     browsersListForSwc: false,
-    // TODO: change default in next major release (current v12.1.5)
-    newNextLinkBehavior: false,
     cpus: Math.max(
       1,
       (Number(process.env.CIRCLE_NODE_TOTAL) ||

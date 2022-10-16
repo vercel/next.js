@@ -192,9 +192,7 @@ export function getDefineEnv({
     'process.env.__NEXT_MANUAL_CLIENT_BASE_PATH': JSON.stringify(
       config.experimental.manualClientBasePath
     ),
-    'process.env.__NEXT_NEW_LINK_BEHAVIOR': JSON.stringify(
-      config.experimental.newNextLinkBehavior
-    ),
+    'process.env.__NEXT_NEW_LINK_BEHAVIOR': JSON.stringify(true),
     'process.env.__NEXT_OPTIMISTIC_CLIENT_CACHE': JSON.stringify(
       config.experimental.optimisticClientCache
     ),
