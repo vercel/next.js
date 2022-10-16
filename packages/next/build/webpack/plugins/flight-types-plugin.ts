@@ -3,8 +3,6 @@ import path from 'path'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import { WEBPACK_LAYERS } from '../../../lib/constants'
 
-import { traverseModules } from '../utils'
-
 const PLUGIN_NAME = 'FlightTypesPlugin'
 
 interface Options {
@@ -77,8 +75,10 @@ export class FlightTypesPlugin {
       ? '..'
       : path.join('..', '..')
 
-    const handleModule = (mod: webpack.NormalModule, assets: any) => {
-      if (mod.layer !== WEBPACK_LAYERS.server) return
+    const handleModule = (_mod: webpack.Module, assets: any) => {
+      if (_mod.layer !== WEBPACK_LAYERS.server) return
+      const mod: webpack.NormalModule = _mod as any
+
       if (!mod.resource) return
       if (!mod.resource.startsWith(this.appDir + path.sep)) return
       if (!/\.(js|jsx|ts|tsx|mjs)$/.test(mod.resource)) return
@@ -123,9 +123,9 @@ export class FlightTypesPlugin {
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH,
         },
         (assets) => {
-          traverseModules(compilation, (mod) => {
+          for (const mod of compilation.modules) {
             handleModule(mod, assets)
-          })
+          }
         }
       )
     })
