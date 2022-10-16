@@ -1346,9 +1346,11 @@ export default async function getBaseWebpackConfig(
 
                 // Skip app directory and include shared modules in main-app.
                 if (
-                  name === 'main-app' ||
-                  name === 'app-internals' ||
-                  name.startsWith('app/')
+                  name &&
+                  hasAppDir &&
+                  (name === 'main-app' ||
+                    name === 'app-internals' ||
+                    name.startsWith('app/'))
                 ) {
                   return false
                 }
