@@ -9,7 +9,9 @@ use indexmap::{IndexMap, IndexSet};
 use mime::TEXT_HTML_UTF_8;
 pub use node_rendered_source::{create_node_rendered_source, NodeRenderer, NodeRendererVc};
 use serde_json::Value as JsonValue;
-use turbo_tasks::{primitives::StringVc, spawn_blocking, CompletionVc, CompletionsVc};
+use turbo_tasks::{
+    primitives::StringVc, spawn_blocking, CompletionVc, CompletionsVc, TryJoinIterExt,
+};
 use turbo_tasks_fs::{DiskFileSystemVc, File, FileSystemPathVc};
 use turbopack::ecmascript::EcmascriptModuleAssetVc;
 use turbopack_core::{
@@ -39,7 +41,17 @@ async fn emit(
         internal_assets(intermediate_asset, intermediate_output_path)
             .await?
             .iter()
-            .map(|a| a.content().write(a.path()))
+            .map(|a| async {
+                Ok(if *a.path().extension().await? != "map" {
+                    Some(a.content().write(a.path()))
+                } else {
+                    None
+                })
+            })
+            .try_join()
+            .await?
+            .into_iter()
+            .flatten()
             .collect(),
     )
     .all())
