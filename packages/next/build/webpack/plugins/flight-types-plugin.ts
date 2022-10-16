@@ -69,11 +69,7 @@ export class FlightTypesPlugin {
   }
 
   apply(compiler: webpack.Compiler) {
-    const assetPrefix = this.dev
-      ? '..'
-      : this.isEdgeServer
-      ? '..'
-      : path.join('..', '..')
+    const assetPrefix = this.dev ? '..' : this.isEdgeServer ? '..' : '../..'
 
     const handleModule = (_mod: webpack.Module, assets: any) => {
       if (_mod.layer !== WEBPACK_LAYERS.server) return
@@ -93,12 +89,14 @@ export class FlightTypesPlugin {
         'app',
         relativePath.replace(/\.(js|jsx|ts|tsx|mjs)$/, '.ts')
       )
-      const relativeImportPath = path.join(
-        path.relative(typePath, ''),
-        'app',
-        relativePath.replace(/\.(js|jsx|ts|tsx|mjs)$/, '')
-      )
-      const assetPath = path.join(assetPrefix, typePath)
+      const relativeImportPath = path
+        .join(
+          path.relative(typePath, ''),
+          'app',
+          relativePath.replace(/\.(js|jsx|ts|tsx|mjs)$/, '')
+        )
+        .replace(/\\/g, '/')
+      const assetPath = assetPrefix + '/' + typePath.replace(/\\/g, '/')
 
       if (IS_LAYOUT) {
         assets[assetPath] = new sources.RawSource(
@@ -122,8 +120,12 @@ export class FlightTypesPlugin {
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH,
         },
         (assets) => {
-          for (const mod of compilation.modules) {
-            handleModule(mod, assets)
+          for (const entrypoint of compilation.entrypoints.values()) {
+            for (const chunk of entrypoint.chunks) {
+              compilation.chunkGraph.getChunkModules(chunk).forEach((mod) => {
+                handleModule(mod, assets)
+              })
+            }
           }
         }
       )
