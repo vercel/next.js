@@ -4,7 +4,7 @@ import { NextInstance } from 'test/lib/next-modes/base'
 import webdriver from 'next-webdriver'
 import { getRedboxSource, hasRedbox } from 'next-test-utils'
 
-describe('app-dir root layout', () => {
+describe.skip('app-dir root layout', () => {
   const isDev = (global as any).isNextDev
 
   if ((global as any).isNextDeploy) {
