@@ -30,21 +30,21 @@ interface NavigateOptions {
 
 export interface AppRouterInstance {
   /**
-   * Reload the current page. Fetches new data from the server.
+   * Refresh the current page.
    */
-  reload(): void
+  refresh(): void
   /**
-   * Hard navigate to the provided href. Fetches new data from the server.
+   * Navigate to the provided href.
    * Pushes a new history entry.
    */
   push(href: string, options?: NavigateOptions): void
   /**
-   * Hard navigate to the provided href. Does not fetch data from the server if it was already fetched.
+   * Navigate to the provided href.
    * Replaces the current history entry.
    */
   replace(href: string, options?: NavigateOptions): void
   /**
-   * Soft prefetch the provided href. Does not fetch data from the server if it was already fetched.
+   * Prefetch the provided href.
    */
   prefetch(href: string): void
 }

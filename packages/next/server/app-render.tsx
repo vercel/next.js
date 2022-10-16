@@ -7,7 +7,7 @@ import type { FontLoaderManifest } from '../build/webpack/plugins/font-loader-ma
 // @ts-ignore
 import React, { experimental_use as use } from 'react'
 
-import { ParsedUrlQuery, stringify as stringifyQuery } from 'querystring'
+import { ParsedUrlQuery } from 'querystring'
 import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
 import { NextParsedUrlQuery } from './request-meta'
 import RenderResult from './render-result'
@@ -668,56 +668,6 @@ async function renderToString(element: React.ReactElement) {
   return streamToString(renderStream)
 }
 
-function getRootLayoutPath(
-  [segment, parallelRoutes, { layout }]: LoaderTree,
-  rootLayoutPath = ''
-): string | undefined {
-  rootLayoutPath += `${segment}/`
-  const isLayout = typeof layout !== 'undefined'
-  if (isLayout) return rootLayoutPath
-  // We can't assume it's `parallelRoutes.children` here in case the root layout is `app/@something/layout.js`
-  // But it's not possible to be more than one parallelRoutes before the root layout is found
-  const child = Object.values(parallelRoutes)[0]
-  if (!child) return
-  return getRootLayoutPath(child, rootLayoutPath)
-}
-
-function findRootLayoutInFlightRouterState(
-  [segment, parallelRoutes]: FlightRouterState,
-  rootLayoutSegments: string,
-  segments = ''
-): boolean {
-  segments += `${segment}/`
-  if (segments === rootLayoutSegments) {
-    return true
-  } else if (segments.length > rootLayoutSegments.length) {
-    return false
-  }
-  // We can't assume it's `parallelRoutes.children` here in case the root layout is `app/@something/layout.js`
-  // But it's not possible to be more than one parallelRoutes before the root layout is found
-  const child = Object.values(parallelRoutes)[0]
-  if (!child) return false
-  return findRootLayoutInFlightRouterState(child, rootLayoutSegments, segments)
-}
-
-function isNavigatingToNewRootLayout(
-  loaderTree: LoaderTree,
-  flightRouterState: FlightRouterState
-): boolean {
-  const newRootLayout = getRootLayoutPath(loaderTree)
-  // should always have a root layout
-  if (newRootLayout) {
-    const hasSameRootLayout = findRootLayoutInFlightRouterState(
-      flightRouterState,
-      newRootLayout
-    )
-
-    return !hasSameRootLayout
-  }
-
-  return false
-}
-
 export async function renderToHTMLOrFlight(
   req: IncomingMessage,
   res: ServerResponse,
@@ -809,28 +759,6 @@ export async function renderToHTMLOrFlight(
      * The tree created in next-app-loader that holds component segments and modules
      */
     const loaderTree: LoaderTree = ComponentMod.tree
-
-    // If navigating to a new root layout we need to do a full page navigation.
-    if (
-      isFlight &&
-      Array.isArray(providedFlightRouterState) &&
-      isNavigatingToNewRootLayout(loaderTree, providedFlightRouterState)
-    ) {
-      stripInternalQueries(query)
-      const search = stringifyQuery(query)
-
-      // Empty so that the client-side router will do a full page navigation.
-      const flightData: FlightData = req.url! + (search ? `?${search}` : '')
-      return new FlightRenderResult(
-        ComponentMod.renderToReadableStream(
-          flightData,
-          serverComponentManifest,
-          {
-            onError: flightDataRendererErrorHandler,
-          }
-        ).pipeThrough(createBufferedTransformStream())
-      )
-    }
 
     stripInternalQueries(query)
 
@@ -943,6 +871,8 @@ export async function renderToHTMLOrFlight(
       serverCSSManifest!,
       ComponentMod.pages
     )
+
+    const assetPrefix = renderOpts.assetPrefix || ''
 
     /**
      * Use the provided loader tree to create the React Component tree.
@@ -1165,6 +1095,10 @@ export async function renderToHTMLOrFlight(
         Component: () => {
           let props = {}
 
+          // Add extra cache busting (DEV only) for https://github.com/vercel/next.js/issues/5860
+          // See also https://bugs.webkit.org/show_bug.cgi?id=187726
+          const cacheBustingUrlSuffix = dev ? `?ts=${Date.now()}` : ''
+
           return (
             <>
               {preloadedFontFiles.map((fontFile) => {
@@ -1173,7 +1107,7 @@ export async function renderToHTMLOrFlight(
                   <link
                     key={fontFile}
                     rel="preload"
-                    href={`/_next/${fontFile}`}
+                    href={`${assetPrefix}/_next/${fontFile}`}
                     as="font"
                     type={`font/${ext}`}
                     crossOrigin="anonymous"
@@ -1184,9 +1118,7 @@ export async function renderToHTMLOrFlight(
                 ? stylesheets.map((href) => (
                     <link
                       rel="stylesheet"
-                      // Add extra cache busting (DEV only) for https://github.com/vercel/next.js/issues/5860
-                      // See also https://bugs.webkit.org/show_bug.cgi?id=187726
-                      href={`/_next/${href}${dev ? `?ts=${Date.now()}` : ''}`}
+                      href={`${assetPrefix}/_next/${href}${cacheBustingUrlSuffix}`}
                       // `Precedence` is an opt-in signal for React to handle
                       // resource loading and deduplication, etc:
                       // https://github.com/facebook/react/pull/25060
@@ -1421,7 +1353,7 @@ export async function renderToHTMLOrFlight(
 
         return (
           <AppRouter
-            assetPrefix={renderOpts.assetPrefix || ''}
+            assetPrefix={assetPrefix}
             initialCanonicalUrl={initialCanonicalUrl}
             initialTree={initialTree}
           >
@@ -1467,7 +1399,7 @@ export async function renderToHTMLOrFlight(
             polyfill.endsWith('.js') && !polyfill.endsWith('.module.js')
         )
         .map((polyfill) => ({
-          src: `${renderOpts.assetPrefix || ''}/_next/${polyfill}`,
+          src: `${assetPrefix}/_next/${polyfill}`,
           integrity: subresourceIntegrityManifest?.[polyfill],
         }))
 
@@ -1514,11 +1446,11 @@ export async function renderToHTMLOrFlight(
             bootstrapScripts: [
               ...(subresourceIntegrityManifest
                 ? buildManifest.rootMainFiles.map((src) => ({
-                    src: `${renderOpts.assetPrefix || ''}/_next/` + src,
+                    src: `${assetPrefix}/_next/` + src,
                     integrity: subresourceIntegrityManifest[src],
                   }))
                 : buildManifest.rootMainFiles.map(
-                    (src) => `${renderOpts.assetPrefix || ''}/_next/` + src
+                    (src) => `${assetPrefix}/_next/` + src
                   )),
             ],
           },
@@ -1546,11 +1478,11 @@ export async function renderToHTMLOrFlight(
             // Include hydration scripts in the HTML
             bootstrapScripts: subresourceIntegrityManifest
               ? buildManifest.rootMainFiles.map((src) => ({
-                  src: `${renderOpts.assetPrefix || ''}/_next/` + src,
+                  src: `${assetPrefix}/_next/` + src,
                   integrity: subresourceIntegrityManifest[src],
                 }))
               : buildManifest.rootMainFiles.map(
-                  (src) => `${renderOpts.assetPrefix || ''}/_next/` + src
+                  (src) => `${assetPrefix}/_next/` + src
                 ),
           },
         })
