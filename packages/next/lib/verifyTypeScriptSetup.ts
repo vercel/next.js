@@ -115,7 +115,8 @@ export async function verifyTypeScriptSetup({
     await writeConfigurationDefaults(
       ts,
       resolvedTsConfigPath,
-      intent.firstTimeSetup
+      intent.firstTimeSetup,
+      isAppDirEnabled
     )
     // Write out the necessary `next-env.d.ts` file to correctly register
     // Next.js' types:
