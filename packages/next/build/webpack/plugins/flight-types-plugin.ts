@@ -8,6 +8,7 @@ const PLUGIN_NAME = 'FlightTypesPlugin'
 interface Options {
   appDir: string
   dev: boolean
+  isEdgeServer: boolean
 }
 
 function createTypeGuardFile(
@@ -24,7 +25,11 @@ type TEntry = typeof entry
 check<IEntry, TEntry>(entry)
 
 interface IEntry {
-  default: (props: { children: any; params?: any }) => React.ReactElement | null
+  ${
+    options.type === 'layout'
+      ? `default: (props: { children: React.ReactNode; params?: any }) => React.ReactNode | null`
+      : `default: (props: { params?: any }) => React.ReactNode | null`
+  }
   generateStaticParams?: (params?:any) => Promise<any[]>
   config?: {
     // TODO: remove revalidate here
@@ -55,13 +60,21 @@ type NonNegative<T extends Numeric> = T extends Zero ? T : Negative<T> extends n
 export class FlightTypesPlugin {
   appDir: string
   dev: boolean
+  isEdgeServer: boolean
 
   constructor(options: Options) {
     this.appDir = options.appDir
     this.dev = options.dev
+    this.isEdgeServer = options.isEdgeServer
   }
 
   apply(compiler: webpack.Compiler) {
+    const assetPrefix = this.dev
+      ? '..'
+      : this.isEdgeServer
+      ? '..'
+      : path.join('..', '..')
+
     const handleModule = (mod: webpack.NormalModule, assets: any) => {
       if (mod.layer !== WEBPACK_LAYERS.server) return
       if (!mod.resource) return
@@ -84,10 +97,7 @@ export class FlightTypesPlugin {
         'app',
         relativePath.replace(/\.(js|jsx|ts|tsx|mjs)$/, '')
       )
-      const assetPath = path.join(
-        this.dev ? '..' : path.join('..', '..'),
-        typePath
-      )
+      const assetPath = path.join(assetPrefix, typePath)
 
       if (IS_LAYOUT) {
         assets[assetPath] = new sources.RawSource(

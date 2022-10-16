@@ -1946,7 +1946,9 @@ export default async function getBaseWebpackConfig(
               dev,
               isEdgeServer,
             })),
-      hasAppDir && !isClient && new FlightTypesPlugin({ appDir, dev }),
+      hasAppDir &&
+        !isClient &&
+        new FlightTypesPlugin({ appDir, dev, isEdgeServer }),
       !dev &&
         isClient &&
         !!config.experimental.sri?.algorithm &&
