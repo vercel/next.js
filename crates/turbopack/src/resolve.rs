@@ -155,8 +155,9 @@ async fn base_resolve_options(
             }
             mods
         },
-        into_package: vec![
-            ResolveIntoPackage::ExportsField {
+        into_package: {
+            let mut resolve_into = Vec::new();
+            resolve_into.push(ResolveIntoPackage::ExportsField {
                 field: "exports".to_string(),
                 conditions: {
                     let mut conditions: BTreeMap<String, ConditionValue> = [
@@ -165,6 +166,12 @@ async fn base_resolve_options(
                     ]
                     .into_iter()
                     .collect();
+                    if opt.browser {
+                        conditions.insert("browser".to_string(), ConditionValue::Set);
+                    }
+                    if opt.module {
+                        conditions.insert("module".to_string(), ConditionValue::Set);
+                    }
                     if let Some(environment) = emulating {
                         for condition in environment.resolve_conditions().await?.iter() {
                             conditions.insert(condition.to_string(), ConditionValue::Set);
@@ -199,10 +206,15 @@ async fn base_resolve_options(
                     conditions
                 },
                 unspecified_conditions: ConditionValue::Unset,
-            },
-            ResolveIntoPackage::MainField("main".to_string()),
-            ResolveIntoPackage::Default("index".to_string()),
-        ],
+            });
+            if opt.browser {
+                resolve_into.push(ResolveIntoPackage::MainField("browser".to_string()));
+                resolve_into.push(ResolveIntoPackage::MainField("module".to_string()));
+            }
+            resolve_into.push(ResolveIntoPackage::MainField("main".to_string()));
+            resolve_into.push(ResolveIntoPackage::Default("index".to_string()));
+            resolve_into
+        },
         import_map: Some(import_map),
         resolved_map: Some(resolved_map),
         ..Default::default()

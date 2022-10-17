@@ -111,6 +111,7 @@ pub async fn create_server_rendered_source(
             enable_node_native_modules: true,
             custom_conditions: vec!["development".to_string()],
             import_map: Some(next_import_map),
+            module: true,
             ..Default::default()
         }
         .cell(),

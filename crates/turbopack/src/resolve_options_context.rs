@@ -9,6 +9,10 @@ pub struct ResolveOptionsContext {
     pub enable_react: bool,
     pub enable_node_native_modules: bool,
     pub enable_node_modules: bool,
+    /// Enables the "browser" field and export condition in package.json
+    pub browser: bool,
+    /// Enables the "module" field and export condition in package.json
+    pub module: bool,
     pub custom_conditions: Vec<String>,
     /// An additional import map to use when resolving modules.
     ///
