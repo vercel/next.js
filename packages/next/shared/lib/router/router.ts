@@ -867,7 +867,7 @@ export default class Router implements BaseRouter {
     isPreview: boolean
   }>
 
-  private _key: string = createKey()
+  private _key: string = history.state?.key ?? createKey()
 
   static events: MittEmitter<RouterEvent> = mitt()
 
@@ -1015,12 +1015,10 @@ export default class Router implements BaseRouter {
 
       window.addEventListener('popstate', this.onPopState)
 
-      // enable custom scroll restoration handling when available
-      // otherwise fallback to browser's default handling
-      if (process.env.__NEXT_SCROLL_RESTORATION) {
-        if (manualScrollRestoration) {
-          window.history.scrollRestoration = 'manual'
-        }
+      if (process.env.__NEXT_SCROLL_RESTORATION && manualScrollRestoration) {
+        // enable custom scroll restoration handling when available
+        // otherwise fallback to browser's default handling
+        window.history.scrollRestoration = 'manual'
       }
     }
   }
@@ -1069,27 +1067,16 @@ export default class Router implements BaseRouter {
       return
     }
 
-    let forcedScroll: { x: number; y: number } | undefined
     const { url, as, options, key } = state
-    if (process.env.__NEXT_SCROLL_RESTORATION) {
-      if (manualScrollRestoration) {
-        if (this._key !== key) {
+    if (process.env.__NEXT_SCROLL_RESTORATION && manualScrollRestoration) {
+      if (this._key !== key) {
+        try {
           // Snapshot current scroll position:
-          try {
-            sessionStorage.setItem(
-              '__next_scroll_' + this._key,
-              JSON.stringify({ x: self.pageXOffset, y: self.pageYOffset })
-            )
-          } catch {}
-
-          // Restore old scroll position:
-          try {
-            const v = sessionStorage.getItem('__next_scroll_' + key)
-            forcedScroll = JSON.parse(v!)
-          } catch {
-            forcedScroll = { x: 0, y: 0 }
-          }
-        }
+          sessionStorage.setItem(
+            '__next_scroll_' + this._key,
+            JSON.stringify({ x: self.pageXOffset, y: self.pageYOffset })
+          )
+        } catch {}
       }
     }
     this._key = key
@@ -1121,8 +1108,7 @@ export default class Router implements BaseRouter {
         locale: options.locale || this.defaultLocale,
         // @ts-ignore internal value not exposed on types
         _h: 0,
-      }),
-      forcedScroll
+      })
     )
   }
 
@@ -1159,6 +1145,19 @@ export default class Router implements BaseRouter {
     }
     ;({ url, as } = prepareUrlAs(this, url, as))
     return this.change('pushState', url, as, options)
+  }
+
+  lastScrollPosition() {
+    let forcedScroll = null
+    try {
+      const scrollPosition = sessionStorage.getItem(
+        `__next_scroll_${this._key}`
+      )
+      if (scrollPosition) {
+        forcedScroll = JSON.parse(scrollPosition) as { x: number; y: number }
+      }
+    } catch {}
+    return forcedScroll
   }
 
   /**

@@ -100,7 +100,7 @@ class Container extends React.Component<{
   }
 
   componentDidMount() {
-    this.scrollToHash()
+    this.scrollToHashOrRestore()
 
     // We need to replace the router state if:
     // - the page was (auto) exported and has a query string or search (hash)
@@ -159,20 +159,26 @@ class Container extends React.Component<{
   }
 
   componentDidUpdate() {
-    this.scrollToHash()
+    this.scrollToHashOrRestore()
   }
 
-  scrollToHash() {
-    let { hash } = location
-    hash = hash && hash.substring(1)
-    if (!hash) return
+  scrollToHashOrRestore() {
+    const scrollPosition = router.lastScrollPosition()
 
-    const el: HTMLElement | null = document.getElementById(hash)
-    if (!el) return
+    if (scrollPosition) {
+      window.scrollTo(scrollPosition.x, scrollPosition.y)
+    } else {
+      let { hash } = location
+      hash = hash && hash.substring(1)
+      if (!hash) return
 
-    // If we call scrollIntoView() in here without a setTimeout
-    // it won't scroll properly.
-    setTimeout(() => el.scrollIntoView(), 0)
+      const el: HTMLElement | null = document.getElementById(hash)
+      if (!el) return
+
+      // If we call scrollIntoView() in here without a setTimeout
+      // it won't scroll properly.
+      setTimeout(() => el.scrollIntoView(), 0)
+    }
   }
 
   render() {

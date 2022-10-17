@@ -39,7 +39,7 @@ describe('reload-scroll-back-restoration', () => {
     expect(scrollPositionMemories[0].x).not.toBe(0)
     expect(scrollPositionMemories[0].y).not.toBe(0)
 
-    await browser.eval(`window.next.router.push('/1')`)
+    await browser.eval(`window.next.router.push('/1?test=test')`)
     await browser.eval(() => document.querySelector('#link').scrollIntoView())
     scrollPositionMemories.push({
       x: Math.floor(await browser.eval(() => window.scrollX)),
@@ -71,6 +71,23 @@ describe('reload-scroll-back-restoration', () => {
     await check(async () => {
       const isReady = await browser.eval('next.router.isReady')
       return isReady ? 'success' : isReady
+    }, 'success')
+
+    // check restore value on reload
+    await check(
+      () => browser.eval(() => document.documentElement.innerHTML),
+      /router ready/
+    )
+    await check(async () => {
+      assert.equal(
+        scrollPositionMemories[1].x,
+        Math.floor(await browser.eval(() => window.scrollX))
+      )
+      assert.equal(
+        scrollPositionMemories[1].y,
+        Math.floor(await browser.eval(() => window.scrollY))
+      )
+      return 'success'
     }, 'success')
 
     // check restore value on history index: 0
@@ -113,7 +130,7 @@ describe('reload-scroll-back-restoration', () => {
     expect(scrollPositionMemories[0].x).not.toBe(0)
     expect(scrollPositionMemories[0].y).not.toBe(0)
 
-    await browser.eval(`window.next.router.push('/1')`)
+    await browser.eval(`window.next.router.push('/1?test=test')`)
     await browser.eval(() => document.querySelector('#link').scrollIntoView())
     scrollPositionMemories.push({
       x: Math.floor(await browser.eval(() => window.scrollX)),
@@ -152,6 +169,23 @@ describe('reload-scroll-back-restoration', () => {
     await check(async () => {
       const isReady = await browser.eval('next.router.isReady')
       return isReady ? 'success' : isReady
+    }, 'success')
+
+    // check restore value on reload
+    await check(
+      () => browser.eval(() => document.documentElement.innerHTML),
+      /router ready/
+    )
+    await check(async () => {
+      assert.equal(
+        scrollPositionMemories[1].x,
+        Math.floor(await browser.eval(() => window.scrollX))
+      )
+      assert.equal(
+        scrollPositionMemories[1].y,
+        Math.floor(await browser.eval(() => window.scrollY))
+      )
+      return 'success'
     }, 'success')
 
     // check restore value on history index: 2

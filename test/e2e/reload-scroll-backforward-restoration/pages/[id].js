@@ -5,11 +5,14 @@ import { useRouter } from 'next/router'
 const Page = ({ id }) => {
   const router = useRouter()
   const [ready, setReady] = useState(false)
+  const [routeChangeComplete, setRouteChangeComplete] = useState(false)
   useEffect(() => {
     router.events.on('routeChangeComplete', () => {
-      setReady(true)
+      setRouteChangeComplete(true)
     })
-  }, [router, ready, setReady])
+
+    setReady(true)
+  }, [router, routeChangeComplete, setRouteChangeComplete])
 
   return (
     <>
@@ -20,7 +23,8 @@ const Page = ({ id }) => {
           background: 'blue',
         }}
       />
-      <p>{ready ? 'routeChangeComplete' : 'loading'}</p>
+      <p>{ready ? 'router ready' : 'loading'}</p>
+      <p>{routeChangeComplete ? 'routeChangeComplete' : 'loading'}</p>
       <Link href={`/${id + 1}`}>
         <a
           id="link"
