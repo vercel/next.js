@@ -391,7 +391,8 @@ export async function ncc_edge_runtime(task, opts) {
 
 export async function ncc_react(task, opts) {
   const peerDeps = {
-    react: 'react', // 'next/dist/compiled/react',
+    react: 'react',
+    'react-dom': 'react-dom',
   }
   const reactDir = dirname(
     relative(__dirname, require.resolve(`react-builtin/package.json`))

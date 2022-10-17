@@ -12,7 +12,10 @@ import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
 import { IncomingMessage, ServerResponse } from 'http'
 import { NextUrlWithParsedQuery } from './request-meta'
 import { shouldUseReactRoot } from './utils'
-import { loadRequireHook } from '../build/webpack/require-hook'
+import {
+  loadRequireHook,
+  overrideBuiltInReactPackages,
+} from '../build/webpack/require-hook'
 
 loadRequireHook()
 
@@ -149,7 +152,8 @@ export class NextServer {
     if (!this.serverPromise) {
       this.serverPromise = this.loadConfig().then(async (conf) => {
         if (conf.experimental.appDir) {
-          require('../build/webpack/require-hook').overrideBuiltInReactPackages()
+          process.env.HAS_APP_DIR = '1'
+          overrideBuiltInReactPackages()
         }
 
         this.server = await this.createServer({

@@ -127,6 +127,8 @@ function isResourceInPackages(resource: string, packageNames?: string[]) {
 const builtInReactImports = [
   'react',
   'react/jsx-runtime',
+  'next/dist/compiled/react',
+  'next/dist/compiled/react-dom/server.browser',
   'next/dist/compiled/react/react.shared-subset',
   'next/dist/compiled/react-server-dom-webpack/writer.browser.server',
 ]
