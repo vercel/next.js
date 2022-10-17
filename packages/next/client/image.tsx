@@ -306,7 +306,7 @@ function handleLoading(
             img.getBoundingClientRect().width / window.innerWidth
           if (widthViewportRatio < 0.6) {
             warnOnce(
-              `Image with src "${src}" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/future/image#sizes`
+              `Image with src "${src}" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes`
             )
           }
         }

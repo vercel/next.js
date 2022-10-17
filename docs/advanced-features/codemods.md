@@ -64,7 +64,97 @@ Dangerously migrates from `next/legacy/image` to the new `next/image` by adding 
 - Removes `objectPosition` prop and adds `style`
 - Removes `lazyBoundary` prop
 - Removes `lazyRoot` prop
-- TODO: handle `loader`
+- TODO: does not migrate the `loader` config. If you need it, you must manually add a `loader` prop.
+
+#### Before: intrinsic
+
+```jsx
+import Image from 'next/image'
+import img from '../img.png'
+
+function Page() {
+  return <Image src={img} />
+}
+```
+
+#### After: intrinsic
+
+```jsx
+import Image from 'next/image'
+import img from '../img.png'
+
+const css = { maxWidth: '100%', height: 'auto' }
+function Page() {
+  return <Image src={img} style={css} />
+}
+```
+
+#### Before: responsive
+
+```jsx
+import Image from 'next/image'
+import img from '../img.png'
+
+function Page() {
+  return <Image src={img} layout="responsive" />
+}
+```
+
+#### After: responsive
+
+```jsx
+import Image from 'next/image'
+import img from '../img.png'
+
+const css = { width: '100%', height: 'auto' }
+function Page() {
+  return <Image src={img} sizes="100vw" style={css} />
+}
+```
+
+#### Before: fill
+
+```jsx
+import Image from 'next/image'
+import img from '../img.png'
+
+function Page() {
+  return <Image src={img} layout="fill" />
+}
+```
+
+#### After: fill
+
+```jsx
+import Image from 'next/image'
+import img from '../img.png'
+
+function Page() {
+  return <Image src={img} sizes="100vw" fill />
+}
+```
+
+#### Before: fixed
+
+```jsx
+import Image from 'next/image'
+import img from '../img.png'
+
+function Page() {
+  return <Image src={img} layout="fixed" />
+}
+```
+
+#### After: fixed
+
+```jsx
+import Image from 'next/image'
+import img from '../img.png'
+
+function Page() {
+  return <Image src={img} />
+}
+```
 
 ## Next.js 11
 
