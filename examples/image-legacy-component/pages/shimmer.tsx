@@ -1,4 +1,4 @@
-import Image from 'next/image'
+import Image from 'next/legacy/image'
 import ViewSource from '../components/view-source'
 
 const shimmer = (w: number, h: number) => `
@@ -31,10 +31,6 @@ const Shimmer = () => (
       blurDataURL={`data:image/svg+xml;base64,${toBase64(shimmer(700, 475))}`}
       width={700}
       height={475}
-      style={{
-        maxWidth: '100%',
-        height: 'auto',
-      }}
     />
   </div>
 )
