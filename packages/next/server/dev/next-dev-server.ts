@@ -323,8 +323,6 @@ export default class DevServer extends Server {
         const appPaths: Record<string, string[]> = {}
         const edgeRoutesSet = new Set<string>()
 
-        console.log('aggregate', knownFiles)
-
         let envChange = false
         let tsconfigChange = false
 
