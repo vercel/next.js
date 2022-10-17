@@ -8,6 +8,7 @@ use std::{
 use crate::util::MapErr;
 use napi::bindgen_prelude::*;
 use next_dev::{register, NextDevServerBuilder};
+use owo_colors::OwoColorize;
 use serde::Deserialize;
 use turbo_tasks::{util::FormatDuration, TurboTasks};
 use turbo_tasks_memory::MemoryBackend;
@@ -37,6 +38,9 @@ struct TurboDevServerOptions {
 
     #[serde(default = "default_dir")]
     dir: PathBuf,
+
+    #[serde(default = "default_dir")]
+    root_dir: PathBuf,
 
     #[serde(default)]
     allow_retry: bool,
@@ -71,9 +75,21 @@ async fn start_server(options: TurboDevServerOptions) -> napi::Result<()> {
     let tt = TurboTasks::new(MemoryBackend::new());
     let tt_clone = tt.clone();
 
-    let dir = options.dir.to_str().unwrap().to_string();
-    // TODO: distinguish between root to dir
-    let root_dir = dir.clone();
+    let dir = options
+        .dir
+        .canonicalize()
+        .expect("Cannot canonicalize project directory")
+        .to_str()
+        .expect("project directory contains invalid characters")
+        .to_string();
+
+    let root_dir = options
+        .root_dir
+        .canonicalize()
+        .expect("Cannot canonicalize project directory")
+        .to_str()
+        .expect("project directory contains invalid characters")
+        .to_string();
 
     //server_component_external
 
@@ -96,27 +112,35 @@ async fn start_server(options: TurboDevServerOptions) -> napi::Result<()> {
 
     let server = server.build().await.convert_err()?;
 
-    let index_uri = if server.addr.ip().is_loopback() {
+    let index_uri = if server.addr.ip().is_loopback() || server.addr.ip().is_unspecified() {
         format!("http://localhost:{}", server.addr.port())
     } else {
         format!("http://{}", server.addr)
     };
-    println!("server listening on: {uri}", uri = index_uri);
+    println!(
+        "{} - started server on {}:{}, url: {}",
+        "ready".green(),
+        server.addr.ip(),
+        server.addr.port(),
+        index_uri
+    );
 
     let stats_future = async move {
-        let (elapsed, count) = tt_clone.get_or_wait_update_info(Duration::ZERO).await;
         println!(
-            "initial compilation {} ({} task execution, {} tasks)",
-            FormatDuration(start.elapsed()),
-            FormatDuration(elapsed),
-            count
+            "{event_type} - initial compilation {start}",
+            event_type = "event".purple(),
+            start = FormatDuration(start.elapsed()),
         );
 
         loop {
-            let (elapsed, count) = tt_clone
+            let (elapsed, _count) = tt_clone
                 .get_or_wait_update_info(Duration::from_millis(100))
                 .await;
-            println!("updated in {} ({} tasks)", FormatDuration(elapsed), count);
+            println!(
+                "{event_type} - updated in {elapsed}",
+                event_type = "event".purple(),
+                elapsed = FormatDuration(elapsed),
+            );
         }
     };
 

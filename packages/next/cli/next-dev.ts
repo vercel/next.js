@@ -100,10 +100,18 @@ const nextDev: cliCommand = (argv) => {
     Log.info('Booting up turbo devserver')
 
     loadBindings().then((bindings: any) => {
-      let r = bindings.turbo.startDev(devServerOptions)
+      const packagePath = require('next/dist/compiled/find-up').sync(
+        'package.json',
+        { cwd: dir }
+      )
+      const server = bindings.turbo.startDev({
+        ...devServerOptions,
+        // naive workaround to find cloest `root` to resolve imports, until we have proper upstream fix.
+        rootDir: path.dirname(packagePath),
+      })
       // Start preflight after server is listening and ignore errors:
       preflight().catch(() => {})
-      return r
+      return server
     })
   } else {
     startServer(devServerOptions)
