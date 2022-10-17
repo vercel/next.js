@@ -1,4 +1,5 @@
 pub mod dev;
+pub mod optimize;
 
 use std::{collections::VecDeque, fmt::Debug};
 
@@ -13,6 +14,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::FileSystemPathVc;
 
+use self::optimize::optimize;
 use crate::{
     asset::{Asset, AssetVc, AssetsVc},
     reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
@@ -114,7 +116,10 @@ impl ChunkGroupVc {
             }
         }
 
-        Ok(ChunksVc::cell(chunks.into_iter().collect()))
+        let chunks = ChunksVc::cell(chunks.into_iter().collect());
+        let chunks = optimize(chunks, self);
+
+        Ok(chunks)
     }
 }
 

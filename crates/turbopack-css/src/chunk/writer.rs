@@ -5,7 +5,7 @@ use turbo_tasks::ValueToString;
 use crate::CssChunkItemContentVc;
 
 pub async fn expand_imports<T: Write>(
-    mut writer: WriterWithIndent<T>,
+    writer: &mut WriterWithIndent<T>,
     content_vc: CssChunkItemContentVc,
 ) -> anyhow::Result<()> {
     let content = &*content_vc.await?;

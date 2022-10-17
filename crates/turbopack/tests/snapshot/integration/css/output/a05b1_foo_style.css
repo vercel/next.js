@@ -1,0 +1,5 @@
+/* chunk [workspace]/crates/turbopack/tests/snapshot/integration/css/output/a05b1_foo_style.css */
+/* [project]/crates/turbopack/tests/snapshot/integration/css/input/node_modules/foo/style.css */
+.foo-style {
+  color: green;
+}

@@ -1,27 +1,13 @@
-(self.TURBOPACK = self.TURBOPACK || []).push(["[workspace]/crates/turbopack/tests/snapshot/integration/json/output/crates_turbopack_tests_snapshot_integration_json_input_index.js.eval.js", {
+(self.TURBOPACK = self.TURBOPACK || []).push(["[workspace]/crates/turbopack/tests/snapshot/integration/runtime_entry/output/crates_turbopack_tests_snapshot_integration_runtime_entry_input_index_11d4e52fecde1007.js", {
 
-"[project]/crates/turbopack/tests/snapshot/integration/json/input/index.js (ecmascript)": (({ r: __turbopack_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
+"[project]/crates/turbopack/tests/snapshot/integration/runtime_entry/input/index.js (ecmascript)": (function({ r: __turbopack_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, m: module, e: exports }) { !function() {
 
-var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$json$2f$input$2f$package$2e$json__ = __turbopack_import__("[project]/crates/turbopack/tests/snapshot/integration/json/input/package.json (json)");
-var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$json$2f$input$2f$invalid$2e$json__ = __turbopack_import__("[project]/crates/turbopack/tests/snapshot/integration/json/input/invalid.json (json)");
-"__TURBOPACK__ecmascript__hoisting__location__";
-;
-console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$json$2f$input$2f$package$2e$json__["default"].name);
-;
-console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$json$2f$input$2f$invalid$2e$json__["default"]["this-is"]);
+console.log("hello world");
 
-})()),
-"[project]/crates/turbopack/tests/snapshot/integration/json/input/package.json (json)": (({ r: __turbopack_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
-
-__turbopack_export_value__(JSON.parse("{\"name\":\"json-snapshot\"}"));
-})()),
-"[project]/crates/turbopack/tests/snapshot/integration/json/input/invalid.json (json)": (({ r: __turbopack_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
-
-throw new Error("An error occurred while importing a JSON module: \"File is not valid JSON\"")
-})()),
+}.call(this) }),
 }, ({ chunks, instantiateRuntimeModule }) => {
-    if(!(true)) return true;
-    instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/json/input/index.js (ecmascript)");
+    if(!(true && chunks.has("[workspace]/crates/turbopack/tests/snapshot/integration/runtime_entry/output/crates_turbopack_tests_snapshot_integration_runtime_entry_input_index_415de18dcd01321f.js"))) return true;
+    instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/runtime_entry/input/index.js (ecmascript)");
 }]);
 (() => {
   // When a chunk is executed, it will either register itself with the current
@@ -717,4 +703,4 @@ throw new Error("An error occurred while importing a JSON module: \"File is not 
 })();
 
 
-//# sourceMappingURL=crates_turbopack_tests_snapshot_integration_json_input_index.js.eval.js.f9dbb6ce17050156.map
+//# sourceMappingURL=crates_turbopack_tests_snapshot_integration_runtime_entry_input_index_11d4e52fecde1007.js.694f75faea6fdb93.map

@@ -1,24 +1,31 @@
 pub mod loader;
+pub(crate) mod optimize;
 pub(crate) mod source_map;
 
-use std::{fmt::Write as _, slice::Iter};
+use std::{
+    collections::{hash_map::DefaultHasher, HashSet},
+    fmt::Write as _,
+    hash::{Hash, Hasher},
+    slice::Iter,
+};
 
 use anyhow::{anyhow, Context, Result};
 use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    primitives::{StringVc, StringsVc},
+    primitives::{StringReadRef, StringVc, StringsVc},
     trace::TraceRawVcs,
     TryJoinIterExt, ValueToString, ValueToStringVc,
 };
-use turbo_tasks_fs::{embed_file, File, FileContent, FileContentVc, FileSystemPathVc};
+use turbo_tasks_fs::{embed_file, File, FileContent, FileSystemPathOptionVc, FileSystemPathVc};
 use turbopack_core::{
-    asset::{Asset, AssetContentVc, AssetVc, AssetsVc},
+    asset::{Asset, AssetContentVc, AssetVc},
     chunk::{
-        chunk_content, chunk_content_split, Chunk, ChunkContentResult, ChunkGroupReferenceVc,
-        ChunkGroupVc, ChunkItem, ChunkItemVc, ChunkReferenceVc, ChunkVc, ChunkableAsset,
-        ChunkableAssetVc, ChunkingContextVc, FromChunkableAsset, ModuleId, ModuleIdReadRef,
-        ModuleIdVc, ModuleIdsVc,
+        chunk_content, chunk_content_split,
+        optimize::{ChunkOptimizerVc, OptimizableChunk, OptimizableChunkVc},
+        Chunk, ChunkContentResult, ChunkGroupReferenceVc, ChunkGroupVc, ChunkItem, ChunkItemVc,
+        ChunkReferenceVc, ChunkVc, ChunkableAsset, ChunkableAssetVc, ChunkingContextVc,
+        FromChunkableAsset, ModuleId, ModuleIdReadRef, ModuleIdVc, ModuleIdsVc,
     },
     code_builder::{Code, CodeReadRef, CodeVc},
     introspect::{
@@ -34,6 +41,7 @@ use turbopack_hash::{encode_hex, hash_xxh3_hash64, Xxh3Hash64Hasher};
 
 use self::{
     loader::{ManifestChunkAssetVc, ManifestLoaderItemVc},
+    optimize::EcmascriptChunkOptimizerVc,
     source_map::EcmascriptChunkSourceMapAssetReferenceVc,
 };
 use crate::{
@@ -45,42 +53,179 @@ use crate::{
 #[turbo_tasks::value]
 pub struct EcmascriptChunk {
     context: ChunkingContextVc,
-    main_entry: EcmascriptChunkPlaceableVc,
-    evaluate: Option<EcmascriptChunkEvaluate>,
+    main_entries: EcmascriptChunkPlaceablesVc,
+    omit_entries: Option<EcmascriptChunkPlaceablesVc>,
+    evaluate: Option<EcmascriptChunkEvaluateVc>,
 }
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkVc {
     #[turbo_tasks::function]
-    pub fn new(context: ChunkingContextVc, main_entry: EcmascriptChunkPlaceableVc) -> Self {
-        Self::cell(EcmascriptChunk {
+    pub fn new_normalized(
+        context: ChunkingContextVc,
+        main_entries: EcmascriptChunkPlaceablesVc,
+        omit_entries: Option<EcmascriptChunkPlaceablesVc>,
+        evaluate: Option<EcmascriptChunkEvaluateVc>,
+    ) -> Self {
+        EcmascriptChunk {
             context,
-            main_entry,
-            evaluate: None,
-        })
+            main_entries,
+            omit_entries,
+            evaluate,
+        }
+        .cell()
     }
 
     #[turbo_tasks::function]
-    pub fn new_evaluate(
+    pub fn new(context: ChunkingContextVc, main_entry: EcmascriptChunkPlaceableVc) -> Self {
+        Self::new_normalized(
+            context,
+            EcmascriptChunkPlaceablesVc::cell(vec![main_entry]),
+            None,
+            None,
+        )
+    }
+
+    #[turbo_tasks::function]
+    pub async fn new_evaluate(
         context: ChunkingContextVc,
         main_entry: EcmascriptChunkPlaceableVc,
         runtime_entries: Option<EcmascriptChunkPlaceablesVc>,
-    ) -> Self {
-        Self::cell(EcmascriptChunk {
+    ) -> Result<Self> {
+        let mut entries = Vec::new();
+        if let Some(runtime_entries) = runtime_entries {
+            entries.extend(runtime_entries.await?.iter().copied());
+        }
+        entries.push(main_entry);
+        let entries = EcmascriptChunkPlaceablesVc::cell(entries);
+        Ok(Self::new_normalized(
             context,
-            main_entry,
-            evaluate: Some(EcmascriptChunkEvaluate { runtime_entries }),
-        })
+            entries,
+            None,
+            Some(
+                EcmascriptChunkEvaluate {
+                    evaluate_entries: entries,
+                    chunk_group: None,
+                }
+                .cell(),
+            ),
+        ))
+    }
+
+    /// Return the most specific directory which contains all elements of the
+    /// chunk.
+    #[turbo_tasks::function]
+    pub async fn common_parent(self) -> Result<FileSystemPathOptionVc> {
+        let this = self.await?;
+        let main_entries = this.main_entries.await?;
+        let mut paths = main_entries.iter().map(|entry| entry.path().parent());
+        let mut current = paths
+            .next()
+            .ok_or_else(|| anyhow!("Chunks must have at least one entry"))?
+            .resolve()
+            .await?;
+        for path in paths {
+            while !*path.is_inside_or_equal(current).await? {
+                let parent = current.parent().resolve().await?;
+                if parent == current {
+                    return Ok(FileSystemPathOptionVc::cell(None));
+                }
+                current = parent;
+            }
+        }
+        Ok(FileSystemPathOptionVc::cell(Some(current)))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn compare(
+        left: EcmascriptChunkVc,
+        right: EcmascriptChunkVc,
+    ) -> Result<EcmascriptChunkComparisonVc> {
+        let a = left.await?;
+        let b = right.await?;
+
+        let a = ecmascript_chunk_content(a.context, a.main_entries, a.omit_entries);
+        let b = ecmascript_chunk_content(b.context, b.main_entries, b.omit_entries);
+
+        let a = a.await?.chunk_items.to_set();
+        let b = b.await?.chunk_items.to_set();
+
+        let a = &*a.await?;
+        let b = &*b.await?;
+
+        let mut unshared_a = a.clone();
+        let mut unshared_b = b.clone();
+        let mut shared = HashSet::new();
+        for item in b {
+            if unshared_a.remove(item) {
+                shared.insert(*item);
+            }
+        }
+        for item in &shared {
+            unshared_b.remove(item);
+        }
+        Ok(EcmascriptChunkComparison {
+            shared_chunk_items: shared.len(),
+            left_chunk_items: unshared_a.len(),
+            right_chunk_items: unshared_b.len(),
+        }
+        .cell())
     }
 }
 
+#[turbo_tasks::value]
+pub struct EcmascriptChunkComparison {
+    shared_chunk_items: usize,
+    left_chunk_items: usize,
+    right_chunk_items: usize,
+}
+
 /// Whether the ES chunk should include and evaluate a runtime.
-#[derive(PartialEq, Eq, Debug, Clone, TraceRawVcs, Serialize, Deserialize)]
+#[turbo_tasks::value]
 pub struct EcmascriptChunkEvaluate {
-    /// Runtime entry modules will be instantiated before the main entry.
-    /// They are useful for applications such as polyfills or hot
-    /// module runtimes.
-    runtime_entries: Option<EcmascriptChunkPlaceablesVc>,
+    /// Entries that will be executed in that order only all chunks are ready.
+    /// These entries must be included in `main_entries` so that they are
+    /// available.
+    evaluate_entries: EcmascriptChunkPlaceablesVc,
+    /// All chunks of this chunk group need to be ready for execution to start.
+    /// When None, it will use a chunk group created from the current chunk.
+    chunk_group: Option<ChunkGroupVc>,
+}
+
+#[turbo_tasks::value_impl]
+impl EcmascriptChunkEvaluateVc {
+    #[turbo_tasks::function]
+    async fn content(
+        self,
+        context: ChunkingContextVc,
+        origin_chunk: EcmascriptChunkVc,
+    ) -> Result<EcmascriptChunkContentEvaluateVc> {
+        let &EcmascriptChunkEvaluate {
+            evaluate_entries,
+            chunk_group,
+        } = &*self.await?;
+        let chunk_group =
+            chunk_group.unwrap_or_else(|| ChunkGroupVc::from_chunk(origin_chunk.into()));
+        let evaluate_chunks = chunk_group.chunks().await?;
+        let mut chunks_ids = Vec::new();
+        for chunk in evaluate_chunks.iter() {
+            if let Some(ecma_chunk) = EcmascriptChunkVc::resolve_from(chunk).await? {
+                if ecma_chunk != origin_chunk {
+                    chunks_ids.push(chunk.path().to_string().await?.clone_value());
+                }
+            }
+        }
+        let entry_modules_ids = evaluate_entries
+            .await?
+            .iter()
+            .map(|entry| entry.as_chunk_item(context).id())
+            .collect();
+        Ok(EcmascriptChunkContentEvaluate {
+            chunks_ids: StringsVc::cell(chunks_ids),
+            entry_modules_ids: ModuleIdsVc::cell(entry_modules_ids),
+        }
+        .cell())
+    }
 }
 
 #[turbo_tasks::value]
@@ -89,6 +234,14 @@ pub struct EcmascriptChunkContentResult {
     pub chunks: Vec<ChunkVc>,
     pub async_chunk_groups: Vec<ChunkGroupVc>,
     pub external_asset_references: Vec<AssetReferenceVc>,
+}
+
+#[turbo_tasks::value_impl]
+impl EcmascriptChunkContentResultVc {
+    #[turbo_tasks::function]
+    fn filter(self, _other: EcmascriptChunkContentResultVc) -> EcmascriptChunkContentResultVc {
+        todo!()
+    }
 }
 
 impl From<ChunkContentResult<EcmascriptChunkItemVc>> for EcmascriptChunkContentResult {
@@ -101,22 +254,76 @@ impl From<ChunkContentResult<EcmascriptChunkItemVc>> for EcmascriptChunkContentR
         }
     }
 }
+
 #[turbo_tasks::function]
-async fn ecmascript_chunk_content(
+fn ecmascript_chunk_content(
+    context: ChunkingContextVc,
+    main_entries: EcmascriptChunkPlaceablesVc,
+    omit_entries: Option<EcmascriptChunkPlaceablesVc>,
+) -> EcmascriptChunkContentResultVc {
+    let mut chunk_content = ecmascript_chunk_content_internal(context, main_entries);
+    if let Some(omit_entries) = omit_entries {
+        let omit_chunk_content = ecmascript_chunk_content_internal(context, omit_entries);
+        chunk_content = chunk_content.filter(omit_chunk_content);
+    }
+    chunk_content
+}
+
+#[turbo_tasks::function]
+async fn ecmascript_chunk_content_internal(
+    context: ChunkingContextVc,
+    entries: EcmascriptChunkPlaceablesVc,
+) -> Result<EcmascriptChunkContentResultVc> {
+    let entries = entries.await?;
+    let entries = entries.iter().copied();
+
+    let contents = entries
+        .map(|entry| ecmascript_chunk_content_single_entry(context, entry))
+        .collect::<Vec<_>>();
+
+    if contents.len() == 1 {
+        return Ok(contents.into_iter().next().unwrap());
+    }
+
+    let mut all_chunk_items = IndexSet::<EcmascriptChunkItemVc>::new();
+    let mut all_chunks = IndexSet::<ChunkVc>::new();
+    let mut all_async_chunk_groups = IndexSet::<ChunkGroupVc>::new();
+    let mut all_external_asset_references = IndexSet::<AssetReferenceVc>::new();
+
+    for content in contents {
+        let EcmascriptChunkContentResult {
+            chunk_items,
+            chunks,
+            async_chunk_groups,
+            external_asset_references,
+        } = &*content.await?;
+        all_chunk_items.extend(chunk_items.await?.iter().copied());
+        all_chunks.extend(chunks.iter().copied());
+        all_async_chunk_groups.extend(async_chunk_groups.iter().copied());
+        all_external_asset_references.extend(external_asset_references.iter().copied());
+    }
+
+    Ok(EcmascriptChunkContentResult {
+        chunk_items: EcmascriptChunkItemsVc::cell(all_chunk_items.into_iter().collect()),
+        chunks: all_chunks.into_iter().collect(),
+        async_chunk_groups: all_async_chunk_groups.into_iter().collect(),
+        external_asset_references: all_external_asset_references.into_iter().collect(),
+    }
+    .cell())
+}
+
+#[turbo_tasks::function]
+async fn ecmascript_chunk_content_single_entry(
     context: ChunkingContextVc,
     entry: EcmascriptChunkPlaceableVc,
-    runtime_entries: Option<EcmascriptChunkPlaceablesVc>,
 ) -> Result<EcmascriptChunkContentResultVc> {
-    let entry = entry.as_asset();
-    let runtime_entries = runtime_entries.map(|runtime_entries| runtime_entries.as_assets());
+    let asset = entry.as_asset();
 
     Ok(EcmascriptChunkContentResultVc::cell(
-        if let Some(res) =
-            chunk_content::<EcmascriptChunkItemVc>(context, entry, runtime_entries).await?
-        {
+        if let Some(res) = chunk_content::<EcmascriptChunkItemVc>(context, asset, None).await? {
             res
         } else {
-            chunk_content_split::<EcmascriptChunkItemVc>(context, entry, runtime_entries).await?
+            chunk_content_split::<EcmascriptChunkItemVc>(context, asset, None).await?
         }
         .into(),
     ))
@@ -220,14 +427,15 @@ impl EcmascriptChunkContentVc {
     #[turbo_tasks::function]
     async fn new(
         context: ChunkingContextVc,
-        main_entry: EcmascriptChunkPlaceableVc,
-        runtime_entries: Option<EcmascriptChunkPlaceablesVc>,
+        main_entries: EcmascriptChunkPlaceablesVc,
+        omit_entries: Option<EcmascriptChunkPlaceablesVc>,
         chunk_path: FileSystemPathVc,
         evaluate: Option<EcmascriptChunkContentEvaluateVc>,
     ) -> Result<Self> {
         // TODO(alexkirsz) All of this should be done in a transition, otherwise we run
         // the risks of values not being strongly consistent with each other.
-        let chunk_content = ecmascript_chunk_content(context, main_entry, runtime_entries).await?;
+        let chunk_content = ecmascript_chunk_content(context, main_entries, omit_entries);
+        let chunk_content = chunk_content.await?;
         let module_factories = chunk_content.chunk_items.to_entry_snapshot().await?;
         Ok(EcmascriptChunkContent {
             module_factories,
@@ -391,8 +599,8 @@ impl EcmascriptChunkContentVc {
             )?;
         }
         code += "]);\n";
-        if let Some(evaluate) = &this.evaluate {
-            let runtime_code = evaluate.await?.runtime_code.await?;
+        if this.evaluate.is_some() {
+            let runtime_code = embed_file!("src/chunk/runtime.js").await?;
             let runtime_code = match &*runtime_code {
                 FileContent::NotFound => return Err(anyhow!("runtime code is not found")),
                 FileContent::Content(file) => String::from_utf8(file.content().to_vec())
@@ -548,40 +756,61 @@ impl Version for EcmascriptChunkVersion {
 impl Chunk for EcmascriptChunk {}
 
 #[turbo_tasks::value_impl]
+impl OptimizableChunk for EcmascriptChunk {
+    #[turbo_tasks::function]
+    fn get_optimizer(&self) -> ChunkOptimizerVc {
+        EcmascriptChunkOptimizerVc::new().into()
+    }
+}
+
+#[turbo_tasks::value_impl]
 impl ValueToString for EcmascriptChunk {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<StringVc> {
-        use std::future::IntoFuture;
-
         let suffix = match self.evaluate {
             None => "".to_string(),
-            Some(EcmascriptChunkEvaluate {
-                runtime_entries: None,
-            }) => " (evaluate)".to_string(),
-            Some(EcmascriptChunkEvaluate {
-                runtime_entries: Some(runtime_entries),
-            }) => {
-                let runtime_entries_ids = runtime_entries
+            Some(evaluate) => {
+                let EcmascriptChunkEvaluate {
+                    evaluate_entries, ..
+                } = &*evaluate.await?;
+                let evaluate_entries_ids = evaluate_entries
                     .await?
                     .iter()
-                    .map(|entry| entry.path().to_string().into_future())
+                    .map(|entry| entry.path().to_string())
                     .try_join()
                     .await?;
-                let runtime_entries_ids_str = runtime_entries_ids
-                    .iter()
-                    .map(|s| s.as_ref())
-                    .collect::<Vec<_>>();
-                let runtime_entries_ids_str = runtime_entries_ids_str.join(", ");
                 format!(
-                    " (evaluate) with runtime entries: {}",
-                    runtime_entries_ids_str
+                    " (evaluate {})",
+                    FormatIter(|| evaluate_entries_ids
+                        .iter()
+                        .map(|s| s.as_str())
+                        .intersperse(", "))
                 )
             }
         };
 
+        async fn entries_to_string(
+            entries: Option<EcmascriptChunkPlaceablesVc>,
+        ) -> Result<Vec<StringReadRef>> {
+            Ok(if let Some(entries) = entries {
+                entries
+                    .await?
+                    .iter()
+                    .map(|entry| entry.path().to_string())
+                    .try_join()
+                    .await?
+            } else {
+                Vec::new()
+            })
+        }
+        let entry_strings = entries_to_string(Some(self.main_entries)).await?;
+        let entry_strs = || entry_strings.iter().map(|s| s.as_str()).intersperse(" + ");
+        let omit_entry_strings = entries_to_string(self.omit_entries).await?;
+        let omit_entry_strs = || omit_entry_strings.iter().flat_map(|s| [" - ", s.as_str()]);
         Ok(StringVc::cell(format!(
-            "chunk {}{}",
-            self.main_entry.path().to_string().await?,
+            "chunk {}{}{}",
+            FormatIter(entry_strs),
+            FormatIter(omit_entry_strs),
             suffix
         )))
     }
@@ -592,46 +821,14 @@ impl EcmascriptChunkVc {
     #[turbo_tasks::function]
     async fn chunk_content(self) -> Result<EcmascriptChunkContentVc> {
         let this = self.await?;
-        let (evaluate, runtime_entries) = match this.evaluate {
-            None => (None, None),
-            Some(EcmascriptChunkEvaluate { runtime_entries }) => {
-                let evaluate_chunks = ChunkGroupVc::from_chunk(self.into()).chunks().await?;
-                let mut chunks_ids = Vec::new();
-                for c in evaluate_chunks.iter() {
-                    if let Some(ecma_chunk) = EcmascriptChunkVc::resolve_from(c).await? {
-                        if ecma_chunk != self {
-                            chunks_ids.push(c.path().to_string().await?.clone_value());
-                        }
-                    }
-                }
-                let context = this.context;
-                let mut entry_modules_ids = if let Some(runtime_entries) = runtime_entries {
-                    runtime_entries
-                        .await?
-                        .iter()
-                        .map(|entry| entry.as_chunk_item(context).id())
-                        .collect()
-                } else {
-                    vec![]
-                };
-                entry_modules_ids.push(this.main_entry.as_chunk_item(context).id());
-                (
-                    Some(EcmascriptChunkContentEvaluateVc::cell(
-                        EcmascriptChunkContentEvaluate {
-                            chunks_ids: StringsVc::cell(chunks_ids),
-                            entry_modules_ids: ModuleIdsVc::cell(entry_modules_ids),
-                            runtime_code: embed_file!("src/chunk/runtime.js"),
-                        },
-                    )),
-                    runtime_entries,
-                )
-            }
-        };
+        let evaluate = this
+            .evaluate
+            .map(|evaluate| evaluate.content(this.context, self));
         let chunk_id = self.path();
         let content = EcmascriptChunkContentVc::new(
             this.context,
-            this.main_entry,
-            runtime_entries,
+            this.main_entries,
+            this.omit_entries,
             chunk_id,
             evaluate,
         );
@@ -642,27 +839,58 @@ impl EcmascriptChunkVc {
 #[turbo_tasks::value_impl]
 impl Asset for EcmascriptChunk {
     #[turbo_tasks::function]
-    async fn path(&self) -> Result<FileSystemPathVc> {
-        // Avoid collisions between evaluated and non-evaluated chunks.
-        let path = if let Some(EcmascriptChunkEvaluate { runtime_entries }) = self.evaluate {
-            if let Some(runtime_entries) = runtime_entries {
-                let mut hasher = Xxh3Hash64Hasher::new();
-                for entry in &*runtime_entries.await? {
-                    let path = entry.path().to_string().await?;
-                    hasher.write(path.as_bytes());
-                }
-                let hash = hasher.finish();
-                self.main_entry
-                    .path()
-                    .append(&format!(".eval{}", encode_hex(hash)))
-            } else {
-                self.main_entry.path().append(".eval")
+    async fn path(self_vc: EcmascriptChunkVc) -> Result<FileSystemPathVc> {
+        let this = self_vc.await?;
+
+        // All information that makes the chunk unique need to be encoded in the path.
+        // As we can't make the path that long, we split info into "hashed info" and
+        // "named info". All hashed info is hashed and that hash is appended to
+        // the named info. Together they will make up the path.
+        let mut hasher = DefaultHasher::new();
+        let mut need_hash = false;
+
+        // evalute only contributes to the hashed info
+        if let Some(evaluate) = this.evaluate {
+            let evaluate = evaluate.content(this.context, self_vc).await?;
+            for id in evaluate.chunks_ids.await?.iter() {
+                id.hash(&mut hasher);
+                need_hash = true;
             }
+            for id in evaluate.entry_modules_ids.await?.iter() {
+                id.hash(&mut hasher);
+                need_hash = true;
+            }
+        }
+        let main_entries = this.main_entries.await?;
+        // If there is only a single entry we can used that for the named info.
+        // If there are multiple entries we hash them and use the common parent as named
+        // info.
+        let mut path = if main_entries.len() == 1 {
+            let main_entry = main_entries.iter().next().unwrap();
+            main_entry.path()
         } else {
-            self.main_entry.path()
+            for entry in &main_entries {
+                let path = entry.path().to_string().await?;
+                path.hash(&mut hasher);
+                need_hash = true;
+            }
+            if let &Some(common_parent) = &*self_vc.common_parent().await? {
+                common_parent
+            } else {
+                let main_entry = main_entries
+                    .iter()
+                    .next()
+                    .ok_or_else(|| anyhow!("chunk must have at least one entry"))?;
+                main_entry.path()
+            }
         };
 
-        Ok(self.context.chunk_path(path, ".js"))
+        if need_hash {
+            let hash = hasher.finish();
+            path = path.append_to_stem(&format!("_{}", encode_hex(hash)))
+        }
+
+        Ok(this.context.chunk_path(path, ".js"))
     }
 
     #[turbo_tasks::function]
@@ -673,14 +901,8 @@ impl Asset for EcmascriptChunk {
     #[turbo_tasks::function]
     async fn references(self_vc: EcmascriptChunkVc) -> Result<AssetReferencesVc> {
         let this = self_vc.await?;
-        let content = ecmascript_chunk_content(
-            this.context,
-            this.main_entry,
-            this.evaluate
-                .as_ref()
-                .and_then(|EcmascriptChunkEvaluate { runtime_entries }| *runtime_entries),
-        )
-        .await?;
+        let content =
+            ecmascript_chunk_content(this.context, this.main_entries, this.omit_entries).await?;
         let mut references = Vec::new();
         for r in content.external_asset_references.iter() {
             references.push(*r);
@@ -736,14 +958,8 @@ impl Introspectable for EcmascriptChunk {
         let content = content_to_details(self_vc.content());
         let mut details = String::new();
         let this = self_vc.await?;
-        let chunk_content = ecmascript_chunk_content(
-            this.context,
-            this.main_entry,
-            this.evaluate
-                .as_ref()
-                .and_then(|EcmascriptChunkEvaluate { runtime_entries }| *runtime_entries),
-        )
-        .await?;
+        let chunk_content =
+            ecmascript_chunk_content(this.context, this.main_entries, this.omit_entries).await?;
         let chunk_items = chunk_content.chunk_items.await?;
         details += "Chunk items:\n\n";
         for name in chunk_items.iter().map(|item| item.to_string()) {
@@ -759,10 +975,9 @@ impl Introspectable for EcmascriptChunk {
         let mut children = children_from_asset_references(self_vc.references())
             .await?
             .clone_value();
-        children.insert((
-            entry_module_key(),
-            IntrospectableAssetVc::new(self_vc.await?.main_entry.into()),
-        ));
+        for &entry in &*self_vc.await?.main_entries.await? {
+            children.insert((entry_module_key(), IntrospectableAssetVc::new(entry.into())));
+        }
         Ok(IntrospectableChildrenVc::cell(children))
     }
 }
@@ -771,7 +986,6 @@ impl Introspectable for EcmascriptChunk {
 struct EcmascriptChunkContentEvaluate {
     chunks_ids: StringsVc,
     entry_modules_ids: ModuleIdsVc,
-    runtime_code: FileContentVc,
 }
 
 #[turbo_tasks::value]
@@ -822,10 +1036,8 @@ pub struct EcmascriptChunkPlaceables(Vec<EcmascriptChunkPlaceableVc>);
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceablesVc {
     #[turbo_tasks::function]
-    async fn as_assets(self) -> Result<AssetsVc> {
-        Ok(AssetsVc::cell(
-            self.await?.iter().map(|p| p.as_asset()).collect(),
-        ))
+    pub fn empty() -> Self {
+        Self::cell(Vec::new())
     }
 }
 
@@ -916,4 +1128,14 @@ impl EcmascriptChunkItemsVc {
             .snapshot())
         }
     }
+
+    #[turbo_tasks::function]
+    async fn to_set(self) -> Result<EcmascriptChunkItemsSetVc> {
+        Ok(EcmascriptChunkItemsSetVc::cell(
+            self.await?.iter().copied().collect(),
+        ))
+    }
 }
+
+#[turbo_tasks::value(transparent)]
+pub struct EcmascriptChunkItemsSet(HashSet<EcmascriptChunkItemVc>);

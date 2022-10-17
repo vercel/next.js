@@ -1,9 +1,15 @@
+use std::{
+    collections::hash_map::DefaultHasher,
+    hash::{Hash, Hasher},
+};
+
 use anyhow::Result;
 use turbo_tasks::{
     primitives::{BoolVc, StringVc},
     ValueToString,
 };
 use turbo_tasks_fs::FileSystemPathVc;
+use turbopack_hash::encode_hex;
 
 use super::{ChunkingContext, ChunkingContextVc};
 use crate::asset::AssetVc;
@@ -75,11 +81,38 @@ impl ChunkingContext for DevChunkingContext {
         }
         // For clippy -- This explicit deref is necessary
         let path = &*path_vc.await?;
+
         let mut name = if let Some(inner) = self.context_path.await?.get_path_to(path) {
             clean(inner)
         } else {
             clean(&path_vc.to_string().await?)
         };
+        if name.ends_with(extension) {
+            name.truncate(name.len() - extension.len());
+        }
+
+        // Location in "path" where hashed and named parts are split.
+        // Everything before i is hashed and after i named.
+        let mut i = 0;
+        static NODE_MODULES: &str = "_node_modules_";
+        if let Some(j) = name.find(NODE_MODULES) {
+            i = j + NODE_MODULES.len();
+        }
+        if name.len() - i > 100 {
+            i = name.len() - 100;
+            if let Some(j) = name[i..].find('_') {
+                if j < 20 {
+                    i += j + 1;
+                }
+            }
+        }
+        if i > 0 {
+            let mut hasher = DefaultHasher::new();
+            name[..i].hash(&mut hasher);
+            let hash = encode_hex(hasher.finish());
+            let truncated_hash = &hash[..5];
+            name = format!("{}_{}", truncated_hash, &name[i..]);
+        }
         if !name.ends_with(extension) {
             name += extension;
         }

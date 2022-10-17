@@ -42,7 +42,7 @@ use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
 };
 use turbo_tasks::{
-    primitives::{StringReadRef, StringVc},
+    primitives::{BoolVc, StringReadRef, StringVc},
     spawn_thread,
     trace::TraceRawVcs,
     CompletionVc, Invalidator, ValueToString, ValueToStringVc,
@@ -629,6 +629,21 @@ impl FileSystemPath {
         }
     }
 
+    pub fn is_inside_or_equal(&self, context: &FileSystemPath) -> bool {
+        if self.fs == context.fs && self.path.starts_with(&context.path) {
+            if context.path.is_empty() {
+                true
+            } else {
+                matches!(
+                    self.path.as_bytes().get(context.path.len()),
+                    Some(&b'/') | None
+                )
+            }
+        } else {
+            false
+        }
+    }
+
     pub fn is_root(&self) -> bool {
         self.path.is_empty()
     }
@@ -753,6 +768,33 @@ impl FileSystemPathVc {
         ))
     }
 
+    /// Adds a suffix to the basename of the filename. [appending] must not
+    /// contain `/`. Extension will stay intact.
+    #[turbo_tasks::function]
+    pub async fn append_to_stem(self, appending: &str) -> Result<Self> {
+        let this = self.await?;
+        if appending.contains('/') {
+            bail!(
+                "FileSystemPathVc(\"{}\").append_to_stem(\"{}\") must not append '/'",
+                this.path,
+                appending
+            )
+        }
+        if let Some((path, ext)) = this.path.rsplit_once('.') {
+            // check if `ext` is a real extension, and not a "." in a directory name
+            if !ext.contains('/') {
+                return Ok(Self::new_normalized(
+                    this.fs,
+                    format!("{}{}.{}", path, appending, ext),
+                ));
+            }
+        }
+        Ok(Self::new_normalized(
+            this.fs,
+            format!("{}{}", this.path, appending),
+        ))
+    }
+
     /// Similar to [FileSystemPathVc::join], but returns an Option that will be
     /// None when the joined path would leave the filesystem root.
     #[turbo_tasks::function]
@@ -801,6 +843,16 @@ impl FileSystemPathVc {
     pub async fn extension(self) -> Result<StringVc> {
         let this = self.await?;
         Ok(StringVc::cell(this.extension().unwrap_or("").to_string()))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn is_inside(self, other: FileSystemPathVc) -> Result<BoolVc> {
+        Ok(BoolVc::cell(self.await?.is_inside(&*other.await?)))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn is_inside_or_equal(self, other: FileSystemPathVc) -> Result<BoolVc> {
+        Ok(BoolVc::cell(self.await?.is_inside_or_equal(&*other.await?)))
     }
 }
 

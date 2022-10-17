@@ -1,20 +1,18 @@
-(self.TURBOPACK = self.TURBOPACK || []).push(["[workspace]/crates/turbopack/tests/snapshot/integration/preset_env/output/crates_turbopack_tests_snapshot_integration_preset_env_input_index.js.eval.js", {
+(self.TURBOPACK = self.TURBOPACK || []).push(["[workspace]/crates/turbopack/tests/snapshot/integration/resolve_error_cjs/output/crates_turbopack_tests_snapshot_integration_resolve_error_cjs_input_index_faf3224b5829d042.js", {
 
-"[project]/crates/turbopack/tests/snapshot/integration/preset_env/input/index.js (ecmascript)": (({ r: __turbopack_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
+"[project]/crates/turbopack/tests/snapshot/integration/resolve_error_cjs/input/index.js (ecmascript)": (function({ r: __turbopack_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, m: module, e: exports }) { !function() {
 
-var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f40$swc$2b$helpers$40$0$2e$4$2e$11$2f$node_modules$2f40$swc$2f$helpers$2f$src$2f$_class_call_check$2e$mjs__ = __turbopack_import__("[project]/node_modules/.pnpm/@swc+helpers@0.4.11/node_modules/@swc/helpers/src/_class_call_check.mjs (ecmascript)");
-"__TURBOPACK__ecmascript__hoisting__location__";
-;
-var Foo = function Foo() {
-    "use strict";
-    __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f40$swc$2b$helpers$40$0$2e$4$2e$11$2f$node_modules$2f40$swc$2f$helpers$2f$src$2f$_class_call_check$2e$mjs__["default"](this, Foo);
-};
-console.log(Foo);
+const dne = __turbopack_require__((()=>{
+    const e = new Error("Cannot find module 'does-not-exist/path'");
+    e.code = 'MODULE_NOT_FOUND';
+    throw e;
+})());
+console.log(dne);
 
-})()),
+}.call(this) }),
 }, ({ chunks, instantiateRuntimeModule }) => {
-    if(!(true && chunks.has("[workspace]/crates/turbopack/tests/snapshot/integration/preset_env/output/node_modules_.pnpm_@swc+helpers@0.4.11_node_modules_@swc_helpers_src__class_call_check.mjs.js"))) return true;
-    instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/preset_env/input/index.js (ecmascript)");
+    if(!(true && chunks.has("[workspace]/crates/turbopack/tests/snapshot/integration/resolve_error_cjs/output/crates_turbopack_tests_snapshot_integration_resolve_error_cjs_input_index_913c38f2a32ad83d.js"))) return true;
+    instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/resolve_error_cjs/input/index.js (ecmascript)");
 }]);
 (() => {
   // When a chunk is executed, it will either register itself with the current
@@ -710,4 +708,4 @@ console.log(Foo);
 })();
 
 
-//# sourceMappingURL=crates_turbopack_tests_snapshot_integration_preset_env_input_index.js.eval.js.d5aabf09a45af6ea.map
+//# sourceMappingURL=crates_turbopack_tests_snapshot_integration_resolve_error_cjs_input_index_faf3224b5829d042.js.ee327211e242374c.map

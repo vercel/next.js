@@ -1,22 +1,27 @@
-(self.TURBOPACK = self.TURBOPACK || []).push(["[workspace]/crates/turbopack/tests/snapshot/integration/env/output/crates_turbopack_tests_snapshot_integration_env_input_index.js.eval4235cbbc40408376.js", {
+(self.TURBOPACK = self.TURBOPACK || []).push(["[workspace]/crates/turbopack/tests/snapshot/integration/json/output/crates_turbopack_tests_snapshot_integration_json_input_index_717ac5b1b8932c8a.js", {
 
-"[project]/crates/turbopack/tests/snapshot/integration/env/input/index.js (ecmascript)": (function({ r: __turbopack_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, m: module, e: exports }) { !function() {
+"[project]/crates/turbopack/tests/snapshot/integration/json/input/index.js (ecmascript)": (({ r: __turbopack_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
 
-console.log(process.env.FOOBAR);
-
-}.call(this) }),
-"[project]/crates/turbopack/tests/snapshot/integration/env/input/.env/.env.js": (({ r: __turbopack_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
-
-const env = process.env;
-
-env["FOO"] = "foo";
-env["FOOBAR"] = "foobar";
+var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$json$2f$input$2f$package$2e$json__ = __turbopack_import__("[project]/crates/turbopack/tests/snapshot/integration/json/input/package.json (json)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$json$2f$input$2f$invalid$2e$json__ = __turbopack_import__("[project]/crates/turbopack/tests/snapshot/integration/json/input/invalid.json (json)");
+"__TURBOPACK__ecmascript__hoisting__location__";
+;
+console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$json$2f$input$2f$package$2e$json__["default"].name);
+;
+console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$json$2f$input$2f$invalid$2e$json__["default"]["this-is"]);
 
 })()),
+"[project]/crates/turbopack/tests/snapshot/integration/json/input/package.json (json)": (({ r: __turbopack_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
+
+__turbopack_export_value__(JSON.parse("{\"name\":\"json-snapshot\"}"));
+})()),
+"[project]/crates/turbopack/tests/snapshot/integration/json/input/invalid.json (json)": (({ r: __turbopack_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
+
+throw new Error("An error occurred while importing a JSON module: \"File is not valid JSON\"")
+})()),
 }, ({ chunks, instantiateRuntimeModule }) => {
-    if(!(true)) return true;
-    instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/env/input/.env/.env.js");
-instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/env/input/index.js (ecmascript)");
+    if(!(true && chunks.has("[workspace]/crates/turbopack/tests/snapshot/integration/json/output/crates_turbopack_tests_snapshot_integration_json_input_index_2bb481b30505c700.js"))) return true;
+    instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/json/input/index.js (ecmascript)");
 }]);
 (() => {
   // When a chunk is executed, it will either register itself with the current
@@ -712,4 +717,4 @@ instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/
 })();
 
 
-//# sourceMappingURL=crates_turbopack_tests_snapshot_integration_env_input_index.js.eval4235cbbc40408376.js.f82e7d0b750fe2af.map
+//# sourceMappingURL=crates_turbopack_tests_snapshot_integration_json_input_index_717ac5b1b8932c8a.js.f9dbb6ce17050156.map

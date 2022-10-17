@@ -57,7 +57,7 @@ impl<T> Deref for TransientValue<T> {
 
 /// Pass a reference to an instance to a turbo-tasks function.
 ///
-/// Equality and hash is implemented as pointer comparision.
+/// Equality and hash is implemented as pointer comparison.
 ///
 /// Doesn't require serialization, and won't be stored in the persistent cache
 /// in the future.
