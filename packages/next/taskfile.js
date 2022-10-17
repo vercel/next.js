@@ -390,6 +390,9 @@ export async function ncc_edge_runtime(task, opts) {
 }
 
 export async function ncc_react(task, opts) {
+  const peerDeps = {
+    react: 'next/dist/compiled/react',
+  }
   const reactDir = dirname(
     relative(__dirname, require.resolve(`react-builtin/package.json`))
   )
@@ -402,12 +405,7 @@ export async function ncc_react(task, opts) {
   await task.source(join(reactDir, 'LICENSE')).target(`compiled/react`)
   await task
     .source(join(reactDir, '*.js'))
-    .ncc({
-      minify: false,
-      externals: {
-        react: 'next/dist/compiled/react',
-      },
-    })
+    .ncc({ minify: false })
     .target(`compiled/react`)
 
   await task.source(join(reactDomDir, '*.json')).target(`compiled/react-dom`)
@@ -416,9 +414,7 @@ export async function ncc_react(task, opts) {
     .source(join(reactDomDir, '*.js'))
     .ncc({
       minify: false,
-      externals: {
-        react: 'next/dist/compiled/react',
-      },
+      externals: peerDeps,
     })
     .target(`compiled/react-dom`)
 }
@@ -1552,6 +1548,10 @@ export async function ncc_icss_utils(task, opts) {
 
 // eslint-disable-next-line camelcase
 export async function copy_react_server_dom_webpack(task, opts) {
+  const peerDeps = {
+    react: 'next/dist/compiled/react',
+    'react-dom': 'next/dist/compiled/react-dom',
+  }
   await fs.mkdir(join(__dirname, 'compiled/react-server-dom-webpack'), {
     recursive: true,
   })
@@ -1609,9 +1609,7 @@ export async function copy_react_server_dom_webpack(task, opts) {
     })
     .ncc({
       minify: false,
-      externals: {
-        react: 'next/dist/compiled/react',
-      },
+      externals: peerDeps,
     })
     .target('compiled/react-server-dom-webpack')
 
@@ -1619,9 +1617,7 @@ export async function copy_react_server_dom_webpack(task, opts) {
     .source(join('compiled/react-server-dom-webpack/index.js'))
     .ncc({
       minify: false,
-      externals: {
-        react: 'next/dist/compiled/react',
-      },
+      externals: peerDeps,
     })
     .target('compiled/react-server-dom-webpack')
 }

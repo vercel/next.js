@@ -37,12 +37,6 @@ export function loadRequireHook(aliases: [string, string][] = []) {
     ['styled-jsx', require.resolve('styled-jsx')],
     ['styled-jsx/style', require.resolve('styled-jsx/style')],
     ['styled-jsx/style', require.resolve('styled-jsx/style')],
-
-    // Default aliases
-    // ['react', require.resolve('react')],
-    // ['react-dom', require.resolve('react-dom')],
-    // ['react-dom/server', require.resolve('react-dom/server')],
-    // ['react-dom/server.browser', require.resolve('react-dom/server.browser')],
   ] as [string, string][]
 
   setRequireOverrides(defaultAliases)
