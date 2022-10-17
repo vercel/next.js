@@ -10,79 +10,87 @@ use turbopack_core::{
 
 use crate::embed_next_file;
 
-/// Aliases [next_pages_app] to either an existing `pages/_app` asset, or a
-/// default asset.
+/// Computes the Next-specific client import map.
 #[turbo_tasks::function]
-pub fn get_next_import_map(pages_dir: FileSystemPathVc) -> ImportMapVc {
+pub fn get_next_client_import_map(pages_dir: FileSystemPathVc) -> ImportMapVc {
     let mut import_map = ImportMap::empty();
 
-    let pages_app_asset_import_mapping = asset_to_import_mapping(
-        VirtualAssetVc::new(
-            // TODO(alexkirsz) We should make sure these paths are unique,
-            // otherwise we can run into conflicts with
-            // user paths.
-            pages_dir.root().join("next_js/pages/_app.js"),
-            embed_next_file!("pages/_app.js").into(),
-        )
-        .into(),
-    );
-    let pages_document_asset_import_mapping = asset_to_import_mapping(
-        VirtualAssetVc::new(
-            pages_dir.root().join("next_js/pages/_document.js"),
-            embed_next_file!("pages/_document.js").into(),
-        )
-        .into(),
-    );
-    let internal_html_context_import_mapping = asset_to_import_mapping(
-        VirtualAssetVc::new(
-            pages_dir.root().join("next_js/internal/html-context.js"),
-            embed_next_file!("internal/html-context.js").into(),
-        )
-        .into(),
-    );
-    let internal_shared_utils_import_mapping = asset_to_import_mapping(
-        VirtualAssetVc::new(
-            pages_dir.root().join("next_js/internal/shared-utils.js"),
-            embed_next_file!("internal/shared-utils.js").into(),
-        )
-        .into(),
-    );
+    insert_next_shared_aliases(&mut import_map, pages_dir);
 
     insert_alias_to_alternatives(
         &mut import_map,
         "@vercel/turbopack-next/pages/_app",
         request_to_import_mapping(pages_dir, "./_app"),
-        pages_app_asset_import_mapping,
+        request_to_import_mapping(pages_dir, "next/app"),
     );
     insert_alias_to_alternatives(
         &mut import_map,
         "@vercel/turbopack-next/pages/_document",
         request_to_import_mapping(pages_dir, "./_document"),
-        pages_document_asset_import_mapping,
-    );
-
-    insert_alias(
-        &mut import_map,
-        "@vercel/turbopack-next/internal/html-context",
-        internal_html_context_import_mapping,
-    );
-    insert_alias(
-        &mut import_map,
-        "@vercel/turbopack-next/internal/shared-utils",
-        internal_shared_utils_import_mapping,
-    );
-    insert_alias(&mut import_map, "next/app", pages_app_asset_import_mapping);
-    insert_alias(
-        &mut import_map,
-        "next/document",
-        pages_document_asset_import_mapping,
+        request_to_import_mapping(pages_dir, "next/document"),
     );
 
     import_map.cell()
 }
 
+/// Computes the Next-specific server-side import map.
+#[turbo_tasks::function]
+pub fn get_next_server_import_map(pages_dir: FileSystemPathVc) -> ImportMapVc {
+    let mut import_map = ImportMap::empty();
+
+    insert_next_shared_aliases(&mut import_map, pages_dir);
+
+    insert_alias_to_alternatives(
+        &mut import_map,
+        "@vercel/turbopack-next/pages/_app",
+        request_to_import_mapping(pages_dir, "./_app"),
+        external_request_to_import_mapping("next/app"),
+    );
+    insert_alias_to_alternatives(
+        &mut import_map,
+        "@vercel/turbopack-next/pages/_document",
+        request_to_import_mapping(pages_dir, "./_document"),
+        external_request_to_import_mapping("next/document"),
+    );
+
+    import_map.insert_alias(
+        AliasPattern::exact("next"),
+        ImportMapping::External(None).into(),
+    );
+    import_map.insert_alias(
+        AliasPattern::wildcard("next/", ""),
+        ImportMapping::External(None).into(),
+    );
+    import_map.insert_alias(
+        AliasPattern::exact("react"),
+        ImportMapping::External(None).into(),
+    );
+    import_map.insert_alias(
+        AliasPattern::wildcard("react/", ""),
+        ImportMapping::External(None).into(),
+    );
+
+    import_map.cell()
+}
+
+fn insert_next_shared_aliases(import_map: &mut ImportMap, pages_dir: FileSystemPathVc) {
+    import_map.insert_alias(
+        AliasPattern::exact("@vercel/turbopack-next/internal/shims"),
+        asset_to_import_mapping(get_internal_shims_asset(pages_dir)),
+    );
+}
+
+#[turbo_tasks::function]
+fn get_internal_shims_asset(pages_dir: FileSystemPathVc) -> AssetVc {
+    VirtualAssetVc::new(
+        pages_dir.root().join("next_js/internal/shims.js"),
+        embed_next_file!("internal/shims.js").into(),
+    )
+    .into()
+}
+
 /// Inserts an alias to an alternative of import mappings into an import map.
-pub fn insert_alias_to_alternatives(
+fn insert_alias_to_alternatives(
     import_map: &mut ImportMap,
     alias: &str,
     alt1: ImportMappingVc,
@@ -94,18 +102,19 @@ pub fn insert_alias_to_alternatives(
     );
 }
 
-/// Inserts an alias to an import mapping into an import map.
-pub fn insert_alias(import_map: &mut ImportMap, alias: &str, mapping: ImportMappingVc) {
-    import_map.insert_alias(AliasPattern::Exact(alias.to_string()), mapping);
-}
-
 /// Creates a direct import mapping to the result of resolving a request
 /// in a context.
-pub fn request_to_import_mapping(context_path: FileSystemPathVc, request: &str) -> ImportMappingVc {
+fn request_to_import_mapping(context_path: FileSystemPathVc, request: &str) -> ImportMappingVc {
     ImportMapping::PrimaryAlternative(request.to_string(), Some(context_path)).into()
 }
 
+/// Creates a direct import mapping to the result of resolving an external
+/// request.
+fn external_request_to_import_mapping(request: &str) -> ImportMappingVc {
+    ImportMapping::External(Some(request.to_string())).into()
+}
+
 /// Creates a direct import mapping to a single asset.
-pub fn asset_to_import_mapping(asset: AssetVc) -> ImportMappingVc {
+fn asset_to_import_mapping(asset: AssetVc) -> ImportMappingVc {
     ImportMapping::Direct(ResolveResult::Single(asset, vec![]).into()).into()
 }

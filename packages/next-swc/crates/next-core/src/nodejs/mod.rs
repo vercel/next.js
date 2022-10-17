@@ -206,6 +206,7 @@ pub(super) struct RenderData {
     url: String,
     query: Query,
     headers: BTreeMap<String, HeaderValue>,
+    path: String,
 }
 
 /// Renders a module as static HTML in a node.js process.

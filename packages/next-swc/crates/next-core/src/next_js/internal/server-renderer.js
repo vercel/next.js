@@ -1,11 +1,9 @@
 const END_OF_OPERATION = process.argv[2];
 
+import { renderToHTML } from "next/dist/server/render";
 import App from "@vercel/turbopack-next/pages/_app";
 import Document from "@vercel/turbopack-next/pages/_document";
-import { HtmlContext } from "@vercel/turbopack-next/internal/html-context";
-import { loadGetInitialProps } from "@vercel/turbopack-next/internal/shared-utils";
 import Component, * as otherExports from ".";
-import { renderToString, renderToStaticMarkup } from "react-dom/server";
 ("TURBOPACK { transition: next-client }");
 import chunkGroup from ".";
 
@@ -32,84 +30,207 @@ process.stdin.on("data", async (data) => {
   buffer.push(data);
 });
 
-const DOCTYPE = "<!DOCTYPE html>";
+/**
+ * Shim for Node.js's http.ServerResponse
+ */
+class ServerResponse {
+  headersSent = false;
+  #headers = new Map();
 
-function Body({ children }) {
-  return <div id="__next">{children}</div>;
+  constructor(req) {
+    this.req = req;
+  }
+
+  setHeader(name, value) {
+    this.#headers.set(name.toLowerCase(), value);
+    return this;
+  }
+
+  getHeader(name) {
+    return this.#headers.get(name.toLowerCase());
+  }
+
+  getHeaderNames() {
+    return Array.from(this.#headers.keys());
+  }
+
+  getHeaders() {
+    return Object.fromEntries(this.#headers);
+  }
+
+  hasHeader(name) {
+    return this.#headers.has(name.toLowerCase());
+  }
+
+  removeHeader(name) {
+    this.#headers.delete(name.toLowerCase());
+  }
+
+  get statusCode() {
+    throw new Error("statusCode is not implemented");
+  }
+
+  set statusCode(code) {
+    throw new Error("set statusCode is not implemented");
+  }
+
+  get statusMessage() {
+    throw new Error("statusMessage is not implemented");
+  }
+
+  set statusMessage(message) {
+    throw new Error("set statusMessage is not implemented");
+  }
+
+  get socket() {
+    throw new Error("socket is not implemented");
+  }
+
+  get sendDate() {
+    throw new Error("sendDate is not implemented");
+  }
+
+  flushHeaders() {
+    throw new Error("flushHeaders is not implemented");
+  }
+
+  end() {
+    throw new Error("end is not implemented");
+  }
+
+  cork() {
+    throw new Error("cork is not implemented");
+  }
+
+  uncork() {
+    throw new Error("uncork is not implemented");
+  }
+
+  addTrailers() {
+    throw new Error("addTrailers is not implemented");
+  }
+
+  setTimeout(_msecs, _callback) {
+    throw new Error("setTimeout is not implemented");
+  }
+
+  get writableEnded() {
+    throw new Error("writableEnded is not implemented");
+  }
+
+  get writableFinished() {
+    throw new Error("writableFinished is not implemented");
+  }
+
+  write(_chunk, _encoding, _callback) {
+    throw new Error("write is not implemented");
+  }
+
+  writeContinue() {
+    throw new Error("writeContinue is not implemented");
+  }
+
+  writeHead(_statusCode, _statusMessage, _headers) {
+    throw new Error("writeHead is not implemented");
+  }
+
+  writeProcessing() {
+    throw new Error("writeProcessing is not implemented");
+  }
 }
 
 async function operation(renderData) {
-  let data;
-  if ("getStaticProps" in otherExports) {
-    // TODO(alexkirsz) Pass in `context` as defined in
-    // https://nextjs.org/docs/api-reference/data-fetching/get-static-props#context-parameter
-    data = otherExports.getStaticProps({
-      params: renderData.params,
-    });
-    if ("then" in data) {
-      data = await data;
-    }
-  } else if ("getServerSideProps" in otherExports) {
-    data = otherExports.getServerSideProps({
-      params: renderData.params,
-      query: { ...renderData.query, ...renderData.params },
-      req: {
-        headers: renderData.headers,
-        // TODO add `cookies` field
-      },
-      method: renderData.method,
-      url: renderData.url,
-    });
-  } else {
-    data = { props: {} };
-  }
+  // TODO(alexkirsz) This is missing *a lot* of data, but it's enough to get a
+  // basic render working.
 
-  const initialProps = await loadGetInitialProps(App, {
-    Component,
-    // TODO(alexkirsz) Pass in `context`
-    ctx: {
-      // This is necessary for the default Document.getInitialProps to work.
-      defaultGetInitialProps: async (docCtx, options = {}) => {
-        return {};
-      },
+  /* BuildManifest */
+  const buildManifest = {
+    pages: {
+      // TODO(alexkirsz) We should separate _app and page chunks. Right now, we
+      // computing the chunk items of `next-hydrate.js`, so they contain both
+      // _app and page chunks.
+      "/_app": [],
+      [renderData.path]: chunkGroup,
     },
-  });
-  const props = { ...initialProps, ...data.props, pageProps: { ...initialProps.pageProps, ...data.props } };
 
-  const urls = chunkGroup.map((p) => `/${p}`);
-  const scripts = urls.filter((url) => url.endsWith(".js"));
-  const styles = urls.filter((url) => url.endsWith(".css"));
-  const htmlProps = {
-    scripts,
-    styles,
-    __NEXT_DATA__: { props },
+    devFiles: [],
+    ampDevFiles: [],
+    polyfillFiles: [],
+    lowPriorityFiles: [],
+    rootMainFiles: [],
+    ampFirstPages: [],
   };
 
-  const documentHTML = renderToStaticMarkup(
-    <HtmlContext.Provider value={htmlProps}>
-      <Document />
-    </HtmlContext.Provider>
-  );
+  const renderOpts = {
+    /* LoadComponentsReturnType */
+    Component,
+    App,
+    Document,
+    pageConfig: {},
+    buildManifest,
+    reactLoadableManifest: {},
+    ComponentMod: {
+      default: Component,
+      ...otherExports,
+    },
+    pathname: renderData.path,
+    buildId: "",
 
-  const [renderTargetPrefix, renderTargetSuffix] = documentHTML.split(
-    "<next-js-internal-body-render-target></next-js-internal-body-render-target>"
-  );
+    /* RenderOptsPartial */
+    assetPrefix: "",
+    canonicalBase: "",
+    previewProps: {
+      previewModeId: "",
+      previewModeEncryptionKey: "",
+      previewModeSigningKey: "",
+    },
+    basePath: "",
+    optimizeFonts: false,
+    optimizeCss: false,
+    nextScriptWorkers: false,
+    images: {
+      deviceSizes: [],
+      imageSizes: [],
+      loader: "default",
+      path: "",
+      domains: [],
+      disableStaticImages: false,
+      minimumCacheTTL: 0,
+      formats: [],
+      dangerouslyAllowSVG: false,
+      contentSecurityPolicy: "",
+      remotePatterns: [],
+      unoptimized: true,
+    },
+  };
 
-  const result = [];
-  if (!documentHTML.startsWith(DOCTYPE)) {
-    result.push(DOCTYPE);
+  if ("getStaticProps" in otherExports) {
+    renderOpts.getStaticProps = otherExports.getStaticProps;
   }
-  result.push(renderTargetPrefix);
+  if ("getServerSideProps" in otherExports) {
+    renderOpts.getServerSideProps = otherExports.getServerSideProps;
+  }
 
-  result.push(
-    // TODO capture meta info during rendering
-    renderToString(
-      <Body>
-        <App {...props} Component={Component} />
-      </Body>
+  const req = {
+    url: renderData.url,
+    method: "GET",
+    headers: renderData.headers,
+  };
+  const res = new ServerResponse(req);
+  const query = { ...renderData.query, ...renderData.params };
+
+  return (
+    await renderToHTML(
+      /* req: IncomingMessage */
+      req,
+      /* res: ServerResponse */
+      res,
+      /* pathname: string */
+      renderData.path,
+      /* query: ParsedUrlQuery */
+      query,
+      /* renderOpts: RenderOpts */
+      renderOpts
     )
-  );
-  result.push(renderTargetSuffix);
-
-  return result.join("");
+  ).toUnchunkedString();
 }

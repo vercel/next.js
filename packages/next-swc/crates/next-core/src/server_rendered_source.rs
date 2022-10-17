@@ -37,7 +37,7 @@ use crate::{
         },
         NextClientTransition,
     },
-    next_import_map::get_next_import_map,
+    next_import_map::{get_next_client_import_map, get_next_server_import_map},
     nodejs::node_rendered_source::{create_node_rendered_source, NodeRenderer, NodeRendererVc},
     path_regex::{PathRegexBuilder, PathRegexVc},
 };
@@ -68,9 +68,10 @@ pub async fn create_server_rendered_source(
         get_client_module_options_context(project_path, client_environment);
     let client_resolve_options_context = get_client_resolve_options_context();
 
-    let next_import_map = get_next_import_map(pages_dir);
+    let next_server_import_map = get_next_server_import_map(pages_dir);
+    let next_client_import_map = get_next_client_import_map(pages_dir);
     let client_resolve_options_context =
-        client_resolve_options_context.with_extended_import_map(next_import_map);
+        client_resolve_options_context.with_extended_import_map(next_client_import_map);
 
     let client_runtime_entries = get_client_runtime_entries(project_path, env);
 
@@ -110,7 +111,7 @@ pub async fn create_server_rendered_source(
             enable_node_modules: true,
             enable_node_native_modules: true,
             custom_conditions: vec!["development".to_string()],
-            import_map: Some(next_import_map),
+            import_map: Some(next_server_import_map),
             module: true,
             ..Default::default()
         }
