@@ -1,7 +1,6 @@
 import type { Options as DevServerOptions } from './dev/next-dev-server'
 import type { NodeRequestHandler } from './next-server'
 import type { UrlWithParsedQuery } from 'url'
-require('../build/webpack/require-hook').overrideBuiltInReactPackages()
 import './node-polyfill-fetch'
 import { default as Server } from './next-server'
 import * as log from '../build/output/log'
