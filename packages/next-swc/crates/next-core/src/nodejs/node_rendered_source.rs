@@ -78,7 +78,7 @@ impl NodeRenderContentSource {
     /// Checks if a path matches the regular expression
     async fn is_matching_path(&self, path: &str) -> Result<bool> {
         // TODO(alexkirsz) This should probably not happen here.
-        if path.starts_with("_") {
+        if path.starts_with('_') {
             return Ok(false);
         }
         Ok(self.path_regex.await?.is_match(path))
@@ -88,7 +88,7 @@ impl NodeRenderContentSource {
     /// with the named captures
     async fn get_matches(&self, path: &str) -> Result<Option<IndexMap<String, String>>> {
         // TODO(alexkirsz) This should probably not happen here.
-        if path.starts_with("_") {
+        if path.starts_with('_') {
             return Ok(None);
         }
         Ok(self.path_regex.await?.get_matches(path))

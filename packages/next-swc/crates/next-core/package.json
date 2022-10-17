@@ -1,0 +1,11 @@
+{
+  "name": "@vercel/turbopack-next",
+  "version": "0.0.0",
+  "description": "turbopack next runtime",
+  "license": "UNLICENSED",
+  "private": true,
+  "peerDependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  }
+}

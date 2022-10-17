@@ -1,7 +1,7 @@
 #![feature(async_closure)]
 #![feature(min_specialization)]
 
-mod embed_next;
+mod embed_js;
 pub mod env;
 pub mod next_client;
 mod next_import_map;

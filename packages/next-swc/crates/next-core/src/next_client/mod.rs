@@ -19,7 +19,7 @@ use turbopack_core::{
 };
 
 use self::runtime_entry::RuntimeEntriesVc;
-use crate::embed_next_file;
+use crate::embed_js::next_js_file;
 
 /// Makes a transition into a next.js client context.
 ///
@@ -40,9 +40,11 @@ pub struct NextClientTransition {
 impl Transition for NextClientTransition {
     #[turbo_tasks::function]
     fn process_source(&self, asset: AssetVc) -> AssetVc {
-        let next_hydrate = embed_next_file!("internal/next-hydrate.js").into();
-
-        VirtualAssetVc::new(asset.path().join("next-hydrate.js"), next_hydrate).into()
+        VirtualAssetVc::new(
+            asset.path().join("next-hydrate.js"),
+            next_js_file("entry/next-hydrate.js").into(),
+        )
+        .into()
     }
 
     #[turbo_tasks::function]
