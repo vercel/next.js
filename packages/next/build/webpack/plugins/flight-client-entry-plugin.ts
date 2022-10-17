@@ -397,7 +397,7 @@ export class FlightClientEntryPlugin {
         const sideEffectFree =
           mod.factoryMeta && (mod.factoryMeta as any).sideEffectFree
 
-        if (sideEffectFree && modRequest.endsWith('.module.css')) {
+        if (sideEffectFree) {
           const unused = !compilation.moduleGraph
             .getExportsInfo(mod)
             .isModuleUsed(
