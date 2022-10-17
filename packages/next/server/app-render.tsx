@@ -900,14 +900,12 @@ export async function renderToHTMLOrFlight(
       parentParams,
       firstItem,
       rootLayoutIncluded,
-      currentRootLayoutSegments = [],
     }: {
       createSegmentPath: CreateSegmentPath
       loaderTree: LoaderTree
       parentParams: { [key: string]: any }
       rootLayoutIncluded?: boolean
       firstItem?: boolean
-      currentRootLayoutSegments?: Segment[]
     }): Promise<{ Component: React.ComponentType }> => {
       // TODO-APP: enable stylesheet per layout/page
       const stylesheets: string[] = layoutOrPagePath
@@ -1047,10 +1045,6 @@ export async function renderToHTMLOrFlight(
               loaderTree: parallelRoutes[parallelRouteKey],
               parentParams: currentParams,
               rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
-              currentRootLayoutSegments: [
-                ...currentRootLayoutSegments,
-                actualSegment,
-              ],
             })
 
             const childProp: ChildProp = {
