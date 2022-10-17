@@ -209,6 +209,8 @@ async fn base_resolve_options(
             });
             if opt.browser {
                 resolve_into.push(ResolveIntoPackage::MainField("browser".to_string()));
+            }
+            if opt.module {
                 resolve_into.push(ResolveIntoPackage::MainField("module".to_string()));
             }
             resolve_into.push(ResolveIntoPackage::MainField("main".to_string()));
