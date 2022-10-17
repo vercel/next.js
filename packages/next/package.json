@@ -256,7 +256,7 @@
     "react-dom": "18.2.0",
     "react-is": "17.0.2",
     "react-refresh": "0.12.0",
-    "react-server-dom-webpack": "0.0.0-experimental-a8c16a004-20221012",
+    "react-server-dom-webpack": "0.0.0-experimental-cb5084d1c-20220924",
     "regenerator-runtime": "0.13.4",
     "sass-loader": "12.4.0",
     "schema-utils2": "npm:schema-utils@2.7.1",

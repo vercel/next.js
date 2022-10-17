@@ -124,8 +124,12 @@ function isResourceInPackages(resource: string, packageNames?: string[]) {
   )
 }
 
-const builtInReactPackagesRegex =
-  /next[\\/]dist[\\/]compiled[\\/](react|react-dom|react-server-dom-webpack)/
+const builtInReactImports = [
+  'react',
+  'react/jsx-runtime',
+  'next/dist/compiled/react/react.shared-subset',
+  'next/dist/compiled/react-server-dom-webpack/writer.browser.server',
+]
 
 export function getDefineEnv({
   dev,
@@ -1045,11 +1049,7 @@ export default async function getBaseWebpackConfig(
 
     // Special internal modules that must be bundled for Server Components.
     if (layer === WEBPACK_LAYERS.server) {
-      if (
-        builtInReactPackagesRegex.test(request) ||
-        request === 'react' ||
-        request === 'react/jsx-runtime'
-      ) {
+      if (builtInReactImports.includes(request)) {
         return
       }
     }

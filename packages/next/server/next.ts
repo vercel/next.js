@@ -148,7 +148,6 @@ export class NextServer {
 
   private async getServer() {
     if (!this.serverPromise) {
-      // setTimeout(getServerImpl, 10)
       this.serverPromise = this.loadConfig().then(async (conf) => {
         if (conf.experimental.appDir) {
           require('../build/webpack/require-hook').overrideBuiltInReactPackages()
