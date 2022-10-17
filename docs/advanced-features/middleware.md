@@ -92,12 +92,13 @@ The `matcher` config allows full regex so matching like negative lookaheads or c
 export const config = {
   matcher: [
     /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
-     * - static (static files)
-     * - favicon.ico (favicon file)
+     * Match all request paths except for:
+     * - /api (API routes)
+     * - /_next/static (static files)
+     * - /favicon.ico (favicon file)
      */
-    '/((?!api|static|favicon.ico).*)',
+    '/',
+    '/((?!api|_next/static|favicon.ico).*)'],
   ],
 }
 ```
