@@ -1,20 +1,27 @@
-(self.TURBOPACK = self.TURBOPACK || []).push(["[workspace]/crates/turbopack/tests/snapshot/integration/preset_env/output/crates_turbopack_tests_snapshot_integration_preset_env_input_index_fec879244cb7555a.js", {
+(self.TURBOPACK = self.TURBOPACK || []).push(["[workspace]/crates/turbopack/tests/snapshot/integration/json/output/crates_turbopack_tests_snapshot_integration_json_input_index_3da9177bb525269d.js", {
 
-"[project]/crates/turbopack/tests/snapshot/integration/preset_env/input/index.js (ecmascript)": (({ r: __turbopack_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
+"[project]/crates/turbopack/tests/snapshot/integration/json/input/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
 
-var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f40$swc$2b$helpers$40$0$2e$4$2e$11$2f$node_modules$2f40$swc$2f$helpers$2f$src$2f$_class_call_check$2e$mjs__ = __turbopack_import__("[project]/node_modules/.pnpm/@swc+helpers@0.4.11/node_modules/@swc/helpers/src/_class_call_check.mjs (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$json$2f$input$2f$package$2e$json__ = __turbopack_import__("[project]/crates/turbopack/tests/snapshot/integration/json/input/package.json (json)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$json$2f$input$2f$invalid$2e$json__ = __turbopack_import__("[project]/crates/turbopack/tests/snapshot/integration/json/input/invalid.json (json)");
 "__TURBOPACK__ecmascript__hoisting__location__";
 ;
-var Foo = function Foo() {
-    "use strict";
-    __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f40$swc$2b$helpers$40$0$2e$4$2e$11$2f$node_modules$2f40$swc$2f$helpers$2f$src$2f$_class_call_check$2e$mjs__["default"](this, Foo);
-};
-console.log(Foo);
+console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$json$2f$input$2f$package$2e$json__["default"].name);
+;
+console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$json$2f$input$2f$invalid$2e$json__["default"]["this-is"]);
 
 })()),
-}, ({ chunks, instantiateRuntimeModule }) => {
-    if(!(true && chunks.has("[workspace]/crates/turbopack/tests/snapshot/integration/preset_env/output/crates_turbopack_tests_snapshot_integration_preset_env_input_index_b759828e356ff3c2.js") && chunks.has("[workspace]/crates/turbopack/tests/snapshot/integration/preset_env/output/3f8b2_@swc_helpers_src__class_call_check.mjs.js"))) return true;
-    instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/preset_env/input/index.js (ecmascript)");
+"[project]/crates/turbopack/tests/snapshot/integration/json/input/package.json (json)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
+
+__turbopack_export_value__(JSON.parse("{\"name\":\"json-snapshot\"}"));
+})()),
+"[project]/crates/turbopack/tests/snapshot/integration/json/input/invalid.json (json)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
+
+throw new Error("An error occurred while importing a JSON module: \"File is not valid JSON\"")
+})()),
+}, ({ loadedChunks, instantiateRuntimeModule }) => {
+    if(!(true && loadedChunks.has("[workspace]/crates/turbopack/tests/snapshot/integration/json/output/crates_turbopack_tests_snapshot_integration_json_input_index_e577c6104fe984d4.js"))) return true;
+    instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/json/input/index.js (ecmascript)");
 }]);
 (() => {
   // When a chunk is executed, it will either register itself with the current
@@ -29,11 +36,17 @@ console.log(Foo);
   }
 
   var chunksToRegister = self.TURBOPACK;
-  var chunks = new Set();
   var runnable = [];
   var moduleFactories = { __proto__: null };
   var moduleCache = { __proto__: null };
-  var loading = { __proto__: null };
+  /**
+   * Contains the IDs of all chunks that have been loaded.
+   */
+  const loadedChunks = new Set();
+  /**
+   * Maps a chunk ID to the chunk's loader if the chunk is currently being loaded.
+   */
+  const chunkLoaders = new Map();
   /**
    * Maps module IDs to persisted data between executions of their hot module
    * implementation (`hot.data`).
@@ -112,24 +125,88 @@ console.log(Foo);
     return getOrInstantiateModuleFromParent(id, sourceModule).exports;
   }
 
-  function loadFile(id, path) {
-    if (chunks.has(id)) return Promise.resolve();
-    if (loading[id]) return loading[id].promise;
+  function externalRequire(id) {
+    let raw;
+    try {
+      raw = require(id);
+    } catch (err) {
+      // TODO(alexkirsz) This can happen when a client-side module tries to load
+      // an external module we don't provide a shim for (e.g. querystring, url).
+      // For now, we fail semi–silently, but in the future this should be a 
+      // compilation error.
+      console.error(`Failed to load external module ${id}: ${err}`);
+      return undefined;
+    }
+    if (raw.__esModule) {
+      return raw;
+    }
+    const ns = {};
+    interopEsm(raw, ns, true);
+    return ns;
+  }
 
-    var load = (loading[id] = {});
-    load.promise = new Promise((resolve, reject) => {
-      load.resolve = resolve;
-      load.reject = reject;
-    }).catch((ev) => {
-      delete loading[id];
-      throw ev;
+  function loadChunk(chunkId, chunkPath) {
+    if (loadedChunks.has(chunkId)) {
+      return Promise.resolve();
+    }
+
+    let chunkLoader = getOrCreateChunkLoader(chunkId, chunkPath);
+
+    return chunkLoader.promise;
+  }
+
+  function getOrCreateChunkLoader(chunkId, chunkPath) {
+    let chunkLoader = chunkLoaders.get(chunkId);
+    if (chunkLoader) {
+      return chunkLoader;
+    }
+
+    let resolve;
+    let reject;
+    const promise = new Promise((innerResolve, innerReject) => {
+      resolve = innerResolve;
+      reject = innerReject;
     });
 
-    var script = document.createElement("script");
-    script.src = path;
-    script.onerror = load.reject;
-    document.body.appendChild(script);
-    return load.promise;
+    const onError = () => {
+      chunkLoaders.delete(chunkId);
+      reject(new Error(`Failed to load chunk ${chunkId} from ${chunkPath}`));
+    };
+
+    const onLoad = () => {
+      chunkLoaders.delete(chunkId);
+      resolve();
+    };
+
+    chunkLoader = {
+      promise,
+      onLoad,
+    };
+    chunkLoaders.set(chunkId, chunkLoader);
+
+    if (chunkPath.endsWith(".css")) {
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = chunkPath;
+      link.onerror = onError;
+      link.onload = () => {
+        loadedChunks.add(chunkId);
+        onLoad();
+      };
+      document.body.appendChild(link);
+    } else if (chunkPath.endsWith(".js")) {
+      const script = document.createElement("script");
+      script.src = chunkPath;
+      // We'll only mark the chunk as loaded once the script has been executed,
+      // which happens in `registerChunk`.
+      script.onerror = onError;
+      document.body.appendChild(script);
+    } else {
+      console.error("hello?");
+      throw new Error(`can't infer type of chunk ${chunkId} from path ${chunkPath}`);
+    }
+
+    return chunkLoader;
   }
 
   // TODO(alexkirsz) Use a TS enum.
@@ -198,12 +275,13 @@ console.log(Foo);
       moduleFactory.call(module.exports, {
         e: module.exports,
         r: commonJsRequire.bind(null, module),
+        x: externalRequire,
         i: esmImport.bind(null, module),
         s: esm.bind(null, module.exports),
         v: exportValue.bind(null, module),
         m: module,
         c: moduleCache,
-        l: loadFile,
+        l: loadChunk,
         p: _process,
       });
     });
@@ -682,18 +760,28 @@ console.log(Foo);
     ]);
   }
 
-  var runtime = {
-    chunks,
+  function markChunkAsLoaded(chunkId) {
+    loadedChunks.add(chunkId);
+
+    const chunkLoader = chunkLoaders.get(chunkId);
+    if (!chunkLoader) {
+      // This happens for all initial chunks that are loaded directly from
+      // the HTML.
+      return;
+    }
+
+    // Only chunks that are loaded via `loadChunk` will have a loader.
+    chunkLoader.onLoad();
+  }
+
+  const runtime = {
+    loadedChunks,
     modules: moduleFactories,
     cache: moduleCache,
     instantiateRuntimeModule,
   };
   function registerChunk([chunkId, chunkModules, ...run]) {
-    chunks.add(chunkId);
-    if (loading[chunkId]) {
-      loading[chunkId].resolve();
-      delete loading[chunkId];
-    }
+    markChunkAsLoaded(chunkId);
     subscribeToChunkUpdates(chunkId);
     for (const [moduleId, moduleFactory] of Object.entries(chunkModules)) {
       if (!moduleFactories[moduleId]) {
@@ -710,4 +798,4 @@ console.log(Foo);
 })();
 
 
-//# sourceMappingURL=crates_turbopack_tests_snapshot_integration_preset_env_input_index_fec879244cb7555a.js.d5aabf09a45af6ea.map
+//# sourceMappingURL=crates_turbopack_tests_snapshot_integration_json_input_index_3da9177bb525269d.js.8b66a863c42e8716.map

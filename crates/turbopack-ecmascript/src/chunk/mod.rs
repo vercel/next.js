@@ -494,6 +494,7 @@ async fn module_factory(content: EcmascriptChunkItemContentVc) -> Result<CodeVc>
     let content = content.await?;
     let mut args = vec![
         "r: __turbopack_require__",
+        "x: __turbopack_external_require__",
         "i: __turbopack_import__",
         "s: __turbopack_esm__",
         "v: __turbopack_export_value__",
@@ -570,7 +571,7 @@ impl EcmascriptChunkContentVc {
                 .chunks_ids
                 .await?
                 .iter()
-                .map(|id| format!(" && chunks.has({})", stringify_str(id)))
+                .map(|id| format!(" && loadedChunks.has({})", stringify_str(id)))
                 .collect::<Vec<_>>()
                 .join("");
             let entries_ids = &*evaluate.entry_modules_ids.await?;
@@ -592,7 +593,7 @@ impl EcmascriptChunkContentVc {
             // all dependent chunks have been evaluated.
             write!(
                 code,
-                ", ({{ chunks, instantiateRuntimeModule }}) => {{
+                ", ({{ loadedChunks, instantiateRuntimeModule }}) => {{
     if(!(true{condition})) return true;
     {entries_instantiations}
 }}"

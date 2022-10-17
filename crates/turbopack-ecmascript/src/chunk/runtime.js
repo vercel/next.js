@@ -11,11 +11,17 @@
   }
 
   var chunksToRegister = self.TURBOPACK;
-  var chunks = new Set();
   var runnable = [];
   var moduleFactories = { __proto__: null };
   var moduleCache = { __proto__: null };
-  var loading = { __proto__: null };
+  /**
+   * Contains the IDs of all chunks that have been loaded.
+   */
+  const loadedChunks = new Set();
+  /**
+   * Maps a chunk ID to the chunk's loader if the chunk is currently being loaded.
+   */
+  const chunkLoaders = new Map();
   /**
    * Maps module IDs to persisted data between executions of their hot module
    * implementation (`hot.data`).
@@ -94,24 +100,88 @@
     return getOrInstantiateModuleFromParent(id, sourceModule).exports;
   }
 
-  function loadFile(id, path) {
-    if (chunks.has(id)) return Promise.resolve();
-    if (loading[id]) return loading[id].promise;
+  function externalRequire(id) {
+    let raw;
+    try {
+      raw = require(id);
+    } catch (err) {
+      // TODO(alexkirsz) This can happen when a client-side module tries to load
+      // an external module we don't provide a shim for (e.g. querystring, url).
+      // For now, we fail semi–silently, but in the future this should be a 
+      // compilation error.
+      console.error(`Failed to load external module ${id}: ${err}`);
+      return undefined;
+    }
+    if (raw.__esModule) {
+      return raw;
+    }
+    const ns = {};
+    interopEsm(raw, ns, true);
+    return ns;
+  }
 
-    var load = (loading[id] = {});
-    load.promise = new Promise((resolve, reject) => {
-      load.resolve = resolve;
-      load.reject = reject;
-    }).catch((ev) => {
-      delete loading[id];
-      throw ev;
+  function loadChunk(chunkId, chunkPath) {
+    if (loadedChunks.has(chunkId)) {
+      return Promise.resolve();
+    }
+
+    let chunkLoader = getOrCreateChunkLoader(chunkId, chunkPath);
+
+    return chunkLoader.promise;
+  }
+
+  function getOrCreateChunkLoader(chunkId, chunkPath) {
+    let chunkLoader = chunkLoaders.get(chunkId);
+    if (chunkLoader) {
+      return chunkLoader;
+    }
+
+    let resolve;
+    let reject;
+    const promise = new Promise((innerResolve, innerReject) => {
+      resolve = innerResolve;
+      reject = innerReject;
     });
 
-    var script = document.createElement("script");
-    script.src = path;
-    script.onerror = load.reject;
-    document.body.appendChild(script);
-    return load.promise;
+    const onError = () => {
+      chunkLoaders.delete(chunkId);
+      reject(new Error(`Failed to load chunk ${chunkId} from ${chunkPath}`));
+    };
+
+    const onLoad = () => {
+      chunkLoaders.delete(chunkId);
+      resolve();
+    };
+
+    chunkLoader = {
+      promise,
+      onLoad,
+    };
+    chunkLoaders.set(chunkId, chunkLoader);
+
+    if (chunkPath.endsWith(".css")) {
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = chunkPath;
+      link.onerror = onError;
+      link.onload = () => {
+        loadedChunks.add(chunkId);
+        onLoad();
+      };
+      document.body.appendChild(link);
+    } else if (chunkPath.endsWith(".js")) {
+      const script = document.createElement("script");
+      script.src = chunkPath;
+      // We'll only mark the chunk as loaded once the script has been executed,
+      // which happens in `registerChunk`.
+      script.onerror = onError;
+      document.body.appendChild(script);
+    } else {
+      console.error("hello?");
+      throw new Error(`can't infer type of chunk ${chunkId} from path ${chunkPath}`);
+    }
+
+    return chunkLoader;
   }
 
   // TODO(alexkirsz) Use a TS enum.
@@ -180,12 +250,13 @@
       moduleFactory.call(module.exports, {
         e: module.exports,
         r: commonJsRequire.bind(null, module),
+        x: externalRequire,
         i: esmImport.bind(null, module),
         s: esm.bind(null, module.exports),
         v: exportValue.bind(null, module),
         m: module,
         c: moduleCache,
-        l: loadFile,
+        l: loadChunk,
         p: _process,
       });
     });
@@ -664,18 +735,28 @@
     ]);
   }
 
-  var runtime = {
-    chunks,
+  function markChunkAsLoaded(chunkId) {
+    loadedChunks.add(chunkId);
+
+    const chunkLoader = chunkLoaders.get(chunkId);
+    if (!chunkLoader) {
+      // This happens for all initial chunks that are loaded directly from
+      // the HTML.
+      return;
+    }
+
+    // Only chunks that are loaded via `loadChunk` will have a loader.
+    chunkLoader.onLoad();
+  }
+
+  const runtime = {
+    loadedChunks,
     modules: moduleFactories,
     cache: moduleCache,
     instantiateRuntimeModule,
   };
   function registerChunk([chunkId, chunkModules, ...run]) {
-    chunks.add(chunkId);
-    if (loading[chunkId]) {
-      loading[chunkId].resolve();
-      delete loading[chunkId];
-    }
+    markChunkAsLoaded(chunkId);
     subscribeToChunkUpdates(chunkId);
     for (const [moduleId, moduleFactory] of Object.entries(chunkModules)) {
       if (!moduleFactories[moduleId]) {

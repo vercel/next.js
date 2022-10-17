@@ -1,27 +1,29 @@
-(self.TURBOPACK = self.TURBOPACK || []).push(["[workspace]/crates/turbopack/tests/snapshot/integration/json/output/crates_turbopack_tests_snapshot_integration_json_input_index_717ac5b1b8932c8a.js", {
+(self.TURBOPACK = self.TURBOPACK || []).push(["[workspace]/crates/turbopack/tests/snapshot/integration/css/output/crates_turbopack_tests_snapshot_integration_css_input_index_436e647904edd0b9.js", {
 
-"[project]/crates/turbopack/tests/snapshot/integration/json/input/index.js (ecmascript)": (({ r: __turbopack_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
+"[project]/crates/turbopack/tests/snapshot/integration/css/input/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
 
-var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$json$2f$input$2f$package$2e$json__ = __turbopack_import__("[project]/crates/turbopack/tests/snapshot/integration/json/input/package.json (json)");
-var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$json$2f$input$2f$invalid$2e$json__ = __turbopack_import__("[project]/crates/turbopack/tests/snapshot/integration/json/input/invalid.json (json)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$css$2f$input$2f$node_modules$2f$foo$2f$style$2e$module$2e$css__ = __turbopack_import__("[project]/crates/turbopack/tests/snapshot/integration/css/input/node_modules/foo/style.module.css (css module)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$css$2f$input$2f$style$2e$module$2e$css__ = __turbopack_import__("[project]/crates/turbopack/tests/snapshot/integration/css/input/style.module.css (css module)");
 "__TURBOPACK__ecmascript__hoisting__location__";
 ;
-console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$json$2f$input$2f$package$2e$json__["default"].name);
 ;
-console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$json$2f$input$2f$invalid$2e$json__["default"]["this-is"]);
+;
+;
+;
+console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$css$2f$input$2f$style$2e$module$2e$css__["default"], __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$css$2f$input$2f$node_modules$2f$foo$2f$style$2e$module$2e$css__["default"]);
 
 })()),
-"[project]/crates/turbopack/tests/snapshot/integration/json/input/package.json (json)": (({ r: __turbopack_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
+"[project]/crates/turbopack/tests/snapshot/integration/css/input/style.module.css (css module)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
 
-__turbopack_export_value__(JSON.parse("{\"name\":\"json-snapshot\"}"));
-})()),
-"[project]/crates/turbopack/tests/snapshot/integration/json/input/invalid.json (json)": (({ r: __turbopack_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
+__turbopack_export_value__({
+  "inner": "inner◽[project]/crates/turbopack/tests/snapshot/integration/css/input/style.module.css",
+  "module-style": "module-style◽[project]/crates/turbopack/tests/snapshot/integration/css/input/style.module.css",
+});
 
-throw new Error("An error occurred while importing a JSON module: \"File is not valid JSON\"")
 })()),
-}, ({ chunks, instantiateRuntimeModule }) => {
-    if(!(true && chunks.has("[workspace]/crates/turbopack/tests/snapshot/integration/json/output/crates_turbopack_tests_snapshot_integration_json_input_index_2bb481b30505c700.js"))) return true;
-    instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/json/input/index.js (ecmascript)");
+}, ({ loadedChunks, instantiateRuntimeModule }) => {
+    if(!(true && loadedChunks.has("[workspace]/crates/turbopack/tests/snapshot/integration/css/output/crates_turbopack_tests_snapshot_integration_css_input_index_4a9845895cfa4888.js") && loadedChunks.has("[workspace]/crates/turbopack/tests/snapshot/integration/css/output/a05b1_foo_style.module.css.js"))) return true;
+    instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/css/input/index.js (ecmascript)");
 }]);
 (() => {
   // When a chunk is executed, it will either register itself with the current
@@ -36,11 +38,17 @@ throw new Error("An error occurred while importing a JSON module: \"File is not 
   }
 
   var chunksToRegister = self.TURBOPACK;
-  var chunks = new Set();
   var runnable = [];
   var moduleFactories = { __proto__: null };
   var moduleCache = { __proto__: null };
-  var loading = { __proto__: null };
+  /**
+   * Contains the IDs of all chunks that have been loaded.
+   */
+  const loadedChunks = new Set();
+  /**
+   * Maps a chunk ID to the chunk's loader if the chunk is currently being loaded.
+   */
+  const chunkLoaders = new Map();
   /**
    * Maps module IDs to persisted data between executions of their hot module
    * implementation (`hot.data`).
@@ -119,24 +127,88 @@ throw new Error("An error occurred while importing a JSON module: \"File is not 
     return getOrInstantiateModuleFromParent(id, sourceModule).exports;
   }
 
-  function loadFile(id, path) {
-    if (chunks.has(id)) return Promise.resolve();
-    if (loading[id]) return loading[id].promise;
+  function externalRequire(id) {
+    let raw;
+    try {
+      raw = require(id);
+    } catch (err) {
+      // TODO(alexkirsz) This can happen when a client-side module tries to load
+      // an external module we don't provide a shim for (e.g. querystring, url).
+      // For now, we fail semi–silently, but in the future this should be a 
+      // compilation error.
+      console.error(`Failed to load external module ${id}: ${err}`);
+      return undefined;
+    }
+    if (raw.__esModule) {
+      return raw;
+    }
+    const ns = {};
+    interopEsm(raw, ns, true);
+    return ns;
+  }
 
-    var load = (loading[id] = {});
-    load.promise = new Promise((resolve, reject) => {
-      load.resolve = resolve;
-      load.reject = reject;
-    }).catch((ev) => {
-      delete loading[id];
-      throw ev;
+  function loadChunk(chunkId, chunkPath) {
+    if (loadedChunks.has(chunkId)) {
+      return Promise.resolve();
+    }
+
+    let chunkLoader = getOrCreateChunkLoader(chunkId, chunkPath);
+
+    return chunkLoader.promise;
+  }
+
+  function getOrCreateChunkLoader(chunkId, chunkPath) {
+    let chunkLoader = chunkLoaders.get(chunkId);
+    if (chunkLoader) {
+      return chunkLoader;
+    }
+
+    let resolve;
+    let reject;
+    const promise = new Promise((innerResolve, innerReject) => {
+      resolve = innerResolve;
+      reject = innerReject;
     });
 
-    var script = document.createElement("script");
-    script.src = path;
-    script.onerror = load.reject;
-    document.body.appendChild(script);
-    return load.promise;
+    const onError = () => {
+      chunkLoaders.delete(chunkId);
+      reject(new Error(`Failed to load chunk ${chunkId} from ${chunkPath}`));
+    };
+
+    const onLoad = () => {
+      chunkLoaders.delete(chunkId);
+      resolve();
+    };
+
+    chunkLoader = {
+      promise,
+      onLoad,
+    };
+    chunkLoaders.set(chunkId, chunkLoader);
+
+    if (chunkPath.endsWith(".css")) {
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = chunkPath;
+      link.onerror = onError;
+      link.onload = () => {
+        loadedChunks.add(chunkId);
+        onLoad();
+      };
+      document.body.appendChild(link);
+    } else if (chunkPath.endsWith(".js")) {
+      const script = document.createElement("script");
+      script.src = chunkPath;
+      // We'll only mark the chunk as loaded once the script has been executed,
+      // which happens in `registerChunk`.
+      script.onerror = onError;
+      document.body.appendChild(script);
+    } else {
+      console.error("hello?");
+      throw new Error(`can't infer type of chunk ${chunkId} from path ${chunkPath}`);
+    }
+
+    return chunkLoader;
   }
 
   // TODO(alexkirsz) Use a TS enum.
@@ -205,12 +277,13 @@ throw new Error("An error occurred while importing a JSON module: \"File is not 
       moduleFactory.call(module.exports, {
         e: module.exports,
         r: commonJsRequire.bind(null, module),
+        x: externalRequire,
         i: esmImport.bind(null, module),
         s: esm.bind(null, module.exports),
         v: exportValue.bind(null, module),
         m: module,
         c: moduleCache,
-        l: loadFile,
+        l: loadChunk,
         p: _process,
       });
     });
@@ -689,18 +762,28 @@ throw new Error("An error occurred while importing a JSON module: \"File is not 
     ]);
   }
 
-  var runtime = {
-    chunks,
+  function markChunkAsLoaded(chunkId) {
+    loadedChunks.add(chunkId);
+
+    const chunkLoader = chunkLoaders.get(chunkId);
+    if (!chunkLoader) {
+      // This happens for all initial chunks that are loaded directly from
+      // the HTML.
+      return;
+    }
+
+    // Only chunks that are loaded via `loadChunk` will have a loader.
+    chunkLoader.onLoad();
+  }
+
+  const runtime = {
+    loadedChunks,
     modules: moduleFactories,
     cache: moduleCache,
     instantiateRuntimeModule,
   };
   function registerChunk([chunkId, chunkModules, ...run]) {
-    chunks.add(chunkId);
-    if (loading[chunkId]) {
-      loading[chunkId].resolve();
-      delete loading[chunkId];
-    }
+    markChunkAsLoaded(chunkId);
     subscribeToChunkUpdates(chunkId);
     for (const [moduleId, moduleFactory] of Object.entries(chunkModules)) {
       if (!moduleFactories[moduleId]) {
@@ -717,4 +800,4 @@ throw new Error("An error occurred while importing a JSON module: \"File is not 
 })();
 
 
-//# sourceMappingURL=crates_turbopack_tests_snapshot_integration_json_input_index_717ac5b1b8932c8a.js.f9dbb6ce17050156.map
+//# sourceMappingURL=crates_turbopack_tests_snapshot_integration_css_input_index_436e647904edd0b9.js.7c2617b5834079be.map

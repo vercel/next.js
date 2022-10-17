@@ -55,7 +55,7 @@ pub fn create_node_rendered_source(
     ConditionalContentSourceVc::new(
         source.into(),
         LazyInstantiatedContentSource {
-            get_source: source.into(),
+            get_source: source.as_get_content_source(),
         }
         .cell()
         .into(),
@@ -77,19 +77,27 @@ struct NodeRenderContentSource {
 impl NodeRenderContentSource {
     /// Checks if a path matches the regular expression
     async fn is_matching_path(&self, path: &str) -> Result<bool> {
+        // TODO(alexkirsz) This should probably not happen here.
+        if path.starts_with("_") {
+            return Ok(false);
+        }
         Ok(self.path_regex.await?.is_match(path))
     }
 
     /// Matches a path with the regular expression and returns a JSON object
     /// with the named captures
     async fn get_matches(&self, path: &str) -> Result<Option<IndexMap<String, String>>> {
+        // TODO(alexkirsz) This should probably not happen here.
+        if path.starts_with("_") {
+            return Ok(None);
+        }
         Ok(self.path_regex.await?.get_matches(path))
     }
 }
 
 #[turbo_tasks::value_impl]
 impl GetContentSource for NodeRenderContentSource {
-    /// Returns the [ContentSource] that the serves all referenced external
+    /// Returns the [ContentSource] that serves all referenced external
     /// assets. This is wrapped into [LazyInstantiatedContentSource].
     #[turbo_tasks::function]
     fn content_source(&self) -> ContentSourceVc {
@@ -130,35 +138,42 @@ impl ContentSource for NodeRenderContentSource {
         path: &str,
         data: turbo_tasks::Value<ContentSourceData>,
     ) -> Result<ContentSourceResultVc> {
-        Ok(if let Some(params) = self.get_matches(path).await? {
-            ContentSourceResult::Static(
-                render_static(
-                    self.server_root.join(path),
-                    self.renderer.module(),
-                    self.runtime_entries,
-                    self.chunking_context,
-                    self.intermediate_output_path,
-                    RenderData {
-                        params,
-                        method: data
-                            .method
-                            .clone()
-                            .ok_or_else(|| anyhow!("method needs to be provided"))?,
-                        url: data
-                            .url
-                            .clone()
-                            .ok_or_else(|| anyhow!("url needs to be provided"))?,
-                        query: data.query.clone(),
-                        headers: data.headers.clone(),
-                    }
-                    .cell(),
+        if let Some(params) = self.get_matches(path).await? {
+            if data
+                .headers
+                .get("accept")
+                .map(|value| value.contains("html"))
+                .unwrap_or_default()
+            {
+                return Ok(ContentSourceResult::Static(
+                    render_static(
+                        self.server_root.join(path),
+                        self.renderer.module(),
+                        self.runtime_entries,
+                        self.chunking_context,
+                        self.intermediate_output_path,
+                        RenderData {
+                            params,
+                            method: data
+                                .method
+                                .clone()
+                                .ok_or_else(|| anyhow!("method needs to be provided"))?,
+                            url: data
+                                .url
+                                .clone()
+                                .ok_or_else(|| anyhow!("url needs to be provided"))?,
+                            query: data.query.clone(),
+                            headers: data.headers.clone(),
+                            path: format!("/{path}"),
+                        }
+                        .cell(),
+                    )
+                    .into(),
                 )
-                .into(),
-            )
-            .cell()
-        } else {
-            ContentSourceResult::NotFound.cell()
-        })
+                .cell());
+            }
+        }
+        Ok(ContentSourceResult::NotFound.cell())
     }
 
     #[turbo_tasks::function]

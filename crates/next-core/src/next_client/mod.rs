@@ -82,7 +82,7 @@ impl Transition for NextClientTransition {
         let asset = ChunkGroupFilesAsset {
             asset: chunkable_asset,
             chunking_context: self.client_chunking_context,
-            base_path: self.server_root,
+            base_path: self.server_root.join("_next"),
             runtime_entries: Some(runtime_entries),
         };
 

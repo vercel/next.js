@@ -203,7 +203,7 @@ impl CodeGenerateable for EsmAssetReference {
                         visitors.push(create_visitor!(visit_mut_program(program: &mut Program) {
                             // TODO Technically this should insert a ESM external, but we don't support that yet
                             let stmt = quote!(
-                                "var $name = require($id);" as Stmt,
+                                "var $name = __turbopack_external_require__($id);" as Stmt,
                                 name = Ident::new(ident.clone().into(), DUMMY_SP),
                                 id: Expr = Expr::Lit(request.clone().into())
                             );

@@ -79,6 +79,14 @@ impl HeaderValue {
             }
         }
     }
+
+    pub fn contains(&self, string_value: &str) -> bool {
+        match self {
+            HeaderValue::SingleString(s) => s.contains(string_value),
+            HeaderValue::MultiStrings(s) => s.iter().any(|s| s.contains(string_value)),
+            _ => false,
+        }
+    }
 }
 
 /// Additional info passed to the ContentSource. It was extracted from the http

@@ -3,6 +3,7 @@ use std::{
     collections::{BTreeMap, HashMap, HashSet},
     future::Future,
     mem::take,
+    pin::Pin,
 };
 
 use anyhow::{anyhow, Result};
@@ -98,6 +99,20 @@ impl ResolveResult {
             | ResolveResult::Alternatives(_, list)
             | ResolveResult::Special(_, list)
             | ResolveResult::Unresolveable(list) => list,
+        }
+    }
+
+    fn clone_with_references(&self, references: Vec<AssetReferenceVc>) -> ResolveResult {
+        match self {
+            ResolveResult::Single(asset, _) => ResolveResult::Single(*asset, references),
+            ResolveResult::Keyed(map, _) => ResolveResult::Keyed(map.clone(), references),
+            ResolveResult::Alternatives(alternatives, _) => {
+                ResolveResult::Alternatives(alternatives.clone(), references)
+            }
+            ResolveResult::Special(special_type, _) => {
+                ResolveResult::Special(special_type.clone(), references)
+            }
+            ResolveResult::Unresolveable(_) => ResolveResult::Unresolveable(references),
         }
     }
 
@@ -213,6 +228,24 @@ impl ResolveResultVc {
             this.add_reference(reference);
         }
         Ok(this.into())
+    }
+
+    /// Returns the first [ResolveResult] that is not
+    /// [ResolveResult::Unresolveable] in the given list, while keeping track
+    /// of all the references in all the [ResolveResult]s.
+    #[turbo_tasks::function]
+    pub async fn select_first(results: Vec<ResolveResultVc>) -> Result<Self> {
+        let mut references = vec![];
+        for result in &results {
+            references.extend(result.await?.get_references());
+        }
+        for result in results {
+            let result_ref = result.await?;
+            if !result_ref.is_unresolveable() {
+                return Ok(result_ref.clone_with_references(references).cell());
+            }
+        }
+        Ok(ResolveResult::Unresolveable(references).into())
     }
 
     #[turbo_tasks::function]
@@ -540,9 +573,10 @@ pub async fn resolve(
 
     // Apply import mappings if provided
     if let Some(import_map) = &options_value.import_map {
-        let result = import_map.lookup(request).await?;
-        if !matches!(*result, ImportMapResult::NoEntry) {
-            let resolve_result_vc = resolve_import_map_result(&result, context, options);
+        let result_ref = import_map.lookup(request).await?;
+        let result = &*result_ref;
+        if !matches!(result, ImportMapResult::NoEntry) {
+            let resolve_result_vc = resolve_import_map_result(result, context, options).await?;
             // We might have matched an alias in the import map, but there is no guarantee
             // the alias actually resolves to something. For instance, a tsconfig.json
             // `compilerOptions.paths` option might alias "@*" to "./*", which
@@ -790,23 +824,36 @@ async fn resolve_module_request(
     ))
 }
 
-fn resolve_import_map_result(
+async fn resolve_import_map_result(
     result: &ImportMapResult,
     context: FileSystemPathVc,
     options: ResolveOptionsVc,
-) -> ResolveResultVc {
-    match result {
+) -> Result<ResolveResultVc> {
+    Ok(match result {
         ImportMapResult::Result(result) => *result,
         ImportMapResult::Alias(request, alias_context) => {
-            resolve(alias_context.unwrap_or(context), *request, options)
+            let request = *request;
+            let context = alias_context.unwrap_or(context);
+            resolve(context, request, options)
         }
-        ImportMapResult::Alternatives(list) => ResolveResultVc::alternatives(
-            list.iter()
-                .map(|r| resolve_import_map_result(r, context, options))
-                .collect(),
-        ),
+        ImportMapResult::Alternatives(list) => {
+            let results = list
+                .iter()
+                .map(|result| resolve_import_map_result_boxed(result, context, options))
+                .try_join()
+                .await?;
+            ResolveResultVc::select_first(results)
+        }
         ImportMapResult::NoEntry => unreachable!(),
-    }
+    })
+}
+
+fn resolve_import_map_result_boxed<'a>(
+    result: &'a ImportMapResult,
+    context: FileSystemPathVc,
+    options: ResolveOptionsVc,
+) -> Pin<Box<dyn Future<Output = Result<ResolveResultVc>> + Send + 'a>> {
+    Box::pin(async move { resolve_import_map_result(result, context, options).await })
 }
 
 async fn resolved(
@@ -818,7 +865,7 @@ async fn resolved(
     if let Some(resolved_map) = resolved_map {
         let result = resolved_map.lookup(*path).await?;
         if !matches!(&*result, ImportMapResult::NoEntry) {
-            return Ok(resolve_import_map_result(&result, path.parent(), options));
+            return Ok(resolve_import_map_result(&result, path.parent(), options).await?);
         }
     }
     Ok(ResolveResult::Single(

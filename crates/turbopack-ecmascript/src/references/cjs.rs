@@ -121,7 +121,15 @@ impl CodeGenerateable for CjsRequireAssetReference {
         } else {
             visitors.push(
                 create_visitor!(exact path, visit_mut_call_expr(call_expr: &mut CallExpr) {
-                    call_expr.callee = Callee::Expr(box Expr::Ident(Ident::new(if pm.is_internal_import() { "__turbopack_require__" } else { "require" }.into(), DUMMY_SP)));
+                    call_expr.callee = Callee::Expr(
+                        box Expr::Ident(Ident::new(
+                            if pm.is_internal_import() {
+                                "__turbopack_require__"
+                            } else {
+                                "__turbopack_external_require__"
+                            }.into(), DUMMY_SP
+                        ))
+                    );
                     let old_args = std::mem::take(&mut call_expr.args);
                     let expr = match old_args.into_iter().next() {
                         Some(ExprOrSpread { expr, spread: None }) => pm.apply(*expr),

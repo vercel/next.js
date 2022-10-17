@@ -29,9 +29,9 @@ turbo-tasks-fs = { path = "../turbo-tasks-fs" }
 turbopack-core = { path = "../turbopack-core" }
 turbopack-ecmascript = { path = "../turbopack-ecmascript" }
 turbopack-hash = { path = "../turbopack-hash" }
-urlencoding = "2.1.2"
 # TODO remove this dependency
 turbopack-cli-utils = { path = "../turbopack-cli-utils" }
+urlencoding = "2.1.2"
 
 [build-dependencies]
 turbo-tasks-build = { path = "../turbo-tasks-build" }
