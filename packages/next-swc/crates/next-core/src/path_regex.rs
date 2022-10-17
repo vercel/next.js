@@ -1,6 +1,9 @@
 use anyhow::{Context, Result};
 use indexmap::IndexMap;
-use turbo_tasks::primitives::Regex;
+use turbo_tasks::{
+    primitives::{Regex, StringVc},
+    ValueToString, ValueToStringVc,
+};
 
 /// A regular expression that matches a path, with named capture groups for the
 /// dynamic parts of the path.
@@ -30,6 +33,14 @@ impl PathRegex {
                 })
                 .collect()
         })
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ValueToString for PathRegex {
+    #[turbo_tasks::function]
+    fn to_string(&self) -> StringVc {
+        StringVc::cell(self.regex.as_str().to_string())
     }
 }
 

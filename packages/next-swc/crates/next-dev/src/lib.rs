@@ -1,7 +1,7 @@
 #![feature(future_join)]
 #![feature(min_specialization)]
 
-use std::{env::current_dir, net::IpAddr, path::MAIN_SEPARATOR, sync::Arc};
+use std::{collections::HashSet, env::current_dir, net::IpAddr, path::MAIN_SEPARATOR, sync::Arc};
 
 use anyhow::{anyhow, Context, Result};
 use next_core::{create_server_rendered_source, create_web_entry_source, env::load_env};
@@ -12,6 +12,7 @@ use turbopack_cli_utils::issue::{ConsoleUi, ConsoleUiVc, LogOptions};
 use turbopack_core::{issue::IssueSeverity, resolve::parse::RequestVc};
 use turbopack_dev_server::{
     fs::DevServerFileSystemVc,
+    introspect::IntrospectionSource,
     source::{combined::CombinedContentSource, router::RouterContentSource, ContentSourceVc},
     DevServer,
 };
@@ -216,13 +217,21 @@ async fn source(
     }
     .cell()
     .into();
+    let main_source = CombinedContentSource {
+        sources: vec![rendered_source, web_source],
+    }
+    .cell();
+    let introspect = IntrospectionSource {
+        roots: HashSet::from([main_source.into()]),
+    }
+    .cell()
+    .into();
     let source = RouterContentSource {
-        routes: vec![("__turbo_tasks__/".to_string(), viz)],
-        fallback: CombinedContentSource {
-            sources: vec![rendered_source, web_source],
-        }
-        .cell()
-        .into(),
+        routes: vec![
+            ("__turbopack__/".to_string(), introspect),
+            ("__turbo_tasks__/".to_string(), viz),
+        ],
+        fallback: main_source.into(),
     }
     .cell()
     .into();
