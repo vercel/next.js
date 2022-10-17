@@ -1,6 +1,6 @@
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
-import { renderViaHTTP } from 'next-test-utils'
+import { renderViaHTTP, hasRedbox, getRedboxHeader } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import cheerio from 'cheerio'
 import path from 'path'
@@ -89,5 +89,13 @@ describe('New Link Behavior', () => {
     const $a = $('a')
     expect($a.text()).toBe('About Additional Children')
     expect($a.find('strong').text()).toBe('Additional Children')
+  })
+
+  it('should error when legacyBehavior prop used with multiple children', async () => {
+    const browser = await webdriver(next.url, `/multiple-children-legacy`)
+    expect(await hasRedbox(browser)).toBe(true)
+    expect(await getRedboxHeader(browser)).toMatch(
+      /Error: Multiple children were passed/
+    )
   })
 })
