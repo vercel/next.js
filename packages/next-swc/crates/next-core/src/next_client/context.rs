@@ -49,6 +49,8 @@ pub fn get_client_resolve_options_context() -> ResolveOptionsContextVc {
         enable_react: true,
         enable_node_modules: true,
         custom_conditions: vec!["development".to_string()],
+        browser: true,
+        module: true,
         ..Default::default()
     }
     .cell()

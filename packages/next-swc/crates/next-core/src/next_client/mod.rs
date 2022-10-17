@@ -59,6 +59,14 @@ impl Transition for NextClientTransition {
     }
 
     #[turbo_tasks::function]
+    fn process_resolve_options_context(
+        &self,
+        _context: ResolveOptionsContextVc,
+    ) -> ResolveOptionsContextVc {
+        self.client_resolve_options_context
+    }
+
+    #[turbo_tasks::function]
     async fn process_module(
         &self,
         asset: AssetVc,
