@@ -1338,10 +1338,25 @@ export default async function getBaseWebpackConfig(
           // and all other chunk depend on them so there is no
           // duplication that need to be pulled out.
           chunks: (chunk: any) =>
-            !/^(polyfills|main|pages\/_app)$/.test(chunk.name),
+            !/^(polyfills|main|main-app|pages\/_app)$/.test(chunk.name),
           cacheGroups: {
             framework: {
-              chunks: 'all',
+              chunks: (chunk) => {
+                const name = chunk.name
+
+                // Skip app directory and include shared modules in main-app.
+                if (
+                  name &&
+                  hasAppDir &&
+                  (name === 'main-app' ||
+                    name === 'app-internals' ||
+                    name.startsWith('app/'))
+                ) {
+                  return false
+                }
+
+                return true
+              },
               name: 'framework',
               test(module: any) {
                 const resource = module.nameForCondition?.()
