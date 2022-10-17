@@ -69,7 +69,8 @@ class ReadonlyURLSearchParams {
 }
 
 /**
- * Get the current search params. For example useSearchParams() would return {"foo": "bar"} when ?foo=bar
+ * Get a read-only URLSearchParams object. For example searchParams.get('foo') would return 'bar' when ?foo=bar
+ * Learn more about URLSearchParams here: https://developer.mozilla.org/en-US/docs/Web/API/URLSearchParams
  */
 export function useSearchParams() {
   const searchParams = useContext(SearchParamsContext)
