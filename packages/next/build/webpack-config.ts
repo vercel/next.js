@@ -1599,9 +1599,11 @@ export default async function getBaseWebpackConfig(
                     test: codeCondition.test,
                     issuerLayer: WEBPACK_LAYERS.server,
                     resolve: {
+                      // It needs `conditionNames` here to require the proper asset,
+                      // when react is acting as dependency of compiled/react-dom.
                       conditionNames: ['react-server', 'node', 'require'],
                       alias: {
-                        react: 'next/dist/compiled/react/react.shared-subset',
+                        react: 'next/dist/compiled/react',
                         'react-dom': 'next/dist/compiled/react-dom',
                       },
                     },
