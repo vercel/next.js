@@ -12,11 +12,7 @@ import type {
   CacheNode,
   AppRouterInstance,
 } from '../../shared/lib/app-router-context'
-import type {
-  FlightRouterState,
-  FlightData,
-  Segment,
-} from '../../server/app-render'
+import type { FlightRouterState, FlightData } from '../../server/app-render'
 import {
   ACTION_NAVIGATE,
   ACTION_PREFETCH,
