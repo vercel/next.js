@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, mem::take};
+use std::{cmp::Ordering, collections::HashSet, mem::take};
 
 use anyhow::{bail, Result};
 use indexmap::IndexSet;
@@ -254,18 +254,10 @@ async fn merge_duplicated_and_contained(
                 .count();
 
             // Remove merged chunks from chunks list
-            let mut remove_iter = merged[1..].iter().peekable();
-            chunks.retain(|&c| {
-                if let Some(&&item) = remove_iter.peek() {
-                    if c == item {
-                        remove_iter.next();
-                        return false;
-                    }
-                }
-                true
-            });
-            // All merged chunk must be removed
-            debug_assert!(remove_iter.next().is_none());
+            let mut remove = merged[1..].iter().collect::<HashSet<_>>();
+            chunks.retain(|c| !remove.remove(c));
+            // All merged chunks must be removed
+            debug_assert!(remove.is_empty());
             // Don't increase i, since we want to re-visit the chunk for more
             // merging
         } else {

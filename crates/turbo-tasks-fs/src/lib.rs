@@ -107,15 +107,12 @@ impl DiskFileSystem {
         let root = self.root.clone();
         // Create a channel to receive the events.
         let (tx, rx) = channel();
-        println!("start watcher {}...", root);
         // Create a watcher object, delivering debounced events.
         // The notification back-end is selected based on the platform.
         let mut watcher = watcher(tx, Duration::from_millis(1))?;
         // Add a path to be watched. All files and directories at that path and
         // below will be monitored for changes.
         watcher.watch(&root, RecursiveMode::Recursive)?;
-
-        println!("watching {}...", root);
 
         // We need to invalidate all reads that happened before watching
         // Best is to start_watching before starting to read
@@ -704,7 +701,12 @@ impl FileSystemPath {
     }
 
     pub fn extension(&self) -> Option<&str> {
-        self.path.rsplit_once('.').map(|(_, ext)| ext)
+        if let Some((_, ext)) = self.path.rsplit_once('.') {
+            if !ext.contains('/') {
+                return Some(ext);
+            }
+        }
+        None
     }
 }
 
