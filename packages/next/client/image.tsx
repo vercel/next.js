@@ -268,11 +268,14 @@ function handleLoading(
       setBlurComplete(true)
     }
     if (onLoadRef?.current) {
+      // Since we don't have the SyntheticEvent here,
+      // we must create one with the same shape.
+      // See https://reactjs.org/docs/events.html
       const event = new Event('load')
       Object.defineProperty(event, 'target', { writable: false, value: img })
       let prevented = false
       let stopped = false
-      const sytheticEvent = {
+      onLoadRef.current({
         ...event,
         nativeEvent: event,
         currentTarget: img,
@@ -288,8 +291,7 @@ function handleLoading(
           stopped = true
           event.stopPropagation()
         },
-      }
-      onLoadRef.current(sytheticEvent)
+      })
     }
     if (onLoadingCompleteRef?.current) {
       onLoadingCompleteRef.current(img)
