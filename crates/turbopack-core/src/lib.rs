@@ -2,6 +2,7 @@
 #![feature(option_get_or_insert_default)]
 #![feature(type_alias_impl_trait)]
 #![feature(assert_matches)]
+#![feature(lint_reasons)]
 
 pub mod asset;
 pub mod chunk;

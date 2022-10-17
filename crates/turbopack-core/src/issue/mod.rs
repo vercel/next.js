@@ -233,43 +233,51 @@ impl IssueVc {
 }
 
 impl IssueVc {
+    #[allow(unused_variables, reason = "behind feature flag")]
     pub async fn attach_context<T: CollectiblesSource + Copy>(
         context: FileSystemPathVc,
         description: String,
         source: T,
     ) -> Result<T> {
-        let children = source.take_collectibles().await?;
-        if !children.is_empty() {
-            emit(
-                ItemIssueProcessingPathVc::cell(ItemIssueProcessingPath(
-                    Some(IssueProcessingPathItemVc::cell(IssueProcessingPathItem {
-                        context: Some(context),
-                        description: StringVc::cell(description),
-                    })),
-                    children,
-                ))
-                .as_issue_processing_path(),
-            );
+        #[cfg(feature = "issue_path")]
+        {
+            let children = source.take_collectibles().await?;
+            if !children.is_empty() {
+                emit(
+                    ItemIssueProcessingPathVc::cell(ItemIssueProcessingPath(
+                        Some(IssueProcessingPathItemVc::cell(IssueProcessingPathItem {
+                            context: Some(context),
+                            description: StringVc::cell(description),
+                        })),
+                        children,
+                    ))
+                    .as_issue_processing_path(),
+                );
+            }
         }
         Ok(source)
     }
 
+    #[allow(unused_variables, reason = "behind feature flag")]
     pub async fn attach_description<T: CollectiblesSource + Copy>(
         description: String,
         source: T,
     ) -> Result<T> {
-        let children = source.take_collectibles().await?;
-        if !children.is_empty() {
-            emit(
-                ItemIssueProcessingPathVc::cell(ItemIssueProcessingPath(
-                    Some(IssueProcessingPathItemVc::cell(IssueProcessingPathItem {
-                        context: None,
-                        description: StringVc::cell(description),
-                    })),
-                    children,
-                ))
-                .as_issue_processing_path(),
-            );
+        #[cfg(feature = "issue_path")]
+        {
+            let children = source.take_collectibles().await?;
+            if !children.is_empty() {
+                emit(
+                    ItemIssueProcessingPathVc::cell(ItemIssueProcessingPath(
+                        Some(IssueProcessingPathItemVc::cell(IssueProcessingPathItem {
+                            context: None,
+                            description: StringVc::cell(description),
+                        })),
+                        children,
+                    ))
+                    .as_issue_processing_path(),
+                );
+            }
         }
         Ok(source)
     }
@@ -281,6 +289,7 @@ impl IssueVc {
     ) -> Result<CapturedIssuesVc> {
         Ok(CapturedIssuesVc::cell(CapturedIssues {
             issues: source.peek_collectibles().await?,
+            #[cfg(feature = "issue_path")]
             processing_path: ItemIssueProcessingPathVc::cell(ItemIssueProcessingPath(
                 None,
                 source.peek_collectibles().await?,
@@ -297,6 +306,7 @@ impl IssueVc {
     ) -> Result<CapturedIssuesVc> {
         Ok(CapturedIssuesVc::cell(CapturedIssues {
             issues: source.take_collectibles().await?,
+            #[cfg(feature = "issue_path")]
             processing_path: ItemIssueProcessingPathVc::cell(ItemIssueProcessingPath(
                 None,
                 source.take_collectibles().await?,
@@ -313,6 +323,7 @@ pub struct Issues(Vec<IssueVc>);
 #[turbo_tasks::value]
 pub struct CapturedIssues {
     issues: HashSet<IssueVc>,
+    #[cfg(feature = "issue_path")]
     processing_path: ItemIssueProcessingPathVc,
 }
 
@@ -345,9 +356,13 @@ impl CapturedIssues {
     pub fn iter_with_shortest_path(
         &self,
     ) -> impl Iterator<Item = (IssueVc, OptionIssueProcessingPathItemsVc)> + '_ {
-        self.issues
-            .iter()
-            .map(|issue| (*issue, self.processing_path.shortest_path(*issue)))
+        self.issues.iter().map(|issue| {
+            #[cfg(feature = "issue_path")]
+            let path = self.processing_path.shortest_path(*issue);
+            #[cfg(not(feature = "issue_path"))]
+            let path = OptionIssueProcessingPathItemsVc::cell(None);
+            (*issue, path)
+        })
     }
 }
 

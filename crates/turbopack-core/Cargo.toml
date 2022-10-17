@@ -34,3 +34,6 @@ turbo-tasks-build = { path = "../turbo-tasks-build" }
 
 [dev-dependencies]
 rstest = "0.12.0"
+
+[features]
+issue_path = []
