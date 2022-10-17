@@ -1,27 +1,29 @@
-(self.TURBOPACK = self.TURBOPACK || []).push(["[workspace]/crates/turbopack/tests/snapshot/integration/json/output/crates_turbopack_tests_snapshot_integration_json_input_index_3da9177bb525269d.js", {
+(self.TURBOPACK = self.TURBOPACK || []).push(["[workspace]/crates/turbopack/tests/snapshot/integration/css/output/crates_turbopack_tests_snapshot_integration_css_input_index_6a0456.js", {
 
-"[project]/crates/turbopack/tests/snapshot/integration/json/input/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
+"[project]/crates/turbopack/tests/snapshot/integration/css/input/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
 
-var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$json$2f$input$2f$package$2e$json__ = __turbopack_import__("[project]/crates/turbopack/tests/snapshot/integration/json/input/package.json (json)");
-var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$json$2f$input$2f$invalid$2e$json__ = __turbopack_import__("[project]/crates/turbopack/tests/snapshot/integration/json/input/invalid.json (json)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$css$2f$input$2f$node_modules$2f$foo$2f$style$2e$module$2e$css__ = __turbopack_import__("[project]/crates/turbopack/tests/snapshot/integration/css/input/node_modules/foo/style.module.css (css module)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$css$2f$input$2f$style$2e$module$2e$css__ = __turbopack_import__("[project]/crates/turbopack/tests/snapshot/integration/css/input/style.module.css (css module)");
 "__TURBOPACK__ecmascript__hoisting__location__";
 ;
-console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$json$2f$input$2f$package$2e$json__["default"].name);
 ;
-console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$json$2f$input$2f$invalid$2e$json__["default"]["this-is"]);
+;
+;
+;
+console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$css$2f$input$2f$style$2e$module$2e$css__["default"], __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$css$2f$input$2f$node_modules$2f$foo$2f$style$2e$module$2e$css__["default"]);
 
 })()),
-"[project]/crates/turbopack/tests/snapshot/integration/json/input/package.json (json)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
+"[project]/crates/turbopack/tests/snapshot/integration/css/input/style.module.css (css module)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
 
-__turbopack_export_value__(JSON.parse("{\"name\":\"json-snapshot\"}"));
-})()),
-"[project]/crates/turbopack/tests/snapshot/integration/json/input/invalid.json (json)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
+__turbopack_export_value__({
+  "inner": "inner◽[project]/crates/turbopack/tests/snapshot/integration/css/input/style.module.css",
+  "module-style": "module-style◽[project]/crates/turbopack/tests/snapshot/integration/css/input/style.module.css",
+});
 
-throw new Error("An error occurred while importing a JSON module: \"File is not valid JSON\"")
 })()),
 }, ({ loadedChunks, instantiateRuntimeModule }) => {
-    if(!(true && loadedChunks.has("[workspace]/crates/turbopack/tests/snapshot/integration/json/output/crates_turbopack_tests_snapshot_integration_json_input_index_e577c6104fe984d4.js"))) return true;
-    instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/json/input/index.js (ecmascript)");
+    if(!(true && loadedChunks.has("[workspace]/crates/turbopack/tests/snapshot/integration/css/output/crates_turbopack_tests_snapshot_integration_css_input_index_05e0ad.js") && loadedChunks.has("[workspace]/crates/turbopack/tests/snapshot/integration/css/output/a05b1_foo_style.module.css.js"))) return true;
+    instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/css/input/index.js (ecmascript)");
 }]);
 (() => {
   // When a chunk is executed, it will either register itself with the current
@@ -798,4 +800,4 @@ throw new Error("An error occurred while importing a JSON module: \"File is not 
 })();
 
 
-//# sourceMappingURL=crates_turbopack_tests_snapshot_integration_json_input_index_3da9177bb525269d.js.8b66a863c42e8716.map
+//# sourceMappingURL=crates_turbopack_tests_snapshot_integration_css_input_index_6a0456.js.7c2617b5834079be.map

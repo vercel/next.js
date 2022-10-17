@@ -1,18 +1,21 @@
-(self.TURBOPACK = self.TURBOPACK || []).push(["[workspace]/crates/turbopack/tests/snapshot/integration/resolve_error_cjs/output/crates_turbopack_tests_snapshot_integration_resolve_error_cjs_input_index_576d3d4a10f471c7.js", {
+(self.TURBOPACK = self.TURBOPACK || []).push(["[workspace]/crates/turbopack/tests/snapshot/integration/resolve_error_esm/output/crates_turbopack_tests_snapshot_integration_resolve_error_esm_input_index_7e452e.js", {
 
-"[project]/crates/turbopack/tests/snapshot/integration/resolve_error_cjs/input/index.js (ecmascript)": (function({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, m: module, e: exports }) { !function() {
+"[project]/crates/turbopack/tests/snapshot/integration/resolve_error_esm/input/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
 
-const dne = __turbopack_require__((()=>{
+(()=>{
     const e = new Error("Cannot find module 'does-not-exist/path'");
     e.code = 'MODULE_NOT_FOUND';
     throw e;
-})());
+})();
+"__TURBOPACK__ecmascript__hoisting__location__";
+;
 console.log(dne);
+console.log({}[dne]);
 
-}.call(this) }),
+})()),
 }, ({ loadedChunks, instantiateRuntimeModule }) => {
-    if(!(true && loadedChunks.has("[workspace]/crates/turbopack/tests/snapshot/integration/resolve_error_cjs/output/crates_turbopack_tests_snapshot_integration_resolve_error_cjs_input_index_c2892242bab2cfde.js"))) return true;
-    instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/resolve_error_cjs/input/index.js (ecmascript)");
+    if(!(true && loadedChunks.has("[workspace]/crates/turbopack/tests/snapshot/integration/resolve_error_esm/output/crates_turbopack_tests_snapshot_integration_resolve_error_esm_input_index_06768d.js"))) return true;
+    instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/resolve_error_esm/input/index.js (ecmascript)");
 }]);
 (() => {
   // When a chunk is executed, it will either register itself with the current
@@ -789,4 +792,4 @@ console.log(dne);
 })();
 
 
-//# sourceMappingURL=crates_turbopack_tests_snapshot_integration_resolve_error_cjs_input_index_576d3d4a10f471c7.js.2f34663e6562097a.map
+//# sourceMappingURL=crates_turbopack_tests_snapshot_integration_resolve_error_esm_input_index_7e452e.js.1cf37ac5daa5b01f.map

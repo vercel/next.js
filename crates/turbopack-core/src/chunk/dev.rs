@@ -98,8 +98,9 @@ impl ChunkingContext for DevChunkingContext {
         if let Some(j) = name.find(NODE_MODULES) {
             i = j + NODE_MODULES.len();
         }
-        if name.len() - i > 100 {
-            i = name.len() - 100;
+        const MAX_FILENAME: usize = 80;
+        if name.len() - i > MAX_FILENAME {
+            i = name.len() - MAX_FILENAME;
             if let Some(j) = name[i..].find('_') {
                 if j < 20 {
                     i += j + 1;

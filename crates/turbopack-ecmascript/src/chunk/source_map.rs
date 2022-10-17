@@ -72,8 +72,9 @@ impl EcmascriptChunkEntrySourceMapAssetVc {
 impl Asset for EcmascriptChunkEntrySourceMapAsset {
     #[turbo_tasks::function]
     fn path(&self) -> FileSystemPathVc {
-        self.chunk_path
-            .append(&format!(".{}.map", encode_hex(self.hash)))
+        let hash = encode_hex(self.hash);
+        let truncated_hash = &hash[..6];
+        self.chunk_path.append(&format!(".{}.map", truncated_hash))
     }
 
     #[turbo_tasks::function]

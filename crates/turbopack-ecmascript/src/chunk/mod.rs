@@ -888,7 +888,9 @@ impl Asset for EcmascriptChunk {
 
         if need_hash {
             let hash = hasher.finish();
-            path = path.append_to_stem(&format!("_{}", encode_hex(hash)))
+            let hash = encode_hex(hash);
+            let truncated_hash = &hash[..6];
+            path = path.append_to_stem(&format!("_{}", truncated_hash))
         }
 
         Ok(this.context.chunk_path(path, ".js"))

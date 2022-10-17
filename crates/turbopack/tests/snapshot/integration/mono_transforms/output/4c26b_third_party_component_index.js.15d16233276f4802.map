@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["/[project]/crates/turbopack/tests/snapshot/integration/mono_transforms/input/node_modules/third_party_component/index.js"],"sourcesContent":["export default function ThirdPartyComponent() {\n  return <div>Should not be transformed</div>;\n}\n"],"names":[],"mappings":"AAAA;;;AAAe,SAAS,sBAAsB;IAC5C,QAAQ,KAAI,yBAAyB,EAAE;AACzC"}},
+    {"offset": {"line": 10, "column": 0}, "map": {"version": 3, "names": [], "sources": [], "mappings": "A"}}]
+}
