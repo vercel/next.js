@@ -1,27 +1,30 @@
 ---
-description: Try the latest Image Optimization with the new `next/future/image` component.
+description: Backwards compatible Image Optimization with the Legacy Image component.
 ---
 
-# next/future/image
+# next/legacy/image
+
+<details>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/image-legacy-component">Legacy Image Component</a></li>
+  </ul>
+</details>
 
 <details>
   <summary><b>Version History</b></summary>
 
-| Version   | Changes                                                                                                                                                          |
-| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `v12.3.0` | `next/future/image` component stable. `remotePatterns` config stable. `unoptimized` config stable. `alt` property required. `onLoadingComplete` receives `<img>` |
-| `v12.2.4` | `fill` property added.                                                                                                                                           |
-| `v12.2.0` | Experimental `next/future/image` component introduced.                                                                                                           |
+| Version   | Changes                                     |
+| --------- | ------------------------------------------- |
+| `v13.0.0` | `next/image` renamed to `next/legacy/image` |
 
 </details>
 
-The `next/future/image` component improves both the performance and developer experience of `next/image` by using the native `<img>` element with better default behavior.
-
-This component uses browser native [lazy loading](https://caniuse.com/loading-lazy-attr), which may fallback to eager loading for older browsers before Safari 15.4. When using the blur-up placeholder, older browsers before Safari 12 will fallback to empty placeholder. When using styles with `width`/`height` of `auto`, it is possible to cause [Layout Shift](https://web.dev/cls/) on older browsers before Safari 15 that don't [preserve the aspect ratio](https://caniuse.com/mdn-html_elements_img_aspect_ratio_computed_from_attributes). For more details, see [this MDN video](https://www.youtube.com/watch?v=4-d_SoCHeWE).
+Starting with Next.js 13, the `next/image` component was rewritten to improves both the performance and developer experience. In order to provide a backwards compatible upgrade solution, the old `next/image` was renamed to `next/legacy/image`.
 
 ## Comparison
 
-Compared to `next/image`, the new `next/future/image` component has the following changes:
+Compared to `next/legacy/image`, the new `next/image` component has the following changes:
 
 - Removes `<span>` wrapper around `<img>` in favor of [native computed aspect ratio](https://caniuse.com/mdn-html_elements_img_aspect_ratio_computed_from_attributes)
 - Adds support for canonical `style` prop
@@ -35,111 +38,6 @@ Compared to `next/image`, the new `next/future/image` component has the followin
 - Changed `alt` prop from optional to required
 - Changed `onLoadingComplete` callback to receive reference to `<img>` element
 
-## Known Browser Bugs
-
-- [Safari 15+](https://bugs.webkit.org/show_bug.cgi?id=243601) displays a gray border while loading. Possible solutions:
-  - Use CSS `@media not all and (min-resolution:.001dpcm) { img[loading="lazy"] { clip-path: inset(0.5px) } }`
-  - Use [`priority`](#priority) if the image is above the fold
-- [Firefox 67+](https://bugzilla.mozilla.org/show_bug.cgi?id=1556156) displays a white background while loading progressive jpeg. Possible solutions:
-  - Enable [AVIF `formats`](#acceptable-formats)
-  - Use [`placeholder="blur"`](#placeholder)
-
-## Migration
-
-Although `layout` is not available, you can migrate `next/image` to `next/future/image` using a few props. The following code snippets compare the two components:
-
-#### before: `next/image`
-
-```jsx
-import Image from 'next/image'
-import img from '../img.png'
-
-function Page() {
-  return <Image src={img} />
-}
-```
-
-#### after: `next/future/image`
-
-```jsx
-import Image from 'next/future/image'
-import img from '../img.png'
-
-const css = { maxWidth: '100%', height: 'auto' }
-function Page() {
-  return <Image src={img} style={css} />
-}
-```
-
-#### before: `next/image`
-
-```jsx
-import Image from 'next/image'
-import img from '../img.png'
-
-function Page() {
-  return <Image src={img} layout="responsive" />
-}
-```
-
-#### after: `next/future/image`
-
-```jsx
-import Image from 'next/future/image'
-import img from '../img.png'
-
-const css = { width: '100%', height: 'auto' }
-function Page() {
-  return <Image src={img} sizes="100vw" style={css} />
-}
-```
-
-#### before: `next/image`
-
-```jsx
-import Image from 'next/image'
-import img from '../img.png'
-
-function Page() {
-  return <Image src={img} layout="fill" />
-}
-```
-
-#### after: `next/future/image`
-
-```jsx
-import Image from 'next/future/image'
-import img from '../img.png'
-
-function Page() {
-  return <Image src={img} sizes="100vw" fill />
-}
-```
-
-#### before: `next/image`
-
-```jsx
-import Image from 'next/image'
-import img from '../img.png'
-
-function Page() {
-  return <Image src={img} layout="fixed" />
-}
-```
-
-#### after: `next/future/image`
-
-```jsx
-import Image from 'next/future/image'
-import img from '../img.png'
-
-function Page() {
-  return <Image src={img} />
-}
-```
-
-You can also use `className` instead of `style`.
-
 ## Required Props
 
 The `<Image />` component requires the following properties.
@@ -150,39 +48,63 @@ Must be one of the following:
 
 1. A [statically imported](/docs/basic-features/image-optimization.md#local-images) image file, or
 2. A path string. This can be either an absolute external URL,
-   or an internal path depending on the [loader](#loader) prop.
+   or an internal path depending on the [loader](#loader) prop or [loader configuration](#loader-configuration).
 
-When using an external URL, you must add it to [remotePatterns](#remote-patterns) in `next.config.js`.
+When using an external URL, you must add it to
+[remotePatterns](#remote-patterns) in
+`next.config.js`.
 
 ### width
 
-The `width` property represents the _rendered_ width in pixels, so it will affect how large the image appears.
+The `width` property can represent either the _rendered_ width or _original_ width in pixels, depending on the [`layout`](#layout) and [`sizes`](#sizes) properties.
 
-Required, except for [statically imported images](/docs/basic-features/image-optimization.md#local-images) or images with the [`fill` property](#fill).
+When using `layout="intrinsic"` or `layout="fixed"` the `width` property represents the _rendered_ width in pixels, so it will affect how large the image appears.
+
+When using `layout="responsive"`, `layout="fill"`, the `width` property represents the _original_ width in pixels, so it will only affect the aspect ratio.
+
+The `width` property is required, except for [statically imported images](/docs/basic-features/image-optimization.md#local-images), or those with `layout="fill"`.
 
 ### height
 
-The `height` property represents the _rendered_ height in pixels, so it will affect how large the image appears.
+The `height` property can represent either the _rendered_ height or _original_ height in pixels, depending on the [`layout`](#layout) and [`sizes`](#sizes) properties.
 
-Required, except for [statically imported images](/docs/basic-features/image-optimization.md#local-images) or images with the [`fill` property](#fill).
+When using `layout="intrinsic"` or `layout="fixed"` the `height` property represents the _rendered_ height in pixels, so it will affect how large the image appears.
 
-### alt
+When using `layout="responsive"`, `layout="fill"`, the `height` property represents the _original_ height in pixels, so it will only affect the aspect ratio.
 
-The `alt` property is used to describe the image for screen readers and search engines. It is also the fallback text if images have been disabled or an error occurs while loading the image.
-
-It should contain text that could replace the image [without changing the meaning of the page](https://html.spec.whatwg.org/multipage/images.html#general-guidelines). It is not meant to supplement the image and should not repeat information that is already provided in the captions above or below the image.
-
-If the image is [purely decorative](https://html.spec.whatwg.org/multipage/images.html#a-purely-decorative-image-that-doesn't-add-any-information) or [not intended for the user](https://html.spec.whatwg.org/multipage/images.html#an-image-not-intended-for-the-user), the `alt` property should be an empty string (`alt=""`).
-
-[Learn more](https://html.spec.whatwg.org/multipage/images.html#alt)
+The `height` property is required, except for [statically imported images](/docs/basic-features/image-optimization.md#local-images), or those with `layout="fill"`.
 
 ## Optional Props
 
 The `<Image />` component accepts a number of additional properties beyond those which are required. This section describes the most commonly-used properties of the Image component. Find details about more rarely-used properties in the [Advanced Props](#advanced-props) section.
 
+### layout
+
+The layout behavior of the image as the viewport changes size.
+
+| `layout`              | Behavior                                                 | `srcSet`                                                                                                    | `sizes` | Has wrapper and sizer |
+| --------------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ------- | --------------------- |
+| `intrinsic` (default) | Scale *down* to fit width of container, up to image size | `1x`, `2x` (based on [imageSizes](#image-sizes))                                                            | N/A     | yes                   |
+| `fixed`               | Sized to `width` and `height` exactly                    | `1x`, `2x` (based on [imageSizes](#image-sizes))                                                            | N/A     | yes                   |
+| `responsive`          | Scale to fit width of container                          | `640w`, `750w`, ... `2048w`, `3840w` (based on [imageSizes](#image-sizes) and [deviceSizes](#device-sizes)) | `100vw` | yes                   |
+| `fill`                | Grow in both X and Y axes to fill container              | `640w`, `750w`, ... `2048w`, `3840w` (based on [imageSizes](#image-sizes) and [deviceSizes](#device-sizes)) | `100vw` | yes                   |
+
+- [Demo the `intrinsic` layout (default)](https://image-component.nextjs.gallery/layout-intrinsic)
+  - When `intrinsic`, the image will scale the dimensions down for smaller viewports, but maintain the original dimensions for larger viewports.
+- [Demo the `fixed` layout](https://image-component.nextjs.gallery/layout-fixed)
+  - When `fixed`, the image dimensions will not change as the viewport changes (no responsiveness) similar to the native `img` element.
+- [Demo the `responsive` layout](https://image-component.nextjs.gallery/layout-responsive)
+  - When `responsive`, the image will scale the dimensions down for smaller viewports and scale up for larger viewports.
+  - Ensure the parent element uses `display: block` in their stylesheet.
+- [Demo the `fill` layout](https://image-component.nextjs.gallery/layout-fill)
+  - When `fill`, the image will stretch both width and height to the dimensions of the parent element, provided the parent element is relative.
+  - This is usually paired with the [`objectFit`](#objectFit) property.
+  - Ensure the parent element has `position: relative` in their stylesheet.
+- [Demo background image](https://image-component.nextjs.gallery/background)
+
 ### loader
 
-A custom function used to resolve image URLs.
+A custom function used to resolve URLs. Setting the loader as a prop on the Image component overrides the default loader defined in the [`images` section of `next.config.js`](#loader-configuration).
 
 A `loader` is a function returning a URL string for the image, given the following parameters:
 
@@ -193,7 +115,7 @@ A `loader` is a function returning a URL string for the image, given the followi
 Here is an example of using a custom loader:
 
 ```js
-import Image from 'next/future/image'
+import Image from 'next/legacy/image'
 
 const myLoader = ({ src, width, quality }) => {
   return `https://example.com/${src}?w=${width}&q=${quality || 75}`
@@ -212,38 +134,20 @@ const MyImage = (props) => {
 }
 ```
 
-### fill
-
-A boolean that causes the image to fill the parent element instead of setting [`width`](#width) and [`height`](#height).
-
-The parent element _must_ assign `position: "relative"`, `position: "fixed"`, or `position: "absolute"` style.
-
-By default, the img element will automatically be assigned the `position: "absolute"` style.
-
-The default image fit behavior will stretch the image to fit the container. You may prefer to set `object-fit: "contain"` for an image which is letterboxed to fit the container and preserve aspect ratio.
-
-Alternatively, `object-fit: "cover"` will cause the image to fill the entire container and be cropped to preserve aspect ratio. For this to look correct, the `overflow: "hidden"` style should be assigned to the parent element.
-
-See also:
-
-- [position](https://developer.mozilla.org/en-US/docs/Web/CSS/position)
-- [object-fit](https://developer.mozilla.org/en-US/docs/Web/CSS/object-fit)
-- [object-position](https://developer.mozilla.org/en-US/docs/Web/CSS/object-position)
-
 ### sizes
 
-A string that provides information about how wide the image will be at different breakpoints. The value of `sizes` will greatly affect performance for images using [`fill`](#fill) or which are styled to have a responsive size.
+A string that provides information about how wide the image will be at different breakpoints. The value of `sizes` will greatly affect performance for images using `layout="responsive"` or `layout="fill"`. It will be ignored for images using `layout="intrinsic"` or `layout="fixed"`.
 
 The `sizes` property serves two important purposes related to image performance:
 
-First, the value of `sizes` is used by the browser to determine which size of the image to download, from `next/future/image`'s automatically-generated source set. When the browser chooses, it does not yet know the size of the image on the page, so it selects an image that is the same size or larger than the viewport. The `sizes` property allows you to tell the browser that the image will actually be smaller than full screen. If you don't specify a `sizes` value in an image with the `fill` property, a default value of `100vw` (full screen width) is used.
+First, the value of `sizes` is used by the browser to determine which size of the image to download, from `next/legacy/image`'s automatically-generated source set. When the browser chooses, it does not yet know the size of the image on the page, so it selects an image that is the same size or larger than the viewport. The `sizes` property allows you to tell the browser that the image will actually be smaller than full screen. If you don't specify a `sizes` value, a default value of `100vw` (full screen width) is used.
 
-Second, the `sizes` property configures how `next/future/image` automatically generates an image source set. If no `sizes` value is present, a small source set is generated, suitable for a fixed-size image. If `sizes` is defined, a large source set is generated, suitable for a responsive image. If the `sizes` property includes sizes such as `50vw`, which represent a percentage of the viewport width, then the source set is trimmed to not include any values which are too small to ever be necessary.
+Second, the `sizes` value is parsed and used to trim the values in the automatically-created source set. If the `sizes` property includes sizes such as `50vw`, which represent a percentage of the viewport width, then the source set is trimmed to not include any values which are too small to ever be necessary.
 
 For example, if you know your styling will cause an image to be full-width on mobile devices, in a 2-column layout on tablets, and a 3-column layout on desktop displays, you should include a sizes property such as the following:
 
 ```js
-import Image from 'next/image'
+import Image from 'next/legacy/image'
 const Example = () => (
   <div className="grid-element">
     <Image
@@ -266,7 +170,7 @@ Learn more about `srcset` and `sizes`:
 
 ### quality
 
-The quality of the optimized image, an integer between `1` and `100`, where `100` is the best quality and therefore largest file size. Defaults to `75`.
+The quality of the optimized image, an integer between `1` and `100` where `100` is the best quality. Defaults to `75`.
 
 ### priority
 
@@ -301,25 +205,30 @@ In some cases, you may need more advanced usage. The `<Image />` component optio
 
 Allows [passing CSS styles](https://reactjs.org/docs/dom-elements.html#style) to the underlying image element.
 
+Note that all `layout` modes apply their own styles to the image element, and these automatic styles take precedence over the `style` prop.
+
 Also keep in mind that the required `width` and `height` props can interact with your styling. If you use styling to modify an image's `width`, you must set the `height="auto"` style as well, or your image will be distorted.
+
+### objectFit
+
+Defines how the image will fit into its parent container when using `layout="fill"`.
+
+This value is passed to the [object-fit CSS property](https://developer.mozilla.org/en-US/docs/Web/CSS/object-fit) for the `src` image.
+
+### objectPosition
+
+Defines how the image is positioned within its parent element when using `layout="fill"`.
+
+This value is passed to the [object-position CSS property](https://developer.mozilla.org/en-US/docs/Web/CSS/object-position) applied to the image.
 
 ### onLoadingComplete
 
 A callback function that is invoked once the image is completely loaded and the [placeholder](#placeholder) has been removed.
 
-The callback function will be called with one argument, a reference to the underlying `<img>` element.
+The `onLoadingComplete` function accepts one parameter, an object with the following properties:
 
-### onLoad
-
-A callback function that is invoked when the image is loaded.
-
-Note that the load event might occur before the placeholder is removed and the image is fully decoded.
-
-Instead, use [`onLoadingComplete`](#onloadingcomplete).
-
-### onError
-
-A callback function that is invoked if the image fails to load.
+- [`naturalWidth`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/naturalWidth)
+- [`naturalHeight`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/naturalHeight)
 
 ### loading
 
@@ -355,6 +264,66 @@ Try it out:
 
 You can also [generate a solid color Data URL](https://png-pixel.com) to match the image.
 
+### lazyBoundary
+
+A string (with similar syntax to the margin property) that acts as the bounding box used to detect the intersection of the viewport with the image and trigger lazy [loading](#loading). Defaults to `"200px"`.
+
+If the image is nested in a scrollable parent element other than the root document, you will also need to assign the [lazyRoot](#lazyroot) prop.
+
+[Learn more](https://developer.mozilla.org/en-US/docs/Web/API/IntersectionObserver/rootMargin)
+
+### lazyRoot
+
+A React [Ref](https://reactjs.org/docs/refs-and-the-dom.html) pointing to the scrollable parent element. Defaults to `null` (the document viewport).
+
+The Ref must point to a DOM element or a React component that [forwards the Ref](https://reactjs.org/docs/forwarding-refs.html) to the underlying DOM element.
+
+**Example pointing to a DOM element**
+
+```jsx
+import Image from 'next/legacy/image'
+import React from 'react'
+
+const Example = () => {
+  const lazyRoot = React.useRef(null)
+
+  return (
+    <div ref={lazyRoot} style={{ overflowX: 'scroll', width: '500px' }}>
+      <Image lazyRoot={lazyRoot} src="/one.jpg" width="500" height="500" />
+      <Image lazyRoot={lazyRoot} src="/two.jpg" width="500" height="500" />
+    </div>
+  )
+}
+```
+
+**Example pointing to a React component**
+
+```jsx
+import Image from 'next/legacy/image'
+import React from 'react'
+
+const Container = React.forwardRef((props, ref) => {
+  return (
+    <div ref={ref} style={{ overflowX: 'scroll', width: '500px' }}>
+      {props.children}
+    </div>
+  )
+})
+
+const Example = () => {
+  const lazyRoot = React.useRef(null)
+
+  return (
+    <Container ref={lazyRoot}>
+      <Image lazyRoot={lazyRoot} src="/one.jpg" width="500" height="500" />
+      <Image lazyRoot={lazyRoot} src="/two.jpg" width="500" height="500" />
+    </Container>
+  )
+}
+```
+
+[Learn more](https://developer.mozilla.org/en-US/docs/Web/API/IntersectionObserver/root)
+
 ### unoptimized
 
 When true, the source image will be served as-is instead of changing quality,
@@ -375,7 +344,9 @@ module.exports = {
 Other properties on the `<Image />` component will be passed to the underlying
 `img` element with the exception of the following:
 
-- `srcSet`. Use [Device Sizes](#device-sizes) instead.
+- `srcSet`. Use
+  [Device Sizes](#device-sizes)
+  instead.
 - `ref`. Use [`onLoadingComplete`](#onloadingcomplete) instead.
 - `decoding`. It is always `"async"`.
 
@@ -400,7 +371,7 @@ module.exports = {
 }
 ```
 
-> Note: The example above will ensure the `src` property of `next/future/image` must start with `https://example.com/account123/`. Any other protocol, hostname, port, or unmatched path will respond with 400 Bad Request.
+> Note: The example above will ensure the `src` property of `next/legacy/image` must start with `https://example.com/account123/`. Any other protocol, hostname, port, or unmatched path will respond with 400 Bad Request.
 
 Below is another example of the `remotePatterns` property in the `next.config.js` file:
 
@@ -417,7 +388,7 @@ module.exports = {
 }
 ```
 
-> Note: The example above will ensure the `src` property of `next/future/image` must start with `https://img1.example.com` or `https://me.avatar.example.com` or any number of subdomains. Any other protocol or unmatched hostname will respond with 400 Bad Request.
+> Note: The example above will ensure the `src` property of `next/legacy/image` must start with `https://img1.example.com` or `https://me.avatar.example.com` or any number of subdomains. Any other protocol or unmatched hostname will respond with 400 Bad Request.
 
 Wildcard patterns can be used for both `pathname` and `hostname` and have the following syntax:
 
@@ -444,13 +415,43 @@ module.exports = {
 }
 ```
 
+### Loader Configuration
+
+If you want to use a cloud provider to optimize images instead of using the Next.js built-in Image Optimization API, you can configure the `loader` and `path` prefix in your `next.config.js` file. This allows you to use relative URLs for the Image [`src`](#src) and automatically generate the correct absolute URL for your provider.
+
+```js
+module.exports = {
+  images: {
+    loader: 'imgix',
+    path: 'https://example.com/myaccount/',
+  },
+}
+```
+
+### Built-in Loaders
+
+The following Image Optimization cloud providers are included:
+
+- Default: Works automatically with `next dev`, `next start`, or a custom server
+- [Vercel](https://vercel.com): Works automatically when you deploy on Vercel, no configuration necessary. [Learn more](https://vercel.com/docs/concepts/image-optimization?utm_source=next-site&utm_medium=docs&utm_campaign=next-website)
+- [Imgix](https://www.imgix.com): `loader: 'imgix'`
+- [Cloudinary](https://cloudinary.com): `loader: 'cloudinary'`
+- [Akamai](https://www.akamai.com): `loader: 'akamai'`
+- Custom: `loader: 'custom'` use a custom cloud provider by implementing the [`loader`](#loader) prop on the `next/legacy/image` component
+
+If you need a different provider, you can use the [`loader`](#loader) prop with `next/legacy/image`.
+
+> Images can not be optimized at build time using [`next export`](/docs/advanced-features/static-html-export.md), only on-demand. To use `next/legacy/image` with `next export`, you will need to use a different loader than the default. [Read more in the discussion.](https://github.com/vercel/next.js/discussions/19065)
+
+> The `next/legacy/image` component's default loader uses [`squoosh`](https://www.npmjs.com/package/@squoosh/lib) because it is quick to install and suitable for a development environment. When using `next start` in your production environment, it is strongly recommended that you install [`sharp`](https://www.npmjs.com/package/sharp) by running `yarn add sharp` in your project directory. This is not necessary for Vercel deployments, as `sharp` is installed automatically.
+
 ## Advanced
 
 The following configuration is for advanced use cases and is usually not necessary. If you choose to configure the properties below, you will override any changes to the Next.js defaults in future updates.
 
 ### Device Sizes
 
-If you know the expected device widths of your users, you can specify a list of device width breakpoints using the `deviceSizes` property in `next.config.js`. These widths are used when the `next/future/image` component uses [`sizes`](#sizes) prop to ensure the correct image is served for user's device.
+If you know the expected device widths of your users, you can specify a list of device width breakpoints using the `deviceSizes` property in `next.config.js`. These widths are used when the `next/legacy/image` component uses `layout="responsive"` or `layout="fill"` to ensure the correct image is served for user's device.
 
 If no configuration is provided, the default below is used.
 
@@ -480,7 +481,7 @@ module.exports = {
 
 ### Acceptable Formats
 
-The default [Image Optimization API](#loader) will automatically detect the browser's supported image formats via the request's `Accept` header.
+The default [Image Optimization API](#loader-configuration) will automatically detect the browser's supported image formats via the request's `Accept` header.
 
 If the `Accept` head matches more than one of the configured formats, the first match in the array is used. Therefore, the array order matters. If there is no match (or the source image is [animated](#animated-images)), the Image Optimization API will fallback to the original image's format.
 
@@ -506,15 +507,13 @@ module.exports = {
 
 > Note: AVIF generally takes 20% longer to encode but it compresses 20% smaller compared to WebP. This means that the first time an image is requested, it will typically be slower and then subsequent requests that are cached will be faster.
 
-> Note: If you self-host with a Proxy/CDN in front of Next.js, you must configure the Proxy to forward the `Accept` header.
-
 ## Caching Behavior
 
 The following describes the caching algorithm for the default [loader](#loader). For all other loaders, please refer to your cloud provider's documentation.
 
 Images are optimized dynamically upon request and stored in the `<distDir>/cache/images` directory. The optimized image file will be served for subsequent requests until the expiration is reached. When a request is made that matches a cached but expired file, the expired image is served stale immediately. Then the image is optimized again in the background (also called revalidation) and saved to the cache with the new expiration date.
 
-The cache status of an image can be determined by reading the value of the `x-nextjs-cache` response header. The possible values are the following:
+The cache status of an image can be determined by reading the value of the `x-nextjs-cache` (`x-vercel-cache` when deployed on Vercel) response header. The possible values are the following:
 
 - `MISS` - the path is not in the cache (occurs at most once, on the first visit)
 - `STALE` - the path is in the cache but exceeded the revalidate time so it will be updated in the background

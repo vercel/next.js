@@ -8,8 +8,8 @@ export default function Home() {
   return (
     <div>
       <h1>Upgrade</h1>
-      <Image src="/test.jpg" width="200" height="300" />
-      <Image src="/test.jpg" width="200" height="300" layout="intrinsic" />
+      <Image src="/test.jpg" width="100" height="200" />
+      <Image src="/test.jpg" width="300" height="400" layout="intrinsic" />
       <Image src="/test.jpg" width="200" height="300" layout="responsive" />
       <Image src="/test.jpg" width="200" height="300" layout="fixed" />
       <div style={{ position: 'relative', width: '300px', height: '500px' }}>
