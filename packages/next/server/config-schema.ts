@@ -307,6 +307,9 @@ const configSchema = {
         modularizeImports: {
           type: 'object',
         },
+        newNextLinkBehavior: {
+          type: 'boolean',
+        },
         nextScriptWorkers: {
           type: 'boolean',
         },
