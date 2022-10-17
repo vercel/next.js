@@ -31,19 +31,13 @@ function Home() {
   return (
     <ul>
       <li>
-        <Link href="/">
-          <a>Home</a>
-        </Link>
+        <Link href="/">Home</Link>
       </li>
       <li>
-        <Link href="/about">
-          <a>About Us</a>
-        </Link>
+        <Link href="/about">About Us</Link>
       </li>
       <li>
-        <Link href="/blog/hello-world">
-          <a>Blog Post</a>
-        </Link>
+        <Link href="/blog/hello-world">Blog Post</Link>
       </li>
     </ul>
   )
@@ -78,7 +72,7 @@ function Posts({ posts }) {
       {posts.map((post) => (
         <li key={post.id}>
           <Link href={`/blog/${encodeURIComponent(post.slug)}`}>
-            <a>{post.title}</a>
+            {post.title}
           </Link>
         </li>
       ))}
@@ -162,7 +156,7 @@ function Home() {
             query: { name: 'test' },
           }}
         >
-          <a>About us</a>
+          About us
         </Link>
       </li>
       <li>
@@ -172,7 +166,7 @@ function Home() {
             query: { slug: 'my-post' },
           }}
         >
-          <a>Blog Post</a>
+          Blog Post
         </Link>
       </li>
     </ul>
@@ -195,7 +189,7 @@ The default behavior of the `Link` component is to `push` a new URL into the `hi
 
 ```jsx
 <Link href="/about" replace>
-  <a>About us</a>
+  About us
 </Link>
 ```
 
@@ -205,6 +199,6 @@ The default behavior of `Link` is to scroll to the top of the page. When there i
 
 ```jsx
 <Link href="/#hashid" scroll={false}>
-  <a>Disables scrolling to the top</a>
+  Disables scrolling to the top
 </Link>
 ```
