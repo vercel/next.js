@@ -1051,6 +1051,7 @@ export default async function getBaseWebpackConfig(
 
     // Special internal modules that must be bundled for Server Components.
     if (layer === WEBPACK_LAYERS.server) {
+      // console.log('server:request', request)
       if (builtInReactImports.includes(request)) {
         return
       }
@@ -1520,7 +1521,7 @@ export default async function getBaseWebpackConfig(
     },
     module: {
       rules: [
-        ...(hasAppDir && !isClient && !isEdgeServer
+        ...(hasServerComponents && !isClient && !isEdgeServer
           ? [
               {
                 issuerLayer: WEBPACK_LAYERS.server,
@@ -1576,6 +1577,23 @@ export default async function getBaseWebpackConfig(
               },
             ]
           : []),
+        ...(hasServerComponents && (isNodeServer || isEdgeServer)
+          ? [
+              // RSC server compilation loaders
+              {
+                test: codeCondition.test,
+                include: [
+                  dir,
+                  // To let the internal client components passing through flight loader
+                  NEXT_PROJECT_ROOT_DIST,
+                ],
+                issuerLayer: WEBPACK_LAYERS.server,
+                use: {
+                  loader: 'next-flight-loader',
+                },
+              },
+            ]
+          : []),
         // Alias `next/dynamic` to React.lazy implementation for RSC
         ...(hasServerComponents
           ? [
@@ -1596,8 +1614,24 @@ export default async function getBaseWebpackConfig(
                 // Alias react for switching between default set and share subset.
                 oneOf: [
                   {
-                    test: codeCondition.test,
+                    // test: codeCondition.test,
                     issuerLayer: WEBPACK_LAYERS.server,
+                    test: (req: string) => {
+                      // If it's not a source code file, or has been opted out of
+                      // bundling, don't resolve it.
+                      if (
+                        !codeCondition.test.test(req) ||
+                        isResourceInPackages(
+                          req,
+                          config.experimental.serverComponentsExternalPackages
+                        )
+                      ) {
+                        return false
+                      }
+
+                      return true
+                    },
+
                     resolve: {
                       // It needs `conditionNames` here to require the proper asset,
                       // when react is acting as dependency of compiled/react-dom.
@@ -1618,23 +1652,6 @@ export default async function getBaseWebpackConfig(
                     },
                   },
                 ],
-              },
-            ]
-          : []),
-        ...(hasServerComponents && (isNodeServer || isEdgeServer)
-          ? [
-              // RSC server compilation loaders
-              {
-                test: codeCondition.test,
-                include: [
-                  dir,
-                  // To let the internal client components passing through flight loader
-                  NEXT_PROJECT_ROOT_DIST,
-                ],
-                issuerLayer: WEBPACK_LAYERS.server,
-                use: {
-                  loader: 'next-flight-loader',
-                },
               },
             ]
           : []),
