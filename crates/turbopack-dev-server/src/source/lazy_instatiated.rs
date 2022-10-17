@@ -1,3 +1,7 @@
+use anyhow::Result;
+use turbo_tasks::primitives::StringVc;
+use turbopack_core::introspect::{Introspectable, IntrospectableChildrenVc, IntrospectableVc};
+
 use super::{
     ContentSource, ContentSourceData, ContentSourceDataVaryVc, ContentSourceResultVc,
     ContentSourceVc,
@@ -37,5 +41,37 @@ impl ContentSource for LazyInstantiatedContentSource {
     #[turbo_tasks::function]
     fn get_by_id(&self, id: &str) -> ContentSourceResultVc {
         self.get_source.content_source().get_by_id(id)
+    }
+}
+
+#[turbo_tasks::function]
+fn introspectable_type() -> StringVc {
+    StringVc::cell("lazy instantiated content source".to_string())
+}
+
+#[turbo_tasks::function]
+fn source_key() -> StringVc {
+    StringVc::cell("source".to_string())
+}
+
+#[turbo_tasks::value_impl]
+impl Introspectable for LazyInstantiatedContentSource {
+    #[turbo_tasks::function]
+    fn ty(&self) -> StringVc {
+        introspectable_type()
+    }
+
+    #[turbo_tasks::function]
+    async fn children(&self) -> Result<IntrospectableChildrenVc> {
+        Ok(IntrospectableChildrenVc::cell(
+            [
+                IntrospectableVc::resolve_from(self.get_source.content_source())
+                    .await?
+                    .map(|i| (source_key(), i)),
+            ]
+            .into_iter()
+            .flatten()
+            .collect(),
+        ))
     }
 }

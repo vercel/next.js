@@ -1,7 +1,15 @@
+use std::collections::HashSet;
+
 use anyhow::{anyhow, Result};
 use indexmap::IndexMap;
+use turbo_tasks::{primitives::StringVc, ValueToString};
 use turbo_tasks_fs::FileSystemPathVc;
-use turbopack_core::chunk::ChunkingContextVc;
+use turbopack_core::{
+    chunk::ChunkingContextVc,
+    introspect::{
+        asset::IntrospectableAssetVc, Introspectable, IntrospectableChildrenVc, IntrospectableVc,
+    },
+};
 use turbopack_dev_server::source::{
     asset_graph::AssetGraphContentSourceVc,
     conditional::ConditionalContentSourceVc,
@@ -11,7 +19,7 @@ use turbopack_dev_server::source::{
 };
 use turbopack_ecmascript::{chunk::EcmascriptChunkPlaceablesVc, EcmascriptModuleAssetVc};
 
-use super::{external_asset_entrypoints, render_static, RenderData};
+use super::{external_asset_entrypoints, get_intermediate_asset, render_static, RenderData};
 use crate::path_regex::PathRegexVc;
 
 /// Trait that allows to get the entry module for rendering something in Node.js
@@ -157,5 +165,42 @@ impl ContentSource for NodeRenderContentSource {
     fn get_by_id(&self, _id: &str) -> ContentSourceResultVc {
         // TODO allow to subscribe to the content
         ContentSourceResult::NotFound.cell()
+    }
+}
+
+#[turbo_tasks::function]
+fn introspectable_type() -> StringVc {
+    StringVc::cell("node render content source".to_string())
+}
+
+#[turbo_tasks::value_impl]
+impl Introspectable for NodeRenderContentSource {
+    #[turbo_tasks::function]
+    fn ty(&self) -> StringVc {
+        introspectable_type()
+    }
+
+    #[turbo_tasks::function]
+    fn title(&self) -> StringVc {
+        self.path_regex.to_string()
+    }
+
+    #[turbo_tasks::function]
+    fn children(&self) -> IntrospectableChildrenVc {
+        IntrospectableChildrenVc::cell(HashSet::from([
+            (
+                StringVc::cell("module".to_string()),
+                IntrospectableAssetVc::new(self.renderer.module().into()),
+            ),
+            (
+                StringVc::cell("intermediate asset".to_string()),
+                IntrospectableAssetVc::new(get_intermediate_asset(
+                    self.renderer.module(),
+                    self.runtime_entries,
+                    self.chunking_context,
+                    self.intermediate_output_path,
+                )),
+            ),
+        ]))
     }
 }

@@ -9,6 +9,7 @@ pub mod chunk;
 pub mod code_builder;
 pub mod context;
 pub mod environment;
+pub mod introspect;
 pub mod issue;
 pub mod reference;
 pub mod resolve;

@@ -2,7 +2,8 @@ use std::{collections::HashSet, sync::Arc};
 
 use anyhow::Result;
 use parking_lot::Mutex;
-use turbo_tasks::{get_invalidator, Invalidator};
+use turbo_tasks::{get_invalidator, primitives::StringVc, Invalidator};
+use turbopack_core::introspect::{Introspectable, IntrospectableChildrenVc, IntrospectableVc};
 
 use super::{
     ContentSource, ContentSourceData, ContentSourceDataVaryVc, ContentSourceResult,
@@ -120,5 +121,54 @@ impl ContentSource for ConditionalContentSource {
             self.activate();
             Ok(first)
         }
+    }
+}
+
+#[turbo_tasks::function]
+fn introspectable_type() -> StringVc {
+    StringVc::cell("conditional content source".to_string())
+}
+
+#[turbo_tasks::function]
+fn activator_key() -> StringVc {
+    StringVc::cell("activator".to_string())
+}
+
+#[turbo_tasks::function]
+fn action_key() -> StringVc {
+    StringVc::cell("action".to_string())
+}
+
+#[turbo_tasks::value_impl]
+impl Introspectable for ConditionalContentSource {
+    #[turbo_tasks::function]
+    fn ty(&self) -> StringVc {
+        introspectable_type()
+    }
+
+    #[turbo_tasks::function]
+    async fn title(&self) -> Result<StringVc> {
+        if let Some(activator) = IntrospectableVc::resolve_from(self.activator).await? {
+            Ok(activator.title())
+        } else {
+            Ok(StringVc::empty())
+        }
+    }
+
+    #[turbo_tasks::function]
+    async fn children(&self) -> Result<IntrospectableChildrenVc> {
+        Ok(IntrospectableChildrenVc::cell(
+            [
+                IntrospectableVc::resolve_from(self.activator)
+                    .await?
+                    .map(|i| (activator_key(), i)),
+                IntrospectableVc::resolve_from(self.action)
+                    .await?
+                    .map(|i| (action_key(), i)),
+            ]
+            .into_iter()
+            .flatten()
+            .collect(),
+        ))
     }
 }

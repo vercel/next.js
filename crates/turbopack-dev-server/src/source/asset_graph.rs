@@ -5,10 +5,13 @@ use std::{
 
 use anyhow::Result;
 use indexmap::indexset;
-use turbo_tasks::{get_invalidator, Invalidator, Value, ValueToString};
+use turbo_tasks::{get_invalidator, primitives::StringVc, Invalidator, Value, ValueToString};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
     asset::{AssetVc, AssetsSetVc},
+    introspect::{
+        asset::IntrospectableAssetVc, Introspectable, IntrospectableChildrenVc, IntrospectableVc,
+    },
     reference::all_referenced_assets,
 };
 
@@ -184,5 +187,35 @@ impl ContentSource for AssetGraphContentSource {
         } else {
             Ok(ContentSourceResult::NotFound.cell())
         }
+    }
+}
+
+#[turbo_tasks::function]
+fn introspectable_type() -> StringVc {
+    StringVc::cell("asset graph content source".to_string())
+}
+
+#[turbo_tasks::value_impl]
+impl Introspectable for AssetGraphContentSource {
+    #[turbo_tasks::function]
+    fn ty(&self) -> StringVc {
+        introspectable_type()
+    }
+
+    #[turbo_tasks::function]
+    fn title(&self) -> StringVc {
+        self.root_path.to_string()
+    }
+
+    #[turbo_tasks::function]
+    async fn children(&self) -> Result<IntrospectableChildrenVc> {
+        let key = StringVc::cell("root".to_string());
+        Ok(IntrospectableChildrenVc::cell(
+            self.root_assets
+                .await?
+                .iter()
+                .map(|&asset| (key, IntrospectableAssetVc::new(asset)))
+                .collect(),
+        ))
     }
 }

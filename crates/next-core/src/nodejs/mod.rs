@@ -183,7 +183,7 @@ async fn get_renderer_pool(
 
 /// Converts a module graph into node.js executable assets
 #[turbo_tasks::function]
-async fn get_intermediate_asset(
+pub async fn get_intermediate_asset(
     entry_module: EcmascriptModuleAssetVc,
     runtime_entries: EcmascriptChunkPlaceablesVc,
     chunking_context: ChunkingContextVc,

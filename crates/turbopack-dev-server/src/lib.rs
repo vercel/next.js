@@ -4,6 +4,7 @@
 pub mod fs;
 pub mod html;
 pub mod html_runtime_asset;
+pub mod introspect;
 pub mod source;
 pub mod update;
 
@@ -91,7 +92,9 @@ impl DevServer {
                             let console_ui = (*console_ui).clone().cell();
                             let uri = request.uri();
                             let path = uri.path();
-                            let asset_path = path[1..].to_string();
+                            // Remove leading slash.
+                            let path = &path[1..];
+                            let asset_path = urlencoding::decode(path)?;
                             let source = get_source();
                             handle_issues(source, path, "get source", console_ui).await?;
                             let resolved_source = source.resolve_strongly_consistent().await?;
@@ -127,8 +130,9 @@ impl DevServer {
                                     if let FileContent::Content(content) = &*file.await? {
                                         let content_type = content.content_type().map_or_else(
                                             || {
-                                                let guess = mime_guess::from_path(asset_path)
-                                                    .first_or_octet_stream();
+                                                let guess =
+                                                    mime_guess::from_path(asset_path.as_ref())
+                                                        .first_or_octet_stream();
                                                 // If a text type, application/javascript, or
                                                 // application/json was guessed, use a utf-8 charset
                                                 // as

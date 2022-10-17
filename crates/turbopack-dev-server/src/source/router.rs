@@ -1,5 +1,6 @@
 use anyhow::Result;
-use turbo_tasks::Value;
+use turbo_tasks::{primitives::StringVc, TryJoinIterExt, Value};
+use turbopack_core::introspect::{Introspectable, IntrospectableChildrenVc, IntrospectableVc};
 
 use super::{
     ContentSource, ContentSourceData, ContentSourceDataVaryVc, ContentSourceResult,
@@ -47,5 +48,39 @@ impl ContentSource for RouterContentSource {
             }
         }
         Ok(self.fallback.get_by_id(id))
+    }
+}
+
+#[turbo_tasks::function]
+fn introspectable_type() -> StringVc {
+    StringVc::cell("router content source".to_string())
+}
+
+#[turbo_tasks::value_impl]
+impl Introspectable for RouterContentSource {
+    #[turbo_tasks::function]
+    fn ty(&self) -> StringVc {
+        introspectable_type()
+    }
+
+    #[turbo_tasks::function]
+    async fn children(&self) -> Result<IntrospectableChildrenVc> {
+        Ok(IntrospectableChildrenVc::cell(
+            self.routes
+                .iter()
+                .cloned()
+                .chain(std::iter::once((String::new(), self.fallback)))
+                .map(|(path, source)| (StringVc::cell(path), source))
+                .map(|(path, source)| async move {
+                    Ok(IntrospectableVc::resolve_from(source)
+                        .await?
+                        .map(|i| (path, i)))
+                })
+                .try_join()
+                .await?
+                .into_iter()
+                .flatten()
+                .collect(),
+        ))
     }
 }

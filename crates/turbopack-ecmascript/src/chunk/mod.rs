@@ -21,6 +21,10 @@ use turbopack_core::{
         ModuleIdVc, ModuleIdsVc,
     },
     code_builder::{Code, CodeReadRef, CodeVc},
+    introspect::{
+        asset::{children_from_asset_references, content_to_details, IntrospectableAssetVc},
+        Introspectable, IntrospectableChildrenVc, IntrospectableVc,
+    },
     reference::{AssetReferenceVc, AssetReferencesVc},
     version::{
         PartialUpdate, Update, UpdateVc, Version, VersionVc, VersionedContent, VersionedContentVc,
@@ -702,6 +706,64 @@ impl Asset for EcmascriptChunk {
     #[turbo_tasks::function]
     fn versioned_content(self_vc: EcmascriptChunkVc) -> VersionedContentVc {
         self_vc.chunk_content().into()
+    }
+}
+
+#[turbo_tasks::function]
+fn introspectable_type() -> StringVc {
+    StringVc::cell("ecmascript chunk".to_string())
+}
+
+#[turbo_tasks::function]
+fn entry_module_key() -> StringVc {
+    StringVc::cell("entry module".to_string())
+}
+
+#[turbo_tasks::value_impl]
+impl Introspectable for EcmascriptChunk {
+    #[turbo_tasks::function]
+    fn ty(&self) -> StringVc {
+        introspectable_type()
+    }
+
+    #[turbo_tasks::function]
+    fn title(self_vc: EcmascriptChunkVc) -> StringVc {
+        self_vc.path().to_string()
+    }
+
+    #[turbo_tasks::function]
+    async fn details(self_vc: EcmascriptChunkVc) -> Result<StringVc> {
+        let content = content_to_details(self_vc.content());
+        let mut details = String::new();
+        let this = self_vc.await?;
+        let chunk_content = ecmascript_chunk_content(
+            this.context,
+            this.main_entry,
+            this.evaluate
+                .as_ref()
+                .and_then(|EcmascriptChunkEvaluate { runtime_entries }| *runtime_entries),
+        )
+        .await?;
+        let chunk_items = chunk_content.chunk_items.await?;
+        details += "Chunk items:\n\n";
+        for name in chunk_items.iter().map(|item| item.to_string()) {
+            writeln!(details, "- {}", name.await?)?;
+        }
+        details += "\nContent:\n\n";
+        write!(details, "{}", content.await?)?;
+        Ok(StringVc::cell(details))
+    }
+
+    #[turbo_tasks::function]
+    async fn children(self_vc: EcmascriptChunkVc) -> Result<IntrospectableChildrenVc> {
+        let mut children = children_from_asset_references(self_vc.references())
+            .await?
+            .clone_value();
+        children.insert((
+            entry_module_key(),
+            IntrospectableAssetVc::new(self_vc.await?.main_entry.into()),
+        ));
+        Ok(IntrospectableChildrenVc::cell(children))
     }
 }
 
