@@ -531,7 +531,7 @@ function isNavigatingToNewRootLayout(
   // But it's not possible to be more than one parallelRoutes before the root layout is found
   const currentTreeChild = Object.values(currentTree[1])[0]
   const nextTreeChild = Object.values(nextTree[1])[0]
-  if (!currentTreeChild || !nextTreeChild) return false
+  if (!currentTreeChild || !nextTreeChild) return true
   return isNavigatingToNewRootLayout(currentTreeChild, nextTreeChild)
 }
 
