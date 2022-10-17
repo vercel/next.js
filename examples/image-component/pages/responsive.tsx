@@ -9,9 +9,13 @@ const Responsive = () => (
     <Image
       alt="Mountains"
       src={mountains}
-      layout="responsive"
       width={700}
       height={475}
+      sizes="100vw"
+      style={{
+        width: '100%',
+        height: 'auto',
+      }}
     />
   </div>
 )
