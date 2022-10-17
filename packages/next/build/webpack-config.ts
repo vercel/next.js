@@ -1599,7 +1599,7 @@ export default async function getBaseWebpackConfig(
                     resolve: {
                       conditionNames: ['react-server', 'node', 'require'],
                       alias: {
-                        react: 'next/dist/compiled/react',
+                        react: 'next/dist/compiled/react/react.shared-subset',
                         'react-dom': 'next/dist/compiled/react-dom',
                       },
                     },
