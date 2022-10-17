@@ -45,4 +45,14 @@ describe('Middleware base tests', () => {
       await browser.close()
     }
   })
+  it('should hydrate SSG index page when navigating with next link', async () => {
+    const browser = await webdriver(next.url, '/root/about')
+    try {
+      await browser.elementById('index-anchor').click()
+      const title = await browser.elementById('title').text()
+      expect(title).toMatch('Hello World')
+    } finally {
+      await browser.close()
+    }
+  })
 })

@@ -3,7 +3,9 @@ import Link from 'next/link'
 export default function Main({ message }) {
   return (
     <div>
-      <h1 className="title">Hello {message}</h1>
+      <h1 id="title" className="title">
+        Hello {message}
+      </h1>
       <ul>
         <li>
           <Link href="/stream-response">
@@ -37,6 +39,6 @@ export default function Main({ message }) {
   )
 }
 
-export const getServerSideProps = ({ query }) => ({
-  props: { message: query.message || 'World' },
+export const getStaticProps = () => ({
+  props: { message: 'World' },
 })
