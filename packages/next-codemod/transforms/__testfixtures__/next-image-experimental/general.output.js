@@ -8,11 +8,18 @@ export default function Home() {
   return (
     <div>
       <h1>Upgrade</h1>
-      <Image src="/test.jpg" width="200" height="300" />
       <Image
         src="/test.jpg"
-        width="200"
-        height="300"
+        width="100"
+        height="200"
+        style={{
+          maxWidth: "100%",
+          height: "auto"
+        }} />
+      <Image
+        src="/test.jpg"
+        width="300"
+        height="400"
         style={{
           maxWidth: "100%",
           height: "auto"

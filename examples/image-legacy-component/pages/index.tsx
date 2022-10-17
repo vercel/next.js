@@ -1,5 +1,5 @@
 import styles from '../styles.module.css'
-import Image from 'next/image'
+import Image from 'next/legacy/image'
 import Link from 'next/link'
 import ViewSource from '../components/view-source'
 import vercel from '../public/vercel.png'
@@ -16,8 +16,8 @@ const Index = () => (
       <h1>Image Component with Next.js</h1>
       <p>
         This page demonstrates the usage of the{' '}
-        <a href="https://nextjs.org/docs/api-reference/next/image">
-          next/image
+        <a href="https://nextjs.org/docs/api-reference/next/legacy/image">
+          next/legacy/image
         </a>{' '}
         component with live examples.
       </p>
@@ -29,40 +29,70 @@ const Index = () => (
         images on-demand as the browser requests them.
       </p>
       <hr className={styles.hr} />
-      <h2 id="examples">Examples</h2>
+      <h2 id="layout">Layout</h2>
       <p>
-        Try it the examples below (you may need to disable cache in dev tools to
-        see the effect if you already visited):
+        External images must be configured in <Code>next.config.js</Code> using
+        the <Code>remotePatterns</Code> property.
+      </p>
+      <p>
+        Select a layout below and try resizing the window or rotating your
+        device to see how the image reacts.
       </p>
       <ul>
         <li>
-          <Link href="/responsive">
-            <a>Responsive to viewport</a>
+          <Link href="/layout-intrinsic">
+            <a>layout="intrinsic"</a>
           </Link>
         </li>
         <li>
-          <Link href="/fill">
-            <a>Fill dimensions of parent element</a>
+          <Link href="/layout-responsive">
+            <a>layout="responsive"</a>
           </Link>
         </li>
         <li>
-          <Link href="/placeholder">
-            <a>Blur-up placeholder</a>
+          <Link href="/layout-fixed">
+            <a>layout="fixed"</a>
           </Link>
         </li>
         <li>
-          <Link href="/shimmer">
-            <a>Shimmer placeholder</a>
-          </Link>
-        </li>
-        <li>
-          <Link href="/color">
-            <a>Color placeholder</a>
+          <Link href="/layout-fill">
+            <a>layout="fill"</a>
           </Link>
         </li>
         <li>
           <Link href="/background">
-            <a>Text on background image</a>
+            <a>background demo</a>
+          </Link>
+        </li>
+      </ul>
+      <hr className={styles.hr} />
+      <h2 id="placeholder">Placeholder</h2>
+      <p>
+        The <Code>placeholder</Code> property tells the image what to do while
+        loading.
+      </p>
+      <p>
+        You can optionally enable a blur-up placeholder while the high
+        resolution image loads.
+      </p>
+      <p>
+        Try it out below (you may need to disable cache in dev tools to see the
+        effect if you already visited):
+      </p>
+      <ul>
+        <li>
+          <Link href="/placeholder">
+            <a>placeholder="blur"</a>
+          </Link>
+        </li>
+        <li>
+          <Link href="/shimmer">
+            <a>placeholder="blur" with animated shimmer blurDataURL</a>
+          </Link>
+        </li>
+        <li>
+          <Link href="/color">
+            <a>placeholder="blur" with solid color blurDataURL</a>
           </Link>
         </li>
       </ul>
@@ -76,16 +106,7 @@ const Index = () => (
         This image is intentionally large so you have to scroll down to the next
         image.
       </p>
-      <Image
-        alt="Vercel logo"
-        src={vercel}
-        width={1000}
-        height={1000}
-        style={{
-          maxWidth: '100%',
-          height: 'auto',
-        }}
-      />
+      <Image alt="Vercel logo" src={vercel} width={1000} height={1000} />
       <hr className={styles.hr} />
       <h2 id="external">External Image</h2>
       <p>
@@ -101,10 +122,6 @@ const Index = () => (
         src="https://assets.vercel.com/image/upload/v1538361091/repositories/next-js/next-js-bg.png"
         width={1200}
         height={400}
-        style={{
-          maxWidth: '100%',
-          height: 'auto',
-        }}
       />
       <hr className={styles.hr} />
       <h2 id="more">Learn More</h2>
