@@ -429,7 +429,8 @@ export type FlightRouterState = [
   segment: Segment,
   parallelRoutes: { [parallelRouterKey: string]: FlightRouterState },
   url?: string,
-  refresh?: 'refetch'
+  refresh?: 'refetch',
+  isRootLayout?: boolean
 ]
 
 /**
@@ -835,10 +836,10 @@ export async function renderToHTMLOrFlight(
       }
     }
 
-    const createFlightRouterStateFromLoaderTree = ([
-      segment,
-      parallelRoutes,
-    ]: LoaderTree): FlightRouterState => {
+    const createFlightRouterStateFromLoaderTree = (
+      [segment, parallelRoutes, { layout }]: LoaderTree,
+      rootLayoutIncluded = false
+    ): FlightRouterState => {
       const dynamicParam = getDynamicParamFromSegment(segment)
 
       const segmentTree: FlightRouterState = [
@@ -846,17 +847,21 @@ export async function renderToHTMLOrFlight(
         {},
       ]
 
-      if (parallelRoutes) {
-        segmentTree[1] = Object.keys(parallelRoutes).reduce(
-          (existingValue, currentValue) => {
-            existingValue[currentValue] = createFlightRouterStateFromLoaderTree(
-              parallelRoutes[currentValue]
-            )
-            return existingValue
-          },
-          {} as FlightRouterState[1]
-        )
+      if (!rootLayoutIncluded && typeof layout !== 'undefined') {
+        rootLayoutIncluded = true
+        segmentTree[4] = true
       }
+
+      segmentTree[1] = Object.keys(parallelRoutes).reduce(
+        (existingValue, currentValue) => {
+          existingValue[currentValue] = createFlightRouterStateFromLoaderTree(
+            parallelRoutes[currentValue],
+            rootLayoutIncluded
+          )
+          return existingValue
+        },
+        {} as FlightRouterState[1]
+      )
 
       return segmentTree
     }
@@ -873,7 +878,6 @@ export async function renderToHTMLOrFlight(
     )
 
     const assetPrefix = renderOpts.assetPrefix || ''
-    let rootLayoutSegments: Segment[] = []
 
     /**
      * Use the provided loader tree to create the React Component tree.
@@ -993,10 +997,6 @@ export async function renderToHTMLOrFlight(
             parentParams
       // Resolve the segment param
       const actualSegment = segmentParam ? segmentParam.treeSegment : segment
-
-      if (rootLayoutAtThisLevel) {
-        rootLayoutSegments = [...currentRootLayoutSegments, actualSegment]
-      }
 
       // This happens outside of rendering in order to eagerly kick off data fetching for layouts / the page further down
       const parallelRouteMap = await Promise.all(
@@ -1367,7 +1367,6 @@ export async function renderToHTMLOrFlight(
             assetPrefix={assetPrefix}
             initialCanonicalUrl={initialCanonicalUrl}
             initialTree={initialTree}
-            rootLayoutSegments={rootLayoutSegments}
           >
             <ComponentTree />
           </AppRouter>
