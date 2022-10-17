@@ -23,6 +23,7 @@ use crate::{
     chunk::EcmascriptChunkPlaceableVc,
     code_gen::{CodeGenerateable, CodeGenerateableVc, CodeGeneration, CodeGenerationVc},
     create_visitor, magic_identifier,
+    references::util::{request_to_string, throw_module_not_found_expr},
     resolve::esm_resolve,
 };
 
@@ -159,6 +160,24 @@ impl CodeGenerateable for EsmAssetReference {
         let mut visitors = Vec::new();
 
         let chunking_type = self_vc.chunking_type(context).await?;
+        let resolved = self_vc.resolve_reference().await?;
+
+        // Insert code that throws immediately at time of import if a request is
+        // unresolvable
+        if resolved.is_unresolveable() {
+            let this = &*self_vc.await?;
+            let request = request_to_string(this.request).await?.to_string();
+            visitors.push(create_visitor!(visit_mut_program(program: &mut Program) {
+                insert_hoisted_stmt(program, Stmt::Expr(ExprStmt {
+                        expr: Box::new(throw_module_not_found_expr(
+                          &request
+                        )),
+                        span: DUMMY_SP,
+                    }));
+            }));
+
+            return Ok(CodeGeneration { visitors }.into());
+        }
 
         // separate chunks can't be imported as the modules are not available
         if !matches!(*chunking_type, None | Some(ChunkingType::Separate)) {

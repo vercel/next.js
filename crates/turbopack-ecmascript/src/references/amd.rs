@@ -131,6 +131,7 @@ impl CodeGenerateable for AmdDefineWithDependenciesCodeGen {
                     AmdDefineDependencyElement::Request(request) => {
                         ResolvedElement::PatternMapping(
                             PatternMappingVc::resolve_request(
+                                *request,
                                 self.origin,
                                 context,
                                 cjs_resolve(self.origin, *request),

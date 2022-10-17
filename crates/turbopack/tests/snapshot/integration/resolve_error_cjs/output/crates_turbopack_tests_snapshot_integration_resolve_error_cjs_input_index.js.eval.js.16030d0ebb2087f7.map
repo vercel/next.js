@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sections": [
+    {"offset": {"line": 2, "column": 0}, "map": {"version":3,"sources":["/[project]/crates/turbopack/tests/snapshot/integration/resolve_error_cjs/input/index.js"],"sourcesContent":["const dne = require(\"does-not-exist/path\");\n\nconsole.log(dne);\n"],"names":[],"mappings":"AAAA,MAAM,MAAM;;;;;AAEZ,QAAQ,GAAG,CAAC"}},
+    {"offset": {"line": 8, "column": 0}, "map": {"version": 3, "names": [], "sources": [], "mappings": "A"}}]
+}

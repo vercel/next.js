@@ -5,6 +5,7 @@ pub mod node;
 pub mod pattern_mapping;
 pub mod raw;
 pub mod typescript;
+pub mod util;
 
 use std::{
     collections::{BTreeMap, HashMap},

@@ -1,8 +1,7 @@
 use anyhow::Result;
 use swc_core::{
     common::DUMMY_SP,
-    ecma::ast::{Callee, Expr, ExprOrSpread, Ident, Lit, Str},
-    quote,
+    ecma::ast::{Callee, Expr, ExprOrSpread, Ident},
 };
 use turbo_tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
 use turbopack_core::{
@@ -15,7 +14,7 @@ use super::pattern_mapping::{PatternMapping, PatternMappingVc, ResolveType::Cjs}
 use crate::{
     code_gen::{CodeGenerateable, CodeGenerateableVc, CodeGeneration, CodeGenerationVc},
     create_visitor,
-    references::AstPathVc,
+    references::{util::throw_module_not_found_expr, AstPathVc},
     resolve::cjs_resolve,
 };
 
@@ -98,20 +97,12 @@ impl ValueToString for CjsRequireAssetReference {
 #[turbo_tasks::value_impl]
 impl ChunkableAssetReference for CjsRequireAssetReference {}
 
-/// Creates a IIFE that throws an error with the given error message.
-fn throw_expr(message: Str) -> Expr {
-    let message_arg = Expr::Lit(Lit::Str(message));
-    quote!(
-        "function() { throw new Error($arg) }()" as Expr,
-        arg: Expr = message_arg
-    )
-}
-
 #[turbo_tasks::value_impl]
 impl CodeGenerateable for CjsRequireAssetReference {
     #[turbo_tasks::function]
     async fn code_generation(&self, context: ChunkingContextVc) -> Result<CodeGenerationVc> {
         let pm = PatternMappingVc::resolve_request(
+            self.request,
             self.origin,
             context,
             cjs_resolve(self.origin, self.request),
@@ -125,7 +116,7 @@ impl CodeGenerateable for CjsRequireAssetReference {
             let request_string = self.request.to_string().await?.clone();
             visitors.push(create_visitor!(path, visit_mut_expr(expr: &mut Expr) {
                 // In Node.js, a require call that cannot be resolved will throw an error.
-                *expr = throw_expr(format!("Cannot find {request_string}").into());
+                *expr = throw_module_not_found_expr(&request_string);
             }));
         } else {
             visitors.push(
@@ -192,6 +183,7 @@ impl CodeGenerateable for CjsRequireResolveAssetReference {
     #[turbo_tasks::function]
     async fn code_generation(&self, context: ChunkingContextVc) -> Result<CodeGenerationVc> {
         let pm = PatternMappingVc::resolve_request(
+            self.request,
             self.origin,
             context,
             cjs_resolve(self.origin, self.request),
@@ -205,7 +197,7 @@ impl CodeGenerateable for CjsRequireResolveAssetReference {
             let request_string = self.request.to_string().await?.clone();
             visitors.push(create_visitor!(path, visit_mut_expr(expr: &mut Expr) {
                 // In Node.js, a require.resolve call that cannot be resolved will throw an error.
-                *expr = throw_expr(format!("Cannot find {request_string}").into());
+                *expr = throw_module_not_found_expr(&request_string);
             }));
         } else {
             // Inline the result of the `require.resolve` call as a string literal.

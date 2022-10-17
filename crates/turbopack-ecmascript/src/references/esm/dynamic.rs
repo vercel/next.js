@@ -73,6 +73,7 @@ impl CodeGenerateable for EsmAsyncAssetReference {
     #[turbo_tasks::function]
     async fn code_generation(&self, context: ChunkingContextVc) -> Result<CodeGenerationVc> {
         let pm = PatternMappingVc::resolve_request(
+            self.request,
             self.origin,
             context,
             esm_resolve(self.origin, self.request),

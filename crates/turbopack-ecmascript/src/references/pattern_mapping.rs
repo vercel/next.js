@@ -8,9 +8,12 @@ use turbo_tasks::{debug::ValueDebug, primitives::StringVc, Value, ValueToString}
 use turbopack_core::{
     chunk::{ChunkableAssetVc, ChunkingContextVc, FromChunkableAsset, ModuleId},
     issue::{code_gen::CodeGenerationIssue, IssueSeverity},
-    resolve::{origin::ResolveOriginVc, ResolveResult, ResolveResultVc, SpecialType},
+    resolve::{
+        origin::ResolveOriginVc, parse::RequestVc, ResolveResult, ResolveResultVc, SpecialType,
+    },
 };
 
+use super::util::{request_to_string, throw_module_not_found_expr};
 use crate::{chunk::EcmascriptChunkItemVc, utils::module_id_to_lit};
 
 /// A mapping from a request pattern (e.g. "./module", `./images/${name}.png`)
@@ -21,7 +24,7 @@ pub(crate) enum PatternMapping {
     /// Invalid request.
     Invalid,
     /// Unresolveable request.
-    Unresolveable,
+    Unresolveable(String),
     /// Ignored request.
     Ignored,
     /// Constant request that always maps to the same module.
@@ -55,7 +58,7 @@ impl PatternMapping {
     pub fn is_internal_import(&self) -> bool {
         match self {
             PatternMapping::Invalid
-            | PatternMapping::Unresolveable
+            | PatternMapping::Unresolveable(_)
             | PatternMapping::Ignored
             | PatternMapping::Single(_)
             | PatternMapping::Map(_) => true,
@@ -70,10 +73,7 @@ impl PatternMapping {
                 // TODO improve error message
                 quote!("(() => {throw new Error(\"Invalid\")})()" as Expr)
             }
-            PatternMapping::Unresolveable => {
-                // TODO improve error message
-                quote!("(() => {throw new Error(\"Unresolveable\")})()" as Expr)
-            }
+            PatternMapping::Unresolveable(request) => throw_module_not_found_expr(request),
             PatternMapping::Ignored => {
                 quote!("undefined" as Expr)
             }
@@ -106,6 +106,7 @@ impl PatternMappingVc {
     // impl.
     #[turbo_tasks::function]
     pub async fn resolve_request(
+        request: RequestVc,
         origin: ResolveOriginVc,
         context: ChunkingContextVc,
         resolve_result: ResolveResultVc,
@@ -130,7 +131,12 @@ impl PatternMappingVc {
             ResolveResult::Special(SpecialType::Ignore, _) => {
                 return Ok(PatternMapping::Ignored.cell())
             }
-            ResolveResult::Unresolveable(_) => return Ok(PatternMapping::Unresolveable.cell()),
+            ResolveResult::Unresolveable(_) => {
+                return Ok(PatternMapping::Unresolveable(
+                    request_to_string(request).await?.to_string(),
+                )
+                .cell());
+            }
             _ => {
                 // TODO implement mapping
                 CodeGenerationIssue {

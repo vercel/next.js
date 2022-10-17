@@ -37,26 +37,22 @@ impl CodeGenerateable for EsmBinding {
         let mut visitors = Vec::new();
         let imported_module = this.reference.get_referenced_asset();
 
-        fn make_expr(imported_module: Option<&str>, export: Option<&str>) -> Expr {
-            if let Some(imported_module) = imported_module {
-                if let Some(export) = export {
-                    Expr::Member(MemberExpr {
+        fn make_expr(imported_module: &str, export: Option<&str>) -> Expr {
+            if let Some(export) = export {
+                Expr::Member(MemberExpr {
+                    span: DUMMY_SP,
+                    obj: box Expr::Ident(Ident::new(imported_module.into(), DUMMY_SP)),
+                    prop: MemberProp::Computed(ComputedPropName {
                         span: DUMMY_SP,
-                        obj: box Expr::Ident(Ident::new(imported_module.into(), DUMMY_SP)),
-                        prop: MemberProp::Computed(ComputedPropName {
+                        expr: box Expr::Lit(Lit::Str(Str {
                             span: DUMMY_SP,
-                            expr: box Expr::Lit(Lit::Str(Str {
-                                span: DUMMY_SP,
-                                value: export.into(),
-                                raw: None,
-                            })),
-                        }),
-                    })
-                } else {
-                    Expr::Ident(Ident::new(imported_module.into(), DUMMY_SP))
-                }
+                            value: export.into(),
+                            raw: None,
+                        })),
+                    }),
+                })
             } else {
-                Expr::Ident(Ident::new("undefined".into(), DUMMY_SP))
+                Expr::Ident(Ident::new(imported_module.into(), DUMMY_SP))
             }
         }
 
@@ -69,7 +65,12 @@ impl CodeGenerateable for EsmBinding {
                     ast_path.pop();
                     visitors.push(
                         create_visitor!(exact ast_path, visit_mut_expr(expr: &mut Expr) {
-                            *expr = make_expr(imported_module.as_deref(), this.export.as_deref());
+                            if let Some(ident) = imported_module.as_deref() {
+                              *expr = make_expr(ident, this.export.as_deref());
+                            }
+                            // If there's no identifier for the imported module,
+                            // resolution failed and will insert code that throws
+                            // before this expression is reached. Leave behind the original identifier.
                         }),
                     );
                     break;
@@ -79,7 +80,10 @@ impl CodeGenerateable for EsmBinding {
                     visitors.push(
                         create_visitor!(ast_path, visit_mut_prop(prop: &mut Prop) {
                             if let Prop::Shorthand(ident) = prop {
-                                *prop = Prop::KeyValue(KeyValueProp { key: PropName::Ident(ident.clone()), value: box make_expr(imported_module.as_deref(), this.export.as_deref())});
+                              // TODO: Merge with the above condition when https://rust-lang.github.io/rfcs/2497-if-let-chains.html lands.
+                              if let Some(imported_ident) = imported_module.as_deref() {
+                                *prop = Prop::KeyValue(KeyValueProp { key: PropName::Ident(ident.clone()), value: box make_expr(imported_ident, this.export.as_deref())});
+                              }
                             }
                         }),
                     );
