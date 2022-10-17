@@ -11,74 +11,11 @@ import type {
   ObjectExpression,
   RegExpLiteral,
   StringLiteral,
+  TemplateLiteral,
   VariableDeclaration,
 } from '@swc/core'
 
-/**
- * Extracts the value of an exported const variable named `exportedName`
- * (e.g. "export const config = { runtime: 'edge' }") from swc's AST.
- * The value must be one of (or throws UnsupportedValueError):
- *   - string
- *   - boolean
- *   - number
- *   - null
- *   - undefined
- *   - array containing values listed in this list
- *   - object containing values listed in this list
- *
- * Throws NoSuchDeclarationError if the declaration is not found.
- */
-export function extractExportedConstValue(
-  module: Module,
-  exportedName: string
-): any {
-  for (const moduleItem of module.body) {
-    if (!isExportDeclaration(moduleItem)) {
-      continue
-    }
-
-    const declaration = moduleItem.declaration
-    if (!isVariableDeclaration(declaration)) {
-      continue
-    }
-
-    if (declaration.kind !== 'const') {
-      continue
-    }
-
-    for (const decl of declaration.declarations) {
-      if (
-        isIdentifier(decl.id) &&
-        decl.id.value === exportedName &&
-        decl.init
-      ) {
-        return extractValue(decl.init)
-      }
-    }
-  }
-
-  throw new NoSuchDeclarationError()
-}
-
-/**
- * A wrapper on top of `extractExportedConstValue` that returns undefined
- * instead of throwing when the thrown error is known.
- */
-export function tryToExtractExportedConstValue(
-  module: Module,
-  exportedName: string
-) {
-  try {
-    return extractExportedConstValue(module, exportedName)
-  } catch (error) {
-    if (
-      error instanceof UnsupportedValueError ||
-      error instanceof NoSuchDeclarationError
-    ) {
-      return undefined
-    }
-  }
-}
+export class NoSuchDeclarationError extends Error {}
 
 function isExportDeclaration(node: Node): node is ExportDeclaration {
   return node.type === 'ExportDeclaration'
@@ -124,10 +61,41 @@ function isRegExpLiteral(node: Node): node is RegExpLiteral {
   return node.type === 'RegExpLiteral'
 }
 
-class UnsupportedValueError extends Error {}
-class NoSuchDeclarationError extends Error {}
+function isTemplateLiteral(node: Node): node is TemplateLiteral {
+  return node.type === 'TemplateLiteral'
+}
 
-function extractValue(node: Node): any {
+export class UnsupportedValueError extends Error {
+  /** @example `config.runtime[0].value` */
+  path?: string
+
+  constructor(message: string, paths?: string[]) {
+    super(message)
+
+    // Generating "path" that looks like "config.runtime[0].value"
+    let codePath: string | undefined
+    if (paths) {
+      codePath = ''
+      for (const path of paths) {
+        if (path[0] === '[') {
+          // "array" + "[0]"
+          codePath += path
+        } else {
+          if (codePath === '') {
+            codePath = path
+          } else {
+            // "object" + ".key"
+            codePath += `.${path}`
+          }
+        }
+      }
+    }
+
+    this.path = codePath
+  }
+}
+
+function extractValue(node: Node, path?: string[]): any {
   if (isNullLiteral(node)) {
     return null
   } else if (isBooleanLiteral(node)) {
@@ -147,19 +115,26 @@ function extractValue(node: Node): any {
       case 'undefined':
         return undefined
       default:
-        throw new UnsupportedValueError()
+        throw new UnsupportedValueError(
+          `Unknown identifier "${node.value}"`,
+          path
+        )
     }
   } else if (isArrayExpression(node)) {
     // e.g. [1, 2, 3]
     const arr = []
-    for (const elem of node.elements) {
+    for (let i = 0, len = node.elements.length; i < len; i++) {
+      const elem = node.elements[i]
       if (elem) {
         if (elem.spread) {
           // e.g. [ ...a ]
-          throw new UnsupportedValueError()
+          throw new UnsupportedValueError(
+            'Unsupported spread operator in the Array Expression',
+            path
+          )
         }
 
-        arr.push(extractValue(elem.expression))
+        arr.push(extractValue(elem.expression, path && [...path, `[${i}]`]))
       } else {
         // e.g. [1, , 2]
         //         ^^
@@ -173,7 +148,10 @@ function extractValue(node: Node): any {
     for (const prop of node.properties) {
       if (!isKeyValueProperty(prop)) {
         // e.g. { ...a }
-        throw new UnsupportedValueError()
+        throw new UnsupportedValueError(
+          'Unsupported spread operator in the Object Expression',
+          path
+        )
       }
 
       let key
@@ -184,14 +162,88 @@ function extractValue(node: Node): any {
         // e.g. { "a": 1, "b": 2 }
         key = prop.key.value
       } else {
-        throw new UnsupportedValueError()
+        throw new UnsupportedValueError(
+          `Unsupported key type "${prop.key.type}" in the Object Expression`,
+          path
+        )
       }
 
-      obj[key] = extractValue(prop.value)
+      obj[key] = extractValue(prop.value, path && [...path, key])
     }
 
     return obj
+  } else if (isTemplateLiteral(node)) {
+    // e.g. `abc`
+    if (node.expressions.length !== 0) {
+      // TODO: should we add support for `${'e'}d${'g'}'e'`?
+      throw new UnsupportedValueError(
+        'Unsupported template literal with expressions',
+        path
+      )
+    }
+
+    // When TemplateLiteral has 0 expressions, the length of quasis is always 1.
+    // Because when parsing TemplateLiteral, the parser yields the first quasi,
+    // then the first expression, then the next quasi, then the next expression, etc.,
+    // until the last quasi.
+    // Thus if there is no expression, the parser ends at the frst and also last quasis
+    //
+    // A "cooked" interpretation where backslashes have special meaning, while a
+    // "raw" interpretation where backslashes do not have special meaning
+    // https://exploringjs.com/impatient-js/ch_template-literals.html#template-strings-cooked-vs-raw
+    const [{ cooked, raw }] = node.quasis
+
+    return cooked ?? raw
   } else {
-    throw new UnsupportedValueError()
+    throw new UnsupportedValueError(
+      `Unsupported node type "${node.type}"`,
+      path
+    )
   }
+}
+
+/**
+ * Extracts the value of an exported const variable named `exportedName`
+ * (e.g. "export const config = { runtime: 'experimental-edge' }") from swc's AST.
+ * The value must be one of (or throws UnsupportedValueError):
+ *   - string
+ *   - boolean
+ *   - number
+ *   - null
+ *   - undefined
+ *   - array containing values listed in this list
+ *   - object containing values listed in this list
+ *
+ * Throws NoSuchDeclarationError if the declaration is not found.
+ */
+export function extractExportedConstValue(
+  module: Module,
+  exportedName: string
+): any {
+  for (const moduleItem of module.body) {
+    if (!isExportDeclaration(moduleItem)) {
+      continue
+    }
+
+    const declaration = moduleItem.declaration
+    if (!isVariableDeclaration(declaration)) {
+      continue
+    }
+
+    if (declaration.kind !== 'const') {
+      continue
+    }
+
+    for (const decl of declaration.declarations) {
+      if (
+        isIdentifier(decl.id) &&
+        decl.id.value === exportedName &&
+        decl.init
+      ) {
+        return extractValue(decl.init, [exportedName])
+      }
+    }
+  }
+
+  throw new NoSuchDeclarationError()
 }

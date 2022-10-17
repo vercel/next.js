@@ -14,9 +14,13 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 
 ```bash
 npx create-next-app --example with-storybook-styled-jsx-scss with-storybook-styled-jsx-scss-app
-# or
+```
+
+```bash
 yarn create next-app --example with-storybook-styled-jsx-scss with-storybook-styled-jsx-scss-app
-# or
+```
+
+```bash
 pnpm create next-app --example with-storybook-styled-jsx-scss with-storybook-styled-jsx-scss-app
 ```
 

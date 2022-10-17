@@ -66,7 +66,7 @@ describe('Dynamic Optional Routing', () => {
     runTests()
   })
 
-  describe('serverless mode', () => {
+  describe.skip('serverless mode', () => {
     let origNextConfig
 
     beforeAll(async () => {

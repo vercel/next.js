@@ -58,7 +58,7 @@ describe('middlewares', () => {
     {
       title: 'populating response with an async function call',
       code: `export default async function middleware(request) {
-              return new Response(await fetch('https://example.com'));
+              return new Response(await fetch('https://example.vercel.sh'));
             }`,
     },
   ])('warns when $title', async ({ code }) => {

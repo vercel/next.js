@@ -68,10 +68,11 @@
         "@typescript-eslint/no-use-before-define": [
           "warn",
           {
-            "functions": false,
-            "classes": false,
-            "variables": false,
-            "typedefs": false
+            "functions": true,
+            "classes": true,
+            "variables": true,
+            "enums": true,
+            "typedefs": true
           }
         ],
         "no-unused-vars": "off",
@@ -92,7 +93,9 @@
           }
         ],
         "no-useless-constructor": "off",
-        "@typescript-eslint/no-useless-constructor": "warn"
+        "@typescript-eslint/no-useless-constructor": "warn",
+        "@typescript-eslint/prefer-literal-enum-member": "error",
+        "@typescript-eslint/prefer-namespace-keyword": "error"
       }
     },
     {
@@ -106,6 +109,16 @@
     {
       "files": ["examples/**/*"],
       "rules": {
+        "@typescript-eslint/no-use-before-define": [
+          "error",
+          {
+            "functions": true,
+            "classes": true,
+            "variables": true,
+            "enums": true,
+            "typedefs": true
+          }
+        ],
         "import/no-anonymous-default-export": [
           "error",
           {
@@ -144,6 +157,30 @@
             "ignoreRestSiblings": true
           }
         ]
+      }
+    },
+    {
+      "files": [
+        "packages/eslint-plugin-next/**/*.js",
+        "test/unit/eslint-plugin-next/**/*.test.ts"
+      ],
+      "extends": ["plugin:eslint-plugin/recommended"],
+      "parserOptions": {
+        "sourceType": "script"
+      },
+      "rules": {
+        "eslint-plugin/prefer-replace-text": "error",
+        "eslint-plugin/report-message-format": [
+          "error",
+          ".+\\. See: https://nextjs.org/docs/messages/[a-z\\-]+$"
+        ],
+        "eslint-plugin/require-meta-docs-description": [
+          "error",
+          {
+            "pattern": ".+"
+          }
+        ],
+        "eslint-plugin/require-meta-docs-url": "error"
       }
     }
   ],
@@ -291,6 +328,8 @@
     "react/react-in-jsx-scope": "error",
     "react/require-render-return": "error",
     "react/style-prop-object": "warn",
-    "react-hooks/rules-of-hooks": "error"
+    "react-hooks/rules-of-hooks": "error",
+    // "@typescript-eslint/non-nullable-type-assertion-style": "warn",
+    "@typescript-eslint/prefer-as-const": "warn"
   }
 }

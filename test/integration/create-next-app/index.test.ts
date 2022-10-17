@@ -87,7 +87,7 @@ describe('create next app', () => {
         fs.existsSync(path.join(cwd, projectName, 'package.json'))
       ).toBeTruthy()
       expect(
-        fs.existsSync(path.join(cwd, projectName, 'pages/index.js'))
+        fs.existsSync(path.join(cwd, projectName, 'pages/index.tsx'))
       ).toBeTruthy()
       // check we copied default `.gitignore`
       expect(
@@ -175,7 +175,37 @@ describe('create next app', () => {
         fs.existsSync(path.join(cwd, projectName, 'package.json'))
       ).toBeTruthy()
       expect(
-        fs.existsSync(path.join(cwd, projectName, 'pages/index.js'))
+        fs.existsSync(path.join(cwd, projectName, 'pages/index.tsx'))
+      ).toBeTruthy()
+      expect(
+        fs.existsSync(path.join(cwd, projectName, '.gitignore'))
+      ).toBeTruthy()
+      expect(
+        fs.existsSync(path.join(cwd, projectName, 'node_modules/next'))
+      ).toBe(true)
+    })
+  })
+
+  it('should allow example with GitHub URL with trailing slash', async () => {
+    await usingTempDir(async (cwd) => {
+      const projectName = 'github-app'
+      const res = await run(
+        [
+          projectName,
+          '--example',
+          'https://github.com/vercel/nextjs-portfolio-starter/',
+        ],
+        {
+          cwd,
+        }
+      )
+
+      expect(res.exitCode).toBe(0)
+      expect(
+        fs.existsSync(path.join(cwd, projectName, 'package.json'))
+      ).toBeTruthy()
+      expect(
+        fs.existsSync(path.join(cwd, projectName, 'pages/index.mdx'))
       ).toBeTruthy()
       expect(
         fs.existsSync(path.join(cwd, projectName, '.gitignore'))
@@ -201,7 +231,7 @@ describe('create next app', () => {
         fs.existsSync(path.join(cwd, projectName, 'package.json'))
       ).toBeTruthy()
       expect(
-        fs.existsSync(path.join(cwd, projectName, 'pages/index.js'))
+        fs.existsSync(path.join(cwd, projectName, 'pages/index.tsx'))
       ).toBeTruthy()
       expect(
         fs.existsSync(path.join(cwd, projectName, '.gitignore'))
@@ -233,7 +263,7 @@ describe('create next app', () => {
         fs.existsSync(path.join(cwd, projectName, 'package.json'))
       ).toBeTruthy()
       expect(
-        fs.existsSync(path.join(cwd, projectName, 'pages/index.js'))
+        fs.existsSync(path.join(cwd, projectName, 'pages/index.tsx'))
       ).toBeTruthy()
       expect(
         fs.existsSync(path.join(cwd, projectName, '.gitignore'))
@@ -417,7 +447,7 @@ describe('create next app', () => {
 
       const files = [
         'package.json',
-        'pages/index.js',
+        'pages/index.tsx',
         '.gitignore',
         'package-lock.json',
         'node_modules/next',
@@ -471,15 +501,177 @@ describe('create next app', () => {
 
       const files = [
         'package.json',
-        'pages/index.js',
+        'pages/index.tsx',
         '.gitignore',
         'pnpm-lock.yaml',
         'node_modules/next',
       ]
-
       files.forEach((file) =>
         expect(fs.existsSync(path.join(cwd, projectName, file))).toBeTruthy()
       )
     })
+  })
+
+  it('should infer npm as the package manager', async () => {
+    await usingTempDir(async (cwd) => {
+      const projectName = 'infer-package-manager-npm'
+      const res = await run([projectName], {
+        cwd,
+        env: { ...process.env, npm_config_user_agent: 'npm' },
+      })
+      expect(res.exitCode).toBe(0)
+
+      const files = [
+        'package.json',
+        'pages/index.js',
+        '.gitignore',
+        '.eslintrc.json',
+        'package-lock.json',
+        'node_modules/next',
+      ]
+      files.forEach((file) =>
+        expect(fs.existsSync(path.join(cwd, projectName, file))).toBeTruthy()
+      )
+    })
+  })
+
+  it('should infer npm as the package manager with example', async () => {
+    await usingTempDir(async (cwd) => {
+      const projectName = 'infer-package-manager-npm'
+      const res = await run(
+        [projectName, '--example', `${exampleRepo}/${examplePath}`],
+        { cwd, env: { ...process.env, npm_config_user_agent: 'npm' } }
+      )
+      expect(res.exitCode).toBe(0)
+
+      const files = [
+        'package.json',
+        'pages/index.tsx',
+        '.gitignore',
+        'package-lock.json',
+        'node_modules/next',
+      ]
+      files.forEach((file) =>
+        expect(fs.existsSync(path.join(cwd, projectName, file))).toBeTruthy()
+      )
+    })
+  })
+
+  it('should infer yarn as the package manager', async () => {
+    try {
+      await execa('yarn', ['--version'])
+    } catch (_) {
+      // install yarn if not available
+      await execa('npm', ['i', '-g', 'yarn'])
+    }
+
+    await usingTempDir(async (cwd) => {
+      const projectName = 'infer-package-manager-yarn'
+      const res = await run([projectName], {
+        cwd,
+        env: { ...process.env, npm_config_user_agent: 'yarn' },
+      })
+      expect(res.exitCode).toBe(0)
+
+      const files = [
+        'package.json',
+        'pages/index.js',
+        '.gitignore',
+        '.eslintrc.json',
+        'yarn.lock',
+        'node_modules/next',
+      ]
+      files.forEach((file) =>
+        expect(fs.existsSync(path.join(cwd, projectName, file))).toBeTruthy()
+      )
+    })
+  })
+
+  it('should infer yarn as the package manager with example', async () => {
+    try {
+      await execa('yarn', ['--version'])
+    } catch (_) {
+      // install yarn if not available
+      await execa('npm', ['i', '-g', 'yarn'])
+    }
+
+    await usingTempDir(async (cwd) => {
+      const projectName = 'infer-package-manager-npm'
+      const res = await run(
+        [projectName, '--example', `${exampleRepo}/${examplePath}`],
+        { cwd, env: { ...process.env, npm_config_user_agent: 'yarn' } }
+      )
+      expect(res.exitCode).toBe(0)
+
+      const files = [
+        'package.json',
+        'pages/index.tsx',
+        '.gitignore',
+        'yarn.lock',
+        'node_modules/next',
+      ]
+      files.forEach((file) =>
+        expect(fs.existsSync(path.join(cwd, projectName, file))).toBeTruthy()
+      )
+    })
+  })
+
+  it('should infer pnpm as the package manager', async () => {
+    try {
+      await execa('pnpm', ['--version'])
+    } catch (_) {
+      // install pnpm if not available
+      await execa('npm', ['i', '-g', 'pnpm'])
+    }
+
+    await usingTempDir(async (cwd) => {
+      const projectName = 'infer-package-manager'
+      const res = await run([projectName], {
+        cwd,
+        env: { ...process.env, npm_config_user_agent: 'pnpm' },
+      })
+      expect(res.exitCode).toBe(0)
+
+      const files = [
+        'package.json',
+        'pages/index.js',
+        '.gitignore',
+        '.eslintrc.json',
+        'pnpm-lock.yaml',
+        'node_modules/next',
+      ]
+      files.forEach((file) =>
+        expect(fs.existsSync(path.join(cwd, projectName, file))).toBeTruthy()
+      )
+    })
+  })
+})
+
+it('should infer pnpm as the package manager with example', async () => {
+  try {
+    await execa('pnpm', ['--version'])
+  } catch (_) {
+    // install pnpm if not available
+    await execa('npm', ['i', '-g', 'pnpm'])
+  }
+
+  await usingTempDir(async (cwd) => {
+    const projectName = 'infer-package-manager-npm'
+    const res = await run(
+      [projectName, '--example', `${exampleRepo}/${examplePath}`],
+      { cwd, env: { ...process.env, npm_config_user_agent: 'pnpm' } }
+    )
+    expect(res.exitCode).toBe(0)
+
+    const files = [
+      'package.json',
+      'pages/index.tsx',
+      '.gitignore',
+      'pnpm-lock.yaml',
+      'node_modules/next',
+    ]
+    files.forEach((file) =>
+      expect(fs.existsSync(path.join(cwd, projectName, file))).toBeTruthy()
+    )
   })
 })

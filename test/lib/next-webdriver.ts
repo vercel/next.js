@@ -26,7 +26,7 @@ if (isBrowserStack) {
   }
 }
 
-let browserQuit
+let browserQuit: () => Promise<void>
 
 if (typeof afterAll === 'function') {
   afterAll(async () => {
@@ -81,13 +81,17 @@ export default async function webdriver(
 
   // we import only the needed interface
   if (USE_SELENIUM) {
-    const browserMod = require('./browsers/selenium')
-    CurrentInterface = browserMod.default
-    browserQuit = browserMod.quit
+    const { Selenium, quit } = await import('./browsers/selenium')
+    CurrentInterface = Selenium
+    browserQuit = quit
+  } else if (process.env.RECORD_REPLAY === 'true') {
+    const { Replay, quit } = await require('./browsers/replay')
+    CurrentInterface = Replay
+    browserQuit = quit
   } else {
-    const browserMod = require('./browsers/playwright')
-    CurrentInterface = browserMod.default
-    browserQuit = browserMod.quit
+    const { Playwright, quit } = await import('./browsers/playwright')
+    CurrentInterface = Playwright
+    browserQuit = quit
   }
 
   const browser = new CurrentInterface()
@@ -116,7 +120,10 @@ export default async function webdriver(
 
         // if it's not a Next.js app return
         if (
-          document.documentElement.innerHTML.indexOf('__NEXT_DATA__') === -1
+          document.documentElement.innerHTML.indexOf('__NEXT_DATA__') === -1 &&
+          // @ts-ignore next exists on window if it's a Next.js page.
+          typeof ((window as any).next && (window as any).next.version) ===
+            'undefined'
         ) {
           console.log('Not a next.js page, resolving hydrate check')
           callback()

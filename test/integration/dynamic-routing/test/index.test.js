@@ -28,6 +28,81 @@ const appDir = join(__dirname, '../')
 const buildIdPath = join(appDir, '.next/BUILD_ID')
 
 function runTests({ dev, serverless }) {
+  if (!dev) {
+    it('should have correct cache entries on prefetch', async () => {
+      const browser = await webdriver(appPort, '/')
+      await browser.waitForCondition('!!window.next.router.isReady')
+
+      const getCacheKeys = async () => {
+        return (await browser.eval('Object.keys(window.next.router.sdc)'))
+          .map((key) => {
+            // strip http://localhost:PORT
+            // and then strip buildId prefix
+            return key
+              .substring(key.indexOf('/_next'))
+              .replace(/\/_next\/data\/(.*?)\//, '/_next/data/BUILD_ID/')
+          })
+          .sort()
+      }
+
+      const cacheKeys = await getCacheKeys()
+      expect(cacheKeys).toEqual([
+        '/_next/data/BUILD_ID/p1/p2/all-ssg/hello.json?rest=hello',
+        '/_next/data/BUILD_ID/p1/p2/all-ssg/hello1/hello2.json?rest=hello1&rest=hello2',
+        '/_next/data/BUILD_ID/p1/p2/nested-all-ssg/hello.json?rest=hello',
+        '/_next/data/BUILD_ID/p1/p2/nested-all-ssg/hello1/hello2.json?rest=hello1&rest=hello2',
+      ])
+
+      // ensure no new cache entries after navigation
+      const links = [
+        {
+          linkSelector: '#ssg-catch-all-single',
+          waitForSelector: '#all-ssg-content',
+        },
+        {
+          linkSelector: '#ssg-catch-all-single-interpolated',
+          waitForSelector: '#all-ssg-content',
+        },
+        {
+          linkSelector: '#ssg-catch-all-multi',
+          waitForSelector: '#all-ssg-content',
+        },
+        {
+          linkSelector: '#ssg-catch-all-multi-no-as',
+          waitForSelector: '#all-ssg-content',
+        },
+        {
+          linkSelector: '#ssg-catch-all-multi',
+          waitForSelector: '#all-ssg-content',
+        },
+        {
+          linkSelector: '#nested-ssg-catch-all-single',
+          waitForSelector: '#nested-all-ssg-content',
+        },
+        {
+          linkSelector: '#nested-ssg-catch-all-multi',
+          waitForSelector: '#nested-all-ssg-content',
+        },
+      ]
+
+      for (const { linkSelector, waitForSelector } of links) {
+        await browser.elementByCss(linkSelector).click()
+        await browser.waitForElementByCss(waitForSelector)
+        await browser.back()
+        await browser.waitForElementByCss(linkSelector)
+      }
+      const newCacheKeys = await getCacheKeys()
+      expect(newCacheKeys).toEqual([
+        ...(process.env.__MIDDLEWARE_TEST
+          ? // data route is fetched with middleware due to query hydration
+            // since middleware matches the index route
+            ['/_next/data/BUILD_ID/index.json']
+          : []),
+        ...cacheKeys,
+      ])
+    })
+  }
+
   if (dev) {
     it('should not have error after pinging WebSocket', async () => {
       const browser = await webdriver(appPort, '/')

@@ -61,14 +61,25 @@ function runTestsAgainstRuntime(runtime) {
           )
         })
       }
+
+      it('should not have invalid config warning', async () => {
+        await renderViaHTTP(context.appPort, '/')
+        expect(context.stderr).not.toContain('not exist in this version')
+      })
     },
     {
       beforeAll: (env) => {
         if (env === 'dev') {
           invalidPage.write(`export const value = 1`)
         }
-        nextConfig.replace("// runtime: 'edge'", `runtime: '${runtime}'`)
-        indexPage.replace("// runtime: 'edge'", `runtime: '${runtime}'`)
+        nextConfig.replace(
+          "// runtime: 'experimental-edge'",
+          `runtime: '${runtime}'`
+        )
+        indexPage.replace(
+          "// runtime: 'experimental-edge'",
+          `runtime: '${runtime}'`
+        )
       },
       afterAll: (env) => {
         if (env === 'dev') {
@@ -81,7 +92,7 @@ function runTestsAgainstRuntime(runtime) {
   )
 }
 
-runTestsAgainstRuntime('edge')
+runTestsAgainstRuntime('experimental-edge')
 runTestsAgainstRuntime('nodejs')
 
 function runTests(name, fn, opts) {

@@ -321,9 +321,8 @@ module.exports = (context) => {
         try {
           browser = await webdriver(context.appPort, '/svg-image')
           await browser.eval(`document.getElementById("img").scrollIntoView()`)
-          expect(
-            await browser.elementById('img').getAttribute('src')
-          ).toContain('xss.svg')
+          const src = await browser.elementById('img').getAttribute('src')
+          expect(src).toMatch(/_next\/image\?.*xss\.svg/)
           expect(await browser.elementById('msg').text()).toBe('safe')
           browser = await webdriver(
             context.appPort,

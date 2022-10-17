@@ -15,12 +15,23 @@ interface Options {
   }
 }
 
+const REGEX_LOCALHOST_HOSTNAME =
+  /(?!^https?:\/\/)(127(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}|::1|localhost)/
+
+function parseURL(url: string | URL, base?: string | URL) {
+  return new URL(
+    String(url).replace(REGEX_LOCALHOST_HOSTNAME, 'localhost'),
+    base && String(base).replace(REGEX_LOCALHOST_HOSTNAME, 'localhost')
+  )
+}
+
 const Internal = Symbol('NextURLInternal')
 
 export class NextURL {
   [Internal]: {
     basePath: string
     buildId?: string
+    flightSearchParameters?: Record<string, string>
     defaultLocale?: string
     domainLocale?: DomainLocale
     locale?: string
@@ -61,7 +72,7 @@ export class NextURL {
   private analyzeUrl() {
     const pathnameInfo = getNextPathnameInfo(this[Internal].url.pathname, {
       nextConfig: this[Internal].options.nextConfig,
-      parseData: true,
+      parseData: !process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE,
     })
 
     this[Internal].domainLocale = detectDomainLocale(
@@ -92,6 +103,10 @@ export class NextURL {
       pathname: this[Internal].url.pathname,
       trailingSlash: this[Internal].trailingSlash,
     })
+  }
+
+  private formatSearch() {
+    return this[Internal].url.search
   }
 
   public get buildId() {
@@ -165,7 +180,8 @@ export class NextURL {
 
   get href() {
     const pathname = this.formatPathname()
-    return `${this.protocol}//${this.host}${pathname}${this[Internal].url.search}`
+    const search = this.formatSearch()
+    return `${this.protocol}//${this.host}${pathname}${search}`
   }
 
   set href(url: string) {
@@ -253,14 +269,4 @@ export class NextURL {
   clone() {
     return new NextURL(String(this), this[Internal].options)
   }
-}
-
-const REGEX_LOCALHOST_HOSTNAME =
-  /(?!^https?:\/\/)(127(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}|::1|localhost)/
-
-function parseURL(url: string | URL, base?: string | URL) {
-  return new URL(
-    String(url).replace(REGEX_LOCALHOST_HOSTNAME, 'localhost'),
-    base && String(base).replace(REGEX_LOCALHOST_HOSTNAME, 'localhost')
-  )
 }

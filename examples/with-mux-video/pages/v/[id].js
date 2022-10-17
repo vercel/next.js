@@ -1,4 +1,4 @@
-import MuxPlayer from '@mux-elements/mux-player-react'
+import MuxPlayer from '@mux/mux-player-react'
 import Link from 'next/link'
 import Layout from '../../components/layout'
 import Spinner from '../../components/spinner'

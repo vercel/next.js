@@ -28,6 +28,11 @@ describe('find config', () => {
     expect(config).toEqual({ foo: 'bar' })
   })
 
+  it('should resolve .config.cjs', async () => {
+    const config = await findConfig(join(fixtureDir, 'config-long-cjs'), 'test')
+    expect(config).toEqual({ foo: 'bar' })
+  })
+
   it('should resolve package.json', async () => {
     const config = await findConfig(
       join(fixtureDir, 'config-package-json'),

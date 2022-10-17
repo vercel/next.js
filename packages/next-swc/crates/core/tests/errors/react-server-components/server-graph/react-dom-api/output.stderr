@@ -1,0 +1,18 @@
+
+  x NEXT_RSC_ERR_REACT_API: findDOMNode
+   ,-[input.js:2:5]
+ 2 | findDOMNode,
+   : ^^^^^^^^^^^
+   `----
+
+  x NEXT_RSC_ERR_REACT_API: flushSync
+   ,-[input.js:3:3]
+ 3 | flushSync,
+   : ^^^^^^^^^
+   `----
+
+  x NEXT_RSC_ERR_REACT_API: unstable_batchedUpdates
+   ,-[input.js:4:3]
+ 4 | unstable_batchedUpdates,
+   : ^^^^^^^^^^^^^^^^^^^^^^^
+   `----

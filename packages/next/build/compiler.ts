@@ -1,16 +1,15 @@
 import { webpack } from 'next/dist/compiled/webpack/webpack'
-import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import { Span } from '../trace'
 
 export type CompilerResult = {
-  errors: webpack5.StatsError[]
-  warnings: webpack5.StatsError[]
-  stats: webpack5.Stats | undefined
+  errors: webpack.StatsError[]
+  warnings: webpack.StatsError[]
+  stats: webpack.Stats | undefined
 }
 
 function generateStats(
   result: CompilerResult,
-  stat: webpack5.Stats
+  stat: webpack.Stats
 ): CompilerResult {
   const { errors, warnings } = stat.toJson({
     preset: 'errors-warnings',
@@ -29,7 +28,7 @@ function generateStats(
 
 // Webpack 5 requires the compiler to be closed (to save caches)
 // Webpack 4 does not have this close method so in order to be backwards compatible we check if it exists
-function closeCompiler(compiler: webpack5.Compiler | webpack5.MultiCompiler) {
+function closeCompiler(compiler: webpack.Compiler | webpack.MultiCompiler) {
   return new Promise<void>((resolve, reject) => {
     // @ts-ignore Close only exists on the compiler in webpack 5
     return compiler.close((err: any) => (err ? reject(err) : resolve()))
@@ -41,7 +40,7 @@ export function runCompiler(
   { runWebpackSpan }: { runWebpackSpan: Span }
 ): Promise<CompilerResult> {
   return new Promise((resolve, reject) => {
-    const compiler = webpack(config) as unknown as webpack5.Compiler
+    const compiler = webpack(config) as unknown as webpack.Compiler
     compiler.run((err, stats) => {
       const webpackCloseSpan = runWebpackSpan.traceChild('webpack-close', {
         name: config.name,

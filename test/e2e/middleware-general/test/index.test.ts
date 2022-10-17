@@ -56,21 +56,18 @@ describe('Middleware Runtime', () => {
           ANOTHER_MIDDLEWARE_TEST: 'asdf2',
           STRING_ENV_VAR: 'asdf3',
           MIDDLEWARE_TEST: 'asdf',
-          NEXT_RUNTIME: 'edge',
         },
       })
     })
   }
 
-  describe('with i18n', () => {
-    setup({ i18n: true })
-    runTests({ i18n: true })
-  })
+  function readMiddlewareJSON(response) {
+    return JSON.parse(response.headers.get('data'))
+  }
 
-  describe('without i18n', () => {
-    setup({ i18n: false })
-    runTests({ i18n: false })
-  })
+  function readMiddlewareError(response) {
+    return response.headers.get('error')
+  }
 
   function runTests({ i18n }: { i18n?: boolean }) {
     if ((global as any).isNextDev) {
@@ -95,6 +92,15 @@ describe('Middleware Runtime', () => {
           await browser.close()
         }
       })
+
+      it('should only contain middleware route in dev middleware manifest', async () => {
+        const res = await fetchViaHTTP(
+          next.url,
+          `/_next/static/${next.buildId}/_devMiddlewareManifest.json`
+        )
+        const matchers = await res.json()
+        expect(matchers).toEqual([{ regexp: '.*' }])
+      })
     }
 
     if ((global as any).isNextStart) {
@@ -109,13 +115,29 @@ describe('Middleware Runtime', () => {
               'ANOTHER_MIDDLEWARE_TEST',
               'STRING_ENV_VAR',
             ],
-            files: ['server/edge-runtime-webpack.js', 'server/middleware.js'],
+            files: expect.arrayContaining([
+              'server/edge-runtime-webpack.js',
+              'server/middleware.js',
+            ]),
             name: 'middleware',
             page: '/',
-            regexp: '^/.*$',
+            matchers: [{ regexp: '^/.*$' }],
             wasm: [],
+            assets: [],
+            regions: 'auto',
           },
         })
+      })
+
+      it('should have the custom config in the manifest', async () => {
+        const manifest = await fs.readJSON(
+          join(next.testDir, '.next/server/middleware-manifest.json')
+        )
+
+        expect(manifest.functions['/api/edge-search-params']).toHaveProperty(
+          'regions',
+          'default'
+        )
       })
 
       it('should have correct files in manifest', async () => {
@@ -149,15 +171,66 @@ describe('Middleware Runtime', () => {
       })
     }
 
+    it('passes search params with rewrites', async () => {
+      const response = await fetchViaHTTP(next.url, `/api/edge-search-params`, {
+        a: 'b',
+      })
+      await expect(response.json()).resolves.toMatchObject({
+        a: 'b',
+        // included from middleware
+        foo: 'bar',
+      })
+    })
+
+    it('should have init header for NextResponse.redirect', async () => {
+      const res = await fetchViaHTTP(
+        next.url,
+        '/redirect-to-somewhere',
+        undefined,
+        {
+          redirect: 'manual',
+        }
+      )
+      expect(res.status).toBe(307)
+      expect(new URL(res.headers.get('location'), 'http://n').pathname).toBe(
+        '/somewhere'
+      )
+      expect(res.headers.get('x-redirect-header')).toBe('hi')
+    })
+
     it('should have correct query values for rewrite to ssg page', async () => {
-      const browser = await webdriver(next.url, '/to-ssg')
+      const browser = await webdriver(next.url, '/to-ssg', {
+        waitHydration: false,
+      })
+      const requests = []
+
+      browser.on('request', (req) => {
+        console.error('request', req.url(), req.method())
+        if (req.method() === 'HEAD') {
+          requests.push(req.url())
+        }
+      })
       await browser.eval('window.beforeNav = 1')
+
+      await check(async () => {
+        const didReq = await browser.eval('next.router.isReady')
+        return didReq ||
+          requests.some((req) =>
+            new URL(req, 'http://n').pathname.endsWith('/to-ssg.json')
+          )
+          ? 'found'
+          : JSON.stringify(requests)
+      }, 'found')
+
+      await check(
+        () => browser.eval('document.documentElement.innerHTML'),
+        /"slug":"hello"/
+      )
 
       await check(() => browser.elementByCss('body').text(), /\/to-ssg/)
 
       expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
         slug: 'hello',
-        from: 'middleware',
       })
       expect(
         JSON.parse(await browser.elementByCss('#props').text()).params
@@ -402,7 +475,7 @@ describe('Middleware Runtime', () => {
       const payload = readMiddlewareJSON(response)
       expect('error' in payload).toBe(true)
       expect(payload.error.name).toBe('AbortError')
-      expect(payload.error.message).toBe('The operation was aborted')
+      expect(payload.error.message).toContain('The operation was aborted')
     })
 
     it(`should validate & parse request url from any route`, async () => {
@@ -592,12 +665,13 @@ describe('Middleware Runtime', () => {
       ])
     })
   }
+  describe('with i18n', () => {
+    setup({ i18n: true })
+    runTests({ i18n: true })
+  })
+
+  describe('without i18n', () => {
+    setup({ i18n: false })
+    runTests({ i18n: false })
+  })
 })
-
-function readMiddlewareJSON(response) {
-  return JSON.parse(response.headers.get('data'))
-}
-
-function readMiddlewareError(response) {
-  return response.headers.get('error')
-}

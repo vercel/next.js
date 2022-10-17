@@ -239,7 +239,7 @@ describe('ServerSide Props Preview Mode', () => {
       expect(cookies.length).toBe(2)
     })
 
-    /** @type import('next-webdriver').Chain */
+    /** @type {import('next-webdriver').Chain} */
     let browser
     it('should start the client-side browser', async () => {
       browser = await webdriver(
@@ -294,7 +294,7 @@ describe('ServerSide Props Preview Mode', () => {
     runTests()
   })
 
-  describe('Serverless Mode', () => {
+  describe.skip('Serverless Mode', () => {
     beforeAll(async () => {
       await fs.writeFile(
         nextConfigPath,
@@ -308,7 +308,7 @@ describe('ServerSide Props Preview Mode', () => {
     runTests()
   })
 
-  describe('Emulated Serverless Mode', () => {
+  describe.skip('Emulated Serverless Mode', () => {
     beforeAll(async () => {
       await fs.writeFile(
         nextConfigPath,

@@ -81,7 +81,7 @@ export async function getStaticProps() {
 }
 ```
 
-Learn more about [Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md)
+Learn more about [Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md).
 
 The cache status of a page leveraging ISR can be determined by reading the value of the `x-nextjs-cache` response header. The possible values are the following:
 
@@ -91,7 +91,7 @@ The cache status of a page leveraging ISR can be determined by reading the value
 
 ### `notFound`
 
-The `notFound` boolean allows the page to return a `404` status and [404 Page](/docs/advanced-features/custom-error-page.md#404-page). With `notFound: true`, the page will return a `404` even if there was a successfully generated page before. This is meant to support use cases like user-generated content getting removed by its author. Note, `notFound` follows the same `revalidate` behavior [described here](/docs/api-reference/data-fetching/get-static-props.md#revalidate)
+The `notFound` boolean allows the page to return a `404` status and [404 Page](/docs/advanced-features/custom-error-page.md#404-page). With `notFound: true`, the page will return a `404` even if there was a successfully generated page before. This is meant to support use cases like user-generated content getting removed by its author. Note, `notFound` follows the same `revalidate` behavior [described here](/docs/api-reference/data-fetching/get-static-props.md#revalidate).
 
 ```js
 export async function getStaticProps(context) {
@@ -202,17 +202,60 @@ export default Blog
 
 ## getStaticProps with TypeScript
 
-You can use the `GetStaticProps` type from `next` to type the function:
+The type of `getStaticProps` can be specified using `GetStaticProps` from `next`:
 
 ```ts
 import { GetStaticProps } from 'next'
 
-export const getStaticProps: GetStaticProps = async (context) => {
-  // ...
+type Post = {
+  author: string
+  content: string
+}
+
+export const getStaticProps: GetStaticProps<{ posts: Post[] }> = async (
+  context
+) => {
+  const res = await fetch('https://.../posts')
+  const posts: Post[] = await res.json()
+
+  return {
+    props: {
+      posts,
+    },
+  }
 }
 ```
 
 If you want to get inferred typings for your props, you can use `InferGetStaticPropsType<typeof getStaticProps>`:
+
+```tsx
+import { InferGetStaticPropsType } from 'next'
+import { GetStaticProps } from 'next'
+
+type Post = {
+  author: string
+  content: string
+}
+
+export const getStaticProps: GetStaticProps<{ posts: Post[] }> = async () => {
+  const res = await fetch('https://.../posts')
+  const posts: Post[] = await res.json()
+
+  return {
+    props: {
+      posts,
+    },
+  }
+}
+
+function Blog({ posts }: InferGetStaticPropsType<typeof getStaticProps>) {
+  // will resolve posts to type Post[]
+}
+
+export default Blog
+```
+
+Implicit typing for `getStaticProps` will also work properly:
 
 ```tsx
 import { InferGetStaticPropsType } from 'next'

@@ -1,9 +1,9 @@
-import _JSXStyle from "next/dist/shared/lib/styled-jsx";
+import _JSXStyle from "styled-jsx/style";
 export default class {
     render() {
         return <div className={_JSXStyle.dynamic([
             [
-                "5fd7f2008eca3a62",
+                "73606d02cbadabf",
                 [
                     a[b],
                     -1 * (c || 0),
@@ -14,7 +14,7 @@ export default class {
 
           <p className={_JSXStyle.dynamic([
             [
-                "5fd7f2008eca3a62",
+                "73606d02cbadabf",
                 [
                     a[b],
                     -1 * (c || 0),
@@ -23,7 +23,7 @@ export default class {
             ]
         ])}>test</p>
 
-          <_JSXStyle id={"5fd7f2008eca3a62"} dynamic={[
+          <_JSXStyle id={"73606d02cbadabf"} dynamic={[
             a[b],
             -1 * (c || 0),
             d
@@ -31,4 +31,4 @@ export default class {
 
         </div>;
     }
-};
+}

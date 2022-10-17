@@ -1,6 +1,5 @@
 import { ensureLeadingSlash } from './ensure-leading-slash'
 import { isDynamicRoute } from '../router/utils'
-import { posix } from '../isomorphic/path'
 import { NormalizeError } from '../utils'
 
 /**
@@ -21,11 +20,14 @@ export function normalizePagePath(page: string): string {
       : page
   )
 
-  const resolvedPage = posix.normalize(normalized)
-  if (resolvedPage !== normalized) {
-    throw new NormalizeError(
-      `Requested and resolved page mismatch: ${normalized} ${resolvedPage}`
-    )
+  if (process.env.NEXT_RUNTIME !== 'edge') {
+    const { posix } = require('path')
+    const resolvedPage = posix.normalize(normalized)
+    if (resolvedPage !== normalized) {
+      throw new NormalizeError(
+        `Requested and resolved page mismatch: ${normalized} ${resolvedPage}`
+      )
+    }
   }
 
   return normalized

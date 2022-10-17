@@ -2,7 +2,7 @@
 
 #### Why This Error Occurred
 
-Your application is interacting with `request.page`, and it's being deprecated.
+Your application is interacting with `request.page` which has been deprecated.
 
 ```typescript
 // middleware.ts

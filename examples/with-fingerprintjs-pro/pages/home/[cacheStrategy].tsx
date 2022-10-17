@@ -6,6 +6,14 @@ import {
   useVisitorData,
 } from '@fingerprintjs/fingerprintjs-pro-react'
 
+function VisitorDataComponent() {
+  const { data, isLoading, error } = useVisitorData({ extendedResult: true })
+
+  return (
+    <VisitorDataPresenter data={data} isLoading={isLoading} error={error} />
+  )
+}
+
 function HomePage() {
   const { clearCache } = useContext(FpjsContext)
 
@@ -24,14 +32,6 @@ function HomePage() {
         Clear cache
       </button>
     </section>
-  )
-}
-
-function VisitorDataComponent() {
-  const { data, isLoading, error } = useVisitorData({ extendedResult: true })
-
-  return (
-    <VisitorDataPresenter data={data} isLoading={isLoading} error={error} />
   )
 }
 

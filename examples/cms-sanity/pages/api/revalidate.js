@@ -1,11 +1,18 @@
-import { isValidRequest } from '@sanity/webhook'
+import { isValidSignature, SIGNATURE_HEADER_NAME } from '@sanity/webhook'
 import { sanityClient } from '../../lib/sanity.server'
 
-const AUTHOR_UPDATED_QUERY = `
+// Next.js will by default parse the body, which can lead to invalid signatures
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+}
+
+const AUTHOR_UPDATED_QUERY = /* groq */ `
   *[_type == "author" && _id == $id] {
     "slug": *[_type == "post" && references(^._id)].slug.current
   }["slug"][]`
-const POST_UPDATED_QUERY = `*[_type == "post" && _id == $id].slug.current`
+const POST_UPDATED_QUERY = /* groq */ `*[_type == "post" && _id == $id].slug.current`
 
 const getQueryForType = (type) => {
   switch (type) {
@@ -21,14 +28,32 @@ const getQueryForType = (type) => {
 const log = (msg, error) =>
   console[error ? 'error' : 'log'](`[revalidate] ${msg}`)
 
+async function readBody(readable) {
+  const chunks = []
+  for await (const chunk of readable) {
+    chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk)
+  }
+  return Buffer.concat(chunks).toString('utf8')
+}
+
 export default async function revalidate(req, res) {
-  if (!isValidRequest(req, process.env.SANITY_STUDIO_REVALIDATE_SECRET)) {
-    const invalidRequest = 'Invalid request'
-    log(invalidRequest, true)
-    return res.status(401).json({ message: invalidRequest })
+  const signature = req.headers[SIGNATURE_HEADER_NAME]
+  const body = await readBody(req) // Read the body into a string
+  if (
+    !isValidSignature(
+      body,
+      signature,
+      process.env.SANITY_REVALIDATE_SECRET?.trim()
+    )
+  ) {
+    const invalidSignature = 'Invalid signature'
+    log(invalidSignature, true)
+    res.status(401).json({ success: false, message: invalidSignature })
+    return
   }
 
-  const { _id: id, _type } = req.body
+  const jsonBody = JSON.parse(body)
+  const { _id: id, _type } = jsonBody
   if (typeof id !== 'string' || !id) {
     const invalidId = 'Invalid _id'
     log(invalidId, true)

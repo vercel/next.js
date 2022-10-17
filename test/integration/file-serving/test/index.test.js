@@ -61,6 +61,23 @@ const runTests = () => {
     expect(await res.text()).toBe('hi')
   })
 
+  it('should serve avif image with correct content-type', async () => {
+    // vercel-icon-dark.avif is downloaded from https://vercel.com/design and transformed to avif on avif.io
+    const res = await fetchViaHTTP(appPort, '/vercel-icon-dark.avif')
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toBe('image/avif')
+  })
+
+  it('should serve correct error code', async () => {
+    // vercel-icon-dark.avif is downloaded from https://vercel.com/design and transformed to avif on avif.io
+    const res = await fetchViaHTTP(appPort, '/vercel-icon-dark.avif', '', {
+      headers: {
+        Range: 'bytes=1000000000-',
+      },
+    })
+    expect(res.status).toBe(416) // 416 Range Not Satisfiable
+  })
+
   // checks against traversal requests from
   // https://github.com/swisskyrepo/PayloadsAllTheThings/blob/master/Directory%20Traversal/Intruder/traversals-8-deep-exotic-encoding.txt
 

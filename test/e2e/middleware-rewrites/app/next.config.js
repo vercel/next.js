@@ -16,6 +16,10 @@ module.exports = {
           source: '/afterfiles-rewrite',
           destination: '/ab-test/b',
         },
+        {
+          source: '/afterfiles-rewrite-ssg',
+          destination: '/fallback-true-blog/first',
+        },
       ],
       fallback: [],
     }

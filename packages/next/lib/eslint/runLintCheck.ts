@@ -9,6 +9,7 @@ import * as CommentJson from 'next/dist/compiled/comment-json'
 import { LintResult, formatResults } from './customFormatter'
 import { writeDefaultConfig } from './writeDefaultConfig'
 import { hasEslintConfiguration } from './hasEslintConfiguration'
+import { writeOutputFile } from './writeOutputFile'
 
 import { ESLINT_PROMPT_VALUES } from '../constants'
 import { existsSync, findPagesDir } from '../find-pages-dir'
@@ -82,11 +83,22 @@ async function lint(
   lintDirs: string[],
   eslintrcFile: string | null,
   pkgJsonPath: string | null,
-  lintDuringBuild: boolean = false,
-  eslintOptions: any = null,
-  reportErrorsOnly: boolean = false,
-  maxWarnings: number = -1,
-  formatter: string | null = null
+  hasAppDir: boolean,
+  {
+    lintDuringBuild = false,
+    eslintOptions = null,
+    reportErrorsOnly = false,
+    maxWarnings = -1,
+    formatter = null,
+    outputFile = null,
+  }: {
+    lintDuringBuild: boolean
+    eslintOptions: any
+    reportErrorsOnly: boolean
+    maxWarnings: number
+    formatter: string | null
+    outputFile: string | null
+  }
 ): Promise<
   | string
   | null
@@ -142,7 +154,6 @@ async function lint(
 
     let nextEslintPluginIsEnabled = false
     const nextRulesEnabled = new Map<string, Severity>()
-    const pagesDirRules = ['@next/next/no-html-link-for-pages']
 
     for (const configFile of [eslintrcFile, pkgJsonPath]) {
       if (!configFile) continue
@@ -174,8 +185,8 @@ async function lint(
       }
     }
 
-    // TODO: should we apply these rules to "root" dir as well?
-    const pagesDir = findPagesDir(baseDir).pages
+    const pagesDir = findPagesDir(baseDir, hasAppDir).pagesDir
+    const pagesDirRules = pagesDir ? ['@next/next/no-html-link-for-pages'] : []
 
     if (nextEslintPluginIsEnabled) {
       let updatedPagesDir = false
@@ -224,8 +235,10 @@ async function lint(
       0
     )
 
+    if (outputFile) await writeOutputFile(outputFile, formattedResult.output)
+
     return {
-      output: formattedResult.output,
+      output: formattedResult.outputWithMessages,
       isError:
         ESLint.getErrorResults(results)?.length > 0 ||
         (maxWarnings >= 0 && totalWarnings > maxWarnings),
@@ -264,13 +277,26 @@ async function lint(
 export async function runLintCheck(
   baseDir: string,
   lintDirs: string[],
-  lintDuringBuild: boolean = false,
-  eslintOptions: any = null,
-  reportErrorsOnly: boolean = false,
-  maxWarnings: number = -1,
-  formatter: string | null = null,
-  strict: boolean = false
+  hasAppDir: boolean,
+  opts: {
+    lintDuringBuild?: boolean
+    eslintOptions?: any
+    reportErrorsOnly?: boolean
+    maxWarnings?: number
+    formatter?: string | null
+    outputFile?: string | null
+    strict?: boolean
+  }
 ): ReturnType<typeof lint> {
+  const {
+    lintDuringBuild = false,
+    eslintOptions = null,
+    reportErrorsOnly = false,
+    maxWarnings = -1,
+    formatter = null,
+    outputFile = null,
+    strict = false,
+  } = opts
   try {
     // Find user's .eslintrc file
     // See: https://eslint.org/docs/user-guide/configuring/configuration-files#configuration-file-formats
@@ -308,20 +334,28 @@ export async function runLintCheck(
         lintDirs,
         eslintrcFile,
         pkgJsonPath,
-        lintDuringBuild,
-        eslintOptions,
-        reportErrorsOnly,
-        maxWarnings,
-        formatter
+        hasAppDir,
+        {
+          lintDuringBuild,
+          eslintOptions,
+          reportErrorsOnly,
+          maxWarnings,
+          formatter,
+          outputFile,
+        }
       )
     } else {
-      // Display warning if no ESLint configuration is present during "next build"
+      // Display warning if no ESLint configuration is present inside
+      // config file during "next build", no warning is shown when
+      // no eslintrc file is present
       if (lintDuringBuild) {
-        Log.warn(
-          `No ESLint configuration detected. Run ${chalk.bold.cyan(
-            'next lint'
-          )} to begin setup`
-        )
+        if (config.emptyPkgJsonConfig || config.emptyEslintrc) {
+          Log.warn(
+            `No ESLint configuration detected. Run ${chalk.bold.cyan(
+              'next lint'
+            )} to begin setup`
+          )
+        }
         return null
       } else {
         // Ask user what config they would like to start with for first time "next lint" setup

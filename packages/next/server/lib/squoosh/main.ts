@@ -9,7 +9,11 @@ type RotateOperation = {
 }
 type ResizeOperation = {
   type: 'resize'
-} & ({ width: number; height?: never } | { height: number; width?: never })
+} & (
+  | { width: number; height?: never }
+  | { height: number; width?: never }
+  | { width: number; height: number }
+)
 export type Operation = RotateOperation | ResizeOperation
 export type Encoding = 'jpeg' | 'png' | 'webp' | 'avif'
 
@@ -24,6 +28,14 @@ const getWorker = execOnce(
     })
 )
 
+export async function getMetadata(
+  buffer: Buffer
+): Promise<{ width: number; height: number }> {
+  const worker: typeof import('./impl') = getWorker() as any
+  const { width, height } = await worker.decodeBuffer(buffer)
+  return { width, height }
+}
+
 export async function processBuffer(
   buffer: Buffer,
   operations: Operation[],
@@ -37,24 +49,24 @@ export async function processBuffer(
     if (operation.type === 'rotate') {
       imageData = await worker.rotate(imageData, operation.numRotations)
     } else if (operation.type === 'resize') {
+      const opt = { image: imageData, width: 0, height: 0 }
       if (
         operation.width &&
         imageData.width &&
         imageData.width > operation.width
       ) {
-        imageData = await worker.resize({
-          image: imageData,
-          width: operation.width,
-        })
-      } else if (
+        opt.width = operation.width
+      }
+      if (
         operation.height &&
         imageData.height &&
         imageData.height > operation.height
       ) {
-        imageData = await worker.resize({
-          image: imageData,
-          height: operation.height,
-        })
+        opt.height = operation.height
+      }
+
+      if (opt.width > 0 || opt.height > 0) {
+        imageData = await worker.resize(opt)
       }
     }
   }

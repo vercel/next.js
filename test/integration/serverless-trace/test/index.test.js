@@ -21,7 +21,7 @@ const chunksDir = join(appDir, '.next/static/chunks')
 let appPort
 let app
 
-describe('Serverless Trace', () => {
+describe.skip('Serverless Trace', () => {
   beforeAll(async () => {
     await nextBuild(appDir)
     appPort = await findPort()

@@ -17,7 +17,6 @@ function nextImageLoader(content) {
       opts
     )
     const outputPath = assetPrefix + '/_next' + interpolatedName
-
     let extension = loaderUtils.interpolateName(this, '[ext]', opts)
     if (extension === 'jpg') {
       extension = 'jpeg'
@@ -25,32 +24,49 @@ function nextImageLoader(content) {
 
     const imageSizeSpan = imageLoaderSpan.traceChild('image-size-calculation')
     const imageSize = await imageSizeSpan.traceAsyncFn(() =>
-      getImageSize(content, extension)
+      getImageSize(content, extension).catch((err) => err)
     )
+
+    if (imageSize instanceof Error) {
+      const err = imageSize
+      err.name = 'InvalidImageFormatError'
+      throw err
+    }
+
     let blurDataURL
+    let blurWidth
+    let blurHeight
 
     if (VALID_BLUR_EXT.includes(extension)) {
+      // Shrink the image's largest dimension
+      if (imageSize.width >= imageSize.height) {
+        blurWidth = BLUR_IMG_SIZE
+        blurHeight = Math.max(
+          Math.round((imageSize.height / imageSize.width) * BLUR_IMG_SIZE),
+          1
+        )
+      } else {
+        blurWidth = Math.max(
+          Math.round((imageSize.width / imageSize.height) * BLUR_IMG_SIZE),
+          1
+        )
+        blurHeight = BLUR_IMG_SIZE
+      }
+
       if (isDev) {
+        // During `next dev`, we don't want to generate blur placeholders with webpack
+        // because it can delay starting the dev server. Instead, we inline a
+        // special url to lazily generate the blur placeholder at request time.
         const prefix = 'http://localhost'
         const url = new URL(`${basePath || ''}/_next/image`, prefix)
         url.searchParams.set('url', outputPath)
-        url.searchParams.set('w', BLUR_IMG_SIZE)
+        url.searchParams.set('w', blurWidth)
         url.searchParams.set('q', BLUR_QUALITY)
         blurDataURL = url.href.slice(prefix.length)
       } else {
-        // Shrink the image's largest dimension
-        const dimension =
-          imageSize.width >= imageSize.height ? 'width' : 'height'
-
         const resizeImageSpan = imageLoaderSpan.traceChild('image-resize')
         const resizedImage = await resizeImageSpan.traceAsyncFn(() =>
-          resizeImage(
-            content,
-            dimension,
-            BLUR_IMG_SIZE,
-            extension,
-            BLUR_QUALITY
-          )
+          resizeImage(content, blurWidth, blurHeight, extension, BLUR_QUALITY)
         )
         const blurDataURLSpan = imageLoaderSpan.traceChild(
           'image-base64-tostring'
@@ -70,6 +86,8 @@ function nextImageLoader(content) {
           height: imageSize.height,
           width: imageSize.width,
           blurDataURL,
+          blurWidth,
+          blurHeight,
         })
       )
 

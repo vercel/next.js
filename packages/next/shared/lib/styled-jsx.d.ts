@@ -1,1 +1,1 @@
-export default function JSXStyle(props: any): null
+export { default } from 'styled-jsx/style'

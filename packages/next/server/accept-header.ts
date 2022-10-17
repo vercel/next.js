@@ -1,12 +1,3 @@
-export function acceptLanguage(header = '', preferences?: string[]) {
-  return (
-    parse(header, preferences, {
-      type: 'accept-language',
-      prefixMatch: true,
-    })[0] || ''
-  )
-}
-
 interface Selection {
   pos: number
   pref?: number
@@ -134,4 +125,13 @@ function parse(
   }
 
   return preferred
+}
+
+export function acceptLanguage(header = '', preferences?: string[]) {
+  return (
+    parse(header, preferences, {
+      type: 'accept-language',
+      prefixMatch: true,
+    })[0] || ''
+  )
 }

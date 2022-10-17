@@ -16,6 +16,24 @@ try {
 const defaultPageSize = 100
 const defaultPostCount = 10
 
+async function getLandingPagesData(page, pageSize = defaultPageSize) {
+  try {
+    const params = {
+      page,
+      page_size: pageSize,
+    }
+    const response = await butter.page.list('landing-page', params)
+
+    return {
+      pages: response?.data?.data,
+      prevPage: response?.data?.meta.previous_page,
+      nextPage: response?.data?.meta.next_page,
+    }
+  } catch (e) {
+    throw e.response.data.detail
+  }
+}
+
 export async function getLandingPage(slug) {
   try {
     const page = await butter.page.retrieve('landing-page', slug)
@@ -36,24 +54,6 @@ export async function getLandingPages() {
   }
 
   return paginatedLandingPages
-}
-
-async function getLandingPagesData(page, pageSize = defaultPageSize) {
-  try {
-    const params = {
-      page,
-      page_size: pageSize,
-    }
-    const response = await butter.page.list('landing-page', params)
-
-    return {
-      pages: response?.data?.data,
-      prevPage: response?.data?.meta.previous_page,
-      nextPage: response?.data?.meta.next_page,
-    }
-  } catch (e) {
-    throw e.response.data.detail
-  }
 }
 
 export async function getPostsData(

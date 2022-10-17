@@ -21,7 +21,7 @@ export class RemovedPageError extends Error {
 
 export class RemovedUAError extends Error {
   constructor() {
-    super(`The request.page has been removed in favour of \`userAgent\` function.
+    super(`The request.ua has been removed in favour of \`userAgent\` function.
   Read more: https://nextjs.org/docs/messages/middleware-parse-user-agent
   `)
   }

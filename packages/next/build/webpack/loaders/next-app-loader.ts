@@ -1,77 +1,136 @@
-import path from 'path'
-import type webpack from 'webpack5'
+import type webpack from 'webpack'
+import type { ValueOf } from '../../../shared/lib/constants'
 import { NODE_RESOLVE_OPTIONS } from '../../webpack-config'
 import { getModuleBuildInfo } from './get-module-build-info'
 
-function pathToUrlPath(pathname: string) {
-  let urlPath = pathname.replace(/^private-next-app-dir/, '')
+export const FILE_TYPES = {
+  layout: 'layout',
+  template: 'template',
+  error: 'error',
+  loading: 'loading',
+  'not-found': 'not-found',
+} as const
 
-  // For `app/layout.js`
-  if (urlPath === '') {
-    urlPath = '/'
-  }
-
-  return urlPath
+// TODO-APP: check if this can be narrowed.
+type ComponentModule = () => any
+export type ComponentsType = {
+  readonly [componentKey in ValueOf<typeof FILE_TYPES>]?: ComponentModule
+} & {
+  readonly layoutOrPagePath?: string
+  readonly page?: ComponentModule
 }
 
-async function resolvePathsByPage({
-  name,
+async function createTreeCodeFromPath({
   pagePath,
   resolve,
+  resolveParallelSegments,
 }: {
-  name: 'layout' | 'loading'
   pagePath: string
   resolve: (pathname: string) => Promise<string | undefined>
+  resolveParallelSegments: (
+    pathname: string
+  ) => [key: string, segment: string][]
 }) {
-  const paths = new Map<string, string | undefined>()
-  const parts = pagePath.split('/')
-  const isNewRootLayout =
-    parts[1]?.length > 2 && parts[1]?.startsWith('(') && parts[1]?.endsWith(')')
+  const splittedPath = pagePath.split(/[\\/]/)
+  const appDirPrefix = splittedPath[0]
+  const pages: string[] = []
 
-  for (let i = parts.length; i >= 0; i--) {
-    const pathWithoutSlashLayout = parts.slice(0, i).join('/')
+  async function createSubtreePropsFromSegmentPath(
+    segments: string[]
+  ): Promise<string> {
+    const segmentPath = segments.join('/')
 
-    if (!pathWithoutSlashLayout) {
-      continue
+    // Existing tree are the children of the current segment
+    const props: Record<string, string> = {}
+
+    // We need to resolve all parallel routes in this level.
+    const parallelSegments: [key: string, segment: string][] = []
+    if (segments.length === 0) {
+      parallelSegments.push(['children', ''])
+    } else {
+      parallelSegments.push(...resolveParallelSegments(segmentPath))
     }
-    const layoutPath = `${pathWithoutSlashLayout}/${name}`
-    let resolvedLayoutPath = await resolve(layoutPath)
-    let urlPath = pathToUrlPath(pathWithoutSlashLayout)
 
-    // if we are in a new root app/(root) and a custom root layout was
-    // not provided or a root layout app/layout is not present, we use
-    // a default root layout to provide the html/body tags
-    const isCustomRootLayout = name === 'layout' && isNewRootLayout && i === 2
+    for (const [parallelKey, parallelSegment] of parallelSegments) {
+      const parallelSegmentPath = segmentPath + '/' + parallelSegment
 
-    if (
-      name === 'layout' &&
-      (isCustomRootLayout || i === 1) &&
-      !resolvedLayoutPath
-    ) {
-      resolvedLayoutPath = await resolve('next/dist/lib/app-layout')
+      if (parallelSegment === 'page') {
+        const matchedPagePath = `${appDirPrefix}${parallelSegmentPath}`
+        const resolvedPagePath = await resolve(matchedPagePath)
+        if (resolvedPagePath) pages.push(resolvedPagePath)
+
+        // Use '' for segment as it's the page. There can't be a segment called '' so this is the safest way to add it.
+        props[parallelKey] = `['', {}, {layoutOrPagePath: ${JSON.stringify(
+          resolvedPagePath
+        )}, page: () => require(${JSON.stringify(resolvedPagePath)})}]`
+        continue
+      }
+
+      const subtree = await createSubtreePropsFromSegmentPath([
+        ...segments,
+        parallelSegment,
+      ])
+
+      // `page` is not included here as it's added above.
+      const filePaths = await Promise.all(
+        Object.values(FILE_TYPES).map(async (file) => {
+          return [
+            file,
+            await resolve(`${appDirPrefix}${parallelSegmentPath}/${file}`),
+          ] as const
+        })
+      )
+
+      props[parallelKey] = `[
+        '${parallelSegment}',
+        ${subtree},
+        {
+          ${filePaths
+            .filter(([, filePath]) => filePath !== undefined)
+            .map(([file, filePath]) => {
+              if (filePath === undefined) {
+                return ''
+              }
+              return `${
+                file === FILE_TYPES.layout
+                  ? `layoutOrPagePath: '${filePath}',`
+                  : ''
+              }'${file}': () => require(${JSON.stringify(filePath)}),`
+            })
+            .join('\n')}
+        }
+      ]`
     }
-    paths.set(urlPath, resolvedLayoutPath)
 
-    // if we're in a new root layout don't add the top-level app/layout
-    if (isCustomRootLayout) {
-      break
-    }
+    return `{
+      ${Object.entries(props)
+        .map(([key, value]) => `${key}: ${value}`)
+        .join(',\n')}
+    }`
   }
-  return paths
+
+  const tree = await createSubtreePropsFromSegmentPath([])
+  return [`const tree = ${tree}.children;`, pages]
+}
+
+function createAbsolutePath(appDir: string, pathToTurnAbsolute: string) {
+  return pathToTurnAbsolute.replace(/^private-next-app-dir/, appDir)
 }
 
 const nextAppLoader: webpack.LoaderDefinitionFunction<{
   name: string
   pagePath: string
   appDir: string
+  appPaths: string[] | null
   pageExtensions: string[]
 }> = async function nextAppLoader() {
-  const { name, appDir, pagePath, pageExtensions } = this.getOptions() || {}
+  const { name, appDir, appPaths, pagePath, pageExtensions } =
+    this.getOptions() || {}
 
   const buildInfo = getModuleBuildInfo((this as any)._module)
   buildInfo.route = {
     page: name.replace(/^app/, ''),
-    absolutePagePath: appDir + pagePath.replace(/^private-next-app-dir/, ''),
+    absolutePagePath: createAbsolutePath(appDir, pagePath),
   }
 
   const extensions = pageExtensions.map((extension) => `.${extension}`)
@@ -81,89 +140,65 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
   }
   const resolve = this.getResolve(resolveOptions)
 
-  const loadingPaths = await resolvePathsByPage({
-    name: 'loading',
-    pagePath: pagePath,
-    resolve: async (pathname) => {
-      try {
-        return await resolve(this.rootContext, pathname)
-      } catch (err: any) {
-        if (err.message.includes("Can't resolve")) {
-          return undefined
-        }
-        throw err
-      }
-    },
-  })
+  const normalizedAppPaths =
+    typeof appPaths === 'string' ? [appPaths] : appPaths || []
+  const resolveParallelSegments = (pathname: string) => {
+    const matched: Record<string, string> = {}
+    for (const path of normalizedAppPaths) {
+      if (path.startsWith(pathname + '/')) {
+        const restPath = path.slice(pathname.length + 1)
 
-  const loadingComponentsCode = []
-  for (const [loadingPath, resolvedLoadingPath] of loadingPaths) {
-    if (resolvedLoadingPath) {
-      this.addDependency(resolvedLoadingPath)
-      // use require so that we can bust the require cache
-      const codeLine = `'${loadingPath}': () => require('${resolvedLoadingPath}')`
-      loadingComponentsCode.push(codeLine)
-    } else {
-      for (const ext of extensions) {
-        this.addMissingDependency(
-          path.join(appDir, loadingPath, `layout${ext}`)
-        )
+        const matchedSegment = restPath.split('/')[0]
+        const matchedKey = matchedSegment.startsWith('@')
+          ? matchedSegment.slice(1)
+          : 'children'
+        matched[matchedKey] = matchedSegment
       }
+    }
+    return Object.entries(matched)
+  }
+
+  const resolver = async (pathname: string) => {
+    try {
+      const resolved = await resolve(this.rootContext, pathname)
+      this.addDependency(resolved)
+      return resolved
+    } catch (err: any) {
+      const absolutePath = createAbsolutePath(appDir, pathname)
+      for (const ext of extensions) {
+        const absolutePathWithExtension = `${absolutePath}${ext}`
+        this.addMissingDependency(absolutePathWithExtension)
+      }
+      if (err.message.includes("Can't resolve")) {
+        return undefined
+      }
+      throw err
     }
   }
 
-  const layoutPaths = await resolvePathsByPage({
-    name: 'layout',
-    pagePath: pagePath,
-    resolve: async (pathname) => {
-      try {
-        return await resolve(this.rootContext, pathname)
-      } catch (err: any) {
-        if (err.message.includes("Can't resolve")) {
-          return undefined
-        }
-        throw err
-      }
-    },
+  const [treeCode, pages] = await createTreeCodeFromPath({
+    pagePath,
+    resolve: resolver,
+    resolveParallelSegments,
   })
-
-  const componentsCode = []
-  for (const [layoutPath, resolvedLayoutPath] of layoutPaths) {
-    if (resolvedLayoutPath) {
-      this.addDependency(resolvedLayoutPath)
-      // use require so that we can bust the require cache
-      const codeLine = `'${layoutPath}': () => require('${resolvedLayoutPath}')`
-      componentsCode.push(codeLine)
-    } else {
-      for (const ext of extensions) {
-        this.addMissingDependency(path.join(appDir, layoutPath, `layout${ext}`))
-      }
-    }
-  }
-
-  // Add page itself to the list of components
-  componentsCode.push(
-    `'${pathToUrlPath(pagePath).replace(
-      new RegExp(`(${extensions.join('|')})$`),
-      ''
-      // use require so that we can bust the require cache
-    )}': () => require('${pagePath}')`
-  )
 
   const result = `
-    export const components = {
-        ${componentsCode.join(',\n')}
-    };
+    export ${treeCode}
+    export const pages = ${JSON.stringify(pages)}
 
-    export const loadingComponents = {
-      ${loadingComponentsCode.join(',\n')}
-    };
+    export const AppRouter = require('next/dist/client/components/app-router.js').default
+    export const LayoutRouter = require('next/dist/client/components/layout-router.js').default
+    export const RenderFromTemplateContext = require('next/dist/client/components/render-from-template-context.js').default
 
-    export const AppRouter = require('next/dist/client/components/app-router.client.js').default
-    export const LayoutRouter = require('next/dist/client/components/layout-router.client.js').default
+    export const staticGenerationAsyncStorage = require('next/dist/client/components/static-generation-async-storage.js').staticGenerationAsyncStorage
+    export const requestAsyncStorage = require('next/dist/client/components/request-async-storage.js').requestAsyncStorage
 
+    export const serverHooks = require('next/dist/client/components/hooks-server-context.js')
+
+    export const renderToReadableStream = require('next/dist/compiled/react-server-dom-webpack/writer.browser.server').renderToReadableStream
     export const __next_app_webpack_require__ = __webpack_require__
   `
+
   return result
 }
 

@@ -48,7 +48,6 @@ function isSafeExport(key: string): boolean {
     key === '__esModule' ||
     key === '__N_SSG' ||
     key === '__N_SSP' ||
-    key === '__N_RSC' ||
     // TODO: remove this key from page config instead of allow listing it
     key === 'config'
   )
@@ -72,6 +71,25 @@ function registerExportsForReactRefresh(
     var typeID = moduleID + ' %exports% ' + key
     RefreshRuntime.register(exportValue, typeID)
   }
+}
+
+function getRefreshBoundarySignature(moduleExports: unknown): Array<unknown> {
+  var signature = []
+  signature.push(RefreshRuntime.getFamilyByType(moduleExports))
+  if (moduleExports == null || typeof moduleExports !== 'object') {
+    // Exit if we can't iterate over exports.
+    // (This is important for legacy environments.)
+    return signature
+  }
+  for (var key in moduleExports) {
+    if (isSafeExport(key)) {
+      continue
+    }
+    var exportValue = moduleExports[key]
+    signature.push(key)
+    signature.push(RefreshRuntime.getFamilyByType(exportValue))
+  }
+  return signature
 }
 
 function isReactRefreshBoundary(moduleExports: unknown): boolean {
@@ -112,25 +130,6 @@ function shouldInvalidateReactRefreshBoundary(
     }
   }
   return false
-}
-
-function getRefreshBoundarySignature(moduleExports: unknown): Array<unknown> {
-  var signature = []
-  signature.push(RefreshRuntime.getFamilyByType(moduleExports))
-  if (moduleExports == null || typeof moduleExports !== 'object') {
-    // Exit if we can't iterate over exports.
-    // (This is important for legacy environments.)
-    return signature
-  }
-  for (var key in moduleExports) {
-    if (isSafeExport(key)) {
-      continue
-    }
-    var exportValue = moduleExports[key]
-    signature.push(key)
-    signature.push(RefreshRuntime.getFamilyByType(exportValue))
-  }
-  return signature
 }
 
 var isUpdateScheduled: boolean = false

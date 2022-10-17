@@ -2,11 +2,8 @@ import { codeFrameColumns } from '@babel/code-frame'
 import { constants as FS, promises as fs } from 'fs'
 import { IncomingMessage, ServerResponse } from 'http'
 import path from 'path'
-import {
-  NullableMappedPosition,
-  RawSourceMap,
-  SourceMapConsumer,
-} from 'source-map'
+import type { NullableMappedPosition, RawSourceMap } from 'source-map'
+import { SourceMapConsumer } from 'source-map'
 import { StackFrame } from 'stacktrace-parser'
 import url from 'url'
 // @ts-ignore
@@ -38,6 +35,20 @@ type Source = { map: () => RawSourceMap } | null
 
 function getModuleId(compilation: any, module: any) {
   return compilation.chunkGraph.getModuleId(module)
+}
+
+function getModuleById(
+  id: string | undefined,
+  compilation: webpack.Compilation
+) {
+  return [...compilation.modules].find(
+    (searchModule) => getModuleId(compilation, searchModule) === id
+  )
+}
+
+function findModuleNotFoundFromError(errorMessage: string | undefined) {
+  const match = errorMessage?.match(/'([^']+)' module/)
+  return match && match[1]
 }
 
 function getModuleSource(compilation: any, module: any): any {
@@ -100,6 +111,15 @@ async function findOriginalSourcePositionAndContent(
   }
 }
 
+function findOriginalSourcePositionAndContentFromCompilation(
+  modulePath: string | undefined,
+  importedModule: string,
+  compilation: webpack.Compilation
+) {
+  const module = getModuleById(modulePath, compilation)
+  return module?.buildInfo?.importLocByPath?.get(importedModule) ?? null
+}
+
 export async function createOriginalStackFrame({
   line,
   column,
@@ -107,6 +127,8 @@ export async function createOriginalStackFrame({
   modulePath,
   rootDirectory,
   frame,
+  errorMessage,
+  compilation,
 }: {
   line: number
   column: number | null
@@ -114,11 +136,21 @@ export async function createOriginalStackFrame({
   modulePath?: string
   rootDirectory: string
   frame: any
+  errorMessage?: string
+  compilation?: webpack.Compilation
 }): Promise<OriginalStackFrameResponse | null> {
-  const result = await findOriginalSourcePositionAndContent(source, {
-    line,
-    column,
-  })
+  const moduleNotFound = findModuleNotFoundFromError(errorMessage)
+  const result =
+    moduleNotFound && compilation
+      ? findOriginalSourcePositionAndContentFromCompilation(
+          modulePath,
+          moduleNotFound,
+          compilation
+        )
+      : await findOriginalSourcePositionAndContent(source, {
+          line,
+          column,
+        })
 
   if (result === null) {
     return null
@@ -170,7 +202,7 @@ export async function createOriginalStackFrame({
 export async function getSourceById(
   isFile: boolean,
   id: string,
-  compilation: any
+  compilation?: webpack.Compilation
 ): Promise<Source> {
   if (isFile) {
     const fileContent: string | null = await fs
@@ -194,13 +226,11 @@ export async function getSourceById(
   }
 
   try {
-    if (compilation == null) {
+    if (!compilation) {
       return null
     }
 
-    const module = [...compilation.modules].find(
-      (searchModule) => getModuleId(compilation, searchModule) === id
-    )
+    const module = getModuleById(id, compilation)
     return getModuleSource(compilation, module)
   } catch (err) {
     console.error(`Failed to lookup module by ID ("${id}"):`, err)
@@ -220,6 +250,7 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
       const frame = query as unknown as StackFrame & {
         isEdgeServer: 'true' | 'false'
         isServer: 'true' | 'false'
+        errorMessage: string | undefined
       }
       if (
         !(
@@ -239,14 +270,13 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
       )
 
       let source: Source
+      const compilation =
+        frame.isEdgeServer === 'true'
+          ? options.edgeServerStats()?.compilation
+          : frame.isServer === 'true'
+          ? options.serverStats()?.compilation
+          : options.stats()?.compilation
       try {
-        const compilation =
-          frame.isEdgeServer === 'true'
-            ? options.edgeServerStats()?.compilation
-            : frame.isServer === 'true'
-            ? options.serverStats()?.compilation
-            : options.stats()?.compilation
-
         source = await getSourceById(
           frame.file.startsWith('file:'),
           moduleId,
@@ -282,6 +312,8 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
           frame,
           modulePath: moduleId,
           rootDirectory: options.rootDirectory,
+          errorMessage: frame.errorMessage,
+          compilation,
         })
 
         if (originalStackFrameResponse === null) {
@@ -310,7 +342,11 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
         return res.end()
       }
 
-      const filePath = path.resolve(options.rootDirectory, frameFile)
+      // frame files may start with their webpack layer, like (middleware)/middleware.js
+      const filePath = path.resolve(
+        options.rootDirectory,
+        frameFile.replace(/^\([^)]+\)\//, '')
+      )
       const fileExists = await fs.access(filePath, FS.F_OK).then(
         () => true,
         () => false

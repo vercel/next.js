@@ -8,7 +8,7 @@ import { renderToHTML } from '../../../../server/render'
 import { tryGetPreviewData } from '../../../../server/api-utils/node'
 import { denormalizePagePath } from '../../../../shared/lib/page-path/denormalize-page-path'
 import { setLazyProp, getCookieParser } from '../../../../server/api-utils'
-import { getRedirectStatus } from '../../../../lib/load-custom-routes'
+import { getRedirectStatus } from '../../../../lib/redirect-status'
 import getRouteNoAssetPath from '../../../../shared/lib/router/utils/get-route-from-asset-path'
 import { PERMANENT_REDIRECT_STATUS } from '../../../../shared/lib/constants'
 import RenderResult from '../../../../server/render-result'
@@ -284,7 +284,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
       const isPreviewMode = previewData !== false
 
       if (process.env.__NEXT_OPTIMIZE_FONTS) {
-        renderOpts.optimizeFonts = true
+        renderOpts.optimizeFonts = process.env.__NEXT_OPTIMIZE_FONTS
         /**
          * __webpack_require__.__NEXT_FONT_MANIFEST__ is added by
          * font-stylesheet-gathering-plugin

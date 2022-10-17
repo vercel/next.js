@@ -40,7 +40,7 @@ module.exports = {
 }
 ```
 
-Note: the `query` field in `exportPathMap` cannot be used with [automatically statically optimized pages](/docs/advanced-features/automatic-static-optimization) or [`getStaticProps` pages](/docs/basic-features/data-fetching/get-static-props.md) as they are rendered to HTML files at build-time and additional query information cannot be provided during `next export`.
+> Note: the `query` field in `exportPathMap` cannot be used with [automatically statically optimized pages](/docs/advanced-features/automatic-static-optimization) or [`getStaticProps` pages](/docs/basic-features/data-fetching/get-static-props.md) as they are rendered to HTML files at build-time and additional query information cannot be provided during `next export`.
 
 The pages will then be exported as HTML files, for example, `/about` will become `/about.html`.
 
@@ -78,6 +78,8 @@ module.exports = {
 ```bash
 next export -o outdir
 ```
+
+> **Warning**: Using `exportPathMap` for defining routes with any `getStaticPaths` powered page is now ignored and gets overridden. We recommend not to use them together.
 
 ## Related
 

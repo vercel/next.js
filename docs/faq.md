@@ -14,7 +14,7 @@ description: Get to know more about Next.js with the frequently asked questions.
   <summary>How do I fetch data in Next.js?</summary>
   Next.js provides a variety of methods depending on your use case. You can use:
   <ul>
-    <li> Client-side rendering: Fetch data with <a href="/docs/basic-features/data-fetching/client-side.md#client-side-data-fetching-with-useeffect">useEffect</a> or <a href="/docs/basic-features/data-fetching/client-side.md#client-side-data-fetching-with-swr">SWR</a> inside your React components</li>
+    <li> Client-side data fetching: Fetch data with <a href="/docs/basic-features/data-fetching/client-side.md#client-side-data-fetching-with-useeffect">useEffect</a> or <a href="/docs/basic-features/data-fetching/client-side.md#client-side-data-fetching-with-swr">SWR</a> inside your React components</li>
     <li> Server-side rendering with <a href="/docs/basic-features/data-fetching/get-server-side-props.md">getServerSideProps</a></li>
     <li> Static-site generation with <a href="/docs/basic-features/data-fetching/get-static-props.md">getStaticProps</a></li>
     <li> Incremental Static Regeneration by <a href="/docs/basic-features/data-fetching/incremental-static-regeneration.md">adding the `revalidate` prop to getStaticProps</a></li>

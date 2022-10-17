@@ -47,6 +47,10 @@ export default function Home() {
         <a id="override-with-internal-rewrite">Rewrite me to internal path</a>
       </Link>
       <div />
+      <Link href="/ssg">
+        <a id="normal-ssg-link">normal SSG link</a>
+      </Link>
+      <div />
       <a
         href=""
         id="link-to-shallow-push"

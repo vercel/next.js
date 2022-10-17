@@ -31,7 +31,13 @@ function reducer(state: OverlayState, ev: Bus.BusEvent): OverlayState {
       return {
         ...state,
         nextId: state.nextId + 1,
-        errors: [...state.errors, { id: state.nextId, event: ev }],
+        errors: [
+          ...state.errors.filter((err) => {
+            // Filter out duplicate errors
+            return err.event.reason !== ev.reason
+          }),
+          { id: state.nextId, event: ev },
+        ],
       }
     }
     default: {
@@ -44,65 +50,6 @@ function reducer(state: OverlayState, ev: Bus.BusEvent): OverlayState {
 
 type ErrorType = 'runtime' | 'build'
 
-const ReactDevOverlay: React.FunctionComponent = function ReactDevOverlay({
-  children,
-  preventDisplay,
-}: {
-  children?: React.ReactNode
-  preventDisplay?: ErrorType[]
-}) {
-  const [state, dispatch] = React.useReducer<
-    React.Reducer<OverlayState, Bus.BusEvent>
-  >(reducer, {
-    nextId: 1,
-    buildError: null,
-    errors: [],
-  })
-
-  React.useEffect(() => {
-    Bus.on(dispatch)
-    return function () {
-      Bus.off(dispatch)
-    }
-  }, [dispatch])
-
-  const onComponentError = React.useCallback(
-    (_error: Error, _componentStack: string | null) => {
-      // TODO: special handling
-    },
-    []
-  )
-
-  const hasBuildError = state.buildError != null
-  const hasRuntimeErrors = Boolean(state.errors.length)
-
-  const isMounted = hasBuildError || hasRuntimeErrors
-
-  return (
-    <React.Fragment>
-      <ErrorBoundary onError={onComponentError}>
-        {children ?? null}
-      </ErrorBoundary>
-      {isMounted ? (
-        <ShadowPortal>
-          <CssReset />
-          <Base />
-          <ComponentStyles />
-
-          {shouldPreventDisplay(
-            hasBuildError ? 'build' : hasRuntimeErrors ? 'runtime' : null,
-            preventDisplay
-          ) ? null : hasBuildError ? (
-            <BuildError message={state.buildError!} />
-          ) : hasRuntimeErrors ? (
-            <Errors errors={state.errors} />
-          ) : undefined}
-        </ShadowPortal>
-      ) : undefined}
-    </React.Fragment>
-  )
-}
-
 const shouldPreventDisplay = (
   errorType?: ErrorType | null,
   preventType?: ErrorType[] | null
@@ -112,5 +59,73 @@ const shouldPreventDisplay = (
   }
   return preventType.includes(errorType)
 }
+
+type ReactDevOverlayProps = {
+  children?: React.ReactNode
+  preventDisplay?: ErrorType[]
+  globalOverlay?: boolean
+}
+
+const ReactDevOverlay: React.FunctionComponent<ReactDevOverlayProps> =
+  function ReactDevOverlay({ children, preventDisplay, globalOverlay }) {
+    const [state, dispatch] = React.useReducer<
+      React.Reducer<OverlayState, Bus.BusEvent>
+    >(reducer, {
+      nextId: 1,
+      buildError: null,
+      errors: [],
+    })
+
+    React.useEffect(() => {
+      Bus.on(dispatch)
+      return function () {
+        Bus.off(dispatch)
+      }
+    }, [dispatch])
+
+    const onComponentError = React.useCallback(
+      (_error: Error, _componentStack: string | null) => {
+        // TODO: special handling
+      },
+      []
+    )
+
+    const hasBuildError = state.buildError != null
+    const hasRuntimeErrors = Boolean(state.errors.length)
+    const errorType = hasBuildError
+      ? 'build'
+      : hasRuntimeErrors
+      ? 'runtime'
+      : null
+    const isMounted = errorType !== null
+
+    return (
+      <React.Fragment>
+        <ErrorBoundary
+          globalOverlay={globalOverlay}
+          isMounted={isMounted}
+          onError={onComponentError}
+        >
+          {children ?? null}
+        </ErrorBoundary>
+        {isMounted ? (
+          <ShadowPortal globalOverlay={globalOverlay}>
+            <CssReset />
+            <Base />
+            <ComponentStyles />
+
+            {shouldPreventDisplay(
+              errorType,
+              preventDisplay
+            ) ? null : hasBuildError ? (
+              <BuildError message={state.buildError!} />
+            ) : hasRuntimeErrors ? (
+              <Errors errors={state.errors} />
+            ) : undefined}
+          </ShadowPortal>
+        ) : undefined}
+      </React.Fragment>
+    )
+  }
 
 export default ReactDevOverlay

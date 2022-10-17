@@ -1,3 +1,5 @@
+'use client'
+
 import React, {
   useRef,
   useEffect,
@@ -7,31 +9,20 @@ import React, {
   useState,
 } from 'react'
 import Head from '../shared/lib/head'
+import { getImageBlurSvg } from '../shared/lib/image-blur-svg'
 import {
   ImageConfigComplete,
   imageConfigDefault,
-  LoaderValue,
-  VALID_LOADERS,
 } from '../shared/lib/image-config'
-import { useIntersection } from './use-intersection'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { warnOnce } from '../shared/lib/utils'
-import { normalizePathTrailingSlash } from './normalize-trailing-slash'
 
-const {
-  experimentalLayoutRaw = false,
-  experimentalRemotePatterns = [],
-  experimentalUnoptimized,
-} = (process.env.__NEXT_IMAGE_OPTS as any) || {}
 const configEnv = process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
-const loadedImageURLs = new Set<string>()
 const allImgs = new Map<
   string,
   { src: string; priority: boolean; placeholder: string }
 >()
 let perfObserver: PerformanceObserver | undefined
-const emptyDataURL =
-  'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
 
 if (typeof window === 'undefined') {
   ;(global as any).__NEXT_IMAGE_IMPORTED = true
@@ -40,7 +31,7 @@ if (typeof window === 'undefined') {
 const VALID_LOADING_VALUES = ['lazy', 'eager', undefined] as const
 type LoadingValue = typeof VALID_LOADING_VALUES[number]
 type ImageConfig = ImageConfigComplete & { allSizes: number[] }
-export type ImageLoader = (resolverProps: ImageLoaderProps) => string
+export type ImageLoader = (p: ImageLoaderProps) => string
 
 export type ImageLoaderProps = {
   src: string
@@ -51,40 +42,14 @@ export type ImageLoaderProps = {
 // Do not export - this is an internal type only
 // because `next.config.js` is only meant for the
 // built-in loaders, not for a custom loader() prop.
-type ImageLoaderWithConfig = (
-  resolverProps: ImageLoaderPropsWithConfig
-) => string
+type ImageLoaderWithConfig = (p: ImageLoaderPropsWithConfig) => string
 type ImageLoaderPropsWithConfig = ImageLoaderProps & {
   config: Readonly<ImageConfig>
 }
 
-const loaders = new Map<
-  LoaderValue,
-  (props: ImageLoaderPropsWithConfig) => string
->([
-  ['default', defaultLoader],
-  ['imgix', imgixLoader],
-  ['cloudinary', cloudinaryLoader],
-  ['akamai', akamaiLoader],
-  ['custom', customLoader],
-])
-
-const VALID_LAYOUT_VALUES = [
-  'fill',
-  'fixed',
-  'intrinsic',
-  'responsive',
-  'raw',
-  undefined,
-] as const
-type LayoutValue = typeof VALID_LAYOUT_VALUES[number]
-
 type PlaceholderValue = 'blur' | 'empty'
-
-type OnLoadingComplete = (result: {
-  naturalWidth: number
-  naturalHeight: number
-}) => void
+type OnLoad = React.ReactEventHandler<HTMLImageElement> | undefined
+type OnLoadingComplete = (img: HTMLImageElement) => void
 
 type ImgElementStyle = NonNullable<JSX.IntrinsicElements['img']['style']>
 
@@ -97,6 +62,8 @@ export interface StaticImageData {
   height: number
   width: number
   blurDataURL?: string
+  blurWidth?: number
+  blurHeight?: number
 }
 
 interface StaticRequire {
@@ -104,6 +71,8 @@ interface StaticRequire {
 }
 
 type StaticImport = StaticRequire | StaticImageData
+
+type SafeNumber = number | `${number}`
 
 function isStaticRequire(
   src: StaticRequire | StaticImageData
@@ -127,58 +96,50 @@ function isStaticImport(src: string | StaticImport): src is StaticImport {
 
 export type ImageProps = Omit<
   JSX.IntrinsicElements['img'],
-  'src' | 'srcSet' | 'ref' | 'width' | 'height' | 'loading'
+  'src' | 'srcSet' | 'ref' | 'alt' | 'width' | 'height' | 'loading'
 > & {
   src: string | StaticImport
-  width?: number | string
-  height?: number | string
-  layout?: LayoutValue
+  alt: string
+  width?: SafeNumber
+  height?: SafeNumber
+  fill?: boolean
   loader?: ImageLoader
-  quality?: number | string
+  quality?: SafeNumber
   priority?: boolean
   loading?: LoadingValue
-  lazyRoot?: React.RefObject<HTMLElement> | null
-  lazyBoundary?: string
   placeholder?: PlaceholderValue
   blurDataURL?: string
   unoptimized?: boolean
-  objectFit?: ImgElementStyle['objectFit']
-  objectPosition?: ImgElementStyle['objectPosition']
   onLoadingComplete?: OnLoadingComplete
 }
 
-type ImageElementProps = Omit<ImageProps, 'src' | 'loader'> & {
+type ImageElementProps = Omit<ImageProps, 'src' | 'alt' | 'loader'> & {
   srcString: string
   imgAttributes: GenImgAttrsResult
   heightInt: number | undefined
   widthInt: number | undefined
   qualityInt: number | undefined
-  layout: LayoutValue
   imgStyle: ImgElementStyle
   blurStyle: ImgElementStyle
   isLazy: boolean
+  fill?: boolean
   loading: LoadingValue
   config: ImageConfig
   unoptimized: boolean
   loader: ImageLoaderWithConfig
   placeholder: PlaceholderValue
+  onLoadRef: React.MutableRefObject<OnLoad | undefined>
   onLoadingCompleteRef: React.MutableRefObject<OnLoadingComplete | undefined>
   setBlurComplete: (b: boolean) => void
-  setIntersection: (img: HTMLImageElement | null) => void
-  isVisible: boolean
-  noscriptSizes: string | undefined
+  setShowAltText: (b: boolean) => void
 }
 
 function getWidths(
   { deviceSizes, allSizes }: ImageConfig,
   width: number | undefined,
-  layout: LayoutValue,
   sizes: string | undefined
 ): { widths: number[]; kind: 'w' | 'x' } {
-  if (
-    sizes &&
-    (layout === 'fill' || layout === 'responsive' || layout === 'raw')
-  ) {
+  if (sizes) {
     // Find all the "vw" percent sizes used in the sizes prop
     const viewportWidthRe = /(^|\s)(1?\d?\d)vw/g
     const percentSizes = []
@@ -194,11 +155,7 @@ function getWidths(
     }
     return { widths: allSizes, kind: 'w' }
   }
-  if (
-    typeof width !== 'number' ||
-    layout === 'fill' ||
-    layout === 'responsive'
-  ) {
+  if (typeof width !== 'number') {
     return { widths: deviceSizes, kind: 'w' }
   }
 
@@ -224,7 +181,6 @@ type GenImgAttrsData = {
   config: ImageConfig
   src: string
   unoptimized: boolean
-  layout: LayoutValue
   loader: ImageLoaderWithConfig
   width?: number
   quality?: number
@@ -241,7 +197,6 @@ function generateImgAttrs({
   config,
   src,
   unoptimized,
-  layout,
   width,
   quality,
   sizes,
@@ -251,7 +206,7 @@ function generateImgAttrs({
     return { src, srcSet: undefined, sizes: undefined }
   }
 
-  const { widths, kind } = getWidths(config, width, layout, sizes)
+  const { widths, kind } = getWidths(config, width, sizes)
   const last = widths.length - 1
 
   return {
@@ -276,26 +231,13 @@ function generateImgAttrs({
 }
 
 function getInt(x: unknown): number | undefined {
-  if (typeof x === 'number') {
+  if (typeof x === 'number' || typeof x === 'undefined') {
     return x
   }
-  if (typeof x === 'string') {
+  if (typeof x === 'string' && /^[0-9]+$/.test(x)) {
     return parseInt(x, 10)
   }
-  return undefined
-}
-
-function defaultImageLoader(loaderProps: ImageLoaderPropsWithConfig) {
-  const loaderKey = loaderProps.config?.loader || 'default'
-  const load = loaders.get(loaderKey)
-  if (load) {
-    return load(loaderProps)
-  }
-  throw new Error(
-    `Unknown "loader" found in "next.config.js". Expected: ${VALID_LOADERS.join(
-      ', '
-    )}. Received: ${loaderKey}`
-  )
+  return NaN
 }
 
 // See https://stackoverflow.com/q/39777833/266535 for why we use this ref
@@ -303,12 +245,12 @@ function defaultImageLoader(loaderProps: ImageLoaderPropsWithConfig) {
 function handleLoading(
   img: ImgElementWithDataProp,
   src: string,
-  layout: LayoutValue,
   placeholder: PlaceholderValue,
+  onLoadRef: React.MutableRefObject<OnLoad | undefined>,
   onLoadingCompleteRef: React.MutableRefObject<OnLoadingComplete | undefined>,
   setBlurComplete: (b: boolean) => void
 ) {
-  if (!img || img.src === emptyDataURL || img['data-loaded-src'] === src) {
+  if (!img || img['data-loaded-src'] === src) {
     return
   }
   img['data-loaded-src'] = src
@@ -322,51 +264,270 @@ function handleLoading(
       // - decode() completes
       return
     }
-    loadedImageURLs.add(src)
     if (placeholder === 'blur') {
       setBlurComplete(true)
     }
+    if (onLoadRef?.current) {
+      const event = new Event('load')
+      Object.defineProperty(event, 'target', { writable: false, value: img })
+      let prevented = false
+      let stopped = false
+      const sytheticEvent = {
+        ...event,
+        nativeEvent: event,
+        currentTarget: img,
+        target: img,
+        isDefaultPrevented: () => prevented,
+        isPropagationStopped: () => stopped,
+        persist: () => {},
+        preventDefault: () => {
+          prevented = true
+          event.preventDefault()
+        },
+        stopPropagation: () => {
+          stopped = true
+          event.stopPropagation()
+        },
+      }
+      onLoadRef.current(sytheticEvent)
+    }
     if (onLoadingCompleteRef?.current) {
-      const { naturalWidth, naturalHeight } = img
-      // Pass back read-only primitive values but not the
-      // underlying DOM element because it could be misused.
-      onLoadingCompleteRef.current({ naturalWidth, naturalHeight })
+      onLoadingCompleteRef.current(img)
     }
     if (process.env.NODE_ENV !== 'production') {
-      if (layout === 'raw') {
-        const heightModified =
-          img.height.toString() !== img.getAttribute('height')
-        const widthModified = img.width.toString() !== img.getAttribute('width')
+      if (img.getAttribute('data-nimg') === 'future-fill') {
         if (
-          (heightModified && !widthModified) ||
-          (!heightModified && widthModified)
+          !img.getAttribute('sizes') ||
+          img.getAttribute('sizes') === '100vw'
         ) {
+          let widthViewportRatio =
+            img.getBoundingClientRect().width / window.innerWidth
+          if (widthViewportRatio < 0.6) {
+            warnOnce(
+              `Image with src "${src}" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/future/image#sizes`
+            )
+          }
+        }
+        if (img.parentElement) {
+          const { position } = window.getComputedStyle(img.parentElement)
+          const valid = ['absolute', 'fixed', 'relative']
+          if (!valid.includes(position)) {
+            warnOnce(
+              `Image with src "${src}" has "fill" and parent element with invalid "position". Provided "${position}" should be one of ${valid
+                .map(String)
+                .join(',')}.`
+            )
+          }
+        }
+        if (img.height === 0) {
           warnOnce(
-            `Image with src "${src}" has either width or height modified, but not the other. If you use CSS to change the size of your image, also include the styles 'width: "auto"' or 'height: "auto"' to maintain the aspect ratio.`
+            `Image with src "${src}" has "fill" and a height value of 0. This is likely because the parent element of the image has not been styled to have a set height.`
           )
         }
       }
-      if (img.parentElement?.parentElement) {
-        const parent = getComputedStyle(img.parentElement.parentElement)
-        if (!parent.position) {
-          // The parent has not been rendered to the dom yet and therefore it has no position. Skip the warnings for such cases.
-        } else if (layout === 'responsive' && parent.display === 'flex') {
-          warnOnce(
-            `Image with src "${src}" may not render properly as a child of a flex container. Consider wrapping the image with a div to configure the width.`
-          )
-        } else if (
-          layout === 'fill' &&
-          parent.position !== 'relative' &&
-          parent.position !== 'fixed' &&
-          parent.position !== 'absolute'
-        ) {
-          warnOnce(
-            `Image with src "${src}" may not render properly with a parent using position:"${parent.position}". Consider changing the parent style to position:"relative" with a width and height.`
-          )
-        }
+
+      const heightModified =
+        img.height.toString() !== img.getAttribute('height')
+      const widthModified = img.width.toString() !== img.getAttribute('width')
+      if (
+        (heightModified && !widthModified) ||
+        (!heightModified && widthModified)
+      ) {
+        warnOnce(
+          `Image with src "${src}" has either width or height modified, but not the other. If you use CSS to change the size of your image, also include the styles 'width: "auto"' or 'height: "auto"' to maintain the aspect ratio.`
+        )
       }
     }
   })
+}
+
+const ImageElement = ({
+  imgAttributes,
+  heightInt,
+  widthInt,
+  qualityInt,
+  className,
+  imgStyle,
+  blurStyle,
+  isLazy,
+  fill,
+  placeholder,
+  loading,
+  srcString,
+  config,
+  unoptimized,
+  loader,
+  onLoadRef,
+  onLoadingCompleteRef,
+  setBlurComplete,
+  setShowAltText,
+  onLoad,
+  onError,
+  ...rest
+}: ImageElementProps) => {
+  loading = isLazy ? 'lazy' : loading
+  return (
+    <>
+      <img
+        {...rest}
+        {...imgAttributes}
+        width={widthInt}
+        height={heightInt}
+        decoding="async"
+        data-nimg={`future${fill ? '-fill' : ''}`}
+        className={className}
+        // @ts-ignore - TODO: upgrade to `@types/react@17`
+        loading={loading}
+        style={{ ...imgStyle, ...blurStyle }}
+        ref={useCallback(
+          (img: ImgElementWithDataProp | null) => {
+            if (!img) {
+              return
+            }
+            if (onError) {
+              // If the image has an error before react hydrates, then the error is lost.
+              // The workaround is to wait until the image is mounted which is after hydration,
+              // then we set the src again to trigger the error handler (if there was an error).
+              // eslint-disable-next-line no-self-assign
+              img.src = img.src
+            }
+            if (process.env.NODE_ENV !== 'production') {
+              if (!srcString) {
+                console.error(`Image is missing required "src" property:`, img)
+              }
+              if (
+                img.getAttribute('objectFit') ||
+                img.getAttribute('objectfit')
+              ) {
+                console.error(
+                  `Image has unknown prop "objectFit". Did you mean to use the "style" prop instead?`,
+                  img
+                )
+              }
+              if (
+                img.getAttribute('objectPosition') ||
+                img.getAttribute('objectposition')
+              ) {
+                console.error(
+                  `Image has unknown prop "objectPosition". Did you mean to use the "style" prop instead?`,
+                  img
+                )
+              }
+              if (img.getAttribute('alt') === null) {
+                console.error(
+                  `Image is missing required "alt" property. Please add Alternative Text to describe the image for screen readers and search engines.`
+                )
+              }
+            }
+            if (img.complete) {
+              handleLoading(
+                img,
+                srcString,
+                placeholder,
+                onLoadRef,
+                onLoadingCompleteRef,
+                setBlurComplete
+              )
+            }
+          },
+          [
+            srcString,
+            placeholder,
+            onLoadRef,
+            onLoadingCompleteRef,
+            setBlurComplete,
+            onError,
+          ]
+        )}
+        onLoad={(event) => {
+          const img = event.currentTarget as ImgElementWithDataProp
+          handleLoading(
+            img,
+            srcString,
+            placeholder,
+            onLoadRef,
+            onLoadingCompleteRef,
+            setBlurComplete
+          )
+        }}
+        onError={(event) => {
+          // if the real image fails to load, this will ensure "alt" is visible
+          setShowAltText(true)
+          if (placeholder === 'blur') {
+            // If the real image fails to load, this will still remove the placeholder.
+            setBlurComplete(true)
+          }
+          if (onError) {
+            onError(event)
+          }
+        }}
+      />
+    </>
+  )
+}
+
+function defaultLoader({
+  config,
+  src,
+  width,
+  quality,
+}: ImageLoaderPropsWithConfig): string {
+  if (process.env.NODE_ENV !== 'production') {
+    const missingValues = []
+
+    // these should always be provided but make sure they are
+    if (!src) missingValues.push('src')
+    if (!width) missingValues.push('width')
+
+    if (missingValues.length > 0) {
+      throw new Error(
+        `Next Image Optimization requires ${missingValues.join(
+          ', '
+        )} to be provided. Make sure you pass them as props to the \`next/image\` component. Received: ${JSON.stringify(
+          { src, width, quality }
+        )}`
+      )
+    }
+
+    if (src.startsWith('//')) {
+      throw new Error(
+        `Failed to parse src "${src}" on \`next/image\`, protocol-relative URL (//) must be changed to an absolute URL (http:// or https://)`
+      )
+    }
+
+    if (!src.startsWith('/') && (config.domains || config.remotePatterns)) {
+      let parsedSrc: URL
+      try {
+        parsedSrc = new URL(src)
+      } catch (err) {
+        console.error(err)
+        throw new Error(
+          `Failed to parse src "${src}" on \`next/image\`, if using relative image it must start with a leading slash "/" or be an absolute URL (http:// or https://)`
+        )
+      }
+
+      if (process.env.NODE_ENV !== 'test') {
+        // We use dynamic require because this should only error in development
+        const { hasMatch } = require('../shared/lib/match-remote-pattern')
+        if (!hasMatch(config.domains, config.remotePatterns, parsedSrc)) {
+          throw new Error(
+            `Invalid src prop (${src}) on \`next/image\`, hostname "${parsedSrc.hostname}" is not configured under images in your \`next.config.js\`\n` +
+              `See more info: https://nextjs.org/docs/messages/next-image-unconfigured-host`
+          )
+        }
+      }
+    }
+  }
+
+  if (src.endsWith('.svg') && !config.dangerouslyAllowSVG) {
+    // Special case to make svg serve as-is to avoid proxying
+    // through the built-in Image Optimization API.
+    return src
+  }
+
+  return `${config.path}?url=${encodeURIComponent(src)}&w=${width}&q=${
+    quality || 75
+  }`
 }
 
 export default function Image({
@@ -375,15 +536,13 @@ export default function Image({
   unoptimized = false,
   priority = false,
   loading,
-  lazyRoot = null,
-  lazyBoundary,
   className,
   quality,
   width,
   height,
+  fill,
   style,
-  objectFit,
-  objectPosition,
+  onLoad,
   onLoadingComplete,
   placeholder = 'empty',
   blurDataURL,
@@ -398,16 +557,8 @@ export default function Image({
   }, [configContext])
 
   let rest: Partial<ImageProps> = all
-  let layout: NonNullable<LayoutValue> = sizes ? 'responsive' : 'intrinsic'
-  if ('layout' in rest) {
-    // Override default layout if the user specified one:
-    if (rest.layout) layout = rest.layout
 
-    // Remove property so it's not spread on <img>:
-    delete rest.layout
-  }
-
-  let loader: ImageLoaderWithConfig = defaultImageLoader
+  let loader: ImageLoaderWithConfig = defaultLoader
   if ('loader' in rest) {
     if (rest.loader) {
       const customImageLoader = rest.loader
@@ -423,6 +574,10 @@ export default function Image({
   }
 
   let staticSrc = ''
+  let widthInt = getInt(width)
+  let heightInt = getInt(height)
+  let blurWidth: number | undefined
+  let blurHeight: number | undefined
   if (isStaticImport(src)) {
     const staticImageData = isStaticRequire(src) ? src.default : src
 
@@ -433,25 +588,33 @@ export default function Image({
         )}`
       )
     }
+    if (!staticImageData.height || !staticImageData.width) {
+      throw new Error(
+        `An object should only be passed to the image component src parameter if it comes from a static image import. It must include height and width. Received ${JSON.stringify(
+          staticImageData
+        )}`
+      )
+    }
+
+    blurWidth = staticImageData.blurWidth
+    blurHeight = staticImageData.blurHeight
     blurDataURL = blurDataURL || staticImageData.blurDataURL
     staticSrc = staticImageData.src
-    if (!layout || layout !== 'fill') {
-      height = height || staticImageData.height
-      width = width || staticImageData.width
-      if (!staticImageData.height || !staticImageData.width) {
-        throw new Error(
-          `An object should only be passed to the image component src parameter if it comes from a static image import. It must include height and width. Received ${JSON.stringify(
-            staticImageData
-          )}`
-        )
+
+    if (!fill) {
+      if (!widthInt && !heightInt) {
+        widthInt = staticImageData.width
+        heightInt = staticImageData.height
+      } else if (widthInt && !heightInt) {
+        const ratio = widthInt / staticImageData.width
+        heightInt = Math.round(staticImageData.height * ratio)
+      } else if (!widthInt && heightInt) {
+        const ratio = heightInt / staticImageData.height
+        widthInt = Math.round(staticImageData.width * ratio)
       }
     }
   }
   src = typeof src === 'string' ? src : staticSrc
-
-  const widthInt = getInt(width)
-  const heightInt = getInt(height)
-  const qualityInt = getInt(quality)
 
   let isLazy =
     !priority && (loading === 'lazy' || typeof loading === 'undefined')
@@ -460,110 +623,68 @@ export default function Image({
     unoptimized = true
     isLazy = false
   }
-  if (
-    typeof window !== 'undefined' &&
-    loadedImageURLs.has(src) &&
-    layout !== 'raw'
-  ) {
-    isLazy = false
-  }
-  if (experimentalUnoptimized) {
+  if (config.unoptimized) {
     unoptimized = true
   }
 
   const [blurComplete, setBlurComplete] = useState(false)
-  const [setIntersection, isIntersected, resetIntersected] =
-    useIntersection<HTMLImageElement>({
-      rootRef: lazyRoot,
-      rootMargin: lazyBoundary || '200px',
-      disabled: !isLazy,
-    })
-  const isVisible = !isLazy || isIntersected || layout === 'raw'
+  const [showAltText, setShowAltText] = useState(false)
 
-  const wrapperStyle: JSX.IntrinsicElements['span']['style'] = {
-    boxSizing: 'border-box',
-    display: 'block',
-    overflow: 'hidden',
-    width: 'initial',
-    height: 'initial',
-    background: 'none',
-    opacity: 1,
-    border: 0,
-    margin: 0,
-    padding: 0,
-  }
-  const sizerStyle: JSX.IntrinsicElements['span']['style'] = {
-    boxSizing: 'border-box',
-    display: 'block',
-    width: 'initial',
-    height: 'initial',
-    background: 'none',
-    opacity: 1,
-    border: 0,
-    margin: 0,
-    padding: 0,
-  }
-  let hasSizer = false
-  let sizerSvgUrl: string | undefined
-  const layoutStyle: ImgElementStyle = {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    bottom: 0,
-    right: 0,
-
-    boxSizing: 'border-box',
-    padding: 0,
-    border: 'none',
-    margin: 'auto',
-
-    display: 'block',
-    width: 0,
-    height: 0,
-    minWidth: '100%',
-    maxWidth: '100%',
-    minHeight: '100%',
-    maxHeight: '100%',
-
-    objectFit,
-    objectPosition,
-  }
-
-  if (process.env.NODE_ENV !== 'production' && layout !== 'raw' && style) {
-  }
+  const qualityInt = getInt(quality)
 
   if (process.env.NODE_ENV !== 'production') {
     if (!src) {
-      throw new Error(
-        `Image is missing required "src" property. Make sure you pass "src" in props to the \`next/image\` component. Received: ${JSON.stringify(
-          { width, height, quality }
-        )}`
-      )
-    }
-    if (!VALID_LAYOUT_VALUES.includes(layout)) {
-      throw new Error(
-        `Image with src "${src}" has invalid "layout" property. Provided "${layout}" should be one of ${VALID_LAYOUT_VALUES.map(
-          String
-        ).join(',')}.`
-      )
-    }
-    if (layout === 'raw' && !experimentalLayoutRaw) {
-      throw new Error(
-        `The "raw" layout is currently experimental and may be subject to breaking changes. To use layout="raw", include \`experimental: { images: { layoutRaw: true } }\` in your next.config.js file.`
-      )
-    }
-    if (
-      (typeof widthInt !== 'undefined' && isNaN(widthInt)) ||
-      (typeof heightInt !== 'undefined' && isNaN(heightInt))
-    ) {
-      throw new Error(
-        `Image with src "${src}" has invalid "width" or "height" property. These should be numeric values.`
-      )
-    }
-    if (layout === 'fill' && (width || height)) {
-      warnOnce(
-        `Image with src "${src}" and "layout='fill'" has unused properties assigned. Please remove "width" and "height".`
-      )
+      // React doesn't show the stack trace and there's
+      // no `src` to help identify which image, so we
+      // instead console.error(ref) during mount.
+      unoptimized = true
+    } else {
+      if (fill) {
+        if (width) {
+          throw new Error(
+            `Image with src "${src}" has both "width" and "fill" properties. Only one should be used.`
+          )
+        }
+        if (height) {
+          throw new Error(
+            `Image with src "${src}" has both "height" and "fill" properties. Only one should be used.`
+          )
+        }
+        if (style?.position && style.position !== 'absolute') {
+          throw new Error(
+            `Image with src "${src}" has both "fill" and "style.position" properties. Images with "fill" always use position absolute - it cannot be modified.`
+          )
+        }
+        if (style?.width && style.width !== '100%') {
+          throw new Error(
+            `Image with src "${src}" has both "fill" and "style.width" properties. Images with "fill" always use width 100% - it cannot be modified.`
+          )
+        }
+        if (style?.height && style.height !== '100%') {
+          throw new Error(
+            `Image with src "${src}" has both "fill" and "style.height" properties. Images with "fill" always use height 100% - it cannot be modified.`
+          )
+        }
+      } else {
+        if (typeof widthInt === 'undefined') {
+          throw new Error(
+            `Image with src "${src}" is missing required "width" property.`
+          )
+        } else if (isNaN(widthInt)) {
+          throw new Error(
+            `Image with src "${src}" has invalid "width" property. Expected a numeric value in pixels but received "${width}".`
+          )
+        }
+        if (typeof heightInt === 'undefined') {
+          throw new Error(
+            `Image with src "${src}" is missing required "height" property.`
+          )
+        } else if (isNaN(heightInt)) {
+          throw new Error(
+            `Image with src "${src}" has invalid "height" property. Expected a numeric value in pixels but received "${height}".`
+          )
+        }
+      }
     }
     if (!VALID_LOADING_VALUES.includes(loading)) {
       throw new Error(
@@ -577,44 +698,14 @@ export default function Image({
         `Image with src "${src}" has both "priority" and "loading='lazy'" properties. Only one should be used.`
       )
     }
-    if (layout === 'raw') {
-      if (objectFit) {
-        throw new Error(
-          `Image with src "${src}" has "layout='raw'" and "objectFit='${objectFit}'". For raw images, these and other styles should be specified using the "style" attribute.`
-        )
-      }
-      if (objectPosition) {
-        throw new Error(
-          `Image with src "${src}" has "layout='raw'" and "objectPosition='${objectPosition}'". For raw images, these and other styles should be specified using the "style" attribute.`
-        )
-      }
-      if (lazyRoot) {
-        throw new Error(
-          `Image with src "${src}" has "layout='raw'" and "lazyRoot='${lazyRoot}'". For raw images, native lazy loading is used so "lazyRoot" cannot be used.`
-        )
-      }
-      if (lazyBoundary) {
-        throw new Error(
-          `Image with src "${src}" has "layout='raw'" and "lazyBoundary='${lazyBoundary}'". For raw images, native lazy loading is used so "lazyBoundary" cannot be used.`
-        )
-      }
-    }
-    if (
-      sizes &&
-      layout !== 'fill' &&
-      layout !== 'responsive' &&
-      layout !== 'raw'
-    ) {
-      warnOnce(
-        `Image with src "${src}" has "sizes" property but it will be ignored. Only use "sizes" with "layout='fill'", "layout='responsive'", or "layout='raw'`
-      )
-    }
+
     if (placeholder === 'blur') {
-      if (layout !== 'fill' && (widthInt || 0) * (heightInt || 0) < 1600) {
+      if (widthInt && heightInt && widthInt * heightInt < 1600) {
         warnOnce(
           `Image with src "${src}" is smaller than 40x40. Consider removing the "placeholder='blur'" property to improve performance.`
         )
       }
+
       if (!blurDataURL) {
         const VALID_BLUR_EXT = ['jpeg', 'png', 'webp', 'avif'] // should match next-image-loader
 
@@ -636,7 +727,7 @@ export default function Image({
       )
     }
 
-    if (!unoptimized && loader !== defaultImageLoader) {
+    if (!unoptimized && loader !== defaultLoader) {
       const urlStr = loader({
         config,
         src,
@@ -651,19 +742,6 @@ export default function Image({
         warnOnce(
           `Image with src "${src}" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.` +
             `\nRead more: https://nextjs.org/docs/messages/next-image-missing-loader-width`
-        )
-      }
-    }
-
-    if (style && layout !== 'raw') {
-      let overwrittenStyles = Object.keys(style).filter(
-        (key) => key in layoutStyle
-      )
-      if (overwrittenStyles.length) {
-        warnOnce(
-          `Image with src ${src} is assigned the following styles, which are overwritten by automatically-generated styles: ${overwrittenStyles.join(
-            ', '
-          )}`
         )
       }
     }
@@ -704,86 +782,58 @@ export default function Image({
       }
     }
   }
-  const imgStyle = Object.assign({}, style, layout === 'raw' ? {} : layoutStyle)
-  const svgBlurPlaceholder = `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' xmlns%3Axlink='http%3A//www.w3.org/1999/xlink' viewBox='0 0 ${widthInt} ${heightInt}'%3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='50'%3E%3C/feGaussianBlur%3E%3CfeComponentTransfer%3E%3CfeFuncA type='discrete' tableValues='1 1'%3E%3C/feFuncA%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Cimage filter='url(%23b)' x='0' y='0' height='100%25' width='100%25' href='${blurDataURL}'%3E%3C/image%3E%3C/svg%3E");`
-  const blurStyle =
-    placeholder === 'blur' && !blurComplete
+  const imgStyle = Object.assign(
+    fill
       ? {
-          backgroundSize: objectFit || 'cover',
-          backgroundPosition: objectPosition || '0% 0%',
-          ...(layout === 'raw' && blurDataURL?.startsWith('data:image')
-            ? {
-                backgroundImage: svgBlurPlaceholder,
-              }
-            : {
-                filter: 'blur(20px)',
-                backgroundImage: `url("${blurDataURL}")`,
-              }),
+          position: 'absolute',
+          height: '100%',
+          width: '100%',
+          left: 0,
+          top: 0,
+          right: 0,
+          bottom: 0,
+        }
+      : {},
+    showAltText ? {} : { color: 'transparent' },
+    style
+  )
+
+  const blurStyle =
+    placeholder === 'blur' && blurDataURL && !blurComplete
+      ? {
+          backgroundSize: imgStyle.objectFit || 'cover',
+          backgroundPosition: imgStyle.objectPosition || '50% 50%',
+          backgroundRepeat: 'no-repeat',
+          backgroundImage: `url("data:image/svg+xml;charset=utf-8,${getImageBlurSvg(
+            {
+              widthInt,
+              heightInt,
+              blurWidth,
+              blurHeight,
+              blurDataURL,
+            }
+          )}")`,
         }
       : {}
-  if (layout === 'fill') {
-    // <Image src="i.png" layout="fill" />
-    wrapperStyle.display = 'block'
-    wrapperStyle.position = 'absolute'
-    wrapperStyle.top = 0
-    wrapperStyle.left = 0
-    wrapperStyle.bottom = 0
-    wrapperStyle.right = 0
-  } else if (
-    typeof widthInt !== 'undefined' &&
-    typeof heightInt !== 'undefined'
-  ) {
-    // <Image src="i.png" width="100" height="100" />
-    const quotient = heightInt / widthInt
-    const paddingTop = isNaN(quotient) ? '100%' : `${quotient * 100}%`
-    if (layout === 'responsive') {
-      // <Image src="i.png" width="100" height="100" layout="responsive" />
-      wrapperStyle.display = 'block'
-      wrapperStyle.position = 'relative'
-      hasSizer = true
-      sizerStyle.paddingTop = paddingTop
-    } else if (layout === 'intrinsic') {
-      // <Image src="i.png" width="100" height="100" layout="intrinsic" />
-      wrapperStyle.display = 'inline-block'
-      wrapperStyle.position = 'relative'
-      wrapperStyle.maxWidth = '100%'
-      hasSizer = true
-      sizerStyle.maxWidth = '100%'
-      sizerSvgUrl = `data:image/svg+xml,%3csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20version=%271.1%27%20width=%27${widthInt}%27%20height=%27${heightInt}%27/%3e`
-    } else if (layout === 'fixed') {
-      // <Image src="i.png" width="100" height="100" layout="fixed" />
-      wrapperStyle.display = 'inline-block'
-      wrapperStyle.position = 'relative'
-      wrapperStyle.width = widthInt
-      wrapperStyle.height = heightInt
-    }
-  } else {
-    // <Image src="i.png" />
-    if (process.env.NODE_ENV !== 'production') {
-      throw new Error(
-        `Image with src "${src}" must use "width" and "height" properties or "layout='fill'" property.`
-      )
+
+  if (process.env.NODE_ENV === 'development') {
+    if (blurStyle.backgroundImage && blurDataURL?.startsWith('/')) {
+      // During `next dev`, we don't want to generate blur placeholders with webpack
+      // because it can delay starting the dev server. Instead, `next-image-loader.js`
+      // will inline a special url to lazily generate the blur placeholder at request time.
+      blurStyle.backgroundImage = `url("${blurDataURL}")`
     }
   }
 
-  let imgAttributes: GenImgAttrsResult = {
-    src: emptyDataURL,
-    srcSet: undefined,
-    sizes: undefined,
-  }
-
-  if (isVisible) {
-    imgAttributes = generateImgAttrs({
-      config,
-      src,
-      unoptimized,
-      layout,
-      width: widthInt,
-      quality: qualityInt,
-      sizes,
-      loader,
-    })
-  }
+  const imgAttributes = generateImgAttrs({
+    config,
+    src,
+    unoptimized,
+    width: widthInt,
+    quality: qualityInt,
+    sizes,
+    loader,
+  })
 
   let srcString: string = src
 
@@ -805,82 +855,53 @@ export default function Image({
     imageSrcSetPropName = 'imageSrcSet'
     imageSizesPropName = 'imageSizes'
   }
-  const linkProps = {
+  const linkProps: React.DetailedHTMLProps<
+    React.LinkHTMLAttributes<HTMLLinkElement>,
+    HTMLLinkElement
+  > = {
     // Note: imagesrcset and imagesizes are not in the link element type with react 17.
     [imageSrcSetPropName]: imgAttributes.srcSet,
     [imageSizesPropName]: imgAttributes.sizes,
+    crossOrigin: rest.crossOrigin,
   }
 
-  const useLayoutEffect =
-    typeof window === 'undefined' ? React.useEffect : React.useLayoutEffect
+  const onLoadRef = useRef(onLoad)
+
+  useEffect(() => {
+    onLoadRef.current = onLoad
+  }, [onLoad])
+
   const onLoadingCompleteRef = useRef(onLoadingComplete)
 
-  const previousImageSrc = useRef<string | StaticImport>(src)
   useEffect(() => {
     onLoadingCompleteRef.current = onLoadingComplete
   }, [onLoadingComplete])
 
-  useLayoutEffect(() => {
-    if (previousImageSrc.current !== src) {
-      resetIntersected()
-      previousImageSrc.current = src
-    }
-  }, [resetIntersected, src])
-
-  const imgElementArgs = {
+  const imgElementArgs: ImageElementProps = {
     isLazy,
     imgAttributes,
     heightInt,
     widthInt,
     qualityInt,
-    layout,
     className,
     imgStyle,
     blurStyle,
     loading,
     config,
+    fill,
     unoptimized,
     placeholder,
     loader,
     srcString,
+    onLoadRef,
     onLoadingCompleteRef,
     setBlurComplete,
-    setIntersection,
-    isVisible,
-    noscriptSizes: sizes,
+    setShowAltText,
     ...rest,
   }
   return (
     <>
-      {layout === 'raw' ? (
-        <ImageElement {...imgElementArgs} />
-      ) : (
-        <span style={wrapperStyle}>
-          {hasSizer ? (
-            <span style={sizerStyle}>
-              {sizerSvgUrl ? (
-                <img
-                  style={{
-                    display: 'block',
-                    maxWidth: '100%',
-                    width: 'initial',
-                    height: 'initial',
-                    background: 'none',
-                    opacity: 1,
-                    border: 0,
-                    margin: 0,
-                    padding: 0,
-                  }}
-                  alt=""
-                  aria-hidden={true}
-                  src={sizerSvgUrl}
-                />
-              ) : null}
-            </span>
-          ) : null}
-          <ImageElement {...imgElementArgs} />
-        </span>
-      )}
+      {<ImageElement {...imgElementArgs} />}
       {priority ? (
         // Note how we omit the `href` attribute, as it would only be relevant
         // for browsers that do not support `imagesrcset`, and in those cases
@@ -904,238 +925,4 @@ export default function Image({
       ) : null}
     </>
   )
-}
-
-const ImageElement = ({
-  imgAttributes,
-  heightInt,
-  widthInt,
-  qualityInt,
-  layout,
-  className,
-  imgStyle,
-  blurStyle,
-  isLazy,
-  placeholder,
-  loading,
-  srcString,
-  config,
-  unoptimized,
-  loader,
-  onLoadingCompleteRef,
-  setBlurComplete,
-  setIntersection,
-  onLoad,
-  onError,
-  isVisible,
-  noscriptSizes,
-  ...rest
-}: ImageElementProps) => {
-  loading = isLazy ? 'lazy' : loading
-  return (
-    <>
-      <img
-        {...rest}
-        {...imgAttributes}
-        {...(layout === 'raw' ? { height: heightInt, width: widthInt } : {})}
-        decoding="async"
-        data-nimg={layout}
-        className={className}
-        // @ts-ignore - TODO: upgrade to `@types/react@17`
-        loading={layout === 'raw' ? loading : undefined}
-        style={{ ...imgStyle, ...blurStyle }}
-        ref={useCallback(
-          (img: ImgElementWithDataProp) => {
-            setIntersection(img)
-            if (img?.complete) {
-              handleLoading(
-                img,
-                srcString,
-                layout,
-                placeholder,
-                onLoadingCompleteRef,
-                setBlurComplete
-              )
-            }
-          },
-          [
-            setIntersection,
-            srcString,
-            layout,
-            placeholder,
-            onLoadingCompleteRef,
-            setBlurComplete,
-          ]
-        )}
-        onLoad={(event) => {
-          const img = event.currentTarget as ImgElementWithDataProp
-          handleLoading(
-            img,
-            srcString,
-            layout,
-            placeholder,
-            onLoadingCompleteRef,
-            setBlurComplete
-          )
-          if (onLoad) {
-            onLoad(event)
-          }
-        }}
-        onError={(event) => {
-          if (placeholder === 'blur') {
-            // If the real image fails to load, this will still remove the placeholder.
-            setBlurComplete(true)
-          }
-          if (onError) {
-            onError(event)
-          }
-        }}
-      />
-      {(isLazy || placeholder === 'blur') && (
-        <noscript>
-          <img
-            {...rest}
-            {...generateImgAttrs({
-              config,
-              src: srcString,
-              unoptimized,
-              layout,
-              width: widthInt,
-              quality: qualityInt,
-              sizes: noscriptSizes,
-              loader,
-            })}
-            {...(layout === 'raw'
-              ? { height: heightInt, width: widthInt }
-              : {})}
-            decoding="async"
-            data-nimg={layout}
-            style={imgStyle}
-            className={className}
-            // @ts-ignore - TODO: upgrade to `@types/react@17`
-            loading={loading}
-          />
-        </noscript>
-      )}
-    </>
-  )
-}
-
-function normalizeSrc(src: string): string {
-  return src[0] === '/' ? src.slice(1) : src
-}
-
-function imgixLoader({
-  config,
-  src,
-  width,
-  quality,
-}: ImageLoaderPropsWithConfig): string {
-  // Demo: https://static.imgix.net/daisy.png?auto=format&fit=max&w=300
-  const url = new URL(`${config.path}${normalizeSrc(src)}`)
-  const params = url.searchParams
-
-  params.set('auto', params.get('auto') || 'format')
-  params.set('fit', params.get('fit') || 'max')
-  params.set('w', params.get('w') || width.toString())
-
-  if (quality) {
-    params.set('q', quality.toString())
-  }
-
-  return url.href
-}
-
-function akamaiLoader({
-  config,
-  src,
-  width,
-}: ImageLoaderPropsWithConfig): string {
-  return `${config.path}${normalizeSrc(src)}?imwidth=${width}`
-}
-
-function cloudinaryLoader({
-  config,
-  src,
-  width,
-  quality,
-}: ImageLoaderPropsWithConfig): string {
-  // Demo: https://res.cloudinary.com/demo/image/upload/w_300,c_limit,q_auto/turtles.jpg
-  const params = ['f_auto', 'c_limit', 'w_' + width, 'q_' + (quality || 'auto')]
-  const paramsString = params.join(',') + '/'
-  return `${config.path}${paramsString}${normalizeSrc(src)}`
-}
-
-function customLoader({ src }: ImageLoaderProps): string {
-  throw new Error(
-    `Image with src "${src}" is missing "loader" prop.` +
-      `\nRead more: https://nextjs.org/docs/messages/next-image-missing-loader`
-  )
-}
-
-function defaultLoader({
-  config,
-  src,
-  width,
-  quality,
-}: ImageLoaderPropsWithConfig): string {
-  if (process.env.NODE_ENV !== 'production') {
-    const missingValues = []
-
-    // these should always be provided but make sure they are
-    if (!src) missingValues.push('src')
-    if (!width) missingValues.push('width')
-
-    if (missingValues.length > 0) {
-      throw new Error(
-        `Next Image Optimization requires ${missingValues.join(
-          ', '
-        )} to be provided. Make sure you pass them as props to the \`next/image\` component. Received: ${JSON.stringify(
-          { src, width, quality }
-        )}`
-      )
-    }
-
-    if (src.startsWith('//')) {
-      throw new Error(
-        `Failed to parse src "${src}" on \`next/image\`, protocol-relative URL (//) must be changed to an absolute URL (http:// or https://)`
-      )
-    }
-
-    if (
-      !src.startsWith('/') &&
-      (config.domains || experimentalRemotePatterns)
-    ) {
-      let parsedSrc: URL
-      try {
-        parsedSrc = new URL(src)
-      } catch (err) {
-        console.error(err)
-        throw new Error(
-          `Failed to parse src "${src}" on \`next/image\`, if using relative image it must start with a leading slash "/" or be an absolute URL (http:// or https://)`
-        )
-      }
-
-      if (process.env.NODE_ENV !== 'test') {
-        // We use dynamic require because this should only error in development
-        const { hasMatch } = require('../shared/lib/match-remote-pattern')
-        if (!hasMatch(config.domains, experimentalRemotePatterns, parsedSrc)) {
-          throw new Error(
-            `Invalid src prop (${src}) on \`next/image\`, hostname "${parsedSrc.hostname}" is not configured under images in your \`next.config.js\`\n` +
-              `See more info: https://nextjs.org/docs/messages/next-image-unconfigured-host`
-          )
-        }
-      }
-    }
-  }
-
-  if (src.endsWith('.svg') && !config.dangerouslyAllowSVG) {
-    // Special case to make svg serve as-is to avoid proxying
-    // through the built-in Image Optimization API.
-    return src
-  }
-
-  return `${normalizePathTrailingSlash(config.path)}?url=${encodeURIComponent(
-    src
-  )}&w=${width}&q=${quality || 75}`
 }

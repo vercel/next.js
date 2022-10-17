@@ -56,7 +56,7 @@ describe('serverside asset modules', () => {
     runTests()
   })
 
-  describe('serverless mode', () => {
+  describe.skip('serverless mode', () => {
     let origNextConfig
 
     beforeAll(async () => {
