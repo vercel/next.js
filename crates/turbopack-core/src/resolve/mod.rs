@@ -540,10 +540,9 @@ pub async fn resolve(
 
     // Apply import mappings if provided
     if let Some(import_map) = &options_value.import_map {
-        let result_vc = import_map.lookup(request).await?;
-        let result = &*result_vc;
-        if !matches!(result, ImportMapResult::NoEntry) {
-            let resolve_result_vc = resolve_import_map_result(result, context, options);
+        let result = import_map.lookup(request).await?;
+        if !matches!(*result, ImportMapResult::NoEntry) {
+            let resolve_result_vc = resolve_import_map_result(&result, context, options);
             // We might have matched an alias in the import map, but there is no guarantee
             // the alias actually resolves to something. For instance, a tsconfig.json
             // `compilerOptions.paths` option might alias "@*" to "./*", which

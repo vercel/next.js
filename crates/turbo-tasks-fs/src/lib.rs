@@ -5,6 +5,7 @@
 #![feature(io_error_more)]
 #![feature(main_separator_str)]
 
+pub mod attach;
 pub mod embed;
 pub mod glob;
 mod invalidator_map;

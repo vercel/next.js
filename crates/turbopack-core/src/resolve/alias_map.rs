@@ -299,10 +299,7 @@ where
     type Item = AliasMatch<'a, T>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let (prefix, current_prefix_iterator) = match &mut self.current_prefix_iterator {
-            Some(current_prefix_iterator) => current_prefix_iterator,
-            None => return None,
-        };
+        let (prefix, current_prefix_iterator) = self.current_prefix_iterator.as_mut()?;
 
         loop {
             for (key, template) in &mut *current_prefix_iterator {
