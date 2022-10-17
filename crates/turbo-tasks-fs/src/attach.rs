@@ -166,10 +166,9 @@ impl ValueToString for AttachedFileSystem {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<StringVc> {
         Ok(StringVc::cell(format!(
-            "`{}` attached to `{}` at `{}`",
-            self.child_fs.to_string().await?,
+            "{}-with-{}",
             self.root_fs.to_string().await?,
-            self.child_path
+            self.child_fs.to_string().await?
         )))
     }
 }

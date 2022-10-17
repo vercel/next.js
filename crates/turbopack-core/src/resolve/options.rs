@@ -171,6 +171,28 @@ impl ImportMap {
     pub fn insert_alias(&mut self, alias: AliasPattern, mapping: ImportMappingVc) {
         self.direct.insert(alias, mapping);
     }
+
+    /// Inserts an exact alias into the import map.
+    pub fn insert_exact_alias(&mut self, pattern: impl ToString, mapping: ImportMappingVc) {
+        self.direct.insert(AliasPattern::exact(pattern), mapping);
+    }
+
+    /// Inserts a wildcard alias into the import map.
+    pub fn insert_wildcard_alias(&mut self, prefix: impl ToString, mapping: ImportMappingVc) {
+        self.direct
+            .insert(AliasPattern::wildcard(prefix, ""), mapping);
+    }
+
+    /// Inserts a wildcard alias with suffix into the import map.
+    pub fn insert_wildcard_alias_with_suffix(
+        &mut self,
+        prefix: impl ToString,
+        suffix: impl ToString,
+        mapping: ImportMappingVc,
+    ) {
+        self.direct
+            .insert(AliasPattern::wildcard(prefix, suffix), mapping);
+    }
 }
 
 #[turbo_tasks::value_impl]

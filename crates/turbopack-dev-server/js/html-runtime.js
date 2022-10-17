@@ -12,7 +12,9 @@ function onSocketConnected(connectedSocket) {
   socket = connectedSocket;
 
   let queued = globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS;
-  globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS = { push: addChunkUpdateListener };
+  globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS = {
+    push: addChunkUpdateListener,
+  };
   if (Array.isArray(queued)) {
     for (const job of queued) {
       addChunkUpdateListener(job);
@@ -56,7 +58,10 @@ function triggerChunkUpdate(updateType, chunkId, instruction) {
       callback(updateType, instruction);
     }
   } catch (err) {
-    console.error(`An error occurred during the update of chunk \`${chunkId}\``, err);
+    console.error(
+      `An error occurred during the update of chunk \`${chunkId}\``,
+      err
+    );
     location.reload();
   }
 }
@@ -64,7 +69,9 @@ function triggerChunkUpdate(updateType, chunkId, instruction) {
 // Unlike ES chunks, CSS chunks cannot contain the logic to accept updates.
 // They must be reloaded here instead.
 function subscribeToInitialCssChunksUpdates() {
-  const initialCssChunkLinks = document.head.querySelectorAll("link[data-turbopack-chunk-id]");
+  const initialCssChunkLinks = document.head.querySelectorAll(
+    "link[data-turbopack-chunk-id]"
+  );
   for (const link of initialCssChunkLinks) {
     const chunkId = link.dataset.turbopackChunkId;
 
@@ -92,6 +99,7 @@ if (typeof WebSocket !== "undefined") {
   };
 }
 
-globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS = globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS || [];
+globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS =
+  globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS || [];
 
 subscribeToInitialCssChunksUpdates();

@@ -1,18 +1,21 @@
-(self.TURBOPACK = self.TURBOPACK || []).push(["[workspace]/crates/turbopack/tests/snapshot/integration/resolve_error_cjs/output/crates_turbopack_tests_snapshot_integration_resolve_error_cjs_input_index_5ba516.js", {
+(self.TURBOPACK = self.TURBOPACK || []).push(["[workspace]/crates/turbopack/tests/snapshot/integration/resolve_error_esm/output/crates_turbopack_tests_snapshot_integration_resolve_error_esm_input_index_38a08d.js", {
 
-"[project]/crates/turbopack/tests/snapshot/integration/resolve_error_cjs/input/index.js (ecmascript)": (function({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, m: module, e: exports }) { !function() {
+"[project]/crates/turbopack/tests/snapshot/integration/resolve_error_esm/input/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
 
-const dne = __turbopack_require__((()=>{
+(()=>{
     const e = new Error("Cannot find module 'does-not-exist/path'");
     e.code = 'MODULE_NOT_FOUND';
     throw e;
-})());
+})();
+"__TURBOPACK__ecmascript__hoisting__location__";
+;
 console.log(dne);
+console.log({}[dne]);
 
-}.call(this) }),
+})()),
 }, ({ loadedChunks, instantiateRuntimeModule }) => {
-    if(!(true && loadedChunks.has("[workspace]/crates/turbopack/tests/snapshot/integration/resolve_error_cjs/output/crates_turbopack_tests_snapshot_integration_resolve_error_cjs_input_index_913c38.js"))) return true;
-    instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/resolve_error_cjs/input/index.js (ecmascript)");
+    if(!(true && loadedChunks.has("[workspace]/crates/turbopack/tests/snapshot/integration/resolve_error_esm/output/crates_turbopack_tests_snapshot_integration_resolve_error_esm_input_index_3c456b.js"))) return true;
+    instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/resolve_error_esm/input/index.js (ecmascript)");
 }]);
 (() => {
   // When a chunk is executed, it will either register itself with the current
@@ -60,12 +63,15 @@ console.log(dne);
    */
   const moduleChunksMap = new Map();
   var hOP = Object.prototype.hasOwnProperty;
-  const _process = typeof process !== "undefined" ? process : {
-    env: {},
-    // Some modules rely on `process.browser` to execute browser-specific code.
-    // NOTE: `process.browser` is specific to Webpack.
-    browser: true,
-  };
+  const _process =
+    typeof process !== "undefined"
+      ? process
+      : {
+          env: {},
+          // Some modules rely on `process.browser` to execute browser-specific code.
+          // NOTE: `process.browser` is specific to Webpack.
+          browser: true,
+        };
 
   var toStringTag = typeof Symbol !== "undefined" && Symbol.toStringTag;
 
@@ -123,7 +129,7 @@ console.log(dne);
     } catch (err) {
       // TODO(alexkirsz) This can happen when a client-side module tries to load
       // an external module we don't provide a shim for (e.g. querystring, url).
-      // For now, we fail semi–silently, but in the future this should be a 
+      // For now, we fail semi–silently, but in the future this should be a
       // compilation error.
       console.error(`Failed to load external module ${id}: ${err}`);
       return undefined;
@@ -194,7 +200,9 @@ console.log(dne);
       document.body.appendChild(script);
     } else {
       console.error("hello?");
-      throw new Error(`can't infer type of chunk ${chunkId} from path ${chunkPath}`);
+      throw new Error(
+        `can't infer type of chunk ${chunkId} from path ${chunkPath}`
+      );
     }
 
     return chunkLoader;
@@ -300,7 +308,10 @@ console.log(dne);
     if ("$RefreshHelpers$" in self) {
       // This pattern can also be used to register the exports of
       // a module with the React Refresh runtime.
-      registerExportsAndSetupBoundaryForReactRefresh(module, self.$RefreshHelpers$);
+      registerExportsAndSetupBoundaryForReactRefresh(
+        module,
+        self.$RefreshHelpers$
+      );
     }
 
     cleanupReactRefreshIntercept();
@@ -363,7 +374,12 @@ console.log(dne);
         // re-execute the importing modules, and force those components to
         // re-render. Similarly, if you convert a class component to a
         // function, we want to invalidate the boundary.
-        if (helpers.shouldInvalidateReactRefreshBoundary(prevExports, currentExports)) {
+        if (
+          helpers.shouldInvalidateReactRefreshBoundary(
+            prevExports,
+            currentExports
+          )
+        ) {
           module.hot.invalidate();
         } else {
           helpers.scheduleUpdate();
@@ -404,10 +420,16 @@ console.log(dne);
 
       switch (effect.type) {
         case "unaccepted":
-          throw new Error(`cannot apply update: unaccepted module. ${formatDependencyChain(effect.dependencyChain)}.`);
+          throw new Error(
+            `cannot apply update: unaccepted module. ${formatDependencyChain(
+              effect.dependencyChain
+            )}.`
+          );
         case "self-declined":
           throw new Error(
-            `cannot apply update: self-declined module. ${formatDependencyChain(effect.dependencyChain)}.`
+            `cannot apply update: self-declined module. ${formatDependencyChain(
+              effect.dependencyChain
+            )}.`
           );
         case "accepted":
           newModuleFactories.set(moduleId, _eval(factory));
@@ -511,7 +533,11 @@ console.log(dne);
     return data;
   }
 
-  function applyPhase(chunkId, outdatedSelfAcceptedModules, newModuleFactories) {
+  function applyPhase(
+    chunkId,
+    outdatedSelfAcceptedModules,
+    newModuleFactories
+  ) {
     // Update module factories.
     for (const [moduleId, factory] of newModuleFactories.entries()) {
       moduleFactories[moduleId] = factory;
@@ -539,11 +565,13 @@ console.log(dne);
   }
 
   function applyUpdate(chunkId, update) {
-    const { outdatedModules, newModuleFactories } = computeOutdatedModules(update);
+    const { outdatedModules, newModuleFactories } =
+      computeOutdatedModules(update);
 
     const deletedModules = new Set(update.deleted);
 
-    const outdatedSelfAcceptedModules = computeOutdatedSelfAcceptedModules(outdatedModules);
+    const outdatedSelfAcceptedModules =
+      computeOutdatedSelfAcceptedModules(outdatedModules);
 
     disposePhase(chunkId, outdatedModules, deletedModules);
     applyPhase(chunkId, outdatedSelfAcceptedModules, newModuleFactories);
@@ -783,10 +811,11 @@ console.log(dne);
     runnable.push(...run);
     runnable = runnable.filter((r) => r(runtime));
   }
-  self.TURBOPACK_CHUNK_UPDATE_LISTENERS = self.TURBOPACK_CHUNK_UPDATE_LISTENERS || [];
+  self.TURBOPACK_CHUNK_UPDATE_LISTENERS =
+    self.TURBOPACK_CHUNK_UPDATE_LISTENERS || [];
   self.TURBOPACK = { push: registerChunk };
   chunksToRegister.forEach(registerChunk);
 })();
 
 
-//# sourceMappingURL=crates_turbopack_tests_snapshot_integration_resolve_error_cjs_input_index_5ba516.js.2f34663e6562097a.map
+//# sourceMappingURL=crates_turbopack_tests_snapshot_integration_resolve_error_esm_input_index_38a08d.js.1cf37ac5daa5b01f.map

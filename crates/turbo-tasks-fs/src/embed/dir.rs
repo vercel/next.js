@@ -6,7 +6,7 @@ use crate::{embed::EmbeddedFileSystemVc, DiskFileSystemVc, FileSystemVc};
 
 #[turbo_tasks::function]
 pub async fn directory_from_relative_path(name: &str, path: String) -> Result<FileSystemVc> {
-    let disk_fs = DiskFileSystemVc::new(format!("embedded {}", name), path);
+    let disk_fs = DiskFileSystemVc::new(name.to_string(), path);
     disk_fs.await?.start_watching()?;
 
     Ok(disk_fs.into())
@@ -17,7 +17,7 @@ pub async fn directory_from_include_dir(
     name: &str,
     dir: TransientInstance<&'static include_dir::Dir<'static>>,
 ) -> Result<FileSystemVc> {
-    Ok(EmbeddedFileSystemVc::new(format!("embedded {}", name), dir).into())
+    Ok(EmbeddedFileSystemVc::new(name.to_string(), dir).into())
 }
 
 /// Returns an embedded filesystem for the given path.

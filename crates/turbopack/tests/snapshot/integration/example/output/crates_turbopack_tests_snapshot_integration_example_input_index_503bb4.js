@@ -55,12 +55,15 @@ console.log("hello world");
    */
   const moduleChunksMap = new Map();
   var hOP = Object.prototype.hasOwnProperty;
-  const _process = typeof process !== "undefined" ? process : {
-    env: {},
-    // Some modules rely on `process.browser` to execute browser-specific code.
-    // NOTE: `process.browser` is specific to Webpack.
-    browser: true,
-  };
+  const _process =
+    typeof process !== "undefined"
+      ? process
+      : {
+          env: {},
+          // Some modules rely on `process.browser` to execute browser-specific code.
+          // NOTE: `process.browser` is specific to Webpack.
+          browser: true,
+        };
 
   var toStringTag = typeof Symbol !== "undefined" && Symbol.toStringTag;
 
@@ -118,7 +121,7 @@ console.log("hello world");
     } catch (err) {
       // TODO(alexkirsz) This can happen when a client-side module tries to load
       // an external module we don't provide a shim for (e.g. querystring, url).
-      // For now, we fail semi–silently, but in the future this should be a 
+      // For now, we fail semi–silently, but in the future this should be a
       // compilation error.
       console.error(`Failed to load external module ${id}: ${err}`);
       return undefined;
@@ -189,7 +192,9 @@ console.log("hello world");
       document.body.appendChild(script);
     } else {
       console.error("hello?");
-      throw new Error(`can't infer type of chunk ${chunkId} from path ${chunkPath}`);
+      throw new Error(
+        `can't infer type of chunk ${chunkId} from path ${chunkPath}`
+      );
     }
 
     return chunkLoader;
@@ -295,7 +300,10 @@ console.log("hello world");
     if ("$RefreshHelpers$" in self) {
       // This pattern can also be used to register the exports of
       // a module with the React Refresh runtime.
-      registerExportsAndSetupBoundaryForReactRefresh(module, self.$RefreshHelpers$);
+      registerExportsAndSetupBoundaryForReactRefresh(
+        module,
+        self.$RefreshHelpers$
+      );
     }
 
     cleanupReactRefreshIntercept();
@@ -358,7 +366,12 @@ console.log("hello world");
         // re-execute the importing modules, and force those components to
         // re-render. Similarly, if you convert a class component to a
         // function, we want to invalidate the boundary.
-        if (helpers.shouldInvalidateReactRefreshBoundary(prevExports, currentExports)) {
+        if (
+          helpers.shouldInvalidateReactRefreshBoundary(
+            prevExports,
+            currentExports
+          )
+        ) {
           module.hot.invalidate();
         } else {
           helpers.scheduleUpdate();
@@ -399,10 +412,16 @@ console.log("hello world");
 
       switch (effect.type) {
         case "unaccepted":
-          throw new Error(`cannot apply update: unaccepted module. ${formatDependencyChain(effect.dependencyChain)}.`);
+          throw new Error(
+            `cannot apply update: unaccepted module. ${formatDependencyChain(
+              effect.dependencyChain
+            )}.`
+          );
         case "self-declined":
           throw new Error(
-            `cannot apply update: self-declined module. ${formatDependencyChain(effect.dependencyChain)}.`
+            `cannot apply update: self-declined module. ${formatDependencyChain(
+              effect.dependencyChain
+            )}.`
           );
         case "accepted":
           newModuleFactories.set(moduleId, _eval(factory));
@@ -506,7 +525,11 @@ console.log("hello world");
     return data;
   }
 
-  function applyPhase(chunkId, outdatedSelfAcceptedModules, newModuleFactories) {
+  function applyPhase(
+    chunkId,
+    outdatedSelfAcceptedModules,
+    newModuleFactories
+  ) {
     // Update module factories.
     for (const [moduleId, factory] of newModuleFactories.entries()) {
       moduleFactories[moduleId] = factory;
@@ -534,11 +557,13 @@ console.log("hello world");
   }
 
   function applyUpdate(chunkId, update) {
-    const { outdatedModules, newModuleFactories } = computeOutdatedModules(update);
+    const { outdatedModules, newModuleFactories } =
+      computeOutdatedModules(update);
 
     const deletedModules = new Set(update.deleted);
 
-    const outdatedSelfAcceptedModules = computeOutdatedSelfAcceptedModules(outdatedModules);
+    const outdatedSelfAcceptedModules =
+      computeOutdatedSelfAcceptedModules(outdatedModules);
 
     disposePhase(chunkId, outdatedModules, deletedModules);
     applyPhase(chunkId, outdatedSelfAcceptedModules, newModuleFactories);
@@ -778,7 +803,8 @@ console.log("hello world");
     runnable.push(...run);
     runnable = runnable.filter((r) => r(runtime));
   }
-  self.TURBOPACK_CHUNK_UPDATE_LISTENERS = self.TURBOPACK_CHUNK_UPDATE_LISTENERS || [];
+  self.TURBOPACK_CHUNK_UPDATE_LISTENERS =
+    self.TURBOPACK_CHUNK_UPDATE_LISTENERS || [];
   self.TURBOPACK = { push: registerChunk };
   chunksToRegister.forEach(registerChunk);
 })();

@@ -1,29 +1,18 @@
-(self.TURBOPACK = self.TURBOPACK || []).push(["[workspace]/crates/turbopack/tests/snapshot/integration/css/output/crates_turbopack_tests_snapshot_integration_css_input_index_6a0456.js", {
+(self.TURBOPACK = self.TURBOPACK || []).push(["[workspace]/crates/turbopack/tests/snapshot/integration/resolve_error_cjs/output/crates_turbopack_tests_snapshot_integration_resolve_error_cjs_input_index_c4aafa.js", {
 
-"[project]/crates/turbopack/tests/snapshot/integration/css/input/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
+"[project]/crates/turbopack/tests/snapshot/integration/resolve_error_cjs/input/index.js (ecmascript)": (function({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, m: module, e: exports }) { !function() {
 
-var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$css$2f$input$2f$node_modules$2f$foo$2f$style$2e$module$2e$css__ = __turbopack_import__("[project]/crates/turbopack/tests/snapshot/integration/css/input/node_modules/foo/style.module.css (css module)");
-var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$css$2f$input$2f$style$2e$module$2e$css__ = __turbopack_import__("[project]/crates/turbopack/tests/snapshot/integration/css/input/style.module.css (css module)");
-"__TURBOPACK__ecmascript__hoisting__location__";
-;
-;
-;
-;
-;
-console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$css$2f$input$2f$style$2e$module$2e$css__["default"], __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$css$2f$input$2f$node_modules$2f$foo$2f$style$2e$module$2e$css__["default"]);
+const dne = __turbopack_require__((()=>{
+    const e = new Error("Cannot find module 'does-not-exist/path'");
+    e.code = 'MODULE_NOT_FOUND';
+    throw e;
+})());
+console.log(dne);
 
-})()),
-"[project]/crates/turbopack/tests/snapshot/integration/css/input/style.module.css (css module)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
-
-__turbopack_export_value__({
-  "inner": "inner◽[project]/crates/turbopack/tests/snapshot/integration/css/input/style.module.css",
-  "module-style": "module-style◽[project]/crates/turbopack/tests/snapshot/integration/css/input/style.module.css",
-});
-
-})()),
+}.call(this) }),
 }, ({ loadedChunks, instantiateRuntimeModule }) => {
-    if(!(true && loadedChunks.has("[workspace]/crates/turbopack/tests/snapshot/integration/css/output/crates_turbopack_tests_snapshot_integration_css_input_index_05e0ad.js") && loadedChunks.has("[workspace]/crates/turbopack/tests/snapshot/integration/css/output/a05b1_foo_style.module.css.js"))) return true;
-    instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/css/input/index.js (ecmascript)");
+    if(!(true && loadedChunks.has("[workspace]/crates/turbopack/tests/snapshot/integration/resolve_error_cjs/output/crates_turbopack_tests_snapshot_integration_resolve_error_cjs_input_index_888804.js"))) return true;
+    instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/resolve_error_cjs/input/index.js (ecmascript)");
 }]);
 (() => {
   // When a chunk is executed, it will either register itself with the current
@@ -71,12 +60,15 @@ __turbopack_export_value__({
    */
   const moduleChunksMap = new Map();
   var hOP = Object.prototype.hasOwnProperty;
-  const _process = typeof process !== "undefined" ? process : {
-    env: {},
-    // Some modules rely on `process.browser` to execute browser-specific code.
-    // NOTE: `process.browser` is specific to Webpack.
-    browser: true,
-  };
+  const _process =
+    typeof process !== "undefined"
+      ? process
+      : {
+          env: {},
+          // Some modules rely on `process.browser` to execute browser-specific code.
+          // NOTE: `process.browser` is specific to Webpack.
+          browser: true,
+        };
 
   var toStringTag = typeof Symbol !== "undefined" && Symbol.toStringTag;
 
@@ -134,7 +126,7 @@ __turbopack_export_value__({
     } catch (err) {
       // TODO(alexkirsz) This can happen when a client-side module tries to load
       // an external module we don't provide a shim for (e.g. querystring, url).
-      // For now, we fail semi–silently, but in the future this should be a 
+      // For now, we fail semi–silently, but in the future this should be a
       // compilation error.
       console.error(`Failed to load external module ${id}: ${err}`);
       return undefined;
@@ -205,7 +197,9 @@ __turbopack_export_value__({
       document.body.appendChild(script);
     } else {
       console.error("hello?");
-      throw new Error(`can't infer type of chunk ${chunkId} from path ${chunkPath}`);
+      throw new Error(
+        `can't infer type of chunk ${chunkId} from path ${chunkPath}`
+      );
     }
 
     return chunkLoader;
@@ -311,7 +305,10 @@ __turbopack_export_value__({
     if ("$RefreshHelpers$" in self) {
       // This pattern can also be used to register the exports of
       // a module with the React Refresh runtime.
-      registerExportsAndSetupBoundaryForReactRefresh(module, self.$RefreshHelpers$);
+      registerExportsAndSetupBoundaryForReactRefresh(
+        module,
+        self.$RefreshHelpers$
+      );
     }
 
     cleanupReactRefreshIntercept();
@@ -374,7 +371,12 @@ __turbopack_export_value__({
         // re-execute the importing modules, and force those components to
         // re-render. Similarly, if you convert a class component to a
         // function, we want to invalidate the boundary.
-        if (helpers.shouldInvalidateReactRefreshBoundary(prevExports, currentExports)) {
+        if (
+          helpers.shouldInvalidateReactRefreshBoundary(
+            prevExports,
+            currentExports
+          )
+        ) {
           module.hot.invalidate();
         } else {
           helpers.scheduleUpdate();
@@ -415,10 +417,16 @@ __turbopack_export_value__({
 
       switch (effect.type) {
         case "unaccepted":
-          throw new Error(`cannot apply update: unaccepted module. ${formatDependencyChain(effect.dependencyChain)}.`);
+          throw new Error(
+            `cannot apply update: unaccepted module. ${formatDependencyChain(
+              effect.dependencyChain
+            )}.`
+          );
         case "self-declined":
           throw new Error(
-            `cannot apply update: self-declined module. ${formatDependencyChain(effect.dependencyChain)}.`
+            `cannot apply update: self-declined module. ${formatDependencyChain(
+              effect.dependencyChain
+            )}.`
           );
         case "accepted":
           newModuleFactories.set(moduleId, _eval(factory));
@@ -522,7 +530,11 @@ __turbopack_export_value__({
     return data;
   }
 
-  function applyPhase(chunkId, outdatedSelfAcceptedModules, newModuleFactories) {
+  function applyPhase(
+    chunkId,
+    outdatedSelfAcceptedModules,
+    newModuleFactories
+  ) {
     // Update module factories.
     for (const [moduleId, factory] of newModuleFactories.entries()) {
       moduleFactories[moduleId] = factory;
@@ -550,11 +562,13 @@ __turbopack_export_value__({
   }
 
   function applyUpdate(chunkId, update) {
-    const { outdatedModules, newModuleFactories } = computeOutdatedModules(update);
+    const { outdatedModules, newModuleFactories } =
+      computeOutdatedModules(update);
 
     const deletedModules = new Set(update.deleted);
 
-    const outdatedSelfAcceptedModules = computeOutdatedSelfAcceptedModules(outdatedModules);
+    const outdatedSelfAcceptedModules =
+      computeOutdatedSelfAcceptedModules(outdatedModules);
 
     disposePhase(chunkId, outdatedModules, deletedModules);
     applyPhase(chunkId, outdatedSelfAcceptedModules, newModuleFactories);
@@ -794,10 +808,11 @@ __turbopack_export_value__({
     runnable.push(...run);
     runnable = runnable.filter((r) => r(runtime));
   }
-  self.TURBOPACK_CHUNK_UPDATE_LISTENERS = self.TURBOPACK_CHUNK_UPDATE_LISTENERS || [];
+  self.TURBOPACK_CHUNK_UPDATE_LISTENERS =
+    self.TURBOPACK_CHUNK_UPDATE_LISTENERS || [];
   self.TURBOPACK = { push: registerChunk };
   chunksToRegister.forEach(registerChunk);
 })();
 
 
-//# sourceMappingURL=crates_turbopack_tests_snapshot_integration_css_input_index_6a0456.js.7c2617b5834079be.map
+//# sourceMappingURL=crates_turbopack_tests_snapshot_integration_resolve_error_cjs_input_index_c4aafa.js.2f34663e6562097a.map

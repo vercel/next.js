@@ -1,28 +1,3 @@
-(self.TURBOPACK = self.TURBOPACK || []).push(["[workspace]/crates/turbopack/tests/snapshot/integration/json/output/crates_turbopack_tests_snapshot_integration_json_input_index_f02c8b.js", {
-
-"[project]/crates/turbopack/tests/snapshot/integration/json/input/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
-
-var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$json$2f$input$2f$package$2e$json__ = __turbopack_import__("[project]/crates/turbopack/tests/snapshot/integration/json/input/package.json (json)");
-var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$json$2f$input$2f$invalid$2e$json__ = __turbopack_import__("[project]/crates/turbopack/tests/snapshot/integration/json/input/invalid.json (json)");
-"__TURBOPACK__ecmascript__hoisting__location__";
-;
-console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$json$2f$input$2f$package$2e$json__["default"].name);
-;
-console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$json$2f$input$2f$invalid$2e$json__["default"]["this-is"]);
-
-})()),
-"[project]/crates/turbopack/tests/snapshot/integration/json/input/package.json (json)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
-
-__turbopack_export_value__(JSON.parse("{\"name\":\"json-snapshot\"}"));
-})()),
-"[project]/crates/turbopack/tests/snapshot/integration/json/input/invalid.json (json)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
-
-throw new Error("An error occurred while importing a JSON module: \"File is not valid JSON\"")
-})()),
-}, ({ loadedChunks, instantiateRuntimeModule }) => {
-    if(!(true && loadedChunks.has("[workspace]/crates/turbopack/tests/snapshot/integration/json/output/crates_turbopack_tests_snapshot_integration_json_input_index_2bb481.js"))) return true;
-    instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/json/input/index.js (ecmascript)");
-}]);
 (() => {
   // When a chunk is executed, it will either register itself with the current
   // instance of the runtime, or it will push itself onto the list of pending
@@ -69,12 +44,15 @@ throw new Error("An error occurred while importing a JSON module: \"File is not 
    */
   const moduleChunksMap = new Map();
   var hOP = Object.prototype.hasOwnProperty;
-  const _process = typeof process !== "undefined" ? process : {
-    env: {},
-    // Some modules rely on `process.browser` to execute browser-specific code.
-    // NOTE: `process.browser` is specific to Webpack.
-    browser: true,
-  };
+  const _process =
+    typeof process !== "undefined"
+      ? process
+      : {
+          env: {},
+          // Some modules rely on `process.browser` to execute browser-specific code.
+          // NOTE: `process.browser` is specific to Webpack.
+          browser: true,
+        };
 
   var toStringTag = typeof Symbol !== "undefined" && Symbol.toStringTag;
 
@@ -132,7 +110,7 @@ throw new Error("An error occurred while importing a JSON module: \"File is not 
     } catch (err) {
       // TODO(alexkirsz) This can happen when a client-side module tries to load
       // an external module we don't provide a shim for (e.g. querystring, url).
-      // For now, we fail semi–silently, but in the future this should be a 
+      // For now, we fail semi–silently, but in the future this should be a
       // compilation error.
       console.error(`Failed to load external module ${id}: ${err}`);
       return undefined;
@@ -203,7 +181,9 @@ throw new Error("An error occurred while importing a JSON module: \"File is not 
       document.body.appendChild(script);
     } else {
       console.error("hello?");
-      throw new Error(`can't infer type of chunk ${chunkId} from path ${chunkPath}`);
+      throw new Error(
+        `can't infer type of chunk ${chunkId} from path ${chunkPath}`
+      );
     }
 
     return chunkLoader;
@@ -309,7 +289,10 @@ throw new Error("An error occurred while importing a JSON module: \"File is not 
     if ("$RefreshHelpers$" in self) {
       // This pattern can also be used to register the exports of
       // a module with the React Refresh runtime.
-      registerExportsAndSetupBoundaryForReactRefresh(module, self.$RefreshHelpers$);
+      registerExportsAndSetupBoundaryForReactRefresh(
+        module,
+        self.$RefreshHelpers$
+      );
     }
 
     cleanupReactRefreshIntercept();
@@ -372,7 +355,12 @@ throw new Error("An error occurred while importing a JSON module: \"File is not 
         // re-execute the importing modules, and force those components to
         // re-render. Similarly, if you convert a class component to a
         // function, we want to invalidate the boundary.
-        if (helpers.shouldInvalidateReactRefreshBoundary(prevExports, currentExports)) {
+        if (
+          helpers.shouldInvalidateReactRefreshBoundary(
+            prevExports,
+            currentExports
+          )
+        ) {
           module.hot.invalidate();
         } else {
           helpers.scheduleUpdate();
@@ -413,10 +401,16 @@ throw new Error("An error occurred while importing a JSON module: \"File is not 
 
       switch (effect.type) {
         case "unaccepted":
-          throw new Error(`cannot apply update: unaccepted module. ${formatDependencyChain(effect.dependencyChain)}.`);
+          throw new Error(
+            `cannot apply update: unaccepted module. ${formatDependencyChain(
+              effect.dependencyChain
+            )}.`
+          );
         case "self-declined":
           throw new Error(
-            `cannot apply update: self-declined module. ${formatDependencyChain(effect.dependencyChain)}.`
+            `cannot apply update: self-declined module. ${formatDependencyChain(
+              effect.dependencyChain
+            )}.`
           );
         case "accepted":
           newModuleFactories.set(moduleId, _eval(factory));
@@ -520,7 +514,11 @@ throw new Error("An error occurred while importing a JSON module: \"File is not 
     return data;
   }
 
-  function applyPhase(chunkId, outdatedSelfAcceptedModules, newModuleFactories) {
+  function applyPhase(
+    chunkId,
+    outdatedSelfAcceptedModules,
+    newModuleFactories
+  ) {
     // Update module factories.
     for (const [moduleId, factory] of newModuleFactories.entries()) {
       moduleFactories[moduleId] = factory;
@@ -548,11 +546,13 @@ throw new Error("An error occurred while importing a JSON module: \"File is not 
   }
 
   function applyUpdate(chunkId, update) {
-    const { outdatedModules, newModuleFactories } = computeOutdatedModules(update);
+    const { outdatedModules, newModuleFactories } =
+      computeOutdatedModules(update);
 
     const deletedModules = new Set(update.deleted);
 
-    const outdatedSelfAcceptedModules = computeOutdatedSelfAcceptedModules(outdatedModules);
+    const outdatedSelfAcceptedModules =
+      computeOutdatedSelfAcceptedModules(outdatedModules);
 
     disposePhase(chunkId, outdatedModules, deletedModules);
     applyPhase(chunkId, outdatedSelfAcceptedModules, newModuleFactories);
@@ -792,10 +792,8 @@ throw new Error("An error occurred while importing a JSON module: \"File is not 
     runnable.push(...run);
     runnable = runnable.filter((r) => r(runtime));
   }
-  self.TURBOPACK_CHUNK_UPDATE_LISTENERS = self.TURBOPACK_CHUNK_UPDATE_LISTENERS || [];
+  self.TURBOPACK_CHUNK_UPDATE_LISTENERS =
+    self.TURBOPACK_CHUNK_UPDATE_LISTENERS || [];
   self.TURBOPACK = { push: registerChunk };
   chunksToRegister.forEach(registerChunk);
 })();
-
-
-//# sourceMappingURL=crates_turbopack_tests_snapshot_integration_json_input_index_f02c8b.js.8b66a863c42e8716.map

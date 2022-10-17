@@ -28,7 +28,7 @@ use turbopack_ecmascript::{
 use turbopack_env::ProcessEnvAssetVc;
 
 use crate::{
-    embed_next_file,
+    embed_js::{next_js_file, wrap_with_next_js_fs},
     next_client::{
         context::{
             get_client_assets_path, get_client_chunking_context, get_client_environment,
@@ -52,6 +52,8 @@ pub async fn create_server_rendered_source(
     env: ProcessEnvVc,
     browserslist_query: &str,
 ) -> Result<ContentSourceVc> {
+    let project_path = wrap_with_next_js_fs(project_path);
+
     let pages = project_path.join("pages");
     let src_pages = project_path.join("src/pages");
     let pages_dir = if *pages.get_type().await? == FileSystemEntryType::Directory {
@@ -68,8 +70,8 @@ pub async fn create_server_rendered_source(
         get_client_module_options_context(project_path, client_environment);
     let client_resolve_options_context = get_client_resolve_options_context();
 
-    let next_server_import_map = get_next_server_import_map(pages_dir);
-    let next_client_import_map = get_next_client_import_map(pages_dir);
+    let next_server_import_map = get_next_server_import_map(project_path, pages_dir);
+    let next_client_import_map = get_next_client_import_map(project_path, pages_dir);
     let client_resolve_options_context =
         client_resolve_options_context.with_extended_import_map(next_client_import_map);
 
@@ -342,7 +344,7 @@ impl NodeRenderer for SsrRenderer {
         EcmascriptModuleAssetVc::new(
             VirtualAssetVc::new(
                 self.entry_asset.path().join("server-renderer.js"),
-                embed_next_file!("internal/server-renderer.js").into(),
+                next_js_file("entry/server-renderer.js").into(),
             )
             .into(),
             self.context,
