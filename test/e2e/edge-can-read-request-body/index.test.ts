@@ -6,6 +6,14 @@ import Primitives from '@edge-runtime/primitives'
 
 const { FormData, fetch } = Primitives
 
+async function serialize(response: Response) {
+  return {
+    text: await response.text(),
+    headers: Object.fromEntries(response.headers),
+    status: response.status,
+  }
+}
+
 describe('Edge can read request body', () => {
   let next: NextInstance
 
@@ -105,11 +113,3 @@ describe('Edge can read request body', () => {
     })
   })
 })
-
-async function serialize(response: Response) {
-  return {
-    text: await response.text(),
-    headers: Object.fromEntries(response.headers),
-    status: response.status,
-  }
-}
