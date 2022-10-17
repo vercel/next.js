@@ -11,6 +11,8 @@ The minimum Node.js version has been bumped from 12.22.0 to 14.0.0, since 12.x h
 The `next/image` import was renamed to `next/legacy/image`. The `next/future/image` import was renamed to `next/image`.
 A [codemod is available](/docs/advanced-features/codemods.md#next-image-to-legacy-image) to safely and automatically rename your imports.
 
+The `next/link` child can no longer be `<a>`. Add the `legacyBehavior` prop to use the legacy behavior or remove the `<a>` to upgrade. A [codemod is available](/docs/advanced-features/codemods.md#new-link) to automatically upgrade your code.
+
 ## Upgrading to 12.2
 
 If you were using Middleware prior to `12.2`, please see the [upgrade guide](https://nextjs.org/docs/messages/middleware-upgrade-guide) for more information.
