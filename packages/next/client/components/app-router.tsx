@@ -12,7 +12,11 @@ import type {
   CacheNode,
   AppRouterInstance,
 } from '../../shared/lib/app-router-context'
-import type { FlightRouterState, FlightData } from '../../server/app-render'
+import type {
+  FlightRouterState,
+  FlightData,
+  Segment,
+} from '../../server/app-render'
 import {
   ACTION_NAVIGATE,
   ACTION_PREFETCH,
@@ -99,6 +103,7 @@ type AppRouterProps = {
   initialCanonicalUrl: string
   children: ReactNode
   assetPrefix: string
+  rootLayoutSegments: Segment[]
 }
 
 /**
@@ -109,6 +114,7 @@ function Router({
   initialCanonicalUrl,
   children,
   assetPrefix,
+  rootLayoutSegments,
 }: AppRouterProps) {
   const initialState = useMemo(() => {
     return {
@@ -127,8 +133,9 @@ function Router({
         // Hash is read as the initial value for canonicalUrl in the browser
         // This is safe to do as canonicalUrl can't be rendered, it's only used to control the history updates the useEffect further down.
         (typeof window !== 'undefined' ? window.location.hash : ''),
+      rootLayoutSegments,
     }
-  }, [children, initialCanonicalUrl, initialTree])
+  }, [children, initialCanonicalUrl, initialTree, rootLayoutSegments])
   const [
     { tree, cache, prefetchCache, pushRef, focusAndScrollRef, canonicalUrl },
     dispatch,

@@ -494,6 +494,54 @@ function shouldHardNavigate(
   )
 }
 
+function segmentsIncludesRootLayout(
+  rootLayoutSegment: Segment[],
+  segments: Segment[]
+) {
+  if (segments.length !== rootLayoutSegment.length) {
+    return false
+  }
+
+  for (let i = 0; i < segments.length; i++) {
+    const segment1 = segments[i]
+    const segment2 = rootLayoutSegment[i]
+
+    if (Array.isArray(segment1) && Array.isArray(segment2)) {
+      // Compare dynamic param name and type but ignore the value
+      if (segment1[0] !== segment2[0]) {
+        return false
+      }
+      if (segment1[2] !== segment2[2]) {
+        return false
+      }
+    } else if (segment1 !== segment2) {
+      return false
+    }
+  }
+
+  return true
+}
+
+function findRootLayoutInFlightRouterState(
+  [segment, parallelRoutes]: FlightRouterState,
+  rootLayoutSegments: Segment[],
+  segments: Segment[] = []
+): boolean {
+  if (segments.length === rootLayoutSegments.length) {
+    return segmentsIncludesRootLayout(rootLayoutSegments, segments)
+  } else if (segments.length > rootLayoutSegments.length) {
+    return false
+  }
+  // We can't assume it's `parallelRoutes.children` here in case the root layout is `app/@something/layout.js`
+  // But it's not possible to be more than one parallelRoutes before the root layout is found
+  const child = Object.values(parallelRoutes)[0]
+  if (!child) return false
+  return findRootLayoutInFlightRouterState(child, rootLayoutSegments, [
+    ...segments,
+    segment,
+  ])
+}
+
 export type FocusAndScrollRef = {
   /**
    * If focus and scroll should be set in the layout-router's useEffect()
@@ -648,6 +696,7 @@ type AppRouterState = {
    * The canonical url that is pushed/replaced
    */
   canonicalUrl: string
+  rootLayoutSegments: Segment[]
 }
 
 /**
@@ -671,6 +720,20 @@ function clientReducer(
       const href = createHrefFromUrl(url)
       const pendingPush = navigateType === 'push'
 
+      // Do a full page navigation when the root layout changes
+      if (
+        mutable.patchedTree &&
+        !findRootLayoutInFlightRouterState(
+          mutable.patchedTree,
+          state.rootLayoutSegments
+        )
+      ) {
+        window.location.href = mutable.canonicalUrlOverride
+          ? mutable.canonicalUrlOverride
+          : href
+        return state
+      }
+
       // Handle concurrent rendering / strict mode case where the cache and tree were already populated.
       if (
         mutable.patchedTree &&
@@ -690,6 +753,7 @@ function clientReducer(
           prefetchCache: state.prefetchCache,
           // Apply patched router state.
           tree: mutable.patchedTree,
+          rootLayoutSegments: state.rootLayoutSegments,
         }
       }
 
@@ -752,6 +816,7 @@ function clientReducer(
             prefetchCache: state.prefetchCache,
             // Apply patched tree.
             tree: newTree,
+            rootLayoutSegments: state.rootLayoutSegments,
           }
         }
       }
@@ -805,6 +870,7 @@ function clientReducer(
             prefetchCache: state.prefetchCache,
             // Apply optimistic tree.
             tree: optimisticTree,
+            rootLayoutSegments: state.rootLayoutSegments,
           }
         }
       }
@@ -832,6 +898,7 @@ function clientReducer(
           cache: state.cache,
           prefetchCache: state.prefetchCache,
           tree: state.tree,
+          rootLayoutSegments: state.rootLayoutSegments,
         }
       }
 
@@ -891,6 +958,7 @@ function clientReducer(
         prefetchCache: state.prefetchCache,
         // Apply patched tree.
         tree: newTree,
+        rootLayoutSegments: state.rootLayoutSegments,
       }
     }
     case ACTION_SERVER_PATCH: {
@@ -922,6 +990,7 @@ function clientReducer(
           prefetchCache: state.prefetchCache,
           // Apply patched cache
           cache: cache,
+          rootLayoutSegments: state.rootLayoutSegments,
         }
       }
 
@@ -938,6 +1007,7 @@ function clientReducer(
           cache: state.cache,
           prefetchCache: state.prefetchCache,
           tree: state.tree,
+          rootLayoutSegments: state.rootLayoutSegments,
         }
       }
 
@@ -992,6 +1062,7 @@ function clientReducer(
         prefetchCache: state.prefetchCache,
         // Apply patched cache
         cache: cache,
+        rootLayoutSegments: state.rootLayoutSegments,
       }
     }
     case ACTION_RESTORE: {
@@ -1007,6 +1078,7 @@ function clientReducer(
         prefetchCache: state.prefetchCache,
         // Restore provided tree
         tree: tree,
+        rootLayoutSegments: state.rootLayoutSegments,
       }
     }
     case ACTION_REFRESH: {
@@ -1031,6 +1103,7 @@ function clientReducer(
           cache: cache,
           prefetchCache: state.prefetchCache,
           tree: mutable.patchedTree,
+          rootLayoutSegments: state.rootLayoutSegments,
         }
       }
 
@@ -1056,6 +1129,7 @@ function clientReducer(
           cache: state.cache,
           prefetchCache: state.prefetchCache,
           tree: state.tree,
+          rootLayoutSegments: state.rootLayoutSegments,
         }
       }
 
@@ -1113,6 +1187,7 @@ function clientReducer(
         prefetchCache: state.prefetchCache,
         // Apply patched router state.
         tree: newTree,
+        rootLayoutSegments: state.rootLayoutSegments,
       }
     }
     case ACTION_PREFETCH: {

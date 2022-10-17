@@ -873,6 +873,7 @@ export async function renderToHTMLOrFlight(
     )
 
     const assetPrefix = renderOpts.assetPrefix || ''
+    let rootLayoutSegments: Segment[] = []
 
     /**
      * Use the provided loader tree to create the React Component tree.
@@ -895,12 +896,14 @@ export async function renderToHTMLOrFlight(
       parentParams,
       firstItem,
       rootLayoutIncluded,
+      currentRootLayoutSegments = [],
     }: {
       createSegmentPath: CreateSegmentPath
       loaderTree: LoaderTree
       parentParams: { [key: string]: any }
       rootLayoutIncluded?: boolean
       firstItem?: boolean
+      currentRootLayoutSegments?: Segment[]
     }): Promise<{ Component: React.ComponentType }> => {
       // TODO-APP: enable stylesheet per layout/page
       const stylesheets: string[] = layoutOrPagePath
@@ -991,6 +994,10 @@ export async function renderToHTMLOrFlight(
       // Resolve the segment param
       const actualSegment = segmentParam ? segmentParam.treeSegment : segment
 
+      if (rootLayoutAtThisLevel) {
+        rootLayoutSegments = [...currentRootLayoutSegments, actualSegment]
+      }
+
       // This happens outside of rendering in order to eagerly kick off data fetching for layouts / the page further down
       const parallelRouteMap = await Promise.all(
         Object.keys(parallelRoutes).map(
@@ -1040,6 +1047,10 @@ export async function renderToHTMLOrFlight(
               loaderTree: parallelRoutes[parallelRouteKey],
               parentParams: currentParams,
               rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
+              currentRootLayoutSegments: [
+                ...currentRootLayoutSegments,
+                actualSegment,
+              ],
             })
 
             const childProp: ChildProp = {
@@ -1356,6 +1367,7 @@ export async function renderToHTMLOrFlight(
             assetPrefix={assetPrefix}
             initialCanonicalUrl={initialCanonicalUrl}
             initialTree={initialTree}
+            rootLayoutSegments={rootLayoutSegments}
           >
             <ComponentTree />
           </AppRouter>
