@@ -2,7 +2,7 @@ import type webpack from 'webpack'
 import type { ValueOf } from '../../../shared/lib/constants'
 import { NODE_RESOLVE_OPTIONS } from '../../webpack-config'
 import { getModuleBuildInfo } from './get-module-build-info'
-import path from 'path'
+import { sep } from 'path'
 
 export const FILE_TYPES = {
   layout: 'layout',
@@ -118,7 +118,7 @@ function createAbsolutePath(appDir: string, pathToTurnAbsolute: string) {
   return (
     pathToTurnAbsolute
       // Replace all POSIX path separators with the current OS path separator
-      .replace(/\//g, path.sep)
+      .replace(/\//g, sep)
       .replace(/^private-next-app-dir/, appDir)
   )
 }
