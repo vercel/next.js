@@ -547,7 +547,7 @@ export const defaultConfig: NextConfig = {
   },
   outputFileTracing: true,
   staticPageGenerationTimeout: 60,
-  swcMinify: false,
+  swcMinify: true,
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   experimental: {
     optimisticClientCache: true,
