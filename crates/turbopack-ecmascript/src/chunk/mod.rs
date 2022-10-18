@@ -3,7 +3,7 @@ pub(crate) mod optimize;
 pub(crate) mod source_map;
 
 use std::{
-    collections::{hash_map::DefaultHasher, HashSet},
+    collections::hash_map::DefaultHasher,
     fmt::Write as _,
     hash::{Hash, Hasher},
     slice::Iter,
@@ -155,7 +155,7 @@ impl EcmascriptChunkVc {
 
         let mut unshared_a = a.clone();
         let mut unshared_b = b.clone();
-        let mut shared = HashSet::new();
+        let mut shared = IndexSet::new();
         for item in b {
             if unshared_a.remove(item) {
                 shared.insert(*item);
@@ -1141,4 +1141,4 @@ impl EcmascriptChunkItemsVc {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct EcmascriptChunkItemsSet(HashSet<EcmascriptChunkItemVc>);
+pub struct EcmascriptChunkItemsSet(IndexSet<EcmascriptChunkItemVc>);

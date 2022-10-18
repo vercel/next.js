@@ -1,16 +1,18 @@
-(self.TURBOPACK = self.TURBOPACK || []).push(["[workspace]/crates/turbopack/tests/snapshot/integration/chunked/output/crates_turbopack_tests_snapshot_integration_chunked_input_index_4bac78.js", {
+(self.TURBOPACK = self.TURBOPACK || []).push(["[workspace]/crates/turbopack/tests/snapshot/integration/mono_transforms/output/62d1e_tests_snapshot_integration_mono_transforms_input_packages_app_index_d4a1ca.js", {
 
-"[project]/crates/turbopack/tests/snapshot/integration/chunked/input/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
+"[project]/crates/turbopack/tests/snapshot/integration/mono_transforms/input/packages/app/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
 
-var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$chunked$2f$input$2f$node_modules$2f$foo$2f$index$2e$js__ = __turbopack_import__("[project]/crates/turbopack/tests/snapshot/integration/chunked/input/node_modules/foo/index.js (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$mono_transforms$2f$input$2f$packages$2f$component$2f$index$2e$js__ = __turbopack_import__("[project]/crates/turbopack/tests/snapshot/integration/mono_transforms/input/packages/component/index.js (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$mono_transforms$2f$input$2f$node_modules$2f$third_party_component$2f$index$2e$js__ = __turbopack_import__("[project]/crates/turbopack/tests/snapshot/integration/mono_transforms/input/node_modules/third_party_component/index.js (ecmascript)");
 "__TURBOPACK__ecmascript__hoisting__location__";
 ;
-__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$chunked$2f$input$2f$node_modules$2f$foo$2f$index$2e$js__["foo"](true);
+;
+console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$mono_transforms$2f$input$2f$packages$2f$component$2f$index$2e$js__["default"], __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$mono_transforms$2f$input$2f$node_modules$2f$third_party_component$2f$index$2e$js__["default"]);
 
 })()),
 }, ({ loadedChunks, instantiateRuntimeModule }) => {
-    if(!(true && loadedChunks.has("[workspace]/crates/turbopack/tests/snapshot/integration/chunked/output/crates_turbopack_tests_snapshot_integration_chunked_input_index_83531f.js") && loadedChunks.has("[workspace]/crates/turbopack/tests/snapshot/integration/chunked/output/e686c_foo_index.js"))) return true;
-    instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/chunked/input/index.js (ecmascript)");
+    if(!(true && loadedChunks.has("[workspace]/crates/turbopack/tests/snapshot/integration/mono_transforms/output/62d1e_tests_snapshot_integration_mono_transforms_input_packages_app_index_b1ceb1.js") && loadedChunks.has("[workspace]/crates/turbopack/tests/snapshot/integration/mono_transforms/output/4c26b_third_party_component_index.js") && loadedChunks.has("[workspace]/crates/turbopack/tests/snapshot/integration/mono_transforms/output/62d1e_tests_snapshot_integration_mono_transforms_input_packages_component_index.js") && loadedChunks.has("[workspace]/crates/turbopack/tests/snapshot/integration/mono_transforms/output/node_modules_react_jsx-runtime.js") && loadedChunks.has("[workspace]/crates/turbopack/tests/snapshot/integration/mono_transforms/output/4c26b_react_jsx-runtime.js"))) return true;
+    instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/mono_transforms/input/packages/app/index.js (ecmascript)");
 }]);
 (() => {
   // When a chunk is executed, it will either register itself with the current
@@ -92,7 +94,7 @@ __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$
 
   function interopEsm(raw, ns, allowExportDefault) {
     var getters = { __proto__: null };
-    if (typeof raw === "object") {
+    if (typeof raw === "object" || typeof raw === "function") {
       for (var key in raw) {
         getters[key] = createGetter(raw, key);
       }
@@ -124,7 +126,7 @@ __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$
     } catch (err) {
       // TODO(alexkirsz) This can happen when a client-side module tries to load
       // an external module we don't provide a shim for (e.g. querystring, url).
-      // For now, we fail semi–silently, but in the future this should be a
+      // For now, we fail semi-silently, but in the future this should be a
       // compilation error.
       console.error(`Failed to load external module ${id}: ${err}`);
       return undefined;
@@ -813,4 +815,4 @@ __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$
 })();
 
 
-//# sourceMappingURL=crates_turbopack_tests_snapshot_integration_chunked_input_index_4bac78.js.c2afc48f178d7986.map
+//# sourceMappingURL=62d1e_tests_snapshot_integration_mono_transforms_input_packages_app_index_d4a1ca.js.842bb8af45fc05ec.map

@@ -1,21 +1,13 @@
-(self.TURBOPACK = self.TURBOPACK || []).push(["[workspace]/crates/turbopack/tests/snapshot/integration/resolve_error_esm/output/crates_turbopack_tests_snapshot_integration_resolve_error_esm_input_index_68a2a8.js", {
+(self.TURBOPACK = self.TURBOPACK || []).push(["[workspace]/crates/turbopack/tests/snapshot/integration/runtime_entry/output/crates_turbopack_tests_snapshot_integration_runtime_entry_input_index_55400d.js", {
 
-"[project]/crates/turbopack/tests/snapshot/integration/resolve_error_esm/input/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
+"[project]/crates/turbopack/tests/snapshot/integration/runtime_entry/input/index.js (ecmascript)": (function({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, m: module, e: exports }) { !function() {
 
-(()=>{
-    const e = new Error("Cannot find module 'does-not-exist/path'");
-    e.code = 'MODULE_NOT_FOUND';
-    throw e;
-})();
-"__TURBOPACK__ecmascript__hoisting__location__";
-;
-console.log(dne);
-console.log({}[dne]);
+console.log("hello world");
 
-})()),
+}.call(this) }),
 }, ({ loadedChunks, instantiateRuntimeModule }) => {
-    if(!(true && loadedChunks.has("[workspace]/crates/turbopack/tests/snapshot/integration/resolve_error_esm/output/crates_turbopack_tests_snapshot_integration_resolve_error_esm_input_index_c28922.js"))) return true;
-    instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/resolve_error_esm/input/index.js (ecmascript)");
+    if(!(true && loadedChunks.has("[workspace]/crates/turbopack/tests/snapshot/integration/runtime_entry/output/crates_turbopack_tests_snapshot_integration_runtime_entry_input_index_e01349.js"))) return true;
+    instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/runtime_entry/input/index.js (ecmascript)");
 }]);
 (() => {
   // When a chunk is executed, it will either register itself with the current
@@ -97,7 +89,7 @@ console.log({}[dne]);
 
   function interopEsm(raw, ns, allowExportDefault) {
     var getters = { __proto__: null };
-    if (typeof raw === "object") {
+    if (typeof raw === "object" || typeof raw === "function") {
       for (var key in raw) {
         getters[key] = createGetter(raw, key);
       }
@@ -129,7 +121,7 @@ console.log({}[dne]);
     } catch (err) {
       // TODO(alexkirsz) This can happen when a client-side module tries to load
       // an external module we don't provide a shim for (e.g. querystring, url).
-      // For now, we fail semi–silently, but in the future this should be a
+      // For now, we fail semi-silently, but in the future this should be a
       // compilation error.
       console.error(`Failed to load external module ${id}: ${err}`);
       return undefined;
@@ -818,4 +810,4 @@ console.log({}[dne]);
 })();
 
 
-//# sourceMappingURL=crates_turbopack_tests_snapshot_integration_resolve_error_esm_input_index_68a2a8.js.1cf37ac5daa5b01f.map
+//# sourceMappingURL=crates_turbopack_tests_snapshot_integration_runtime_entry_input_index_55400d.js.93f5da801f51c759.map

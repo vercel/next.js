@@ -1,20 +1,22 @@
-(self.TURBOPACK = self.TURBOPACK || []).push(["[workspace]/crates/turbopack/tests/snapshot/integration/preset_env/output/crates_turbopack_tests_snapshot_integration_preset_env_input_index_56c340.js", {
+(self.TURBOPACK = self.TURBOPACK || []).push(["[workspace]/crates/turbopack/tests/snapshot/integration/env/output/crates_turbopack_tests_snapshot_integration_env_input_72bbc2.js", {
 
-"[project]/crates/turbopack/tests/snapshot/integration/preset_env/input/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
+"[project]/crates/turbopack/tests/snapshot/integration/env/input/.env/.env.js": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
 
-var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f40$swc$2b$helpers$40$0$2e$4$2e$11$2f$node_modules$2f40$swc$2f$helpers$2f$src$2f$_class_call_check$2e$mjs__ = __turbopack_import__("[project]/node_modules/.pnpm/@swc+helpers@0.4.11/node_modules/@swc/helpers/src/_class_call_check.mjs (ecmascript)");
-"__TURBOPACK__ecmascript__hoisting__location__";
-;
-var Foo = function Foo() {
-    "use strict";
-    __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f40$swc$2b$helpers$40$0$2e$4$2e$11$2f$node_modules$2f40$swc$2f$helpers$2f$src$2f$_class_call_check$2e$mjs__["default"](this, Foo);
-};
-console.log(Foo);
+const env = process.env;
+
+env["FOO"] = "foo";
+env["FOOBAR"] = "foobar";
 
 })()),
+"[project]/crates/turbopack/tests/snapshot/integration/env/input/index.js (ecmascript)": (function({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, m: module, e: exports }) { !function() {
+
+console.log(process.env.FOOBAR);
+
+}.call(this) }),
 }, ({ loadedChunks, instantiateRuntimeModule }) => {
-    if(!(true && loadedChunks.has("[workspace]/crates/turbopack/tests/snapshot/integration/preset_env/output/crates_turbopack_tests_snapshot_integration_preset_env_input_index_06a225.js") && loadedChunks.has("[workspace]/crates/turbopack/tests/snapshot/integration/preset_env/output/3f8b2_@swc_helpers_src__class_call_check.mjs.js"))) return true;
-    instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/preset_env/input/index.js (ecmascript)");
+    if(!(true && loadedChunks.has("[workspace]/crates/turbopack/tests/snapshot/integration/env/output/crates_turbopack_tests_snapshot_integration_env_input_ca2e61.js"))) return true;
+    instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/env/input/.env/.env.js");
+instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/env/input/index.js (ecmascript)");
 }]);
 (() => {
   // When a chunk is executed, it will either register itself with the current
@@ -96,7 +98,7 @@ console.log(Foo);
 
   function interopEsm(raw, ns, allowExportDefault) {
     var getters = { __proto__: null };
-    if (typeof raw === "object") {
+    if (typeof raw === "object" || typeof raw === "function") {
       for (var key in raw) {
         getters[key] = createGetter(raw, key);
       }
@@ -128,7 +130,7 @@ console.log(Foo);
     } catch (err) {
       // TODO(alexkirsz) This can happen when a client-side module tries to load
       // an external module we don't provide a shim for (e.g. querystring, url).
-      // For now, we fail semi–silently, but in the future this should be a
+      // For now, we fail semi-silently, but in the future this should be a
       // compilation error.
       console.error(`Failed to load external module ${id}: ${err}`);
       return undefined;
@@ -817,4 +819,4 @@ console.log(Foo);
 })();
 
 
-//# sourceMappingURL=crates_turbopack_tests_snapshot_integration_preset_env_input_index_56c340.js.2285447209eea4d1.map
+//# sourceMappingURL=crates_turbopack_tests_snapshot_integration_env_input_72bbc2.js.f804311e54dcd5fa.map
