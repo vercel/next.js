@@ -427,6 +427,8 @@ export const css = curry(async function css(
         loader({
           oneOf: [
             markRemovable({
+              // CSS imports have side effects, even on the server side.
+              sideEffects: true,
               test: [regexCssGlobal, regexSassGlobal],
               use: require.resolve('next/dist/compiled/ignore-loader'),
             }),
