@@ -10,8 +10,7 @@ use turbopack_core::{
 use turbopack_ecmascript::utils::FormatIter;
 
 use crate::source::{
-    ContentSource, ContentSourceData, ContentSourceDataVary, ContentSourceDataVaryVc,
-    ContentSourceResult, ContentSourceResultVc, ContentSourceVc,
+    ContentSource, ContentSourceData, ContentSourceResult, ContentSourceResultVc, ContentSourceVc,
 };
 
 #[turbo_tasks::value(shared)]
@@ -73,14 +72,6 @@ impl<T: Display> Display for HtmlStringEscaped<T> {
 
 #[turbo_tasks::value_impl]
 impl ContentSource for IntrospectionSource {
-    #[turbo_tasks::function]
-    fn vary(&self, _path: &str) -> ContentSourceDataVaryVc {
-        ContentSourceDataVary {
-            ..Default::default()
-        }
-        .cell()
-    }
-
     #[turbo_tasks::function]
     async fn get(
         self_vc: IntrospectionSourceVc,

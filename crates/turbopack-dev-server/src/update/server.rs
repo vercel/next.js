@@ -63,6 +63,9 @@ impl<S: GetContentSource> UpdateServer<S> {
                                 let stream = UpdateStream::new(message.id, content).await?;
                                 self.add_stream(stream);
                             },
+                            ContentSourceResult::NeedData{ .. } => {
+                              todo!()
+                            }
                         }
                     } else {
                         break

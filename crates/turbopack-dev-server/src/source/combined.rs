@@ -3,8 +3,7 @@ use turbo_tasks::{primitives::StringVc, TryJoinIterExt, Value};
 use turbopack_core::introspect::{Introspectable, IntrospectableChildrenVc, IntrospectableVc};
 
 use super::{
-    ContentSource, ContentSourceData, ContentSourceDataVary, ContentSourceDataVaryVc,
-    ContentSourceResult, ContentSourceResultVc, ContentSourceVc,
+    ContentSource, ContentSourceData, ContentSourceResult, ContentSourceResultVc, ContentSourceVc,
 };
 
 /// Combines multiple [ContentSource]s by trying all content sources in order.
@@ -17,14 +16,6 @@ pub struct CombinedContentSource {
 
 #[turbo_tasks::value_impl]
 impl ContentSource for CombinedContentSource {
-    #[turbo_tasks::function]
-    async fn vary(&self, path: &str) -> Result<ContentSourceDataVaryVc> {
-        let mut current = ContentSourceDataVary::default();
-        for vary in self.sources.iter().map(|s| s.vary(path)).try_join().await? {
-            current.extend(&vary);
-        }
-        Ok(current.cell())
-    }
     #[turbo_tasks::function]
     async fn get(
         &self,

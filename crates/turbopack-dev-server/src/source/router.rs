@@ -3,8 +3,7 @@ use turbo_tasks::{primitives::StringVc, TryJoinIterExt, Value};
 use turbopack_core::introspect::{Introspectable, IntrospectableChildrenVc, IntrospectableVc};
 
 use super::{
-    ContentSource, ContentSourceData, ContentSourceDataVaryVc, ContentSourceResult,
-    ContentSourceResultVc, ContentSourceVc,
+    ContentSource, ContentSourceData, ContentSourceResult, ContentSourceResultVc, ContentSourceVc,
 };
 
 /// Binds different ContentSources to different subpaths. A fallback
@@ -29,11 +28,6 @@ impl RouterContentSource {
 
 #[turbo_tasks::value_impl]
 impl ContentSource for RouterContentSource {
-    #[turbo_tasks::function]
-    fn vary(&self, path: &str) -> ContentSourceDataVaryVc {
-        let (source, path) = self.get_source(path);
-        source.vary(path)
-    }
     #[turbo_tasks::function]
     fn get(&self, path: &str, data: Value<ContentSourceData>) -> ContentSourceResultVc {
         let (source, path) = self.get_source(path);

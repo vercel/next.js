@@ -6,8 +6,7 @@ use turbo_tasks::{get_invalidator, primitives::StringVc, Invalidator};
 use turbopack_core::introspect::{Introspectable, IntrospectableChildrenVc, IntrospectableVc};
 
 use super::{
-    ContentSource, ContentSourceData, ContentSourceDataVaryVc, ContentSourceResult,
-    ContentSourceResultVc, ContentSourceVc,
+    ContentSource, ContentSourceData, ContentSourceResult, ContentSourceResultVc, ContentSourceVc,
 };
 
 /// Combines two [ContentSource]s like the [CombinedContentSource], but only
@@ -78,17 +77,6 @@ impl ConditionalContentSource {
 
 #[turbo_tasks::value_impl]
 impl ContentSource for ConditionalContentSource {
-    #[turbo_tasks::function]
-    async fn vary(&self, path: &str) -> Result<ContentSourceDataVaryVc> {
-        let first = self.activator.vary(path);
-        if self.is_activated() {
-            let second = self.action.vary(path);
-            Ok(first.extend(second))
-        } else {
-            Ok(first)
-        }
-    }
-
     #[turbo_tasks::function]
     async fn get(
         &self,

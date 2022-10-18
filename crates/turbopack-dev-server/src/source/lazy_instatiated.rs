@@ -2,10 +2,7 @@ use anyhow::Result;
 use turbo_tasks::primitives::StringVc;
 use turbopack_core::introspect::{Introspectable, IntrospectableChildrenVc, IntrospectableVc};
 
-use super::{
-    ContentSource, ContentSourceData, ContentSourceDataVaryVc, ContentSourceResultVc,
-    ContentSourceVc,
-};
+use super::{ContentSource, ContentSourceData, ContentSourceResultVc, ContentSourceVc};
 
 /// A functor to get a [ContentSource]. Will be invoked when needed when using
 /// [LazyInstantiatedContentSource].
@@ -24,11 +21,6 @@ pub struct LazyInstantiatedContentSource {
 
 #[turbo_tasks::value_impl]
 impl ContentSource for LazyInstantiatedContentSource {
-    #[turbo_tasks::function]
-    fn vary(&self, path: &str) -> ContentSourceDataVaryVc {
-        self.get_source.content_source().vary(path)
-    }
-
     #[turbo_tasks::function]
     fn get(
         &self,

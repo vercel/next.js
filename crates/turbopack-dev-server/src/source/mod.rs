@@ -24,6 +24,11 @@ use self::query::Query;
 pub enum ContentSourceResult {
     NotFound,
     Static(VersionedContentVc),
+    NeedData {
+        source: ContentSourceVc,
+        path: String,
+        vary: ContentSourceDataVary,
+    },
 }
 
 impl From<VersionedContentVc> for ContentSourceResultVc {
@@ -102,11 +107,11 @@ pub struct ContentSourceData {
     pub method: Option<String>,
     /// The full url (including query string), if requested
     pub url: Option<String>,
-    /// query string items, empty when not requested
-    pub query: Query,
-    /// http headers, might contain multiple headers with the same name, empty
-    /// when not requested
-    pub headers: BTreeMap<String, HeaderValue>,
+    /// query string items, if requested
+    pub query: Option<Query>,
+    /// http headers, might contain multiple headers with the same name, if
+    /// requested
+    pub headers: Option<BTreeMap<String, HeaderValue>>,
 }
 
 /// Filter function that describes which information is required.
@@ -176,26 +181,14 @@ impl ContentSourceDataVary {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl ContentSourceDataVaryVc {
-    #[turbo_tasks::function]
-    pub async fn extend(self, other: ContentSourceDataVaryVc) -> Result<ContentSourceDataVaryVc> {
-        let mut new = self.await?.clone_value();
-        new.extend(&*other.await?);
-        Ok(new.cell())
-    }
-}
-
 /// A source of content that the dev server uses to respond to http requests.
 #[turbo_tasks::value_trait]
 pub trait ContentSource {
-    /// Describes which information should be sent as `data` to the `get`
-    /// method.
-    fn vary(&self, _path: &str) -> ContentSourceDataVaryVc {
-        ContentSourceDataVary::default().cell()
-    }
     /// Gets content by `path` and request `data` from the source. `data` is
-    /// filled with information requested from `vary` (or maybe more).
+    /// empty by default and will only be filled when returning `NeedData`.
+    /// This is useful as this method call will be cached based on it's
+    /// arguments, so we want to make the arguments contain as few information
+    /// as possible to increase cache hit ratio.
     fn get(&self, path: &str, data: Value<ContentSourceData>) -> ContentSourceResultVc;
     /// Gets content by `id` from the source. `id` is defined by this content
     /// source and previous responses from this content source might access the
