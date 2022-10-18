@@ -20,6 +20,11 @@ const nextDev: cliCommand = (argv) => {
     '--hostname': String,
     '--turbo': Boolean,
 
+    // To align current messages with native binary.
+    // Will need to adjust subcommand later.
+    '--show-all': Boolean,
+    '--root': String,
+
     // Aliases
     '-h': '--help',
     '-p': '--port',
@@ -97,17 +102,10 @@ const nextDev: cliCommand = (argv) => {
   }
 
   if (args['--turbo']) {
-    Log.info('Booting up turbo devserver')
-
     loadBindings().then((bindings: any) => {
-      const packagePath = require('next/dist/compiled/find-up').sync(
-        'package.json',
-        { cwd: dir }
-      )
       const server = bindings.turbo.startDev({
         ...devServerOptions,
-        // naive workaround to find cloest `root` to resolve imports, until we have proper upstream fix.
-        rootDir: path.dirname(packagePath),
+        showAll: args['--show-all'] ?? false,
       })
       // Start preflight after server is listening and ignore errors:
       preflight().catch(() => {})
