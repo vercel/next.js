@@ -713,15 +713,10 @@ function clientReducer(
       const pendingPush = navigateType === 'push'
 
       // Do a full page navigation when the root layout changes
-      if (
+      const mpaNavigation = !!(
         mutable.patchedTree &&
         isNavigatingToNewRootLayout(state.tree, mutable.patchedTree)
-      ) {
-        window.location.href = mutable.canonicalUrlOverride
-          ? mutable.canonicalUrlOverride
-          : href
-        return state
-      }
+      )
 
       // Handle concurrent rendering / strict mode case where the cache and tree were already populated.
       if (
@@ -734,7 +729,7 @@ function clientReducer(
             ? mutable.canonicalUrlOverride
             : href,
           // TODO-APP: verify mpaNavigation not being set is correct here.
-          pushRef: { pendingPush, mpaNavigation: false },
+          pushRef: { pendingPush, mpaNavigation },
           // All navigation requires scroll and focus management to trigger.
           focusAndScrollRef: { apply: true },
           // Apply cache.
@@ -796,7 +791,7 @@ function clientReducer(
               ? canonicalUrlOverrideHref
               : href,
             // Set pendingPush.
-            pushRef: { pendingPush, mpaNavigation: false },
+            pushRef: { pendingPush, mpaNavigation },
             // All navigation requires scroll and focus management to trigger.
             focusAndScrollRef: { apply: true },
             // Apply patched cache.
