@@ -78,7 +78,7 @@
 
   function interopEsm(raw, ns, allowExportDefault) {
     var getters = { __proto__: null };
-    if (typeof raw === "object") {
+    if (typeof raw === "object" || typeof raw === "function") {
       for (var key in raw) {
         getters[key] = createGetter(raw, key);
       }
@@ -110,7 +110,7 @@
     } catch (err) {
       // TODO(alexkirsz) This can happen when a client-side module tries to load
       // an external module we don't provide a shim for (e.g. querystring, url).
-      // For now, we fail semi–silently, but in the future this should be a
+      // For now, we fail semi-silently, but in the future this should be a
       // compilation error.
       console.error(`Failed to load external module ${id}: ${err}`);
       return undefined;
