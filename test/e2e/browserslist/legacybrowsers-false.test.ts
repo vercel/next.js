@@ -33,7 +33,6 @@ describe('legacyBrowsers: false', () => {
             const res = await fetchViaHTTP(next.url, src)
             const code = await res.text()
             expect(code).toMatch('()=>')
-            expect(code).toMatch('async')
             finished = true
           }
         })
