@@ -810,8 +810,8 @@ export default async function loadConfig(
     }
 
     if (userConfig.target && userConfig.target !== 'server') {
-      Log.warn(
-        'The `target` config is no longer supported.\n' +
+      throw new Error(
+        'The "target" config is no longer supported.\n' +
           'See more info here https://nextjs.org/docs/messages/deprecated-target-config'
       )
     }

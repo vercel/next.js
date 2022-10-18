@@ -74,7 +74,7 @@ describe('config', () => {
         PHASE_DEVELOPMENT_SERVER,
         join(__dirname, '_resolvedata', 'invalid-target')
       )
-    }).rejects.toThrow(/Specified target is invalid/)
+    }).rejects.toThrow(/The "target" config is no longer supported/)
   })
 
   it('Should throw an error when next.config.js is not present', async () => {
