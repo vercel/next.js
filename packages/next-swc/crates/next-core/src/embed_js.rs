@@ -7,7 +7,7 @@ pub const VIRTUAL_PACKAGE_NAME: &str = "@vercel/turbopack-next";
 
 #[turbo_tasks::function]
 pub(crate) fn next_js_fs() -> FileSystemVc {
-    embed_directory!("next", "$CARGO_MANIFEST_DIR/js")
+    embed_directory!("next", "$CARGO_MANIFEST_DIR/js/src")
 }
 
 #[turbo_tasks::function]

@@ -41,8 +41,8 @@ impl Transition for NextClientTransition {
     #[turbo_tasks::function]
     fn process_source(&self, asset: AssetVc) -> AssetVc {
         VirtualAssetVc::new(
-            asset.path().join("next-hydrate.js"),
-            next_js_file("entry/next-hydrate.js").into(),
+            asset.path().join("next-hydrate.tsx"),
+            next_js_file("entry/next-hydrate.tsx").into(),
         )
         .into()
     }
