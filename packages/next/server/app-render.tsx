@@ -229,13 +229,25 @@ function patchFetch(ComponentMod: any) {
           )
         }
 
+        const next = opts.next || {}
+        // console.log('next', next.revalidate, typeof next.revalidate === 'number', fetchRevalidate,
+        // next.revalidate < fetchRevalidate)
         if (
-          typeof opts.revalidate === 'number' &&
+          typeof next.revalidate === 'number' &&
           (typeof fetchRevalidate === 'undefined' ||
-            opts.revalidate < fetchRevalidate)
+            next.revalidate < fetchRevalidate)
         ) {
-          staticGenerationStore.fetchRevalidate = opts.revalidate
+          staticGenerationStore.fetchRevalidate = next.revalidate
+
+          // TODO: ensure this error isn't logged to the user
+          // seems it's slipping through currently
+          throw new DynamicServerError(
+            `revalidate: ${next.revalidate} fetch ${init}${
+              pathname ? ` ${pathname}` : ''
+            }`
+          )
         }
+        delete opts.next
       }
     }
     return origFetch(init, opts)
