@@ -4,17 +4,17 @@ description: Browser support and which JavaScript features are supported by Next
 
 # Supported Browsers and Features
 
-Next.js supports **modern browsers** with no required configuration.
+Next.js supports **modern browsers** with zero configuration.
 
-- Chrome 61+
-- Edge 16+
-- Firefox 60+
-- Opera 48+
-- Safari 11+
+- Chrome 64+
+- Edge 79+
+- Firefox 67+
+- Opera 51+
+- Safari 12+
 
 ## Browserslist
 
-Next.js supports [Browserslist](https://browsersl.ist) configuration so you can target any browser and any version.
+If you would like to target specific browsers or features, Next.js supports [Browserslist](https://browsersl.ist) configuration.
 
 ## Polyfills
 
