@@ -37,6 +37,10 @@ import { NOT_FOUND_ERROR_CODE } from '../client/components/not-found'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import { Writable } from 'stream'
 
+type NextFetchRequestConfig = {
+  revalidate?: number
+}
+
 const INTERNAL_HEADERS_INSTANCE = Symbol('internal for headers readonly')
 
 function readonlyHeadersError() {
@@ -209,7 +213,10 @@ function patchFetch(ComponentMod: any) {
 
   const origFetch = (global as any).fetch
 
-  ;(global as any).fetch = async (init: any, opts: any) => {
+  ;(global as any).fetch = async (
+    url: RequestInfo,
+    opts: RequestInit & { next?: NextFetchRequestConfig }
+  ) => {
     const staticGenerationStore =
       'getStore' in staticGenerationAsyncStorage
         ? staticGenerationAsyncStorage.getStore()
@@ -225,13 +232,11 @@ function patchFetch(ComponentMod: any) {
           // TODO: ensure this error isn't logged to the user
           // seems it's slipping through currently
           throw new DynamicServerError(
-            `no-store fetch ${init}${pathname ? ` ${pathname}` : ''}`
+            `no-store fetch ${url}${pathname ? ` ${pathname}` : ''}`
           )
         }
 
         const next = opts.next || {}
-        // console.log('next', next.revalidate, typeof next.revalidate === 'number', fetchRevalidate,
-        // next.revalidate < fetchRevalidate)
         if (
           typeof next.revalidate === 'number' &&
           (typeof fetchRevalidate === 'undefined' ||
@@ -242,7 +247,7 @@ function patchFetch(ComponentMod: any) {
           // TODO: ensure this error isn't logged to the user
           // seems it's slipping through currently
           throw new DynamicServerError(
-            `revalidate: ${next.revalidate} fetch ${init}${
+            `revalidate: ${next.revalidate} fetch ${url}${
               pathname ? ` ${pathname}` : ''
             }`
           )
@@ -250,7 +255,7 @@ function patchFetch(ComponentMod: any) {
         delete opts.next
       }
     }
-    return origFetch(init, opts)
+    return origFetch(url, opts)
   }
 }
 
