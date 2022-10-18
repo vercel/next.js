@@ -35,9 +35,7 @@ For example, using `/about` will automatically become `/docs/about` when `basePa
 export default function HomePage() {
   return (
     <>
-      <Link href="/about">
-        <a>About Page</a>
-      </Link>
+      <Link href="/about">About Page</Link>
     </>
   )
 }

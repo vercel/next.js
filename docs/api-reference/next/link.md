@@ -31,19 +31,13 @@ function Home() {
   return (
     <ul>
       <li>
-        <Link href="/">
-          <a>Home</a>
-        </Link>
+        <Link href="/">Home</Link>
       </li>
       <li>
-        <Link href="/about">
-          <a>About Us</a>
-        </Link>
+        <Link href="/about">About Us</Link>
       </li>
       <li>
-        <Link href="/blog/hello-world">
-          <a>Blog Post</a>
-        </Link>
+        <Link href="/blog/hello-world">Blog Post</Link>
       </li>
     </ul>
   )
@@ -56,6 +50,7 @@ export default Home
 
 - `href` - The path or URL to navigate to. This is the only required prop. It can also be an object, see [example here](/docs/api-reference/next/link.md#with-url-object)
 - `as` - Optional decorator for the path that will be shown in the browser URL bar. Before Next.js 9.5.3 this was used for dynamic routes, check our [previous docs](https://nextjs.org/docs/tag/v9.5.2/api-reference/next/link#dynamic-routes) to see how it worked. Note: when this path differs from the one provided in `href` the previous `href`/`as` behavior is used as shown in the [previous docs](https://nextjs.org/docs/tag/v9.5.2/api-reference/next/link#dynamic-routes).
+- [`legacyBehavior`](#if-the-child-is-a-tag) - Changes behavior so that child must be `<a>`. Defaults to `false`.
 - [`passHref`](#if-the-child-is-a-custom-component-that-wraps-an-a-tag) - Forces `Link` to send the `href` property to its child. Defaults to `false`
 - `prefetch` - Prefetch the page in the background. Defaults to `true`. Any `<Link />` that is in the viewport (initially or through scroll) will be preloaded. Prefetch can be disabled by passing `prefetch={false}`. When `prefetch` is set to `false`, prefetching will still occur on hover. Pages using [Static Generation](/docs/basic-features/data-fetching/get-static-props.md) will preload `JSON` files with the data for faster page transitions. Prefetching is only enabled in production.
 - [`replace`](#replace-the-url-instead-of-push) - Replace the current `history` state instead of adding a new url into the stack. Defaults to `false`
@@ -78,7 +73,7 @@ function Posts({ posts }) {
       {posts.map((post) => (
         <li key={post.id}>
           <Link href={`/blog/${encodeURIComponent(post.slug)}`}>
-            <a>{post.title}</a>
+            {post.title}
           </Link>
         </li>
       ))}
@@ -87,6 +82,22 @@ function Posts({ posts }) {
 }
 
 export default Posts
+```
+
+## If the child is `<a>` tag
+
+```jsx
+import Link from 'next/link'
+
+function Legacy() {
+  return (
+    <Link href="/about" legacyBehavior>
+      <a>About Us</a>
+    </Link>
+  )
+}
+
+export default Legacy
 ```
 
 ## If the child is a custom component that wraps an `<a>` tag
@@ -103,9 +114,8 @@ const RedLink = styled.a`
 `
 
 function NavLink({ href, name }) {
-  // Must add passHref to Link
   return (
-    <Link href={href} passHref>
+    <Link href={href} passHref legacyBehavior>
       <RedLink>{name}</RedLink>
     </Link>
   )
@@ -119,7 +129,7 @@ export default NavLink
 
 ## If the child is a functional component
 
-If the child of `Link` is a functional component, in addition to using `passHref`, you must wrap the component in [`React.forwardRef`](https://reactjs.org/docs/react-api.html#reactforwardref):
+If the child of `Link` is a functional component, in addition to using `passHref` and `legacyBehavior`, you must wrap the component in [`React.forwardRef`](https://reactjs.org/docs/react-api.html#reactforwardref):
 
 ```jsx
 import Link from 'next/link'
@@ -136,7 +146,7 @@ const MyButton = React.forwardRef(({ onClick, href }, ref) => {
 
 function Home() {
   return (
-    <Link href="/about" passHref>
+    <Link href="/about" passHref legacyBehavior>
       <MyButton />
     </Link>
   )
@@ -162,7 +172,7 @@ function Home() {
             query: { name: 'test' },
           }}
         >
-          <a>About us</a>
+          About us
         </Link>
       </li>
       <li>
@@ -172,7 +182,7 @@ function Home() {
             query: { slug: 'my-post' },
           }}
         >
-          <a>Blog Post</a>
+          Blog Post
         </Link>
       </li>
     </ul>
@@ -195,7 +205,7 @@ The default behavior of the `Link` component is to `push` a new URL into the `hi
 
 ```jsx
 <Link href="/about" replace>
-  <a>About us</a>
+  About us
 </Link>
 ```
 
@@ -205,6 +215,6 @@ The default behavior of `Link` is to scroll to the top of the page. When there i
 
 ```jsx
 <Link href="/#hashid" scroll={false}>
-  <a>Disables scrolling to the top</a>
+  Disables scrolling to the top
 </Link>
 ```

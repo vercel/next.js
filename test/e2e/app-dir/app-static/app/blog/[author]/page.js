@@ -10,34 +10,34 @@ export default function Page({ params }) {
       <p id="page">/blog/[author]</p>
       <p id="params">{JSON.stringify(params)}</p>
       <p id="date">{Date.now()}</p>
-      <Link href="/blog/tim">
-        <a id="author-1">/blog/tim</a>
+      <Link href="/blog/tim" id="author-1">
+        /blog/tim
       </Link>
       <br />
-      <Link href="/blog/seb">
-        <a id="author-2">/blog/seb</a>
+      <Link href="/blog/seb" id="author-2">
+        /blog/seb
       </Link>
       <br />
-      <Link href="/blog/styfle">
-        <a id="author-3">/blog/styfle</a>
-      </Link>
-      <br />
-
-      <Link href="/blog/tim/first-post">
-        <a id="author-1-post-1">/blog/tim/first-post</a>
-      </Link>
-      <br />
-      <Link href="/blog/seb/second-post">
-        <a id="author-2-post-1">/blog/seb/second-post</a>
-      </Link>
-      <br />
-      <Link href="/blog/styfle/first-post">
-        <a id="author-3-post-1">/blog/styfle/first-post</a>
+      <Link href="/blog/styfle" id="author-3">
+        /blog/styfle
       </Link>
       <br />
 
-      <Link href="/dynamic-no-gen-params/first">
-        <a id="dynamic-no-params">/dynamic-no-gen-params/first</a>
+      <Link href="/blog/tim/first-post" id="author-1-post-1">
+        /blog/tim/first-post
+      </Link>
+      <br />
+      <Link href="/blog/seb/second-post" id="author-2-post-1">
+        /blog/seb/second-post
+      </Link>
+      <br />
+      <Link href="/blog/styfle/first-post" id="author-3-post-1">
+        /blog/styfle/first-post
+      </Link>
+      <br />
+
+      <Link href="/dynamic-no-gen-params/first" id="dynamic-no-params">
+        /dynamic-no-gen-params/first
       </Link>
       <br />
     </>
