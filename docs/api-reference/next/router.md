@@ -156,11 +156,7 @@ export default function Page(props) {
       <h1>Page: {router.query.slug}</h1>
       <p>Count: {count}</p>
       <button onClick={() => setCount(count + 1)}>Increase count</button>
-      <Link href="/one">
-        <a>one</a>
-      </Link> <Link href="/two">
-        <a>two</a>
-      </Link>
+      <Link href="/one">one</Link> <Link href="/two">two</Link>
     </div>
   )
 }

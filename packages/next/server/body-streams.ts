@@ -76,8 +76,14 @@ export function getClonableBody<T extends IncomingMessage>(
       const input = buffered ?? readable
       const p1 = new PassThrough()
       const p2 = new PassThrough()
-      input.pipe(p1)
-      input.pipe(p2)
+      input.on('data', (chunk) => {
+        p1.push(chunk)
+        p2.push(chunk)
+      })
+      input.on('end', () => {
+        p1.push(null)
+        p2.push(null)
+      })
       buffered = p2
       return p1
     },

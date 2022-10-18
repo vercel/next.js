@@ -305,7 +305,9 @@ export default class DevServer extends Server {
         ignored: (pathname: string) => {
           return (
             !files.some((file) => file.startsWith(pathname)) &&
-            !directories.some((dir) => pathname.startsWith(dir))
+            !directories.some(
+              (dir) => pathname.startsWith(dir) || dir.startsWith(pathname)
+            )
           )
         },
       }))

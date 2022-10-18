@@ -12,6 +12,7 @@ import { Base } from './styles/Base'
 import { ComponentStyles } from './styles/ComponentStyles'
 import { CssReset } from './styles/CssReset'
 import { parseStack } from './helpers/parseStack'
+import { RootLayoutError } from './container/RootLayoutError'
 
 interface ReactDevOverlayState {
   reactError: SupportedErrorEvent | null
@@ -45,7 +46,12 @@ class ReactDevOverlay extends React.PureComponent<
 
     const hasBuildError = state.buildError != null
     const hasRuntimeErrors = Boolean(state.errors.length)
-    const isMounted = hasBuildError || hasRuntimeErrors || reactError
+    const rootLayoutMissingTagsError = state.rootLayoutMissingTagsError
+    const isMounted =
+      hasBuildError ||
+      hasRuntimeErrors ||
+      reactError ||
+      rootLayoutMissingTagsError
 
     return (
       <>
@@ -63,7 +69,11 @@ class ReactDevOverlay extends React.PureComponent<
             <Base />
             <ComponentStyles />
 
-            {hasBuildError ? (
+            {rootLayoutMissingTagsError ? (
+              <RootLayoutError
+                missingTags={rootLayoutMissingTagsError.missingTags}
+              />
+            ) : hasBuildError ? (
               <BuildError message={state.buildError!} />
             ) : hasRuntimeErrors ? (
               <Errors errors={state.errors} />
