@@ -39,7 +39,7 @@ it('does noop changing to an invalid hostname', () => {
   expect(url.toString()).toEqual('https://foo.com/example')
 })
 
-it.only('preserves the fragment', () => {
+it('preserves the fragment', () => {
   const url = new NextURL(
     'https://example.com/path/to?param1=value1#this-is-fragment'
   )
