@@ -21,8 +21,8 @@ if (process.env.NODE_ENV !== "production") {
   (function() {
 'use strict';
 
-var React = __nccwpck_require__(533);
-var ReactDOM = __nccwpck_require__(174);
+var React = __nccwpck_require__(522);
+var ReactDOM = __nccwpck_require__(255);
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -2284,7 +2284,7 @@ exports.renderToReadableStream = renderToReadableStream;
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  */
-var aa=__nccwpck_require__(533);var e=null,l=0;function p(a,b){if(0!==b.length)if(512<b.length)0<l&&(a.enqueue(new Uint8Array(e.buffer,0,l)),e=new Uint8Array(512),l=0),a.enqueue(b);else{var d=e.length-l;d<b.length&&(0===d?a.enqueue(e):(e.set(b.subarray(0,d),l),a.enqueue(e),b=b.subarray(d)),e=new Uint8Array(512),l=0);e.set(b,l);l+=b.length}return!0}var q=new TextEncoder;function r(a){return q.encode(a)}function ba(a,b){"function"===typeof a.error?a.error(b):a.close()}
+var aa=__nccwpck_require__(522);var e=null,l=0;function p(a,b){if(0!==b.length)if(512<b.length)0<l&&(a.enqueue(new Uint8Array(e.buffer,0,l)),e=new Uint8Array(512),l=0),a.enqueue(b);else{var d=e.length-l;d<b.length&&(0===d?a.enqueue(e):(e.set(b.subarray(0,d),l),a.enqueue(e),b=b.subarray(d)),e=new Uint8Array(512),l=0);e.set(b,l);l+=b.length}return!0}var q=new TextEncoder;function r(a){return q.encode(a)}function ba(a,b){"function"===typeof a.error?a.error(b):a.close()}
 var t=JSON.stringify,u=Symbol.for("react.module.reference"),v=Symbol.for("react.element"),ca=Symbol.for("react.fragment"),da=Symbol.for("react.provider"),ea=Symbol.for("react.server_context"),fa=Symbol.for("react.forward_ref"),ha=Symbol.for("react.memo"),x=Symbol.for("react.lazy"),ia=Symbol.for("react.default_value");
 function y(a,b,d,c,f,h,g){this.acceptsBooleans=2===b||3===b||4===b;this.attributeName=c;this.attributeNamespace=f;this.mustUseProperty=d;this.propertyName=a;this.type=b;this.sanitizeURL=h;this.removeEmptyString=g}var ja="children dangerouslySetInnerHTML defaultValue defaultChecked innerHTML suppressContentEditableWarning suppressHydrationWarning style".split(" ");ja.push("innerText","textContent");ja.forEach(function(a){new y(a,0,!1,a,null,!1,!1)});
 [["acceptCharset","accept-charset"],["className","class"],["htmlFor","for"],["httpEquiv","http-equiv"]].forEach(function(a){new y(a[0],1,!1,a[1],null,!1,!1)});["contentEditable","draggable","spellCheck","value"].forEach(function(a){new y(a,2,!1,a.toLowerCase(),null,!1,!1)});["autoReverse","externalResourcesRequired","focusable","preserveAlpha"].forEach(function(a){new y(a,2,!1,a,null,!1,!1)});
@@ -2346,17 +2346,17 @@ if (process.env.NODE_ENV === 'production') {
 
 /***/ }),
 
-/***/ 533:
+/***/ 522:
 /***/ ((module) => {
 
-module.exports = require("next/dist/compiled/react");
+module.exports = require("react");
 
 /***/ }),
 
-/***/ 174:
+/***/ 255:
 /***/ ((module) => {
 
-module.exports = require("next/dist/compiled/react-dom");
+module.exports = require("react-dom");
 
 /***/ })
 

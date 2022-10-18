@@ -2,10 +2,10 @@
 /******/ 	"use strict";
 /******/ 	var __webpack_modules__ = ({
 
-/***/ 174:
+/***/ 255:
 /***/ ((module) => {
 
-module.exports = require("next/dist/compiled/react-dom");
+module.exports = require("react-dom");
 
 /***/ })
 
@@ -53,7 +53,7 @@ var __webpack_exports__ = {};
 var exports = __webpack_exports__;
 
 
-var m = __nccwpck_require__(174);
+var m = __nccwpck_require__(255);
 if (process.env.NODE_ENV === 'production') {
   exports.createRoot = m.createRoot;
   exports.hydrateRoot = m.hydrateRoot;

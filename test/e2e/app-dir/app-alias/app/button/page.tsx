@@ -8,3 +8,7 @@ export default function page() {
 
   return <Button>click</Button>
 }
+
+export const config = {
+  runtime: 'experimental-edge',
+}

@@ -881,7 +881,8 @@ export default async function getBaseWebpackConfig(
 
       ...(hasServerComponents
         ? {
-            'react-dom$': 'next/dist/compiled/react-dom',
+            // For react and react-dom, alias them dynamically for server layer
+            // and others in the loaders configuration
             'react-dom/server$': 'next/dist/compiled/react-dom/server',
             'react-dom/server.browser$':
               'next/dist/compiled/react-dom/server.browser',
@@ -1521,7 +1522,7 @@ export default async function getBaseWebpackConfig(
     },
     module: {
       rules: [
-        ...(hasServerComponents && !isClient && !isEdgeServer
+        ...(hasServerComponents && !isClient
           ? [
               {
                 issuerLayer: WEBPACK_LAYERS.server,
@@ -1637,8 +1638,11 @@ export default async function getBaseWebpackConfig(
                       // when react is acting as dependency of compiled/react-dom.
                       conditionNames: ['react-server', 'node', 'require'],
                       alias: {
-                        react: 'next/dist/compiled/react',
-                        'react-dom': 'next/dist/compiled/react-dom',
+                        react: 'next/dist/compiled/react/react.shared-subset',
+                        // Use server rendering stub for RSC
+                        // x-ref: https://github.com/facebook/react/pull/25436
+                        'react-dom':
+                          'next/dist/compiled/react-dom/server-rendering-stub',
                       },
                     },
                   },

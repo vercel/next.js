@@ -48,6 +48,15 @@ import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-pa
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { AppBuildManifest } from './webpack/plugins/app-build-manifest-plugin'
 import { getRuntimeContext } from '../server/web/sandbox'
+import {
+  loadRequireHook,
+  overrideBuiltInReactPackages,
+} from './webpack/require-hook'
+
+loadRequireHook()
+if (process.env.HAS_APP_DIR) {
+  overrideBuiltInReactPackages()
+}
 
 export type ROUTER_TYPE = 'pages' | 'app'
 

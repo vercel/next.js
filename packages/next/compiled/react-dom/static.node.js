@@ -22,9 +22,9 @@ if (process.env.NODE_ENV !== "production") {
 'use strict';
 
 var stream = __nccwpck_require__(781);
-var React = __nccwpck_require__(533);
+var React = __nccwpck_require__(522);
 var util = __nccwpck_require__(837);
-var ReactDOM = __nccwpck_require__(174);
+var ReactDOM = __nccwpck_require__(255);
 
 var ReactVersion = '18.3.0-experimental-a8c16a004-20221012';
 
@@ -8762,7 +8762,7 @@ exports.version = ReactVersion;
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  */
-var ba=__nccwpck_require__(781),ca=__nccwpck_require__(837),da=__nccwpck_require__(533),ea=__nccwpck_require__(174);function fa(a){"function"===typeof a.flush&&a.flush()}var k=null,l=0,r=!0;
+var ba=__nccwpck_require__(781),ca=__nccwpck_require__(837),da=__nccwpck_require__(522),ea=__nccwpck_require__(255);function fa(a){"function"===typeof a.flush&&a.flush()}var k=null,l=0,r=!0;
 function t(a,b){if("string"===typeof b){if(0!==b.length)if(2048<3*b.length)0<l&&(u(a,k.subarray(0,l)),k=new Uint8Array(2048),l=0),u(a,ha.encode(b));else{var c=k;0<l&&(c=k.subarray(l));c=ha.encodeInto(b,c);var d=c.read;l+=c.written;d<b.length&&(u(a,k),k=new Uint8Array(2048),l=ha.encodeInto(b.slice(d),k).written);2048===l&&(u(a,k),k=new Uint8Array(2048),l=0)}}else 0!==b.byteLength&&(2048<b.byteLength?(0<l&&(u(a,k.subarray(0,l)),k=new Uint8Array(2048),l=0),u(a,b)):(c=k.length-l,c<b.byteLength&&(0===
 c?u(a,k):(k.set(b.subarray(0,c),l),l+=c,u(a,k),b=b.subarray(c)),k=new Uint8Array(2048),l=0),k.set(b,l),l+=b.byteLength,2048===l&&(u(a,k),k=new Uint8Array(2048),l=0)))}function u(a,b){a=a.write(b);r=r&&a}function v(a,b){t(a,b);return r}function ia(a){k&&0<l&&a.write(k.subarray(0,l));k=null;l=0;r=!0}var ha=new ca.TextEncoder;function x(a){return ha.encode(a)}
 var y=Object.prototype.hasOwnProperty,ja=/^[:A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD][:A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD\-.0-9\u00B7\u0300-\u036F\u203F-\u2040]*$/,ka={},la={};
@@ -8898,17 +8898,17 @@ if (process.env.NODE_ENV === 'production') {
 
 /***/ }),
 
-/***/ 533:
+/***/ 522:
 /***/ ((module) => {
 
-module.exports = require("next/dist/compiled/react");
+module.exports = require("react");
 
 /***/ }),
 
-/***/ 174:
+/***/ 255:
 /***/ ((module) => {
 
-module.exports = require("next/dist/compiled/react-dom");
+module.exports = require("react-dom");
 
 /***/ }),
 
