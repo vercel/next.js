@@ -37,6 +37,19 @@ import { NOT_FOUND_ERROR_CODE } from '../client/components/not-found'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import { Writable } from 'stream'
 
+function preloadComponent(Layout: any, props: any) {
+  try {
+    let result = Layout(props)
+    return function () {
+      // We know what this component will render already.
+      return result
+    }
+  } catch (x) {
+    // something suspended or errored, try again later
+  }
+  return Layout
+}
+
 const INTERNAL_HEADERS_INSTANCE = Symbol('internal for headers readonly')
 
 function readonlyHeadersError() {
@@ -970,7 +983,7 @@ export async function renderToHTMLOrFlight(
       /**
        * The React Component to render.
        */
-      const Component = layoutOrPageMod
+      let Component = layoutOrPageMod
         ? interopDefault(layoutOrPageMod)
         : undefined
 
@@ -1091,10 +1104,23 @@ export async function renderToHTMLOrFlight(
         }
       }
 
+      const props = {
+        ...parallelRouteComponents,
+        // TODO-APP: params and query have to be blocked parallel route names. Might have to add a reserved name list.
+        // Params are always the current params that apply to the layout
+        // If you have a `/dashboard/[team]/layout.js` it will provide `team` as a param but not anything further down.
+        params: currentParams,
+        // Query is only provided to page
+        ...(isPage ? { searchParams: query } : {}),
+      }
+
+      // Eagerly execute layout/page component to trigger fetches early.
+      Component = await Promise.resolve().then(() => {
+        return preloadComponent(Component, props)
+      })
+
       return {
         Component: () => {
-          let props = {}
-
           // Add extra cache busting (DEV only) for https://github.com/vercel/next.js/issues/5860
           // See also https://bugs.webkit.org/show_bug.cgi?id=187726
           const cacheBustingUrlSuffix = dev ? `?ts=${Date.now()}` : ''
@@ -1128,16 +1154,7 @@ export async function renderToHTMLOrFlight(
                     />
                   ))
                 : null}
-              <Component
-                {...props}
-                {...parallelRouteComponents}
-                // TODO-APP: params and query have to be blocked parallel route names. Might have to add a reserved name list.
-                // Params are always the current params that apply to the layout
-                // If you have a `/dashboard/[team]/layout.js` it will provide `team` as a param but not anything further down.
-                params={currentParams}
-                // Query is only provided to page
-                {...(isPage ? { searchParams: query } : {})}
-              />
+              <Component {...props} />
             </>
           )
         },
