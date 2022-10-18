@@ -591,7 +591,7 @@ pub async fn resolve(
     }
 
     let request_value = request.await?;
-    Ok(match &*request_value {
+    let result = match &*request_value {
         Request::Dynamic => ResolveResult::unresolveable().into(),
         Request::Alternatives { requests } => {
             let results = requests
@@ -664,7 +664,23 @@ pub async fn resolve(
             remainer: _,
         } => ResolveResult::unresolveable().into(),
         Request::Unknown { path: _ } => ResolveResult::unresolveable().into(),
-    })
+    };
+
+    if !*result.is_unresolveable().await? {
+        return Ok(result);
+    }
+
+    // Apply fallback import mappings if provided
+    if let Some(import_map) = &options_value.fallback_import_map {
+        let result_ref = import_map.lookup(request).await?;
+        let result = &*result_ref;
+        if !matches!(result, ImportMapResult::NoEntry) {
+            let resolve_result_vc = resolve_import_map_result(result, context, options).await?;
+            return Ok(resolve_result_vc);
+        }
+    }
+
+    Ok(result)
 }
 
 async fn resolve_into_folder(

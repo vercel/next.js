@@ -17,6 +17,60 @@ use turbopack_ecmascript::{
 
 use crate::resolve_options_context::ResolveOptionsContextVc;
 
+const NODE_EXTERNALS: [&str; 51] = [
+    "assert",
+    "async_hooks",
+    "buffer",
+    "child_process",
+    "cluster",
+    "console",
+    "constants",
+    "crypto",
+    "dgram",
+    "diagnostics_channel",
+    "dns",
+    "dns/promises",
+    "domain",
+    "events",
+    "fs",
+    "fs/promises",
+    "http",
+    "http2",
+    "https",
+    "inspector",
+    "module",
+    "net",
+    "os",
+    "path",
+    "path/posix",
+    "path/win32",
+    "perf_hooks",
+    "process",
+    "punycode",
+    "querystring",
+    "readline",
+    "repl",
+    "stream",
+    "stream/promises",
+    "stream/web",
+    "string_decoder",
+    "sys",
+    "timers",
+    "timers/promises",
+    "tls",
+    "trace_events",
+    "tty",
+    "url",
+    "util",
+    "util/types",
+    "v8",
+    "vm",
+    "wasi",
+    "worker_threads",
+    "zlib",
+    "pnpapi",
+];
+
 #[turbo_tasks::function]
 async fn base_resolve_options(
     context: FileSystemPathVc,
@@ -31,67 +85,22 @@ async fn base_resolve_options(
     let emulating = opt.emulate_environment;
     let root = context_value.fs.root();
     let mut direct_mappings = AliasMap::new();
-    for req in [
-        "assert",
-        "async_hooks",
-        "buffer",
-        "child_process",
-        "cluster",
-        "console",
-        "constants",
-        "crypto",
-        "dgram",
-        "diagnostics_channel",
-        "dns",
-        "dns/promises",
-        "domain",
-        "events",
-        "fs",
-        "fs/promises",
-        "http",
-        "http2",
-        "https",
-        "inspector",
-        "module",
-        "net",
-        "os",
-        "path",
-        "path/posix",
-        "path/win32",
-        "perf_hooks",
-        "process",
-        "punycode",
-        "querystring",
-        "readline",
-        "repl",
-        "stream",
-        "stream/promises",
-        "stream/web",
-        "string_decoder",
-        "sys",
-        "timers",
-        "timers/promises",
-        "tls",
-        "trace_events",
-        "tty",
-        "url",
-        "util",
-        "util/types",
-        "v8",
-        "vm",
-        "wasi",
-        "worker_threads",
-        "zlib",
-        "pnpapi",
-    ] {
-        direct_mappings.insert(
-            AliasPattern::exact(req),
-            ImportMapping::External(None).into(),
-        );
-        direct_mappings.insert(
-            AliasPattern::exact(format!("node:{req}")),
-            ImportMapping::External(None).into(),
-        );
+    let node_externals = if let Some(environment) = emulating {
+        environment.node_externals().await?.clone_value()
+    } else {
+        opt.enable_node_externals
+    };
+    if node_externals {
+        for req in NODE_EXTERNALS {
+            direct_mappings.insert(
+                AliasPattern::exact(req),
+                ImportMapping::External(None).into(),
+            );
+            direct_mappings.insert(
+                AliasPattern::exact(format!("node:{req}")),
+                ImportMapping::External(None).into(),
+            );
+        }
     }
     let glob_mappings = vec![
         (

@@ -34,6 +34,19 @@ pub fn get_next_client_import_map(
     import_map.cell()
 }
 
+/// Computes the Next-specific client fallback import map, which provides
+/// polyfills to Node.js externals.
+#[turbo_tasks::function]
+pub fn get_next_client_fallback_import_map(pages_dir: FileSystemPathVc) -> ImportMapVc {
+    let mut import_map = ImportMap::empty();
+
+    for (original, alias) in NEXT_ALIASES {
+        import_map.insert_exact_alias(original, request_to_import_mapping(pages_dir, alias));
+    }
+
+    import_map.cell()
+}
+
 /// Computes the Next-specific server-side import map.
 #[turbo_tasks::function]
 pub fn get_next_server_import_map(
@@ -69,6 +82,32 @@ pub fn get_next_server_import_map(
 
     import_map.cell()
 }
+
+static NEXT_ALIASES: [(&str, &str); 23] = [
+    ("asset", "next/dist/compiled/assert"),
+    ("buffer", "next/dist/compiled/buffer/"),
+    ("constants", "next/dist/compiled/constants-browserify"),
+    ("crypto", "next/dist/compiled/crypto-browserify"),
+    ("domain", "next/dist/compiled/domain-browser"),
+    ("http", "next/dist/compiled/stream-http"),
+    ("https", "next/dist/compiled/https-browserify"),
+    ("os", "next/dist/compiled/os-browserify"),
+    ("path", "next/dist/compiled/path-browserify"),
+    ("punycode", "next/dist/compiled/punycode"),
+    ("process", "next/dist/build/polyfills/process"),
+    ("querystring", "next/dist/compiled/querystring-es3"),
+    ("stream", "next/dist/compiled/stream-browserify"),
+    ("string_decoder", "next/dist/compiled/string_decoder"),
+    ("sys", "next/dist/compiled/util/"),
+    ("timers", "next/dist/compiled/timers-browserify"),
+    ("tty", "next/dist/compiled/tty-browserify"),
+    ("url", "next/dist/compiled/native-url"),
+    ("util", "next/dist/compiled/util/"),
+    ("vm", "next/dist/compiled/vm-browserify"),
+    ("zlib", "next/dist/compiled/browserify-zlib"),
+    ("events", "next/dist/compiled/events/"),
+    ("setImmediate", "next/dist/compiled/setimmediate"),
+];
 
 fn insert_next_shared_aliases(import_map: &mut ImportMap, package_root: FileSystemPathVc) {
     insert_package_alias(

@@ -9,6 +9,9 @@ pub struct ResolveOptionsContext {
     pub enable_react: bool,
     pub enable_node_native_modules: bool,
     pub enable_node_modules: bool,
+    /// Mark well-known Node.js modules as external imports and load them using
+    /// native `require`. e.g. url, querystring, os
+    pub enable_node_externals: bool,
     /// Enables the "browser" field and export condition in package.json
     pub browser: bool,
     /// Enables the "module" field and export condition in package.json
@@ -20,6 +23,12 @@ pub struct ResolveOptionsContext {
     /// It is always applied last, so any mapping defined within will take
     /// precedence over any other (e.g. tsconfig.json `compilerOptions.paths`).
     pub import_map: Option<ImportMapVc>,
+    /// An import map to fall back to when a request could not be resolved.
+    ///
+    /// If set, this import map will be applied to
+    /// `ResolveOption::fallback_import_map`. It is always applied last, so
+    /// any mapping defined within will take precedence over any other.
+    pub fallback_import_map: Option<ImportMapVc>,
     pub placeholder_for_future_extensions: (),
 }
 
@@ -47,6 +56,25 @@ impl ResolveOptionsContextVc {
                 .import_map
                 .map(|current_import_map| current_import_map.extend(import_map))
                 .unwrap_or(import_map),
+        );
+        Ok(resolve_options_context.into())
+    }
+
+    /// Returns a new [ResolveOptionsContextVc] with its fallback import map
+    /// extended to include the given import map.
+    #[turbo_tasks::function]
+    pub async fn with_extended_fallback_import_map(
+        self,
+        fallback_import_map: ImportMapVc,
+    ) -> Result<Self> {
+        let mut resolve_options_context = self.await?.clone_value();
+        resolve_options_context.fallback_import_map = Some(
+            resolve_options_context
+                .fallback_import_map
+                .map(|current_fallback_import_map| {
+                    current_fallback_import_map.extend(fallback_import_map)
+                })
+                .unwrap_or(fallback_import_map),
         );
         Ok(resolve_options_context.into())
     }

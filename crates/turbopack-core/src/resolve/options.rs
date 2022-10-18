@@ -328,7 +328,10 @@ pub struct ResolveOptions {
     pub into_package: Vec<ResolveIntoPackage>,
     /// How to resolve in packages.
     pub in_package: Vec<ResolveInPackage>,
+    /// An import map to use before resolving a request.
     pub import_map: Option<ImportMapVc>,
+    /// An import map to use when a request is otherwise unresolveable.
+    pub fallback_import_map: Option<ImportMapVc>,
     pub resolved_map: Option<ResolvedMapVc>,
     pub placeholder_for_future_extensions: (),
 }
