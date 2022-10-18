@@ -113,11 +113,11 @@ const Page = () => {
         width={300}
         height={300}
       />
-      <Link href="/client-side">
-        <a id="clientlink">Client Side</a>
+      <Link href="/client-side" id="clientlink">
+        Client Side
       </Link>
-      <Link href="/lazy">
-        <a id="lazylink">lazy</a>
+      <Link href="/lazy" id="lazylink">
+        lazy
       </Link>
       <Head>
         <link rel="stylesheet" href="styles.css" />

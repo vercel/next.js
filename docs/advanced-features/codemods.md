@@ -19,6 +19,30 @@ Codemods are transformations that run on your codebase programmatically. This al
 
 ## Next.js 13
 
+### `new-link`
+
+Safely removes `<a>` from `next/link` or adds `legacyBehavior` prop.
+
+For example:
+
+```jsx
+export default function Page() {
+  return (
+    <Link href="/about">
+      <a>About Us</a>
+    </Link>
+  )
+}
+```
+
+Transforms into:
+
+```jsx
+export default function Page() {
+  return <Link href="/about">About Us</Link>
+}
+```
+
 ### `next-image-to-legacy-image`
 
 Safely migrates existing Next.js 10, 11, 12 applications importing `next/image` to the renamed `next/legacy/image` import in Next.js 13.

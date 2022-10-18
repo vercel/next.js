@@ -3,8 +3,8 @@ export default function Page() {
   return (
     <>
       <p id="other-page">Other Page</p>
-      <Link href="/template/clientcomponent">
-        <a id="link">To Page</a>
+      <Link href="/template/clientcomponent" id="link">
+        To Page
       </Link>
     </>
   )
