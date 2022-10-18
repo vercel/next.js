@@ -809,7 +809,7 @@ export default async function loadConfig(
       )
     }
 
-    if (userConfig.target) {
+    if (userConfig.target && userConfig.target !== 'server') {
       throw new Error(
         `The "target" property is no longer supported in ${configFileName}.\n` +
           'See more info here https://nextjs.org/docs/messages/deprecated-target-config'
