@@ -44,13 +44,13 @@ describe('Config Experimental Warning', () => {
       module.exports = {
         target: 'server',
         experimental: {
-          newNextLinkBehavior: true
+          workerThreads: true
         }
       }
     `)
     const { stderr } = await nextBuild(appDir, [], { stderr: true })
     expect(stderr).toMatch(
-      'You have enabled experimental feature (newNextLinkBehavior) in next.config.js.'
+      'You have enabled experimental feature (workerThreads) in next.config.js.'
     )
   })
 
@@ -59,13 +59,13 @@ describe('Config Experimental Warning', () => {
       module.exports = (phase) => ({
         target: 'server',
         experimental: {
-          newNextLinkBehavior: true
+          workerThreads: true
         }
       })
     `)
     const { stderr } = await nextBuild(appDir, [], { stderr: true })
     expect(stderr).toMatch(
-      'You have enabled experimental feature (newNextLinkBehavior) in next.config.js.'
+      'You have enabled experimental feature (workerThreads) in next.config.js.'
     )
   })
 
@@ -74,13 +74,13 @@ describe('Config Experimental Warning', () => {
       module.exports = (phase) => ({
         target: 'server',
         experimental: {
-          newNextLinkBehavior: false
+          workerThreads: false
         }
       })
     `)
     const { stderr } = await nextBuild(appDir, [], { stderr: true })
     expect(stderr).not.toMatch(
-      'You have enabled experimental feature (newNextLinkBehavior) in next.config.js.'
+      'You have enabled experimental feature (workerThreads) in next.config.js.'
     )
   })
 
@@ -88,14 +88,14 @@ describe('Config Experimental Warning', () => {
     configFile.write(`
       module.exports = {
         experimental: {
-          newNextLinkBehavior: true,
+          workerThreads: true,
           legacyBrowsers: false,
         }
       }
     `)
     const { stderr } = await nextBuild(appDir, [], { stderr: true })
     expect(stderr).toMatch(
-      'You have enabled experimental features (newNextLinkBehavior, legacyBrowsers) in next.config.js.'
+      'You have enabled experimental features (workerThreads, legacyBrowsers) in next.config.js.'
     )
   })
 
@@ -103,14 +103,14 @@ describe('Config Experimental Warning', () => {
     configFileMjs.write(`
       const config = {
         experimental: {
-          newNextLinkBehavior: true,
+          workerThreads: true,
         }
       }
       export default config
     `)
     const { stderr } = await nextBuild(appDir, [], { stderr: true })
     expect(stderr).toMatch(
-      'You have enabled experimental feature (newNextLinkBehavior) in next.config.mjs.'
+      'You have enabled experimental feature (workerThreads) in next.config.mjs.'
     )
   })
 })

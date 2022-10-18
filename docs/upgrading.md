@@ -6,8 +6,12 @@ description: Learn how to upgrade Next.js.
 
 ## Upgrading from 12 to 13
 
+The minimum Node.js version has been bumped from 12.22.0 to 14.0.0, since 12.x has reached end-of-life.
+
 The `next/image` import was renamed to `next/legacy/image`. The `next/future/image` import was renamed to `next/image`.
 A [codemod is available](/docs/advanced-features/codemods.md#next-image-to-legacy-image) to safely and automatically rename your imports.
+
+The `next/link` child can no longer be `<a>`. Add the `legacyBehavior` prop to use the legacy behavior or remove the `<a>` to upgrade. A [codemod is available](/docs/advanced-features/codemods.md#new-link) to automatically upgrade your code.
 
 ## Upgrading to 12.2
 

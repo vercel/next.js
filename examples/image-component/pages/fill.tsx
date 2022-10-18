@@ -7,23 +7,37 @@ const Fill = () => (
     <ViewSource pathname="pages/layout-fill.tsx" />
     <h1>Image Component With Layout Fill</h1>
     <div style={{ position: 'relative', width: '300px', height: '500px' }}>
-      <Image alt="Mountains" src={mountains} layout="fill" objectFit="cover" />
-    </div>
-    <div style={{ position: 'relative', width: '300px', height: '500px' }}>
       <Image
         alt="Mountains"
         src={mountains}
-        layout="fill"
-        objectFit="contain"
+        fill
+        sizes="100vw"
+        style={{
+          objectFit: 'cover',
+        }}
       />
     </div>
     <div style={{ position: 'relative', width: '300px', height: '500px' }}>
       <Image
         alt="Mountains"
         src={mountains}
-        layout="fill"
-        objectFit="none"
+        fill
+        sizes="100vw"
+        style={{
+          objectFit: 'contain',
+        }}
+      />
+    </div>
+    <div style={{ position: 'relative', width: '300px', height: '500px' }}>
+      <Image
+        alt="Mountains"
+        src={mountains}
         quality={100}
+        fill
+        sizes="100vw"
+        style={{
+          objectFit: 'none',
+        }}
       />
     </div>
   </div>

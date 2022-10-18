@@ -34,7 +34,7 @@ function findAndReplaceProps(
         el.value.openingElement.name.name === tagName
     )
     .forEach((el) => {
-      let layout = 'intrisic'
+      let layout = 'intrinsic'
       let objectFit = null
       let objectPosition = null
       let styleExpProps = []
@@ -43,21 +43,20 @@ function findAndReplaceProps(
         if (a.type !== 'JSXAttribute') {
           return true
         }
-        // TODO: hanlde case when not Literal
-        if (a.value?.type === 'Literal') {
-          if (a.name.name === 'layout') {
-            layout = String(a.value.value)
-            return false
-          }
-          if (a.name.name === 'objectFit') {
-            objectFit = String(a.value.value)
-            return false
-          }
-          if (a.name.name === 'objectPosition') {
-            objectPosition = String(a.value.value)
-            return false
-          }
+
+        if (a.name.name === 'layout' && 'value' in a.value) {
+          layout = String(a.value.value)
+          return false
         }
+        if (a.name.name === 'objectFit' && 'value' in a.value) {
+          objectFit = String(a.value.value)
+          return false
+        }
+        if (a.name.name === 'objectPosition' && 'value' in a.value) {
+          objectPosition = String(a.value.value)
+          return false
+        }
+
         if (a.name.name === 'style') {
           if (
             a.value?.type === 'JSXExpressionContainer' &&
