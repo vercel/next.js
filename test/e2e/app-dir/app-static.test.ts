@@ -295,7 +295,8 @@ describe('app-dir static/dynamic handling', () => {
     expect(secondDate).not.toBe(initialDate)
   })
 
-  it('should ssr dynamically when detected automatically with fetch revalidate option', async () => {
+  // TODO-APP: support fetch revalidate case for dynamic rendering
+  it.skip('should ssr dynamically when detected automatically with fetch revalidate option', async () => {
     const pathname = '/ssr-auto/fetch-revalidate-zero'
     const initialRes = await fetchViaHTTP(next.url, pathname, undefined, {
       redirect: 'manual',
