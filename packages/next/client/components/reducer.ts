@@ -508,10 +508,10 @@ function isNavigatingToNewRootLayout(
   const nextTreeSegment = nextTree[0]
   if (Array.isArray(currentTreeSegment) && Array.isArray(nextTreeSegment)) {
     // Compare dynamic param name and type but ignore the value
-    if (currentTreeSegment[0] !== nextTreeSegment[0]) {
-      return true
-    }
-    if (currentTreeSegment[2] !== nextTreeSegment[2]) {
+    if (
+      currentTreeSegment[0] !== nextTreeSegment[0] ||
+      currentTreeSegment[2] !== nextTreeSegment[2]
+    ) {
       return true
     }
   } else if (currentTreeSegment !== nextTreeSegment) {
