@@ -1519,6 +1519,7 @@ export async function ncc_react(task, opts) {
   await task.source(join(reactDomDir, 'LICENSE')).target(`compiled/react-dom`)
   await task
     .source(join(reactDomDir, 'cjs/**/*.js'))
+    // eslint-disable-next-line require-yield
     .run({ every: true }, function* (file) {
       const source = file.data.toString()
       // We replace the module/chunk loading code with our own implementaion in Next.js.

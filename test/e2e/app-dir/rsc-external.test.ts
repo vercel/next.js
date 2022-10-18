@@ -29,8 +29,8 @@ describe('app dir - rsc external dependency', () => {
     next = await createNext({
       files: new FileRef(path.join(__dirname, './rsc-external')),
       dependencies: {
-        react: 'experimental',
-        'react-dom': 'experimental',
+        react: 'latest',
+        'react-dom': 'latest',
       },
       packageJson: {
         scripts: {
