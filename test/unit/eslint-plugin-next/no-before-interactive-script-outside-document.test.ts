@@ -1,4 +1,4 @@
-import rule from '@next/eslint-plugin-next/lib/rules/no-before-interactive-script-outside-document'
+import rule from '@next/eslint-plugin-next/dist/rules/no-before-interactive-script-outside-document'
 import { RuleTester } from 'eslint'
 ;(RuleTester as any).setDefaultConfig({
   parserOptions: {
@@ -124,7 +124,7 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
       errors: [
         {
           message:
-            'next/script beforeInteractive strategy should only be used inside next/_document. See: https://nextjs.org/docs/messages/no-before-interactive-script-outside-document',
+            "`next/script`'s `beforeInteractive` strategy should not be used outside of `pages/_document.js`. See: https://nextjs.org/docs/messages/no-before-interactive-script-outside-document",
         },
       ],
     },

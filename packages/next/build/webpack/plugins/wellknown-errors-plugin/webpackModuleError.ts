@@ -1,14 +1,14 @@
 import { readFileSync } from 'fs'
 import * as path from 'path'
-import type { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
-import type { NextConfig } from '../../../../server/config-shared'
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
 
 import { getBabelError } from './parseBabel'
 import { getCssError } from './parseCss'
 import { getScssError } from './parseScss'
-import { getNotFoundError } from './parseNotFoundError'
+import { getNotFoundError, getImageError } from './parseNotFoundError'
 import { SimpleWebpackError } from './simpleWebpackError'
 import isError from '../../../../lib/is-error'
+import { getRscError } from './parseRSC'
 
 function getFileData(
   compilation: webpack.Compilation,
@@ -43,9 +43,9 @@ function getFileData(
 }
 
 export async function getModuleBuildError(
+  compiler: webpack.Compiler,
   compilation: webpack.Compilation,
-  input: any,
-  config: NextConfig
+  input: any
 ): Promise<SimpleWebpackError | false> {
   if (
     !(
@@ -65,11 +65,15 @@ export async function getModuleBuildError(
   const notFoundError = await getNotFoundError(
     compilation,
     input,
-    sourceFilename,
-    config
+    sourceFilename
   )
   if (notFoundError !== false) {
     return notFoundError
+  }
+
+  const imageError = await getImageError(compilation, input, err)
+  if (imageError !== false) {
+    return imageError
   }
 
   const babel = getBabelError(sourceFilename, err)
@@ -85,6 +89,17 @@ export async function getModuleBuildError(
   const scss = getScssError(sourceFilename, sourceContent, err)
   if (scss !== false) {
     return scss
+  }
+
+  const rsc = getRscError(
+    sourceFilename,
+    err,
+    input.module,
+    compilation,
+    compiler
+  )
+  if (rsc !== false) {
+    return rsc
   }
 
   return false

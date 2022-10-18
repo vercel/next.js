@@ -1,18 +1,13 @@
 /* global location */
-import {
-  onCLS,
-  onFCP,
-  onFID,
-  onINP,
-  onLCP,
-  onTTFB,
-  Metric,
-  ReportCallback,
-} from 'next/dist/compiled/web-vitals'
+import type { Metric, ReportCallback } from 'next/dist/compiled/web-vitals'
+
+// copied to prevent pulling in un-necessary utils
+const WEB_VITALS = ['CLS', 'FCP', 'FID', 'INP', 'LCP', 'TTFB']
 
 const initialHref = location.href
 let isRegistered = false
 let userReportHandler: ReportCallback | undefined
+type Attribution = typeof WEB_VITALS[number]
 
 function onReport(metric: Metric): void {
   if (userReportHandler) {
@@ -32,7 +27,7 @@ function onReport(metric: Metric): void {
     const body: Record<string, string> = {
       dsn: process.env.__NEXT_ANALYTICS_ID,
       id: metric.id,
-      page: window.__NEXT_DATA__.page,
+      page: window.__NEXT_DATA__?.page,
       href: initialHref,
       event_name: metric.name,
       value: metric.value.toString(),
@@ -82,10 +77,25 @@ export default (onPerfEntry?: ReportCallback): void => {
   }
   isRegistered = true
 
-  onCLS(onReport)
-  onFID(onReport)
-  onFCP(onReport)
-  onLCP(onReport)
-  onTTFB(onReport)
-  onINP(onReport)
+  const attributions: Attribution[] | undefined = process.env
+    .__NEXT_WEB_VITALS_ATTRIBUTION as any
+
+  for (const webVital of WEB_VITALS) {
+    try {
+      let mod: any
+
+      if (process.env.__NEXT_HAS_WEB_VITALS_ATTRIBUTION) {
+        if (attributions?.includes(webVital)) {
+          mod = require('next/dist/compiled/web-vitals-attribution')
+        }
+      }
+      if (!mod) {
+        mod = require('next/dist/compiled/web-vitals')
+      }
+      mod[`on${webVital}`](onReport)
+    } catch (err) {
+      // Do nothing if the module fails to load
+      console.warn(`Failed to track ${webVital} web-vital`, err)
+    }
+  }
 }

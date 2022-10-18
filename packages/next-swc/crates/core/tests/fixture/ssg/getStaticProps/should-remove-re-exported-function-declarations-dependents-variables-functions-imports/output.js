@@ -7,4 +7,4 @@ function dont_bug_me_either() {}
 export var __N_SSG = true;
 export default function Test() {
     return __jsx("div", null);
-};
+}

@@ -99,7 +99,7 @@ const collectTraces = async (filePath, metadata) => {
   const traces = new Map()
   const rootTraces = []
 
-  // Input trace file contains newline-seperated sets of traces, where each line is valid JSON
+  // Input trace file contains newline-separated sets of traces, where each line is valid JSON
   // type of Array<TraceEvent>. Read it line-by-line to manually reconstruct trace trees.
   //
   // We have to read through end of the trace -

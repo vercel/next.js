@@ -1,3 +1,4 @@
+/* eslint-disable no-redeclare */
 import type {
   Header,
   Redirect,
@@ -8,7 +9,7 @@ import type { Route } from './router'
 import type { BaseNextRequest } from './base-http'
 import type { ParsedUrlQuery } from 'querystring'
 
-import { getRedirectStatus, modifyRouteRegex } from '../lib/load-custom-routes'
+import { getRedirectStatus, modifyRouteRegex } from '../lib/redirect-status'
 import { getPathMatch } from '../shared/lib/router/utils/path-match'
 import {
   compileNonPath,
@@ -19,15 +20,27 @@ import { stringify as stringifyQs } from 'querystring'
 import { format as formatUrl } from 'url'
 import { normalizeRepeatedSlashes } from '../shared/lib/utils'
 
-export const getCustomRoute = ({
-  type,
-  rule,
-  restrictedRedirectPaths,
-}: {
+export function getCustomRoute(params: {
+  rule: Header
+  type: RouteType
+  restrictedRedirectPaths: string[]
+}): Route & Header
+export function getCustomRoute(params: {
+  rule: Rewrite
+  type: RouteType
+  restrictedRedirectPaths: string[]
+}): Route & Rewrite
+export function getCustomRoute(params: {
+  rule: Redirect
+  type: RouteType
+  restrictedRedirectPaths: string[]
+}): Route & Redirect
+export function getCustomRoute(params: {
   rule: Rewrite | Redirect | Header
   type: RouteType
   restrictedRedirectPaths: string[]
-}) => {
+}): (Route & Rewrite) | (Route & Header) | (Route & Rewrite) {
+  const { rule, type, restrictedRedirectPaths } = params
   const match = getPathMatch(rule.source, {
     strict: true,
     removeUnnamedParams: true,
@@ -46,7 +59,7 @@ export const getCustomRoute = ({
     match,
     name: type,
     fn: async (_req, _res, _params, _parsedUrl) => ({ finished: false }),
-  } as Route & Rewrite & Header
+  }
 }
 
 export const createHeaderRoute = ({
@@ -55,7 +68,7 @@ export const createHeaderRoute = ({
 }: {
   rule: Header
   restrictedRedirectPaths: string[]
-}) => {
+}): Route => {
   const headerRoute = getCustomRoute({
     type: 'header',
     rule,
@@ -63,13 +76,16 @@ export const createHeaderRoute = ({
   })
   return {
     match: headerRoute.match,
+    matchesBasePath: true,
+    matchesLocale: true,
+    matchesLocaleAPIRoutes: true,
+    matchesTrailingSlash: true,
     has: headerRoute.has,
     type: headerRoute.type,
     name: `${headerRoute.type} ${headerRoute.source} header route`,
     fn: async (_req, res, params, _parsedUrl) => {
       const hasParams = Object.keys(params).length > 0
-
-      for (const header of (headerRoute as Header).headers) {
+      for (const header of headerRoute.headers) {
         let { key, value } = header
         if (hasParams) {
           key = compileNonPath(key, params)
@@ -79,60 +95,7 @@ export const createHeaderRoute = ({
       }
       return { finished: false }
     },
-  } as Route
-}
-
-export const createRedirectRoute = ({
-  rule,
-  restrictedRedirectPaths,
-}: {
-  rule: Redirect
-  restrictedRedirectPaths: string[]
-}) => {
-  const redirectRoute = getCustomRoute({
-    type: 'redirect',
-    rule,
-    restrictedRedirectPaths,
-  })
-  return {
-    internal: redirectRoute.internal,
-    type: redirectRoute.type,
-    match: redirectRoute.match,
-    has: redirectRoute.has,
-    statusCode: redirectRoute.statusCode,
-    name: `Redirect route ${redirectRoute.source}`,
-    fn: async (req, res, params, parsedUrl) => {
-      const { parsedDestination } = prepareDestination({
-        appendParamsToQuery: false,
-        destination: redirectRoute.destination,
-        params: params,
-        query: parsedUrl.query,
-      })
-
-      const { query } = parsedDestination
-      delete (parsedDestination as any).query
-
-      parsedDestination.search = stringifyQuery(req, query)
-
-      let updatedDestination = formatUrl(parsedDestination)
-
-      if (updatedDestination.startsWith('/')) {
-        updatedDestination = normalizeRepeatedSlashes(updatedDestination)
-      }
-
-      res
-        .redirect(
-          updatedDestination,
-          getRedirectStatus(redirectRoute as Redirect)
-        )
-        .body(updatedDestination)
-        .send()
-
-      return {
-        finished: true,
-      }
-    },
-  } as Route
+  }
 }
 
 // since initial query values are decoded by querystring.parse
@@ -161,4 +124,58 @@ export const stringifyQuery = (req: BaseNextRequest, query: ParsedUrlQuery) => {
       return value
     },
   })
+}
+
+export const createRedirectRoute = ({
+  rule,
+  restrictedRedirectPaths,
+}: {
+  rule: Redirect
+  restrictedRedirectPaths: string[]
+}): Route => {
+  const redirectRoute = getCustomRoute({
+    type: 'redirect',
+    rule,
+    restrictedRedirectPaths,
+  })
+  return {
+    internal: redirectRoute.internal,
+    type: redirectRoute.type,
+    match: redirectRoute.match,
+    matchesBasePath: true,
+    matchesLocale: redirectRoute.internal ? undefined : true,
+    matchesLocaleAPIRoutes: true,
+    matchesTrailingSlash: true,
+    has: redirectRoute.has,
+    statusCode: redirectRoute.statusCode,
+    name: `Redirect route ${redirectRoute.source}`,
+    fn: async (req, res, params, parsedUrl) => {
+      const { parsedDestination } = prepareDestination({
+        appendParamsToQuery: false,
+        destination: redirectRoute.destination,
+        params: params,
+        query: parsedUrl.query,
+      })
+
+      const { query } = parsedDestination
+      delete (parsedDestination as any).query
+
+      parsedDestination.search = stringifyQuery(req, query)
+
+      let updatedDestination = formatUrl(parsedDestination)
+
+      if (updatedDestination.startsWith('/')) {
+        updatedDestination = normalizeRepeatedSlashes(updatedDestination)
+      }
+
+      res
+        .redirect(updatedDestination, getRedirectStatus(redirectRoute))
+        .body(updatedDestination)
+        .send()
+
+      return {
+        finished: true,
+      }
+    },
+  }
 }

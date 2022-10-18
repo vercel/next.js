@@ -14,7 +14,7 @@ export default function Home() {
     }, /*#__PURE__*/ React.createElement("path", null), /*#__PURE__*/ React.createElement("path", null)), /*#__PURE__*/ React.createElement("g", {
         className: "group"
     }, /*#__PURE__*/ React.createElement("path", null), /*#__PURE__*/ React.createElement("path", null)));
-};
+}
 var MyClass = function MyClass() {
     "use strict";
     _classCallCheck(this, MyClass);

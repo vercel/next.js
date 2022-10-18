@@ -83,6 +83,12 @@ export function initNextServerScript(
   })
 }
 
+/**
+ * @param {string | number} appPortOrUrl
+ * @param {string} [url]
+ * @param {string} [hostname]
+ * @returns
+ */
 export function getFullUrl(appPortOrUrl, url, hostname) {
   let fullUrl =
     typeof appPortOrUrl === 'string' && appPortOrUrl.startsWith('http')
@@ -93,6 +99,7 @@ export function getFullUrl(appPortOrUrl, url, hostname) {
     const parsedUrl = new URL(fullUrl)
     const parsedPathQuery = new URL(url, fullUrl)
 
+    parsedUrl.hash = parsedPathQuery.hash
     parsedUrl.search = parsedPathQuery.search
     parsedUrl.pathname = parsedPathQuery.pathname
 
@@ -109,10 +116,24 @@ export function renderViaAPI(app, pathname, query) {
   return app.renderToHTML({ url }, {}, pathname, query)
 }
 
+/**
+ * @param {string | number} appPort
+ * @param {string} pathname
+ * @param {Record<string, any> | string | undefined} [query]
+ * @param {import('node-fetch').RequestInit} [opts]
+ * @returns {Promise<string>}
+ */
 export function renderViaHTTP(appPort, pathname, query, opts) {
   return fetchViaHTTP(appPort, pathname, query, opts).then((res) => res.text())
 }
 
+/**
+ * @param {string | number} appPort
+ * @param {string} pathname
+ * @param {Record<string, any> | string | undefined} [query]
+ * @param {import('node-fetch').RequestInit} [opts]
+ * @returns {Promise<Response & {buffer: any} & {headers: any}>}
+ */
 export function fetchViaHTTP(appPort, pathname, query, opts) {
   const url = `${pathname}${
     typeof query === 'string' ? query : query ? `?${qs.stringify(query)}` : ''
@@ -593,7 +614,7 @@ export async function hasRedbox(browser, expected = true) {
           .call(document.querySelectorAll('nextjs-portal'))
           .find((p) =>
             p.shadowRoot.querySelector(
-              '#nextjs__container_errors_label, #nextjs__container_build_error_label'
+              '#nextjs__container_errors_label, #nextjs__container_build_error_label, #nextjs__container_root_layout_error_label'
             )
           )
       )
@@ -633,7 +654,7 @@ export async function getRedboxSource(browser) {
           .call(document.querySelectorAll('nextjs-portal'))
           .find((p) =>
             p.shadowRoot.querySelector(
-              '#nextjs__container_errors_label, #nextjs__container_build_error_label'
+              '#nextjs__container_errors_label, #nextjs__container_build_error_label, #nextjs__container_root_layout_error_label'
             )
           )
         const root = portal.shadowRoot
@@ -767,6 +788,8 @@ function runSuite(suiteName, context, options) {
         const { stdout, stderr, code } = await nextBuild(appDir, [], {
           stderr: true,
           stdout: true,
+          env: options.env || {},
+          nodeArgs: options.nodeArgs,
         })
         context.stdout = stdout
         context.stderr = stderr
@@ -774,12 +797,16 @@ function runSuite(suiteName, context, options) {
         context.server = await nextStart(context.appDir, context.appPort, {
           onStderr,
           onStdout,
+          env: options.env || {},
+          nodeArgs: options.nodeArgs,
         })
       } else if (env === 'dev') {
         context.appPort = await findPort()
         context.server = await launchApp(context.appDir, context.appPort, {
           onStderr,
           onStdout,
+          env: options.env || {},
+          nodeArgs: options.nodeArgs,
         })
       }
     })
@@ -797,7 +824,7 @@ function runSuite(suiteName, context, options) {
  *
  * @param {string} suiteName
  * @param {string} appDir
- * @param {{beforeAll?: Function; afterAll?: Function; runTests: Function}} options
+ * @param {{beforeAll?: Function; afterAll?: Function; runTests: Function; env?: Record<string, string>}} options
  */
 export function runDevSuite(suiteName, appDir, options) {
   return runSuite(suiteName, { appDir, env: 'dev' }, options)
@@ -807,7 +834,7 @@ export function runDevSuite(suiteName, appDir, options) {
  *
  * @param {string} suiteName
  * @param {string} appDir
- * @param {{beforeAll?: Function; afterAll?: Function; runTests: Function}} options
+ * @param {{beforeAll?: Function; afterAll?: Function; runTests: Function; env?: Record<string, string>}} options
  */
 export function runProdSuite(suiteName, appDir, options) {
   return runSuite(suiteName, { appDir, env: 'prod' }, options)

@@ -1,14 +1,16 @@
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { NextConfigComplete } from '../../../server/config-shared'
+import type { ConfigurationContext } from './utils'
 
 import { base } from './blocks/base'
 import { css } from './blocks/css'
 import { images } from './blocks/images'
-import { ConfigurationContext, pipe } from './utils'
+import { pipe } from './utils'
 
-export async function build(
+export async function buildConfiguration(
   config: webpack.Configuration,
   {
+    hasAppDir,
     supportedBrowsers,
     rootDirectory,
     customAppFile,
@@ -23,9 +25,10 @@ export async function build(
     experimental,
     disableStaticImages,
   }: {
+    hasAppDir: boolean
     supportedBrowsers: string[] | undefined
     rootDirectory: string
-    customAppFile: RegExp
+    customAppFile: RegExp | undefined
     isDevelopment: boolean
     isServer: boolean
     isEdgeRuntime: boolean
@@ -39,6 +42,7 @@ export async function build(
   }
 ): Promise<webpack.Configuration> {
   const ctx: ConfigurationContext = {
+    hasAppDir,
     supportedBrowsers,
     rootDirectory,
     customAppFile,

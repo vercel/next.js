@@ -62,7 +62,7 @@ const UploadForm = () => {
     })
 
     upload.on('error', (err) => {
-      setErrorMessage(err.detail)
+      setErrorMessage(err.detail.message)
     })
 
     upload.on('progress', (progress) => {

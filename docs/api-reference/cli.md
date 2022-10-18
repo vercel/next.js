@@ -108,6 +108,16 @@ PORT=4000 npx next start
 
 > Note: `PORT` can not be set in `.env` as booting up the HTTP server happens before any other code is initialized.
 
+### Keep Alive Timeout
+
+When deploying Next.js behind a downstream proxy (e.g. a load-balancer like AWS ELB/ALB) it's important to configure Next's underlying HTTP server with [keep-alive timeouts](https://nodejs.org/api/http.html#http_server_keepalivetimeout) that are _larger_ than the downstream proxy's timeouts. Otherwise, once a keep-alive timeout is reached for a given TCP connection, Node.js will immediately terminate that connection without notifying the downstream proxy. This results in a proxy error whenever it attempts to reuse a connection that Node.js has already terminated.
+
+To configure the timeout values for the production Next.js server, pass `--keepAliveTimeout` (in milliseconds) to `next start`, like so:
+
+```bash
+npx next start --keepAliveTimeout 70000
+```
+
 ## Lint
 
 `next lint` runs ESLint for all files in the `pages`, `components`, and `lib` directories. It also

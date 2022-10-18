@@ -8,7 +8,7 @@ describe('eslint plugin deps', () => {
   beforeAll(async () => {
     next = await createNext({
       files: {
-        'pages/index.tsx': `export default function Page() { 
+        'pages/index.tsx': `export default function Page() {
   return <p>hello world</p>;
 }
 `,
@@ -86,20 +86,18 @@ describe('eslint plugin deps', () => {
         `,
       },
       dependencies: {
+        // Manually installed @typescript-eslint/eslint-plugin, expect to be deduped
         '@typescript-eslint/eslint-plugin': '^5.16.0',
         '@typescript-eslint/parser': '^5.16.0',
         'eslint-config-prettier': '^8.5.0',
         'eslint-plugin-import': '^2.25.4',
         'eslint-plugin-react': '^7.29.4',
-        next: '12.1.1',
-        react: '17.0.2',
-        'react-dom': '17.0.2',
         '@types/node': '17.0.23',
         '@types/react': '17.0.43',
         '@types/react-dom': '17.0.14',
         eslint: '^8.12.0',
         'eslint-config-next': '^12.1.1',
-        typescript: '4.6.3',
+        typescript: 'latest',
       },
       packageJson: {
         scripts: {

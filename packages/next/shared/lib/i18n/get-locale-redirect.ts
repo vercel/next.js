@@ -19,6 +19,54 @@ interface Options {
   urlParsed: { hostname?: string | null; pathname: string }
 }
 
+function getLocaleFromCookie(
+  i18n: I18NConfig,
+  headers: { [key: string]: string | string[] | undefined } = {}
+) {
+  const nextLocale = getCookieParser(
+    headers || {}
+  )()?.NEXT_LOCALE?.toLowerCase()
+  return nextLocale
+    ? i18n.locales.find((locale) => nextLocale === locale.toLowerCase())
+    : undefined
+}
+
+function detectLocale({
+  i18n,
+  headers,
+  domainLocale,
+  preferredLocale,
+  pathLocale,
+}: {
+  i18n: I18NConfig
+  preferredLocale?: string
+  headers?: { [key: string]: string | string[] | undefined }
+  domainLocale?: DomainLocale
+  pathLocale?: string
+}) {
+  return (
+    pathLocale ||
+    domainLocale?.defaultLocale ||
+    getLocaleFromCookie(i18n, headers) ||
+    preferredLocale ||
+    i18n.defaultLocale
+  )
+}
+
+function getAcceptPreferredLocale(
+  i18n: I18NConfig,
+  headers?: { [key: string]: string | string[] | undefined }
+) {
+  if (
+    headers?.['accept-language'] &&
+    !Array.isArray(headers['accept-language'])
+  ) {
+    try {
+      return acceptLanguage(headers['accept-language'], i18n.locales)
+    } catch (err) {}
+  }
+}
+
 export function getLocaleRedirect({
   defaultLocale,
   domainLocale,
@@ -63,53 +111,5 @@ export function getLocaleRedirect({
         pathname: `${nextConfig.basePath || ''}/${detectedLocale}`,
       })
     }
-  }
-}
-
-function detectLocale({
-  i18n,
-  headers,
-  domainLocale,
-  preferredLocale,
-  pathLocale,
-}: {
-  i18n: I18NConfig
-  preferredLocale?: string
-  headers?: { [key: string]: string | string[] | undefined }
-  domainLocale?: DomainLocale
-  pathLocale?: string
-}) {
-  return (
-    pathLocale ||
-    domainLocale?.defaultLocale ||
-    getLocaleFromCookie(i18n, headers) ||
-    preferredLocale ||
-    i18n.defaultLocale
-  )
-}
-
-function getLocaleFromCookie(
-  i18n: I18NConfig,
-  headers: { [key: string]: string | string[] | undefined } = {}
-) {
-  const nextLocale = getCookieParser(
-    headers || {}
-  )()?.NEXT_LOCALE?.toLowerCase()
-  return nextLocale
-    ? i18n.locales.find((locale) => nextLocale === locale.toLowerCase())
-    : undefined
-}
-
-function getAcceptPreferredLocale(
-  i18n: I18NConfig,
-  headers?: { [key: string]: string | string[] | undefined }
-) {
-  if (
-    headers?.['accept-language'] &&
-    !Array.isArray(headers['accept-language'])
-  ) {
-    try {
-      return acceptLanguage(headers['accept-language'], i18n.locales)
-    } catch (err) {}
   }
 }

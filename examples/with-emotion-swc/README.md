@@ -24,9 +24,13 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 
 ```bash
 npx create-next-app --example with-emotion-swc with-emotion-swc-app
-# or
+```
+
+```bash
 yarn create next-app --example with-emotion-swc with-emotion-swc-app
-# or
+```
+
+```bash
 pnpm create next-app --example with-emotion-swc with-emotion-swc-app
 ```
 

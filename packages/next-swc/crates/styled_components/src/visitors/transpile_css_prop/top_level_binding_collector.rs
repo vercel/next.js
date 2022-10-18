@@ -1,10 +1,10 @@
-use swc_common::collections::AHashSet;
-use swc_ecmascript::{
-    ast::{
+use swc_core::{
+    common::collections::AHashSet,
+    ecma::ast::{
         ArrowExpr, ClassDecl, FnDecl, Function, Id, ImportDefaultSpecifier, ImportNamedSpecifier,
         ImportStarAsSpecifier, ObjectPatProp, Pat, VarDeclarator,
     },
-    visit::{noop_visit_type, Visit, VisitWith},
+    ecma::visit::{noop_visit_type, Visit, VisitWith},
 };
 
 // Modified from swc_ecma_utils/src/lib.rs:BindingCollector.

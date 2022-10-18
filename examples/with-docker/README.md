@@ -30,9 +30,7 @@ To add support for Docker to an existing project, just copy the `Dockerfile` int
 // next.config.js
 module.exports = {
   // ... rest of the configuration.
-  experimental: {
-    outputStandalone: true,
-  },
+  output: 'standalone',
 }
 ```
 

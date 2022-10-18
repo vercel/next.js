@@ -1,5 +1,7 @@
 # No Server Import In Page
 
+> Prevent usage of `next/server` outside of `middleware.js`.
+
 ### Why This Error Occurred
 
 `next/server` was imported outside of `middleware.{js,ts}`.

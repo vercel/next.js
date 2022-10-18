@@ -15,7 +15,7 @@ import { LeftRightDialogHeader } from '../components/LeftRightDialogHeader'
 import { Overlay } from '../components/Overlay'
 import { Toast } from '../components/Toast'
 import { getErrorByType, ReadyRuntimeError } from '../helpers/getErrorByType'
-import { isNodeError } from '../helpers/nodeStackFrames'
+import { getErrorSource } from '../helpers/nodeStackFrames'
 import { noop as css } from '../helpers/noop-template'
 import { CloseIcon } from '../icons/CloseIcon'
 import { RuntimeError } from './RuntimeError'
@@ -240,7 +240,10 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
     )
   }
 
-  const isServerError = isNodeError(activeError.error)
+  const isServerError = ['server', 'edge-server'].includes(
+    getErrorSource(activeError.error) || ''
+  )
+
   return (
     <Overlay>
       <Dialog

@@ -17,6 +17,7 @@ type EventCliSessionStarted = {
   basePathEnabled: boolean
   i18nEnabled: boolean
   imageEnabled: boolean
+  imageFutureEnabled: boolean
   locales: string | null
   localeDomainsCount: number | null
   localeDetectionEnabled: boolean | null
@@ -62,6 +63,7 @@ export function eventCliSession(
     | 'basePathEnabled'
     | 'i18nEnabled'
     | 'imageEnabled'
+    | 'imageFutureEnabled'
     | 'locales'
     | 'localeDomainsCount'
     | 'localeDetectionEnabled'
@@ -79,7 +81,7 @@ export function eventCliSession(
     return []
   }
 
-  const { images, i18n, experimental } = nextConfig || {}
+  const { images, i18n } = nextConfig || {}
 
   const payload: EventCliSessionStarted = {
     nextVersion: process.env.__NEXT_VERSION,
@@ -93,14 +95,15 @@ export function eventCliSession(
     hasWebpackConfig: typeof nextConfig?.webpack === 'function',
     hasBabelConfig: hasBabelConfig(dir),
     imageEnabled: !!images,
+    imageFutureEnabled: !!images,
     basePathEnabled: !!nextConfig?.basePath,
     i18nEnabled: !!i18n,
     locales: i18n?.locales ? i18n.locales.join(',') : null,
     localeDomainsCount: i18n?.domains ? i18n.domains.length : null,
     localeDetectionEnabled: !i18n ? null : i18n.localeDetection !== false,
     imageDomainsCount: images?.domains ? images.domains.length : null,
-    imageRemotePatternsCount: experimental?.images?.remotePatterns
-      ? experimental.images.remotePatterns.length
+    imageRemotePatternsCount: images?.remotePatterns
+      ? images.remotePatterns.length
       : null,
     imageSizes: images?.imageSizes ? images.imageSizes.join(',') : null,
     imageLoader: images?.loader,

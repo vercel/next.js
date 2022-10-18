@@ -3,9 +3,7 @@ import Link from 'next/link'
 const About = ({ bar }) => (
   <div id="about-page">
     <div>
-      <Link href="/">
-        <a>Go Back</a>
-      </Link>
+      <Link href="/">Go Back</Link>
     </div>
     <p>{`This is the About page foo${bar || ''}`}</p>
   </div>

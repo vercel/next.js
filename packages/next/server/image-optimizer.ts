@@ -4,13 +4,17 @@ import { promises } from 'fs'
 import { getOrientation, Orientation } from 'next/dist/compiled/get-orientation'
 import imageSizeOf from 'next/dist/compiled/image-size'
 import { IncomingMessage, ServerResponse } from 'http'
-// @ts-ignore no types for is-animated
 import isAnimated from 'next/dist/compiled/is-animated'
 import contentDisposition from 'next/dist/compiled/content-disposition'
 import { join } from 'path'
 import nodeUrl, { UrlWithParsedQuery } from 'url'
 import { NextConfigComplete } from './config-shared'
-import { processBuffer, decodeBuffer, Operation } from './lib/squoosh/main'
+import {
+  processBuffer,
+  decodeBuffer,
+  Operation,
+  getMetadata,
+} from './lib/squoosh/main'
 import { sendEtagResponse } from './send-payload'
 import { getContentType, getExtension } from './serve-static'
 import chalk from 'next/dist/compiled/chalk'
@@ -18,6 +22,7 @@ import { NextUrlWithParsedQuery } from './request-meta'
 import { IncrementalCacheEntry, IncrementalCacheValue } from './response-cache'
 import { mockRequest } from './lib/mock-request'
 import { hasMatch } from '../shared/lib/match-remote-pattern'
+import { getImageBlurSvg } from '../shared/lib/image-blur-svg'
 
 type XCacheHeader = 'MISS' | 'HIT' | 'STALE'
 
@@ -31,6 +36,7 @@ const CACHE_VERSION = 3
 const ANIMATABLE_TYPES = [WEBP, PNG, GIF]
 const VECTOR_TYPES = [SVG]
 const BLUR_IMG_SIZE = 8 // should match `next-image-loader`
+const BLUR_QUALITY = 70 // should match `next-image-loader`
 
 let sharp:
   | ((
@@ -58,6 +64,85 @@ export interface ImageParamsResult {
   minimumCacheTTL: number
 }
 
+function getSupportedMimeType(options: string[], accept = ''): string {
+  const mimeType = mediaType(accept, options)
+  return accept.includes(mimeType) ? mimeType : ''
+}
+
+export function getHash(items: (string | number | Buffer)[]) {
+  const hash = createHash('sha256')
+  for (let item of items) {
+    if (typeof item === 'number') hash.update(String(item))
+    else {
+      hash.update(item)
+    }
+  }
+  // See https://en.wikipedia.org/wiki/Base64#Filenames
+  return hash.digest('base64').replace(/\//g, '-')
+}
+
+async function writeToCacheDir(
+  dir: string,
+  extension: string,
+  maxAge: number,
+  expireAt: number,
+  buffer: Buffer,
+  etag: string
+) {
+  const filename = join(dir, `${maxAge}.${expireAt}.${etag}.${extension}`)
+
+  // Added in: v14.14.0 https://nodejs.org/api/fs.html#fspromisesrmpath-options
+  // attempt cleaning up existing stale cache
+  if ((promises as any).rm) {
+    await (promises as any)
+      .rm(dir, { force: true, recursive: true })
+      .catch(() => {})
+  } else {
+    await promises.rmdir(dir, { recursive: true }).catch(() => {})
+  }
+  await promises.mkdir(dir, { recursive: true })
+  await promises.writeFile(filename, buffer)
+}
+
+/**
+ * Inspects the first few bytes of a buffer to determine if
+ * it matches the "magic number" of known file signatures.
+ * https://en.wikipedia.org/wiki/List_of_file_signatures
+ */
+export function detectContentType(buffer: Buffer) {
+  if ([0xff, 0xd8, 0xff].every((b, i) => buffer[i] === b)) {
+    return JPEG
+  }
+  if (
+    [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a].every(
+      (b, i) => buffer[i] === b
+    )
+  ) {
+    return PNG
+  }
+  if ([0x47, 0x49, 0x46, 0x38].every((b, i) => buffer[i] === b)) {
+    return GIF
+  }
+  if (
+    [0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50].every(
+      (b, i) => !b || buffer[i] === b
+    )
+  ) {
+    return WEBP
+  }
+  if ([0x3c, 0x3f, 0x78, 0x6d, 0x6c].every((b, i) => buffer[i] === b)) {
+    return SVG
+  }
+  if (
+    [0, 0, 0, 0, 0x66, 0x74, 0x79, 0x70, 0x61, 0x76, 0x69, 0x66].every(
+      (b, i) => !b || buffer[i] === b
+    )
+  ) {
+    return AVIF
+  }
+  return null
+}
+
 export class ImageOptimizerCache {
   private cacheDir: string
   private nextConfig: NextConfigComplete
@@ -76,7 +161,7 @@ export class ImageOptimizerCache {
       minimumCacheTTL = 60,
       formats = ['image/webp'],
     } = imageData
-    const remotePatterns = nextConfig.experimental.images?.remotePatterns || []
+    const remotePatterns = nextConfig.images?.remotePatterns || []
     const { url, w, q } = query
     let href: string
 
@@ -125,7 +210,7 @@ export class ImageOptimizerCache {
 
     const width = parseInt(w, 10)
 
-    if (!width || isNaN(width)) {
+    if (width <= 0 || isNaN(width)) {
       return {
         errorMessage: '"w" parameter (width) must be a number greater than 0',
       }
@@ -137,7 +222,10 @@ export class ImageOptimizerCache {
       sizes.push(BLUR_IMG_SIZE)
     }
 
-    if (!sizes.includes(width)) {
+    const isValidSize =
+      sizes.includes(width) || (isDev && width <= BLUR_IMG_SIZE)
+
+    if (!isValidSize) {
       return {
         errorMessage: `"w" parameter (width) of ${width} is not allowed`,
       }
@@ -271,11 +359,43 @@ export class ImageError extends Error {
   }
 }
 
+function parseCacheControl(str: string | null): Map<string, string> {
+  const map = new Map<string, string>()
+  if (!str) {
+    return map
+  }
+  for (let directive of str.split(',')) {
+    let [key, value] = directive.trim().split('=')
+    key = key.toLowerCase()
+    if (value) {
+      value = value.toLowerCase()
+    }
+    map.set(key, value)
+  }
+  return map
+}
+
+export function getMaxAge(str: string | null): number {
+  const map = parseCacheControl(str)
+  if (map) {
+    let age = map.get('s-maxage') || map.get('max-age') || ''
+    if (age.startsWith('"') && age.endsWith('"')) {
+      age = age.slice(1, -1)
+    }
+    const n = parseInt(age, 10)
+    if (!isNaN(n)) {
+      return n
+    }
+  }
+  return 0
+}
+
 export async function imageOptimizer(
   _req: IncomingMessage,
   _res: ServerResponse,
   paramsResult: ImageParamsResult,
   nextConfig: NextConfigComplete,
+  isDev: boolean | undefined,
   handleRequest: (
     newReq: IncomingMessage,
     newRes: ServerResponse,
@@ -423,14 +543,11 @@ export async function imageOptimizer(
       optimizedBuffer = await transformer.toBuffer()
       // End sharp transformation logic
     } else {
-      if (
-        showSharpMissingWarning &&
-        nextConfig.experimental?.outputStandalone
-      ) {
+      if (showSharpMissingWarning && nextConfig.output === 'standalone') {
         // TODO: should we ensure squoosh also works even though we don't
         // recommend it be used in production and this is a production feature
         console.error(
-          `Error: 'sharp' is required to be installed in standalone mode for the image optimization to function correctly`
+          `Error: 'sharp' is required to be installed in standalone mode for the image optimization to function correctly. Read more at: https://nextjs.org/docs/messages/sharp-missing-in-production`
         )
         throw new ImageError(500, 'internal server error')
       }
@@ -496,6 +613,21 @@ export async function imageOptimizer(
       // End Squoosh transformation logic
     }
     if (optimizedBuffer) {
+      if (isDev && width <= BLUR_IMG_SIZE && quality === BLUR_QUALITY) {
+        // During `next dev`, we don't want to generate blur placeholders with webpack
+        // because it can delay starting the dev server. Instead, `next-image-loader.js`
+        // will inline a special url to lazily generate the blur placeholder at request time.
+        const meta = await getMetadata(optimizedBuffer)
+        const opts = {
+          blurWidth: meta.width,
+          blurHeight: meta.height,
+          blurDataURL: `data:${contentType};base64,${optimizedBuffer.toString(
+            'base64'
+          )}`,
+        }
+        optimizedBuffer = Buffer.from(unescape(getImageBlurSvg(opts)))
+        contentType = 'image/svg+xml'
+      }
       return {
         buffer: optimizedBuffer,
         contentType,
@@ -514,34 +646,11 @@ export async function imageOptimizer(
       }
     } else {
       throw new ImageError(
-        500,
+        400,
         'Unable to optimize image and unable to fallback to upstream image'
       )
     }
   }
-}
-
-async function writeToCacheDir(
-  dir: string,
-  extension: string,
-  maxAge: number,
-  expireAt: number,
-  buffer: Buffer,
-  etag: string
-) {
-  const filename = join(dir, `${maxAge}.${expireAt}.${etag}.${extension}`)
-
-  // Added in: v14.14.0 https://nodejs.org/api/fs.html#fspromisesrmpath-options
-  // attempt cleaning up existing stale cache
-  if ((promises as any).rm) {
-    await (promises as any)
-      .rm(dir, { force: true, recursive: true })
-      .catch(() => {})
-  } else {
-    await promises.rmdir(dir, { recursive: true }).catch(() => {})
-  }
-  await promises.mkdir(dir, { recursive: true })
-  await promises.writeFile(filename, buffer)
 }
 
 function getFileNameWithExtension(
@@ -567,14 +676,16 @@ function setResponseHeaders(
   contentType: string | null,
   isStatic: boolean,
   xCache: XCacheHeader,
-  contentSecurityPolicy: string
+  contentSecurityPolicy: string,
+  maxAge: number,
+  isDev: boolean
 ) {
   res.setHeader('Vary', 'Accept')
   res.setHeader(
     'Cache-Control',
     isStatic
       ? 'public, max-age=315360000, immutable'
-      : `public, max-age=0, must-revalidate`
+      : `public, max-age=${isDev ? 0 : maxAge}, must-revalidate`
   )
   if (sendEtagResponse(req, res, etag)) {
     // already called res.end() so we're finished
@@ -608,7 +719,9 @@ export function sendResponse(
   buffer: Buffer,
   isStatic: boolean,
   xCache: XCacheHeader,
-  contentSecurityPolicy: string
+  contentSecurityPolicy: string,
+  maxAge: number,
+  isDev: boolean
 ) {
   const contentType = getContentType(extension)
   const etag = getHash([buffer])
@@ -620,7 +733,9 @@ export function sendResponse(
     contentType,
     isStatic,
     xCache,
-    contentSecurityPolicy
+    contentSecurityPolicy,
+    maxAge,
+    isDev
   )
   if (!result.finished) {
     res.setHeader('Content-Length', Buffer.byteLength(buffer))
@@ -628,102 +743,17 @@ export function sendResponse(
   }
 }
 
-function getSupportedMimeType(options: string[], accept = ''): string {
-  const mimeType = mediaType(accept, options)
-  return accept.includes(mimeType) ? mimeType : ''
-}
-
-export function getHash(items: (string | number | Buffer)[]) {
-  const hash = createHash('sha256')
-  for (let item of items) {
-    if (typeof item === 'number') hash.update(String(item))
-    else {
-      hash.update(item)
-    }
-  }
-  // See https://en.wikipedia.org/wiki/Base64#Filenames
-  return hash.digest('base64').replace(/\//g, '-')
-}
-
-function parseCacheControl(str: string | null): Map<string, string> {
-  const map = new Map<string, string>()
-  if (!str) {
-    return map
-  }
-  for (let directive of str.split(',')) {
-    let [key, value] = directive.trim().split('=')
-    key = key.toLowerCase()
-    if (value) {
-      value = value.toLowerCase()
-    }
-    map.set(key, value)
-  }
-  return map
-}
-
-/**
- * Inspects the first few bytes of a buffer to determine if
- * it matches the "magic number" of known file signatures.
- * https://en.wikipedia.org/wiki/List_of_file_signatures
- */
-export function detectContentType(buffer: Buffer) {
-  if ([0xff, 0xd8, 0xff].every((b, i) => buffer[i] === b)) {
-    return JPEG
-  }
-  if (
-    [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a].every(
-      (b, i) => buffer[i] === b
-    )
-  ) {
-    return PNG
-  }
-  if ([0x47, 0x49, 0x46, 0x38].every((b, i) => buffer[i] === b)) {
-    return GIF
-  }
-  if (
-    [0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50].every(
-      (b, i) => !b || buffer[i] === b
-    )
-  ) {
-    return WEBP
-  }
-  if ([0x3c, 0x3f, 0x78, 0x6d, 0x6c].every((b, i) => buffer[i] === b)) {
-    return SVG
-  }
-  if (
-    [0, 0, 0, 0, 0x66, 0x74, 0x79, 0x70, 0x61, 0x76, 0x69, 0x66].every(
-      (b, i) => !b || buffer[i] === b
-    )
-  ) {
-    return AVIF
-  }
-  return null
-}
-
-export function getMaxAge(str: string | null): number {
-  const map = parseCacheControl(str)
-  if (map) {
-    let age = map.get('s-maxage') || map.get('max-age') || ''
-    if (age.startsWith('"') && age.endsWith('"')) {
-      age = age.slice(1, -1)
-    }
-    const n = parseInt(age, 10)
-    if (!isNaN(n)) {
-      return n
-    }
-  }
-  return 0
-}
-
 export async function resizeImage(
   content: Buffer,
-  dimension: 'width' | 'height',
-  size: number,
+  width: number,
+  height: number,
   // Should match VALID_BLUR_EXT
   extension: 'avif' | 'webp' | 'png' | 'jpeg',
   quality: number
 ): Promise<Buffer> {
-  if (sharp) {
+  if (isAnimated(content)) {
+    return content
+  } else if (sharp) {
     const transformer = sharp(content)
 
     if (extension === 'avif') {
@@ -744,18 +774,11 @@ export async function resizeImage(
     } else if (extension === 'jpeg') {
       transformer.jpeg({ quality })
     }
-    if (dimension === 'width') {
-      transformer.resize(size)
-    } else {
-      transformer.resize(null, size)
-    }
+    transformer.resize(width, height)
     const buf = await transformer.toBuffer()
     return buf
   } else {
-    const resizeOperationOpts: Operation =
-      dimension === 'width'
-        ? { type: 'resize', width: size }
-        : { type: 'resize', height: size }
+    const resizeOperationOpts: Operation = { type: 'resize', width, height }
     const buf = await processBuffer(
       content,
       [resizeOperationOpts],

@@ -14,7 +14,7 @@ If you have questions about anything related to Next.js, you're always welcome t
 
 #### System Requirements
 
-- [Node.js 12.22.0](https://nodejs.org/) or later
+- [Node.js 14.0.0](https://nodejs.org/) or newer
 - MacOS, Windows (including WSL), and Linux are supported
 
 ## Automatic Setup
@@ -84,7 +84,7 @@ Create two directories `pages` and `public` at the root of your application:
 
 Next.js is built around the concept of [pages](/docs/basic-features/pages.md). A page is a [React Component](https://reactjs.org/docs/components-and-props.html) exported from a `.js`, `.jsx`, `.ts`, or `.tsx` file in the `pages` directory. You can even add [dynamic route](/docs/routing/dynamic-routes) parameters with the filename.
 
-Inside the `pages` directory add the `index.js` file to get started. This is the page that is rendered when the user visits the root of your application
+Inside the `pages` directory add the `index.js` file to get started. This is the page that is rendered when the user visits the root of your application.
 
 Populate `pages/index.js` with the following contents:
 

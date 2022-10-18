@@ -8,8 +8,6 @@ export type User = {
   avatarUrl: string
 }
 
-export default withIronSessionApiRoute(userRoute, sessionOptions)
-
 async function userRoute(req: NextApiRequest, res: NextApiResponse<User>) {
   if (req.session.user) {
     // in a real world application you might read the user id from the session and then do a database request
@@ -26,3 +24,5 @@ async function userRoute(req: NextApiRequest, res: NextApiResponse<User>) {
     })
   }
 }
+
+export default withIronSessionApiRoute(userRoute, sessionOptions)

@@ -10,10 +10,10 @@ While in beta, a Middleware file under specific pages would _only_ be executed w
 
 Declare your Middleware in the root folder and use `NextRequest` parsed URL to define which path the Middleware should be executed for.
 
-For example, a Middleware at `pages/about/_middleware.js` can move the logic to `<root>/middleware.js` in the root of your repository. Then, a conditional statement can be used to only run the Middleware when it matches the `about/*` path:
+For example, a Middleware at `pages/about/_middleware.ts` can move the logic to `<root>/middleware.ts` in the root of your repository. Then, a conditional statement can be used to only run the Middleware when it matches the `about/*` path:
 
 ```typescript
-// <root>/middleware.js
+// <root>/middleware.ts
 import type { NextRequest } from 'next/server'
 
 export function middleware(request: NextRequest) {

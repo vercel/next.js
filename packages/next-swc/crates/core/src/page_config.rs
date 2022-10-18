@@ -1,8 +1,10 @@
 use chrono::Utc;
-use swc_common::errors::HANDLER;
-use swc_common::{Span, DUMMY_SP};
-use swc_ecmascript::ast::*;
-use swc_ecmascript::visit::{Fold, FoldWith};
+
+use swc_core::{
+    common::{errors::HANDLER, Span, DUMMY_SP},
+    ecma::ast::*,
+    ecma::visit::{Fold, FoldWith},
+};
 
 pub fn page_config(is_development: bool, is_page_file: bool) -> impl Fold {
     PageConfig {
@@ -41,7 +43,7 @@ impl Fold for PageConfig {
                     true => String::from("mock_timestamp"),
                     false => Utc::now().timestamp().to_string(),
                 };
-                return vec![ModuleItem::Stmt(Stmt::Decl(Decl::Var(VarDecl {
+                return vec![ModuleItem::Stmt(Stmt::Decl(Decl::Var(Box::new(VarDecl {
                     decls: vec![VarDeclarator {
                         name: Pat::Ident(BindingIdent {
                             id: Ident {
@@ -62,7 +64,7 @@ impl Fold for PageConfig {
                     span: DUMMY_SP,
                     kind: VarDeclKind::Const,
                     declare: false,
-                })))];
+                }))))];
             }
         }
 

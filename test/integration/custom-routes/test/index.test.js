@@ -5,6 +5,7 @@ import url from 'url'
 import stripAnsi from 'strip-ansi'
 import fs from 'fs-extra'
 import { join } from 'path'
+import WebSocket from 'ws'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 import escapeRegex from 'escape-string-regexp'
@@ -39,6 +40,45 @@ let appPort
 let app
 
 const runTests = (isDev = false) => {
+  it('should successfully rewrite a WebSocket request', async () => {
+    const messages = []
+    const ws = await new Promise((resolve, reject) => {
+      let socket = new WebSocket(`ws://localhost:${appPort}/to-websocket`)
+      socket.on('message', (data) => {
+        messages.push(data.toString())
+      })
+      socket.on('open', () => resolve(socket))
+      socket.on('error', (err) => {
+        console.error(err)
+        socket.close()
+        reject()
+      })
+    })
+
+    await check(
+      () => (messages.length > 0 ? 'success' : JSON.stringify(messages)),
+      'success'
+    )
+    ws.close()
+    expect([...externalServerHits]).toEqual(['/_next/webpack-hmr?page=/about'])
+  })
+
+  it('should not rewrite for _next/data route when a match is found', async () => {
+    const initial = await fetchViaHTTP(appPort, '/overridden/first')
+    expect(initial.status).toBe(200)
+    expect(await initial.text()).toContain('this page is overridden')
+
+    const nextData = await fetchViaHTTP(
+      appPort,
+      `/_next/data/${buildId}/overridden/first.json`
+    )
+    expect(nextData.status).toBe(200)
+    expect(await nextData.json()).toEqual({
+      pageProps: { params: { slug: 'first' } },
+      __N_SSG: true,
+    })
+  })
+
   it('should handle has query encoding correctly', async () => {
     for (const expected of [
       {
@@ -946,7 +986,7 @@ const runTests = (isDev = false) => {
       host: '1',
     })
 
-    const res2 = await fetchViaHTTP(appPort, '/has-rewrite-3')
+    const res2 = await fetchViaHTTP(appPort, '/has-rewrite-4')
     expect(res2.status).toBe(404)
   })
 
@@ -1267,6 +1307,18 @@ const runTests = (isDev = false) => {
               buildId
             )}/blog\\-catchall/(?<slug>.+?)\\.json$`,
             page: '/blog-catchall/[...slug]',
+            routeKeys: {
+              slug: 'slug',
+            },
+          },
+          {
+            dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
+              buildId
+            )}\\/overridden\\/([^\\/]+?)\\.json$`,
+            namedDataRouteRegex: `^/_next/data/${escapeRegex(
+              buildId
+            )}/overridden/(?<slug>[^/]+?)\\.json$`,
+            page: '/overridden/[slug]',
             routeKeys: {
               slug: 'slug',
             },
@@ -1782,6 +1834,11 @@ const runTests = (isDev = false) => {
           ],
           afterFiles: [
             {
+              destination: `http://localhost:${externalServerPort}/_next/webpack-hmr?page=/about`,
+              regex: normalizeRegEx('^\\/to-websocket(?:\\/)?$'),
+              source: '/to-websocket',
+            },
+            {
               destination: 'http://localhost:12233',
               regex: normalizeRegEx('^\\/to-nowhere(?:\\/)?$'),
               source: '/to-nowhere',
@@ -2028,6 +2085,12 @@ const runTests = (isDev = false) => {
               regex: normalizeRegEx('^\\/blog\\/about(?:\\/)?$'),
               source: '/blog/about',
             },
+            {
+              destination: '/overridden',
+              regex:
+                '^\\/overridden(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?(?:\\/)?$',
+              source: '/overridden/:path*',
+            },
           ],
           fallback: [],
         },
@@ -2084,6 +2147,14 @@ const runTests = (isDev = false) => {
             namedRegex: '^/blog\\-catchall/(?<slug>.+?)(?:/)?$',
             page: '/blog-catchall/[...slug]',
             regex: normalizeRegEx('^\\/blog\\-catchall\\/(.+?)(?:\\/)?$'),
+            routeKeys: {
+              slug: 'slug',
+            },
+          },
+          {
+            namedRegex: '^/overridden/(?<slug>[^/]+?)(?:/)?$',
+            page: '/overridden/[slug]',
+            regex: '^\\/overridden\\/([^\\/]+?)(?:\\/)?$',
             routeKeys: {
               slug: 'slug',
             },
@@ -2193,6 +2264,14 @@ describe('Custom routes', () => {
       const externalHost = req.headers['host']
       res.end(`hi ${nextHost} from ${externalHost}`)
     })
+    const wsServer = new WebSocket.Server({ noServer: true })
+
+    externalServer.on('upgrade', (req, socket, head) => {
+      externalServerHits.add(req.url)
+      wsServer.handleUpgrade(req, socket, head, (client) => {
+        client.send('hello world')
+      })
+    })
     await new Promise((resolve, reject) => {
       externalServer.listen(externalServerPort, (error) => {
         if (error) return reject(error)
@@ -2202,7 +2281,7 @@ describe('Custom routes', () => {
     nextConfigRestoreContent = await fs.readFile(nextConfigPath, 'utf8')
     await fs.writeFile(
       nextConfigPath,
-      nextConfigRestoreContent.replace(/__EXTERNAL_PORT__/, externalServerPort)
+      nextConfigRestoreContent.replace(/__EXTERNAL_PORT__/g, externalServerPort)
     )
   })
   afterAll(async () => {
@@ -2347,7 +2426,7 @@ describe('Custom routes', () => {
     })
   })
 
-  describe('serverless mode', () => {
+  describe.skip('serverless mode', () => {
     beforeAll(async () => {
       nextConfigContent = await fs.readFile(nextConfigPath, 'utf8')
       await fs.writeFile(
@@ -2375,7 +2454,7 @@ describe('Custom routes', () => {
     runTests()
   })
 
-  describe('raw serverless mode', () => {
+  describe.skip('raw serverless mode', () => {
     beforeAll(async () => {
       nextConfigContent = await fs.readFile(nextConfigPath, 'utf8')
       await fs.writeFile(

@@ -13,6 +13,11 @@ module.exports = {
             ]
           : []),
         {
+          source: '/to-websocket',
+          destination:
+            'http://localhost:__EXTERNAL_PORT__/_next/webpack-hmr?page=/about',
+        },
+        {
           source: '/to-nowhere',
           destination: 'http://localhost:12233',
         },
@@ -203,6 +208,10 @@ module.exports = {
         {
           source: '/blog/about',
           destination: '/hello',
+        },
+        {
+          source: '/overridden/:path*',
+          destination: '/overridden',
         },
       ],
       beforeFiles: [

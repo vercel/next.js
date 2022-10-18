@@ -18,6 +18,7 @@
     }
   },
   "include": [
+    "test/jest.d.ts",
     "test/**/*.test.ts",
     "test/**/*.test.tsx",
     "test/**/test/*",

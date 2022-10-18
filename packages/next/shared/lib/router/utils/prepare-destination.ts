@@ -9,6 +9,37 @@ import { compile, pathToRegexp } from 'next/dist/compiled/path-to-regexp'
 import { escapeStringRegexp } from '../../escape-regexp'
 import { parseUrl } from './parse-url'
 
+/**
+ * Ensure only a-zA-Z are used for param names for proper interpolating
+ * with path-to-regexp
+ */
+function getSafeParamName(paramName: string) {
+  let newParamName = ''
+
+  for (let i = 0; i < paramName.length; i++) {
+    const charCode = paramName.charCodeAt(i)
+
+    if (
+      (charCode > 64 && charCode < 91) || // A-Z
+      (charCode > 96 && charCode < 123) // a-z
+    ) {
+      newParamName += paramName[i]
+    }
+  }
+  return newParamName
+}
+
+function escapeSegment(str: string, segmentName: string) {
+  return str.replace(
+    new RegExp(`:${escapeStringRegexp(segmentName)}`, 'g'),
+    `__ESC_COLON_${segmentName}`
+  )
+}
+
+function unescapeSegments(str: string) {
+  return str.replace(/__ESC_COLON_/gi, ':')
+}
+
 export function matchHas(
   req: BaseNextRequest | IncomingMessage,
   has: RouteHas[],
@@ -121,6 +152,7 @@ export function prepareDestination(args: {
   const query = Object.assign({}, args.query)
   delete query.__nextLocale
   delete query.__nextDefaultLocale
+  delete query.__nextDataReq
 
   let escapedDestination = args.destination
 
@@ -220,35 +252,4 @@ export function prepareDestination(args: {
     destQuery,
     parsedDestination,
   }
-}
-
-/**
- * Ensure only a-zA-Z are used for param names for proper interpolating
- * with path-to-regexp
- */
-function getSafeParamName(paramName: string) {
-  let newParamName = ''
-
-  for (let i = 0; i < paramName.length; i++) {
-    const charCode = paramName.charCodeAt(i)
-
-    if (
-      (charCode > 64 && charCode < 91) || // A-Z
-      (charCode > 96 && charCode < 123) // a-z
-    ) {
-      newParamName += paramName[i]
-    }
-  }
-  return newParamName
-}
-
-function escapeSegment(str: string, segmentName: string) {
-  return str.replace(
-    new RegExp(`:${escapeStringRegexp(segmentName)}`, 'g'),
-    `__ESC_COLON_${segmentName}`
-  )
-}
-
-function unescapeSegments(str: string) {
-  return str.replace(/__ESC_COLON_/gi, ':')
 }

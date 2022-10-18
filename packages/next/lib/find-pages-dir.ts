@@ -10,7 +10,7 @@ export const existsSync = (f: string): boolean => {
   }
 }
 
-function findDir(dir: string, name: 'pages' | 'app'): string | null {
+export function findDir(dir: string, name: 'pages' | 'app'): string | null {
   // prioritize ./${name} over ./src/${name}
   let curDir = path.join(dir, name)
   if (existsSync(curDir)) return curDir
@@ -23,24 +23,36 @@ function findDir(dir: string, name: 'pages' | 'app'): string | null {
 
 export function findPagesDir(
   dir: string,
-  appDirEnabled?: boolean
-): { pages: string; appDir?: string } {
-  const pagesDir = findDir(dir, 'pages')
+  isAppDirEnabled: boolean
+): {
+  pagesDir: string | undefined
+  appDir: string | undefined
+} {
+  const pagesDir = findDir(dir, 'pages') || undefined
   let appDir: undefined | string
 
-  if (appDirEnabled) {
+  if (isAppDirEnabled) {
     appDir = findDir(dir, 'app') || undefined
   }
+  const hasAppDir =
+    !!appDir && fs.existsSync(appDir) && fs.statSync(appDir).isDirectory()
 
-  // TODO: allow "root" dir without pages dir
-  if (pagesDir === null) {
+  if (hasAppDir && appDir == null && pagesDir == null) {
     throw new Error(
-      "> Couldn't find a `pages` directory. Please create one under the project root"
+      "> Couldn't find any `pages` or `app` directory. Please create one under the project root"
     )
   }
 
+  if (!isAppDirEnabled) {
+    if (pagesDir == null) {
+      throw new Error(
+        "> Couldn't find a `pages` directory. Please create one under the project root"
+      )
+    }
+  }
+
   return {
-    pages: pagesDir,
+    pagesDir,
     appDir,
   }
 }

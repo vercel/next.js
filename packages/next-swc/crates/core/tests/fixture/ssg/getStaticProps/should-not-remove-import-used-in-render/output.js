@@ -12,4 +12,4 @@ export default function Test() {
         attr: AttributeValue,
         jsx: __jsx(AttributeJSX, null)
     }), __jsx(JSXMemberExpression.Deep.Property, null)));
-};
+}

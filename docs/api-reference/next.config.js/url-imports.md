@@ -29,7 +29,7 @@ URL Imports can be used everywhere normal package imports can be used.
 
 ## Security Model
 
-This feature is being designed with **security as the top priority**. To start, we added an experimental flag forcing you to explicitly allow the domains you accept URL imports from. We're working to take this further by limiting URL imports to execute in the browser sandbox using the [Edge Runtime](/docs/api-reference/edge-runtime.md). This runtime is used by [Middleware](/docs/middleware.md) as well as [Next.js Live](https://vercel.com/live).
+This feature is being designed with **security as the top priority**. To start, we added an experimental flag forcing you to explicitly allow the domains you accept URL imports from. We're working to take this further by limiting URL imports to execute in the browser sandbox using the [Edge Runtime](/docs/api-reference/edge-runtime.md).
 
 ## Lockfile
 

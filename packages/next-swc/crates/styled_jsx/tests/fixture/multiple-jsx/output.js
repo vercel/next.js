@@ -1,4 +1,4 @@
-import _JSXStyle from "next/dist/shared/lib/styled-jsx";
+import _JSXStyle from "styled-jsx/style";
 const attrs = {
     id: 'test'
 };
@@ -29,4 +29,4 @@ export default class {
 
       </div>;
     }
-};
+}

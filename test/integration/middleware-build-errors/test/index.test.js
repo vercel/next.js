@@ -5,7 +5,7 @@ import { join } from 'path'
 describe('Middleware validation during build', () => {
   const appDir = join(__dirname, '..')
   const middlewareFile = join(appDir, 'middleware.js')
-  const middlewareError = 'Your middleware is returning a response body'
+  const middlewareError = 'Middleware is returning a response body'
 
   beforeEach(() => remove(join(appDir, '.next')))
 

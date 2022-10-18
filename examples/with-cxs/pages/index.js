@@ -8,14 +8,6 @@ if (typeof window !== 'undefined') {
   cxs.rehydrate(serverCss)
 }
 
-export default function Home() {
-  return (
-    <div className={cx.root}>
-      <h1 className={cx.title}>My page</h1>
-    </div>
-  )
-}
-
 const cx = {
   root: cxs({
     width: 80,
@@ -34,4 +26,12 @@ const cx = {
       color: 'white',
     },
   }),
+}
+
+export default function Home() {
+  return (
+    <div className={cx.root}>
+      <h1 className={cx.title}>My page</h1>
+    </div>
+  )
 }

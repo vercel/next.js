@@ -6,9 +6,7 @@ export default function Page1() {
       <br />
       <input key={'' + Math.random()} id="text-input" type="text" />
       <br />
-      <Link href="/page2">
-        <a>Switch page</a>
-      </Link>
+      <Link href="/page2">Switch page</Link>
     </>
   )
 }

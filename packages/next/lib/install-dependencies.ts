@@ -2,7 +2,7 @@ import chalk from 'next/dist/compiled/chalk'
 import path from 'path'
 
 import { MissingDependency } from './has-necessary-dependencies'
-import { shouldUseYarn } from './helpers/should-use-yarn'
+import { getPkgManager } from './helpers/get-pkg-manager'
 import { install } from './helpers/install'
 import { getOnline } from './helpers/get-online'
 
@@ -15,22 +15,25 @@ export async function installDependencies(
   deps: any,
   dev: boolean = false
 ) {
-  const useYarn = shouldUseYarn(baseDir)
-  const isOnline = !useYarn || (await getOnline())
+  const packageManager = getPkgManager(baseDir)
+  const isOnline = await getOnline()
 
   if (deps.length) {
     console.log()
-    console.log(`Installing ${dev ? 'devDependencies' : 'dependencies'}:`)
+    console.log(
+      `Installing ${
+        dev ? 'devDependencies' : 'dependencies'
+      } (${packageManager}):`
+    )
     for (const dep of deps) {
       console.log(`- ${chalk.cyan(dep.pkg)}`)
     }
     console.log()
 
-    const devInstallFlags = { devDependencies: dev, ...{ useYarn, isOnline } }
     await install(
       path.resolve(baseDir),
       deps.map((dep: MissingDependency) => dep.pkg),
-      devInstallFlags
+      { devDependencies: dev, isOnline, packageManager }
     )
     console.log()
   }

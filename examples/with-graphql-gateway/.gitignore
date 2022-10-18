@@ -33,5 +33,4 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
-
-.mesh/
+next-env.d.ts

@@ -121,6 +121,26 @@ function runTests(startServer = nextStart) {
     expect(cookies[1]).toHaveProperty('__next_preview_data')
     expect(cookies[1]['Max-Age']).toBe(expiry)
   })
+  it('should set custom path cookies', async () => {
+    const path = '/path'
+    const res = await fetchViaHTTP(appPort, '/api/preview', {
+      cookiePath: path,
+    })
+    expect(res.status).toBe(200)
+
+    const originalCookies = res.headers.get('set-cookie').split(',')
+    const cookies = originalCookies.map(cookie.parse)
+
+    expect(originalCookies.every((c) => c.includes('; Secure;'))).toBe(true)
+
+    expect(cookies.length).toBe(2)
+    expect(cookies[0]).toMatchObject({ Path: path, SameSite: 'None' })
+    expect(cookies[0]).toHaveProperty('__prerender_bypass')
+    expect(cookies[0]['Path']).toBe(path)
+    expect(cookies[0]).toMatchObject({ Path: path, SameSite: 'None' })
+    expect(cookies[1]).toHaveProperty('__next_preview_data')
+    expect(cookies[1]['Path']).toBe(path)
+  })
   it('should not return fallback page on preview request', async () => {
     const res = await fetchViaHTTP(
       appPort,
@@ -184,6 +204,38 @@ function runTests(startServer = nextStart) {
     expect(cookies[0]).not.toHaveProperty('Max-Age')
     expect(cookies[1]).toMatchObject({
       Path: '/',
+      SameSite: 'None',
+      Expires: 'Thu 01 Jan 1970 00:00:00 GMT',
+    })
+    expect(cookies[1]).toHaveProperty('__next_preview_data')
+    expect(cookies[1]).not.toHaveProperty('Max-Age')
+  })
+
+  it('should return cookies to be expired on reset request with path specified', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/api/reset',
+      { cookiePath: '/blog' },
+      { headers: { Cookie: previewCookieString } }
+    )
+    expect(res.status).toBe(200)
+
+    const cookies = res.headers
+      .get('set-cookie')
+      .replace(/(=(?!Lax)\w{3}),/g, '$1')
+      .split(',')
+      .map(cookie.parse)
+
+    expect(cookies.length).toBe(2)
+    expect(cookies[0]).toMatchObject({
+      Path: '/blog',
+      SameSite: 'None',
+      Expires: 'Thu 01 Jan 1970 00:00:00 GMT',
+    })
+    expect(cookies[0]).toHaveProperty('__prerender_bypass')
+    expect(cookies[0]).not.toHaveProperty('Max-Age')
+    expect(cookies[1]).toMatchObject({
+      Path: '/blog',
       SameSite: 'None',
       Expires: 'Thu 01 Jan 1970 00:00:00 GMT',
     })
@@ -280,7 +332,7 @@ describe('Prerender Preview Mode', () => {
       expect(cookies.length).toBe(2)
     })
 
-    /** @type import('next-webdriver').Chain */
+    /** @type {import('next-webdriver').Chain} */
     let browser
     it('should start the client-side browser', async () => {
       browser = await webdriver(
@@ -353,7 +405,7 @@ describe('Prerender Preview Mode', () => {
     runTests()
   })
 
-  describe('Serverless Mode', () => {
+  describe.skip('Serverless Mode', () => {
     beforeAll(async () => {
       await fs.writeFile(
         nextConfigPath,
@@ -367,7 +419,7 @@ describe('Prerender Preview Mode', () => {
     runTests()
   })
 
-  describe('Emulated Serverless Mode', () => {
+  describe.skip('Emulated Serverless Mode', () => {
     beforeAll(async () => {
       await fs.writeFile(
         nextConfigPath,

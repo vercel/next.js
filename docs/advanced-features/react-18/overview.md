@@ -1,7 +1,6 @@
 # React 18
 
 [React 18](https://reactjs.org/blog/2022/03/29/react-v18.html) adds new features including Suspense, automatic batching of updates, APIs like `startTransition`, and a new streaming API for server rendering with support for `React.lazy`.
-Next.js also provides streaming related APIs, please checkout [next/streaming](/docs/api-reference/next/streaming.md) for details.
 
 React 18 is now released. Read more about [React 18](https://reactjs.org/blog/2022/03/29/react-v18.html).
 

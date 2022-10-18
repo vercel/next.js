@@ -46,16 +46,21 @@ function getOriginModuleFromDependency(
 function getChunkGroupFromBlock(
   compilation: any,
   block: any
-): webpack.compilation.ChunkGroup {
+): webpack.Compilation['chunkGroups'] {
   return compilation.chunkGraph.getBlockChunkGroup(block)
 }
 
 function buildManifest(
   _compiler: webpack.Compiler,
-  compilation: webpack.compilation.Compilation,
-  pagesDir: string,
+  compilation: webpack.Compilation,
+  pagesDir: string | undefined,
   dev: boolean
 ) {
+  // If there's no pagesDir, output an empty manifest
+  if (!pagesDir) {
+    return {}
+  }
+
   let manifest: { [k: string]: { id: string | number; files: string[] } } = {}
 
   // This is allowed:
@@ -109,7 +114,7 @@ function buildManifest(
         // the module id and no files
         if (chunkGroup) {
           for (const chunk of (chunkGroup as any)
-            .chunks as webpack.compilation.Chunk[]) {
+            .chunks as webpack.Compilation['chunks']) {
             chunk.files.forEach((file: string) => {
               if (
                 (file.endsWith('.js') || file.endsWith('.css')) &&
@@ -145,13 +150,13 @@ function buildManifest(
 
 export class ReactLoadablePlugin {
   private filename: string
-  private pagesDir: string
+  private pagesDir?: string
   private runtimeAsset?: string
   private dev: boolean
 
   constructor(opts: {
     filename: string
-    pagesDir: string
+    pagesDir?: string
     runtimeAsset?: string
     dev: boolean
   }) {
@@ -182,11 +187,9 @@ export class ReactLoadablePlugin {
 
   apply(compiler: webpack.Compiler) {
     compiler.hooks.make.tap('ReactLoadableManifest', (compilation) => {
-      // @ts-ignore TODO: Remove ignore when webpack 5 is stable
       compilation.hooks.processAssets.tap(
         {
           name: 'ReactLoadableManifest',
-          // @ts-ignore TODO: Remove ignore when webpack 5 is stable
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
         },
         (assets: any) => {

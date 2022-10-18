@@ -32,16 +32,34 @@ export function connectHMR(options: {
     options.timeout = 5 * 1000
   }
 
-  init()
-
-  let timer = setInterval(function () {
-    if (Date.now() - lastActivity > options.timeout) {
-      handleDisconnect()
-    }
-  }, options.timeout / 2)
-
   function init() {
     if (source) source.close()
+
+    function handleOnline() {
+      if (options.log) console.log('[HMR] connected')
+      lastActivity = Date.now()
+    }
+
+    function handleMessage(event: any) {
+      lastActivity = Date.now()
+
+      eventCallbacks.forEach((cb) => {
+        cb(event)
+      })
+    }
+
+    let timer: NodeJS.Timeout
+    function handleDisconnect() {
+      clearInterval(timer)
+      source.close()
+      setTimeout(init, options.timeout)
+    }
+    timer = setInterval(function () {
+      if (Date.now() - lastActivity > options.timeout) {
+        handleDisconnect()
+      }
+    }, options.timeout / 2)
+
     const { hostname, port } = location
     const protocol = getSocketProtocol(options.assetPrefix || '')
     const assetPrefix = options.assetPrefix.replace(/^\/+/, '')
@@ -60,22 +78,5 @@ export function connectHMR(options: {
     source.onmessage = handleMessage
   }
 
-  function handleOnline() {
-    if (options.log) console.log('[HMR] connected')
-    lastActivity = Date.now()
-  }
-
-  function handleMessage(event: any) {
-    lastActivity = Date.now()
-
-    eventCallbacks.forEach((cb) => {
-      cb(event)
-    })
-  }
-
-  function handleDisconnect() {
-    clearInterval(timer)
-    source.close()
-    setTimeout(init, options.timeout)
-  }
+  init()
 }

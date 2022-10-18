@@ -1,17 +1,27 @@
 // remove (name) from pathname as it's not considered for routing
 export function normalizeAppPath(pathname: string) {
-  let normalized = ''
-  const segments = pathname.split('/')
+  return pathname.split('/').reduce((acc, segment, index, segments) => {
+    // Empty segments are ignored.
+    if (!segment) {
+      return acc
+    }
 
-  segments.forEach((segment, index) => {
-    if (!segment) return
     if (segment.startsWith('(') && segment.endsWith(')')) {
-      return
+      return acc
     }
+
+    if (segment.startsWith('@')) {
+      return acc
+    }
+
     if (segment === 'page' && index === segments.length - 1) {
-      return
+      return acc
     }
-    normalized += `/${segment}`
-  })
-  return normalized
+
+    return acc + `/${segment}`
+  }, '')
+}
+
+export function normalizeRscPath(pathname: string, enabled?: boolean) {
+  return enabled ? pathname.replace(/\.rsc($|\?)/, '') : pathname
 }

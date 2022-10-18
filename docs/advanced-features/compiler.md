@@ -9,6 +9,9 @@ description: Learn about the Next.js Compiler, written in Rust, which transforms
 
 | Version   | Changes                                                                                                                            |
 | --------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `v13.0.0` | SWC Minifier enabled by default.                                                                                                   |
+| `v12.3.0` | SWC Minifier [stable](https://nextjs.org/blog/next-12-3#swc-minifier-stable).                                                      |
+| `v12.2.0` | [SWC Plugins](#swc-plugins-Experimental) experimental support added.                                                               |
 | `v12.1.0` | Added support for Styled Components, Jest, Relay, Remove React Properties, Legacy Decorators, Remove Console, and jsxImportSource. |
 | `v12.0.0` | Next.js Compiler [introduced](https://nextjs.org/blog/next-12).                                                                    |
 
@@ -40,17 +43,37 @@ We're working to port `babel-plugin-styled-components` to the Next.js Compiler.
 First, update to the latest version of Next.js: `npm install next@latest`. Then, update your `next.config.js` file:
 
 ```js
-// next.config.js
-
 module.exports = {
   compiler: {
-    // ssr and displayName are configured by default
-    styledComponents: true,
+    // see https://styled-components.com/docs/tooling#babel-plugin for more info on the options.
+    styledComponents: boolean | {
+      // Enabled by default in development, disabled in production to reduce file size,
+      // setting this will override the default for all environments.
+      displayName?: boolean,
+      // Enabled by default.
+      ssr?: boolean,
+      // Enabled by default.
+      fileName?: boolean,
+      // Empty by default.
+      topLevelImportPaths?: string[],
+      // Defaults to ["index"].
+      meaninglessFileNames?: string[],
+      // Enabled by default.
+      cssProp?: boolean,
+      // Empty by default.
+      namespace?: string,
+      // Not supported yet.
+      minify?: boolean,
+      // Not supported yet.
+      transpileTemplateLiterals?: boolean,
+      // Not supported yet.
+      pure?: boolean,
+    },
   },
 }
 ```
 
-Currently, only the `ssr` and `displayName` transforms have been implemented. These two transforms are the main requirement for using `styled-components` in Next.js.
+`minify`, `transpileTemplateLiterals` and `pure` are not yet implemented. You can follow the progress [here](https://github.com/vercel/next.js/issues/30802). `ssr` and `displayName` transforms are the main requirement for using `styled-components` in Next.js.
 
 ### Jest
 
@@ -70,7 +93,7 @@ First, update to the latest version of Next.js: `npm install next@latest`. Then,
 const nextJest = require('next/jest')
 
 // Providing the path to your Next.js app which will enable loading next.config.js and .env files
-const createJestConfig = nextJest({ dir })
+const createJestConfig = nextJest({ dir: './' })
 
 // Any custom config you want to pass to Jest
 const customJestConfig = {
@@ -217,21 +240,21 @@ module.exports = {
 
 Only `importMap` in `@emotion/babel-plugin` is not supported for now.
 
-## Experimental Features
-
 ### Minification
 
-You can opt-in to using the Next.js compiler for minification. This is 7x faster than Terser.
+Next.js' swc compiler is used for minification by default since v13. This is 7x faster than Terser.
+
+If Terser is still needed for any reason this can be configured.
 
 ```js
 // next.config.js
 
 module.exports = {
-  swcMinify: true,
+  swcMinify: false,
 }
 ```
 
-If you have feedback about `swcMinify`, please share it on the [feedback discussion](https://github.com/vercel/next.js/discussions/30237).
+## Experimental Features
 
 ### Minifier debug options
 
@@ -249,7 +272,6 @@ module.exports = {
       },
     },
   },
-  swcMinify: true,
 }
 ```
 
@@ -337,7 +359,7 @@ This transform uses [handlebars](https://docs.rs/handlebars) to template the rep
 
 1. `matches`: Has type `string[]`. All groups matched by the regular expression. `matches.[0]` is the full match.
 2. `member`: Has type `string`. The name of the member import.
-3. `lowerCase`, `upperCase`, `camelCase`: Helper functions to convert a string to lower, upper or camel cases.
+3. `lowerCase`, `upperCase`, `camelCase`, `kebabCase`: Helper functions to convert a string to lower, upper, camel or kebab cases.
 
 ### SWC Trace profiling
 
@@ -355,7 +377,7 @@ module.exports = {
 
 Once enabled, swc will generate trace named as `swc-trace-profile-${timestamp}.json` under `.next/`. Chromium's trace viewer (chrome://tracing/, https://ui.perfetto.dev/), or compatible flamegraph viewer (https://www.speedscope.app/) can load & visualize generated traces.
 
-### Experimental SWC plugin support
+### SWC Plugins (Experimental)
 
 You can configure swc's transform to use SWC's experimental plugin support written in wasm to customize transformation behavior.
 
@@ -365,11 +387,14 @@ You can configure swc's transform to use SWC's experimental plugin support writt
 module.exports = {
   experimental: {
     swcPlugins: [
-      ['plugin', {
-        ..pluginOptions
-      }]
-    ]
-  }
+      [
+        'plugin',
+        {
+          ...pluginOptions,
+        },
+      ],
+    ],
+  },
 }
 ```
 

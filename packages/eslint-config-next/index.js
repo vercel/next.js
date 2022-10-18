@@ -60,6 +60,7 @@ module.exports = {
   plugins: ['import', 'react', 'jsx-a11y'],
   rules: {
     'import/no-anonymous-default-export': 'warn',
+    'react/no-unknown-property': 'off',
     'react/react-in-jsx-scope': 'off',
     'react/prop-types': 'off',
     'jsx-a11y/alt-text': [
@@ -106,7 +107,13 @@ module.exports = {
       version: 'detect',
     },
     'import/parsers': {
-      [require.resolve('@typescript-eslint/parser')]: ['.ts', '.tsx', '.d.ts'],
+      [require.resolve('@typescript-eslint/parser')]: [
+        '.ts',
+        '.mts',
+        '.cts',
+        '.tsx',
+        '.d.ts',
+      ],
     },
     'import/resolver': {
       [require.resolve('eslint-import-resolver-node')]: {

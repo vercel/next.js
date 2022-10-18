@@ -1,0 +1,27 @@
+# Dynamic WASM compilation is not available in Middlewares
+
+#### Why This Error Occurred
+
+Compiling WASM binaries dynamically is not allowed in Middlewares. Specifically,
+the following APIs are not supported:
+
+- `WebAssembly.compile`
+- `WebAssembly.instantiate` with [a buffer parameter](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/instantiate#primary_overload_%E2%80%94_taking_wasm_binary_code)
+
+#### Possible Ways to Fix It
+
+Bundle your WASM binaries using `import`:
+
+```typescript
+import { NextResponse } from 'next/server'
+import squareWasm from './square.wasm?module'
+
+export default async function middleware() {
+  const m = await WebAssembly.instantiate(squareWasm)
+  const answer = m.exports.square(9)
+  const response = NextResponse.next()
+
+  response.headers.set('x-square', answer.toString())
+  return response
+}
+```

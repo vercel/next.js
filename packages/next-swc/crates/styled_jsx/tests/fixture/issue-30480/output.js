@@ -1,14 +1,14 @@
-import _JSXStyle from "next/dist/shared/lib/styled-jsx";
+import _JSXStyle from "styled-jsx/style";
 export default (({ breakPoint  })=><div className={_JSXStyle.dynamic([
         [
-            "1568e0a11702cf40",
+            "5d2a0e645566ce9c",
             [
                 breakPoint
             ]
         ]
     ])}>
 
-    <_JSXStyle id={"1568e0a11702cf40"} dynamic={[
+    <_JSXStyle id={"5d2a0e645566ce9c"} dynamic={[
         breakPoint
     ]}>{`@media(${breakPoint}){}`}</_JSXStyle>
 

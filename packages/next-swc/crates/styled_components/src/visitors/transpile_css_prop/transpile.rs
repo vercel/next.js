@@ -1,20 +1,23 @@
 //! Port of https://github.com/styled-components/babel-plugin-styled-components/blob/a20c3033508677695953e7a434de4746168eeb4e/src/visitors/transpileCssProp.js
 
+use std::cell::RefCell;
+use std::rc::Rc;
 use std::{borrow::Cow, collections::HashMap};
 
+use crate::State;
 use inflector::Inflector;
 use once_cell::sync::Lazy;
 use regex::Regex;
-use swc_atoms::{js_word, JsWord};
-use swc_common::{
-    collections::{AHashMap, AHashSet},
-    util::take::Take,
-    Spanned, DUMMY_SP,
-};
-use swc_ecmascript::{
-    ast::*,
-    utils::{prepend_stmt, private_ident, quote_ident, ExprFactory},
-    visit::{as_folder, noop_visit_mut_type, Fold, VisitMut, VisitMutWith},
+use swc_core::{
+    common::{
+        collections::{AHashMap, AHashSet},
+        util::take::Take,
+        Spanned, DUMMY_SP,
+    },
+    ecma::ast::*,
+    ecma::atoms::{js_word, JsWord},
+    ecma::utils::{prepend_stmt, private_ident, quote_ident, ExprFactory},
+    ecma::visit::{as_folder, noop_visit_mut_type, Fold, VisitMut, VisitMutWith},
 };
 
 use crate::utils::{get_prop_key_as_expr, get_prop_name, get_prop_name2};
@@ -24,12 +27,17 @@ use super::top_level_binding_collector::collect_top_level_decls;
 static TAG_NAME_REGEX: Lazy<Regex> =
     Lazy::new(|| Regex::new("^[a-z][a-z\\d]*(\\-[a-z][a-z\\d]*)?$").unwrap());
 
-pub fn transpile_css_prop() -> impl Fold + VisitMut {
-    as_folder(TranspileCssProp::default())
+pub fn transpile_css_prop(state: Rc<RefCell<State>>) -> impl Fold + VisitMut {
+    as_folder(TranspileCssProp {
+        state,
+        ..Default::default()
+    })
 }
 
 #[derive(Default)]
 struct TranspileCssProp {
+    state: Rc<RefCell<State>>,
+
     import_name: Option<Ident>,
     injected_nodes: Vec<Stmt>,
     interleaved_injections: AHashMap<Id, Vec<Stmt>>,
@@ -69,10 +77,18 @@ impl VisitMut for TranspileCssProp {
                         continue;
                     }
 
-                    let import_name = self
-                        .import_name
-                        .get_or_insert_with(|| private_ident!("_styled"))
-                        .clone();
+                    let import_name = if let Some(ident) = self
+                        .state
+                        .borrow()
+                        .import_local_name("default", None)
+                        .map(Ident::from)
+                    {
+                        ident
+                    } else {
+                        self.import_name
+                            .get_or_insert_with(|| private_ident!("_styled"))
+                            .clone()
+                    };
 
                     let name = get_name_ident(&elem.opening.name);
                     let id_sym = name.sym.to_class_case();
@@ -132,7 +148,7 @@ impl VisitMut for TranspileCssProp {
                                         span: DUMMY_SP,
                                         tail: true,
                                         cooked: None,
-                                        raw: v.value.clone(),
+                                        raw: (&*v.value).into(),
                                     }],
                                 }),
                                 JSXAttrValue::JSXExprContainer(JSXExprContainer {
@@ -235,7 +251,7 @@ impl VisitMut for TranspileCssProp {
                                     if expr.is_fn_expr() || expr.is_arrow() {
                                         acc.push(expr);
                                         return acc;
-                                    } else if let Some(root) = trace_root_value(&mut *expr) {
+                                    } else if let Some(root) = trace_root_value(&mut expr) {
                                         let direct_access = match root {
                                             Expr::Lit(_) => true,
                                             Expr::Ident(id) if self.is_top_level_ident(id) => true,
@@ -298,12 +314,12 @@ impl VisitMut for TranspileCssProp {
                         }),
                         definite: false,
                     };
-                    let stmt = Stmt::Decl(Decl::Var(VarDecl {
+                    let stmt = Stmt::Decl(Decl::Var(Box::new(VarDecl {
                         span: DUMMY_SP,
                         kind: VarDeclKind::Var,
                         declare: false,
                         decls: vec![var],
-                    }));
+                    })));
                     match inject_after {
                         Some(injector) => {
                             let id = injector.to_id();
@@ -349,6 +365,7 @@ impl VisitMut for TranspileCssProp {
         self.top_level_decls = None;
 
         if let Some(import_name) = self.import_name.take() {
+            self.state.borrow_mut().set_import_name(import_name.to_id());
             let specifier = ImportSpecifier::Default(ImportDefaultSpecifier {
                 span: DUMMY_SP,
                 local: import_name,
@@ -358,11 +375,11 @@ impl VisitMut for TranspileCssProp {
                 ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                     span: DUMMY_SP,
                     specifiers: vec![specifier],
-                    src: Str {
+                    src: Box::new(Str {
                         span: DUMMY_SP,
                         value: "styled-components".into(),
                         raw: None,
-                    },
+                    }),
                     type_only: Default::default(),
                     asserts: Default::default(),
                 })),
@@ -626,7 +643,7 @@ fn trace_root_value(e: &mut Expr) -> Option<&mut Expr> {
     match e {
         Expr::Member(e) => trace_root_value(&mut e.obj),
         Expr::Call(e) => match &mut e.callee {
-            Callee::Expr(e) => trace_root_value(&mut **e),
+            Callee::Expr(e) => trace_root_value(e),
             _ => None,
         },
         Expr::Ident(_) => Some(e),

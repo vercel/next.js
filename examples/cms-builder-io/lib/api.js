@@ -11,38 +11,12 @@ export function getAllPostsWithSlug() {
   })
 }
 
-export function getAllPostsForHome(preview) {
-  return searchPosts(
-    { 'data.slug': { $exists: true }, 'data.author': { $exists: true } },
-    preview
-  )
-}
-
 export function getDraftPost(id) {
   return fetch(
     `https://builder.io/api/v2/content/${BUILDER_CONFIG.postsModel}/${id}?apiKey=${BUILDER_CONFIG.apiKey}&preview=true&noCache=true&cachebust=tru&includeRefs=true`
   )
     .then((res) => res.json())
     .then((res) => res || null)
-}
-
-export async function getPost(mongoQuery, preview) {
-  let post = preview
-    ? (await searchPosts(mongoQuery, true))?.[0]
-    : await builder
-        .get(BUILDER_CONFIG.postsModel, {
-          includeRefs: true,
-          staleCacheSeconds: 20,
-          apiKey: BUILDER_CONFIG.apiKey,
-          preview: BUILDER_CONFIG.postsModel,
-          options: {
-            noTargeting: true,
-          },
-          query: mongoQuery,
-        })
-        .toPromise()
-
-  return post || null
 }
 
 export async function searchPosts(query, preview, limit = 20, offset = 0) {
@@ -65,6 +39,32 @@ export async function searchPosts(query, preview, limit = 20, offset = 0) {
   }
 
   return posts
+}
+
+export function getAllPostsForHome(preview) {
+  return searchPosts(
+    { 'data.slug': { $exists: true }, 'data.author': { $exists: true } },
+    preview
+  )
+}
+
+export async function getPost(mongoQuery, preview) {
+  let post = preview
+    ? (await searchPosts(mongoQuery, true))?.[0]
+    : await builder
+        .get(BUILDER_CONFIG.postsModel, {
+          includeRefs: true,
+          staleCacheSeconds: 20,
+          apiKey: BUILDER_CONFIG.apiKey,
+          preview: BUILDER_CONFIG.postsModel,
+          options: {
+            noTargeting: true,
+          },
+          query: mongoQuery,
+        })
+        .toPromise()
+
+  return post || null
 }
 
 export async function getPostAndMorePosts(slug, preview, previewData) {

@@ -1,4 +1,4 @@
-import rule from '@next/eslint-plugin-next/lib/rules/no-styled-jsx-in-document'
+import rule from '@next/eslint-plugin-next/dist/rules/no-styled-jsx-in-document'
 import { RuleTester } from 'eslint'
 ;(RuleTester as any).setDefaultConfig({
   parserOptions: {
@@ -23,7 +23,7 @@ ruleTester.run('no-styled-jsx-in-document', rule, {
             const initialProps = await Document.getInitialProps(ctx)
             return { ...initialProps }
           }
-        
+
           render() {
             return (
               <Html>
@@ -46,7 +46,7 @@ ruleTester.run('no-styled-jsx-in-document', rule, {
             const initialProps = await Document.getInitialProps(ctx)
             return { ...initialProps }
           }
-        
+
           render() {
             return (
               <Html>
@@ -96,7 +96,7 @@ ruleTester.run('no-styled-jsx-in-document', rule, {
                 const initialProps = await Document.getInitialProps(ctx)
                 return { ...initialProps }
               }
-            
+
               render() {
                 return (
                   <Html>
@@ -116,8 +116,7 @@ ruleTester.run('no-styled-jsx-in-document', rule, {
             }`,
       errors: [
         {
-          message:
-            'styled-jsx can not be used inside pages/_document.js. See https://nextjs.org/docs/messages/no-styled-jsx-in-document.',
+          message: `\`styled-jsx\` should not be used in \`pages/_document.js\`. See: https://nextjs.org/docs/messages/no-styled-jsx-in-document`,
         },
       ],
     },
