@@ -13,8 +13,8 @@ export default class Counter extends React.Component {
     return (
       <div id="counter-page">
         <div>
-          <Link href="/">
-            <a id="go-back">Go Back</a>
+          <Link href="/" id="go-back">
+            Go Back
           </Link>
         </div>
         <p>Counter: {counter}</p>

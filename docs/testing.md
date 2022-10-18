@@ -66,9 +66,7 @@ import Link from 'next/link'
 export default function Home() {
   return (
     <nav>
-      <Link href="/about">
-        <a>About</a>
-      </Link>
+      <Link href="/about">About</Link>
     </nav>
   )
 }
@@ -183,9 +181,7 @@ import Link from 'next/link'
 export default function Home() {
   return (
     <nav>
-      <Link href="/about">
-        <a>About</a>
-      </Link>
+      <Link href="/about">About</Link>
     </nav>
   )
 }

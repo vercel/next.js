@@ -8,13 +8,13 @@ export default function Shallow({ message }) {
       <ul>
         <li id="message-contents">{message}</li>
         <li>
-          <Link href="/sha?hello=world" shallow>
-            <a id="shallow-link">Shallow link to ?hello=world</a>
+          <Link href="/sha?hello=world" shallow id="shallow-link">
+            Shallow link to ?hello=world
           </Link>
         </li>
         <li>
-          <Link href="/sha?hello=goodbye">
-            <a id="deep-link">Deep link to ?hello=goodbye</a>
+          <Link href="/sha?hello=goodbye" id="deep-link">
+            Deep link to ?hello=goodbye
           </Link>
         </li>
         <li>
