@@ -2,7 +2,6 @@ import type { ClientPagesLoaderOptions } from './webpack/loaders/next-client-pag
 import type { MiddlewareLoaderOptions } from './webpack/loaders/next-middleware-loader'
 import type { EdgeSSRLoaderQuery } from './webpack/loaders/next-edge-ssr-loader'
 import type { NextConfigComplete } from '../server/config-shared'
-import type { ServerlessLoaderQuery } from './webpack/loaders/next-serverless-loader'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type {
   MiddlewareConfig,
@@ -14,7 +13,6 @@ import { posix, join } from 'path'
 import { stringify } from 'querystring'
 import {
   API_ROUTE,
-  DOT_NEXT_ALIAS,
   PAGES_DIR_ALIAS,
   ROOT_DIR_ALIAS,
   APP_DIR_ALIAS,
@@ -33,13 +31,11 @@ import {
   EDGE_RUNTIME_WEBPACK,
 } from '../shared/lib/constants'
 import { __ApiPreviewProps } from '../server/api-utils'
-import { isTargetLikeServerless } from '../server/utils'
 import { warn } from './output/log'
 import {
   isMiddlewareFile,
   isMiddlewareFilename,
   NestedMiddlewareError,
-  MiddlewareInServerlessTargetError,
 } from './utils'
 import { getPageStaticInfo } from './analysis/get-page-static-info'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
@@ -147,7 +143,6 @@ interface CreateEntrypointsParams {
   previewMode: __ApiPreviewProps
   rootDir: string
   rootPaths?: Record<string, string>
-  target: 'server' | 'serverless' | 'experimental-serverless-trace'
   appDir?: string
   appPaths?: Record<string, string>
   pageExtensions: string[]
@@ -229,48 +224,6 @@ export function getAppEntry(opts: {
   }
 }
 
-export function getServerlessEntry(opts: {
-  absolutePagePath: string
-  buildId: string
-  config: NextConfigComplete
-  envFiles: LoadedEnvFiles
-  page: string
-  previewMode: __ApiPreviewProps
-  pages: { [page: string]: string }
-}): ObjectValue<webpack.EntryObject> {
-  const loaderParams: ServerlessLoaderQuery = {
-    absolute404Path: opts.pages['/404'] || '',
-    absoluteAppPath: opts.pages['/_app'],
-    absoluteDocumentPath: opts.pages['/_document'],
-    absoluteErrorPath: opts.pages['/_error'],
-    absolutePagePath: opts.absolutePagePath,
-    assetPrefix: opts.config.assetPrefix,
-    basePath: opts.config.basePath,
-    buildId: opts.buildId,
-    canonicalBase: opts.config.amp.canonicalBase || '',
-    distDir: DOT_NEXT_ALIAS,
-    generateEtags: opts.config.generateEtags ? 'true' : '',
-    i18n: opts.config.i18n ? JSON.stringify(opts.config.i18n) : '',
-    // base64 encode to make sure contents don't break webpack URL loading
-    loadedEnvFiles: Buffer.from(JSON.stringify(opts.envFiles)).toString(
-      'base64'
-    ),
-    page: opts.page,
-    poweredByHeader: opts.config.poweredByHeader ? 'true' : '',
-    previewProps: JSON.stringify(opts.previewMode),
-    runtimeConfig:
-      Object.keys(opts.config.publicRuntimeConfig).length > 0 ||
-      Object.keys(opts.config.serverRuntimeConfig).length > 0
-        ? JSON.stringify({
-            publicRuntimeConfig: opts.config.publicRuntimeConfig,
-            serverRuntimeConfig: opts.config.serverRuntimeConfig,
-          })
-        : '',
-  }
-
-  return `next-serverless-loader?${stringify(loaderParams)}!`
-}
-
 export function getClientEntry(opts: {
   absolutePagePath: string
   page: string
@@ -340,7 +293,6 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
     isDev,
     rootDir,
     rootPaths,
-    target,
     appDir,
     appPaths,
     pageExtensions,
@@ -428,10 +380,6 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
         middlewareMatchers = staticInfo.middleware?.matchers ?? [
           { regexp: '.*' },
         ]
-
-        if (target === 'serverless') {
-          throw new MiddlewareInServerlessTargetError()
-        }
       }
 
       await runDependingOnPageType({
@@ -459,14 +407,6 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
               appPaths: matchedAppPaths,
               pageExtensions,
             })
-          } else if (isTargetLikeServerless(target)) {
-            if (page !== '/_app' && page !== '/_document') {
-              server[serverBundlePath] = getServerlessEntry({
-                ...params,
-                absolutePagePath: mappings[page],
-                page,
-              })
-            }
           } else {
             server[serverBundlePath] = [mappings[page]]
           }
