@@ -2,7 +2,6 @@ import { createNext, FileRef } from 'e2e-utils'
 import crypto from 'crypto'
 import { NextInstance } from 'test/lib/next-modes/base'
 import {
-  check,
   fetchViaHTTP,
   getRedboxHeader,
   hasRedbox,
