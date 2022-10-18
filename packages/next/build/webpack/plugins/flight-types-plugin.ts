@@ -83,7 +83,6 @@ export class FlightTypesPlugin {
       const IS_PAGE = !IS_LAYOUT && /[/\\]page\.[^.]+$/.test(mod.resource)
       const relativePath = path.relative(this.appDir, mod.resource)
 
-
       const typePath = path.join(
         'types',
         'app',
