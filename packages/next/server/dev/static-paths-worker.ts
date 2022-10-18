@@ -8,8 +8,17 @@ import {
 } from '../../build/utils'
 import { loadComponents } from '../load-components'
 import { setHttpClientAndAgentOptions } from '../config'
+import {
+  loadRequireHook,
+  overrideBuiltInReactPackages,
+} from '../../build/webpack/require-hook'
 
 type RuntimeConfig = any
+
+loadRequireHook()
+if (process.env.HAS_APP_DIR) {
+  overrideBuiltInReactPackages()
+}
 
 let workerWasUsed = false
 

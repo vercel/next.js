@@ -144,8 +144,6 @@ importers:
       react-17: npm:react@17.0.2
       react-dom: 18.2.0
       react-dom-17: npm:react-dom@17.0.2
-      react-dom-exp: npm:react-dom@0.0.0-experimental-a8c16a004-20221012
-      react-exp: npm:react@0.0.0-experimental-a8c16a004-20221012
       react-ssr-prepass: 1.0.8
       react-virtualized: 9.22.3
       relay-compiler: 13.0.2
@@ -303,8 +301,6 @@ importers:
       react-17: /react/17.0.2
       react-dom: 18.2.0_react@18.2.0
       react-dom-17: /react-dom/17.0.2_react@18.2.0
-      react-dom-exp: /react-dom/0.0.0-experimental-a8c16a004-20221012_react@18.2.0
-      react-exp: /react/0.0.0-experimental-a8c16a004-20221012
       react-ssr-prepass: 1.0.8_qncsgtzehe3fgiqp6tr7lwq6fm
       react-virtualized: 9.22.3_biqbaboplfbrettd7655fr4n2y
       relay-compiler: 13.0.2
@@ -596,9 +592,13 @@ importers:
       punycode: 2.1.1
       querystring-es3: 0.2.1
       raw-body: 2.4.1
+      react: 18.2.0
+      react-builtin: npm:react@0.0.0-experimental-a8c16a004-20221012
+      react-dom: 18.2.0
+      react-dom-builtin: npm:react-dom@0.0.0-experimental-a8c16a004-20221012
       react-is: 17.0.2
       react-refresh: 0.12.0
-      react-server-dom-webpack: 0.0.0-experimental-cb5084d1c-20220924
+      react-server-dom-webpack: 0.0.0-experimental-a8c16a004-20221012
       regenerator-runtime: 0.13.4
       sass-loader: 12.4.0
       schema-utils2: npm:schema-utils@2.7.1
@@ -639,8 +639,8 @@ importers:
       '@swc/helpers': 0.4.11
       caniuse-lite: 1.0.30001406
       postcss: 8.4.14
-      styled-jsx: 5.0.7_@babel+core@7.18.0
-      use-sync-external-store: 1.2.0
+      styled-jsx: 5.0.7_uuaxwgga6hqycsez5ok7v2wg4i
+      use-sync-external-store: 1.2.0_react@18.2.0
     devDependencies:
       '@ampproject/toolbox-optimizer': 2.8.3
       '@babel/code-frame': 7.12.11
@@ -794,9 +794,13 @@ importers:
       punycode: 2.1.1
       querystring-es3: 0.2.1
       raw-body: 2.4.1
+      react: 18.2.0
+      react-builtin: /react/0.0.0-experimental-a8c16a004-20221012
+      react-dom: 18.2.0_react@18.2.0
+      react-dom-builtin: /react-dom/0.0.0-experimental-a8c16a004-20221012_react@18.2.0
       react-is: 17.0.2
       react-refresh: 0.12.0
-      react-server-dom-webpack: 0.0.0-experimental-cb5084d1c-20220924_webpack@5.74.0
+      react-server-dom-webpack: 0.0.0-experimental-a8c16a004-20221012_4ifzx734of5j5ymg4ksx54vtqi
       regenerator-runtime: 0.13.4
       sass-loader: 12.4.0_webpack@5.74.0
       schema-utils2: /schema-utils/2.7.1
@@ -820,7 +824,7 @@ importers:
       tty-browserify: 0.0.1
       ua-parser-js: 0.7.28
       undici: 5.10.0
-      unistore: 3.4.1
+      unistore: 3.4.1_react@18.2.0
       util: 0.12.4
       uuid: 8.3.2
       vm-browserify: 1.1.2
@@ -25389,19 +25393,22 @@ packages:
     engines: { node: '>=0.10.0' }
     dev: true
 
-  /react-server-dom-webpack/0.0.0-experimental-cb5084d1c-20220924_webpack@5.74.0:
+  /react-server-dom-webpack/0.0.0-experimental-a8c16a004-20221012_4ifzx734of5j5ymg4ksx54vtqi:
     resolution:
       {
-        integrity: sha512-7dywHsO5GV8FJiTnEvL7N1ArRLemxEmt10Ear15b7gNcxf+DMAraffj4O1j9uH+v6/ssbaeR8470yXCx0c76Gw==,
+        integrity: sha512-ZBhtCguFIjvWRF5ljaCoLE9waFYqnAJF4X/yV1Bl5cmU5921Wzd5aIAvscbn3AjXedPQnjADtf/K/5BUG9KPhA==,
       }
     engines: { node: '>=0.10.0' }
     peerDependencies:
-      react: 0.0.0-experimental-cb5084d1c-20220924
+      react: 0.0.0-experimental-a8c16a004-20221012
+      react-dom: 0.0.0-experimental-a8c16a004-20221012
       webpack: ^5.59.0
     dependencies:
       acorn: 6.4.2
       loose-envify: 1.4.0
       neo-async: 2.6.2
+      react: 18.2.0
+      react-dom: 18.2.0_react@18.2.0
       webpack: 5.74.0
     dev: true
 
@@ -25467,7 +25474,6 @@ packages:
     engines: { node: '>=0.10.0' }
     dependencies:
       loose-envify: 1.4.0
-    dev: true
 
   /read-cmd-shim/2.0.0:
     resolution:
@@ -28100,7 +28106,7 @@ packages:
       postcss-load-plugins: 2.3.0
     dev: true
 
-  /styled-jsx/5.0.7_@babel+core@7.18.0:
+  /styled-jsx/5.0.7_uuaxwgga6hqycsez5ok7v2wg4i:
     resolution:
       {
         integrity: sha512-b3sUzamS086YLRuvnaDigdAewz1/EFYlHpYBP5mZovKEdQQOIIYq8lApylub3HHZ6xFjV051kkGU7cudJmrXEA==,
@@ -28117,6 +28123,7 @@ packages:
         optional: true
     dependencies:
       '@babel/core': 7.18.0
+      react: 18.2.0
     dev: false
 
   /stylehacks/4.0.3:
@@ -29722,7 +29729,7 @@ packages:
       unist-util-visit-parents: 3.1.1
     dev: true
 
-  /unistore/3.4.1:
+  /unistore/3.4.1_react@18.2.0:
     resolution:
       {
         integrity: sha512-p2Ej8qqrqcD10Ah0ZUKUU/mhRB8pM4q6gzjxq9kZpgxa8dks7oHT8jDP4CqLhoRof3RXOZLKB9EBV1DTzHiJRw==,
@@ -29735,6 +29742,8 @@ packages:
         optional: true
       react:
         optional: true
+    dependencies:
+      react: 18.2.0
     dev: true
 
   /universal-user-agent/6.0.0:
@@ -29920,13 +29929,15 @@ packages:
     engines: { node: '>= 4' }
     dev: true
 
-  /use-sync-external-store/1.2.0:
+  /use-sync-external-store/1.2.0_react@18.2.0:
     resolution:
       {
         integrity: sha512-eEgnFxGQ1Ife9bzYs6VLi8/4X6CObHMw9Qr9tPY43iKwsPw8xE8+EFsf/2cFZ5S3esXgpWgtSCtLNS41F+sKPA==,
       }
     peerDependencies:
       react: ^16.8.0 || ^17.0.0 || ^18.0.0
+    dependencies:
+      react: 18.2.0
     dev: false
 
   /use/3.1.1:

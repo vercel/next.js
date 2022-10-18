@@ -2,7 +2,7 @@ import ReactRefreshWebpackPlugin from 'next/dist/compiled/@next/react-refresh-ut
 import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
-import path, { dirname, join as pathJoin, relative as relativePath } from 'path'
+import path, { join as pathJoin, relative as relativePath } from 'path'
 import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import {
   DOT_NEXT_ALIAS,
@@ -89,9 +89,6 @@ const nodePathList = (process.env.NODE_PATH || '')
   .split(process.platform === 'win32' ? ';' : ':')
   .filter((p) => !!p)
 
-const reactDir = dirname(require.resolve('react/package.json'))
-const reactDomDir = dirname(require.resolve('react-dom/package.json'))
-
 const watchOptions = Object.freeze({
   aggregateTimeout: 5,
   ignored: ['**/.git/**', '**/.next/**'],
@@ -124,6 +121,12 @@ function isResourceInPackages(resource: string, packageNames?: string[]) {
     new RegExp('[/\\\\]node_modules[/\\\\]' + p + '[/\\\\]').test(resource)
   )
 }
+
+const builtInReactImports = [
+  'react',
+  'react/jsx-runtime',
+  'next/dist/compiled/react-server-dom-webpack/writer.browser.server',
+]
 
 export function getDefineEnv({
   dev,
@@ -573,11 +576,6 @@ export default async function getBaseWebpackConfig(
           '`experimental.runtime` requires React 18 to be installed.'
         )
       }
-      if (hasAppDir) {
-        throw new Error(
-          '`experimental.appDir` requires React 18 to be installed.'
-        )
-      }
     }
   }
 
@@ -869,11 +867,19 @@ export default async function getBaseWebpackConfig(
 
       next: NEXT_PROJECT_ROOT,
 
-      react: reactDir,
-      'react-dom$': reactDomDir,
-      'react-dom/server$': `${reactDomDir}/server`,
-      'react-dom/server.browser$': `${reactDomDir}/server.browser`,
-      'react-dom/client$': `${reactDomDir}/client`,
+      ...(hasServerComponents
+        ? {
+            // For react and react-dom, alias them dynamically for server layer
+            // and others in the loaders configuration
+            'react-dom/client$': 'next/dist/compiled/react-dom/client',
+            'react-dom/server$': 'next/dist/compiled/react-dom/server',
+            'react-dom/server.browser$':
+              'next/dist/compiled/react-dom/server.browser',
+            'react/jsx-dev-runtime$':
+              'next/dist/compiled/react/jsx-dev-runtime',
+            'react/jsx-runtime$': 'next/dist/compiled/react/jsx-runtime',
+          }
+        : undefined),
 
       'styled-jsx/style$': require.resolve(`styled-jsx/style`),
       'styled-jsx$': require.resolve(`styled-jsx`),
@@ -1035,12 +1041,7 @@ export default async function getBaseWebpackConfig(
 
     // Special internal modules that must be bundled for Server Components.
     if (layer === WEBPACK_LAYERS.server) {
-      if (
-        request === 'react' ||
-        request === 'react/jsx-runtime' ||
-        request ===
-          'next/dist/compiled/react-server-dom-webpack/writer.browser.server'
-      ) {
+      if (builtInReactImports.includes(request)) {
         return
       }
     }
@@ -1514,47 +1515,6 @@ export default async function getBaseWebpackConfig(
     },
     module: {
       rules: [
-        ...(hasAppDir && !isClient && !isEdgeServer
-          ? [
-              {
-                issuerLayer: WEBPACK_LAYERS.server,
-                test: (req: string) => {
-                  // If it's not a source code file, or has been opted out of
-                  // bundling, don't resolve it.
-                  if (
-                    !codeCondition.test.test(req) ||
-                    isResourceInPackages(
-                      req,
-                      config.experimental.serverComponentsExternalPackages
-                    )
-                  ) {
-                    return false
-                  }
-
-                  return true
-                },
-                resolve: process.env.__NEXT_REACT_CHANNEL
-                  ? {
-                      conditionNames: ['react-server', 'node', 'require'],
-                      alias: {
-                        react: `react-${process.env.__NEXT_REACT_CHANNEL}`,
-                        'react-dom': `react-dom-${process.env.__NEXT_REACT_CHANNEL}`,
-                      },
-                    }
-                  : {
-                      conditionNames: ['react-server', 'node', 'require'],
-                      alias: {
-                        // If missing the alias override here, the default alias will be used which aliases
-                        // react to the direct file path, not the package name. In that case the condition
-                        // will be ignored completely.
-                        react: 'react',
-                        'react-dom': 'react-dom',
-                      },
-                    },
-              },
-            ]
-          : []),
-
         // TODO: FIXME: do NOT webpack 5 support with this
         // x-ref: https://github.com/webpack/webpack/issues/11467
         ...(!config.experimental.fullySpecified
@@ -1578,6 +1538,55 @@ export default async function getBaseWebpackConfig(
               },
             ]
           : []),
+        ...(hasAppDir && !isClient
+          ? [
+              {
+                issuerLayer: WEBPACK_LAYERS.server,
+                test: (req: string) => {
+                  // If it's not a source code file, or has been opted out of
+                  // bundling, don't resolve it.
+                  if (
+                    !codeCondition.test.test(req) ||
+                    isResourceInPackages(
+                      req,
+                      config.experimental.serverComponentsExternalPackages
+                    )
+                  ) {
+                    return false
+                  }
+
+                  return true
+                },
+                resolve: {
+                  conditionNames: ['react-server', 'node', 'require'],
+                  alias: {
+                    // If missing the alias override here, the default alias will be used which aliases
+                    // react to the direct file path, not the package name. In that case the condition
+                    // will be ignored completely.
+                    react: 'react',
+                    'react-dom': 'react-dom',
+                  },
+                },
+              },
+            ]
+          : []),
+        ...(hasServerComponents && !isClient
+          ? [
+              // RSC server compilation loaders
+              {
+                test: codeCondition.test,
+                include: [
+                  dir,
+                  // To let the internal client components passing through flight loader
+                  NEXT_PROJECT_ROOT_DIST,
+                ],
+                issuerLayer: WEBPACK_LAYERS.server,
+                use: {
+                  loader: 'next-flight-loader',
+                },
+              },
+            ]
+          : []),
         // Alias `next/dynamic` to React.lazy implementation for RSC
         ...(hasServerComponents
           ? [
@@ -1586,27 +1595,61 @@ export default async function getBaseWebpackConfig(
                 include: [appDir],
                 resolve: {
                   alias: {
-                    [require.resolve('next/dynamic')]:
-                      'next/dist/client/components/dynamic',
+                    // Alias `next/dynamic` to React.lazy implementation for RSC
+                    [require.resolve('next/dynamic')]: require.resolve(
+                      'next/dist/client/components/dynamic'
+                    ),
                   },
                 },
               },
-            ]
-          : []),
-        ...(hasServerComponents && (isNodeServer || isEdgeServer)
-          ? [
-              // RSC server compilation loaders
               {
-                test: codeCondition.test,
-                include: [
-                  dir,
-                  // To let the internal client components passing through flight loader
-                  /next[\\/]dist/,
+                // Alias react-dom for ReactDOM.preload usage.
+                // Alias react for switching between default set and share subset.
+                oneOf: [
+                  {
+                    // test: codeCondition.test,
+                    issuerLayer: WEBPACK_LAYERS.server,
+                    test: (req: string) => {
+                      // If it's not a source code file, or has been opted out of
+                      // bundling, don't resolve it.
+                      if (
+                        !codeCondition.test.test(req) ||
+                        isResourceInPackages(
+                          req,
+                          config.experimental.serverComponentsExternalPackages
+                        )
+                      ) {
+                        return false
+                      }
+
+                      return true
+                    },
+                    resolve: {
+                      // It needs `conditionNames` here to require the proper asset,
+                      // when react is acting as dependency of compiled/react-dom.
+                      alias: {
+                        react: 'next/dist/compiled/react/react.shared-subset',
+                        // Use server rendering stub for RSC
+                        // x-ref: https://github.com/facebook/react/pull/25436
+                        'react-dom$':
+                          'next/dist/compiled/react-dom/server-rendering-stub',
+                      },
+                    },
+                  },
+                  {
+                    test: codeCondition.test,
+                    resolve: {
+                      alias: {
+                        react: 'next/dist/compiled/react',
+                        'react-dom$': isClient
+                          ? 'next/dist/compiled/react-dom/index'
+                          : 'next/dist/compiled/react-dom/server-rendering-stub',
+                        'react-dom/client$':
+                          'next/dist/compiled/react-dom/client',
+                      },
+                    },
+                  },
                 ],
-                issuerLayer: WEBPACK_LAYERS.server,
-                use: {
-                  loader: 'next-flight-loader',
-                },
               },
             ]
           : []),
