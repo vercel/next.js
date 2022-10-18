@@ -21,8 +21,8 @@ describe('app dir prefetching', () => {
     next = await createNext({
       files: new FileRef(path.join(__dirname, 'app-prefetch')),
       dependencies: {
-        react: '0.0.0-experimental-cb5084d1c-20220924',
-        'react-dom': '0.0.0-experimental-cb5084d1c-20220924',
+        react: 'experimental',
+        'react-dom': 'experimental',
       },
       skipStart: true,
     })
@@ -54,5 +54,14 @@ describe('app dir prefetching', () => {
     expect(await browser.waitForElementByCss('#dashboard-page').text()).toBe(
       'Welcome to the dashboard'
     )
+  })
+
+  it('should not have prefetch error for static path', async () => {
+    const browser = await webdriver(next.url, '/')
+    await browser.eval('window.nd.router.prefetch("/dashboard/123")')
+    await waitFor(3000)
+    await browser.eval('window.nd.router.push("/dashboard/123")')
+    expect(next.cliOutput).not.toContain('ReferenceError')
+    expect(next.cliOutput).not.toContain('is not defined')
   })
 })

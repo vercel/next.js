@@ -1,5 +1,5 @@
 import _JSXStyle from "styled-jsx/style";
-export const Red = ({ Component ='button' ,  })=>{
+export const Red = ({ Component ='button'  })=>{
     return <Component className={_JSXStyle.dynamic([
         [
             "1a9f9e2fa701f7ec",

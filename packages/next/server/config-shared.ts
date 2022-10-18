@@ -79,6 +79,9 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  allowMiddlewareResponseBody?: boolean
+  skipMiddlewareUrlNormalize?: boolean
+  skipTrailingSlashRedirect?: boolean
   optimisticClientCache?: boolean
   legacyBrowsers?: boolean
   browsersListForSwc?: boolean
@@ -157,7 +160,7 @@ export interface ExperimentalConfig {
   // A list of packages that should be treated as external in the RSC server build
   serverComponentsExternalPackages?: string[]
 
-  fontLoaders?: { [fontLoader: string]: any }
+  fontLoaders?: [{ loader: string; options?: any }]
 
   webVitalsAttribution?: Array<typeof WEB_VITALS[number]>
 }
@@ -553,8 +556,7 @@ export const defaultConfig: NextConfig = {
     // TODO: change default in next major release (current v12.1.5)
     legacyBrowsers: true,
     browsersListForSwc: false,
-    // TODO: change default in next major release (current v12.1.5)
-    newNextLinkBehavior: false,
+    newNextLinkBehavior: true,
     cpus: Math.max(
       1,
       (Number(process.env.CIRCLE_NODE_TOTAL) ||

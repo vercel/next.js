@@ -88,7 +88,7 @@ describe('Root Optional Catch-all Revalidate', () => {
     runTests()
   })
 
-  describe('raw serverless mode', () => {
+  describe.skip('raw serverless mode', () => {
     beforeAll(async () => {
       nextConfig.write(`
         module.exports = {

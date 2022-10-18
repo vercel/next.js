@@ -187,8 +187,9 @@ const nextLint: cliCommand = async (argv) => {
 
   const distDir = join(baseDir, nextConfig.distDir)
   const defaultCacheLocation = join(distDir, 'cache', 'eslint/')
+  const hasAppDir = !!nextConfig.experimental.appDir
 
-  runLintCheck(baseDir, pathsToLint, {
+  runLintCheck(baseDir, pathsToLint, hasAppDir, {
     lintDuringBuild: false,
     eslintOptions: eslintOptions(args, defaultCacheLocation),
     reportErrorsOnly: reportErrorsOnly,
@@ -196,7 +197,6 @@ const nextLint: cliCommand = async (argv) => {
     formatter,
     outputFile,
     strict,
-    hasAppDir: !!nextConfig.experimental.appDir,
   })
     .then(async (lintResults) => {
       const lintOutput =

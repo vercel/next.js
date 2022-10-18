@@ -65,7 +65,8 @@ module.exports = function (task) {
         },
         env: {
           targets: {
-            node: '12.0.0',
+            // follow the version defined in packages/next/package.json#engine
+            node: '14.0.0',
           },
         },
         jsc: {
@@ -113,10 +114,10 @@ module.exports = function (task) {
       const output = yield transform(source, options)
       const ext = path.extname(file.base)
 
-      // Make sure the output content keeps the `"client"` directive.
+      // Make sure the output content keeps the `"use client"` directive.
       // TODO: Remove this once SWC fixes the issue.
-      if (/^['"]client['"]/.test(source)) {
-        output.code = '"client";\n' + output.code
+      if (/^['"]use client['"]/.test(source)) {
+        output.code = '"use client";\n' + output.code
       }
 
       // Replace `.ts|.tsx` with `.js` in files with an extension

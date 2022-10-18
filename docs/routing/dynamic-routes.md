@@ -63,18 +63,14 @@ function Home() {
   return (
     <ul>
       <li>
-        <Link href="/post/abc">
-          <a>Go to pages/post/[pid].js</a>
-        </Link>
+        <Link href="/post/abc">Go to pages/post/[pid].js</Link>
       </li>
       <li>
-        <Link href="/post/abc?foo=bar">
-          <a>Also goes to pages/post/[pid].js</a>
-        </Link>
+        <Link href="/post/abc?foo=bar">Also goes to pages/post/[pid].js</Link>
       </li>
       <li>
         <Link href="/post/abc/a-comment">
-          <a>Go to pages/post/[pid]/[comment].js</a>
+          Go to pages/post/[pid]/[comment].js
         </Link>
       </li>
     </ul>

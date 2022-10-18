@@ -1,3 +1,4 @@
+import type { FlightRouterState } from './app-render'
 import { nonNullable } from '../lib/non-nullable'
 
 export type ReactReadableStream = ReadableStream<Uint8Array> & {
@@ -257,10 +258,10 @@ export function createSuffixStream(
   })
 }
 
-export function createRootLayoutValidatorStream(): TransformStream<
-  Uint8Array,
-  Uint8Array
-> {
+export function createRootLayoutValidatorStream(
+  assetPrefix = '',
+  getTree: () => FlightRouterState
+): TransformStream<Uint8Array, Uint8Array> {
   let foundHtml = false
   let foundHead = false
   let foundBody = false
@@ -289,8 +290,12 @@ export function createRootLayoutValidatorStream(): TransformStream<
       ].filter(nonNullable)
 
       if (missingTags.length > 0) {
-        controller.error(
-          'Missing required root layout tags: ' + missingTags.join(', ')
+        controller.enqueue(
+          encodeText(
+            `<script>self.__next_root_layout_missing_tags_error=${JSON.stringify(
+              { missingTags, assetPrefix: assetPrefix ?? '', tree: getTree() }
+            )}</script>`
+          )
         )
       }
     },
@@ -300,21 +305,22 @@ export function createRootLayoutValidatorStream(): TransformStream<
 export async function continueFromInitialStream(
   renderStream: ReactReadableStream,
   {
-    dev,
     suffix,
     dataStream,
     generateStaticHTML,
     getServerInsertedHTML,
     serverInsertedHTMLToHead,
-    polyfills,
+    validateRootLayout,
   }: {
-    dev?: boolean
     suffix?: string
     dataStream?: ReadableStream<Uint8Array>
     generateStaticHTML: boolean
     getServerInsertedHTML?: () => Promise<string>
     serverInsertedHTMLToHead: boolean
-    polyfills?: { src: string; integrity: string | undefined }[]
+    validateRootLayout?: {
+      assetPrefix?: string
+      getTree: () => FlightRouterState
+    }
   }
 ): Promise<ReadableStream<Uint8Array>> {
   const closeTag = '</body></html>'
@@ -333,28 +339,20 @@ export async function continueFromInitialStream(
     dataStream ? createInlineDataStream(dataStream) : null,
     suffixUnclosed != null ? createSuffixStream(closeTag) : null,
     createHeadInjectionTransformStream(async () => {
-      // Inject polyfills for browsers that don't support modules. It has to be
-      // blocking here and can't be `defer` because other scripts have `async`.
-      const polyfillScripts = polyfills
-        ? polyfills
-            .map(
-              ({ src, integrity }) =>
-                `<script src="${src}" nomodule=""${
-                  integrity ? ` integrity="${integrity}"` : ''
-                }></script>`
-            )
-            .join('')
-        : ''
-
       // TODO-APP: Insert server side html to end of head in app layout rendering, to avoid
       // hydration errors. Remove this once it's ready to be handled by react itself.
       const serverInsertedHTML =
         getServerInsertedHTML && serverInsertedHTMLToHead
           ? await getServerInsertedHTML()
           : ''
-      return polyfillScripts + serverInsertedHTML
+      return serverInsertedHTML
     }),
-    dev ? createRootLayoutValidatorStream() : null,
+    validateRootLayout
+      ? createRootLayoutValidatorStream(
+          validateRootLayout.assetPrefix,
+          validateRootLayout.getTree
+        )
+      : null,
   ].filter(nonNullable)
 
   return transforms.reduce(

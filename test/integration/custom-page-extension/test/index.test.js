@@ -47,7 +47,7 @@ describe('Custom page extension', () => {
     runTests()
   })
 
-  describe('serverless mode', () => {
+  describe.skip('serverless mode', () => {
     const nextConfig = new File(join(appDir, 'next.config.js'))
     beforeAll(async () => {
       nextConfig.replace('server', 'serverless')

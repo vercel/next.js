@@ -2426,7 +2426,7 @@ describe('Custom routes', () => {
     })
   })
 
-  describe('serverless mode', () => {
+  describe.skip('serverless mode', () => {
     beforeAll(async () => {
       nextConfigContent = await fs.readFile(nextConfigPath, 'utf8')
       await fs.writeFile(
@@ -2454,7 +2454,7 @@ describe('Custom routes', () => {
     runTests()
   })
 
-  describe('raw serverless mode', () => {
+  describe.skip('raw serverless mode', () => {
     beforeAll(async () => {
       nextConfigContent = await fs.readFile(nextConfigPath, 'utf8')
       await fs.writeFile(

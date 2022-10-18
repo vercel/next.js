@@ -4,8 +4,8 @@ export default function Page() {
   return (
     <>
       <p id="page">Page</p>
-      <Link href="/template/servercomponent/other">
-        <a id="link">To Other</a>
+      <Link href="/template/servercomponent/other" id="link">
+        To Other
       </Link>
     </>
   )

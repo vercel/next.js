@@ -190,10 +190,10 @@ export default class DevServer extends Server {
     }
 
     this.isCustomServer = !options.isNextDevCommand
-    // TODO: hot-reload root/pages dirs?
-    const { pages: pagesDir, appDir } = findPagesDir(
+
+    const { pagesDir, appDir } = findPagesDir(
       this.dir,
-      this.nextConfig.experimental.appDir
+      !!this.nextConfig.experimental.appDir
     )
     this.pagesDir = pagesDir
     this.appDir = appDir
@@ -305,7 +305,9 @@ export default class DevServer extends Server {
         ignored: (pathname: string) => {
           return (
             !files.some((file) => file.startsWith(pathname)) &&
-            !directories.some((dir) => pathname.startsWith(dir))
+            !directories.some(
+              (dir) => pathname.startsWith(dir) || dir.startsWith(pathname)
+            )
           )
         },
       }))
@@ -981,16 +983,18 @@ export default class DevServer extends Server {
     try {
       return await super.run(req, res, parsedUrl)
     } catch (error) {
-      res.statusCode = 500
       const err = getProperError(error)
-      try {
-        this.logErrorWithOriginalStack(err).catch(() => {})
-        return await this.renderError(err, req, res, pathname!, {
-          __NEXT_PAGE: (isError(err) && err.page) || pathname || '',
-        })
-      } catch (internalErr) {
-        console.error(internalErr)
-        res.body('Internal Server Error').send()
+      this.logErrorWithOriginalStack(err).catch(() => {})
+      if (!res.sent) {
+        res.statusCode = 500
+        try {
+          return await this.renderError(err, req, res, pathname!, {
+            __NEXT_PAGE: (isError(err) && err.page) || pathname || '',
+          })
+        } catch (internalErr) {
+          console.error(internalErr)
+          res.body('Internal Server Error').send()
+        }
       }
     }
   }
@@ -1355,7 +1359,7 @@ export default class DevServer extends Server {
 
       // When the new page is compiled, we need to reload the server component
       // manifest.
-      if (this.nextConfig.experimental.appDir) {
+      if (!!this.appDir) {
         this.serverComponentManifest = super.getServerComponentManifest()
         this.serverCSSManifest = super.getServerCSSManifest()
       }

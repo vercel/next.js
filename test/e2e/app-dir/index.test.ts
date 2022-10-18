@@ -1,7 +1,14 @@
 import { createNext, FileRef } from 'e2e-utils'
 import crypto from 'crypto'
 import { NextInstance } from 'test/lib/next-modes/base'
-import { check, fetchViaHTTP, renderViaHTTP, waitFor } from 'next-test-utils'
+import {
+  check,
+  fetchViaHTTP,
+  getRedboxHeader,
+  hasRedbox,
+  renderViaHTTP,
+  waitFor,
+} from 'next-test-utils'
 import path from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
@@ -25,8 +32,8 @@ describe('app dir', () => {
       next = await createNext({
         files: new FileRef(path.join(__dirname, 'app')),
         dependencies: {
-          react: '0.0.0-experimental-cb5084d1c-20220924',
-          'react-dom': '0.0.0-experimental-cb5084d1c-20220924',
+          react: 'experimental',
+          'react-dom': 'experimental',
         },
         skipStart: true,
       })
@@ -34,6 +41,35 @@ describe('app dir', () => {
       await next.start()
     })
     afterAll(() => next.destroy())
+
+    it('should not share edge workers', async () => {
+      const controller1 = new AbortController()
+      const controller2 = new AbortController()
+      fetchViaHTTP(next.url, '/slow-page-no-loading', undefined, {
+        signal: controller1.signal,
+      }).catch(() => {})
+      fetchViaHTTP(next.url, '/slow-page-no-loading', undefined, {
+        signal: controller2.signal,
+      }).catch(() => {})
+
+      await waitFor(1000)
+      controller1.abort()
+
+      const controller3 = new AbortController()
+      fetchViaHTTP(next.url, '/slow-page-no-loading', undefined, {
+        signal: controller3.signal,
+      }).catch(() => {})
+      await waitFor(1000)
+      controller2.abort()
+      controller3.abort()
+
+      const res = await fetchViaHTTP(next.url, '/slow-page-no-loading')
+      expect(res.status).toBe(200)
+      expect(await res.text()).toContain('hello from slow page')
+      expect(next.cliOutput).not.toContain(
+        'A separate worker must be used for each render'
+      )
+    })
 
     if ((global as any).isNextStart) {
       it('should generate build traces correctly', async () => {
@@ -257,9 +293,23 @@ describe('app dir', () => {
       expect(html).toContain('hello from app/partial-match-[id]. ID is: 123')
     })
 
+    // This is a workaround to fix https://github.com/vercel/next.js/issues/5860
+    // TODO: remove this workaround when https://bugs.webkit.org/show_bug.cgi?id=187726 is fixed.
+    it('should use cache busting when loading css (dev only)', async () => {
+      const html = await renderViaHTTP(next.url, '/')
+      const $ = cheerio.load(html)
+      const links = $('link[rel=stylesheet]')
+      links.each((_, link) => {
+        const href = $(link).attr('href')
+        isDev
+          ? expect(href).toMatch(/\?ts=/)
+          : expect(href).not.toMatch(/\?ts=/)
+      })
+    })
+
     describe('rewrites', () => {
       // TODO-APP: rewrite url is broken
-      it.skip('should support rewrites on initial load', async () => {
+      it('should support rewrites on initial load', async () => {
         const browser = await webdriver(next.url, '/rewritten-to-dashboard')
         expect(await browser.elementByCss('h1').text()).toBe('Dashboard')
         expect(await browser.url()).toBe(`${next.url}/rewritten-to-dashboard`)
@@ -432,7 +482,7 @@ describe('app dir', () => {
       })
 
       // TODO-APP: Re-enable this test.
-      it.skip('should soft push', async () => {
+      it('should soft push', async () => {
         const browser = await webdriver(next.url, '/link-soft-push')
 
         try {
@@ -639,16 +689,27 @@ describe('app dir', () => {
           const route = params.join('/')
           const html = await renderViaHTTP(
             next.url,
-            `/optional-catch-all/${route}`
+            `/catch-all-optional/${route}`
           )
           const $ = cheerio.load(html)
           expect($('#text').attr('data-params')).toBe(route)
         })
 
         it('should handle optional segments root', async () => {
-          const html = await renderViaHTTP(next.url, `/optional-catch-all`)
+          const html = await renderViaHTTP(next.url, `/catch-all-optional`)
           const $ = cheerio.load(html)
           expect($('#text').attr('data-params')).toBe('')
+        })
+
+        it('should handle optional catch-all segments link', async () => {
+          const browser = await webdriver(next.url, '/catch-all-link')
+          expect(
+            await browser
+              .elementByCss('#to-catch-all-optional')
+              .click()
+              .waitForElementByCss('#text')
+              .text()
+          ).toBe(`hello from /catch-all-optional/this/is/a/test`)
         })
 
         it('should handle required segments', async () => {
@@ -667,6 +728,17 @@ describe('app dir', () => {
           const res = await fetchViaHTTP(next.url, `/catch-all`)
           expect(res.status).toBe(404)
           expect(await res.text()).toContain('This page could not be found')
+        })
+
+        it('should handle catch-all segments link', async () => {
+          const browser = await webdriver(next.url, '/catch-all-link')
+          expect(
+            await browser
+              .elementByCss('#to-catch-all')
+              .click()
+              .waitForElementByCss('#text')
+              .text()
+          ).toBe(`hello from /catch-all/this/is/a/test`)
         })
       })
 
@@ -826,7 +898,7 @@ describe('app dir', () => {
 
       describe('next/router', () => {
         // `useRouter` should not be accessible in server components.
-        it.skip('should always return null when accessed from /app', async () => {
+        it('should always return null when accessed from /app', async () => {
           const browser = await webdriver(next.url, '/old-router')
 
           try {
@@ -1234,10 +1306,22 @@ describe('app dir', () => {
 
         if (!isDev) {
           it('should not include unused css modules in the page in prod', async () => {
-            const browser = await webdriver(next.url, '/css/css-page')
+            const browser = await webdriver(next.url, '/css/css-page/unused')
             expect(
               await browser.eval(
                 `[...document.styleSheets].some(({ rules }) => [...rules].some(rule => rule.selectorText.includes('this_should_not_be_included')))`
+              )
+            ).toBe(false)
+          })
+
+          it('should not include unused css modules in nested pages in prod', async () => {
+            const browser = await webdriver(
+              next.url,
+              '/css/css-page/unused-nested/inner'
+            )
+            expect(
+              await browser.eval(
+                `[...document.styleSheets].some(({ rules }) => [...rules].some(rule => rule.selectorText.includes('this_should_not_be_included_in_inner_path')))`
               )
             ).toBe(false)
           })
@@ -1436,84 +1520,127 @@ describe('app dir', () => {
       })
 
       // TODO-APP: disable failing test and investigate later
-      it.skip('should render the template that is a server component and rerender on navigation', async () => {
-        const browser = await webdriver(next.url, '/template/servercomponent')
-        expect(await browser.elementByCss('h1').text()).toStartWith('Template')
+      ;(isDev ? it.skip : it)(
+        'should render the template that is a server component and rerender on navigation',
+        async () => {
+          const browser = await webdriver(next.url, '/template/servercomponent')
+          // eslint-disable-next-line jest/no-standalone-expect
+          expect(await browser.elementByCss('h1').text()).toStartWith(
+            'Template'
+          )
 
-        const currentTime = await browser
-          .elementByCss('#performance-now')
-          .text()
+          const currentTime = await browser
+            .elementByCss('#performance-now')
+            .text()
 
-        await browser.elementByCss('#link').click()
-        await browser.waitForElementByCss('#other-page')
+          await browser.elementByCss('#link').click()
+          await browser.waitForElementByCss('#other-page')
 
-        expect(await browser.elementByCss('h1').text()).toStartWith('Template')
+          // eslint-disable-next-line jest/no-standalone-expect
+          expect(await browser.elementByCss('h1').text()).toStartWith(
+            'Template'
+          )
 
-        // template should rerender on navigation even when it's a server component
-        expect(await browser.elementByCss('#performance-now').text()).toBe(
-          currentTime
-        )
+          // template should rerender on navigation even when it's a server component
+          // eslint-disable-next-line jest/no-standalone-expect
+          expect(await browser.elementByCss('#performance-now').text()).toBe(
+            currentTime
+          )
 
-        await browser.elementByCss('#link').click()
-        await browser.waitForElementByCss('#page')
+          await browser.elementByCss('#link').click()
+          await browser.waitForElementByCss('#page')
 
-        expect(await browser.elementByCss('#performance-now').text()).toBe(
-          currentTime
-        )
-      })
+          // eslint-disable-next-line jest/no-standalone-expect
+          expect(await browser.elementByCss('#performance-now').text()).toBe(
+            currentTime
+          )
+        }
+      )
     })
 
-    // TODO-APP: This is disabled for development as the error overlay needs to be reworked.
-    ;(isDev ? describe.skip : describe)('error component', () => {
+    describe('error component', () => {
       it('should trigger error component when an error happens during rendering', async () => {
-        const browser = await webdriver(next.url, '/error/clientcomponent')
-        await browser
-          .elementByCss('#error-trigger-button')
-          .click()
-          .waitForElementByCss('#error-boundary-message')
+        const browser = await webdriver(next.url, '/error/client-component')
+        await browser.elementByCss('#error-trigger-button').click()
 
-        expect(
-          await browser.elementByCss('#error-boundary-message').text()
-        ).toBe('An error occurred: this is a test')
-      })
-
-      it('should allow resetting error boundary', async () => {
-        const browser = await webdriver(next.url, '/error/clientcomponent')
-
-        // Try triggering and resetting a few times in a row
-        for (let i = 0; i < 5; i++) {
+        if (isDev) {
+          expect(await hasRedbox(browser)).toBe(true)
+          console.log('getRedboxHeader', await getRedboxHeader(browser))
+          // expect(await getRedboxHeader(browser)).toMatch(/An error occurred: this is a test/)
+        } else {
           await browser
-            .elementByCss('#error-trigger-button')
-            .click()
-            .waitForElementByCss('#error-boundary-message')
-
           expect(
-            await browser.elementByCss('#error-boundary-message').text()
+            await browser
+              .waitForElementByCss('#error-boundary-message')
+              .elementByCss('#error-boundary-message')
+              .text()
           ).toBe('An error occurred: this is a test')
-
-          await browser
-            .elementByCss('#reset')
-            .click()
-            .waitForElementByCss('#error-trigger-button')
-
-          expect(
-            await browser.elementByCss('#error-trigger-button').text()
-          ).toBe('Trigger Error!')
         }
       })
 
-      it('should hydrate empty shell to handle server-side rendering errors', async () => {
+      it('should use default error boundary for prod and overlay for dev when no error component specified', async () => {
         const browser = await webdriver(
           next.url,
-          '/error/ssr-error-client-component'
+          '/error/global-error-boundary'
         )
-        const logs = await browser.log()
-        const errors = logs
-          .filter((x) => x.source === 'error')
-          .map((x) => x.message)
-          .join('\n')
-        expect(errors).toInclude('Error during SSR')
+        await browser.elementByCss('#error-trigger-button').click()
+        // .waitForElementByCss('body')
+
+        if (isDev) {
+          expect(await hasRedbox(browser)).toBe(true)
+          console.log('getRedboxHeader', await getRedboxHeader(browser))
+          // expect(await getRedboxHeader(browser)).toMatch(/An error occurred: this is a test/)
+        } else {
+          expect(
+            await browser
+              .waitForElementByCss('body')
+              .elementByCss('body')
+              .text()
+          ).toBe(
+            'Application error: a client-side exception has occurred (see the browser console for more information).'
+          )
+        }
       })
+
+      if (!isDev) {
+        it('should allow resetting error boundary', async () => {
+          const browser = await webdriver(next.url, '/error/client-component')
+
+          // Try triggering and resetting a few times in a row
+          for (let i = 0; i < 5; i++) {
+            await browser
+              .elementByCss('#error-trigger-button')
+              .click()
+              .waitForElementByCss('#error-boundary-message')
+
+            expect(
+              await browser.elementByCss('#error-boundary-message').text()
+            ).toBe('An error occurred: this is a test')
+
+            await browser
+              .elementByCss('#reset')
+              .click()
+              .waitForElementByCss('#error-trigger-button')
+
+            expect(
+              await browser.elementByCss('#error-trigger-button').text()
+            ).toBe('Trigger Error!')
+          }
+        })
+
+        it('should hydrate empty shell to handle server-side rendering errors', async () => {
+          const browser = await webdriver(
+            next.url,
+            '/error/ssr-error-client-component'
+          )
+          const logs = await browser.log()
+          const errors = logs
+            .filter((x) => x.source === 'error')
+            .map((x) => x.message)
+            .join('\n')
+          expect(errors).toInclude('Error during SSR')
+        })
+      }
     })
 
     describe('known bugs', () => {
@@ -1529,41 +1656,81 @@ describe('app dir', () => {
           expect($('#category-id').text()).toBe('electronicsabc')
         }
       })
+      it('should handle as on next/link', async () => {
+        const browser = await webdriver(next.url, '/link-with-as')
+        expect(
+          await browser
+            .elementByCss('#link-to-info-123')
+            .click()
+            .waitForElementByCss('#message')
+            .text()
+        ).toBe(`hello from app/dashboard/deployments/info/[id]. ID is: 123`)
+      })
+      it('should handle next/link back to initially loaded page', async () => {
+        const browser = await webdriver(next.url, '/linking/about')
+        expect(
+          await browser
+            .elementByCss('a[href="/linking"]')
+            .click()
+            .waitForElementByCss('#home-page')
+            .text()
+        ).toBe(`Home page`)
+
+        expect(
+          await browser
+            .elementByCss('a[href="/linking/about"]')
+            .click()
+            .waitForElementByCss('#about-page')
+            .text()
+        ).toBe(`About page`)
+      })
     })
 
     describe('not-found', () => {
-      it.skip('should trigger not-found in a server component', async () => {
+      it('should trigger not-found in a server component', async () => {
         const browser = await webdriver(next.url, '/not-found/servercomponent')
 
         expect(
           await browser.waitForElementByCss('#not-found-component').text()
         ).toBe('Not Found!')
+        expect(
+          await browser
+            .waitForElementByCss('meta[name="robots"]')
+            .getAttribute('content')
+        ).toBe('noindex')
       })
 
-      it.skip('should trigger not-found in a client component', async () => {
+      it('should trigger not-found in a client component', async () => {
         const browser = await webdriver(next.url, '/not-found/clientcomponent')
         expect(
           await browser.waitForElementByCss('#not-found-component').text()
         ).toBe('Not Found!')
-      })
-      ;(isDev ? it.skip : it)(
-        'should trigger not-found client-side',
-        async () => {
-          const browser = await webdriver(next.url, '/not-found/client-side')
+        expect(
           await browser
-            .elementByCss('button')
-            .click()
-            .waitForElementByCss('#not-found-component')
-          expect(
-            await browser.elementByCss('#not-found-component').text()
-          ).toBe('Not Found!')
-        }
-      )
+            .waitForElementByCss('meta[name="robots"]')
+            .getAttribute('content')
+        ).toBe('noindex')
+      })
+      it('should trigger not-found client-side', async () => {
+        const browser = await webdriver(next.url, '/not-found/client-side')
+        await browser
+          .elementByCss('button')
+          .click()
+          .waitForElementByCss('#not-found-component')
+        expect(await browser.elementByCss('#not-found-component').text()).toBe(
+          'Not Found!'
+        )
+        expect(
+          await browser
+            .waitForElementByCss('meta[name="robots"]')
+            .getAttribute('content')
+        ).toBe('noindex')
+      })
     })
 
     describe('redirect', () => {
       describe('components', () => {
-        it.skip('should redirect in a server component', async () => {
+        it('should redirect in a server component', async () => {
           const browser = await webdriver(next.url, '/redirect/servercomponent')
           await browser.waitForElementByCss('#result-page')
           expect(await browser.elementByCss('#result-page').text()).toBe(
@@ -1571,7 +1738,7 @@ describe('app dir', () => {
           )
         })
 
-        it.skip('should redirect in a client component', async () => {
+        it('should redirect in a client component', async () => {
           const browser = await webdriver(next.url, '/redirect/clientcomponent')
           await browser.waitForElementByCss('#result-page')
           expect(await browser.elementByCss('#result-page').text()).toBe(
@@ -1580,12 +1747,13 @@ describe('app dir', () => {
         })
 
         // TODO-APP: Enable in development
-        ;(isDev ? it.skip : it)('should redirect client-side', async () => {
+        it('should redirect client-side', async () => {
           const browser = await webdriver(next.url, '/redirect/client-side')
           await browser
             .elementByCss('button')
             .click()
             .waitForElementByCss('#result-page')
+          // eslint-disable-next-line jest/no-standalone-expect
           expect(await browser.elementByCss('#result-page').text()).toBe(
             'Result Page'
           )
@@ -1635,6 +1803,80 @@ describe('app dir', () => {
           expect(await browser.elementByCss('h1').text()).toBe('Dashboard')
           expect(await browser.url()).toBe(next.url + '/dashboard')
         })
+      })
+    })
+
+    describe('nested navigation', () => {
+      it('should navigate to nested pages', async () => {
+        const browser = await webdriver(next.url, '/nested-navigation')
+        expect(await browser.elementByCss('h1').text()).toBe('Home')
+
+        const pages = [
+          ['Electronics', ['Phones', 'Tablets', 'Laptops']],
+          ['Clothing', ['Tops', 'Shorts', 'Shoes']],
+          ['Books', ['Fiction', 'Biography', 'Education']],
+        ] as const
+
+        for (const [category, subCategories] of pages) {
+          expect(
+            await browser
+              .elementByCss(
+                `a[href="/nested-navigation/${category.toLowerCase()}"]`
+              )
+              .click()
+              .waitForElementByCss(`#all-${category.toLowerCase()}`)
+              .text()
+          ).toBe(`All ${category}`)
+
+          for (const subcategory of subCategories) {
+            expect(
+              await browser
+                .elementByCss(
+                  `a[href="/nested-navigation/${category.toLowerCase()}/${subcategory.toLowerCase()}"]`
+                )
+                .click()
+                .waitForElementByCss(`#${subcategory.toLowerCase()}`)
+                .text()
+            ).toBe(`${subcategory}`)
+          }
+        }
+      })
+    })
+
+    describe('next/script', () => {
+      it('should support next/script and render in correct order', async () => {
+        const browser = await webdriver(next.url, '/script')
+
+        // Wait for lazyOnload scripts to be ready.
+        await new Promise((resolve) => setTimeout(resolve, 1000))
+
+        expect(await browser.eval(`window._script_order`)).toStrictEqual([
+          1,
+          1.5,
+          2,
+          2.5,
+          'render',
+          3,
+          4,
+        ])
+      })
+
+      it('should insert preload tags for beforeInteractive and afterInteractive scripts', async () => {
+        const html = await renderViaHTTP(next.url, '/script')
+        expect(html).toContain(
+          '<link href="/test1.js" rel="preload" as="script"/>'
+        )
+        expect(html).toContain(
+          '<link href="/test2.js" rel="preload" as="script"/>'
+        )
+        expect(html).toContain(
+          '<link href="/test3.js" rel="preload" as="script"/>'
+        )
+
+        // test4.js has lazyOnload which doesn't need to be preloaded
+        expect(html).not.toContain(
+          '<script src="/test4.js" rel="preload" as="script"/>'
+        )
       })
     })
   }

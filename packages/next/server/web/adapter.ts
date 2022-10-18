@@ -9,6 +9,7 @@ import { relativizeURL } from '../../shared/lib/router/utils/relativize-url'
 import { waitUntilSymbol } from './spec-extension/fetch-event'
 import { NextURL } from './next-url'
 import { stripInternalSearchParams } from '../internal-utils'
+import { normalizeRscPath } from '../../shared/lib/router/utils/app-paths'
 
 class NextRequestHint extends NextRequest {
   sourcePage: string
@@ -48,6 +49,8 @@ export async function adapter(params: {
 }): Promise<FetchEventResult> {
   // TODO-APP: use explicit marker for this
   const isEdgeRendering = typeof self.__BUILD_MANIFEST !== 'undefined'
+
+  params.request.url = normalizeRscPath(params.request.url, true)
 
   const requestUrl = new NextURL(params.request.url, {
     headers: params.request.headers,
@@ -103,6 +106,11 @@ export async function adapter(params: {
   const event = new NextFetchEvent({ request, page: params.page })
   let response = await params.handler(request, event)
 
+  // check if response is a Response object
+  if (response && !(response instanceof Response)) {
+    throw new TypeError('Expected an instance of Response to be returned')
+  }
+
   /**
    * For rewrites we must always include the locale in the final pathname
    * so we re-create the NextURL forcing it to include it when the it is
@@ -117,9 +125,11 @@ export async function adapter(params: {
       nextConfig: params.request.nextConfig,
     })
 
-    if (rewriteUrl.host === request.nextUrl.host) {
-      rewriteUrl.buildId = buildId || rewriteUrl.buildId
-      response.headers.set('x-middleware-rewrite', String(rewriteUrl))
+    if (!process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE) {
+      if (rewriteUrl.host === request.nextUrl.host) {
+        rewriteUrl.buildId = buildId || rewriteUrl.buildId
+        response.headers.set('x-middleware-rewrite', String(rewriteUrl))
+      }
     }
 
     /**
@@ -154,9 +164,11 @@ export async function adapter(params: {
      */
     response = new Response(response.body, response)
 
-    if (redirectURL.host === request.nextUrl.host) {
-      redirectURL.buildId = buildId || redirectURL.buildId
-      response.headers.set('Location', String(redirectURL))
+    if (!process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE) {
+      if (redirectURL.host === request.nextUrl.host) {
+        redirectURL.buildId = buildId || redirectURL.buildId
+        response.headers.set('Location', String(redirectURL))
+      }
     }
 
     /**
@@ -182,6 +194,10 @@ export async function adapter(params: {
 export function blockUnallowedResponse(
   promise: Promise<FetchEventResult>
 ): Promise<FetchEventResult> {
+  if (process.env.__NEXT_ALLOW_MIDDLEWARE_RESPONSE_BODY) {
+    return promise
+  }
+
   return promise.then((result) => {
     if (result.response?.body) {
       console.error(

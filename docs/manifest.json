@@ -427,8 +427,14 @@
           }
         },
         {
-          "title": "next/future/image",
-          "path": "/docs/api-reference/next/future/image.md"
+          "path": "/docs/api-reference/next/future/image",
+          "redirect": {
+            "destination": "/docs/api-reference/next/image"
+          }
+        },
+        {
+          "title": "next/legacy/image",
+          "path": "/docs/api-reference/next/legacy/image.md"
         },
         {
           "title": "Edge Runtime",

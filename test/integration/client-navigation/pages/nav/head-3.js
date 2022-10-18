@@ -8,8 +8,8 @@ export default (props) => (
       <meta name="description" content="Head Three" />
       <title></title>
     </Head>
-    <Link href="/nav/head-1">
-      <a id="to-head-1">to head 1</a>
+    <Link href="/nav/head-1" id="to-head-1">
+      to head 1
     </Link>
   </div>
 )
