@@ -39,6 +39,15 @@ it('does noop changing to an invalid hostname', () => {
   expect(url.toString()).toEqual('https://foo.com/example')
 })
 
+it('preserves the fragment', () => {
+  const url = new NextURL(
+    'https://example.com/path/to?param1=value1#this-is-fragment'
+  )
+  expect(url.toString()).toEqual(
+    'https://example.com/path/to?param1=value1#this-is-fragment'
+  )
+})
+
 it('allows to change the whole href', () => {
   const url = new NextURL('https://localhost.com/foo')
   expect(url.hostname).toEqual('localhost.com')
