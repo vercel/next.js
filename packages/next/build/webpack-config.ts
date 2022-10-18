@@ -252,7 +252,7 @@ export function getDefineEnv({
     'process.env.__NEXT_I18N_DOMAINS': JSON.stringify(config.i18n?.domains),
     'process.env.__NEXT_ANALYTICS_ID': JSON.stringify(config.analyticsId),
     'process.env.__NEXT_ALLOW_MIDDLEWARE_RESPONSE_BODY': JSON.stringify(
-      config.experimental.dangerouslyAllowMiddlewareResponseBody
+      config.experimental.allowMiddlewareResponseBody
     ),
     'process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE': JSON.stringify(
       config.experimental.skipMiddlewareUrlNormalize
@@ -1339,10 +1339,25 @@ export default async function getBaseWebpackConfig(
           // and all other chunk depend on them so there is no
           // duplication that need to be pulled out.
           chunks: (chunk: any) =>
-            !/^(polyfills|main|pages\/_app)$/.test(chunk.name),
+            !/^(polyfills|main|main-app|pages\/_app)$/.test(chunk.name),
           cacheGroups: {
             framework: {
-              chunks: 'all',
+              chunks: (chunk) => {
+                const name = chunk.name
+
+                // Skip app directory and include shared modules in main-app.
+                if (
+                  name &&
+                  hasAppDir &&
+                  (name === 'main-app' ||
+                    name === 'app-internals' ||
+                    name.startsWith('app/'))
+                ) {
+                  return false
+                }
+
+                return true
+              },
               name: 'framework',
               test(module: any) {
                 const resource = module.nameForCondition?.()
@@ -1896,8 +1911,8 @@ export default async function getBaseWebpackConfig(
           dev,
           sriEnabled: !dev && !!config.experimental.sri?.algorithm,
           hasFontLoaders: !!config.experimental.fontLoaders,
-          dangerouslyAllowMiddlewareResponseBody:
-            !!config.experimental.dangerouslyAllowMiddlewareResponseBody,
+          allowMiddlewareResponseBody:
+            !!config.experimental.allowMiddlewareResponseBody,
         }),
       isClient &&
         new BuildManifestPlugin({

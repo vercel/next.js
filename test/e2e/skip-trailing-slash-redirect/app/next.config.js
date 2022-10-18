@@ -3,7 +3,7 @@ const nextConfig = {
   experimental: {
     skipTrailingSlashRedirect: true,
     skipMiddlewareUrlNormalize: true,
-    dangerouslyAllowMiddlewareResponseBody: true,
+    allowMiddlewareResponseBody: true,
   },
   async redirects() {
     return [

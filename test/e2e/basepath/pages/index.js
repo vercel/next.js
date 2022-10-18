@@ -20,8 +20,8 @@ export default function Index({ hello, nested }) {
       <p id="query">{JSON.stringify(query)}</p>
       <p id="pathname">{pathname}</p>
       <p id="as-path">{asPath}</p>
-      <Link href="/hello">
-        <a id="hello-link">to /hello</a>
+      <Link href="/hello" id="hello-link">
+        to /hello
       </Link>
     </>
   )

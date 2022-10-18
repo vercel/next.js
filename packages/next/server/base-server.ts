@@ -1054,8 +1054,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       ) &&
       (isSSG || hasServerProps)
 
-    if (isAppPath && req.headers['__rsc__']) {
-      if (isSSG) {
+    if (isAppPath) {
+      res.setHeader(
+        'vary',
+        '__rsc__, __next_router_state_tree__, __next_router_prefetch__'
+      )
+
+      if (isSSG && req.headers['__rsc__']) {
         isDataReq = true
         // strip header so we generate HTML still
         if (
