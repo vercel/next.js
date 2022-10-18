@@ -38,3 +38,4 @@ module.exports = {
 ### Useful Links
 
 - [Image Optimization Documentation](https://nextjs.org/docs/basic-features/image-optimization)
+- [Remote Patterns Documentation](https://nextjs.org/docs/api-reference/next/image#remote-patterns)

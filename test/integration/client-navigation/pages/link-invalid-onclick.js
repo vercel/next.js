@@ -27,7 +27,7 @@ export default function Page(props) {
   return (
     <>
       <p id="errors">{errorCount}</p>
-      <Link href="/nav" passHref>
+      <Link href="/nav" passHref legacyBehavior>
         <Button />
       </Link>
     </>

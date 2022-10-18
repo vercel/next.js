@@ -14,8 +14,8 @@ export default () => {
         ></script>
       </Head>
       <br />
-      <Link href="/another">
-        <a id="link-another">to /another</a>
+      <Link href="/another" id="link-another">
+        to /another
       </Link>
     </div>
   )

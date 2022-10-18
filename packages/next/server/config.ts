@@ -471,13 +471,6 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     )
   }
 
-  if (result.experimental && 'swcMinify' in (result.experimental as any)) {
-    Log.warn(
-      `\`swcMinify\` has been moved out of \`experimental\`. Please update your ${configFileName} file accordingly.`
-    )
-    result.swcMinify = (result.experimental as any).swcMinify
-  }
-
   if (result.experimental && 'relay' in (result.experimental as any)) {
     Log.warn(
       `\`relay\` has been moved out of \`experimental\` and into \`compiler\`. Please update your ${configFileName} file accordingly.`

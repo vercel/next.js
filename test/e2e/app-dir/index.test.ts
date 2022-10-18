@@ -1197,6 +1197,50 @@ describe('app dir', () => {
       })
 
       if (isDev) {
+        it('should HMR correctly for client component', async () => {
+          const filePath = 'app/client-component-route/page.js'
+          const origContent = await next.readFile(filePath)
+
+          try {
+            const browser = await webdriver(next.url, '/client-component-route')
+
+            const ssrInitial = await renderViaHTTP(
+              next.url,
+              '/client-component-route'
+            )
+
+            expect(ssrInitial).toContain(
+              'hello from app/client-component-route'
+            )
+
+            expect(await browser.elementByCss('p').text()).toContain(
+              'hello from app/client-component-route'
+            )
+
+            await next.patchFile(
+              filePath,
+              origContent.replace('hello from', 'swapped from')
+            )
+
+            await check(() => browser.elementByCss('p').text(), /swapped from/)
+
+            const ssrUpdated = await renderViaHTTP(
+              next.url,
+              '/client-component-route'
+            )
+            expect(ssrUpdated).toContain('swapped from')
+
+            await next.patchFile(filePath, origContent)
+
+            await check(() => browser.elementByCss('p').text(), /hello from/)
+            expect(
+              await renderViaHTTP(next.url, '/client-component-route')
+            ).toContain('hello from')
+          } finally {
+            await next.patchFile(filePath, origContent)
+          }
+        })
+
         it('should throw an error when getServerSideProps is used', async () => {
           const pageFile =
             'app/client-with-errors/get-server-side-props/page.js'

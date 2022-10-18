@@ -5,12 +5,12 @@ export default () => (
     <h1>Mismatched SSG Data Prefetch Fixtures</h1>
     <p>
       <Link href="/ssg/dynamic/[slug]?slug=one" as="/ssg/fixture/mismatch">
-        <a>Dynamic Route (one level) — Prerendered</a>
+        Dynamic Route (one level) — Prerendered
       </Link>
       : this is a Dynamic Page with a single dynamic segment that{' '}
       <strong>was returned</strong> from <code>getStaticPaths</code>.<br />
       <Link href="/ssg/dynamic/[slug]?slug=two" as="/ssg/fixture/mismatch">
-        <a>Dynamic Route (one level) — Not Prerendered</a>
+        Dynamic Route (one level) — Not Prerendered
       </Link>
       : this is a Dynamic Page with a single dynamic segment that{' '}
       <strong>was not returned</strong> from <code>getStaticPaths</code>.
@@ -23,7 +23,7 @@ export default () => (
         }}
         as="/ssg/fixture/mismatch"
       >
-        <a>Multi Dynamic Route (two levels) — Prerendered</a>
+        Multi Dynamic Route (two levels) — Prerendered
       </Link>
       : this is a Dynamic Page with two dynamic segments that{' '}
       <strong>were returned</strong> from <code>getStaticPaths</code>.<br />
@@ -34,7 +34,7 @@ export default () => (
         }}
         as="/ssg/fixture/mismatch"
       >
-        <a>Multi Dynamic Route (two levels) — Not Prerendered</a>
+        Multi Dynamic Route (two levels) — Not Prerendered
       </Link>
       : this is a Dynamic Page with two dynamic segments that{' '}
       <strong>were not returned</strong> from <code>getStaticPaths</code>.
@@ -47,7 +47,7 @@ export default () => (
         }}
         as="/ssg/fixture/mismatch"
       >
-        <a>Catch-All Route (one level) — Prerendered</a>
+        Catch-All Route (one level) — Prerendered
       </Link>
       : this is a Catch-All Page with one segment that{' '}
       <strong>was returned</strong> from <code>getStaticPaths</code>.<br />
@@ -58,7 +58,7 @@ export default () => (
         }}
         as="/ssg/fixture/mismatch"
       >
-        <a>Catch-All Route (one level) — Not Prerendered</a>
+        Catch-All Route (one level) — Not Prerendered
       </Link>
       : this is a Catch-All Page with one segment that{' '}
       <strong>was not returned</strong> from <code>getStaticPaths</code>.<br />
@@ -69,7 +69,7 @@ export default () => (
         }}
         as="/ssg/fixture/mismatch"
       >
-        <a>Catch-All Route (two levels) — Prerendered</a>
+        Catch-All Route (two levels) — Prerendered
       </Link>
       : this is a Catch-All Page with two segments that{' '}
       <strong>were returned</strong> from <code>getStaticPaths</code>.<br />
@@ -80,7 +80,7 @@ export default () => (
         }}
         as="/ssg/fixture/mismatch"
       >
-        <a>Catch-All Route (two levels) — Not Prerendered</a>
+        Catch-All Route (two levels) — Not Prerendered
       </Link>
       : this is a Catch-All Page with two segments that{' '}
       <strong>were not returned</strong> from <code>getStaticPaths</code>.
