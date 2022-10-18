@@ -1,7 +1,6 @@
 /* eslint-env jest */
 
 import {
-  killApp,
   nextServer,
   runNextCommand,
   startApp,
