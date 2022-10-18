@@ -261,10 +261,9 @@ export default class NextNodeServer extends BaseServer {
     }
   }
 
-  private compression =
-    this.nextConfig.compress && this.nextConfig.target === 'server'
-      ? (compression() as ExpressMiddleware)
-      : undefined
+  private compression = this.nextConfig.compress
+    ? (compression() as ExpressMiddleware)
+    : undefined
 
   protected loadEnvConfig({
     dev,
