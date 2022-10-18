@@ -25,7 +25,7 @@ pub fn fibonacci(c: &mut Criterion) {
                 .unwrap();
             let size = *size;
 
-            b.to_async(rt).iter(move || {
+            b.to_async(rt).iter_with_large_drop(move || {
                 let tt = TurboTasks::new(MemoryBackend::new());
                 async move {
                     let task = tt.spawn_once_task(async move {
@@ -37,6 +37,7 @@ pub fn fibonacci(c: &mut Criterion) {
                         Ok(NothingVc::new().into())
                     });
                     tt.wait_task_completion(task, false).await.unwrap();
+                    tt
                 }
             })
         });
@@ -64,7 +65,7 @@ async fn fib(i: u32, key: u32) -> Result<FibResultVc> {
         _ => {
             let a = fib(i - 1, key);
             let b = fib(i - 2, key);
-            FibResult(*a.await? + *b.await?).cell()
+            FibResult(a.await?.wrapping_add(*b.await?)).cell()
         }
     })
 }

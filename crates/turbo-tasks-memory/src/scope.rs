@@ -61,16 +61,17 @@ impl nohash_hasher::IsEnabled for TaskScopeId {}
 #[derive(Clone, Debug)]
 pub enum TaskScopes {
     Root(TaskScopeId),
-    /// inner scopes and a flag tell if this is scheduled to become a root scope
+    /// inner scopes and a counter for changes to start optimized when a
+    /// threshold is reached
     Inner(
         CountHashSet<TaskScopeId, BuildNoHashHasher<TaskScopeId>>,
-        bool,
+        usize,
     ),
 }
 
 impl Default for TaskScopes {
     fn default() -> Self {
-        TaskScopes::Inner(CountHashSet::default(), false)
+        TaskScopes::Inner(CountHashSet::default(), 0)
     }
 }
 

@@ -13,6 +13,16 @@ pub struct CountHashSet<T, H = RandomState> {
     negative_entries: usize,
 }
 
+impl<T: Eq + Hash, H: BuildHasher + Default, const N: usize> From<[T; N]> for CountHashSet<T, H> {
+    fn from(list: [T; N]) -> Self {
+        let mut set = CountHashSet::default();
+        for item in list {
+            set.add(item);
+        }
+        set
+    }
+}
+
 impl<T, H: Default> Default for CountHashSet<T, H> {
     fn default() -> Self {
         Self {

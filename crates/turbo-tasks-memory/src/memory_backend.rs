@@ -34,6 +34,7 @@ pub struct MemoryBackend {
     memory_tasks: NoMoveVec<Task, 13>,
     memory_task_scopes: NoMoveVec<TaskScope>,
     scope_id_factory: IdFactory<TaskScopeId>,
+    pub(crate) initial_scope: TaskScopeId,
     backend_jobs: NoMoveVec<Job>,
     backend_job_id_factory: IdFactory<BackendJobId>,
     task_cache: FHashMap<PersistentTaskType, TaskId>,
@@ -48,10 +49,17 @@ impl Default for MemoryBackend {
 
 impl MemoryBackend {
     pub fn new() -> Self {
+        let memory_task_scopes = NoMoveVec::new();
+        let scope_id_factory = IdFactory::new();
+        let initial_scope: TaskScopeId = scope_id_factory.get();
+        unsafe {
+            memory_task_scopes.insert(*initial_scope, TaskScope::new_active(initial_scope, 0, 0));
+        }
         Self {
             memory_tasks: NoMoveVec::new(),
-            memory_task_scopes: NoMoveVec::new(),
-            scope_id_factory: IdFactory::new(),
+            memory_task_scopes,
+            scope_id_factory,
+            initial_scope,
             backend_jobs: NoMoveVec::new(),
             backend_job_id_factory: IdFactory::new(),
             task_cache: FHashMap::new(),
@@ -478,7 +486,12 @@ impl Backend for MemoryBackend {
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> TaskId {
         let id = turbo_tasks.get_fresh_task_id();
-        let scope = self.create_new_active_scope(1, 1);
+        // use INITIAL_SCOPE
+        let scope = self.initial_scope;
+        self.with_scope(scope, |scope| {
+            scope.increment_tasks();
+            scope.increment_unfinished_tasks();
+        });
         let task = match task_type {
             TransientTaskType::Root(f) => Task::new_root(id, scope, move || f() as _),
             TransientTaskType::Once(f) => Task::new_once(id, scope, f),
@@ -495,10 +508,8 @@ impl Backend for MemoryBackend {
 pub(crate) enum Job {
     RemoveFromScopes(HashSet<TaskId>, Vec<TaskScopeId>),
     RemoveFromScope(HashSet<TaskId>, TaskScopeId),
-    RemoveRootScope(TaskId),
-    MakeRootScoped(TaskId),
     ScheduleWhenDirty(Vec<TaskId>),
-    AddToScopeQueue(Vec<(Vec<TaskId>, bool)>, usize, TaskScopeId),
+    AddToScopeQueue(Vec<(Vec<TaskId>, usize)>, usize, TaskScopeId, bool),
     RemoveFromScopeQueue(Vec<Vec<TaskId>>, usize, TaskScopeId),
 }
 
@@ -519,12 +530,6 @@ impl Job {
                     });
                 }
             }
-            Job::MakeRootScoped(task) => backend.with_task(task, |task| {
-                task.make_root_scoped(backend, turbo_tasks);
-            }),
-            Job::RemoveRootScope(task) => backend.with_task(task, |task| {
-                task.remove_root_scope(backend, turbo_tasks);
-            }),
             Job::ScheduleWhenDirty(tasks) => {
                 for task in tasks.into_iter() {
                     backend.with_task(task, |task| {
@@ -532,8 +537,15 @@ impl Job {
                     })
                 }
             }
-            Job::AddToScopeQueue(queue, queue_size, id) => {
-                run_add_to_scope_queue(queue, queue_size, id, backend, turbo_tasks);
+            Job::AddToScopeQueue(queue, queue_size, id, is_optimization_scope) => {
+                run_add_to_scope_queue(
+                    queue,
+                    queue_size,
+                    id,
+                    is_optimization_scope,
+                    backend,
+                    turbo_tasks,
+                );
             }
             Job::RemoveFromScopeQueue(queue, queue_size, id) => {
                 run_remove_from_scope_queue(queue, queue_size, id, backend, turbo_tasks);
