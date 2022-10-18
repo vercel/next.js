@@ -89,7 +89,6 @@ impl EcmascriptInputTransform {
             }
             EcmascriptInputTransform::PresetEnv(env) => {
                 let versions = env.runtime_versions().await?;
-                println!("versions {:?}", versions);
                 let config = swc_core::ecma::preset_env::Config {
                     targets: Some(Targets::Versions(*versions)),
                     mode: None, // Don't insert core-js polyfills
