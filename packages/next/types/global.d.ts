@@ -32,3 +32,12 @@ declare module '*.module.scss' {
 interface Window {
   MSInputMethodContext?: unknown
 }
+
+type NextFetchRequestConfig = {
+  revalidate?: number
+}
+
+declare function fetch(
+  url: RequestInfo,
+  opts: RequestInit & { next?: NextFetchRequestConfig }
+): Promise<Response>
