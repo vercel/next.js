@@ -17,7 +17,7 @@ export default function HardLink({ href, children, ...props }) {
         e.preventDefault()
         React.startTransition(() => {
           router.push(href)
-          router.reload()
+          router.refresh()
         })
       }}
     >

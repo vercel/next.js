@@ -1,4 +1,4 @@
-import { cache, use } from '../../lib/utils'
+import { cache, use } from '../../../lib/utils'
 
 export default function Page() {
   const getData = () =>
@@ -12,7 +12,7 @@ export default function Page() {
 
   return (
     <>
-      <p id="page">/ssr-auto</p>
+      <p id="page">/ssr-auto/cache-no-store</p>
       <div id="example-dat">{data}</div>
       <p id="date">{Date.now()}</p>
     </>

@@ -157,6 +157,20 @@ describe('Middleware Redirect', () => {
         .join('\n')
       expect(errors).not.toContain('Failed to lookup route')
     })
+
+    // A regression test for https://github.com/vercel/next.js/pull/41501
+    it(`${label}should redirect with a fragment`, async () => {
+      const res = await fetchViaHTTP(next.url, `${locale}/with-fragment`)
+      const html = await res.text()
+      const $ = cheerio.load(html)
+      const browser = await webdriver(next.url, `${locale}/with-fragment`)
+      try {
+        expect(await browser.eval(`window.location.hash`)).toBe(`#fragment`)
+      } finally {
+        await browser.close()
+      }
+      expect($('.title').text()).toBe('Welcome to a new page')
+    })
   }
   tests()
   testsWithLocale()

@@ -343,7 +343,7 @@ function processMessage(
         return window.location.reload()
       }
       startTransition(() => {
-        router.reload()
+        router.refresh()
         onRefresh(dispatch)
       })
 
@@ -445,6 +445,16 @@ export default function HotReload({
   })
 
   const handleOnUnhandledError = useCallback((ev) => {
+    if (
+      ev.error &&
+      ev.error.digest &&
+      (ev.error.digest.startsWith('NEXT_REDIRECT') ||
+        ev.error.digest === 'NEXT_NOT_FOUND')
+    ) {
+      ev.preventDefault()
+      return
+    }
+
     hadRuntimeError = true
     onUnhandledError(dispatch, ev)
   }, [])

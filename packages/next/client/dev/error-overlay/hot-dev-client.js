@@ -260,6 +260,10 @@ function processMessage(e) {
       )
       return handleSuccess()
     }
+    case 'serverComponentChanges': {
+      // Server component changes don't apply to `pages`.
+      return
+    }
     default: {
       if (customHmrEventHandler) {
         customHmrEventHandler(obj)

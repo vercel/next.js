@@ -36,8 +36,8 @@ export default ({ post, time, params, appProps, resolvedUrl }) => {
       <div id="app-url">{appProps.url}</div>
       <div id="resolved-url">{resolvedUrl}</div>
       <div id="as-path">{router.asPath}</div>
-      <Link href="/">
-        <a id="home">to home</a>
+      <Link href="/" id="home">
+        to home
       </Link>
     </>
   )
