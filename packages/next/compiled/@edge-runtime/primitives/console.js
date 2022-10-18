@@ -121,11 +121,8 @@ var require_dist = __commonJS({
       return typeof value === type;
     }
     __name(kind, "kind");
-    var getConstructorName = /* @__PURE__ */ __name((object) => {
-      var _a;
-      return (_a = object.constructor) == null ? void 0 : _a.name;
-    }, "getConstructorName");
-    var getPrefix = /* @__PURE__ */ __name((constructor = "", size = "") => `${constructor}${size} `, "getPrefix");
+    var getConstructorName = /* @__PURE__ */ __name((object) => object.constructor.name, "getConstructorName");
+    var getPrefix = /* @__PURE__ */ __name((constructor, size = "") => `${constructor}${size} `, "getPrefix");
     function createFormat2(opts = {}) {
       if (opts.customInspectSymbol === void 0) {
         opts.customInspectSymbol = Symbol.for("edge-runtime.inspect.custom");
@@ -278,11 +275,7 @@ var require_dist = __commonJS({
         if (noIterator) {
           keys = getKeys(value, ctx.showHidden);
           braces = ["{", "}"];
-          if (constructor === void 0) {
-            if (keys.length === 0) {
-              return `[Object: null prototype] {}`;
-            }
-          } else if (constructor === "Object") {
+          if (constructor === "Object") {
             if (keys.length === 0) {
               return `{}`;
             }
@@ -579,7 +572,6 @@ var log = /* @__PURE__ */ __name((...args) => bareLog(format(...args)), "log");
 var konsole = {
   assert: (assertion, ...args) => assert(assertion, format(...args)),
   count: console.count.bind(console),
-  debug: log,
   dir: console.dir.bind(console),
   error,
   info: log,

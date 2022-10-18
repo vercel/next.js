@@ -55,7 +55,10 @@ export function overrideBuiltInReactPackages() {
       'react/jsx-dev-runtime',
       require.resolve('next/dist/compiled/react/jsx-dev-runtime'),
     ],
-    ['react-dom', require.resolve('next/dist/compiled/react-dom')],
+    [
+      'react-dom',
+      require.resolve('next/dist/compiled/react-dom/server-rendering-stub'),
+    ],
     [
       'react-dom/server',
       require.resolve('next/dist/compiled/react-dom/server'),

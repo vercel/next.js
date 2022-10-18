@@ -391,8 +391,8 @@ export async function ncc_edge_runtime(task, opts) {
 
 export async function ncc_react(task, opts) {
   const peerDeps = {
-    react: 'react',
-    'react-dom': 'react-dom',
+    react: 'next/dist/compiled/react',
+    'react-dom': 'next/dist/compiled/react-dom',
   }
   const reactDir = dirname(
     relative(__dirname, require.resolve(`react-builtin/package.json`))
@@ -1551,8 +1551,8 @@ export async function ncc_icss_utils(task, opts) {
 export async function copy_react_server_dom_webpack(task, opts) {
   // Use installed versions instead of bundled version
   const peerDeps = {
-    react: 'react',
-    'react-dom': 'react-dom',
+    react: 'next/dist/compiled/react',
+    'react-dom': 'next/dist/compiled/react-dom',
   }
   await fs.mkdir(join(__dirname, 'compiled/react-server-dom-webpack'), {
     recursive: true,

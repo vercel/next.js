@@ -1537,39 +1537,6 @@ export default async function getBaseWebpackConfig(
     },
     module: {
       rules: [
-        ...(hasServerComponents && !isClient
-          ? [
-              {
-                issuerLayer: WEBPACK_LAYERS.server,
-                test: (req: string) => {
-                  // If it's not a source code file, or has been opted out of
-                  // bundling, don't resolve it.
-                  if (
-                    !codeCondition.test.test(req) ||
-                    isResourceInPackages(
-                      req,
-                      config.experimental.serverComponentsExternalPackages
-                    )
-                  ) {
-                    return false
-                  }
-
-                  return true
-                },
-                resolve: {
-                  conditionNames: ['react-server', 'node', 'require'],
-                  alias: {
-                    // If missing the alias override here, the default alias will be used which aliases
-                    // react to the direct file path, not the package name. In that case the condition
-                    // will be ignored completely.
-                    react: 'react',
-                    'react-dom': 'react-dom',
-                  },
-                },
-              },
-            ]
-          : []),
-
         // TODO: FIXME: do NOT webpack 5 support with this
         // x-ref: https://github.com/webpack/webpack/issues/11467
         ...(!config.experimental.fullySpecified
@@ -1593,7 +1560,7 @@ export default async function getBaseWebpackConfig(
               },
             ]
           : []),
-        ...(hasServerComponents && (isNodeServer || isEdgeServer)
+        ...(hasServerComponents && !isClient
           ? [
               // RSC server compilation loaders
               {
@@ -1651,7 +1618,7 @@ export default async function getBaseWebpackConfig(
                     resolve: {
                       // It needs `conditionNames` here to require the proper asset,
                       // when react is acting as dependency of compiled/react-dom.
-                      conditionNames: ['react-server', 'node', 'require'],
+                      // conditionNames: ['react-server', 'node', 'require'],
                       alias: {
                         react: 'next/dist/compiled/react/react.shared-subset',
                         // Use server rendering stub for RSC
@@ -1666,7 +1633,9 @@ export default async function getBaseWebpackConfig(
                     resolve: {
                       alias: {
                         react: 'next/dist/compiled/react',
-                        'react-dom': 'next/dist/compiled/react-dom',
+                        'react-dom': isClient
+                          ? 'next/dist/compiled/react-dom'
+                          : 'next/dist/compiled/react-dom/server-rendering-stub',
                       },
                     },
                   },
