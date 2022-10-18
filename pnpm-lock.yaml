@@ -19,6 +19,7 @@ importers:
       '@babel/preset-flow': 7.14.5
       '@babel/preset-react': 7.14.5
       '@edge-runtime/jest-environment': 1.1.0-beta.36
+      '@edge-runtime/primitives': 1.1.0-beta.36
       '@fullhuman/postcss-purgecss': 1.3.0
       '@mdx-js/loader': 0.18.0
       '@next/bundle-analyzer': workspace:*
@@ -176,6 +177,7 @@ importers:
       '@babel/preset-flow': 7.14.5_@babel+core@7.18.0
       '@babel/preset-react': 7.14.5_@babel+core@7.18.0
       '@edge-runtime/jest-environment': 1.1.0-beta.36
+      '@edge-runtime/primitives': 1.1.0-beta.36
       '@fullhuman/postcss-purgecss': 1.3.0
       '@mdx-js/loader': 0.18.0_uuaxwgga6hqycsez5ok7v2wg4i
       '@next/bundle-analyzer': link:packages/next-bundle-analyzer
@@ -4023,6 +4025,13 @@ packages:
       '@jest/types': 28.1.3
       jest-mock: 28.1.3
       jest-util: 28.1.3
+    dev: true
+
+  /@edge-runtime/primitives/1.1.0-beta.36:
+    resolution:
+      {
+        integrity: sha512-Tji7SGWmn1+JGSnzFtWUoS7+kODIFprTyIAw0EBOVWEQKWfs7r0aTEm1XkJR0+d1jP9f0GB5LBKG/Z7KFyhx7g==,
+      }
     dev: true
 
   /@edge-runtime/primitives/1.1.0-beta.37:
