@@ -22,12 +22,9 @@ import {
   VALID_LOADERS,
 } from '../shared/lib/image-config'
 import { loadEnvConfig } from '@next/env'
-import { hasNextSupport } from '../telemetry/ci-info'
 import { gte as semverGte } from 'next/dist/compiled/semver'
 
 export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
-
-const targets = ['server', 'serverless', 'experimental-serverless-trace']
 
 const experimentalWarning = execOnce(
   (configFileName: string, features: string[]) => {
@@ -805,17 +802,9 @@ export default async function loadConfig(
       )
     }
 
-    if (userConfig.target && !targets.includes(userConfig.target)) {
-      throw new Error(
-        `Specified target is invalid. Provided: "${
-          userConfig.target
-        }" should be one of ${targets.join(', ')}`
-      )
-    }
-
     if (userConfig.target && userConfig.target !== 'server') {
-      Log.warn(
-        'The `target` config is deprecated and will be removed in a future version.\n' +
+      throw new Error(
+        `The "target" property is no longer supported in ${configFileName}.\n` +
           'See more info here https://nextjs.org/docs/messages/deprecated-target-config'
       )
     }
@@ -827,10 +816,6 @@ export default async function loadConfig(
         (canonicalBase.endsWith('/')
           ? canonicalBase.slice(0, -1)
           : canonicalBase) || ''
-    }
-
-    if (process.env.NEXT_PRIVATE_TARGET || hasNextSupport) {
-      userConfig.target = process.env.NEXT_PRIVATE_TARGET || 'server'
     }
 
     return assignDefaults({

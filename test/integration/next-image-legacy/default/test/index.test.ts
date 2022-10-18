@@ -1446,17 +1446,4 @@ describe('Image Component Tests', () => {
 
     runTests('server')
   })
-
-  describe.skip('serverless mode', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-    })
-
-    runTests('serverless')
-  })
 })
