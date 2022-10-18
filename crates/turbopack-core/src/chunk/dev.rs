@@ -95,7 +95,7 @@ impl ChunkingContext for DevChunkingContext {
         // Everything before i is hashed and after i named.
         let mut i = 0;
         static NODE_MODULES: &str = "_node_modules_";
-        if let Some(j) = name.find(NODE_MODULES) {
+        if let Some(j) = name.rfind(NODE_MODULES) {
             i = j + NODE_MODULES.len();
         }
         const MAX_FILENAME: usize = 80;
