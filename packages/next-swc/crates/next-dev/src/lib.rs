@@ -13,7 +13,10 @@ use turbopack_core::{issue::IssueSeverity, resolve::parse::RequestVc};
 use turbopack_dev_server::{
     fs::DevServerFileSystemVc,
     introspect::IntrospectionSource,
-    source::{combined::CombinedContentSource, router::RouterContentSource, ContentSourceVc},
+    source::{
+        combined::CombinedContentSource, router::RouterContentSource,
+        static_assets::StaticAssetsContentSourceVc, ContentSourceVc,
+    },
     DevServer,
 };
 
@@ -217,8 +220,10 @@ async fn source(
     }
     .cell()
     .into();
+    let static_source =
+        StaticAssetsContentSourceVc::new(String::new(), project_path.join("public")).into();
     let main_source = CombinedContentSource {
-        sources: vec![rendered_source, web_source],
+        sources: vec![static_source, rendered_source, web_source],
     }
     .cell();
     let introspect = IntrospectionSource {
