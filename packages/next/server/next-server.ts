@@ -62,11 +62,9 @@ import { getExtension, serveStatic } from './serve-static'
 import { ParsedUrlQuery } from 'querystring'
 import { apiResolver } from './api-utils/node'
 import { RenderOpts, renderToHTML } from './render'
-import { renderToHTMLOrFlight as appRenderToHTMLOrFlight } from './app-render'
 import { ParsedUrl, parseUrl } from '../shared/lib/router/utils/parse-url'
 import { parse as nodeParseUrl } from 'url'
 import * as Log from '../build/output/log'
-import loadRequireHook from '../build/webpack/require-hook'
 
 import BaseServer, {
   Options,
@@ -99,11 +97,15 @@ import { shouldUseReactRoot } from './utils'
 import ResponseCache from './response-cache'
 import { IncrementalCache } from './lib/incremental-cache'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
+import { loadRequireHook } from '../build/webpack/require-hook'
 
 if (shouldUseReactRoot) {
   ;(process.env as any).__NEXT_REACT_ROOT = 'true'
 }
 
+import { renderToHTMLOrFlight as appRenderToHTMLOrFlight } from './app-render'
+
+// require hook for custom server
 loadRequireHook()
 
 export * from './base-server'
