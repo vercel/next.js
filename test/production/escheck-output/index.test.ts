@@ -16,6 +16,11 @@ describe('ES Check default output', () => {
           build: 'next build && es-check es5 .next/static/**/*.js',
         },
       },
+      nextConfig: {
+        experimental: {
+          legacyBrowsers: true,
+        },
+      },
       buildCommand: 'yarn build',
     })
   })
@@ -27,13 +32,16 @@ describe('ES Check default output', () => {
     )
   })
 
-  it('should pass for ES5 with SWC minify', async () => {
+  it('should pass for ES5 without SWC minify', async () => {
     await next.stop()
     await next.deleteFile('.next')
     await next.patchFile(
       'next.config.js',
       `
-      module.exports = ${JSON.stringify({ swcMinify: true } as NextConfig)}
+      module.exports = ${JSON.stringify({
+        swcMinify: false,
+        experimental: { legacyBrowsers: true },
+      } as NextConfig)}
     `
     )
     await next.start()
