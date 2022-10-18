@@ -18,7 +18,7 @@ importers:
       '@babel/plugin-proposal-object-rest-spread': 7.14.7
       '@babel/preset-flow': 7.14.5
       '@babel/preset-react': 7.14.5
-      '@edge-runtime/jest-environment': 1.1.0-beta.35
+      '@edge-runtime/jest-environment': 1.1.0-beta.36
       '@fullhuman/postcss-purgecss': 1.3.0
       '@mdx-js/loader': 0.18.0
       '@next/bundle-analyzer': workspace:*
@@ -177,7 +177,7 @@ importers:
       '@babel/plugin-proposal-object-rest-spread': 7.14.7_@babel+core@7.18.0
       '@babel/preset-flow': 7.14.5_@babel+core@7.18.0
       '@babel/preset-react': 7.14.5_@babel+core@7.18.0
-      '@edge-runtime/jest-environment': 1.1.0-beta.35
+      '@edge-runtime/jest-environment': 1.1.0-beta.36
       '@fullhuman/postcss-purgecss': 1.3.0
       '@mdx-js/loader': 0.18.0_uuaxwgga6hqycsez5ok7v2wg4i
       '@next/bundle-analyzer': link:packages/next-bundle-analyzer
@@ -461,7 +461,7 @@ importers:
       '@babel/runtime': 7.15.4
       '@babel/traverse': 7.18.0
       '@babel/types': 7.18.0
-      '@edge-runtime/primitives': 1.1.0-beta.36
+      '@edge-runtime/primitives': 1.1.0-beta.37
       '@hapi/accept': 5.0.2
       '@napi-rs/cli': 2.12.0
       '@napi-rs/triples': 1.1.0
@@ -547,7 +547,7 @@ importers:
       debug: 4.1.1
       devalue: 2.0.1
       domain-browser: 4.19.0
-      edge-runtime: 1.1.0-beta.39
+      edge-runtime: 1.1.0-beta.40
       events: 3.3.0
       find-cache-dir: 3.3.1
       find-up: 4.1.0
@@ -663,7 +663,7 @@ importers:
       '@babel/runtime': 7.15.4
       '@babel/traverse': 7.18.0
       '@babel/types': 7.18.0
-      '@edge-runtime/primitives': 1.1.0-beta.36
+      '@edge-runtime/primitives': 1.1.0-beta.37
       '@hapi/accept': 5.0.2
       '@napi-rs/cli': 2.12.0
       '@napi-rs/triples': 1.1.0
@@ -746,7 +746,7 @@ importers:
       debug: 4.1.1
       devalue: 2.0.1
       domain-browser: 4.19.0
-      edge-runtime: 1.1.0-beta.39
+      edge-runtime: 1.1.0-beta.40
       events: 3.3.0
       find-cache-dir: 3.3.1
       find-up: 4.1.0
@@ -4007,13 +4007,13 @@ packages:
       }
     dev: true
 
-  /@edge-runtime/jest-environment/1.1.0-beta.35:
+  /@edge-runtime/jest-environment/1.1.0-beta.36:
     resolution:
       {
-        integrity: sha512-CBMGtry4W/BLtmWpyHcbOwY+nn96YOEUVUWhob1SPQURGsxGnFU5r2fxrd99TDy/oTujw5jAbK4syOyUbna4KQ==,
+        integrity: sha512-A4geGu+6i61CBlOGd5eqwNGiREatm7aWO3wJ4gUGcA2BH23v4SgVIJUdt0cpNQku69nMshb0AGk3XhHnqUC5rg==,
       }
     dependencies:
-      '@edge-runtime/vm': 1.1.0-beta.36
+      '@edge-runtime/vm': 1.1.0-beta.37
       '@jest/environment': 28.1.3
       '@jest/fake-timers': 28.1.3
       '@jest/types': 28.1.3
@@ -4021,20 +4021,20 @@ packages:
       jest-util: 28.1.3
     dev: true
 
-  /@edge-runtime/primitives/1.1.0-beta.36:
+  /@edge-runtime/primitives/1.1.0-beta.37:
     resolution:
       {
-        integrity: sha512-Tji7SGWmn1+JGSnzFtWUoS7+kODIFprTyIAw0EBOVWEQKWfs7r0aTEm1XkJR0+d1jP9f0GB5LBKG/Z7KFyhx7g==,
+        integrity: sha512-S3aN8X6wXhM7CJI3FRF480CMNkw4mH6grMV/enQz8VWGrvD1U5njQNRh/Zymoe0RHzEI/aIDjSk3V49h+ULt9g==,
       }
     dev: true
 
-  /@edge-runtime/vm/1.1.0-beta.36:
+  /@edge-runtime/vm/1.1.0-beta.37:
     resolution:
       {
-        integrity: sha512-uPZmL7X+lKBFJsTg8nC0qPDBx4JGgpRqlgJi2s77g2NOtqitQOI90BfIKHZSSoMQEwTqfvAkpu2ui8nazOwHxA==,
+        integrity: sha512-1OrFifIxDFpwb1VyrFD8kwWVppc6D1uN7xh5jQzW7jHaVJ0Dw4C2nSAbLe6YKPYj67o09vW72WLzfUcryeD0Pg==,
       }
     dependencies:
-      '@edge-runtime/primitives': 1.1.0-beta.36
+      '@edge-runtime/primitives': 1.1.0-beta.37
     dev: true
 
   /@emotion/is-prop-valid/0.8.8:
@@ -13463,15 +13463,15 @@ packages:
       safe-buffer: 5.2.0
     dev: true
 
-  /edge-runtime/1.1.0-beta.39:
+  /edge-runtime/1.1.0-beta.40:
     resolution:
       {
-        integrity: sha512-PNIxASuGT/46ZsFKSGXfUOcTomvTj+U5VgRSIPUjGu3piTDjE1cxQwTJLXPJkQa/OrZLebJUuszNXM/1AG2lHg==,
+        integrity: sha512-KuoSRsQZUMyec6gtD9YOFA5ohmWtquTXKco+pLv1/1zcHmD0/rXU1QkTkE40BKwq+O02Esk9iPlx9LkHaQr3vg==,
       }
     hasBin: true
     dependencies:
       '@edge-runtime/format': 1.1.0-beta.34
-      '@edge-runtime/vm': 1.1.0-beta.36
+      '@edge-runtime/vm': 1.1.0-beta.37
       exit-hook: 2.2.1
       http-status: 1.5.3
       mri: 1.2.0
