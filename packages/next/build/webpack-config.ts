@@ -24,7 +24,6 @@ import {
   CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
   MIDDLEWARE_REACT_LOADABLE_MANIFEST,
   REACT_LOADABLE_MANIFEST,
-  SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
   COMPILER_NAMES,
   CompilerNameValues,
@@ -43,7 +42,6 @@ import { DropClientPage } from './webpack/plugins/next-drop-client-page-plugin'
 import PagesManifestPlugin from './webpack/plugins/pages-manifest-plugin'
 import { ProfilingPlugin } from './webpack/plugins/profiling-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
-import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
 import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin'
 import { regexLikeCss } from './webpack/config/blocks/css'
 import { CopyFilePlugin } from './webpack/plugins/copy-file-plugin'
@@ -719,16 +717,9 @@ export default async function getBaseWebpackConfig(
 
   const pageExtensions = config.pageExtensions
 
-  // Intentionally not using isTargetLikeServerless helper
-  const isLikeServerless =
-    target === 'serverless' || target === 'experimental-serverless-trace'
-
   const outputPath =
     isNodeServer || isEdgeServer
-      ? path.join(
-          distDir,
-          isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
-        )
+      ? path.join(distDir, SERVER_DIRECTORY)
       : distDir
 
   const clientEntries = isClient
@@ -1242,8 +1233,7 @@ export default async function getBaseWebpackConfig(
                 ]
               : []),
           ]
-        : target !== 'serverless'
-        ? [
+        : [
             ({
               context,
               request,
@@ -1296,15 +1286,6 @@ export default async function getBaseWebpackConfig(
                     })
                 }
               ),
-          ]
-        : [
-            // When the 'serverless' target is used all node_modules will be compiled into the output bundles
-            // So that the 'serverless' bundles have 0 runtime dependencies
-            'next/dist/compiled/@ampproject/toolbox-optimizer', // except this one
-
-            // Mark this as external if not enabled so it doesn't cause a
-            // webpack error from being missing
-            ...(config.experimental.optimizeCss ? [] : ['critters']),
           ],
     optimization: {
       emitOnErrors: !dev,
@@ -1848,7 +1829,6 @@ export default async function getBaseWebpackConfig(
         }),
       (isClient || isEdgeServer) && new DropClientPage(),
       config.outputFileTracing &&
-        !isLikeServerless &&
         (isNodeServer || isEdgeServer) &&
         !dev &&
         new (require('./webpack/plugins/next-trace-entrypoints-plugin').TraceEntryPointsPlugin)(
@@ -1893,12 +1873,8 @@ export default async function getBaseWebpackConfig(
           resourceRegExp: /react-is/,
           contextRegExp: /next[\\/]dist[\\/]/,
         }),
-      target === 'serverless' &&
-        (isNodeServer || isEdgeServer) &&
-        new ServerlessPlugin(),
       (isNodeServer || isEdgeServer) &&
         new PagesManifestPlugin({
-          serverless: isLikeServerless,
           dev,
           isEdgeRuntime: isEdgeServer,
           appDirEnabled: hasAppDir,
@@ -1931,7 +1907,6 @@ export default async function getBaseWebpackConfig(
               FontStylesheetGatheringPlugin: typeof import('./webpack/plugins/font-stylesheet-gathering-plugin').FontStylesheetGatheringPlugin
             }
           return new FontStylesheetGatheringPlugin({
-            isLikeServerless,
             adjustFontFallbacks: config.experimental.adjustFontFallbacks,
             adjustFontFallbacksWithSizeAdjust:
               config.experimental.adjustFontFallbacksWithSizeAdjust,
