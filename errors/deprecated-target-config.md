@@ -2,7 +2,7 @@
 
 #### Why This Error Occurred
 
-Starting in Next.js, the `target` property in `next.config.js` has been removed.
+Starting in Next.js 13, the `target` property in `next.config.js` has been removed.
 
 #### Possible Ways to Fix It
 
