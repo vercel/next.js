@@ -15,6 +15,8 @@ A [codemod is available](/docs/advanced-features/codemods.md#next-image-to-legac
 
 The `next/link` child can no longer be `<a>`. Add the `legacyBehavior` prop to use the legacy behavior or remove the `<a>` to upgrade. A [codemod is available](/docs/advanced-features/codemods.md#new-link) to automatically upgrade your code.
 
+The `target` configuration option has been removed and superseded by [Output File Tracing](https://nextjs.org/docs/advanced-features/output-file-tracing).
+
 ## Upgrading to 12.2
 
 If you were using Middleware prior to `12.2`, please see the [upgrade guide](https://nextjs.org/docs/messages/middleware-upgrade-guide) for more information.

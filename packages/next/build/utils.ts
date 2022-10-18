@@ -293,7 +293,6 @@ export async function printTreeView(
     app?: ReadonlyArray<string>
   },
   pageInfos: Map<string, PageInfo>,
-  serverless: boolean,
   {
     distPath,
     buildId,
@@ -627,7 +626,7 @@ export async function printTreeView(
         ],
         usedSymbols.has('λ') && [
           'λ',
-          serverless ? '(Lambda)' : '(Server)',
+          '(Server)',
           `server-side renders at runtime (uses ${chalk.cyan(
             'getInitialProps'
           )} or ${chalk.cyan('getServerSideProps')})`,
@@ -1165,7 +1164,6 @@ export async function buildAppStaticPaths({
 export async function isPageStatic({
   page,
   distDir,
-  serverless,
   configFileName,
   runtimeEnvConfig,
   httpAgentOptions,
@@ -1181,7 +1179,6 @@ export async function isPageStatic({
 }: {
   page: string
   distDir: string
-  serverless: boolean
   configFileName: string
   runtimeEnvConfig: any
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
@@ -1250,7 +1247,6 @@ export async function isPageStatic({
         componentsResult = await loadComponents({
           distDir,
           pathname: originalAppPath || page,
-          serverless,
           hasServerComponents: !!hasServerComponents,
           isAppPath: pageType === 'app',
         })
@@ -1430,7 +1426,6 @@ export async function isPageStatic({
 export async function hasCustomGetInitialProps(
   page: string,
   distDir: string,
-  isLikeServerless: boolean,
   runtimeEnvConfig: any,
   checkingApp: boolean
 ): Promise<boolean> {
@@ -1439,7 +1434,6 @@ export async function hasCustomGetInitialProps(
   const components = await loadComponents({
     distDir,
     pathname: page,
-    serverless: isLikeServerless,
     hasServerComponents: false,
     isAppPath: false,
   })
@@ -1457,14 +1451,12 @@ export async function hasCustomGetInitialProps(
 export async function getNamedExports(
   page: string,
   distDir: string,
-  isLikeServerless: boolean,
   runtimeEnvConfig: any
 ): Promise<Array<string>> {
   require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
   const components = await loadComponents({
     distDir,
     pathname: page,
-    serverless: isLikeServerless,
     hasServerComponents: false,
     isAppPath: false,
   })
@@ -1724,16 +1716,6 @@ export function getPossibleMiddlewareFilenames(
   return extensions.map((extension) =>
     path.join(folder, `${MIDDLEWARE_FILENAME}.${extension}`)
   )
-}
-
-export class MiddlewareInServerlessTargetError extends Error {
-  constructor() {
-    super(
-      'Next.js Middleware is not supported in the deprecated serverless target.\n' +
-        'Please remove `target: "serverless" from your next.config.js to use Middleware.'
-    )
-    this.name = 'MiddlewareInServerlessTargetError'
-  }
 }
 
 export class NestedMiddlewareError extends Error {

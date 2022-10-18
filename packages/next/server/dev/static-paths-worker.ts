@@ -19,7 +19,6 @@ let workerWasUsed = false
 export async function loadStaticPaths({
   distDir,
   pathname,
-  serverless,
   config,
   httpAgentOptions,
   enableUndici,
@@ -30,7 +29,6 @@ export async function loadStaticPaths({
 }: {
   distDir: string
   pathname: string
-  serverless: boolean
   config: RuntimeConfig
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
   enableUndici: NextConfigComplete['enableUndici']
@@ -59,7 +57,6 @@ export async function loadStaticPaths({
   const components = await loadComponents({
     distDir,
     pathname: originalAppPath || pathname,
-    serverless,
     hasServerComponents: false,
     isAppPath: !!isAppPath,
   })
