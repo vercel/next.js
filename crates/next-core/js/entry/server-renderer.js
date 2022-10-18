@@ -1,5 +1,6 @@
 const END_OF_OPERATION = process.argv[2];
 
+import "next/dist/server/node-polyfill-fetch.js";
 import { renderToHTML } from "next/dist/server/render";
 import App from "@vercel/turbopack-next/pages/_app";
 import Document from "@vercel/turbopack-next/pages/_document";
