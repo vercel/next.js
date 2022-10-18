@@ -2,7 +2,6 @@ import type { FontManifest, FontConfig } from '../server/font-utils'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { DomainLocale, NextConfigComplete } from '../server/config-shared'
 import type { NextParsedUrlQuery } from '../server/request-meta'
-import type { RenderToHTMLResult } from '../server/render'
 
 // `HAS_APP_DIR` env var is inherited from parent process,
 // then override react packages here for export worker.
