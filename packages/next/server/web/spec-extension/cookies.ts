@@ -3,8 +3,9 @@ import type { CookieSerializeOptions } from '../types'
 import cookie from 'next/dist/compiled/cookie'
 
 type GetWithOptionsOutput = {
+  /** A `string` representing the value of the cookie. */
   value: string | undefined
-  options: { [key: string]: string }
+  options: CookieSerializeOptions
 }
 
 const normalizeCookieOptions = (options: CookieSerializeOptions) => {
@@ -68,18 +69,23 @@ export class NextCookies extends Cookies {
     super(response.headers.get('cookie'))
     this.response = response
   }
-  get = (...args: Parameters<Cookies['get']>) => {
+  get(...args: Parameters<Cookies['get']>) {
     return this.getWithOptions(...args).value
   }
-  getWithOptions = (
-    ...args: Parameters<Cookies['get']>
-  ): GetWithOptionsOutput => {
+  getAll(): GetWithOptionsOutput[] {
+    const all: GetWithOptionsOutput[] = []
+    for (const key of this.keys()) {
+      all.push(this.getWithOptions(key))
+    }
+    return all
+  }
+  getWithOptions(...args: Parameters<Cookies['get']>): GetWithOptionsOutput {
     const raw = super.get(...args)
     if (typeof raw !== 'string') return { value: raw, options: {} }
     const { [args[0]]: value, ...options } = cookie.parse(raw)
     return { value, options }
   }
-  set = (...args: Parameters<Cookies['set']>) => {
+  set(...args: Parameters<Cookies['set']>) {
     const isAlreadyAdded = super.has(args[0])
 
     super.set(...args)
@@ -112,7 +118,7 @@ export class NextCookies extends Cookies {
 
     return this
   }
-  delete = (key: string, options: CookieSerializeOptions = {}) => {
+  delete(key: string, options: CookieSerializeOptions = {}) {
     const isDeleted = super.delete(key)
 
     if (isDeleted) {
@@ -130,7 +136,7 @@ export class NextCookies extends Cookies {
 
     return isDeleted
   }
-  clear = (options: CookieSerializeOptions = {}) => {
+  clear(options: CookieSerializeOptions = {}) {
     const expiredCookies = Array.from(super.keys())
       .map((key) => serializeExpiredCookie(key, options))
       .join(', ')
