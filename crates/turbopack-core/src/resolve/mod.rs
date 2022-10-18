@@ -8,6 +8,7 @@ use std::{
 
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
+use serde_json::Value as JsonValue;
 use turbo_tasks::{
     primitives::{BoolVc, StringVc},
     trace::TraceRawVcs,
@@ -21,8 +22,8 @@ use turbo_tasks_fs::{
 use self::{
     exports::{ExportsField, ExportsValue},
     options::{
-        resolve_modules_options, ImportMapResult, ResolveIntoPackage, ResolveModules,
-        ResolveModulesOptionsVc, ResolveOptionsVc,
+        resolve_modules_options, ImportMapResult, ResolveInPackage, ResolveIntoPackage,
+        ResolveModules, ResolveModulesOptionsVc, ResolveOptionsVc,
     },
     origin::ResolveOriginVc,
     parse::{Request, RequestVc},
@@ -35,7 +36,7 @@ use crate::{
     },
     reference::{AssetReference, AssetReferenceVc},
     resolve::{
-        options::{ConditionValue, ResolveOptions, ResolvedMapVc},
+        options::{ConditionValue, ResolveOptions},
         pattern::{read_matches, Pattern, PatternMatch, PatternVc},
     },
     source_asset::SourceAssetVc,
@@ -614,7 +615,7 @@ pub async fn resolve(
             for m in matches.iter() {
                 match m {
                     PatternMatch::File(_, path) => {
-                        results.push(resolved(*path, options_value.resolved_map, options).await?);
+                        results.push(resolved(*path, options_value, options).await?);
                     }
                     PatternMatch::Directory(_, path) => {
                         let package_json_path = path.join("package.json");
@@ -856,12 +857,79 @@ fn resolve_import_map_result_boxed<'a>(
     Box::pin(async move { resolve_import_map_result(result, context, options).await })
 }
 
+async fn resolve_alias_field_result(
+    result: &JsonValue,
+    refs: Vec<AssetReferenceVc>,
+    package_path: FileSystemPathVc,
+    resolve_options: ResolveOptionsVc,
+    issue_context: FileSystemPathVc,
+    issue_request: &str,
+    field_name: &str,
+) -> Result<ResolveResultVc> {
+    if result.as_bool() == Some(false) {
+        return Ok(ResolveResult::Special(SpecialType::Ignore, refs).cell());
+    }
+    if let Some(value) = result.as_str() {
+        return Ok(resolve(
+            package_path,
+            RequestVc::parse(Value::new(Pattern::Constant(value.to_string()))),
+            resolve_options,
+        )
+        .add_references(refs));
+    }
+    let issue: ResolvingIssueVc = ResolvingIssue {
+        context: issue_context,
+        request_type: format!("alias field ({field_name})"),
+        request: RequestVc::parse(Value::new(Pattern::Constant(issue_request.to_string()))),
+        resolve_options,
+        error_message: Some(format!("invalid alias field value: {}", result)),
+    }
+    .cell();
+    issue.as_issue().emit();
+    Ok(ResolveResult::Unresolveable(refs).cell())
+}
+
 async fn resolved(
     fs_path: FileSystemPathVc,
-    resolved_map: Option<ResolvedMapVc>,
+    ResolveOptions {
+        resolved_map,
+        in_package,
+        ..
+    }: &ResolveOptions,
     options: ResolveOptionsVc,
 ) -> Result<ResolveResultVc> {
     let RealPathResult { path, symlinks } = &*fs_path.realpath_with_links().await?;
+    for resolve_in in in_package.iter() {
+        match resolve_in {
+            ResolveInPackage::AliasField(field) => {
+                if let FindContextFileResult::Found(package_json, refs) =
+                    &*find_context_file(fs_path.parent(), "package.json").await?
+                {
+                    if let FileJsonContent::Content(package) = &*package_json.read_json().await? {
+                        if let Some(field_value) = package[field].as_object() {
+                            let package_path = package_json.parent();
+                            if let Some(rel_path) =
+                                package_path.await?.get_relative_path_to(&*fs_path.await?)
+                            {
+                                if let Some(value) = field_value.get(&rel_path) {
+                                    return resolve_alias_field_result(
+                                        value,
+                                        refs.clone(),
+                                        package_path,
+                                        options,
+                                        *package_json,
+                                        &rel_path,
+                                        field,
+                                    )
+                                    .await;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
     if let Some(resolved_map) = resolved_map {
         let result = resolved_map.lookup(*path).await?;
         if !matches!(&*result, ImportMapResult::NoEntry) {

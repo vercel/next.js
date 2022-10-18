@@ -5,8 +5,8 @@ use turbo_tasks_fs::{glob::GlobVc, FileSystemPathVc};
 use turbopack_core::resolve::{
     find_context_file,
     options::{
-        ConditionValue, ImportMap, ImportMapping, ResolveIntoPackage, ResolveModules,
-        ResolveOptions, ResolveOptionsVc, ResolvedMap,
+        ConditionValue, ImportMap, ImportMapping, ResolveInPackage, ResolveIntoPackage,
+        ResolveModules, ResolveOptions, ResolveOptionsVc, ResolvedMap,
     },
     AliasMap, AliasPattern, FindContextFileResult,
 };
@@ -216,6 +216,13 @@ async fn base_resolve_options(
             resolve_into.push(ResolveIntoPackage::MainField("main".to_string()));
             resolve_into.push(ResolveIntoPackage::Default("index".to_string()));
             resolve_into
+        },
+        in_package: {
+            let mut resolve_in = Vec::new();
+            if opt.browser {
+                resolve_in.push(ResolveInPackage::AliasField("browser".to_string()));
+            }
+            resolve_in
         },
         import_map: Some(import_map),
         resolved_map: Some(resolved_map),

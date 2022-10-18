@@ -72,6 +72,13 @@ pub enum ResolveIntoPackage {
     Default(String),
 }
 
+// The different ways to resolve a request withing a package
+#[derive(TraceRawVcs, Hash, PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+pub enum ResolveInPackage {
+    /// Using a alias field which allows to map requests
+    AliasField(String),
+}
+
 #[turbo_tasks::value(shared)]
 #[derive(Clone)]
 pub enum ImportMapping {
@@ -319,6 +326,8 @@ pub struct ResolveOptions {
     pub modules: Vec<ResolveModules>,
     /// How to resolve packages.
     pub into_package: Vec<ResolveIntoPackage>,
+    /// How to resolve in packages.
+    pub in_package: Vec<ResolveInPackage>,
     pub import_map: Option<ImportMapVc>,
     pub resolved_map: Option<ResolvedMapVc>,
     pub placeholder_for_future_extensions: (),
