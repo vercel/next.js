@@ -37,10 +37,6 @@ import { NOT_FOUND_ERROR_CODE } from '../client/components/not-found'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import { Writable } from 'stream'
 
-type NextFetchRequestConfig = {
-  revalidate?: number
-}
-
 const INTERNAL_HEADERS_INSTANCE = Symbol('internal for headers readonly')
 
 function readonlyHeadersError() {
@@ -211,12 +207,8 @@ function patchFetch(ComponentMod: any) {
 
   const staticGenerationAsyncStorage = ComponentMod.staticGenerationAsyncStorage
 
-  const origFetch = (global as any).fetch
-
-  ;(global as any).fetch = async (
-    url: RequestInfo,
-    opts: RequestInit & { next?: NextFetchRequestConfig }
-  ) => {
+  const origFetch = globalThis.fetch
+  globalThis.fetch = async (url, opts) => {
     const staticGenerationStore =
       'getStore' in staticGenerationAsyncStorage
         ? staticGenerationAsyncStorage.getStore()
@@ -236,7 +228,8 @@ function patchFetch(ComponentMod: any) {
           )
         }
 
-        const next = opts.next || {}
+        const hasNextConfig = 'next' in opts
+        const next = (hasNextConfig && opts.next) || {}
         if (
           typeof next.revalidate === 'number' &&
           (typeof fetchRevalidate === 'undefined' ||
@@ -252,7 +245,7 @@ function patchFetch(ComponentMod: any) {
             }`
           )
         }
-        delete opts.next
+        if (hasNextConfig) delete opts.next
       }
     }
     return origFetch(url, opts)
