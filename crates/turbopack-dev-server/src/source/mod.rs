@@ -4,7 +4,7 @@ pub mod conditional;
 pub mod lazy_instatiated;
 pub mod query;
 pub mod router;
-pub mod sub_path;
+pub mod static_assets;
 
 use std::{
     collections::{BTreeMap, HashSet},
