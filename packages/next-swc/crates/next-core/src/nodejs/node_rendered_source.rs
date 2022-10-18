@@ -15,7 +15,7 @@ use turbopack_dev_server::source::{
     conditional::ConditionalContentSourceVc,
     lazy_instatiated::{GetContentSource, GetContentSourceVc, LazyInstantiatedContentSource},
     ContentSource, ContentSourceData, ContentSourceDataFilter, ContentSourceDataVary,
-    ContentSourceDataVaryVc, ContentSourceResult, ContentSourceResultVc, ContentSourceVc,
+    ContentSourceResult, ContentSourceResultVc, ContentSourceVc,
 };
 use turbopack_ecmascript::{chunk::EcmascriptChunkPlaceablesVc, EcmascriptModuleAssetVc};
 
@@ -117,60 +117,74 @@ impl GetContentSource for NodeRenderContentSource {
 #[turbo_tasks::value_impl]
 impl ContentSource for NodeRenderContentSource {
     #[turbo_tasks::function]
-    async fn vary(&self, path: &str) -> Result<ContentSourceDataVaryVc> {
-        Ok(if self.is_matching_path(path).await? {
-            ContentSourceDataVary {
-                method: true,
-                url: true,
-                headers: Some(ContentSourceDataFilter::All),
-                query: Some(ContentSourceDataFilter::All),
-                ..Default::default()
-            }
-            .cell()
-        } else {
-            ContentSourceDataVary::default().cell()
-        })
-    }
-
-    #[turbo_tasks::function]
     async fn get(
-        &self,
+        self_vc: NodeRenderContentSourceVc,
         path: &str,
         data: turbo_tasks::Value<ContentSourceData>,
     ) -> Result<ContentSourceResultVc> {
-        if let Some(params) = self.get_matches(path).await? {
-            if data
-                .headers
-                .get("accept")
-                .map(|value| value.contains("html"))
-                .unwrap_or_default()
-            {
-                return Ok(ContentSourceResult::Static(
-                    render_static(
-                        self.server_root.join(path),
-                        self.renderer.module(),
-                        self.runtime_entries,
-                        self.chunking_context,
-                        self.intermediate_output_path,
-                        RenderData {
-                            params,
-                            method: data
-                                .method
-                                .clone()
-                                .ok_or_else(|| anyhow!("method needs to be provided"))?,
-                            url: data
-                                .url
-                                .clone()
-                                .ok_or_else(|| anyhow!("url needs to be provided"))?,
-                            query: data.query.clone(),
-                            headers: data.headers.clone(),
-                            path: format!("/{path}"),
+        let this = self_vc.await?;
+        if this.is_matching_path(path).await? {
+            if let Some(params) = this.get_matches(path).await? {
+                if let Some(headers) = &data.headers {
+                    if headers
+                        .get("accept")
+                        .map(|value| value.contains("html"))
+                        .unwrap_or_default()
+                    {
+                        if data.method.is_some() && data.url.is_some() {
+                            if let Some(query) = &data.query {
+                                return Ok(ContentSourceResult::Static(
+                                    render_static(
+                                        this.server_root.join(path),
+                                        this.renderer.module(),
+                                        this.runtime_entries,
+                                        this.chunking_context,
+                                        this.intermediate_output_path,
+                                        RenderData {
+                                            params,
+                                            method: data.method.clone().ok_or_else(|| {
+                                                anyhow!("method needs to be provided")
+                                            })?,
+                                            url: data.url.clone().ok_or_else(|| {
+                                                anyhow!("url needs to be provided")
+                                            })?,
+                                            query: query.clone(),
+                                            headers: headers.clone(),
+                                            path: format!("/{path}"),
+                                        }
+                                        .cell(),
+                                    )
+                                    .into(),
+                                )
+                                .cell());
+                            }
                         }
-                        .cell(),
-                    )
-                    .into(),
-                )
-                .cell());
+                        return Ok(ContentSourceResult::NeedData {
+                            source: self_vc.into(),
+                            path: path.to_string(),
+                            vary: ContentSourceDataVary {
+                                method: true,
+                                url: true,
+                                headers: Some(ContentSourceDataFilter::All),
+                                query: Some(ContentSourceDataFilter::All),
+                                ..Default::default()
+                            },
+                        }
+                        .cell());
+                    }
+                } else {
+                    return Ok(ContentSourceResult::NeedData {
+                        source: self_vc.into(),
+                        path: path.to_string(),
+                        vary: ContentSourceDataVary {
+                            headers: Some(ContentSourceDataFilter::Subset(HashSet::from([
+                                "accept".to_string(),
+                            ]))),
+                            ..Default::default()
+                        },
+                    }
+                    .cell());
+                }
             }
         }
         Ok(ContentSourceResult::NotFound.cell())
