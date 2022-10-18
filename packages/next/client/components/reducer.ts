@@ -529,6 +529,7 @@ function isNavigatingToNewRootLayout(
   }
   // We can't assume it's `parallelRoutes.children` here in case the root layout is `app/@something/layout.js`
   // But it's not possible to be more than one parallelRoutes before the root layout is found
+  // TODO-APP: change to traverse all parallel routes
   const currentTreeChild = Object.values(currentTree[1])[0]
   const nextTreeChild = Object.values(nextTree[1])[0]
   if (!currentTreeChild || !nextTreeChild) return true
