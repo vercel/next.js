@@ -38,6 +38,15 @@ import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import { Writable } from 'stream'
 
 function preloadComponent(Layout: any, props: any) {
+  const prev = console.error
+  console.error = (msg) => {
+    if (msg.startsWith('Invalid hook call..')) {
+      // ignore
+    } else {
+      // @ts-expect-error argument is defined
+      prev.apply(console, arguments)
+    }
+  }
   try {
     let result = Layout(props)
     return function () {
@@ -46,6 +55,8 @@ function preloadComponent(Layout: any, props: any) {
     }
   } catch (x) {
     // something suspended or errored, try again later
+  } finally {
+    console.error = prev
   }
   return Layout
 }
