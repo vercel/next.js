@@ -108,6 +108,7 @@ pub async fn create_server_rendered_source(
         ),
         ModuleOptionsContext {
             enable_typescript_transform: true,
+            enable_styled_jsx: true,
             ..Default::default()
         }
         .cell(),

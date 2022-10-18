@@ -2,6 +2,10 @@
 // in next-hydrate.js.
 process.env.NODE_ENV = "development";
 
+// This ensures Next.js uses React 18's APIs (hydrateRoot) instead of React 17's
+// (hydrate).
+process.env.__NEXT_REACT_ROOT = "true";
+
 // This is a fix for web-vitals.js not being linked properly.
 globalThis.__dirname = "";
 
