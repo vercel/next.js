@@ -48,6 +48,7 @@ import {
   FONT_LOADER_MANIFEST,
 } from '../shared/lib/constants'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
+import { findDir } from '../lib/find-pages-dir'
 import { format as formatUrl, UrlWithParsedQuery } from 'url'
 import compression from 'next/dist/compiled/compression'
 import { getPathMatch } from '../shared/lib/router/utils/path-match'
@@ -474,15 +475,7 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getHasAppDir(dev: boolean): boolean {
-    const appDirectory = dev
-      ? join(this.dir, 'app')
-      : join(this.serverDistDir, 'app')
-
-    try {
-      return fs.statSync(appDirectory).isDirectory()
-    } catch (err) {
-      return false
-    }
+    return Boolean(findDir(dev ? this.dir : this.serverDistDir, 'app'))
   }
 
   protected generateStaticRoutes(): Route[] {
