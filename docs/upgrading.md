@@ -8,6 +8,8 @@ description: Learn how to upgrade Next.js.
 
 The minimum Node.js version has been bumped from 12.22.0 to 14.0.0, since 12.x has reached end-of-life.
 
+The `swcMinify` configuration property was changed from `false` to `true`. See [Next.js Compiler](/docs/advanced-features/compiler.md) for more info.
+
 The `next/image` import was renamed to `next/legacy/image`. The `next/future/image` import was renamed to `next/image`.
 A [codemod is available](/docs/advanced-features/codemods.md#next-image-to-legacy-image) to safely and automatically rename your imports.
 
