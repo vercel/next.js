@@ -9,6 +9,9 @@ export interface NodeModuleTracePluginOptions {
   contextDirectory?: string;
   // additional PATH environment variable to use for spawning the `node-file-trace` process
   path?: string;
+  // control the maximum number of files that are passed to the `node-file-trace` command
+  // default is 128
+  maxFiles?: number;
   // log options
   log?: {
     all?: boolean;
@@ -121,13 +124,14 @@ export class NodeModuleTracePlugin implements WebpackPluginInstance {
     if (turboTracingBinPath) {
       paths = `${turboTracingBinPath}${pathSep}${paths}`;
     }
+    const maxFiles = this.options?.maxFiles ?? 128;
     let chunks = [...this.chunksToTrace];
-    let restChunks = chunks.length > 128 ? chunks.splice(128) : [];
+    let restChunks = chunks.length > maxFiles ? chunks.splice(maxFiles) : [];
     while (chunks.length) {
       await traceChunks(args, paths, chunks, cwd);
       chunks = restChunks;
       if (restChunks.length) {
-        restChunks = chunks.length > 128 ? chunks.splice(128) : [];
+        restChunks = chunks.length > maxFiles ? chunks.splice(maxFiles) : [];
       }
     }
   }
