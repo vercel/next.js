@@ -638,21 +638,23 @@ impl Task {
             }
             TaskScopes::Inner(ref mut list, ref mut optimization_counter) => {
                 if list.add(id) {
-                    if is_optimization_scope {
-                        *optimization_counter =
-                            optimization_counter.saturating_sub(children.len() >> depth)
-                    } else {
-                        *optimization_counter += children.len() >> depth;
-                        if *optimization_counter >= 0x10000 {
-                            list.remove(id);
-                            self.make_root_scoped_internal(state, backend, turbo_tasks);
-                            return self.add_to_scope_internal_shallow(
-                                id,
-                                is_optimization_scope,
-                                depth,
-                                backend,
-                                turbo_tasks,
-                            );
+                    if depth < usize::BITS as usize {
+                        if is_optimization_scope {
+                            *optimization_counter =
+                                optimization_counter.saturating_sub(children.len() >> depth)
+                        } else {
+                            *optimization_counter += children.len() >> depth;
+                            if *optimization_counter >= 0x10000 {
+                                list.remove(id);
+                                self.make_root_scoped_internal(state, backend, turbo_tasks);
+                                return self.add_to_scope_internal_shallow(
+                                    id,
+                                    is_optimization_scope,
+                                    depth,
+                                    backend,
+                                    turbo_tasks,
+                                );
+                            }
                         }
                     }
                     let children = children.iter().copied().collect::<Vec<_>>();
