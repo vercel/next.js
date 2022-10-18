@@ -83,9 +83,14 @@ pub struct DiskFileSystem {
 impl DiskFileSystem {
     /// registers the path as an invalidator for the current task,
     /// has to be called within a turbo-tasks function
-    fn register_invalidator(&self, path: impl AsRef<Path>) {
+    fn register_invalidator(&self, path: impl AsRef<Path>, file: bool) {
         let invalidator = turbo_tasks::get_invalidator();
-        self.invalidator_map.insert(path_to_key(path), invalidator);
+        if file {
+            self.invalidator_map.insert(path_to_key(path), invalidator);
+        } else {
+            self.dir_invalidator_map
+                .insert(path_to_key(path), invalidator);
+        }
     }
 
     pub fn invalidate(&self) {
@@ -288,7 +293,7 @@ impl FileSystem for DiskFileSystem {
     #[turbo_tasks::function]
     async fn read(&self, fs_path: FileSystemPathVc) -> Result<FileContentVc> {
         let full_path = self.to_sys_path(fs_path).await?;
-        self.register_invalidator(&full_path);
+        self.register_invalidator(&full_path, true);
 
         let content = match retry_future(|| File::from_path(full_path.clone())).await {
             Ok(file) => FileContent::new(file),
@@ -304,8 +309,8 @@ impl FileSystem for DiskFileSystem {
     #[turbo_tasks::function]
     async fn read_dir(&self, fs_path: FileSystemPathVc) -> Result<DirectoryContentVc> {
         let full_path = self.to_sys_path(fs_path).await?;
+        self.register_invalidator(&full_path, false);
         let fs_path = fs_path.await?;
-        self.register_invalidator(&full_path);
 
         // we use the sync std function here as it's a lot faster (600%) in
         // node-file-trace
@@ -358,7 +363,7 @@ impl FileSystem for DiskFileSystem {
     #[turbo_tasks::function]
     async fn read_link(&self, fs_path: FileSystemPathVc) -> Result<LinkContentVc> {
         let full_path = self.to_sys_path(fs_path).await?;
-        self.register_invalidator(&full_path);
+        self.register_invalidator(&full_path, true);
 
         let link_path = match retry_future(|| fs::read_link(&full_path)).await {
             Ok(res) => res,
@@ -588,7 +593,7 @@ impl FileSystem for DiskFileSystem {
     #[turbo_tasks::function]
     async fn metadata(&self, fs_path: FileSystemPathVc) -> Result<FileMetaVc> {
         let full_path = self.to_sys_path(fs_path).await?;
-        self.register_invalidator(&full_path);
+        self.register_invalidator(&full_path, true);
 
         let meta = retry_future(|| fs::metadata(full_path.clone()))
             .await
@@ -1543,16 +1548,6 @@ pub enum FileSystemEntryType {
     Directory,
     Symlink,
     Other,
-    Error,
-}
-
-#[turbo_tasks::value]
-#[derive(Hash, Clone, Copy, Debug)]
-pub enum ResolvedFileSystemEntry {
-    NotFound,
-    File(FileSystemPathVc),
-    Directory(FileSystemPathVc),
-    Other(FileSystemPathVc),
     Error,
 }
 
