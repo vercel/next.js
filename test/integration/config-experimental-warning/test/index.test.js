@@ -19,7 +19,6 @@ describe('Config Experimental Warning', () => {
     configFile.write(`
       module.exports = (phase, { defaultConfig }) => {
         return {
-          target: 'server',
           ...defaultConfig,
         }
       }
@@ -32,7 +31,7 @@ describe('Config Experimental Warning', () => {
   it('should not show warning with config from object', async () => {
     configFile.write(`
       module.exports = {
-        target: 'server'
+        images: {},
       }
     `)
     const { stderr } = await nextBuild(appDir, [], { stderr: true })
@@ -42,7 +41,6 @@ describe('Config Experimental Warning', () => {
   it('should show warning with config from object with experimental', async () => {
     configFile.write(`
       module.exports = {
-        target: 'server',
         experimental: {
           workerThreads: true
         }
@@ -57,7 +55,6 @@ describe('Config Experimental Warning', () => {
   it('should show warning with config from function with experimental', async () => {
     configFile.write(`
       module.exports = (phase) => ({
-        target: 'server',
         experimental: {
           workerThreads: true
         }
@@ -72,7 +69,6 @@ describe('Config Experimental Warning', () => {
   it('should not show warning with default value', async () => {
     configFile.write(`
       module.exports = (phase) => ({
-        target: 'server',
         experimental: {
           workerThreads: false
         }

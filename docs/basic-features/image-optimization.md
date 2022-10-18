@@ -193,7 +193,7 @@ This is the default for `<div>` elements but should be specified otherwise.
 
 ### Styling Examples
 
-For examples of the Image component used with the various styles, see the [Image component example app](https://image-component.nextjs.gallery).
+For examples of the Image component used with the various styles, see the [Image Component Demo](https://image-component.nextjs.gallery).
 
 ## Configuration
 
