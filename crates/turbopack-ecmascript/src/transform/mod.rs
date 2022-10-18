@@ -6,7 +6,7 @@ use swc_core::{
     common::{chain, util::take::Take, FileName, Mark, SourceMap},
     ecma::{
         ast::{Module, ModuleItem, Program},
-        preset_env::{self, Mode, Targets},
+        preset_env::{self, Targets},
         transforms::{
             base::{feature::FeatureFlag, helpers::inject_helpers, Assumptions},
             react::react,
@@ -89,9 +89,10 @@ impl EcmascriptInputTransform {
             }
             EcmascriptInputTransform::PresetEnv(env) => {
                 let versions = env.runtime_versions().await?;
+                println!("versions {:?}", versions);
                 let config = swc_core::ecma::preset_env::Config {
                     targets: Some(Targets::Versions(*versions)),
-                    mode: Some(Mode::Usage),
+                    mode: None, // Don't insert core-js polyfills
                     ..Default::default()
                 };
 

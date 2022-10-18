@@ -1,3 +1,3 @@
 class Foo {}
 
-console.log(Foo);
+console.log(Foo, [].includes("foo"));
