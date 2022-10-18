@@ -1,20 +1,18 @@
-(self.TURBOPACK = self.TURBOPACK || []).push(["[workspace]/crates/turbopack/tests/snapshot/integration/static/output/crates_turbopack_tests_snapshot_integration_static_input_index_38e64a.js", {
+(self.TURBOPACK = self.TURBOPACK || []).push(["[workspace]/crates/turbopack/tests/snapshot/integration/mono_transforms/output/62d1e_tests_snapshot_integration_mono_transforms_input_packages_app_index_58b2af.js", {
 
-"[project]/crates/turbopack/tests/snapshot/integration/static/input/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
+"[project]/crates/turbopack/tests/snapshot/integration/mono_transforms/input/packages/app/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
 
-var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$static$2f$input$2f$vercel$2e$svg__ = __turbopack_import__("[project]/crates/turbopack/tests/snapshot/integration/static/input/vercel.svg (static)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$mono_transforms$2f$input$2f$packages$2f$component$2f$index$2e$js__ = __turbopack_import__("[project]/crates/turbopack/tests/snapshot/integration/mono_transforms/input/packages/component/index.js (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$mono_transforms$2f$input$2f$node_modules$2f$third_party_component$2f$index$2e$js__ = __turbopack_import__("[project]/crates/turbopack/tests/snapshot/integration/mono_transforms/input/node_modules/third_party_component/index.js (ecmascript)");
 "__TURBOPACK__ecmascript__hoisting__location__";
 ;
-console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$static$2f$input$2f$vercel$2e$svg__["default"]);
+;
+console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$mono_transforms$2f$input$2f$packages$2f$component$2f$index$2e$js__["default"], __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$mono_transforms$2f$input$2f$node_modules$2f$third_party_component$2f$index$2e$js__["default"]);
 
-})()),
-"[project]/crates/turbopack/tests/snapshot/integration/static/input/vercel.svg (static)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
-
-__turbopack_export_value__("/crates/turbopack/tests/snapshot/integration/static/static/04cd41686148faf80b59f60e37c4f0ab.svg");
 })()),
 }, ({ loadedChunks, instantiateRuntimeModule }) => {
-    if(!(true && loadedChunks.has("[workspace]/crates/turbopack/tests/snapshot/integration/static/output/crates_turbopack_tests_snapshot_integration_static_input_index_3e87ec.js"))) return true;
-    instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/static/input/index.js (ecmascript)");
+    if(!(true && loadedChunks.has("[workspace]/crates/turbopack/tests/snapshot/integration/mono_transforms/output/62d1e_tests_snapshot_integration_mono_transforms_input_packages_app_index_92a88b.js") && loadedChunks.has("[workspace]/crates/turbopack/tests/snapshot/integration/mono_transforms/output/4c26b_third_party_component_index.js") && loadedChunks.has("[workspace]/crates/turbopack/tests/snapshot/integration/mono_transforms/output/62d1e_tests_snapshot_integration_mono_transforms_input_packages_component_index.js") && loadedChunks.has("[workspace]/crates/turbopack/tests/snapshot/integration/mono_transforms/output/4c26b_react_jsx-runtime.js"))) return true;
+    instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/mono_transforms/input/packages/app/index.js (ecmascript)");
 }]);
 (() => {
   // When a chunk is executed, it will either register itself with the current
@@ -817,4 +815,4 @@ __turbopack_export_value__("/crates/turbopack/tests/snapshot/integration/static/
 })();
 
 
-//# sourceMappingURL=crates_turbopack_tests_snapshot_integration_static_input_index_38e64a.js.caa2a16260ae9c94.map
+//# sourceMappingURL=62d1e_tests_snapshot_integration_mono_transforms_input_packages_app_index_58b2af.js.842bb8af45fc05ec.map

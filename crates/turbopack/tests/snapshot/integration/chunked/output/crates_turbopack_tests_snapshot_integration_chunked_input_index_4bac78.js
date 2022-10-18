@@ -1,4 +1,4 @@
-(self.TURBOPACK = self.TURBOPACK || []).push(["[workspace]/crates/turbopack/tests/snapshot/integration/chunked/output/crates_turbopack_tests_snapshot_integration_chunked_input_index_328ed1.js", {
+(self.TURBOPACK = self.TURBOPACK || []).push(["[workspace]/crates/turbopack/tests/snapshot/integration/chunked/output/crates_turbopack_tests_snapshot_integration_chunked_input_index_4bac78.js", {
 
 "[project]/crates/turbopack/tests/snapshot/integration/chunked/input/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
 
@@ -9,7 +9,7 @@ __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$
 
 })()),
 }, ({ loadedChunks, instantiateRuntimeModule }) => {
-    if(!(true && loadedChunks.has("[workspace]/crates/turbopack/tests/snapshot/integration/chunked/output/crates_turbopack_tests_snapshot_integration_chunked_input_index_255aa6.js") && loadedChunks.has("[workspace]/crates/turbopack/tests/snapshot/integration/chunked/output/e686c_foo_index.js"))) return true;
+    if(!(true && loadedChunks.has("[workspace]/crates/turbopack/tests/snapshot/integration/chunked/output/crates_turbopack_tests_snapshot_integration_chunked_input_index_83531f.js") && loadedChunks.has("[workspace]/crates/turbopack/tests/snapshot/integration/chunked/output/e686c_foo_index.js"))) return true;
     instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/chunked/input/index.js (ecmascript)");
 }]);
 (() => {
@@ -813,4 +813,4 @@ __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$
 })();
 
 
-//# sourceMappingURL=crates_turbopack_tests_snapshot_integration_chunked_input_index_328ed1.js.c2afc48f178d7986.map
+//# sourceMappingURL=crates_turbopack_tests_snapshot_integration_chunked_input_index_4bac78.js.c2afc48f178d7986.map

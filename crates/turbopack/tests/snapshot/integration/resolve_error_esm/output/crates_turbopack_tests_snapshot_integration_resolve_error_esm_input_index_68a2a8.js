@@ -1,29 +1,21 @@
-(self.TURBOPACK = self.TURBOPACK || []).push(["[workspace]/crates/turbopack/tests/snapshot/integration/css/output/crates_turbopack_tests_snapshot_integration_css_input_index_6bcd1b.js", {
+(self.TURBOPACK = self.TURBOPACK || []).push(["[workspace]/crates/turbopack/tests/snapshot/integration/resolve_error_esm/output/crates_turbopack_tests_snapshot_integration_resolve_error_esm_input_index_68a2a8.js", {
 
-"[project]/crates/turbopack/tests/snapshot/integration/css/input/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
+"[project]/crates/turbopack/tests/snapshot/integration/resolve_error_esm/input/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
 
-var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$css$2f$input$2f$node_modules$2f$foo$2f$style$2e$module$2e$css__ = __turbopack_import__("[project]/crates/turbopack/tests/snapshot/integration/css/input/node_modules/foo/style.module.css (css module)");
-var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$css$2f$input$2f$style$2e$module$2e$css__ = __turbopack_import__("[project]/crates/turbopack/tests/snapshot/integration/css/input/style.module.css (css module)");
+(()=>{
+    const e = new Error("Cannot find module 'does-not-exist/path'");
+    e.code = 'MODULE_NOT_FOUND';
+    throw e;
+})();
 "__TURBOPACK__ecmascript__hoisting__location__";
 ;
-;
-;
-;
-;
-console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$css$2f$input$2f$style$2e$module$2e$css__["default"], __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$css$2f$input$2f$node_modules$2f$foo$2f$style$2e$module$2e$css__["default"]);
-
-})()),
-"[project]/crates/turbopack/tests/snapshot/integration/css/input/style.module.css (css module)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
-
-__turbopack_export_value__({
-  "inner": "inner◽[project]/crates/turbopack/tests/snapshot/integration/css/input/style.module.css",
-  "module-style": "module-style◽[project]/crates/turbopack/tests/snapshot/integration/css/input/style.module.css",
-});
+console.log(dne);
+console.log({}[dne]);
 
 })()),
 }, ({ loadedChunks, instantiateRuntimeModule }) => {
-    if(!(true && loadedChunks.has("[workspace]/crates/turbopack/tests/snapshot/integration/css/output/crates_turbopack_tests_snapshot_integration_css_input_index_1b6fc8.js") && loadedChunks.has("[workspace]/crates/turbopack/tests/snapshot/integration/css/output/a05b1_foo_style.module.css.js"))) return true;
-    instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/css/input/index.js (ecmascript)");
+    if(!(true && loadedChunks.has("[workspace]/crates/turbopack/tests/snapshot/integration/resolve_error_esm/output/crates_turbopack_tests_snapshot_integration_resolve_error_esm_input_index_c28922.js"))) return true;
+    instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/resolve_error_esm/input/index.js (ecmascript)");
 }]);
 (() => {
   // When a chunk is executed, it will either register itself with the current
@@ -826,4 +818,4 @@ __turbopack_export_value__({
 })();
 
 
-//# sourceMappingURL=crates_turbopack_tests_snapshot_integration_css_input_index_6bcd1b.js.7c2617b5834079be.map
+//# sourceMappingURL=crates_turbopack_tests_snapshot_integration_resolve_error_esm_input_index_68a2a8.js.1cf37ac5daa5b01f.map
