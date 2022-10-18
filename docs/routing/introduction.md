@@ -47,19 +47,13 @@ function Home() {
   return (
     <ul>
       <li>
-        <Link href="/">
-          <a>Home</a>
-        </Link>
+        <Link href="/">Home</Link>
       </li>
       <li>
-        <Link href="/about">
-          <a>About Us</a>
-        </Link>
+        <Link href="/about">About Us</Link>
       </li>
       <li>
-        <Link href="/blog/hello-world">
-          <a>Blog Post</a>
-        </Link>
+        <Link href="/blog/hello-world">Blog Post</Link>
       </li>
     </ul>
   )
@@ -89,7 +83,7 @@ function Posts({ posts }) {
       {posts.map((post) => (
         <li key={post.id}>
           <Link href={`/blog/${encodeURIComponent(post.slug)}`}>
-            <a>{post.title}</a>
+            {post.title}
           </Link>
         </li>
       ))}
@@ -118,7 +112,7 @@ function Posts({ posts }) {
               query: { slug: post.slug },
             }}
           >
-            <a>{post.title}</a>
+            {post.title}
           </Link>
         </li>
       ))}

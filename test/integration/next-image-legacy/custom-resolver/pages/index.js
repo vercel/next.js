@@ -30,8 +30,8 @@ const Page = () => {
         width={300}
         height={400}
       />
-      <Link href="/client-side">
-        <a id="clientlink">Client Side</a>
+      <Link href="/client-side" id="clientlink">
+        Client Side
       </Link>
     </div>
   )

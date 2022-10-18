@@ -15,8 +15,8 @@ export default ({ slugs, time }) => {
     <>
       <p>Posts: {JSON.stringify(slugs)}</p>
       <span>time: {time}</span>
-      <Link href="/">
-        <a id="home">to home</a>
+      <Link href="/" id="home">
+        to home
       </Link>
     </>
   )
