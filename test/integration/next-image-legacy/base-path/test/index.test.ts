@@ -1,6 +1,5 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
 import {
   check,
   findPort,
@@ -16,7 +15,6 @@ import webdriver from 'next-webdriver'
 import { join } from 'path'
 
 const appDir = join(__dirname, '../')
-const nextConfig = join(appDir, 'next.config.js')
 
 let appPort
 let app
@@ -503,31 +501,5 @@ describe('Image Component basePath Tests', () => {
     afterAll(() => killApp(app))
 
     runTests('server')
-  })
-
-  describe.skip('serverless mode', () => {
-    let origConfig
-
-    beforeAll(async () => {
-      origConfig = await fs.readFile(nextConfig, 'utf8')
-      await fs.writeFile(
-        nextConfig,
-        `
-        module.exports = {
-          basePath: '/docs',
-          target: 'serverless'
-        }
-      `
-      )
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      await fs.writeFile(nextConfig, origConfig)
-      await killApp(app)
-    })
-
-    runTests('serverless')
   })
 })

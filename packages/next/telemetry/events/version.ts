@@ -91,7 +91,7 @@ export function eventCliSession(
     hasNowJson: event.hasNowJson,
     isCustomServer: event.isCustomServer,
     hasNextConfig: nextConfig.configOrigin !== 'default',
-    buildTarget: nextConfig.target === 'server' ? 'default' : nextConfig.target,
+    buildTarget: 'default',
     hasWebpackConfig: typeof nextConfig?.webpack === 'function',
     hasBabelConfig: hasBabelConfig(dir),
     imageEnabled: !!images,

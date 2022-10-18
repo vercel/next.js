@@ -48,7 +48,6 @@ import {
   FLIGHT_MANIFEST,
   REACT_LOADABLE_MANIFEST,
   ROUTES_MANIFEST,
-  SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
   SERVER_FILES_MANIFEST,
   STATIC_STATUS_PAGES,
@@ -64,7 +63,6 @@ import {
 import { getSortedRoutes, isDynamicRoute } from '../shared/lib/router/utils'
 import { __ApiPreviewProps } from '../server/api-utils'
 import loadConfig from '../server/config'
-import { isTargetLikeServerless } from '../server/utils'
 import { BuildManifest } from '../server/get-page-files'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { getPagePath } from '../server/require'
@@ -433,8 +431,6 @@ export default async function build(
         prefixText: `${Log.prefixes.info} Creating an optimized production build`,
       })
 
-      const isLikeServerless = isTargetLikeServerless(target)
-
       const pagesPaths = pagesDir
         ? await nextBuildSpan
             .traceChild('collect-pages')
@@ -531,7 +527,6 @@ export default async function build(
             pages: mappedPages,
             pagesDir,
             previewMode: previewProps,
-            target,
             rootDir: dir,
             rootPaths: mappedRootPaths,
             appDir,
@@ -807,10 +802,7 @@ export default async function build(
           )
         )
 
-      const serverDir = isLikeServerless
-        ? SERVERLESS_DIRECTORY
-        : SERVER_DIRECTORY
-      const manifestPath = path.join(distDir, serverDir, PAGES_MANIFEST)
+      const manifestPath = path.join(distDir, SERVER_DIRECTORY, PAGES_MANIFEST)
 
       const requiredServerFiles = nextBuildSpan
         .traceChild('generate-required-server-files')
@@ -846,9 +838,11 @@ export default async function build(
                 ]
               : []),
             REACT_LOADABLE_MANIFEST,
-            config.optimizeFonts ? path.join(serverDir, FONT_MANIFEST) : null,
+            config.optimizeFonts
+              ? path.join(SERVER_DIRECTORY, FONT_MANIFEST)
+              : null,
             BUILD_ID_FILE,
-            appDir ? path.join(serverDir, APP_PATHS_MANIFEST) : null,
+            appDir ? path.join(SERVER_DIRECTORY, APP_PATHS_MANIFEST) : null,
             ...(config.experimental.fontLoaders
               ? [
                   path.join(SERVER_DIRECTORY, FONT_LOADER_MANIFEST + '.js'),
@@ -924,60 +918,30 @@ export default async function build(
 
         // We run client and server compilation separately to optimize for memory usage
         await runWebpackSpan.traceAsyncFn(async () => {
-          // If we are under the serverless build, we will have to run the client
-          // compiler first because the server compiler depends on the manifest
-          // files that are created by the client compiler.
-          // Otherwise, we run the server compilers first and then the client
+          // Run the server compilers first and then the client
           // compiler to track the boundary of server/client components.
-
           let clientResult: SingleCompilerResult | null = null
-          let serverResult: SingleCompilerResult | null = null
-          let edgeServerResult: SingleCompilerResult | null = null
 
-          if (isLikeServerless) {
-            if (appDir) {
-              throw new Error('`appDir` is not supported in serverless mode.')
-            }
+          // During the server compilations, entries of client components will be
+          // injected to this set and then will be consumed by the client compiler.
+          injectedClientEntries.clear()
 
-            // Build client first
+          const serverResult = await runCompiler(configs[1], {
+            runWebpackSpan,
+          })
+          const edgeServerResult = configs[2]
+            ? await runCompiler(configs[2], { runWebpackSpan })
+            : null
+
+          // Only continue if there were no errors
+          if (!serverResult.errors.length && !edgeServerResult?.errors.length) {
+            injectedClientEntries.forEach((value, key) => {
+              ;(clientConfig.entry as webpack.EntryObject)[key] = value
+            })
+
             clientResult = await runCompiler(clientConfig, {
               runWebpackSpan,
             })
-
-            // Only continue if there were no errors
-            if (!clientResult.errors.length) {
-              serverResult = await runCompiler(configs[1], {
-                runWebpackSpan,
-              })
-              edgeServerResult = configs[2]
-                ? await runCompiler(configs[2], { runWebpackSpan })
-                : null
-            }
-          } else {
-            // During the server compilations, entries of client components will be
-            // injected to this set and then will be consumed by the client compiler.
-            injectedClientEntries.clear()
-
-            serverResult = await runCompiler(configs[1], {
-              runWebpackSpan,
-            })
-            edgeServerResult = configs[2]
-              ? await runCompiler(configs[2], { runWebpackSpan })
-              : null
-
-            // Only continue if there were no errors
-            if (
-              !serverResult.errors.length &&
-              !edgeServerResult?.errors.length
-            ) {
-              injectedClientEntries.forEach((value, key) => {
-                ;(clientConfig.entry as webpack.EntryObject)[key] = value
-              })
-
-              clientResult = await runCompiler(clientConfig, {
-                runWebpackSpan,
-              })
-            }
           }
 
           result = {
@@ -1120,7 +1084,7 @@ export default async function build(
       if (appDir) {
         appPathsManifest = JSON.parse(
           await promises.readFile(
-            path.join(distDir, serverDir, APP_PATHS_MANIFEST),
+            path.join(distDir, SERVER_DIRECTORY, APP_PATHS_MANIFEST),
             'utf8'
           )
         )
@@ -1209,7 +1173,6 @@ export default async function build(
               (await staticWorkers.hasCustomGetInitialProps(
                 '/_error',
                 distDir,
-                isLikeServerless,
                 runtimeEnvConfig,
                 false
               ))
@@ -1221,7 +1184,6 @@ export default async function build(
             staticWorkers.isPageStatic({
               page: '/_error',
               distDir,
-              serverless: isLikeServerless,
               configFileName,
               runtimeEnvConfig,
               httpAgentOptions: config.httpAgentOptions,
@@ -1232,15 +1194,12 @@ export default async function build(
             })
         )
 
-        // we don't output _app in serverless mode so use _app export
-        // from _error instead
-        const appPageToCheck = isLikeServerless ? '/_error' : '/_app'
+        const appPageToCheck = '/_app'
 
         const customAppGetInitialPropsPromise =
           staticWorkers.hasCustomGetInitialProps(
             appPageToCheck,
             distDir,
-            isLikeServerless,
             runtimeEnvConfig,
             true
           )
@@ -1248,7 +1207,6 @@ export default async function build(
         const namedExportsPromise = staticWorkers.getNamedExports(
           appPageToCheck,
           distDir,
-          isLikeServerless,
           runtimeEnvConfig
         )
 
@@ -1352,7 +1310,7 @@ export default async function build(
                     if (pageRuntime === SERVER_RUNTIME.edge) {
                       const manifest = require(join(
                         distDir,
-                        serverDir,
+                        SERVER_DIRECTORY,
                         MIDDLEWARE_MANIFEST
                       ))
                       const manifestKey =
@@ -1369,7 +1327,6 @@ export default async function build(
                           page,
                           originalAppPath,
                           distDir,
-                          serverless: isLikeServerless,
                           configFileName,
                           runtimeEnvConfig,
                           httpAgentOptions: config.httpAgentOptions,
@@ -1931,7 +1888,7 @@ export default async function build(
 
       const middlewareManifest: MiddlewareManifest = JSON.parse(
         await promises.readFile(
-          path.join(distDir, serverDir, MIDDLEWARE_MANIFEST),
+          path.join(distDir, SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
           'utf8'
         )
       )
@@ -2145,7 +2102,7 @@ export default async function build(
 
           // remove server bundles that were exported
           for (const page of staticPages) {
-            const serverBundle = getPagePath(page, distDir, isLikeServerless)
+            const serverBundle = getPagePath(page, distDir)
             await promises.unlink(serverBundle)
           }
 
@@ -2214,15 +2171,11 @@ export default async function build(
               .traceAsyncFn(async () => {
                 file = `${file}.${ext}`
                 const orig = path.join(exportOptions.outdir, file)
-                const pagePath = getPagePath(
-                  originPage,
-                  distDir,
-                  isLikeServerless
-                )
+                const pagePath = getPagePath(originPage, distDir)
 
                 const relativeDest = path
                   .relative(
-                    path.join(distDir, serverDir),
+                    path.join(distDir, SERVER_DIRECTORY),
                     path.join(
                       path.join(
                         pagePath,
@@ -2253,7 +2206,7 @@ export default async function build(
                   pagesManifest[page] = relativeDest
                 }
 
-                const dest = path.join(distDir, serverDir, relativeDest)
+                const dest = path.join(distDir, SERVER_DIRECTORY, relativeDest)
                 const isNotFound = ssgNotFoundPaths.includes(page)
 
                 // for SSG files with i18n the non-prerendered variants are
@@ -2299,7 +2252,7 @@ export default async function build(
                     )
                     const updatedDest = path.join(
                       distDir,
-                      serverDir,
+                      SERVER_DIRECTORY,
                       updatedRelativeDest
                     )
 
@@ -2651,7 +2604,7 @@ export default async function build(
       })
 
       await nextBuildSpan.traceChild('print-tree-view').traceAsyncFn(() =>
-        printTreeView(pageKeys, allPageInfos, isLikeServerless, {
+        printTreeView(pageKeys, allPageInfos, {
           distPath: distDir,
           buildId: buildId,
           pagesDir,
