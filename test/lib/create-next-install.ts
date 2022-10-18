@@ -1,3 +1,5 @@
+import { PackageJson } from './next-modes/base'
+
 const os = require('os')
 const path = require('path')
 const execa = require('execa')
@@ -7,21 +9,22 @@ const { randomBytes } = require('crypto')
 const { linkPackages } =
   require('../../.github/actions/next-stats-action/src/prepare/repo-setup')()
 
-async function createNextInstall(
+export async function createNextInstall(
   dependencies,
   installCommand,
-  packageJson = {},
-  packageLockPath = ''
+  packageJson: PackageJson = {},
+  packageLockPath = '',
+  dirSuffix = ''
 ) {
   const tmpDir = await fs.realpath(process.env.NEXT_TEST_DIR || os.tmpdir())
   const origRepoDir = path.join(__dirname, '../../')
   const installDir = path.join(
     tmpDir,
-    `next-install-${randomBytes(32).toString('hex')}`
+    `next-install-${randomBytes(32).toString('hex')}${dirSuffix}`
   )
   const tmpRepoDir = path.join(
     tmpDir,
-    `next-repo-${randomBytes(32).toString('hex')}`
+    `next-repo-${randomBytes(32).toString('hex')}${dirSuffix}`
   )
 
   // ensure swc binary is present in the native folder if
@@ -115,8 +118,4 @@ async function createNextInstall(
 
   await fs.remove(tmpRepoDir)
   return installDir
-}
-
-module.exports = {
-  createNextInstall,
 }
