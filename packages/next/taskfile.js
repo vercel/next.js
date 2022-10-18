@@ -7,8 +7,6 @@ const glob = require('glob')
 // eslint-disable-next-line import/no-extraneous-dependencies
 const fs = require('fs-extra')
 // eslint-disable-next-line import/no-extraneous-dependencies
-const escapeRegex = require('escape-string-regexp')
-// eslint-disable-next-line import/no-extraneous-dependencies
 const resolveFrom = require('resolve-from')
 
 export async function next__polyfill_nomodule(task, opts) {
@@ -98,26 +96,6 @@ export async function ncc_node_html_parser(task, opts) {
     )
     .ncc({ packageName: 'node-html-parser', externals, target: 'es5' })
     .target('compiled/node-html-parser')
-
-  const filePath = join(__dirname, 'compiled/node-html-parser/index.js')
-  const content = fs.readFileSync(filePath, 'utf8')
-  // remove AMD define branch as this forces the module to not
-  // be treated as commonjs in serverless mode
-  // TODO: this can be removed after serverless target is removed
-  fs.writeFileSync(
-    filePath,
-    content.replace(
-      new RegExp(
-        escapeRegex(
-          'if(typeof define=="function"&&typeof define.amd=="object"&&define.amd){define((function(){return '
-        ) +
-          '\\w' +
-          escapeRegex('}))}else '),
-        'g'
-      ),
-      ''
-    )
-  )
 }
 
 // eslint-disable-next-line camelcase

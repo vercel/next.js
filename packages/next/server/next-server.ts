@@ -43,7 +43,6 @@ import {
   CLIENT_PUBLIC_FILES_PATH,
   APP_PATHS_MANIFEST,
   FLIGHT_SERVER_CSS_MANIFEST,
-  SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
   FONT_LOADER_MANIFEST,
 } from '../shared/lib/constants'
@@ -71,7 +70,6 @@ import loadRequireHook from '../build/webpack/require-hook'
 import BaseServer, {
   Options,
   FindComponentsResult,
-  prepareServerlessUrl,
   MiddlewareRoutingItem,
   RoutingItem,
   NoFallbackError,
@@ -96,7 +94,7 @@ import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
 import { getClonableBody } from './body-streams'
 import { checkIsManualRevalidate } from './api-utils'
-import { shouldUseReactRoot, isTargetLikeServerless } from './utils'
+import { shouldUseReactRoot } from './utils'
 import ResponseCache from './response-cache'
 import { IncrementalCache } from './lib/incremental-cache'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
@@ -251,14 +249,12 @@ export default class NextNodeServer extends BaseServer {
       loadComponents({
         distDir: this.distDir,
         pathname: '/_document',
-        serverless: this._isLikeServerless,
         hasServerComponents: false,
         isAppPath: false,
       }).catch(() => {})
       loadComponents({
         distDir: this.distDir,
         pathname: '/_app',
-        serverless: this._isLikeServerless,
         hasServerComponents: false,
         isAppPath: false,
       }).catch(() => {})
@@ -792,14 +788,6 @@ export default class NextNodeServer extends BaseServer {
     delete query.__nextLocale
     delete query.__nextDefaultLocale
 
-    if (!this.renderOpts.dev && this._isLikeServerless) {
-      if (typeof pageModule.default === 'function') {
-        prepareServerlessUrl(req, query)
-        await pageModule.default(req, res)
-        return true
-      }
-    }
-
     await apiResolver(
       (req as NodeNextRequest).originalRequest,
       (res as NodeNextResponse).originalResponse,
@@ -889,14 +877,7 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getPagePath(pathname: string, locales?: string[]): string {
-    return getPagePath(
-      pathname,
-      this.distDir,
-      this._isLikeServerless,
-      this.renderOpts.dev,
-      locales,
-      this.hasAppDir
-    )
+    return getPagePath(pathname, this.distDir, locales, this.hasAppDir)
   }
 
   protected async renderPageComponent(
@@ -965,7 +946,6 @@ export default class NextNodeServer extends BaseServer {
         const components = await loadComponents({
           distDir: this.distDir,
           pathname: pagePath,
-          serverless: !this.renderOpts.dev && this._isLikeServerless,
           hasServerComponents: !!this.renderOpts.serverComponents,
           isAppPath,
         })
@@ -1007,7 +987,7 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getFontManifest(): FontManifest {
-    return requireFontManifest(this.distDir, this._isLikeServerless)
+    return requireFontManifest(this.distDir)
   }
 
   protected getServerComponentManifest() {
@@ -2163,14 +2143,7 @@ export default class NextNodeServer extends BaseServer {
     return result
   }
 
-  protected get _isLikeServerless(): boolean {
-    return isTargetLikeServerless(this.nextConfig.target)
-  }
-
   protected get serverDistDir() {
-    return join(
-      this.distDir,
-      this._isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
-    )
+    return join(this.distDir, SERVER_DIRECTORY)
   }
 }
