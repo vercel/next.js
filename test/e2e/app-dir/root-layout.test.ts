@@ -75,6 +75,41 @@ describe.skip('app-dir root layout', () => {
           Missing required root layout tags: html, head, body"
         `)
       })
+
+      it('should error when missing layout', async () => {
+        const browser = await webdriver(next.url, '/missing-layout', {
+          waitHydration: false,
+        })
+        const rootLayoutContent = await next.readFile(
+          'app/(required-tags)/has-tags/layout.js'
+        )
+
+        expect(await hasRedbox(browser, true)).toBe(true)
+        expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
+          "Please make sure to include the following tags in your root layout: <html>, <head>, <body>.
+
+          Missing required root layout tags: html, head, body"
+        `)
+
+        // Recover when adding layout
+        await next.patchFile(
+          'app/(required-tags)/missing-layout/layout.js',
+          rootLayoutContent
+        )
+        expect(
+          await browser.waitForElementByCss('#missing-layout-page').text()
+        ).toBe('Missing layout')
+        expect(await hasRedbox(browser, false)).toBe(false)
+
+        // Show error when removing layout
+        await next.deleteFile('app/(required-tags)/missing-layout/layout.js')
+        expect(await hasRedbox(browser, true)).toBe(true)
+        expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
+          "Please make sure to include the following tags in your root layout: <html>, <head>, <body>.
+
+          Missing required root layout tags: html, head, body"
+        `)
+      })
     })
   }
 

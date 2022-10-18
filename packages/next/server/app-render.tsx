@@ -7,7 +7,7 @@ import type { FontLoaderManifest } from '../build/webpack/plugins/font-loader-ma
 // @ts-ignore
 import React, { experimental_use as use } from 'react'
 
-import { ParsedUrlQuery } from 'querystring'
+import { ParsedUrlQuery, stringify as stringifyQuery } from 'querystring'
 import { NextParsedUrlQuery } from './request-meta'
 import RenderResult from './render-result'
 import {
@@ -253,6 +253,18 @@ function patchFetch(ComponentMod: any) {
 
 interface FlightResponseRef {
   current: Promise<JSX.Element> | null
+}
+
+function hasRootLayout([, parallelRoutes, { layout }]: LoaderTree): boolean {
+  const isLayout = typeof layout !== 'undefined'
+  if (isLayout) {
+    return true
+  }
+  // We can't assume it's `parallelRoutes.children` here in case the root layout is `app/@something/layout.js`
+  // But it's not possible to be more than one parallelRoutes before the root layout is found
+  const child = Object.values(parallelRoutes)[0]
+  if (!child) return false
+  return hasRootLayout(child)
 }
 
 /**
@@ -1304,6 +1316,24 @@ export async function renderToHTMLOrFlight(
       ).pipeThrough(createBufferedTransformStream())
 
       return new FlightRenderResult(readable)
+    }
+
+    // Force a full page navigation in dev if root layout is missing, e.g. if it is removed
+    if (dev && isFlight && !hasRootLayout(loaderTree)) {
+      stripInternalQueries(query)
+      const search = stringifyQuery(query)
+
+      // Empty so that the client-side router will do a full page navigation.
+      const flightData: FlightData = req.url! + (search ? `?${search}` : '')
+      return new FlightRenderResult(
+        ComponentMod.renderToReadableStream(
+          flightData,
+          serverComponentManifest,
+          {
+            onError: flightDataRendererErrorHandler,
+          }
+        ).pipeThrough(createBufferedTransformStream())
+      )
     }
 
     if (isFlight && !isStaticGeneration) {
