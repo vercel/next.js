@@ -520,7 +520,7 @@ function isNavigatingToNewRootLayout(
 
   // Current tree root layout found
   if (currentTree[4]) {
-    // Is navigating if to new root layout if next tree doesn't have its root layout in the same segment
+    // Is navigating to new root layout if next tree doesn't have its root layout in the same segment
     return !nextTree[4]
   }
   // Next tree has root layout where current tree doesn't
