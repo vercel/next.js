@@ -105,10 +105,10 @@ if (shouldUseReactRoot) {
 
 import { renderToHTMLOrFlight as appRenderToHTMLOrFlight } from './app-render'
 
-export * from './base-server'
-
 // require hook for custom server
 loadRequireHook()
+
+export * from './base-server'
 
 type ExpressMiddleware = (
   req: IncomingMessage,

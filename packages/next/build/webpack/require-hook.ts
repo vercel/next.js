@@ -60,6 +60,10 @@ export function overrideBuiltInReactPackages() {
       require.resolve('next/dist/compiled/react-dom/server-rendering-stub'),
     ],
     [
+      'react-dom/client',
+      require.resolve('next/dist/compiled/react-dom/client'),
+    ],
+    [
       'react-dom/server',
       require.resolve('next/dist/compiled/react-dom/server'),
     ],
