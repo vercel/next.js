@@ -1115,7 +1115,7 @@ export async function renderToHTMLOrFlight(
                 )
               })}
               {stylesheets
-                ? stylesheets.map((href) => (
+                ? stylesheets.map((href, index) => (
                     <link
                       rel="stylesheet"
                       href={`${assetPrefix}/_next/${href}${cacheBustingUrlSuffix}`}
@@ -1124,7 +1124,7 @@ export async function renderToHTMLOrFlight(
                       // https://github.com/facebook/react/pull/25060
                       // @ts-ignore
                       precedence="high"
-                      key={href}
+                      key={index}
                     />
                   ))
                 : null}
