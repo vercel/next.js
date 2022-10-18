@@ -1,13 +1,24 @@
-(self.TURBOPACK = self.TURBOPACK || []).push(["[workspace]/crates/turbopack/tests/snapshot/integration/example/output/crates_turbopack_tests_snapshot_integration_example_input_index_044eb4.js", {
+(self.TURBOPACK = self.TURBOPACK || []).push(["[workspace]/crates/turbopack/tests/snapshot/integration/preset_env/output/crates_turbopack_tests_snapshot_integration_preset_env_input_index_272dd2.js", {
 
-"[project]/crates/turbopack/tests/snapshot/integration/example/input/index.js (ecmascript)": (function({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, m: module, e: exports }) { !function() {
+"[project]/crates/turbopack/tests/snapshot/integration/preset_env/input/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
 
-console.log("hello world");
+(()=>{
+    const e = new Error("Cannot find module '@swc/helpers/src/_class_call_check.mjs'");
+    e.code = 'MODULE_NOT_FOUND';
+    throw e;
+})();
+"__TURBOPACK__ecmascript__hoisting__location__";
+;
+var Foo = function Foo() {
+    "use strict";
+    _class_call_check(this, Foo);
+};
+console.log(Foo, [].includes("foo"));
 
-}.call(this) }),
+})()),
 }, ({ loadedChunks, instantiateRuntimeModule }) => {
-    if(!(true && loadedChunks.has("[workspace]/crates/turbopack/tests/snapshot/integration/example/output/crates_turbopack_tests_snapshot_integration_example_input_index_8356e6.js"))) return true;
-    instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/example/input/index.js (ecmascript)");
+    if(!(true && loadedChunks.has("[workspace]/crates/turbopack/tests/snapshot/integration/preset_env/output/crates_turbopack_tests_snapshot_integration_preset_env_input_index_6040c1.js"))) return true;
+    instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/preset_env/input/index.js (ecmascript)");
 }]);
 (() => {
   // When a chunk is executed, it will either register itself with the current
@@ -1005,4 +1016,4 @@ console.log("hello world");
 })();
 
 
-//# sourceMappingURL=crates_turbopack_tests_snapshot_integration_example_input_index_044eb4.js.93f5da801f51c759.map
+//# sourceMappingURL=crates_turbopack_tests_snapshot_integration_preset_env_input_index_272dd2.js.560e25ffcad55eab.map

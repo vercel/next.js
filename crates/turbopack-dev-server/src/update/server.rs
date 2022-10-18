@@ -5,44 +5,44 @@ use futures::{
 };
 use hyper::upgrade::Upgraded;
 use hyper_tungstenite::{tungstenite::Message, HyperWebsocket, WebSocketStream};
-use serde::{Deserialize, Serialize};
 use tokio::select;
 use turbo_tasks::TurboTasksApi;
 use turbopack_core::version::Update;
 
-use super::stream::UpdateStream;
-use crate::{source::ContentSourceResult, GetContentSource};
+use super::{
+    protocol::{ClientMessage, ClientUpdateInstruction, ClientUpdateInstructionType},
+    stream::UpdateStream,
+};
+use crate::{source::ContentSourceResult, SourceProvider};
 
 /// A server that listens for updates and sends them to connected clients.
-pub(crate) struct UpdateServer<S: GetContentSource> {
-    ws: Option<HyperWebsocket>,
+pub(crate) struct UpdateServer<P: SourceProvider> {
     streams: FuturesUnordered<StreamFuture<UpdateStream>>,
-    get_source: S,
+    source_provider: P,
 }
 
-impl<S: GetContentSource> UpdateServer<S> {
+impl<P: SourceProvider> UpdateServer<P> {
     /// Create a new update server with the given websocket and content source.
-    pub fn new(ws: HyperWebsocket, source: S) -> Self {
+    pub fn new(source_provider: P) -> Self {
         Self {
-            ws: Some(ws),
             streams: FuturesUnordered::new(),
-            get_source: source,
+            source_provider,
         }
     }
 
     /// Run the update server loop.
-    pub fn run(self, tt: &dyn TurboTasksApi) {
+    pub fn run(self, tt: &dyn TurboTasksApi, ws: HyperWebsocket) {
         tt.run_once_process(Box::pin(async move {
-            if let Err(err) = self.run_internal().await {
-                println!("[UpdateServer]: error {}", err);
+            if let Err(err) = self.run_internal(ws).await {
+                println!("[UpdateServer]: error {:#}", err);
             }
             Ok(())
         }));
     }
 
-    async fn run_internal(mut self) -> Result<()> {
-        let source = (self.get_source)();
-        let mut client: UpdateClient = self.ws.take().unwrap().await?.into();
+    async fn run_internal(mut self, ws: HyperWebsocket) -> Result<()> {
+        let source = self.source_provider.get_source();
+        let mut client: UpdateClient = ws.await?.into();
 
         // TODO(alexkirsz) To avoid sending an empty update in the beginning, skip the
         // first update. Note that the first update *may not* be empty, but since we
@@ -50,17 +50,17 @@ impl<S: GetContentSource> UpdateServer<S> {
         loop {
             select! {
                 message = client.recv() => {
-                    if let Some(message) = message? {
-                        let content = source.get_by_id(&message.id);
+                    if let Some(ClientMessage::Subscribe { chunk_id }) = message? {
+                        let content = source.get_by_id(&chunk_id);
                         match *content.await? {
                             ContentSourceResult::NotFound => {
                                 // Client requested a non-existing asset
                                 // It might be removed in meantime, reload client
                                 // TODO add special instructions for removed assets to handled it in a better way
-                                client.send_update(&message.id, ClientUpdateInstructionType::Restart).await?;
+                                client.send_update(&chunk_id, ClientUpdateInstructionType::Restart).await?;
                             },
                             ContentSourceResult::Static(content) => {
-                                let stream = UpdateStream::new(message.id, content).await?;
+                                let stream = UpdateStream::new(chunk_id, content).await?;
                                 self.add_stream(stream);
                             },
                             ContentSourceResult::NeedData{ .. } => {
@@ -75,12 +75,12 @@ impl<S: GetContentSource> UpdateServer<S> {
                     match &*update {
                         Update::Partial(partial) => {
                             let partial_instruction = partial.instruction.await?;
-                            client.send_update(stream.id(), ClientUpdateInstructionType::Partial {
+                            client.send_update(stream.chunk_id(), ClientUpdateInstructionType::Partial {
                                 instruction: partial_instruction.as_ref(),
                             }).await?;
                         }
                         Update::Total(_total) => {
-                            client.send_update(stream.id(), ClientUpdateInstructionType::Restart).await?;
+                            client.send_update(stream.chunk_id(), ClientUpdateInstructionType::Restart).await?;
                         }
                         Update::None => {}
                     }
@@ -117,10 +117,10 @@ impl UpdateClient {
 
     async fn send_update(
         &mut self,
-        id: &str,
-        type_: ClientUpdateInstructionType<'_>,
+        chunk_id: &str,
+        ty: ClientUpdateInstructionType<'_>,
     ) -> Result<()> {
-        let instruction = ClientUpdateInstruction { id, type_ };
+        let instruction = ClientUpdateInstruction { chunk_id, ty };
         self.ws
             .send(Message::text(serde_json::to_string(&instruction)?))
             .await?;
@@ -132,24 +132,4 @@ impl From<WebSocketStream<Upgraded>> for UpdateClient {
     fn from(ws: WebSocketStream<Upgraded>) -> Self {
         Self { ws }
     }
-}
-
-#[derive(Deserialize)]
-#[serde(transparent)]
-pub(super) struct ClientMessage {
-    pub(super) id: String,
-}
-
-#[derive(Serialize)]
-pub(super) struct ClientUpdateInstruction<'a> {
-    pub(super) id: &'a str,
-    #[serde(flatten, rename = "type")]
-    pub(super) type_: ClientUpdateInstructionType<'a>,
-}
-
-#[derive(Serialize)]
-#[serde(tag = "type", rename_all = "lowercase")]
-pub(super) enum ClientUpdateInstructionType<'a> {
-    Restart,
-    Partial { instruction: &'a str },
 }

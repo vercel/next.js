@@ -11,14 +11,8 @@ function subscribeToChunkUpdates(chunkId) {
 function onSocketConnected(connectedSocket) {
   socket = connectedSocket;
 
-  let queued = globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS;
-  globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS = {
-    push: addChunkUpdateListener,
-  };
-  if (Array.isArray(queued)) {
-    for (const job of queued) {
-      addChunkUpdateListener(job);
-    }
+  for (const chunkId of chunkUpdateCallbacks.keys()) {
+    subscribeToChunkUpdates(chunkId);
   }
 
   socket.onmessage = (event) => {
@@ -41,7 +35,9 @@ function addChunkUpdateListener([chunkId, callback]) {
   if (!callbacks) {
     callbacks = [callback];
     chunkUpdateCallbacks.set(chunkId, callbacks);
-    subscribeToChunkUpdates(chunkId);
+    if (socket) {
+      subscribeToChunkUpdates(chunkId);
+    }
   } else {
     callbacks.push(callback);
   }
@@ -99,7 +95,15 @@ if (typeof WebSocket !== "undefined") {
   };
 }
 
-globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS =
-  globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS || [];
+const queued = globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS;
+if (queued != null && !Array.isArray(queued)) {
+  throw new Error("A separate HMR handler was already registered");
+}
+globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS = { push: addChunkUpdateListener };
+if (Array.isArray(queued)) {
+  for (const job of queued) {
+    addChunkUpdateListener(job);
+  }
+}
 
 subscribeToInitialCssChunksUpdates();

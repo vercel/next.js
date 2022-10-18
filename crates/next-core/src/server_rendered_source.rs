@@ -349,15 +349,16 @@ impl NodeRenderer for SsrRenderer {
     fn module(&self) -> EcmascriptModuleAssetVc {
         EcmascriptModuleAssetVc::new(
             VirtualAssetVc::new(
-                self.entry_asset.path().join("server-renderer.js"),
-                next_js_file("entry/server-renderer.js").into(),
+                self.entry_asset.path().join("server-renderer.tsx"),
+                next_js_file("entry/server-renderer.tsx").into(),
             )
             .into(),
             self.context,
-            Value::new(EcmascriptModuleAssetType::Ecmascript),
-            EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::React {
-                refresh: false,
-            }]),
+            Value::new(EcmascriptModuleAssetType::Typescript),
+            EcmascriptInputTransformsVc::cell(vec![
+                EcmascriptInputTransform::TypeScript,
+                EcmascriptInputTransform::React { refresh: false },
+            ]),
             self.context.environment(),
         )
     }

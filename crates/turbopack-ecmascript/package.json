@@ -1,7 +1,0 @@
-{
-  "name": "@vercel/turbopack-runtime",
-  "version": "0.0.0",
-  "description": "turbopack runtime",
-  "license": "UNLICENSED",
-  "private": true
-}

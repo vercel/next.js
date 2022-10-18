@@ -1,0 +1,32 @@
+{
+  "compilerOptions": {
+    // type checking
+    "strict": false,
+    "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true,
+
+    // interop constraints
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+
+    // js support
+    "allowJs": true,
+    "checkJs": true,
+
+    // environment
+    "jsx": "react-jsx",
+    "lib": ["ESNext", "DOM"],
+    "target": "esnext",
+
+    // modules
+    "baseUrl": ".",
+    "module": "esnext",
+    "moduleResolution": "node",
+    "types": ["node"],
+
+    // emit
+    "noEmit": true,
+    "stripInternal": true
+  },
+  "include": ["src", "types"]
+}

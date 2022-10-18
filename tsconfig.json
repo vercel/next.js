@@ -13,5 +13,5 @@
       "@vercel/webpack-nft": ["webpack-nmt/src/index.ts"]
     }
   },
-  "exclude": ["node_modules", "crates", ".yarn", "target"]
+  "exclude": ["node_modules", "target"]
 }

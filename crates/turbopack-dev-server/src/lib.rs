@@ -37,7 +37,19 @@ use self::{
 };
 use crate::source::{ContentSourceData, ContentSourceResult, HeaderValue};
 
-pub trait GetContentSource = Fn() -> ContentSourceVc + Send + Clone + 'static;
+pub trait SourceProvider: Send + Clone + 'static {
+    /// must call a turbo-tasks function internally
+    fn get_source(&self) -> ContentSourceVc;
+}
+
+impl<T> SourceProvider for T
+where
+    T: Fn() -> ContentSourceVc + Send + Clone + 'static,
+{
+    fn get_source(&self) -> ContentSourceVc {
+        self()
+    }
+}
 
 #[derive(TraceRawVcs)]
 pub struct DevServer {
@@ -129,30 +141,39 @@ async fn process_request_with_content_source(
 }
 
 impl DevServer {
-    /// [get_source] argument must be from a single turbo-tasks function call
-    pub fn listen<S: GetContentSource>(
+    pub fn listen(
         turbo_tasks: Arc<dyn TurboTasksApi>,
-        get_source: S,
+        source_provider: impl SourceProvider,
         addr: SocketAddr,
         console_ui: Arc<ConsoleUi>,
     ) -> Self {
         let make_svc = make_service_fn(move |_| {
             let tt = turbo_tasks.clone();
-            let get_source = get_source.clone();
+            let source_provider = source_provider.clone();
             let console_ui = console_ui.clone();
             async move {
                 let handler = move |request: Request<Body>| {
                     let console_ui = console_ui.clone();
                     let start = Instant::now();
                     let tt = tt.clone();
-                    let get_source = get_source.clone();
+                    let source_provider = source_provider.clone();
                     let future = async move {
                         if hyper_tungstenite::is_upgrade_request(&request) {
-                            let (response, websocket) = hyper_tungstenite::upgrade(request, None)?;
-                            let update_server = UpdateServer::new(websocket, get_source);
-                            update_server.run(&*tt);
-                            return Ok(response);
+                            let uri = request.uri();
+                            let path = uri.path();
+
+                            if path == "/turbopack-hmr" {
+                                let (response, websocket) =
+                                    hyper_tungstenite::upgrade(request, None)?;
+                                let update_server = UpdateServer::new(source_provider);
+                                update_server.run(&*tt, websocket);
+                                return Ok(response);
+                            }
+
+                            println!("[404] {} (WebSocket)", path);
+                            return Ok(Response::builder().status(404).body(Body::empty())?);
                         }
+
                         let (tx, rx) = tokio::sync::oneshot::channel();
                         let task_id = tt.run_once(Box::pin(async move {
                             let console_ui = (*console_ui).clone().cell();
@@ -161,7 +182,7 @@ impl DevServer {
                             // Remove leading slash.
                             let path = &path[1..];
                             let asset_path = urlencoding::decode(path)?;
-                            let source = get_source();
+                            let source = source_provider.get_source();
                             handle_issues(source, path, "get source", console_ui).await?;
                             let resolved_source = source.resolve_strongly_consistent().await?;
                             let response = process_request_with_content_source(
@@ -198,7 +219,11 @@ impl DevServer {
                         match future.await {
                             Ok(r) => Ok::<_, hyper::http::Error>(r),
                             Err(e) => {
-                                println!("[500] {:#} ({})", e, FormatDuration(start.elapsed()));
+                                println!(
+                                    "[500] error: {:?} ({})",
+                                    e,
+                                    FormatDuration(start.elapsed())
+                                );
                                 Ok(Response::builder()
                                     .status(500)
                                     .body(Body::from(format!("{:?}", e,)))?)

@@ -601,7 +601,7 @@ impl EcmascriptChunkContentVc {
         }
         code += "]);\n";
         if this.evaluate.is_some() {
-            let runtime_code = embed_file!("js/runtime.js").await?;
+            let runtime_code = embed_file!("js/src/runtime.js").await?;
             let runtime_code = match &*runtime_code {
                 FileContent::NotFound => return Err(anyhow!("runtime code is not found")),
                 FileContent::Content(file) => String::from_utf8(file.content().to_vec())

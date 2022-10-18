@@ -1,13 +1,20 @@
-(self.TURBOPACK = self.TURBOPACK || []).push(["[workspace]/crates/turbopack/tests/snapshot/integration/example/output/crates_turbopack_tests_snapshot_integration_example_input_index_044eb4.js", {
+(self.TURBOPACK = self.TURBOPACK || []).push(["[workspace]/crates/turbopack/tests/snapshot/integration/static/output/crates_turbopack_tests_snapshot_integration_static_input_index_a0a0c3.js", {
 
-"[project]/crates/turbopack/tests/snapshot/integration/example/input/index.js (ecmascript)": (function({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, m: module, e: exports }) { !function() {
+"[project]/crates/turbopack/tests/snapshot/integration/static/input/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
 
-console.log("hello world");
+var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$static$2f$input$2f$vercel$2e$svg__ = __turbopack_import__("[project]/crates/turbopack/tests/snapshot/integration/static/input/vercel.svg (static)");
+"__TURBOPACK__ecmascript__hoisting__location__";
+;
+console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$static$2f$input$2f$vercel$2e$svg__["default"]);
 
-}.call(this) }),
+})()),
+"[project]/crates/turbopack/tests/snapshot/integration/static/input/vercel.svg (static)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
+
+__turbopack_export_value__("/crates/turbopack/tests/snapshot/integration/static/static/04cd41686148faf80b59f60e37c4f0ab.svg");
+})()),
 }, ({ loadedChunks, instantiateRuntimeModule }) => {
-    if(!(true && loadedChunks.has("[workspace]/crates/turbopack/tests/snapshot/integration/example/output/crates_turbopack_tests_snapshot_integration_example_input_index_8356e6.js"))) return true;
-    instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/example/input/index.js (ecmascript)");
+    if(!(true && loadedChunks.has("[workspace]/crates/turbopack/tests/snapshot/integration/static/output/crates_turbopack_tests_snapshot_integration_static_input_index_2918d8.js"))) return true;
+    instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/static/input/index.js (ecmascript)");
 }]);
 (() => {
   // When a chunk is executed, it will either register itself with the current
@@ -1005,4 +1012,4 @@ console.log("hello world");
 })();
 
 
-//# sourceMappingURL=crates_turbopack_tests_snapshot_integration_example_input_index_044eb4.js.93f5da801f51c759.map
+//# sourceMappingURL=crates_turbopack_tests_snapshot_integration_static_input_index_a0a0c3.js.caa2a16260ae9c94.map

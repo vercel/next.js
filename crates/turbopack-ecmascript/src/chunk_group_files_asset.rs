@@ -124,9 +124,13 @@ impl EcmascriptChunkItem for ChunkGroupFilesChunkItem {
         let mut data = Vec::new();
         let base_path = self.inner.await?.base_path.await?;
         for chunk in chunks.await?.iter() {
-            let path = &*chunk.path().await?;
-            if let Some(p) = base_path.get_path_to(path) {
-                data.push(Value::String(p.to_string()));
+            let chunk_id = chunk.path().to_string().await?;
+            let path = chunk.path().await?;
+            if let Some(p) = base_path.get_path_to(&path) {
+                data.push(serde_json::json!({
+                    "path": p,
+                    "chunkId": chunk_id,
+                }));
             }
         }
         Ok(EcmascriptChunkItemContent {

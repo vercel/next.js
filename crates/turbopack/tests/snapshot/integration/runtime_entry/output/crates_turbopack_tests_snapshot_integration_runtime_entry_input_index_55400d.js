@@ -17,25 +17,65 @@ console.log("hello world");
   // When the runtime executes, it will pick up and register all pending chunks,
   // and replace the list of pending chunks with itself so later chunks can
   // register directly with it.
+
+  /* eslint-disable @next/next/no-assign-module-variable */
+
   if (!Array.isArray(self.TURBOPACK)) {
     return;
   }
 
-  var chunksToRegister = self.TURBOPACK;
-  var runnable = [];
-  var moduleFactories = { __proto__: null };
-  var moduleCache = { __proto__: null };
+  /** @typedef {import('../types').ChunkRegistration} ChunkRegistration */
+  /** @typedef {import('../types').ChunkModule} ChunkModule */
+  /** @typedef {import('../types').Chunk} Chunk */
+  /** @typedef {import('../types').ModuleFactory} ModuleFactory */
+  /** @typedef {import('../types/hot').UpdateInstructions} UpdateInstructions */
+
+  /** @typedef {import('../types').ChunkId} ChunkId */
+  /** @typedef {import('../types').ModuleId} ModuleId */
+
+  /** @typedef {import('../types').Module} Module */
+  /** @typedef {import('../types').Exports} Exports */
+  /** @typedef {import('../types').EsmInteropNamespace} EsmInteropNamespace */
+  /** @typedef {import('../types').Runnable} Runnable */
+
+  /** @typedef {import('../types').Runtime} Runtime */
+
+  /** @typedef {import('../types').RefreshHelpers} RefreshHelpers */
+  /** @typedef {import('../types/hot').Hot} Hot */
+  /** @typedef {import('../types/hot').HotData} HotData */
+  /** @typedef {import('../types/hot').AcceptFunction} AcceptFunction */
+  /** @typedef {import('../types/hot').AcceptCallback} AcceptCallback */
+  /** @typedef {import('../types/hot').AcceptErrorHandler} AcceptErrorHandler */
+  /** @typedef {import('../types/hot').HotState} HotState */
+
+  /** @typedef {import('../types/runtime').Loader} Loader */
+  /** @typedef {import('../types/runtime').ModuleEffect} ModuleEffect */
+
+  /** @type {ChunkRegistration[]} */
+  const chunksToRegister = self.TURBOPACK;
+  /** @type {Array<Runnable>} */
+  let runnable = [];
+  /** @type {Object.<ModuleId, ModuleFactory>} */
+  const moduleFactories = { __proto__: null };
+  /** @type {Object.<ModuleId, Module>} */
+  const moduleCache = { __proto__: null };
   /**
    * Contains the IDs of all chunks that have been loaded.
+   *
+   * @type {Set<ChunkId>}
    */
   const loadedChunks = new Set();
   /**
    * Maps a chunk ID to the chunk's loader if the chunk is currently being loaded.
+   *
+   * @type {Map<ChunkId, Loader>}
    */
   const chunkLoaders = new Map();
   /**
    * Maps module IDs to persisted data between executions of their hot module
    * implementation (`hot.data`).
+   *
+   * @type {Map<ModuleId, HotData>}
    */
   const moduleHotData = new Map();
   /**
@@ -54,7 +94,7 @@ console.log("hello world");
    * from chunk A, but still exists in chunk B.
    */
   const moduleChunksMap = new Map();
-  var hOP = Object.prototype.hasOwnProperty;
+  const hOP = Object.prototype.hasOwnProperty;
   const _process =
     typeof process !== "undefined"
       ? process
@@ -65,32 +105,57 @@ console.log("hello world");
           browser: true,
         };
 
-  var toStringTag = typeof Symbol !== "undefined" && Symbol.toStringTag;
+  const toStringTag = typeof Symbol !== "undefined" && Symbol.toStringTag;
 
+  /**
+   * @param {any} obj
+   * @param {PropertyKey} name
+   * @param {PropertyDescriptor & ThisType<any>} options
+   */
   function defineProp(obj, name, options) {
     if (!hOP.call(obj, name)) Object.defineProperty(obj, name, options);
   }
 
+  /**
+   * Adds the getters to the exports object
+   *
+   * @param {Exports} exports
+   * @param {Record<string, () => any>} getters
+   */
   function esm(exports, getters) {
     defineProp(exports, "__esModule", { value: true });
     if (toStringTag) defineProp(exports, toStringTag, { value: "Module" });
-    for (var key in getters) {
+    for (const key in getters) {
       defineProp(exports, key, { get: getters[key], enumerable: true });
     }
   }
 
+  /**
+   * @param {Module} module
+   * @param {any} value
+   */
   function exportValue(module, value) {
     module.exports = value;
   }
 
+  /**
+   * @param {Record<string, any>} obj
+   * @param {string} key
+   */
   function createGetter(obj, key) {
     return () => obj[key];
   }
 
+  /**
+   * @param {Exports} raw
+   * @param {EsmInteropNamespace} ns
+   * @param {boolean} [allowExportDefault]
+   */
   function interopEsm(raw, ns, allowExportDefault) {
-    var getters = { __proto__: null };
+    /** @type {Object.<string, () => any>} */
+    const getters = { __proto__: null };
     if (typeof raw === "object" || typeof raw === "function") {
-      for (var key in raw) {
+      for (const key in raw) {
         getters[key] = createGetter(raw, key);
       }
     }
@@ -100,16 +165,27 @@ console.log("hello world");
     esm(ns, getters);
   }
 
+  /**
+   * @param {Module} sourceModule
+   * @param {ModuleId} id
+   * @param {boolean} allowExportDefault
+   * @returns {EsmInteropNamespace}
+   */
   function esmImport(sourceModule, id, allowExportDefault) {
     const module = getOrInstantiateModuleFromParent(id, sourceModule);
-    var raw = module.exports;
+    const raw = module.exports;
     if (raw.__esModule) return raw;
     if (module.interopNamespace) return module.interopNamespace;
-    var ns = (module.interopNamespace = {});
+    const ns = (module.interopNamespace = {});
     interopEsm(raw, ns, allowExportDefault);
     return ns;
   }
 
+  /**
+   * @param {Module} sourceModule
+   * @param {ModuleId} id
+   * @returns {Exports}
+   */
   function commonJsRequire(sourceModule, id) {
     return getOrInstantiateModuleFromParent(id, sourceModule).exports;
   }
@@ -134,16 +210,26 @@ console.log("hello world");
     return ns;
   }
 
+  /**
+   * @param {ChunkId} chunkId
+   * @param {string} chunkPath
+   * @returns {Promise<any> | undefined}
+   */
   function loadChunk(chunkId, chunkPath) {
     if (loadedChunks.has(chunkId)) {
       return Promise.resolve();
     }
 
-    let chunkLoader = getOrCreateChunkLoader(chunkId, chunkPath);
+    const chunkLoader = getOrCreateChunkLoader(chunkId, chunkPath);
 
     return chunkLoader.promise;
   }
 
+  /**
+   * @param {ChunkId} chunkId
+   * @param {string} chunkPath
+   * @returns {Loader}
+   */
   function getOrCreateChunkLoader(chunkId, chunkPath) {
     let chunkLoader = chunkLoaders.get(chunkId);
     if (chunkLoader) {
@@ -173,6 +259,10 @@ console.log("hello world");
     };
     chunkLoaders.set(chunkId, chunkLoader);
 
+    if (typeof document === "undefined") {
+      throw new Error("can't dynamically load scripts outside the browser");
+    }
+
     if (chunkPath.endsWith(".css")) {
       const link = document.createElement("link");
       link.rel = "stylesheet";
@@ -200,21 +290,33 @@ console.log("hello world");
     return chunkLoader;
   }
 
-  // TODO(alexkirsz) Use a TS enum.
   /**
-   * The module was instantiated because it was included in an evaluated chunk's
-   * runtime.
+   * @enum {number}
    */
-  const SOURCE_TYPE_RUNTIME = 0;
+  const SourceType = {
+    /**
+     * The module was instantiated because it was included in an evaluated chunk's
+     * runtime.
+     */
+    Runtime: 0,
+    /**
+     * The module was instantiated because a parent module imported it.
+     */
+    Parent: 1,
+    /**
+     * The module was instantiated because it was included in a chunk's hot module
+     * update.
+     */
+    Update: 2,
+  };
+
   /**
-   * The module was instantiated because a parent module imported it.
+   *
+   * @param {ModuleId} id
+   * @param {SourceType} sourceType
+   * @param {ModuleId} [sourceId]
+   * @returns {Module}
    */
-  const SOURCE_TYPE_PARENT = 1;
-  /**
-   * The module was instantiated because it was included in a chunk's hot module
-   * update.
-   */
-  const SOURCE_TYPE_UPDATE = 2;
   function instantiateModule(id, sourceType, sourceId) {
     const moduleFactory = moduleFactories[id];
     if (typeof moduleFactory !== "function") {
@@ -223,13 +325,13 @@ console.log("hello world");
       // and contains e.g. a `require("something")` call.
       let instantiationReason;
       switch (sourceType) {
-        case SOURCE_TYPE_RUNTIME:
+        case SourceType.Runtime:
           instantiationReason = "as a runtime entry";
           break;
-        case SOURCE_TYPE_PARENT:
+        case SourceType.Parent:
           instantiationReason = `because it was required from module ${sourceId}`;
           break;
-        case SOURCE_TYPE_UPDATE:
+        case SourceType.Update:
           instantiationReason = "because of an HMR update";
           break;
       }
@@ -241,6 +343,7 @@ console.log("hello world");
     const hotData = moduleHotData.get(id);
     const { hot, hotState } = createModuleHot(hotData);
 
+    /** @type {Module} */
     const module = {
       exports: {},
       loaded: false,
@@ -253,9 +356,9 @@ console.log("hello world");
     moduleCache[id] = module;
     moduleHotState.set(module, hotState);
 
-    if (sourceType === SOURCE_TYPE_RUNTIME) {
+    if (sourceType === SourceType.Runtime) {
       runtimeModules.add(id);
-    } else if (sourceType === SOURCE_TYPE_PARENT) {
+    } else if (sourceType === SourceType.Parent) {
       module.parents.push(sourceId);
 
       // No need to add this module as a child of the parent module here, this
@@ -286,11 +389,16 @@ console.log("hello world");
     return module;
   }
 
-  // NOTE(alexkirsz) Webpack has an "module execution" interception hook that
-  // Next.js' React Refresh runtime hooks into to add module context to the
-  // refresh registry.
+  /**
+   * NOTE(alexkirsz) Webpack has an "module execution" interception hook that
+   * Next.js' React Refresh runtime hooks into to add module context to the
+   * refresh registry.
+   *
+   * @param {Module} module
+   * @param {() => void} executeModule
+   */
   function runModuleExecutionHooks(module, executeModule) {
-    let cleanupReactRefreshIntercept =
+    const cleanupReactRefreshIntercept =
       typeof self.$RefreshInterceptModuleExecution$ === "function"
         ? self.$RefreshInterceptModuleExecution$(module.id)
         : () => {};
@@ -311,6 +419,10 @@ console.log("hello world");
 
   /**
    * Retrieves a module from the cache, or instantiate it if it is not cached.
+   *
+   * @param {ModuleId} id
+   * @param {Module} sourceModule
+   * @returns {Module}
    */
   function getOrInstantiateModuleFromParent(id, sourceModule) {
     if (!sourceModule.hot.active) {
@@ -333,10 +445,15 @@ console.log("hello world");
       return module;
     }
 
-    return instantiateModule(id, SOURCE_TYPE_PARENT, sourceModule.id);
+    return instantiateModule(id, SourceType.Parent, sourceModule.id);
   }
 
-  // This is adapted from https://github.com/vercel/next.js/blob/3466862d9dc9c8bb3131712134d38757b918d1c0/packages/react-refresh-utils/internal/ReactRefreshModule.runtime.ts
+  /**
+   * This is adapted from https://github.com/vercel/next.js/blob/3466862d9dc9c8bb3131712134d38757b918d1c0/packages/react-refresh-utils/internal/ReactRefreshModule.runtime.ts
+   *
+   * @param {Module} module
+   * @param {RefreshHelpers} helpers
+   */
   function registerExportsAndSetupBoundaryForReactRefresh(module, helpers) {
     const currentExports = module.exports;
     const prevExports = module.hot.data.prevExports ?? null;
@@ -389,6 +506,10 @@ console.log("hello world");
     }
   }
 
+  /**
+   * @param {string[]} dependencyChain
+   * @returns {string}
+   */
   function formatDependencyChain(dependencyChain) {
     return `Dependency chain: ${dependencyChain.join(" -> ")}`;
   }
@@ -399,6 +520,10 @@ console.log("hello world");
     return eval(code);
   }
 
+  /**
+   * @param {UpdateInstructions} update
+   * @returns {{outdatedModules: Set<any>, newModuleFactories: Map<any, any>}}
+   */
   function computeOutdatedModules(update) {
     const outdatedModules = new Set();
     const newModuleFactories = new Map();
@@ -436,6 +561,10 @@ console.log("hello world");
     return { outdatedModules, newModuleFactories };
   }
 
+  /**
+   * @param {Iterable<ModuleId>} outdatedModules
+   * @returns {{ moduleId: ModuleId, errorHandler: Function }[]}
+   */
   function computeOutdatedSelfAcceptedModules(outdatedModules) {
     const outdatedSelfAcceptedModules = [];
     for (const moduleId of outdatedModules) {
@@ -451,6 +580,11 @@ console.log("hello world");
     return outdatedSelfAcceptedModules;
   }
 
+  /**
+   * @param {ChunkId} chunkId
+   * @param {Iterable<ModuleId>} outdatedModules
+   * @param {Iterable<ModuleId>} deletedModules
+   */
   function disposePhase(chunkId, outdatedModules, deletedModules) {
     for (const moduleId of outdatedModules) {
       const module = moduleCache[moduleId];
@@ -487,6 +621,9 @@ console.log("hello world");
    *
    * Returns the persistent hot data that should be kept for the next module
    * instance.
+   *
+   * @param {Module} module
+   * @returns {{}}
    */
   function disposeModule(module) {
     const hotState = moduleHotState.get(module);
@@ -525,6 +662,12 @@ console.log("hello world");
     return data;
   }
 
+  /**
+   *
+   * @param {ChunkId} chunkId
+   * @param {{ moduleId: ModuleId, errorHandler: Function }[]} outdatedSelfAcceptedModules
+   * @param {Map<string, ModuleFactory>} newModuleFactories
+   */
   function applyPhase(
     chunkId,
     outdatedSelfAcceptedModules,
@@ -543,12 +686,12 @@ console.log("hello world");
     // Re-instantiate all outdated self-accepted modules.
     for (const { moduleId, errorHandler } of outdatedSelfAcceptedModules) {
       try {
-        instantiateModule(moduleId, SOURCE_TYPE_UPDATE);
-      } catch (err1) {
+        instantiateModule(moduleId, SourceType.Update);
+      } catch (err) {
         if (typeof errorHandler === "function") {
           try {
-            errorHandler(err1, { moduleId, module: moduleCache[moduleId] });
-          } catch (err2) {
+            errorHandler(err, { moduleId, module: moduleCache[moduleId] });
+          } catch (_) {
             // Ignore error.
           }
         }
@@ -556,6 +699,11 @@ console.log("hello world");
     }
   }
 
+  /**
+   *
+   * @param {ChunkId} chunkId
+   * @param {UpdateInstructions} update
+   */
   function applyUpdate(chunkId, update) {
     const { outdatedModules, newModuleFactories } =
       computeOutdatedModules(update);
@@ -569,9 +717,17 @@ console.log("hello world");
     applyPhase(chunkId, outdatedSelfAcceptedModules, newModuleFactories);
   }
 
+  /**
+   *
+   * @param {ModuleId} moduleId
+   * @returns {ModuleEffect}
+   */
   function getAffectedModuleEffects(moduleId) {
     const outdatedModules = new Set();
 
+    /** @typedef {{moduleId?: ModuleId, dependencyChain: ModuleId[]}} QueueItem */
+
+    /** @type {QueueItem[]} */
     const queue = [
       {
         moduleId,
@@ -580,16 +736,16 @@ console.log("hello world");
     ];
 
     while (queue.length > 0) {
-      const { moduleId, dependencyChain } = queue.shift();
+      const { moduleId, dependencyChain } =
+        /** @type {QueueItem} */ queue.shift();
       outdatedModules.add(moduleId);
 
       // We've arrived at the runtime of the chunk, which means that nothing
       // else above can accept this update.
-      if (moduleId === null) {
+      if (moduleId === undefined) {
         return {
           type: "unaccepted",
           dependencyChain,
-          moduleId,
         };
       }
 
@@ -599,8 +755,7 @@ console.log("hello world");
       if (
         // The module is not in the cache. Since this is a "modified" update,
         // it means that the module was never instantiated before.
-        !module ||
-        // The module accepted itself without invalidating itself.
+        !module || // The module accepted itself without invalidating itself.
         // TODO is that right?
         (hotState.selfAccepted && !hotState.selfInvalidated)
       ) {
@@ -617,7 +772,7 @@ console.log("hello world");
 
       if (runtimeModules.has(moduleId)) {
         queue.push({
-          moduleId: null,
+          moduleId: undefined,
           dependencyChain: [...dependencyChain, moduleId],
         });
         continue;
@@ -648,7 +803,29 @@ console.log("hello world");
     };
   }
 
+  /**
+   * @param {ChunkId} chunkId
+   * @param {import('../types/protocol').ServerMessage} update
+   */
+  function handleApply(chunkId, update) {
+    switch (update.type) {
+      case "partial":
+        applyUpdate(chunkId, JSON.parse(update.instruction));
+        break;
+      case "restart":
+        self.location.reload();
+        break;
+      default:
+        throw new Error(`Unknown update type: ${update.type}`);
+    }
+  }
+
+  /**
+   * @param {HotData} [hotData]
+   * @returns {{hotState: HotState, hot: Hot}}
+   */
   function createModuleHot(hotData) {
+    /** @type {HotState} */
     const hotState = {
       selfAccepted: false,
       selfDeclined: false,
@@ -656,6 +833,24 @@ console.log("hello world");
       disposeHandlers: [],
     };
 
+    /**
+     * TODO(alexkirsz) Support full (dep, callback, errorHandler) form.
+     *
+     * @param {string | string[] | AcceptErrorHandler} [dep]
+     * @param {AcceptCallback} [_callback]
+     * @param {AcceptErrorHandler} [_errorHandler]
+     */
+    function accept(dep, _callback, _errorHandler) {
+      if (dep === undefined) {
+        hotState.selfAccepted = true;
+      } else if (typeof dep === "function") {
+        hotState.selfAccepted = dep;
+      } else {
+        throw new Error("unsupported `accept` signature");
+      }
+    }
+
+    /** @type {Hot} */
     const hot = {
       // TODO(alexkirsz) This is not defined in the HMR API. It was used to
       // decide whether to warn whenever an HMR-disposed module required other
@@ -664,16 +859,7 @@ console.log("hello world");
 
       data: hotData ?? {},
 
-      // TODO(alexkirsz) Support full (dep, callback, errorHandler) form.
-      accept: (dep, _callback, _errorHandler) => {
-        if (dep === undefined) {
-          hotState.selfAccepted = true;
-        } else if (typeof dep === "function") {
-          hotState.selfAccepted = dep;
-        } else {
-          throw new Error("unsupported `accept` signature");
-        }
-      },
+      accept: accept,
 
       decline: (dep) => {
         if (dep === undefined) {
@@ -715,6 +901,9 @@ console.log("hello world");
 
   /**
    * Adds a module to a chunk.
+   *
+   * @param {ModuleId} moduleId
+   * @param {ChunkId} chunkId
    */
   function addModuleToChunk(moduleId, chunkId) {
     let moduleChunks = moduleChunksMap.get(moduleId);
@@ -729,6 +918,10 @@ console.log("hello world");
   /**
    * Removes a module from a chunk. Returns true there are no remaining chunks
    * including this module.
+   *
+   * @param {ModuleId} moduleId
+   * @param {ChunkId} chunkId
+   * @returns {boolean}
    */
   function removeModuleFromChunk(moduleId, chunkId) {
     const moduleChunks = moduleChunksMap.get(moduleId);
@@ -745,29 +938,25 @@ console.log("hello world");
   /**
    * Instantiates a runtime module.
    */
+  /**
+   *
+   * @param {ModuleId} moduleId
+   * @returns {Module}
+   */
   function instantiateRuntimeModule(moduleId) {
-    return instantiateModule(moduleId, SOURCE_TYPE_RUNTIME);
+    return instantiateModule(moduleId, SourceType.Runtime);
   }
 
   /**
    * Subscribes to chunk updates from the update server and applies them.
+   *
+   * @param {ChunkId} chunkId
    */
   function subscribeToChunkUpdates(chunkId) {
     // This adds a chunk update listener once the handler code has been loaded
     self.TURBOPACK_CHUNK_UPDATE_LISTENERS.push([
       chunkId,
-      (updateType, instruction) => {
-        switch (updateType) {
-          case "partial":
-            applyUpdate(chunkId, JSON.parse(instruction));
-            break;
-          case "restart":
-            self.location.reload();
-            break;
-          default:
-            throw new Error(`Unknown update type: ${updateType}`);
-        }
-      },
+      handleApply.bind(null, chunkId),
     ]);
   }
 
@@ -785,12 +974,17 @@ console.log("hello world");
     chunkLoader.onLoad();
   }
 
+  /** @type {Runtime} */
   const runtime = {
     loadedChunks,
     modules: moduleFactories,
     cache: moduleCache,
     instantiateRuntimeModule,
   };
+
+  /**
+   * @param {ChunkRegistration} chunkRegistration
+   */
   function registerChunk([chunkId, chunkModules, ...run]) {
     markChunkAsLoaded(chunkId);
     subscribeToChunkUpdates(chunkId);
@@ -803,6 +997,7 @@ console.log("hello world");
     runnable.push(...run);
     runnable = runnable.filter((r) => r(runtime));
   }
+
   self.TURBOPACK_CHUNK_UPDATE_LISTENERS =
     self.TURBOPACK_CHUNK_UPDATE_LISTENERS || [];
   self.TURBOPACK = { push: registerChunk };

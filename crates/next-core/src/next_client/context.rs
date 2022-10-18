@@ -16,7 +16,6 @@ use turbopack_core::{
     context::AssetContextVc,
     environment::{BrowserEnvironment, EnvironmentIntention, EnvironmentVc, ExecutionEnvironment},
 };
-use turbopack_dev_server::html_runtime_asset::HtmlRuntimeAssetVc;
 use turbopack_ecmascript::chunk::EcmascriptChunkPlaceablesVc;
 use turbopack_env::ProcessEnvAssetVc;
 
@@ -130,13 +129,10 @@ pub async fn get_client_runtime_entries(
             .await?
             .as_request();
 
-    let mut runtime_entries = vec![
-        RuntimeEntry::Ecmascript(
-            ProcessEnvAssetVc::new(project_root, filter_for_client(env)).into(),
-        )
-        .cell(),
-        RuntimeEntry::Ecmascript(HtmlRuntimeAssetVc::new().into()).cell(),
-    ];
+    let mut runtime_entries = vec![RuntimeEntry::Ecmascript(
+        ProcessEnvAssetVc::new(project_root, filter_for_client(env)).into(),
+    )
+    .cell()];
     if let Some(request) = enable_react_refresh {
         runtime_entries.push(RuntimeEntry::Request(request, project_root.join("_")).cell())
     };

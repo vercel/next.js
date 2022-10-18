@@ -3,7 +3,7 @@ use turbo_tasks_fs::FileSystemPathVc;
 use super::{options::ResolveOptionsVc, parse::RequestVc, ResolveResultVc};
 use crate::context::AssetContextVc;
 
-/// A location where resolving can occur from. It carries some metainformation
+/// A location where resolving can occur from. It carries some meta information
 /// that are needed for resolving from here.
 #[turbo_tasks::value_trait]
 pub trait ResolveOrigin {
