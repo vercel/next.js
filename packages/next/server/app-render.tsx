@@ -177,7 +177,7 @@ function createErrorHandler(
   _source: string,
   capturedErrors: Error[]
 ) {
-  return (err: any) => {
+  return (err: any): string => {
     if (
       err.digest === DYNAMIC_ERROR_CODE ||
       err.digest === NOT_FOUND_ERROR_CODE ||
