@@ -84,14 +84,14 @@ describe('Config Experimental Warning', () => {
     configFile.write(`
       module.exports = {
         experimental: {
+          enableUndici: true,
           workerThreads: true,
-          legacyBrowsers: false,
         }
       }
     `)
     const { stderr } = await nextBuild(appDir, [], { stderr: true })
     expect(stderr).toMatch(
-      'You have enabled experimental features (workerThreads, legacyBrowsers) in next.config.js.'
+      'You have enabled experimental features (enableUndici, workerThreads) in next.config.js.'
     )
   })
 

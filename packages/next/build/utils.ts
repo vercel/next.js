@@ -1761,8 +1761,9 @@ export function getSupportedBrowsers(
     return browsers
   }
 
-  // When user does not have browserslist use the default target
-  // When `experimental.legacyBrowsers: false` the modern default is used
+  // When the user sets `legacyBrowsers: true`, we pass undefined
+  // to SWC which is basically ES5 and matches the default behavior
+  // prior to Next.js 13
   return config.experimental.legacyBrowsers
     ? undefined
     : MODERN_BROWSERSLIST_TARGET
