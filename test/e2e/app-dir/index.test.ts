@@ -1553,8 +1553,7 @@ describe('app dir', () => {
 
         if (isDev) {
           expect(await hasRedbox(browser)).toBe(true)
-          console.log('getRedboxHeader', await getRedboxHeader(browser))
-          // expect(await getRedboxHeader(browser)).toMatch(/An error occurred: this is a test/)
+          expect(await getRedboxHeader(browser)).toMatch(/this is a test/)
         } else {
           await browser
           expect(
@@ -1563,6 +1562,37 @@ describe('app dir', () => {
               .elementByCss('#error-boundary-message')
               .text()
           ).toBe('An error occurred: this is a test')
+        }
+      })
+
+      it('should trigger error component when an error happens during server components rendering', async () => {
+        const browser = await webdriver(next.url, '/error/server-component')
+
+        if (isDev) {
+          expect(
+            await browser
+              .waitForElementByCss('#error-boundary-message')
+              .elementByCss('#error-boundary-message')
+              .text()
+          ).toBe('this is a test')
+          expect(
+            await browser.waitForElementByCss('#error-boundary-digest').text()
+            // Digest of the error message should be stable.
+          ).not.toBe('')
+          // TODO-APP: ensure error overlay is shown for errors that happened before/during hydration
+          // expect(await hasRedbox(browser)).toBe(true)
+          // expect(await getRedboxHeader(browser)).toMatch(/this is a test/)
+        } else {
+          await browser
+          expect(
+            await browser.waitForElementByCss('#error-boundary-message').text()
+          ).toBe(
+            'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
+          )
+          expect(
+            await browser.waitForElementByCss('#error-boundary-digest').text()
+            // Digest of the error message should be stable.
+          ).not.toBe('')
         }
       })
 

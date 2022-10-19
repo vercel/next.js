@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react'
 import React, { useEffect, useMemo, useCallback } from 'react'
-import { createFromFetch } from 'next/dist/compiled/react-server-dom-webpack'
+import { createFromFetch } from 'next/dist/compiled/react-server-dom-webpack/client'
 import {
   AppRouterContext,
   LayoutRouterContext,
