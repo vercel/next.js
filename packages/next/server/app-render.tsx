@@ -86,8 +86,9 @@ class ReadonlyHeaders {
 }
 
 const INTERNAL_COOKIES_INSTANCE = Symbol('internal for cookies readonly')
-function readonlyCookiesError() {
-  return new Error('ReadonlyCookies cannot be modified')
+class ReadonlyNextCookiesError extends Error {
+  message =
+    'ReadonlyNextCookies cannot be modified. Read more: https://nextjs.org/api-reference/cookies'
 }
 
 class ReadonlyNextCookies {
@@ -96,6 +97,7 @@ class ReadonlyNextCookies {
   entries: NextCookies['entries']
   forEach: NextCookies['forEach']
   get: NextCookies['get']
+  getAll: NextCookies['getAll']
   getWithOptions: NextCookies['getWithOptions']
   has: NextCookies['has']
   keys: NextCookies['keys']
@@ -114,6 +116,7 @@ class ReadonlyNextCookies {
     this.entries = cookiesInstance.entries.bind(cookiesInstance)
     this.forEach = cookiesInstance.forEach.bind(cookiesInstance)
     this.get = cookiesInstance.get.bind(cookiesInstance)
+    this.getAll = cookiesInstance.getAll.bind(cookiesInstance)
     this.getWithOptions = cookiesInstance.getWithOptions.bind(cookiesInstance)
     this.has = cookiesInstance.has.bind(cookiesInstance)
     this.keys = cookiesInstance.keys.bind(cookiesInstance)
@@ -124,13 +127,13 @@ class ReadonlyNextCookies {
   }
 
   clear() {
-    throw readonlyCookiesError()
+    throw new ReadonlyNextCookiesError()
   }
   delete() {
-    throw readonlyCookiesError()
+    throw new ReadonlyNextCookiesError()
   }
   set() {
-    throw readonlyCookiesError()
+    throw new ReadonlyNextCookiesError()
   }
 }
 
