@@ -68,9 +68,7 @@ The example above uses multiple links. Each one maps a path (`href`) to a known 
 - `/about` → `pages/about.js`
 - `/blog/hello-world` → `pages/blog/[slug].js`
 
-Any `<Link />` in the viewport (initially or through scroll) will be prefetched by default (including the corresponding data) for pages using [Static Generation](/docs/basic-features/data-fetching/get-static-props.md). The corresponding data for [server-rendered](/docs/basic-features/data-fetching/get-server-side-props.md) routes is _not_ prefetched.
-
-Also note that when navigating to another page using `<Link />` even tough routing happens client side, the data for that page (via `GetServerSideProps`) _is_ fetched before navigating to the new route.
+Any `<Link />` in the viewport (initially or through scroll) will be prefetched by default (including the corresponding data) for pages using [Static Generation](/docs/basic-features/data-fetching/get-static-props.md). The corresponding data for [server-rendered](/docs/basic-features/data-fetching/get-server-side-props.md) routes is prefetched _only when_ the <Link /> is clicked.
 
 ### Linking to dynamic paths
 
