@@ -1,7 +1,7 @@
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::quote;
-use syn::{parse_macro_input, DeriveInput, Field, FieldsNamed, FieldsUnnamed};
+use syn::{parse_macro_input, Data, DeriveInput, Field, FieldsNamed, FieldsUnnamed};
 use turbo_tasks_macros_shared::{generate_destructuring, match_expansion};
 
 fn ignore_field(_field: &Field) -> bool {
@@ -16,12 +16,21 @@ pub fn derive_deterministic_hash(input: TokenStream) -> TokenStream {
     let derive_input = parse_macro_input!(input as DeriveInput);
 
     let ident = &derive_input.ident;
-    let hash_logic = match_expansion(&derive_input, &hash_named, &hash_unnamed, &hash_unit);
+    let match_hash = match_expansion(&derive_input, &hash_named, &hash_unnamed, &hash_unit);
+    let discriminant = match derive_input.data {
+        Data::Enum(_) => {
+            quote! {
+                turbo_tasks_hash::DeterministicHash::deterministic_hash(&std::mem::discriminant(self), __state__);
+            }
+        }
+        _ => quote! {},
+    };
 
     quote! {
         impl turbo_tasks_hash::DeterministicHash for #ident {
-            fn deterministic_hash<H: std::hash::Hasher>(&self, __state__: &mut H) {
-                #hash_logic
+            fn deterministic_hash<H: turbo_tasks_hash::DeterministicHasher>(&self, __state__: &mut H) {
+                #discriminant
+                #match_hash
             }
         }
     }

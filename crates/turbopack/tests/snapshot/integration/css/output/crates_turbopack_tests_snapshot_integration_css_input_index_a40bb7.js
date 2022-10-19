@@ -1,24 +1,29 @@
-(self.TURBOPACK = self.TURBOPACK || []).push(["output/crates_turbopack_tests_snapshot_integration_async_chunk_input_index_e13e1f.js", {
+(self.TURBOPACK = self.TURBOPACK || []).push(["output/crates_turbopack_tests_snapshot_integration_css_input_index_a40bb7.js", {
 
-"[project]/crates/turbopack/tests/snapshot/integration/async_chunk/input/index.js (ecmascript)": (function({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, m: module, e: exports }) { !function() {
+"[project]/crates/turbopack/tests/snapshot/integration/css/input/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
 
-__turbopack_require__("[project]/crates/turbopack/tests/snapshot/integration/async_chunk/input/import.js/manifest-loader.js")(__turbopack_import__).then(({ foo  })=>{
-    foo(true);
+var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$css$2f$input$2f$node_modules$2f$foo$2f$style$2e$module$2e$css__ = __turbopack_import__("[project]/crates/turbopack/tests/snapshot/integration/css/input/node_modules/foo/style.module.css (css module)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$css$2f$input$2f$style$2e$module$2e$css__ = __turbopack_import__("[project]/crates/turbopack/tests/snapshot/integration/css/input/style.module.css (css module)");
+"__TURBOPACK__ecmascript__hoisting__location__";
+;
+;
+;
+;
+;
+console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$css$2f$input$2f$style$2e$module$2e$css__["default"], __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$css$2f$input$2f$node_modules$2f$foo$2f$style$2e$module$2e$css__["default"]);
+
+})()),
+"[project]/crates/turbopack/tests/snapshot/integration/css/input/style.module.css (css module)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
+
+__turbopack_export_value__({
+  "inner": "inner◽[project]/crates/turbopack/tests/snapshot/integration/css/input/style.module.css",
+  "module-style": "module-style◽[project]/crates/turbopack/tests/snapshot/integration/css/input/style.module.css",
 });
 
-}.call(this) }),
-"[project]/crates/turbopack/tests/snapshot/integration/async_chunk/input/import.js/manifest-loader.js": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
-
-
-__turbopack_export_value__((__turbopack_import__) => {
-    return __turbopack_load__("output/13a8f_turbopack_tests_snapshot_integration_async_chunk_input_import.js_manifest-chunk.js").then(() => {
-        return __turbopack_require__("[project]/crates/turbopack/tests/snapshot/integration/async_chunk/input/import.js/manifest-chunk.js");
-    }).then(() => __turbopack_import__("[project]/crates/turbopack/tests/snapshot/integration/async_chunk/input/import.js (ecmascript)"));
-});
 })()),
 }, ({ loadedChunks, instantiateRuntimeModule }) => {
-    if(!(true && loadedChunks.has("output/crates_turbopack_tests_snapshot_integration_async_chunk_input_index_f1e3d8.js"))) return true;
-    instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/async_chunk/input/index.js (ecmascript)");
+    if(!(true && loadedChunks.has("output/crates_turbopack_tests_snapshot_integration_css_input_index_00b318.js") && loadedChunks.has("output/b06df_foo_style.module.css.js"))) return true;
+    instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/css/input/index.js (ecmascript)");
 }]);
 (() => {
   // When a chunk is executed, it will either register itself with the current
@@ -1012,4 +1017,4 @@ __turbopack_export_value__((__turbopack_import__) => {
 })();
 
 
-//# sourceMappingURL=crates_turbopack_tests_snapshot_integration_async_chunk_input_index_e13e1f.js.7c8dfea62dc7c947.map
+//# sourceMappingURL=crates_turbopack_tests_snapshot_integration_css_input_index_a40bb7.js.7c2617b5834079be.map

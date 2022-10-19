@@ -26,7 +26,7 @@
       "@vercel/turbopack-next/*": ["src/*"],
       "@vercel/turbopack-next/pages/_app": ["node_modules/next/app"],
       "@vercel/turbopack-next/pages/_document": ["node_modules/next/document"],
-      "next/*": ["node_modules/next/*"],
+      "next/*": ["node_modules/next/*"]
     },
 
     // emit

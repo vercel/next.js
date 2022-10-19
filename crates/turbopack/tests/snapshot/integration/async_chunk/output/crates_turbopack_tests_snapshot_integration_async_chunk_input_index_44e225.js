@@ -1,13 +1,24 @@
-(self.TURBOPACK = self.TURBOPACK || []).push(["output/crates_turbopack_tests_snapshot_integration_example_input_index_ef53b9.js", {
+(self.TURBOPACK = self.TURBOPACK || []).push(["output/crates_turbopack_tests_snapshot_integration_async_chunk_input_index_44e225.js", {
 
-"[project]/crates/turbopack/tests/snapshot/integration/example/input/index.js (ecmascript)": (function({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, m: module, e: exports }) { !function() {
+"[project]/crates/turbopack/tests/snapshot/integration/async_chunk/input/index.js (ecmascript)": (function({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, m: module, e: exports }) { !function() {
 
-console.log("hello world");
+__turbopack_require__("[project]/crates/turbopack/tests/snapshot/integration/async_chunk/input/import.js/manifest-loader.js")(__turbopack_import__).then(({ foo  })=>{
+    foo(true);
+});
 
 }.call(this) }),
+"[project]/crates/turbopack/tests/snapshot/integration/async_chunk/input/import.js/manifest-loader.js": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
+
+
+__turbopack_export_value__((__turbopack_import__) => {
+    return __turbopack_load__("output/13a8f_turbopack_tests_snapshot_integration_async_chunk_input_import.js_manifest-chunk.js").then(() => {
+        return __turbopack_require__("[project]/crates/turbopack/tests/snapshot/integration/async_chunk/input/import.js/manifest-chunk.js");
+    }).then(() => __turbopack_import__("[project]/crates/turbopack/tests/snapshot/integration/async_chunk/input/import.js (ecmascript)"));
+});
+})()),
 }, ({ loadedChunks, instantiateRuntimeModule }) => {
-    if(!(true && loadedChunks.has("output/crates_turbopack_tests_snapshot_integration_example_input_index_8dae79.js"))) return true;
-    instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/example/input/index.js (ecmascript)");
+    if(!(true && loadedChunks.has("output/crates_turbopack_tests_snapshot_integration_async_chunk_input_index_e2330c.js"))) return true;
+    instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/async_chunk/input/index.js (ecmascript)");
 }]);
 (() => {
   // When a chunk is executed, it will either register itself with the current
@@ -1001,4 +1012,4 @@ console.log("hello world");
 })();
 
 
-//# sourceMappingURL=crates_turbopack_tests_snapshot_integration_example_input_index_ef53b9.js.93f5da801f51c759.map
+//# sourceMappingURL=crates_turbopack_tests_snapshot_integration_async_chunk_input_index_44e225.js.7c8dfea62dc7c947.map

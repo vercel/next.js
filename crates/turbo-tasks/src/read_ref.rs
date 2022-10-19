@@ -85,7 +85,7 @@ impl<T, U: Hash> Hash for ReadRef<T, U> {
 }
 
 impl<T, U: DeterministicHash> DeterministicHash for ReadRef<T, U> {
-    fn deterministic_hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    fn deterministic_hash<H: turbo_tasks_hash::DeterministicHasher>(&self, state: &mut H) {
         let p = &**self;
         p.deterministic_hash(state);
     }

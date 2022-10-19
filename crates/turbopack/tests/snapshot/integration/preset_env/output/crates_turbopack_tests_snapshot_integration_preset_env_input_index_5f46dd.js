@@ -1,20 +1,20 @@
-(self.TURBOPACK = self.TURBOPACK || []).push(["output/crates_turbopack_tests_snapshot_integration_static_input_index_848d66.js", {
+(self.TURBOPACK = self.TURBOPACK || []).push(["output/crates_turbopack_tests_snapshot_integration_preset_env_input_index_5f46dd.js", {
 
-"[project]/crates/turbopack/tests/snapshot/integration/static/input/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
+"[project]/crates/turbopack/tests/snapshot/integration/preset_env/input/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
 
-var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$static$2f$input$2f$vercel$2e$svg__ = __turbopack_import__("[project]/crates/turbopack/tests/snapshot/integration/static/input/vercel.svg (static)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$swc$2f$helpers$2f$src$2f$_class_call_check$2e$mjs__ = __turbopack_import__("[project]/node_modules/@swc/helpers/src/_class_call_check.mjs (ecmascript)");
 "__TURBOPACK__ecmascript__hoisting__location__";
 ;
-console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$static$2f$input$2f$vercel$2e$svg__["default"]);
+var Foo = function Foo() {
+    "use strict";
+    __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$swc$2f$helpers$2f$src$2f$_class_call_check$2e$mjs__["default"](this, Foo);
+};
+console.log(Foo, [].includes("foo"));
 
-})()),
-"[project]/crates/turbopack/tests/snapshot/integration/static/input/vercel.svg (static)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
-
-__turbopack_export_value__("/crates/turbopack/tests/snapshot/integration/static/static/04cd41686148faf80b59f60e37c4f0ab.svg");
 })()),
 }, ({ loadedChunks, instantiateRuntimeModule }) => {
-    if(!(true && loadedChunks.has("output/crates_turbopack_tests_snapshot_integration_static_input_index_55c8bc.js"))) return true;
-    instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/static/input/index.js (ecmascript)");
+    if(!(true && loadedChunks.has("output/crates_turbopack_tests_snapshot_integration_preset_env_input_index_66450c.js") && loadedChunks.has("output/node_modules_@swc_helpers_src__class_call_check.mjs.js"))) return true;
+    instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/preset_env/input/index.js (ecmascript)");
 }]);
 (() => {
   // When a chunk is executed, it will either register itself with the current
@@ -1008,4 +1008,4 @@ __turbopack_export_value__("/crates/turbopack/tests/snapshot/integration/static/
 })();
 
 
-//# sourceMappingURL=crates_turbopack_tests_snapshot_integration_static_input_index_848d66.js.caa2a16260ae9c94.map
+//# sourceMappingURL=crates_turbopack_tests_snapshot_integration_preset_env_input_index_5f46dd.js.52144b4c0bff66b2.map
