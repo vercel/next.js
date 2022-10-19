@@ -286,9 +286,25 @@ jobs:
         timeout-minutes: 10
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
+      - run: npx @replayio/playwright install chromium
+        if: ${{needs.build.outputs.docsChange == 'nope'}}
+
       - run: node run-tests.js --type development --timings -g ${{ matrix.group }}/2
         name: Run test/development
         if: ${{needs.build.outputs.docsChange == 'nope'}}
+        env:
+          RECORD_REPLAY_METADATA_TEST_RUN_TITLE: testDev / Group ${{ matrix.group }}
+          RECORD_ALL_CONTENT: 1
+          RECORD_REPLAY: 1
+          RECORD_REPLAY_TEST_METRICS: 1
+          RECORD_REPLAY_WEBHOOK_URL: ${{ secrets.RECORD_REPLAY_WEBHOOK_URL }}
+
+      - uses: replayio/action-upload@v0.4.5
+        if: always()
+        with:
+          api-key: rwk_iKsQnEoQwKd31WAJxgN9ARPFuAlyXlVrDH4uhYpRnti
+          public: true
+          filter: ${{ 'function($v) { $v.metadata.test.result = "failed" }' }}
 
       - name: Upload test trace
         if: always()
@@ -346,9 +362,25 @@ jobs:
         timeout-minutes: 10
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
+      - run: npx @replayio/playwright install chromium
+        if: ${{needs.build.outputs.docsChange == 'nope'}}
+
       - run: node run-tests.js --type development --timings -g ${{ matrix.group }}/2
         name: Run test/development
         if: ${{needs.build.outputs.docsChange == 'nope'}}
+        env:
+          RECORD_REPLAY_METADATA_TEST_RUN_TITLE: testDevReact17 / Group ${{ matrix.group }}
+          RECORD_ALL_CONTENT: 1
+          RECORD_REPLAY: 1
+          RECORD_REPLAY_TEST_METRICS: 1
+          RECORD_REPLAY_WEBHOOK_URL: ${{ secrets.RECORD_REPLAY_WEBHOOK_URL }}
+
+      - uses: replayio/action-upload@v0.4.5
+        if: always()
+        with:
+          api-key: rwk_iKsQnEoQwKd31WAJxgN9ARPFuAlyXlVrDH4uhYpRnti
+          public: true
+          filter: ${{ 'function($v) { $v.metadata.test.result = "failed" }' }}
 
       - name: Upload test trace
         if: always()
@@ -421,7 +453,6 @@ jobs:
           NEXT_TEST_MODE: dev
           RECORD_REPLAY_TEST_METRICS: 1
           RECORD_REPLAY_WEBHOOK_URL: ${{ secrets.RECORD_REPLAY_WEBHOOK_URL }}
-          # DEBUG: pw:browser*
 
       - uses: replayio/action-upload@v0.4.5
         if: always()
@@ -487,9 +518,26 @@ jobs:
         timeout-minutes: 10
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
-      - run: NEXT_TEST_MODE=dev node run-tests.js --type e2e --timings -g ${{ matrix.group }}/3
+      - run: npx @replayio/playwright install chromium
+        if: ${{needs.build.outputs.docsChange == 'nope'}}
+
+      - run: node run-tests.js --type e2e --timings -g ${{ matrix.group }}/3
         name: Run test/e2e (dev)
         if: ${{needs.build.outputs.docsChange == 'nope'}}
+        env:
+          RECORD_REPLAY_METADATA_TEST_RUN_TITLE: testDevE2EReact17 / Group ${{ matrix.group }}
+          RECORD_ALL_CONTENT: 1
+          RECORD_REPLAY: 1
+          NEXT_TEST_MODE: dev
+          RECORD_REPLAY_TEST_METRICS: 1
+          RECORD_REPLAY_WEBHOOK_URL: ${{ secrets.RECORD_REPLAY_WEBHOOK_URL }}
+
+      - uses: replayio/action-upload@v0.4.5
+        if: always()
+        with:
+          api-key: rwk_iKsQnEoQwKd31WAJxgN9ARPFuAlyXlVrDH4uhYpRnti
+          public: true
+          filter: ${{ 'function($v) { $v.metadata.test.result = "failed" }' }}
 
       - name: Upload test trace
         if: always()
@@ -548,9 +596,25 @@ jobs:
         timeout-minutes: 10
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
+      - run: npx @replayio/playwright install chromium
+        if: ${{needs.build.outputs.docsChange == 'nope'}}
+
       - run: node run-tests.js --type production --timings -g ${{ matrix.group }}/2
         name: Run test/production
         if: ${{needs.build.outputs.docsChange == 'nope'}}
+        env:
+          RECORD_REPLAY_METADATA_TEST_RUN_TITLE: testProd / Group ${{ matrix.group }} / Node ${{ matrix.node }}
+          RECORD_ALL_CONTENT: 1
+          RECORD_REPLAY: 1
+          RECORD_REPLAY_TEST_METRICS: 1
+          RECORD_REPLAY_WEBHOOK_URL: ${{ secrets.RECORD_REPLAY_WEBHOOK_URL }}
+
+      - uses: replayio/action-upload@v0.4.5
+        if: always()
+        with:
+          api-key: rwk_iKsQnEoQwKd31WAJxgN9ARPFuAlyXlVrDH4uhYpRnti
+          public: true
+          filter: ${{ 'function($v) { $v.metadata.test.result = "failed" }' }}
 
   testProdReact17:
     name: Test Production (react v17)
@@ -598,9 +662,25 @@ jobs:
         timeout-minutes: 10
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
+      - run: npx @replayio/playwright install chromium
+        if: ${{needs.build.outputs.docsChange == 'nope'}}
+
       - run: node run-tests.js --type production --timings -g ${{ matrix.group }}/2
         name: Run test/production
         if: ${{needs.build.outputs.docsChange == 'nope'}}
+        env:
+          RECORD_REPLAY_METADATA_TEST_RUN_TITLE: testProdReact17 / Group ${{ matrix.group }}
+          RECORD_ALL_CONTENT: 1
+          RECORD_REPLAY: 1
+          RECORD_REPLAY_TEST_METRICS: 1
+          RECORD_REPLAY_WEBHOOK_URL: ${{ secrets.RECORD_REPLAY_WEBHOOK_URL }}
+
+      - uses: replayio/action-upload@v0.4.5
+        if: always()
+        with:
+          api-key: rwk_iKsQnEoQwKd31WAJxgN9ARPFuAlyXlVrDH4uhYpRnti
+          public: true
+          filter: ${{ 'function($v) { $v.metadata.test.result = "failed" }' }}
 
   testProdE2E:
     name: Test Production (E2E)
@@ -650,9 +730,26 @@ jobs:
         timeout-minutes: 10
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
-      - run: NEXT_TEST_MODE=start node run-tests.js --type e2e --timings -g ${{ matrix.group }}/3
+      - run: npx @replayio/playwright install chromium
+        if: ${{needs.build.outputs.docsChange == 'nope'}}
+
+      - run: node run-tests.js --type e2e --timings -g ${{ matrix.group }}/3
         name: Run test/e2e (production)
         if: ${{needs.build.outputs.docsChange == 'nope'}}
+        env:
+          RECORD_REPLAY_METADATA_TEST_RUN_TITLE: testProdE2E / Group ${{ matrix.group }} / Node ${{ matrix.node }}
+          RECORD_ALL_CONTENT: 1
+          RECORD_REPLAY: 1
+          NEXT_TEST_MODE: start
+          RECORD_REPLAY_TEST_METRICS: 1
+          RECORD_REPLAY_WEBHOOK_URL: ${{ secrets.RECORD_REPLAY_WEBHOOK_URL }}
+
+      - uses: replayio/action-upload@v0.4.5
+        if: always()
+        with:
+          api-key: rwk_iKsQnEoQwKd31WAJxgN9ARPFuAlyXlVrDH4uhYpRnti
+          public: true
+          filter: ${{ 'function($v) { $v.metadata.test.result = "failed" }' }}
 
   testProdE2EReact17:
     name: Test Production (E2E) (react v17)
@@ -701,9 +798,26 @@ jobs:
         timeout-minutes: 10
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
-      - run: NEXT_TEST_MODE=start node run-tests.js --type e2e --timings -g ${{ matrix.group }}/3
+      - run: npx @replayio/playwright install chromium
+        if: ${{needs.build.outputs.docsChange == 'nope'}}
+
+      - run: node run-tests.js --type e2e --timings -g ${{ matrix.group }}/3
         name: Run test/e2e (production)
         if: ${{needs.build.outputs.docsChange == 'nope'}}
+        env:
+          RECORD_REPLAY_METADATA_TEST_RUN_TITLE: testProdE2EReact17 / Group ${{ matrix.group }}
+          RECORD_ALL_CONTENT: 1
+          RECORD_REPLAY: 1
+          NEXT_TEST_MODE: start
+          RECORD_REPLAY_TEST_METRICS: 1
+          RECORD_REPLAY_WEBHOOK_URL: ${{ secrets.RECORD_REPLAY_WEBHOOK_URL }}
+
+      - uses: replayio/action-upload@v0.4.5
+        if: always()
+        with:
+          api-key: rwk_iKsQnEoQwKd31WAJxgN9ARPFuAlyXlVrDH4uhYpRnti
+          public: true
+          filter: ${{ 'function($v) { $v.metadata.test.result = "failed" }' }}
 
   testIntegration:
     name: Test Integration
@@ -774,8 +888,24 @@ jobs:
         timeout-minutes: 10
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
+      - run: npx @replayio/playwright install chromium
+        if: ${{needs.build.outputs.docsChange == 'nope'}}
+
       - run: xvfb-run node run-tests.js --timings -g ${{ matrix.group }}/20
         if: ${{needs.build.outputs.docsChange == 'nope'}}
+        env:
+          RECORD_REPLAY_METADATA_TEST_RUN_TITLE: testIntegration / Group ${{ matrix.group }}
+          RECORD_ALL_CONTENT: 1
+          RECORD_REPLAY: 1
+          RECORD_REPLAY_TEST_METRICS: 1
+          RECORD_REPLAY_WEBHOOK_URL: ${{ secrets.RECORD_REPLAY_WEBHOOK_URL }}
+
+      - uses: replayio/action-upload@v0.4.5
+        if: always()
+        with:
+          api-key: rwk_iKsQnEoQwKd31WAJxgN9ARPFuAlyXlVrDH4uhYpRnti
+          public: true
+          filter: ${{ 'function($v) { $v.metadata.test.result = "failed" }' }}
 
       - name: Upload test trace
         if: always()
