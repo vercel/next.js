@@ -82,18 +82,18 @@ export class NextJsRequireCacheHotReloader implements WebpackPluginInstance {
       if (hasAppPath) {
         // ensure we reset the cache for sc_server components
         // loaded via react-server-dom-webpack
-        const reactWebpackModId = require.resolve(
-          'next/dist/compiled/react-server-dom-webpack'
+        const reactServerDomModId = require.resolve(
+          'next/dist/compiled/react-server-dom-webpack/client'
         )
-        const reactWebpackMod = require.cache[reactWebpackModId]
+        const reactServerDomMod = require.cache[reactServerDomModId]
 
-        if (reactWebpackMod) {
-          for (const child of reactWebpackMod.children) {
+        if (reactServerDomMod) {
+          for (const child of reactServerDomMod.children) {
             child.parent = null
             delete require.cache[child.id]
           }
         }
-        delete require.cache[reactWebpackModId]
+        delete require.cache[reactServerDomModId]
       }
 
       entries.forEach((page) => {

@@ -201,7 +201,7 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
 
     export const serverHooks = require('next/dist/client/components/hooks-server-context.js')
 
-    export const renderToReadableStream = require('next/dist/compiled/react-server-dom-webpack/writer.browser.server').renderToReadableStream
+    export const renderToReadableStream = require('next/dist/compiled/react-server-dom-webpack/server.browser').renderToReadableStream
     export const __next_app_webpack_require__ = __webpack_require__
   `
 
