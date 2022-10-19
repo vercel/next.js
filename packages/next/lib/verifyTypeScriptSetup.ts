@@ -42,6 +42,7 @@ export async function verifyTypeScriptSetup({
   tsconfigPath,
   typeCheckPreflight,
   disableStaticImages,
+  isAppDirEnabled,
 }: {
   dir: string
   cacheDir?: string
@@ -49,6 +50,7 @@ export async function verifyTypeScriptSetup({
   intentDirs: string[]
   typeCheckPreflight: boolean
   disableStaticImages: boolean
+  isAppDirEnabled: boolean
 }): Promise<{ result?: TypeCheckResult; version: string | null }> {
   const resolvedTsConfigPath = path.join(dir, tsconfigPath)
 
@@ -113,7 +115,8 @@ export async function verifyTypeScriptSetup({
     await writeConfigurationDefaults(
       ts,
       resolvedTsConfigPath,
-      intent.firstTimeSetup
+      intent.firstTimeSetup,
+      isAppDirEnabled
     )
     // Write out the necessary `next-env.d.ts` file to correctly register
     // Next.js' types:
@@ -124,7 +127,13 @@ export async function verifyTypeScriptSetup({
       const { runTypeCheck } = require('./typescript/runTypeCheck')
 
       // Verify the project passes type-checking before we go to webpack phase:
-      result = await runTypeCheck(ts, dir, resolvedTsConfigPath, cacheDir)
+      result = await runTypeCheck(
+        ts,
+        dir,
+        resolvedTsConfigPath,
+        cacheDir,
+        isAppDirEnabled
+      )
     }
     return { result, version: ts.version }
   } catch (err) {

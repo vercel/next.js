@@ -22,12 +22,9 @@ import {
   VALID_LOADERS,
 } from '../shared/lib/image-config'
 import { loadEnvConfig } from '@next/env'
-import { hasNextSupport } from '../telemetry/ci-info'
 import { gte as semverGte } from 'next/dist/compiled/semver'
 
 export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
-
-const targets = ['server', 'serverless', 'experimental-serverless-trace']
 
 const experimentalWarning = execOnce(
   (configFileName: string, features: string[]) => {
@@ -471,13 +468,6 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     )
   }
 
-  if (result.experimental && 'swcMinify' in (result.experimental as any)) {
-    Log.warn(
-      `\`swcMinify\` has been moved out of \`experimental\`. Please update your ${configFileName} file accordingly.`
-    )
-    result.swcMinify = (result.experimental as any).swcMinify
-  }
-
   if (result.experimental && 'relay' in (result.experimental as any)) {
     Log.warn(
       `\`relay\` has been moved out of \`experimental\` and into \`compiler\`. Please update your ${configFileName} file accordingly.`
@@ -812,17 +802,9 @@ export default async function loadConfig(
       )
     }
 
-    if (userConfig.target && !targets.includes(userConfig.target)) {
-      throw new Error(
-        `Specified target is invalid. Provided: "${
-          userConfig.target
-        }" should be one of ${targets.join(', ')}`
-      )
-    }
-
     if (userConfig.target && userConfig.target !== 'server') {
-      Log.warn(
-        'The `target` config is deprecated and will be removed in a future version.\n' +
+      throw new Error(
+        `The "target" property is no longer supported in ${configFileName}.\n` +
           'See more info here https://nextjs.org/docs/messages/deprecated-target-config'
       )
     }
@@ -834,10 +816,6 @@ export default async function loadConfig(
         (canonicalBase.endsWith('/')
           ? canonicalBase.slice(0, -1)
           : canonicalBase) || ''
-    }
-
-    if (process.env.NEXT_PRIVATE_TARGET || hasNextSupport) {
-      userConfig.target = process.env.NEXT_PRIVATE_TARGET || 'server'
     }
 
     return assignDefaults({

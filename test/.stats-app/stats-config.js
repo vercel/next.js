@@ -129,33 +129,5 @@ module.exports = {
       //   numRequests: 2500,
       // },
     },
-    {
-      title: 'Default Build with SWC minify',
-      // renames to apply to make file names deterministic
-      renames,
-      configFiles: [
-        {
-          path: 'next.config.js',
-          content: `
-            module.exports = {
-              experimental: {
-                appDir: true,
-                // remove after next stable relase (current v12.3.1)
-                serverComponents: true
-              },
-              swcMinify: true,
-              generateBuildId: () => 'BUILD_ID'
-            }
-          `,
-        },
-      ],
-      filesToTrack: clientGlobs,
-      // will be output to fetched-pages/${pathname}.html
-      pagesToFetch: [
-        'http://localhost:$PORT/',
-        'http://localhost:$PORT/link',
-        'http://localhost:$PORT/withRouter',
-      ],
-    },
   ],
 }

@@ -6,10 +6,18 @@ description: Learn how to upgrade Next.js.
 
 ## Upgrading from 12 to 13
 
+The [Supported Browsers](/docs/basic-features/supported-browsers-features.md) have been changed to drop Internet Explorer and target modern browsers.
+
 The minimum Node.js version has been bumped from 12.22.0 to 14.0.0, since 12.x has reached end-of-life.
+
+The `swcMinify` configuration property was changed from `false` to `true`. See [Next.js Compiler](/docs/advanced-features/compiler.md) for more info.
 
 The `next/image` import was renamed to `next/legacy/image`. The `next/future/image` import was renamed to `next/image`.
 A [codemod is available](/docs/advanced-features/codemods.md#next-image-to-legacy-image) to safely and automatically rename your imports.
+
+The `next/link` child can no longer be `<a>`. Add the `legacyBehavior` prop to use the legacy behavior or remove the `<a>` to upgrade. A [codemod is available](/docs/advanced-features/codemods.md#new-link) to automatically upgrade your code.
+
+The `target` configuration property has been removed and superseded by [Output File Tracing](https://nextjs.org/docs/advanced-features/output-file-tracing).
 
 ## Upgrading to 12.2
 

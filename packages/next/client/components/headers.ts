@@ -17,7 +17,7 @@ function staticGenerationBailout(reason: string) {
   }
 }
 
-export function headers(): Headers {
+export function headers() {
   staticGenerationBailout('headers')
   const requestStore =
     requestAsyncStorage && 'getStore' in requestAsyncStorage
