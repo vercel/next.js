@@ -483,6 +483,16 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       if (typeof parsedUrl.query === 'string') {
         parsedUrl.query = parseQs(parsedUrl.query)
       }
+      // in minimal mode we detect RSC revalidate if the .rsc path is requested
+      if (
+        this.minimalMode &&
+        (req.url.endsWith('.rsc') ||
+          (typeof req.headers['x-matched-path'] === 'string' &&
+            req.headers['x-matched-path'].endsWith('.rsc')))
+      ) {
+        parsedUrl.query.__nextDataReq = '1'
+      }
+
       req.url = normalizeRscPath(req.url, this.hasAppDir)
       parsedUrl.pathname = normalizeRscPath(
         parsedUrl.pathname || '',
@@ -1042,7 +1052,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       )
 
       if (isSSG && req.headers['__rsc__']) {
-        isDataReq = true
+        if (!this.minimalMode) {
+          isDataReq = true
+        }
         // strip header so we generate HTML still
         if (
           opts.runtime !== 'experimental-edge' ||

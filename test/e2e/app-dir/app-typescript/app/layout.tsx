@@ -1,6 +1,6 @@
-export const revalidate = 0
+/* eslint-disable */
 
-// export const revalidate = -1
+export const revalidate = -1
 
 export default function Root({ children }) {
   return (

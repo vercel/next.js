@@ -187,6 +187,27 @@ export async function writeConfigurationDefaults(
     )
   }
 
+  // Enable the Next.js typescript plugin.
+  if (isAppDirEnabled) {
+    if (userTsConfig.compilerOptions) {
+      if (!('plugins' in userTsConfig.compilerOptions)) {
+        userTsConfig.compilerOptions.plugins = []
+      }
+      if (
+        !userTsConfig.compilerOptions.plugins.some(
+          (plugin: { name: string }) => plugin.name === 'next'
+        )
+      ) {
+        userTsConfig.compilerOptions.plugins.push({ name: 'next' })
+        suggestedActions.push(
+          chalk.cyan('plugins') +
+            ' was updated to add ' +
+            chalk.bold(`{ name: 'next' }`)
+        )
+      }
+    }
+  }
+
   if (!('exclude' in rawConfig)) {
     userTsConfig.exclude = ['node_modules']
     suggestedActions.push(
