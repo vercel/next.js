@@ -6,13 +6,11 @@ export default function Page() {
   return <div>hello</div>
 }
 
-export const config = {
-  runtime: 'nodejs',
-}
+export const runtime = 'nodejs'
 
-export const dynamix = 1,
-  dynamic = 'auto',
-  revalidate = 10,
-  fetchCache = 'default-no-store'
+export const dynamic = 'auto',
+  revalidate = 100,
+  fetchCache = 'force-no-store',
+  preferredRegion = 'auto'
 
 export const dynamicParams = true
