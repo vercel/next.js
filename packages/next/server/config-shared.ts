@@ -84,7 +84,6 @@ export interface ExperimentalConfig {
   skipTrailingSlashRedirect?: boolean
   optimisticClientCache?: boolean
   legacyBrowsers?: boolean
-  browsersListForSwc?: boolean
   manualClientBasePath?: boolean
   newNextLinkBehavior?: boolean
   // custom path to a cache handler to use
@@ -553,9 +552,7 @@ export const defaultConfig: NextConfig = {
     optimisticClientCache: true,
     runtime: undefined,
     manualClientBasePath: false,
-    // TODO: change default in next major release (current v12.1.5)
-    legacyBrowsers: true,
-    browsersListForSwc: false,
+    legacyBrowsers: false,
     newNextLinkBehavior: true,
     cpus: Math.max(
       1,

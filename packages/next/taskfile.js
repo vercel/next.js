@@ -1493,8 +1493,51 @@ export async function ncc_icss_utils(task, opts) {
     })
     .target('compiled/icss-utils')
 }
+
+externals['scheduler'] = 'next/dist/compiled/scheduler'
+export async function ncc_react(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('scheduler')))
+    .ncc({ packageName: 'scheduler', externals })
+    .target('compiled/scheduler')
+
+  const reactDir = dirname(
+    relative(__dirname, require.resolve(`react-builtin/package.json`))
+  )
+  const reactDomDir = dirname(
+    relative(__dirname, require.resolve(`react-dom-builtin/package.json`))
+  )
+
+  // TODO-APP: remove unused fields from package.json and unused files
+  await task.source(join(reactDir, '*.{json,js}')).target(`compiled/react`)
+  await task.source(join(reactDir, 'LICENSE')).target(`compiled/react`)
+  await task.source(join(reactDir, 'cjs/**/*.js')).target(`compiled/react/cjs`)
+
+  await task
+    .source(join(reactDomDir, '*.{json,js}'))
+    .target(`compiled/react-dom`)
+  await task.source(join(reactDomDir, 'LICENSE')).target(`compiled/react-dom`)
+  await task
+    .source(join(reactDomDir, 'cjs/**/*.js'))
+    // eslint-disable-next-line require-yield
+    .run({ every: true }, function* (file) {
+      const source = file.data.toString()
+      // We replace the module/chunk loading code with our own implementaion in Next.js.
+      file.data = source.replace(
+        /require\(["']scheduler["']\)/g,
+        'require("next/dist/compiled/scheduler")'
+      )
+    })
+    .target(`compiled/react-dom/cjs`)
+}
+
 // eslint-disable-next-line camelcase
-export async function copy_react_server_dom_webpack(task, opts) {
+export async function ncc_react_server_dom_webpack(task, opts) {
+  // Use installed versions instead of bundled version
+  const peerDeps = {
+    react: 'react',
+    'react-dom': 'react-dom',
+  }
   await fs.mkdir(join(__dirname, 'compiled/react-server-dom-webpack'), {
     recursive: true,
   })
@@ -1516,7 +1559,7 @@ export async function copy_react_server_dom_webpack(task, opts) {
     // eslint-disable-next-line require-yield
     .run({ every: true }, function* (file) {
       const source = file.data.toString()
-      // We replace the module/chunk loading code with our own implementaion in Next.js.
+      // We replace the module/chunk loading code with our own implementation in Next.js.
       file.data = source
         .replace(/__webpack_chunk_load__/g, 'globalThis.__next_chunk_load__')
         .replace(/__webpack_require__/g, 'globalThis.__next_require__')
@@ -1535,15 +1578,38 @@ export async function copy_react_server_dom_webpack(task, opts) {
   await task
     .source(
       join(
-        dirname(require.resolve('react-server-dom-webpack')),
+        relative(
+          __dirname,
+          dirname(require.resolve('react-server-dom-webpack'))
+        ),
         'writer.browser.server.js'
       )
     )
+    // eslint-disable-next-line require-yield
+    .run({ every: true }, function* (file) {
+      const source = file.data.toString()
+      // We replace the module/chunk loading code with our own implementation in Next.js.
+      file.data = source
+        .replace(/__webpack_chunk_load__/g, 'globalThis.__next_chunk_load__')
+        .replace(/__webpack_require__/g, 'globalThis.__next_require__')
+    })
+    .ncc({
+      minify: false,
+      externals: peerDeps,
+    })
+    .target('compiled/react-server-dom-webpack')
+
+  await task
+    .source(join('compiled/react-server-dom-webpack/index.js'))
+    .ncc({
+      minify: false,
+      externals: peerDeps,
+    })
     .target('compiled/react-server-dom-webpack')
 }
 
-// eslint-disable-next-line camelcase
 externals['sass-loader'] = 'next/dist/compiled/sass-loader'
+// eslint-disable-next-line camelcase
 export async function ncc_sass_loader(task, opts) {
   const sassLoaderPath = require.resolve('sass-loader')
   const utilsPath = join(dirname(sassLoaderPath), 'utils.js')
@@ -2006,7 +2072,8 @@ export async function ncc(task, opts) {
       'copy_regenerator_runtime',
       'copy_babel_runtime',
       'copy_constants_browserify',
-      'copy_react_server_dom_webpack',
+      'ncc_react',
+      'ncc_react_server_dom_webpack',
       'copy_react_is',
       'ncc_sass_loader',
       'ncc_jest_worker',
