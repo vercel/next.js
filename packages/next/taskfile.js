@@ -1529,6 +1529,19 @@ export async function ncc_react(task, opts) {
       )
     })
     .target(`compiled/react-dom/cjs`)
+
+  // Remove unused files
+  const reactDomCompiledDir = join(__dirname, 'compiled/react-dom')
+  await fs.remove(join(reactDomCompiledDir, 'static.js'))
+  await fs.remove(join(reactDomCompiledDir, 'static.node.js'))
+  await fs.remove(join(reactDomCompiledDir, 'static.browser.js'))
+  await fs.remove(join(reactDomCompiledDir, 'unstable_testing.js'))
+  await fs.remove(join(reactDomCompiledDir, 'test-utils.js'))
+  await fs.remove(join(reactDomCompiledDir, 'server.node.js'))
+  await fs.remove(join(reactDomCompiledDir, 'profiling.js'))
+  await fs.remove(
+    join(reactDomCompiledDir, 'unstable_server-external-runtime.js')
+  )
 }
 
 // eslint-disable-next-line camelcase
@@ -1546,14 +1559,18 @@ export async function ncc_react_server_dom_webpack(task, opts) {
     JSON.stringify({ name: 'react-server-dom-webpack', main: './index.js' })
   )
   await task
-    .source(require.resolve('react-server-dom-webpack'))
+    .source(require.resolve('react-server-dom-webpack/client'))
+    .target('compiled/react-server-dom-webpack')
+  await task
+    .source(require.resolve('react-server-dom-webpack/server.browser'))
     .target('compiled/react-server-dom-webpack')
 
+  // Replace webpack internal apis before bundling
   await task
     .source(
       join(
-        dirname(require.resolve('react-server-dom-webpack')),
-        'cjs/react-server-dom-webpack.*'
+        dirname(require.resolve('react-server-dom-webpack/package.json')),
+        'cjs/react-server-dom-webpack-*'
       )
     )
     // eslint-disable-next-line require-yield
@@ -1566,33 +1583,9 @@ export async function ncc_react_server_dom_webpack(task, opts) {
     })
     .target('compiled/react-server-dom-webpack/cjs')
 
+  // Compile entries
   await task
-    .source(
-      join(
-        dirname(require.resolve('react-server-dom-webpack')),
-        'cjs/react-server-dom-webpack-writer.browser.*'
-      )
-    )
-    .target('compiled/react-server-dom-webpack/cjs')
-
-  await task
-    .source(
-      join(
-        relative(
-          __dirname,
-          dirname(require.resolve('react-server-dom-webpack'))
-        ),
-        'writer.browser.server.js'
-      )
-    )
-    // eslint-disable-next-line require-yield
-    .run({ every: true }, function* (file) {
-      const source = file.data.toString()
-      // We replace the module/chunk loading code with our own implementation in Next.js.
-      file.data = source
-        .replace(/__webpack_chunk_load__/g, 'globalThis.__next_chunk_load__')
-        .replace(/__webpack_require__/g, 'globalThis.__next_require__')
-    })
+    .source('compiled/react-server-dom-webpack/server.browser.js')
     .ncc({
       minify: false,
       externals: peerDeps,
@@ -1600,12 +1593,14 @@ export async function ncc_react_server_dom_webpack(task, opts) {
     .target('compiled/react-server-dom-webpack')
 
   await task
-    .source(join('compiled/react-server-dom-webpack/index.js'))
+    .source('compiled/react-server-dom-webpack/client.js')
     .ncc({
       minify: false,
       externals: peerDeps,
     })
     .target('compiled/react-server-dom-webpack')
+
+  await fs.remove(join(__dirname, 'compiled/react-server-dom-webpack/cjs'))
 }
 
 externals['sass-loader'] = 'next/dist/compiled/sass-loader'

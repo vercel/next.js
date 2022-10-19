@@ -2,7 +2,7 @@
  * @license React
  * react-dom-unstable_testing.development.js
  *
- * Copyright (c) Facebook, Inc. and its affiliates.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
@@ -5779,9 +5779,6 @@ function getLanesToRetrySynchronouslyOnError(root, originallyAttemptedLanes) {
   }
 
   return NoLanes;
-}
-function includesSyncLane(lanes) {
-  return (lanes & SyncLane) !== NoLanes;
 }
 function includesNonIdleWork(lanes) {
   return (lanes & NonIdleLanes) !== NoLanes;
@@ -12354,9 +12351,15 @@ var ConcurrentRoot = 1;
 var OffscreenVisible =
 /*                     */
 1;
+var OffscreenDetached =
+/*                    */
+2;
 var OffscreenPassiveEffectsConnected =
 /*     */
-2;
+4;
+function isOffscreenManual(offscreenFiber) {
+  return offscreenFiber.memoizedProps !== null && offscreenFiber.memoizedProps.mode === 'manual';
+}
 
 var syncQueue = null;
 var includesLegacySyncCallbacks = false;
@@ -19616,26 +19619,21 @@ function throwException(root, returnFiber, sourceFiber, value, rootRenderLanes) 
     } else {
       // No boundary was found. Unless this is a sync update, this is OK.
       // We can suspend and wait for more data to arrive.
-      if (!includesSyncLane(rootRenderLanes)) {
-        // This is not a sync update. Suspend. Since we're not activating a
-        // Suspense boundary, this will unwind all the way to the root without
-        // performing a second pass to render a fallback. (This is arguably how
-        // refresh transitions should work, too, since we're not going to commit
-        // the fallbacks anyway.)
+      if (root.tag === ConcurrentRoot) {
+        // In a concurrent root, suspending without a Suspense boundary is
+        // allowed. It will suspend indefinitely without committing.
         //
-        // This case also applies to initial hydration.
+        // TODO: Should we have different behavior for discrete updates? What
+        // about flushSync? Maybe it should put the tree into an inert state,
+        // and potentially log a warning. Revisit this for a future release.
         attachPingListener(root, wakeable, rootRenderLanes);
         renderDidSuspendDelayIfPossible();
         return;
-      } // This is a sync/discrete update. We treat this case like an error
-      // because discrete renders are expected to produce a complete tree
-      // synchronously to maintain consistency with external state.
-
-
-      var uncaughtSuspenseError = new Error('A component suspended while responding to synchronous input. This ' + 'will cause the UI to be replaced with a loading indicator. To ' + 'fix, updates that suspend should be wrapped ' + 'with startTransition.'); // If we're outside a transition, fall through to the regular error path.
-      // The error will be caught by the nearest suspense boundary.
-
-      value = uncaughtSuspenseError;
+      } else {
+        // In a legacy root, suspending without a boundary is always an error.
+        var uncaughtSuspenseError = new Error('A component suspended while responding to synchronous input. This ' + 'will cause the UI to be replaced with a loading indicator. To ' + 'fix, updates that suspend should be wrapped ' + 'with startTransition.');
+        value = uncaughtSuspenseError;
+      }
     }
   } else {
     // This is a regular error, not a Suspense wakeable.
@@ -20099,7 +20097,8 @@ function updateOffscreenComponent(current, workInProgress, renderLanes) {
   var prevState = current !== null ? current.memoizedState : null;
   markRef(current, workInProgress);
 
-  if (nextProps.mode === 'hidden' || enableLegacyHidden ) {
+  if (nextProps.mode === 'hidden' || enableLegacyHidden  || // TODO: remove read from stateNode.
+  workInProgress.stateNode._visibility & OffscreenDetached) {
     // Rendering a hidden tree.
     var didSuspend = (workInProgress.flags & DidCapture) !== NoFlags;
 
@@ -25344,6 +25343,28 @@ function getRetryCache(finishedWork) {
   }
 }
 
+function detachOffscreenInstance(instance) {
+  var currentOffscreenFiber = instance._current;
+
+  if (currentOffscreenFiber === null) {
+    throw new Error('Calling Offscreen.detach before instance handle has been set.');
+  }
+
+  var executionContext = getExecutionContext();
+
+  if ((executionContext & (RenderContext | CommitContext)) !== NoContext) {
+    scheduleMicrotask(function () {
+      instance._visibility |= OffscreenDetached;
+      disappearLayoutEffects(currentOffscreenFiber);
+      disconnectPassiveEffect(currentOffscreenFiber);
+    });
+  } else {
+    instance._visibility |= OffscreenDetached;
+    disappearLayoutEffects(currentOffscreenFiber);
+    disconnectPassiveEffect(currentOffscreenFiber);
+  }
+}
+
 function attachSuspenseRetryListeners(finishedWork, wakeables) {
   // If this boundary just timed out, then it will have a set of wakeables.
   // For each wakeable, attach a listener so that when it resolves, React
@@ -25660,7 +25681,9 @@ function commitMutationEffectsOnFiber(finishedWork, root, lanes) {
           recursivelyTraverseMutationEffects(root, finishedWork);
         }
 
-        commitReconciliationEffects(finishedWork);
+        commitReconciliationEffects(finishedWork); // TODO: Add explicit effect flag to set _current.
+
+        finishedWork.stateNode._current = finishedWork;
 
         if (flags & Visibility) {
           var offscreenInstance = finishedWork.stateNode;
@@ -25680,9 +25703,10 @@ function commitMutationEffectsOnFiber(finishedWork, root, lanes) {
                 recursivelyTraverseDisappearLayoutEffects(offscreenBoundary);
               }
             }
-          }
+          } // Offscreen with manual mode manages visibility manually.
 
-          {
+
+          if ( !isOffscreenManual(finishedWork)) {
             // TODO: This needs to run whenever there's an insertion or update
             // inside a hidden Offscreen tree.
             hideOrUnhideAllChildren(offscreenBoundary, _isHidden);
@@ -27210,7 +27234,7 @@ var BatchedContext =
 /*               */
 1;
 var RenderContext =
-/*                */
+/*         */
 2;
 var CommitContext =
 /*         */
@@ -27697,10 +27721,6 @@ function performConcurrentWorkOnRoot(root, didTimeout) {
       // The render unwound without completing the tree. This happens in special
       // cases where need to exit the current render without producing a
       // consistent tree or committing.
-      //
-      // This should only happen during a concurrent render, not a discrete or
-      // synchronous update. We should have already checked for this when we
-      // unwound the stack.
       markRootSuspended$1(root, lanes);
     } else {
       // The render completed.
@@ -27735,7 +27755,9 @@ function performConcurrentWorkOnRoot(root, didTimeout) {
           markRootSuspended$1(root, lanes);
           ensureRootIsScheduled(root, now());
           throw _fatalError;
-        }
+        } // FIXME: Need to check for RootDidNotComplete again. The factoring here
+        // isn't ideal.
+
       } // We now have a consistent tree. The next step is either to commit it,
       // or, if something suspended, wait to commit it after a timeout.
 
@@ -28068,7 +28090,12 @@ function performSyncWorkOnRoot(root) {
   }
 
   if (exitStatus === RootDidNotComplete) {
-    throw new Error('Root did not complete. This is a bug in React.');
+    // The render unwound without completing the tree. This happens in special
+    // cases where need to exit the current render without producing a
+    // consistent tree or committing.
+    markRootSuspended$1(root, lanes);
+    ensureRootIsScheduled(root, now());
+    return null;
   } // We now have a consistent tree. Because this is a sync render, we
   // will commit it even if something suspended.
 
@@ -30534,7 +30561,11 @@ function createFiberFromOffscreen(pendingProps, mode, lanes, key) {
     _visibility: OffscreenVisible,
     _pendingMarkers: null,
     _retryCache: null,
-    _transitions: null
+    _transitions: null,
+    _current: null,
+    detach: function () {
+      return detachOffscreenInstance(primaryChildInstance);
+    }
   };
   fiber.stateNode = primaryChildInstance;
   return fiber;
@@ -30667,7 +30698,7 @@ identifierPrefix, onRecoverableError, transitionCallbacks) {
   return root;
 }
 
-var ReactVersion = '18.3.0-experimental-a8c16a004-20221012';
+var ReactVersion = '18.3.0-experimental-9cdf8a99e-20221018';
 
 function createPortal(children, containerInfo, // TODO: figure out the API for cross-renderer implementation.
 implementation) {

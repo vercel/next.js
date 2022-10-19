@@ -643,6 +643,7 @@ export default class DevServer extends Server {
         typeCheckPreflight: false,
         tsconfigPath: this.nextConfig.typescript.tsconfigPath,
         disableStaticImages: this.nextConfig.images.disableStaticImages,
+        isAppDirEnabled: !!this.appDir,
       })
 
       if (verifyResult.version) {
