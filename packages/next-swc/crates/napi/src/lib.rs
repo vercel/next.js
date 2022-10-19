@@ -48,6 +48,7 @@ use swc_core::{
 pub mod minify;
 pub mod parse;
 pub mod transform;
+pub mod turbo_tracing;
 pub mod turbopack;
 pub mod util;
 

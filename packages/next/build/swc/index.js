@@ -211,6 +211,9 @@ async function loadWasm(importPath = '') {
           startDev: () => {
             Log.error('Wasm binding does not support --turbo yet')
           },
+          startTrace: () => {
+            Log.error('Wasm binding does not support trace yet')
+          },
         },
       }
       return wasmBindings
@@ -340,6 +343,7 @@ function loadNative() {
       teardownCrashReporter: bindings.teardownCrashReporter,
       turbo: {
         startDev: (options) => bindings.startTurboDev(toBuffer(options)),
+        startTrace: (options) => bindings.runTurboTracing(toBuffer(options)),
       }
     }
     return nativeBindings
