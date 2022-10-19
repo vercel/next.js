@@ -3,9 +3,16 @@ import type { LoadComponentsReturnType } from './load-components'
 import type { ServerRuntime } from '../types'
 import type { FontLoaderManifest } from '../build/webpack/plugins/font-loader-manifest-plugin'
 
+// TODO-APP: investigate why require-hook doesn't work for app-render
 // TODO-APP: change to React.use once it becomes stable
-// @ts-ignore
-import React, { experimental_use as use } from 'react'
+import React, {
+  // @ts-ignore
+  experimental_use as use,
+} from 'next/dist/compiled/react'
+
+// this needs to be required lazily so that `next-server` can set
+// the env before we require
+import ReactDOMServer from 'next/dist/compiled/react-dom/server.browser'
 
 import { ParsedUrlQuery } from 'querystring'
 import { NextParsedUrlQuery } from './request-meta'
@@ -126,12 +133,6 @@ class ReadonlyNextCookies {
     throw readonlyCookiesError()
   }
 }
-
-// this needs to be required lazily so that `next-server` can set
-// the env before we require
-const ReactDOMServer = shouldUseReactRoot
-  ? require('react-dom/server.browser')
-  : require('react-dom/server')
 
 export type RenderOptsPartial = {
   err?: Error | null

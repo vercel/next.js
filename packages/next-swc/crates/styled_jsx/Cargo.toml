@@ -24,10 +24,10 @@ swc_core = { features = [
   "ecma_minifier",
   "ecma_utils",
   "ecma_visit"
-], version = "0.38.22" }
+], version = "0.39.7" }
 
 [dev-dependencies]
-testing = "0.31.8"
+testing = "0.31.9"
 swc_core = { features = [
   "testing_transform"
-], version = "0.38.22" }
+], version = "0.39.7" }

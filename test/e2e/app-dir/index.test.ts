@@ -1240,62 +1240,6 @@ describe('app dir', () => {
             await next.patchFile(filePath, origContent)
           }
         })
-
-        it('should throw an error when getServerSideProps is used', async () => {
-          const pageFile =
-            'app/client-with-errors/get-server-side-props/page.js'
-          const content = await next.readFile(pageFile)
-          const uncomment = content.replace(
-            '// export function getServerSideProps',
-            'export function getServerSideProps'
-          )
-          await next.patchFile(pageFile, uncomment)
-          const res = await fetchViaHTTP(
-            next.url,
-            '/client-with-errors/get-server-side-props'
-          )
-          await next.patchFile(pageFile, content)
-
-          await check(async () => {
-            const { status } = await fetchViaHTTP(
-              next.url,
-              '/client-with-errors/get-server-side-props'
-            )
-            return status
-          }, /200/)
-
-          expect(res.status).toBe(500)
-          expect(await res.text()).toContain(
-            '`getServerSideProps` is not allowed in Client Components'
-          )
-        })
-
-        it('should throw an error when getStaticProps is used', async () => {
-          const pageFile = 'app/client-with-errors/get-static-props/page.js'
-          const content = await next.readFile(pageFile)
-          const uncomment = content.replace(
-            '// export function getStaticProps',
-            'export function getStaticProps'
-          )
-          await next.patchFile(pageFile, uncomment)
-          const res = await fetchViaHTTP(
-            next.url,
-            '/client-with-errors/get-static-props'
-          )
-          await next.patchFile(pageFile, content)
-          await check(async () => {
-            const { status } = await fetchViaHTTP(
-              next.url,
-              '/client-with-errors/get-static-props'
-            )
-            return status
-          }, /200/)
-
-          expect(res.status).toBe(500)
-          expect(await res.text()).toContain(
-            '`getStaticProps` is not allowed in Client Components'
-          )
-        })
       }
     })
 

@@ -74,15 +74,7 @@ describe('config', () => {
         PHASE_DEVELOPMENT_SERVER,
         join(__dirname, '_resolvedata', 'invalid-target')
       )
-    }).rejects.toThrow(/Specified target is invalid/)
-  })
-
-  it('Should pass when a valid target is provided', async () => {
-    const config = await loadConfig(
-      PHASE_DEVELOPMENT_SERVER,
-      join(__dirname, '_resolvedata', 'valid-target')
-    )
-    expect(config.target).toBe('serverless')
+    }).rejects.toThrow(/The "target" property is no longer supported/)
   })
 
   it('Should throw an error when next.config.js is not present', async () => {

@@ -89,18 +89,18 @@ The layout behavior of the image as the viewport changes size.
 | `responsive`          | Scale to fit width of container                          | `640w`, `750w`, ... `2048w`, `3840w` (based on [imageSizes](#image-sizes) and [deviceSizes](#device-sizes)) | `100vw` | yes                   |
 | `fill`                | Grow in both X and Y axes to fill container              | `640w`, `750w`, ... `2048w`, `3840w` (based on [imageSizes](#image-sizes) and [deviceSizes](#device-sizes)) | `100vw` | yes                   |
 
-- [Demo the `intrinsic` layout (default)](https://image-component.nextjs.gallery/layout-intrinsic)
+- [Demo the `intrinsic` layout (default)](https://image-legacy-component.nextjs.gallery/layout-intrinsic)
   - When `intrinsic`, the image will scale the dimensions down for smaller viewports, but maintain the original dimensions for larger viewports.
-- [Demo the `fixed` layout](https://image-component.nextjs.gallery/layout-fixed)
+- [Demo the `fixed` layout](https://image-legacy-component.nextjs.gallery/layout-fixed)
   - When `fixed`, the image dimensions will not change as the viewport changes (no responsiveness) similar to the native `img` element.
-- [Demo the `responsive` layout](https://image-component.nextjs.gallery/layout-responsive)
+- [Demo the `responsive` layout](https://image-legacy-component.nextjs.gallery/layout-responsive)
   - When `responsive`, the image will scale the dimensions down for smaller viewports and scale up for larger viewports.
   - Ensure the parent element uses `display: block` in their stylesheet.
-- [Demo the `fill` layout](https://image-component.nextjs.gallery/layout-fill)
+- [Demo the `fill` layout](https://image-legacy-component.nextjs.gallery/layout-fill)
   - When `fill`, the image will stretch both width and height to the dimensions of the parent element, provided the parent element is relative.
   - This is usually paired with the [`objectFit`](#objectFit) property.
   - Ensure the parent element has `position: relative` in their stylesheet.
-- [Demo background image](https://image-component.nextjs.gallery/background)
+- [Demo background image](https://image-legacy-component.nextjs.gallery/background)
 
 ### loader
 
@@ -193,9 +193,9 @@ When `empty`, there will be no placeholder while the image is loading, only empt
 
 Try it out:
 
-- [Demo the `blur` placeholder](https://image-component.nextjs.gallery/placeholder)
-- [Demo the shimmer effect with `blurDataURL` prop](https://image-component.nextjs.gallery/shimmer)
-- [Demo the color effect with `blurDataURL` prop](https://image-component.nextjs.gallery/color)
+- [Demo the `blur` placeholder](https://image-legacy-component.nextjs.gallery/placeholder)
+- [Demo the shimmer effect with `blurDataURL` prop](https://image-legacy-component.nextjs.gallery/shimmer)
+- [Demo the color effect with `blurDataURL` prop](https://image-legacy-component.nextjs.gallery/color)
 
 ## Advanced Props
 
@@ -258,9 +258,9 @@ less) is recommended. Including larger images as placeholders may harm your appl
 
 Try it out:
 
-- [Demo the default `blurDataURL` prop](https://image-component.nextjs.gallery/placeholder)
-- [Demo the shimmer effect with `blurDataURL` prop](https://image-component.nextjs.gallery/shimmer)
-- [Demo the color effect with `blurDataURL` prop](https://image-component.nextjs.gallery/color)
+- [Demo the default `blurDataURL` prop](https://image-legacy-component.nextjs.gallery/placeholder)
+- [Demo the shimmer effect with `blurDataURL` prop](https://image-legacy-component.nextjs.gallery/shimmer)
+- [Demo the color effect with `blurDataURL` prop](https://image-legacy-component.nextjs.gallery/color)
 
 You can also [generate a solid color Data URL](https://png-pixel.com) to match the image.
 
