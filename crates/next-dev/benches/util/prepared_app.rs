@@ -1,5 +1,7 @@
 use std::{
+    future::Future,
     path::{Path, PathBuf},
+    pin::Pin,
     process::Child,
 };
 
@@ -12,9 +14,49 @@ use chromiumoxide::{
     Browser, Page,
 };
 use futures::{FutureExt, StreamExt};
+use tokio::task::spawn_blocking;
 use url::Url;
 
 use crate::{bundlers::Bundler, util::PageGuard, BINDING_NAME};
+
+fn copy_dir_boxed(
+    from: PathBuf,
+    to: PathBuf,
+) -> Pin<Box<dyn Future<Output = anyhow::Result<()>> + Sync + Send>> {
+    Box::pin(copy_dir(from, to))
+}
+
+async fn copy_dir(from: PathBuf, to: PathBuf) -> anyhow::Result<()> {
+    let dir = spawn_blocking(|| std::fs::read_dir(from)).await??;
+    let mut jobs = Vec::new();
+    let mut file_futures = Vec::new();
+    for entry in dir {
+        let entry = entry?;
+        let ty = entry.file_type()?;
+        let to = to.join(entry.file_name());
+        if ty.is_dir() {
+            jobs.push(tokio::spawn(async move {
+                tokio::fs::create_dir(&to).await?;
+                copy_dir_boxed(entry.path(), to).await
+            }));
+        } else if ty.is_file() {
+            file_futures.push(async move {
+                tokio::fs::copy(entry.path(), to).await?;
+                Ok::<_, anyhow::Error>(())
+            });
+        }
+    }
+
+    for future in file_futures {
+        jobs.push(tokio::spawn(future));
+    }
+
+    for job in jobs {
+        job.await??;
+    }
+
+    Ok(())
+}
 
 pub struct PreparedApp<'a> {
     bundler: &'a dyn Bundler,
@@ -24,17 +66,11 @@ pub struct PreparedApp<'a> {
 }
 
 impl<'a> PreparedApp<'a> {
-    pub fn new(bundler: &'a dyn Bundler, template_dir: PathBuf) -> Result<Self> {
+    pub async fn new(bundler: &'a dyn Bundler, template_dir: PathBuf) -> Result<PreparedApp<'a>> {
         let test_dir = tempfile::tempdir()?;
 
-        fs_extra::dir::copy(
-            &template_dir,
-            &test_dir,
-            &fs_extra::dir::CopyOptions {
-                content_only: true,
-                ..fs_extra::dir::CopyOptions::default()
-            },
-        )?;
+        tokio::fs::create_dir_all(&test_dir).await?;
+        copy_dir(template_dir, test_dir.path().to_path_buf()).await?;
 
         Ok(Self {
             bundler,
