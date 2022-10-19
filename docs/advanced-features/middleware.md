@@ -140,6 +140,7 @@ The [`NextResponse`](#nextresponse) API allows you to:
 
 - `redirect` the incoming request to a different URL
 - `rewrite` the response by displaying a given URL
+- Set request headers for API Routes, `getServerSideProps`, and `rewrite` destinations
 - Set response cookies
 - Set response headers
 
@@ -176,6 +177,37 @@ export function middleware(request: NextRequest) {
   return response
 }
 ```
+
+## Setting Headers
+
+You can set request and response headers using the `NextResponse` API.
+
+```ts
+// middleware.ts
+
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+
+export function middleware(request: NextRequest) {
+  // Clone the request headers and set a new header `x-hello-from-middleware1`
+  const requestHeaders = new Headers(request.headers)
+  requestHeaders.set('x-hello-from-middleware1', 'hello')
+
+  // You can also set request headers in NextResponse.rewrite
+  const response = NextResponse.next({
+    request: {
+      // New request headers
+      headers: requestHeaders,
+    },
+  })
+
+  // Set a new response header `x-hello-from-middleware2`
+  response.headers.set('x-hello-from-middleware2', 'hello')
+  return response
+}
+```
+
+> **Note:** Avoid setting large headers as it might cause [431 Request Header Fields Too Large](https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/431) error depending on your backend web server configuration.
 
 ## Related
 
