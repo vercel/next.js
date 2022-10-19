@@ -1,6 +1,4 @@
-export const config = {
-  dynamicParams: true,
-}
+export const dynamicParams = false
 
 export default function Page({ params }) {
   return (
