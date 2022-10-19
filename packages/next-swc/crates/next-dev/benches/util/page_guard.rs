@@ -1,6 +1,6 @@
 use std::{sync::Arc, time::Duration};
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use chromiumoxide::{
     cdp::js_protocol::runtime::{EventBindingCalled, EventExceptionThrown},
     listeners::EventStream,
@@ -99,7 +99,8 @@ impl<'a> PageGuard<'a> {
             MAX_HYDRATION_TIMEOUT,
             self.wait_for_binding(TEST_APP_HYDRATION_DONE),
         )
-        .await??;
+        .await
+        .context("Timeout happened while waiting for hydration")??;
         Ok(())
     }
 }

@@ -124,9 +124,22 @@ pub fn build_test(module_count: usize, bundler: &dyn Bundler) -> TestApp {
 }
 
 pub async fn create_browser() -> Browser {
-    let (browser, mut handler) = Browser::launch(BrowserConfig::builder().build().unwrap())
-        .await
-        .unwrap();
+    let with_head = !matches!(
+        std::env::var("TURBOPACK_BENCH_HEAD").ok().as_deref(),
+        None | Some("") | Some("no") | Some("false")
+    );
+    let with_devtools = !matches!(
+        std::env::var("TURBOPACK_BENCH_DEVTOOLS").ok().as_deref(),
+        None | Some("") | Some("no") | Some("false")
+    );
+    let mut builder = BrowserConfig::builder();
+    if with_head {
+        builder = builder.with_head();
+    }
+    if with_devtools {
+        builder = builder.arg("--auto-open-devtools-for-tabs");
+    }
+    let (browser, mut handler) = Browser::launch(builder.build().unwrap()).await.unwrap();
 
     // See https://crates.io/crates/chromiumoxide
     tokio::task::spawn(async move {
@@ -174,6 +187,12 @@ impl<'a, 'b, A: AsyncExecutor> AsyncBencherExtension for AsyncBencher<'a, 'b, A,
         T: Fn(O) -> TF,
         TF: Future<Output = ()>,
     {
+        let config = std::env::var("TURBOPACK_BENCH_BENCH").ok();
+        let bench_benchmark_itself = !matches!(
+            config.as_deref(),
+            None | Some("") | Some("no") | Some("false")
+        );
+
         let setup = &setup;
         let routine = &routine;
         let teardown = &teardown;
@@ -184,20 +203,28 @@ impl<'a, 'b, A: AsyncExecutor> AsyncBencherExtension for AsyncBencher<'a, 'b, A,
             let mut iter = 0u64;
             let mut failures = 0u64;
             while iter < iters {
-                let output = loop {
+                loop {
+                    let early_start = bench_benchmark_itself.then(|| measurement.start());
                     let input = black_box(
                         retry_async_default((), |_| setup())
                             .await
                             .expect("failed to setup"),
                     );
 
-                    let start = measurement.start();
+                    let start = early_start.unwrap_or_else(|| measurement.start());
                     match routine(input).await {
                         Ok(output) => {
-                            let duration = measurement.end(start);
+                            let duration;
+                            if bench_benchmark_itself {
+                                teardown(black_box(output)).await;
+                                duration = measurement.end(start);
+                            } else {
+                                duration = measurement.end(start);
+                                teardown(black_box(output)).await;
+                            }
                             value = measurement.add(&value, &duration);
                             iter += 1;
-                            break output;
+                            break;
                         }
                         Err(err) => {
                             failures += 1;
@@ -209,9 +236,7 @@ impl<'a, 'b, A: AsyncExecutor> AsyncBencherExtension for AsyncBencher<'a, 'b, A,
                             }
                         }
                     }
-                };
-
-                teardown(black_box(output)).await;
+                }
             }
 
             value

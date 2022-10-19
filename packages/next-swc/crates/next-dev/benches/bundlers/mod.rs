@@ -32,6 +32,9 @@ pub trait Bundler {
     fn prepare(&self, _template_dir: &Path) -> Result<()> {
         Ok(())
     }
+    fn prepare_each(&self, _template_dir: &Path) -> Result<()> {
+        Ok(())
+    }
     fn start_server(&self, test_dir: &Path) -> Result<(Child, String)>;
 }
 
