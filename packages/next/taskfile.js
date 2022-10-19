@@ -1561,6 +1561,9 @@ export async function ncc_react_server_dom_webpack(task, opts) {
   await task
     .source(require.resolve('react-server-dom-webpack/client'))
     .target('compiled/react-server-dom-webpack')
+  await task
+    .source(require.resolve('react-server-dom-webpack/server.browser'))
+    .target('compiled/react-server-dom-webpack')
 
   // Replace webpack internal apis before bundling
   await task
