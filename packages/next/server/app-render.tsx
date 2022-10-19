@@ -195,7 +195,7 @@ function createErrorHandler(
     }
 
     // TODO-APP: look at using webcrypto instead. Requires a promise to be awaited.
-    return stringHash(err.message)
+    return stringHash(err.message).toString()
   }
 }
 
