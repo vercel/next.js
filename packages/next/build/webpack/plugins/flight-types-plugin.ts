@@ -31,6 +31,7 @@ interface IEntry {
       ? `default: (props: { children: React.ReactNode; params?: any }) => React.ReactNode | null`
       : `default: (props: { params?: any }) => React.ReactNode | null`
   }
+  config?: {}
   generateStaticParams?: (params?:any) => Promise<any[]>
   revalidate?: RevalidateRange<TEntry> | false
   dynamic?: 'auto' | 'force-dynamic' | 'error' | 'force-static'
