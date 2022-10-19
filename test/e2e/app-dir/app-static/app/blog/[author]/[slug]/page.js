@@ -1,4 +1,4 @@
-export const dynamicParams = false
+export const dynamicParams = true
 
 export default function Page({ params }) {
   return (
