@@ -85,9 +85,7 @@ export class NextCookies extends Cookies {
     const name = args[0]
     if (typeof raw !== 'string') return { name, value: raw }
     const { [name]: value, ...options } = cookie.parse(raw)
-    options.name = name
-    options.value = value
-    return options as unknown as Cookie
+    return { name, value, ...options }
   }
   set(...args: Parameters<Cookies['set']>) {
     const isAlreadyAdded = super.has(args[0])
