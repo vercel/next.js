@@ -78,7 +78,7 @@
     "@swc/helpers": "0.4.11",
     "caniuse-lite": "^1.0.30001406",
     "postcss": "8.4.14",
-    "styled-jsx": "5.0.7",
+    "styled-jsx": "5.1.0",
     "use-sync-external-store": "1.2.0"
   },
   "peerDependencies": {
