@@ -42,6 +42,7 @@ import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
 import { NOT_FOUND_ERROR_CODE } from '../client/components/not-found'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import { Writable } from 'stream'
+import stringHash from 'next/dist/compiled/string-hash'
 
 const INTERNAL_HEADERS_INSTANCE = Symbol('internal for headers readonly')
 
@@ -178,19 +179,23 @@ function createErrorHandler(
 ) {
   return (err: any) => {
     if (
-      // TODO-APP: Handle redirect throw
-      err.digest !== DYNAMIC_ERROR_CODE &&
-      err.digest !== NOT_FOUND_ERROR_CODE &&
-      !err.digest?.startsWith(REDIRECT_ERROR_CODE)
+      err.digest === DYNAMIC_ERROR_CODE ||
+      err.digest === NOT_FOUND_ERROR_CODE ||
+      err.digest?.startsWith(REDIRECT_ERROR_CODE)
     ) {
-      // Used for debugging error source
-      // console.error(_source, err)
-      console.error(err)
-      capturedErrors.push(err)
-      return err.digest || err.message
+      return err.digest
     }
 
-    return err.digest
+    // Used for debugging error source
+    // console.error(_source, err)
+    console.error(err)
+    capturedErrors.push(err)
+    if (err.digest) {
+      return err.digest
+    }
+
+    // TODO-APP: look at using webcrypto instead. Requires a promise to be awaited.
+    return stringHash(err.message)
   }
 }
 
