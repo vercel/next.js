@@ -11,6 +11,8 @@ bench = false
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
+default = ["cli"]
+cli = ["dep:clap", "dep:turbo-malloc"]
 persistent_cache = [
   # "dep:turbo-tasks-rocksdb"
 ]
@@ -19,18 +21,19 @@ tokio_console = [
   "tokio/tracing",
   "turbo-tasks/tokio_tracing",
 ]
+node-api = []
 
 [dependencies]
-clap = { version = "3", features = ["derive"] }
+clap = { version = "3", optional = true, features = ["derive"] }
 owo-colors = "3"
-turbo-malloc = { path = "../turbo-malloc" }
+turbo-malloc = { path = "../turbo-malloc", optional = true }
 turbo-tasks = { path = "../turbo-tasks" }
 # turbo-tasks-memory = { path = "../turbo-tasks-memory", features = ["log_running_tasks", "log_scheduled_tasks", "log_activate_tasks", "log_connect_tasks"] }
 turbo-tasks-memory = { path = "../turbo-tasks-memory" }
 # turbo-tasks-rocksdb = { path = "../turbo-tasks-rocksdb", optional = true }
 anyhow = "1.0.47"
 console-subscriber = { version = "0.1.6", optional = true }
-serde = "1.0.136"
+serde = { version = "1.0.136", features = ["derive"] }
 serde_json = "1.0.85"
 tokio = { version = "1.11.0", features = ["full"] }
 turbo-tasks-fs = { path = "../turbo-tasks-fs" }

@@ -22,6 +22,19 @@ use turbopack_core::issue::{
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct IssueSeverityCliOption(pub IssueSeverity);
 
+impl serde::Serialize for IssueSeverityCliOption {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(&self.0.to_string())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for IssueSeverityCliOption {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let s = String::deserialize(deserializer)?;
+        IssueSeverityCliOption::from_str(&s).map_err(serde::de::Error::custom)
+    }
+}
+
 impl clap::ValueEnum for IssueSeverityCliOption {
     fn value_variants<'a>() -> &'a [Self] {
         const VARIANTS: [IssueSeverityCliOption; 8] = [
