@@ -140,7 +140,7 @@ The [`NextResponse`](#nextresponse) API allows you to:
 
 - `redirect` the incoming request to a different URL
 - `rewrite` the response by displaying a given URL
-- Set request headers
+- Set request headers for API Routes, `getServerSideProps`, and `rewrite` destinations
 - Set response cookies
 - Set response headers
 
