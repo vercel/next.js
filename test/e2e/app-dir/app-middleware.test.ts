@@ -42,8 +42,8 @@ describe('app-dir with middleware', () => {
       toJson: (res: Response) => res.json(),
     },
     {
-      title: 'getServerSideProps',
-      path: '/ssr-page',
+      title: '/headers',
+      path: '/headers',
       toJson: async (res: Response) => {
         const $ = cheerio.load(await res.text())
         return JSON.parse($('#headers').text())
