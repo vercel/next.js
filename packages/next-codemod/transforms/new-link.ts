@@ -45,7 +45,7 @@ export default function transformer(file: FileInfo, api: API) {
         }
 
         // If file has <style jsx> enable legacyBehavior
-        // and keep <a> to  stay on the safe side
+        // and keep <a> to stay on the safe side
         if (hasStylesJSX) {
           $link
             .get('attributes')
@@ -92,7 +92,22 @@ export default function transformer(file: FileInfo, api: API) {
           props.length = 0
         }
 
-        //
+        // If <a> has more than one child, then we can't remove it.
+        // So change <a> to <> an return early.
+        if ($childrenWithA.childElements().length > 1) {
+          $childrenWithA.forEach((childPath) => {
+            const opener = childPath.value.openingElement.name
+            if (opener.type === 'JSXIdentifier') {
+              opener.name = ''
+            }
+            const closer = childPath.value.closingElement.name
+            if (closer.type === 'JSXIdentifier') {
+              closer.name = ''
+            }
+          })
+          return
+        }
+
         const childrenProps = $childrenWithA.get('children')
         $childrenWithA.replaceWith(childrenProps.value)
       })
