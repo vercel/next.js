@@ -113,3 +113,23 @@ Edge API Routes use the [Edge Runtime](/docs/api-reference/edge-runtime.md), whe
 Edge API Routes can [stream responses](/docs/api-reference/edge-runtime.md#web-stream-apis) from the server and run _after_ cached files (e.g. HTML, CSS, JavaScript) have been accessed. Server-side streaming can help improve performance with faster [Time To First Byte (TTFB)](https://web.dev/ttfb/).
 
 View the [supported APIs](/docs/api-reference/edge-runtime.md) and [unsupported APIs](/docs/api-reference/edge-runtime.md#unsupported-apis) for the Edge Runtime.
+
+## Web Assembly (Wasm)
+
+You can use Warm within your Edge API Route by importing your `.wasm` binary with:
+
+```ts
+import wasm from './my-file.wasm?module'
+```
+
+Note the `?module` suffix. This will provide an array of the WASM data that can be instantiated using `WebAssembly.instantiate()`, which can be done as follows:
+
+```ts
+export default async function handler() {
+  const { exports } = (await WebAssembly.instantiate(wasmModule)) as any
+  const result = exports.xor(0xb4c9a91f, 0xf0c0ffee)
+  return new Response(result)
+}
+```
+
+View more examples [here](https://github.com/vercel/examples/tree/main/edge-api-routes).
