@@ -1051,14 +1051,14 @@ type GenerateParams = Array<{
   isLayout?: boolean
 }>
 
-export const collectGenerateParams = (
+export const collectGenerateParams = async (
   segment: any,
   parentSegments: string[] = [],
   generateParams: GenerateParams = []
-): GenerateParams => {
+): Promise<GenerateParams> => {
   if (!Array.isArray(segment)) return generateParams
   const isLayout = !!segment[2]?.layout
-  const mod = isLayout ? segment[2]?.layout?.() : segment[2]?.page?.()
+  const mod = await (isLayout ? segment[2]?.layout?.() : segment[2]?.page?.())
 
   const result = {
     isLayout,
@@ -1264,7 +1264,7 @@ export async function isPageStatic({
 
       if (pageType === 'app') {
         const tree = componentsResult.ComponentMod.tree
-        const generateParams = collectGenerateParams(tree)
+        const generateParams = await collectGenerateParams(tree)
 
         appConfig = generateParams.reduce(
           (builtConfig: AppConfig, curGenParams): AppConfig => {

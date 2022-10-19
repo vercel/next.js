@@ -41,6 +41,7 @@ describe('app-dir static/dynamic handling', () => {
       ).filter((file) => file.match(/.*\.(js|html|rsc)$/))
 
       expect(files).toEqual([
+        '(new)/custom/page.js',
         'blog/[author]/[slug]/page.js',
         'blog/[author]/page.js',
         'blog/seb.html',
