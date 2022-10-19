@@ -69,8 +69,7 @@ const babelIncludeRegexes: RegExp[] = [
   /next[\\/]dist[\\/](esm[\\/])?shared[\\/]lib/,
   /next[\\/]dist[\\/](esm[\\/])?client/,
   /next[\\/]dist[\\/](esm[\\/])?pages/,
-  /[\\/](strip-ansi|ansi-regex)[\\/]/,
-  /styled-jsx[\\/]/,
+  /[\\/](strip-ansi|ansi-regex|styled-jsx)[\\/]/,
 ]
 
 const BABEL_CONFIG_FILES = [
