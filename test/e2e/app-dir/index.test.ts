@@ -1197,60 +1197,48 @@ describe('app dir', () => {
       })
 
       if (isDev) {
-        it('should throw an error when getServerSideProps is used', async () => {
-          const pageFile =
-            'app/client-with-errors/get-server-side-props/page.js'
-          const content = await next.readFile(pageFile)
-          const uncomment = content.replace(
-            '// export function getServerSideProps',
-            'export function getServerSideProps'
-          )
-          await next.patchFile(pageFile, uncomment)
-          const res = await fetchViaHTTP(
-            next.url,
-            '/client-with-errors/get-server-side-props'
-          )
-          await next.patchFile(pageFile, content)
+        it('should HMR correctly for client component', async () => {
+          const filePath = 'app/client-component-route/page.js'
+          const origContent = await next.readFile(filePath)
 
-          await check(async () => {
-            const { status } = await fetchViaHTTP(
+          try {
+            const browser = await webdriver(next.url, '/client-component-route')
+
+            const ssrInitial = await renderViaHTTP(
               next.url,
-              '/client-with-errors/get-server-side-props'
+              '/client-component-route'
             )
-            return status
-          }, /200/)
 
-          expect(res.status).toBe(500)
-          expect(await res.text()).toContain(
-            '`getServerSideProps` is not allowed in Client Components'
-          )
-        })
+            expect(ssrInitial).toContain(
+              'hello from app/client-component-route'
+            )
 
-        it('should throw an error when getStaticProps is used', async () => {
-          const pageFile = 'app/client-with-errors/get-static-props/page.js'
-          const content = await next.readFile(pageFile)
-          const uncomment = content.replace(
-            '// export function getStaticProps',
-            'export function getStaticProps'
-          )
-          await next.patchFile(pageFile, uncomment)
-          const res = await fetchViaHTTP(
-            next.url,
-            '/client-with-errors/get-static-props'
-          )
-          await next.patchFile(pageFile, content)
-          await check(async () => {
-            const { status } = await fetchViaHTTP(
+            expect(await browser.elementByCss('p').text()).toContain(
+              'hello from app/client-component-route'
+            )
+
+            await next.patchFile(
+              filePath,
+              origContent.replace('hello from', 'swapped from')
+            )
+
+            await check(() => browser.elementByCss('p').text(), /swapped from/)
+
+            const ssrUpdated = await renderViaHTTP(
               next.url,
-              '/client-with-errors/get-static-props'
+              '/client-component-route'
             )
-            return status
-          }, /200/)
+            expect(ssrUpdated).toContain('swapped from')
 
-          expect(res.status).toBe(500)
-          expect(await res.text()).toContain(
-            '`getStaticProps` is not allowed in Client Components'
-          )
+            await next.patchFile(filePath, origContent)
+
+            await check(() => browser.elementByCss('p').text(), /hello from/)
+            expect(
+              await renderViaHTTP(next.url, '/client-component-route')
+            ).toContain('hello from')
+          } finally {
+            await next.patchFile(filePath, origContent)
+          }
         })
       }
     })

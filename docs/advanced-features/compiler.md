@@ -9,6 +9,7 @@ description: Learn about the Next.js Compiler, written in Rust, which transforms
 
 | Version   | Changes                                                                                                                            |
 | --------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `v13.0.0` | SWC Minifier enabled by default.                                                                                                   |
 | `v12.3.0` | SWC Minifier [stable](https://nextjs.org/blog/next-12-3#swc-minifier-stable).                                                      |
 | `v12.2.0` | [SWC Plugins](#swc-plugins-Experimental) experimental support added.                                                               |
 | `v12.1.0` | Added support for Styled Components, Jest, Relay, Remove React Properties, Legacy Decorators, Remove Console, and jsxImportSource. |
@@ -241,17 +242,17 @@ Only `importMap` in `@emotion/babel-plugin` is not supported for now.
 
 ### Minification
 
-You can opt-in to using the Next.js compiler for minification. This is 7x faster than Terser.
+Next.js' swc compiler is used for minification by default since v13. This is 7x faster than Terser.
+
+If Terser is still needed for any reason this can be configured.
 
 ```js
 // next.config.js
 
 module.exports = {
-  swcMinify: true,
+  swcMinify: false,
 }
 ```
-
-If you have feedback about `swcMinify`, please share it on the [feedback discussion](https://github.com/vercel/next.js/discussions/30237).
 
 ## Experimental Features
 
@@ -271,7 +272,6 @@ module.exports = {
       },
     },
   },
-  swcMinify: true,
 }
 ```
 

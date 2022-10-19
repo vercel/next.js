@@ -20,8 +20,8 @@ describe('app-dir alias handling', () => {
     next = await createNext({
       files: new FileRef(path.join(__dirname, 'app-alias')),
       dependencies: {
-        react: 'experimental',
-        'react-dom': 'experimental',
+        react: 'latest',
+        'react-dom': 'latest',
         typescript: 'latest',
         '@types/react': 'latest',
         '@types/node': 'latest',

@@ -181,7 +181,7 @@ export class NextURL {
   get href() {
     const pathname = this.formatPathname()
     const search = this.formatSearch()
-    return `${this.protocol}//${this.host}${pathname}${search}`
+    return `${this.protocol}//${this.host}${pathname}${search}${this.hash}`
   }
 
   set href(url: string) {

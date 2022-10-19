@@ -3,12 +3,18 @@ import type { LoadComponentsReturnType } from './load-components'
 import type { ServerRuntime } from '../types'
 import type { FontLoaderManifest } from '../build/webpack/plugins/font-loader-manifest-plugin'
 
+// TODO-APP: investigate why require-hook doesn't work for app-render
 // TODO-APP: change to React.use once it becomes stable
-// @ts-ignore
-import React, { experimental_use as use } from 'react'
+import React, {
+  // @ts-ignore
+  experimental_use as use,
+} from 'next/dist/compiled/react'
+
+// this needs to be required lazily so that `next-server` can set
+// the env before we require
+import ReactDOMServer from 'next/dist/compiled/react-dom/server.browser'
 
 import { ParsedUrlQuery } from 'querystring'
-import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
 import { NextParsedUrlQuery } from './request-meta'
 import RenderResult from './render-result'
 import {
@@ -128,12 +134,6 @@ class ReadonlyNextCookies {
   }
 }
 
-// this needs to be required lazily so that `next-server` can set
-// the env before we require
-const ReactDOMServer = shouldUseReactRoot
-  ? require('react-dom/server.browser')
-  : require('react-dom/server')
-
 export type RenderOptsPartial = {
   err?: Error | null
   dev?: boolean
@@ -207,9 +207,8 @@ function patchFetch(ComponentMod: any) {
 
   const staticGenerationAsyncStorage = ComponentMod.staticGenerationAsyncStorage
 
-  const origFetch = (global as any).fetch
-
-  ;(global as any).fetch = async (init: any, opts: any) => {
+  const origFetch = globalThis.fetch
+  globalThis.fetch = async (url, opts) => {
     const staticGenerationStore =
       'getStore' in staticGenerationAsyncStorage
         ? staticGenerationAsyncStorage.getStore()
@@ -225,20 +224,31 @@ function patchFetch(ComponentMod: any) {
           // TODO: ensure this error isn't logged to the user
           // seems it's slipping through currently
           throw new DynamicServerError(
-            `no-store fetch ${init}${pathname ? ` ${pathname}` : ''}`
+            `no-store fetch ${url}${pathname ? ` ${pathname}` : ''}`
           )
         }
 
+        const hasNextConfig = 'next' in opts
+        const next = (hasNextConfig && opts.next) || {}
         if (
-          typeof opts.revalidate === 'number' &&
+          typeof next.revalidate === 'number' &&
           (typeof fetchRevalidate === 'undefined' ||
-            opts.revalidate < fetchRevalidate)
+            next.revalidate < fetchRevalidate)
         ) {
-          staticGenerationStore.fetchRevalidate = opts.revalidate
+          staticGenerationStore.fetchRevalidate = next.revalidate
+
+          // TODO: ensure this error isn't logged to the user
+          // seems it's slipping through currently
+          throw new DynamicServerError(
+            `revalidate: ${next.revalidate} fetch ${url}${
+              pathname ? ` ${pathname}` : ''
+            }`
+          )
         }
+        if (hasNextConfig) delete opts.next
       }
     }
-    return origFetch(init, opts)
+    return origFetch(url, opts)
   }
 }
 
@@ -261,6 +271,9 @@ function useFlightResponse(
   if (flightResponseRef.current !== null) {
     return flightResponseRef.current
   }
+  const {
+    createFromReadableStream,
+  } = require('next/dist/compiled/react-server-dom-webpack')
 
   const [renderStream, forwardStream] = readableStreamTee(req)
   const res = createFromReadableStream(renderStream, {
@@ -1115,7 +1128,7 @@ export async function renderToHTMLOrFlight(
                 )
               })}
               {stylesheets
-                ? stylesheets.map((href) => (
+                ? stylesheets.map((href, index) => (
                     <link
                       rel="stylesheet"
                       href={`${assetPrefix}/_next/${href}${cacheBustingUrlSuffix}`}
@@ -1124,7 +1137,7 @@ export async function renderToHTMLOrFlight(
                       // https://github.com/facebook/react/pull/25060
                       // @ts-ignore
                       precedence="high"
-                      key={href}
+                      key={index}
                     />
                   ))
                 : null}
