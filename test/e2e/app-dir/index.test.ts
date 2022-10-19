@@ -42,6 +42,35 @@ describe('app dir', () => {
     })
     afterAll(() => next.destroy())
 
+    it('should not share edge workers', async () => {
+      const controller1 = new AbortController()
+      const controller2 = new AbortController()
+      fetchViaHTTP(next.url, '/slow-page-no-loading', undefined, {
+        signal: controller1.signal,
+      }).catch(() => {})
+      fetchViaHTTP(next.url, '/slow-page-no-loading', undefined, {
+        signal: controller2.signal,
+      }).catch(() => {})
+
+      await waitFor(1000)
+      controller1.abort()
+
+      const controller3 = new AbortController()
+      fetchViaHTTP(next.url, '/slow-page-no-loading', undefined, {
+        signal: controller3.signal,
+      }).catch(() => {})
+      await waitFor(1000)
+      controller2.abort()
+      controller3.abort()
+
+      const res = await fetchViaHTTP(next.url, '/slow-page-no-loading')
+      expect(res.status).toBe(200)
+      expect(await res.text()).toContain('hello from slow page')
+      expect(next.cliOutput).not.toContain(
+        'A separate worker must be used for each render'
+      )
+    })
+
     if ((global as any).isNextStart) {
       it('should generate build traces correctly', async () => {
         const trace = JSON.parse(
@@ -262,6 +291,20 @@ describe('app dir', () => {
     it.skip('should match partial parameters', async () => {
       const html = await renderViaHTTP(next.url, '/partial-match-123')
       expect(html).toContain('hello from app/partial-match-[id]. ID is: 123')
+    })
+
+    // This is a workaround to fix https://github.com/vercel/next.js/issues/5860
+    // TODO: remove this workaround when https://bugs.webkit.org/show_bug.cgi?id=187726 is fixed.
+    it('should use cache busting when loading css (dev only)', async () => {
+      const html = await renderViaHTTP(next.url, '/')
+      const $ = cheerio.load(html)
+      const links = $('link[rel=stylesheet]')
+      links.each((_, link) => {
+        const href = $(link).attr('href')
+        isDev
+          ? expect(href).toMatch(/\?ts=/)
+          : expect(href).not.toMatch(/\?ts=/)
+      })
     })
 
     describe('rewrites', () => {
@@ -1154,6 +1197,50 @@ describe('app dir', () => {
       })
 
       if (isDev) {
+        it('should HMR correctly for client component', async () => {
+          const filePath = 'app/client-component-route/page.js'
+          const origContent = await next.readFile(filePath)
+
+          try {
+            const browser = await webdriver(next.url, '/client-component-route')
+
+            const ssrInitial = await renderViaHTTP(
+              next.url,
+              '/client-component-route'
+            )
+
+            expect(ssrInitial).toContain(
+              'hello from app/client-component-route'
+            )
+
+            expect(await browser.elementByCss('p').text()).toContain(
+              'hello from app/client-component-route'
+            )
+
+            await next.patchFile(
+              filePath,
+              origContent.replace('hello from', 'swapped from')
+            )
+
+            await check(() => browser.elementByCss('p').text(), /swapped from/)
+
+            const ssrUpdated = await renderViaHTTP(
+              next.url,
+              '/client-component-route'
+            )
+            expect(ssrUpdated).toContain('swapped from')
+
+            await next.patchFile(filePath, origContent)
+
+            await check(() => browser.elementByCss('p').text(), /hello from/)
+            expect(
+              await renderViaHTTP(next.url, '/client-component-route')
+            ).toContain('hello from')
+          } finally {
+            await next.patchFile(filePath, origContent)
+          }
+        })
+
         it('should throw an error when getServerSideProps is used', async () => {
           const pageFile =
             'app/client-with-errors/get-server-side-props/page.js'
@@ -1644,38 +1731,50 @@ describe('app dir', () => {
     })
 
     describe('not-found', () => {
-      it.skip('should trigger not-found in a server component', async () => {
+      it('should trigger not-found in a server component', async () => {
         const browser = await webdriver(next.url, '/not-found/servercomponent')
 
         expect(
           await browser.waitForElementByCss('#not-found-component').text()
         ).toBe('Not Found!')
+        expect(
+          await browser
+            .waitForElementByCss('meta[name="robots"]')
+            .getAttribute('content')
+        ).toBe('noindex')
       })
 
-      it.skip('should trigger not-found in a client component', async () => {
+      it('should trigger not-found in a client component', async () => {
         const browser = await webdriver(next.url, '/not-found/clientcomponent')
         expect(
           await browser.waitForElementByCss('#not-found-component').text()
         ).toBe('Not Found!')
-      })
-      ;(isDev ? it.skip : it)(
-        'should trigger not-found client-side',
-        async () => {
-          const browser = await webdriver(next.url, '/not-found/client-side')
+        expect(
           await browser
-            .elementByCss('button')
-            .click()
-            .waitForElementByCss('#not-found-component')
-          expect(
-            await browser.elementByCss('#not-found-component').text()
-          ).toBe('Not Found!')
-        }
-      )
+            .waitForElementByCss('meta[name="robots"]')
+            .getAttribute('content')
+        ).toBe('noindex')
+      })
+      it('should trigger not-found client-side', async () => {
+        const browser = await webdriver(next.url, '/not-found/client-side')
+        await browser
+          .elementByCss('button')
+          .click()
+          .waitForElementByCss('#not-found-component')
+        expect(await browser.elementByCss('#not-found-component').text()).toBe(
+          'Not Found!'
+        )
+        expect(
+          await browser
+            .waitForElementByCss('meta[name="robots"]')
+            .getAttribute('content')
+        ).toBe('noindex')
+      })
     })
 
     describe('redirect', () => {
       describe('components', () => {
-        it.skip('should redirect in a server component', async () => {
+        it('should redirect in a server component', async () => {
           const browser = await webdriver(next.url, '/redirect/servercomponent')
           await browser.waitForElementByCss('#result-page')
           expect(await browser.elementByCss('#result-page').text()).toBe(
@@ -1683,7 +1782,7 @@ describe('app dir', () => {
           )
         })
 
-        it.skip('should redirect in a client component', async () => {
+        it('should redirect in a client component', async () => {
           const browser = await webdriver(next.url, '/redirect/clientcomponent')
           await browser.waitForElementByCss('#result-page')
           expect(await browser.elementByCss('#result-page').text()).toBe(
@@ -1692,12 +1791,13 @@ describe('app dir', () => {
         })
 
         // TODO-APP: Enable in development
-        ;(isDev ? it.skip : it)('should redirect client-side', async () => {
+        it('should redirect client-side', async () => {
           const browser = await webdriver(next.url, '/redirect/client-side')
           await browser
             .elementByCss('button')
             .click()
             .waitForElementByCss('#result-page')
+          // eslint-disable-next-line jest/no-standalone-expect
           expect(await browser.elementByCss('#result-page').text()).toBe(
             'Result Page'
           )

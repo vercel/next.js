@@ -1528,3 +1528,5 @@ export async function renderToHTML(
     )
   )
 }
+
+export type RenderToHTMLResult = typeof renderToHTML

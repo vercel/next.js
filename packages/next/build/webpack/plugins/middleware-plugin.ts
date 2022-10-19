@@ -340,14 +340,14 @@ function getCodeAnalyzer(params: {
   dev: boolean
   compiler: webpack.Compiler
   compilation: webpack.Compilation
-  dangerouslyAllowMiddlewareResponseBody: boolean
+  allowMiddlewareResponseBody: boolean
 }) {
   return (parser: webpack.javascript.JavascriptParser) => {
     const {
       dev,
       compiler: { webpack: wp },
       compilation,
-      dangerouslyAllowMiddlewareResponseBody,
+      allowMiddlewareResponseBody,
     } = params
     const { hooks } = parser
 
@@ -563,7 +563,7 @@ Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime`,
         .tap(NAME, handleWrapWasmInstantiateExpression)
     }
 
-    if (!dangerouslyAllowMiddlewareResponseBody) {
+    if (!allowMiddlewareResponseBody) {
       hooks.new.for('Response').tap(NAME, handleNewResponseExpression)
       hooks.new.for('NextResponse').tap(NAME, handleNewResponseExpression)
     }
@@ -806,24 +806,23 @@ export default class MiddlewarePlugin {
   private readonly dev: boolean
   private readonly sriEnabled: boolean
   private readonly hasFontLoaders: boolean
-  private readonly dangerouslyAllowMiddlewareResponseBody: boolean
+  private readonly allowMiddlewareResponseBody: boolean
 
   constructor({
     dev,
     sriEnabled,
     hasFontLoaders,
-    dangerouslyAllowMiddlewareResponseBody,
+    allowMiddlewareResponseBody,
   }: {
     dev: boolean
     sriEnabled: boolean
     hasFontLoaders: boolean
-    dangerouslyAllowMiddlewareResponseBody: boolean
+    allowMiddlewareResponseBody: boolean
   }) {
     this.dev = dev
     this.sriEnabled = sriEnabled
     this.hasFontLoaders = hasFontLoaders
-    this.dangerouslyAllowMiddlewareResponseBody =
-      dangerouslyAllowMiddlewareResponseBody
+    this.allowMiddlewareResponseBody = allowMiddlewareResponseBody
   }
 
   public apply(compiler: webpack.Compiler) {
@@ -836,8 +835,7 @@ export default class MiddlewarePlugin {
         dev: this.dev,
         compiler,
         compilation,
-        dangerouslyAllowMiddlewareResponseBody:
-          this.dangerouslyAllowMiddlewareResponseBody,
+        allowMiddlewareResponseBody: this.allowMiddlewareResponseBody,
       })
       hooks.parser.for('javascript/auto').tap(NAME, codeAnalyzer)
       hooks.parser.for('javascript/dynamic').tap(NAME, codeAnalyzer)

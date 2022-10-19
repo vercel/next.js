@@ -3,7 +3,7 @@
 import React from 'react'
 import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
 import { ServerStyleSheet, StyleSheetManager } from 'styled-components'
-import { useServerInsertedHTML } from 'next/dist/client/components/hooks-client'
+import { useServerInsertedHTML } from 'next/navigation'
 import { useState } from 'react'
 
 export default function RootStyleRegistry({ children }) {

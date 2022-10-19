@@ -39,8 +39,8 @@ describe('app dir - rsc basics', () => {
       files: new FileRef(path.join(__dirname, './rsc-basic')),
       dependencies: {
         'styled-components': '6.0.0-beta.2',
-        react: 'experimental',
-        'react-dom': 'experimental',
+        react: 'latest',
+        'react-dom': 'latest',
       },
       packageJson: {
         scripts: {
@@ -236,11 +236,18 @@ describe('app dir - rsc basics', () => {
     expect(html).toContain('This page could not be found')
   })
 
-  it('should suspense next/image in server components', async () => {
-    const imageHTML = await renderViaHTTP(next.url, '/next-api/image')
+  it('should suspense next/legacy/image in server components', async () => {
+    const imageHTML = await renderViaHTTP(next.url, '/next-api/image-legacy')
     const imageTag = getNodeBySelector(imageHTML, '#myimg')
 
     expect(imageTag.attr('src')).toContain('data:image')
+  })
+
+  it('should suspense next/image in server components', async () => {
+    const imageHTML = await renderViaHTTP(next.url, '/next-api/image-new')
+    const imageTag = getNodeBySelector(imageHTML, '#myimg')
+
+    expect(imageTag.attr('src')).toMatch(/test.+jpg/)
   })
 
   it('should handle various kinds of exports correctly', async () => {

@@ -79,7 +79,7 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
-  dangerouslyAllowMiddlewareResponseBody?: boolean
+  allowMiddlewareResponseBody?: boolean
   skipMiddlewareUrlNormalize?: boolean
   skipTrailingSlashRedirect?: boolean
   optimisticClientCache?: boolean
@@ -547,7 +547,7 @@ export const defaultConfig: NextConfig = {
   },
   outputFileTracing: true,
   staticPageGenerationTimeout: 60,
-  swcMinify: false,
+  swcMinify: true,
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   experimental: {
     optimisticClientCache: true,
@@ -556,8 +556,7 @@ export const defaultConfig: NextConfig = {
     // TODO: change default in next major release (current v12.1.5)
     legacyBrowsers: true,
     browsersListForSwc: false,
-    // TODO: change default in next major release (current v12.1.5)
-    newNextLinkBehavior: false,
+    newNextLinkBehavior: true,
     cpus: Math.max(
       1,
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
