@@ -15,7 +15,7 @@ const { linkPackages } =
  * @param {*} dirSuffix
  * @returns
  */
-export async function createNextInstall(
+async function createNextInstall(
   dependencies,
   installCommand,
   packageJson = {},
@@ -124,4 +124,8 @@ export async function createNextInstall(
 
   await fs.remove(tmpRepoDir)
   return installDir
+}
+
+module.exports = {
+  createNextInstall,
 }
