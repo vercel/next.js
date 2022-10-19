@@ -125,7 +125,7 @@ function isResourceInPackages(resource: string, packageNames?: string[]) {
 const builtInReactImports = [
   'react',
   'react/jsx-runtime',
-  'next/dist/compiled/react-server-dom-webpack/writer.browser.server',
+  'next/dist/compiled/react-server-dom-webpack/server.browser',
 ]
 
 export function getDefineEnv({
