@@ -1,3 +1,4 @@
+import type { FlightRouterState } from './app-render'
 import { nonNullable } from '../lib/non-nullable'
 
 export type ReactReadableStream = ReadableStream<Uint8Array> & {
@@ -257,10 +258,10 @@ export function createSuffixStream(
   })
 }
 
-export function createRootLayoutValidatorStream(): TransformStream<
-  Uint8Array,
-  Uint8Array
-> {
+export function createRootLayoutValidatorStream(
+  assetPrefix = '',
+  getTree: () => FlightRouterState
+): TransformStream<Uint8Array, Uint8Array> {
   let foundHtml = false
   let foundHead = false
   let foundBody = false
@@ -289,8 +290,12 @@ export function createRootLayoutValidatorStream(): TransformStream<
       ].filter(nonNullable)
 
       if (missingTags.length > 0) {
-        controller.error(
-          'Missing required root layout tags: ' + missingTags.join(', ')
+        controller.enqueue(
+          encodeText(
+            `<script>self.__next_root_layout_missing_tags_error=${JSON.stringify(
+              { missingTags, assetPrefix: assetPrefix ?? '', tree: getTree() }
+            )}</script>`
+          )
         )
       }
     },
@@ -300,19 +305,22 @@ export function createRootLayoutValidatorStream(): TransformStream<
 export async function continueFromInitialStream(
   renderStream: ReactReadableStream,
   {
-    dev,
     suffix,
     dataStream,
     generateStaticHTML,
     getServerInsertedHTML,
     serverInsertedHTMLToHead,
+    validateRootLayout,
   }: {
-    dev?: boolean
     suffix?: string
     dataStream?: ReadableStream<Uint8Array>
     generateStaticHTML: boolean
     getServerInsertedHTML?: () => Promise<string>
     serverInsertedHTMLToHead: boolean
+    validateRootLayout?: {
+      assetPrefix?: string
+      getTree: () => FlightRouterState
+    }
   }
 ): Promise<ReadableStream<Uint8Array>> {
   const closeTag = '</body></html>'
@@ -339,7 +347,12 @@ export async function continueFromInitialStream(
           : ''
       return serverInsertedHTML
     }),
-    dev ? createRootLayoutValidatorStream() : null,
+    validateRootLayout
+      ? createRootLayoutValidatorStream(
+          validateRootLayout.assetPrefix,
+          validateRootLayout.getTree
+        )
+      : null,
   ].filter(nonNullable)
 
   return transforms.reduce(

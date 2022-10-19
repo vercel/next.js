@@ -16,11 +16,5 @@ export function cleanAmpPath(pathname: string): string {
   return pathname
 }
 
-export function isTargetLikeServerless(target: string) {
-  const isServerless = target === 'serverless'
-  const isServerlessTrace = target === 'experimental-serverless-trace'
-  return isServerless || isServerlessTrace
-}
-
 // When react version is >= 18 opt-in using reactRoot
 export const shouldUseReactRoot = parseInt(React.version) >= 18

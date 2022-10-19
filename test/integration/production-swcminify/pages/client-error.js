@@ -5,9 +5,7 @@ export default function Page(props) {
   return (
     <>
       <Error title="something went wrong (on purpose)" />
-      <Link href="/">
-        <a>to home</a>
-      </Link>
+      <Link href="/">to home</Link>
     </>
   )
 }

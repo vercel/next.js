@@ -29,8 +29,8 @@ describe('app dir - rsc external dependency', () => {
     next = await createNext({
       files: new FileRef(path.join(__dirname, './rsc-external')),
       dependencies: {
-        react: 'experimental',
-        'react-dom': 'experimental',
+        react: 'latest',
+        'react-dom': 'latest',
       },
       packageJson: {
         scripts: {
@@ -109,5 +109,14 @@ describe('app dir - rsc external dependency', () => {
         expect(result).toContain('Client subpath: subpath.default')
       }
     )
+  })
+
+  it('should correctly collect global css imports and mark them as side effects', async () => {
+    await fetchViaHTTP(next.url, '/css/a').then(async (response) => {
+      const result = await resolveStreamResponse(response)
+
+      // It should include the global CSS import
+      expect(result).toMatch(/\.css/)
+    })
   })
 })
