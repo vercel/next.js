@@ -70,6 +70,8 @@ The example above uses multiple links. Each one maps a path (`href`) to a known 
 
 Any `<Link />` in the viewport (initially or through scroll) will be prefetched by default (including the corresponding data) for pages using [Static Generation](/docs/basic-features/data-fetching/get-static-props.md). The corresponding data for [server-rendered](/docs/basic-features/data-fetching/get-server-side-props.md) routes is _not_ prefetched.
 
+Also note that when navigating to another page using `<Link />` even tough routing happens client side, the data for that page (via `GetServerSideProps`) _is_ fetched before navigating to the new route.
+
 ### Linking to dynamic paths
 
 You can also use interpolation to create the path, which comes in handy for [dynamic route segments](#dynamic-route-segments). For example, to show a list of posts which have been passed to the component as a prop:
