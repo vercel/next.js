@@ -11,7 +11,11 @@ import { addEventListener, sendMessage } from "./websocket";
 
 declare var globalThis: TurbopackGlobals;
 
-export function connect() {
+export type ClientOptions = {
+  assetPrefix: string;
+};
+
+export function connect({ assetPrefix }: ClientOptions) {
   addEventListener((event) => {
     switch (event.type) {
       case "connected":
@@ -39,7 +43,7 @@ export function connect() {
     }
   }
 
-  subscribeToInitialCssChunksUpdates();
+  subscribeToInitialCssChunksUpdates(assetPrefix);
 }
 
 const chunkUpdateCallbacks: Map<string, ChunkUpdateCallback[]> = new Map();
@@ -102,15 +106,21 @@ function triggerChunkUpdate(update: ServerMessage) {
 
 // Unlike ES chunks, CSS chunks cannot contain the logic to accept updates.
 // They must be reloaded here instead.
-function subscribeToInitialCssChunksUpdates() {
+function subscribeToInitialCssChunksUpdates(assetPrefix: string) {
   const initialCssChunkLinks: NodeListOf<HTMLLinkElement> =
     document.head.querySelectorAll("link");
+  const cssChunkPrefix = `${assetPrefix}/`;
   initialCssChunkLinks.forEach((link) => {
-    if (!link.href) return;
-    const url = new URL(link.href);
-    if (url.origin !== location.origin) return;
-    const chunkPath = url.pathname.slice(1);
+    const href = link.href;
+    if (href == null) {
+      return;
+    }
+    const { pathname, origin } = new URL(href);
+    if (origin !== location.origin || !pathname.startsWith(cssChunkPrefix)) {
+      return;
+    }
 
+    const chunkPath = pathname.slice(cssChunkPrefix.length);
     onChunkUpdate(chunkPath, (update) => {
       switch (update.type) {
         case "restart": {
