@@ -15,11 +15,12 @@ use turbopack_core::{
     chunk::{dev::DevChunkingContextVc, ChunkingContextVc},
     context::AssetContextVc,
     environment::{BrowserEnvironment, EnvironmentIntention, EnvironmentVc, ExecutionEnvironment},
+    resolve::{parse::RequestVc, pattern::Pattern},
 };
-use turbopack_ecmascript::chunk::EcmascriptChunkPlaceablesVc;
 use turbopack_env::ProcessEnvAssetVc;
 
 use crate::{
+    embed_js::next_js_fs,
     env::filter_for_client,
     next_client::runtime_entry::{RuntimeEntriesVc, RuntimeEntry},
     react_refresh::assert_can_resolve_react_refresh,
@@ -106,6 +107,7 @@ pub fn get_client_chunking_context(
 ) -> ChunkingContextVc {
     DevChunkingContextVc::new(
         project_root,
+        server_root,
         server_root.join("/_next/static/chunks"),
         get_client_assets_path(server_root),
         true,
@@ -122,6 +124,7 @@ pub fn get_client_assets_path(server_root: FileSystemPathVc) -> FileSystemPathVc
 pub async fn get_client_runtime_entries(
     project_root: FileSystemPathVc,
     env: ProcessEnvVc,
+    bootstrap_dev_client: bool,
 ) -> Result<RuntimeEntriesVc> {
     let resolve_options_context = get_client_resolve_options_context();
     let enable_react_refresh =
@@ -133,21 +136,20 @@ pub async fn get_client_runtime_entries(
         ProcessEnvAssetVc::new(project_root, filter_for_client(env)).into(),
     )
     .cell()];
+    if bootstrap_dev_client {
+        runtime_entries.push(
+            RuntimeEntry::Request(
+                RequestVc::parse(Value::new(Pattern::Constant(
+                    "./dev/bootstrap.ts".to_string(),
+                ))),
+                next_js_fs().root(),
+            )
+            .cell(),
+        );
+    }
     if let Some(request) = enable_react_refresh {
         runtime_entries.push(RuntimeEntry::Request(request, project_root.join("_")).cell())
     };
 
     Ok(RuntimeEntriesVc::cell(runtime_entries))
-}
-
-#[turbo_tasks::function]
-pub fn get_resolved_client_runtime_entries(
-    project_root: FileSystemPathVc,
-    env: ProcessEnvVc,
-    browserslist_query: &str,
-) -> EcmascriptChunkPlaceablesVc {
-    let context = get_client_asset_context(project_root, browserslist_query);
-    let entries = get_client_runtime_entries(project_root, env);
-
-    entries.resolve_entries(context)
 }

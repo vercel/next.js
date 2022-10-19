@@ -3,7 +3,6 @@ import type {
   ServerMessage,
 } from "@vercel/turbopack-runtime/types/protocol";
 import type {
-  ChunkId,
   ChunkUpdateCallback,
   TurbopackGlobals,
 } from "@vercel/turbopack-runtime/types";
@@ -29,36 +28,36 @@ export function connect() {
     throw new Error("A separate HMR handler was already registered");
   }
   globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS = {
-    push: ([chunkId, callback]: [ChunkId, ChunkUpdateCallback]) => {
-      onChunkUpdate(chunkId, callback);
+    push: ([chunkPath, callback]: [string, ChunkUpdateCallback]) => {
+      onChunkUpdate(chunkPath, callback);
     },
   };
 
   if (Array.isArray(queued)) {
-    for (const [chunkId, callback] of queued) {
-      onChunkUpdate(chunkId, callback);
+    for (const [chunkPath, callback] of queued) {
+      onChunkUpdate(chunkPath, callback);
     }
   }
 
   subscribeToInitialCssChunksUpdates();
 }
 
-const chunkUpdateCallbacks: Map<ChunkId, ChunkUpdateCallback[]> = new Map();
+const chunkUpdateCallbacks: Map<string, ChunkUpdateCallback[]> = new Map();
 
 function sendJSON(message: ClientMessage) {
   sendMessage(JSON.stringify(message));
 }
 
-function subscribeToChunkUpdates(chunkId: ChunkId) {
+function subscribeToChunkUpdates(chunkPath: string) {
   sendJSON({
     type: "subscribe",
-    chunkId,
+    chunkPath,
   });
 }
 
 function handleSocketConnected() {
-  for (const chunkId of chunkUpdateCallbacks.keys()) {
-    subscribeToChunkUpdates(chunkId);
+  for (const chunkPath of chunkUpdateCallbacks.keys()) {
+    subscribeToChunkUpdates(chunkPath);
   }
 }
 
@@ -68,19 +67,22 @@ function handleSocketMessage(event: MessageEvent) {
   triggerChunkUpdate(data);
 }
 
-export function onChunkUpdate(chunkId: ChunkId, callback: ChunkUpdateCallback) {
-  const callbacks = chunkUpdateCallbacks.get(chunkId);
+export function onChunkUpdate(
+  chunkPath: string,
+  callback: ChunkUpdateCallback
+) {
+  const callbacks = chunkUpdateCallbacks.get(chunkPath);
   if (!callbacks) {
-    chunkUpdateCallbacks.set(chunkId, [callback]);
+    chunkUpdateCallbacks.set(chunkPath, [callback]);
   } else {
     callbacks.push(callback);
   }
 
-  subscribeToChunkUpdates(chunkId);
+  subscribeToChunkUpdates(chunkPath);
 }
 
 function triggerChunkUpdate(update: ServerMessage) {
-  const callbacks = chunkUpdateCallbacks.get(update.chunkId);
+  const callbacks = chunkUpdateCallbacks.get(update.chunkPath);
   if (!callbacks) {
     return;
   }
@@ -91,7 +93,7 @@ function triggerChunkUpdate(update: ServerMessage) {
     }
   } catch (err) {
     console.error(
-      `An error occurred during the update of chunk \`${update.chunkId}\``,
+      `An error occurred during the update of chunk \`${update.chunkPath}\``,
       err
     );
     location.reload();
@@ -102,14 +104,17 @@ function triggerChunkUpdate(update: ServerMessage) {
 // They must be reloaded here instead.
 function subscribeToInitialCssChunksUpdates() {
   const initialCssChunkLinks: NodeListOf<HTMLLinkElement> =
-    document.head.querySelectorAll("link[data-turbopack-chunk-id]");
+    document.head.querySelectorAll("link");
   initialCssChunkLinks.forEach((link) => {
-    const chunkId = link.dataset.turbopackChunkId!;
+    if (!link.href) return;
+    const url = new URL(link.href);
+    if (url.origin !== location.origin) return;
+    const chunkPath = url.pathname.slice(1);
 
-    onChunkUpdate(chunkId, (update) => {
+    onChunkUpdate(chunkPath, (update) => {
       switch (update.type) {
         case "restart": {
-          console.info(`Reloading CSS chunk \`${chunkId}\``);
+          console.info(`Reloading CSS chunk \`${chunkPath}\``);
           link.replaceWith(link);
           break;
         }

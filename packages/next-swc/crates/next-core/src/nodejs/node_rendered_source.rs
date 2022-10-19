@@ -189,12 +189,6 @@ impl ContentSource for NodeRenderContentSource {
         }
         Ok(ContentSourceResult::NotFound.cell())
     }
-
-    #[turbo_tasks::function]
-    fn get_by_id(&self, _id: &str) -> ContentSourceResultVc {
-        // TODO allow to subscribe to the content
-        ContentSourceResult::NotFound.cell()
-    }
 }
 
 #[turbo_tasks::function]

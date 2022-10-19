@@ -85,9 +85,4 @@ impl ContentSource for TurboTasksSource {
         )
         .cell())
     }
-
-    #[turbo_tasks::function]
-    fn get_by_id(&self, _id: &str) -> ContentSourceResultVc {
-        ContentSourceResult::NotFound.cell()
-    }
 }
