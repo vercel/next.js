@@ -527,7 +527,7 @@ function isNavigatingToNewRootLayout(
     // If the next tree doesn't have the root layout flag, it must have changed.
     return !nextTree[4]
   }
-  // Current tree  didn't have its root layour here, must have changed.
+  // Current tree  didn't have its root layout here, must have changed.
   if (nextTree[4]) {
     return true
   }
