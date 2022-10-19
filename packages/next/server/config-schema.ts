@@ -240,9 +240,6 @@ const configSchema = {
           },
           type: 'object',
         },
-        browsersListForSwc: {
-          type: 'boolean',
-        },
         cpus: {
           type: 'number',
         },
