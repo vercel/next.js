@@ -183,7 +183,11 @@ export class NextServer {
 // This file is used for when users run `require('next')`
 function createServer(options: NextServerOptions): NextServer {
   // The package is used as a TypeScript plugin.
-  if ('typescript' in options && 'version' in (options as any).typescript) {
+  if (
+    options &&
+    'typescript' in options &&
+    'version' in (options as any).typescript
+  ) {
     return require('./next-typescript').createTSPlugin(options)
   }
 
