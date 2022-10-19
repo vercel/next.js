@@ -1,5 +1,6 @@
 import chalk from 'next/dist/compiled/chalk'
 import path from 'path'
+
 import {
   hasNecessaryDependencies,
   NecessaryDependencies,
