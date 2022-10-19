@@ -2,7 +2,7 @@ export const config = {
   revalidate: 0,
 }
 
-// export const revalidate = -1
+export const revalidate = -1
 
 export default function Root({ children }) {
   return (
