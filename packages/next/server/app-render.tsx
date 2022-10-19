@@ -190,12 +190,8 @@ function createErrorHandler(
     // console.error(_source, err)
     console.error(err)
     capturedErrors.push(err)
-    if (err.digest) {
-      return err.digest
-    }
-
     // TODO-APP: look at using webcrypto instead. Requires a promise to be awaited.
-    return stringHash(err.message).toString()
+    return stringHash(err.message + err.stack + (err.digest || '')).toString()
   }
 }
 
