@@ -1,5 +1,7 @@
 use std::hash::Hasher;
 
+pub use turbo_tasks_macros::DeterministicHash;
+
 /// DeterministicHash is a custom trait that signals the implementor can safely
 /// be hashed in a replicatable way across platforms and process runs. Note that
 /// the default Hash trait used by Rust is not deterministic for our purposes.

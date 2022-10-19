@@ -1,7 +1,9 @@
+mod deterministic_hash_macro;
 mod trace_raw_vcs_macro;
 mod value_debug_format_macro;
 mod value_debug_macro;
 
+pub use deterministic_hash_macro::derive_deterministic_hash;
 use syn::{spanned::Spanned, Attribute, Meta, MetaList, NestedMeta};
 pub use trace_raw_vcs_macro::derive_trace_raw_vcs;
 pub use value_debug_format_macro::derive_value_debug_format;

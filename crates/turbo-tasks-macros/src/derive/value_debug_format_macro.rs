@@ -1,10 +1,8 @@
 use proc_macro::TokenStream;
-use proc_macro2::Ident;
+use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::quote;
-use syn::{
-    parse_macro_input, spanned::Spanned, Data, DataEnum, DataStruct, DeriveInput, Field, Fields,
-    FieldsNamed, FieldsUnnamed,
-};
+use syn::{parse_macro_input, DeriveInput, Field, FieldsNamed, FieldsUnnamed};
+use turbo_tasks_macros_shared::{generate_destructuring, match_expansion};
 
 use super::FieldAttributes;
 
@@ -21,48 +19,8 @@ pub fn derive_value_debug_format(input: TokenStream) -> TokenStream {
     let derive_input = parse_macro_input!(input as DeriveInput);
 
     let ident = &derive_input.ident;
-    let formatting_logic = match &derive_input.data {
-        Data::Enum(DataEnum { variants, .. }) => {
-            let (variants_idents, (variants_fields_capture, variants_formatting)): (
-                Vec<_>,
-                (Vec<_>, Vec<_>),
-            ) = variants
-                .iter()
-                .map(|variant| {
-                    (
-                        &variant.ident,
-                        format_fields(&variant.ident, &variant.fields),
-                    )
-                })
-                .unzip();
-
-            quote! {
-                match self {
-                    #(
-                        #ident::#variants_idents #variants_fields_capture => #variants_formatting,
-                    )*
-                }
-            }
-        }
-        Data::Struct(DataStruct { fields, .. }) => {
-            let (captures, formatting) = format_fields(ident, fields);
-
-            quote! {
-                match self {
-                    #ident #captures => #formatting
-                }
-            }
-        }
-        _ => {
-            derive_input
-                .span()
-                .unwrap()
-                .error("unsupported syntax")
-                .emit();
-
-            return quote! {}.into();
-        }
-    };
+    let formatting_logic =
+        match_expansion(&derive_input, &format_named, &format_unnamed, &format_unit);
 
     let value_debug_format_ident = get_value_debug_format_ident(ident);
 
@@ -90,40 +48,10 @@ pub fn derive_value_debug_format(input: TokenStream) -> TokenStream {
     .into()
 }
 
-/// Generates a match arm destructuring pattern for the given fields.
-///
-/// Returns both the capture pattern token stream and the name of the bound
-/// identifiers corresponding to the input fields.
-fn generate_destructuring<'a>(
-    fields: impl Iterator<Item = &'a Field>,
-) -> (proc_macro2::TokenStream, Vec<proc_macro2::TokenStream>) {
-    let (captures, fields_idents): (Vec<_>, Vec<_>) = fields
-        .enumerate()
-        .filter(|(_i, field)| !ignore_field(field))
-        .map(|(i, field)| match &field.ident {
-            Some(ident) => (quote! { #ident }, quote! { #ident }),
-            None => {
-                let ident = Ident::new(&format!("field_{}", i), field.span());
-                let index = syn::Index::from(i);
-                (quote! { #index: #ident }, quote! { #ident })
-            }
-        })
-        .unzip();
-    (
-        quote! {
-            { #(#captures,)* .. }
-        },
-        fields_idents,
-    )
-}
-
 /// Formats a struct or enum variant with named fields (e.g. `struct Foo {
 /// bar: u32 }`, `Foo::Bar { baz: u32 }`).
-fn format_named<'a>(
-    ident: &'a Ident,
-    fields: &'a FieldsNamed,
-) -> (proc_macro2::TokenStream, proc_macro2::TokenStream) {
-    let (captures, fields_idents) = generate_destructuring(fields.named.iter());
+fn format_named(ident: &Ident, fields: &FieldsNamed) -> (TokenStream2, TokenStream2) {
+    let (captures, fields_idents) = generate_destructuring(fields.named.iter(), &ignore_field);
     (
         captures,
         quote! {
@@ -142,11 +70,8 @@ fn format_named<'a>(
 
 /// Formats a struct or enum variant with unnamed fields (e.g. `struct
 /// Foo(u32)`, `Foo::Bar(u32)`).
-fn format_unnamed(
-    ident: &Ident,
-    fields: &FieldsUnnamed,
-) -> (proc_macro2::TokenStream, proc_macro2::TokenStream) {
-    let (captures, fields_idents) = generate_destructuring(fields.unnamed.iter());
+fn format_unnamed(ident: &Ident, fields: &FieldsUnnamed) -> (TokenStream2, TokenStream2) {
+    let (captures, fields_idents) = generate_destructuring(fields.unnamed.iter(), &ignore_field);
     (
         captures,
         quote! {
@@ -161,7 +86,7 @@ fn format_unnamed(
 }
 
 /// Formats a unit struct or enum variant (e.g. `struct Foo;`, `Foo::Bar`).
-fn format_unit(ident: &Ident) -> (proc_macro2::TokenStream, proc_macro2::TokenStream) {
+fn format_unit(ident: &Ident) -> (TokenStream2, TokenStream2) {
     (
         quote! {},
         quote! {
@@ -171,18 +96,6 @@ fn format_unit(ident: &Ident) -> (proc_macro2::TokenStream, proc_macro2::TokenSt
             )
         },
     )
-}
-
-/// Formats the fields of any structure or enum variant.
-fn format_fields(
-    ident: &Ident,
-    fields: &Fields,
-) -> (proc_macro2::TokenStream, proc_macro2::TokenStream) {
-    match fields {
-        Fields::Named(named) => format_named(ident, named),
-        Fields::Unnamed(unnamed) => format_unnamed(ident, unnamed),
-        Fields::Unit => format_unit(ident),
-    }
 }
 
 pub(crate) fn get_value_debug_format_ident(ident: &Ident) -> Ident {

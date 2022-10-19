@@ -12,4 +12,5 @@ bench = false
 [dependencies]
 base16 = "0.2.1"
 md4 = "0.10.1"
+turbo-tasks-macros = { path = "../turbo-tasks-macros" }
 twox-hash = "1.6.3"
