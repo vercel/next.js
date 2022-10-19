@@ -165,6 +165,7 @@ export interface ExperimentalConfig {
   fontLoaders?: Array<{ loader: string; options?: any }>
 
   webVitalsAttribution?: Array<typeof WEB_VITALS[number]>
+  enableTurboOutputFileTracing?: boolean
 }
 
 export type ExportPathMap = {

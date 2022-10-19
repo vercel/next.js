@@ -112,6 +112,7 @@ import {
   lockfilePatchPromise,
   teardownTraceSubscriber,
   teardownCrashReporter,
+  loadBindings,
 } from './swc'
 import { injectedClientEntries } from './webpack/plugins/flight-client-entry-plugin'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
@@ -1606,8 +1607,18 @@ export default async function build(
       }
 
       if (config.outputFileTracing) {
-        const { nodeFileTrace } =
-          require('next/dist/compiled/@vercel/nft') as typeof import('next/dist/compiled/@vercel/nft')
+        let nodeFileTrace: any
+        if (config.experimental.enableTurboOutputFileTracing) {
+          let binding = (await loadBindings()) as any
+          if (!binding?.isWasm) {
+            nodeFileTrace = binding.turbo?.startTrace
+          }
+        }
+
+        if (!nodeFileTrace) {
+          nodeFileTrace =
+            require('next/dist/compiled/@vercel/nft').nodeFileTrace
+        }
 
         const includeExcludeSpan = nextBuildSpan.traceChild(
           'apply-include-excludes'
@@ -1751,27 +1762,38 @@ export default async function build(
               )
             }
 
-            const serverResult = await nodeFileTrace(toTrace, {
-              base: root,
-              processCwd: dir,
-              ignore: [
-                '**/next/dist/pages/**/*',
-                '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
-                '**/node_modules/webpack5/**/*',
-                '**/next/dist/server/lib/squoosh/**/*.wasm',
-                ...(ciEnvironment.hasNextSupport
-                  ? [
-                      // only ignore image-optimizer code when
-                      // this is being handled outside of next-server
-                      '**/next/dist/server/image-optimizer.js',
-                      '**/node_modules/sharp/**/*',
-                    ]
-                  : []),
-                ...(!hasSsrAmpPages
-                  ? ['**/next/dist/compiled/@ampproject/toolbox-optimizer/**/*']
-                  : []),
-              ],
-            })
+            let serverResult: import('next/dist/compiled/@vercel/nft').NodeFileTraceResult
+            if (config.experimental.enableTurboOutputFileTracing) {
+              serverResult = await nodeFileTrace({
+                action: 'Print',
+                input: toTrace,
+                contextDirectory: root,
+              })
+            } else {
+              serverResult = await nodeFileTrace(toTrace, {
+                base: root,
+                processCwd: dir,
+                ignore: [
+                  '**/next/dist/pages/**/*',
+                  '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
+                  '**/node_modules/webpack5/**/*',
+                  '**/next/dist/server/lib/squoosh/**/*.wasm',
+                  ...(ciEnvironment.hasNextSupport
+                    ? [
+                        // only ignore image-optimizer code when
+                        // this is being handled outside of next-server
+                        '**/next/dist/server/image-optimizer.js',
+                        '**/node_modules/sharp/**/*',
+                      ]
+                    : []),
+                  ...(!hasSsrAmpPages
+                    ? [
+                        '**/next/dist/compiled/@ampproject/toolbox-optimizer/**/*',
+                      ]
+                    : []),
+                ],
+              })
+            }
 
             const tracedFiles = new Set()
 

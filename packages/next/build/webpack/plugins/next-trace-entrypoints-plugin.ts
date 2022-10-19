@@ -151,6 +151,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
         entryFilesMap.set(entrypoint, entryFiles)
       }
 
+      // TODO: turbotrace does not have equivalent to `readfile` callback
       const result = await nodeFileTrace([...chunksToTrace], {
         base: this.tracingRoot,
         processCwd: this.appDir,
