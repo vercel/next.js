@@ -15,7 +15,7 @@ describe('legacyBrowsers: true', () => {
       },
       nextConfig: {
         experimental: {
-          browsersListForSwc: true,
+          legacyBrowsers: true,
         },
       },
       dependencies: {},
@@ -23,7 +23,7 @@ describe('legacyBrowsers: true', () => {
   })
   afterAll(() => next.destroy())
 
-  it('should apply legacyBrowsers: true by default', async () => {
+  it('should apply legacyBrowsers: true', async () => {
     const html = await renderViaHTTP(next.url, '/')
     const $ = cheerio.load(html)
 
@@ -35,14 +35,9 @@ describe('legacyBrowsers: true', () => {
           const src = $(el).attr('src')
           if (!src) return
           if (src.includes('/index')) {
-            const code = await fetchViaHTTP(next.url, src).then((res) =>
-              res.text()
-            )
-
-            const isDev = (global as any).isNextDev
-            expect(
-              code.includes(isDev ? 'async ()=>{' : 'async()=>{console.log(')
-            ).toBe(false)
+            const res = await fetchViaHTTP(next.url, src)
+            const code = await res.text()
+            expect(code).not.toMatch('()=>')
             finished = true
           }
         })

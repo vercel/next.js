@@ -19,23 +19,19 @@ let nodeServerAppPaths = {}
 export default class PagesManifestPlugin
   implements webpack.WebpackPluginInstance
 {
-  serverless: boolean
   dev: boolean
   isEdgeRuntime: boolean
   appDirEnabled: boolean
 
   constructor({
-    serverless,
     dev,
     isEdgeRuntime,
     appDirEnabled,
   }: {
-    serverless: boolean
     dev: boolean
     isEdgeRuntime: boolean
     appDirEnabled: boolean
   }) {
-    this.serverless = serverless
     this.dev = dev
     this.isEdgeRuntime = isEdgeRuntime
     this.appDirEnabled = appDirEnabled

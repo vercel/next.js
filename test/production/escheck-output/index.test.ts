@@ -2,15 +2,40 @@ import { createNext } from 'e2e-utils'
 import { NextConfig } from 'packages/next'
 import { NextInstance } from 'test/lib/next-modes/base'
 
-describe('ES Check default output', () => {
+describe('ES Check .next output', () => {
   let next: NextInstance
+  afterEach(() => next.destroy())
 
-  beforeAll(async () => {
+  it('should emit ES2020 with default', async () => {
     next = await createNext({
       files: {
-        'pages/index.js': 'export default function Page() { return "hello" }',
+        'pages/index.js': 'export default function Page() { return "hi" }',
       },
-      dependencies: { 'es-check': '7.0.0' },
+      dependencies: { 'es-check': '7.0.1' },
+      packageJson: {
+        scripts: {
+          build: 'next build && es-check es2020 .next/static/**/*.js',
+        },
+      },
+      buildCommand: 'yarn build',
+    })
+    expect(next.cliOutput).toContain(
+      'info: ES-Check: there were no ES version matching errors!  🎉'
+    )
+  })
+
+  it('should emit ES5 with legacyBrowsers: true', async () => {
+    const nextConfig: NextConfig = {
+      experimental: {
+        legacyBrowsers: true,
+      },
+    }
+    next = await createNext({
+      files: {
+        'pages/index.js': 'export default function Page() { return "hi" }',
+        'next.config.js': `module.exports = ${JSON.stringify(nextConfig)}`,
+      },
+      dependencies: { 'es-check': '7.0.1' },
       packageJson: {
         scripts: {
           build: 'next build && es-check es5 .next/static/**/*.js',
@@ -18,25 +43,6 @@ describe('ES Check default output', () => {
       },
       buildCommand: 'yarn build',
     })
-  })
-  afterAll(() => next.destroy())
-
-  it('should pass for ES5', async () => {
-    expect(next.cliOutput).toContain(
-      'info: ES-Check: there were no ES version matching errors!  🎉'
-    )
-  })
-
-  it('should pass for ES5 with SWC minify', async () => {
-    await next.stop()
-    await next.deleteFile('.next')
-    await next.patchFile(
-      'next.config.js',
-      `
-      module.exports = ${JSON.stringify({ swcMinify: true } as NextConfig)}
-    `
-    )
-    await next.start()
 
     expect(next.cliOutput).toContain(
       'info: ES-Check: there were no ES version matching errors!  🎉'
