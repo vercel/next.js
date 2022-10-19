@@ -614,7 +614,7 @@ importers:
       string_decoder: 1.3.0
       string-hash: 1.1.3
       strip-ansi: 6.0.0
-      styled-jsx: 5.0.7
+      styled-jsx: 5.1.0
       tar: 6.1.11
       taskr: 1.1.0
       terser: 5.14.1
@@ -639,7 +639,7 @@ importers:
       '@swc/helpers': 0.4.11
       caniuse-lite: 1.0.30001406
       postcss: 8.4.14
-      styled-jsx: 5.0.7_uuaxwgga6hqycsez5ok7v2wg4i
+      styled-jsx: 5.1.0_uuaxwgga6hqycsez5ok7v2wg4i
       use-sync-external-store: 1.2.0_react@18.2.0
     devDependencies:
       '@ampproject/toolbox-optimizer': 2.8.3
@@ -11096,6 +11096,13 @@ packages:
         integrity: sha512-FxqpkPPwu1HjuN93Omfm4h8uIanXofW0RxVEW3k5RKx+mJJYSthzNhp32Kzxxy3YAEZ/Dc/EWN1vZRY0+kOhbw==,
       }
     engines: { node: '>= 10' }
+
+  /client-only/0.0.1:
+    resolution:
+      {
+        integrity: sha512-IV3Ou0jSMzZrd3pZ48nLkT9DA7Ag1pnPzaiQhpW7c3RbcqqzvzzVu+L8gfqMp/8IM2MQtSiqaCxrrcfu8I8rMA==,
+      }
+    dev: false
 
   /cliui/5.0.0:
     resolution:
@@ -28106,10 +28113,10 @@ packages:
       postcss-load-plugins: 2.3.0
     dev: true
 
-  /styled-jsx/5.0.7_uuaxwgga6hqycsez5ok7v2wg4i:
+  /styled-jsx/5.1.0_uuaxwgga6hqycsez5ok7v2wg4i:
     resolution:
       {
-        integrity: sha512-b3sUzamS086YLRuvnaDigdAewz1/EFYlHpYBP5mZovKEdQQOIIYq8lApylub3HHZ6xFjV051kkGU7cudJmrXEA==,
+        integrity: sha512-/iHaRJt9U7T+5tp6TRelLnqBqiaIT0HsO0+vgyj8hK2KUk7aejFqRrumqPUlAqDwAj8IbS/1hk3IhBAAK/FCUQ==,
       }
     engines: { node: '>= 12.0.0' }
     peerDependencies:
@@ -28123,6 +28130,7 @@ packages:
         optional: true
     dependencies:
       '@babel/core': 7.18.0
+      client-only: 0.0.1
       react: 18.2.0
     dev: false
 
