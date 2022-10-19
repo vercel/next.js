@@ -1,13 +1,13 @@
-(self.TURBOPACK = self.TURBOPACK || []).push(["[workspace]/crates/turbopack/tests/snapshot/integration/runtime_entry/output/crates_turbopack_tests_snapshot_integration_runtime_entry_input_index_55400d.js", {
+(self.TURBOPACK = self.TURBOPACK || []).push(["output/crates_turbopack_tests_snapshot_integration_example_input_index_e02b47.js", {
 
-"[project]/crates/turbopack/tests/snapshot/integration/runtime_entry/input/index.js (ecmascript)": (function({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, m: module, e: exports }) { !function() {
+"[project]/crates/turbopack/tests/snapshot/integration/example/input/index.js (ecmascript)": (function({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, m: module, e: exports }) { !function() {
 
 console.log("hello world");
 
 }.call(this) }),
 }, ({ loadedChunks, instantiateRuntimeModule }) => {
-    if(!(true && loadedChunks.has("[workspace]/crates/turbopack/tests/snapshot/integration/runtime_entry/output/crates_turbopack_tests_snapshot_integration_runtime_entry_input_index_e01349.js"))) return true;
-    instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/runtime_entry/input/index.js (ecmascript)");
+    if(!(true && loadedChunks.has("output/crates_turbopack_tests_snapshot_integration_example_input_index_415de1.js"))) return true;
+    instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/example/input/index.js (ecmascript)");
 }]);
 (() => {
   // When a chunk is executed, it will either register itself with the current
@@ -211,27 +211,25 @@ console.log("hello world");
   }
 
   /**
-   * @param {ChunkId} chunkId
    * @param {string} chunkPath
    * @returns {Promise<any> | undefined}
    */
-  function loadChunk(chunkId, chunkPath) {
-    if (loadedChunks.has(chunkId)) {
+  function loadChunk(chunkPath) {
+    if (loadedChunks.has(chunkPath)) {
       return Promise.resolve();
     }
 
-    const chunkLoader = getOrCreateChunkLoader(chunkId, chunkPath);
+    const chunkLoader = getOrCreateChunkLoader(chunkPath);
 
     return chunkLoader.promise;
   }
 
   /**
-   * @param {ChunkId} chunkId
    * @param {string} chunkPath
    * @returns {Loader}
    */
-  function getOrCreateChunkLoader(chunkId, chunkPath) {
-    let chunkLoader = chunkLoaders.get(chunkId);
+  function getOrCreateChunkLoader(chunkPath) {
+    let chunkLoader = chunkLoaders.get(chunkPath);
     if (chunkLoader) {
       return chunkLoader;
     }
@@ -244,12 +242,12 @@ console.log("hello world");
     });
 
     const onError = () => {
-      chunkLoaders.delete(chunkId);
-      reject(new Error(`Failed to load chunk ${chunkId} from ${chunkPath}`));
+      chunkLoaders.delete(chunkPath);
+      reject(new Error(`Failed to load chunk from ${chunkPath}`));
     };
 
     const onLoad = () => {
-      chunkLoaders.delete(chunkId);
+      chunkLoaders.delete(chunkPath);
       resolve();
     };
 
@@ -257,7 +255,7 @@ console.log("hello world");
       promise,
       onLoad,
     };
-    chunkLoaders.set(chunkId, chunkLoader);
+    chunkLoaders.set(chunkPath, chunkLoader);
 
     if (typeof document === "undefined") {
       throw new Error("can't dynamically load scripts outside the browser");
@@ -266,25 +264,23 @@ console.log("hello world");
     if (chunkPath.endsWith(".css")) {
       const link = document.createElement("link");
       link.rel = "stylesheet";
-      link.href = chunkPath;
+      link.href = `/${chunkPath}`;
       link.onerror = onError;
       link.onload = () => {
-        loadedChunks.add(chunkId);
+        loadedChunks.add(chunkPath);
         onLoad();
       };
       document.body.appendChild(link);
     } else if (chunkPath.endsWith(".js")) {
       const script = document.createElement("script");
-      script.src = chunkPath;
+      script.src = `/${chunkPath}`;
       // We'll only mark the chunk as loaded once the script has been executed,
       // which happens in `registerChunk`.
       script.onerror = onError;
       document.body.appendChild(script);
     } else {
       console.error("hello?");
-      throw new Error(
-        `can't infer type of chunk ${chunkId} from path ${chunkPath}`
-      );
+      throw new Error(`can't infer type of chunk from path ${chunkPath}`);
     }
 
     return chunkLoader;
@@ -581,11 +577,11 @@ console.log("hello world");
   }
 
   /**
-   * @param {ChunkId} chunkId
+   * @param {string} chunkPath
    * @param {Iterable<ModuleId>} outdatedModules
    * @param {Iterable<ModuleId>} deletedModules
    */
-  function disposePhase(chunkId, outdatedModules, deletedModules) {
+  function disposePhase(chunkPath, outdatedModules, deletedModules) {
     for (const moduleId of outdatedModules) {
       const module = moduleCache[moduleId];
       if (!module) {
@@ -603,7 +599,7 @@ console.log("hello world");
         continue;
       }
 
-      const noRemainingChunks = removeModuleFromChunk(moduleId, chunkId);
+      const noRemainingChunks = removeModuleFromChunk(moduleId, chunkPath);
 
       if (noRemainingChunks) {
         disposeModule(module);
@@ -664,19 +660,19 @@ console.log("hello world");
 
   /**
    *
-   * @param {ChunkId} chunkId
+   * @param {ChunkId} chunkPath
    * @param {{ moduleId: ModuleId, errorHandler: Function }[]} outdatedSelfAcceptedModules
    * @param {Map<string, ModuleFactory>} newModuleFactories
    */
   function applyPhase(
-    chunkId,
+    chunkPath,
     outdatedSelfAcceptedModules,
     newModuleFactories
   ) {
     // Update module factories.
     for (const [moduleId, factory] of newModuleFactories.entries()) {
       moduleFactories[moduleId] = factory;
-      addModuleToChunk(moduleId, chunkId);
+      addModuleToChunk(moduleId, chunkPath);
     }
 
     // TODO(alexkirsz) Run new runtime entries here.
@@ -701,10 +697,10 @@ console.log("hello world");
 
   /**
    *
-   * @param {ChunkId} chunkId
+   * @param {string} chunkPath
    * @param {UpdateInstructions} update
    */
-  function applyUpdate(chunkId, update) {
+  function applyUpdate(chunkPath, update) {
     const { outdatedModules, newModuleFactories } =
       computeOutdatedModules(update);
 
@@ -713,8 +709,8 @@ console.log("hello world");
     const outdatedSelfAcceptedModules =
       computeOutdatedSelfAcceptedModules(outdatedModules);
 
-    disposePhase(chunkId, outdatedModules, deletedModules);
-    applyPhase(chunkId, outdatedSelfAcceptedModules, newModuleFactories);
+    disposePhase(chunkPath, outdatedModules, deletedModules);
+    applyPhase(chunkPath, outdatedSelfAcceptedModules, newModuleFactories);
   }
 
   /**
@@ -804,13 +800,13 @@ console.log("hello world");
   }
 
   /**
-   * @param {ChunkId} chunkId
+   * @param {ChunkId} chunkPath
    * @param {import('../types/protocol').ServerMessage} update
    */
-  function handleApply(chunkId, update) {
+  function handleApply(chunkPath, update) {
     switch (update.type) {
       case "partial":
-        applyUpdate(chunkId, JSON.parse(update.instruction));
+        applyUpdate(chunkPath, JSON.parse(update.instruction));
         break;
       case "restart":
         self.location.reload();
@@ -903,15 +899,15 @@ console.log("hello world");
    * Adds a module to a chunk.
    *
    * @param {ModuleId} moduleId
-   * @param {ChunkId} chunkId
+   * @param {ChunkId} chunkPath
    */
-  function addModuleToChunk(moduleId, chunkId) {
+  function addModuleToChunk(moduleId, chunkPath) {
     let moduleChunks = moduleChunksMap.get(moduleId);
     if (!moduleChunks) {
-      moduleChunks = new Set([chunkId]);
+      moduleChunks = new Set([chunkPath]);
       moduleChunksMap.set(moduleId, moduleChunks);
     } else {
-      moduleChunks.add(chunkId);
+      moduleChunks.add(chunkPath);
     }
   }
 
@@ -920,12 +916,12 @@ console.log("hello world");
    * including this module.
    *
    * @param {ModuleId} moduleId
-   * @param {ChunkId} chunkId
+   * @param {ChunkId} chunkPath
    * @returns {boolean}
    */
-  function removeModuleFromChunk(moduleId, chunkId) {
+  function removeModuleFromChunk(moduleId, chunkPath) {
     const moduleChunks = moduleChunksMap.get(moduleId);
-    moduleChunks.delete(chunkId);
+    moduleChunks.delete(chunkPath);
 
     if (moduleChunks.size > 0) {
       return false;
@@ -950,20 +946,20 @@ console.log("hello world");
   /**
    * Subscribes to chunk updates from the update server and applies them.
    *
-   * @param {ChunkId} chunkId
+   * @param {ChunkId} chunkPath
    */
-  function subscribeToChunkUpdates(chunkId) {
+  function subscribeToChunkUpdates(chunkPath) {
     // This adds a chunk update listener once the handler code has been loaded
     self.TURBOPACK_CHUNK_UPDATE_LISTENERS.push([
-      chunkId,
-      handleApply.bind(null, chunkId),
+      chunkPath,
+      handleApply.bind(null, chunkPath),
     ]);
   }
 
-  function markChunkAsLoaded(chunkId) {
-    loadedChunks.add(chunkId);
+  function markChunkAsLoaded(chunkPath) {
+    loadedChunks.add(chunkPath);
 
-    const chunkLoader = chunkLoaders.get(chunkId);
+    const chunkLoader = chunkLoaders.get(chunkPath);
     if (!chunkLoader) {
       // This happens for all initial chunks that are loaded directly from
       // the HTML.
@@ -985,14 +981,14 @@ console.log("hello world");
   /**
    * @param {ChunkRegistration} chunkRegistration
    */
-  function registerChunk([chunkId, chunkModules, ...run]) {
-    markChunkAsLoaded(chunkId);
-    subscribeToChunkUpdates(chunkId);
+  function registerChunk([chunkPath, chunkModules, ...run]) {
+    markChunkAsLoaded(chunkPath);
+    subscribeToChunkUpdates(chunkPath);
     for (const [moduleId, moduleFactory] of Object.entries(chunkModules)) {
       if (!moduleFactories[moduleId]) {
         moduleFactories[moduleId] = moduleFactory;
       }
-      addModuleToChunk(moduleId, chunkId);
+      addModuleToChunk(moduleId, chunkPath);
     }
     runnable.push(...run);
     runnable = runnable.filter((r) => r(runtime));
@@ -1005,4 +1001,4 @@ console.log("hello world");
 })();
 
 
-//# sourceMappingURL=crates_turbopack_tests_snapshot_integration_runtime_entry_input_index_55400d.js.93f5da801f51c759.map
+//# sourceMappingURL=crates_turbopack_tests_snapshot_integration_example_input_index_e02b47.js.93f5da801f51c759.map

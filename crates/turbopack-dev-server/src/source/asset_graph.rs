@@ -174,20 +174,6 @@ impl ContentSource for AssetGraphContentSource {
         }
         Ok(ContentSourceResult::NotFound.cell())
     }
-
-    #[turbo_tasks::function]
-    async fn get_by_id(
-        self_vc: AssetGraphContentSourceVc,
-        id: &str,
-    ) -> Result<ContentSourceResultVc> {
-        let root_path_str = self_vc.await?.root_path.to_string().await?;
-        if id.starts_with(&*root_path_str) {
-            let path = &id[root_path_str.len()..];
-            Ok(self_vc.get(path, Value::new(ContentSourceData::default())))
-        } else {
-            Ok(ContentSourceResult::NotFound.cell())
-        }
-    }
 }
 
 #[turbo_tasks::function]

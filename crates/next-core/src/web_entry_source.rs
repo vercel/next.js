@@ -1,7 +1,5 @@
-use std::future::IntoFuture;
-
 use anyhow::{anyhow, Result};
-use futures::{prelude::*, stream};
+use turbo_tasks::TryJoinIterExt;
 use turbo_tasks_env::ProcessEnvVc;
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack::ecmascript::EcmascriptModuleAssetVc;
@@ -15,7 +13,7 @@ use turbopack_dev_server::{
 };
 
 use crate::next_client::context::{
-    get_client_asset_context, get_client_chunking_context, get_resolved_client_runtime_entries,
+    get_client_asset_context, get_client_chunking_context, get_client_runtime_entries,
 };
 
 #[turbo_tasks::function]
@@ -29,22 +27,31 @@ pub async fn create_web_entry_source(
 ) -> Result<ContentSourceVc> {
     let context = get_client_asset_context(project_root, browserslist_query);
     let chunking_context = get_client_chunking_context(project_root, server_root);
-    let runtime_entries =
-        get_resolved_client_runtime_entries(project_root, env, browserslist_query);
+    let entries = get_client_runtime_entries(project_root, env, true);
+
+    let runtime_entries = entries.resolve_entries(context);
 
     let origin = PlainResolveOriginVc::new(context, project_root.join("_")).as_resolve_origin();
-    let chunks: Vec<_> = stream::iter(entry_requests)
-        .then(|r| {
-            origin
-                .resolve_asset(r, origin.resolve_options())
+    let entries = entry_requests
+        .into_iter()
+        .map(|request| async move {
+            Ok(origin
+                .resolve_asset(request, origin.resolve_options())
                 .primary_assets()
-                .into_future()
+                .await?
+                .first()
+                .copied())
         })
-        .map_ok(|assets| stream::iter(assets.clone()).map(Ok))
-        .try_flatten()
-        .and_then(|module| async move {
+        .try_join()
+        .await?;
+    let chunks: Vec<_> = entries
+        .into_iter()
+        .flatten()
+        .enumerate()
+        .map(|(i, module)| async move {
             if let Some(ecmascript) = EcmascriptModuleAssetVc::resolve_from(module).await? {
-                Ok(ecmascript.as_evaluated_chunk(chunking_context, Some(runtime_entries)))
+                Ok(ecmascript
+                    .as_evaluated_chunk(chunking_context, (i == 0).then_some(runtime_entries)))
             } else if let Some(chunkable) = ChunkableAssetVc::resolve_from(module).await? {
                 // TODO this is missing runtime code, so it's probably broken and we should also
                 // add an ecmascript chunk with the runtime code
@@ -57,7 +64,7 @@ pub async fn create_web_entry_source(
                 ))
             }
         })
-        .try_collect()
+        .try_join()
         .await?;
 
     let entry_asset = DevHtmlAsset::new(

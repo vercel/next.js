@@ -23,6 +23,8 @@ use crate::asset::AssetVc;
 pub struct DevChunkingContext {
     /// This path get striped off of path before creating a name out of it
     context_path: FileSystemPathVc,
+    /// This path is used to compute the url to request chunks or assets from
+    output_root_path: FileSystemPathVc,
     /// Chunks are placed at this path
     chunk_root_path: FileSystemPathVc,
     /// Static assets are placed at this path
@@ -36,12 +38,14 @@ pub struct DevChunkingContext {
 impl DevChunkingContextVc {
     pub fn new(
         context_path: FileSystemPathVc,
+        output_root_path: FileSystemPathVc,
         chunk_root_path: FileSystemPathVc,
         asset_root_path: FileSystemPathVc,
         enable_hot_module_replacement: bool,
     ) -> Self {
         DevChunkingContext {
             context_path,
+            output_root_path,
             chunk_root_path,
             asset_root_path,
             layer: StringVc::empty(),
@@ -52,6 +56,7 @@ impl DevChunkingContextVc {
 
     pub fn new_with_layer(
         context_path: FileSystemPathVc,
+        output_root_path: FileSystemPathVc,
         chunk_root_path: FileSystemPathVc,
         asset_root_path: FileSystemPathVc,
         enable_hot_module_replacement: bool,
@@ -59,6 +64,7 @@ impl DevChunkingContextVc {
     ) -> Self {
         DevChunkingContext {
             context_path,
+            output_root_path,
             chunk_root_path,
             asset_root_path,
             layer: StringVc::cell(layer.to_string()),
@@ -70,6 +76,11 @@ impl DevChunkingContextVc {
 
 #[turbo_tasks::value_impl]
 impl ChunkingContext for DevChunkingContext {
+    #[turbo_tasks::function]
+    fn output_root(&self) -> FileSystemPathVc {
+        self.output_root_path
+    }
+
     #[turbo_tasks::function]
     async fn chunk_path(
         &self,
@@ -159,6 +170,7 @@ impl ChunkingContext for DevChunkingContext {
     #[turbo_tasks::function]
     async fn with_layer(self_vc: DevChunkingContextVc, layer: &str) -> Result<ChunkingContextVc> {
         let DevChunkingContext {
+            output_root_path,
             asset_root_path,
             chunk_root_path,
             context_path,
@@ -166,9 +178,10 @@ impl ChunkingContext for DevChunkingContext {
             layer: _,
         } = *self_vc.await?;
         Ok(DevChunkingContextVc::new_with_layer(
-            asset_root_path,
-            chunk_root_path,
             context_path,
+            output_root_path,
+            chunk_root_path,
+            asset_root_path,
             enable_hot_module_replacement,
             layer,
         )

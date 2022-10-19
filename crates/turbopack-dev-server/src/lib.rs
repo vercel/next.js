@@ -3,7 +3,6 @@
 
 pub mod fs;
 pub mod html;
-pub mod html_runtime_asset;
 pub mod introspect;
 pub mod source;
 pub mod update;
@@ -131,7 +130,7 @@ async fn process_request_with_content_source(
             ContentSourceResult::NeedData { source, path, vary } => {
                 resolved_source = source.resolve_strongly_consistent().await?;
                 asset_path = Cow::Owned(path.to_string());
-                data = request_to_data(&request, vary)?;
+                data = request_to_data(request, vary)?;
                 continue;
             }
             ContentSourceResult::NotFound => {}
@@ -203,7 +202,7 @@ impl DevServer {
                                     duration = FormatDuration(elapsed)
                                 );
                             }
-                            return Ok(());
+                            Ok(())
                         }));
                         match rx.await {
                             Ok(r) => Ok::<_, anyhow::Error>(r),

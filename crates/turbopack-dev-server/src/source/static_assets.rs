@@ -55,11 +55,6 @@ impl ContentSource for StaticAssetsContentSource {
         }
         Ok(ContentSourceResult::NotFound.cell())
     }
-
-    #[turbo_tasks::function]
-    fn get_by_id(&self, _id: &str) -> ContentSourceResultVc {
-        ContentSourceResult::NotFound.cell()
-    }
 }
 
 #[turbo_tasks::value_impl]

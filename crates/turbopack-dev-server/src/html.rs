@@ -1,8 +1,6 @@
-use std::sync::Arc;
-
 use anyhow::{anyhow, Result};
 use mime_guess::mime::TEXT_HTML_UTF_8;
-use turbo_tasks::{debug::ValueDebug, primitives::StringVc, ValueToString};
+use turbo_tasks::{debug::ValueDebug, primitives::StringVc};
 use turbo_tasks_fs::{File, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
@@ -69,28 +67,25 @@ impl DevHtmlAssetVc {
         let mut chunk_paths = vec![];
         for chunk_group in &this.chunk_groups {
             for chunk in chunk_group.chunks().await?.iter() {
-                let chunk_id = chunk.path().to_string().await?;
                 let chunk_path = &*chunk.path().await?;
                 if let Some(relative_path) = context_path.get_relative_path_to(chunk_path) {
-                    chunk_paths.push((relative_path, chunk_id.clone()));
+                    chunk_paths.push(relative_path);
                 }
             }
         }
 
-        Ok(DevHtmlAssetContent::new(chunk_paths).cell())
+        Ok(DevHtmlAssetContentVc::new(chunk_paths))
     }
 }
 
 #[turbo_tasks::value]
 struct DevHtmlAssetContent {
-    chunk_paths: Arc<Vec<(String, String)>>,
+    chunk_paths: Vec<String>,
 }
 
-impl DevHtmlAssetContent {
-    pub fn new(chunk_paths: Vec<(String, String)>) -> Self {
-        DevHtmlAssetContent {
-            chunk_paths: Arc::new(chunk_paths),
-        }
+impl DevHtmlAssetContentVc {
+    pub fn new(chunk_paths: Vec<String>) -> Self {
+        DevHtmlAssetContent { chunk_paths }.cell()
     }
 }
 
@@ -103,13 +98,13 @@ impl DevHtmlAssetContentVc {
         let mut scripts = Vec::new();
         let mut stylesheets = Vec::new();
 
-        for (relative_path, chunk_id) in &*this.chunk_paths {
+        for relative_path in &*this.chunk_paths {
             if relative_path.ends_with(".js") {
                 scripts.push(format!("<script src=\"{}\"></script>", relative_path));
             } else if relative_path.ends_with(".css") {
                 stylesheets.push(format!(
-                    "<link data-turbopack-chunk-id=\"{}\" rel=\"stylesheet\" href=\"{}\">",
-                    chunk_id, relative_path
+                    "<link data-turbopack rel=\"stylesheet\" href=\"{}\">",
+                    relative_path
                 ));
             } else {
                 return Err(anyhow!("chunk with unknown asset type: {}", relative_path));
@@ -129,10 +124,7 @@ impl DevHtmlAssetContentVc {
     #[turbo_tasks::function]
     async fn version(self) -> Result<DevHtmlAssetVersionVc> {
         let this = self.await?;
-        Ok(DevHtmlAssetVersion {
-            chunk_paths: Arc::clone(&this.chunk_paths),
-        }
-        .cell())
+        Ok(DevHtmlAssetVersion { content: this }.cell())
     }
 }
 
@@ -158,7 +150,7 @@ impl VersionedContent for DevHtmlAssetContent {
         let to = to_version.await?;
         let from = from_version.await?;
 
-        if to.chunk_paths == from.chunk_paths {
+        if to.content.chunk_paths == from.content.chunk_paths {
             return Ok(Update::None.into());
         }
 
@@ -173,7 +165,7 @@ impl VersionedContent for DevHtmlAssetContent {
 
 #[turbo_tasks::value]
 struct DevHtmlAssetVersion {
-    chunk_paths: Arc<Vec<(String, String)>>,
+    content: DevHtmlAssetContentReadRef,
 }
 
 #[turbo_tasks::value_impl]
@@ -181,9 +173,8 @@ impl Version for DevHtmlAssetVersion {
     #[turbo_tasks::function]
     async fn id(&self) -> Result<StringVc> {
         let mut hasher = Xxh3Hash64Hasher::new();
-        for (relative_path, chunk_id) in &*self.chunk_paths {
+        for relative_path in &*self.content.chunk_paths {
             hasher.write(relative_path.as_bytes());
-            hasher.write(chunk_id.as_bytes());
         }
         let hash = hasher.finish();
         let hex_hash = encode_hex(hash);

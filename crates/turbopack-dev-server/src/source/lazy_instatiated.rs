@@ -29,11 +29,6 @@ impl ContentSource for LazyInstantiatedContentSource {
     ) -> ContentSourceResultVc {
         self.get_source.content_source().get(path, data)
     }
-
-    #[turbo_tasks::function]
-    fn get_by_id(&self, id: &str) -> ContentSourceResultVc {
-        self.get_source.content_source().get_by_id(id)
-    }
 }
 
 #[turbo_tasks::function]

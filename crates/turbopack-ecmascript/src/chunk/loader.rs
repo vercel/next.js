@@ -1,6 +1,6 @@
 use std::fmt::Write as FmtWrite;
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, bail, Result};
 use indexmap::IndexSet;
 use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::FileSystemPathVc;
@@ -82,26 +82,23 @@ impl EcmascriptChunkItem for ManifestLoaderItem {
         let manifest = self.manifest.await?;
         let asset = manifest.asset.as_asset();
         let chunk = self.manifest.as_chunk(self.context);
-        let fs = chunk.path();
+        let chunk_path = chunk.path().await?;
+
+        let output_root = self.context.output_root().await?;
 
         // We need several items in order for a dynamic import to fully load. First, we
-        // need the chunk id of the manifest chunk, which is its file path. The
+        // need the chunk path of the manifest chunk, relative from the output root. The
         // chunk is a servable file, which will contain the manifest chunk item, which
         // will perform the actual chunk traversal and generate load statements.
-        let chunk_id = fs.to_string().await?.to_string();
-
-        // Next we need the pathname that we can request from the dev server to load the
-        // manifest chunk, if it's not already been loaded. Note that the regular
-        // asset.as_asset() has a different FileSystemVc than the
-        // as_chunk().as_asset(), and only the chunk asset can get correct the
-        // relative path.
-        let root = chunk.path().root().await?;
-        let asset_path = &*chunk.as_asset().path().await?;
-        let pathname = format!(
-            "/{}",
-            root.get_path_to(asset_path)
-                .ok_or_else(|| anyhow!("asset is not in server root"))?
-        );
+        let chunk_server_path = if let Some(path) = output_root.get_path_to(&*chunk_path) {
+            path
+        } else {
+            bail!(
+                "chunk path {} is not in output root {}",
+                chunk.path().to_string().await?,
+                self.context.output_root().to_string().await?
+            );
+        };
 
         // We also need the manifest chunk item's id, which points to a CJS module that
         // exports a promise for all of the necessary chunk loads.
@@ -119,12 +116,11 @@ impl EcmascriptChunkItem for ManifestLoaderItem {
             code,
             "
 __turbopack_export_value__((__turbopack_import__) => {{
-    return __turbopack_load__({chunk_id}, {pathname}).then(() => {{
+    return __turbopack_load__({chunk_server_path}).then(() => {{
         return __turbopack_require__({item_id});
     }}).then(() => __turbopack_import__({dynamic_id}));
 }});",
-            chunk_id = stringify_str(&chunk_id),
-            pathname = stringify_str(&pathname),
+            chunk_server_path = stringify_str(&chunk_server_path),
             item_id = stringify_module_id(item_id),
             dynamic_id = stringify_module_id(dynamic_id),
         )?;
@@ -246,34 +242,30 @@ impl EcmascriptChunkItem for ManifestChunkItem {
     async fn content(&self) -> Result<EcmascriptChunkItemContentVc> {
         let chunks = self.manifest.chunks().await?;
 
-        let mut chunk_ids = IndexSet::new();
+        let mut chunk_server_paths = IndexSet::new();
         for chunk in chunks.iter() {
-            // The "id" in this case is the chunk's id, not the chunk item's id. The
-            // difference is a chunk is a file served by the dev server, and an
+            // The "path" in this case is the chunk's path, not the chunk item's path.
+            // The difference is a chunk is a file served by the dev server, and an
             // item is one of several that are contained in that chunk file.
-            // Chunk ids are the paths of the chunk.
-            let fs = chunk.path();
-            let id = fs.to_string().await?.to_string();
+            let chunk_path = chunk.path().await?;
             // The pathname is the file path necessary to load the chunk from the server.
-            let root = fs.root().await?;
-            let asset_path = &*chunk.as_asset().path().await?;
-            let pathname = format!(
-                "/{}",
-                root.get_path_to(asset_path)
-                    .ok_or_else(|| anyhow!("asset is not in server root"))?
-            );
-            chunk_ids.insert((id, pathname));
+            let output_root = self.context.output_root().await?;
+            let chunk_server_path = if let Some(path) = output_root.get_path_to(&*chunk_path) {
+                path
+            } else {
+                bail!(
+                    "chunk path {} is not in output root {}",
+                    chunk.path().to_string().await?,
+                    self.context.output_root().to_string().await?
+                );
+            };
+            chunk_server_paths.insert(chunk_server_path.to_string());
         }
 
         let mut code = String::new();
         code += "const chunks = [\n";
-        for (id, pathname) in chunk_ids {
-            writeln!(
-                code,
-                "    [{}, {}],",
-                stringify_str(&id),
-                stringify_str(&pathname)
-            )?;
+        for pathname in chunk_server_paths {
+            writeln!(code, "    {},", stringify_str(&pathname))?;
         }
         code += "];\n";
 
@@ -281,8 +273,7 @@ impl EcmascriptChunkItem for ManifestChunkItem {
         write!(
             code,
             "
-const loads = chunks.map(([id, path]) => __turbopack_load__(id, path));
-__turbopack_export_value__(Promise.all(loads));"
+__turbopack_export_value__(Promise.all(chunks.map(__turbopack_load__)));"
         )?;
 
         Ok(EcmascriptChunkItemContent {

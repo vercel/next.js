@@ -30,16 +30,6 @@ impl ContentSource for CombinedContentSource {
         }
         Ok(ContentSourceResult::NotFound.cell())
     }
-    #[turbo_tasks::function]
-    async fn get_by_id(&self, id: &str) -> Result<ContentSourceResultVc> {
-        for source in self.sources.iter() {
-            let result = source.get_by_id(id);
-            if !matches!(&*result.await?, ContentSourceResult::NotFound) {
-                return Ok(result);
-            }
-        }
-        Ok(ContentSourceResult::NotFound.cell())
-    }
 }
 
 #[turbo_tasks::function]

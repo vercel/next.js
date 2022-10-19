@@ -79,7 +79,7 @@ pub async fn create_server_rendered_source(
         .with_extended_import_map(next_client_import_map)
         .with_extended_fallback_import_map(next_client_fallback_import_map);
 
-    let client_runtime_entries = get_client_runtime_entries(project_path, env);
+    let client_runtime_entries = get_client_runtime_entries(project_path, env, false);
 
     let next_client_transition = NextClientTransition {
         client_chunking_context,
@@ -222,6 +222,7 @@ fn create_server_rendered_source_for_file(
 
     let chunking_context = DevChunkingContextVc::new(
         context_path,
+        intermediate_output_path,
         intermediate_output_path.join("chunks"),
         get_client_assets_path(server_root),
         false,

@@ -190,10 +190,6 @@ pub trait ContentSource {
     /// arguments, so we want to make the arguments contain as few information
     /// as possible to increase cache hit ratio.
     fn get(&self, path: &str, data: Value<ContentSourceData>) -> ContentSourceResultVc;
-    /// Gets content by `id` from the source. `id` is defined by this content
-    /// source and previous responses from this content source might access the
-    /// API with that id. It should be unique.
-    fn get_by_id(&self, id: &str) -> ContentSourceResultVc;
 }
 
 /// An empty ContentSource implementation that responds with NotFound for every
@@ -212,10 +208,6 @@ impl NoContentSourceVc {
 impl ContentSource for NoContentSource {
     #[turbo_tasks::function]
     fn get(&self, _path: &str, _data: Value<ContentSourceData>) -> ContentSourceResultVc {
-        ContentSourceResult::NotFound.into()
-    }
-    #[turbo_tasks::function]
-    fn get_by_id(&self, _id: &str) -> ContentSourceResultVc {
         ContentSourceResult::NotFound.into()
     }
 }

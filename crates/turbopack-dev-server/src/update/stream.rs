@@ -48,8 +48,8 @@ impl VersionStateVc {
 struct VersionStateId(String);
 
 impl VersionStateVc {
-    async fn new(inner: VersionVc, chunk_id: &str) -> Result<Self> {
-        let id = VersionStateId(chunk_id.to_string());
+    async fn new(inner: VersionVc, chunk_path: &str) -> Result<Self> {
+        let id = VersionStateId(chunk_path.to_string());
         let inner = inner.keyed_cell_local(id.clone()).await?;
         Ok(Self::cell(VersionState {
             inner: Mutex::new((inner, None)),
@@ -69,15 +69,15 @@ impl VersionStateVc {
 }
 
 pub(super) struct UpdateStream {
-    chunk_id: String,
+    chunk_path: String,
     stream: Pin<Box<dyn Stream<Item = UpdateReadRef> + Send + Sync>>,
 }
 
 impl UpdateStream {
-    pub async fn new(chunk_id: String, content: VersionedContentVc) -> Result<UpdateStream> {
+    pub async fn new(chunk_path: String, content: VersionedContentVc) -> Result<UpdateStream> {
         let (sx, rx) = tokio::sync::mpsc::channel(32);
 
-        let version_state = VersionStateVc::new(content.version(), &chunk_id).await?;
+        let version_state = VersionStateVc::new(content.version(), &chunk_path).await?;
 
         compute_update_stream(
             version_state,
@@ -86,7 +86,7 @@ impl UpdateStream {
         );
 
         Ok(UpdateStream {
-            chunk_id,
+            chunk_path,
             stream: Box::pin(unfold(
                 (rx, version_state),
                 |(mut rx, version_state)| async move {
@@ -112,8 +112,8 @@ impl UpdateStream {
         })
     }
 
-    pub fn chunk_id(&self) -> &str {
-        &self.chunk_id
+    pub fn chunk_path(&self) -> &str {
+        &self.chunk_path
     }
 }
 

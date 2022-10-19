@@ -18,7 +18,7 @@ interface Exports {
 export type ChunkModule = () => void;
 export type Runnable = (...args: any[]) => boolean;
 export declare type ChunkRegistration = [
-  chunkId: string,
+  chunkPath: string,
   chunkModules: ChunkModule[],
   ...run: Runnable[]
 ];

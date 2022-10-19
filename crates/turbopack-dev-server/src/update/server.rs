@@ -6,7 +6,7 @@ use futures::{
 use hyper::upgrade::Upgraded;
 use hyper_tungstenite::{tungstenite::Message, HyperWebsocket, WebSocketStream};
 use tokio::select;
-use turbo_tasks::TurboTasksApi;
+use turbo_tasks::{TurboTasksApi, Value};
 use turbopack_core::version::Update;
 
 use super::{
@@ -50,17 +50,17 @@ impl<P: SourceProvider> UpdateServer<P> {
         loop {
             select! {
                 message = client.recv() => {
-                    if let Some(ClientMessage::Subscribe { chunk_id }) = message? {
-                        let content = source.get_by_id(&chunk_id);
+                    if let Some(ClientMessage::Subscribe { chunk_path }) = message? {
+                        let content = source.get(&chunk_path, Value::new(Default::default()));
                         match *content.await? {
                             ContentSourceResult::NotFound => {
                                 // Client requested a non-existing asset
                                 // It might be removed in meantime, reload client
                                 // TODO add special instructions for removed assets to handled it in a better way
-                                client.send_update(&chunk_id, ClientUpdateInstructionType::Restart).await?;
+                                client.send_update(&chunk_path, ClientUpdateInstructionType::Restart).await?;
                             },
                             ContentSourceResult::Static(content) => {
-                                let stream = UpdateStream::new(chunk_id, content).await?;
+                                let stream = UpdateStream::new(chunk_path, content).await?;
                                 self.add_stream(stream);
                             },
                             ContentSourceResult::NeedData{ .. } => {
@@ -75,12 +75,12 @@ impl<P: SourceProvider> UpdateServer<P> {
                     match &*update {
                         Update::Partial(partial) => {
                             let partial_instruction = partial.instruction.await?;
-                            client.send_update(stream.chunk_id(), ClientUpdateInstructionType::Partial {
+                            client.send_update(stream.chunk_path(), ClientUpdateInstructionType::Partial {
                                 instruction: partial_instruction.as_ref(),
                             }).await?;
                         }
                         Update::Total(_total) => {
-                            client.send_update(stream.chunk_id(), ClientUpdateInstructionType::Restart).await?;
+                            client.send_update(stream.chunk_path(), ClientUpdateInstructionType::Restart).await?;
                         }
                         Update::None => {}
                     }
@@ -117,10 +117,10 @@ impl UpdateClient {
 
     async fn send_update(
         &mut self,
-        chunk_id: &str,
+        chunk_path: &str,
         ty: ClientUpdateInstructionType<'_>,
     ) -> Result<()> {
-        let instruction = ClientUpdateInstruction { chunk_id, ty };
+        let instruction = ClientUpdateInstruction { chunk_path, ty };
         self.ws
             .send(Message::text(serde_json::to_string(&instruction)?))
             .await?;

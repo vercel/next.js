@@ -9,7 +9,7 @@ use std::{
     slice::Iter,
 };
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
@@ -207,11 +207,15 @@ impl EcmascriptChunkEvaluateVc {
         let chunk_group =
             chunk_group.unwrap_or_else(|| ChunkGroupVc::from_chunk(origin_chunk.into()));
         let evaluate_chunks = chunk_group.chunks().await?;
-        let mut chunks_ids = Vec::new();
+        let mut chunks_server_paths = Vec::new();
+        let output_root = context.output_root().await?;
         for chunk in evaluate_chunks.iter() {
             if let Some(ecma_chunk) = EcmascriptChunkVc::resolve_from(chunk).await? {
                 if ecma_chunk != origin_chunk {
-                    chunks_ids.push(chunk.path().to_string().await?.clone_value());
+                    let chunk_path = chunk.path().await?;
+                    if let Some(chunk_server_path) = output_root.get_path_to(&*chunk_path) {
+                        chunks_server_paths.push(chunk_server_path.to_string());
+                    }
                 }
             }
         }
@@ -221,7 +225,7 @@ impl EcmascriptChunkEvaluateVc {
             .map(|entry| entry.as_chunk_item(context).id())
             .collect();
         Ok(EcmascriptChunkContentEvaluate {
-            chunks_ids: StringsVc::cell(chunks_ids),
+            chunks_server_paths: StringsVc::cell(chunks_server_paths),
             entry_modules_ids: ModuleIdsVc::cell(entry_modules_ids),
         }
         .cell())
@@ -333,6 +337,7 @@ async fn ecmascript_chunk_content_single_entry(
 pub struct EcmascriptChunkContent {
     module_factories: EcmascriptChunkContentEntriesSnapshotReadRef,
     chunk_path: FileSystemPathVc,
+    output_root: FileSystemPathVc,
     evaluate: Option<EcmascriptChunkContentEvaluateVc>,
 }
 
@@ -437,9 +442,11 @@ impl EcmascriptChunkContentVc {
         let chunk_content = ecmascript_chunk_content(context, main_entries, omit_entries);
         let chunk_content = chunk_content.await?;
         let module_factories = chunk_content.chunk_items.to_entry_snapshot().await?;
+        let output_root = context.output_root();
         Ok(EcmascriptChunkContent {
             module_factories,
             chunk_path,
+            output_root,
             evaluate,
         }
         .cell())
@@ -553,11 +560,20 @@ impl EcmascriptChunkContentVc {
         let this = self.await?;
         let mut code = Code::new();
         let chunk_path = this.chunk_path.await?;
-        let chunk_id = this.chunk_path.to_string().await?;
+        let chunk_server_path =
+            if let Some(path) = this.output_root.await?.get_path_to(&*chunk_path) {
+                path
+            } else {
+                bail!(
+                    "chunk path {} is not in output root {}",
+                    this.chunk_path.to_string().await?,
+                    this.output_root.to_string().await?
+                );
+            };
         writeln!(
             code,
             "(self.TURBOPACK = self.TURBOPACK || []).push([{}, {{",
-            stringify_str(&chunk_id)
+            stringify_str(chunk_server_path)
         )?;
         for entry in &this.module_factories {
             write!(code, "\n{}: ", &stringify_module_id(entry.id()))?;
@@ -568,10 +584,10 @@ impl EcmascriptChunkContentVc {
         if let Some(evaluate) = &this.evaluate {
             let evaluate = evaluate.await?;
             let condition = evaluate
-                .chunks_ids
+                .chunks_server_paths
                 .await?
                 .iter()
-                .map(|id| format!(" && loadedChunks.has({})", stringify_str(id)))
+                .map(|path| format!(" && loadedChunks.has({})", stringify_str(path)))
                 .collect::<Vec<_>>()
                 .join("");
             let entries_ids = &*evaluate.entry_modules_ids.await?;
@@ -825,12 +841,12 @@ impl EcmascriptChunkVc {
         let evaluate = this
             .evaluate
             .map(|evaluate| evaluate.content(this.context, self));
-        let chunk_id = self.path();
+        let chunk_path = self.path();
         let content = EcmascriptChunkContentVc::new(
             this.context,
             this.main_entries,
             this.omit_entries,
-            chunk_id,
+            chunk_path,
             evaluate,
         );
         Ok(content)
@@ -853,8 +869,8 @@ impl Asset for EcmascriptChunk {
         // evalute only contributes to the hashed info
         if let Some(evaluate) = this.evaluate {
             let evaluate = evaluate.content(this.context, self_vc).await?;
-            for id in evaluate.chunks_ids.await?.iter() {
-                id.hash(&mut hasher);
+            for path in evaluate.chunks_server_paths.await?.iter() {
+                path.hash(&mut hasher);
                 need_hash = true;
             }
             for id in evaluate.entry_modules_ids.await?.iter() {
@@ -987,7 +1003,7 @@ impl Introspectable for EcmascriptChunk {
 
 #[turbo_tasks::value]
 struct EcmascriptChunkContentEvaluate {
-    chunks_ids: StringsVc,
+    chunks_server_paths: StringsVc,
     entry_modules_ids: ModuleIdsVc,
 }
 

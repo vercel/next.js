@@ -163,7 +163,7 @@ impl ContainmentTree {
         ) -> Vec<Rc<RefCell<Node>>> {
             relationships
                 .into_iter()
-                .map(|(parent, key)| {
+                .flat_map(|(parent, key)| {
                     let tree = trees.get(&key).unwrap().clone();
                     if let Some(parent) = parent {
                         trees.get(&parent).unwrap().borrow_mut().children.push(tree);
@@ -172,7 +172,6 @@ impl ContainmentTree {
                         Some(tree)
                     }
                 })
-                .flatten()
                 .collect::<Vec<_>>()
         }
 

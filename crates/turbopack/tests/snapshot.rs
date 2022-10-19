@@ -161,7 +161,7 @@ async fn run(resource: &'static str) -> Result<()> {
         let chunk_root_path = path.join("output");
         let asset_root_path = path.join("static");
         let chunking_context =
-            DevChunkingContextVc::new(project_root, chunk_root_path, asset_root_path, true);
+            DevChunkingContextVc::new(project_root, path, chunk_root_path, asset_root_path, true);
 
         let existing_dir = chunk_root_path.read_dir().await?;
         let mut expected_paths = HashMap::new();

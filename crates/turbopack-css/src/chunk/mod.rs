@@ -211,8 +211,8 @@ impl Asset for CssChunk {
         let this = self_vc.await?;
 
         let path = self_vc.path();
-        let chunk_id = path.to_string();
-        let mut code = format!("/* chunk {} */\n", chunk_id.await?);
+        let chunk_name = path.to_string();
+        let mut code = format!("/* chunk {} */\n", chunk_name.await?);
 
         let mut writer = WriterWithIndent::new(&mut code);
         for entry in this.main_entries.await?.iter() {

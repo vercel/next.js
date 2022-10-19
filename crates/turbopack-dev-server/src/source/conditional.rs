@@ -95,21 +95,6 @@ impl ContentSource for ConditionalContentSource {
             Ok(first)
         }
     }
-
-    #[turbo_tasks::function]
-    async fn get_by_id(&self, id: &str) -> Result<ContentSourceResultVc> {
-        let first = self.activator.get_by_id(id);
-        if let ContentSourceResult::NotFound = &*first.await? {
-            if self.is_activated() {
-                Ok(self.action.get_by_id(id))
-            } else {
-                Ok(first)
-            }
-        } else {
-            self.activate();
-            Ok(first)
-        }
-    }
 }
 
 #[turbo_tasks::function]

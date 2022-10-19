@@ -2,9 +2,7 @@ use anyhow::Result;
 use turbo_tasks::{primitives::StringVc, TryJoinIterExt, Value};
 use turbopack_core::introspect::{Introspectable, IntrospectableChildrenVc, IntrospectableVc};
 
-use super::{
-    ContentSource, ContentSourceData, ContentSourceResult, ContentSourceResultVc, ContentSourceVc,
-};
+use super::{ContentSource, ContentSourceData, ContentSourceResultVc, ContentSourceVc};
 
 /// Binds different ContentSources to different subpaths. A fallback
 /// ContentSource will serve all other subpaths.
@@ -32,16 +30,6 @@ impl ContentSource for RouterContentSource {
     fn get(&self, path: &str, data: Value<ContentSourceData>) -> ContentSourceResultVc {
         let (source, path) = self.get_source(path);
         source.get(path, data)
-    }
-    #[turbo_tasks::function]
-    async fn get_by_id(&self, id: &str) -> Result<ContentSourceResultVc> {
-        for (_, source) in self.routes.iter() {
-            let result = source.get_by_id(id);
-            if !matches!(&*result.await?, ContentSourceResult::NotFound) {
-                return Ok(result);
-            }
-        }
-        Ok(self.fallback.get_by_id(id))
     }
 }
 
