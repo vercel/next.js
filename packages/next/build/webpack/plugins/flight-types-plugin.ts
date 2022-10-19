@@ -6,6 +6,7 @@ import { WEBPACK_LAYERS } from '../../../lib/constants'
 const PLUGIN_NAME = 'FlightTypesPlugin'
 
 interface Options {
+  dir: string
   appDir: string
   dev: boolean
   isEdgeServer: boolean
@@ -58,11 +59,13 @@ type NonNegative<T extends Numeric> = T extends Zero ? T : Negative<T> extends n
 }
 
 export class FlightTypesPlugin {
+  dir: string
   appDir: string
   dev: boolean
   isEdgeServer: boolean
 
   constructor(options: Options) {
+    this.dir = options.dir
     this.appDir = options.appDir
     this.dev = options.dev
     this.isEdgeServer = options.isEdgeServer
@@ -81,18 +84,18 @@ export class FlightTypesPlugin {
 
       const IS_LAYOUT = /[/\\]layout\.[^./\\]+$/.test(mod.resource)
       const IS_PAGE = !IS_LAYOUT && /[/\\]page\.[^.]+$/.test(mod.resource)
-      const relativePath = path.relative(this.appDir, mod.resource)
+      const relativePathToApp = path.relative(this.appDir, mod.resource)
+      const relativePathToRoot = path.relative(this.dir, mod.resource)
 
       const typePath = path.join(
         'types',
         'app',
-        relativePath.replace(/\.(js|jsx|ts|tsx|mjs)$/, '.ts')
+        relativePathToApp.replace(/\.(js|jsx|ts|tsx|mjs)$/, '.ts')
       )
       const relativeImportPath = path
         .join(
           path.relative(typePath, ''),
-          'app',
-          relativePath.replace(/\.(js|jsx|ts|tsx|mjs)$/, '')
+          relativePathToRoot.replace(/\.(js|jsx|ts|tsx|mjs)$/, '')
         )
         .replace(/\\/g, '/')
       const assetPath = assetPrefix + '/' + typePath.replace(/\\/g, '/')
