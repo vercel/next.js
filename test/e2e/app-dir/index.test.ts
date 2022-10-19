@@ -1194,6 +1194,27 @@ describe('app dir', () => {
             expect(el.attr('data-query')).toBe('query')
           })
         })
+
+        describe('useSelectedLayoutSegment', () => {
+          test.each`
+            path                                                           | outerLayout                                             | innerLayout
+            ${'/hooks/use-selected-layout-segment/first'}                  | ${['first']}                                            | ${[]}
+            ${'/hooks/use-selected-layout-segment/first/slug1'}            | ${['first', 'slug1']}                                   | ${['slug1']}
+            ${'/hooks/use-selected-layout-segment/first/slug2/second'}     | ${['first', 'slug2', '(group)', 'second']}              | ${['slug2', '(group)', 'second']}
+            ${'/hooks/use-selected-layout-segment/first/slug2/second/a/b'} | ${['first', 'slug2', '(group)', 'second', 'a/b']}       | ${['slug2', '(group)', 'second', 'a/b']}
+            ${'/hooks/use-selected-layout-segment/rewritten'}              | ${['first', 'slug3', '(group)', 'second', 'catch/all']} | ${['slug3', '(group)', 'second', 'catch/all']}
+            ${'/hooks/use-selected-layout-segment/rewritten-middleware'}   | ${['first', 'slug3', '(group)', 'second', 'catch/all']} | ${['slug3', '(group)', 'second', 'catch/all']}
+          `(
+            'should have the correct layout segments at $path',
+            async ({ path, outerLayout, innerLayout }) => {
+              const html = await renderViaHTTP(next.url, path)
+              const $ = cheerio.load(html)
+
+              expect(JSON.parse($('#outer-layout').text())).toEqual(outerLayout)
+              expect(JSON.parse($('#inner-layout').text())).toEqual(innerLayout)
+            }
+          )
+        })
       })
 
       if (isDev) {
