@@ -42,7 +42,7 @@ describe('app-dir with middleware', () => {
       toJson: (res: Response) => res.json(),
     },
     {
-      title: '/headers',
+      title: 'next/headers',
       path: '/headers',
       toJson: async (res: Response) => {
         const $ = cheerio.load(await res.text())
