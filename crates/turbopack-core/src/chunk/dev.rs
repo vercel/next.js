@@ -1,15 +1,10 @@
-use std::{
-    collections::hash_map::DefaultHasher,
-    hash::{Hash, Hasher},
-};
-
 use anyhow::Result;
 use turbo_tasks::{
     primitives::{BoolVc, StringVc},
     ValueToString,
 };
 use turbo_tasks_fs::FileSystemPathVc;
-use turbopack_hash::encode_hex;
+use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
 
 use super::{ChunkingContext, ChunkingContextVc};
 use crate::asset::AssetVc;
@@ -119,9 +114,7 @@ impl ChunkingContext for DevChunkingContext {
             }
         }
         if i > 0 {
-            let mut hasher = DefaultHasher::new();
-            name[..i].hash(&mut hasher);
-            let hash = encode_hex(hasher.finish());
+            let hash = encode_hex(hash_xxh3_hash64(name[..i].as_bytes()));
             let truncated_hash = &hash[..5];
             name = format!("{}_{}", truncated_hash, &name[i..]);
         }

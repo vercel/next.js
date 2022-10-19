@@ -26,7 +26,7 @@ swc_core = { workspace = true, features = ["ecma_preset_env", "common"] }
 tokio = "1.11.0"
 turbo-tasks = { path = "../turbo-tasks" }
 turbo-tasks-fs = { path = "../turbo-tasks-fs" }
-turbopack-hash = { path = "../turbopack-hash" }
+turbo-tasks-hash = { path = "../turbo-tasks-hash" }
 url = "2.2.2"
 
 [build-dependencies]

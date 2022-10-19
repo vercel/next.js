@@ -2,7 +2,7 @@ use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{debug::ValueDebugFormat, primitives::StringVc, trace::TraceRawVcs};
 use turbo_tasks_fs::{FileContent, FileContentReadRef, LinkType};
-use turbopack_hash::{encode_hex, hash_xxh3_hash64};
+use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
 
 use crate::asset::{AssetContent, AssetContentReadRef, AssetContentVc};
 

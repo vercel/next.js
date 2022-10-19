@@ -26,9 +26,9 @@ serde_qs = "0.10.1"
 tokio = "1.11.0"
 turbo-tasks = { path = "../turbo-tasks" }
 turbo-tasks-fs = { path = "../turbo-tasks-fs" }
+turbo-tasks-hash = { path = "../turbo-tasks-hash" }
 turbopack-core = { path = "../turbopack-core" }
 turbopack-ecmascript = { path = "../turbopack-ecmascript" }
-turbopack-hash = { path = "../turbopack-hash" }
 # TODO remove this dependency
 turbopack-cli-utils = { path = "../turbopack-cli-utils" }
 urlencoding = "2.1.2"

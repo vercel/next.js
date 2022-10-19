@@ -1,16 +1,11 @@
 pub(crate) mod optimize;
 mod writer;
 
-use std::{
-    collections::hash_map::DefaultHasher,
-    hash::{Hash, Hasher},
-};
-
 use anyhow::{anyhow, Result};
 use indexmap::IndexSet;
-use once_cell::sync::Lazy;
 use turbo_tasks::{primitives::StringVc, TryJoinIterExt, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::{File, FileSystemPathOptionVc, FileSystemPathVc};
+use turbo_tasks_hash::{encode_hex, Xxh3Hash64Hasher};
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
     chunk::{
@@ -22,7 +17,6 @@ use turbopack_core::{
     reference::{AssetReferenceVc, AssetReferencesVc},
 };
 use turbopack_ecmascript::utils::FormatIter;
-use turbopack_hash::encode_hex;
 use writer::{expand_imports, WriterWithIndent};
 
 use self::optimize::CssChunkOptimizerVc;
@@ -184,22 +178,23 @@ impl Asset for CssChunk {
     #[turbo_tasks::function]
     async fn path(self_vc: CssChunkVc) -> Result<FileSystemPathVc> {
         let this = self_vc.await?;
-        let mut hasher = DefaultHasher::new();
+        let mut hasher = Xxh3Hash64Hasher::new();
 
         let main_entries = this.main_entries.await?;
         let mut main_entries = main_entries.iter();
+        let mut needs_hash = false;
         let main_entry = main_entries
             .next()
             .ok_or_else(|| anyhow!("Chunk must have at least one entry"))?;
         for entry in main_entries {
             let path = entry.path().to_string().await?;
-            path.hash(&mut hasher);
+            hasher.write_value(path);
+            needs_hash = true;
         }
 
         let hash = hasher.finish();
-        static DEFAULT_HASH: Lazy<u64> = Lazy::new(|| DefaultHasher::new().finish());
         let mut path = main_entry.path();
-        if hash != *DEFAULT_HASH {
+        if needs_hash {
             path = path.append_to_stem(&format!(".{}", encode_hex(hash)))
         }
 

@@ -7,6 +7,7 @@ use std::{
 };
 
 use serde::{Deserialize, Serialize};
+use turbo_tasks_hash::DeterministicHash;
 
 use crate::{
     debug::{ValueDebugFormat, ValueDebugFormatString},
@@ -80,6 +81,13 @@ impl<T, U: Ord> Ord for ReadRef<T, U> {
 impl<T, U: Hash> Hash for ReadRef<T, U> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         Hash::hash(&**self, state)
+    }
+}
+
+impl<T, U: DeterministicHash> DeterministicHash for ReadRef<T, U> {
+    fn deterministic_hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        let p = &**self;
+        p.deterministic_hash(state);
     }
 }
 

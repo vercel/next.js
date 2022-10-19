@@ -1,13 +1,13 @@
 use anyhow::Result;
 use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::{File, FileSystemPathVc};
+use turbo_tasks_hash::encode_hex;
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
     code_builder::CodeVc,
     reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
     resolve::{ResolveResult, ResolveResultVc},
 };
-use turbopack_hash::encode_hex;
 
 use super::{EcmascriptChunkItemVc, EcmascriptChunkVc};
 

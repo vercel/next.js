@@ -3,12 +3,13 @@ pub mod table;
 
 use std::{
     cmp::max,
-    collections::{hash_map::DefaultHasher, HashMap},
+    collections::HashMap,
     fmt::{Debug, Write},
-    hash::{Hash, Hasher},
     ops::{Div, Mul},
     time::Duration,
 };
+
+use turbo_tasks_hash::hash_xxh3_hash64;
 
 use crate::stats::{GroupTree, ReferenceStats, ReferenceType, TaskStats, TaskType};
 
@@ -181,10 +182,8 @@ fn as_color(n: u8) -> String {
     }
 }
 
-fn as_hash_color<T: Hash>(value: &T) -> String {
-    let mut hasher = DefaultHasher::new();
-    value.hash(&mut hasher);
-    let hash = hasher.finish();
+fn as_hash_color(value: &String) -> String {
+    let hash = hash_xxh3_hash64(value.as_bytes());
     format!(
         "#{:0>2x}{:0>2x}{:0>2x}",
         (hash & 0x7f) + 0x80,

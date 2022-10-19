@@ -1,7 +1,7 @@
 pub mod dev;
 pub mod optimize;
 
-use std::{collections::VecDeque, fmt::Debug};
+use std::{collections::VecDeque, fmt::Debug, hash::Hasher};
 
 use anyhow::{anyhow, Result};
 use indexmap::IndexSet;
@@ -13,6 +13,7 @@ use turbo_tasks::{
     ValueToString, ValueToStringVc,
 };
 use turbo_tasks_fs::FileSystemPathVc;
+use turbo_tasks_hash::DeterministicHash;
 
 use self::optimize::optimize;
 use crate::{
@@ -28,6 +29,18 @@ use crate::{
 pub enum ModuleId {
     Number(u32),
     String(String),
+}
+
+// It'd be cool if DeterministicHash is automatically implemented for any
+// struct/enum that wrap DeterministicHash, but I don't know proc_macro enough
+// to mess with it.
+impl DeterministicHash for ModuleId {
+    fn deterministic_hash<H: Hasher>(&self, state: &mut H) {
+        match self {
+            ModuleId::Number(id) => id.deterministic_hash(state),
+            ModuleId::String(id) => id.deterministic_hash(state),
+        }
+    }
 }
 
 /// A list of module ids.

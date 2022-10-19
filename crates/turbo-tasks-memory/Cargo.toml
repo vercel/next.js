@@ -20,6 +20,7 @@ num_cpus = "1.13.1"
 parking_lot = "0.12.1"
 tokio = "1.11.0"
 turbo-tasks = { path = "../turbo-tasks" }
+turbo-tasks-hash = { path = "../turbo-tasks-hash" }
 
 [dev-dependencies]
 criterion = { version = "0.3.5", features = ["async_tokio"] }

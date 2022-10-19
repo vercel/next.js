@@ -2,12 +2,7 @@ pub mod loader;
 pub(crate) mod optimize;
 pub(crate) mod source_map;
 
-use std::{
-    collections::hash_map::DefaultHasher,
-    fmt::Write as _,
-    hash::{Hash, Hasher},
-    slice::Iter,
-};
+use std::{fmt::Write as _, slice::Iter};
 
 use anyhow::{anyhow, bail, Context, Result};
 use indexmap::{IndexMap, IndexSet};
@@ -18,6 +13,7 @@ use turbo_tasks::{
     TryJoinIterExt, ValueToString, ValueToStringVc,
 };
 use turbo_tasks_fs::{embed_file, File, FileContent, FileSystemPathOptionVc, FileSystemPathVc};
+use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64, Xxh3Hash64Hasher};
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
     chunk::{
@@ -37,7 +33,6 @@ use turbopack_core::{
         PartialUpdate, Update, UpdateVc, Version, VersionVc, VersionedContent, VersionedContentVc,
     },
 };
-use turbopack_hash::{encode_hex, hash_xxh3_hash64, Xxh3Hash64Hasher};
 
 use self::{
     loader::{ManifestChunkAssetVc, ManifestLoaderItemVc},
@@ -761,7 +756,7 @@ impl Version for EcmascriptChunkVersion {
         };
         let mut hasher = Xxh3Hash64Hasher::new();
         for hash in sorted_hashes {
-            hasher.write(&hash.to_le_bytes());
+            hasher.write_value(hash);
         }
         let hash = hasher.finish();
         let hex_hash = encode_hex(hash);
@@ -863,18 +858,18 @@ impl Asset for EcmascriptChunk {
         // As we can't make the path that long, we split info into "hashed info" and
         // "named info". All hashed info is hashed and that hash is appended to
         // the named info. Together they will make up the path.
-        let mut hasher = DefaultHasher::new();
+        let mut hasher = Xxh3Hash64Hasher::new();
         let mut need_hash = false;
 
         // evalute only contributes to the hashed info
         if let Some(evaluate) = this.evaluate {
             let evaluate = evaluate.content(this.context, self_vc).await?;
             for path in evaluate.chunks_server_paths.await?.iter() {
-                path.hash(&mut hasher);
+                hasher.write_ref(path);
                 need_hash = true;
             }
             for id in evaluate.entry_modules_ids.await?.iter() {
-                id.hash(&mut hasher);
+                hasher.write_value(id.await?);
                 need_hash = true;
             }
         }
@@ -888,7 +883,7 @@ impl Asset for EcmascriptChunk {
         } else {
             for entry in &main_entries {
                 let path = entry.path().to_string().await?;
-                path.hash(&mut hasher);
+                hasher.write_value(path);
                 need_hash = true;
             }
             if let &Some(common_parent) = &*self_vc.common_parent().await? {

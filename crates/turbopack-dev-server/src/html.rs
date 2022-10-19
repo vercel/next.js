@@ -2,13 +2,13 @@ use anyhow::{anyhow, Result};
 use mime_guess::mime::TEXT_HTML_UTF_8;
 use turbo_tasks::{debug::ValueDebug, primitives::StringVc};
 use turbo_tasks_fs::{File, FileSystemPathVc};
+use turbo_tasks_hash::{encode_hex, Xxh3Hash64Hasher};
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
     chunk::{ChunkGroupVc, ChunkReferenceVc},
     reference::AssetReferencesVc,
     version::{Update, UpdateVc, Version, VersionVc, VersionedContent, VersionedContentVc},
 };
-use turbopack_hash::{encode_hex, Xxh3Hash64Hasher};
 
 /// The HTML entry point of the dev server.
 ///
@@ -174,7 +174,7 @@ impl Version for DevHtmlAssetVersion {
     async fn id(&self) -> Result<StringVc> {
         let mut hasher = Xxh3Hash64Hasher::new();
         for relative_path in &*self.content.chunk_paths {
-            hasher.write(relative_path.as_bytes());
+            hasher.write_ref(relative_path);
         }
         let hash = hasher.finish();
         let hex_hash = encode_hex(hash);
