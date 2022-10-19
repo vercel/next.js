@@ -43,6 +43,15 @@ import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import { getPagePath } from '../server/require'
 import { Span } from '../trace'
 import { FontConfig } from '../server/font-utils'
+import {
+  loadRequireHook,
+  overrideBuiltInReactPackages,
+} from '../build/webpack/require-hook'
+
+loadRequireHook()
+if (process.env.HAS_APP_DIR) {
+  overrideBuiltInReactPackages()
+}
 
 const exists = promisify(existsOrig)
 

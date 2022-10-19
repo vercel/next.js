@@ -300,6 +300,9 @@ export default async function build(
 
       const publicDir = path.join(dir, 'public')
       const isAppDirEnabled = !!config.experimental.appDir
+      if (isAppDirEnabled) {
+        process.env.HAS_APP_DIR = '1'
+      }
       const { pagesDir, appDir } = findPagesDir(dir, isAppDirEnabled)
 
       const hasPublicDir = await fileExists(publicDir)

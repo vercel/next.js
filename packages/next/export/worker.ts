@@ -3,11 +3,15 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import type { DomainLocale, NextConfigComplete } from '../server/config-shared'
 import type { NextParsedUrlQuery } from '../server/request-meta'
 
+// `HAS_APP_DIR` env var is inherited from parent process,
+// then override react packages here for export worker.
+if (process.env.HAS_APP_DIR) {
+  require('../build/webpack/require-hook').overrideBuiltInReactPackages()
+}
 import '../server/node-polyfill-fetch'
-import loadRequireHook from '../build/webpack/require-hook'
+import { loadRequireHook } from '../build/webpack/require-hook'
 
 import { extname, join, dirname, sep } from 'path'
-import { renderToHTML } from '../server/render'
 import { promises } from 'fs'
 import AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
 import { loadComponents } from '../server/load-components'
@@ -30,6 +34,7 @@ import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
 import { NOT_FOUND_ERROR_CODE } from '../client/components/not-found'
 
 loadRequireHook()
+
 const envConfig = require('../shared/lib/runtime-config')
 
 ;(global as any).__NEXT_DATA__ = {
@@ -139,6 +144,7 @@ export default async function exportPage({
       if (isAppDir) {
         outDir = join(distDir, 'server/app')
       }
+
       let updatedPath = query.__nextSsgPath || path
       let locale = query.__nextLocale || renderOpts.locale
       delete query.__nextLocale
@@ -267,6 +273,7 @@ export default async function exportPage({
       await promises.mkdir(baseDir, { recursive: true })
       let renderResult
       let curRenderOpts: RenderOpts = {}
+      const { renderToHTML } = require('../server/render')
       let renderMethod = renderToHTML
       let inAmpMode = false,
         hybridAmp = false

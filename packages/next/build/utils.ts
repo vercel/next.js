@@ -1,7 +1,6 @@
 import type { NextConfigComplete } from '../server/config-shared'
 
 import '../server/node-polyfill-fetch'
-import loadRequireHook from '../build/webpack/require-hook'
 import chalk from 'next/dist/compiled/chalk'
 import getGzipSize from 'next/dist/compiled/gzip-size'
 import textTable from 'next/dist/compiled/text-table'
@@ -49,6 +48,15 @@ import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-pa
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { AppBuildManifest } from './webpack/plugins/app-build-manifest-plugin'
 import { getRuntimeContext } from '../server/web/sandbox'
+import {
+  loadRequireHook,
+  overrideBuiltInReactPackages,
+} from './webpack/require-hook'
+
+loadRequireHook()
+if (process.env.HAS_APP_DIR) {
+  overrideBuiltInReactPackages()
+}
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -68,8 +76,6 @@ const fsStat = (file: string) => {
   if (cached) return cached
   return (fileStats[file] = fileSize(file))
 }
-
-loadRequireHook()
 
 export function unique<T>(main: ReadonlyArray<T>, sub: ReadonlyArray<T>): T[] {
   return [...new Set([...main, ...sub])]
