@@ -1,4 +1,4 @@
-import * as React from 'react'
+import React from 'react'
 import {
   Dialog,
   DialogBody,
@@ -32,7 +32,7 @@ export const RootLayoutError: React.FC<RootLayoutErrorProps> =
           <DialogContent>
             <DialogHeader className="nextjs-container-root-layout-error-header">
               <h4 id="nextjs__container_root_layout_error_label">
-                Root layout error
+                Missing required tags
               </h4>
             </DialogHeader>
             <DialogBody className="nextjs-container-root-layout-error-body">
@@ -40,8 +40,8 @@ export const RootLayoutError: React.FC<RootLayoutErrorProps> =
               <footer>
                 <p id="nextjs__container_root_layout_error_desc">
                   <small>
-                    This error occurred during the build process and can only be
-                    dismissed by fixing the error.
+                    This error and can only be dismissed by providing all
+                    required tags.
                   </small>
                 </p>
               </footer>
