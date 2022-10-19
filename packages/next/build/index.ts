@@ -170,7 +170,8 @@ function verifyTypeScriptSetup(
   disableStaticImages: boolean,
   cacheDir: string | undefined,
   numWorkers: number | undefined,
-  enableWorkerThreads: boolean | undefined
+  enableWorkerThreads: boolean | undefined,
+  isAppDirEnabled: boolean
 ) {
   const typeCheckWorker = new JestWorker(
     require.resolve('../lib/verifyTypeScriptSetup'),
@@ -194,6 +195,7 @@ function verifyTypeScriptSetup(
       tsconfigPath,
       disableStaticImages,
       cacheDir,
+      isAppDirEnabled,
     })
     .then((result) => {
       typeCheckWorker.end()
@@ -327,99 +329,110 @@ export default async function build(
         telemetry.record(events)
       )
 
-      const ignoreTypeScriptErrors = Boolean(
-        config.typescript.ignoreBuildErrors
-      )
-
       const ignoreESLint = Boolean(config.eslint.ignoreDuringBuilds)
-      const eslintCacheDir = path.join(cacheDir, 'eslint/')
       const shouldLint = !ignoreESLint && runLint
 
-      if (ignoreTypeScriptErrors) {
-        Log.info('Skipping validation of types')
-      }
-      if (runLint && ignoreESLint) {
-        // only print log when build requre lint while ignoreESLint is enabled
-        Log.info('Skipping linting')
-      }
+      const startTypeChecking = async () => {
+        const ignoreTypeScriptErrors = Boolean(
+          config.typescript.ignoreBuildErrors
+        )
 
-      let typeCheckingAndLintingSpinnerPrefixText: string | undefined
-      let typeCheckingAndLintingSpinner:
-        | ReturnType<typeof createSpinner>
-        | undefined
+        const eslintCacheDir = path.join(cacheDir, 'eslint/')
 
-      if (!ignoreTypeScriptErrors && shouldLint) {
-        typeCheckingAndLintingSpinnerPrefixText =
-          'Linting and checking validity of types'
-      } else if (!ignoreTypeScriptErrors) {
-        typeCheckingAndLintingSpinnerPrefixText = 'Checking validity of types'
-      } else if (shouldLint) {
-        typeCheckingAndLintingSpinnerPrefixText = 'Linting'
-      }
+        if (ignoreTypeScriptErrors) {
+          Log.info('Skipping validation of types')
+        }
+        if (runLint && ignoreESLint) {
+          // only print log when build requre lint while ignoreESLint is enabled
+          Log.info('Skipping linting')
+        }
 
-      // we will not create a spinner if both ignoreTypeScriptErrors and ignoreESLint are
-      // enabled, but we will still verifying project's tsconfig and dependencies.
-      if (typeCheckingAndLintingSpinnerPrefixText) {
-        typeCheckingAndLintingSpinner = createSpinner({
-          prefixText: `${Log.prefixes.info} ${typeCheckingAndLintingSpinnerPrefixText}`,
-        })
-      }
+        let typeCheckingAndLintingSpinnerPrefixText: string | undefined
+        let typeCheckingAndLintingSpinner:
+          | ReturnType<typeof createSpinner>
+          | undefined
 
-      const typeCheckStart = process.hrtime()
+        if (!ignoreTypeScriptErrors && shouldLint) {
+          typeCheckingAndLintingSpinnerPrefixText =
+            'Linting and checking validity of types'
+        } else if (!ignoreTypeScriptErrors) {
+          typeCheckingAndLintingSpinnerPrefixText = 'Checking validity of types'
+        } else if (shouldLint) {
+          typeCheckingAndLintingSpinnerPrefixText = 'Linting'
+        }
 
-      try {
-        const [[verifyResult, typeCheckEnd]] = await Promise.all([
-          nextBuildSpan.traceChild('verify-typescript-setup').traceAsyncFn(() =>
-            verifyTypeScriptSetup(
-              dir,
-              [pagesDir, appDir].filter(Boolean) as string[],
-              !ignoreTypeScriptErrors,
-              config.typescript.tsconfigPath,
-              config.images.disableStaticImages,
-              cacheDir,
-              config.experimental.cpus,
-              config.experimental.workerThreads
-            ).then((resolved) => {
-              const checkEnd = process.hrtime(typeCheckStart)
-              return [resolved, checkEnd] as const
-            })
-          ),
-          shouldLint &&
+        // we will not create a spinner if both ignoreTypeScriptErrors and ignoreESLint are
+        // enabled, but we will still verifying project's tsconfig and dependencies.
+        if (typeCheckingAndLintingSpinnerPrefixText) {
+          typeCheckingAndLintingSpinner = createSpinner({
+            prefixText: `${Log.prefixes.info} ${typeCheckingAndLintingSpinnerPrefixText}`,
+          })
+        }
+
+        const typeCheckStart = process.hrtime()
+
+        try {
+          const [[verifyResult, typeCheckEnd]] = await Promise.all([
             nextBuildSpan
-              .traceChild('verify-and-lint')
-              .traceAsyncFn(async () => {
-                await verifyAndLint(
+              .traceChild('verify-typescript-setup')
+              .traceAsyncFn(() =>
+                verifyTypeScriptSetup(
                   dir,
-                  eslintCacheDir,
-                  config.eslint?.dirs,
+                  [pagesDir, appDir].filter(Boolean) as string[],
+                  !ignoreTypeScriptErrors,
+                  config.typescript.tsconfigPath,
+                  config.images.disableStaticImages,
+                  cacheDir,
                   config.experimental.cpus,
                   config.experimental.workerThreads,
-                  telemetry,
-                  isAppDirEnabled && !!appDir
-                )
-              }),
-        ])
-        typeCheckingAndLintingSpinner?.stopAndPersist()
+                  isAppDirEnabled
+                ).then((resolved) => {
+                  const checkEnd = process.hrtime(typeCheckStart)
+                  return [resolved, checkEnd] as const
+                })
+              ),
+            shouldLint &&
+              nextBuildSpan
+                .traceChild('verify-and-lint')
+                .traceAsyncFn(async () => {
+                  await verifyAndLint(
+                    dir,
+                    eslintCacheDir,
+                    config.eslint?.dirs,
+                    config.experimental.cpus,
+                    config.experimental.workerThreads,
+                    telemetry,
+                    isAppDirEnabled && !!appDir
+                  )
+                }),
+          ])
+          typeCheckingAndLintingSpinner?.stopAndPersist()
 
-        if (!ignoreTypeScriptErrors && verifyResult) {
-          telemetry.record(
-            eventTypeCheckCompleted({
-              durationInSeconds: typeCheckEnd[0],
-              typescriptVersion: verifyResult.version,
-              inputFilesCount: verifyResult.result?.inputFilesCount,
-              totalFilesCount: verifyResult.result?.totalFilesCount,
-              incremental: verifyResult.result?.incremental,
-            })
-          )
+          if (!ignoreTypeScriptErrors && verifyResult) {
+            telemetry.record(
+              eventTypeCheckCompleted({
+                durationInSeconds: typeCheckEnd[0],
+                typescriptVersion: verifyResult.version,
+                inputFilesCount: verifyResult.result?.inputFilesCount,
+                totalFilesCount: verifyResult.result?.totalFilesCount,
+                incremental: verifyResult.result?.incremental,
+              })
+            )
+          }
+        } catch (err) {
+          // prevent showing jest-worker internal error as it
+          // isn't helpful for users and clutters output
+          if (isError(err) && err.message === 'Call retries were exceeded') {
+            process.exit(1)
+          }
+          throw err
         }
-      } catch (err) {
-        // prevent showing jest-worker internal error as it
-        // isn't helpful for users and clutters output
-        if (isError(err) && err.message === 'Call retries were exceeded') {
-          process.exit(1)
-        }
-        throw err
       }
+
+      // For app directory, we run type checking after build. That's because
+      // we dynamically generate types for each layout and page in the app
+      // directory.
+      if (!appDir) await startTypeChecking()
 
       const buildLintEvent: EventBuildFeatureUsage = {
         featureName: 'build-lint',
@@ -1036,6 +1049,11 @@ export default async function build(
         } else {
           Log.info('Compiled successfully')
         }
+      }
+
+      // For app directory, we run type checking after build.
+      if (appDir) {
+        await startTypeChecking()
       }
 
       const postCompileSpinner = createSpinner({

@@ -47,6 +47,7 @@ import { regexLikeCss } from './webpack/config/blocks/css'
 import { CopyFilePlugin } from './webpack/plugins/copy-file-plugin'
 import { FlightManifestPlugin } from './webpack/plugins/flight-manifest-plugin'
 import { FlightClientEntryPlugin } from './webpack/plugins/flight-client-entry-plugin'
+import { FlightTypesPlugin } from './webpack/plugins/flight-types-plugin'
 import type {
   Feature,
   SWC_TARGET_TRIPLE,
@@ -124,7 +125,7 @@ function isResourceInPackages(resource: string, packageNames?: string[]) {
 const builtInReactImports = [
   'react',
   'react/jsx-runtime',
-  'next/dist/compiled/react-server-dom-webpack/writer.browser.server',
+  'next/dist/compiled/react-server-dom-webpack/server.browser',
 ]
 
 export function getDefineEnv({
@@ -1975,6 +1976,10 @@ export default async function getBaseWebpackConfig(
               dev,
               isEdgeServer,
             })),
+      hasAppDir &&
+        !isClient &&
+        !dev &&
+        new FlightTypesPlugin({ dir, appDir, dev, isEdgeServer }),
       !dev &&
         isClient &&
         !!config.experimental.sri?.algorithm &&

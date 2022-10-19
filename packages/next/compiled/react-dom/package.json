@@ -1,6 +1,6 @@
 {
   "name": "react-dom",
-  "version": "0.0.0-experimental-a8c16a004-20221012",
+  "version": "0.0.0-experimental-9cdf8a99e-20221018",
   "description": "React package for working with the DOM.",
   "main": "index.js",
   "repository": {
@@ -18,10 +18,10 @@
   "homepage": "https://reactjs.org/",
   "dependencies": {
     "loose-envify": "^1.1.0",
-    "scheduler": "0.0.0-experimental-a8c16a004-20221012"
+    "scheduler": "0.0.0-experimental-9cdf8a99e-20221018"
   },
   "peerDependencies": {
-    "react": "0.0.0-experimental-a8c16a004-20221012"
+    "react": "0.0.0-experimental-9cdf8a99e-20221018"
   },
   "files": [
     "LICENSE",
@@ -38,6 +38,7 @@
     "server-rendering-stub.js",
     "test-utils.js",
     "unstable_testing.js",
+    "unstable_server-external-runtime.js",
     "cjs/",
     "umd/"
   ],
