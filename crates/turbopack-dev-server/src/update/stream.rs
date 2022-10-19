@@ -29,7 +29,6 @@ async fn compute_update_stream(
 struct VersionState {
     #[turbo_tasks(debug_ignore)]
     inner: Mutex<(VersionVc, Option<Invalidator>)>,
-    id: VersionStateId,
 }
 
 #[turbo_tasks::value_impl]
@@ -43,23 +42,17 @@ impl VersionStateVc {
     }
 }
 
-#[turbo_tasks::value(transparent, serialization = "auto_for_input")]
-#[derive(Debug, PartialOrd, Ord, Hash, Clone)]
-struct VersionStateId(String);
-
 impl VersionStateVc {
-    async fn new(inner: VersionVc, chunk_path: &str) -> Result<Self> {
-        let id = VersionStateId(chunk_path.to_string());
-        let inner = inner.keyed_cell_local(id.clone()).await?;
+    async fn new(inner: VersionVc) -> Result<Self> {
+        let inner = inner.cell_local().await?;
         Ok(Self::cell(VersionState {
             inner: Mutex::new((inner, None)),
-            id,
         }))
     }
 
     async fn set(&self, new_inner: VersionVc) -> Result<()> {
         let this = self.await?;
-        let new_inner = new_inner.keyed_cell_local(this.id.clone()).await?;
+        let new_inner = new_inner.cell_local().await?;
         let mut lock = this.inner.lock().unwrap();
         if let (_, Some(invalidator)) = std::mem::replace(&mut *lock, (new_inner, None)) {
             invalidator.invalidate();
@@ -77,7 +70,7 @@ impl UpdateStream {
     pub async fn new(chunk_path: String, content: VersionedContentVc) -> Result<UpdateStream> {
         let (sx, rx) = tokio::sync::mpsc::channel(32);
 
-        let version_state = VersionStateVc::new(content.version(), &chunk_path).await?;
+        let version_state = VersionStateVc::new(content.version()).await?;
 
         compute_update_stream(
             version_state,

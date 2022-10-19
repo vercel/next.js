@@ -4,7 +4,7 @@ import { Hot } from "./hot";
 
 export type RefreshHelpers = RefreshRuntimeGlobals["$RefreshHelpers$"];
 
-type ChunkId = string;
+type ChunkPath = string;
 type ModuleId = string;
 
 interface Chunk {}
@@ -18,7 +18,7 @@ interface Exports {
 export type ChunkModule = () => void;
 export type Runnable = (...args: any[]) => boolean;
 export declare type ChunkRegistration = [
-  chunkPath: string,
+  chunkPath: ChunkPath,
   chunkModules: ChunkModule[],
   ...run: Runnable[]
 ];
@@ -49,7 +49,7 @@ type EsmImport = (
 type EsmExport = (exportGetters: Record<string, () => any>) => void;
 type ExportValue = (value: any) => void;
 
-type LoadFile = (id: ChunkId, path: string) => Promise<any> | undefined;
+type LoadFile = (path: ChunkPath) => Promise<any> | undefined;
 
 interface TurbopackContext {
   e: Module["exports"];
@@ -72,7 +72,7 @@ type ModuleFactory = (
 type ModuleFactoryString = string;
 
 interface Runtime {
-  loadedChunks: Set<ChunkId>;
+  loadedChunks: Set<ChunkPath>;
   modules: Record<ModuleId, ModuleFactory>;
   cache: Record<string, Module>;
 
@@ -81,14 +81,14 @@ interface Runtime {
 
 export type ChunkUpdateCallback = (update: ServerMessage) => void;
 export type ChunkUpdateProvider = {
-  push: (registration: [ChunkId, ChunkUpdateCallback]) => void;
+  push: (registration: [ChunkPath, ChunkUpdateCallback]) => void;
 };
 
 export interface TurbopackGlobals {
   TURBOPACK?: ChunkRegistrations | ChunkRegistration[];
   TURBOPACK_CHUNK_UPDATE_LISTENERS?:
     | ChunkUpdateProvider
-    | [ChunkId, ChunkUpdateCallback][];
+    | [ChunkPath, ChunkUpdateCallback][];
 }
 
 declare global {

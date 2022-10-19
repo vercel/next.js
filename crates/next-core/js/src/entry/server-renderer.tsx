@@ -10,6 +10,8 @@ import Document from "@vercel/turbopack-next/pages/_document";
 import Component, * as otherExports from ".";
 ("TURBOPACK { transition: next-client }");
 import chunkGroup from ".";
+import { BuildManifest } from "next/dist/server/get-page-files";
+import { ChunkGroup } from "types/next";
 
 const END_OF_OPERATION = process.argv[2];
 const NEW_LINE = "\n".charCodeAt(0);
@@ -168,14 +170,14 @@ async function operation(renderData: RenderData) {
   // TODO(alexkirsz) This is missing *a lot* of data, but it's enough to get a
   // basic render working.
 
-  /* BuildManifest */
-  const buildManifest = {
+  const group = chunkGroup as ChunkGroup;
+  const buildManifest: BuildManifest = {
     pages: {
       // TODO(alexkirsz) We should separate _app and page chunks. Right now, we
       // computing the chunk items of `next-hydrate.js`, so they contain both
       // _app and page chunks.
       "/_app": [],
-      [renderData.path]: chunkGroup.map((c: { path: string }) => c.path),
+      [renderData.path]: group.map((chunk) => chunk.path),
     },
 
     devFiles: [],
@@ -202,6 +204,8 @@ async function operation(renderData: RenderData) {
     buildId: "",
 
     /* RenderOptsPartial */
+    dev: true,
+    runtimeConfig: {},
     assetPrefix: "",
     canonicalBase: "",
     previewProps: {

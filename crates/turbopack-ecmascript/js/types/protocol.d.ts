@@ -1,7 +1,7 @@
-import { ChunkId } from "./index";
+import { ChunkPath } from "./index";
 
 export type ServerMessage = {
-  chunkId: ChunkId;
+  chunkPath: ChunkPath;
 } & (
   | {
       type: "restart";
@@ -17,5 +17,5 @@ export type ServerMessage = {
 
 export type ClientMessage = {
   type: "subscribe";
-  chunkId: ChunkId;
+  chunkPath: ChunkPath;
 };
