@@ -80,10 +80,10 @@ const DUPLICATION_THRESHOLD: f32 = 0.1;
 const CONTAINED_THRESHOLD: f32 = 0.05;
 /// Max number of local chunks. Will be merged into a single chunk when over the
 /// threshold.
-const LOCAL_CHUNK_MERGE_THRESHOLD: usize = 100;
+const LOCAL_CHUNK_MERGE_THRESHOLD: usize = 10;
 /// Max number of total chunks. Will be merged randomly to stay within the
 /// limit.
-const TOTAL_CHUNK_MERGE_THRESHOLD: usize = 100;
+const TOTAL_CHUNK_MERGE_THRESHOLD: usize = 10;
 
 async fn merge_duplicated_and_contained(
     chunks: &mut Vec<EcmascriptChunkVc>,

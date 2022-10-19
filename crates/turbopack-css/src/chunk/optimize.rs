@@ -59,6 +59,13 @@ async fn merge_chunks(first: CssChunkVc, chunks: &[CssChunkVc]) -> Result<CssChu
     ))
 }
 
+/// Max number of local chunks. Will be merged into a single chunk when over the
+/// threshold.
+const LOCAL_CHUNK_MERGE_THRESHOLD: usize = 10;
+/// Max number of total chunks. Will be merged randomly to stay within the
+/// limit.
+const TOTAL_CHUNK_MERGE_THRESHOLD: usize = 10;
+
 #[turbo_tasks::function]
 async fn optimize_css(local: Option<ChunksVc>, children: Option<ChunksVc>) -> Result<ChunksVc> {
     let mut chunks = Vec::new();
@@ -67,10 +74,12 @@ async fn optimize_css(local: Option<ChunksVc>, children: Option<ChunksVc>) -> Re
         // Local chunks have the same common_parent and could be merged into fewer
         // chunks. (We use a pretty large threshold for that.)
         let mut local = local.await?.iter().copied().map(css).try_join().await?;
-        // TODO decide what to merge (threshold)
-        let merged = take(&mut local);
-        if let Some(first) = merged.first().copied() {
-            local.push(merge_chunks(first, &merged).await?);
+        // Merge all local chunks when they are too many
+        if local.len() > LOCAL_CHUNK_MERGE_THRESHOLD {
+            let merged = take(&mut local);
+            if let Some(first) = merged.first().copied() {
+                local.push(merge_chunks(first, &merged).await?);
+            }
         }
         chunks.append(&mut local);
     }
@@ -84,8 +93,8 @@ async fn optimize_css(local: Option<ChunksVc>, children: Option<ChunksVc>) -> Re
 
     // When there are too many chunks, try hard to reduce the number of chunks to
     // limit the request count.
-    if chunks.len() > 50 {
-        let size = (chunks.len() + 9) / 10;
+    if chunks.len() > TOTAL_CHUNK_MERGE_THRESHOLD {
+        let size = chunks.len().div_ceil(TOTAL_CHUNK_MERGE_THRESHOLD);
         // TODO be smarter in selecting the chunks to merge
         for merged in take(&mut chunks).chunks(size) {
             chunks.push(merge_chunks(*merged.first().unwrap(), merged).await?);

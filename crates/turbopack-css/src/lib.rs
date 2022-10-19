@@ -2,6 +2,7 @@
 #![feature(box_patterns)]
 #![feature(box_syntax)]
 #![feature(iter_intersperse)]
+#![feature(int_roundings)]
 
 mod asset;
 pub mod chunk;
