@@ -696,9 +696,7 @@ export default async function getBaseWebpackConfig(
         fileReading: config.experimental.swcFileReading,
         nextConfig: config,
         jsConfig,
-        supportedBrowsers: config.experimental.browsersListForSwc
-          ? supportedBrowsers
-          : undefined,
+        supportedBrowsers,
         swcCacheDir: path.join(dir, config?.distDir ?? '.next', 'cache', 'swc'),
         ...extraOptions,
       },
