@@ -3,6 +3,8 @@ import type { CookieSerializeOptions } from '../types'
 import cookie from 'next/dist/compiled/cookie'
 
 export interface Cookie extends CookieSerializeOptions {
+  /** A string representing the name of the cookie. */
+  name: string
   /** A `string` representing the value of the cookie. */
   value: string | undefined
 }
@@ -80,9 +82,10 @@ export class NextCookies extends Cookies {
   }
   getWithOptions(...args: Parameters<Cookies['get']>): Cookie {
     const raw = super.get(...args)
-    if (typeof raw !== 'string') return { value: raw }
-    const { [args[0]]: value, ...options } = cookie.parse(raw)
-    return { value, ...options }
+    const name = args[0]
+    if (typeof raw !== 'string') return { name, value: raw }
+    const { [name]: value, ...options } = cookie.parse(raw)
+    return { name, value, ...options }
   }
   set(...args: Parameters<Cookies['set']>) {
     const isAlreadyAdded = super.has(args[0])
