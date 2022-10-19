@@ -1,5 +1,3 @@
-import { PackageJson } from './next-modes/base'
-
 const os = require('os')
 const path = require('path')
 const execa = require('execa')
@@ -9,10 +7,18 @@ const { randomBytes } = require('crypto')
 const { linkPackages } =
   require('../../.github/actions/next-stats-action/src/prepare/repo-setup')()
 
+/**
+ * @param {*} dependencies
+ * @param {*} installCommand
+ * @param {import("./next-modes/base").PackageJson} packageJson
+ * @param {*} packageLockPath
+ * @param {*} dirSuffix
+ * @returns
+ */
 export async function createNextInstall(
   dependencies,
   installCommand,
-  packageJson: PackageJson = {},
+  packageJson = {},
   packageLockPath = '',
   dirSuffix = ''
 ) {
