@@ -169,7 +169,7 @@ pub async fn tsconfig_resolve_options(
     let import_map = if !all_paths.is_empty() {
         let mut import_map = ImportMap::empty();
         for (key, value) in all_paths {
-            import_map.insert_alias(AliasPattern::parse(&key), value.into());
+            import_map.insert_alias(AliasPattern::parse(key), value.into());
         }
         Some(import_map.cell())
     } else {

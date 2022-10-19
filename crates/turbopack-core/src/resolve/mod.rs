@@ -666,17 +666,15 @@ pub async fn resolve(
         Request::Unknown { path: _ } => ResolveResult::unresolveable().into(),
     };
 
-    if !*result.is_unresolveable().await? {
-        return Ok(result);
-    }
-
     // Apply fallback import mappings if provided
     if let Some(import_map) = &options_value.fallback_import_map {
-        let result_ref = import_map.lookup(request).await?;
-        let result = &*result_ref;
-        if !matches!(result, ImportMapResult::NoEntry) {
-            let resolve_result_vc = resolve_import_map_result(result, context, options).await?;
-            return Ok(resolve_result_vc);
+        if *result.is_unresolveable().await? {
+            let result_ref = import_map.lookup(request).await?;
+            let result = &*result_ref;
+            if !matches!(result, ImportMapResult::NoEntry) {
+                let resolve_result_vc = resolve_import_map_result(result, context, options).await?;
+                return Ok(resolve_result_vc);
+            }
         }
     }
 

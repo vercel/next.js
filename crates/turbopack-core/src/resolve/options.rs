@@ -180,21 +180,29 @@ impl ImportMap {
     }
 
     /// Inserts an exact alias into the import map.
-    pub fn insert_exact_alias(&mut self, pattern: impl ToString, mapping: ImportMappingVc) {
+    pub fn insert_exact_alias<'a>(
+        &mut self,
+        pattern: impl Into<String> + 'a,
+        mapping: ImportMappingVc,
+    ) {
         self.direct.insert(AliasPattern::exact(pattern), mapping);
     }
 
     /// Inserts a wildcard alias into the import map.
-    pub fn insert_wildcard_alias(&mut self, prefix: impl ToString, mapping: ImportMappingVc) {
+    pub fn insert_wildcard_alias<'a>(
+        &mut self,
+        prefix: impl Into<String> + 'a,
+        mapping: ImportMappingVc,
+    ) {
         self.direct
             .insert(AliasPattern::wildcard(prefix, ""), mapping);
     }
 
     /// Inserts a wildcard alias with suffix into the import map.
-    pub fn insert_wildcard_alias_with_suffix(
+    pub fn insert_wildcard_alias_with_suffix<'p, 's>(
         &mut self,
-        prefix: impl ToString,
-        suffix: impl ToString,
+        prefix: impl Into<String> + 'p,
+        suffix: impl Into<String> + 's,
         mapping: ImportMappingVc,
     ) {
         self.direct
@@ -354,6 +362,20 @@ impl ResolveOptionsVc {
         resolve_options.import_map = Some(
             resolve_options
                 .import_map
+                .map(|current_import_map| current_import_map.extend(import_map))
+                .unwrap_or(import_map),
+        );
+        Ok(resolve_options.into())
+    }
+
+    /// Returns a new [ResolveOptionsVc] with its fallback import map extended
+    /// to include the given import map.
+    #[turbo_tasks::function]
+    pub async fn with_extended_fallback_import_map(self, import_map: ImportMapVc) -> Result<Self> {
+        let mut resolve_options = self.await?.clone_value();
+        resolve_options.fallback_import_map = Some(
+            resolve_options
+                .fallback_import_map
                 .map(|current_import_map| current_import_map.extend(import_map))
                 .unwrap_or(import_map),
         );

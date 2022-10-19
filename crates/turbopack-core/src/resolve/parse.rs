@@ -96,7 +96,7 @@ impl Request {
                     lazy_static! {
                         static ref WINDOWS_PATH: Regex =
                             Regex::new(r"^([A-Za-z]:\\|\\\\)").unwrap();
-                        static ref URI_PATH: Regex = Regex::new(r"^([^/\\]+:)(/.+)").unwrap();
+                        static ref URI_PATH: Regex = Regex::new(r"^([^/\\]+:)(.+)").unwrap();
                         static ref MODULE_PATH: Regex =
                             Regex::new(r"^((?:@[^/]+/)?[^/]+)(.*)").unwrap();
                     }

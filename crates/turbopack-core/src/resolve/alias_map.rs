@@ -347,11 +347,11 @@ impl AliasPattern {
     ///
     /// Wildcard characters (*) present in the string will match any number of
     /// characters, including path separators.
-    pub fn parse<T>(pattern: T) -> Self
+    pub fn parse<'a, T>(pattern: T) -> Self
     where
-        T: ToString,
+        T: Into<String> + 'a,
     {
-        let mut pattern = pattern.to_string();
+        let mut pattern = pattern.into();
         if let Some(wildcard_index) = pattern.find('*') {
             let suffix = pattern[wildcard_index + 1..].to_string();
             pattern.truncate(wildcard_index);
@@ -365,25 +365,25 @@ impl AliasPattern {
     }
 
     /// Creates a pattern that will only match exactly what was passed in.
-    pub fn exact<T>(pattern: T) -> Self
+    pub fn exact<'a, T>(pattern: T) -> Self
     where
-        T: ToString,
+        T: Into<String> + 'a,
     {
-        AliasPattern::Exact(pattern.to_string())
+        AliasPattern::Exact(pattern.into())
     }
 
     /// Creates a pattern that will match, sequentially:
     /// 1. a prefix; then
     /// 2. any number of characters, including path separators; then
     /// 3. a suffix.
-    pub fn wildcard<P, S>(prefix: P, suffix: S) -> Self
+    pub fn wildcard<'p, 's, P, S>(prefix: P, suffix: S) -> Self
     where
-        P: ToString,
-        S: ToString,
+        P: Into<String> + 'p,
+        S: Into<String> + 's,
     {
         AliasPattern::Wildcard {
-            prefix: prefix.to_string(),
-            suffix: suffix.to_string(),
+            prefix: prefix.into(),
+            suffix: suffix.into(),
         }
     }
 }

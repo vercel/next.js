@@ -42,6 +42,10 @@ pub fn get_next_client_fallback_import_map(pages_dir: FileSystemPathVc) -> Impor
 
     for (original, alias) in NEXT_ALIASES {
         import_map.insert_exact_alias(original, request_to_import_mapping(pages_dir, alias));
+        import_map.insert_exact_alias(
+            format!("node:{original}"),
+            request_to_import_mapping(pages_dir, alias),
+        );
     }
 
     import_map.cell()
@@ -118,9 +122,9 @@ fn insert_next_shared_aliases(import_map: &mut ImportMap, package_root: FileSyst
 }
 
 /// Inserts an alias to an alternative of import mappings into an import map.
-fn insert_alias_to_alternatives(
+fn insert_alias_to_alternatives<'a>(
     import_map: &mut ImportMap,
-    alias: impl ToString,
+    alias: impl Into<String> + 'a,
     alternatives: Vec<ImportMappingVc>,
 ) {
     import_map.insert_exact_alias(alias, ImportMapping::Alternatives(alternatives).into());

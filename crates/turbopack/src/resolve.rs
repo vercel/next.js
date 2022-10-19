@@ -268,6 +268,13 @@ pub async fn resolve_options(
         .import_map
         .map(|import_map| resolve_options.with_extended_import_map(import_map))
         .unwrap_or(resolve_options);
+    // And the same for the fallback_import_map
+    let resolve_options = options_context
+        .fallback_import_map
+        .map(|fallback_import_map| {
+            resolve_options.with_extended_fallback_import_map(fallback_import_map)
+        })
+        .unwrap_or(resolve_options);
 
     Ok(resolve_options)
 }
