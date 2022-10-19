@@ -70,24 +70,24 @@ export class NextCookies extends Cookies {
     super(response.headers.get('cookie'))
     this.response = response
   }
-  get(...args: Parameters<Cookies['get']>) {
+  get = (...args: Parameters<Cookies['get']>) => {
     return this.getWithOptions(...args).value
   }
-  getAll(): Cookie[] {
+  getAll = (): Cookie[] => {
     const all: Cookie[] = []
     for (const key of this.keys()) {
       all.push(this.getWithOptions(key))
     }
     return all
   }
-  getWithOptions(...args: Parameters<Cookies['get']>): Cookie {
+  getWithOptions = (...args: Parameters<Cookies['get']>): Cookie => {
     const raw = super.get(...args)
     const name = args[0]
     if (typeof raw !== 'string') return { name, value: raw }
     const { [name]: value, ...options } = cookie.parse(raw)
     return { name, value, ...options }
   }
-  set(...args: Parameters<Cookies['set']>) {
+  set = (...args: Parameters<Cookies['set']>) => {
     const isAlreadyAdded = super.has(args[0])
 
     super.set(...args)
@@ -120,7 +120,7 @@ export class NextCookies extends Cookies {
 
     return this
   }
-  delete(key: string, options: CookieSerializeOptions = {}) {
+  delete = (key: string, options: CookieSerializeOptions = {}) => {
     const isDeleted = super.delete(key)
 
     if (isDeleted) {
@@ -138,7 +138,7 @@ export class NextCookies extends Cookies {
 
     return isDeleted
   }
-  clear(options: CookieSerializeOptions = {}) {
+  clear = (options: CookieSerializeOptions = {}) => {
     const expiredCookies = Array.from(super.keys())
       .map((key) => serializeExpiredCookie(key, options))
       .join(', ')
