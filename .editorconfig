@@ -9,6 +9,9 @@ indent_style = space
 insert_final_newline = true
 trim_trailing_whitespace = true
 
+[*.rs]
+indent_size = 4
+
 [*.t]
 trim_trailing_whitespace = false
 
