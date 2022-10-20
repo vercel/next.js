@@ -14,9 +14,12 @@ use turbopack::{
 use turbopack_core::{
     chunk::dev::DevChunkingContextVc, context::AssetContextVc, virtual_asset::VirtualAssetVc,
 };
-use turbopack_dev_server::source::{
-    combined::{CombinedContentSource, CombinedContentSourceVc},
-    ContentSourceVc, NoContentSourceVc,
+use turbopack_dev_server::{
+    html::DevHtmlAssetVc,
+    source::{
+        combined::{CombinedContentSource, CombinedContentSourceVc},
+        ContentSourceVc, NoContentSourceVc,
+    },
 };
 use turbopack_ecmascript::{
     chunk::EcmascriptChunkPlaceablesVc, magic_identifier, utils::stringify_str,
@@ -29,6 +32,7 @@ use crate::{
         next_layout_entry_transition::NextLayoutEntryTransition, LayoutSegment, LayoutSegmentsVc,
     },
     embed_js::{next_js_file, wrap_with_next_js_fs},
+    fallback::get_fallback_page,
     next_client::{
         context::{
             get_client_chunking_context, get_client_environment, get_client_module_options_context,
@@ -142,13 +146,13 @@ fn next_layout_entry_transition(
 /// Next.js app folder.
 #[turbo_tasks::function]
 pub async fn create_app_source(
-    project_root: FileSystemPathVc,
+    project_path: FileSystemPathVc,
     output_path: FileSystemPathVc,
     server_root: FileSystemPathVc,
     env: ProcessEnvVc,
     browserslist_query: &str,
 ) -> Result<ContentSourceVc> {
-    let project_root = wrap_with_next_js_fs(project_root);
+    let project_root = wrap_with_next_js_fs(project_path);
 
     let app = project_root.join("app");
     let src_app = project_root.join("src/app");
@@ -196,12 +200,15 @@ pub async fn create_app_source(
     let server_runtime_entries =
         vec![ProcessEnvAssetVc::new(project_root, env).as_ecmascript_chunk_placeable()];
 
+    let fallback_page = get_fallback_page(project_path, server_root, browserslist_query);
+
     Ok(create_app_source_for_directory(
         context,
         project_root,
         app_dir,
         server_root,
         EcmascriptChunkPlaceablesVc::cell(server_runtime_entries),
+        fallback_page,
         server_root,
         LayoutSegmentsVc::cell(Vec::new()),
         output_path,
@@ -216,6 +223,7 @@ async fn create_app_source_for_directory(
     input_dir: FileSystemPathVc,
     server_root: FileSystemPathVc,
     runtime_entries: EcmascriptChunkPlaceablesVc,
+    fallback_page: DevHtmlAssetVc,
     target: FileSystemPathVc,
     layouts: LayoutSegmentsVc,
     intermediate_output_path: FileSystemPathVc,
@@ -276,6 +284,7 @@ async fn create_app_source_for_directory(
                 .into(),
                 chunking_context,
                 runtime_entries,
+                fallback_page,
                 intermediate_output_path,
             ));
         }
@@ -296,6 +305,7 @@ async fn create_app_source_for_directory(
                         *dir,
                         server_root,
                         runtime_entries,
+                        fallback_page,
                         new_target,
                         layouts,
                         intermediate_output_path,

@@ -10,12 +10,15 @@ use turbopack_core::{
         asset::IntrospectableAssetVc, Introspectable, IntrospectableChildrenVc, IntrospectableVc,
     },
 };
-use turbopack_dev_server::source::{
-    asset_graph::AssetGraphContentSourceVc,
-    conditional::ConditionalContentSourceVc,
-    lazy_instatiated::{GetContentSource, GetContentSourceVc, LazyInstantiatedContentSource},
-    ContentSource, ContentSourceData, ContentSourceDataFilter, ContentSourceDataVary,
-    ContentSourceResult, ContentSourceResultVc, ContentSourceVc,
+use turbopack_dev_server::{
+    html::DevHtmlAssetVc,
+    source::{
+        asset_graph::AssetGraphContentSourceVc,
+        conditional::ConditionalContentSourceVc,
+        lazy_instatiated::{GetContentSource, GetContentSourceVc, LazyInstantiatedContentSource},
+        ContentSource, ContentSourceData, ContentSourceDataFilter, ContentSourceDataVary,
+        ContentSourceResult, ContentSourceResultVc, ContentSourceVc,
+    },
 };
 use turbopack_ecmascript::{chunk::EcmascriptChunkPlaceablesVc, EcmascriptModuleAssetVc};
 
@@ -41,6 +44,7 @@ pub fn create_node_rendered_source(
     renderer: NodeRendererVc,
     chunking_context: ChunkingContextVc,
     runtime_entries: EcmascriptChunkPlaceablesVc,
+    fallback_page: DevHtmlAssetVc,
     intermediate_output_path: FileSystemPathVc,
 ) -> ContentSourceVc {
     let source = NodeRenderContentSource {
@@ -49,6 +53,7 @@ pub fn create_node_rendered_source(
         renderer,
         chunking_context,
         runtime_entries,
+        fallback_page,
         intermediate_output_path,
     }
     .cell();
@@ -71,6 +76,7 @@ struct NodeRenderContentSource {
     renderer: NodeRendererVc,
     chunking_context: ChunkingContextVc,
     runtime_entries: EcmascriptChunkPlaceablesVc,
+    fallback_page: DevHtmlAssetVc,
     intermediate_output_path: FileSystemPathVc,
 }
 
@@ -139,6 +145,7 @@ impl ContentSource for NodeRenderContentSource {
                                         this.server_root.join(path),
                                         this.renderer.module(),
                                         this.runtime_entries,
+                                        this.fallback_page,
                                         this.chunking_context,
                                         this.intermediate_output_path,
                                         RenderData {
