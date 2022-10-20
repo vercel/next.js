@@ -947,8 +947,8 @@ export async function renderToHTMLOrFlight(
         ? await page()
         : undefined
 
-      if (layoutOrPageMod?.config) {
-        defaultRevalidate = layoutOrPageMod.config.revalidate
+      if (typeof layoutOrPageMod?.revalidate !== 'undefined') {
+        defaultRevalidate = layoutOrPageMod.revalidate
 
         if (isStaticGeneration && defaultRevalidate === 0) {
           const { DynamicServerError } =
