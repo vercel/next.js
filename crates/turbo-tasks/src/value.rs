@@ -28,6 +28,8 @@ impl<T: Typed> Deref for Value<T> {
     }
 }
 
+impl<T: Typed + Copy> Copy for Value<T> {}
+
 /// Pass a value by value (`Value<Xxx>`) instead of by reference (`XxxVc`).
 ///
 /// Doesn't require serialization, and won't be stored in the persistent cache

@@ -6,20 +6,20 @@ use turbo_tasks::TryJoinIterExt;
 use turbo_tasks_fs::FileSystemPathOptionVc;
 use turbopack_core::chunk::{
     optimize::{optimize_by_common_parent, ChunkOptimizer, ChunkOptimizerVc},
-    ChunkGroupVc, ChunkVc, ChunksVc,
+    ChunkGroupVc, ChunkVc, ChunkingContextVc, ChunksVc,
 };
 
 use super::{EcmascriptChunkPlaceablesVc, EcmascriptChunkVc};
 use crate::chunk::EcmascriptChunkEvaluate;
 
 #[turbo_tasks::value]
-pub struct EcmascriptChunkOptimizer;
+pub struct EcmascriptChunkOptimizer(ChunkingContextVc);
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkOptimizerVc {
     #[turbo_tasks::function]
-    pub fn new() -> Self {
-        EcmascriptChunkOptimizer.cell()
+    pub fn new(context: ChunkingContextVc) -> Self {
+        EcmascriptChunkOptimizer(context).cell()
     }
 }
 

@@ -1,51 +1,89 @@
+use turbo_tasks::Value;
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::resolve::options::{ImportMap, ImportMapVc, ImportMapping, ImportMappingVc};
 
-use crate::embed_js::{attached_next_js_package_path, VIRTUAL_PACKAGE_NAME};
+use crate::{
+    embed_js::{attached_next_js_package_path, next_js_fs, VIRTUAL_PACKAGE_NAME},
+    next_client::context::ContextType,
+    next_server::ServerContextType,
+};
 
 /// Computes the Next-specific client import map.
 #[turbo_tasks::function]
 pub fn get_next_client_import_map(
     project_path: FileSystemPathVc,
-    pages_dir: FileSystemPathVc,
+    ty: Value<ContextType>,
 ) -> ImportMapVc {
     let mut import_map = ImportMap::empty();
     let package_root = attached_next_js_package_path(project_path);
 
     insert_next_shared_aliases(&mut import_map, package_root);
 
-    insert_alias_to_alternatives(
-        &mut import_map,
-        format!("{VIRTUAL_PACKAGE_NAME}/pages/_app"),
-        vec![
-            request_to_import_mapping(pages_dir, "./_app"),
-            request_to_import_mapping(pages_dir, "next/app"),
-        ],
-    );
-    insert_alias_to_alternatives(
-        &mut import_map,
-        format!("{VIRTUAL_PACKAGE_NAME}/pages/_document"),
-        vec![
-            request_to_import_mapping(pages_dir, "./_document"),
-            request_to_import_mapping(pages_dir, "next/document"),
-        ],
-    );
-
+    match ty.into_value() {
+        ContextType::Pages { pages_dir } => {
+            insert_alias_to_alternatives(
+                &mut import_map,
+                format!("{VIRTUAL_PACKAGE_NAME}/pages/_app"),
+                vec![
+                    request_to_import_mapping(pages_dir, "./_app"),
+                    request_to_import_mapping(pages_dir, "next/app"),
+                ],
+            );
+            insert_alias_to_alternatives(
+                &mut import_map,
+                format!("{VIRTUAL_PACKAGE_NAME}/pages/_document"),
+                vec![
+                    request_to_import_mapping(pages_dir, "./_document"),
+                    request_to_import_mapping(pages_dir, "next/document"),
+                ],
+            );
+        }
+        ContextType::App { app_dir } => {
+            import_map.insert_exact_alias(
+                "react",
+                request_to_import_mapping(app_dir, "next/dist/compiled/react"),
+            );
+            import_map.insert_wildcard_alias(
+                "react/",
+                request_to_import_mapping(app_dir, "next/dist/compiled/react/*"),
+            );
+            import_map.insert_exact_alias(
+                "react-dom",
+                request_to_import_mapping(app_dir, "next/dist/compiled/react-dom"),
+            );
+            import_map.insert_wildcard_alias(
+                "react-dom/",
+                request_to_import_mapping(app_dir, "next/dist/compiled/react-dom/*"),
+            );
+        }
+        ContextType::Other => {}
+    }
     import_map.cell()
 }
 
 /// Computes the Next-specific client fallback import map, which provides
 /// polyfills to Node.js externals.
 #[turbo_tasks::function]
-pub fn get_next_client_fallback_import_map(pages_dir: FileSystemPathVc) -> ImportMapVc {
+pub fn get_next_client_fallback_import_map(ty: Value<ContextType>) -> ImportMapVc {
     let mut import_map = ImportMap::empty();
 
-    for (original, alias) in NEXT_ALIASES {
-        import_map.insert_exact_alias(original, request_to_import_mapping(pages_dir, alias));
-        import_map.insert_exact_alias(
-            format!("node:{original}"),
-            request_to_import_mapping(pages_dir, alias),
-        );
+    match ty.into_value() {
+        ContextType::Pages {
+            pages_dir: context_dir,
+        }
+        | ContextType::App {
+            app_dir: context_dir,
+        } => {
+            for (original, alias) in NEXT_ALIASES {
+                import_map
+                    .insert_exact_alias(original, request_to_import_mapping(context_dir, alias));
+                import_map.insert_exact_alias(
+                    format!("node:{original}"),
+                    request_to_import_mapping(context_dir, alias),
+                );
+            }
+        }
+        ContextType::Other => {}
     }
 
     import_map.cell()
@@ -55,34 +93,65 @@ pub fn get_next_client_fallback_import_map(pages_dir: FileSystemPathVc) -> Impor
 #[turbo_tasks::function]
 pub fn get_next_server_import_map(
     project_path: FileSystemPathVc,
-    pages_dir: FileSystemPathVc,
+    ty: Value<ServerContextType>,
 ) -> ImportMapVc {
     let mut import_map = ImportMap::empty();
     let package_root = attached_next_js_package_path(project_path);
 
     insert_next_shared_aliases(&mut import_map, package_root);
 
-    insert_alias_to_alternatives(
-        &mut import_map,
-        format!("{VIRTUAL_PACKAGE_NAME}/pages/_app"),
-        vec![
-            request_to_import_mapping(pages_dir, "./_app"),
-            external_request_to_import_mapping("next/app"),
-        ],
-    );
-    insert_alias_to_alternatives(
-        &mut import_map,
-        format!("{VIRTUAL_PACKAGE_NAME}/pages/_document"),
-        vec![
-            request_to_import_mapping(pages_dir, "./_document"),
-            external_request_to_import_mapping("next/document"),
-        ],
-    );
+    match ty.into_value() {
+        ServerContextType::Pages { pages_dir } => {
+            insert_alias_to_alternatives(
+                &mut import_map,
+                format!("{VIRTUAL_PACKAGE_NAME}/pages/_app"),
+                vec![
+                    request_to_import_mapping(pages_dir, "./_app"),
+                    external_request_to_import_mapping("next/app"),
+                ],
+            );
+            insert_alias_to_alternatives(
+                &mut import_map,
+                format!("{VIRTUAL_PACKAGE_NAME}/pages/_document"),
+                vec![
+                    request_to_import_mapping(pages_dir, "./_document"),
+                    external_request_to_import_mapping("next/document"),
+                ],
+            );
 
-    import_map.insert_exact_alias("next", ImportMapping::External(None).into());
-    import_map.insert_wildcard_alias("next/", ImportMapping::External(None).into());
-    import_map.insert_exact_alias("react", ImportMapping::External(None).into());
-    import_map.insert_wildcard_alias("react/", ImportMapping::External(None).into());
+            import_map.insert_wildcard_alias(
+                format!("{VIRTUAL_PACKAGE_NAME}/"),
+                ImportMapping::PrimaryAlternative("./*".to_string(), Some(next_js_fs().root()))
+                    .cell(),
+            );
+
+            import_map.insert_exact_alias("next", ImportMapping::External(None).into());
+            import_map.insert_wildcard_alias("next/", ImportMapping::External(None).into());
+            import_map.insert_exact_alias("react", ImportMapping::External(None).into());
+            import_map.insert_wildcard_alias("react/", ImportMapping::External(None).into());
+        }
+        ServerContextType::AppSSR { app_dir } | ServerContextType::AppRSC { app_dir } => {
+            import_map.insert_exact_alias(
+                "react",
+                request_to_import_mapping(app_dir, "next/dist/compiled/react"),
+            );
+            import_map.insert_wildcard_alias(
+                "react/",
+                request_to_import_mapping(app_dir, "next/dist/compiled/react/*"),
+            );
+            import_map.insert_exact_alias(
+                "react-dom",
+                request_to_import_mapping(
+                    app_dir,
+                    "next/dist/compiled/react-dom/server-rendering-stub.js",
+                ),
+            );
+            import_map.insert_wildcard_alias(
+                "react-dom/",
+                request_to_import_mapping(app_dir, "next/dist/compiled/react-dom/*"),
+            );
+        }
+    }
 
     import_map.cell()
 }

@@ -1,4 +1,5 @@
 use turbopack_core::environment::EnvironmentVc;
+use turbopack_ecmascript::EcmascriptInputTransform;
 
 #[turbo_tasks::value(shared)]
 #[derive(Default)]
@@ -7,6 +8,8 @@ pub struct ModuleOptionsContext {
     pub enable_styled_jsx: bool,
     pub enable_typescript_transform: bool,
     pub preset_env_versions: Option<EnvironmentVc>,
+    pub custom_ecmascript_app_transforms: Vec<EcmascriptInputTransform>,
+    pub custom_ecmascript_transforms: Vec<EcmascriptInputTransform>,
     pub placeholder_for_future_extensions: (),
 }
 

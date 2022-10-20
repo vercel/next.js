@@ -28,6 +28,7 @@ use crate::embed_js::next_js_file;
 /// importer that exports an array of chunk urls.
 #[turbo_tasks::value(shared)]
 pub struct NextClientTransition {
+    pub is_app: bool,
     pub client_environment: EnvironmentVc,
     pub client_module_options_context: ModuleOptionsContextVc,
     pub client_resolve_options_context: ResolveOptionsContextVc,
@@ -40,11 +41,19 @@ pub struct NextClientTransition {
 impl Transition for NextClientTransition {
     #[turbo_tasks::function]
     fn process_source(&self, asset: AssetVc) -> AssetVc {
-        VirtualAssetVc::new(
-            asset.path().join("next-hydrate.tsx"),
-            next_js_file("entry/next-hydrate.tsx").into(),
-        )
-        .into()
+        if self.is_app {
+            VirtualAssetVc::new(
+                asset.path().join("next-app-hydrate.tsx"),
+                next_js_file("entry/app/hydrate.tsx").into(),
+            )
+            .into()
+        } else {
+            VirtualAssetVc::new(
+                asset.path().join("next-hydrate.tsx"),
+                next_js_file("entry/next-hydrate.tsx").into(),
+            )
+            .into()
+        }
     }
 
     #[turbo_tasks::function]

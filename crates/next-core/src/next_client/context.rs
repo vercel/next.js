@@ -20,9 +20,10 @@ use turbopack_core::{
 use turbopack_env::ProcessEnvAssetVc;
 
 use crate::{
-    embed_js::next_js_fs,
+    embed_js::attached_next_js_package_path,
     env::filter_for_client,
     next_client::runtime_entry::{RuntimeEntriesVc, RuntimeEntry},
+    next_import_map::{get_next_client_fallback_import_map, get_next_client_import_map},
     react_refresh::assert_can_resolve_react_refresh,
 };
 
@@ -42,13 +43,28 @@ pub fn get_client_environment(browserslist_query: &str) -> EnvironmentVc {
     )
 }
 
+#[turbo_tasks::value(serialization = "auto_for_input")]
+#[derive(Debug, Copy, Clone, Hash, PartialOrd, Ord)]
+pub enum ContextType {
+    Pages { pages_dir: FileSystemPathVc },
+    App { app_dir: FileSystemPathVc },
+    Other,
+}
+
 #[turbo_tasks::function]
-pub fn get_client_resolve_options_context() -> ResolveOptionsContextVc {
+pub fn get_client_resolve_options_context(
+    project_root: FileSystemPathVc,
+    ty: Value<ContextType>,
+) -> ResolveOptionsContextVc {
+    let next_client_import_map = get_next_client_import_map(project_root, ty);
+    let next_client_fallback_import_map = get_next_client_fallback_import_map(ty);
     ResolveOptionsContext {
         enable_typescript: true,
         enable_react: true,
         enable_node_modules: true,
         custom_conditions: vec!["development".to_string()],
+        import_map: Some(next_client_import_map),
+        fallback_import_map: Some(next_client_fallback_import_map),
         browser: true,
         module: true,
         ..Default::default()
@@ -60,8 +76,9 @@ pub fn get_client_resolve_options_context() -> ResolveOptionsContextVc {
 pub async fn get_client_module_options_context(
     project_root: FileSystemPathVc,
     env: EnvironmentVc,
+    ty: Value<ContextType>,
 ) -> Result<ModuleOptionsContextVc> {
-    let resolve_options_context = get_client_resolve_options_context();
+    let resolve_options_context = get_client_resolve_options_context(project_root, ty);
     let enable_react_refresh =
         assert_can_resolve_react_refresh(project_root, resolve_options_context)
             .await?
@@ -84,10 +101,11 @@ pub async fn get_client_module_options_context(
 pub fn get_client_asset_context(
     project_root: FileSystemPathVc,
     browserslist_query: &str,
+    ty: Value<ContextType>,
 ) -> AssetContextVc {
     let environment = get_client_environment(browserslist_query);
-    let resolve_options_context = get_client_resolve_options_context();
-    let module_options_context = get_client_module_options_context(project_root, environment);
+    let resolve_options_context = get_client_resolve_options_context(project_root, ty);
+    let module_options_context = get_client_module_options_context(project_root, environment, ty);
 
     let context: AssetContextVc = ModuleAssetContextVc::new(
         TransitionsByNameVc::cell(HashMap::new()),
@@ -104,29 +122,43 @@ pub fn get_client_asset_context(
 pub fn get_client_chunking_context(
     project_root: FileSystemPathVc,
     server_root: FileSystemPathVc,
+    ty: Value<ContextType>,
 ) -> ChunkingContextVc {
     DevChunkingContextVc::new(
         project_root,
         server_root,
-        server_root.join("/_next/static/chunks"),
-        get_client_assets_path(server_root),
+        match ty.into_value() {
+            ContextType::Pages { .. } | ContextType::App { .. } => {
+                server_root.join("/_next/static/chunks")
+            }
+            ContextType::Other => server_root.join("/_chunks"),
+        },
+        get_client_assets_path(server_root, ty),
         true,
     )
     .into()
 }
 
 #[turbo_tasks::function]
-pub fn get_client_assets_path(server_root: FileSystemPathVc) -> FileSystemPathVc {
-    server_root.join("/_next/static/assets")
+pub fn get_client_assets_path(
+    server_root: FileSystemPathVc,
+    ty: Value<ContextType>,
+) -> FileSystemPathVc {
+    match ty.into_value() {
+        ContextType::Pages { .. } | ContextType::App { .. } => {
+            server_root.join("/_next/static/assets")
+        }
+        ContextType::Other => server_root.join("/_assets"),
+    }
 }
 
 #[turbo_tasks::function]
 pub async fn get_client_runtime_entries(
     project_root: FileSystemPathVc,
     env: ProcessEnvVc,
-    bootstrap_dev_client: bool,
+    ty: Value<ContextType>,
 ) -> Result<RuntimeEntriesVc> {
-    let resolve_options_context = get_client_resolve_options_context();
+    let resolve_options_context = get_client_resolve_options_context(project_root, ty);
     let enable_react_refresh =
         assert_can_resolve_react_refresh(project_root, resolve_options_context)
             .await?
@@ -136,13 +168,13 @@ pub async fn get_client_runtime_entries(
         ProcessEnvAssetVc::new(project_root, filter_for_client(env)).into(),
     )
     .cell()];
-    if bootstrap_dev_client {
+    if matches!(ty.into_value(), ContextType::Other) {
         runtime_entries.push(
             RuntimeEntry::Request(
                 RequestVc::parse(Value::new(Pattern::Constant(
                     "./dev/bootstrap.ts".to_string(),
                 ))),
-                next_js_fs().root(),
+                attached_next_js_package_path(project_root).join("_"),
             )
             .cell(),
         );

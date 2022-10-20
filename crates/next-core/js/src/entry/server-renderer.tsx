@@ -1,10 +1,11 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
 import "@vercel/turbopack-next/internal/shims";
-import "next/dist/server/node-polyfill-fetch";
-
-import { RenderOpts, renderToHTML } from "next/dist/server/render";
-import { NextParsedUrlQuery } from "next/dist/server/request-meta";
+import "next/dist/server/node-polyfill-fetch.js";
+import { renderToHTML } from "next/dist/server/render";
+import type { RenderOpts } from "next/dist/server/render";
+import type { RenderData } from "types/turbopack";
+import { ServerResponseShim } from "@vercel/turbopack-next/internal/http";
 
 import App from "@vercel/turbopack-next/pages/_app";
 import Document from "@vercel/turbopack-next/pages/_document";
@@ -12,8 +13,8 @@ import Document from "@vercel/turbopack-next/pages/_document";
 import Component, * as otherExports from ".";
 ("TURBOPACK { transition: next-client }");
 import chunkGroup from ".";
-import { BuildManifest } from "next/dist/server/get-page-files";
-import { ChunkGroup } from "types/next";
+import type { BuildManifest } from "next/dist/server/get-page-files";
+import type { ChunkGroup } from "types/next";
 
 const END_OF_OPERATION = process.argv[2];
 const NEW_LINE = "\n".charCodeAt(0);
@@ -40,133 +41,12 @@ process.stdin.on("data", async (data) => {
   buffer.push(data);
 });
 
-/**
- * Shim for Node.js's http.ServerResponse
- *
- * @type {ServerResponse}
- */
-class ServerResponseShim {
-  headersSent = false;
-  #headers: Map<string, number | string | ReadonlyArray<string>> = new Map();
-  req: IncomingMessage;
-
-  constructor(req: IncomingMessage) {
-    this.req = req;
-  }
-
-  setHeader(name: string, value: number | string | ReadonlyArray<string>) {
-    this.#headers.set(name.toLowerCase(), value);
-    return this;
-  }
-
-  getHeader(name: string) {
-    return this.#headers.get(name.toLowerCase());
-  }
-
-  getHeaderNames() {
-    return Array.from(this.#headers.keys());
-  }
-
-  getHeaders() {
-    return Object.fromEntries(this.#headers);
-  }
-
-  hasHeader(name: string) {
-    return this.#headers.has(name.toLowerCase());
-  }
-
-  removeHeader(name: string) {
-    this.#headers.delete(name.toLowerCase());
-  }
-
-  get statusCode() {
-    throw new Error("statusCode is not implemented");
-  }
-
-  set statusCode(code) {
-    throw new Error("set statusCode is not implemented");
-  }
-
-  get statusMessage() {
-    throw new Error("statusMessage is not implemented");
-  }
-
-  set statusMessage(message) {
-    throw new Error("set statusMessage is not implemented");
-  }
-
-  get socket() {
-    throw new Error("socket is not implemented");
-  }
-
-  get sendDate() {
-    throw new Error("sendDate is not implemented");
-  }
-
-  flushHeaders() {
-    throw new Error("flushHeaders is not implemented");
-  }
-
-  end() {
-    throw new Error("end is not implemented");
-  }
-
-  cork() {
-    throw new Error("cork is not implemented");
-  }
-
-  uncork() {
-    throw new Error("uncork is not implemented");
-  }
-
-  addTrailers() {
-    throw new Error("addTrailers is not implemented");
-  }
-
-  setTimeout(_msecs: any, _callback: any) {
-    throw new Error("setTimeout is not implemented");
-  }
-
-  get writableEnded() {
-    throw new Error("writableEnded is not implemented");
-  }
-
-  get writableFinished() {
-    throw new Error("writableFinished is not implemented");
-  }
-
-  write(_chunk: any, _encoding: any, _callback: any) {
-    throw new Error("write is not implemented");
-  }
-
-  writeContinue() {
-    throw new Error("writeContinue is not implemented");
-  }
-
-  writeHead(_statusCode: any, _statusMessage: any, _headers: any) {
-    throw new Error("writeHead is not implemented");
-  }
-
-  writeProcessing() {
-    throw new Error("writeProcessing is not implemented");
-  }
-}
-
 type QueryValue = string | QueryValue[] | Query;
 interface Query {
   [key: string]: QueryValue;
 }
 
 type HeaderValue = string | string[];
-
-type RenderData = {
-  params: Record<string, string>;
-  method: string;
-  url: string;
-  path: string;
-  query: NextParsedUrlQuery;
-  headers: Record<string, HeaderValue>;
-};
 
 async function operation(renderData: RenderData) {
   // TODO(alexkirsz) This is missing *a lot* of data, but it's enough to get a
@@ -179,7 +59,7 @@ async function operation(renderData: RenderData) {
       // computing the chunk items of `next-hydrate.js`, so they contain both
       // _app and page chunks.
       "/_app": [],
-      [renderData.path]: group.map((chunk) => chunk.path),
+      [renderData.path]: group,
     },
 
     devFiles: [],

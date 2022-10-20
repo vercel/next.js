@@ -88,7 +88,7 @@ use crate::{
         cjs::{
             CjsRequireAssetReferenceVc, CjsRequireCacheAccess, CjsRequireResolveAssetReferenceVc,
         },
-        esm::{EsmBinding, EsmExportsVc},
+        esm::{module_id::EsmModuleIdAssetReferenceVc, EsmBindingVc, EsmExportsVc},
     },
     EcmascriptInputTransformsVc,
 };
@@ -605,6 +605,7 @@ pub(crate) async fn analyze_ecmascript_module(
                             ),
                         )
                     }
+
                     JsValue::WellKnownFunction(WellKnownFunctionKind::FsReadMethod(name)) => {
                         let args = linked_args().await?;
                         if !args.is_empty() {
@@ -1142,14 +1143,18 @@ pub(crate) async fn analyze_ecmascript_module(
                         span: _,
                     } => {
                         if let Some(r) = import_references.get(esm_reference_index) {
-                            analysis.add_code_gen(
-                                EsmBinding {
-                                    reference: *r,
+                            if let Some("__turbopack_module_id__") = export.as_deref() {
+                                analysis.add_reference(EsmModuleIdAssetReferenceVc::new(
+                                    *r,
+                                    AstPathVc::cell(ast_path),
+                                ))
+                            } else {
+                                analysis.add_code_gen(EsmBindingVc::new(
+                                    *r,
                                     export,
-                                    ast_path: AstPathVc::cell(ast_path),
-                                }
-                                .cell(),
-                            );
+                                    AstPathVc::cell(ast_path),
+                                ));
+                            }
                         }
                     }
                 }

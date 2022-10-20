@@ -153,7 +153,7 @@ impl Chunk for CssChunk {}
 impl OptimizableChunk for CssChunk {
     #[turbo_tasks::function]
     fn get_optimizer(&self) -> ChunkOptimizerVc {
-        CssChunkOptimizerVc::new().into()
+        CssChunkOptimizerVc::new(self.context).into()
     }
 }
 

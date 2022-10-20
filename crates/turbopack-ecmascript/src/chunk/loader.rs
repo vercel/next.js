@@ -82,7 +82,7 @@ impl EcmascriptChunkItem for ManifestLoaderItem {
         let manifest = self.manifest.await?;
         let asset = manifest.asset.as_asset();
         let chunk = self.manifest.as_chunk(self.context);
-        let chunk_path = chunk.path().await?;
+        let chunk_path = &*chunk.path().await?;
 
         let output_root = self.context.output_root().await?;
 
@@ -90,7 +90,7 @@ impl EcmascriptChunkItem for ManifestLoaderItem {
         // need the chunk path of the manifest chunk, relative from the output root. The
         // chunk is a servable file, which will contain the manifest chunk item, which
         // will perform the actual chunk traversal and generate load statements.
-        let chunk_server_path = if let Some(path) = output_root.get_path_to(&*chunk_path) {
+        let chunk_server_path = if let Some(path) = output_root.get_path_to(chunk_path) {
             path
         } else {
             bail!(
@@ -120,7 +120,7 @@ __turbopack_export_value__((__turbopack_import__) => {{
         return __turbopack_require__({item_id});
     }}).then(() => __turbopack_import__({dynamic_id}));
 }});",
-            chunk_server_path = stringify_str(&chunk_server_path),
+            chunk_server_path = stringify_str(chunk_server_path),
             item_id = stringify_module_id(item_id),
             dynamic_id = stringify_module_id(dynamic_id),
         )?;
@@ -247,10 +247,10 @@ impl EcmascriptChunkItem for ManifestChunkItem {
             // The "path" in this case is the chunk's path, not the chunk item's path.
             // The difference is a chunk is a file served by the dev server, and an
             // item is one of several that are contained in that chunk file.
-            let chunk_path = chunk.path().await?;
+            let chunk_path = &*chunk.path().await?;
             // The pathname is the file path necessary to load the chunk from the server.
             let output_root = self.context.output_root().await?;
-            let chunk_server_path = if let Some(path) = output_root.get_path_to(&*chunk_path) {
+            let chunk_server_path = if let Some(path) = output_root.get_path_to(chunk_path) {
                 path
             } else {
                 bail!(

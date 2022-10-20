@@ -207,8 +207,8 @@ impl EcmascriptChunkEvaluateVc {
         for chunk in evaluate_chunks.iter() {
             if let Some(ecma_chunk) = EcmascriptChunkVc::resolve_from(chunk).await? {
                 if ecma_chunk != origin_chunk {
-                    let chunk_path = chunk.path().await?;
-                    if let Some(chunk_server_path) = output_root.get_path_to(&*chunk_path) {
+                    let chunk_path = &*chunk.path().await?;
+                    if let Some(chunk_server_path) = output_root.get_path_to(chunk_path) {
                         chunks_server_paths.push(chunk_server_path.to_string());
                     }
                 }
@@ -503,6 +503,8 @@ async fn module_factory(content: EcmascriptChunkItemContentVc) -> Result<CodeVc>
         "c: __turbopack_cache__",
         "l: __turbopack_load__",
         "p: process",
+        // HACK
+        "__dirname",
     ];
     if content.options.module {
         args.push("m: module");
@@ -555,17 +557,17 @@ impl EcmascriptChunkContentVc {
     async fn code(self) -> Result<CodeVc> {
         let this = self.await?;
         let mut code = Code::new();
-        let chunk_path = this.chunk_path.await?;
-        let chunk_server_path =
-            if let Some(path) = this.output_root.await?.get_path_to(&*chunk_path) {
-                path
-            } else {
-                bail!(
-                    "chunk path {} is not in output root {}",
-                    this.chunk_path.to_string().await?,
-                    this.output_root.to_string().await?
-                );
-            };
+        let chunk_path = &*this.chunk_path.await?;
+        let chunk_server_path = if let Some(path) = this.output_root.await?.get_path_to(chunk_path)
+        {
+            path
+        } else {
+            bail!(
+                "chunk path {} is not in output root {}",
+                this.chunk_path.to_string().await?,
+                this.output_root.to_string().await?
+            );
+        };
         writeln!(
             code,
             "(self.TURBOPACK = self.TURBOPACK || []).push([{}, {{",
@@ -772,7 +774,7 @@ impl Chunk for EcmascriptChunk {}
 impl OptimizableChunk for EcmascriptChunk {
     #[turbo_tasks::function]
     fn get_optimizer(&self) -> ChunkOptimizerVc {
-        EcmascriptChunkOptimizerVc::new().into()
+        EcmascriptChunkOptimizerVc::new(self.context).into()
     }
 }
 

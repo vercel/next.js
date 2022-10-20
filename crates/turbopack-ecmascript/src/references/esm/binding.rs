@@ -27,6 +27,23 @@ pub struct EsmBinding {
 }
 
 #[turbo_tasks::value_impl]
+impl EsmBindingVc {
+    #[turbo_tasks::function]
+    pub fn new(
+        reference: EsmAssetReferenceVc,
+        export: Option<String>,
+        ast_path: AstPathVc,
+    ) -> Self {
+        EsmBinding {
+            reference,
+            export,
+            ast_path,
+        }
+        .cell()
+    }
+}
+
+#[turbo_tasks::value_impl]
 impl CodeGenerateable for EsmBinding {
     #[turbo_tasks::function]
     async fn code_generation(

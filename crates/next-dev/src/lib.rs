@@ -4,7 +4,9 @@
 use std::{collections::HashSet, env::current_dir, net::IpAddr, path::MAIN_SEPARATOR, sync::Arc};
 
 use anyhow::{anyhow, Context, Result};
-use next_core::{create_server_rendered_source, create_web_entry_source, env::load_env};
+use next_core::{
+    create_app_source, create_server_rendered_source, create_web_entry_source, env::load_env,
+};
 use turbo_tasks::{RawVc, TransientInstance, TransientValue, TurboTasks, Value};
 use turbo_tasks_fs::{DiskFileSystemVc, FileSystemVc};
 use turbo_tasks_memory::MemoryBackend;
@@ -195,8 +197,11 @@ async fn source(
 
     let env = load_env(project_path);
 
+    let output_root = output_fs.root();
+
     let dev_server_fs = DevServerFileSystemVc::new().as_file_system();
     let dev_server_root = dev_server_fs.root();
+
     let web_source = create_web_entry_source(
         project_path,
         entry_requests
@@ -210,7 +215,14 @@ async fn source(
     );
     let rendered_source = create_server_rendered_source(
         project_path,
-        output_fs.root(),
+        output_root.join("pages"),
+        dev_server_root,
+        env,
+        &browserslist_query,
+    );
+    let app_source = create_app_source(
+        project_path,
+        output_root.join("app"),
         dev_server_root,
         env,
         &browserslist_query,
@@ -223,7 +235,7 @@ async fn source(
     let static_source =
         StaticAssetsContentSourceVc::new(String::new(), project_path.join("public")).into();
     let main_source = CombinedContentSource {
-        sources: vec![static_source, rendered_source, web_source],
+        sources: vec![static_source, app_source, rendered_source, web_source],
     }
     .cell();
     let introspect = IntrospectionSource {

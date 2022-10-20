@@ -1253,6 +1253,10 @@ impl File {
     pub fn content(&self) -> &[u8] {
         &self.content
     }
+
+    pub fn push_content(&mut self, content: &[u8]) {
+        self.content.extend_from_slice(content);
+    }
 }
 
 impl AsRef<[u8]> for File {

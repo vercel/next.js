@@ -10,7 +10,8 @@ use turbo_tasks_memory::{
 };
 use turbopack_core::asset::AssetContentVc;
 use turbopack_dev_server::source::{
-    ContentSource, ContentSourceData, ContentSourceResult, ContentSourceResultVc, ContentSourceVc,
+    ContentSource, ContentSourceData, ContentSourceDataFilter, ContentSourceDataVary,
+    ContentSourceResult, ContentSourceResultVc, ContentSourceVc,
 };
 
 #[turbo_tasks::value(serialization = "none", eq = "manual", cell = "new", into = "new")]
@@ -30,8 +31,13 @@ const INVALIDATION_INTERVAL: Duration = Duration::from_secs(3);
 #[turbo_tasks::value_impl]
 impl ContentSource for TurboTasksSource {
     #[turbo_tasks::function]
-    fn get(&self, path: &str, _data: Value<ContentSourceData>) -> Result<ContentSourceResultVc> {
-        let tt = &self.turbo_tasks;
+    async fn get(
+        self_vc: TurboTasksSourceVc,
+        path: &str,
+        data: Value<ContentSourceData>,
+    ) -> Result<ContentSourceResultVc> {
+        let this = self_vc.await?;
+        let tt = &this.turbo_tasks;
         let invalidator = get_invalidator();
         tokio::spawn({
             async move {
@@ -61,14 +67,31 @@ impl ContentSource for TurboTasksSource {
                 viz::graph::wrap_html(&graph)
             }
             "table" => {
-                let mut stats = Stats::new();
-                let b = tt.backend();
-                b.with_all_cached_tasks(|task| {
-                    stats.add_id(b, task);
-                });
-                let tree = stats.treeify(ReferenceType::Dependency);
-                let table = viz::table::create_table(tree);
-                viz::table::wrap_html(&table)
+                if let Some(query) = &data.query {
+                    let mut stats = Stats::new();
+                    let b = tt.backend();
+                    let active_only = query.contains_key("active");
+                    b.with_all_cached_tasks(|task| {
+                        stats.add_id_conditional(b, task, |_, info| {
+                            info.executions > 0 && (!active_only || info.active)
+                        });
+                    });
+                    let tree = stats.treeify(ReferenceType::Dependency);
+                    let table = viz::table::create_table(tree);
+                    viz::table::wrap_html(&table)
+                } else {
+                    return Ok(ContentSourceResult::NeedData {
+                        source: self_vc.into(),
+                        path: path.to_string(),
+                        vary: ContentSourceDataVary {
+                            query: Some(ContentSourceDataFilter::Subset(
+                                ["active".to_string()].into(),
+                            )),
+                            ..Default::default()
+                        },
+                    }
+                    .cell());
+                }
             }
             "reset" => {
                 let b = tt.backend();

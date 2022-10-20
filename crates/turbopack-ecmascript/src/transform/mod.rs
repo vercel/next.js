@@ -1,3 +1,5 @@
+mod server_to_client_proxy;
+
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -8,13 +10,16 @@ use swc_core::{
         ast::{Module, ModuleItem, Program},
         preset_env::{self, Targets},
         transforms::{
-            base::{feature::FeatureFlag, helpers::inject_helpers, Assumptions},
+            base::{feature::FeatureFlag, helpers::inject_helpers, resolver, Assumptions},
             react::react,
         },
         visit::{FoldWith, VisitMutWith},
     },
 };
+use turbo_tasks::primitives::StringVc;
 use turbopack_core::environment::EnvironmentVc;
+
+use self::server_to_client_proxy::{create_proxy_module, is_client_module};
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(PartialOrd, Ord, Hash, Debug, Copy, Clone)]
@@ -27,6 +32,7 @@ pub enum EcmascriptInputTransform {
     PresetEnv(EnvironmentVc),
     StyledJsx,
     TypeScript,
+    ClientDirective(StringVc),
     Custom,
 }
 
@@ -51,7 +57,7 @@ impl EcmascriptInputTransform {
             source_map,
             top_level_mark,
             unresolved_mark,
-            file_name_str: _,
+            file_name_str,
         }: &TransformContext<'_>,
     ) -> Result<()> {
         match *self {
@@ -133,6 +139,13 @@ impl EcmascriptInputTransform {
             EcmascriptInputTransform::TypeScript => {
                 use swc_core::ecma::transforms::typescript::strip;
                 program.visit_mut_with(&mut strip(top_level_mark));
+            }
+            EcmascriptInputTransform::ClientDirective(transition_name) => {
+                let transition_name = &*transition_name.await?;
+                if is_client_module(program) {
+                    *program = create_proxy_module(transition_name, &format!("./{file_name_str}"));
+                    program.visit_mut_with(&mut resolver(unresolved_mark, top_level_mark, false));
+                }
             }
             EcmascriptInputTransform::Custom => todo!(),
         }

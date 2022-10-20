@@ -26,9 +26,12 @@ impl ModuleOptionsVc {
             enable_styled_jsx,
             enable_typescript_transform,
             preset_env_versions,
+            ref custom_ecmascript_app_transforms,
+            ref custom_ecmascript_transforms,
             ..
         } = *context.await?;
-        let mut transforms = vec![];
+        let mut transforms = custom_ecmascript_app_transforms.clone();
+        transforms.extend(custom_ecmascript_transforms.iter().cloned());
 
         // Order of transforms is important. e.g. if the React transform occurs before
         // Styled JSX, there won't be JSX nodes for Styled JSX to transform.
@@ -44,19 +47,23 @@ impl ModuleOptionsVc {
         }
 
         let app_transforms = EcmascriptInputTransformsVc::cell(transforms);
-        let no_transforms = EcmascriptInputTransformsVc::cell(Vec::new());
-        let (ts_transforms, ts_app_transforms) = if enable_typescript_transform {
+        let vendor_transforms =
+            EcmascriptInputTransformsVc::cell(custom_ecmascript_transforms.clone());
+        let (ts_app_transforms, ts_transforms) = if enable_typescript_transform {
+            let mut base_transforms = vec![EcmascriptInputTransform::TypeScript];
+            base_transforms.extend(custom_ecmascript_transforms.iter().cloned());
             (
-                EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript]),
                 EcmascriptInputTransformsVc::cell(
-                    [EcmascriptInputTransform::TypeScript]
-                        .into_iter()
+                    base_transforms
+                        .iter()
+                        .cloned()
                         .chain(app_transforms.await?.iter().cloned())
                         .collect(),
                 ),
+                EcmascriptInputTransformsVc::cell(base_transforms),
             )
         } else {
-            (no_transforms, app_transforms)
+            (app_transforms, vendor_transforms)
         };
 
         let css_transforms = CssInputTransformsVc::cell(vec![CssInputTransform::Nested]);
@@ -94,7 +101,7 @@ impl ModuleOptionsVc {
                         ModuleRuleCondition::ResourcePathInDirectory("node_modules".to_string()),
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript(
-                        no_transforms,
+                        vendor_transforms,
                     ))],
                 ),
                 ModuleRule::new(
@@ -109,7 +116,7 @@ impl ModuleOptionsVc {
                         ModuleRuleCondition::ResourcePathInDirectory("node_modules".to_string()),
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript(
-                        no_transforms,
+                        vendor_transforms,
                     ))],
                 ),
                 ModuleRule::new(
@@ -124,7 +131,7 @@ impl ModuleOptionsVc {
                         ModuleRuleCondition::ResourcePathInDirectory("node_modules".to_string()),
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript(
-                        no_transforms,
+                        vendor_transforms,
                     ))],
                 ),
                 ModuleRule::new(
@@ -148,7 +155,7 @@ impl ModuleOptionsVc {
                 ModuleRule::new(
                     ModuleRuleCondition::ResourcePathEndsWith(".d.ts".to_string()),
                     vec![ModuleRuleEffect::ModuleType(
-                        ModuleType::TypescriptDeclaration(no_transforms),
+                        ModuleType::TypescriptDeclaration(vendor_transforms),
                     )],
                 ),
                 ModuleRule::new(
@@ -169,7 +176,7 @@ impl ModuleOptionsVc {
                 ModuleRule::new(
                     ModuleRuleCondition::ResourcePathHasNoExtension,
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript(
-                        no_transforms,
+                        vendor_transforms,
                     ))],
                 ),
             ],

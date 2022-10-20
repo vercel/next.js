@@ -99,6 +99,20 @@ impl Stats {
     }
 
     pub fn add(&mut self, backend: &MemoryBackend, task: &Task) {
+        self.add_conditional(backend, task, |_, info| info.executions > 0)
+    }
+
+    pub fn add_conditional(
+        &mut self,
+        backend: &MemoryBackend,
+        task: &Task,
+        condition: impl FnOnce(&TaskType, &TaskStatsInfo) -> bool,
+    ) {
+        let info = task.get_stats_info(backend);
+        let ty = task.get_stats_type();
+        if !condition(&ty, &info) {
+            return;
+        }
         let TaskStatsInfo {
             total_duration,
             last_duration,
@@ -106,11 +120,7 @@ impl Stats {
             root_scoped,
             child_scopes,
             active,
-        } = task.get_stats_info(backend);
-        if executions == 0 {
-            return;
-        }
-        let ty = task.get_stats_type();
+        } = info;
         let stats = self.tasks.entry(ty).or_default();
         stats.count += 1;
         if active {
@@ -142,6 +152,17 @@ impl Stats {
     pub fn add_id(&mut self, backend: &MemoryBackend, id: TaskId) {
         backend.with_task(id, |task| {
             self.add(backend, task);
+        });
+    }
+
+    pub fn add_id_conditional(
+        &mut self,
+        backend: &MemoryBackend,
+        id: TaskId,
+        condition: impl FnOnce(&TaskType, &TaskStatsInfo) -> bool,
+    ) {
+        backend.with_task(id, |task| {
+            self.add_conditional(backend, task, condition);
         });
     }
 
@@ -286,7 +307,15 @@ impl Stats {
             }
         }
 
-        into_group(&self.tasks, &children, None)
+        if children.is_empty() {
+            GroupTree {
+                primary: None,
+                children: Vec::new(),
+                task_types: Vec::new(),
+            }
+        } else {
+            into_group(&self.tasks, &children, None)
+        }
     }
 }
 
