@@ -7,7 +7,7 @@ import { renderToString } from 'react-dom/server'
 
 export const DummyContext = createContext(null)
 
-class MyApp<P = {}> extends App<P & { html: string }> {
+export default class MyApp extends App<{ html: string }> {
   static async getInitialProps({ Component, AppTree, ctx }: AppContext) {
     let pageProps = {}
 
@@ -34,13 +34,12 @@ class MyApp<P = {}> extends App<P & { html: string }> {
   render() {
     const { Component, pageProps, html, router } = this.props
     const href = router.pathname === '/' ? '/another' : '/'
-
     const child =
       html && router.pathname !== '/hello' ? (
         <>
           <div dangerouslySetInnerHTML={{ __html: html }} />
-          <Link href={href}>
-            <a id={href === '/' ? 'home' : 'another'}>to {href}</a>
+          <Link href={href} id={href === '/' ? 'home' : 'another'}>
+            to{href}
           </Link>
         </>
       ) : (
@@ -52,5 +51,3 @@ class MyApp<P = {}> extends App<P & { html: string }> {
     )
   }
 }
-
-export default MyApp

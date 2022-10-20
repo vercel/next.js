@@ -8,6 +8,8 @@ import type { LoadComponentsReturnType } from './load-components'
 import { NoFallbackError, Options } from './base-server'
 import type { DynamicRoutes, PageChecker, Route } from './router'
 import type { NextConfig } from './config-shared'
+import type { BaseNextRequest, BaseNextResponse } from './base-http'
+import type { UrlWithParsedQuery } from 'url'
 
 import BaseServer from './base-server'
 import { byteLength } from './api-utils/web'
@@ -19,12 +21,17 @@ import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-ass
 import { detectDomainLocale } from '../shared/lib/i18n/detect-domain-locale'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
-import type { BaseNextRequest, BaseNextResponse } from './base-http'
-import type { UrlWithParsedQuery } from 'url'
+import { isDynamicRoute } from '../shared/lib/router/utils'
+import {
+  interpolateDynamicPath,
+  normalizeVercelUrl,
+} from '../build/webpack/loaders/next-serverless-loader/utils'
+import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 
 interface WebServerOptions extends Options {
   webServerConfig: {
     page: string
+    pagesType: 'app' | 'pages' | 'root'
     loadComponent: (
       pathname: string
     ) => Promise<LoadComponentsReturnType | null>
@@ -66,7 +73,6 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     res: BaseNextResponse,
     parsedUrl: UrlWithParsedQuery
   ): Promise<void> {
-    parsedUrl.pathname = this.serverOptions.webServerConfig.page
     super.run(req, res, parsedUrl)
   }
   protected async hasPage(page: string) {
@@ -82,6 +88,9 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
   protected loadEnvConfig() {
     // The web server does not need to load the env config. This is done by the
     // runtime already.
+  }
+  protected getHasAppDir() {
+    return this.serverOptions.webServerConfig.pagesType === 'app'
   }
   protected getHasStaticDir() {
     return false
@@ -130,6 +139,11 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
   }
   protected getServerCSSManifest() {
     return this.serverOptions.webServerConfig.extendRenderOpts.serverCSSManifest
+  }
+
+  protected getFontLoaderManifest() {
+    return this.serverOptions.webServerConfig.extendRenderOpts
+      .fontLoaderManifest
   }
 
   protected generateRoutes(): {
@@ -256,6 +270,24 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
           throw new Error('pathname is undefined')
         }
 
+        // interpolate query information into page for dynamic route
+        // so that rewritten paths are handled properly
+        if (pathname !== this.serverOptions.webServerConfig.page) {
+          pathname = this.serverOptions.webServerConfig.page
+
+          if (isDynamicRoute(pathname)) {
+            const routeRegex = getNamedRouteRegex(pathname)
+            pathname = interpolateDynamicPath(pathname, query, routeRegex)
+            normalizeVercelUrl(
+              req,
+              true,
+              Object.keys(routeRegex.routeKeys),
+              true,
+              routeRegex
+            )
+          }
+        }
+
         // next.js core assumes page path without trailing slash
         pathname = removeTrailingSlash(pathname)
 
@@ -343,12 +375,10 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
         {} as any,
         pathname,
         query,
-        {
-          ...renderOpts,
+        Object.assign(renderOpts, {
           disableOptimizedLoading: true,
           runtime: 'experimental-edge',
-        },
-        !!pagesRenderToHTML
+        })
       )
     } else {
       throw new Error(`Invariant: curRenderToHTML is missing`)
@@ -372,10 +402,14 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     if (options.poweredByHeader && options.type === 'html') {
       res.setHeader('X-Powered-By', 'Next.js')
     }
+    const resultContentType = options.result.contentType()
+
     if (!res.getHeader('Content-Type')) {
       res.setHeader(
         'Content-Type',
-        options.type === 'json'
+        resultContentType
+          ? resultContentType
+          : options.type === 'json'
           ? 'application/json'
           : 'text/html; charset=utf-8'
       )
@@ -406,11 +440,17 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     // @TODO
     return true
   }
-  protected async findPageComponents(
-    pathname: string,
-    query?: NextParsedUrlQuery,
-    params?: Params | null
-  ) {
+
+  protected async findPageComponents({
+    pathname,
+    query,
+    params,
+  }: {
+    pathname: string
+    query: NextParsedUrlQuery
+    params: Params | null
+    isAppPath: boolean
+  }) {
     const result = await this.serverOptions.webServerConfig.loadComponent(
       pathname
     )

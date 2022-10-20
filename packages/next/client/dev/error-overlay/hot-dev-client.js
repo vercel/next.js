@@ -260,15 +260,9 @@ function processMessage(e) {
       )
       return handleSuccess()
     }
-
     case 'serverComponentChanges': {
-      sendMessage(
-        JSON.stringify({
-          event: 'server-component-reload-page',
-          clientId: window.__nextDevClientId,
-        })
-      )
-      return window.location.reload()
+      // Server component changes don't apply to `pages`.
+      return
     }
     default: {
       if (customHmrEventHandler) {

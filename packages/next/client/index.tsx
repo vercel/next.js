@@ -289,149 +289,6 @@ export async function initialize(opts: { webpackHMR?: any } = {}): Promise<{
   return { assetPrefix: prefix }
 }
 
-let RSCComponent: (props: any) => JSX.Element
-if (process.env.__NEXT_RSC) {
-  const getCacheKey = () => {
-    const { pathname, search } = location
-    return pathname + search
-  }
-
-  const {
-    createFromFetch,
-    createFromReadableStream,
-  } = require('next/dist/compiled/react-server-dom-webpack')
-  const encoder = new TextEncoder()
-
-  let initialServerDataBuffer: string[] | undefined = undefined
-  let initialServerDataWriter: ReadableStreamDefaultController | undefined =
-    undefined
-  let initialServerDataLoaded = false
-  let initialServerDataFlushed = false
-
-  function nextServerDataCallback(seg: [number, string, string]) {
-    if (seg[0] === 0) {
-      initialServerDataBuffer = []
-    } else {
-      if (!initialServerDataBuffer)
-        throw new Error('Unexpected server data: missing bootstrap script.')
-
-      if (initialServerDataWriter) {
-        initialServerDataWriter.enqueue(encoder.encode(seg[2]))
-      } else {
-        initialServerDataBuffer.push(seg[2])
-      }
-    }
-  }
-
-  // There might be race conditions between `nextServerDataRegisterWriter` and
-  // `DOMContentLoaded`. The former will be called when React starts to hydrate
-  // the root, the latter will be called when the DOM is fully loaded.
-  // For streaming, the former is called first due to partial hydration.
-  // For non-streaming, the latter can be called first.
-  // Hence, we use two variables `initialServerDataLoaded` and
-  // `initialServerDataFlushed` to make sure the writer will be closed and
-  // `initialServerDataBuffer` will be cleared in the right time.
-  function nextServerDataRegisterWriter(ctr: ReadableStreamDefaultController) {
-    if (initialServerDataBuffer) {
-      initialServerDataBuffer.forEach((val) => {
-        ctr.enqueue(encoder.encode(val))
-      })
-      if (initialServerDataLoaded && !initialServerDataFlushed) {
-        ctr.close()
-        initialServerDataFlushed = true
-        initialServerDataBuffer = undefined
-      }
-    }
-
-    initialServerDataWriter = ctr
-  }
-
-  // When `DOMContentLoaded`, we can close all pending writers to finish hydration.
-  const DOMContentLoaded = function () {
-    if (initialServerDataWriter && !initialServerDataFlushed) {
-      initialServerDataWriter.close()
-      initialServerDataFlushed = true
-      initialServerDataBuffer = undefined
-    }
-    initialServerDataLoaded = true
-  }
-  // It's possible that the DOM is already loaded.
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', DOMContentLoaded, false)
-  } else {
-    DOMContentLoaded()
-  }
-
-  const nextServerDataLoadingGlobal = ((self as any).__next_s =
-    (self as any).__next_s || [])
-  nextServerDataLoadingGlobal.forEach(nextServerDataCallback)
-  nextServerDataLoadingGlobal.push = nextServerDataCallback
-
-  function createResponseCache() {
-    return new Map<string, any>()
-  }
-  const rscCache = createResponseCache()
-
-  function fetchFlight(href: string, props?: any) {
-    const url = new URL(href, location.origin)
-    const searchParams = url.searchParams
-    searchParams.append('__flight__', '1')
-    if (props) {
-      searchParams.append('__props__', JSON.stringify(props))
-    }
-    return fetch(url.toString())
-  }
-
-  function useServerResponse(cacheKey: string, serialized?: string) {
-    let response = rscCache.get(cacheKey)
-    if (response) return response
-
-    if (initialServerDataBuffer) {
-      const readable = new ReadableStream({
-        start(controller) {
-          nextServerDataRegisterWriter(controller)
-        },
-      })
-      response = createFromReadableStream(readable)
-    } else {
-      if (serialized) {
-        const readable = new ReadableStream({
-          start(controller) {
-            controller.enqueue(encoder.encode(serialized))
-            controller.close()
-          },
-        })
-        response = createFromReadableStream(readable)
-      } else {
-        response = createFromFetch(fetchFlight(getCacheKey()))
-      }
-    }
-
-    rscCache.set(cacheKey, response)
-    return response
-  }
-
-  const ServerRoot = ({
-    cacheKey,
-    serialized,
-  }: {
-    cacheKey: string
-    serialized?: string
-  }) => {
-    React.useEffect(() => {
-      rscCache.delete(cacheKey)
-    })
-    const response = useServerResponse(cacheKey, serialized)
-    return response.readRoot()
-  }
-
-  RSCComponent = (props: any) => {
-    const cacheKey = getCacheKey()
-    const { __flight__ } = props
-    return <ServerRoot cacheKey={cacheKey} serialized={__flight__} />
-  }
-}
-
 function renderApp(App: AppComponent, appProps: AppProps) {
   return <App {...appProps} />
 }
@@ -691,18 +548,15 @@ function Root({
 }
 
 function doRender(input: RenderRouteInfo): Promise<any> {
-  let { App, Component, props, err, __N_RSC }: RenderRouteInfo = input
+  let { App, Component, props, err }: RenderRouteInfo = input
   let styleSheets: StyleSheetTuple[] | undefined =
     'initial' in input ? undefined : input.styleSheets
   Component = Component || lastAppProps.Component
   props = props || lastAppProps.props
 
-  const isRSC =
-    process.env.__NEXT_RSC && 'initial' in input ? !!initialData.rsc : !!__N_RSC
-
   const appProps: AppProps = {
     ...props,
-    Component: isRSC ? RSCComponent : Component,
+    Component,
     err,
     router,
   }
@@ -834,7 +688,11 @@ function doRender(input: RenderRouteInfo): Promise<any> {
     }
 
     if (input.scroll) {
+      const htmlElement = document.documentElement
+      const existing = htmlElement.style.scrollBehavior
+      htmlElement.style.scrollBehavior = 'auto'
       window.scrollTo(input.scroll.x, input.scroll.y)
+      htmlElement.style.scrollBehavior = existing
     }
   }
 
@@ -915,6 +773,7 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
         duration,
         entryType,
         entries,
+        attribution,
       }: any): void => {
         // Combines timestamp with random number for unique ID
         const uniqueID: string = `${Date.now()}-${
@@ -935,6 +794,9 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
             entryType === 'mark' || entryType === 'measure'
               ? 'custom'
               : 'web-vital',
+        }
+        if (attribution) {
+          webVitals.attribution = attribution
         }
         mod.reportWebVitals(webVitals)
       }
@@ -1026,7 +888,6 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
     defaultLocale,
     domainLocales: initialData.domainLocales,
     isPreview: initialData.isPreview,
-    isRsc: initialData.rsc,
   })
 
   initialMatchesMiddleware = await router._initialMatchesMiddlewarePromise

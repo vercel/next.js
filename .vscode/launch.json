@@ -9,13 +9,11 @@
       "type": "node",
       "request": "launch",
       "cwd": "${workspaceFolder}",
-      "runtimeExecutable": "yarn",
-      "runtimeArgs": ["run", "debug-react-exp", "dev", "test/e2e/app-dir/app"],
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["debug-react-exp", "dev", "test/e2e/app-dir/app"],
       "skipFiles": ["<node_internals>/**"],
-      "outFiles": ["${workspaceFolder}/packages/next/dist/**/*"],
-      "port": 9229,
       "env": {
-        "NEXT_PRIVATE_LOCAL_WEBPACK5": "1"
+        "NEXT_PRIVATE_LOCAL_WEBPACK": "1"
       }
     },
     {
@@ -23,13 +21,11 @@
       "type": "node",
       "request": "launch",
       "cwd": "${workspaceFolder}",
-      "runtimeExecutable": "yarn",
-      "runtimeArgs": ["run", "debug", "dev", "bench/nested-deps"],
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["debug", "dev", "examples/hello-world"],
       "skipFiles": ["<node_internals>/**"],
-      "outFiles": ["${workspaceFolder}/packages/next/dist/**/*"],
-      "port": 9229,
       "env": {
-        "NEXT_PRIVATE_LOCAL_WEBPACK5": "1"
+        "NEXT_PRIVATE_LOCAL_WEBPACK": "1"
       }
     },
     {
@@ -37,27 +33,11 @@
       "type": "node",
       "request": "launch",
       "cwd": "${workspaceFolder}",
-      "runtimeExecutable": "yarn",
-      "runtimeArgs": ["run", "debug", "build", "bench/nested-deps"],
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["debug", "build", "examples/hello-world"],
       "skipFiles": ["<node_internals>/**"],
-      "port": 9229,
-      "outFiles": ["${workspaceFolder}/packages/next/dist/**/*"],
       "env": {
-        "NEXT_PRIVATE_LOCAL_WEBPACK5": "1"
-      }
-    },
-    {
-      "name": "Launch app build trace jaeger",
-      "type": "node",
-      "request": "launch",
-      "cwd": "${workspaceFolder}",
-      "runtimeExecutable": "yarn",
-      "runtimeArgs": ["run", "clean-trace-jaeger"],
-      "skipFiles": ["<node_internals>/**"],
-      "port": 9229,
-      "outFiles": ["${workspaceFolder}/packages/next/dist/**/*"],
-      "env": {
-        "NEXT_PRIVATE_LOCAL_WEBPACK5": "1"
+        "NEXT_PRIVATE_LOCAL_WEBPACK": "1"
       }
     },
     {
@@ -65,12 +45,35 @@
       "type": "node",
       "request": "launch",
       "cwd": "${workspaceFolder}",
-      "runtimeExecutable": "yarn",
-      "runtimeArgs": ["run", "debug", "start", "bench/nested-deps"],
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["debug", "start", "examples/hello-world"],
       "skipFiles": ["<node_internals>/**"],
-      "port": 9229,
       "env": {
-        "NEXT_PRIVATE_LOCAL_WEBPACK5": "1"
+        "NEXT_PRIVATE_LOCAL_WEBPACK": "1"
+      }
+    },
+    {
+      "name": "Launch current directory in development",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["debug", "dev", "${fileDirname}"],
+      "skipFiles": ["<node_internals>/**"],
+      "env": {
+        "NEXT_PRIVATE_LOCAL_WEBPACK": "1"
+      }
+    },
+    {
+      "name": "Launch app build trace jaeger",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["clean-trace-jaeger"],
+      "skipFiles": ["<node_internals>/**"],
+      "env": {
+        "NEXT_PRIVATE_LOCAL_WEBPACK": "1"
       }
     },
     {
@@ -79,22 +82,8 @@
       "name": "Attach to existing debugger",
       "port": 9229,
       "skipFiles": ["<node_internals>/**"],
-      "outFiles": ["${workspaceFolder}/packages/next/dist/**/*"],
       "env": {
-        "NEXT_PRIVATE_LOCAL_WEBPACK5": "1"
-      }
-    },
-    {
-      "name": "Launch this example",
-      "type": "node",
-      "request": "launch",
-      "cwd": "${workspaceFolder}",
-      "runtimeExecutable": "yarn",
-      "runtimeArgs": ["run", "debug", "dev", "${fileDirname}"],
-      "skipFiles": ["<node_internals>/**"],
-      "port": 9229,
-      "env": {
-        "NEXT_PRIVATE_LOCAL_WEBPACK5": "1"
+        "NEXT_PRIVATE_LOCAL_WEBPACK": "1"
       }
     }
   ]

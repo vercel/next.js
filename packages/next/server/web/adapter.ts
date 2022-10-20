@@ -8,6 +8,8 @@ import { NextResponse } from './spec-extension/response'
 import { relativizeURL } from '../../shared/lib/router/utils/relativize-url'
 import { waitUntilSymbol } from './spec-extension/fetch-event'
 import { NextURL } from './next-url'
+import { stripInternalSearchParams } from '../internal-utils'
+import { normalizeRscPath } from '../../shared/lib/router/utils/app-paths'
 
 class NextRequestHint extends NextRequest {
   sourcePage: string
@@ -34,11 +36,22 @@ class NextRequestHint extends NextRequest {
   }
 }
 
+const FLIGHT_PARAMETERS = [
+  '__rsc__',
+  '__next_router_state_tree__',
+  '__next_router_prefetch__',
+] as const
+
 export async function adapter(params: {
   handler: NextMiddleware
   page: string
   request: RequestData
 }): Promise<FetchEventResult> {
+  // TODO-APP: use explicit marker for this
+  const isEdgeRendering = typeof self.__BUILD_MANIFEST !== 'undefined'
+
+  params.request.url = normalizeRscPath(params.request.url, true)
+
   const requestUrl = new NextURL(params.request.url, {
     headers: params.request.headers,
     nextConfig: params.request.nextConfig,
@@ -54,12 +67,16 @@ export async function adapter(params: {
     requestUrl.pathname = '/'
   }
 
-  // clean-up any internal query params
-  for (const key of [...requestUrl.searchParams.keys()]) {
-    if (key.startsWith('__next')) {
-      requestUrl.searchParams.delete(key)
+  const requestHeaders = fromNodeHeaders(params.request.headers)
+  // Parameters should only be stripped for middleware
+  if (!isEdgeRendering) {
+    for (const param of FLIGHT_PARAMETERS) {
+      requestHeaders.delete(param)
     }
   }
+
+  // Strip internal query parameters off the request.
+  stripInternalSearchParams(requestUrl.searchParams, true)
 
   const request = new NextRequestHint({
     page: params.page,
@@ -67,7 +84,7 @@ export async function adapter(params: {
     init: {
       body: params.request.body,
       geo: params.request.geo,
-      headers: fromNodeHeaders(params.request.headers),
+      headers: requestHeaders,
       ip: params.request.ip,
       method: params.request.method,
       nextConfig: params.request.nextConfig,
@@ -89,6 +106,11 @@ export async function adapter(params: {
   const event = new NextFetchEvent({ request, page: params.page })
   let response = await params.handler(request, event)
 
+  // check if response is a Response object
+  if (response && !(response instanceof Response)) {
+    throw new TypeError('Expected an instance of Response to be returned')
+  }
+
   /**
    * For rewrites we must always include the locale in the final pathname
    * so we re-create the NextURL forcing it to include it when the it is
@@ -103,9 +125,11 @@ export async function adapter(params: {
       nextConfig: params.request.nextConfig,
     })
 
-    if (rewriteUrl.host === request.nextUrl.host) {
-      rewriteUrl.buildId = buildId || rewriteUrl.buildId
-      response.headers.set('x-middleware-rewrite', String(rewriteUrl))
+    if (!process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE) {
+      if (rewriteUrl.host === request.nextUrl.host) {
+        rewriteUrl.buildId = buildId || rewriteUrl.buildId
+        response.headers.set('x-middleware-rewrite', String(rewriteUrl))
+      }
     }
 
     /**
@@ -140,9 +164,11 @@ export async function adapter(params: {
      */
     response = new Response(response.body, response)
 
-    if (redirectURL.host === request.nextUrl.host) {
-      redirectURL.buildId = buildId || redirectURL.buildId
-      response.headers.set('Location', String(redirectURL))
+    if (!process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE) {
+      if (redirectURL.host === request.nextUrl.host) {
+        redirectURL.buildId = buildId || redirectURL.buildId
+        response.headers.set('Location', String(redirectURL))
+      }
     }
 
     /**
@@ -168,6 +194,10 @@ export async function adapter(params: {
 export function blockUnallowedResponse(
   promise: Promise<FetchEventResult>
 ): Promise<FetchEventResult> {
+  if (process.env.__NEXT_ALLOW_MIDDLEWARE_RESPONSE_BODY) {
+    return promise
+  }
+
   return promise.then((result) => {
     if (result.response?.body) {
       console.error(

@@ -76,9 +76,7 @@ export class NextDeployInstance extends NextInstance {
 
     if (process.env.VERCEL_CLI_VERSION) {
       additionalEnv.push('--build-env')
-      additionalEnv.push(
-        `VERCEL_CLI_VERSION="${process.env.VERCEL_CLI_VERSION}"`
-      )
+      additionalEnv.push(`VERCEL_CLI_VERSION=${process.env.VERCEL_CLI_VERSION}`)
     }
 
     const deployRes = await execa(

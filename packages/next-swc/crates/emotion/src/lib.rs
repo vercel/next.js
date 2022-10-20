@@ -8,23 +8,21 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use sourcemap::{RawToken, SourceMap as RawSourcemap};
-use swc_atoms::JsWord;
-use swc_common::comments::Comments;
-use swc_common::util::take::Take;
-use swc_common::{BytePos, SourceMapperDyn, DUMMY_SP};
-use swc_ecmascript::ast::{
-    ArrayLit, CallExpr, JSXAttr, JSXAttrName, JSXAttrOrSpread, JSXAttrValue, JSXElementName,
-    JSXExpr, JSXExprContainer, JSXObject, ModuleExportName, SourceMapperExt,
-};
-use swc_ecmascript::utils::ExprFactory;
-use swc_ecmascript::{
-    ast::{
-        Callee, Expr, ExprOrSpread, Id, Ident, ImportDecl, ImportSpecifier, JSXElement,
-        KeyValueProp, MemberProp, ObjectLit, Pat, Prop, PropName, PropOrSpread, Tpl, VarDeclarator,
+use swc_core::{
+    common::{comments::Comments, util::take::Take, BytePos, SourceMapperDyn, DUMMY_SP},
+    ecma::utils::ExprFactory,
+    ecma::visit::{Fold, FoldWith},
+    ecma::{
+        ast::{
+            ArrayLit, CallExpr, Callee, Expr, ExprOrSpread, Id, Ident, ImportDecl, ImportSpecifier,
+            JSXAttr, JSXAttrName, JSXAttrOrSpread, JSXAttrValue, JSXElement, JSXElementName,
+            JSXExpr, JSXExprContainer, JSXObject, KeyValueProp, MemberProp, ModuleExportName,
+            ObjectLit, Pat, Prop, PropName, PropOrSpread, SourceMapperExt, Tpl, VarDeclarator,
+        },
+        atoms::JsWord,
     },
-    visit::{Fold, FoldWith},
+    trace_macro::swc_trace,
 };
-use swc_trace_macro::swc_trace;
 
 mod hash;
 mod import_map;

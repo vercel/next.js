@@ -715,6 +715,10 @@
           "path": "/errors/middleware-dynamic-wasm-compilation.md"
         },
         {
+          "title": "edge-dynamic-code-evaluation",
+          "path": "/errors/edge-dynamic-code-evaluation.md"
+        },
+        {
           "title": "node-module-in-edge-runtime",
           "path": "/errors/node-module-in-edge-runtime.md"
         },
@@ -729,6 +733,14 @@
         {
           "title": "middleware-parse-user-agent",
           "path": "/errors/middleware-parse-user-agent.md"
+        },
+        {
+          "title": "nonce-contained-invalid-characters",
+          "path": "/errors/nonce-contained-invalid-characters.md"
+        },
+        {
+          "title": "babel-font-loader-conflict",
+          "path": "/errors/babel-font-loader-conflict.md"
         }
       ]
     }

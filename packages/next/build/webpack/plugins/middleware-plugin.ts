@@ -3,10 +3,12 @@ import type {
   EdgeMiddlewareMeta,
 } from '../loaders/get-module-build-info'
 import type { EdgeSSRMeta } from '../loaders/get-module-build-info'
+import type { MiddlewareMatcher } from '../../analysis/get-page-static-info'
 import { getNamedMiddlewareRegex } from '../../../shared/lib/router/utils/route-regex'
 import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
+import { isMatch } from 'next/dist/compiled/micromatch'
 import {
   EDGE_RUNTIME_WEBPACK,
   EDGE_UNSUPPORTED_NODE_APIS,
@@ -16,20 +18,29 @@ import {
   MIDDLEWARE_REACT_LOADABLE_MANIFEST,
   NEXT_CLIENT_SSR_ENTRY_SUFFIX,
   FLIGHT_SERVER_CSS_MANIFEST,
+  SUBRESOURCE_INTEGRITY_MANIFEST,
+  FONT_LOADER_MANIFEST,
 } from '../../../shared/lib/constants'
+import {
+  getPageStaticInfo,
+  MiddlewareConfig,
+} from '../../analysis/get-page-static-info'
+import { Telemetry } from '../../../telemetry/storage'
+import { traceGlobals } from '../../../trace/shared'
 
 export interface EdgeFunctionDefinition {
   env: string[]
   files: string[]
   name: string
   page: string
-  regexp: string
+  matchers: MiddlewareMatcher[]
   wasm?: AssetBinding[]
   assets?: AssetBinding[]
+  regions?: string[] | string
 }
 
 export interface MiddlewareManifest {
-  version: 1
+  version: 2
   sortedMiddleware: string[]
   middleware: { [page: string]: EdgeFunctionDefinition }
   functions: { [page: string]: EdgeFunctionDefinition }
@@ -42,15 +53,10 @@ interface EntryMetadata {
   env: Set<string>
   wasmBindings: Map<string, string>
   assetBindings: Map<string, string>
+  regions?: string[] | string
 }
 
 const NAME = 'MiddlewarePlugin'
-const middlewareManifest: MiddlewareManifest = {
-  sortedMiddleware: [],
-  middleware: {},
-  functions: {},
-  version: 1,
-}
 
 /**
  * Checks the value of usingIndirectEval and when it is a set of modules it
@@ -58,18 +64,18 @@ const middlewareManifest: MiddlewareManifest = {
  * simply truthy it will return true.
  */
 function isUsingIndirectEvalAndUsedByExports(args: {
-  entryModule: webpack.Module
+  module: webpack.Module
   moduleGraph: webpack.ModuleGraph
   runtime: any
   usingIndirectEval: true | Set<string>
   wp: typeof webpack
 }): boolean {
-  const { moduleGraph, runtime, entryModule, usingIndirectEval, wp } = args
+  const { moduleGraph, runtime, module, usingIndirectEval, wp } = args
   if (typeof usingIndirectEval === 'boolean') {
     return usingIndirectEval
   }
 
-  const exportsInfo = moduleGraph.getExportsInfo(entryModule)
+  const exportsInfo = moduleGraph.getExportsInfo(module)
   for (const exportName of usingIndirectEval) {
     if (exportsInfo.getUsed(exportName, runtime) !== wp.UsageState.Unused) {
       return true
@@ -79,12 +85,19 @@ function isUsingIndirectEvalAndUsedByExports(args: {
   return false
 }
 
-function getEntryFiles(entryFiles: string[], meta: EntryMetadata) {
+function getEntryFiles(
+  entryFiles: string[],
+  meta: EntryMetadata,
+  opts: { sriEnabled: boolean; hasFontLoaders: boolean }
+) {
   const files: string[] = []
   if (meta.edgeSSR) {
     if (meta.edgeSSR.isServerComponent) {
       files.push(`server/${FLIGHT_MANIFEST}.js`)
       files.push(`server/${FLIGHT_SERVER_CSS_MANIFEST}.js`)
+      if (opts.sriEnabled) {
+        files.push(`server/${SUBRESOURCE_INTEGRITY_MANIFEST}.js`)
+      }
       files.push(
         ...entryFiles
           .filter(
@@ -104,6 +117,10 @@ function getEntryFiles(entryFiles: string[], meta: EntryMetadata) {
       `server/${MIDDLEWARE_BUILD_MANIFEST}.js`,
       `server/${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`
     )
+
+    if (opts.hasFontLoaders) {
+      files.push(`server/${FONT_LOADER_MANIFEST}.js`)
+    }
   }
 
   files.push(
@@ -117,9 +134,16 @@ function getEntryFiles(entryFiles: string[], meta: EntryMetadata) {
 function getCreateAssets(params: {
   compilation: webpack.Compilation
   metadataByEntry: Map<string, EntryMetadata>
+  opts: { sriEnabled: boolean; hasFontLoaders: boolean }
 }) {
-  const { compilation, metadataByEntry } = params
+  const { compilation, metadataByEntry, opts } = params
   return (assets: any) => {
+    const middlewareManifest: MiddlewareManifest = {
+      sortedMiddleware: [],
+      middleware: {},
+      functions: {},
+      version: 2,
+    }
     for (const entrypoint of compilation.entrypoints.values()) {
       if (!entrypoint.name) {
         continue
@@ -138,14 +162,16 @@ function getCreateAssets(params: {
       const { namedRegex } = getNamedMiddlewareRegex(page, {
         catchAll: !metadata.edgeSSR && !metadata.edgeApiFunction,
       })
-      const regexp = metadata?.edgeMiddleware?.matcherRegexp || namedRegex
+      const matchers = metadata?.edgeMiddleware?.matchers ?? [
+        { regexp: namedRegex },
+      ]
 
       const edgeFunctionDefinition: EdgeFunctionDefinition = {
         env: Array.from(metadata.env),
-        files: getEntryFiles(entrypoint.getFiles(), metadata),
+        files: getEntryFiles(entrypoint.getFiles(), metadata, opts),
         name: entrypoint.name,
         page: page,
-        regexp,
+        matchers,
         wasm: Array.from(metadata.wasmBindings, ([name, filePath]) => ({
           name,
           filePath,
@@ -154,6 +180,7 @@ function getCreateAssets(params: {
           name,
           filePath,
         })),
+        ...(metadata.regions && { regions: metadata.regions }),
       }
 
       if (metadata.edgeApiFunction || metadata.edgeSSR) {
@@ -230,6 +257,15 @@ function isNodeJsModule(moduleName: string) {
   return require('module').builtinModules.includes(moduleName)
 }
 
+function isDynamicCodeEvaluationAllowed(
+  fileName: string,
+  edgeFunctionConfig?: Partial<MiddlewareConfig>,
+  rootDir?: string
+) {
+  const name = fileName.replace(rootDir ?? '', '')
+  return isMatch(name, edgeFunctionConfig?.unstable_allowDynamicGlobs ?? [])
+}
+
 function buildUnsupportedApiError({
   apiName,
   loc,
@@ -304,12 +340,14 @@ function getCodeAnalyzer(params: {
   dev: boolean
   compiler: webpack.Compiler
   compilation: webpack.Compilation
+  allowMiddlewareResponseBody: boolean
 }) {
   return (parser: webpack.javascript.JavascriptParser) => {
     const {
       dev,
       compiler: { webpack: wp },
       compilation,
+      allowMiddlewareResponseBody,
     } = params
     const { hooks } = parser
 
@@ -352,18 +390,16 @@ function getCodeAnalyzer(params: {
         return
       }
 
-      if (dev) {
-        const { ConstDependency } = wp.dependencies
-        const dep1 = new ConstDependency(
-          '__next_eval__(function() { return ',
-          expr.range[0]
-        )
-        dep1.loc = expr.loc
-        parser.state.module.addPresentationalDependency(dep1)
-        const dep2 = new ConstDependency('})', expr.range[1])
-        dep2.loc = expr.loc
-        parser.state.module.addPresentationalDependency(dep2)
-      }
+      const { ConstDependency } = wp.dependencies
+      const dep1 = new ConstDependency(
+        '__next_eval__(function() { return ',
+        expr.range[0]
+      )
+      dep1.loc = expr.loc
+      parser.state.module.addPresentationalDependency(dep1)
+      const dep2 = new ConstDependency('})', expr.range[1])
+      dep2.loc = expr.loc
+      parser.state.module.addPresentationalDependency(dep2)
 
       handleExpression()
       return true
@@ -379,18 +415,16 @@ function getCodeAnalyzer(params: {
         return
       }
 
-      if (dev) {
-        const { ConstDependency } = wp.dependencies
-        const dep1 = new ConstDependency(
-          '__next_webassembly_compile__(function() { return ',
-          expr.range[0]
-        )
-        dep1.loc = expr.loc
-        parser.state.module.addPresentationalDependency(dep1)
-        const dep2 = new ConstDependency('})', expr.range[1])
-        dep2.loc = expr.loc
-        parser.state.module.addPresentationalDependency(dep2)
-      }
+      const { ConstDependency } = wp.dependencies
+      const dep1 = new ConstDependency(
+        '__next_webassembly_compile__(function() { return ',
+        expr.range[0]
+      )
+      dep1.loc = expr.loc
+      parser.state.module.addPresentationalDependency(dep1)
+      const dep2 = new ConstDependency('})', expr.range[1])
+      dep2.loc = expr.loc
+      parser.state.module.addPresentationalDependency(dep2)
 
       handleExpression()
     }
@@ -521,8 +555,6 @@ Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime`,
       hooks.call.for(`${prefix}eval`).tap(NAME, handleWrapExpression)
       hooks.call.for(`${prefix}Function`).tap(NAME, handleWrapExpression)
       hooks.new.for(`${prefix}Function`).tap(NAME, handleWrapExpression)
-      hooks.expression.for(`${prefix}eval`).tap(NAME, handleExpression)
-      hooks.expression.for(`${prefix}Function`).tap(NAME, handleExpression)
       hooks.call
         .for(`${prefix}WebAssembly.compile`)
         .tap(NAME, handleWrapWasmCompileExpression)
@@ -530,8 +562,11 @@ Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime`,
         .for(`${prefix}WebAssembly.instantiate`)
         .tap(NAME, handleWrapWasmInstantiateExpression)
     }
-    hooks.new.for('Response').tap(NAME, handleNewResponseExpression)
-    hooks.new.for('NextResponse').tap(NAME, handleNewResponseExpression)
+
+    if (!allowMiddlewareResponseBody) {
+      hooks.new.for('Response').tap(NAME, handleNewResponseExpression)
+      hooks.new.for('NextResponse').tap(NAME, handleNewResponseExpression)
+    }
     hooks.callMemberChain.for('process').tap(NAME, handleCallMemberChain)
     hooks.expressionMemberChain.for('process').tap(NAME, handleCallMemberChain)
     hooks.importCall.tap(NAME, handleImport)
@@ -574,6 +609,35 @@ Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime`,
   }
 }
 
+async function findEntryEdgeFunctionConfig(
+  entryDependency: any,
+  resolver: webpack.Resolver
+) {
+  if (entryDependency?.request?.startsWith('next-')) {
+    const absolutePagePath =
+      new URL(entryDependency.request, 'http://example.org').searchParams.get(
+        'absolutePagePath'
+      ) ?? ''
+    const pageFilePath = await new Promise((resolve) =>
+      resolver.resolve({}, '/', absolutePagePath, {}, (err, path) =>
+        resolve(err || path)
+      )
+    )
+    if (typeof pageFilePath === 'string') {
+      return {
+        file: pageFilePath,
+        config: (
+          await getPageStaticInfo({
+            nextConfig: {},
+            pageFilePath,
+            isDev: false,
+          })
+        ).middleware,
+      }
+    }
+  }
+}
+
 function getExtractMetadata(params: {
   compilation: webpack.Compilation
   compiler: webpack.Compiler
@@ -582,26 +646,36 @@ function getExtractMetadata(params: {
 }) {
   const { dev, compilation, metadataByEntry, compiler } = params
   const { webpack: wp } = compiler
-  return () => {
+  return async () => {
     metadataByEntry.clear()
+    const resolver = compilation.resolverFactory.get('normal')
+    const telemetry: Telemetry = traceGlobals.get('telemetry')
 
-    for (const [entryName, entryData] of compilation.entries) {
-      if (entryData.options.runtime !== EDGE_RUNTIME_WEBPACK) {
+    for (const [entryName, entry] of compilation.entries) {
+      if (entry.options.runtime !== EDGE_RUNTIME_WEBPACK) {
         // Only process edge runtime entries
         continue
       }
+      const entryDependency = entry.dependencies?.[0]
+      const edgeFunctionConfig = await findEntryEdgeFunctionConfig(
+        entryDependency,
+        resolver
+      )
+      const { rootDir } = getModuleBuildInfo(
+        compilation.moduleGraph.getResolvedModule(entryDependency)
+      )
 
       const { moduleGraph } = compilation
-      const entryModules = new Set<webpack.Module>()
+      const modules = new Set<webpack.NormalModule>()
       const addEntriesFromDependency = (dependency: any) => {
         const module = moduleGraph.getModule(dependency)
         if (module) {
-          entryModules.add(module)
+          modules.add(module as webpack.NormalModule)
         }
       }
 
-      entryData.dependencies.forEach(addEntriesFromDependency)
-      entryData.includeDependencies.forEach(addEntriesFromDependency)
+      entry.dependencies.forEach(addEntriesFromDependency)
+      entry.includeDependencies.forEach(addEntriesFromDependency)
 
       const entryMetadata: EntryMetadata = {
         env: new Set<string>(),
@@ -609,8 +683,8 @@ function getExtractMetadata(params: {
         assetBindings: new Map(),
       }
 
-      for (const entryModule of entryModules) {
-        const buildInfo = getModuleBuildInfo(entryModule)
+      for (const module of modules) {
+        const buildInfo = getModuleBuildInfo(module)
 
         /**
          * When building for production checks if the module is using `eval`
@@ -621,31 +695,56 @@ function getExtractMetadata(params: {
           !dev &&
           buildInfo.usingIndirectEval &&
           isUsingIndirectEvalAndUsedByExports({
-            entryModule: entryModule,
-            moduleGraph: moduleGraph,
+            module,
+            moduleGraph,
             runtime: wp.util.runtime.getEntryRuntime(compilation, entryName),
             usingIndirectEval: buildInfo.usingIndirectEval,
             wp,
           })
         ) {
-          const id = entryModule.identifier()
+          const id = module.identifier()
           if (/node_modules[\\/]regenerator-runtime[\\/]runtime\.js/.test(id)) {
             continue
           }
 
-          compilation.errors.push(
-            buildWebpackError({
-              message: `Dynamic Code Evaluation (e. g. 'eval', 'new Function', 'WebAssembly.compile') not allowed in Edge Runtime ${
-                typeof buildInfo.usingIndirectEval !== 'boolean'
-                  ? `\nUsed by ${Array.from(buildInfo.usingIndirectEval).join(
-                      ', '
-                    )}`
-                  : ''
-              }`,
-              entryModule,
-              compilation,
+          if (edgeFunctionConfig?.config?.unstable_allowDynamicGlobs) {
+            telemetry.record({
+              eventName: 'NEXT_EDGE_ALLOW_DYNAMIC_USED',
+              payload: {
+                ...edgeFunctionConfig,
+                file: edgeFunctionConfig.file.replace(rootDir ?? '', ''),
+                fileWithDynamicCode: module.userRequest.replace(
+                  rootDir ?? '',
+                  ''
+                ),
+              },
             })
-          )
+          }
+          if (
+            !isDynamicCodeEvaluationAllowed(
+              module.userRequest,
+              edgeFunctionConfig?.config,
+              rootDir
+            )
+          ) {
+            compilation.errors.push(
+              buildWebpackError({
+                message: `Dynamic Code Evaluation (e. g. 'eval', 'new Function', 'WebAssembly.compile') not allowed in Edge Runtime ${
+                  typeof buildInfo.usingIndirectEval !== 'boolean'
+                    ? `\nUsed by ${Array.from(buildInfo.usingIndirectEval).join(
+                        ', '
+                      )}`
+                    : ''
+                }\nLearn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`,
+                entryModule: module,
+                compilation,
+              })
+            )
+          }
+        }
+
+        if (edgeFunctionConfig?.config?.regions) {
+          entryMetadata.regions = edgeFunctionConfig.config.regions
         }
 
         /**
@@ -692,9 +791,9 @@ function getExtractMetadata(params: {
          * Append to the list of modules to process outgoingConnections from
          * the module that is being processed.
          */
-        for (const conn of moduleGraph.getOutgoingConnections(entryModule)) {
+        for (const conn of moduleGraph.getOutgoingConnections(module)) {
           if (conn.module) {
-            entryModules.add(conn.module)
+            modules.add(conn.module as webpack.NormalModule)
           }
         }
       }
@@ -703,15 +802,30 @@ function getExtractMetadata(params: {
     }
   }
 }
-
 export default class MiddlewarePlugin {
-  dev: boolean
+  private readonly dev: boolean
+  private readonly sriEnabled: boolean
+  private readonly hasFontLoaders: boolean
+  private readonly allowMiddlewareResponseBody: boolean
 
-  constructor({ dev }: { dev: boolean }) {
+  constructor({
+    dev,
+    sriEnabled,
+    hasFontLoaders,
+    allowMiddlewareResponseBody,
+  }: {
+    dev: boolean
+    sriEnabled: boolean
+    hasFontLoaders: boolean
+    allowMiddlewareResponseBody: boolean
+  }) {
     this.dev = dev
+    this.sriEnabled = sriEnabled
+    this.hasFontLoaders = hasFontLoaders
+    this.allowMiddlewareResponseBody = allowMiddlewareResponseBody
   }
 
-  apply(compiler: webpack.Compiler) {
+  public apply(compiler: webpack.Compiler) {
     compiler.hooks.compilation.tap(NAME, (compilation, params) => {
       const { hooks } = params.normalModuleFactory
       /**
@@ -721,6 +835,7 @@ export default class MiddlewarePlugin {
         dev: this.dev,
         compiler,
         compilation,
+        allowMiddlewareResponseBody: this.allowMiddlewareResponseBody,
       })
       hooks.parser.for('javascript/auto').tap(NAME, codeAnalyzer)
       hooks.parser.for('javascript/dynamic').tap(NAME, codeAnalyzer)
@@ -730,7 +845,7 @@ export default class MiddlewarePlugin {
        * Extract all metadata for the entry points in a Map object.
        */
       const metadataByEntry = new Map<string, EntryMetadata>()
-      compilation.hooks.afterOptimizeModules.tap(
+      compilation.hooks.finishModules.tapPromise(
         NAME,
         getExtractMetadata({
           compilation,
@@ -748,13 +863,20 @@ export default class MiddlewarePlugin {
           name: 'NextJsMiddlewareManifest',
           stage: (webpack as any).Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
         },
-        getCreateAssets({ compilation, metadataByEntry })
+        getCreateAssets({
+          compilation,
+          metadataByEntry,
+          opts: {
+            sriEnabled: this.sriEnabled,
+            hasFontLoaders: this.hasFontLoaders,
+          },
+        })
       )
     })
   }
 }
 
-export async function handleWebpackExtenalForEdgeRuntime({
+export async function handleWebpackExternalForEdgeRuntime({
   request,
   context,
   contextInfo,

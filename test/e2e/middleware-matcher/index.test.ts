@@ -94,20 +94,19 @@ describe('Middleware can set the matcher in its config', () => {
     expect(response.headers.get('X-From-Middleware')).toBe('true')
   })
 
-  it('should load matches in client manifest correctly', async () => {
+  it('should load matches in client matchers correctly', async () => {
     const browser = await webdriver(next.url, '/')
 
     await check(async () => {
-      const manifest = await browser.eval(
+      const matchers = await browser.eval(
         (global as any).isNextDev
-          ? 'window.__DEV_MIDDLEWARE_MANIFEST'
-          : 'window.__MIDDLEWARE_MANIFEST'
+          ? 'window.__DEV_MIDDLEWARE_MATCHERS'
+          : 'window.__MIDDLEWARE_MATCHERS'
       )
 
-      const { location } = manifest
-      return location &&
-        location.includes('with-middleware') &&
-        location.includes('another-middleware')
+      return matchers &&
+        matchers.some((m) => m.regexp.includes('with-middleware')) &&
+        matchers.some((m) => m.regexp.includes('another-middleware'))
         ? 'success'
         : 'failed'
     }, 'success')

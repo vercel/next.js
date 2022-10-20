@@ -2,9 +2,13 @@
 import '../build/polyfills/polyfill-module'
 // @ts-ignore react-dom/client exists when using React 18
 import ReactDOMClient from 'react-dom/client'
-// @ts-ignore startTransition exists when using React 18
-import React from 'react'
-import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
+// TODO-APP: change to React.use once it becomes stable
+import React, { experimental_use as use } from 'react'
+import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack/client'
+
+import measureWebVitals from './performance-relayer'
+import { HeadManagerContext } from '../shared/lib/head-manager-context'
+import HotReload from './components/react-dev-overlay/hot-reloader'
 
 /// <reference types="react-dom/experimental" />
 
@@ -40,24 +44,7 @@ self.__next_require__ = __webpack_require__
   return __webpack_chunk_load__(chunkId)
 }
 
-export const version = process.env.__NEXT_VERSION
-
 const appElement: HTMLElement | Document | null = document
-
-let reactRoot: any = null
-
-function renderReactElement(
-  domEl: HTMLElement | Document,
-  fn: () => JSX.Element
-): void {
-  const reactEl = fn()
-  if (!reactRoot) {
-    // Unlike with createRoot, you don't need a separate root.render() call here
-    reactRoot = (ReactDOMClient as any).hydrateRoot(domEl, reactEl)
-  } else {
-    reactRoot.render(reactEl)
-  }
-}
 
 const getCacheKey = () => {
   const { pathname, search } = location
@@ -72,7 +59,9 @@ let initialServerDataWriter: ReadableStreamDefaultController | undefined =
 let initialServerDataLoaded = false
 let initialServerDataFlushed = false
 
-function nextServerDataCallback(seg: [number, string, string]) {
+function nextServerDataCallback(
+  seg: [isBootStrap: 0] | [isNotBootstrap: 1, responsePartial: string]
+): void {
   if (seg[0] === 0) {
     initialServerDataBuffer = []
   } else {
@@ -80,9 +69,9 @@ function nextServerDataCallback(seg: [number, string, string]) {
       throw new Error('Unexpected server data: missing bootstrap script.')
 
     if (initialServerDataWriter) {
-      initialServerDataWriter.enqueue(encoder.encode(seg[2]))
+      initialServerDataWriter.enqueue(encoder.encode(seg[1]))
     } else {
-      initialServerDataBuffer.push(seg[2])
+      initialServerDataBuffer.push(seg[1])
     }
   }
 }
@@ -126,8 +115,8 @@ if (document.readyState === 'loading') {
   DOMContentLoaded()
 }
 
-const nextServerDataLoadingGlobal = ((self as any).__next_s =
-  (self as any).__next_s || [])
+const nextServerDataLoadingGlobal = ((self as any).__next_f =
+  (self as any).__next_f || [])
 nextServerDataLoadingGlobal.forEach(nextServerDataCallback)
 nextServerDataLoadingGlobal.push = nextServerDataCallback
 
@@ -136,7 +125,7 @@ function createResponseCache() {
 }
 const rscCache = createResponseCache()
 
-function useInitialServerResponse(cacheKey: string) {
+function useInitialServerResponse(cacheKey: string): Promise<JSX.Element> {
   const response = rscCache.get(cacheKey)
   if (response) return response
 
@@ -152,16 +141,20 @@ function useInitialServerResponse(cacheKey: string) {
   return newResponse
 }
 
-function ServerRoot({ cacheKey }: { cacheKey: string }) {
+function ServerRoot({ cacheKey }: { cacheKey: string }): JSX.Element {
   React.useEffect(() => {
     rscCache.delete(cacheKey)
   })
   const response = useInitialServerResponse(cacheKey)
-  const root = response.readRoot()
+  const root = use(response)
   return root
 }
 
 function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
+  React.useEffect(() => {
+    measureWebVitals()
+  }, [])
+
   if (process.env.__NEXT_TEST_MODE) {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     React.useEffect(() => {
@@ -176,17 +169,59 @@ function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
   return children as React.ReactElement
 }
 
-function RSCComponent(props: any) {
+function RSCComponent(props: any): JSX.Element {
   const cacheKey = getCacheKey()
   return <ServerRoot {...props} cacheKey={cacheKey} />
 }
 
 export function hydrate() {
-  renderReactElement(appElement!, () => (
+  if (process.env.NODE_ENV !== 'production') {
+    const rootLayoutMissingTagsError = (self as any)
+      .__next_root_layout_missing_tags_error
+
+    // Don't try to hydrate if root layout is missing required tags, render error instead
+    if (rootLayoutMissingTagsError) {
+      const reactRootElement = document.createElement('div')
+      document.body.appendChild(reactRootElement)
+      const reactRoot = (ReactDOMClient as any).createRoot(reactRootElement)
+
+      reactRoot.render(
+        <HotReload
+          assetPrefix={rootLayoutMissingTagsError.assetPrefix}
+          initialState={{
+            rootLayoutMissingTagsError: {
+              missingTags: rootLayoutMissingTagsError.missingTags,
+            },
+          }}
+          initialTree={rootLayoutMissingTagsError.tree}
+        />
+      )
+
+      return
+    }
+  }
+
+  const reactEl = (
     <React.StrictMode>
-      <Root>
-        <RSCComponent />
-      </Root>
+      <HeadManagerContext.Provider
+        value={{
+          appDir: true,
+        }}
+      >
+        <Root>
+          <RSCComponent />
+        </Root>
+      </HeadManagerContext.Provider>
     </React.StrictMode>
-  ))
+  )
+
+  const isError = document.documentElement.id === '__next_error__'
+  const reactRoot = isError
+    ? (ReactDOMClient as any).createRoot(appElement)
+    : (React as any).startTransition(() =>
+        (ReactDOMClient as any).hydrateRoot(appElement, reactEl)
+      )
+  if (isError) {
+    reactRoot.render(reactEl)
+  }
 }

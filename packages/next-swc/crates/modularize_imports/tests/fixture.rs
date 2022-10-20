@@ -1,8 +1,10 @@
 use std::path::PathBuf;
 
 use modularize_imports::{modularize_imports, PackageConfig};
-use swc_ecma_transforms_testing::test_fixture;
-use swc_ecmascript::parser::{EsConfig, Syntax};
+use swc_core::{
+    ecma::parser::{EsConfig, Syntax},
+    ecma::transforms::testing::{test_fixture, FixtureTestConfig},
+};
 use testing::fixture;
 
 fn syntax() -> Syntax {
@@ -59,5 +61,8 @@ fn modularize_imports_fixture(input: PathBuf) {
         },
         &input,
         &output,
+        FixtureTestConfig {
+            ..Default::default()
+        },
     );
 }

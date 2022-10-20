@@ -37,14 +37,14 @@ function isLikelyASyntaxError(message) {
 let hadMissingSassError = false
 
 // Cleans up webpack error messages.
-function formatMessage(message, verbose) {
+function formatMessage(message, verbose, importTraceNote) {
   // TODO: Replace this once webpack 5 is stable
   if (typeof message === 'object' && message.message) {
     const filteredModuleTrace =
       message.moduleTrace &&
       message.moduleTrace.filter(
         (trace) =>
-          !/next-(middleware|client-pages|edge-function|flight-(client|server))-loader\.js/.test(
+          !/next-(middleware|client-pages|edge-function)-loader\.js/.test(
             trace.originName
           )
       )
@@ -61,8 +61,8 @@ function formatMessage(message, verbose) {
       body +
       (message.details && verbose ? '\n' + message.details : '') +
       (filteredModuleTrace && filteredModuleTrace.length && verbose
-        ? '\n\nImport trace for requested module:' +
-          filteredModuleTrace.map((trace) => `\n${trace.originName}`).join('')
+        ? (importTraceNote || '\n\nImport trace for requested module:') +
+          filteredModuleTrace.map((trace) => `\n${trace.moduleName}`).join('')
         : '') +
       (message.stack && verbose ? '\n' + message.stack : '')
   }
@@ -171,7 +171,19 @@ function formatMessage(message, verbose) {
 
 function formatWebpackMessages(json, verbose) {
   const formattedErrors = json.errors.map(function (message) {
-    return formatMessage(message, verbose)
+    let importTraceNote
+
+    if (
+      message &&
+      message.message &&
+      /Font loader error:/.test(message.message)
+    ) {
+      return message.message.slice(
+        message.message.indexOf('Font loader error:')
+      )
+    }
+
+    return formatMessage(message, verbose, importTraceNote)
   })
   const formattedWarnings = json.warnings.map(function (message) {
     return formatMessage(message, verbose)

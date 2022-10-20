@@ -4,7 +4,6 @@ import {
   FONT_MANIFEST,
   PAGES_MANIFEST,
   SERVER_DIRECTORY,
-  SERVERLESS_DIRECTORY,
   APP_PATHS_MANIFEST,
 } from '../shared/lib/constants'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
@@ -16,19 +15,14 @@ import { PageNotFoundError, MissingStaticPage } from '../shared/lib/utils'
 export function getPagePath(
   page: string,
   distDir: string,
-  serverless: boolean,
-  dev?: boolean,
   locales?: string[],
   appDirEnabled?: boolean
 ): string {
-  const serverBuildPath = join(
-    distDir,
-    serverless && !dev ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
-  )
-  let rootPathsManifest: undefined | PagesManifest
+  const serverBuildPath = join(distDir, SERVER_DIRECTORY)
+  let appPathsManifest: undefined | PagesManifest
 
   if (appDirEnabled) {
-    rootPathsManifest = require(join(serverBuildPath, APP_PATHS_MANIFEST))
+    appPathsManifest = require(join(serverBuildPath, APP_PATHS_MANIFEST))
   }
   const pagesManifest = require(join(
     serverBuildPath,
@@ -58,8 +52,8 @@ export function getPagePath(
   }
   let pagePath: string | undefined
 
-  if (rootPathsManifest) {
-    pagePath = checkManifest(rootPathsManifest)
+  if (appPathsManifest) {
+    pagePath = checkManifest(appPathsManifest)
   }
 
   if (!pagePath) {
@@ -75,17 +69,9 @@ export function getPagePath(
 export function requirePage(
   page: string,
   distDir: string,
-  serverless: boolean,
   appDirEnabled?: boolean
 ): any {
-  const pagePath = getPagePath(
-    page,
-    distDir,
-    serverless,
-    false,
-    undefined,
-    appDirEnabled
-  )
+  const pagePath = getPagePath(page, distDir, undefined, appDirEnabled)
   if (pagePath.endsWith('.html')) {
     return promises.readFile(pagePath, 'utf8').catch((err) => {
       throw new MissingStaticPage(page, err.message)
@@ -94,11 +80,8 @@ export function requirePage(
   return require(pagePath)
 }
 
-export function requireFontManifest(distDir: string, serverless: boolean) {
-  const serverBuildPath = join(
-    distDir,
-    serverless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
-  )
+export function requireFontManifest(distDir: string) {
+  const serverBuildPath = join(distDir, SERVER_DIRECTORY)
   const fontManifest = require(join(serverBuildPath, FONT_MANIFEST))
   return fontManifest
 }

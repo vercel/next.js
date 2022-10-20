@@ -2,16 +2,16 @@
 
 Next.js has two _server runtimes_ to run your application: the **Node.js Runtime** (default) and the [**Edge Runtime**](/docs/api-reference/edge-runtime.md). When server-rendering or serving API routes, the application code will be executed in the Node.js Runtime by default; and for [Middleware](/docs/middleware.md), it will be running in the Edge Runtime.
 
-|                                                                                             | Node (server) | Node (lambda) | Edge             |
-| ------------------------------------------------------------------------------------------- | ------------- | ------------- | ---------------- |
-| [Cold Boot](https://vercel.com/docs/concepts/functions/conceptual-model#cold-and-hot-boots) | /             | ~250ms        | Instant          |
-| [HTTP Streaming](https://github.com/reactwg/react-18/discussions/37)                        | Yes           | No            | Yes              |
-| IO                                                                                          | All           | All           | `fetch`          |
-| Scalability                                                                                 | /             | High          | Highest          |
-| Security                                                                                    | Normal        | High          | High             |
-| Latency                                                                                     | Normal        | Low           | Lowest           |
-| Code Size                                                                                   | /             | 50MB          | 1MB              |
-| NPM Packages                                                                                | All           | All           | A smaller subset |
+|                                                                                                                                                            | Node (server) | Node (lambda) | Edge             |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | ------------- | ---------------- |
+| [Cold Boot](https://vercel.com/docs/concepts/functions/conceptual-model#cold-and-hot-boots?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) | /             | ~250ms        | Instant          |
+| [HTTP Streaming](https://github.com/reactwg/react-18/discussions/37)                                                                                       | Yes           | No            | Yes              |
+| IO                                                                                                                                                         | All           | All           | `fetch`          |
+| Scalability                                                                                                                                                | /             | High          | Highest          |
+| Security                                                                                                                                                   | Normal        | High          | High             |
+| Latency                                                                                                                                                    | Normal        | Low           | Lowest           |
+| Code Size                                                                                                                                                  | /             | 50MB          | 1MB              |
+| NPM Packages                                                                                                                                               | All           | All           | A smaller subset |
 
 Next.js' default runtime configuration is good for most use cases, but there’re still many reasons to change to one runtime over the other one. For example, to enable [React 18's](/docs/advanced-features/react-18/overview) [SSR streaming](/docs/advanced-features/react-18/streaming.md) feature, you need to use a runtime that is compatible with Web Streams. For API routes that rely on native Node.js APIs, they need to run with the **Node.js Runtime**. However, if an API only uses something like cookie-based authentication, using Middleware and the [**Edge Runtime**](/docs/api-reference/edge-runtime.md) will be a better choice due to its lower latency as well as better scalability.
 

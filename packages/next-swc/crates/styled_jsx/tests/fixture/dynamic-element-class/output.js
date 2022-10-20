@@ -10,7 +10,7 @@ export default class {
 
       </Element>;
     }
-};
+}
 const Element2 = 'div';
 export const Test2 = class {
     render() {

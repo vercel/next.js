@@ -1,5 +1,6 @@
 import { isServerRuntime } from '../../server/config-shared'
 import type { NextConfig } from '../../server/config-shared'
+import type { Middleware, RouteHas } from '../../lib/load-custom-routes'
 import {
   extractExportedConstValue,
   UnsupportedValueError,
@@ -9,17 +10,37 @@ import { promises as fs } from 'fs'
 import { tryToParsePath } from '../../lib/try-to-parse-path'
 import * as Log from '../output/log'
 import { SERVER_RUNTIME } from '../../lib/constants'
-import { ServerRuntime } from '../../types'
+import { ServerRuntime } from 'next/types'
+import { checkCustomRoutes } from '../../lib/load-custom-routes'
+import { matcher } from 'next/dist/compiled/micromatch'
+import { RSC_MODULE_TYPES } from '../../shared/lib/constants'
 
-interface MiddlewareConfig {
-  pathMatcher: RegExp
+export interface MiddlewareConfig {
+  matchers: MiddlewareMatcher[]
+  unstable_allowDynamicGlobs: string[]
+  regions: string[] | string
+}
+
+export interface MiddlewareMatcher {
+  regexp: string
+  locale?: false
+  has?: RouteHas[]
 }
 
 export interface PageStaticInfo {
   runtime?: ServerRuntime
   ssg?: boolean
   ssr?: boolean
+  rsc?: RSCModuleType
   middleware?: Partial<MiddlewareConfig>
+}
+
+const CLIENT_MODULE_LABEL = `/* __next_internal_client_entry_do_not_use__ */`
+export type RSCModuleType = 'server' | 'client'
+export function getRSCModuleType(source: string): RSCModuleType {
+  return source.includes(CLIENT_MODULE_LABEL)
+    ? RSC_MODULE_TYPES.client
+    : RSC_MODULE_TYPES.server
 }
 
 /**
@@ -27,11 +48,30 @@ export interface PageStaticInfo {
  * requires a runtime to be specified. Those are:
  *   - Modules with `export function getStaticProps | getServerSideProps`
  *   - Modules with `export { getStaticProps | getServerSideProps } <from ...>`
+ *   - Modules with `export const runtime = ...`
  */
-function checkExports(swcAST: any) {
+function checkExports(swcAST: any): {
+  ssr: boolean
+  ssg: boolean
+  runtime?: string
+} {
   if (Array.isArray(swcAST?.body)) {
     try {
+      let runtime: string | undefined
+      let ssr: boolean = false
+      let ssg: boolean = false
+
       for (const node of swcAST.body) {
+        if (
+          node.type === 'ExportDeclaration' &&
+          node.declaration?.type === 'VariableDeclaration'
+        ) {
+          const id = node.declaration?.declarations[0]?.id.value
+          if (id === 'runtime') {
+            runtime = node.declaration?.declarations[0]?.init.value
+          }
+        }
+
         if (
           node.type === 'ExportDeclaration' &&
           node.declaration?.type === 'FunctionDeclaration' &&
@@ -39,9 +79,18 @@ function checkExports(swcAST: any) {
             node.declaration.identifier?.value
           )
         ) {
-          return {
-            ssg: node.declaration.identifier.value === 'getStaticProps',
-            ssr: node.declaration.identifier.value === 'getServerSideProps',
+          ssg = node.declaration.identifier.value === 'getStaticProps'
+          ssr = node.declaration.identifier.value === 'getServerSideProps'
+        }
+
+        if (
+          node.type === 'ExportDeclaration' &&
+          node.declaration?.type === 'VariableDeclaration'
+        ) {
+          const id = node.declaration?.declarations[0]?.id.value
+          if (['getStaticProps', 'getServerSideProps'].includes(id)) {
+            ssg = id === 'getStaticProps'
+            ssr = id === 'getServerSideProps'
           }
         }
 
@@ -53,16 +102,14 @@ function checkExports(swcAST: any) {
               specifier.orig?.value
           )
 
-          return {
-            ssg: values.some((value: any) =>
-              ['getStaticProps'].includes(value)
-            ),
-            ssr: values.some((value: any) =>
-              ['getServerSideProps'].includes(value)
-            ),
-          }
+          ssg = values.some((value: any) => ['getStaticProps'].includes(value))
+          ssr = values.some((value: any) =>
+            ['getServerSideProps'].includes(value)
+          )
         }
       }
+
+      return { ssr, ssg, runtime }
     } catch (err) {}
   }
 
@@ -81,72 +128,100 @@ async function tryToReadFile(filePath: string, shouldThrow: boolean) {
   }
 }
 
-function getMiddlewareRegExpStrings(
+function getMiddlewareMatchers(
   matcherOrMatchers: unknown,
   nextConfig: NextConfig
-): string[] {
+): MiddlewareMatcher[] {
+  let matchers: unknown[] = []
   if (Array.isArray(matcherOrMatchers)) {
-    return matcherOrMatchers.flatMap((matcher) =>
-      getMiddlewareRegExpStrings(matcher, nextConfig)
-    )
+    matchers = matcherOrMatchers
+  } else {
+    matchers.push(matcherOrMatchers)
   }
   const { i18n } = nextConfig
 
-  if (typeof matcherOrMatchers !== 'string') {
-    throw new Error(
-      '`matcher` must be a path matcher or an array of path matchers'
-    )
-  }
+  let routes = matchers.map(
+    (m) => (typeof m === 'string' ? { source: m } : m) as Middleware
+  )
 
-  let matcher: string = matcherOrMatchers
+  // check before we process the routes and after to ensure
+  // they are still valid
+  checkCustomRoutes(routes, 'middleware')
 
-  if (!matcher.startsWith('/')) {
-    throw new Error('`matcher`: path matcher must start with /')
-  }
-  const isRoot = matcher === '/'
+  routes = routes.map((r) => {
+    let { source } = r
 
-  if (i18n?.locales) {
-    matcher = `/:nextInternalLocale([^/.]{1,})${isRoot ? '' : matcher}`
-  }
+    const isRoot = source === '/'
 
-  matcher = `/:nextData(_next/data/[^/]{1,})?${matcher}${
-    isRoot
-      ? `(${nextConfig.i18n ? '|\\.json|' : ''}/?index|/?index\\.json)?`
-      : '(.json)?'
-  }`
+    if (i18n?.locales && r.locale !== false) {
+      source = `/:nextInternalLocale([^/.]{1,})${isRoot ? '' : source}`
+    }
 
-  if (nextConfig.basePath) {
-    matcher = `${nextConfig.basePath}${matcher}`
-  }
-  const parsedPage = tryToParsePath(matcher)
+    source = `/:nextData(_next/data/[^/]{1,})?${source}${
+      isRoot
+        ? `(${nextConfig.i18n ? '|\\.json|' : ''}/?index|/?index\\.json)?`
+        : '(.json)?'
+    }`
 
-  if (parsedPage.error) {
-    throw new Error(`Invalid path matcher: ${matcher}`)
-  }
+    if (nextConfig.basePath) {
+      source = `${nextConfig.basePath}${source}`
+    }
 
-  const regexes = [parsedPage.regexStr].filter((x): x is string => !!x)
-  if (regexes.length < 1) {
-    throw new Error("Can't parse matcher")
-  } else {
-    return regexes
-  }
+    return { ...r, source }
+  })
+
+  checkCustomRoutes(routes, 'middleware')
+
+  return routes.map((r) => {
+    const { source, ...rest } = r
+    const parsedPage = tryToParsePath(source)
+
+    if (parsedPage.error || !parsedPage.regexStr) {
+      throw new Error(`Invalid source: ${source}`)
+    }
+
+    return {
+      ...rest,
+      regexp: parsedPage.regexStr,
+    }
+  })
 }
 
 function getMiddlewareConfig(
+  pageFilePath: string,
   config: any,
   nextConfig: NextConfig
 ): Partial<MiddlewareConfig> {
   const result: Partial<MiddlewareConfig> = {}
 
   if (config.matcher) {
-    result.pathMatcher = new RegExp(
-      getMiddlewareRegExpStrings(config.matcher, nextConfig).join('|')
-    )
+    result.matchers = getMiddlewareMatchers(config.matcher, nextConfig)
+  }
 
-    if (result.pathMatcher.source.length > 4096) {
-      throw new Error(
-        `generated matcher config must be less than 4096 characters.`
-      )
+  if (typeof config.regions === 'string' || Array.isArray(config.regions)) {
+    result.regions = config.regions
+  } else if (typeof config.regions !== 'undefined') {
+    Log.warn(
+      `The \`regions\` config was ignored: config must be empty, a string or an array of strings. (${pageFilePath})`
+    )
+  }
+
+  if (config.unstable_allowDynamic) {
+    result.unstable_allowDynamicGlobs = Array.isArray(
+      config.unstable_allowDynamic
+    )
+      ? config.unstable_allowDynamic
+      : [config.unstable_allowDynamic]
+    for (const glob of result.unstable_allowDynamicGlobs ?? []) {
+      try {
+        matcher(glob)
+      } catch (err) {
+        throw new Error(
+          `${pageFilePath} exported 'config.unstable_allowDynamic' contains invalid pattern '${glob}': ${
+            (err as Error).message
+          }`
+        )
+      }
     }
   }
 
@@ -202,9 +277,14 @@ export async function getPageStaticInfo(params: {
   const { isDev, pageFilePath, nextConfig, page } = params
 
   const fileContent = (await tryToReadFile(pageFilePath, !isDev)) || ''
-  if (/runtime|getStaticProps|getServerSideProps|matcher/.test(fileContent)) {
+  if (
+    /runtime|getStaticProps|getServerSideProps|export const config/.test(
+      fileContent
+    )
+  ) {
     const swcAST = await parseModule(pageFilePath, fileContent)
-    const { ssg, ssr } = checkExports(swcAST)
+    const { ssg, ssr, runtime } = checkExports(swcAST)
+    const rsc = getRSCModuleType(fileContent)
 
     // default / failsafe value for config
     let config: any = {}
@@ -217,44 +297,61 @@ export async function getPageStaticInfo(params: {
       // `export config` doesn't exist, or other unknown error throw by swc, silence them
     }
 
+    // Currently, we use `export const config = { runtime: '...' }` to specify the page runtime.
+    // But in the new app directory, we prefer to use `export const runtime = '...'`
+    // and deprecate the old way. To prevent breaking changes for `pages`, we use the exported config
+    // as the fallback value.
+    let resolvedRuntime = runtime || config.runtime
+
     if (
-      typeof config.runtime !== 'string' &&
-      typeof config.runtime !== 'undefined'
+      typeof resolvedRuntime !== 'undefined' &&
+      !isServerRuntime(resolvedRuntime)
     ) {
-      throw new Error(`Provided runtime `)
-    } else if (!isServerRuntime(config.runtime)) {
       const options = Object.values(SERVER_RUNTIME).join(', ')
-      if (typeof config.runtime !== 'string') {
-        throw new Error(
+      if (typeof resolvedRuntime !== 'string') {
+        Log.error(
           `The \`runtime\` config must be a string. Please leave it empty or choose one of: ${options}`
         )
       } else {
-        throw new Error(
+        Log.error(
           `Provided runtime "${config.runtime}" is not supported. Please leave it empty or choose one of: ${options}`
         )
       }
+      if (!isDev) {
+        process.exit(1)
+      }
     }
 
-    let runtime =
-      SERVER_RUNTIME.edge === config?.runtime
+    resolvedRuntime =
+      SERVER_RUNTIME.edge === resolvedRuntime
         ? SERVER_RUNTIME.edge
         : ssr || ssg
-        ? config?.runtime || nextConfig.experimental?.runtime
+        ? resolvedRuntime || nextConfig.experimental?.runtime
         : undefined
 
-    if (runtime === SERVER_RUNTIME.edge) {
+    if (resolvedRuntime === SERVER_RUNTIME.edge) {
       warnAboutExperimentalEdgeApiFunctions()
     }
 
-    const middlewareConfig = getMiddlewareConfig(config, nextConfig)
+    const middlewareConfig = getMiddlewareConfig(
+      page ?? 'middleware/edge API route',
+      config,
+      nextConfig
+    )
 
     return {
       ssr,
       ssg,
+      rsc,
       ...(middlewareConfig && { middleware: middlewareConfig }),
-      ...(runtime && { runtime }),
+      ...(resolvedRuntime && { runtime: resolvedRuntime }),
     }
   }
 
-  return { ssr: false, ssg: false, runtime: nextConfig.experimental?.runtime }
+  return {
+    ssr: false,
+    ssg: false,
+    rsc: RSC_MODULE_TYPES.server,
+    runtime: nextConfig.experimental?.runtime,
+  }
 }

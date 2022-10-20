@@ -33,12 +33,10 @@ export async function hasEslintConfiguration(
     }
     return { ...configObject, exists: true }
   } else if (packageJsonConfig?.eslintConfig) {
-    if (Object.entries(packageJsonConfig?.eslintConfig).length === 0) {
-      return {
-        ...configObject,
-        emptyPkgJsonConfig: true,
-      }
+    if (Object.keys(packageJsonConfig?.eslintConfig).length) {
+      return { ...configObject, exists: true }
     }
+    return { ...configObject, emptyPkgJsonConfig: true }
   }
   return configObject
 }

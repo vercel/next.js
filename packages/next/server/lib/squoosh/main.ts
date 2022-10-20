@@ -28,6 +28,14 @@ const getWorker = execOnce(
     })
 )
 
+export async function getMetadata(
+  buffer: Buffer
+): Promise<{ width: number; height: number }> {
+  const worker: typeof import('./impl') = getWorker() as any
+  const { width, height } = await worker.decodeBuffer(buffer)
+  return { width, height }
+}
+
 export async function processBuffer(
   buffer: Buffer,
   operations: Operation[],

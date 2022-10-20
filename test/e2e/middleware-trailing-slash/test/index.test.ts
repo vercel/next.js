@@ -59,7 +59,7 @@ describe('Middleware Runtime trailing slash', () => {
             name: 'middleware',
             env: [],
             page: '/',
-            regexp: '^/.*$',
+            matchers: [{ regexp: '^/.*$' }],
             wasm: [],
             assets: [],
           },
@@ -121,7 +121,6 @@ describe('Middleware Runtime trailing slash', () => {
 
       expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
         slug: 'hello',
-        from: 'middleware',
       })
       expect(
         JSON.parse(await browser.elementByCss('#props').text()).params

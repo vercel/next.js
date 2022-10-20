@@ -20,7 +20,6 @@ import {
   getBrowserBodyText,
   waitFor,
   normalizeRegEx,
-  initNextServerScript,
   nextExport,
   hasRedbox,
   check,
@@ -986,7 +985,7 @@ const runTests = (isDev = false) => {
       host: '1',
     })
 
-    const res2 = await fetchViaHTTP(appPort, '/has-rewrite-3')
+    const res2 = await fetchViaHTTP(appPort, '/has-rewrite-4')
     expect(res2.status).toBe(404)
   })
 
@@ -2423,96 +2422,6 @@ describe('Custom routes', () => {
       expect(exportStderr).toContain(
         `rewrites, redirects, and headers are not applied when exporting your application, detected (rewrites, redirects, headers)`
       )
-    })
-  })
-
-  describe('serverless mode', () => {
-    beforeAll(async () => {
-      nextConfigContent = await fs.readFile(nextConfigPath, 'utf8')
-      await fs.writeFile(
-        nextConfigPath,
-        nextConfigContent.replace(/\/\/ target/, 'target'),
-        'utf8'
-      )
-      const { stdout: buildStdout } = await nextBuild(appDir, ['-d'], {
-        stdout: true,
-      })
-      stdout = buildStdout
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort, {
-        onStdout: (msg) => {
-          stdout += msg
-        },
-      })
-      buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
-    })
-    afterAll(async () => {
-      await fs.writeFile(nextConfigPath, nextConfigContent, 'utf8')
-      await killApp(app)
-    })
-
-    runTests()
-  })
-
-  describe('raw serverless mode', () => {
-    beforeAll(async () => {
-      nextConfigContent = await fs.readFile(nextConfigPath, 'utf8')
-      await fs.writeFile(
-        nextConfigPath,
-        nextConfigContent.replace(/\/\/ target/, 'target'),
-        'utf8'
-      )
-      await nextBuild(appDir)
-
-      appPort = await findPort()
-      app = await initNextServerScript(join(appDir, 'server.js'), /ready on/, {
-        ...process.env,
-        PORT: appPort,
-      })
-    })
-    afterAll(async () => {
-      await fs.writeFile(nextConfigPath, nextConfigContent, 'utf8')
-      await killApp(app)
-    })
-
-    it('should apply rewrites in lambda correctly for page route', async () => {
-      const html = await renderViaHTTP(appPort, '/query-rewrite/first/second')
-      const data = JSON.parse(cheerio.load(html)('p').text())
-      expect(data).toEqual({
-        first: 'first',
-        second: 'second',
-        section: 'first',
-        name: 'second',
-      })
-    })
-
-    it('should apply rewrites in lambda correctly for dynamic route', async () => {
-      const html = await renderViaHTTP(appPort, '/blog/post-1')
-      expect(html).toContain('post-2')
-    })
-
-    it('should apply rewrites in lambda correctly for API route', async () => {
-      const data = JSON.parse(
-        await renderViaHTTP(appPort, '/api-hello-param/first')
-      )
-      expect(data).toEqual({
-        query: {
-          name: 'first',
-          hello: 'first',
-        },
-      })
-    })
-
-    it('should apply rewrites in lambda correctly for dynamic API route', async () => {
-      const data = JSON.parse(
-        await renderViaHTTP(appPort, '/api-dynamic-param/first')
-      )
-      expect(data).toEqual({
-        query: {
-          slug: 'first',
-          hello: 'first',
-        },
-      })
     })
   })
 

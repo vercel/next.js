@@ -1,16 +1,16 @@
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 
 export function getClientStyleLoader({
-  isAppDir,
+  hasAppDir,
   isDevelopment,
   assetPrefix,
 }: {
-  isAppDir: boolean
+  hasAppDir: boolean
   isDevelopment: boolean
   assetPrefix: string
 }): webpack.RuleSetUseItem {
   // Keep next-style-loader for development mode in `pages/`
-  if (isDevelopment && !isAppDir) {
+  if (isDevelopment && !hasAppDir) {
     return {
       loader: 'next-style-loader',
       options: {
@@ -40,8 +40,10 @@ export function getClientStyleLoader({
   const MiniCssExtractPlugin =
     require('../../../../plugins/mini-css-extract-plugin').default
   return {
-    // @ts-ignore: TODO: remove when webpack 5 is stable
     loader: MiniCssExtractPlugin.loader,
-    options: { publicPath: `${assetPrefix}/_next/`, esModule: false },
+    options: {
+      publicPath: `${assetPrefix}/_next/`,
+      esModule: false,
+    },
   }
 }

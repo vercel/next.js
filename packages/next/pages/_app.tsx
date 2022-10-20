@@ -1,20 +1,23 @@
 import React from 'react'
-import {
-  loadGetInitialProps,
+
+import type {
   AppContextType,
   AppInitialProps,
   AppPropsType,
   NextWebVitalsMetric,
+  AppType,
 } from '../shared/lib/utils'
 import type { Router } from '../client/router'
 
-export { AppInitialProps }
+import { loadGetInitialProps } from '../shared/lib/utils'
+
+export { AppInitialProps, AppType }
 
 export { NextWebVitalsMetric }
 
 export type AppContext = AppContextType<Router>
 
-export type AppProps<P = {}> = AppPropsType<Router, P>
+export type AppProps<P = any> = AppPropsType<Router, P>
 
 /**
  * `App` component is used for initialize of pages. It allows for overwriting and full control of the `page` initialization.
@@ -28,7 +31,7 @@ async function appGetInitialProps({
   return { pageProps }
 }
 
-export default class App<P = {}, CP = {}, S = {}> extends React.Component<
+export default class App<P = any, CP = {}, S = {}> extends React.Component<
   P & AppProps<CP>,
   S
 > {

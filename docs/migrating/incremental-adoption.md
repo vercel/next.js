@@ -33,8 +33,6 @@ module.exports = {
 
 To learn more about `basePath`, take a look at our [documentation](/docs/api-reference/next.config.js/basepath.md).
 
-> This feature was introduced in [Next.js 9.5](https://nextjs.org/blog/next-9-5) and up. If you’re using older versions of Next.js, please upgrade before trying it out.
-
 ### Rewrites
 
 The second strategy is to create a new Next.js app that points to the root URL of your domain. Then, you can use [`rewrites`](/docs/api-reference/next.config.js/rewrites.md) inside `next.config.js` to have some subpaths to be proxied to your existing app.
@@ -78,11 +76,11 @@ module.exports = {
 
 To learn more about rewrites, take a look at our [documentation](/docs/api-reference/next.config.js/rewrites.md).
 
-> This feature was introduced in [Next.js 9.5](https://nextjs.org/blog/next-9-5) and up. If you’re using older versions of Next.js, please upgrade before trying it out.
+> **Note:** If you are incrementally migrating to a dynamic route (e.g. `[slug].js`) and using `fallback: true` or `fallback: 'blocking'` along with a fallback `rewrite`, ensure you consider the case where pages are not found. When Next.js matches the dynamic route it stops checking any further routes. Using `notFound: true` in `getStaticProps` will return the 404 page without applying the fallback `rewrite`. If this is not desired, you can use `getServerSideProps` with `stale-while-revalidate` Cache-Control headers when returning your props. Then, you can _manually_ proxy to your existing backend using something like [http-proxy](https://github.com/vercel/next.js/discussions/38839#discussioncomment-3744442) instead of returning `notFound: true`.
 
 ### Micro-Frontends with Monorepos and Subdomains
 
-Next.js and [Vercel](https://vercel.com) make it straightforward to adopt [micro-frontends](https://martinfowler.com/articles/micro-frontends.html) and deploy as a [Monorepo](https://vercel.com/blog/monorepos). This allows you to use [subdomains](https://en.wikipedia.org/wiki/Subdomain) to adopt new applications incrementally. Some benefits of micro-frontends:
+Next.js and [Vercel](https://vercel.com) make it straightforward to adopt micro frontends and deploy as a [monorepo](https://vercel.com/blog/monorepos-are-changing-how-teams-build-software?utm_source=next-site&utm_medium=docs&utm_campaign=next-website). This allows you to use [subdomains](https://demo.vercel.pub/platforms-starter-kit) to adopt new applications incrementally. Some benefits of micro-frontends:
 
 - Smaller, more cohesive and maintainable codebases.
 - More scalable organizations with decoupled, autonomous teams.
@@ -92,4 +90,4 @@ Once your monorepo is set up, push changes to your Git repository as usual and y
 
 ## Conclusion
 
-To learn more, read about [subpaths](/docs/api-reference/next.config.js/basepath.md) and [rewrites](/docs/api-reference/next.config.js/rewrites.md) or [deploy an example with micro-frontends](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-zones&project-name=with-zones&repository-name=with-zones).
+To learn more, read about [subpaths](/docs/api-reference/next.config.js/basepath.md) and [rewrites](/docs/api-reference/next.config.js/rewrites.md) or [deploy a Next.js monorepo](https://vercel.com/templates/next.js/monorepo-turborepo).

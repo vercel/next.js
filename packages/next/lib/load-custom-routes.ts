@@ -52,6 +52,12 @@ export type Redirect = {
     }
 )
 
+export type Middleware = {
+  source: string
+  locale?: false
+  has?: RouteHas[]
+}
+
 const allowedHasTypes = new Set(['header', 'cookie', 'query', 'host'])
 const namedGroupsRegex = /\(\?<([a-zA-Z][a-zA-Z0-9]*)>/g
 
@@ -111,9 +117,9 @@ function checkHeader(route: Header): string[] {
 
 export type RouteType = 'rewrite' | 'redirect' | 'header'
 
-function checkCustomRoutes(
-  routes: Redirect[] | Header[] | Rewrite[],
-  type: RouteType
+export function checkCustomRoutes(
+  routes: Redirect[] | Header[] | Rewrite[] | Middleware[],
+  type: RouteType | 'middleware'
 ): void {
   if (!Array.isArray(routes)) {
     console.error(
@@ -127,17 +133,20 @@ function checkCustomRoutes(
   let hadInvalidStatus = false
   let hadInvalidHas = false
 
-  const allowedKeys = new Set<string>(['source', 'basePath', 'locale', 'has'])
+  const allowedKeys = new Set<string>(['source', 'locale', 'has'])
 
   if (type === 'rewrite') {
+    allowedKeys.add('basePath')
     allowedKeys.add('destination')
   }
   if (type === 'redirect') {
+    allowedKeys.add('basePath')
     allowedKeys.add('statusCode')
     allowedKeys.add('permanent')
     allowedKeys.add('destination')
   }
   if (type === 'header') {
+    allowedKeys.add('basePath')
     allowedKeys.add('headers')
   }
 
@@ -146,9 +155,11 @@ function checkCustomRoutes(
       console.error(
         `The route ${JSON.stringify(
           route
-        )} is not a valid object with \`source\` and \`${
-          type === 'header' ? 'headers' : 'destination'
-        }\``
+        )} is not a valid object with \`source\`${
+          type !== 'middleware'
+            ? ` and \`${type === 'header' ? 'headers' : 'destination'}\``
+            : ''
+        }`
       )
       numInvalidRoutes++
       continue
@@ -175,7 +186,11 @@ function checkCustomRoutes(
     const invalidKeys = keys.filter((key) => !allowedKeys.has(key))
     const invalidParts: string[] = []
 
-    if (typeof route.basePath !== 'undefined' && route.basePath !== false) {
+    if (
+      'basePath' in route &&
+      typeof route.basePath !== 'undefined' &&
+      route.basePath !== false
+    ) {
       invalidParts.push('`basePath` must be undefined or false')
     }
 
@@ -237,7 +252,7 @@ function checkCustomRoutes(
 
     if (type === 'header') {
       invalidParts.push(...checkHeader(route as Header))
-    } else {
+    } else if (type !== 'middleware') {
       let _route = route as Rewrite | Redirect
       if (!_route.destination) {
         invalidParts.push('`destination` is missing')
@@ -609,50 +624,52 @@ export default async function loadCustomRoutes(
     )
   }
 
-  if (config.trailingSlash) {
-    redirects.unshift(
-      {
-        source: '/:file((?!\\.well-known(?:/.*)?)(?:[^/]+/)*[^/]+\\.\\w+)/',
-        destination: '/:file',
-        permanent: true,
-        locale: config.i18n ? false : undefined,
-        internal: true,
-      } as Redirect,
-      {
-        source: '/:notfile((?!\\.well-known(?:/.*)?)(?:[^/]+/)*[^/\\.]+)',
-        destination: '/:notfile/',
-        permanent: true,
-        locale: config.i18n ? false : undefined,
-        internal: true,
-      } as Redirect
-    )
-    if (config.basePath) {
+  if (!config.experimental?.skipTrailingSlashRedirect) {
+    if (config.trailingSlash) {
+      redirects.unshift(
+        {
+          source: '/:file((?!\\.well-known(?:/.*)?)(?:[^/]+/)*[^/]+\\.\\w+)/',
+          destination: '/:file',
+          permanent: true,
+          locale: config.i18n ? false : undefined,
+          internal: true,
+        } as Redirect,
+        {
+          source: '/:notfile((?!\\.well-known(?:/.*)?)(?:[^/]+/)*[^/\\.]+)',
+          destination: '/:notfile/',
+          permanent: true,
+          locale: config.i18n ? false : undefined,
+          internal: true,
+        } as Redirect
+      )
+      if (config.basePath) {
+        redirects.unshift({
+          source: config.basePath,
+          destination: config.basePath + '/',
+          permanent: true,
+          basePath: false,
+          locale: config.i18n ? false : undefined,
+          internal: true,
+        } as Redirect)
+      }
+    } else {
       redirects.unshift({
-        source: config.basePath,
-        destination: config.basePath + '/',
+        source: '/:path+/',
+        destination: '/:path+',
         permanent: true,
-        basePath: false,
         locale: config.i18n ? false : undefined,
         internal: true,
       } as Redirect)
-    }
-  } else {
-    redirects.unshift({
-      source: '/:path+/',
-      destination: '/:path+',
-      permanent: true,
-      locale: config.i18n ? false : undefined,
-      internal: true,
-    } as Redirect)
-    if (config.basePath) {
-      redirects.unshift({
-        source: config.basePath + '/',
-        destination: config.basePath,
-        permanent: true,
-        basePath: false,
-        locale: config.i18n ? false : undefined,
-        internal: true,
-      } as Redirect)
+      if (config.basePath) {
+        redirects.unshift({
+          source: config.basePath + '/',
+          destination: config.basePath,
+          permanent: true,
+          basePath: false,
+          locale: config.i18n ? false : undefined,
+          internal: true,
+        } as Redirect)
+      }
     }
   }
 

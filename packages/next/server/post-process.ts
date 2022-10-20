@@ -4,23 +4,8 @@ import type { HTMLElement } from 'next/dist/compiled/node-html-parser'
 import { OPTIMIZED_FONT_PROVIDERS } from '../shared/lib/constants'
 import { nonNullable } from '../lib/non-nullable'
 
-let optimizeAmp: typeof import('./optimize-amp').default | undefined
-let getFontDefinitionFromManifest:
-  | typeof import('./font-utils').getFontDefinitionFromManifest
-  | undefined
-let parse: typeof import('next/dist/compiled/node-html-parser').parse
-
-if (process.env.NEXT_RUNTIME !== 'edge') {
-  optimizeAmp = require('./optimize-amp').default
-  getFontDefinitionFromManifest =
-    require('./font-utils').getFontDefinitionFromManifest
-  parse = (
-    require('next/dist/compiled/node-html-parser') as typeof import('next/dist/compiled/node-html-parser')
-  ).parse
-}
-
 type postProcessOptions = {
-  optimizeFonts: boolean
+  optimizeFonts: any
 }
 
 type renderOptions = {
@@ -56,6 +41,9 @@ async function processHTML(
   if (!middlewareRegistry[0]) {
     return html
   }
+
+  const { parse } =
+    require('next/dist/compiled/node-html-parser') as typeof import('next/dist/compiled/node-html-parser')
   const root: HTMLElement = parse(html)
   let document = html
 
@@ -190,6 +178,8 @@ async function postProcessHTML(
   const postProcessors: Array<(html: string) => Promise<string>> = [
     process.env.NEXT_RUNTIME !== 'edge' && inAmpMode
       ? async (html: string) => {
+          const optimizeAmp = require('./optimize-amp')
+            .default as typeof import('./optimize-amp').default
           html = await optimizeAmp!(html, renderOpts.ampOptimizerConfig)
           if (!renderOpts.ampSkipValidation && renderOpts.ampValidator) {
             await renderOpts.ampValidator(html, pathname)
@@ -197,10 +187,12 @@ async function postProcessHTML(
           return html
         }
       : null,
-    process.env.NEXT_RUNTIME !== 'edge' && process.env.__NEXT_OPTIMIZE_FONTS
+    process.env.NEXT_RUNTIME !== 'edge' && renderOpts.optimizeFonts
       ? async (html: string) => {
           const getFontDefinition = (url: string): string => {
             if (renderOpts.fontManifest) {
+              const { getFontDefinitionFromManifest } =
+                require('./font-utils') as typeof import('./font-utils')
               return getFontDefinitionFromManifest!(
                 url,
                 renderOpts.fontManifest

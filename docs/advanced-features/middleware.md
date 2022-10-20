@@ -31,7 +31,7 @@ To begin using Middleware, follow the steps below:
 npm install next@latest
 ```
 
-2. Create a `middleware.ts` (or `.js`) file at the same level as your `pages` directory
+2. Create a `middleware.ts` (or `.js`) file at the root or in the `src` directory (same level as your `pages`)
 3. Export a middleware function from the `middleware.ts` file:
 
 ```typescript
@@ -86,7 +86,34 @@ export const config = {
 }
 ```
 
+The `matcher` config allows full regex so matching like negative lookaheads or character matching is supported. An example of a negative lookahead to match all except specific paths can be seen here:
+
+```js
+export const config = {
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api (API routes)
+     * - static (static files)
+     * - favicon.ico (favicon file)
+     */
+    '/((?!api|static|favicon.ico).*)',
+  ],
+}
+```
+
 > **Note:** The `matcher` values need to be constants so they can be statically analyzed at build-time. Dynamic values such as variables will be ignored.
+
+Configured matchers:
+
+1. MUST start with `/`
+2. Can include named parameters: `/about/:path` matches `/about/a` and `/about/b` but not `/about/a/c`
+3. Can have modifiers on named parameters (starting with `:`): `/about/:path*` matches `/about/a/b/c` because `*` is _zero or more_. `?` is _zero or one_ and `+` _one or more_
+4. Can use regular expression enclosed in parenthesis: `/about/(.*)` is the same as `/about/:path*`
+
+Read more details on [path-to-regexp](https://github.com/pillarjs/path-to-regexp#path-to-regexp-1) documentation.
+
+> **Note:** For backward compatibility, Next.js always considers `/public` as `/public/index`. Therefore, a matcher of `/public/:path` will match.
 
 ### Conditional Statements
 
@@ -113,6 +140,7 @@ The [`NextResponse`](#nextresponse) API allows you to:
 
 - `redirect` the incoming request to a different URL
 - `rewrite` the response by displaying a given URL
+- Set request headers for API Routes, `getServerSideProps`, and `rewrite` destinations
 - Set response cookies
 - Set response headers
 
@@ -149,6 +177,37 @@ export function middleware(request: NextRequest) {
   return response
 }
 ```
+
+## Setting Headers
+
+You can set request and response headers using the `NextResponse` API.
+
+```ts
+// middleware.ts
+
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+
+export function middleware(request: NextRequest) {
+  // Clone the request headers and set a new header `x-hello-from-middleware1`
+  const requestHeaders = new Headers(request.headers)
+  requestHeaders.set('x-hello-from-middleware1', 'hello')
+
+  // You can also set request headers in NextResponse.rewrite
+  const response = NextResponse.next({
+    request: {
+      // New request headers
+      headers: requestHeaders,
+    },
+  })
+
+  // Set a new response header `x-hello-from-middleware2`
+  response.headers.set('x-hello-from-middleware2', 'hello')
+  return response
+}
+```
+
+> **Note:** Avoid setting large headers as it might cause [431 Request Header Fields Too Large](https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/431) error depending on your backend web server configuration.
 
 ## Related
 

@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextApiRequest, NextApiResponse } from '../../shared/lib/utils'
-import type { PageConfig } from 'next/types'
+import type { PageConfig, ResponseLimit, SizeLimit } from 'next/types'
 import {
   checkIsManualRevalidate,
   PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER,
@@ -11,8 +11,6 @@ import type { CookieSerializeOptions } from 'next/dist/compiled/cookie'
 import type { PreviewData } from 'next/types'
 
 import bytes from 'next/dist/compiled/bytes'
-import jsonwebtoken from 'next/dist/compiled/jsonwebtoken'
-import { decryptWithSecret, encryptWithSecret } from '../crypto-utils'
 import { generateETag } from '../lib/etag'
 import { sendEtagResponse } from '../send-payload'
 import { Stream } from 'stream'
@@ -88,6 +86,8 @@ export function tryGetPreviewData(
     data: string
   }
   try {
+    const jsonwebtoken =
+      require('next/dist/compiled/jsonwebtoken') as typeof import('next/dist/compiled/jsonwebtoken')
     encryptedPreviewData = jsonwebtoken.verify(
       tokenPreviewData,
       options.previewModeSigningKey
@@ -98,6 +98,8 @@ export function tryGetPreviewData(
     return false
   }
 
+  const { decryptWithSecret } =
+    require('../crypto-utils') as typeof import('../crypto-utils')
   const decryptedPreviewData = decryptWithSecret(
     Buffer.from(options.previewModeEncryptionKey),
     encryptedPreviewData.data
@@ -140,7 +142,7 @@ function parseJson(str: string): object {
  */
 export async function parseBody(
   req: IncomingMessage,
-  limit: string | number
+  limit: SizeLimit
 ): Promise<any> {
   let contentType
   try {
@@ -182,7 +184,7 @@ type ApiContext = __ApiPreviewProps & {
   revalidate?: (_req: IncomingMessage, _res: ServerResponse) => Promise<any>
 }
 
-function getMaxContentLength(responseLimit?: number | string | boolean) {
+function getMaxContentLength(responseLimit?: ResponseLimit) {
   if (responseLimit && typeof responseLimit !== 'boolean') {
     return bytes.parse(responseLimit)
   }
@@ -286,6 +288,10 @@ function setPreviewData<T>(
     throw new Error('invariant: invalid previewModeSigningKey')
   }
 
+  const jsonwebtoken =
+    require('next/dist/compiled/jsonwebtoken') as typeof import('next/dist/compiled/jsonwebtoken')
+  const { encryptWithSecret } =
+    require('../crypto-utils') as typeof import('../crypto-utils')
   const payload = jsonwebtoken.sign(
     {
       data: encryptWithSecret(
@@ -494,7 +500,8 @@ export async function apiResolver(
       redirect(apiRes, statusOrUrl, url)
     apiRes.setPreviewData = (data, options = {}) =>
       setPreviewData(apiRes, data, Object.assign({}, apiContext, options))
-    apiRes.clearPreviewData = () => clearPreviewData(apiRes)
+    apiRes.clearPreviewData = (options = {}) =>
+      clearPreviewData(apiRes, options)
     apiRes.revalidate = (
       urlPath: string,
       opts?: {

@@ -27,7 +27,7 @@ let buildId
 const appDir = join(__dirname, '../')
 const buildIdPath = join(appDir, '.next/BUILD_ID')
 
-function runTests({ dev, serverless }) {
+function runTests({ dev }) {
   if (!dev) {
     it('should have correct cache entries on prefetch', async () => {
       const browser = await webdriver(appPort, '/')
@@ -46,37 +46,12 @@ function runTests({ dev, serverless }) {
       }
 
       const cacheKeys = await getCacheKeys()
-      expect(cacheKeys).toEqual(
-        process.env.__MIDDLEWARE_TEST
-          ? [
-              '/_next/data/BUILD_ID/[name].json?another=value&name=%5Bname%5D',
-              '/_next/data/BUILD_ID/added-later/first.json?name=added-later&comment=first',
-              '/_next/data/BUILD_ID/blog/321/comment/123.json?name=321&id=123',
-              '/_next/data/BUILD_ID/d/dynamic-1.json?id=dynamic-1',
-              '/_next/data/BUILD_ID/index.json',
-              '/_next/data/BUILD_ID/on-mount/test-w-hash.json?post=test-w-hash',
-              '/_next/data/BUILD_ID/p1/p2/all-ssg/hello.json?rest=hello',
-              '/_next/data/BUILD_ID/p1/p2/all-ssg/hello1/hello2.json?rest=hello1&rest=hello2',
-              '/_next/data/BUILD_ID/p1/p2/all-ssr/:42.json?rest=%3A42',
-              '/_next/data/BUILD_ID/p1/p2/all-ssr/hello.json?rest=hello',
-              '/_next/data/BUILD_ID/p1/p2/all-ssr/hello1%2F/he%2Fllo2.json?rest=hello1%2F&rest=he%2Fllo2',
-              '/_next/data/BUILD_ID/p1/p2/all-ssr/hello1/hello2.json?rest=hello1&rest=hello2',
-              '/_next/data/BUILD_ID/p1/p2/nested-all-ssg/hello.json?rest=hello',
-              '/_next/data/BUILD_ID/p1/p2/nested-all-ssg/hello1/hello2.json?rest=hello1&rest=hello2',
-              '/_next/data/BUILD_ID/post-1.json?fromHome=true&name=post-1',
-              '/_next/data/BUILD_ID/post-1.json?hidden=value&name=post-1',
-              '/_next/data/BUILD_ID/post-1.json?name=post-1',
-              '/_next/data/BUILD_ID/post-1.json?name=post-1&another=value',
-              '/_next/data/BUILD_ID/post-1/comment-1.json?name=post-1&comment=comment-1',
-              '/_next/data/BUILD_ID/post-1/comments.json?name=post-1',
-            ]
-          : [
-              '/_next/data/BUILD_ID/p1/p2/all-ssg/hello.json?rest=hello',
-              '/_next/data/BUILD_ID/p1/p2/all-ssg/hello1/hello2.json?rest=hello1&rest=hello2',
-              '/_next/data/BUILD_ID/p1/p2/nested-all-ssg/hello.json?rest=hello',
-              '/_next/data/BUILD_ID/p1/p2/nested-all-ssg/hello1/hello2.json?rest=hello1&rest=hello2',
-            ]
-      )
+      expect(cacheKeys).toEqual([
+        '/_next/data/BUILD_ID/p1/p2/all-ssg/hello.json?rest=hello',
+        '/_next/data/BUILD_ID/p1/p2/all-ssg/hello1/hello2.json?rest=hello1&rest=hello2',
+        '/_next/data/BUILD_ID/p1/p2/nested-all-ssg/hello.json?rest=hello',
+        '/_next/data/BUILD_ID/p1/p2/nested-all-ssg/hello1/hello2.json?rest=hello1&rest=hello2',
+      ])
 
       // ensure no new cache entries after navigation
       const links = [
@@ -117,7 +92,14 @@ function runTests({ dev, serverless }) {
         await browser.waitForElementByCss(linkSelector)
       }
       const newCacheKeys = await getCacheKeys()
-      expect(newCacheKeys).toEqual(cacheKeys)
+      expect(newCacheKeys).toEqual([
+        ...(process.env.__MIDDLEWARE_TEST
+          ? // data route is fetched with middleware due to query hydration
+            // since middleware matches the index route
+            ['/_next/data/BUILD_ID/index.json']
+          : []),
+        ...cacheKeys,
+      ])
     })
   }
 
@@ -1447,42 +1429,40 @@ function runTests({ dev, serverless }) {
       })
     })
 
-    if (!serverless) {
-      it('should output a pages-manifest correctly', async () => {
-        const manifest = await fs.readJson(
-          join(appDir, '.next/server/pages-manifest.json')
-        )
+    it('should output a pages-manifest correctly', async () => {
+      const manifest = await fs.readJson(
+        join(appDir, '.next/server/pages-manifest.json')
+      )
 
-        expect(manifest).toEqual({
-          '/[name]/[comment]': 'pages/[name]/[comment].js',
-          '/[name]/comments': 'pages/[name]/comments.js',
-          '/[name]': 'pages/[name].js',
-          '/[name]/on-mount-redir': 'pages/[name]/on-mount-redir.html',
-          '/another': 'pages/another.html',
-          '/b/[123]': 'pages/b/[123].js',
-          '/blog/[name]/comment/[id]': 'pages/blog/[name]/comment/[id].js',
-          '/c/[alongparamnameshouldbeallowedeventhoughweird]':
-            'pages/c/[alongparamnameshouldbeallowedeventhoughweird].js',
-          '/catchall-dash/[...hello-world]':
-            'pages/catchall-dash/[...hello-world].html',
-          '/d/[id]': 'pages/d/[id].html',
-          '/dash/[hello-world]': 'pages/dash/[hello-world].html',
-          '/': 'pages/index.html',
-          '/index/[...slug]': 'pages/index/[...slug].html',
-          '/on-mount/[post]': 'pages/on-mount/[post].html',
-          '/p1/p2/all-ssg/[...rest]': 'pages/p1/p2/all-ssg/[...rest].js',
-          '/p1/p2/all-ssr/[...rest]': 'pages/p1/p2/all-ssr/[...rest].js',
-          '/p1/p2/nested-all-ssg/[...rest]':
-            'pages/p1/p2/nested-all-ssg/[...rest].js',
-          '/p1/p2/predefined-ssg/[...rest]':
-            'pages/p1/p2/predefined-ssg/[...rest].js',
-          '/_app': 'pages/_app.js',
-          '/_error': 'pages/_error.js',
-          '/_document': 'pages/_document.js',
-          '/404': 'pages/404.html',
-        })
+      expect(manifest).toEqual({
+        '/[name]/[comment]': 'pages/[name]/[comment].js',
+        '/[name]/comments': 'pages/[name]/comments.js',
+        '/[name]': 'pages/[name].js',
+        '/[name]/on-mount-redir': 'pages/[name]/on-mount-redir.html',
+        '/another': 'pages/another.html',
+        '/b/[123]': 'pages/b/[123].js',
+        '/blog/[name]/comment/[id]': 'pages/blog/[name]/comment/[id].js',
+        '/c/[alongparamnameshouldbeallowedeventhoughweird]':
+          'pages/c/[alongparamnameshouldbeallowedeventhoughweird].js',
+        '/catchall-dash/[...hello-world]':
+          'pages/catchall-dash/[...hello-world].html',
+        '/d/[id]': 'pages/d/[id].html',
+        '/dash/[hello-world]': 'pages/dash/[hello-world].html',
+        '/': 'pages/index.html',
+        '/index/[...slug]': 'pages/index/[...slug].html',
+        '/on-mount/[post]': 'pages/on-mount/[post].html',
+        '/p1/p2/all-ssg/[...rest]': 'pages/p1/p2/all-ssg/[...rest].js',
+        '/p1/p2/all-ssr/[...rest]': 'pages/p1/p2/all-ssr/[...rest].js',
+        '/p1/p2/nested-all-ssg/[...rest]':
+          'pages/p1/p2/nested-all-ssg/[...rest].js',
+        '/p1/p2/predefined-ssg/[...rest]':
+          'pages/p1/p2/predefined-ssg/[...rest].js',
+        '/_app': 'pages/_app.js',
+        '/_error': 'pages/_error.js',
+        '/_document': 'pages/_document.js',
+        '/404': 'pages/404.html',
       })
-    }
+    })
   }
 }
 
@@ -1516,7 +1496,7 @@ describe('Dynamic Routing', () => {
     })
     afterAll(() => killApp(app))
 
-    runTests({ dev: true, serverless: false })
+    runTests({ dev: true })
   })
 
   describe('production mode', () => {
@@ -1531,6 +1511,6 @@ describe('Dynamic Routing', () => {
     })
     afterAll(() => killApp(app))
 
-    runTests({ dev: false, serverless: false })
+    runTests({ dev: false })
   })
 })

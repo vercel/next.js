@@ -8,7 +8,6 @@ import {
   launchApp,
   nextBuild,
   nextStart,
-  renderViaHTTP,
   waitFor,
 } from 'next-test-utils'
 import { join } from 'path'
@@ -52,12 +51,10 @@ describe('Image Optimizer', () => {
       await nextConfig.replace(
         '{ /* replaceme */ }',
         JSON.stringify({
-          experimental: {
-            images: {
-              remotePatterns: Array.from({ length: 51 }).map((_) => ({
-                hostname: 'example.com',
-              })),
-            },
+          images: {
+            remotePatterns: Array.from({ length: 51 }).map((_) => ({
+              hostname: 'example.com',
+            })),
           },
         })
       )
@@ -81,10 +78,8 @@ describe('Image Optimizer', () => {
       await nextConfig.replace(
         '{ /* replaceme */ }',
         JSON.stringify({
-          experimental: {
-            images: {
-              remotePatterns: [{ hostname: 'example.com', foo: 'bar' }],
-            },
+          images: {
+            remotePatterns: [{ hostname: 'example.com', foo: 'bar' }],
           },
         })
       )
@@ -108,10 +103,8 @@ describe('Image Optimizer', () => {
       await nextConfig.replace(
         '{ /* replaceme */ }',
         JSON.stringify({
-          experimental: {
-            images: {
-              remotePatterns: [{ protocol: 'https' }],
-            },
+          images: {
+            remotePatterns: [{ protocol: 'https' }],
           },
         })
       )
@@ -228,33 +221,6 @@ describe('Image Optimizer', () => {
 
       expect(stderr).toContain(
         'Specified images.loader should be one of (default, imgix, cloudinary, akamai, custom), received invalid value (notreal)'
-      )
-    })
-
-    it('should error when loader=custom but loader prop is undefined', async () => {
-      await nextConfig.replace(
-        '{ /* replaceme */ }',
-        JSON.stringify({
-          images: {
-            loader: 'custom',
-          },
-        })
-      )
-      let output = ''
-      const appPort = await findPort()
-      app = await launchApp(appDir, appPort, {
-        onStderr(msg) {
-          output += msg || ''
-        },
-        onStdout(msg) {
-          output += msg || ''
-        },
-      })
-      await renderViaHTTP(appPort, '/', {})
-      await killApp(app).catch(() => {})
-      await nextConfig.restore()
-      expect(output).toMatch(
-        /Error: Image with src "(.+)" is missing "loader" prop/
       )
     })
 

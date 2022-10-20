@@ -29,19 +29,6 @@ const runTests = () => {
 }
 
 describe('getServerSideProps', () => {
-  describe('serverless mode', () => {
-    beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
-      await fs.writeFile(
-        nextConfig,
-        `module.exports = { target: 'experimental-serverless-trace' }`,
-        'utf8'
-      )
-    })
-
-    runTests()
-  })
-
   describe('production mode', () => {
     beforeAll(async () => {
       await fs.remove(nextConfig)

@@ -2,7 +2,7 @@
 
 import arg from 'next/dist/compiled/arg/index.js'
 import { startServer } from '../server/lib/start-server'
-import { printAndExit } from '../server/lib/utils'
+import { getPort, printAndExit } from '../server/lib/utils'
 import * as Log from '../build/output/log'
 import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
@@ -52,13 +52,8 @@ const nextStart: cliCommand = (argv) => {
   }
 
   const dir = getProjectDir(args._[0])
-  let port: number =
-    args['--port'] || (process.env.PORT && parseInt(process.env.PORT)) || 3000
   const host = args['--hostname'] || '0.0.0.0'
-
-  if (process.env.__NEXT_FORCED_PORT) {
-    port = parseInt(process.env.__NEXT_FORCED_PORT, 10) || 0
-  }
+  const port = getPort(args)
 
   const keepAliveTimeoutArg: number | undefined = args['--keepAliveTimeout']
   if (

@@ -21,7 +21,9 @@ export interface RequestMeta {
   _nextDidRewrite?: boolean
   _nextHadBasePath?: boolean
   _nextRewroteUrl?: string
+  _nextMiddlewareCookie?: string[]
   _protocol?: string
+  _nextDataNormalizing?: boolean
 }
 
 export function getRequestMeta(
@@ -63,6 +65,7 @@ type NextQueryMetadata = {
   __nextSsgPath?: string
   _nextBubbleNoFallback?: '1'
   __nextDataReq?: '1'
+  __nextCustomErrorRender?: '1'
 }
 
 export type NextParsedUrlQuery = ParsedUrlQuery &

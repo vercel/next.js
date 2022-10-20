@@ -6,7 +6,6 @@ import fs from 'fs-extra'
 import {
   fetchViaHTTP,
   findPort,
-  initNextServerScript,
   killApp,
   launchApp,
   nextBuild,
@@ -14,12 +13,10 @@ import {
   renderViaHTTP,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
-import os from 'os'
 import { join } from 'path'
 import qs from 'querystring'
 
 const appDir = join(__dirname, '..')
-const nextConfigPath = join(appDir, 'next.config.js')
 
 async function getBuildId() {
   return fs.readFile(join(appDir, '.next', 'BUILD_ID'), 'utf8')
@@ -211,6 +208,38 @@ function runTests(startServer = nextStart) {
     expect(cookies[1]).not.toHaveProperty('Max-Age')
   })
 
+  it('should return cookies to be expired on reset request with path specified', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/api/reset',
+      { cookiePath: '/blog' },
+      { headers: { Cookie: previewCookieString } }
+    )
+    expect(res.status).toBe(200)
+
+    const cookies = res.headers
+      .get('set-cookie')
+      .replace(/(=(?!Lax)\w{3}),/g, '$1')
+      .split(',')
+      .map(cookie.parse)
+
+    expect(cookies.length).toBe(2)
+    expect(cookies[0]).toMatchObject({
+      Path: '/blog',
+      SameSite: 'None',
+      Expires: 'Thu 01 Jan 1970 00:00:00 GMT',
+    })
+    expect(cookies[0]).toHaveProperty('__prerender_bypass')
+    expect(cookies[0]).not.toHaveProperty('Max-Age')
+    expect(cookies[1]).toMatchObject({
+      Path: '/blog',
+      SameSite: 'None',
+      Expires: 'Thu 01 Jan 1970 00:00:00 GMT',
+    })
+    expect(cookies[1]).toHaveProperty('__next_preview_data')
+    expect(cookies[1]).not.toHaveProperty('Max-Age')
+  })
+
   it('should pass undefined to API routes when not in preview', async () => {
     const res = await fetchViaHTTP(appPort, `/api/read`)
     const json = await res.json()
@@ -237,22 +266,8 @@ function runTests(startServer = nextStart) {
   })
 }
 
-const startServerlessEmulator = async (dir, port) => {
-  const scriptPath = join(dir, 'server.js')
-  const env = Object.assign(
-    {},
-    { ...process.env },
-    { PORT: port, BUILD_ID: await getBuildId() }
-  )
-  return initNextServerScript(scriptPath, /ready on/i, env)
-}
-
 describe('Prerender Preview Mode', () => {
   describe('Development Mode', () => {
-    beforeAll(async () => {
-      await fs.remove(nextConfigPath)
-    })
-
     let appPort, app
     it('should start development application', async () => {
       appPort = await findPort()
@@ -300,7 +315,7 @@ describe('Prerender Preview Mode', () => {
       expect(cookies.length).toBe(2)
     })
 
-    /** @type import('next-webdriver').Chain */
+    /** @type {import('next-webdriver').Chain} */
     let browser
     it('should start the client-side browser', async () => {
       browser = await webdriver(
@@ -366,38 +381,6 @@ describe('Prerender Preview Mode', () => {
   })
 
   describe('Server Mode', () => {
-    beforeAll(async () => {
-      await fs.remove(nextConfigPath)
-    })
-
     runTests()
-  })
-
-  describe('Serverless Mode', () => {
-    beforeAll(async () => {
-      await fs.writeFile(
-        nextConfigPath,
-        `module.exports = { target: 'experimental-serverless-trace' }` + os.EOL
-      )
-    })
-    afterAll(async () => {
-      await fs.remove(nextConfigPath)
-    })
-
-    runTests()
-  })
-
-  describe('Emulated Serverless Mode', () => {
-    beforeAll(async () => {
-      await fs.writeFile(
-        nextConfigPath,
-        `module.exports = { target: 'experimental-serverless-trace' }` + os.EOL
-      )
-    })
-    afterAll(async () => {
-      await fs.remove(nextConfigPath)
-    })
-
-    runTests(startServerlessEmulator)
   })
 })
