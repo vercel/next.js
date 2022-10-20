@@ -14,6 +14,18 @@ export function middleware(request) {
     return NextResponse.rewrite(new URL('/dashboard', request.url))
   }
 
+  if (
+    request.nextUrl.pathname ===
+    '/hooks/use-selected-layout-segment/rewritten-middleware'
+  ) {
+    return NextResponse.rewrite(
+      new URL(
+        '/hooks/use-selected-layout-segment/first/slug3/second/catch/all',
+        request.url
+      )
+    )
+  }
+
   if (request.nextUrl.pathname === '/redirect-middleware-to-dashboard') {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }

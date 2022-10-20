@@ -167,8 +167,6 @@ If none of the suggested methods works for sizing your images, the `next/image` 
 
 ## Styling
 
-> Note: Many of the styling issues listed below can be solved with [`next/future/image`](/docs/api-reference/next/future/image.md)
-
 Styling the Image component is similar to styling a normal `<img>` element, but there are a few guidelines to keep in mind:
 
 **Use `className` or `style`, not `styled-jsx`**
