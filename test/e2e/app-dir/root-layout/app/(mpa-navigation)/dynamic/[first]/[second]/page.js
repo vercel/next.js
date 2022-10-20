@@ -4,7 +4,9 @@ export default function Page({ params }) {
   return (
     <>
       <Link href="/basic-route/inner">To basic inner</Link>
-      <p id={`dynamic-second-${params.param}`}>dynamic {params.param}</p>
+      <p id={`dynamic-${params.first}-${params.second}`}>
+        dynamic {params.first} {params.second}
+      </p>
     </>
   )
 }
