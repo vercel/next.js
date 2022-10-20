@@ -326,34 +326,13 @@ function processMessage(
       return window.location.reload()
     }
     case 'removedPage': {
-      // const [page] = obj.data
-      // if (page === window.next.router.pathname) {
-      //   sendMessage(
-      //     JSON.stringify({
-      //       event: 'client-removed-page',
-      //       clientId: window.__nextDevClientId,
-      //       page,
-      //     })
-      //   )
-      //   return window.location.reload()
-      // }
+      // TODO-APP: potentially only refresh if the currently viewed page was removed.
+      router.refresh()
       return
     }
     case 'addedPage': {
-      // const [page] = obj.data
-      // if (
-      //   page === window.next.router.pathname &&
-      //   typeof window.next.router.components[page] === 'undefined'
-      // ) {
-      //   sendMessage(
-      //     JSON.stringify({
-      //       event: 'client-added-page',
-      //       clientId: window.__nextDevClientId,
-      //       page,
-      //     })
-      //   )
-      //   return window.location.reload()
-      // }
+      // TODO-APP: potentially only refresh if the currently viewed page was added.
+      router.refresh()
       return
     }
     case 'pong': {
