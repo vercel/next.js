@@ -1,6 +1,8 @@
 [package]
 name = "next-dev"
 version = "0.1.0"
+description = "TBD"
+license = "MPL-2.0"
 edition = "2021"
 autobenches = false
 
@@ -15,8 +17,6 @@ bench = false
 [[bench]]
 name = "mod"
 harness = false
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
 tokio_console = [
