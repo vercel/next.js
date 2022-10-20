@@ -119,14 +119,14 @@ export function calculateOverrideValues(fontMetrics: any) {
 }
 
 export function calculateSizeAdjustValues(fontMetrics: any) {
-  let { category, ascent, descent, lineGap, unitsPerEm, xAvgCharWidth } =
+  let { category, ascent, descent, lineGap, unitsPerEm, azAvgWidth } =
     fontMetrics
   const fallbackFont =
     category === 'serif' ? DEFAULT_SERIF_FONT : DEFAULT_SANS_SERIF_FONT
 
-  let sizeAdjust = xAvgCharWidth
-    ? xAvgCharWidth / fallbackFont.xAvgCharWidth
-    : 1
+  const mainFontAvgWidth = azAvgWidth / unitsPerEm
+  const fallbackFontAvgWidth = fallbackFont.azAvgWidth / fallbackFont.unitsPerEm
+  let sizeAdjust = azAvgWidth ? mainFontAvgWidth / fallbackFontAvgWidth : 1
 
   ascent = formatOverrideValue(ascent / (unitsPerEm * sizeAdjust))
   descent = formatOverrideValue(descent / (unitsPerEm * sizeAdjust))

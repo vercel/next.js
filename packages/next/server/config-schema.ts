@@ -348,6 +348,12 @@ const configSchema = {
           },
           type: 'array',
         },
+        transpilePackages: {
+          items: {
+            type: 'string',
+          },
+          type: 'array',
+        },
         scrollRestoration: {
           type: 'boolean',
         },

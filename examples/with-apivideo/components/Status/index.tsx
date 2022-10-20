@@ -1,23 +1,16 @@
 import React from 'react'
-import styled from 'styled-components'
 import Loader from '../Loader'
+import styles from './Status.module.css'
 
 interface IStatusProps {
   done: boolean
   title: string
 }
-
-const Container = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 5px;
-`
 const Status: React.FC<IStatusProps> = ({ done, title }): JSX.Element => (
-  <Container>
+  <div className={styles.container}>
     <p>{title}</p>
     <Loader done={done} />
-  </Container>
+  </div>
 )
 
 export default Status

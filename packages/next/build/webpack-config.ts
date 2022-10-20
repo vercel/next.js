@@ -119,7 +119,9 @@ function errorIfEnvConflicted(config: NextConfigComplete, key: string) {
 
 function isResourceInPackages(resource: string, packageNames?: string[]) {
   return packageNames?.some((p: string) =>
-    new RegExp('[/\\\\]node_modules[/\\\\]' + p + '[/\\\\]').test(resource)
+    resource.includes(
+      path.sep + pathJoin('node_modules', p.replace(/\//g, path.sep)) + path.sep
+    )
   )
 }
 
@@ -1168,20 +1170,37 @@ export default async function getBaseWebpackConfig(
       return
     }
 
+    // If a package should be transpiled by Next.js, we skip making it external.
+    // It doesn't matter what the extension is, as we'll transpile it anyway.
+    const shouldBeBundled = isResourceInPackages(
+      res,
+      config.experimental.transpilePackages
+    )
+
     if (/node_modules[/\\].*\.[mc]?js$/.test(res)) {
       if (layer === WEBPACK_LAYERS.server) {
         // All packages should be bundled for the server layer if they're not opted out.
-        if (isResourceInPackages(res, optoutBundlingPackages)) {
+        // This option takes priority over the transpilePackages option.
+        if (
+          isResourceInPackages(
+            res,
+            config.experimental.serverComponentsExternalPackages
+          )
+        ) {
           return `${externalType} ${request}`
         }
 
         return
       }
 
+      if (shouldBeBundled) return
+
       // Anything else that is standard JavaScript within `node_modules`
       // can be externalized.
       return `${externalType} ${request}`
     }
+
+    if (shouldBeBundled) return
 
     // Default behavior: bundle the code!
   }
@@ -1196,6 +1215,13 @@ export default async function getBaseWebpackConfig(
       if (babelIncludeRegexes.some((r) => r.test(excludePath))) {
         return false
       }
+
+      const shouldBeBundled = isResourceInPackages(
+        excludePath,
+        config.experimental.transpilePackages
+      )
+      if (shouldBeBundled) return false
+
       return excludePath.includes('node_modules')
     },
   }
