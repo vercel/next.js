@@ -443,7 +443,8 @@ export type FlightRouterState = [
   segment: Segment,
   parallelRoutes: { [parallelRouterKey: string]: FlightRouterState },
   url?: string,
-  refresh?: 'refetch'
+  refresh?: 'refetch',
+  isRootLayout?: boolean
 ]
 
 /**
@@ -849,10 +850,10 @@ export async function renderToHTMLOrFlight(
       }
     }
 
-    const createFlightRouterStateFromLoaderTree = ([
-      segment,
-      parallelRoutes,
-    ]: LoaderTree): FlightRouterState => {
+    const createFlightRouterStateFromLoaderTree = (
+      [segment, parallelRoutes, { layout }]: LoaderTree,
+      rootLayoutIncluded = false
+    ): FlightRouterState => {
       const dynamicParam = getDynamicParamFromSegment(segment)
 
       const segmentTree: FlightRouterState = [
@@ -860,17 +861,21 @@ export async function renderToHTMLOrFlight(
         {},
       ]
 
-      if (parallelRoutes) {
-        segmentTree[1] = Object.keys(parallelRoutes).reduce(
-          (existingValue, currentValue) => {
-            existingValue[currentValue] = createFlightRouterStateFromLoaderTree(
-              parallelRoutes[currentValue]
-            )
-            return existingValue
-          },
-          {} as FlightRouterState[1]
-        )
+      if (!rootLayoutIncluded && typeof layout !== 'undefined') {
+        rootLayoutIncluded = true
+        segmentTree[4] = true
       }
+
+      segmentTree[1] = Object.keys(parallelRoutes).reduce(
+        (existingValue, currentValue) => {
+          existingValue[currentValue] = createFlightRouterStateFromLoaderTree(
+            parallelRoutes[currentValue],
+            rootLayoutIncluded
+          )
+          return existingValue
+        },
+        {} as FlightRouterState[1]
+      )
 
       return segmentTree
     }
