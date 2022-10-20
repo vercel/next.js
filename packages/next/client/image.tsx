@@ -17,7 +17,7 @@ import {
 import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { warnOnce } from '../shared/lib/utils'
 // @ts-ignore - This is replaced by webpack alias
-import defaultLoader from 'next/image/loader'
+import defaultLoader from 'next/dist/shared/lib/image-loader'
 
 const configEnv = process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
 const allImgs = new Map<
