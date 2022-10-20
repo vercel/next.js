@@ -17,7 +17,7 @@ type FontOptions = {
   ext: string
   format: string
   display: string
-  weight?: number
+  weight?: string
   style?: string
   fallback?: string[]
   preload: boolean
