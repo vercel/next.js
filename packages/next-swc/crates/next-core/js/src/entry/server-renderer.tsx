@@ -1,6 +1,8 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
-import "next/dist/server/node-polyfill-fetch.js";
+import "@vercel/turbopack-next/internal/shims";
+import "next/dist/server/node-polyfill-fetch";
+
 import { RenderOpts, renderToHTML } from "next/dist/server/render";
 import { NextParsedUrlQuery } from "next/dist/server/request-meta";
 

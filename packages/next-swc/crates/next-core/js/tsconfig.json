@@ -11,7 +11,7 @@
 
     // js support
     "allowJs": true,
-    "checkJs": true,
+    "checkJs": false,
 
     // environment
     "jsx": "react-jsx",

@@ -1,13 +1,21 @@
 import type {
   ClientMessage,
+  EcmascriptChunkUpdate,
+  Issue,
   ServerMessage,
 } from "@vercel/turbopack-runtime/types/protocol";
 import type {
+  ChunkPath,
   ChunkUpdateCallback,
   TurbopackGlobals,
 } from "@vercel/turbopack-runtime/types";
 
+import stripAnsi from "@vercel/turbopack-next/compiled/strip-ansi";
+
+import { onBuildOk, onRefresh, onTurbopackError } from "../overlay/client";
 import { addEventListener, sendMessage } from "./websocket";
+import { ModuleId } from "@vercel/turbopack-runtime/types";
+import { HmrUpdateEntry } from "@vercel/turbopack-runtime/types/protocol";
 
 declare var globalThis: TurbopackGlobals;
 
@@ -22,7 +30,8 @@ export function connect({ assetPrefix }: ClientOptions) {
         handleSocketConnected();
         break;
       case "message":
-        handleSocketMessage(event.message);
+        const msg: ServerMessage = JSON.parse(event.message.data);
+        handleSocketMessage(msg);
         break;
     }
   });
@@ -32,7 +41,7 @@ export function connect({ assetPrefix }: ClientOptions) {
     throw new Error("A separate HMR handler was already registered");
   }
   globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS = {
-    push: ([chunkPath, callback]: [string, ChunkUpdateCallback]) => {
+    push: ([chunkPath, callback]: [ChunkPath, ChunkUpdateCallback]) => {
       onChunkUpdate(chunkPath, callback);
     },
   };
@@ -46,13 +55,13 @@ export function connect({ assetPrefix }: ClientOptions) {
   subscribeToInitialCssChunksUpdates(assetPrefix);
 }
 
-const chunkUpdateCallbacks: Map<string, ChunkUpdateCallback[]> = new Map();
+const chunkUpdateCallbacks: Map<ChunkPath, ChunkUpdateCallback[]> = new Map();
 
 function sendJSON(message: ClientMessage) {
   sendMessage(JSON.stringify(message));
 }
 
-function subscribeToChunkUpdates(chunkPath: string) {
+function subscribeToChunkUpdates(chunkPath: ChunkPath) {
   sendJSON({
     type: "subscribe",
     chunkPath,
@@ -65,14 +74,145 @@ function handleSocketConnected() {
   }
 }
 
-function handleSocketMessage(event: MessageEvent) {
-  const data: ServerMessage = JSON.parse(event.data);
+type AggregatedUpdates = {
+  added: Record<ModuleId, HmrUpdateEntry>;
+  modified: Record<ModuleId, HmrUpdateEntry>;
+  deleted: Set<ModuleId>;
+};
 
-  triggerChunkUpdate(data);
+// we aggregate all updates until the issues are resolved
+const chunksWithErrors: Map<ChunkPath, AggregatedUpdates> = new Map();
+
+function aggregateUpdates(
+  msg: ServerMessage,
+  hasErrors: boolean
+): ServerMessage {
+  const aggregated = chunksWithErrors.get(msg.chunkPath);
+
+  if (msg.type === "issues" && aggregated != null) {
+    if (!hasErrors) {
+      chunksWithErrors.delete(msg.chunkPath);
+    }
+
+    return {
+      ...msg,
+      type: "partial",
+      instruction: {
+        type: "EcmascriptChunkUpdate",
+        added: aggregated.added,
+        modified: aggregated.modified,
+        deleted: Array.from(aggregated.deleted),
+      },
+    };
+  }
+
+  if (msg.type !== "partial") return msg;
+
+  if (aggregated == null) {
+    if (hasErrors) {
+      chunksWithErrors.set(msg.chunkPath, {
+        added: msg.instruction.added,
+        modified: msg.instruction.modified,
+        deleted: new Set(msg.instruction.deleted),
+      });
+    }
+
+    return msg;
+  }
+
+  for (const [moduleId, entry] of Object.entries(msg.instruction.added)) {
+    const removedDeleted = aggregated.deleted.delete(moduleId);
+    if (aggregated.modified[moduleId] != null) {
+      console.error(
+        `impossible state aggregating updates: module "${moduleId}" was added, but previously modified`
+      );
+      location.reload();
+    }
+
+    if (removedDeleted) {
+      aggregated.modified[moduleId] = entry;
+    } else {
+      aggregated.added[moduleId] = entry;
+    }
+  }
+
+  for (const [moduleId, entry] of Object.entries(msg.instruction.modified)) {
+    if (aggregated.added[moduleId] != null) {
+      aggregated.added[moduleId] = entry;
+    } else {
+      aggregated.modified[moduleId] = entry;
+    }
+
+    if (aggregated.deleted.has(moduleId)) {
+      console.error(
+        `impossible state aggregating updates: module "${moduleId}" was modified, but previously deleted`
+      );
+      location.reload();
+    }
+  }
+
+  for (const moduleId of msg.instruction.deleted) {
+    delete aggregated.added[moduleId];
+    delete aggregated.modified[moduleId];
+    aggregated.deleted.add(moduleId);
+  }
+
+  if (!hasErrors) {
+    chunksWithErrors.delete(msg.chunkPath);
+  } else {
+    chunksWithErrors.set(msg.chunkPath, aggregated);
+  }
+
+  return {
+    ...msg,
+    instruction: {
+      type: "EcmascriptChunkUpdate",
+      added: aggregated.added,
+      modified: aggregated.modified,
+      deleted: Array.from(aggregated.deleted),
+    },
+  };
+}
+
+function handleIssues(msg: ServerMessage): boolean {
+  let issueToReport = null;
+
+  for (const issue of msg.issues) {
+    if (["bug", "error", "fatal"].includes(issue.severity)) {
+      issueToReport = issue;
+      break;
+    }
+  }
+
+  if (issueToReport) {
+    console.error(stripAnsi(issueToReport.formatted));
+    onTurbopackError(issueToReport);
+  }
+
+  return issueToReport != null;
+}
+
+function handleSocketMessage(msg: ServerMessage) {
+  const hasErrors = handleIssues(msg);
+  const aggregatedMsg = aggregateUpdates(msg, hasErrors);
+  console.dir(aggregatedMsg);
+
+  if (hasErrors) return;
+
+  if (chunksWithErrors.size === 0) {
+    onBuildOk();
+  }
+
+  if (aggregatedMsg.type !== "issues") {
+    triggerChunkUpdate(aggregatedMsg);
+    if (chunksWithErrors.size === 0) {
+      onRefresh();
+    }
+  }
 }
 
 export function onChunkUpdate(
-  chunkPath: string,
+  chunkPath: ChunkPath,
   callback: ChunkUpdateCallback
 ) {
   const callbacks = chunkUpdateCallbacks.get(chunkPath);
