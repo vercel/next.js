@@ -8,11 +8,12 @@ use futures::{stream::FuturesUnordered, TryStreamExt};
 use indexmap::{IndexMap, IndexSet};
 use mime::TEXT_HTML_UTF_8;
 pub use node_rendered_source::{create_node_rendered_source, NodeRenderer, NodeRendererVc};
+use serde::Deserialize;
 use serde_json::Value as JsonValue;
 use turbo_tasks::{
     primitives::StringVc, spawn_blocking, CompletionVc, CompletionsVc, TryJoinIterExt,
 };
-use turbo_tasks_fs::{DiskFileSystemVc, File, FileSystemPathVc};
+use turbo_tasks_fs::{DiskFileSystemVc, File, FileContent, FileSystemPathVc};
 use turbopack::ecmascript::EcmascriptModuleAssetVc;
 use turbopack_core::{
     asset::{AssetContentVc, AssetVc, AssetsSetVc},
@@ -209,6 +210,17 @@ pub(super) struct RenderData {
     path: String,
 }
 
+#[derive(Deserialize)]
+#[serde(untagged)]
+pub enum RenderResult {
+    Simple(String),
+    Advanced {
+        body: String,
+        #[serde(rename = "contentType")]
+        content_type: Option<String>,
+    },
+}
+
 /// Renders a module as static HTML in a node.js process.
 #[turbo_tasks::function]
 async fn render_static(
@@ -219,11 +231,6 @@ async fn render_static(
     intermediate_output_path: FileSystemPathVc,
     data: RenderDataVc,
 ) -> Result<AssetContentVc> {
-    fn into_result(content: String) -> Result<AssetContentVc> {
-        Ok(File::from(content)
-            .with_content_type(TEXT_HTML_UTF_8)
-            .into())
-    }
     let renderer_pool = get_renderer_pool(
         get_intermediate_asset(
             module,
@@ -245,17 +252,27 @@ async fn render_static(
     .await?;
     let issue = if let Some(last_line) = lines.last() {
         if let Some(data) = last_line.strip_prefix("RESULT=") {
-            let data: JsonValue = serde_json::from_str(data)?;
-            if let Some(s) = data.as_str() {
-                return into_result(s.to_string());
-            } else {
-                RenderingIssue {
-                    context: path,
-                    message: StringVc::cell(
-                        "Result provided by Node.js rendering process was not a string".to_string(),
-                    ),
-                    logging: StringVc::cell(lines.join("\n")),
+            let result: serde_json::Result<RenderResult> = serde_json::from_str(data);
+            match result {
+                Ok(RenderResult::Simple(body)) => {
+                    return Ok(FileContent::Content(
+                        File::from(body).with_content_type(TEXT_HTML_UTF_8),
+                    )
+                    .into());
                 }
+                Ok(RenderResult::Advanced { body, content_type }) => {
+                    return Ok(FileContent::Content(File::from(body).with_content_type(
+                        content_type.map_or(Ok(TEXT_HTML_UTF_8), |c| c.parse())?,
+                    ))
+                    .into());
+                }
+                Err(err) => RenderingIssue {
+                    context: path,
+                    message: StringVc::cell(format!(
+                        "Unexpected result provided by Node.js rendering process: {err}"
+                    )),
+                    logging: StringVc::cell(lines.join("\n")),
+                },
             }
         } else if let Some(data) = last_line.strip_prefix("ERROR=") {
             let data: JsonValue = serde_json::from_str(data)?;
@@ -287,9 +304,13 @@ async fn render_static(
         }
     };
 
+    fn into_error_document(content: String) -> Result<AssetContentVc> {
+        Ok(FileContent::Content(File::from(content).with_content_type(TEXT_HTML_UTF_8)).into())
+    }
+
     // Show error page
     // TODO This need to include HMR handler to allow auto refresh
-    let result = into_result(format!(
+    let result = into_error_document(format!(
         "<h1>Error during \
          rendering</h1>\n<h2>Message</h2>\n<pre>{}</pre>\n<h2>Logs</h2>\n<pre>{}</pre>",
         issue.message.await?,

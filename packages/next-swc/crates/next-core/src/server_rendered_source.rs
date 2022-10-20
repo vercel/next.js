@@ -1,21 +1,13 @@
 use std::collections::HashMap;
 
-use anyhow::{anyhow, bail, Result};
-use turbo_tasks::{Value, ValueToString};
+use anyhow::Result;
+use turbo_tasks::Value;
 use turbo_tasks_env::ProcessEnvVc;
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc};
-use turbopack::{
-    module_options::ModuleOptionsContext, resolve_options_context::ResolveOptionsContext,
-    transition::TransitionsByNameVc, ModuleAssetContextVc,
-};
+use turbopack::{transition::TransitionsByNameVc, ModuleAssetContextVc};
 use turbopack_core::{
-    asset::AssetVc,
-    chunk::dev::DevChunkingContextVc,
-    context::AssetContextVc,
-    environment::{EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
-    source_asset::SourceAssetVc,
-    target::CompileTargetVc,
-    virtual_asset::VirtualAssetVc,
+    asset::AssetVc, chunk::dev::DevChunkingContextVc, context::AssetContextVc,
+    source_asset::SourceAssetVc, virtual_asset::VirtualAssetVc,
 };
 use turbopack_dev_server::source::{
     combined::{CombinedContentSource, CombinedContentSourceVc},
@@ -33,15 +25,16 @@ use crate::{
         context::{
             get_client_assets_path, get_client_chunking_context, get_client_environment,
             get_client_module_options_context, get_client_resolve_options_context,
-            get_client_runtime_entries,
+            get_client_runtime_entries, ContextType,
         },
         NextClientTransition,
     },
-    next_import_map::{
-        get_next_client_fallback_import_map, get_next_client_import_map, get_next_server_import_map,
+    next_server::{
+        get_server_environment, get_server_module_options_context,
+        get_server_resolve_options_context, ServerContextType,
     },
     nodejs::node_rendered_source::{create_node_rendered_source, NodeRenderer, NodeRendererVc},
-    path_regex::{PathRegexBuilder, PathRegexVc},
+    util::regular_expression_for_path,
 };
 
 /// Create a content source serving the `pages` or `src/pages` directory as
@@ -66,22 +59,19 @@ pub async fn create_server_rendered_source(
         return Ok(NoContentSourceVc::new().into());
     };
 
-    let client_chunking_context = get_client_chunking_context(project_path, server_root);
+    let ty = Value::new(ContextType::Pages { pages_dir });
+    let server_ty = Value::new(ServerContextType::Pages { pages_dir });
+
+    let client_chunking_context = get_client_chunking_context(project_path, server_root, ty);
     let client_environment = get_client_environment(browserslist_query);
     let client_module_options_context =
-        get_client_module_options_context(project_path, client_environment);
-    let client_resolve_options_context = get_client_resolve_options_context();
+        get_client_module_options_context(project_path, client_environment, ty);
+    let client_resolve_options_context = get_client_resolve_options_context(project_path, ty);
 
-    let next_server_import_map = get_next_server_import_map(project_path, pages_dir);
-    let next_client_import_map = get_next_client_import_map(project_path, pages_dir);
-    let next_client_fallback_import_map = get_next_client_fallback_import_map(pages_dir);
-    let client_resolve_options_context = client_resolve_options_context
-        .with_extended_import_map(next_client_import_map)
-        .with_extended_fallback_import_map(next_client_fallback_import_map);
-
-    let client_runtime_entries = get_client_runtime_entries(project_path, env, false);
+    let client_runtime_entries = get_client_runtime_entries(project_path, env, ty);
 
     let next_client_transition = NextClientTransition {
+        is_app: false,
         client_chunking_context,
         client_module_options_context,
         client_resolve_options_context,
@@ -96,34 +86,9 @@ pub async fn create_server_rendered_source(
     transitions.insert("next-client".to_string(), next_client_transition);
     let context: AssetContextVc = ModuleAssetContextVc::new(
         TransitionsByNameVc::cell(transitions),
-        EnvironmentVc::new(
-            Value::new(ExecutionEnvironment::NodeJsLambda(
-                NodeJsEnvironment {
-                    compile_target: CompileTargetVc::current(),
-                    node_version: 0,
-                }
-                .into(),
-            )),
-            Value::new(EnvironmentIntention::Client),
-        ),
-        ModuleOptionsContext {
-            enable_typescript_transform: true,
-            enable_styled_jsx: true,
-            ..Default::default()
-        }
-        .cell(),
-        ResolveOptionsContext {
-            enable_typescript: true,
-            enable_react: true,
-            enable_node_modules: true,
-            enable_node_native_modules: true,
-            enable_node_externals: true,
-            custom_conditions: vec!["development".to_string()],
-            import_map: Some(next_server_import_map),
-            module: true,
-            ..Default::default()
-        }
-        .cell(),
+        get_server_environment(server_ty),
+        get_server_module_options_context(server_ty),
+        get_server_resolve_options_context(project_path, server_ty),
     )
     .into();
 
@@ -134,6 +99,7 @@ pub async fn create_server_rendered_source(
         project_path,
         context,
         pages_dir,
+        pages_dir,
         EcmascriptChunkPlaceablesVc::cell(server_runtime_entries),
         server_root,
         server_root,
@@ -142,75 +108,12 @@ pub async fn create_server_rendered_source(
     .into())
 }
 
-/// Converts a filename within the server root to a regular expression with
-/// named capture groups for every dynamic segment.
-#[turbo_tasks::function]
-async fn regular_expression_for_path(
-    server_root: FileSystemPathVc,
-    server_path: FileSystemPathVc,
-) -> Result<PathRegexVc> {
-    let server_path_value = &*server_path.await?;
-    let path = if let Some(path) = server_root.await?.get_path_to(server_path_value) {
-        path
-    } else {
-        bail!(
-            "server_path ({}) is not in server_root ({})",
-            server_path.to_string().await?,
-            server_root.to_string().await?
-        )
-    };
-    let (path, _) = path
-        .rsplit_once('.')
-        .ok_or_else(|| anyhow!("path ({}) has no extension", path))?;
-    let path = if path == "index" {
-        ""
-    } else {
-        path.strip_suffix("/index").unwrap_or(path)
-    };
-    let mut path_regex = PathRegexBuilder::new();
-    for segment in path.split('/') {
-        if let Some(segment) = segment.strip_prefix('[') {
-            if let Some(segment) = segment.strip_prefix("[...") {
-                if let Some((placeholder, rem)) = segment.split_once("]]") {
-                    path_regex.push_optional_catch_all(placeholder, rem);
-                } else {
-                    bail!(
-                        "path ({}) contains '[[' without matching ']]' at '[[...{}'",
-                        path,
-                        segment
-                    );
-                }
-            } else if let Some(segment) = segment.strip_prefix("...") {
-                if let Some((placeholder, rem)) = segment.split_once(']') {
-                    path_regex.push_catch_all(placeholder, rem);
-                } else {
-                    bail!(
-                        "path ({}) contains '[' without matching ']' at '[...{}'",
-                        path,
-                        segment
-                    );
-                }
-            } else if let Some((placeholder, rem)) = segment.split_once(']') {
-                path_regex.push_dynamic_segment(placeholder, rem);
-            } else {
-                bail!(
-                    "path ({}) contains '[' without matching ']' at '[{}'",
-                    path,
-                    segment
-                );
-            }
-        } else {
-            path_regex.push_static_segment(segment);
-        }
-    }
-    Ok(PathRegexVc::cell(path_regex.build()?))
-}
-
 /// Handles a single page file in the pages directory
 #[turbo_tasks::function]
 fn create_server_rendered_source_for_file(
     context_path: FileSystemPathVc,
     context: AssetContextVc,
+    pages_dir: FileSystemPathVc,
     page_file: FileSystemPathVc,
     runtime_entries: EcmascriptChunkPlaceablesVc,
     server_root: FileSystemPathVc,
@@ -224,14 +127,14 @@ fn create_server_rendered_source_for_file(
         context_path,
         intermediate_output_path,
         intermediate_output_path.join("chunks"),
-        get_client_assets_path(server_root),
+        get_client_assets_path(server_root, Value::new(ContextType::Pages { pages_dir })),
         false,
     )
     .into();
 
     create_node_rendered_source(
         server_root,
-        regular_expression_for_path(server_root, server_path),
+        regular_expression_for_path(server_root, server_path, true),
         SsrRenderer {
             context,
             entry_asset,
@@ -251,6 +154,7 @@ fn create_server_rendered_source_for_file(
 async fn create_server_rendered_source_for_directory(
     context_path: FileSystemPathVc,
     context: AssetContextVc,
+    pages_dir: FileSystemPathVc,
     input_dir: FileSystemPathVc,
     runtime_entries: EcmascriptChunkPlaceablesVc,
     server_root: FileSystemPathVc,
@@ -291,6 +195,7 @@ async fn create_server_rendered_source_for_directory(
                                     create_server_rendered_source_for_file(
                                         context_path,
                                         context,
+                                        pages_dir,
                                         *file,
                                         runtime_entries,
                                         server_root,
@@ -309,6 +214,7 @@ async fn create_server_rendered_source_for_directory(
                         create_server_rendered_source_for_directory(
                             context_path,
                             context,
+                            pages_dir,
                             *dir,
                             runtime_entries,
                             server_root,

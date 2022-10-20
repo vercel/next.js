@@ -130,6 +130,7 @@ impl ContentSource for NodeRenderContentSource {
                         .get("accept")
                         .map(|value| value.contains("html"))
                         .unwrap_or_default()
+                        || headers.contains_key("__rsc__")
                     {
                         if data.method.is_some() && data.url.is_some() {
                             if let Some(query) = &data.query {
@@ -179,6 +180,7 @@ impl ContentSource for NodeRenderContentSource {
                         vary: ContentSourceDataVary {
                             headers: Some(ContentSourceDataFilter::Subset(HashSet::from([
                                 "accept".to_string(),
+                                "__rsc__".to_string(),
                             ]))),
                             ..Default::default()
                         },

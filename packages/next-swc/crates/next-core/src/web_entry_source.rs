@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Result};
-use turbo_tasks::TryJoinIterExt;
+use turbo_tasks::{TryJoinIterExt, Value};
 use turbo_tasks_env::ProcessEnvVc;
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack::ecmascript::EcmascriptModuleAssetVc;
@@ -12,8 +12,12 @@ use turbopack_dev_server::{
     source::{asset_graph::AssetGraphContentSourceVc, ContentSourceVc},
 };
 
-use crate::next_client::context::{
-    get_client_asset_context, get_client_chunking_context, get_client_runtime_entries,
+use crate::{
+    embed_js::wrap_with_next_js_fs,
+    next_client::context::{
+        get_client_asset_context, get_client_chunking_context, get_client_runtime_entries,
+        ContextType,
+    },
 };
 
 #[turbo_tasks::function]
@@ -25,9 +29,12 @@ pub async fn create_web_entry_source(
     eager_compile: bool,
     browserslist_query: &str,
 ) -> Result<ContentSourceVc> {
-    let context = get_client_asset_context(project_root, browserslist_query);
-    let chunking_context = get_client_chunking_context(project_root, server_root);
-    let entries = get_client_runtime_entries(project_root, env, true);
+    let project_root = wrap_with_next_js_fs(project_root);
+
+    let ty = Value::new(ContextType::Other);
+    let context = get_client_asset_context(project_root, browserslist_query, ty);
+    let chunking_context = get_client_chunking_context(project_root, server_root, ty);
+    let entries = get_client_runtime_entries(project_root, env, ty);
 
     let runtime_entries = entries.resolve_entries(context);
 
