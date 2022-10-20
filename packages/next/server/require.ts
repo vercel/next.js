@@ -13,9 +13,18 @@ import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plug
 import { PageNotFoundError, MissingStaticPage } from '../shared/lib/utils'
 import LRUCache from 'next/dist/compiled/lru-cache'
 
-const pagePathCache = new LRUCache<string, string | null>({
-  max: 1000,
-})
+const pagePathCache =
+  process.env.NODE_ENV === 'development'
+    ? {
+        get: (_key: string) => {
+          return null
+        },
+        set: () => {},
+        has: () => false,
+      }
+    : new LRUCache<string, string | null>({
+        max: 1000,
+      })
 
 export function getMaybePagePath(
   page: string,
