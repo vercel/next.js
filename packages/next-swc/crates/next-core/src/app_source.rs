@@ -110,12 +110,13 @@ async fn next_client_transition(
 fn next_ssr_client_module_transition(
     project_path: FileSystemPathVc,
     app_dir: FileSystemPathVc,
+    process_env: ProcessEnvVc,
 ) -> TransitionVc {
     let ty = Value::new(ServerContextType::AppSSR { app_dir });
     NextSSRClientModuleTransition {
         ssr_module_options_context: get_server_module_options_context(ty),
         ssr_resolve_options_context: get_server_resolve_options_context(project_path, ty),
-        ssr_environment: get_server_environment(ty),
+        ssr_environment: get_server_environment(ty, process_env),
     }
     .cell()
     .into()
@@ -126,9 +127,10 @@ fn next_layout_entry_transition(
     project_root: FileSystemPathVc,
     app_dir: FileSystemPathVc,
     server_root: FileSystemPathVc,
+    process_env: ProcessEnvVc,
 ) -> TransitionVc {
     let ty = Value::new(ServerContextType::AppRSC { app_dir });
-    let rsc_environment = get_server_environment(ty);
+    let rsc_environment = get_server_environment(ty, process_env);
     let rsc_resolve_options_context = get_server_resolve_options_context(project_root, ty);
     let rsc_module_options_context = get_server_module_options_context(ty);
 
@@ -169,7 +171,7 @@ pub async fn create_app_source(
     let mut transitions = HashMap::new();
     transitions.insert(
         "next-layout-entry".to_string(),
-        next_layout_entry_transition(project_root, app_dir, server_root),
+        next_layout_entry_transition(project_root, app_dir, server_root, env),
     );
     transitions.insert(
         "server-to-client".to_string(),
@@ -185,13 +187,13 @@ pub async fn create_app_source(
     );
     transitions.insert(
         "next-ssr-client-module".to_string(),
-        next_ssr_client_module_transition(project_root, app_dir),
+        next_ssr_client_module_transition(project_root, app_dir, env),
     );
 
     let ssr_ty = Value::new(ServerContextType::AppSSR { app_dir });
     let context: AssetContextVc = ModuleAssetContextVc::new(
         TransitionsByNameVc::cell(transitions),
-        get_server_environment(ssr_ty),
+        get_server_environment(ssr_ty, env),
         get_server_module_options_context(ssr_ty),
         get_server_resolve_options_context(project_root, ssr_ty),
     )
