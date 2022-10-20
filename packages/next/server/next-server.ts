@@ -330,8 +330,6 @@ export default class NextNodeServer extends BaseServer {
     return !!getMaybePagePath(
       pathname,
       this.distDir,
-      this._isLikeServerless,
-      this.renderOpts.dev,
       this.nextConfig.i18n?.locales,
       this.hasAppDir
     )
