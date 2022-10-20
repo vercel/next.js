@@ -1,1 +1,1 @@
-console.log('simple');
+console.log("simple");

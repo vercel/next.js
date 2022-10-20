@@ -1,1 +1,1 @@
-const paraphrase = require('paraphrase/percent')
+const paraphrase = require("paraphrase/percent");

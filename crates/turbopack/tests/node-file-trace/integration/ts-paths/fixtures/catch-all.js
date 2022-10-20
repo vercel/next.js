@@ -1,1 +1,1 @@
-export const catchAll = "catchAll"
+export const catchAll = "catchAll";

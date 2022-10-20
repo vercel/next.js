@@ -1,2 +1,2 @@
 import { subSuffixSep } from "fixtures/@/sub";
-console.log(subSuffixSep)
+console.log(subSuffixSep);

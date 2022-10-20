@@ -1,1 +1,1 @@
-export const direct = "direct"
+export const direct = "direct";

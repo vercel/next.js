@@ -1,1 +1,1 @@
-export { p } from './es-module-dep.js';
+export { p } from "./es-module-dep.js";

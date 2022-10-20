@@ -1,2 +1,2 @@
-import { subPrefix } from "sub@"
-console.log(subPrefix)
+import { subPrefix } from "sub@";
+console.log(subPrefix);

@@ -2,13 +2,13 @@
 const object = { a: 1, 'b': 2, ['c']: 3 };
 
 const a1 = object.a;
-const a2 = object['a'];
+const a2 = object["a"];
 const b1 = object.b;
-const b2 = object['b'];
+const b2 = object["b"];
 const c1 = object.c;
-const c2 = object['c'];
+const c2 = object["c"];
 const d1 = object.d;
-const d2 = object['d'];
+const d2 = object["d"];
 
 const object_spread = { a: 11, ...object, b: 22 };
 

@@ -1,2 +1,2 @@
-import { subInfix } from "@sub@"
-console.log(subInfix)
+import { subInfix } from "@sub@";
+console.log(subInfix);

@@ -1,1 +1,1 @@
-const stripe = require('stripe');
+const stripe = require("stripe");

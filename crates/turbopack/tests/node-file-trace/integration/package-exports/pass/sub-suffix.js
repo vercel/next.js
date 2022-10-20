@@ -1,2 +1,2 @@
 import { subSuffix } from "fixtures/@sub";
-console.log(subSuffix)
+console.log(subSuffix);

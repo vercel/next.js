@@ -1,3 +1,3 @@
-var when = require('when');
+var when = require("when");
 
 var deferred = when.defer();

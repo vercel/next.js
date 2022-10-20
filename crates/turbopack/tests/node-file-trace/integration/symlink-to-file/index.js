@@ -1,3 +1,3 @@
-const { compute } = require('./linked');
+const { compute } = require("./linked");
 
 console.log(compute());

@@ -1,2 +1,2 @@
-import { subInfixSep } from "@/sub/@"
-console.log(subInfixSep)
+import { subInfixSep } from "@/sub/@";
+console.log(subInfixSep);

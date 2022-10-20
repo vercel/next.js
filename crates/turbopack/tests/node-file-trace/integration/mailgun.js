@@ -1,1 +1,1 @@
-const mailgun = require('mailgun');
+const mailgun = require("mailgun");

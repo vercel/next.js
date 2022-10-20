@@ -1,1 +1,1 @@
-export const nestedOnce = "nestedOnce"
+export const nestedOnce = "nestedOnce";

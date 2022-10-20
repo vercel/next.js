@@ -19,10 +19,10 @@
  * See http://pajhome.org.uk/crypt/md5 for more info.
  */
 
-'use strict';
+"use strict";
 
 function md5(bytes) {
-  if (typeof bytes == 'string') {
+  if (typeof bytes == "string") {
     var msg = unescape(encodeURIComponent(bytes)); // UTF8 escape
     bytes = new Array(msg.length);
     for (var i = 0; i < msg.length; i++) bytes[i] = msg.charCodeAt(i);
@@ -41,7 +41,7 @@ function md5ToHexEncodedArray(input) {
   var x;
   var output = [];
   var length32 = input.length * 32;
-  var hexTab = '0123456789abcdef';
+  var hexTab = "0123456789abcdef";
   var hex;
 
   for (i = 0; i < length32; i += 8) {

@@ -1,2 +1,2 @@
-require('passport');
-require('passport-trakt');
+require("passport");
+require("passport-trakt");

@@ -1,1 +1,1 @@
-require('fast-glob');
+require("fast-glob");

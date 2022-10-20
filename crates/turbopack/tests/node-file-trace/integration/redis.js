@@ -1,3 +1,3 @@
-const redis = require('redis');
+const redis = require("redis");
 
-redis.add_command('test');
+redis.add_command("test");

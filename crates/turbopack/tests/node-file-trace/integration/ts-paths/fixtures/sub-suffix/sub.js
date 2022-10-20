@@ -1,1 +1,1 @@
-export const subSuffix = "subSuffix"
+export const subSuffix = "subSuffix";

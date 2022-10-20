@@ -1,4 +1,4 @@
-require('ts-node').register();
-require('tsconfig-paths').register();
+require("ts-node").register();
+require("tsconfig-paths").register();
 
-require('./index.ts');
+require("./index.ts");

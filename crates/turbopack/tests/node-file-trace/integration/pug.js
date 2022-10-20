@@ -1,2 +1,2 @@
-const pug = require('pug');
-pug.compile('string of pug');
+const pug = require("pug");
+pug.compile("string of pug");

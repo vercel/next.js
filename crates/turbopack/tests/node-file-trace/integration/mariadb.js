@@ -1,1 +1,1 @@
-require('mariadb')
+require("mariadb");

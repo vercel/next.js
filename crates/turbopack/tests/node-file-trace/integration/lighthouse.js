@@ -1,1 +1,1 @@
-require('lighthouse');
+require("lighthouse");

@@ -10,6 +10,6 @@ const blogSchema = new Schema({
   hidden: Boolean,
   meta: {
     votes: Number,
-    favs: Number
-  }
+    favs: Number,
+  },
 });

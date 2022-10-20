@@ -1,2 +1,2 @@
 import { direct } from "fixtures/direct";
-console.log(direct)
+console.log(direct);

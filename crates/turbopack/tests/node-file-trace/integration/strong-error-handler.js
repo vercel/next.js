@@ -1,1 +1,1 @@
-require('strong-error-handler');
+require("strong-error-handler");

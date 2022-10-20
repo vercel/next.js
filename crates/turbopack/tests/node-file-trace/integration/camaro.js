@@ -1,1 +1,1 @@
-require('camaro')
+require("camaro");

@@ -1,2 +1,2 @@
-import { direct } from "direct"
-console.log(direct)
+import { direct } from "direct";
+console.log(direct);

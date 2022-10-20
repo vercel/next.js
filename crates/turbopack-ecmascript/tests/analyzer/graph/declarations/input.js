@@ -1,7 +1,7 @@
 function a() {}
 var b = function () {};
 let c = 123;
-const d = 'hello';
+const d = "hello";
 class e {}
 
 const aa = a;

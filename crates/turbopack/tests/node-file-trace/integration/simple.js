@@ -1,2 +1,2 @@
-require('./empty.js');
-console.log('simple');
+require("./empty.js");
+console.log("simple");

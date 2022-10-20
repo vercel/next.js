@@ -1,1 +1,1 @@
-require('browserify-middleware');
+require("browserify-middleware");

@@ -1,1 +1,1 @@
-require('es-get-iterator');
+require("es-get-iterator");

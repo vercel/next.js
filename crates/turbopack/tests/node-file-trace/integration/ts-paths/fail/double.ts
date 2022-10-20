@@ -1,2 +1,2 @@
-import { doubleSub } from "double/sub"
-console.log(doubleSub)
+import { doubleSub } from "double/sub";
+console.log(doubleSub);

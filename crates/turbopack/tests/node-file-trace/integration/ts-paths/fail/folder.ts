@@ -1,2 +1,2 @@
-import { alt1 } from "folder/alt1"
-console.log(alt1)
+import { alt1 } from "folder/alt1";
+console.log(alt1);

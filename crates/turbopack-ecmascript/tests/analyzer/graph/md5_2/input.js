@@ -1,13 +1,13 @@
 (function () {
-  var crypt = require('crypt'),
-    utf8 = require('charenc').utf8,
-    isBuffer = require('is-buffer'),
-    bin = require('charenc').bin,
+  var crypt = require("crypt"),
+    utf8 = require("charenc").utf8,
+    isBuffer = require("is-buffer"),
+    bin = require("charenc").bin,
     // The core
     md5 = function (message, options) {
       // Convert to byte array
       if (message.constructor == String)
-        if (options && options.encoding === 'binary')
+        if (options && options.encoding === "binary")
           message = bin.stringToBytes(message);
         else message = utf8.stringToBytes(message);
       else if (isBuffer(message))
@@ -146,7 +146,7 @@
 
   module.exports = function (message, options) {
     if (message === undefined || message === null)
-      throw new Error('Illegal argument ' + message);
+      throw new Error("Illegal argument " + message);
 
     var digestbytes = crypt.wordsToBytes(md5(message, options));
     return options && options.asBytes

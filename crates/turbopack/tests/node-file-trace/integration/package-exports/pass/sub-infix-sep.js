@@ -1,2 +1,2 @@
 import { subInfixSep } from "fixtures/@/sub/@";
-console.log(subInfixSep)
+console.log(subInfixSep);

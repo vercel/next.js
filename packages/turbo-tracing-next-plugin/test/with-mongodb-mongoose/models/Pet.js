@@ -1,4 +1,4 @@
-import mongoose from 'mongoose'
+import mongoose from "mongoose";
 
 /* PetSchema will correspond to a collection in your MongoDB database. */
 const PetSchema = new mongoose.Schema({
@@ -6,8 +6,8 @@ const PetSchema = new mongoose.Schema({
     /* The name of this pet */
 
     type: String,
-    required: [true, 'Please provide a name for this pet.'],
-    maxlength: [60, 'Name cannot be more than 60 characters'],
+    required: [true, "Please provide a name for this pet."],
+    maxlength: [60, "Name cannot be more than 60 characters"],
   },
   owner_name: {
     /* The owner of this pet */
@@ -20,8 +20,8 @@ const PetSchema = new mongoose.Schema({
     /* The species of your pet */
 
     type: String,
-    required: [true, 'Please specify the species of your pet.'],
-    maxlength: [40, 'Species specified cannot be more than 40 characters'],
+    required: [true, "Please specify the species of your pet."],
+    maxlength: [40, "Species specified cannot be more than 40 characters"],
   },
   age: {
     /* Pet's age, if applicable */
@@ -41,7 +41,7 @@ const PetSchema = new mongoose.Schema({
   image_url: {
     /* Url to pet image */
 
-    required: [true, 'Please provide an image url for this pet.'],
+    required: [true, "Please provide an image url for this pet."],
     type: String,
   },
   likes: {
@@ -54,6 +54,6 @@ const PetSchema = new mongoose.Schema({
 
     type: Array,
   },
-})
+});
 
-export default mongoose.models.Pet || mongoose.model('Pet', PetSchema)
+export default mongoose.models.Pet || mongoose.model("Pet", PetSchema);

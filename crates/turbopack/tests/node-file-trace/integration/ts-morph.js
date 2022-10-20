@@ -1,1 +1,1 @@
-require('ts-morph')
+require("ts-morph");

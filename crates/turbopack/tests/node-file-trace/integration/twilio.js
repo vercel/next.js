@@ -6,4 +6,3 @@ try {
     throw err;
   }
 }
-

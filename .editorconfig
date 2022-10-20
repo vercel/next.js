@@ -18,20 +18,10 @@ indent_style = tab
 [{go.mod,go.sum,*.go}]
 indent_style = tab
 
-[*.{md,mdx}]
-insert_final_newline = true
-
-[*.html]
-insert_final_newline = false
-
 [nginx.conf]
 indent_size = 8
 
-[*.svg]
-insert_final_newline = false
-
-[LICENSE]
-insert_final_newline = false
-
 [*.rs]
+# Keep in sync with rustfmt
+max_line_length = 100
 indent_size = 4

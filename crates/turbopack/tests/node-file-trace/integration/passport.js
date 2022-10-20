@@ -1,3 +1,2 @@
-require('passport');
-require('passport-google-oauth');
-
+require("passport");
+require("passport-google-oauth");

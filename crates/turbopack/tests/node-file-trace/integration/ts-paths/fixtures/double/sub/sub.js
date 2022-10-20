@@ -1,1 +1,1 @@
-export const doubleSub = "doubleSub"
+export const doubleSub = "doubleSub";

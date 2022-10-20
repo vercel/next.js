@@ -1,1 +1,1 @@
-require('oracledb');
+require("oracledb");

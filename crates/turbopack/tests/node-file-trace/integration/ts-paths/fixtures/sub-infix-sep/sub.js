@@ -1,1 +1,1 @@
-export const subInfixSep = "subInfixSep"
+export const subInfixSep = "subInfixSep";

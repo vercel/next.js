@@ -1,1 +1,1 @@
-require('path-platform');
+require("path-platform");

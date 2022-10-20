@@ -1,2 +1,2 @@
-import { nestedOnce } from "nested/once/mod"
-console.log(nestedOnce)
+import { nestedOnce } from "nested/once/mod";
+console.log(nestedOnce);

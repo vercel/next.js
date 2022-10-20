@@ -1,1 +1,1 @@
-require('got');
+require("got");

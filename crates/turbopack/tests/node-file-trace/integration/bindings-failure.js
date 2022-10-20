@@ -1,1 +1,1 @@
-require('bindings')('not-found');
+require("bindings")("not-found");

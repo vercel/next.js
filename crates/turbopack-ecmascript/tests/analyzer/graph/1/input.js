@@ -1,5 +1,5 @@
 let x = 1;
-let y = "hello"
+let y = "hello";
 
 export function a() {
   require(x);

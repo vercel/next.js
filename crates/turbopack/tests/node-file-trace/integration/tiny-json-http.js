@@ -1,1 +1,1 @@
-const tiny = require('tiny-json-http');
+const tiny = require("tiny-json-http");

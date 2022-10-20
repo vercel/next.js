@@ -1,3 +1,3 @@
-const evaluate = require('./dynamic');
+const evaluate = require("./dynamic");
 
 console.log(evaluate(10, 20));

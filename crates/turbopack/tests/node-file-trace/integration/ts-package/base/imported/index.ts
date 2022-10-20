@@ -1,1 +1,1 @@
-export const value = 'imported';
+export const value = "imported";

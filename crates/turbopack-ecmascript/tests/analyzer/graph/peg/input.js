@@ -4,7 +4,7 @@
  * http://pegjs.org/
  */
 
-'use strict';
+"use strict";
 
 function peg$subclass(child, parent) {
   function ctor() {
@@ -19,9 +19,9 @@ function peg$SyntaxError(message, expected, found, location) {
   this.expected = expected;
   this.found = found;
   this.location = location;
-  this.name = 'SyntaxError';
+  this.name = "SyntaxError";
 
-  if (typeof Error.captureStackTrace === 'function') {
+  if (typeof Error.captureStackTrace === "function") {
     Error.captureStackTrace(this, peg$SyntaxError);
   }
 }
@@ -35,27 +35,27 @@ peg$SyntaxError.buildMessage = function (expected, found) {
     },
 
     class: function (expectation) {
-      var escapedParts = '',
+      var escapedParts = "",
         i;
 
       for (i = 0; i < expectation.parts.length; i++) {
         escapedParts +=
           expectation.parts[i] instanceof Array
             ? classEscape(expectation.parts[i][0]) +
-              '-' +
+              "-" +
               classEscape(expectation.parts[i][1])
             : classEscape(expectation.parts[i]);
       }
 
-      return '[' + (expectation.inverted ? '^' : '') + escapedParts + ']';
+      return "[" + (expectation.inverted ? "^" : "") + escapedParts + "]";
     },
 
     any: function (expectation) {
-      return 'any character';
+      return "any character";
     },
 
     end: function (expectation) {
-      return 'end of input';
+      return "end of input";
     },
 
     other: function (expectation) {
@@ -69,35 +69,35 @@ peg$SyntaxError.buildMessage = function (expected, found) {
 
   function literalEscape(s) {
     return s
-      .replace(/\\/g, '\\\\')
+      .replace(/\\/g, "\\\\")
       .replace(/"/g, '\\"')
-      .replace(/\0/g, '\\0')
-      .replace(/\t/g, '\\t')
-      .replace(/\n/g, '\\n')
-      .replace(/\r/g, '\\r')
+      .replace(/\0/g, "\\0")
+      .replace(/\t/g, "\\t")
+      .replace(/\n/g, "\\n")
+      .replace(/\r/g, "\\r")
       .replace(/[\x00-\x0F]/g, function (ch) {
-        return '\\x0' + hex(ch);
+        return "\\x0" + hex(ch);
       })
       .replace(/[\x10-\x1F\x7F-\x9F]/g, function (ch) {
-        return '\\x' + hex(ch);
+        return "\\x" + hex(ch);
       });
   }
 
   function classEscape(s) {
     return s
-      .replace(/\\/g, '\\\\')
-      .replace(/\]/g, '\\]')
-      .replace(/\^/g, '\\^')
-      .replace(/-/g, '\\-')
-      .replace(/\0/g, '\\0')
-      .replace(/\t/g, '\\t')
-      .replace(/\n/g, '\\n')
-      .replace(/\r/g, '\\r')
+      .replace(/\\/g, "\\\\")
+      .replace(/\]/g, "\\]")
+      .replace(/\^/g, "\\^")
+      .replace(/-/g, "\\-")
+      .replace(/\0/g, "\\0")
+      .replace(/\t/g, "\\t")
+      .replace(/\n/g, "\\n")
+      .replace(/\r/g, "\\r")
       .replace(/[\x00-\x0F]/g, function (ch) {
-        return '\\x0' + hex(ch);
+        return "\\x0" + hex(ch);
       })
       .replace(/[\x10-\x1F\x7F-\x9F]/g, function (ch) {
-        return '\\x' + hex(ch);
+        return "\\x" + hex(ch);
       });
   }
 
@@ -131,27 +131,27 @@ peg$SyntaxError.buildMessage = function (expected, found) {
         return descriptions[0];
 
       case 2:
-        return descriptions[0] + ' or ' + descriptions[1];
+        return descriptions[0] + " or " + descriptions[1];
 
       default:
         return (
-          descriptions.slice(0, -1).join(', ') +
-          ', or ' +
+          descriptions.slice(0, -1).join(", ") +
+          ", or " +
           descriptions[descriptions.length - 1]
         );
     }
   }
 
   function describeFound(found) {
-    return found ? '"' + literalEscape(found) + '"' : 'end of input';
+    return found ? '"' + literalEscape(found) + '"' : "end of input";
   }
 
   return (
-    'Expected ' +
+    "Expected " +
     describeExpected(expected) +
-    ' but ' +
+    " but " +
     describeFound(found) +
-    ' found.'
+    " found."
   );
 };
 
@@ -163,7 +163,7 @@ function peg$parse(input, options) {
     peg$startRuleFunction = peg$parsesql,
     peg$c0 = function (body) {
       return {
-        type: 'sql',
+        type: "sql",
         body,
       };
     },
@@ -181,7 +181,7 @@ function peg$parse(input, options) {
     },
     peg$c5 = function (top, select, from, where, orderBy) {
       return {
-        type: 'select_query',
+        type: "select_query",
         top,
         select,
         from,
@@ -189,34 +189,34 @@ function peg$parse(input, options) {
         orderBy,
       };
     },
-    peg$c6 = '*',
-    peg$c7 = peg$literalExpectation('*', false),
+    peg$c6 = "*",
+    peg$c7 = peg$literalExpectation("*", false),
     peg$c8 = function () {
       return {
-        type: 'select_specification',
-        '*': true,
+        type: "select_specification",
+        "*": true,
       };
     },
     peg$c9 = function (properties) {
       return {
-        type: 'select_specification',
+        type: "select_specification",
         properties,
       };
     },
     peg$c10 = function (value) {
       return {
-        type: 'select_specification',
+        type: "select_specification",
         value,
       };
     },
-    peg$c11 = ',',
-    peg$c12 = peg$literalExpectation(',', false),
+    peg$c11 = ",",
+    peg$c12 = peg$literalExpectation(",", false),
     peg$c13 = function (head, v) {
       return v;
     },
     peg$c14 = function (head, tail) {
       return {
-        type: 'object_property_list',
+        type: "object_property_list",
         properties: [head, ...tail],
       };
     },
@@ -225,14 +225,14 @@ function peg$parse(input, options) {
     },
     peg$c16 = function (source, joins) {
       return {
-        type: 'from_specification',
+        type: "from_specification",
         source,
         joins,
       };
     },
     peg$c17 = function (alias, expression) {
       return {
-        type: 'from_source',
+        type: "from_source",
         expression,
         alias,
         iteration: true,
@@ -243,39 +243,39 @@ function peg$parse(input, options) {
     },
     peg$c19 = function (expression, alias) {
       return {
-        type: 'from_source',
+        type: "from_source",
         expression,
         alias,
       };
     },
     peg$c20 = function (condition) {
       return {
-        type: 'filter_condition',
+        type: "filter_condition",
         condition,
       };
     },
     peg$c21 = function (head, tail) {
       return {
-        type: 'sort_specification',
+        type: "sort_specification",
         expressions: [head, ...tail],
       };
     },
     peg$c22 = function (expression, order) {
       return {
-        type: 'sort_expression',
+        type: "sort_expression",
         expression,
         order,
       };
     },
-    peg$c23 = '.',
-    peg$c24 = peg$literalExpectation('.', false),
-    peg$c25 = '(',
-    peg$c26 = peg$literalExpectation('(', false),
-    peg$c27 = ')',
-    peg$c28 = peg$literalExpectation(')', false),
+    peg$c23 = ".",
+    peg$c24 = peg$literalExpectation(".", false),
+    peg$c25 = "(",
+    peg$c26 = peg$literalExpectation("(", false),
+    peg$c27 = ")",
+    peg$c28 = peg$literalExpectation(")", false),
     peg$c29 = function (name, args) {
       return {
-        type: 'scalar_function_expression',
+        type: "scalar_function_expression",
         name,
         arguments: args,
         udf: true,
@@ -283,60 +283,60 @@ function peg$parse(input, options) {
     },
     peg$c30 = function (name, args) {
       return {
-        type: 'scalar_function_expression',
+        type: "scalar_function_expression",
         name,
         arguments: args,
       };
     },
-    peg$c31 = '{',
-    peg$c32 = peg$literalExpectation('{', false),
-    peg$c33 = '}',
-    peg$c34 = peg$literalExpectation('}', false),
+    peg$c31 = "{",
+    peg$c32 = peg$literalExpectation("{", false),
+    peg$c33 = "}",
+    peg$c34 = peg$literalExpectation("}", false),
     peg$c35 = function (head, tail) {
       return {
-        type: 'scalar_object_expression',
+        type: "scalar_object_expression",
         properties: head ? [head, ...tail] : [],
       };
     },
-    peg$c36 = '[',
-    peg$c37 = peg$literalExpectation('[', false),
-    peg$c38 = ']',
-    peg$c39 = peg$literalExpectation(']', false),
+    peg$c36 = "[",
+    peg$c37 = peg$literalExpectation("[", false),
+    peg$c38 = "]",
+    peg$c39 = peg$literalExpectation("]", false),
     peg$c40 = function (elements) {
       return {
-        type: 'scalar_array_expression',
+        type: "scalar_array_expression",
         elements,
       };
     },
-    peg$c41 = 'undefined',
-    peg$c42 = peg$literalExpectation('undefined', false),
+    peg$c41 = "undefined",
+    peg$c42 = peg$literalExpectation("undefined", false),
     peg$c43 = function () {
-      return { type: 'undefined_constant' };
+      return { type: "undefined_constant" };
     },
     peg$c44 = function () {
-      return { type: 'null_constant' };
+      return { type: "null_constant" };
     },
     peg$c45 = function () {
       return {
-        type: 'boolean_constant',
+        type: "boolean_constant",
         value: false,
       };
     },
     peg$c46 = function () {
       return {
-        type: 'boolean_constant',
+        type: "boolean_constant",
         value: true,
       };
     },
-    peg$c47 = '-',
-    peg$c48 = peg$literalExpectation('-', false),
-    peg$c49 = '0x',
-    peg$c50 = peg$literalExpectation('0x', false),
+    peg$c47 = "-",
+    peg$c48 = peg$literalExpectation("-", false),
+    peg$c49 = "0x",
+    peg$c50 = peg$literalExpectation("0x", false),
     peg$c51 = /^[0-9]/,
-    peg$c52 = peg$classExpectation([['0', '9']], false, false),
+    peg$c52 = peg$classExpectation([["0", "9"]], false, false),
     peg$c53 = function (hex) {
       return {
-        type: 'number_constant',
+        type: "number_constant",
         // FIXME: support hex with float?
         value: hex ? parseInt(text(), 16) : parseFloat(text()),
       };
@@ -345,124 +345,124 @@ function peg$parse(input, options) {
     peg$c55 = peg$literalExpectation('"', false),
     peg$c56 = function (chars) {
       return {
-        type: 'string_constant',
-        value: chars.join(''),
+        type: "string_constant",
+        value: chars.join(""),
       };
     },
     peg$c57 = "'",
     peg$c58 = peg$literalExpectation("'", false),
     peg$c59 = function (head, tail) {
       return {
-        type: 'array_constant',
+        type: "array_constant",
         elements: [head, ...tail],
       };
     },
     peg$c60 = function (head, tail) {
       return {
-        type: 'object_constant',
+        type: "object_constant",
         properties: [head, ...tail],
       };
     },
     peg$c61 = /^[ \t\n\r]/,
-    peg$c62 = peg$classExpectation([' ', '\t', '\n', '\r'], false, false),
-    peg$c63 = '--',
-    peg$c64 = peg$literalExpectation('--', false),
+    peg$c62 = peg$classExpectation([" ", "\t", "\n", "\r"], false, false),
+    peg$c63 = "--",
+    peg$c64 = peg$literalExpectation("--", false),
     peg$c65 = /^[\n\r]/,
-    peg$c66 = peg$classExpectation(['\n', '\r'], false, false),
-    peg$c67 = 'select',
-    peg$c68 = peg$literalExpectation('SELECT', true),
-    peg$c69 = 'top',
-    peg$c70 = peg$literalExpectation('TOP', true),
-    peg$c71 = 'from',
-    peg$c72 = peg$literalExpectation('FROM', true),
-    peg$c73 = 'where',
-    peg$c74 = peg$literalExpectation('WHERE', true),
-    peg$c75 = 'order',
-    peg$c76 = peg$literalExpectation('ORDER', true),
-    peg$c77 = 'by',
-    peg$c78 = peg$literalExpectation('BY', true),
-    peg$c79 = 'as',
-    peg$c80 = peg$literalExpectation('AS', true),
-    peg$c81 = 'join',
-    peg$c82 = peg$literalExpectation('JOIN', true),
-    peg$c83 = 'in',
-    peg$c84 = peg$literalExpectation('IN', true),
-    peg$c85 = 'value',
-    peg$c86 = peg$literalExpectation('VALUE', true),
-    peg$c87 = 'asc',
-    peg$c88 = peg$literalExpectation('ASC', true),
+    peg$c66 = peg$classExpectation(["\n", "\r"], false, false),
+    peg$c67 = "select",
+    peg$c68 = peg$literalExpectation("SELECT", true),
+    peg$c69 = "top",
+    peg$c70 = peg$literalExpectation("TOP", true),
+    peg$c71 = "from",
+    peg$c72 = peg$literalExpectation("FROM", true),
+    peg$c73 = "where",
+    peg$c74 = peg$literalExpectation("WHERE", true),
+    peg$c75 = "order",
+    peg$c76 = peg$literalExpectation("ORDER", true),
+    peg$c77 = "by",
+    peg$c78 = peg$literalExpectation("BY", true),
+    peg$c79 = "as",
+    peg$c80 = peg$literalExpectation("AS", true),
+    peg$c81 = "join",
+    peg$c82 = peg$literalExpectation("JOIN", true),
+    peg$c83 = "in",
+    peg$c84 = peg$literalExpectation("IN", true),
+    peg$c85 = "value",
+    peg$c86 = peg$literalExpectation("VALUE", true),
+    peg$c87 = "asc",
+    peg$c88 = peg$literalExpectation("ASC", true),
     peg$c89 = function () {
-      return 'ASC';
+      return "ASC";
     },
-    peg$c90 = 'desc',
-    peg$c91 = peg$literalExpectation('DESC', true),
+    peg$c90 = "desc",
+    peg$c91 = peg$literalExpectation("DESC", true),
     peg$c92 = function () {
-      return 'DESC';
+      return "DESC";
     },
-    peg$c93 = 'and',
-    peg$c94 = peg$literalExpectation('AND', true),
+    peg$c93 = "and",
+    peg$c94 = peg$literalExpectation("AND", true),
     peg$c95 = function () {
-      return 'AND';
+      return "AND";
     },
-    peg$c96 = 'or',
-    peg$c97 = peg$literalExpectation('OR', true),
+    peg$c96 = "or",
+    peg$c97 = peg$literalExpectation("OR", true),
     peg$c98 = function () {
-      return 'OR';
+      return "OR";
     },
-    peg$c99 = 'not',
-    peg$c100 = peg$literalExpectation('NOT', true),
+    peg$c99 = "not",
+    peg$c100 = peg$literalExpectation("NOT", true),
     peg$c101 = function () {
-      return 'NOT';
+      return "NOT";
     },
-    peg$c102 = 'between',
-    peg$c103 = peg$literalExpectation('BETWEEN', true),
-    peg$c104 = 'exists',
-    peg$c105 = peg$literalExpectation('EXISTS', true),
-    peg$c106 = 'array',
-    peg$c107 = peg$literalExpectation('ARRAY', true),
-    peg$c108 = 'null',
-    peg$c109 = peg$literalExpectation('null', false),
-    peg$c110 = 'true',
-    peg$c111 = peg$literalExpectation('true', false),
-    peg$c112 = 'false',
-    peg$c113 = peg$literalExpectation('false', false),
-    peg$c114 = 'udf',
-    peg$c115 = peg$literalExpectation('udf', false),
+    peg$c102 = "between",
+    peg$c103 = peg$literalExpectation("BETWEEN", true),
+    peg$c104 = "exists",
+    peg$c105 = peg$literalExpectation("EXISTS", true),
+    peg$c106 = "array",
+    peg$c107 = peg$literalExpectation("ARRAY", true),
+    peg$c108 = "null",
+    peg$c109 = peg$literalExpectation("null", false),
+    peg$c110 = "true",
+    peg$c111 = peg$literalExpectation("true", false),
+    peg$c112 = "false",
+    peg$c113 = peg$literalExpectation("false", false),
+    peg$c114 = "udf",
+    peg$c115 = peg$literalExpectation("udf", false),
     peg$c116 = function (name) {
       return {
-        type: 'identifier',
+        type: "identifier",
         name,
       };
     },
     peg$c117 = /^[a-zA-Z_]/,
     peg$c118 = peg$classExpectation(
-      [['a', 'z'], ['A', 'Z'], '_'],
+      [["a", "z"], ["A", "Z"], "_"],
       false,
       false
     ),
     peg$c119 = /^[a-zA-Z0-9_]/,
     peg$c120 = peg$classExpectation(
-      [['a', 'z'], ['A', 'Z'], ['0', '9'], '_'],
+      [["a", "z"], ["A", "Z"], ["0", "9"], "_"],
       false,
       false
     ),
     peg$c121 = function (head, tail) {
-      return head + tail.join('');
+      return head + tail.join("");
     },
-    peg$c122 = '@',
-    peg$c123 = peg$literalExpectation('@', false),
+    peg$c122 = "@",
+    peg$c123 = peg$literalExpectation("@", false),
     peg$c124 = function () {
       return {
-        type: 'parameter_name',
+        type: "parameter_name",
         name: text(),
       };
     },
-    peg$c125 = '+',
-    peg$c126 = peg$literalExpectation('+', false),
-    peg$c127 = '~',
-    peg$c128 = peg$literalExpectation('~', false),
-    peg$c129 = '\\',
-    peg$c130 = peg$literalExpectation('\\', false),
+    peg$c125 = "+",
+    peg$c126 = peg$literalExpectation("+", false),
+    peg$c127 = "~",
+    peg$c128 = peg$literalExpectation("~", false),
+    peg$c129 = "\\",
+    peg$c130 = peg$literalExpectation("\\", false),
     peg$c131 = function () {
       return text();
     },
@@ -470,44 +470,44 @@ function peg$parse(input, options) {
       return seq;
     },
     peg$c133 = peg$anyExpectation(),
-    peg$c134 = 'b',
-    peg$c135 = peg$literalExpectation('b', false),
+    peg$c134 = "b",
+    peg$c135 = peg$literalExpectation("b", false),
     peg$c136 = function () {
-      return '\b';
+      return "\b";
     },
-    peg$c137 = 'f',
-    peg$c138 = peg$literalExpectation('f', false),
+    peg$c137 = "f",
+    peg$c138 = peg$literalExpectation("f", false),
     peg$c139 = function () {
-      return '\f';
+      return "\f";
     },
-    peg$c140 = 'n',
-    peg$c141 = peg$literalExpectation('n', false),
+    peg$c140 = "n",
+    peg$c141 = peg$literalExpectation("n", false),
     peg$c142 = function () {
-      return '\n';
+      return "\n";
     },
-    peg$c143 = 'r',
-    peg$c144 = peg$literalExpectation('r', false),
+    peg$c143 = "r",
+    peg$c144 = peg$literalExpectation("r", false),
     peg$c145 = function () {
-      return '\r';
+      return "\r";
     },
-    peg$c146 = 't',
-    peg$c147 = peg$literalExpectation('t', false),
+    peg$c146 = "t",
+    peg$c147 = peg$literalExpectation("t", false),
     peg$c148 = function () {
-      return '\t';
+      return "\t";
     },
     peg$c149 = function () {
       return text();
     },
-    peg$c150 = 'u',
-    peg$c151 = peg$literalExpectation('u', false),
+    peg$c150 = "u",
+    peg$c151 = peg$literalExpectation("u", false),
     peg$c152 = function (digits) {
       return String.fromCharCode(parseInt(digits, 16));
     },
     peg$c153 = /^[0-9a-f]/i,
     peg$c154 = peg$classExpectation(
       [
-        ['0', '9'],
-        ['a', 'f'],
+        ["0", "9"],
+        ["a", "f"],
       ],
       false,
       true
@@ -523,19 +523,19 @@ function peg$parse(input, options) {
     },
     peg$c158 = function (expression) {
       return {
-        type: 'array_subquery_expression',
+        type: "array_subquery_expression",
         expression,
       };
     },
     peg$c159 = function (expression) {
       return {
-        type: 'exists_subquery_expression',
+        type: "exists_subquery_expression",
         expression,
       };
     },
     peg$c160 = function (expression) {
       return {
-        type: 'scalar_subquery_expression',
+        type: "scalar_subquery_expression",
         expression,
       };
     },
@@ -548,7 +548,7 @@ function peg$parse(input, options) {
     peg$c163 = function (head, tail) {
       return tail.reduce(
         (object, { property, computed }) => ({
-          type: 'scalar_member_expression',
+          type: "scalar_member_expression",
           object,
           property,
           computed,
@@ -558,88 +558,88 @@ function peg$parse(input, options) {
     },
     peg$c164 = function (operator, argument) {
       return {
-        type: 'scalar_unary_expression',
+        type: "scalar_unary_expression",
         operator,
         argument,
       };
     },
-    peg$c165 = '?',
-    peg$c166 = peg$literalExpectation('?', false),
-    peg$c167 = ':',
-    peg$c168 = peg$literalExpectation(':', false),
+    peg$c165 = "?",
+    peg$c166 = peg$literalExpectation("?", false),
+    peg$c167 = ":",
+    peg$c168 = peg$literalExpectation(":", false),
     peg$c169 = function (test, consequent, alternate) {
       return {
-        type: 'scalar_conditional_expression',
+        type: "scalar_conditional_expression",
         test,
         consequent,
         alternate,
       };
     },
-    peg$c170 = '??',
-    peg$c171 = peg$literalExpectation('??', false),
+    peg$c170 = "??",
+    peg$c171 = peg$literalExpectation("??", false),
     peg$c172 = function (head, tail) {
       return buildBinaryExpression(head, tail);
     },
-    peg$c173 = '=',
-    peg$c174 = peg$literalExpectation('=', false),
-    peg$c175 = '!=',
-    peg$c176 = peg$literalExpectation('!=', false),
-    peg$c177 = '<>',
-    peg$c178 = peg$literalExpectation('<>', false),
-    peg$c179 = '<=',
-    peg$c180 = peg$literalExpectation('<=', false),
-    peg$c181 = '>=',
-    peg$c182 = peg$literalExpectation('>=', false),
-    peg$c183 = '<',
-    peg$c184 = peg$literalExpectation('<', false),
-    peg$c185 = '>',
-    peg$c186 = peg$literalExpectation('>', false),
+    peg$c173 = "=",
+    peg$c174 = peg$literalExpectation("=", false),
+    peg$c175 = "!=",
+    peg$c176 = peg$literalExpectation("!=", false),
+    peg$c177 = "<>",
+    peg$c178 = peg$literalExpectation("<>", false),
+    peg$c179 = "<=",
+    peg$c180 = peg$literalExpectation("<=", false),
+    peg$c181 = ">=",
+    peg$c182 = peg$literalExpectation(">=", false),
+    peg$c183 = "<",
+    peg$c184 = peg$literalExpectation("<", false),
+    peg$c185 = ">",
+    peg$c186 = peg$literalExpectation(">", false),
     peg$c187 = function (value, list) {
       return {
-        type: 'scalar_in_expression',
+        type: "scalar_in_expression",
         value,
         list,
       };
     },
     peg$c188 = function (value, begin, end) {
       return {
-        type: 'scalar_between_expression',
+        type: "scalar_between_expression",
         value,
         begin,
         end,
       };
     },
-    peg$c189 = '|',
-    peg$c190 = peg$literalExpectation('|', false),
-    peg$c191 = '^',
-    peg$c192 = peg$literalExpectation('^', false),
-    peg$c193 = '&',
-    peg$c194 = peg$literalExpectation('&', false),
-    peg$c195 = '<<',
-    peg$c196 = peg$literalExpectation('<<', false),
-    peg$c197 = '>>>',
-    peg$c198 = peg$literalExpectation('>>>', false),
-    peg$c199 = '>>',
-    peg$c200 = peg$literalExpectation('>>', false),
-    peg$c201 = '||',
-    peg$c202 = peg$literalExpectation('||', false),
-    peg$c203 = '/',
-    peg$c204 = peg$literalExpectation('/', false),
-    peg$c205 = '%',
-    peg$c206 = peg$literalExpectation('%', false),
+    peg$c189 = "|",
+    peg$c190 = peg$literalExpectation("|", false),
+    peg$c191 = "^",
+    peg$c192 = peg$literalExpectation("^", false),
+    peg$c193 = "&",
+    peg$c194 = peg$literalExpectation("&", false),
+    peg$c195 = "<<",
+    peg$c196 = peg$literalExpectation("<<", false),
+    peg$c197 = ">>>",
+    peg$c198 = peg$literalExpectation(">>>", false),
+    peg$c199 = ">>",
+    peg$c200 = peg$literalExpectation(">>", false),
+    peg$c201 = "||",
+    peg$c202 = peg$literalExpectation("||", false),
+    peg$c203 = "/",
+    peg$c204 = peg$literalExpectation("/", false),
+    peg$c205 = "%",
+    peg$c206 = peg$literalExpectation("%", false),
     peg$c207 = function (key, value) {
       return { key, value };
     },
     peg$c208 = function (expression) {
       return {
-        type: 'collection_expression',
+        type: "collection_expression",
         expression,
       };
     },
     peg$c209 = function (head, tail) {
       return tail.reduce(
         (object, { property, computed }) => ({
-          type: 'collection_member_expression',
+          type: "collection_member_expression",
           object,
           property,
           computed,
@@ -649,19 +649,19 @@ function peg$parse(input, options) {
     },
     peg$c210 = function (expression) {
       return {
-        type: 'collection_subquery_expression',
+        type: "collection_subquery_expression",
         expression,
       };
     },
     peg$c211 = function (value) {
       return {
-        type: 'top_specification',
+        type: "top_specification",
         value,
       };
     },
     peg$c212 = function () {
       return {
-        type: 'number_constant',
+        type: "number_constant",
         value: Number(text()),
       };
     },
@@ -679,10 +679,10 @@ function peg$parse(input, options) {
     peg$silentFails = 0,
     peg$result;
 
-  if ('startRule' in options) {
+  if ("startRule" in options) {
     if (!(options.startRule in peg$startRuleFunctions)) {
       throw new Error(
-        'Can\'t start parsing from rule "' + options.startRule + '".'
+        "Can't start parsing from rule \"" + options.startRule + '".'
       );
     }
 
@@ -720,12 +720,12 @@ function peg$parse(input, options) {
   }
 
   function peg$literalExpectation(text, ignoreCase) {
-    return { type: 'literal', text: text, ignoreCase: ignoreCase };
+    return { type: "literal", text: text, ignoreCase: ignoreCase };
   }
 
   function peg$classExpectation(parts, inverted, ignoreCase) {
     return {
-      type: 'class',
+      type: "class",
       parts: parts,
       inverted: inverted,
       ignoreCase: ignoreCase,
@@ -733,15 +733,15 @@ function peg$parse(input, options) {
   }
 
   function peg$anyExpectation() {
-    return { type: 'any' };
+    return { type: "any" };
   }
 
   function peg$endExpectation() {
-    return { type: 'end' };
+    return { type: "end" };
   }
 
   function peg$otherExpectation(description) {
-    return { type: 'other', description: description };
+    return { type: "other", description: description };
   }
 
   function peg$computePosDetails(pos) {
@@ -6700,7 +6700,7 @@ function peg$parse(input, options) {
   function buildBinaryExpression(head, tail) {
     return tail.reduce(
       (left, [, operator, , right]) => ({
-        type: 'scalar_binary_expression',
+        type: "scalar_binary_expression",
         left,
         operator,
         right,

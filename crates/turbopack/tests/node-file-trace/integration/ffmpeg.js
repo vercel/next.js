@@ -1,1 +1,1 @@
-let {path} = require('@ffmpeg-installer/ffmpeg');
+let { path } = require("@ffmpeg-installer/ffmpeg");

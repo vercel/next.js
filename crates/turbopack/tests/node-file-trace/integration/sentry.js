@@ -1,1 +1,1 @@
-const sentry = require('@sentry/node');
+const sentry = require("@sentry/node");

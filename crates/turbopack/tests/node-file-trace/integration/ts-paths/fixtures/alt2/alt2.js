@@ -1,1 +1,1 @@
-export const alt2 = "alt2"
+export const alt2 = "alt2";
