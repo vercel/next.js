@@ -13,6 +13,7 @@ import {
   WEBPACK_LAYERS,
   RSC_MOD_REF_PROXY_ALIAS,
 } from '../lib/constants'
+import { EXTERNAL_PACKAGES } from '../lib/server-external-packages'
 import { fileExists } from '../lib/file-exists'
 import { CustomRoutes } from '../lib/load-custom-routes.js'
 import {
@@ -1008,6 +1009,10 @@ export default async function getBaseWebpackConfig(
   const crossOrigin = config.crossOrigin
   const looseEsmExternals = config.experimental?.esmExternals === 'loose'
 
+  const optoutBundlingPackages = EXTERNAL_PACKAGES.concat(
+    ...(config.experimental.serverComponentsExternalPackages || [])
+  )
+
   async function handleExternals(
     context: string,
     request: string,
@@ -1166,12 +1171,7 @@ export default async function getBaseWebpackConfig(
     if (/node_modules[/\\].*\.[mc]?js$/.test(res)) {
       if (layer === WEBPACK_LAYERS.server) {
         // All packages should be bundled for the server layer if they're not opted out.
-        if (
-          isResourceInPackages(
-            res,
-            config.experimental.serverComponentsExternalPackages
-          )
-        ) {
+        if (isResourceInPackages(res, optoutBundlingPackages)) {
           return `${externalType} ${request}`
         }
 
@@ -1545,10 +1545,7 @@ export default async function getBaseWebpackConfig(
                   // bundling, don't resolve it.
                   if (
                     !codeCondition.test.test(req) ||
-                    isResourceInPackages(
-                      req,
-                      config.experimental.serverComponentsExternalPackages
-                    )
+                    isResourceInPackages(req, optoutBundlingPackages)
                   ) {
                     return false
                   }
@@ -1612,10 +1609,7 @@ export default async function getBaseWebpackConfig(
                       // bundling, don't resolve it.
                       if (
                         !codeCondition.test.test(req) ||
-                        isResourceInPackages(
-                          req,
-                          config.experimental.serverComponentsExternalPackages
-                        )
+                        isResourceInPackages(req, optoutBundlingPackages)
                       ) {
                         return false
                       }
