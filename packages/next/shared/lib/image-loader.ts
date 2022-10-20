@@ -60,6 +60,6 @@ function defaultLoader({ config, src, width, quality }: any): string {
 
 // We use this to determine if the import is the default loader
 // or a custom loader defined by the user in next.config.js
-defaultLoader.__next_loader = true
+defaultLoader.__next_img_default = true
 
 export default defaultLoader

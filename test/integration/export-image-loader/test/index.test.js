@@ -82,6 +82,32 @@ describe('Export with custom loader next/image component', () => {
   })
 })
 
+describe('Export with custom loader config but no loader prop', () => {
+  beforeAll(async () => {
+    await nextConfig.replace(
+      '{ /* replaceme */ }',
+      JSON.stringify({
+        images: {
+          loader: 'custom',
+        },
+      })
+    )
+  })
+  it('should fail build', async () => {
+    await fs.remove(join(appDir, '.next'))
+    const { code, stderr } = await nextBuild(appDir, [], { stderr: true })
+    expect(code).toBe(1)
+    expect(stderr).toContain(
+      'Error: Image with src "/i.png" is missing "loader" prop'
+    )
+  })
+
+  afterAll(async () => {
+    await nextConfig.restore()
+    await pagesIndexJs.restore()
+  })
+})
+
 describe('Export with loaderFile config next/image component', () => {
   beforeAll(async () => {
     await nextConfig.replace(

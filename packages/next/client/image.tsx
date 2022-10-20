@@ -497,28 +497,27 @@ export default function Image({
   }, [configContext])
 
   let rest: Partial<ImageProps> = all
+  let loader: ImageLoaderWithConfig = rest.loader || defaultLoader
 
-  let loader: ImageLoaderWithConfig = defaultLoader
-  if ('loader' in rest) {
-    if (rest.loader) {
-      // The user provided custom "loader" prop
-      const customImageLoader = rest.loader
-      loader = (obj) => {
-        const { config: _, ...opts } = obj
-        // The config object is internal only so we must
-        // not pass it to the user-defined loader()
-        return customImageLoader(opts)
-      }
+  // Remove property so it's not spread on <img> element
+  delete rest.loader
+
+  if ('__next_img_default' in loader) {
+    // This special value indicates that the user
+    // didn't define a "loader" prop or config.
+    if (config.loader === 'custom') {
+      throw new Error(
+        `Image with src "${src}" is missing "loader" prop.` +
+          `\nRead more: https://nextjs.org/docs/messages/next-image-missing-loader`
+      )
     }
-    // Remove property so it's not spread on <img>
-    delete rest.loader
-  } else if (!defaultLoader.__next_loader) {
-    // The user provided a custom "loader" in next.config.js
-    const customImageLoader = defaultLoader
+  } else {
+    // The user defined a "loader" prop or config.
+    // Since the config object is internal only, we
+    // must not pass it to the user-defined "loader".
+    const customImageLoader = loader as ImageLoader
     loader = (obj) => {
       const { config: _, ...opts } = obj
-      // The config object is internal only so we must
-      // not pass it to the user-defined loader()
       return customImageLoader(opts)
     }
   }
