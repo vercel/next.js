@@ -6,7 +6,6 @@ import path from 'path'
 import webdriver from 'next-webdriver'
 
 describe('app dir next-image', () => {
-  const isDev = (global as any).isNextDev
   if ((global as any).isNextDeploy) {
     it('should skip next deploy for now', () => {})
     return
