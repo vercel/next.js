@@ -151,8 +151,8 @@ export class NextServer {
   private async getServer() {
     if (!this.serverPromise) {
       this.serverPromise = this.loadConfig().then(async (conf) => {
-        if (conf.experimental.appDir) {
-          process.env.HAS_APP_DIR = '1'
+        if (conf.experimental.appDir && conf.experimental.usePrebundledReact) {
+          process.env.NEXT_PREBUNDLED_REACT = '1'
           overrideBuiltInReactPackages()
         }
 

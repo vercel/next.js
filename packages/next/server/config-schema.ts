@@ -219,6 +219,9 @@ const configSchema = {
     experimental: {
       additionalProperties: false,
       properties: {
+        usePrebundledReact: {
+          type: 'boolean',
+        },
         adjustFontFallbacks: {
           type: 'boolean',
         },

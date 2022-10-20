@@ -302,8 +302,8 @@ export default async function build(
 
       const publicDir = path.join(dir, 'public')
       const isAppDirEnabled = !!config.experimental.appDir
-      if (isAppDirEnabled) {
-        process.env.HAS_APP_DIR = '1'
+      if (isAppDirEnabled && config.experimental.usePrebundledReact) {
+        process.env.NEXT_PREBUNDLED_REACT = '1'
       }
       const { pagesDir, appDir } = findPagesDir(dir, isAppDirEnabled)
 

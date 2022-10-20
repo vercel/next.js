@@ -79,6 +79,7 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  usePrebundledReact?: boolean
   allowMiddlewareResponseBody?: boolean
   skipMiddlewareUrlNormalize?: boolean
   skipTrailingSlashRedirect?: boolean
@@ -552,6 +553,7 @@ export const defaultConfig: NextConfig = {
   swcMinify: true,
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   experimental: {
+    usePrebundledReact: false,
     optimisticClientCache: true,
     runtime: undefined,
     manualClientBasePath: false,

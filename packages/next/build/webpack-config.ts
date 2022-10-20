@@ -874,7 +874,7 @@ export default async function getBaseWebpackConfig(
 
       next: NEXT_PROJECT_ROOT,
 
-      ...(hasServerComponents
+      ...(hasServerComponents && config.experimental.usePrebundledReact
         ? {
             // For react and react-dom, alias them dynamically for server layer
             // and others in the loaders configuration
@@ -1629,52 +1629,57 @@ export default async function getBaseWebpackConfig(
                   },
                 },
               },
-              {
-                // Alias react-dom for ReactDOM.preload usage.
-                // Alias react for switching between default set and share subset.
-                oneOf: [
-                  {
-                    // test: codeCondition.test,
-                    issuerLayer: WEBPACK_LAYERS.server,
-                    test: (req: string) => {
-                      // If it's not a source code file, or has been opted out of
-                      // bundling, don't resolve it.
-                      if (
-                        !codeCondition.test.test(req) ||
-                        isResourceInPackages(req, optoutBundlingPackages)
-                      ) {
-                        return false
-                      }
+              ...(config.experimental.usePrebundledReact
+                ? [
+                    {
+                      // Alias react-dom for ReactDOM.preload usage.
+                      // Alias react for switching between default set and share subset.
+                      oneOf: [
+                        {
+                          // test: codeCondition.test,
+                          issuerLayer: WEBPACK_LAYERS.server,
+                          test: (req: string) => {
+                            // If it's not a source code file, or has been opted out of
+                            // bundling, don't resolve it.
+                            if (
+                              !codeCondition.test.test(req) ||
+                              isResourceInPackages(req, optoutBundlingPackages)
+                            ) {
+                              return false
+                            }
 
-                      return true
+                            return true
+                          },
+                          resolve: {
+                            // It needs `conditionNames` here to require the proper asset,
+                            // when react is acting as dependency of compiled/react-dom.
+                            alias: {
+                              react:
+                                'next/dist/compiled/react/react.shared-subset',
+                              // Use server rendering stub for RSC
+                              // x-ref: https://github.com/facebook/react/pull/25436
+                              'react-dom$':
+                                'next/dist/compiled/react-dom/server-rendering-stub',
+                            },
+                          },
+                        },
+                        {
+                          test: codeCondition.test,
+                          resolve: {
+                            alias: {
+                              react: 'next/dist/compiled/react',
+                              'react-dom$': isClient
+                                ? 'next/dist/compiled/react-dom/index'
+                                : 'next/dist/compiled/react-dom/server-rendering-stub',
+                              'react-dom/client$':
+                                'next/dist/compiled/react-dom/client',
+                            },
+                          },
+                        },
+                      ],
                     },
-                    resolve: {
-                      // It needs `conditionNames` here to require the proper asset,
-                      // when react is acting as dependency of compiled/react-dom.
-                      alias: {
-                        react: 'next/dist/compiled/react/react.shared-subset',
-                        // Use server rendering stub for RSC
-                        // x-ref: https://github.com/facebook/react/pull/25436
-                        'react-dom$':
-                          'next/dist/compiled/react-dom/server-rendering-stub',
-                      },
-                    },
-                  },
-                  {
-                    test: codeCondition.test,
-                    resolve: {
-                      alias: {
-                        react: 'next/dist/compiled/react',
-                        'react-dom$': isClient
-                          ? 'next/dist/compiled/react-dom/index'
-                          : 'next/dist/compiled/react-dom/server-rendering-stub',
-                        'react-dom/client$':
-                          'next/dist/compiled/react-dom/client',
-                      },
-                    },
-                  },
-                ],
-              },
+                  ]
+                : []),
             ]
           : []),
         {
