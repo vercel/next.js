@@ -26,7 +26,6 @@ import { findPagesDir } from '../../lib/find-pages-dir'
 import loadCustomRoutes from '../../lib/load-custom-routes'
 import { verifyTypeScriptSetup } from '../../lib/verifyTypeScriptSetup'
 import { verifyPartytownSetup } from '../../lib/verify-partytown-setup'
-import { verifyRootLayout } from '../../lib/verifyRootLayout'
 import {
   PHASE_DEVELOPMENT_SERVER,
   CLIENT_STATIC_FILES_PATH,
@@ -660,13 +659,6 @@ export default class DevServer extends Server {
     setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
 
     await this.verifyTypeScript()
-    if (this.appDir) {
-      await verifyRootLayout({
-        dir: this.dir,
-        appDir: this.appDir,
-        tsconfigPath: this.nextConfig.typescript.tsconfigPath,
-      })
-    }
     this.customRoutes = await loadCustomRoutes(this.nextConfig)
 
     // reload router
