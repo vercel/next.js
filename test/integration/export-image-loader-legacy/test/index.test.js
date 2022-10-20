@@ -10,7 +10,7 @@ const outdir = join(appDir, 'out')
 const nextConfig = new File(join(appDir, 'next.config.js'))
 const pagesIndexJs = new File(join(appDir, 'pages', 'index.js'))
 
-describe('Export with cloudinary loader next/image component', () => {
+describe('Export with cloudinary loader next/legacy/image component', () => {
   beforeAll(async () => {
     await nextConfig.replace(
       '{ /* replaceme */ }',
@@ -44,7 +44,7 @@ describe('Export with cloudinary loader next/image component', () => {
   })
 })
 
-describe('Export with custom loader next/image component', () => {
+describe('Export with custom loader next/legacy/image component', () => {
   beforeAll(async () => {
     await nextConfig.replace(
       '{ /* replaceme */ }',
@@ -82,7 +82,7 @@ describe('Export with custom loader next/image component', () => {
   })
 })
 
-describe('Export with custom loader config but no loader prop on next/image', () => {
+describe('Export with custom loader config but no loader prop on next/legacy/image', () => {
   beforeAll(async () => {
     await nextConfig.replace(
       '{ /* replaceme */ }',
@@ -108,42 +108,7 @@ describe('Export with custom loader config but no loader prop on next/image', ()
   })
 })
 
-describe('Export with loaderFile config next/image component', () => {
-  beforeAll(async () => {
-    await nextConfig.replace(
-      '{ /* replaceme */ }',
-      JSON.stringify({
-        images: {
-          loader: 'custom',
-          loaderFile: './dummy-loader.js',
-        },
-      })
-    )
-  })
-  it('should build successfully', async () => {
-    await fs.remove(join(appDir, '.next'))
-    const { code } = await nextBuild(appDir)
-    if (code !== 0) throw new Error(`build failed with status ${code}`)
-  })
-
-  it('should export successfully', async () => {
-    const { code } = await nextExport(appDir, { outdir })
-    if (code !== 0) throw new Error(`export failed with status ${code}`)
-  })
-
-  it('should contain img element with same src in html output', async () => {
-    const html = await fs.readFile(join(outdir, 'index.html'))
-    const $ = cheerio.load(html)
-    expect($('img[src="/i.png#w:32,q:50"]')).toBeDefined()
-  })
-
-  afterAll(async () => {
-    await nextConfig.restore()
-    await pagesIndexJs.restore()
-  })
-})
-
-describe('Export with unoptimized next/image component', () => {
+describe('Export with unoptimized next/legacy/image component', () => {
   beforeAll(async () => {
     await nextConfig.replace(
       '{ /* replaceme */ }',
