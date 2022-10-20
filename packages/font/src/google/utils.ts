@@ -19,7 +19,8 @@ type FontOptions = {
 }
 export function validateData(functionName: string, data: any): FontOptions {
   let {
-    variant,
+    weight,
+    style,
     display = 'optional',
     preload = true,
     axes,
@@ -33,28 +34,44 @@ export function validateData(functionName: string, data: any): FontOptions {
 
   const fontFamily = functionName.replace(/_/g, ' ')
 
-  const fontVariants = (fontData as any)[fontFamily]?.variants
-  if (!fontVariants) {
+  const fontFamilyData = (fontData as any)[fontFamily]
+  const fontWeights = fontFamilyData?.weights
+  if (!fontWeights) {
     throw new Error(`Unknown font \`${fontFamily}\``)
   }
+  const fontStyles = fontFamilyData.styles
 
   // Set variable as default, throw if not available
-  if (!variant) {
-    if (fontVariants.includes('variable')) {
-      variant = 'variable'
+  if (!weight) {
+    if (fontWeights.includes('variable')) {
+      weight = 'variable'
     } else {
       throw new Error(
-        `Missing variant for font \`${fontFamily}\`.\nAvailable variants: ${formatValues(
-          fontVariants
+        `Missing weight for font \`${fontFamily}\`.\nAvailable weights: ${formatValues(
+          fontWeights
         )}`
       )
     }
   }
-
-  if (!fontVariants.includes(variant)) {
+  if (!fontWeights.includes(weight)) {
     throw new Error(
-      `Unknown variant \`${variant}\` for font \`${fontFamily}\`.\nAvailable variants: ${formatValues(
-        fontVariants
+      `Unknown weight \`${weight}\` for font \`${fontFamily}\`.\nAvailable weights: ${formatValues(
+        fontWeights
+      )}`
+    )
+  }
+
+  if (!style) {
+    if (fontStyles.length === 1) {
+      style = fontStyles[0]
+    } else {
+      style = 'normal'
+    }
+  }
+  if (!fontStyles.includes(style)) {
+    throw new Error(
+      `Unknown style \`${style}\` for font \`${fontFamily}\`.\nAvailable styles: ${formatValues(
+        fontStyles
       )}`
     )
   }
@@ -66,8 +83,6 @@ export function validateData(functionName: string, data: any): FontOptions {
       )}`
     )
   }
-
-  const [weight, style] = variant.split('-')
 
   if (weight !== 'variable' && axes) {
     throw new Error('Axes can only be defined for variable fonts')
