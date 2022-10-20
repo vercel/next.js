@@ -41,7 +41,7 @@ const HotReloader:
   | null =
   process.env.NODE_ENV === 'production'
     ? null
-    : (require('./react-dev-overlay/hot-reloader')
+    : (require('./react-dev-overlay/hot-reloader-client')
         .default as typeof import('./react-dev-overlay/hot-reloader-client').default)
 
 /**
