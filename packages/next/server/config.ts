@@ -363,7 +363,10 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       images.loader = 'default'
     }
 
-    if (!VALID_LOADERS.includes(images.loader)) {
+    if (
+      !VALID_LOADERS.includes(images.loader) &&
+      !images.loader.startsWith('./')
+    ) {
       throw new Error(
         `Specified images.loader should be one of (${VALID_LOADERS.join(
           ', '
@@ -376,6 +379,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     if (
       images.loader !== 'default' &&
       images.loader !== 'custom' &&
+      !images.loader.startsWith('./') &&
       images.path === imageConfigDefault.path
     ) {
       throw new Error(

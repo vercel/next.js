@@ -1,6 +1,5 @@
 import { NextConfig } from './config'
 import type { JSONSchemaType } from 'ajv'
-import { VALID_LOADERS } from '../shared/lib/image-config'
 
 const configSchema = {
   type: 'object',
@@ -575,8 +574,6 @@ const configSchema = {
           type: 'array',
         },
         loader: {
-          // automatic typing does not like enum
-          enum: VALID_LOADERS as any,
           type: 'string',
         },
         minimumCacheTTL: {

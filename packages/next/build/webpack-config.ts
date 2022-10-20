@@ -863,6 +863,10 @@ export default async function getBaseWebpackConfig(
           }
         : undefined),
 
+      'next/image/loader': config.images.loader?.startsWith('./')
+        ? require.resolve(path.join(dir, config.images.loader))
+        : '../shared/lib/image-loader',
+
       next: NEXT_PROJECT_ROOT,
 
       ...(hasServerComponents
