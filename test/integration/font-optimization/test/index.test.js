@@ -332,14 +332,14 @@ describe('Font Optimization', () => {
       )
       expect(inlineStyle.length).toBe(1)
       expect(inlineStyle.html()).toContain(
-        '@font-face{font-family:"Roboto Fallback";ascent-override:72.42%;descent-override:19.06%;line-gap-override:0.00%;size-adjust:128.10%;src:local("Arial")}'
+        '@font-face{font-family:"Roboto Fallback";ascent-override:91.03%;descent-override:23.95%;line-gap-override:0.00%;size-adjust:101.92%;src:local("Arial")}'
       )
       expect(inlineStyleMultiple.length).toBe(1)
       expect(inlineStyleMultiple.html()).toContain(
-        '@font-face{font-family:"Libre Baskerville Fallback";ascent-override:155.24%;descent-override:43.21%;line-gap-override:0.00%;size-adjust:62.48%;src:local("Times New Roman")}'
+        '@font-face{font-family:"Libre Baskerville Fallback";ascent-override:75.85%;descent-override:21.11%;line-gap-override:0.00%;size-adjust:127.88%;src:local("Times New Roman")}'
       )
       expect(inlineStyleMultiple.html()).toContain(
-        '@font-face{font-family:"Open Sans Fallback";ascent-override:82.66%;descent-override:22.66%;line-gap-override:0.00%;size-adjust:129.31%;src:local("Arial")}'
+        '@font-face{font-family:"Open Sans Fallback";ascent-override:100.16%;descent-override:27.45%;line-gap-override:0.00%;size-adjust:106.71%;src:local("Arial")}'
       )
     })
   })
