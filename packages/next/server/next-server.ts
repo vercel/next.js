@@ -74,7 +74,7 @@ import BaseServer, {
   NoFallbackError,
   RequestContext,
 } from './base-server'
-import { getPagePath, requireFontManifest } from './require'
+import { getMaybePagePath, getPagePath, requireFontManifest } from './require'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { loadComponents } from './load-components'
@@ -327,12 +327,12 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected async hasPage(pathname: string): Promise<boolean> {
-    let found = false
-    try {
-      found = !!this.getPagePath(pathname, this.nextConfig.i18n?.locales)
-    } catch (_) {}
-
-    return found
+    return !!getMaybePagePath(
+      pathname,
+      this.distDir,
+      this.nextConfig.i18n?.locales,
+      this.hasAppDir
+    )
   }
 
   protected getBuildId(): string {
@@ -1880,6 +1880,37 @@ export default class NextNodeServer extends BaseServer {
               const value = result.response.headers.get('x-middleware-rewrite')!
               const rel = relativizeURL(value, initUrl)
               result.response.headers.set('x-middleware-rewrite', rel)
+            }
+
+            if (result.response.headers.has('x-middleware-override-headers')) {
+              const overriddenHeaders: Set<string> = new Set()
+              for (const key of result.response.headers
+                .get('x-middleware-override-headers')!
+                .split(',')) {
+                overriddenHeaders.add(key.trim())
+              }
+
+              result.response.headers.delete('x-middleware-override-headers')
+
+              // Delete headers.
+              for (const key of Object.keys(req.headers)) {
+                if (!overriddenHeaders.has(key)) {
+                  delete req.headers[key]
+                }
+              }
+
+              // Update or add headers.
+              for (const key of overriddenHeaders.keys()) {
+                const valueKey = 'x-middleware-request-' + key
+                const newValue = result.response.headers.get(valueKey)
+                const oldValue = req.headers[key]
+
+                if (oldValue !== newValue) {
+                  req.headers[key] = newValue === null ? undefined : newValue
+                }
+
+                result.response.headers.delete(valueKey)
+              }
             }
 
             if (result.response.headers.has('Location')) {
