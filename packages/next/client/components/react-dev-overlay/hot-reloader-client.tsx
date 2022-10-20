@@ -27,9 +27,9 @@ import {
 import { parseStack } from './internal/helpers/parseStack'
 import ReactDevOverlay from './internal/ReactDevOverlay'
 
-export type DispatchFn = Dispatch<ReducerAction<typeof errorOverlayReducer>>
+type DispatchFn = Dispatch<ReducerAction<typeof errorOverlayReducer>>
 
-export function onUnhandledError(dispatch: DispatchFn, ev: ErrorEvent) {
+function onUnhandledError(dispatch: DispatchFn, ev: ErrorEvent) {
   const error = ev?.error
   if (!error || !(error instanceof Error) || typeof error.stack !== 'string') {
     // A non-error was thrown, we don't have anything to show. :-(
@@ -50,10 +50,7 @@ export function onUnhandledError(dispatch: DispatchFn, ev: ErrorEvent) {
   })
 }
 
-export function onUnhandledRejection(
-  dispatch: DispatchFn,
-  ev: PromiseRejectionEvent
-) {
+function onUnhandledRejection(dispatch: DispatchFn, ev: PromiseRejectionEvent) {
   const reason = ev?.reason
   if (
     !reason ||
@@ -72,20 +69,17 @@ export function onUnhandledRejection(
   })
 }
 
-export function onBuildOk(dispatch: DispatchFn) {
+function onBuildOk(dispatch: DispatchFn) {
   dispatch({ type: ACTION_BUILD_OK })
 }
 
-export function onBuildError(dispatch: DispatchFn, message: string) {
+function onBuildError(dispatch: DispatchFn, message: string) {
   dispatch({ type: ACTION_BUILD_ERROR, message })
 }
 
-export function onRefresh(dispatch: DispatchFn) {
+function onRefresh(dispatch: DispatchFn) {
   dispatch({ type: ACTION_REFRESH })
 }
-
-export { getErrorByType } from './internal/helpers/getErrorByType'
-export { getServerError } from './internal/helpers/nodeStackFrames'
 
 function getSocketProtocol(assetPrefix: string): string {
   let protocol = window.location.protocol
