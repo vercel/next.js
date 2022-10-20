@@ -115,7 +115,7 @@ function getSelectedLayoutSegmentPath(
 ): string[] {
   let node: FlightRouterState
   if (first) {
-    // Use the provdided parallel route key on the first parallel route
+    // Use the provided parallel route key on the first parallel route
     node = tree[1][parallelRouteKey]
   } else {
     // After first parallel route prefer children, if there's no children pick the first parallel route.
