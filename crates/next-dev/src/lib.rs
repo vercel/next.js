@@ -1,14 +1,20 @@
 #![feature(future_join)]
 #![feature(min_specialization)]
 
+mod issue;
+mod turbo_tasks_viz;
+
 use std::{collections::HashSet, env::current_dir, net::IpAddr, path::MAIN_SEPARATOR, sync::Arc};
 
 use anyhow::{anyhow, Context, Result};
+use issue::UnimplementedFileIssue;
 use next_core::{
     create_app_source, create_server_rendered_source, create_web_entry_source, env::load_env,
 };
-use turbo_tasks::{RawVc, TransientInstance, TransientValue, TurboTasks, Value};
-use turbo_tasks_fs::{DiskFileSystemVc, FileSystemVc};
+use turbo_tasks::{
+    primitives::StringVc, RawVc, TransientInstance, TransientValue, TurboTasks, Value,
+};
+use turbo_tasks_fs::{DiskFileSystemVc, FileSystemEntryType, FileSystemPathVc, FileSystemVc};
 use turbo_tasks_memory::MemoryBackend;
 use turbopack_cli_utils::issue::{ConsoleUi, ConsoleUiVc, LogOptions};
 use turbopack_core::{issue::IssueSeverity, resolve::parse::RequestVc};
@@ -21,8 +27,6 @@ use turbopack_dev_server::{
     },
     DevServer,
 };
-
-mod turbo_tasks_viz;
 
 pub struct NextDevServerBuilder {
     turbo_tasks: Arc<TurboTasks<MemoryBackend>>,
@@ -157,6 +161,28 @@ async fn handle_issues<T: Into<RawVc>>(source: T, console_ui: ConsoleUiVc) -> Re
     }
 }
 
+async fn handle_unimplemented_files(project_path: &FileSystemPathVc) -> Result<()> {
+    const UNIMPLEMENTED_FILES: [&str; 3] = ["next.config.js", "babel.config.js", ".babelrc.js"];
+    for file in UNIMPLEMENTED_FILES {
+        let file_path = project_path.join(file);
+        let file_type = file_path.get_type().await?;
+
+        if *file_type == FileSystemEntryType::File {
+            UnimplementedFileIssue {
+                path: file_path,
+                description: StringVc::cell(format!(
+                    "Handling the file `{}` is currently unimplemented",
+                    file
+                )),
+            }
+            .cell()
+            .as_issue()
+            .emit();
+        }
+    }
+    Ok(())
+}
+
 #[turbo_tasks::function]
 async fn project_fs(project_dir: &str, console_ui: ConsoleUiVc) -> Result<FileSystemVc> {
     let disk_fs = DiskFileSystemVc::new("project".to_string(), project_dir.to_string());
@@ -194,6 +220,8 @@ async fn source(
         .strip_prefix(MAIN_SEPARATOR)
         .unwrap_or(project_relative);
     let project_path = fs.root().join(project_relative);
+
+    handle_unimplemented_files(&project_path).await?;
 
     let env = load_env(project_path);
 
