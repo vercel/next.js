@@ -48,6 +48,7 @@ describe('@next/font/google', () => {
           fontFamily: expect.stringMatching(
             /^'__Open_Sans_.{6}', '__Open_Sans_Fallback_.{6}'$/
           ),
+          fontStyle: 'normal',
         },
       })
 
@@ -59,6 +60,7 @@ describe('@next/font/google', () => {
           fontFamily: expect.stringMatching(
             /^'__Open_Sans_.{6}', '__Open_Sans_Fallback_.{6}'$/
           ),
+          fontStyle: 'normal',
         },
       })
 
@@ -70,6 +72,7 @@ describe('@next/font/google', () => {
             /^'__Inter_.{6}', '__Inter_Fallback_.{6}'$/
           ),
           fontWeight: 900,
+          fontStyle: 'normal',
         },
       })
       expect(JSON.parse($('#comp-with-fonts-roboto').text())).toEqual({
@@ -96,6 +99,7 @@ describe('@next/font/google', () => {
           fontFamily: expect.stringMatching(
             /^'__Open_Sans_.{6}', '__Open_Sans_Fallback_.{6}'$/
           ),
+          fontStyle: 'normal',
         },
       })
 
