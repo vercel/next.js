@@ -2,6 +2,7 @@ import path from 'path'
 import { promises as fs } from 'fs'
 import chalk from 'next/dist/compiled/chalk'
 import * as Log from '../build/output/log'
+import { APP_DIR_ALIAS } from './constants'
 
 const globOrig =
   require('next/dist/compiled/glob') as typeof import('next/dist/compiled/glob')
@@ -48,16 +49,28 @@ export async function verifyRootLayout({
   dir,
   appDir,
   tsconfigPath,
+  pagePath,
+  pageExtensions,
 }: {
   dir: string
   appDir: string
   tsconfigPath: string
+  pagePath: string
+  pageExtensions: string[]
 }) {
   try {
-    // Only create root layout if no other layout exists
-    const layoutFiles = await glob(dir, 'app/**/layout.{js,jsx,ts,tsx}')
+    const layoutFiles = await glob(
+      appDir,
+      `**/layout.{${pageExtensions.join(',')}}`
+    )
+    const normalizedPagePath = pagePath.replace(`${APP_DIR_ALIAS}/`, '')
+    const firstSegmentValue = normalizedPagePath.split('/')[0]
+    const pageRouteGroup = firstSegmentValue.startsWith('(')
+      ? firstSegmentValue
+      : undefined
     const hasLayout = layoutFiles.length !== 0
-    if (!hasLayout) {
+
+    if (pageRouteGroup || !hasLayout) {
       const resolvedTsConfigPath = path.join(dir, tsconfigPath)
       const hasTsConfig = await fs.access(resolvedTsConfigPath).then(
         () => true,
@@ -66,20 +79,29 @@ export async function verifyRootLayout({
 
       const rootLayoutPath = path.join(
         appDir,
+        // If the page is within a route group directly under app (e.g. app/(routegroup)/page.js)
+        // prefer createing the root layout in that route group. Otherwise create the root layout in the app root.
+        pageRouteGroup ? pageRouteGroup : '',
         `layout.${hasTsConfig ? 'tsx' : 'js'}`
       )
       await fs.writeFile(rootLayoutPath, getRootLayout(hasTsConfig))
       console.log(
         chalk.green(
-          `${chalk.bold(
-            'appDir'
-          )} is enabled but you're missing a root layout, we created ${chalk.bold(
-            `app/layout.${hasTsConfig ? 'tsx' : 'js'}`
+          `\nYour page ${chalk.bold(
+            `app/${normalizedPagePath}`
+          )} did not have a root layout, we created ${chalk.bold(
+            `app${rootLayoutPath.replace(appDir, '')}`
           )} for you.`
         ) + '\n'
       )
+
+      // Created root layout
+      return true
     }
   } catch (error) {
     Log.error('Failed to create root layout', error)
   }
+
+  // Didn't create root layout
+  return false
 }
