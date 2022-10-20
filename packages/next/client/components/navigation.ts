@@ -76,6 +76,11 @@ class ReadonlyURLSearchParams {
 export function useSearchParams() {
   const searchParams = useContext(SearchParamsContext)
   const readonlySearchParams = useMemo(() => {
+    if (!searchParams) {
+      // TODO-APP: consider throwing an error or adapting this to support pages router
+      return null
+    }
+
     return new ReadonlyURLSearchParams(searchParams)
   }, [searchParams])
   return readonlySearchParams
