@@ -108,7 +108,7 @@ describe('Export with loaderFile config next/image component', () => {
   it('should contain img element with same src in html output', async () => {
     const html = await fs.readFile(join(outdir, 'index.html'))
     const $ = cheerio.load(html)
-    expect($('img[src="/custom/o.png"]')).toBeDefined()
+    expect($('img[src="/i.png#w:32,q:50"]')).toBeDefined()
   })
 
   afterAll(async () => {
