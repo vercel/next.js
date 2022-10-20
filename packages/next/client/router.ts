@@ -129,7 +129,7 @@ export default singletonRouter as SingletonRouter
 // Reexport the withRoute HOC
 export { default as withRouter } from './with-router'
 
-export function useRouter(): NextRouter {
+export function useRouter(): NextRouter | null {
   return React.useContext(RouterContext)
 }
 

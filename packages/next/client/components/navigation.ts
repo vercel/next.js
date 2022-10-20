@@ -90,7 +90,10 @@ export function useSearchParams() {
 /**
  * Get the router methods. For example router.push('/dashboard')
  */
-export function useRouter(): import('../../shared/lib/app-router-context').AppRouterInstance {
+export function useRouter():
+  | import('../../shared/lib/app-router-context').AppRouterInstance
+  | null {
+  // TODO-APP: consider throwing an error or adapting this to support pages router
   return useContext(AppRouterContext)
 }
 
@@ -102,7 +105,8 @@ export function useRouter(): import('../../shared/lib/app-router-context').AppRo
 /**
  * Get the current pathname. For example usePathname() on /dashboard?foo=bar would return "/dashboard"
  */
-export function usePathname(): string {
+export function usePathname(): string | null {
+  // TODO-APP: consider throwing an error or adapting this to support pages router
   return useContext(PathnameContext)
 }
 
