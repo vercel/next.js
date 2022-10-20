@@ -1,0 +1,20 @@
+// A list of popular packages that cannot be bundled on the server.
+export const EXTERNAL_PACKAGES = [
+  'eslint',
+  'typescript',
+  'prettier',
+  'postcss',
+  'jest',
+  'autoprefixer',
+  'tailwindcss',
+  'sharp',
+  'express',
+  'ts-node',
+  'webpack',
+  'cypress',
+  '@sentry/nextjs',
+  '@sentry/node',
+  'next-seo',
+  'rimraf',
+  'next-mdx-remote',
+]

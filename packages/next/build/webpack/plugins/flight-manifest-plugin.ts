@@ -15,6 +15,8 @@ import {
   serverModuleIds,
 } from './flight-client-entry-plugin'
 
+import { traverseModules } from '../utils'
+
 // This is the module that will be used to anchor all client references to.
 // I.e. it will have all the client files as async deps from this point on.
 // We use the Flight client implementation because you can't get to these
@@ -81,32 +83,6 @@ const PLUGIN_NAME = 'FlightManifestPlugin'
 // and detect if it's been used, and mark it as `async: true` for react.
 // So that react could unwrap the async module from promise and render module itself.
 export const ASYNC_CLIENT_MODULES = new Set<string>()
-
-export function traverseModules(
-  compilation: webpack.Compilation,
-  callback: (
-    mod: any,
-    chunk: webpack.Chunk,
-    chunkGroup: typeof compilation.chunkGroups[0]
-  ) => any
-) {
-  compilation.chunkGroups.forEach((chunkGroup) => {
-    chunkGroup.chunks.forEach((chunk: webpack.Chunk) => {
-      const chunkModules = compilation.chunkGraph.getChunkModulesIterable(
-        chunk
-        // TODO: Update type so that it doesn't have to be cast.
-      ) as Iterable<webpack.NormalModule>
-      for (const mod of chunkModules) {
-        callback(mod, chunk, chunkGroup)
-        const anyModule = mod as any
-        if (anyModule.modules) {
-          for (const subMod of anyModule.modules)
-            callback(subMod, chunk, chunkGroup)
-        }
-      }
-    })
-  })
-}
 
 export class FlightManifestPlugin {
   dev: Options['dev'] = false
