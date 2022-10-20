@@ -6,7 +6,7 @@ import fontFromBuffer from '@next/font/dist/fontkit'
 import type { AdjustFontFallback, FontLoader } from 'next/font'
 
 import { promisify } from 'util'
-import { validateData } from './utils'
+import { calcAzWidth, validateData } from './utils'
 
 const fetchFonts: FontLoader = async ({
   functionName,
@@ -58,6 +58,7 @@ const fetchFonts: FontLoader = async ({
       lineGap: fontMetadata.lineGap,
       unitsPerEm: fontMetadata.unitsPerEm,
       xAvgCharWidth: (fontMetadata as any)['OS/2']?.xAvgCharWidth,
+      azAvgWidth: calcAzWidth(fontMetadata),
     })
     adjustFontFallbackMetrics = {
       fallbackFont,
