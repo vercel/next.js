@@ -11,10 +11,7 @@ import React, {
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import formatWebpackMessages from '../../dev/error-overlay/format-webpack-messages'
 import { useRouter } from '../navigation'
-import {
-  errorOverlayReducer,
-  OverlayState,
-} from './internal/error-overlay-reducer'
+import { errorOverlayReducer } from './internal/error-overlay-reducer'
 import {
   ACTION_BUILD_OK,
   ACTION_BUILD_ERROR,
@@ -30,6 +27,12 @@ import {
   useWebsocket,
   useWebsocketPing,
 } from './internal/helpers/use-websocket'
+
+interface Dispatcher {
+  onBuildOk(): void
+  onBuildError(message: string): void
+  onRefresh(): void
+}
 
 // TODO-APP: add actual type
 type PongEvent = any
@@ -385,12 +388,6 @@ function processMessage(
       throw new Error('Unexpected action ' + obj.action)
     }
   }
-}
-
-interface Dispatcher {
-  onBuildOk(): void
-  onBuildError(message: string): void
-  onRefresh(): void
 }
 
 export default function HotReload({
