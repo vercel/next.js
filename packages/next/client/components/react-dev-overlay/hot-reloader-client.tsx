@@ -2,14 +2,12 @@ import type { ReactNode } from 'react'
 import type { FlightRouterState } from '../../../server/app-render'
 import React, {
   useCallback,
-  useContext,
   useEffect,
   useReducer,
   useMemo,
   // @ts-expect-error TODO-APP: startTransition exists
   startTransition,
 } from 'react'
-import { GlobalLayoutRouterContext } from '../../../shared/lib/app-router-context'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import formatWebpackMessages from '../../dev/error-overlay/format-webpack-messages'
 import { useRouter } from '../navigation'
@@ -39,7 +37,6 @@ type PongEvent = any
 let mostRecentCompilationHash: any = null
 let __nextDevClientId = Math.round(Math.random() * 100 + Date.now())
 let hadRuntimeError = false
-let hadRootlayoutError = false
 
 // let startLatency = undefined
 
@@ -115,7 +112,7 @@ function tryApplyUpdates(
   }
 
   function handleApplyUpdates(err: any, updatedModules: any) {
-    if (err || hadRuntimeError || hadRootlayoutError || !updatedModules) {
+    if (err || hadRuntimeError || !updatedModules) {
       if (err) {
         console.warn(
           '[Fast Refresh] performing full reload\n\n' +
@@ -307,7 +304,7 @@ function processMessage(
           clientId: __nextDevClientId,
         })
       )
-      if (hadRuntimeError || hadRootlayoutError) {
+      if (hadRuntimeError) {
         return window.location.reload()
       }
       startTransition(() => {
@@ -399,21 +396,14 @@ interface Dispatcher {
 export default function HotReload({
   assetPrefix,
   children,
-  initialState,
 }: {
   assetPrefix: string
   children?: ReactNode
-  initialState?: Partial<OverlayState>
-  initialTree?: FlightRouterState
 }) {
-  if (initialState?.rootLayoutMissingTagsError) {
-    hadRootlayoutError = true
-  }
   const [state, dispatch] = useReducer(errorOverlayReducer, {
     nextId: 1,
     buildError: null,
     errors: [],
-    ...initialState,
   })
   const dispatcher = useMemo((): Dispatcher => {
     return {

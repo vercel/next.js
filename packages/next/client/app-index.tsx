@@ -188,12 +188,12 @@ export function hydrate() {
       reactRoot.render(
         <HotReload
           assetPrefix={rootLayoutMissingTagsError.assetPrefix}
-          initialState={{
-            rootLayoutMissingTagsError: {
-              missingTags: rootLayoutMissingTagsError.missingTags,
-            },
-          }}
-          initialTree={rootLayoutMissingTagsError.tree}
+          // initialState={{
+          //   rootLayoutMissingTagsError: {
+          //     missingTags: rootLayoutMissingTagsError.missingTags,
+          //   },
+          // }}
+          // initialTree={rootLayoutMissingTagsError.tree}
         />
       )
 
