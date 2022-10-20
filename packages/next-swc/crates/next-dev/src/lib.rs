@@ -162,7 +162,13 @@ async fn handle_issues<T: Into<RawVc>>(source: T, console_ui: ConsoleUiVc) -> Re
 }
 
 async fn handle_unimplemented_files(project_path: &FileSystemPathVc) -> Result<()> {
-    const UNIMPLEMENTED_FILES: [&str; 3] = ["next.config.js", "babel.config.js", ".babelrc.js"];
+    const UNIMPLEMENTED_FILES: [&str; 5] = [
+        "next.config.js",
+        "babel.config.js",
+        ".babelrc.js",
+        "postcss.config.js",
+        "tailwind.config.js",
+    ];
     for file in UNIMPLEMENTED_FILES {
         let file_path = project_path.join(file);
         let file_type = file_path.get_type().await?;
