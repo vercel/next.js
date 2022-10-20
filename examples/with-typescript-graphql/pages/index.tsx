@@ -4,28 +4,25 @@ import Link from 'next/link'
 import { useState } from 'react'
 import { initializeApollo } from '../lib/apollo'
 
-const updateNameDocument = graphql(/* GraphQL */`mutation UpdateName($name: String!) {
-  updateName(name: $name) {
-    id
-    name
-    status
+const updateNameDocument = graphql(/* GraphQL */ `
+  mutation UpdateName($name: String!) {
+    updateName(name: $name) {
+      id
+      name
+      status
+    }
   }
-}
 `)
 
-const userFragment = graphql(/* GraphQL */`
-fragment Partial on User {
-  id
-  name
-  status
-}
-`)
-
-const viewerDocument = graphql(/* GraphQL */`query Viewer {
-  viewer {
-    ...Partial
+const viewerDocument = graphql(/* GraphQL */ `
+  query Viewer {
+    viewer {
+      id
+      name
+      status
+    }
   }
-}`)
+`)
 
 const Index = () => {
   const { data } = useQuery(viewerDocument)
@@ -46,8 +43,8 @@ const Index = () => {
         const result = cache.readQuery({
           query: viewerDocument,
         })
-        const viewerInCache = useFragment(userFragment, result.viewer)
-        const newViewer = viewerInCache ? { ...viewerInCache } : null
+
+        const newViewer = result ? { ...result.viewer } : null
         // Add our comment from the mutation to the end.
         // Write our data back to the cache.
         if (newViewer) {
@@ -61,7 +58,7 @@ const Index = () => {
     })
   }
 
-  const viewer = useFragment(userFragment, data.viewer)
+  const viewer = data.viewer
 
   return viewer ? (
     <div>

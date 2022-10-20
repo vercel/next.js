@@ -22,7 +22,7 @@
   "devDependencies": {
     "@graphql-codegen/typed-document-node": "^2.2.8",
     "@graphql-codegen/cli": "2.13.7",
-    "@graphql-codegen/client-preset": "1.0.7",
+    "@graphql-codegen/client-preset": "1.1.0",
     "@graphql-codegen/typescript-resolvers": "^2.6.1",
     "@types/jest": "^27.0.2",
     "@types/mocha": "^9.0.0",
