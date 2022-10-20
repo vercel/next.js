@@ -20,10 +20,12 @@ lazy_static = "1.4.0"
 mime = "0.3.16"
 mime_guess = "2.0.4"
 parking_lot = "0.12.1"
+pin-project-lite = "0.2.9"
 serde = "1.0.136"
 serde_json = "1.0.85"
 serde_qs = "0.10.1"
 tokio = "1.11.0"
+tokio-stream = "0.1.9"
 turbo-tasks = { path = "../turbo-tasks" }
 turbo-tasks-fs = { path = "../turbo-tasks-fs" }
 turbo-tasks-hash = { path = "../turbo-tasks-hash" }

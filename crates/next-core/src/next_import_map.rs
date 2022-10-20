@@ -89,7 +89,7 @@ pub fn get_next_server_import_map(
 
 static NEXT_ALIASES: [(&str, &str); 23] = [
     ("asset", "next/dist/compiled/assert"),
-    ("buffer", "next/dist/compiled/buffer/"),
+    ("buffer", "next/dist/compiled/buffer"),
     ("constants", "next/dist/compiled/constants-browserify"),
     ("crypto", "next/dist/compiled/crypto-browserify"),
     ("domain", "next/dist/compiled/domain-browser"),
@@ -102,18 +102,25 @@ static NEXT_ALIASES: [(&str, &str); 23] = [
     ("querystring", "next/dist/compiled/querystring-es3"),
     ("stream", "next/dist/compiled/stream-browserify"),
     ("string_decoder", "next/dist/compiled/string_decoder"),
-    ("sys", "next/dist/compiled/util/"),
+    ("sys", "next/dist/compiled/util"),
     ("timers", "next/dist/compiled/timers-browserify"),
     ("tty", "next/dist/compiled/tty-browserify"),
     ("url", "next/dist/compiled/native-url"),
-    ("util", "next/dist/compiled/util/"),
+    ("util", "next/dist/compiled/util"),
     ("vm", "next/dist/compiled/vm-browserify"),
     ("zlib", "next/dist/compiled/browserify-zlib"),
-    ("events", "next/dist/compiled/events/"),
+    ("events", "next/dist/compiled/events"),
     ("setImmediate", "next/dist/compiled/setimmediate"),
 ];
 
 fn insert_next_shared_aliases(import_map: &mut ImportMap, package_root: FileSystemPathVc) {
+    // we use the next.js hydration code, so we replace the error overlay with our
+    // own
+    import_map.insert_exact_alias(
+        "next/dist/compiled/@next/react-dev-overlay/dist/client",
+        request_to_import_mapping(package_root, "./overlay/client"),
+    );
+
     insert_package_alias(
         import_map,
         &format!("{VIRTUAL_PACKAGE_NAME}/"),

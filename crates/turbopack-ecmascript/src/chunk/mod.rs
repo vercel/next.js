@@ -8,7 +8,7 @@ use anyhow::{anyhow, bail, Context, Result};
 use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    primitives::{StringReadRef, StringVc, StringsVc},
+    primitives::{JsonValueVc, StringReadRef, StringVc, StringsVc},
     trace::TraceRawVcs,
     TryJoinIterExt, ValueToString, ValueToStringVc,
 };
@@ -528,6 +528,7 @@ async fn module_factory(content: EcmascriptChunkItemContentVc) -> Result<CodeVc>
 }
 
 #[derive(Serialize)]
+#[serde(tag = "type")]
 struct EcmascriptChunkUpdate<'a> {
     added: IndexMap<&'a ModuleId, HmrUpdateEntry<'a>>,
     modified: IndexMap<&'a ModuleId, HmrUpdateEntry<'a>>,
@@ -714,7 +715,7 @@ impl VersionedContent for EcmascriptChunkContent {
 
             Update::Partial(PartialUpdate {
                 to: to_version.into(),
-                instruction: StringVc::cell(serde_json::to_string(&chunk_update)?),
+                instruction: JsonValueVc::cell(serde_json::to_value(&chunk_update)?),
             })
         };
 

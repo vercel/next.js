@@ -3,20 +3,28 @@ pub mod code_gen;
 pub mod package_json;
 pub mod resolve;
 
-use std::{cmp::Ordering, collections::HashSet, fmt::Display};
+use std::{cmp::Ordering, collections::HashSet, fmt::Display, future::IntoFuture, sync::Arc};
 
-use anyhow::{bail, Result};
+use anyhow::Result;
+use futures::FutureExt;
 use turbo_tasks::{
     emit,
     primitives::{BoolVc, StringVc},
-    CollectiblesSource, TryJoinIterExt, ValueToString, ValueToStringVc,
+    CollectiblesSource, ReadRef, TryJoinIterExt, ValueToString, ValueToStringVc,
 };
-use turbo_tasks_fs::{FileLine, FileLinesContent, FileSystemPathVc};
+use turbo_tasks_fs::{
+    FileContent, FileContentReadRef, FileLine, FileLinesContent, FileSystemPathReadRef,
+    FileSystemPathVc,
+};
 
-use crate::{asset::AssetVc, source_pos::SourcePos};
+use crate::{
+    asset::{AssetContent, AssetVc},
+    source_pos::SourcePos,
+};
 
 #[turbo_tasks::value(shared)]
 #[derive(PartialOrd, Ord, Copy, Clone, Hash, Debug)]
+#[serde(rename_all = "camelCase")]
 pub enum IssueSeverity {
     Bug,
     Fatal,
@@ -24,7 +32,7 @@ pub enum IssueSeverity {
     Warning,
     Hint,
     Note,
-    Suggestions,
+    Suggestion,
     Info,
 }
 
@@ -37,7 +45,7 @@ impl IssueSeverity {
             IssueSeverity::Warning => "warning",
             IssueSeverity::Hint => "hint",
             IssueSeverity::Note => "note",
-            IssueSeverity::Suggestions => "suggestions",
+            IssueSeverity::Suggestion => "suggestion",
             IssueSeverity::Info => "info",
         }
     }
@@ -50,7 +58,7 @@ impl IssueSeverity {
             IssueSeverity::Warning => "problem should be adressed in short term",
             IssueSeverity::Hint => "idea for improvement",
             IssueSeverity::Note => "detail that is worth mentioning",
-            IssueSeverity::Suggestions => "change proposal for improvement",
+            IssueSeverity::Suggestion => "change proposal for improvement",
             IssueSeverity::Info => "detail that is worth telling",
         }
     }
@@ -172,9 +180,7 @@ impl IssueProcessingPath for ItemIssueProcessingPath {
     /// Returns the shortest path from the root issue to the given issue.
     #[turbo_tasks::function]
     async fn shortest_path(&self, issue: IssueVc) -> Result<OptionIssueProcessingPathItemsVc> {
-        if self.1.is_empty() {
-            bail!("path can't be empty");
-        }
+        assert!(!self.1.is_empty());
         let paths = self
             .1
             .iter()
@@ -220,9 +226,7 @@ impl IssueProcessingPath for ItemIssueProcessingPath {
     }
 }
 
-#[turbo_tasks::value_impl]
 impl IssueVc {
-    #[turbo_tasks::function]
     pub fn emit(self) {
         emit(self);
         emit(
@@ -367,6 +371,7 @@ impl CapturedIssues {
 }
 
 #[turbo_tasks::value]
+#[derive(Clone)]
 pub struct IssueSource {
     pub asset: AssetVc,
     pub start: SourcePos,
@@ -413,3 +418,101 @@ impl IssueSourceVc {
 
 #[turbo_tasks::value(transparent)]
 pub struct OptionIssueSource(Option<IssueSourceVc>);
+
+#[turbo_tasks::value(serialization = "none")]
+#[derive(Clone)]
+pub struct PlainIssue {
+    pub severity: IssueSeverity,
+    pub context: String,
+    pub category: String,
+
+    pub title: String,
+    pub description: String,
+    pub detail: String,
+
+    pub source: Option<PlainIssueSourceReadRef>,
+    pub documentation_link: String,
+    pub sub_issues: Vec<PlainIssueReadRef>,
+}
+
+#[turbo_tasks::value_impl]
+impl IssueVc {
+    #[turbo_tasks::function]
+    pub async fn into_plain(self) -> Result<PlainIssueVc> {
+        Ok(PlainIssue {
+            severity: *self.severity().await?,
+            context: self.context().to_string().await?.clone_value(),
+            category: self.category().await?.clone_value(),
+            title: self.title().await?.clone_value(),
+            description: self.description().await?.clone_value(),
+            detail: self.detail().await?.clone_value(),
+            source: self
+                .source()
+                .into_future()
+                .then(|s| async {
+                    if let Some(s) = *s? {
+                        return Ok(Some(s.into_plain().await?));
+                    }
+
+                    anyhow::Ok(None)
+                })
+                .await?,
+            documentation_link: self.documentation_link().await?.clone_value(),
+            sub_issues: self
+                .sub_issues()
+                .await?
+                .iter()
+                .map(|i| async move { anyhow::Ok(i.into_plain().await?) })
+                .try_join()
+                .await?,
+        }
+        .cell())
+    }
+}
+
+#[turbo_tasks::value(serialization = "none")]
+#[derive(Clone)]
+pub struct PlainIssueSource {
+    pub asset: PlainAssetReadRef,
+    pub start: SourcePos,
+    pub end: SourcePos,
+}
+
+#[turbo_tasks::value_impl]
+impl IssueSourceVc {
+    #[turbo_tasks::function]
+    pub async fn into_plain(self) -> Result<PlainIssueSourceVc> {
+        let this = self.await?;
+        Ok(PlainIssueSource {
+            asset: PlainAssetVc::from_asset(this.asset).await?,
+            start: this.start,
+            end: this.end,
+        }
+        .cell())
+    }
+}
+
+#[turbo_tasks::value(serialization = "none")]
+#[derive(Clone)]
+pub struct PlainAsset {
+    pub path: FileSystemPathReadRef,
+    pub content: FileContentReadRef,
+}
+
+#[turbo_tasks::value_impl]
+impl PlainAssetVc {
+    #[turbo_tasks::function]
+    pub async fn from_asset(asset: AssetVc) -> Result<PlainAssetVc> {
+        let asset_content = asset.content().await?;
+        let content = match *asset_content {
+            AssetContent::File(file_content) => file_content.await?,
+            AssetContent::Redirect { .. } => ReadRef::new(Arc::new(FileContent::NotFound)),
+        };
+
+        Ok(PlainAsset {
+            path: asset.path().await?,
+            content,
+        }
+        .cell())
+    }
+}

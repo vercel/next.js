@@ -17,14 +17,14 @@ use std::{
     time::{Duration, Instant},
 };
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{bail, Result};
 use hyper::{
     service::{make_service_fn, service_fn},
     Body, Request, Response, Server,
 };
 use mime_guess::mime;
 use turbo_tasks::{
-    trace::TraceRawVcs, util::FormatDuration, RawVc, TransientValue, TurboTasksApi, Value,
+    run_once, trace::TraceRawVcs, util::FormatDuration, RawVc, TransientValue, TurboTasksApi, Value,
 };
 use turbo_tasks_fs::FileContent;
 use turbopack_cli_utils::issue::{ConsoleUi, ConsoleUiVc};
@@ -71,6 +71,7 @@ async fn handle_issues<T: Into<RawVc>>(
     if state.has_fatal {
         bail!("Fatal issue(s) occurred in {path} ({operation}")
     }
+
     Ok(())
 }
 
@@ -173,8 +174,7 @@ impl DevServer {
                             return Ok(Response::builder().status(404).body(Body::empty())?);
                         }
 
-                        let (tx, rx) = tokio::sync::oneshot::channel();
-                        let task_id = tt.run_once(Box::pin(async move {
+                        run_once(tt, async move {
                             let console_ui = (*console_ui).clone().cell();
                             let uri = request.uri();
                             let path = uri.path();
@@ -194,7 +194,6 @@ impl DevServer {
                             .await?;
                             let status = response.status().as_u16();
                             let success = response.status().is_success();
-                            tx.send(response).map_err(|_| anyhow!("receiver dropped"))?;
                             let elapsed = start.elapsed();
                             if !success || elapsed > Duration::from_secs(1) {
                                 println!(
@@ -202,17 +201,9 @@ impl DevServer {
                                     duration = FormatDuration(elapsed)
                                 );
                             }
-                            Ok(())
-                        }));
-                        match rx.await {
-                            Ok(r) => Ok::<_, anyhow::Error>(r),
-                            Err(_) => {
-                                // INVALIDATION: this is just for a single http response, we don't
-                                // care about invalidation.
-                                let _ = tt.try_read_task_output_untracked(task_id, false)?;
-                                Err(anyhow!("Task didn't send a reponse"))
-                            }
-                        }
+                            Ok(response)
+                        })
+                        .await
                     };
                     async move {
                         match future.await {
@@ -230,7 +221,7 @@ impl DevServer {
                         }
                     }
                 };
-                Ok::<_, anyhow::Error>(service_fn(handler))
+                anyhow::Ok(service_fn(handler))
             }
         });
         let server = Server::bind(&addr).serve(make_svc);

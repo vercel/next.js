@@ -1,27 +1,56 @@
 use std::{pin::Pin, sync::Mutex};
 
-use anyhow::Result;
-use futures::{stream::unfold, Stream};
+use anyhow::{bail, Result};
+use futures::{prelude::*, Stream};
 use tokio::sync::mpsc::Sender;
-use turbo_tasks::{get_invalidator, Invalidator, TransientInstance};
-use turbopack_core::version::{
-    PartialUpdate, TotalUpdate, Update, UpdateReadRef, VersionVc, VersionedContentVc,
+use tokio_stream::wrappers::ReceiverStream;
+use turbo_tasks::{get_invalidator, CollectiblesSource, Invalidator, TransientInstance};
+use turbopack_core::{
+    issue::{CapturedIssuesReadRef, IssueVc},
+    version::{PartialUpdate, TotalUpdate, Update, UpdateReadRef, VersionVc, VersionedContentVc},
 };
 
 #[turbo_tasks::value(transparent)]
 struct UnresolvedVersionedContent(VersionedContentVc);
 
+async fn peek_issues<T: CollectiblesSource + Copy>(source: T) -> Result<CapturedIssuesReadRef> {
+    IssueVc::peek_issues_with_path(source).await?.await
+}
+
+#[turbo_tasks::function]
+async fn get_update_stream_item(
+    from: VersionStateVc,
+    content: UnresolvedVersionedContentVc,
+) -> Result<UpdateStreamItemVc> {
+    let content = *content.await?;
+    let from = from.get();
+    let update = content.update(from);
+    let issues = peek_issues(update).await?;
+    let update = update.await?;
+
+    let issues = if issues.is_empty() {
+        peek_issues(content).await?
+    } else {
+        issues
+    };
+
+    Ok(UpdateStreamItem { update, issues }.cell())
+}
+
 #[turbo_tasks::function]
 async fn compute_update_stream(
     from: VersionStateVc,
     content: UnresolvedVersionedContentVc,
-    sender: TransientInstance<Sender<UpdateReadRef>>,
+    sender: TransientInstance<Sender<UpdateStreamItemReadRef>>,
 ) -> Result<()> {
-    let update = content
+    let item = get_update_stream_item(from, content)
         .strongly_consistent()
-        .await?
-        .update(from.get().resolve_strongly_consistent().await?);
-    sender.send(update.strongly_consistent().await?).await?;
+        .await?;
+
+    if sender.send(item).await.is_err() {
+        bail!("channel closed");
+    }
+
     Ok(())
 }
 
@@ -61,13 +90,10 @@ impl VersionStateVc {
     }
 }
 
-pub(super) struct UpdateStream {
-    chunk_path: String,
-    stream: Pin<Box<dyn Stream<Item = UpdateReadRef> + Send + Sync>>,
-}
+pub(super) struct UpdateStream(Pin<Box<dyn Stream<Item = UpdateStreamItemReadRef> + Send + Sync>>);
 
 impl UpdateStream {
-    pub async fn new(chunk_path: String, content: VersionedContentVc) -> Result<UpdateStream> {
+    pub async fn new(content: VersionedContentVc) -> Result<UpdateStream> {
         let (sx, rx) = tokio::sync::mpsc::channel(32);
 
         let version_state = VersionStateVc::new(content.version()).await?;
@@ -78,45 +104,53 @@ impl UpdateStream {
             TransientInstance::new(sx),
         );
 
-        Ok(UpdateStream {
-            chunk_path,
-            stream: Box::pin(unfold(
-                (rx, version_state),
-                |(mut rx, version_state)| async move {
-                    loop {
-                        let update = rx.recv().await.expect("failed to receive update");
-                        match &*update {
-                            Update::Partial(PartialUpdate { to, .. })
-                            | Update::Total(TotalUpdate { to }) => {
-                                version_state
-                                    .set(*to)
-                                    .await
-                                    .expect("failed to update version");
-                                return Some((update, (rx, version_state)));
-                            }
-                            // Do not propagate empty updates.
-                            Update::None => {
-                                continue;
-                            }
+        let mut last_had_issues = false;
+
+        let stream = ReceiverStream::new(rx).filter_map(move |update| {
+            let has_issues = !update.issues.is_empty();
+            let issues_changed = has_issues != last_had_issues;
+            last_had_issues = has_issues;
+
+            async move {
+                match &*update.update {
+                    Update::Partial(PartialUpdate { to, .. })
+                    | Update::Total(TotalUpdate { to }) => {
+                        version_state
+                            .set(*to)
+                            .await
+                            .expect("failed to update version");
+
+                        Some(update)
+                    }
+                    // Do not propagate empty updates.
+                    Update::None => {
+                        if has_issues || issues_changed {
+                            Some(update)
+                        } else {
+                            None
                         }
                     }
-                },
-            )),
-        })
-    }
+                }
+            }
+        });
 
-    pub fn chunk_path(&self) -> &str {
-        &self.chunk_path
+        Ok(UpdateStream(Box::pin(stream)))
     }
 }
 
 impl Stream for UpdateStream {
-    type Item = UpdateReadRef;
+    type Item = UpdateStreamItemReadRef;
 
     fn poll_next(
         self: Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Option<Self::Item>> {
-        Pin::new(&mut self.get_mut().stream).poll_next(cx)
+        Pin::new(&mut self.get_mut().0).poll_next(cx)
     }
+}
+
+#[turbo_tasks::value]
+pub struct UpdateStreamItem {
+    pub update: UpdateReadRef,
+    pub issues: CapturedIssuesReadRef,
 }

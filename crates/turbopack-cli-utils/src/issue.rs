@@ -16,7 +16,8 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::{DiskFileSystemVc, FileLinesContent, FileSystemPathVc};
 use turbopack_core::issue::{
-    IssueProcessingPathItem, IssueSeverity, IssueSource, IssueVc, OptionIssueProcessingPathItemsVc,
+    IssueProcessingPathItem, IssueSeverity, IssueVc, OptionIssueProcessingPathItemsVc, PlainIssue,
+    PlainIssueSource,
 };
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -44,7 +45,7 @@ impl clap::ValueEnum for IssueSeverityCliOption {
             Self(IssueSeverity::Warning),
             Self(IssueSeverity::Hint),
             Self(IssueSeverity::Note),
-            Self(IssueSeverity::Suggestions),
+            Self(IssueSeverity::Suggestion),
             Self(IssueSeverity::Info),
         ];
         &VARIANTS
@@ -63,7 +64,7 @@ impl FromStr for IssueSeverityCliOption {
     }
 }
 
-fn severity_to_style(severity: &IssueSeverity) -> Style {
+fn severity_to_style(severity: IssueSeverity) -> Style {
     match severity {
         IssueSeverity::Bug => Style::new().bright_red().underline(),
         IssueSeverity::Fatal => Style::new().bright_red().underline(),
@@ -71,13 +72,13 @@ fn severity_to_style(severity: &IssueSeverity) -> Style {
         IssueSeverity::Warning => Style::new().bright_yellow(),
         IssueSeverity::Hint => Style::new().bold(),
         IssueSeverity::Note => Style::new().bold(),
-        IssueSeverity::Suggestions => Style::new().bright_green().underline(),
+        IssueSeverity::Suggestion => Style::new().bright_green().underline(),
         IssueSeverity::Info => Style::new().bright_green(),
     }
 }
 
-async fn format_source_content(source: &IssueSource, formatted_issue: &mut String) -> Result<()> {
-    if let FileLinesContent::Lines(lines) = &*source.asset.content().lines().await? {
+fn format_source_content(source: &PlainIssueSource, formatted_issue: &mut String) {
+    if let FileLinesContent::Lines(lines) = source.asset.content.lines() {
         let context_start = source.start.line.saturating_sub(4);
         let context_end = source.end.line + 4;
         for (i, l) in lines
@@ -111,7 +112,8 @@ async fn format_source_content(source: &IssueSource, formatted_issue: &mut Strin
                         "{:>6}   {}",
                         n.dimmed(),
                         limit_len(l).dimmed()
-                    )?;
+                    )
+                    .unwrap();
                 }
                 // start line
                 (Ordering::Equal, Ordering::Less) => {
@@ -122,7 +124,8 @@ async fn format_source_content(source: &IssueSource, formatted_issue: &mut Strin
                         n,
                         limit_len(before).dimmed(),
                         limit_len(marked).bold()
-                    )?;
+                    )
+                    .unwrap();
                 }
                 // start and end line
                 (Ordering::Equal, Ordering::Equal) => {
@@ -136,7 +139,8 @@ async fn format_source_content(source: &IssueSource, formatted_issue: &mut Strin
                         limit_len(before).dimmed(),
                         limit_len(middle).bold(),
                         limit_len(after).dimmed()
-                    )?;
+                    )
+                    .unwrap();
                 }
                 // end line
                 (Ordering::Greater, Ordering::Equal) => {
@@ -147,16 +151,16 @@ async fn format_source_content(source: &IssueSource, formatted_issue: &mut Strin
                         n,
                         limit_len(marked).bold(),
                         limit_len(after).dimmed()
-                    )?;
+                    )
+                    .unwrap();
                 }
                 // middle line
                 (Ordering::Greater, Ordering::Less) => {
-                    writeln!(formatted_issue, "{:>6} | {}", n, limit_len(l).bold())?
+                    writeln!(formatted_issue, "{:>6} | {}", n, limit_len(l).bold()).unwrap()
                 }
             }
         }
     }
-    Ok(())
 }
 
 async fn format_optional_path(
@@ -192,6 +196,81 @@ async fn format_optional_path(
     Ok(())
 }
 
+pub fn format_issue(
+    plain_issue: &PlainIssue,
+    path: Option<String>,
+    options: &LogOptions,
+) -> String {
+    let &LogOptions {
+        ref current_dir,
+        log_detail,
+        ..
+    } = options;
+
+    let mut issue_text = String::new();
+
+    let severity = plain_issue.severity;
+    let context_path = plain_issue
+        .context
+        .replace("[project]", &current_dir.to_string_lossy())
+        .replace("/./", "/")
+        .replace("\\\\?\\", "");
+    let category = &plain_issue.category;
+    let title = &plain_issue.title;
+
+    let mut styled_issue = if let Some(source) = &plain_issue.source {
+        let mut styled_issue = format!(
+            "{}:{}:{}  {}",
+            context_path,
+            source.start.line + 1,
+            source.start.column,
+            title.bold()
+        );
+        styled_issue.push('\n');
+        format_source_content(source, &mut styled_issue);
+        styled_issue
+    } else {
+        format!("{}", title.bold())
+    };
+
+    let description = &plain_issue.description;
+    if !description.is_empty() {
+        writeln!(styled_issue, "\n{description}").unwrap();
+    }
+
+    if log_detail {
+        styled_issue.push('\n');
+        let detail = &plain_issue.detail;
+        if !detail.is_empty() {
+            for line in detail.split('\n') {
+                writeln!(styled_issue, "| {line}").unwrap();
+            }
+        }
+        let documentation_link = &plain_issue.documentation_link;
+        if !documentation_link.is_empty() {
+            writeln!(styled_issue, "\ndocumentation: {documentation_link}").unwrap();
+        }
+        if let Some(path) = path {
+            writeln!(styled_issue, "{}", path).unwrap();
+        }
+    }
+
+    write!(
+        issue_text,
+        "{} [{}] {}",
+        severity.style(severity_to_style(severity)),
+        category,
+        plain_issue.context
+    )
+    .unwrap();
+
+    for line in styled_issue.lines() {
+        writeln!(issue_text, "  {line}").unwrap();
+    }
+
+    issue_text
+}
+
 pub type GroupedIssues = HashMap<IssueSeverity, HashMap<String, HashMap<String, Vec<String>>>>;
 
 const DEFAULT_SHOW_COUNT: usize = 3;
@@ -203,7 +282,7 @@ const ORDERED_GROUPS: &[IssueSeverity] = &[
     IssueSeverity::Warning,
     IssueSeverity::Hint,
     IssueSeverity::Note,
-    IssueSeverity::Suggestions,
+    IssueSeverity::Suggestion,
     IssueSeverity::Info,
 ];
 
@@ -399,13 +478,15 @@ impl ConsoleUiVc {
                 continue;
             }
 
-            let severity = &*issue.severity().await?;
+            let plain_issue = issue.into_plain().await?;
+
+            let severity = plain_issue.severity;
             let context_path = make_relative_to_cwd(issue.context(), current_dir).await?;
-            let category = &*issue.category().await?;
-            let title = &*issue.title().await?;
-            has_fatal = severity == &IssueSeverity::Fatal;
+            let category = &plain_issue.category;
+            let title = &plain_issue.title;
+            has_fatal = severity == IssueSeverity::Fatal;
             let severity_map = grouped_issues
-                .entry(*severity)
+                .entry(severity)
                 .or_insert_with(Default::default);
             let category_map = severity_map
                 .entry(category.clone())
@@ -414,8 +495,7 @@ impl ConsoleUiVc {
                 .entry(context_path.clone())
                 .or_insert_with(Default::default);
 
-            let mut styled_issue = if let Some(source) = &*issue.source().await? {
-                let source = &*source.await?;
+            let mut styled_issue = if let Some(source) = &plain_issue.source {
                 let mut styled_issue = format!(
                     "{}:{}:{}  {}",
                     context_path,
@@ -424,7 +504,7 @@ impl ConsoleUiVc {
                     title.bold()
                 );
                 styled_issue.push('\n');
-                format_source_content(source, &mut styled_issue).await?;
+                format_source_content(source, &mut styled_issue);
                 styled_issue
             } else {
                 format!("{}", title.bold())
@@ -452,8 +532,8 @@ impl ConsoleUiVc {
             issues.push(styled_issue);
         }
 
-        for severity in ORDERED_GROUPS.iter().filter(|l| **l <= log_level) {
-            if let Some(severity_map) = grouped_issues.get_mut(severity) {
+        for severity in ORDERED_GROUPS.iter().copied().filter(|l| *l <= log_level) {
+            if let Some(severity_map) = grouped_issues.get_mut(&severity) {
                 let severity_map_size = severity_map.len();
                 let indent = if severity_map_size == 1 {
                     print!("{} ", severity.style(severity_to_style(severity)));

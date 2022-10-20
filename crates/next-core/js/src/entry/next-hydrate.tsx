@@ -1,4 +1,4 @@
-import "@vercel/turbopack-next/internal/shims";
+import "@vercel/turbopack-next/internal/shims-client";
 
 import { initialize, hydrate } from "next/dist/client";
 import { initializeHMR } from "@vercel/turbopack-next/dev/client";

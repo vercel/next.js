@@ -908,6 +908,27 @@ impl<'de> Deserialize<'de> for Invalidator {
     }
 }
 
+pub async fn run_once<T: Send + 'static>(
+    tt: Arc<dyn TurboTasksApi>,
+    future: impl Future<Output = Result<T>> + Send + 'static,
+) -> Result<T> {
+    let (tx, rx) = tokio::sync::oneshot::channel();
+
+    let task_id = tt.run_once(Box::pin(async move {
+        let result = future.await?;
+        tx.send(result)
+            .map_err(|_| anyhow!("unable to send result"))?;
+        Ok(())
+    }));
+
+    // INVALIDATION: A Once task will never invalidate, therefore we don't need to
+    // track a dependency
+    let raw_result = read_task_output_untracked(&*tt, task_id, false).await?;
+    raw_result.into_read_untracked::<Nothing>(&*tt).await?;
+
+    Ok(rx.await?)
+}
+
 /// see [TurboTasks] `dynamic_call`
 pub fn dynamic_call(func: FunctionId, inputs: Vec<TaskInput>) -> RawVc {
     with_turbo_tasks(|tt| tt.dynamic_call(func, inputs))

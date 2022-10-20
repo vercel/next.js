@@ -1,14 +1,7 @@
-import { Exports, ModuleFactoryString, ModuleId } from "./index";
+import { Exports, ModuleId } from "./index";
 
 export const enum HotUpdateStatus {
   idle = "idle",
-  check = "check",
-  prepare = "prepare",
-  ready = "ready",
-  dispose = "dispose",
-  apply = "apply",
-  abort = "abort",
-  fail = "fail",
 }
 
 export interface HotData {
@@ -57,10 +50,4 @@ export interface Hot {
   removeDisposeHandler: (callback: (data: object) => void) => void;
 
   invalidate: () => void;
-}
-
-export interface UpdateInstructions {
-  added: Record<ModuleId, ModuleFactoryString>;
-  modified: Record<ModuleId, ModuleFactoryString>;
-  deleted: ModuleId[];
 }

@@ -17,9 +17,8 @@
   /** @typedef {import('../types').ChunkModule} ChunkModule */
   /** @typedef {import('../types').Chunk} Chunk */
   /** @typedef {import('../types').ModuleFactory} ModuleFactory */
-  /** @typedef {import('../types/hot').UpdateInstructions} UpdateInstructions */
 
-  /** @typedef {import('../types').ChunkId} ChunkId */
+  /** @typedef {import('../types').ChunkPath} ChunkPath */
   /** @typedef {import('../types').ModuleId} ModuleId */
 
   /** @typedef {import('../types').Module} Module */
@@ -36,6 +35,8 @@
   /** @typedef {import('../types/hot').AcceptCallback} AcceptCallback */
   /** @typedef {import('../types/hot').AcceptErrorHandler} AcceptErrorHandler */
   /** @typedef {import('../types/hot').HotState} HotState */
+  /** @typedef {import('../types/protocol').EcmascriptChunkUpdate} EcmascriptChunkUpdate */
+  /** @typedef {import('../types/protocol').HmrUpdateEntry} HmrUpdateEntry */
 
   /** @typedef {import('../types/runtime').Loader} Loader */
   /** @typedef {import('../types/runtime').ModuleEffect} ModuleEffect */
@@ -51,13 +52,13 @@
   /**
    * Contains the IDs of all chunks that have been loaded.
    *
-   * @type {Set<ChunkId>}
+   * @type {Set<ChunkPath>}
    */
   const loadedChunks = new Set();
   /**
    * Maps a chunk ID to the chunk's loader if the chunk is currently being loaded.
    *
-   * @type {Map<ChunkId, Loader>}
+   * @type {Map<ChunkPath, Loader>}
    */
   const chunkLoaders = new Map();
   /**
@@ -69,10 +70,14 @@
   const moduleHotData = new Map();
   /**
    * Maps module instances to their hot module state.
+   *
+   * @type {Map<Module, HotState>}
    */
   const moduleHotState = new Map();
   /**
    * Module IDs that are instantiated as part of the runtime of a chunk.
+   *
+   * @type {Set<ModuleId>}
    */
   const runtimeModules = new Set();
   /**
@@ -492,13 +497,18 @@
   }
 
   /**
-   * @param {string[]} dependencyChain
+   * @param {ModuleId[]} dependencyChain
    * @returns {string}
    */
   function formatDependencyChain(dependencyChain) {
     return `Dependency chain: ${dependencyChain.join(" -> ")}`;
   }
 
+  /**
+   * @param {HmrUpdateEntry} factory
+   * @returns {ModuleFactory}
+   * @private
+   */
   function _eval(factory) {
     let code = factory.code;
     if (factory.map) code += `\n\n//# sourceMappingURL=${factory.map}`;
@@ -506,7 +516,7 @@
   }
 
   /**
-   * @param {UpdateInstructions} update
+   * @param {EcmascriptChunkUpdate} update
    * @returns {{outdatedModules: Set<any>, newModuleFactories: Map<any, any>}}
    */
   function computeOutdatedModules(update) {
@@ -548,7 +558,7 @@
 
   /**
    * @param {Iterable<ModuleId>} outdatedModules
-   * @returns {{ moduleId: ModuleId, errorHandler: Function }[]}
+   * @returns {{ moduleId: ModuleId, errorHandler: true | Function }[]}
    */
   function computeOutdatedSelfAcceptedModules(outdatedModules) {
     const outdatedSelfAcceptedModules = [];
@@ -566,7 +576,7 @@
   }
 
   /**
-   * @param {string} chunkPath
+   * @param {ChunkPath} chunkPath
    * @param {Iterable<ModuleId>} outdatedModules
    * @param {Iterable<ModuleId>} deletedModules
    */
@@ -649,8 +659,8 @@
 
   /**
    *
-   * @param {ChunkId} chunkPath
-   * @param {{ moduleId: ModuleId, errorHandler: Function }[]} outdatedSelfAcceptedModules
+   * @param {ChunkPath} chunkPath
+   * @param {{ moduleId: ModuleId, errorHandler: true | Function }[]} outdatedSelfAcceptedModules
    * @param {Map<string, ModuleFactory>} newModuleFactories
    */
   function applyPhase(
@@ -686,8 +696,8 @@
 
   /**
    *
-   * @param {string} chunkPath
-   * @param {UpdateInstructions} update
+   * @param {ChunkPath} chunkPath
+   * @param {EcmascriptChunkUpdate} update
    */
   function applyUpdate(chunkPath, update) {
     const { outdatedModules, newModuleFactories } =
@@ -789,13 +799,13 @@
   }
 
   /**
-   * @param {ChunkId} chunkPath
+   * @param {ChunkPath} chunkPath
    * @param {import('../types/protocol').ServerMessage} update
    */
   function handleApply(chunkPath, update) {
     switch (update.type) {
       case "partial":
-        applyUpdate(chunkPath, JSON.parse(update.instruction));
+        applyUpdate(chunkPath, update.instruction);
         break;
       case "restart":
         self.location.reload();
@@ -888,7 +898,7 @@
    * Adds a module to a chunk.
    *
    * @param {ModuleId} moduleId
-   * @param {ChunkId} chunkPath
+   * @param {ChunkPath} chunkPath
    */
   function addModuleToChunk(moduleId, chunkPath) {
     let moduleChunks = moduleChunksMap.get(moduleId);
@@ -905,7 +915,7 @@
    * including this module.
    *
    * @param {ModuleId} moduleId
-   * @param {ChunkId} chunkPath
+   * @param {ChunkPath} chunkPath
    * @returns {boolean}
    */
   function removeModuleFromChunk(moduleId, chunkPath) {
@@ -935,7 +945,7 @@
   /**
    * Subscribes to chunk updates from the update server and applies them.
    *
-   * @param {ChunkId} chunkPath
+   * @param {ChunkPath} chunkPath
    */
   function subscribeToChunkUpdates(chunkPath) {
     // This adds a chunk update listener once the handler code has been loaded

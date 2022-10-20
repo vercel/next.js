@@ -30,7 +30,7 @@ export interface ChunkRegistrations {
 interface Module {
   exports: Exports;
   loaded: boolean;
-  id: string;
+  id: ModuleId;
   hot: Hot;
   children: ModuleId[];
   parents: ModuleId[];
@@ -49,7 +49,7 @@ type EsmImport = (
 type EsmExport = (exportGetters: Record<string, () => any>) => void;
 type ExportValue = (value: any) => void;
 
-type LoadFile = (path: ChunkPath) => Promise<any> | undefined;
+type LoadChunk = (chunkPath: ChunkPath) => Promise<any> | undefined;
 
 interface TurbopackContext {
   e: Module["exports"];
@@ -59,7 +59,7 @@ interface TurbopackContext {
   v: ExportValue;
   m: Module;
   c: ModuleCache;
-  l: LoadFile;
+  l: LoadChunk;
   p: Partial<NodeJS.Process> & Pick<NodeJS.Process, "env">;
 }
 

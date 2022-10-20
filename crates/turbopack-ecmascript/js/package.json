@@ -4,6 +4,9 @@
   "description": "turbopack runtime",
   "license": "UNLICENSED",
   "private": true,
+  "scripts": {
+    "check": "tsc --noEmit"
+  },
   "dependencies": {
     "@next/react-refresh-utils": "^12.2.5"
   },

@@ -1,6 +1,10 @@
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{debug::ValueDebugFormat, primitives::StringVc, trace::TraceRawVcs};
+use turbo_tasks::{
+    debug::ValueDebugFormat,
+    primitives::{JsonValueVc, StringVc},
+    trace::TraceRawVcs,
+};
 use turbo_tasks_fs::{FileContent, FileContentReadRef, LinkType};
 use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
 
@@ -141,8 +145,7 @@ pub struct PartialUpdate {
     pub to: VersionVc,
     /// The instructions to be passed to a remote system in order to update the
     /// versioned object.
-    // TODO(alexkirsz) Should this be a serde_json::Value?
-    pub instruction: StringVc,
+    pub instruction: JsonValueVc,
 }
 
 /// [`Version`] implementation that hashes a file at a given path and returns

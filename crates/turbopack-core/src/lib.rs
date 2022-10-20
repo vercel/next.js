@@ -14,7 +14,7 @@ pub mod issue;
 pub mod reference;
 pub mod resolve;
 pub mod source_asset;
-mod source_pos;
+pub mod source_pos;
 pub mod target;
 mod utils;
 pub mod version;
