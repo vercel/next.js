@@ -105,7 +105,7 @@ A loader is a function that generates the URLs for your image. It modifies the p
 
 The default loader for Next.js applications uses the built-in Image Optimization API, which optimizes images from anywhere on the web, and then serves them directly from the Next.js web server. If you would like to serve your images directly from a CDN or image server, you can write your own `loader` function with a few lines of JavaScript.
 
-Loaders can be defined per-image with the [`loader` prop](/docs/api-reference/next/image.md#loader), or at the application level with the [`loader` configuration](https://nextjs.org/docs/api-reference/next/image#loader-configuration).
+Loaders can be defined per-image with the [`loader` prop](/docs/api-reference/next/image.md#loader), or at the application level with the [`loaderFile` configuration](https://nextjs.org/docs/api-reference/next/image#loader-configuration).
 
 ### Priority
 

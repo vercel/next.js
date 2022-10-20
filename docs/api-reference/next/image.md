@@ -111,7 +111,7 @@ const MyImage = (props) => {
 }
 ```
 
-Alternatively, you can use the [loader configuration](#loader-configuration) in next.config.js to configure every instance of `next/image` in your application.
+Alternatively, you can use the [loaderFile](#loader-configuration) configuration in next.config.js to configure every instance of `next/image` in your application.
 
 ### fill
 
@@ -347,17 +347,18 @@ module.exports = {
 
 ### Loader Configuration
 
-If you want to use a cloud provider to optimize images instead of using the Next.js built-in Image Optimization API, you can configure the `loader` in your `next.config.js` file like the following:
+If you want to use a cloud provider to optimize images instead of using the Next.js built-in Image Optimization API, you can configure the `loaderFile` in your `next.config.js` like the following:
 
 ```js
 module.exports = {
   images: {
-    loader: './my/image/loader.js',
+    loader: 'custom',
+    loaderFile: './my/image/loader.js',
   },
 }
 ```
 
-This must point to a file relative to the root of your Next.js application. The file must export a default function that returns a string.
+This must point to a file relative to the root of your Next.js application. The file must export a default function that returns a string, for example:
 
 ```js
 export default function myImageLoader({ src, width, quality }) {

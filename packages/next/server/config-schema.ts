@@ -576,6 +576,10 @@ const configSchema = {
         loader: {
           type: 'string',
         },
+        loaderFile: {
+          minLength: 1,
+          type: 'string',
+        },
         minimumCacheTTL: {
           type: 'number',
         },

@@ -1,4 +1,5 @@
-import { basename, extname, relative, isAbsolute, resolve } from 'path'
+import { existsSync } from 'fs'
+import { basename, extname, join, relative, isAbsolute, resolve } from 'path'
 import { pathToFileURL } from 'url'
 import { Agent as HttpAgent } from 'http'
 import { Agent as HttpsAgent } from 'https'
@@ -76,7 +77,7 @@ export function setHttpClientAndAgentOptions(options: NextConfig) {
   ;(global as any).__NEXT_HTTPS_AGENT = new HttpsAgent(options.httpAgentOptions)
 }
 
-function assignDefaults(userConfig: { [key: string]: any }) {
+function assignDefaults(dir: string, userConfig: { [key: string]: any }) {
   const configFileName = userConfig.configFileName
   if (typeof userConfig.exportTrailingSlash !== 'undefined') {
     console.warn(
@@ -363,10 +364,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       images.loader = 'default'
     }
 
-    if (
-      !VALID_LOADERS.includes(images.loader) &&
-      !images.loader.startsWith('./')
-    ) {
+    if (!VALID_LOADERS.includes(images.loader)) {
       throw new Error(
         `Specified images.loader should be one of (${VALID_LOADERS.join(
           ', '
@@ -379,11 +377,10 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     if (
       images.loader !== 'default' &&
       images.loader !== 'custom' &&
-      !images.loader.startsWith('./') &&
       images.path === imageConfigDefault.path
     ) {
       throw new Error(
-        `Specified images.loader property (${images.loader}) also requires images.path property to be assigned to a URL prefix.\nSee more info here: https://nextjs.org/docs/api-reference/next/image#loader-configuration`
+        `Specified images.loader property (${images.loader}) also requires images.path property to be assigned to a URL prefix.\nSee more info here: https://nextjs.org/docs/api-reference/next/legacy/image#loader-configuration`
       )
     }
 
@@ -400,6 +397,22 @@ function assignDefaults(userConfig: { [key: string]: any }) {
 
     if (images.path === imageConfigDefault.path && result.basePath) {
       images.path = `${result.basePath}${images.path}`
+    }
+
+    if (images.loaderFile) {
+      if (images.loader !== 'default' && images.loader !== 'custom') {
+        throw new Error(
+          'Cannot specify both images.loader and images.loaderFile configuration properties. Please remove images.loader in favor of images.loaderFile.'
+        )
+      }
+      const absolutePath = join(dir, images.loaderFile)
+      if (!existsSync(absolutePath)) {
+        throw new Error(
+          `Specified images.loaderFile does not exist at "${absolutePath}".`
+        )
+      }
+      images.loader = 'custom'
+      images.loaderFile = absolutePath
     }
 
     if (
@@ -743,7 +756,7 @@ export default async function loadConfig(
   let configFileName = 'next.config.js'
 
   if (customConfig) {
-    return assignDefaults({
+    return assignDefaults(dir, {
       configOrigin: 'server',
       configFileName,
       ...customConfig,
@@ -822,7 +835,7 @@ export default async function loadConfig(
           : canonicalBase) || ''
     }
 
-    return assignDefaults({
+    return assignDefaults(dir, {
       configOrigin: relative(dir, path),
       configFile: path,
       configFileName,
@@ -850,7 +863,10 @@ export default async function loadConfig(
 
   // always call assignDefaults to ensure settings like
   // reactRoot can be updated correctly even with no next.config.js
-  const completeConfig = assignDefaults(defaultConfig) as NextConfigComplete
+  const completeConfig = assignDefaults(
+    dir,
+    defaultConfig
+  ) as NextConfigComplete
   completeConfig.configFileName = configFileName
   setHttpClientAndAgentOptions(completeConfig)
   return completeConfig
