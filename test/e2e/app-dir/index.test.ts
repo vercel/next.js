@@ -913,6 +913,42 @@ describe('app dir', () => {
             await browser.close()
           }
         })
+
+        it('should support router.back and router.forward', async () => {
+          const browser = await webdriver(next.url, '/back-forward/1')
+
+          const firstMessage = 'Hello from 1'
+          const secondMessage = 'Hello from 2'
+
+          expect(await browser.elementByCss('#message-1').text()).toBe(
+            firstMessage
+          )
+
+          try {
+            const message2 = await browser
+              .waitForElementByCss('#to-other-page')
+              .click()
+              .waitForElementByCss('#message-2')
+              .text()
+            expect(message2).toBe(secondMessage)
+
+            const message1 = await browser
+              .waitForElementByCss('#back-button')
+              .click()
+              .waitForElementByCss('#message-1')
+              .text()
+            expect(message1).toBe(firstMessage)
+
+            const message2Again = await browser
+              .waitForElementByCss('#forward-button')
+              .click()
+              .waitForElementByCss('#message-2')
+              .text()
+            expect(message2Again).toBe(secondMessage)
+          } finally {
+            await browser.close()
+          }
+        })
       })
 
       describe('hooks', () => {
