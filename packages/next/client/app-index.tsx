@@ -8,7 +8,7 @@ import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-we
 
 import measureWebVitals from './performance-relayer'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
-import HotReload from './components/react-dev-overlay/hot-reloader'
+import HotReload from './components/react-dev-overlay/hot-reloader-client'
 
 /// <reference types="react-dom/experimental" />
 
