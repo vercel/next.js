@@ -111,7 +111,7 @@ const MyImage = (props) => {
 }
 ```
 
-Alternatively, you can use the [loaderFile](#loader-configuration) configuration in next.config.js to configure every instance of `next/image` in your application.
+Alternatively, you can use the [loaderFile](#loader-configuration) configuration in next.config.js to configure every instance of `next/image` in your application, without passing a prop.
 
 ### fill
 
