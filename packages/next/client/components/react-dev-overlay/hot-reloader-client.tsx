@@ -4,7 +4,8 @@ import React, {
   useCallback,
   useContext,
   useEffect,
-  useRef,
+  useReducer,
+  useMemo,
   // @ts-expect-error TODO-APP: startTransition exists
   startTransition,
 } from 'react'
@@ -16,7 +17,6 @@ import {
   errorOverlayReducer,
   OverlayState,
 } from './internal/error-overlay-reducer'
-import { Dispatch, ReducerAction } from 'react'
 import {
   ACTION_BUILD_OK,
   ACTION_BUILD_ERROR,
@@ -26,25 +26,12 @@ import {
 } from './internal/error-overlay-reducer'
 import { parseStack } from './internal/helpers/parseStack'
 import ReactDevOverlay from './internal/ReactDevOverlay'
-import { getSocketProtocol } from './internal/helpers/get-socket-protocol'
 import { useErrorHandler } from './internal/helpers/use-error-handler'
-import { useWebsocket } from './internal/helpers/use-websocket'
-
-type DispatchFn = Dispatch<ReducerAction<typeof errorOverlayReducer>>
-
-function onBuildOk(dispatch: DispatchFn) {
-  dispatch({ type: ACTION_BUILD_OK })
-}
-
-function onBuildError(dispatch: DispatchFn, message: string) {
-  dispatch({ type: ACTION_BUILD_ERROR, message })
-}
-
-function onRefresh(dispatch: DispatchFn) {
-  dispatch({ type: ACTION_REFRESH })
-}
-
-// const TIMEOUT = 5000
+import {
+  useSendMessage,
+  useWebsocket,
+  useWebsocketPing,
+} from './internal/helpers/use-websocket'
 
 // TODO-APP: add actual type
 type PongEvent = any
@@ -56,28 +43,11 @@ let hadRootlayoutError = false
 
 // let startLatency = undefined
 
-function onFastRefresh(dispatch: DispatchFn, hasUpdates: boolean) {
-  onBuildOk(dispatch)
+function onFastRefresh(dispatcher: Dispatcher, hasUpdates: boolean) {
+  dispatcher.onBuildOk()
   if (hasUpdates) {
-    onRefresh(dispatch)
+    dispatcher.onRefresh()
   }
-
-  // if (startLatency) {
-  //   const endLatency = Date.now()
-  //   const latency = endLatency - startLatency
-  //   console.log(`[Fast Refresh] done in ${latency}ms`)
-  //   sendMessage(
-  //     JSON.stringify({
-  //       event: 'client-hmr-latency',
-  //       id: __nextDevClientId,
-  //       startTime: startLatency,
-  //       endTime: endLatency,
-  //     })
-  //   )
-  //   // if (self.__NEXT_HMR_LATENCY_CB) {
-  //   //   self.__NEXT_HMR_LATENCY_CB(latency)
-  //   // }
-  // }
 }
 
 // There is a newer version of the code available.
@@ -100,21 +70,21 @@ function canApplyUpdates() {
   // @ts-expect-error module.hot exists
   return module.hot.status() === 'idle'
 }
-// function afterApplyUpdates(fn: any) {
-//   if (canApplyUpdates()) {
-//     fn()
-//   } else {
-//     function handler(status: any) {
-//       if (status === 'idle') {
-//         // @ts-expect-error module.hot exists
-//         module.hot.removeStatusHandler(handler)
-//         fn()
-//       }
-//     }
-//     // @ts-expect-error module.hot exists
-//     module.hot.addStatusHandler(handler)
-//   }
-// }
+function afterApplyUpdates(fn: any) {
+  if (canApplyUpdates()) {
+    fn()
+  } else {
+    function handler(status: any) {
+      if (status === 'idle') {
+        // @ts-expect-error module.hot exists
+        module.hot.removeStatusHandler(handler)
+        fn()
+      }
+    }
+    // @ts-expect-error module.hot exists
+    module.hot.addStatusHandler(handler)
+  }
+}
 
 function performFullReload(err: any, sendMessage: any) {
   const stackTrace =
@@ -137,10 +107,10 @@ function performFullReload(err: any, sendMessage: any) {
 function tryApplyUpdates(
   onHotUpdateSuccess: (hasUpdates: boolean) => void,
   sendMessage: any,
-  dispatch: DispatchFn
+  dispatcher: Dispatcher
 ) {
   if (!isUpdateAvailable() || !canApplyUpdates()) {
-    onBuildOk(dispatch)
+    dispatcher.onBuildOk()
     return
   }
 
@@ -173,20 +143,20 @@ function tryApplyUpdates(
     if (isUpdateAvailable()) {
       // While we were updating, there was a new update! Do it again.
       tryApplyUpdates(
-        hasUpdates ? () => onBuildOk(dispatch) : onHotUpdateSuccess,
+        hasUpdates ? () => dispatcher.onBuildOk() : onHotUpdateSuccess,
         sendMessage,
-        dispatch
+        dispatcher
       )
     } else {
-      onBuildOk(dispatch)
-      // if (process.env.__NEXT_TEST_MODE) {
-      //   afterApplyUpdates(() => {
-      //     if (self.__NEXT_HMR_CB) {
-      //       self.__NEXT_HMR_CB()
-      //       self.__NEXT_HMR_CB = null
-      //     }
-      //   })
-      // }
+      dispatcher.onBuildOk()
+      if (process.env.__NEXT_TEST_MODE) {
+        afterApplyUpdates(() => {
+          if (self.__NEXT_HMR_CB) {
+            self.__NEXT_HMR_CB()
+            self.__NEXT_HMR_CB = null
+          }
+        })
+      }
     }
   }
 
@@ -206,13 +176,12 @@ function processMessage(
   e: any,
   sendMessage: any,
   router: ReturnType<typeof useRouter>,
-  dispatch: DispatchFn
+  dispatcher: Dispatcher
 ) {
   const obj = JSON.parse(e.data)
 
   switch (obj.action) {
     case 'building': {
-      // startLatency = Date.now()
       console.log('[Fast Refresh] rebuilding')
       break
     }
@@ -241,7 +210,7 @@ function processMessage(
         })
 
         // Only show the first error.
-        onBuildError(dispatch, formatted.errors[0])
+        dispatcher.onBuildError(formatted.errors[0])
 
         // Also log them to the console.
         for (let i = 0; i < formatted.errors.length; i++) {
@@ -250,12 +219,12 @@ function processMessage(
 
         // Do not attempt to reload now.
         // We will reload on next success instead.
-        // if (process.env.__NEXT_TEST_MODE) {
-        //   if (self.__NEXT_HMR_CB) {
-        //     self.__NEXT_HMR_CB(formatted.errors[0])
-        //     self.__NEXT_HMR_CB = null
-        //   }
-        // }
+        if (process.env.__NEXT_TEST_MODE) {
+          if (self.__NEXT_HMR_CB) {
+            self.__NEXT_HMR_CB(formatted.errors[0])
+            self.__NEXT_HMR_CB = null
+          }
+        }
         return
       }
 
@@ -295,10 +264,10 @@ function processMessage(
             function onSuccessfulHotUpdate(hasUpdates: any) {
               // Only dismiss it when we're sure it's a hot update.
               // Otherwise it would flicker right before the reload.
-              onFastRefresh(dispatch, hasUpdates)
+              onFastRefresh(dispatcher, hasUpdates)
             },
             sendMessage,
-            dispatch
+            dispatcher
           )
         }
         return
@@ -322,10 +291,10 @@ function processMessage(
           function onSuccessfulHotUpdate(hasUpdates: any) {
             // Only dismiss it when we're sure it's a hot update.
             // Otherwise it would flicker right before the reload.
-            onFastRefresh(dispatch, hasUpdates)
+            onFastRefresh(dispatcher, hasUpdates)
           },
           sendMessage,
-          dispatch
+          dispatcher
         )
       }
       return
@@ -343,7 +312,7 @@ function processMessage(
       }
       startTransition(() => {
         router.refresh()
-        onRefresh(dispatch)
+        dispatcher.onRefresh()
       })
 
       return
@@ -421,6 +390,12 @@ function processMessage(
   }
 }
 
+interface Dispatcher {
+  onBuildOk(): void
+  onBuildError(message: string): void
+  onRefresh(): void
+}
+
 export default function HotReload({
   assetPrefix,
   children,
@@ -434,12 +409,25 @@ export default function HotReload({
   if (initialState?.rootLayoutMissingTagsError) {
     hadRootlayoutError = true
   }
-  const [state, dispatch] = React.useReducer(errorOverlayReducer, {
+  const [state, dispatch] = useReducer(errorOverlayReducer, {
     nextId: 1,
     buildError: null,
     errors: [],
     ...initialState,
   })
+  const dispatcher = useMemo((): Dispatcher => {
+    return {
+      onBuildOk(): void {
+        dispatch({ type: ACTION_BUILD_OK })
+      },
+      onBuildError(message: string): void {
+        dispatch({ type: ACTION_BUILD_ERROR, message })
+      },
+      onRefresh(): void {
+        dispatch({ type: ACTION_REFRESH })
+      },
+    }
+  }, [dispatch])
 
   const handleOnUnhandledError = useCallback(
     (ev: WindowEventMap['error']): void => {
@@ -503,36 +491,11 @@ export default function HotReload({
   )
   useErrorHandler(handleOnUnhandledError, handleOnUnhandledRejection)
 
-  const { tree } = useContext(GlobalLayoutRouterContext)
-  const router = useRouter()
   const webSocketRef = useWebsocket(assetPrefix)
+  useWebsocketPing(webSocketRef)
+  const sendMessage = useSendMessage(webSocketRef)
 
-  const sendMessage = useCallback(
-    (data) => {
-      const socket = webSocketRef.current
-      if (!socket || socket.readyState !== socket.OPEN) {
-        return
-      }
-      return socket.send(data)
-    },
-    [webSocketRef]
-  )
-
-  useEffect(() => {
-    // Taken from on-demand-entries-client.js
-    // TODO-APP: check 404 case
-    const interval = setInterval(() => {
-      sendMessage(
-        JSON.stringify({
-          event: 'ping',
-          // TODO-APP: fix case for dynamic parameters, this will be resolved wrong currently.
-          tree,
-          appDirRoute: true,
-        })
-      )
-    }, 2500)
-    return () => clearInterval(interval)
-  }, [tree, sendMessage])
+  const router = useRouter()
   useEffect(() => {
     const handler = (event: MessageEvent<PongEvent>) => {
       if (
@@ -544,7 +507,7 @@ export default function HotReload({
       }
 
       try {
-        processMessage(event, sendMessage, router, dispatch)
+        processMessage(event, sendMessage, router, dispatcher)
       } catch (ex) {
         console.warn('Invalid HMR message: ' + event.data + '\n', ex)
       }
@@ -556,7 +519,7 @@ export default function HotReload({
     }
 
     return () => websocket && websocket.removeEventListener('message', handler)
-  }, [sendMessage, router, webSocketRef])
+  }, [sendMessage, router, webSocketRef, dispatcher])
 
   return <ReactDevOverlay state={state}>{children}</ReactDevOverlay>
 }
