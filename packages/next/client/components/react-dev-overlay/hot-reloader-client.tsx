@@ -361,25 +361,7 @@ function processMessage(
       if (invalid) {
         // Payload can be invalid even if the page does exist.
         // So, we check if it can be created.
-        fetch(location.href, {
-          credentials: 'same-origin',
-        }).then((pageRes) => {
-          if (pageRes.status === 200) {
-            // Page exists now, reload
-            location.reload()
-          } else {
-            // TODO-APP: fix this
-            // Page doesn't exist
-            // if (
-            //   self.__NEXT_DATA__.page === Router.pathname &&
-            //   Router.pathname !== '/_error'
-            // ) {
-            //   // We are still on the page,
-            //   // reload to show 404 error page
-            //   location.reload()
-            // }
-          }
-        })
+        router.refresh()
       }
       return
     }
