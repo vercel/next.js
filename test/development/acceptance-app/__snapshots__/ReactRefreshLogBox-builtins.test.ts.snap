@@ -1,0 +1,109 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`ReactRefreshLogBox Module not found (empty import trace) 1`] = `
+"./pages/index.js:1:0
+Module not found: Can't resolve 'b'
+> 1 | import Comp from 'b'
+  2 |       export default function Oops() {
+  3 |         return (
+  4 |           <div>
+
+https://nextjs.org/docs/messages/module-not-found"
+`;
+
+exports[`ReactRefreshLogBox Module not found (missing global CSS) 1`] = `
+"./pages/_app.js:2:8
+Module not found: Can't resolve './non-existent.css'
+  1 | 
+> 2 |         import './non-existent.css'
+    |        ^
+  3 |         
+  4 |         export default function App({ Component, pageProps }) {
+  5 |           return <Component {...pageProps} />
+
+https://nextjs.org/docs/messages/module-not-found"
+`;
+
+exports[`ReactRefreshLogBox Module not found 1`] = `
+"./index.js:1:0
+Module not found: Can't resolve 'b'
+> 1 | import Comp from 'b'
+  2 |       export default function Oops() {
+  3 |         return (
+  4 |           <div>
+
+Import trace for requested module:
+./pages/index.js
+
+https://nextjs.org/docs/messages/module-not-found"
+`;
+
+exports[`ReactRefreshLogBox Node.js builtins 1`] = `
+"./node_modules/my-package/index.js:2:0
+Module not found: Can't resolve 'dns'
+
+Import trace for requested module:
+./index.js
+./pages/index.js
+
+https://nextjs.org/docs/messages/module-not-found"
+`;
+
+exports[`ReactRefreshLogBox app Module not found (missing global CSS) 1`] = `
+"./app/page.js:2:10
+Module not found: Can't resolve './non-existent.css'
+  1 | 'use client'
+> 2 |           import './non-existent.css'
+    |          ^
+  3 |         export default function Page(props) {
+  4 |           return <p>index page</p>
+  5 |         }
+
+Import trace for requested module:
+./node_modules/.pnpm/file+..+next-repo-1f06b8df1af9556e8e876ae3f79fa038_5agtqf4r3u3zuwkk47pswrw7yi/node_modules/next/dist/build/webpack/loaders/next-flight-client-entry-loader.js?modules=%2Fprivate%2Fvar%2Ffolders%2Fsk%2Fpyr4sjxd7bg5dn69d5f_4bsh0000gn%2FT%2Fnext-install-0a3f9563906672b6df5a8d12e0f64abef48e71a8893d9d8b6de4f2d5704f920e%2Fapp%2Fpage.js&server=true!
+
+https://nextjs.org/docs/messages/module-not-found"
+`;
+
+exports[`ReactRefreshLogBox app Module not found 1`] = `
+"./index.js:1:0
+Module not found: Can't resolve 'b'
+> 1 | import Comp from 'b'
+  2 |       export default function Oops() {
+  3 |         return (
+  4 |           <div>
+
+Import trace for requested module:
+./app/page.js
+./node_modules/.pnpm/file+..+next-repo-1f06b8df1af9556e8e876ae3f79fa038_5agtqf4r3u3zuwkk47pswrw7yi/node_modules/next/dist/build/webpack/loaders/next-flight-client-entry-loader.js?modules=%2Fprivate%2Fvar%2Ffolders%2Fsk%2Fpyr4sjxd7bg5dn69d5f_4bsh0000gn%2FT%2Fnext-install-0a3f9563906672b6df5a8d12e0f64abef48e71a8893d9d8b6de4f2d5704f920e%2Fapp%2Fpage.js&server=true!
+
+https://nextjs.org/docs/messages/module-not-found"
+`;
+
+exports[`ReactRefreshLogBox app Module not found empty import trace 1`] = `
+"./app/page.js:2:6
+Module not found: Can't resolve 'b'
+  1 | 'use client'
+> 2 |       import Comp from 'b'
+    |      ^
+  3 |       export default function Oops() {
+  4 |         return (
+  5 |           <div>
+
+Import trace for requested module:
+./node_modules/.pnpm/file+..+next-repo-7089a398fbcc435b7498be36f5b7b5d9_iicwz5ogdhc3ifauhpu5wi2dsm/node_modules/next/dist/build/webpack/loaders/next-flight-client-entry-loader.js?modules=%2Fprivate%2Fvar%2Ffolders%2Fsk%2Fpyr4sjxd7bg5dn69d5f_4bsh0000gn%2FT%2Fnext-install-a5f93d24699326da4107367fa687b0d3c9455c44f2c117debf93a3be764a62db%2Fapp%2Fpage.js&server=true!
+
+https://nextjs.org/docs/messages/module-not-found"
+`;
+
+exports[`ReactRefreshLogBox app Node.js builtins 1`] = `
+"./node_modules/my-package/index.js:2:0
+Module not found: Can't resolve 'dns'
+
+Import trace for requested module:
+./index.js
+./app/page.js
+./node_modules/.pnpm/file+..+next-repo-1f06b8df1af9556e8e876ae3f79fa038_5agtqf4r3u3zuwkk47pswrw7yi/node_modules/next/dist/build/webpack/loaders/next-flight-client-entry-loader.js?modules=%2Fprivate%2Fvar%2Ffolders%2Fsk%2Fpyr4sjxd7bg5dn69d5f_4bsh0000gn%2FT%2Fnext-install-0a3f9563906672b6df5a8d12e0f64abef48e71a8893d9d8b6de4f2d5704f920e%2Fapp%2Fpage.js&server=false!
+
+https://nextjs.org/docs/messages/module-not-found"
+`;
