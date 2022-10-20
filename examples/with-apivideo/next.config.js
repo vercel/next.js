@@ -4,6 +4,9 @@ const nextConfig = {
   compiler: {
     styledComponents: true,
   },
+  images: {
+    domains: ['cdn.api.video'],
+  },
 }
 
 module.exports = nextConfig
