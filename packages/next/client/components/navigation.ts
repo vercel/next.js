@@ -123,6 +123,7 @@ function getSelectedLayoutSegmentPath(
     node = parallelRoutes.children ?? Object.values(parallelRoutes)[0]
   }
 
+  if (!node) return segmentPath
   const segment = node[0]
   const segmentValue = Array.isArray(segment) ? segment[1] : segment
   if (!segmentValue) return segmentPath

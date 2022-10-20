@@ -1196,7 +1196,7 @@ describe('app dir', () => {
         })
 
         describe('useSelectedLayoutSegment', () => {
-          test.each`
+          it.each`
             path                                                           | outerLayout                                             | innerLayout
             ${'/hooks/use-selected-layout-segment/first'}                  | ${['first']}                                            | ${[]}
             ${'/hooks/use-selected-layout-segment/first/slug1'}            | ${['first', 'slug1']}                                   | ${['slug1']}
@@ -1214,6 +1214,16 @@ describe('app dir', () => {
               expect(JSON.parse($('#inner-layout').text())).toEqual(innerLayout)
             }
           )
+
+          it('should return an empty array in pages', async () => {
+            const html = await renderViaHTTP(
+              next.url,
+              '/hooks/use-selected-layout-segment/first/slug2/second/a/b'
+            )
+            const $ = cheerio.load(html)
+
+            expect(JSON.parse($('#page-layout-segments').text())).toEqual([])
+          })
         })
       })
 
