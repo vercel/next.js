@@ -4,10 +4,11 @@ use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::issue::{Issue, IssueVc};
 
 #[turbo_tasks::value(shared)]
+#[derive(Copy, Clone)]
 pub(super) struct RenderingIssue {
-    pub(super) context: FileSystemPathVc,
-    pub(super) message: StringVc,
-    pub(super) logging: StringVc,
+    pub context: FileSystemPathVc,
+    pub message: StringVc,
+    pub logs: StringVc,
 }
 
 #[turbo_tasks::value_impl]
@@ -34,7 +35,7 @@ impl Issue for RenderingIssue {
 
     #[turbo_tasks::function]
     fn detail(&self) -> StringVc {
-        self.logging
+        self.logs
     }
 
     // TODO parse stack trace into source location

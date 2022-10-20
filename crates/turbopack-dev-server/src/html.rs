@@ -14,9 +14,11 @@ use turbopack_core::{
 ///
 /// Generates an HTML page that includes the ES and CSS chunks.
 #[turbo_tasks::value(shared)]
+#[derive(Clone)]
 pub struct DevHtmlAsset {
     path: FileSystemPathVc,
     chunk_groups: Vec<ChunkGroupVc>,
+    body: Option<String>,
 }
 
 #[turbo_tasks::value_impl]
@@ -50,10 +52,46 @@ impl Asset for DevHtmlAsset {
     }
 }
 
-impl DevHtmlAsset {
+impl DevHtmlAssetVc {
     /// Create a new dev HTML asset.
     pub fn new(path: FileSystemPathVc, chunk_groups: Vec<ChunkGroupVc>) -> Self {
-        DevHtmlAsset { path, chunk_groups }
+        DevHtmlAsset {
+            path,
+            chunk_groups,
+            body: None,
+        }
+        .cell()
+    }
+
+    /// Create a new dev HTML asset.
+    pub fn new_with_body(
+        path: FileSystemPathVc,
+        chunk_groups: Vec<ChunkGroupVc>,
+        body: String,
+    ) -> Self {
+        DevHtmlAsset {
+            path,
+            chunk_groups,
+            body: Some(body),
+        }
+        .cell()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl DevHtmlAssetVc {
+    #[turbo_tasks::function]
+    pub async fn with_path(self, path: FileSystemPathVc) -> Result<Self> {
+        let mut html: DevHtmlAsset = self.await?.clone_value();
+        html.path = path;
+        Ok(html.cell())
+    }
+
+    #[turbo_tasks::function]
+    pub async fn with_body(self, body: String) -> Result<Self> {
+        let mut html: DevHtmlAsset = self.await?.clone_value();
+        html.body = Some(body);
+        Ok(html.cell())
     }
 }
 
@@ -74,18 +112,19 @@ impl DevHtmlAssetVc {
             }
         }
 
-        Ok(DevHtmlAssetContentVc::new(chunk_paths))
+        Ok(DevHtmlAssetContentVc::new(chunk_paths, this.body.clone()))
     }
 }
 
 #[turbo_tasks::value]
 struct DevHtmlAssetContent {
     chunk_paths: Vec<String>,
+    body: Option<String>,
 }
 
 impl DevHtmlAssetContentVc {
-    pub fn new(chunk_paths: Vec<String>) -> Self {
-        DevHtmlAssetContent { chunk_paths }.cell()
+    pub fn new(chunk_paths: Vec<String>, body: Option<String>) -> Self {
+        DevHtmlAssetContent { chunk_paths, body }.cell()
     }
 }
 
@@ -111,10 +150,15 @@ impl DevHtmlAssetContentVc {
             }
         }
 
+        let body = match &this.body {
+            Some(body) => body.as_str(),
+            None => "",
+        };
+
         let html = format!(
-            "<!DOCTYPE html>\n<html>\n<head>\n{}\n</head>\n<body>\n<div \
-             id=root></div>\n{}\n</body>\n</html>",
+            "<!DOCTYPE html>\n<html>\n<head>\n{}\n</head>\n<body>\n{}\n{}\n</body>\n</html>",
             stylesheets.join("\n"),
+            body,
             scripts.join("\n"),
         );
 
@@ -175,6 +219,9 @@ impl Version for DevHtmlAssetVersion {
         let mut hasher = Xxh3Hash64Hasher::new();
         for relative_path in &*self.content.chunk_paths {
             hasher.write_ref(relative_path);
+        }
+        if let Some(body) = &self.content.body {
+            hasher.write_ref(body);
         }
         let hash = hasher.finish();
         let hex_hash = encode_hex(hash);

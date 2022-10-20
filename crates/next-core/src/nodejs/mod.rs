@@ -16,10 +16,13 @@ use turbo_tasks::{
 use turbo_tasks_fs::{DiskFileSystemVc, File, FileContent, FileSystemPathVc};
 use turbopack::ecmascript::EcmascriptModuleAssetVc;
 use turbopack_core::{
-    asset::{AssetContentVc, AssetVc, AssetsSetVc},
+    asset::{Asset, AssetContentVc, AssetVc, AssetsSetVc},
     chunk::{ChunkGroupVc, ChunkingContextVc},
 };
-use turbopack_dev_server::source::{query::Query, HeaderValue};
+use turbopack_dev_server::{
+    html::DevHtmlAssetVc,
+    source::{query::Query, HeaderValue},
+};
 use turbopack_ecmascript::chunk::EcmascriptChunkPlaceablesVc;
 
 use self::{
@@ -227,6 +230,7 @@ async fn render_static(
     path: FileSystemPathVc,
     module: EcmascriptModuleAssetVc,
     runtime_entries: EcmascriptChunkPlaceablesVc,
+    fallback_page: DevHtmlAssetVc,
     chunking_context: ChunkingContextVc,
     intermediate_output_path: FileSystemPathVc,
     data: RenderDataVc,
@@ -271,7 +275,7 @@ async fn render_static(
                     message: StringVc::cell(format!(
                         "Unexpected result provided by Node.js rendering process: {err}"
                     )),
-                    logging: StringVc::cell(lines.join("\n")),
+                    logs: StringVc::cell(lines.join("\n")),
                 },
             }
         } else if let Some(data) = last_line.strip_prefix("ERROR=") {
@@ -280,45 +284,47 @@ async fn render_static(
                 RenderingIssue {
                     context: path,
                     message: StringVc::cell(s.to_string()),
-                    logging: StringVc::cell(lines[..lines.len() - 1].join("\n")),
+                    logs: StringVc::cell(lines[..lines.len() - 1].join("\n")),
                 }
             } else {
                 RenderingIssue {
                     context: path,
                     message: StringVc::cell(data.to_string()),
-                    logging: StringVc::cell(lines[..lines.len() - 1].join("\n")),
+                    logs: StringVc::cell(lines[..lines.len() - 1].join("\n")),
                 }
             }
         } else {
             RenderingIssue {
                 context: path,
                 message: StringVc::cell("No result provided by Node.js process".to_string()),
-                logging: StringVc::cell(lines.join("\n")),
+                logs: StringVc::cell(lines.join("\n")),
             }
         }
     } else {
         RenderingIssue {
             context: path,
             message: StringVc::cell("No content received from Node.js process.".to_string()),
-            logging: StringVc::cell("".to_string()),
+            logs: StringVc::cell("".to_string()),
         }
     };
-
-    fn into_error_document(content: String) -> Result<AssetContentVc> {
-        Ok(FileContent::Content(File::from(content).with_content_type(TEXT_HTML_UTF_8)).into())
-    }
-
-    // Show error page
-    // TODO This need to include HMR handler to allow auto refresh
-    let result = into_error_document(format!(
-        "<h1>Error during \
-         rendering</h1>\n<h2>Message</h2>\n<pre>{}</pre>\n<h2>Logs</h2>\n<pre>{}</pre>",
-        issue.message.await?,
-        issue.logging.await?
-    ));
 
     // Emit an issue for error reporting
     issue.cell().as_issue().emit();
 
-    result
+    let body = format!(
+        "<script id=\"__NEXT_DATA__\" type=\"application/json\">{{ \"props\": {{}} }}</script>
+    <div id=\"__next\">
+        <h1>Error rendering page</h1>
+        <h2>Message</h2>
+        <pre>{}</pre>
+        <h2>Logs</h2>
+        <pre>{}</pre>
+    </div>",
+        issue.message.await?,
+        issue.logs.await?,
+    );
+
+    let html = fallback_page.with_body(body);
+
+    Ok(html.content())
 }

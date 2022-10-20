@@ -48,6 +48,8 @@ export function connectHMR(options: HMROptions) {
   function init() {
     if (source) source.close();
 
+    console.log("[HMR] connecting...");
+
     function handleOnline() {
       eventCallbacks.forEach((cb) => {
         cb({

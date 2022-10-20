@@ -8,7 +8,7 @@ use turbopack_core::{
     resolve::{origin::PlainResolveOriginVc, parse::RequestVc},
 };
 use turbopack_dev_server::{
-    html::DevHtmlAsset,
+    html::DevHtmlAssetVc,
     source::{asset_graph::AssetGraphContentSourceVc, ContentSourceVc},
 };
 
@@ -74,11 +74,10 @@ pub async fn create_web_entry_source(
         .try_join()
         .await?;
 
-    let entry_asset = DevHtmlAsset::new(
+    let entry_asset = DevHtmlAssetVc::new(
         server_root.join("index.html"),
         chunks.into_iter().map(ChunkGroupVc::from_chunk).collect(),
     )
-    .cell()
     .into();
 
     let graph = if eager_compile {

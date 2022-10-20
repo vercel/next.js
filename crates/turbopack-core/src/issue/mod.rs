@@ -106,17 +106,17 @@ pub trait Issue {
         StringVc::empty()
     }
 
+    /// A link to relevant documentation of the issue. Only displayed in console
+    /// if the user explicitly asks for detailed messages.
+    fn documentation_link(&self) -> StringVc {
+        StringVc::empty()
+    }
+
     /// The source location that caused the issue. Eg, for a parsing error it
     /// should point at the offending character. Displayed to the user alongside
     /// the title/description.
     fn source(&self) -> OptionIssueSourceVc {
         OptionIssueSourceVc::cell(None)
-    }
-
-    /// A link to relevant documentation of the issue. Only displayed in console
-    /// if the user explicitly asks for detailed messages.
-    fn documentation_link(&self) -> StringVc {
-        StringVc::empty()
     }
 
     fn sub_issues(&self) -> IssuesVc {
@@ -440,9 +440,9 @@ pub struct PlainIssue {
     pub title: String,
     pub description: String,
     pub detail: String,
+    pub documentation_link: String,
 
     pub source: Option<PlainIssueSourceReadRef>,
-    pub documentation_link: String,
     pub sub_issues: Vec<PlainIssueReadRef>,
 }
 
@@ -457,6 +457,7 @@ impl IssueVc {
             title: self.title().await?.clone_value(),
             description: self.description().await?.clone_value(),
             detail: self.detail().await?.clone_value(),
+            documentation_link: self.documentation_link().await?.clone_value(),
             source: self
                 .source()
                 .into_future()
@@ -468,7 +469,6 @@ impl IssueVc {
                     anyhow::Ok(None)
                 })
                 .await?,
-            documentation_link: self.documentation_link().await?.clone_value(),
             sub_issues: self
                 .sub_issues()
                 .await?

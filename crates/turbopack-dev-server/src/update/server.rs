@@ -66,11 +66,11 @@ impl<P: SourceProvider + Clone + Send + Sync> UpdateServer<P> {
                         self.streams.insert(chunk_path, stream);
                     } else {
                         // WebSocket was closed, stop sending updates
-                        break
+                        break;
                     }
                 }
                 Some((chunk_path, update)) = self.streams.next() => {
-                    Self::send_update(&mut client, chunk_path, &*update).await?;
+                    Self::send_update(&mut client, chunk_path, &update).await?;
                 }
                 else => break
             }

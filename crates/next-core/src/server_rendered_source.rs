@@ -9,9 +9,13 @@ use turbopack_core::{
     asset::AssetVc, chunk::dev::DevChunkingContextVc, context::AssetContextVc,
     source_asset::SourceAssetVc, virtual_asset::VirtualAssetVc,
 };
-use turbopack_dev_server::source::{
-    combined::{CombinedContentSource, CombinedContentSourceVc},
-    ContentSourceVc, NoContentSourceVc,
+use turbopack_dev_server::{
+    html::DevHtmlAssetVc,
+    source::{
+        asset_graph::AssetGraphContentSourceVc,
+        combined::{CombinedContentSource, CombinedContentSourceVc},
+        ContentSourceVc, NoContentSourceVc,
+    },
 };
 use turbopack_ecmascript::{
     chunk::EcmascriptChunkPlaceablesVc, EcmascriptInputTransform, EcmascriptInputTransformsVc,
@@ -21,6 +25,7 @@ use turbopack_env::ProcessEnvAssetVc;
 
 use crate::{
     embed_js::{next_js_file, wrap_with_next_js_fs},
+    fallback::get_fallback_page,
     next_client::{
         context::{
             get_client_assets_path, get_client_chunking_context, get_client_environment,
@@ -41,13 +46,13 @@ use crate::{
 /// Next.js pages folder.
 #[turbo_tasks::function]
 pub async fn create_server_rendered_source(
-    project_path: FileSystemPathVc,
+    project_root: FileSystemPathVc,
     output_path: FileSystemPathVc,
     server_root: FileSystemPathVc,
     env: ProcessEnvVc,
     browserslist_query: &str,
 ) -> Result<ContentSourceVc> {
-    let project_path = wrap_with_next_js_fs(project_path);
+    let project_path = wrap_with_next_js_fs(project_root);
 
     let pages = project_path.join("pages");
     let src_pages = project_path.join("src/pages");
@@ -95,16 +100,26 @@ pub async fn create_server_rendered_source(
     let server_runtime_entries =
         vec![ProcessEnvAssetVc::new(project_path, env).as_ecmascript_chunk_placeable()];
 
-    Ok(create_server_rendered_source_for_directory(
+    let fallback_page = get_fallback_page(project_path, server_root, browserslist_query);
+
+    let server_rendered_source = create_server_rendered_source_for_directory(
         project_path,
         context,
         pages_dir,
         pages_dir,
         EcmascriptChunkPlaceablesVc::cell(server_runtime_entries),
+        fallback_page,
         server_root,
         server_root,
         output_path,
-    )
+    );
+    let fallback_source =
+        AssetGraphContentSourceVc::new_eager(server_root, fallback_page.as_asset());
+
+    Ok(CombinedContentSource {
+        sources: vec![server_rendered_source.into(), fallback_source.into()],
+    }
+    .cell()
     .into())
 }
 
@@ -116,6 +131,7 @@ fn create_server_rendered_source_for_file(
     pages_dir: FileSystemPathVc,
     page_file: FileSystemPathVc,
     runtime_entries: EcmascriptChunkPlaceablesVc,
+    fallback_page: DevHtmlAssetVc,
     server_root: FileSystemPathVc,
     server_path: FileSystemPathVc,
     intermediate_output_path: FileSystemPathVc,
@@ -143,6 +159,7 @@ fn create_server_rendered_source_for_file(
         .into(),
         chunking_context,
         runtime_entries,
+        fallback_page,
         intermediate_output_path,
     )
 }
@@ -157,6 +174,7 @@ async fn create_server_rendered_source_for_directory(
     pages_dir: FileSystemPathVc,
     input_dir: FileSystemPathVc,
     runtime_entries: EcmascriptChunkPlaceablesVc,
+    fallback_page: DevHtmlAssetVc,
     server_root: FileSystemPathVc,
     server_path: FileSystemPathVc,
     intermediate_output_path: FileSystemPathVc,
@@ -198,6 +216,7 @@ async fn create_server_rendered_source_for_directory(
                                         pages_dir,
                                         *file,
                                         runtime_entries,
+                                        fallback_page,
                                         server_root,
                                         dev_server_path,
                                         intermediate_output_path,
@@ -217,6 +236,7 @@ async fn create_server_rendered_source_for_directory(
                             pages_dir,
                             *dir,
                             runtime_entries,
+                            fallback_page,
                             server_root,
                             server_path.join(name),
                             intermediate_output_path.join(name),

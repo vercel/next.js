@@ -1,19 +1,37 @@
-use std::{pin::Pin, sync::Mutex};
+use std::{collections::BTreeMap, pin::Pin, sync::Mutex};
 
 use anyhow::{bail, Result};
 use futures::{prelude::*, Stream};
 use tokio::sync::mpsc::Sender;
 use tokio_stream::wrappers::ReceiverStream;
-use turbo_tasks::{get_invalidator, CollectiblesSource, Invalidator, TransientInstance};
+use turbo_tasks::{get_invalidator, CollectiblesSource, Invalidator, TransientInstance, Value};
 use turbopack_core::{
-    issue::{CapturedIssuesReadRef, IssueVc, PlainIssueReadRef},
-    version::{NotFoundVersionVc, PartialUpdate, TotalUpdate, Update, UpdateReadRef, VersionVc},
+    issue::{IssueVc, PlainIssueReadRef},
+    version::{
+        NotFoundVersionVc, PartialUpdate, TotalUpdate, Update, UpdateReadRef, VersionVc,
+        VersionedContentVc,
+    },
 };
 
-use crate::source::{ContentSourceResult, ContentSourceResultVc};
+use crate::source::{
+    ContentSourceData, ContentSourceDataVary, ContentSourceResult, ContentSourceResultVc,
+    HeaderValue,
+};
 
-async fn peek_issues<T: CollectiblesSource + Copy>(source: T) -> Result<CapturedIssuesReadRef> {
-    IssueVc::peek_issues_with_path(source).await?.await
+async fn peek_issues<T: CollectiblesSource + Copy>(source: T) -> Result<Vec<PlainIssueReadRef>> {
+    let captured = IssueVc::peek_issues_with_path(source).await?.await?;
+
+    captured.get_plain_issues().await
+}
+
+fn extend_issues(issues: &mut Vec<PlainIssueReadRef>, new_issues: Vec<PlainIssueReadRef>) {
+    for issue in new_issues {
+        if issues.contains(&issue) {
+            continue;
+        }
+
+        issues.push(issue);
+    }
 }
 
 #[turbo_tasks::function]
@@ -23,6 +41,59 @@ fn get_content_wrapper(
     get_content()
 }
 
+fn get_dummy_data(vary: &ContentSourceDataVary, path: &str) -> ContentSourceData {
+    let mut data = ContentSourceData::default();
+    if vary.method {
+        data.method = Some("GET".to_string());
+    }
+    if vary.url {
+        data.url = Some(format!("/{path}"));
+    }
+    if vary.query.is_some() {
+        data.query = Some(Default::default());
+    }
+    if vary.headers.is_some() {
+        let mut headers = BTreeMap::new();
+        headers.insert(
+            "accept".to_string(),
+            HeaderValue::MultiStrings(vec![
+                "text/html".to_string(),
+                "application/javascript".to_string(),
+                "*/*".to_string(),
+            ]),
+        );
+        data.headers = Some(headers);
+    }
+    data
+}
+
+async fn resolve_static_content(
+    mut content_source_result: ContentSourceResultVc,
+) -> Result<(Option<VersionedContentVc>, Vec<PlainIssueReadRef>)> {
+    let mut plain_issues = Vec::new();
+    loop {
+        break Ok((
+            match *content_source_result.await? {
+                ContentSourceResult::NotFound => None,
+                ContentSourceResult::Static(content) => Some(content),
+                ContentSourceResult::NeedData {
+                    source,
+                    ref path,
+                    ref vary,
+                } => {
+                    let data = get_dummy_data(vary, path);
+                    content_source_result = source.get(path, Value::new(data));
+
+                    extend_issues(&mut plain_issues, peek_issues(content_source_result).await?);
+
+                    continue;
+                }
+            },
+            plain_issues,
+        ));
+    }
+}
+
 #[turbo_tasks::function]
 async fn get_update_stream_item(
     from: VersionStateVc,
@@ -30,10 +101,11 @@ async fn get_update_stream_item(
 ) -> Result<UpdateStreamItemVc> {
     let content = get_content_wrapper(get_content);
 
-    match *content.await? {
-        ContentSourceResult::NotFound => {
-            let issues = peek_issues(content).await?;
-            let update = if issues.is_empty() {
+    match resolve_static_content(content).await? {
+        (None, mut plain_issues) => {
+            extend_issues(&mut plain_issues, peek_issues(content).await?);
+
+            let update = if plain_issues.is_empty() {
                 // Client requested a non-existing asset
                 // It might be removed in meantime, reload client
                 // TODO add special instructions for removed assets to handled it in a better
@@ -45,32 +117,25 @@ async fn get_update_stream_item(
             } else {
                 Update::None.cell()
             };
+
             Ok(UpdateStreamItem {
                 update: update.await?,
-                issues: issues.get_plain_issues().await?,
+                issues: plain_issues,
             }
             .cell())
         }
-        ContentSourceResult::Static(content) => {
+        (Some(content), mut plain_issues) => {
             let from = from.get();
             let update = content.update(from);
-            let issues = peek_issues(update).await?;
-            let update = update.await?;
 
-            let issues = if issues.is_empty() {
-                peek_issues(content).await?
-            } else {
-                issues
-            };
+            extend_issues(&mut plain_issues, peek_issues(update).await?);
+            extend_issues(&mut plain_issues, peek_issues(content).await?);
 
             Ok(UpdateStreamItem {
-                update,
-                issues: issues.get_plain_issues().await?,
+                update: update.await?,
+                issues: plain_issues,
             }
             .cell())
-        }
-        ContentSourceResult::NeedData { .. } => {
-            todo!()
         }
     }
 }
@@ -136,12 +201,9 @@ impl UpdateStream {
     ) -> Result<UpdateStream> {
         let (sx, rx) = tokio::sync::mpsc::channel(32);
 
-        let version = match &*get_content().await? {
-            ContentSourceResult::NotFound => NotFoundVersionVc::new().into(),
-            ContentSourceResult::Static(content) => content.version(),
-            ContentSourceResult::NeedData { .. } => {
-                todo!()
-            }
+        let version = match resolve_static_content(get_content()).await? {
+            (Some(content), _) => content.version(),
+            (None, _) => NotFoundVersionVc::new().into(),
         };
         let version_state = VersionStateVc::new(version).await?;
 

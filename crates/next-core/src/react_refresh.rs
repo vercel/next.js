@@ -91,9 +91,7 @@ pub async fn resolve_react_refresh(origin: ResolveOriginVc) -> Result<Ecmascript
             }
         }
         ResolveResult::Alternatives(assets, _) if !assets.is_empty() => {
-            if let Some(placeable) =
-                EcmascriptChunkPlaceableVc::resolve_from(assets.iter().next().unwrap()).await?
-            {
+            if let Some(placeable) = EcmascriptChunkPlaceableVc::resolve_from(assets[0]).await? {
                 Ok(placeable)
             } else {
                 Err(anyhow!("React Refresh runtime asset is not placeable"))

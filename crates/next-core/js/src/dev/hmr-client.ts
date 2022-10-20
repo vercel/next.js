@@ -195,7 +195,6 @@ function handleIssues(msg: ServerMessage): boolean {
 function handleSocketMessage(msg: ServerMessage) {
   const hasErrors = handleIssues(msg);
   const aggregatedMsg = aggregateUpdates(msg, hasErrors);
-  console.dir(aggregatedMsg);
 
   if (hasErrors) return;
 

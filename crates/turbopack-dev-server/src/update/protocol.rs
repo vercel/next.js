@@ -101,6 +101,7 @@ pub struct Issue<'a> {
 
     pub title: &'a str,
     pub description: &'a str,
+    pub detail: &'a str,
     pub documentation_link: &'a str,
 
     pub source: Option<IssueSource<'a>>,
@@ -126,6 +127,7 @@ impl<'a> From<&'a PlainIssue> for Issue<'a> {
             title: &plain.title,
             description: &plain.description,
             documentation_link: &plain.documentation_link,
+            detail: &plain.detail,
             source,
             sub_issues: plain.sub_issues.iter().map(|p| p.deref().into()).collect(),
             formatted: format_issue(

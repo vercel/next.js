@@ -182,7 +182,7 @@ static NEXT_ALIASES: [(&str, &str); 23] = [
     ("setImmediate", "next/dist/compiled/setimmediate"),
 ];
 
-fn insert_next_shared_aliases(import_map: &mut ImportMap, package_root: FileSystemPathVc) {
+pub fn insert_next_shared_aliases(import_map: &mut ImportMap, package_root: FileSystemPathVc) {
     // we use the next.js hydration code, so we replace the error overlay with our
     // own
     import_map.insert_exact_alias(
