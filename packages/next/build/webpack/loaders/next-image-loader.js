@@ -92,7 +92,11 @@ function nextImageLoader(content) {
       )
 
     if (isServer) {
-      this.emitFile(`../${interpolatedName}`, content, null)
+      this.emitFile(
+        `../${isDev ? '' : '../'}${interpolatedName}`,
+        content,
+        null
+      )
     }
 
     return `export default ${stringifiedData};`
