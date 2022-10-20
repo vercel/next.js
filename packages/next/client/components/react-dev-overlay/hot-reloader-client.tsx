@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react'
-import type { FlightRouterState } from '../../../server/app-render'
 import React, {
   useCallback,
   useEffect,
