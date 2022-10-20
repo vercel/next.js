@@ -99,13 +99,13 @@ To protect your application from malicious users, you must define a list of remo
 
 ### Loaders
 
-Note that in the [example earlier](#remote-images), a partial URL (`"/me.png"`) is provided for a remote image. This is possible because of the [loader](/docs/api-reference/next/image.md#loader) architecture.
+Note that in the [example earlier](#remote-images), a partial URL (`"/me.png"`) is provided for a remote image. This is possible because of the loader architecture.
 
 A loader is a function that generates the URLs for your image. It modifies the provided `src`, and generates multiple URLs to request the image at different sizes. These multiple URLs are used in the automatic [srcset](https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/srcset) generation, so that visitors to your site will be served an image that is the right size for their viewport.
 
-The default loader for Next.js applications uses the built-in Image Optimization API, which optimizes images from anywhere on the web, and then serves them directly from the Next.js web server. If you would like to serve your images directly from a CDN or image server, you can write your own `loader` function with a few lines of JavaScript.
+The default loader for Next.js applications uses the built-in Image Optimization API, which optimizes images from anywhere on the web, and then serves them directly from the Next.js web server. If you would like to serve your images directly from a CDN or image server, you can write your own loader function with a few lines of JavaScript.
 
-Loaders can be defined per-image with the [`loader` prop](/docs/api-reference/next/image.md#loader), or at the application level with the [`loaderFile` configuration](https://nextjs.org/docs/api-reference/next/image#loader-configuration).
+You can define a loader per-image with the [`loader` prop](/docs/api-reference/next/image.md#loader), or at the application level with the [`loaderFile` configuration](https://nextjs.org/docs/api-reference/next/image#loader-configuration).
 
 ### Priority
 
