@@ -124,10 +124,10 @@ function getSelectedLayoutSegmentPath(
   }
 
   const segment = node[0]
-  const segmentString = Array.isArray(segment) ? segment[1] : segment
-  if (!segmentString) return segmentPath
+  const segmentValue = Array.isArray(segment) ? segment[1] : segment
+  if (!segmentValue) return segmentPath
 
-  segmentPath.push(segmentString)
+  segmentPath.push(segmentValue)
 
   return getSelectedLayoutSegmentPath(
     node,
