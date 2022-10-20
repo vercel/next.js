@@ -19,10 +19,10 @@ pathdiff = "0.2.0"
 regex = "1.5"
 serde = "1"
 serde_json = "1"
-swc_emotion = {path="../emotion"}
-styled_components = {path="../styled_components"}
-styled_jsx = {path="../styled_jsx"}
-modularize_imports = {path="../modularize_imports"}
+swc_emotion = {version="0.28.0"}
+styled_components = {version="0.52.0"}
+styled_jsx = {version="0.29.0"}
+modularize_imports = {version="0.25.0"}
 tracing = { version = "0.1.32", features = ["release_max_level_info"] }
 
 swc_core = { features = [
