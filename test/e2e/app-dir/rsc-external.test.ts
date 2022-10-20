@@ -2,6 +2,7 @@ import path from 'path'
 import { renderViaHTTP, fetchViaHTTP } from 'next-test-utils'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
+import webdriver from 'next-webdriver'
 
 async function resolveStreamResponse(response: any, onData?: any) {
   let result = ''
@@ -31,6 +32,7 @@ describe('app dir - rsc external dependency', () => {
       dependencies: {
         react: '0.0.0-experimental-9cdf8a99e-20221018',
         'react-dom': '0.0.0-experimental-9cdf8a99e-20221018',
+        swr: '2.0.0-rc.0',
       },
       packageJson: {
         scripts: {
@@ -71,11 +73,20 @@ describe('app dir - rsc external dependency', () => {
     const serverHtml = await renderViaHTTP(next.url, '/external-imports/server')
     const sharedHtml = await renderViaHTTP(next.url, '/shared-esm-dep')
 
-    expect(clientHtml).toContain('module type:esm-export')
-    expect(clientHtml).toContain('export named:named')
-    expect(clientHtml).toContain('export value:123')
-    expect(clientHtml).toContain('export array:4,5,6')
-    expect(clientHtml).toContain('export object:{x:1}')
+    const browser = await webdriver(next.url, '/external-imports/client')
+    const browserClientText = await browser.elementByCss('#content').text()
+
+    function containClientContent(content) {
+      expect(content).toContain('module type:esm-export')
+      expect(content).toContain('export named:named')
+      expect(content).toContain('export value:123')
+      expect(content).toContain('export array:4,5,6')
+      expect(content).toContain('export object:{x:1}')
+      expect(content).toContain('swr-state')
+    }
+
+    containClientContent(clientHtml)
+    containClientContent(browserClientText)
 
     // support esm module imports on server side, and indirect imports from shared components
     expect(serverHtml).toContain('random-module-instance')

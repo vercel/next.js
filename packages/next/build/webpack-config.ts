@@ -125,9 +125,11 @@ function isResourceInPackages(resource: string, packageNames?: string[]) {
   )
 }
 
-const builtInReactImports = [
+const bundledReactImports = [
   'react',
   'react/jsx-runtime',
+  'react/jsx-dev-runtime',
+  // 'react-dom',
   'next/dist/compiled/react-server-dom-webpack/server.browser',
 ]
 
@@ -1057,7 +1059,26 @@ export default async function getBaseWebpackConfig(
 
     // Special internal modules that must be bundled for Server Components.
     if (layer === WEBPACK_LAYERS.server) {
-      if (builtInReactImports.includes(request)) {
+      if (bundledReactImports.includes(request)) {
+        return
+      }
+    }
+
+    // Treat react packages as external for SSR layer,
+    // then let require-hook mapping them to internals.
+    if (layer === WEBPACK_LAYERS.client) {
+      // console.log('WEBPACK_LAYERS.client', request)
+
+      if (
+        [
+          'react',
+          'react/jsx-runtime',
+          'react/jsx-dev-runtime',
+          'react-dom',
+        ].includes(request)
+      ) {
+        return `commonjs next/dist/compiled/${request}`
+      } else {
         return
       }
     }
@@ -1631,7 +1652,12 @@ export default async function getBaseWebpackConfig(
           ? [
               {
                 test: codeCondition.test,
-                include: [appDir],
+                issuerLayer(layer: string) {
+                  return (
+                    layer === WEBPACK_LAYERS.client ||
+                    layer === WEBPACK_LAYERS.server
+                  )
+                },
                 resolve: {
                   alias: {
                     // Alias `next/dynamic` to React.lazy implementation for RSC
@@ -1649,7 +1675,7 @@ export default async function getBaseWebpackConfig(
                   {
                     // test: codeCondition.test,
                     issuerLayer: WEBPACK_LAYERS.server,
-                    test: (req: string) => {
+                    test(req: string) {
                       // If it's not a source code file, or has been opted out of
                       // bundling, don't resolve it.
                       if (

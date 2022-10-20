@@ -501,9 +501,9 @@ export class FlightClientEntryPlugin {
       {
         // By using the same entry name
         name: entryName,
-        // Layer should be undefined for the SSR modules
-        // This ensures the client components are
-        layer: undefined,
+        // Layer should be client for the SSR modules
+        // This ensures the client components are bundled on client layer
+        layer: WEBPACK_LAYERS.client,
       }
     )
 

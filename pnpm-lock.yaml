@@ -161,6 +161,7 @@ importers:
       shell-quote: 1.7.3
       styled-components: 5.3.3
       styled-jsx-plugin-postcss: 3.0.2
+      swr: 2.0.0-rc.0
       tailwindcss: 1.1.3
       taskr: 1.1.0
       tree-kill: 1.2.2
@@ -321,6 +322,7 @@ importers:
       shell-quote: 1.7.3
       styled-components: 5.3.3_vtcxgy2wlmese7djxl6h7ok674
       styled-jsx-plugin-postcss: 3.0.2
+      swr: 2.0.0-rc.0_react@18.2.0
       tailwindcss: 1.1.3
       taskr: 1.1.0
       tree-kill: 1.2.2
@@ -28286,6 +28288,19 @@ packages:
       upper-case: 1.1.3
     dev: true
 
+  /swr/2.0.0-rc.0_react@18.2.0:
+    resolution:
+      {
+        integrity: sha512-QOp+4Cqnb/uuLKeuRDh7aT+ws6wSWWKPqfyIpBXK8DM3IugOYeLO5v+390I0p1MIfRd0CQlAIJZBEgmHaTfDuA==,
+      }
+    engines: { pnpm: '7' }
+    peerDependencies:
+      react: ^16.11.0 || ^17.0.0 || ^18.0.0
+    dependencies:
+      react: 18.2.0
+      use-sync-external-store: 1.2.0_react@18.2.0
+    dev: true
+
   /symbol-observable/1.0.1:
     resolution:
       {
@@ -29942,7 +29957,6 @@ packages:
       react: ^16.8.0 || ^17.0.0 || ^18.0.0
     dependencies:
       react: 18.2.0
-    dev: false
 
   /use/3.1.1:
     resolution:
