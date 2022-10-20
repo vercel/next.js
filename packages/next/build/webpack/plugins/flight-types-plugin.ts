@@ -31,17 +31,14 @@ interface IEntry {
       ? `default: (props: { children: React.ReactNode; params?: any }) => React.ReactNode | null`
       : `default: (props: { params?: any }) => React.ReactNode | null`
   }
+  config?: {}
   generateStaticParams?: (params?:any) => Promise<any[]>
-  config?: {
-    // TODO: remove revalidate here
-    revalidate?: number | boolean
-    ${options.type === 'page' ? 'runtime?: string' : ''}
-  }
   revalidate?: RevalidateRange<TEntry> | false
   dynamic?: 'auto' | 'force-dynamic' | 'error' | 'force-static'
   dynamicParams?: boolean
   fetchCache?: 'auto' | 'force-no-store' | 'only-no-store' | 'default-no-store' | 'default-cache' | 'only-cache' | 'force-cache'
   preferredRegion?: 'auto' | 'home' | 'edge'
+  ${options.type === 'page' ? "runtime?: 'nodejs' | 'experimental-edge'" : ''}
 }
 
 // =============

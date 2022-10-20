@@ -1044,12 +1044,40 @@ export type AppConfig = {
   preferredRegion?: string
 }
 type GenerateParams = Array<{
-  config: AppConfig
+  config?: AppConfig
   segmentPath: string
   getStaticPaths?: GetStaticPaths
   generateStaticParams?: any
   isLayout?: boolean
 }>
+
+export const collectAppConfig = (mod: any): AppConfig | undefined => {
+  let hasConfig = false
+
+  const config: AppConfig = {}
+  if (typeof mod?.revalidate !== 'undefined') {
+    config.revalidate = mod.revalidate
+    hasConfig = true
+  }
+  if (typeof mod?.dynamicParams !== 'undefined') {
+    config.dynamicParams = mod.dynamicParams
+    hasConfig = true
+  }
+  if (typeof mod?.dynamic !== 'undefined') {
+    config.dynamic = mod.dynamic
+    hasConfig = true
+  }
+  if (typeof mod?.fetchCache !== 'undefined') {
+    config.fetchCache = mod.fetchCache
+    hasConfig = true
+  }
+  if (typeof mod?.preferredRegion !== 'undefined') {
+    config.preferredRegion = mod.preferredRegion
+    hasConfig = true
+  }
+
+  return hasConfig ? config : undefined
+}
 
 export const collectGenerateParams = async (
   segment: any,
@@ -1059,13 +1087,14 @@ export const collectGenerateParams = async (
   if (!Array.isArray(segment)) return generateParams
   const isLayout = !!segment[2]?.layout
   const mod = await (isLayout ? segment[2]?.layout?.() : segment[2]?.page?.())
+  const config = collectAppConfig(mod)
 
   const result = {
     isLayout,
     segmentPath: `/${parentSegments.join('/')}${
       segment[0] && parentSegments.length > 0 ? '/' : ''
     }${segment[0]}`,
-    config: mod?.config,
+    config,
     getStaticPaths: mod?.getStaticPaths,
     generateStaticParams: mod?.generateStaticParams,
   }
