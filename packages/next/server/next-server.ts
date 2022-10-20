@@ -1882,6 +1882,37 @@ export default class NextNodeServer extends BaseServer {
               result.response.headers.set('x-middleware-rewrite', rel)
             }
 
+            if (result.response.headers.has('x-middleware-override-headers')) {
+              const overriddenHeaders: Set<string> = new Set()
+              for (const key of result.response.headers
+                .get('x-middleware-override-headers')!
+                .split(',')) {
+                overriddenHeaders.add(key.trim())
+              }
+
+              result.response.headers.delete('x-middleware-override-headers')
+
+              // Delete headers.
+              for (const key of Object.keys(req.headers)) {
+                if (!overriddenHeaders.has(key)) {
+                  delete req.headers[key]
+                }
+              }
+
+              // Update or add headers.
+              for (const key of overriddenHeaders.keys()) {
+                const valueKey = 'x-middleware-request-' + key
+                const newValue = result.response.headers.get(valueKey)
+                const oldValue = req.headers[key]
+
+                if (oldValue !== newValue) {
+                  req.headers[key] = newValue === null ? undefined : newValue
+                }
+
+                result.response.headers.delete(valueKey)
+              }
+            }
+
             if (result.response.headers.has('Location')) {
               const value = result.response.headers.get('Location')!
               const rel = relativizeURL(value, initUrl)

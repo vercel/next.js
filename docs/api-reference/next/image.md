@@ -147,7 +147,7 @@ const Example = () => (
   <div className="grid-element">
     <Image
       src="/example.png"
-      layout="fill"
+      fill
       sizes="(max-width: 768px) 100vw,
               (max-width: 1200px) 50vw,
               33vw"
