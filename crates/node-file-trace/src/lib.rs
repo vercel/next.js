@@ -60,8 +60,8 @@ struct CacheArgs {
 #[cfg(not(feature = "persistent_cache"))]
 #[cfg_attr(feature = "cli", derive(clap::Args))]
 #[cfg_attr(feature = "node-api", derive(Serialize, Deserialize))]
-#[derive(Debug, Clone)]
-struct CacheArgs {}
+#[derive(Debug, Clone, Default)]
+pub struct CacheArgs {}
 
 #[cfg_attr(feature = "cli", derive(clap::Args))]
 #[cfg_attr(feature = "node-api", derive(Serialize, Deserialize))]
@@ -70,32 +70,40 @@ pub struct CommonArgs {
     input: Vec<String>,
 
     #[cfg_attr(feature = "cli", clap(short, long))]
+    #[cfg_attr(feature = "node-api", serde(default))]
     context_directory: Option<String>,
 
     #[cfg_attr(feature = "cli", clap(flatten))]
+    #[cfg_attr(feature = "node-api", serde(default))]
     cache: CacheArgs,
 
     #[cfg_attr(feature = "cli", clap(short, long))]
+    #[cfg_attr(feature = "node-api", serde(default))]
     visualize_graph: bool,
 
     #[cfg_attr(feature = "cli", clap(short, long))]
+    #[cfg_attr(feature = "node-api", serde(default))]
     watch: bool,
 
     #[cfg_attr(feature = "cli", clap(short, long))]
+    #[cfg_attr(feature = "node-api", serde(default))]
     /// Filter by issue severity.
     log_level: Option<IssueSeverityCliOption>,
 
     #[cfg_attr(feature = "cli", clap(long))]
+    #[cfg_attr(feature = "node-api", serde(default))]
     /// Show all log messages without limit.
     show_all: bool,
 
     #[cfg_attr(feature = "cli", clap(long))]
+    #[cfg_attr(feature = "node-api", serde(default))]
     /// Expand the log details.
     log_detail: bool,
 
     /// Whether to skip the glob logic
     /// assume the provided input is not glob even if it contains `*` and `[]`
     #[cfg_attr(feature = "cli", clap(short, long))]
+    #[cfg_attr(feature = "node-api", serde(default))]
     exact: bool,
 }
 
