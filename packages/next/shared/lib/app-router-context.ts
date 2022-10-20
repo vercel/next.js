@@ -30,6 +30,14 @@ interface NavigateOptions {
 
 export interface AppRouterInstance {
   /**
+   * Navigate to the previous history entry.
+   */
+  back(): void
+  /**
+   * Navigate to the next history entry.
+   */
+  forward(): void
+  /**
    * Refresh the current page.
    */
   refresh(): void
