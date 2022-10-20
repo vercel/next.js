@@ -468,7 +468,7 @@ describe('Production Usage', () => {
 
     // TODO: should we generate weak etags for streaming getServerSideProps?
     // this is currently not expected to work with react-18
-    it.skip('should allow etag header support with getServerSideProps', async () => {
+    it('should allow etag header support with getServerSideProps', async () => {
       const url = `http://localhost:${appPort}`
       const etag = (await fetchViaHTTP(url, '/fully-dynamic')).headers.get(
         'ETag'
