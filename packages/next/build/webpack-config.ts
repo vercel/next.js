@@ -13,6 +13,7 @@ import {
   WEBPACK_LAYERS,
   RSC_MOD_REF_PROXY_ALIAS,
 } from '../lib/constants'
+import { EXTERNAL_PACKAGES } from '../lib/server-external-packages'
 import { fileExists } from '../lib/file-exists'
 import { CustomRoutes } from '../lib/load-custom-routes.js'
 import {
@@ -47,6 +48,7 @@ import { regexLikeCss } from './webpack/config/blocks/css'
 import { CopyFilePlugin } from './webpack/plugins/copy-file-plugin'
 import { FlightManifestPlugin } from './webpack/plugins/flight-manifest-plugin'
 import { FlightClientEntryPlugin } from './webpack/plugins/flight-client-entry-plugin'
+import { FlightTypesPlugin } from './webpack/plugins/flight-types-plugin'
 import type {
   Feature,
   SWC_TARGET_TRIPLE,
@@ -68,8 +70,7 @@ const babelIncludeRegexes: RegExp[] = [
   /next[\\/]dist[\\/](esm[\\/])?shared[\\/]lib/,
   /next[\\/]dist[\\/](esm[\\/])?client/,
   /next[\\/]dist[\\/](esm[\\/])?pages/,
-  /[\\/](strip-ansi|ansi-regex)[\\/]/,
-  /styled-jsx[\\/]/,
+  /[\\/](strip-ansi|ansi-regex|styled-jsx)[\\/]/,
 ]
 
 const BABEL_CONFIG_FILES = [
@@ -125,7 +126,7 @@ function isResourceInPackages(resource: string, packageNames?: string[]) {
 const builtInReactImports = [
   'react',
   'react/jsx-runtime',
-  'next/dist/compiled/react-server-dom-webpack/writer.browser.server',
+  'next/dist/compiled/react-server-dom-webpack/server.browser',
 ]
 
 export function getDefineEnv({
@@ -1008,6 +1009,10 @@ export default async function getBaseWebpackConfig(
   const crossOrigin = config.crossOrigin
   const looseEsmExternals = config.experimental?.esmExternals === 'loose'
 
+  const optoutBundlingPackages = EXTERNAL_PACKAGES.concat(
+    ...(config.experimental.serverComponentsExternalPackages || [])
+  )
+
   async function handleExternals(
     context: string,
     request: string,
@@ -1166,12 +1171,7 @@ export default async function getBaseWebpackConfig(
     if (/node_modules[/\\].*\.[mc]?js$/.test(res)) {
       if (layer === WEBPACK_LAYERS.server) {
         // All packages should be bundled for the server layer if they're not opted out.
-        if (
-          isResourceInPackages(
-            res,
-            config.experimental.serverComponentsExternalPackages
-          )
-        ) {
+        if (isResourceInPackages(res, optoutBundlingPackages)) {
           return `${externalType} ${request}`
         }
 
@@ -1545,10 +1545,7 @@ export default async function getBaseWebpackConfig(
                   // bundling, don't resolve it.
                   if (
                     !codeCondition.test.test(req) ||
-                    isResourceInPackages(
-                      req,
-                      config.experimental.serverComponentsExternalPackages
-                    )
+                    isResourceInPackages(req, optoutBundlingPackages)
                   ) {
                     return false
                   }
@@ -1612,10 +1609,7 @@ export default async function getBaseWebpackConfig(
                       // bundling, don't resolve it.
                       if (
                         !codeCondition.test.test(req) ||
-                        isResourceInPackages(
-                          req,
-                          config.experimental.serverComponentsExternalPackages
-                        )
+                        isResourceInPackages(req, optoutBundlingPackages)
                       ) {
                         return false
                       }
@@ -1976,6 +1970,10 @@ export default async function getBaseWebpackConfig(
               dev,
               isEdgeServer,
             })),
+      hasAppDir &&
+        !isClient &&
+        !dev &&
+        new FlightTypesPlugin({ dir, appDir, dev, isEdgeServer }),
       !dev &&
         isClient &&
         !!config.experimental.sri?.algorithm &&

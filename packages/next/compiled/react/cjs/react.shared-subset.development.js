@@ -2,7 +2,7 @@
  * @license React
  * react.shared-subset.development.js
  *
- * Copyright (c) Facebook, Inc. and its affiliates.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
@@ -14,7 +14,7 @@ if (process.env.NODE_ENV !== "production") {
   (function() {
 'use strict';
 
-var ReactVersion = '18.3.0-experimental-a8c16a004-20221012';
+var ReactVersion = '18.3.0-experimental-9cdf8a99e-20221018';
 
 // ATTENTION
 // When adding new symbols to this file,

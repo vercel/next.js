@@ -1,7 +1,6 @@
 import path from 'path'
 import assert from 'assert'
-import { NextConfig } from 'next'
-import { InstallCommand, NextInstance, PackageJson } from './next-modes/base'
+import { NextInstance, NextInstanceOpts } from './next-modes/base'
 import { NextDevInstance } from './next-modes/next-dev'
 import { NextStartInstance } from './next-modes/next-start'
 import { NextDeployInstance } from './next-modes/next-deploy'
@@ -110,24 +109,9 @@ if (typeof afterAll === 'function') {
  * test mode. The next instance will be isolated from the monorepo
  * to prevent relying on modules that shouldn't be
  */
-export async function createNext(opts: {
-  files:
-    | FileRef
-    | {
-        [filename: string]: string | FileRef
-      }
-  dependencies?: {
-    [name: string]: string
-  }
-  nextConfig?: NextConfig
-  skipStart?: boolean
-  installCommand?: InstallCommand
-  buildCommand?: string
-  packageJson?: PackageJson
-  startCommand?: string
-  packageLockPath?: string
-  env?: Record<string, string>
-}): Promise<NextInstance> {
+export async function createNext(
+  opts: NextInstanceOpts & { skipStart?: boolean }
+): Promise<NextInstance> {
   try {
     if (nextInstance) {
       throw new Error(`createNext called without destroying previous instance`)

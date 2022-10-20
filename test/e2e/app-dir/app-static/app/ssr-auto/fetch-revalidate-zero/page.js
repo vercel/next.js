@@ -20,6 +20,4 @@ export default function Page() {
 }
 
 // TODO-APP: remove revalidate config once next.revalidate is supported
-export const config = {
-  revalidate: 0,
-}
+export const revalidate = 0
