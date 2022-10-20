@@ -19,7 +19,7 @@ use turbo_tasks::Value;
 use turbo_tasks_testing::VcStorage;
 use turbopack_core::{
     environment::{EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
-    target::{Arch, CompileTarget, Endianness, Libc, Platform},
+    target::CompileTargetVc,
 };
 use turbopack_ecmascript::analyzer::{
     graph::{create_graph, EvalContext, VarGraph},
@@ -107,14 +107,8 @@ fn bench_link(b: &mut Bencher, input: &BenchInput) {
                             EnvironmentVc::new(
                                 Value::new(ExecutionEnvironment::NodeJsLambda(
                                     NodeJsEnvironment {
-                                        compile_target: CompileTarget {
-                                            arch: Arch::Unknown,
-                                            endianness: Endianness::Big,
-                                            platform: Platform::Unknown,
-                                            libc: Libc::Unknown,
-                                        }
-                                        .into(),
-                                        node_version: 0,
+                                        compile_target: CompileTargetVc::unknown(),
+                                        ..Default::default()
                                     }
                                     .into(),
                                 )),

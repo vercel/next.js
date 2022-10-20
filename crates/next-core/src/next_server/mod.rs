@@ -1,12 +1,12 @@
 use turbo_tasks::{primitives::StringVc, Value};
+use turbo_tasks_env::ProcessEnvVc;
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack::{
     module_options::{ModuleOptionsContext, ModuleOptionsContextVc},
     resolve_options_context::{ResolveOptionsContext, ResolveOptionsContextVc},
 };
-use turbopack_core::{
-    environment::{EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
-    target::CompileTargetVc,
+use turbopack_core::environment::{
+    EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironmentVc,
 };
 use turbopack_ecmascript::EcmascriptInputTransform;
 
@@ -56,14 +56,13 @@ pub fn get_server_resolve_options_context(
 }
 
 #[turbo_tasks::function]
-pub fn get_server_environment(ty: Value<ServerContextType>) -> EnvironmentVc {
+pub fn get_server_environment(
+    ty: Value<ServerContextType>,
+    process_env: ProcessEnvVc,
+) -> EnvironmentVc {
     EnvironmentVc::new(
         Value::new(ExecutionEnvironment::NodeJsLambda(
-            NodeJsEnvironment {
-                compile_target: CompileTargetVc::current(),
-                node_version: 0,
-            }
-            .cell(),
+            NodeJsEnvironmentVc::current(process_env),
         )),
         match ty.into_value() {
             ServerContextType::Pages { .. } => Value::new(EnvironmentIntention::ServerRendering),

@@ -91,7 +91,7 @@ pub async fn create_server_rendered_source(
     transitions.insert("next-client".to_string(), next_client_transition);
     let context: AssetContextVc = ModuleAssetContextVc::new(
         TransitionsByNameVc::cell(transitions),
-        get_server_environment(server_ty),
+        get_server_environment(server_ty, env),
         get_server_module_options_context(server_ty),
         get_server_resolve_options_context(project_path, server_ty),
     )

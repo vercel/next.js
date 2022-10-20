@@ -2077,7 +2077,7 @@ mod tests {
                                                     libc: Libc::Glibc,
                                                 }
                                                 .into(),
-                                                node_version: 0,
+                                                ..Default::default()
                                             }
                                             .into(),
                                         )),

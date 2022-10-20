@@ -13,7 +13,6 @@ use turbopack_core::{
     context::AssetContext,
     environment::{EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
     source_asset::SourceAssetVc,
-    target::CompileTargetVc,
 };
 
 pub fn benchmark(c: &mut Criterion) {
@@ -79,11 +78,7 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
                 let source = SourceAssetVc::new(input);
                 let environment = EnvironmentVc::new(
                     Value::new(ExecutionEnvironment::NodeJsLambda(
-                        NodeJsEnvironment {
-                            compile_target: CompileTargetVc::current(),
-                            node_version: 0,
-                        }
-                        .into(),
+                        NodeJsEnvironment::default().into(),
                     )),
                     Value::new(EnvironmentIntention::ServerRendering),
                 );

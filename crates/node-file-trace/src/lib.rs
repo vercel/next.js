@@ -40,7 +40,6 @@ use turbopack_core::{
     issue::{IssueSeverity, IssueVc},
     reference::all_assets,
     source_asset::SourceAssetVc,
-    target::CompileTargetVc,
 };
 
 use crate::nft_json::NftJsonAssetVc;
@@ -209,11 +208,7 @@ async fn input_to_modules<'a>(
     let root = fs.root();
     let env = EnvironmentVc::new(
         Value::new(ExecutionEnvironment::NodeJsLambda(
-            NodeJsEnvironment {
-                compile_target: CompileTargetVc::current(),
-                node_version: 0,
-            }
-            .into(),
+            NodeJsEnvironment::default().into(),
         )),
         Value::new(EnvironmentIntention::Api),
     );

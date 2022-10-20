@@ -26,7 +26,6 @@ use turbopack_core::{
     context::AssetContext,
     environment::{EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
     source_asset::SourceAssetVc,
-    target::CompileTargetVc,
 };
 
 #[tokio::main]
@@ -53,11 +52,7 @@ async fn main() -> Result<()> {
                 TransitionsByNameVc::cell(HashMap::new()),
                 EnvironmentVc::new(
                     Value::new(ExecutionEnvironment::NodeJsLambda(
-                        NodeJsEnvironment {
-                            compile_target: CompileTargetVc::current(),
-                            node_version: 0,
-                        }
-                        .into(),
+                        NodeJsEnvironment::default().into(),
                     )),
                     Value::new(EnvironmentIntention::ServerRendering),
                 ),

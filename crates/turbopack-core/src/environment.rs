@@ -1,11 +1,19 @@
-use anyhow::Result;
-use swc_core::ecma::preset_env::Versions;
-use turbo_tasks::{
-    primitives::{BoolVc, StringsVc},
-    Value,
+use std::{
+    process::{Command, Stdio},
+    str::FromStr,
 };
 
+use anyhow::{anyhow, Context, Result};
+use swc_core::ecma::preset_env::{Version, Versions};
+use turbo_tasks::{
+    primitives::{BoolVc, StringVc, StringsVc},
+    Value,
+};
+use turbo_tasks_env::ProcessEnvVc;
+
 use crate::target::CompileTargetVc;
+
+static DEFAULT_NODEJS_VERSION: &str = "16.0.0";
 
 #[turbo_tasks::value]
 pub struct Environment {
@@ -78,13 +86,8 @@ impl EnvironmentVc {
     pub async fn runtime_versions(self) -> Result<RuntimeVersionsVc> {
         let this = self.await?;
         Ok(match this.execution {
-            ExecutionEnvironment::NodeJsBuildTime(_) | ExecutionEnvironment::NodeJsLambda(_) => {
-                RuntimeVersionsVc::cell(Versions::parse_versions(browserslist::resolve(
-                    // TODO: Include a RuntimeVersion in the environment for node too
-                    vec!["Node 16"],
-                    &browserslist::Opts::new(),
-                )?)?)
-            }
+            ExecutionEnvironment::NodeJsBuildTime(node_env)
+            | ExecutionEnvironment::NodeJsLambda(node_env) => node_env.runtime_versions(),
             ExecutionEnvironment::Browser(browser_env) => {
                 RuntimeVersionsVc::cell(Versions::parse_versions(browserslist::resolve(
                     browser_env.await?.browserslist_query.split(','),
@@ -163,8 +166,56 @@ pub enum NodeEnvironmentType {
 #[turbo_tasks::value(shared)]
 pub struct NodeJsEnvironment {
     pub compile_target: CompileTargetVc,
-    // TODO
-    pub node_version: u8,
+    pub node_version: NodeJsVersionVc,
+}
+
+impl Default for NodeJsEnvironment {
+    fn default() -> Self {
+        Self {
+            compile_target: CompileTargetVc::current(),
+            node_version: NodeJsVersion::Static(StringVc::cell(DEFAULT_NODEJS_VERSION.to_owned()))
+                .into(),
+        }
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl NodeJsEnvironmentVc {
+    #[turbo_tasks::function]
+    pub async fn runtime_versions(self) -> Result<RuntimeVersionsVc> {
+        let str = match *self.await?.node_version.await? {
+            NodeJsVersion::Current(process_env) => get_current_nodejs_version(StringVc::cell(
+                process_env
+                    .read("PATH")
+                    .await?
+                    .clone_value()
+                    .context("env must have PATH")?,
+            )),
+            NodeJsVersion::Static(version) => version,
+        }
+        .await?;
+
+        Ok(RuntimeVersionsVc::cell(Versions {
+            node: Some(
+                Version::from_str(&str).map_err(|_| anyhow!("Node.js version parse error"))?,
+            ),
+            ..Default::default()
+        }))
+    }
+
+    #[turbo_tasks::function]
+    pub fn current(process_env: ProcessEnvVc) -> Self {
+        Self::cell(NodeJsEnvironment {
+            compile_target: CompileTargetVc::current(),
+            node_version: NodeJsVersionVc::cell(NodeJsVersion::Current(process_env)),
+        })
+    }
+}
+
+#[turbo_tasks::value(shared)]
+pub enum NodeJsVersion {
+    Current(ProcessEnvVc),
+    Static(StringVc),
 }
 
 #[turbo_tasks::value(shared)]
@@ -177,3 +228,22 @@ pub struct BrowserEnvironment {
 
 #[turbo_tasks::value(transparent)]
 pub struct RuntimeVersions(#[turbo_tasks(trace_ignore)] pub Versions);
+
+#[turbo_tasks::function]
+pub async fn get_current_nodejs_version(path_env: StringVc) -> Result<StringVc> {
+    let mut cmd = Command::new("node");
+    cmd.arg("--version");
+    cmd.env_clear();
+    cmd.env("PATH", path_env.await?.clone());
+    cmd.stdin(Stdio::piped());
+    cmd.stdout(Stdio::piped());
+
+    Ok(StringVc::cell(
+        String::from_utf8(cmd.output()?.stdout)?
+            .strip_prefix('v')
+            .context("Version must begin with v")?
+            .strip_suffix('\n')
+            .context("Version must end with \\n")?
+            .to_owned(),
+    ))
+}
