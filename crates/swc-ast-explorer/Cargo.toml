@@ -1,14 +1,17 @@
 [package]
 name = "swc-ast-explorer"
 version = "0.1.0"
+description = "TBD"
+license = "MPL-2.0"
 edition = "2021"
+
+# don't publish this crate (for now)
+publish = false
 
 [[bin]]
 name = "swc-ast-explorer"
 path = "src/main.rs"
 bench = false
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 anyhow = "1.0.47"

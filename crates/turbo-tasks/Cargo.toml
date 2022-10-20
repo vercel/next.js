@@ -1,12 +1,12 @@
 [package]
 name = "turbo-tasks"
 version = "0.1.0"
+description = "TBD"
+license = "MPL-2.0"
 edition = "2021"
 
 [lib]
 bench = false
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
 assert_task_state = []

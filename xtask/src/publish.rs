@@ -112,7 +112,7 @@ pub fn run_publish(name: &str) {
             "latest"
         };
         let current_dir = env::current_dir().expect("Unable to get current directory");
-        let package_dir = current_dir.join("packages").join("node-module-trace");
+        let package_dir = current_dir.join("../../packages").join("node-module-trace");
         let temp_dir = package_dir.join("npm");
         if let Ok(()) = fs::remove_dir_all(&temp_dir) {};
         fs::create_dir(&temp_dir).expect("Unable to create temporary npm directory");
@@ -139,7 +139,7 @@ pub fn run_publish(name: &str) {
             fs::create_dir(&target_dir)
                 .unwrap_or_else(|e| panic!("Unable to create dir: {:?}\n{e}", &target_dir));
             fs::write(
-                target_dir.join("package.json"),
+                target_dir.join("../../package.json"),
                 serde_json::to_string_pretty(&pkg_json).unwrap(),
             )
             .expect("Unable to write package.json");
@@ -172,18 +172,18 @@ pub fn run_publish(name: &str) {
             .map(|name| (name, version.clone()))
             .collect::<HashMap<String, String>>();
         let pkg_json_content =
-            fs::read(&package_dir.join("package.json")).expect("Unable to read package.json");
+            fs::read(&package_dir.join("../../package.json")).expect("Unable to read package.json");
         let mut pkg_json: Value = serde_json::from_slice(&pkg_json_content).unwrap();
         pkg_json["optionalDependencies"] =
             serde_json::to_value(&optional_dependencies_with_version).unwrap();
         fs::write(
-            target_pkg_dir.join("package.json"),
+            target_pkg_dir.join("../../package.json"),
             serde_json::to_string_pretty(&pkg_json).unwrap(),
         )
         .unwrap_or_else(|e| {
             panic!(
                 "Write [{:?}] failed: {e}",
-                target_pkg_dir.join("package.json")
+                target_pkg_dir.join("../../package.json")
             )
         });
         Command::program("npm")
@@ -234,7 +234,7 @@ pub fn run_bump(names: HashSet<String>, dry_run: bool) {
                 env::current_dir()
                     .unwrap()
                     .join(&workspace.path)
-                    .join("package.json"),
+                    .join("../../package.json"),
             )
             .expect("Read workspace package.json failed");
             let mut pkg_json: PackageJson = serde_json::from_str(&workspace_pkg_json)

@@ -104,7 +104,7 @@ fn main() {
             let workspace_dir = var_os("CARGO_WORKSPACE_DIR")
                 .map(PathBuf::from)
                 .unwrap_or_else(|| current_dir().unwrap());
-            let cargo_lock_path = workspace_dir.join("Cargo.lock");
+            let cargo_lock_path = workspace_dir.join("../../Cargo.lock");
             let lock = cargo_lock::Lockfile::load(cargo_lock_path).unwrap();
             let swc_packages = lock
                 .packages
