@@ -2,26 +2,15 @@ import type { NextPage } from 'next'
 import Head from 'next/head'
 import Image from 'next/image'
 import React, { ChangeEvent, useEffect, useRef, useState } from 'react'
-import Card from '../components/Card'
+import Card from '../../components/Card'
 import { VideoUploader, VideoUploadResponse } from '@api.video/video-uploader'
-import Status from '../components/Status'
+import Status from '../../components/Status'
 import { useRouter } from 'next/router'
-import {
-  Button,
-  Footer,
-  GlobalContainer,
-  Header,
-  StatusContainer,
-  Text,
-  TextsContainer,
-} from '../style/common'
-import useSWR from 'swr'
 
-const fetcher = async (url: string): Promise<any> => {
-  return fetch(url).then((res) => res.json())
-}
-
-const Home: NextPage = () => {
+const Uploader: NextPage = () => {
+  const [uploadToken, setUploadToken] = useState<{ token: string } | undefined>(
+    undefined
+  )
   const [uploadProgress, setUploadProgress] = useState<number | undefined>(
     undefined
   )
@@ -31,47 +20,33 @@ const Home: NextPage = () => {
     { ingested: false, encoded: false }
   )
   const [interId, setInterId] = useState<number | undefined>(undefined)
-  const [size, setSize] = useState<
-    { width: number; height: number } | undefined
-  >(undefined)
   const inputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
 
-  const { data: uploadToken } = useSWR<{ token: string }>(
-    '/api/uploadToken',
-    fetcher
-  )
-
-  const fetchVideoStatus = async (videoId: string): Promise<void> => {
-    const { status } = await fetcher(`/api/${videoId}`)
-    const { encoding, ingest } = status
-    setStatus({
-      ingested: ingest.status === 'uploaded',
-      encoded: encoding.playable,
-    })
-    if (ingest.status === 'uploaded' && encoding.playable) {
-      setSize({
-        width: encoding.metadata.width,
-        height: encoding.metadata.height,
-      })
-      setReady(true)
-    }
-  }
-
-  const clearState = (): void => {
-    setReady(false)
-    setStatus({ ingested: false, encoded: false })
-    setVideo(undefined)
-    setUploadProgress(undefined)
-    setSize(undefined)
-  }
-
+  useEffect(() => {
+    fetch('/api/uploadToken')
+      .then((res) => res.json())
+      .then((res) => setUploadToken(res))
+  }, [])
   useEffect(() => {
     if (video) {
+      const fetchVideoStatus = async (videoId: string): Promise<void> => {
+        const { status } = await fetch(`/api/${videoId}`).then((res) =>
+          res.json()
+        )
+        const { encoding, ingest } = status
+        setStatus({
+          ingested: ingest.status === 'uploaded',
+          encoded: encoding.playable,
+        })
+        if (ingest.status === 'uploaded' && encoding.playable) setReady(true)
+      }
       const intervalId = window.setInterval(() => {
         fetchVideoStatus(video.videoId)
       }, 1000)
       setInterId(intervalId)
+
+      return () => window.clearInterval(intervalId)
     }
   }, [video, ready])
   useEffect(() => {
@@ -82,6 +57,13 @@ const Home: NextPage = () => {
     e: ChangeEvent<HTMLInputElement>
   ): Promise<void> => {
     e.preventDefault()
+    if (!uploadToken || !uploadToken.token) return
+    const clearState = (): void => {
+      setReady(false)
+      setStatus({ ingested: false, encoded: false })
+      setVideo(undefined)
+      setUploadProgress(undefined)
+    }
     clearState()
     if (!e.target.files || !uploadToken) return
     const file = e.target.files[0]
@@ -98,11 +80,11 @@ const Home: NextPage = () => {
 
   const handleNavigate = (): void => {
     if (!video) return
-    router.push(`/${video.videoId}?w=${size?.width}&h=${size?.height}`)
+    router.push(`/videos/${video.videoId}?uploaded=1`)
   }
 
   return (
-    <GlobalContainer>
+    <div className="global-container">
       <Head>
         <title>Video Uploader</title>
         <meta
@@ -112,13 +94,13 @@ const Home: NextPage = () => {
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
-      <Header>
+      <header>
         <span>api.video uploader</span> 🚀
-      </Header>
+      </header>
 
       <main>
-        <TextsContainer>
-          <Text>
+        <div className="texts-container">
+          <p>
             Hey fellow dev! 👋 <br />
             Welcome to this basic example of video uploader provided by{' '}
             <a
@@ -137,8 +119,8 @@ const Home: NextPage = () => {
               Vercel & Next.js
             </a>
             .
-          </Text>
-          <Text>
+          </p>
+          <p>
             api.video provides APIs and clients to handle all your video needs.
             <br />
             This app is built with the{' '}
@@ -158,8 +140,8 @@ const Home: NextPage = () => {
               Typescript uploader
             </a>
             .
-          </Text>
-          <Text>
+          </p>
+          <p>
             You can{' '}
             <a
               href="https://github.com/vercel/next.js/tree/canary/examples/with-apivideo-upload"
@@ -169,18 +151,21 @@ const Home: NextPage = () => {
               check the source code on GitHub
             </a>
             .
-          </Text>
-          <Text>
+          </p>
+          <p>
             Please add a video to upload and let the power of the API do the
             rest 🎩
-          </Text>
-        </TextsContainer>
+          </p>
+        </div>
 
         {!uploadProgress ? (
           <>
-            <Button $upload onClick={() => inputRef.current?.click()}>
+            <button
+              className="upload"
+              onClick={() => inputRef.current?.click()}
+            >
               Select a file
-            </Button>
+            </button>
             <input
               ref={inputRef}
               hidden
@@ -191,13 +176,13 @@ const Home: NextPage = () => {
           </>
         ) : (
           <>
-            <StatusContainer>
+            <div className="status-container">
               <Status title="Uploaded" done={uploadProgress >= 100} />
               <span />
               <Status title="Ingested" done={status.ingested} />
               <span />
               <Status title="Playable" done={status.encoded} />
-            </StatusContainer>
+            </div>
             <Card
               content="https://ws.api.video/videos/{videoId}/source"
               url="https://docs.api.video/reference/post_videos-videoid-source"
@@ -207,11 +192,13 @@ const Home: NextPage = () => {
         )}
 
         {ready && video && (
-          <Button onClick={handleNavigate}>Watch it 🍿</Button>
+          <button className="upload" onClick={handleNavigate}>
+            Watch it 🍿
+          </button>
         )}
       </main>
 
-      <Footer>
+      <footer>
         <a
           href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
           target="_blank"
@@ -226,9 +213,9 @@ const Home: NextPage = () => {
         <a href="https://api.video" target="_blank" rel="noopener noreferrer">
           api.video
         </a>
-      </Footer>
-    </GlobalContainer>
+      </footer>
+    </div>
   )
 }
 
-export default Home
+export default Uploader
