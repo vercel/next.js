@@ -1240,62 +1240,6 @@ describe('app dir', () => {
             await next.patchFile(filePath, origContent)
           }
         })
-
-        it('should throw an error when getServerSideProps is used', async () => {
-          const pageFile =
-            'app/client-with-errors/get-server-side-props/page.js'
-          const content = await next.readFile(pageFile)
-          const uncomment = content.replace(
-            '// export function getServerSideProps',
-            'export function getServerSideProps'
-          )
-          await next.patchFile(pageFile, uncomment)
-          const res = await fetchViaHTTP(
-            next.url,
-            '/client-with-errors/get-server-side-props'
-          )
-          await next.patchFile(pageFile, content)
-
-          await check(async () => {
-            const { status } = await fetchViaHTTP(
-              next.url,
-              '/client-with-errors/get-server-side-props'
-            )
-            return status
-          }, /200/)
-
-          expect(res.status).toBe(500)
-          expect(await res.text()).toContain(
-            '`getServerSideProps` is not allowed in Client Components'
-          )
-        })
-
-        it('should throw an error when getStaticProps is used', async () => {
-          const pageFile = 'app/client-with-errors/get-static-props/page.js'
-          const content = await next.readFile(pageFile)
-          const uncomment = content.replace(
-            '// export function getStaticProps',
-            'export function getStaticProps'
-          )
-          await next.patchFile(pageFile, uncomment)
-          const res = await fetchViaHTTP(
-            next.url,
-            '/client-with-errors/get-static-props'
-          )
-          await next.patchFile(pageFile, content)
-          await check(async () => {
-            const { status } = await fetchViaHTTP(
-              next.url,
-              '/client-with-errors/get-static-props'
-            )
-            return status
-          }, /200/)
-
-          expect(res.status).toBe(500)
-          expect(await res.text()).toContain(
-            '`getStaticProps` is not allowed in Client Components'
-          )
-        })
       }
     })
 
@@ -1609,8 +1553,7 @@ describe('app dir', () => {
 
         if (isDev) {
           expect(await hasRedbox(browser)).toBe(true)
-          console.log('getRedboxHeader', await getRedboxHeader(browser))
-          // expect(await getRedboxHeader(browser)).toMatch(/An error occurred: this is a test/)
+          expect(await getRedboxHeader(browser)).toMatch(/this is a test/)
         } else {
           await browser
           expect(
@@ -1619,6 +1562,37 @@ describe('app dir', () => {
               .elementByCss('#error-boundary-message')
               .text()
           ).toBe('An error occurred: this is a test')
+        }
+      })
+
+      it('should trigger error component when an error happens during server components rendering', async () => {
+        const browser = await webdriver(next.url, '/error/server-component')
+
+        if (isDev) {
+          expect(
+            await browser
+              .waitForElementByCss('#error-boundary-message')
+              .elementByCss('#error-boundary-message')
+              .text()
+          ).toBe('this is a test')
+          expect(
+            await browser.waitForElementByCss('#error-boundary-digest').text()
+            // Digest of the error message should be stable.
+          ).not.toBe('')
+          // TODO-APP: ensure error overlay is shown for errors that happened before/during hydration
+          // expect(await hasRedbox(browser)).toBe(true)
+          // expect(await getRedboxHeader(browser)).toMatch(/this is a test/)
+        } else {
+          await browser
+          expect(
+            await browser.waitForElementByCss('#error-boundary-message').text()
+          ).toBe(
+            'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
+          )
+          expect(
+            await browser.waitForElementByCss('#error-boundary-digest').text()
+            // Digest of the error message should be stable.
+          ).not.toBe('')
         }
       })
 

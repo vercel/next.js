@@ -80,7 +80,9 @@ export async function loadStaticPaths({
   workerWasUsed = true
 
   if (isAppPath) {
-    const generateParams = collectGenerateParams(components.ComponentMod.tree)
+    const generateParams = await collectGenerateParams(
+      components.ComponentMod.tree
+    )
     return buildAppStaticPaths({
       page: pathname,
       generateParams,

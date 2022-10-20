@@ -128,7 +128,7 @@ function performFullReload(err: any, sendMessage: any) {
 
 // Attempt to update code on the fly, fall back to a hard reload.
 function tryApplyUpdates(
-  onHotUpdateSuccess: any,
+  onHotUpdateSuccess: (hasUpdates: boolean) => void,
   sendMessage: any,
   dispatch: DispatchFn
 ) {
@@ -174,7 +174,7 @@ function tryApplyUpdates(
     if (isUpdateAvailable()) {
       // While we were updating, there was a new update! Do it again.
       tryApplyUpdates(
-        hasUpdates ? onBuildOk : onHotUpdateSuccess,
+        hasUpdates ? () => onBuildOk(dispatch) : onHotUpdateSuccess,
         sendMessage,
         dispatch
       )
