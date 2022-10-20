@@ -9,19 +9,10 @@ import { NextInstance } from 'test/lib/next-modes/base'
 
 export async function sandbox(
   next: NextInstance,
-  initialFiles?: Map<string, string>,
-  defaultFiles = true
+  initialFiles?: Map<string, string>
 ) {
   await next.stop()
   await next.clean()
-
-  if (defaultFiles) {
-    await next.patchFile(
-      'pages/index.js',
-      `export { default } from '../index';`
-    )
-    await next.patchFile('index.js', `export default () => 'new sandbox';`)
-  }
 
   if (initialFiles) {
     for (const [k, v] of initialFiles.entries()) {

@@ -16,7 +16,7 @@ describe('ReactRefresh app', () => {
   afterAll(() => next.destroy())
 
   test('can edit a component without losing state', async () => {
-    const { session, cleanup } = await sandbox(next, undefined, false)
+    const { session, cleanup } = await sandbox(next)
     await session.patch(
       'index.js',
       `
@@ -64,7 +64,7 @@ describe('ReactRefresh app', () => {
   })
 
   test('cyclic dependencies', async () => {
-    const { session, cleanup } = await sandbox(next, undefined, false)
+    const { session, cleanup } = await sandbox(next)
 
     await session.write(
       'NudgeOverview.js',
