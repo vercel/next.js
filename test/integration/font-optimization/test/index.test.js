@@ -9,7 +9,6 @@ import {
   nextStart,
   nextBuild,
   renderViaHTTP,
-  initNextServerScript,
   waitFor,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
@@ -21,20 +20,6 @@ const fsExists = (file) =>
     .access(file)
     .then(() => true)
     .catch(() => false)
-
-async function getBuildId(appDir) {
-  return fs.readFile(join(appDir, '.next', 'BUILD_ID'), 'utf8')
-}
-
-const startServerlessEmulator = async (dir, port, opts = {}) => {
-  const scriptPath = join(dir, 'server.js')
-  const env = Object.assign(
-    {},
-    { ...process.env },
-    { PORT: port, BUILD_ID: await getBuildId(dir) }
-  )
-  return initNextServerScript(scriptPath, /ready on/i, env, false, opts)
-}
 
 describe('Font Optimization', () => {
   describe.each([
@@ -79,7 +64,6 @@ describe('Font Optimization', () => {
       preconnectUrl
     ) => {
       const appDir = join(fixturesDir, `with-${property}`)
-      const nextConfig = join(appDir, 'next.config.js')
       let builtServerPagesDir
       let builtPage
       let appPort
@@ -247,50 +231,6 @@ describe('Font Optimization', () => {
           builtPage = (file) => join(builtServerPagesDir, file)
         })
         afterAll(() => killApp(app))
-        runTests()
-      })
-
-      describe.skip('Font optimization for serverless apps', () => {
-        const origNextConfig = fs.readFileSync(nextConfig)
-
-        beforeAll(async () => {
-          await fs.writeFile(
-            nextConfig,
-            `module.exports = ({ target: 'serverless', cleanDistDir: false })`,
-            'utf8'
-          )
-          await nextBuild(appDir)
-          appPort = await findPort()
-          app = await nextStart(appDir, appPort)
-          builtServerPagesDir = join(appDir, '.next', 'serverless')
-          builtPage = (file) => join(builtServerPagesDir, file)
-        })
-        afterAll(async () => {
-          await fs.writeFile(nextConfig, origNextConfig)
-          await killApp(app)
-        })
-        runTests()
-      })
-
-      describe.skip('Font optimization for emulated serverless apps', () => {
-        const origNextConfig = fs.readFileSync(nextConfig)
-
-        beforeAll(async () => {
-          await fs.writeFile(
-            nextConfig,
-            `module.exports = ({ target: 'experimental-serverless-trace', cleanDistDir: false })`,
-            'utf8'
-          )
-          await nextBuild(appDir)
-          appPort = await findPort()
-          app = await startServerlessEmulator(appDir, appPort)
-          builtServerPagesDir = join(appDir, '.next', 'serverless')
-          builtPage = (file) => join(builtServerPagesDir, file)
-        })
-        afterAll(async () => {
-          await fs.writeFile(nextConfig, origNextConfig)
-          await killApp(app)
-        })
         runTests()
       })
 

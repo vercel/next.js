@@ -40,7 +40,7 @@ export default function middlewareLoader(this: any) {
   buildInfo.rootDir = rootDir
 
   return `
-        import { adapter, blockUnallowedResponse, enhanceGlobals } from 'next/dist/server/web/adapter'
+        import { adapter, blockUnallowedResponse, enhanceGlobals } from 'next/dist/esm/server/web/adapter'
 
         enhanceGlobals()
 

@@ -1197,60 +1197,48 @@ describe('app dir', () => {
       })
 
       if (isDev) {
-        it('should throw an error when getServerSideProps is used', async () => {
-          const pageFile =
-            'app/client-with-errors/get-server-side-props/page.js'
-          const content = await next.readFile(pageFile)
-          const uncomment = content.replace(
-            '// export function getServerSideProps',
-            'export function getServerSideProps'
-          )
-          await next.patchFile(pageFile, uncomment)
-          const res = await fetchViaHTTP(
-            next.url,
-            '/client-with-errors/get-server-side-props'
-          )
-          await next.patchFile(pageFile, content)
+        it('should HMR correctly for client component', async () => {
+          const filePath = 'app/client-component-route/page.js'
+          const origContent = await next.readFile(filePath)
 
-          await check(async () => {
-            const { status } = await fetchViaHTTP(
+          try {
+            const browser = await webdriver(next.url, '/client-component-route')
+
+            const ssrInitial = await renderViaHTTP(
               next.url,
-              '/client-with-errors/get-server-side-props'
+              '/client-component-route'
             )
-            return status
-          }, /200/)
 
-          expect(res.status).toBe(500)
-          expect(await res.text()).toContain(
-            '`getServerSideProps` is not allowed in Client Components'
-          )
-        })
+            expect(ssrInitial).toContain(
+              'hello from app/client-component-route'
+            )
 
-        it('should throw an error when getStaticProps is used', async () => {
-          const pageFile = 'app/client-with-errors/get-static-props/page.js'
-          const content = await next.readFile(pageFile)
-          const uncomment = content.replace(
-            '// export function getStaticProps',
-            'export function getStaticProps'
-          )
-          await next.patchFile(pageFile, uncomment)
-          const res = await fetchViaHTTP(
-            next.url,
-            '/client-with-errors/get-static-props'
-          )
-          await next.patchFile(pageFile, content)
-          await check(async () => {
-            const { status } = await fetchViaHTTP(
+            expect(await browser.elementByCss('p').text()).toContain(
+              'hello from app/client-component-route'
+            )
+
+            await next.patchFile(
+              filePath,
+              origContent.replace('hello from', 'swapped from')
+            )
+
+            await check(() => browser.elementByCss('p').text(), /swapped from/)
+
+            const ssrUpdated = await renderViaHTTP(
               next.url,
-              '/client-with-errors/get-static-props'
+              '/client-component-route'
             )
-            return status
-          }, /200/)
+            expect(ssrUpdated).toContain('swapped from')
 
-          expect(res.status).toBe(500)
-          expect(await res.text()).toContain(
-            '`getStaticProps` is not allowed in Client Components'
-          )
+            await next.patchFile(filePath, origContent)
+
+            await check(() => browser.elementByCss('p').text(), /hello from/)
+            expect(
+              await renderViaHTTP(next.url, '/client-component-route')
+            ).toContain('hello from')
+          } finally {
+            await next.patchFile(filePath, origContent)
+          }
         })
       }
     })
@@ -1565,8 +1553,7 @@ describe('app dir', () => {
 
         if (isDev) {
           expect(await hasRedbox(browser)).toBe(true)
-          console.log('getRedboxHeader', await getRedboxHeader(browser))
-          // expect(await getRedboxHeader(browser)).toMatch(/An error occurred: this is a test/)
+          expect(await getRedboxHeader(browser)).toMatch(/this is a test/)
         } else {
           await browser
           expect(
@@ -1575,6 +1562,37 @@ describe('app dir', () => {
               .elementByCss('#error-boundary-message')
               .text()
           ).toBe('An error occurred: this is a test')
+        }
+      })
+
+      it('should trigger error component when an error happens during server components rendering', async () => {
+        const browser = await webdriver(next.url, '/error/server-component')
+
+        if (isDev) {
+          expect(
+            await browser
+              .waitForElementByCss('#error-boundary-message')
+              .elementByCss('#error-boundary-message')
+              .text()
+          ).toBe('this is a test')
+          expect(
+            await browser.waitForElementByCss('#error-boundary-digest').text()
+            // Digest of the error message should be stable.
+          ).not.toBe('')
+          // TODO-APP: ensure error overlay is shown for errors that happened before/during hydration
+          // expect(await hasRedbox(browser)).toBe(true)
+          // expect(await getRedboxHeader(browser)).toMatch(/this is a test/)
+        } else {
+          await browser
+          expect(
+            await browser.waitForElementByCss('#error-boundary-message').text()
+          ).toBe(
+            'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
+          )
+          expect(
+            await browser.waitForElementByCss('#error-boundary-digest').text()
+            // Digest of the error message should be stable.
+          ).not.toBe('')
         }
       })
 
@@ -1687,38 +1705,50 @@ describe('app dir', () => {
     })
 
     describe('not-found', () => {
-      it.skip('should trigger not-found in a server component', async () => {
+      it('should trigger not-found in a server component', async () => {
         const browser = await webdriver(next.url, '/not-found/servercomponent')
 
         expect(
           await browser.waitForElementByCss('#not-found-component').text()
         ).toBe('Not Found!')
+        expect(
+          await browser
+            .waitForElementByCss('meta[name="robots"]')
+            .getAttribute('content')
+        ).toBe('noindex')
       })
 
-      it.skip('should trigger not-found in a client component', async () => {
+      it('should trigger not-found in a client component', async () => {
         const browser = await webdriver(next.url, '/not-found/clientcomponent')
         expect(
           await browser.waitForElementByCss('#not-found-component').text()
         ).toBe('Not Found!')
-      })
-      ;(isDev ? it.skip : it)(
-        'should trigger not-found client-side',
-        async () => {
-          const browser = await webdriver(next.url, '/not-found/client-side')
+        expect(
           await browser
-            .elementByCss('button')
-            .click()
-            .waitForElementByCss('#not-found-component')
-          expect(
-            await browser.elementByCss('#not-found-component').text()
-          ).toBe('Not Found!')
-        }
-      )
+            .waitForElementByCss('meta[name="robots"]')
+            .getAttribute('content')
+        ).toBe('noindex')
+      })
+      it('should trigger not-found client-side', async () => {
+        const browser = await webdriver(next.url, '/not-found/client-side')
+        await browser
+          .elementByCss('button')
+          .click()
+          .waitForElementByCss('#not-found-component')
+        expect(await browser.elementByCss('#not-found-component').text()).toBe(
+          'Not Found!'
+        )
+        expect(
+          await browser
+            .waitForElementByCss('meta[name="robots"]')
+            .getAttribute('content')
+        ).toBe('noindex')
+      })
     })
 
     describe('redirect', () => {
       describe('components', () => {
-        it.skip('should redirect in a server component', async () => {
+        it('should redirect in a server component', async () => {
           const browser = await webdriver(next.url, '/redirect/servercomponent')
           await browser.waitForElementByCss('#result-page')
           expect(await browser.elementByCss('#result-page').text()).toBe(
@@ -1726,7 +1756,7 @@ describe('app dir', () => {
           )
         })
 
-        it.skip('should redirect in a client component', async () => {
+        it('should redirect in a client component', async () => {
           const browser = await webdriver(next.url, '/redirect/clientcomponent')
           await browser.waitForElementByCss('#result-page')
           expect(await browser.elementByCss('#result-page').text()).toBe(
@@ -1735,12 +1765,13 @@ describe('app dir', () => {
         })
 
         // TODO-APP: Enable in development
-        ;(isDev ? it.skip : it)('should redirect client-side', async () => {
+        it('should redirect client-side', async () => {
           const browser = await webdriver(next.url, '/redirect/client-side')
           await browser
             .elementByCss('button')
             .click()
             .waitForElementByCss('#result-page')
+          // eslint-disable-next-line jest/no-standalone-expect
           expect(await browser.elementByCss('#result-page').text()).toBe(
             'Result Page'
           )

@@ -25,8 +25,8 @@ describe('app-dir static/dynamic handling', () => {
     next = await createNext({
       files: new FileRef(path.join(__dirname, 'app-static')),
       dependencies: {
-        react: 'experimental',
-        'react-dom': 'experimental',
+        react: 'latest',
+        'react-dom': 'latest',
       },
     })
   })
@@ -41,6 +41,7 @@ describe('app-dir static/dynamic handling', () => {
       ).filter((file) => file.match(/.*\.(js|html|rsc)$/))
 
       expect(files).toEqual([
+        '(new)/custom/page.js',
         'blog/[author]/[slug]/page.js',
         'blog/[author]/page.js',
         'blog/seb.html',
@@ -59,7 +60,8 @@ describe('app-dir static/dynamic handling', () => {
         'blog/tim/first-post.rsc',
         'dynamic-no-gen-params-ssr/[slug]/page.js',
         'dynamic-no-gen-params/[slug]/page.js',
-        'ssr-auto/page.js',
+        'ssr-auto/cache-no-store/page.js',
+        'ssr-auto/fetch-revalidate-zero/page.js',
         'ssr-forced/page.js',
       ])
     })
@@ -264,8 +266,9 @@ describe('app-dir static/dynamic handling', () => {
     expect(await browser.eval('window.beforeNav')).toBe(1)
   })
 
-  it('should ssr dynamically when detected automatically', async () => {
-    const initialRes = await fetchViaHTTP(next.url, '/ssr-auto', undefined, {
+  it('should ssr dynamically when detected automatically with fetch cache option', async () => {
+    const pathname = '/ssr-auto/cache-no-store'
+    const initialRes = await fetchViaHTTP(next.url, pathname, undefined, {
       redirect: 'manual',
     })
     expect(initialRes.status).toBe(200)
@@ -273,12 +276,12 @@ describe('app-dir static/dynamic handling', () => {
     const initialHtml = await initialRes.text()
     const initial$ = cheerio.load(initialHtml)
 
-    expect(initial$('#page').text()).toBe('/ssr-auto')
+    expect(initial$('#page').text()).toBe(pathname)
     const initialDate = initial$('#date').text()
 
     expect(initialHtml).toContain('Example Domain')
 
-    const secondRes = await fetchViaHTTP(next.url, '/ssr-auto', undefined, {
+    const secondRes = await fetchViaHTTP(next.url, pathname, undefined, {
       redirect: 'manual',
     })
     expect(secondRes.status).toBe(200)
@@ -286,7 +289,38 @@ describe('app-dir static/dynamic handling', () => {
     const secondHtml = await secondRes.text()
     const second$ = cheerio.load(secondHtml)
 
-    expect(second$('#page').text()).toBe('/ssr-auto')
+    expect(second$('#page').text()).toBe(pathname)
+    const secondDate = second$('#date').text()
+
+    expect(secondHtml).toContain('Example Domain')
+    expect(secondDate).not.toBe(initialDate)
+  })
+
+  // TODO-APP: support fetch revalidate case for dynamic rendering
+  it.skip('should ssr dynamically when detected automatically with fetch revalidate option', async () => {
+    const pathname = '/ssr-auto/fetch-revalidate-zero'
+    const initialRes = await fetchViaHTTP(next.url, pathname, undefined, {
+      redirect: 'manual',
+    })
+    expect(initialRes.status).toBe(200)
+
+    const initialHtml = await initialRes.text()
+    const initial$ = cheerio.load(initialHtml)
+
+    expect(initial$('#page').text()).toBe(pathname)
+    const initialDate = initial$('#date').text()
+
+    expect(initialHtml).toContain('Example Domain')
+
+    const secondRes = await fetchViaHTTP(next.url, pathname, undefined, {
+      redirect: 'manual',
+    })
+    expect(secondRes.status).toBe(200)
+
+    const secondHtml = await secondRes.text()
+    const second$ = cheerio.load(secondHtml)
+
+    expect(second$('#page').text()).toBe(pathname)
     const secondDate = second$('#date').text()
 
     expect(secondHtml).toContain('Example Domain')

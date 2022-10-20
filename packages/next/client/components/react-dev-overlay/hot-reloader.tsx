@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import type { FlightRouterState } from '../../../server/app-render'
 import React, {
   useCallback,
   useContext,
@@ -20,7 +21,10 @@ import type { DispatchFn } from './client'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import formatWebpackMessages from '../../dev/error-overlay/format-webpack-messages'
 import { useRouter } from '../navigation'
-import { errorOverlayReducer } from './internal/error-overlay-reducer'
+import {
+  errorOverlayReducer,
+  OverlayState,
+} from './internal/error-overlay-reducer'
 
 function getSocketProtocol(assetPrefix: string): string {
   let protocol = window.location.protocol
@@ -41,6 +45,7 @@ type PongEvent = any
 let mostRecentCompilationHash: any = null
 let __nextDevClientId = Math.round(Math.random() * 100 + Date.now())
 let hadRuntimeError = false
+let hadRootlayoutError = false
 
 // let startLatency = undefined
 
@@ -123,7 +128,7 @@ function performFullReload(err: any, sendMessage: any) {
 
 // Attempt to update code on the fly, fall back to a hard reload.
 function tryApplyUpdates(
-  onHotUpdateSuccess: any,
+  onHotUpdateSuccess: (hasUpdates: boolean) => void,
   sendMessage: any,
   dispatch: DispatchFn
 ) {
@@ -141,7 +146,7 @@ function tryApplyUpdates(
   }
 
   function handleApplyUpdates(err: any, updatedModules: any) {
-    if (err || hadRuntimeError || !updatedModules) {
+    if (err || hadRuntimeError || hadRootlayoutError || !updatedModules) {
       if (err) {
         console.warn(
           '[Fast Refresh] performing full reload\n\n' +
@@ -169,7 +174,7 @@ function tryApplyUpdates(
     if (isUpdateAvailable()) {
       // While we were updating, there was a new update! Do it again.
       tryApplyUpdates(
-        hasUpdates ? onBuildOk : onHotUpdateSuccess,
+        hasUpdates ? () => onBuildOk(dispatch) : onHotUpdateSuccess,
         sendMessage,
         dispatch
       )
@@ -334,11 +339,11 @@ function processMessage(
           clientId: __nextDevClientId,
         })
       )
-      if (hadRuntimeError) {
+      if (hadRuntimeError || hadRootlayoutError) {
         return window.location.reload()
       }
       startTransition(() => {
-        router.reload()
+        router.refresh()
         onRefresh(dispatch)
       })
 
@@ -420,18 +425,36 @@ function processMessage(
 export default function HotReload({
   assetPrefix,
   children,
+  initialState,
+  initialTree,
 }: {
   assetPrefix: string
   children?: ReactNode
+  initialState?: Partial<OverlayState>
+  initialTree?: FlightRouterState
 }) {
+  if (initialState?.rootLayoutMissingTagsError) {
+    hadRootlayoutError = true
+  }
   const stacktraceLimitRef = useRef<undefined | number>()
   const [state, dispatch] = React.useReducer(errorOverlayReducer, {
     nextId: 1,
     buildError: null,
     errors: [],
+    ...initialState,
   })
 
   const handleOnUnhandledError = useCallback((ev) => {
+    if (
+      ev.error &&
+      ev.error.digest &&
+      (ev.error.digest.startsWith('NEXT_REDIRECT') ||
+        ev.error.digest === 'NEXT_NOT_FOUND')
+    ) {
+      ev.preventDefault()
+      return
+    }
+
     hadRuntimeError = true
     onUnhandledError(dispatch, ev)
   }, [])
@@ -440,7 +463,9 @@ export default function HotReload({
     onUnhandledRejection(dispatch, ev)
   }, [])
 
-  const { tree } = useContext(GlobalLayoutRouterContext)
+  const { tree } = useContext(GlobalLayoutRouterContext) ?? {
+    tree: initialTree,
+  }
   const router = useRouter()
 
   const webSocketRef = useRef<WebSocket>()

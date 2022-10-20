@@ -4,13 +4,13 @@ export default function Page() {
   return (
     <div>
       <div>
-        <Link href="/internal/test/rewrite">
-          <a id="navigate-rewrite">Navigate Rewrite</a>
+        <Link href="/internal/test/rewrite" id="navigate-rewrite">
+          Navigate Rewrite
         </Link>
       </div>
       <div>
-        <Link href="/internal/test/redirect">
-          <a id="navigate-redirect">Navigate Redirect</a>
+        <Link href="/internal/test/redirect" id="navigate-redirect">
+          Navigate Redirect
         </Link>
       </div>
     </div>

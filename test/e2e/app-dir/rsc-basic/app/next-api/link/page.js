@@ -8,8 +8,8 @@ export default function LinkPage({ searchParams }) {
     <>
       <h3 id="query">query:{id}</h3>
       <div>
-        <Link href={`/next-api/link?id=${id + 1}`}>
-          <a id="next_id">next id</a>
+        <Link href={`/next-api/link?id=${id + 1}`} id="next_id">
+          next id
         </Link>
       </div>
       <Nav />

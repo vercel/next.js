@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react'
 import React, { useEffect, useMemo, useCallback } from 'react'
-import { createFromFetch } from 'next/dist/compiled/react-server-dom-webpack'
+import { createFromFetch } from 'next/dist/compiled/react-server-dom-webpack/client'
 import {
   AppRouterContext,
   LayoutRouterContext,
@@ -16,7 +16,7 @@ import type { FlightRouterState, FlightData } from '../../server/app-render'
 import {
   ACTION_NAVIGATE,
   ACTION_PREFETCH,
-  ACTION_RELOAD,
+  ACTION_REFRESH,
   ACTION_RESTORE,
   ACTION_SERVER_PATCH,
   reducer,
@@ -147,12 +147,11 @@ function Router({
       typeof window === 'undefined' ? 'http://n' : window.location.href
     )
 
-    // Convert searchParams to a plain object to match server-side.
-    const searchParamsObj: { [key: string]: string } = {}
-    url.searchParams.forEach((value, key) => {
-      searchParamsObj[key] = value
-    })
-    return { searchParams: searchParamsObj, pathname: url.pathname }
+    return {
+      // This is turned into a readonly class in `useSearchParams`
+      searchParams: url.searchParams,
+      pathname: url.pathname,
+    }
   }, [canonicalUrl])
 
   /**
@@ -204,6 +203,8 @@ function Router({
     }
 
     const routerInstance: AppRouterInstance = {
+      back: () => window.history.back(),
+      forward: () => window.history.forward(),
       // TODO-APP: implement prefetching of flight
       prefetch: async (href) => {
         // If prefetch has already been triggered, don't trigger it again.
@@ -246,11 +247,11 @@ function Router({
           navigate(href, 'push', Boolean(options.forceOptimisticNavigation))
         })
       },
-      reload: () => {
+      refresh: () => {
         // @ts-ignore startTransition exists
         React.startTransition(() => {
           dispatch({
-            type: ACTION_RELOAD,
+            type: ACTION_REFRESH,
 
             // TODO-APP: revisit if this needs to be passed.
             cache: {

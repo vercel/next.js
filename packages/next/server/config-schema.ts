@@ -240,9 +240,6 @@ const configSchema = {
           },
           type: 'object',
         },
-        browsersListForSwc: {
-          type: 'boolean',
-        },
         cpus: {
           type: 'number',
         },
@@ -268,7 +265,7 @@ const configSchema = {
         appDir: {
           type: 'boolean',
         },
-        dangerouslyAllowMiddlewareResponseBody: {
+        allowMiddlewareResponseBody: {
           type: 'boolean',
         },
         externalDir: {

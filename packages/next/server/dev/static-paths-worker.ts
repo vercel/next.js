@@ -8,8 +8,17 @@ import {
 } from '../../build/utils'
 import { loadComponents } from '../load-components'
 import { setHttpClientAndAgentOptions } from '../config'
+import {
+  loadRequireHook,
+  overrideBuiltInReactPackages,
+} from '../../build/webpack/require-hook'
 
 type RuntimeConfig = any
+
+loadRequireHook()
+if (process.env.HAS_APP_DIR) {
+  overrideBuiltInReactPackages()
+}
 
 let workerWasUsed = false
 
@@ -19,7 +28,6 @@ let workerWasUsed = false
 export async function loadStaticPaths({
   distDir,
   pathname,
-  serverless,
   config,
   httpAgentOptions,
   enableUndici,
@@ -30,7 +38,6 @@ export async function loadStaticPaths({
 }: {
   distDir: string
   pathname: string
-  serverless: boolean
   config: RuntimeConfig
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
   enableUndici: NextConfigComplete['enableUndici']
@@ -59,7 +66,6 @@ export async function loadStaticPaths({
   const components = await loadComponents({
     distDir,
     pathname: originalAppPath || pathname,
-    serverless,
     hasServerComponents: false,
     isAppPath: !!isAppPath,
   })
@@ -74,7 +80,9 @@ export async function loadStaticPaths({
   workerWasUsed = true
 
   if (isAppPath) {
-    const generateParams = collectGenerateParams(components.ComponentMod.tree)
+    const generateParams = await collectGenerateParams(
+      components.ComponentMod.tree
+    )
     return buildAppStaticPaths({
       page: pathname,
       generateParams,
