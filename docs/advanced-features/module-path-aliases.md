@@ -65,9 +65,8 @@ An example of this configuration:
 // tsconfig.json or jsconfig.json
 {
   "compilerOptions": {
-    "baseUrl": ".",
     "paths": {
-      "@/components/*": ["components/*"]
+      "@/components/*": ["./components/*"]
     }
   }
 }
