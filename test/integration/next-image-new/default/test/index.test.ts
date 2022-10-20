@@ -272,7 +272,7 @@ function runTests(mode) {
         browser.eval(
           `document.getElementById("img8").getAttribute("data-nimg")`
         ),
-      'future'
+      '1'
     )
     await check(
       () => browser.eval(`document.getElementById("img8").currentSrc`),
@@ -288,7 +288,7 @@ function runTests(mode) {
         browser.eval(
           `document.getElementById("img8").getAttribute("data-nimg")`
         ),
-      'future'
+      '1'
     )
     await check(
       () => browser.eval(`document.getElementById("img8").currentSrc`),
@@ -336,7 +336,7 @@ function runTests(mode) {
         browser.eval(
           `document.getElementById("img5").getAttribute("data-nimg")`
         ),
-      'future'
+      '1'
     )
 
     await browser.eval('document.getElementById("toggle").click()')
