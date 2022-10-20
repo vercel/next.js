@@ -368,6 +368,17 @@ impl CapturedIssues {
             (*issue, path)
         })
     }
+
+    pub async fn get_plain_issues(&self) -> Result<Vec<PlainIssueReadRef>> {
+        let mut list = self
+            .issues
+            .iter()
+            .map(|issue| issue.into_plain().into_future())
+            .try_join()
+            .await?;
+        list.sort_by(|a, b| ReadRef::ptr_cmp(a, b));
+        Ok(list)
+    }
 }
 
 #[turbo_tasks::value]

@@ -1,5 +1,4 @@
 use std::{
-    future::IntoFuture,
     pin::Pin,
     task::{Context, Poll},
 };
@@ -11,18 +10,14 @@ use hyper_tungstenite::{tungstenite::Message, HyperWebsocket, WebSocketStream};
 use pin_project_lite::pin_project;
 use tokio::select;
 use tokio_stream::StreamMap;
-use turbo_tasks::{TryJoinIterExt, TurboTasksApi, Value};
+use turbo_tasks::{TransientInstance, TurboTasksApi, Value};
 use turbopack_core::version::Update;
 
 use super::{
-    protocol::{ClientMessage, ClientUpdateInstruction},
+    protocol::{ClientMessage, ClientUpdateInstruction, Issue},
     stream::UpdateStream,
 };
-use crate::{
-    source::ContentSourceResult,
-    update::{protocol::EMPTY_ISSUES, stream::UpdateStreamItem},
-    SourceProvider,
-};
+use crate::{update::stream::UpdateStreamItem, SourceProvider};
 
 /// A server that listens for updates and sends them to connected clients.
 pub(crate) struct UpdateServer<P: SourceProvider> {
@@ -30,7 +25,7 @@ pub(crate) struct UpdateServer<P: SourceProvider> {
     source_provider: P,
 }
 
-impl<P: SourceProvider> UpdateServer<P> {
+impl<P: SourceProvider + Clone + Send + Sync> UpdateServer<P> {
     /// Create a new update server with the given websocket and content source.
     pub fn new(source_provider: P) -> Self {
         Self {
@@ -50,7 +45,6 @@ impl<P: SourceProvider> UpdateServer<P> {
     }
 
     async fn run_internal(mut self, ws: HyperWebsocket) -> Result<()> {
-        let source = self.source_provider.get_source();
         let mut client: UpdateClient = ws.await?.into();
 
         // TODO(alexkirsz) To avoid sending an empty update in the beginning, skip the
@@ -60,22 +54,16 @@ impl<P: SourceProvider> UpdateServer<P> {
             select! {
                 message = client.try_next() => {
                     if let Some(ClientMessage::Subscribe { chunk_path }) = message? {
-                        let content = source.get(&chunk_path, Value::new(Default::default()));
-                        match *content.await? {
-                            ContentSourceResult::NotFound => {
-                                // Client requested a non-existing asset
-                                // It might be removed in meantime, reload client
-                                // TODO add special instructions for removed assets to handled it in a better way
-                                client.send(ClientUpdateInstruction::restart(&chunk_path, EMPTY_ISSUES)).await?;
-                            },
-                            ContentSourceResult::Static(content) => {
-                                let stream = UpdateStream::new(content).await?;
-                                self.streams.insert(chunk_path, stream);
-                            },
-                            ContentSourceResult::NeedData{ .. } => {
-                              todo!()
+                        let get_content = {
+                            let source_provider = self.source_provider.clone();
+                            let chunk_path = chunk_path.clone();
+                            move || {
+                                let source = source_provider.get_source();
+                                source.get(&chunk_path, Value::new(Default::default()))
                             }
-                        }
+                        };
+                        let stream = UpdateStream::new(TransientInstance::new(Box::new(get_content))).await?;
+                        self.streams.insert(chunk_path, stream);
                     } else {
                         // WebSocket was closed, stop sending updates
                         break
@@ -96,25 +84,11 @@ impl<P: SourceProvider> UpdateServer<P> {
         chunk_path: String,
         update: &UpdateStreamItem,
     ) -> Result<()> {
-        let plain_issues = update
+        let issues = update
             .issues
             .iter()
-            .map(|issue| issue.into_plain().into_future())
-            .try_join()
-            .await?;
-
-        let issues = plain_issues
-            .iter()
             .map(|p| (&**p).into())
-            .collect::<Vec<_>>();
-
-        let issues = if !update.issues.is_empty() {
-            Some(issues)
-        } else {
-            None
-        };
-
-        let issues = issues.as_deref().unwrap_or(EMPTY_ISSUES);
+            .collect::<Vec<Issue<'_>>>();
 
         match &*update.update {
             Update::Partial(partial) => {
@@ -123,18 +97,18 @@ impl<P: SourceProvider> UpdateServer<P> {
                     .send(ClientUpdateInstruction::partial(
                         &chunk_path,
                         &partial_instruction,
-                        issues,
+                        &issues,
                     ))
                     .await?;
             }
             Update::Total(_total) => {
                 client
-                    .send(ClientUpdateInstruction::restart(&chunk_path, issues))
+                    .send(ClientUpdateInstruction::restart(&chunk_path, &issues))
                     .await?;
             }
             Update::None => {
                 client
-                    .send(ClientUpdateInstruction::issues(&chunk_path, issues))
+                    .send(ClientUpdateInstruction::issues(&chunk_path, &issues))
                     .await?;
             }
         }

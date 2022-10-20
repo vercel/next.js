@@ -1,5 +1,6 @@
 use std::{
     borrow::Borrow,
+    cmp::Ordering,
     fmt::{Debug, Display},
     hash::Hash,
     marker::PhantomData,
@@ -145,6 +146,10 @@ impl<T, U> ReadRef<T, U> {
 
     pub fn ptr_eq(&self, other: &ReadRef<T, U>) -> bool {
         Arc::ptr_eq(&self.0, &other.0)
+    }
+
+    pub fn ptr_cmp(&self, other: &ReadRef<T, U>) -> Ordering {
+        Arc::as_ptr(&self.0).cmp(&Arc::as_ptr(&other.0))
     }
 }
 

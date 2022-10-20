@@ -8,7 +8,7 @@ use std::{
     time::Duration,
 };
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 use event_listener::EventListener;
 use flurry::HashMap as FHashMap;
 use tokio::task::futures::TaskLocalFuture;
@@ -283,6 +283,9 @@ impl Backend for MemoryBackend {
         strongly_consistent: bool,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<Result<RawVc, EventListener>> {
+        if task == reader {
+            bail!("reading it's own output is not possible");
+        }
         self.try_get_output(task, strongly_consistent, turbo_tasks, |output| {
             Task::add_dependency_to_current(TaskDependency::TaskOutput(task));
             output.read(reader)
@@ -306,12 +309,14 @@ impl Backend for MemoryBackend {
         reader: TaskId,
         _turbo_tasks: &dyn TurboTasksBackendApi,
     ) {
-        self.with_task(task, |t| {
-            t.with_output_mut(|output| {
-                Task::add_dependency_to_current(TaskDependency::TaskOutput(task));
-                output.track_read(reader);
+        if task != reader {
+            self.with_task(task, |t| {
+                t.with_output_mut(|output| {
+                    Task::add_dependency_to_current(TaskDependency::TaskOutput(task));
+                    output.track_read(reader);
+                })
             })
-        })
+        }
     }
 
     fn try_read_task_cell(
@@ -321,10 +326,16 @@ impl Backend for MemoryBackend {
         reader: TaskId,
         _turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<Result<CellContent, EventListener>> {
-        Task::add_dependency_to_current(TaskDependency::TaskCell(task, index));
-        Ok(Ok(self.with_task(task, |task| {
-            task.with_cell_mut(index, |cell| cell.read_content(reader))
-        })))
+        if task == reader {
+            Ok(Ok(self.with_task(task, |task| {
+                task.with_cell_mut(index, |cell| cell.read_content_untracked())
+            })))
+        } else {
+            Task::add_dependency_to_current(TaskDependency::TaskCell(task, index));
+            Ok(Ok(self.with_task(task, |task| {
+                task.with_cell_mut(index, |cell| cell.read_content(reader))
+            })))
+        }
     }
 
     fn try_read_task_cell_untracked(
@@ -345,10 +356,12 @@ impl Backend for MemoryBackend {
         reader: TaskId,
         _turbo_tasks: &dyn TurboTasksBackendApi,
     ) {
-        Task::add_dependency_to_current(TaskDependency::TaskCell(task, index));
-        self.with_task(task, |task| {
-            task.with_cell_mut(index, |cell| cell.track_read(reader))
-        });
+        if task != reader {
+            Task::add_dependency_to_current(TaskDependency::TaskCell(task, index));
+            self.with_task(task, |task| {
+                task.with_cell_mut(index, |cell| cell.track_read(reader))
+            });
+        }
     }
 
     fn try_read_task_collectibles(

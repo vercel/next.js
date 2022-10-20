@@ -115,6 +115,25 @@ pub trait Version {
     fn id(&self) -> StringVc;
 }
 
+#[turbo_tasks::value]
+pub struct NotFoundVersion;
+
+#[turbo_tasks::value_impl]
+impl NotFoundVersionVc {
+    #[turbo_tasks::function]
+    pub fn new() -> Self {
+        NotFoundVersion.cell()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl Version for NotFoundVersion {
+    #[turbo_tasks::function]
+    fn id(&self) -> StringVc {
+        StringVc::empty()
+    }
+}
+
 /// Describes an update to a versioned object.
 #[turbo_tasks::value(shared)]
 #[derive(Debug)]

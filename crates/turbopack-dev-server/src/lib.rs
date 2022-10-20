@@ -31,7 +31,7 @@ use turbopack_cli_utils::issue::{ConsoleUi, ConsoleUiVc};
 use turbopack_core::asset::AssetContent;
 
 use self::{
-    source::{query::Query, ContentSourceDataVary, ContentSourceVc},
+    source::{query::Query, ContentSourceDataVary, ContentSourceResultVc, ContentSourceVc},
     update::UpdateServer,
 };
 use crate::source::{ContentSourceData, ContentSourceResult, HeaderValue};
@@ -39,6 +39,10 @@ use crate::source::{ContentSourceData, ContentSourceResult, HeaderValue};
 pub trait SourceProvider: Send + Clone + 'static {
     /// must call a turbo-tasks function internally
     fn get_source(&self) -> ContentSourceVc;
+}
+
+pub trait ContentProvider: Send + Clone + 'static {
+    fn get_content(&self) -> ContentSourceResultVc;
 }
 
 impl<T> SourceProvider for T
@@ -143,7 +147,7 @@ async fn process_request_with_content_source(
 impl DevServer {
     pub fn listen(
         turbo_tasks: Arc<dyn TurboTasksApi>,
-        source_provider: impl SourceProvider,
+        source_provider: impl SourceProvider + Clone + Send + Sync,
         addr: SocketAddr,
         console_ui: Arc<ConsoleUi>,
     ) -> Self {

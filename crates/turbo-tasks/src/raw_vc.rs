@@ -338,6 +338,7 @@ impl RawVc {
 impl CollectiblesSource for RawVc {
     fn peek_collectibles<T: ValueTraitVc>(self) -> CollectiblesFuture<T> {
         let tt = turbo_tasks();
+        tt.notify_scheduled_tasks();
         let set: RawVcSetVc = tt
             .native_call(
                 *crate::collectibles::READ_COLLECTIBLES_FUNCTION_ID,
@@ -354,6 +355,7 @@ impl CollectiblesSource for RawVc {
 
     fn take_collectibles<T: ValueTraitVc>(self) -> CollectiblesFuture<T> {
         let tt = turbo_tasks();
+        tt.notify_scheduled_tasks();
         let set: RawVcSetVc = tt
             .native_call(
                 *crate::collectibles::READ_COLLECTIBLES_FUNCTION_ID,
