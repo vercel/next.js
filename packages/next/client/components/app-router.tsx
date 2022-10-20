@@ -203,6 +203,8 @@ function Router({
     }
 
     const routerInstance: AppRouterInstance = {
+      back: () => window.history.back(),
+      forward: () => window.history.forward(),
       // TODO-APP: implement prefetching of flight
       prefetch: async (href) => {
         // If prefetch has already been triggered, don't trigger it again.
