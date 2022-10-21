@@ -48,6 +48,7 @@ import { getNextPathnameInfo } from './utils/get-next-pathname-info'
 import { formatNextPathnameInfo } from './utils/format-next-pathname-info'
 import { compareRouterStates } from './utils/compare-states'
 import { isBot } from './utils/is-bot'
+import { AppRouterInstance } from '../app-router-context'
 
 declare global {
   interface Window {
@@ -220,7 +221,7 @@ export function interpolateAs(
  * Preserves absolute urls.
  */
 export function resolveHref(
-  router: NextRouter,
+  router: NextRouter | AppRouterInstance,
   href: Url,
   resolveAs?: boolean
 ): string {
@@ -252,7 +253,13 @@ export function resolveHref(
 
   try {
     base = new URL(
-      urlAsString.startsWith('#') ? router.asPath : router.pathname,
+      // TODO-APP: investigate if this is the intended beheviour
+      'asPath' in router
+        ? urlAsString.startsWith('#')
+          ? router.asPath
+          : router.pathname
+        : // Emulate the fallback in the catch below
+          '/',
       'http://n'
     )
   } catch (_) {

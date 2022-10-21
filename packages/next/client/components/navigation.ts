@@ -12,6 +12,9 @@ import {
   AppRouterContext,
   LayoutRouterContext,
 } from '../../shared/lib/app-router-context'
+import { RouterContext } from '../../shared/lib/router-context'
+import type { ParsedUrlQuery } from 'querystring'
+import { HybridRouter, HYBRID_ROUTER_TYPE } from './hybrid-router'
 
 export {
   ServerInsertedHTMLContext,
@@ -70,19 +73,53 @@ class ReadonlyURLSearchParams {
 }
 
 /**
+ * parsedURLQueryToURLSearchParams converts a parsed url query to a url search
+ * params object.
+ *
+ * @param query parsed url query
+ * @returns url search params object
+ */
+function parsedURLQueryToURLSearchParams(
+  query: ParsedUrlQuery
+): URLSearchParams {
+  return new URLSearchParams(
+    Object.keys(query).reduce<[string, string][]>((acc, name) => {
+      const value = query[name]
+      if (Array.isArray(value)) {
+        acc.push(...value.map<[string, string]>((v) => [name, v]))
+      } else {
+        acc.push([name, value])
+      }
+
+      return acc
+    }, [])
+  )
+}
+
+/**
  * Get a read-only URLSearchParams object. For example searchParams.get('foo') would return 'bar' when ?foo=bar
  * Learn more about URLSearchParams here: https://developer.mozilla.org/en-US/docs/Web/API/URLSearchParams
  */
 export function useSearchParams() {
+  const router = useContext(RouterContext)
   const searchParams = useContext(SearchParamsContext)
+
   const readonlySearchParams = useMemo(() => {
-    if (!searchParams) {
-      // TODO-APP: consider throwing an error or adapting this to support pages router
-      return null
+    // To support migration from pages to app, this adds a workaround that'll
+    // support the pages router here too.
+    if (router) {
+      return new ReadonlyURLSearchParams(
+        parsedURLQueryToURLSearchParams(router.query)
+      )
     }
 
-    return new ReadonlyURLSearchParams(searchParams)
-  }, [searchParams])
+    if (searchParams) {
+      return new ReadonlyURLSearchParams(searchParams)
+    }
+
+    throw new Error('invariant at least one router was expected')
+  }, [router, searchParams])
+
   return readonlySearchParams
 }
 
@@ -90,11 +127,21 @@ export function useSearchParams() {
 /**
  * Get the router methods. For example router.push('/dashboard')
  */
-export function useRouter():
-  | import('../../shared/lib/app-router-context').AppRouterInstance
-  | null {
-  // TODO-APP: consider throwing an error or adapting this to support pages router
-  return useContext(AppRouterContext)
+export function useRouter(): HybridRouter {
+  const router = useContext(RouterContext)
+  const appRouter = useContext(AppRouterContext)
+
+  return useMemo(() => {
+    if (router) {
+      return { [HYBRID_ROUTER_TYPE]: 'pages', ...router }
+    }
+
+    if (appRouter) {
+      return { [HYBRID_ROUTER_TYPE]: 'app', ...appRouter }
+    }
+
+    throw new Error('invariant at least one router was expected')
+  }, [router, appRouter])
 }
 
 // TODO-APP: getting all params when client-side navigating is non-trivial as it does not have route matchers so this might have to be a server context instead.
@@ -106,8 +153,18 @@ export function useRouter():
  * Get the current pathname. For example usePathname() on /dashboard?foo=bar would return "/dashboard"
  */
 export function usePathname(): string | null {
-  // TODO-APP: consider throwing an error or adapting this to support pages router
-  return useContext(PathnameContext)
+  const router = useContext(RouterContext)
+  const pathname = useContext(PathnameContext)
+
+  if (router) {
+    if (router.isReady) {
+      return router.asPath
+    }
+
+    return null
+  }
+
+  return pathname
 }
 
 // TODO-APP: define what should be provided through context.

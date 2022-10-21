@@ -9,7 +9,6 @@ import React, {
 } from 'react'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import formatWebpackMessages from '../../dev/error-overlay/format-webpack-messages'
-import { useRouter } from '../navigation'
 import { errorOverlayReducer } from './internal/error-overlay-reducer'
 import {
   ACTION_BUILD_OK,
@@ -26,6 +25,7 @@ import {
   useWebsocket,
   useWebsocketPing,
 } from './internal/helpers/use-websocket'
+import { useAppRouter } from '../app-navigation'
 
 interface Dispatcher {
   onBuildOk(): void
@@ -174,7 +174,7 @@ function tryApplyUpdates(
 function processMessage(
   e: any,
   sendMessage: any,
-  router: ReturnType<typeof useRouter>,
+  router: ReturnType<typeof useAppRouter>,
   dispatcher: Dispatcher
 ) {
   const obj = JSON.parse(e.data)
@@ -442,7 +442,7 @@ export default function HotReload({
   useWebsocketPing(webSocketRef)
   const sendMessage = useSendMessage(webSocketRef)
 
-  const router = useRouter()
+  const router = useAppRouter()
   useEffect(() => {
     const handler = (event: MessageEvent<PongEvent>) => {
       if (

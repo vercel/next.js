@@ -17,7 +17,12 @@ const nextjsRouteAnnouncerStyles: React.CSSProperties = {
 }
 
 export const RouteAnnouncer = () => {
-  const { asPath } = useRouter()
+  const router = useRouter()
+  if (!router) {
+    throw new Error('invariant expected pages router to be mounted')
+  }
+
+  const { asPath } = router
   const [routeAnnouncement, setRouteAnnouncement] = React.useState('')
 
   // Only announce the path change, but not for the first load because screen

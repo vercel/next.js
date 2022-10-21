@@ -4,19 +4,15 @@ import React from 'react'
 import { UrlObject } from 'url'
 import {
   isLocalURL,
-  NextRouter,
   PrefetchOptions,
   resolveHref,
 } from '../shared/lib/router/router'
 import { addLocale } from './add-locale'
-import { RouterContext } from '../shared/lib/router-context'
-import {
-  AppRouterContext,
-  AppRouterInstance,
-} from '../shared/lib/app-router-context'
 import { useIntersection } from './use-intersection'
 import { getDomainLocale } from './get-domain-locale'
 import { addBasePath } from './add-base-path'
+import { useRouter } from './components/navigation'
+import { HybridRouter, HYBRID_ROUTER_TYPE } from './components/hybrid-router'
 
 type Url = string | UrlObject
 type RequiredKeys<T> = {
@@ -108,7 +104,7 @@ type LinkPropsOptional = OptionalKeys<InternalLinkProps>
 const prefetched: { [cacheKey: string]: boolean } = {}
 
 function prefetch(
-  router: NextRouter,
+  router: HybridRouter,
   href: string,
   as: string,
   options?: PrefetchOptions
@@ -148,7 +144,7 @@ function isModifiedEvent(event: React.MouseEvent): boolean {
 
 function linkClicked(
   e: React.MouseEvent,
-  router: NextRouter | AppRouterInstance,
+  router: HybridRouter,
   href: string,
   as: string,
   replace?: boolean,
@@ -171,19 +167,14 @@ function linkClicked(
   e.preventDefault()
 
   const navigate = () => {
-    // If the router is an NextRouter instance it will have `beforePopState`
-    if ('beforePopState' in router) {
+    if (router[HYBRID_ROUTER_TYPE] === 'pages') {
       router[replace ? 'replace' : 'push'](href, as, {
         shallow,
         locale,
         scroll,
       })
     } else {
-      // If `beforePopState` doesn't exist on the router it's the AppRouter.
-      const method: keyof AppRouterInstance = replace ? 'replace' : 'push'
-
-      // Apply `as` if it's provided.
-      router[method](as || href, {
+      router[replace ? 'replace' : 'push'](as || href, {
         forceOptimisticNavigation: !prefetchEnabled,
       })
     }
@@ -357,13 +348,8 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
     }
 
     const p = prefetchProp !== false
-    let router = React.useContext(RouterContext)
-
-    // TODO-APP: type error. Remove `as any`
-    const appRouter = React.useContext(AppRouterContext) as any
-    if (appRouter) {
-      router = appRouter
-    }
+    const router = useRouter()
+    const isAppRouter = router[HYBRID_ROUTER_TYPE] === 'app'
 
     const { href, as } = React.useMemo(() => {
       const [resolvedHref, resolvedAs] = resolveHref(router, hrefProp, true)
@@ -487,7 +473,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
             shallow,
             scroll,
             locale,
-            Boolean(appRouter),
+            isAppRouter,
             p
           )
         }
@@ -505,7 +491,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         }
 
         // Check for not prefetch disabled in page using appRouter
-        if (!(!p && appRouter)) {
+        if (!(!p && isAppRouter)) {
           if (isLocalURL(href)) {
             prefetch(router, href, as, { priority: true })
           }
@@ -525,7 +511,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         }
 
         // Check for not prefetch disabled in page using appRouter
-        if (!(!p && appRouter)) {
+        if (!(!p && isAppRouter)) {
           if (isLocalURL(href)) {
             prefetch(router, href, as, { priority: true })
           }

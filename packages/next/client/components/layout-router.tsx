@@ -25,12 +25,12 @@ import {
   LayoutRouterContext,
   GlobalLayoutRouterContext,
   TemplateContext,
-  AppRouterContext,
 } from '../../shared/lib/app-router-context'
 import { fetchServerResponse } from './app-router'
 import { createInfinitePromise } from './infinite-promise'
 import { ErrorBoundary } from './error-boundary'
 import { matchSegment } from './match-segments'
+import { useAppRouter } from './app-navigation'
 
 /**
  * Add refetch marker to router state at the point of the current layout segment.
@@ -279,7 +279,7 @@ interface RedirectBoundaryProps {
 }
 
 function HandleRedirect({ redirect }: { redirect: string }) {
-  const router = useContext(AppRouterContext)
+  const router = useAppRouter()
 
   useEffect(() => {
     router.replace(redirect, {})
@@ -316,7 +316,7 @@ class RedirectErrorBoundary extends React.Component<
 }
 
 function RedirectBoundary({ children }: { children: React.ReactNode }) {
-  const router = useContext(AppRouterContext)
+  const router = useAppRouter()
   return (
     <RedirectErrorBoundary router={router}>{children}</RedirectErrorBoundary>
   )
