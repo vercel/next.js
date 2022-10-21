@@ -88,7 +88,7 @@ Dangerously migrates from `next/legacy/image` to the new `next/image` by adding 
 - Removes `objectPosition` prop and adds `style`
 - Removes `lazyBoundary` prop
 - Removes `lazyRoot` prop
-- TODO: does not migrate the `loader` config. If you need it, you must manually add a `loader` prop.
+- Changes next.config.js `loader` to "custom", removes `path`, and sets `loaderFile` to a new file.
 
 #### Before: intrinsic
 
