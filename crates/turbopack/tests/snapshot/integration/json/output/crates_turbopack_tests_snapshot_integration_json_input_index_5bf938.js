@@ -1,6 +1,6 @@
 (self.TURBOPACK = self.TURBOPACK || []).push(["output/crates_turbopack_tests_snapshot_integration_json_input_index_5bf938.js", {
 
-"[project]/crates/turbopack/tests/snapshot/integration/json/input/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
+"[project]/crates/turbopack/tests/snapshot/integration/json/input/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, __dirname }) => (() => {
 
 var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$json$2f$input$2f$package$2e$json__ = __turbopack_import__("[project]/crates/turbopack/tests/snapshot/integration/json/input/package.json (json)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$json$2f$input$2f$invalid$2e$json__ = __turbopack_import__("[project]/crates/turbopack/tests/snapshot/integration/json/input/invalid.json (json)");
@@ -11,11 +11,11 @@ console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$
 console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$json$2f$input$2f$invalid$2e$json__["default"]["this-is"]);
 
 })()),
-"[project]/crates/turbopack/tests/snapshot/integration/json/input/package.json (json)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
+"[project]/crates/turbopack/tests/snapshot/integration/json/input/package.json (json)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, __dirname }) => (() => {
 
 __turbopack_export_value__(JSON.parse("{\"name\":\"json-snapshot\"}"));
 })()),
-"[project]/crates/turbopack/tests/snapshot/integration/json/input/invalid.json (json)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
+"[project]/crates/turbopack/tests/snapshot/integration/json/input/invalid.json (json)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, __dirname }) => (() => {
 
 throw new Error("An error occurred while importing a JSON module: \"File is not valid JSON\"")
 })()),
@@ -42,9 +42,8 @@ throw new Error("An error occurred while importing a JSON module: \"File is not 
   /** @typedef {import('../types').ChunkModule} ChunkModule */
   /** @typedef {import('../types').Chunk} Chunk */
   /** @typedef {import('../types').ModuleFactory} ModuleFactory */
-  /** @typedef {import('../types/hot').UpdateInstructions} UpdateInstructions */
 
-  /** @typedef {import('../types').ChunkId} ChunkId */
+  /** @typedef {import('../types').ChunkPath} ChunkPath */
   /** @typedef {import('../types').ModuleId} ModuleId */
 
   /** @typedef {import('../types').Module} Module */
@@ -61,6 +60,8 @@ throw new Error("An error occurred while importing a JSON module: \"File is not 
   /** @typedef {import('../types/hot').AcceptCallback} AcceptCallback */
   /** @typedef {import('../types/hot').AcceptErrorHandler} AcceptErrorHandler */
   /** @typedef {import('../types/hot').HotState} HotState */
+  /** @typedef {import('../types/protocol').EcmascriptChunkUpdate} EcmascriptChunkUpdate */
+  /** @typedef {import('../types/protocol').HmrUpdateEntry} HmrUpdateEntry */
 
   /** @typedef {import('../types/runtime').Loader} Loader */
   /** @typedef {import('../types/runtime').ModuleEffect} ModuleEffect */
@@ -76,13 +77,13 @@ throw new Error("An error occurred while importing a JSON module: \"File is not 
   /**
    * Contains the IDs of all chunks that have been loaded.
    *
-   * @type {Set<ChunkId>}
+   * @type {Set<ChunkPath>}
    */
   const loadedChunks = new Set();
   /**
    * Maps a chunk ID to the chunk's loader if the chunk is currently being loaded.
    *
-   * @type {Map<ChunkId, Loader>}
+   * @type {Map<ChunkPath, Loader>}
    */
   const chunkLoaders = new Map();
   /**
@@ -94,10 +95,14 @@ throw new Error("An error occurred while importing a JSON module: \"File is not 
   const moduleHotData = new Map();
   /**
    * Maps module instances to their hot module state.
+   *
+   * @type {Map<Module, HotState>}
    */
   const moduleHotState = new Map();
   /**
    * Module IDs that are instantiated as part of the runtime of a chunk.
+   *
+   * @type {Set<ModuleId>}
    */
   const runtimeModules = new Set();
   /**
@@ -387,6 +392,7 @@ throw new Error("An error occurred while importing a JSON module: \"File is not 
         c: moduleCache,
         l: loadChunk,
         p: _process,
+        __dirname: module.id.replace(/(^|\/)[\/]+$/, ""),
       });
     });
 
@@ -517,13 +523,18 @@ throw new Error("An error occurred while importing a JSON module: \"File is not 
   }
 
   /**
-   * @param {string[]} dependencyChain
+   * @param {ModuleId[]} dependencyChain
    * @returns {string}
    */
   function formatDependencyChain(dependencyChain) {
     return `Dependency chain: ${dependencyChain.join(" -> ")}`;
   }
 
+  /**
+   * @param {HmrUpdateEntry} factory
+   * @returns {ModuleFactory}
+   * @private
+   */
   function _eval(factory) {
     let code = factory.code;
     if (factory.map) code += `\n\n//# sourceMappingURL=${factory.map}`;
@@ -531,7 +542,7 @@ throw new Error("An error occurred while importing a JSON module: \"File is not 
   }
 
   /**
-   * @param {UpdateInstructions} update
+   * @param {EcmascriptChunkUpdate} update
    * @returns {{outdatedModules: Set<any>, newModuleFactories: Map<any, any>}}
    */
   function computeOutdatedModules(update) {
@@ -573,7 +584,7 @@ throw new Error("An error occurred while importing a JSON module: \"File is not 
 
   /**
    * @param {Iterable<ModuleId>} outdatedModules
-   * @returns {{ moduleId: ModuleId, errorHandler: Function }[]}
+   * @returns {{ moduleId: ModuleId, errorHandler: true | Function }[]}
    */
   function computeOutdatedSelfAcceptedModules(outdatedModules) {
     const outdatedSelfAcceptedModules = [];
@@ -591,7 +602,7 @@ throw new Error("An error occurred while importing a JSON module: \"File is not 
   }
 
   /**
-   * @param {string} chunkPath
+   * @param {ChunkPath} chunkPath
    * @param {Iterable<ModuleId>} outdatedModules
    * @param {Iterable<ModuleId>} deletedModules
    */
@@ -674,8 +685,8 @@ throw new Error("An error occurred while importing a JSON module: \"File is not 
 
   /**
    *
-   * @param {ChunkId} chunkPath
-   * @param {{ moduleId: ModuleId, errorHandler: Function }[]} outdatedSelfAcceptedModules
+   * @param {ChunkPath} chunkPath
+   * @param {{ moduleId: ModuleId, errorHandler: true | Function }[]} outdatedSelfAcceptedModules
    * @param {Map<string, ModuleFactory>} newModuleFactories
    */
   function applyPhase(
@@ -711,8 +722,8 @@ throw new Error("An error occurred while importing a JSON module: \"File is not 
 
   /**
    *
-   * @param {string} chunkPath
-   * @param {UpdateInstructions} update
+   * @param {ChunkPath} chunkPath
+   * @param {EcmascriptChunkUpdate} update
    */
   function applyUpdate(chunkPath, update) {
     const { outdatedModules, newModuleFactories } =
@@ -814,13 +825,13 @@ throw new Error("An error occurred while importing a JSON module: \"File is not 
   }
 
   /**
-   * @param {ChunkId} chunkPath
+   * @param {ChunkPath} chunkPath
    * @param {import('../types/protocol').ServerMessage} update
    */
   function handleApply(chunkPath, update) {
     switch (update.type) {
       case "partial":
-        applyUpdate(chunkPath, JSON.parse(update.instruction));
+        applyUpdate(chunkPath, update.instruction);
         break;
       case "restart":
         self.location.reload();
@@ -913,7 +924,7 @@ throw new Error("An error occurred while importing a JSON module: \"File is not 
    * Adds a module to a chunk.
    *
    * @param {ModuleId} moduleId
-   * @param {ChunkId} chunkPath
+   * @param {ChunkPath} chunkPath
    */
   function addModuleToChunk(moduleId, chunkPath) {
     let moduleChunks = moduleChunksMap.get(moduleId);
@@ -930,7 +941,7 @@ throw new Error("An error occurred while importing a JSON module: \"File is not 
    * including this module.
    *
    * @param {ModuleId} moduleId
-   * @param {ChunkId} chunkPath
+   * @param {ChunkPath} chunkPath
    * @returns {boolean}
    */
   function removeModuleFromChunk(moduleId, chunkPath) {
@@ -960,7 +971,7 @@ throw new Error("An error occurred while importing a JSON module: \"File is not 
   /**
    * Subscribes to chunk updates from the update server and applies them.
    *
-   * @param {ChunkId} chunkPath
+   * @param {ChunkPath} chunkPath
    */
   function subscribeToChunkUpdates(chunkPath) {
     // This adds a chunk update listener once the handler code has been loaded
@@ -1015,4 +1026,4 @@ throw new Error("An error occurred while importing a JSON module: \"File is not 
 })();
 
 
-//# sourceMappingURL=crates_turbopack_tests_snapshot_integration_json_input_index_5bf938.js.8b66a863c42e8716.map
+//# sourceMappingURL=crates_turbopack_tests_snapshot_integration_json_input_index_5bf938.js.e75707fc8cfc691f.map

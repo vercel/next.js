@@ -1,18 +1,20 @@
-(self.TURBOPACK = self.TURBOPACK || []).push(["output/a1972_tests_snapshot_integration_mono_transforms_input_packages_app_index_7da44b.js", {
+(self.TURBOPACK = self.TURBOPACK || []).push(["output/crates_turbopack_tests_snapshot_integration_preset_env_input_index_2fc1af.js", {
 
-"[project]/crates/turbopack/tests/snapshot/integration/mono_transforms/input/packages/app/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
+"[project]/crates/turbopack/tests/snapshot/integration/preset_env/input/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, __dirname }) => (() => {
 
-var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$mono_transforms$2f$input$2f$packages$2f$component$2f$index$2e$js__ = __turbopack_import__("[project]/crates/turbopack/tests/snapshot/integration/mono_transforms/input/packages/component/index.js (ecmascript)");
-var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$mono_transforms$2f$input$2f$node_modules$2f$third_party_component$2f$index$2e$js__ = __turbopack_import__("[project]/crates/turbopack/tests/snapshot/integration/mono_transforms/input/node_modules/third_party_component/index.js (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f40$swc$2b$helpers$40$0$2e$4$2e$11$2f$node_modules$2f40$swc$2f$helpers$2f$src$2f$_class_call_check$2e$mjs__ = __turbopack_import__("[project]/node_modules/.pnpm/@swc+helpers@0.4.11/node_modules/@swc/helpers/src/_class_call_check.mjs (ecmascript)");
 "__TURBOPACK__ecmascript__hoisting__location__";
 ;
-;
-console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$mono_transforms$2f$input$2f$packages$2f$component$2f$index$2e$js__["default"], __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2f$tests$2f$snapshot$2f$integration$2f$mono_transforms$2f$input$2f$node_modules$2f$third_party_component$2f$index$2e$js__["default"]);
+var Foo = function Foo() {
+    "use strict";
+    __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f40$swc$2b$helpers$40$0$2e$4$2e$11$2f$node_modules$2f40$swc$2f$helpers$2f$src$2f$_class_call_check$2e$mjs__["default"](this, Foo);
+};
+console.log(Foo, [].includes("foo"));
 
 })()),
 }, ({ loadedChunks, instantiateRuntimeModule }) => {
-    if(!(true && loadedChunks.has("output/a1972_tests_snapshot_integration_mono_transforms_input_packages_app_index_653aeb.js") && loadedChunks.has("output/494ca_third_party_component_index.js") && loadedChunks.has("output/a1972_tests_snapshot_integration_mono_transforms_input_packages_component_index.js") && loadedChunks.has("output/node_modules_react_jsx-runtime.js") && loadedChunks.has("output/494ca_react_jsx-runtime.js"))) return true;
-    instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/mono_transforms/input/packages/app/index.js (ecmascript)");
+    if(!(true && loadedChunks.has("output/crates_turbopack_tests_snapshot_integration_preset_env_input_index_6f12fb.js") && loadedChunks.has("output/a1e25_@swc_helpers_src__class_call_check.mjs.js"))) return true;
+    instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/preset_env/input/index.js (ecmascript)");
 }]);
 (() => {
   // When a chunk is executed, it will either register itself with the current
@@ -33,9 +35,8 @@ console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$
   /** @typedef {import('../types').ChunkModule} ChunkModule */
   /** @typedef {import('../types').Chunk} Chunk */
   /** @typedef {import('../types').ModuleFactory} ModuleFactory */
-  /** @typedef {import('../types/hot').UpdateInstructions} UpdateInstructions */
 
-  /** @typedef {import('../types').ChunkId} ChunkId */
+  /** @typedef {import('../types').ChunkPath} ChunkPath */
   /** @typedef {import('../types').ModuleId} ModuleId */
 
   /** @typedef {import('../types').Module} Module */
@@ -52,6 +53,8 @@ console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$
   /** @typedef {import('../types/hot').AcceptCallback} AcceptCallback */
   /** @typedef {import('../types/hot').AcceptErrorHandler} AcceptErrorHandler */
   /** @typedef {import('../types/hot').HotState} HotState */
+  /** @typedef {import('../types/protocol').EcmascriptChunkUpdate} EcmascriptChunkUpdate */
+  /** @typedef {import('../types/protocol').HmrUpdateEntry} HmrUpdateEntry */
 
   /** @typedef {import('../types/runtime').Loader} Loader */
   /** @typedef {import('../types/runtime').ModuleEffect} ModuleEffect */
@@ -67,13 +70,13 @@ console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$
   /**
    * Contains the IDs of all chunks that have been loaded.
    *
-   * @type {Set<ChunkId>}
+   * @type {Set<ChunkPath>}
    */
   const loadedChunks = new Set();
   /**
    * Maps a chunk ID to the chunk's loader if the chunk is currently being loaded.
    *
-   * @type {Map<ChunkId, Loader>}
+   * @type {Map<ChunkPath, Loader>}
    */
   const chunkLoaders = new Map();
   /**
@@ -85,10 +88,14 @@ console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$
   const moduleHotData = new Map();
   /**
    * Maps module instances to their hot module state.
+   *
+   * @type {Map<Module, HotState>}
    */
   const moduleHotState = new Map();
   /**
    * Module IDs that are instantiated as part of the runtime of a chunk.
+   *
+   * @type {Set<ModuleId>}
    */
   const runtimeModules = new Set();
   /**
@@ -378,6 +385,7 @@ console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$
         c: moduleCache,
         l: loadChunk,
         p: _process,
+        __dirname: module.id.replace(/(^|\/)[\/]+$/, ""),
       });
     });
 
@@ -508,13 +516,18 @@ console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$
   }
 
   /**
-   * @param {string[]} dependencyChain
+   * @param {ModuleId[]} dependencyChain
    * @returns {string}
    */
   function formatDependencyChain(dependencyChain) {
     return `Dependency chain: ${dependencyChain.join(" -> ")}`;
   }
 
+  /**
+   * @param {HmrUpdateEntry} factory
+   * @returns {ModuleFactory}
+   * @private
+   */
   function _eval(factory) {
     let code = factory.code;
     if (factory.map) code += `\n\n//# sourceMappingURL=${factory.map}`;
@@ -522,7 +535,7 @@ console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$
   }
 
   /**
-   * @param {UpdateInstructions} update
+   * @param {EcmascriptChunkUpdate} update
    * @returns {{outdatedModules: Set<any>, newModuleFactories: Map<any, any>}}
    */
   function computeOutdatedModules(update) {
@@ -564,7 +577,7 @@ console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$
 
   /**
    * @param {Iterable<ModuleId>} outdatedModules
-   * @returns {{ moduleId: ModuleId, errorHandler: Function }[]}
+   * @returns {{ moduleId: ModuleId, errorHandler: true | Function }[]}
    */
   function computeOutdatedSelfAcceptedModules(outdatedModules) {
     const outdatedSelfAcceptedModules = [];
@@ -582,7 +595,7 @@ console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$
   }
 
   /**
-   * @param {string} chunkPath
+   * @param {ChunkPath} chunkPath
    * @param {Iterable<ModuleId>} outdatedModules
    * @param {Iterable<ModuleId>} deletedModules
    */
@@ -665,8 +678,8 @@ console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$
 
   /**
    *
-   * @param {ChunkId} chunkPath
-   * @param {{ moduleId: ModuleId, errorHandler: Function }[]} outdatedSelfAcceptedModules
+   * @param {ChunkPath} chunkPath
+   * @param {{ moduleId: ModuleId, errorHandler: true | Function }[]} outdatedSelfAcceptedModules
    * @param {Map<string, ModuleFactory>} newModuleFactories
    */
   function applyPhase(
@@ -702,8 +715,8 @@ console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$
 
   /**
    *
-   * @param {string} chunkPath
-   * @param {UpdateInstructions} update
+   * @param {ChunkPath} chunkPath
+   * @param {EcmascriptChunkUpdate} update
    */
   function applyUpdate(chunkPath, update) {
     const { outdatedModules, newModuleFactories } =
@@ -805,13 +818,13 @@ console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$
   }
 
   /**
-   * @param {ChunkId} chunkPath
+   * @param {ChunkPath} chunkPath
    * @param {import('../types/protocol').ServerMessage} update
    */
   function handleApply(chunkPath, update) {
     switch (update.type) {
       case "partial":
-        applyUpdate(chunkPath, JSON.parse(update.instruction));
+        applyUpdate(chunkPath, update.instruction);
         break;
       case "restart":
         self.location.reload();
@@ -904,7 +917,7 @@ console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$
    * Adds a module to a chunk.
    *
    * @param {ModuleId} moduleId
-   * @param {ChunkId} chunkPath
+   * @param {ChunkPath} chunkPath
    */
   function addModuleToChunk(moduleId, chunkPath) {
     let moduleChunks = moduleChunksMap.get(moduleId);
@@ -921,7 +934,7 @@ console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$
    * including this module.
    *
    * @param {ModuleId} moduleId
-   * @param {ChunkId} chunkPath
+   * @param {ChunkPath} chunkPath
    * @returns {boolean}
    */
   function removeModuleFromChunk(moduleId, chunkPath) {
@@ -951,7 +964,7 @@ console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$
   /**
    * Subscribes to chunk updates from the update server and applies them.
    *
-   * @param {ChunkId} chunkPath
+   * @param {ChunkPath} chunkPath
    */
   function subscribeToChunkUpdates(chunkPath) {
     // This adds a chunk update listener once the handler code has been loaded
@@ -1006,4 +1019,4 @@ console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$
 })();
 
 
-//# sourceMappingURL=a1972_tests_snapshot_integration_mono_transforms_input_packages_app_index_7da44b.js.842bb8af45fc05ec.map
+//# sourceMappingURL=crates_turbopack_tests_snapshot_integration_preset_env_input_index_2fc1af.js.882e5c0e26529d83.map

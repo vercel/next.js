@@ -1,6 +1,6 @@
 (self.TURBOPACK = self.TURBOPACK || []).push(["output/crates_turbopack_tests_snapshot_integration_env_input_7337cb.js", {
 
-"[project]/crates/turbopack/tests/snapshot/integration/env/input/.env/.env.js": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
+"[project]/crates/turbopack/tests/snapshot/integration/env/input/.env/.env.js": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, __dirname }) => (() => {
 
 const env = process.env;
 
@@ -8,7 +8,7 @@ env["FOO"] = "foo";
 env["FOOBAR"] = "foobar";
 
 })()),
-"[project]/crates/turbopack/tests/snapshot/integration/env/input/index.js (ecmascript)": (function({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, m: module, e: exports }) { !function() {
+"[project]/crates/turbopack/tests/snapshot/integration/env/input/index.js (ecmascript)": (function({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, __dirname, m: module, e: exports }) { !function() {
 
 console.log(process.env.FOOBAR);
 
@@ -37,9 +37,8 @@ instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/
   /** @typedef {import('../types').ChunkModule} ChunkModule */
   /** @typedef {import('../types').Chunk} Chunk */
   /** @typedef {import('../types').ModuleFactory} ModuleFactory */
-  /** @typedef {import('../types/hot').UpdateInstructions} UpdateInstructions */
 
-  /** @typedef {import('../types').ChunkId} ChunkId */
+  /** @typedef {import('../types').ChunkPath} ChunkPath */
   /** @typedef {import('../types').ModuleId} ModuleId */
 
   /** @typedef {import('../types').Module} Module */
@@ -56,6 +55,8 @@ instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/
   /** @typedef {import('../types/hot').AcceptCallback} AcceptCallback */
   /** @typedef {import('../types/hot').AcceptErrorHandler} AcceptErrorHandler */
   /** @typedef {import('../types/hot').HotState} HotState */
+  /** @typedef {import('../types/protocol').EcmascriptChunkUpdate} EcmascriptChunkUpdate */
+  /** @typedef {import('../types/protocol').HmrUpdateEntry} HmrUpdateEntry */
 
   /** @typedef {import('../types/runtime').Loader} Loader */
   /** @typedef {import('../types/runtime').ModuleEffect} ModuleEffect */
@@ -71,13 +72,13 @@ instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/
   /**
    * Contains the IDs of all chunks that have been loaded.
    *
-   * @type {Set<ChunkId>}
+   * @type {Set<ChunkPath>}
    */
   const loadedChunks = new Set();
   /**
    * Maps a chunk ID to the chunk's loader if the chunk is currently being loaded.
    *
-   * @type {Map<ChunkId, Loader>}
+   * @type {Map<ChunkPath, Loader>}
    */
   const chunkLoaders = new Map();
   /**
@@ -89,10 +90,14 @@ instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/
   const moduleHotData = new Map();
   /**
    * Maps module instances to their hot module state.
+   *
+   * @type {Map<Module, HotState>}
    */
   const moduleHotState = new Map();
   /**
    * Module IDs that are instantiated as part of the runtime of a chunk.
+   *
+   * @type {Set<ModuleId>}
    */
   const runtimeModules = new Set();
   /**
@@ -382,6 +387,7 @@ instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/
         c: moduleCache,
         l: loadChunk,
         p: _process,
+        __dirname: module.id.replace(/(^|\/)[\/]+$/, ""),
       });
     });
 
@@ -512,13 +518,18 @@ instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/
   }
 
   /**
-   * @param {string[]} dependencyChain
+   * @param {ModuleId[]} dependencyChain
    * @returns {string}
    */
   function formatDependencyChain(dependencyChain) {
     return `Dependency chain: ${dependencyChain.join(" -> ")}`;
   }
 
+  /**
+   * @param {HmrUpdateEntry} factory
+   * @returns {ModuleFactory}
+   * @private
+   */
   function _eval(factory) {
     let code = factory.code;
     if (factory.map) code += `\n\n//# sourceMappingURL=${factory.map}`;
@@ -526,7 +537,7 @@ instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/
   }
 
   /**
-   * @param {UpdateInstructions} update
+   * @param {EcmascriptChunkUpdate} update
    * @returns {{outdatedModules: Set<any>, newModuleFactories: Map<any, any>}}
    */
   function computeOutdatedModules(update) {
@@ -568,7 +579,7 @@ instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/
 
   /**
    * @param {Iterable<ModuleId>} outdatedModules
-   * @returns {{ moduleId: ModuleId, errorHandler: Function }[]}
+   * @returns {{ moduleId: ModuleId, errorHandler: true | Function }[]}
    */
   function computeOutdatedSelfAcceptedModules(outdatedModules) {
     const outdatedSelfAcceptedModules = [];
@@ -586,7 +597,7 @@ instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/
   }
 
   /**
-   * @param {string} chunkPath
+   * @param {ChunkPath} chunkPath
    * @param {Iterable<ModuleId>} outdatedModules
    * @param {Iterable<ModuleId>} deletedModules
    */
@@ -669,8 +680,8 @@ instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/
 
   /**
    *
-   * @param {ChunkId} chunkPath
-   * @param {{ moduleId: ModuleId, errorHandler: Function }[]} outdatedSelfAcceptedModules
+   * @param {ChunkPath} chunkPath
+   * @param {{ moduleId: ModuleId, errorHandler: true | Function }[]} outdatedSelfAcceptedModules
    * @param {Map<string, ModuleFactory>} newModuleFactories
    */
   function applyPhase(
@@ -706,8 +717,8 @@ instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/
 
   /**
    *
-   * @param {string} chunkPath
-   * @param {UpdateInstructions} update
+   * @param {ChunkPath} chunkPath
+   * @param {EcmascriptChunkUpdate} update
    */
   function applyUpdate(chunkPath, update) {
     const { outdatedModules, newModuleFactories } =
@@ -809,13 +820,13 @@ instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/
   }
 
   /**
-   * @param {ChunkId} chunkPath
+   * @param {ChunkPath} chunkPath
    * @param {import('../types/protocol').ServerMessage} update
    */
   function handleApply(chunkPath, update) {
     switch (update.type) {
       case "partial":
-        applyUpdate(chunkPath, JSON.parse(update.instruction));
+        applyUpdate(chunkPath, update.instruction);
         break;
       case "restart":
         self.location.reload();
@@ -908,7 +919,7 @@ instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/
    * Adds a module to a chunk.
    *
    * @param {ModuleId} moduleId
-   * @param {ChunkId} chunkPath
+   * @param {ChunkPath} chunkPath
    */
   function addModuleToChunk(moduleId, chunkPath) {
     let moduleChunks = moduleChunksMap.get(moduleId);
@@ -925,7 +936,7 @@ instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/
    * including this module.
    *
    * @param {ModuleId} moduleId
-   * @param {ChunkId} chunkPath
+   * @param {ChunkPath} chunkPath
    * @returns {boolean}
    */
   function removeModuleFromChunk(moduleId, chunkPath) {
@@ -955,7 +966,7 @@ instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/
   /**
    * Subscribes to chunk updates from the update server and applies them.
    *
-   * @param {ChunkId} chunkPath
+   * @param {ChunkPath} chunkPath
    */
   function subscribeToChunkUpdates(chunkPath) {
     // This adds a chunk update listener once the handler code has been loaded
@@ -1010,4 +1021,4 @@ instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/
 })();
 
 
-//# sourceMappingURL=crates_turbopack_tests_snapshot_integration_env_input_7337cb.js.f804311e54dcd5fa.map
+//# sourceMappingURL=crates_turbopack_tests_snapshot_integration_env_input_7337cb.js.5ca23c99107d77f5.map

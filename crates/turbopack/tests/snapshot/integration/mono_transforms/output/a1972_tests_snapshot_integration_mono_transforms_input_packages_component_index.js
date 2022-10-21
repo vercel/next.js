@@ -1,6 +1,6 @@
 (self.TURBOPACK = self.TURBOPACK || []).push(["output/a1972_tests_snapshot_integration_mono_transforms_input_packages_component_index.js", {
 
-"[project]/crates/turbopack/tests/snapshot/integration/mono_transforms/input/packages/component/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
+"[project]/crates/turbopack/tests/snapshot/integration/mono_transforms/input/packages/component/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, __dirname }) => (() => {
 
 __turbopack_esm__({
     "default": ()=>MyApp
@@ -18,4 +18,4 @@ function MyApp() {
 }]);
 
 
-//# sourceMappingURL=a1972_tests_snapshot_integration_mono_transforms_input_packages_component_index.js.60785b460d278e57.map
+//# sourceMappingURL=a1972_tests_snapshot_integration_mono_transforms_input_packages_component_index.js.8b81a30e56af12af.map

@@ -114,7 +114,7 @@ use turbopack_core::{
 #[case::passport("integration/passport.js")]
 #[case::path_platform("integration/path-platform.js")]
 #[case::pixelmatch("integration/pixelmatch.js")]
-#[case::pdf2json("integration/pdf2json.js")]
+#[case::pdf2json("integration/pdf2json.mjs")]
 #[case::pdfkit("integration/pdfkit.js")]
 #[case::pg("integration/pg.js")]
 #[case::playwright_core("integration/playwright-core.js")]
@@ -376,10 +376,8 @@ fn node_file_trace<B: Backend + 'static>(
                 let before_start = Instant::now();
                 let workspace_fs: FileSystemVc =
                     DiskFileSystemVc::new("workspace".to_string(), workspace_root.clone()).into();
-                let input = workspace_fs
-                    .root()
-                    .join(&format!("crates/turbopack/tests/{input_string}"));
                 let input_dir = workspace_fs.root();
+                let input = input_dir.join(&format!("crates/turbopack/tests/{input_string}"));
 
                 #[cfg(not(feature = "bench_against_node_nft"))]
                 let original_output = exec_node(workspace_root, input);
@@ -536,6 +534,7 @@ async fn exec_node(directory: String, path: FileSystemPathVc) -> Result<CommandO
     let p = path.await?;
     let f = Path::new(&directory).join(&p.path);
     let dir = f.parent().unwrap();
+    println!("[CWD]: {}", dir.display());
     let label = path.to_string().await?;
 
     #[cfg(not(feature = "bench_against_node_nft"))]
@@ -575,6 +574,8 @@ async fn exec_node(directory: String, path: FileSystemPathVc) -> Result<CommandO
         cmd.arg(&p.path.trim_start_matches("node-file-trace/"));
         cmd.current_dir(current_dir);
     }
+
+    println!("[CMD]: {:#?}", cmd);
 
     let output = timeout(Duration::from_secs(100), cmd.output())
         .await

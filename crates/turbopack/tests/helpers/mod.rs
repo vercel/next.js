@@ -12,7 +12,6 @@ pub fn print_changeset(changeset: &Changeset) -> String {
     for diff in changeset.diffs.iter() {
         match diff {
             Difference::Same(content) => {
-                println!("{}", content.len());
                 let lines = content
                     .rsplit('\n')
                     .take(need_context)
