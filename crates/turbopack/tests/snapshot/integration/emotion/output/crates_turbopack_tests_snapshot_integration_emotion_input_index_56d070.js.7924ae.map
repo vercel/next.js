@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sections": [
+    {"offset": {"line": 2, "column": 0}, "map": {"version":3,"sources":["/[project]/crates/turbopack/tests/snapshot/integration/emotion/input/index.js"],"sourcesContent":["/** @jsx jsx */\n\nimport { jsx } from \"@emotion/react\";\nimport styled from \"@emotion/styled\";\n\nconst StyledButton = styled.button`\n  background: blue;\n`;\n\nfunction ClassNameButton({ children }) {\n  return (\n    <button\n      className={css`\n        background: blue;\n      `}\n    >\n      {children}\n    </button>\n  );\n}\n\nconsole.log(StyledButton, ClassNameButton);\n"],"names":[],"mappings":"AAEA;;;;;;;AAGA,MAAM;;;;AAIN,SAAS,gBAAgB,EAAE,SAAQ,EAAE,EAAE;IACrC,OACE,0JAAC;QACC,WAAW,GAAG,CAAC;;MAEf,CAAC;kBAEA;;AAGP;AAEA,QAAQ,GAAG,CAAC,cAAc"}},
+    {"offset": {"line": 22, "column": 0}, "map": {"version": 3, "names": [], "sources": [], "mappings": "A"}}]
+}

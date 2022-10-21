@@ -1,6 +1,6 @@
 mod server_to_client_proxy;
 
-use std::sync::Arc;
+use std::{path::Path, sync::Arc};
 
 use anyhow::Result;
 use swc_core::{
@@ -24,17 +24,18 @@ use self::server_to_client_proxy::{create_proxy_module, is_client_module};
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(PartialOrd, Ord, Hash, Debug, Copy, Clone)]
 pub enum EcmascriptInputTransform {
+    ClientDirective(StringVc),
+    CommonJs,
+    Custom,
+    Emotion,
+    PresetEnv(EnvironmentVc),
     React {
         #[serde(default)]
         refresh: bool,
     },
-    CommonJs,
-    PresetEnv(EnvironmentVc),
     StyledComponents,
     StyledJsx,
     TypeScript,
-    ClientDirective(StringVc),
-    Custom,
 }
 
 #[turbo_tasks::value(transparent, serialization = "auto_for_input")]
@@ -95,6 +96,15 @@ impl EcmascriptInputTransform {
                     swc_core::ecma::transforms::base::feature::FeatureFlag::all(),
                     Some(comments.clone()),
                 ));
+            }
+            EcmascriptInputTransform::Emotion => {
+                let p = std::mem::replace(program, Program::Module(Module::dummy()));
+                *program = p.fold_with(&mut swc_emotion::emotion(
+                    Default::default(),
+                    Path::new(file_name_str),
+                    source_map.clone(),
+                    comments.clone(),
+                ))
             }
             EcmascriptInputTransform::PresetEnv(env) => {
                 let versions = env.runtime_versions().await?;

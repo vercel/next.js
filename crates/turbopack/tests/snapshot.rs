@@ -143,6 +143,7 @@ async fn run(resource: &'static str) -> Result<()> {
             TransitionsByNameVc::cell(HashMap::new()),
             env,
             ModuleOptionsContext {
+                enable_emotion: true,
                 enable_styled_components: true,
                 preset_env_versions: Some(env),
                 ..Default::default()

@@ -22,6 +22,7 @@ impl ModuleOptionsVc {
         context: ModuleOptionsContextVc,
     ) -> Result<ModuleOptionsVc> {
         let ModuleOptionsContext {
+            enable_emotion,
             enable_react_refresh,
             enable_styled_jsx,
             enable_styled_components,
@@ -38,6 +39,9 @@ impl ModuleOptionsVc {
         // Styled JSX, there won't be JSX nodes for Styled JSX to transform.
         if enable_styled_jsx {
             transforms.push(EcmascriptInputTransform::StyledJsx)
+        }
+        if enable_emotion {
+            transforms.push(EcmascriptInputTransform::Emotion)
         }
         if enable_styled_components {
             transforms.push(EcmascriptInputTransform::StyledComponents)
