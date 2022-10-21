@@ -831,6 +831,9 @@ export default async function loadConfig(
       const localFontLoader = {
         loader: '@next/font/local',
       }
+      if (!userConfig.experimental) {
+        userConfig.experimental = {}
+      }
       if (!userConfig.experimental.fontLoaders) {
         userConfig.experimental.fontLoaders = []
       }
