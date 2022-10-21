@@ -272,7 +272,9 @@ console.log(MyButton);
     chunkLoaders.set(chunkPath, chunkLoader);
 
     if (typeof document === "undefined") {
-      throw new Error("can't dynamically load scripts outside the browser");
+      throw new Error(
+        "Loading chunks outside the browser is not currently supported. If using next/dynamic, try opting out of ssr for now: https://nextjs.org/docs/advanced-features/dynamic-import#with-no-ssr"
+      );
     }
 
     if (chunkPath.endsWith(".css")) {
@@ -293,7 +295,6 @@ console.log(MyButton);
       script.onerror = onError;
       document.body.appendChild(script);
     } else {
-      console.error("hello?");
       throw new Error(`can't infer type of chunk from path ${chunkPath}`);
     }
 

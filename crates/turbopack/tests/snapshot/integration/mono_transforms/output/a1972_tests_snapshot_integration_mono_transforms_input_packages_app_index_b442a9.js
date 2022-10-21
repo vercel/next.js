@@ -1,4 +1,4 @@
-(self.TURBOPACK = self.TURBOPACK || []).push(["output/a1972_tests_snapshot_integration_mono_transforms_input_packages_app_index_713ba5.js", {
+(self.TURBOPACK = self.TURBOPACK || []).push(["output/a1972_tests_snapshot_integration_mono_transforms_input_packages_app_index_b442a9.js", {
 
 "[project]/crates/turbopack/tests/snapshot/integration/mono_transforms/input/packages/app/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, __dirname }) => (() => {
 
@@ -11,7 +11,7 @@ console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$
 
 })()),
 }, ({ loadedChunks, instantiateRuntimeModule }) => {
-    if(!(true && loadedChunks.has("output/a1972_tests_snapshot_integration_mono_transforms_input_packages_app_index_b1f58e.js") && loadedChunks.has("output/494ca_third_party_component_index.js") && loadedChunks.has("output/a1972_tests_snapshot_integration_mono_transforms_input_packages_component_index.js") && loadedChunks.has("output/494ca_react_jsx-runtime.js"))) return true;
+    if(!(true && loadedChunks.has("output/a1972_tests_snapshot_integration_mono_transforms_input_packages_app_index_986119.js") && loadedChunks.has("output/494ca_third_party_component_index.js") && loadedChunks.has("output/a1972_tests_snapshot_integration_mono_transforms_input_packages_component_index.js") && loadedChunks.has("output/535ac_react_jsx-runtime.js") && loadedChunks.has("output/494ca_react_jsx-runtime.js"))) return true;
     instantiateRuntimeModule("[project]/crates/turbopack/tests/snapshot/integration/mono_transforms/input/packages/app/index.js (ecmascript)");
 }]);
 (() => {
@@ -268,7 +268,9 @@ console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$
     chunkLoaders.set(chunkPath, chunkLoader);
 
     if (typeof document === "undefined") {
-      throw new Error("can't dynamically load scripts outside the browser");
+      throw new Error(
+        "Loading chunks outside the browser is not currently supported. If using next/dynamic, try opting out of ssr for now: https://nextjs.org/docs/advanced-features/dynamic-import#with-no-ssr"
+      );
     }
 
     if (chunkPath.endsWith(".css")) {
@@ -289,7 +291,6 @@ console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$
       script.onerror = onError;
       document.body.appendChild(script);
     } else {
-      console.error("hello?");
       throw new Error(`can't infer type of chunk from path ${chunkPath}`);
     }
 
@@ -1017,4 +1018,4 @@ console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$
 })();
 
 
-//# sourceMappingURL=a1972_tests_snapshot_integration_mono_transforms_input_packages_app_index_713ba5.js.c93798251397954f.map
+//# sourceMappingURL=a1972_tests_snapshot_integration_mono_transforms_input_packages_app_index_b442a9.js.c93798251397954f.map
