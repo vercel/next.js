@@ -7,6 +7,9 @@ import loadJsConfig from '../load-jsconfig'
 import * as Log from '../output/log'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import { loadBindings, lockfilePatchPromise } from '../swc'
+import type { Config } from 'jest'
+
+export type JestConfig = Config | (() => Promise<Config>)
 
 async function getConfig(dir: string) {
   const conf = await loadConfig(PHASE_TEST, dir)
@@ -55,10 +58,10 @@ module.exports = createJestConfig(customJestConfig)
 */
 export default function nextJest(options: { dir?: string } = {}) {
   // createJestConfig
-  return (customJestConfig?: any) => {
+  return (customJestConfig?: JestConfig) => {
     // Function that is provided as the module.exports of jest.config.js
     // Will be called and awaited by Jest
-    return async () => {
+    return async (): Promise<JestConfig> => {
       let nextConfig
       let jsConfig
       let resolvedBaseUrl
