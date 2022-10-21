@@ -283,6 +283,18 @@ fn bench_startup_cached_internal(mut g: BenchmarkGroup<WallTime>, hydration: boo
     let browser = &runtime.block_on(create_browser());
 
     for bundler in get_bundlers() {
+        let wait_for_hydration = if !bundler.has_server_rendered_html() {
+            // For bundlers without server rendered html "startup" means time to hydration
+            // as they only render an empty screen without hydration. Since startup and
+            // hydration would be the same we skip the hydration benchmark for them.
+            if hydration {
+                continue;
+            } else {
+                true
+            }
+        } else {
+            hydration
+        };
         for module_count in get_module_counts() {
             let test_app = Lazy::new(|| build_test(module_count, bundler.as_ref()));
             let input = (bundler.as_ref(), &test_app);
