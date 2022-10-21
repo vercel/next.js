@@ -1,5 +1,4 @@
-import { join } from 'path'
-import { readFileSync, writeFileSync } from 'fs'
+import { writeFileSync } from 'fs'
 import type {
   API,
   Collection,
