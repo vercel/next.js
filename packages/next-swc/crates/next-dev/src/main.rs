@@ -113,7 +113,11 @@ async fn main() -> Result<()> {
         } else {
             format!("http://{}", server.addr)
         };
-        println!("server listening on: {uri}", uri = index_uri);
+        println!(
+            "started server on 0.0.0.0:{}, url: {}",
+            server.addr.port(),
+            index_uri
+        );
         if !args.no_open {
             let _ = webbrowser::open(&index_uri);
         }
