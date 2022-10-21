@@ -395,7 +395,7 @@ pub fn server_components<C: Comments>(
             JsWord::from("client-only"),
             JsWord::from("react-dom/client"),
             JsWord::from("react-dom/server"),
-            // TODO-APP: JsWord::from("next/router"),
+            JsWord::from("next/router"),
             // TODO-APP: Rule out client hooks.
         ],
         invalid_client_imports: vec![
