@@ -49,7 +49,7 @@ impl Issue for ResolvingIssue {
                 "An error happened during resolving.
 Error message: {error}
 Parsed request as written in source code: {request}
-Directory where resolving has started: {context}
+Path where resolving has started: {context}
 Type of request: {request_type}",
                 error = error_message,
                 request_type = self.request_type,
@@ -60,7 +60,7 @@ Type of request: {request_type}",
             Ok(StringVc::cell(format!(
                 "It was not possible to find the requested file.
 Parsed request as written in source code: {request}
-Directory where resolving has started: {context}
+Path where resolving has started: {context}
 Type of request: {request_type}",
                 request_type = self.request_type,
                 request = self.request.to_string().await?,
