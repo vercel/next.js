@@ -1382,6 +1382,7 @@ export default async function build(
                             originalAppPath,
                             workerResult.encodedPrerenderRoutes
                           )
+                          ssgPageRoutes = workerResult.prerenderRoutes
                           isSsg = true
                         }
                         if (
