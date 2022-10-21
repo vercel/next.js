@@ -99,13 +99,13 @@ To protect your application from malicious users, you must define a list of remo
 
 ### Loaders
 
-Note that in the [example earlier](#remote-images), a partial URL (`"/me.png"`) is provided for a remote image. This is possible because of the `next/image` [loader](/docs/api-reference/next/image.md#loader) architecture.
+Note that in the [example earlier](#remote-images), a partial URL (`"/me.png"`) is provided for a remote image. This is possible because of the loader architecture.
 
 A loader is a function that generates the URLs for your image. It modifies the provided `src`, and generates multiple URLs to request the image at different sizes. These multiple URLs are used in the automatic [srcset](https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/srcset) generation, so that visitors to your site will be served an image that is the right size for their viewport.
 
-The default loader for Next.js applications uses the built-in Image Optimization API, which optimizes images from anywhere on the web, and then serves them directly from the Next.js web server. If you would like to serve your images directly from a CDN or image server, you can use one of the [built-in loaders](/docs/api-reference/next/image.md#built-in-loaders) or write your own with a few lines of JavaScript.
+The default loader for Next.js applications uses the built-in Image Optimization API, which optimizes images from anywhere on the web, and then serves them directly from the Next.js web server. If you would like to serve your images directly from a CDN or image server, you can write your own loader function with a few lines of JavaScript.
 
-Loaders can be defined per-image, or at the application level.
+You can define a loader per-image with the [`loader` prop](/docs/api-reference/next/image.md#loader), or at the application level with the [`loaderFile` configuration](https://nextjs.org/docs/api-reference/next/image#loader-configuration).
 
 ### Priority
 
@@ -151,7 +151,7 @@ Because `next/image` is designed to guarantee good performance results, it canno
 >
 > If you are accessing images from a source without knowledge of the images' sizes, there are several things you can do:
 >
-> **Use `fill``**
+> **Use `fill`**
 >
 > The [`fill`](/docs/api-reference/next/image#fill) prop allows your image to be sized by its parent element. Consider using CSS to give the image's parent element space on the page along [`sizes`](/docs/api-reference/next/image#sizes) prop to match any media query break points. You can also use [`object-fit`](https://developer.mozilla.org/en-US/docs/Web/CSS/object-fit) with `fill`, `contain`, or `cover`, and [`object-position`](https://developer.mozilla.org/en-US/docs/Web/CSS/object-position) to define how the image should occupy that space.
 >

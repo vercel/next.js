@@ -866,6 +866,12 @@ export default async function getBaseWebpackConfig(
           }
         : undefined),
 
+      ...(config.images.loaderFile
+        ? {
+            'next/dist/shared/lib/image-loader': config.images.loaderFile,
+          }
+        : undefined),
+
       next: NEXT_PROJECT_ROOT,
 
       ...(hasServerComponents
