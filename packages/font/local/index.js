@@ -1,7 +1,7 @@
 let message = '@next/font/local failed to run.'
 if (process.env.NODE_ENV === 'development') {
   message +=
-    '\nIf you just installed `@next/font`, please try rerunning `next dev`'
+    '\nIf you just installed `@next/font`, please try restarting `next dev` and resaving your file.'
 }
 
 throw new Error(message)
