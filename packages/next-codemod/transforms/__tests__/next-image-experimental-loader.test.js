@@ -4,7 +4,7 @@ const Runner = require('jscodeshift/dist/Runner');
 const { cp, mkdir, rm, readdir, readFile } = require('fs/promises')
 const { join } = require('path')
 
-const fixtureDir = join(__dirname, '..', '__tmpfixtures__', 'next-image-experimental-loader')
+const fixtureDir = join(__dirname, '..', '__testfixtures__', 'next-image-experimental-loader')
 const transform = join(__dirname, '..', 'next-image-experimental.js')
 const opts = { recursive: true }
 
