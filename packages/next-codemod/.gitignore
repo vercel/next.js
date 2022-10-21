@@ -1,5 +1,0 @@
-*.d.ts
-*.js
-*.js.map
-!transforms/__tests__/**/*.js
-!transforms/__testfixtures__/**/*.js

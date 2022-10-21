@@ -5,8 +5,10 @@
     "esModuleInterop": true,
     "target": "es2015",
     "downlevelIteration": true,
-    "preserveWatchOutput": true
+    "preserveWatchOutput": true,
+    "outDir": "dist",
+    "rootDir": "src"
   },
-  "include": ["**/*.ts"],
+  "include": ["src/**/*.ts"],
   "exclude": ["node_modules"]
 }
