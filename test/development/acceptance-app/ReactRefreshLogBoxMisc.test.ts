@@ -216,7 +216,7 @@ describe.skip('ReactRefreshLogBox app', () => {
 
     await session.patch(
       'app/page.js',
-      `
+      `'use client'
         import myLibrary from 'my-non-existent-library'
         export async function getStaticProps() {
           return {
