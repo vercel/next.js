@@ -16,6 +16,7 @@ use turbo_tasks_fs::{
     FileContent, FileContentReadRef, FileLine, FileLinesContent, FileSystemPathReadRef,
     FileSystemPathVc,
 };
+use turbo_tasks_hash::DeterministicHash;
 
 use crate::{
     asset::{AssetContent, AssetVc},
@@ -23,7 +24,7 @@ use crate::{
 };
 
 #[turbo_tasks::value(shared)]
-#[derive(PartialOrd, Ord, Copy, Clone, Hash, Debug)]
+#[derive(PartialOrd, Ord, Copy, Clone, Hash, Debug, DeterministicHash)]
 #[serde(rename_all = "camelCase")]
 pub enum IssueSeverity {
     Bug,

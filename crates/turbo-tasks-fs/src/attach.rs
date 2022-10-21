@@ -74,7 +74,7 @@ impl AttachedFileSystemVc {
     /// Resolves the local path of the root or child filesystem from a path
     /// on the [AttachedFileSystem]
     #[turbo_tasks::function]
-    async fn get_inner_fs_path(self, path: FileSystemPathVc) -> Result<FileSystemPathVc> {
+    pub async fn get_inner_fs_path(self, path: FileSystemPathVc) -> Result<FileSystemPathVc> {
         let this = self.await?;
         let path = path.await?;
         let self_fs: FileSystemVc = self.into();

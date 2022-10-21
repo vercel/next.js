@@ -31,7 +31,7 @@ impl Xxh3Hash64Hasher {
     }
 
     /// Finish the hash computation and return the digest.
-    pub fn finish(&mut self) -> u64 {
+    pub fn finish(&self) -> u64 {
         self.0.finish()
     }
 }

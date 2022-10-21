@@ -11,10 +11,11 @@ use std::{
 use anyhow::{anyhow, Result};
 use crossterm::style::{StyledContent, Stylize};
 use owo_colors::{OwoColorize as _, Style};
-use turbo_tasks::{
-    turbo_tasks, RawVc, SharedReference, TransientValue, TryJoinIterExt, ValueToString,
+use turbo_tasks::{RawVc, TransientValue, TryJoinIterExt, ValueToString};
+use turbo_tasks_fs::{
+    attach::AttachedFileSystemVc, DiskFileSystemVc, FileLinesContent, FileSystemPathVc,
 };
-use turbo_tasks_fs::{DiskFileSystemVc, FileLinesContent, FileSystemPathVc};
+use turbo_tasks_hash::Xxh3Hash64Hasher;
 use turbopack_core::issue::{
     IssueProcessingPathItem, IssueSeverity, IssueVc, OptionIssueProcessingPathItemsVc, PlainIssue,
     PlainIssueSource,
@@ -210,6 +211,7 @@ pub fn format_issue(
     let mut issue_text = String::new();
 
     let severity = plain_issue.severity;
+    // TODO CLICKABLE PATHS
     let context_path = plain_issue
         .context
         .replace("[project]", &current_dir.to_string_lossy())
@@ -317,13 +319,13 @@ pub struct LogOptions {
 struct SeenIssues {
     /// Keeps track of all issue pulled from the source. Used so that we can
     /// decrement issues that are not pulled in the current synchronization.
-    source_to_issue_ids: HashMap<RawVc, HashSet<SharedReference>>,
+    source_to_issue_ids: HashMap<RawVc, HashSet<u64>>,
 
     /// Counts the number of times a particular issue is seen across all
     /// sources. As long as the count is positive, an issue is considered
     /// "seen" and will not be relogged. Once the count reaches zero, the
     /// issue is removed and the next time its seen it will be considered new.
-    issues_count: HashMap<SharedReference, usize>,
+    issues_count: HashMap<u64, usize>,
 }
 
 impl SeenIssues {
@@ -333,17 +335,13 @@ impl SeenIssues {
 
     /// Synchronizes state between the issues previously pulled from this
     /// source, to the issues now pulled.
-    fn new_ids(
-        &mut self,
-        source: RawVc,
-        issue_ids: HashSet<SharedReference>,
-    ) -> HashSet<SharedReference> {
+    fn new_ids(&mut self, source: RawVc, issue_ids: HashSet<u64>) -> HashSet<u64> {
         let old = self.source_to_issue_ids.entry(source).or_default();
 
         // difference is the issues that were never counted before.
         let difference = issue_ids
             .iter()
-            .filter(|id| match self.issues_count.entry((*id).clone()) {
+            .filter(|id| match self.issues_count.entry(**id) {
                 Entry::Vacant(e) => {
                     // If the issue not currently counted, then it's new and should be logged.
                     e.insert(1);
@@ -368,7 +366,7 @@ impl SeenIssues {
 
         // Old now contains only the ids that were not present in the new issue_ids.
         for id in old.iter() {
-            match self.issues_count.entry(id.clone()) {
+            match self.issues_count.entry(*id) {
                 Entry::Vacant(_) => unreachable!("issue must already be tracked to appear in old"),
                 Entry::Occupied(mut e) => {
                     let v = e.get_mut();
@@ -424,13 +422,32 @@ pub struct DisplayIssueState {
     pub has_new_issues: bool,
 }
 
-/// When an issue is emitted, we store a copy of its pointer hash to perform
-/// deduplication. This hash is the same for an issue despite the source that
-/// pulls the emitted issue. As long as the task that emits the issue is not
-/// recomputed, then the internal hash will be constant.
-async fn internal_hash(raw: RawVc) -> Result<SharedReference> {
-    let tt = turbo_tasks();
-    raw.internal_pointer_untracked(&*tt).await
+#[turbo_tasks::value(transparent)]
+pub struct IssueHash(u64);
+
+/// We need deduplicate issues that can come from unique paths, but represent
+/// the same underlying problem. Eg, a parse error for a file that is compiled
+/// in both client and server contexts.
+#[turbo_tasks::function]
+async fn internal_hash(issue: IssueVc) -> Result<IssueHashVc> {
+    let mut hasher = Xxh3Hash64Hasher::new();
+    hasher.write_value(issue.severity().await?);
+    hasher.write_ref(&issue.context().await?.path);
+    hasher.write_value(issue.category().await?);
+    hasher.write_value(issue.title().await?);
+    hasher.write_value(issue.description().await?);
+    hasher.write_value(issue.detail().await?);
+    hasher.write_value(issue.documentation_link().await?);
+
+    let source = issue.source().await?;
+    if let Some(source) = &*source {
+        let source = source.await?;
+        // I'm assuming we don't need to hash the contents. Not 100% correct, but
+        // probably 99%.
+        hasher.write_value(source.start);
+        hasher.write_value(source.end);
+    }
+    Ok(IssueHash(hasher.finish()).cell())
 }
 
 #[turbo_tasks::value_impl]
@@ -457,24 +474,21 @@ impl ConsoleUiVc {
         let issues = issues
             .iter_with_shortest_path()
             .map(async move |(issue, path)| {
-                let id = internal_hash(issue.into()).await?;
-                Ok((issue, path, id))
+                let id = internal_hash(issue).await?;
+                Ok((issue, path, *id))
             })
             .try_join()
             .await?;
 
-        let issue_ids = issues
-            .iter()
-            .map(|(_, _, id)| id.clone())
-            .collect::<HashSet<_>>();
-        let new_ids = this.seen.lock().unwrap().new_ids(source, issue_ids);
+        let issue_ids = issues.iter().map(|(_, _, id)| *id).collect::<HashSet<_>>();
+        let mut new_ids = this.seen.lock().unwrap().new_ids(source, issue_ids);
 
         let mut has_fatal = false;
         let has_issues = !issues.is_empty();
         let has_new_issues = !new_ids.is_empty();
 
         for (issue, path, id) in issues {
-            if !new_ids.contains(&id) {
+            if !new_ids.remove(&id) {
                 continue;
             }
 
@@ -627,6 +641,11 @@ impl ConsoleUiVc {
 }
 
 async fn make_relative_to_cwd(path: FileSystemPathVc, cwd: &PathBuf) -> Result<String> {
+    let path = if let Some(fs) = AttachedFileSystemVc::resolve_from(path.fs()).await? {
+        fs.get_inner_fs_path(path)
+    } else {
+        path
+    };
     if let Some(fs) = DiskFileSystemVc::resolve_from(path.fs()).await? {
         let sys_path = fs.await?.to_sys_path(path).await?;
         let relative = sys_path

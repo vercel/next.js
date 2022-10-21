@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use turbo_tasks::trace::TraceRawVcs;
+use turbo_tasks_hash::DeterministicHash;
 
 /// LINE FEED (LF), one of the basic JS line terminators.
 const U16_LF: u16 = 0x0A;
@@ -12,7 +13,18 @@ const U16_LS: u16 = 0x2028;
 /// superset of JSON.
 const U16_PS: u16 = 0x2029;
 
-#[derive(Default, Debug, PartialEq, Eq, Copy, Clone, TraceRawVcs, Serialize, Deserialize)]
+#[derive(
+    Default,
+    Debug,
+    PartialEq,
+    Eq,
+    Copy,
+    Clone,
+    TraceRawVcs,
+    Serialize,
+    Deserialize,
+    DeterministicHash,
+)]
 pub struct SourcePos {
     pub line: usize,
     pub column: usize,

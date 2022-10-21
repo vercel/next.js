@@ -22,6 +22,7 @@ serde_json = "1.0.85"
 tokio = "1.11.0"
 turbo-tasks = { path = "../turbo-tasks" }
 turbo-tasks-fs = { path = "../turbo-tasks-fs" }
+turbo-tasks-hash = { path = "../turbo-tasks-hash" }
 turbopack-core = { path = "../turbopack-core" }
 
 [build-dependencies]

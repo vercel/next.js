@@ -103,6 +103,18 @@ deterministic_hash_number! {
     (i128, write_i128),
 }
 
+impl<T: DeterministicHash> DeterministicHash for Option<T> {
+    fn deterministic_hash<H: DeterministicHasher>(&self, state: &mut H) {
+        match self {
+            None => state.write_u8(0),
+            Some(v) => {
+                state.write_u8(1);
+                v.deterministic_hash(state);
+            }
+        }
+    }
+}
+
 /// HasherWrapper allows the DeterministicHasher to be used as a Hasher, for
 /// standard types that do not allow us to directly access their internals.
 struct HasherWrapper<'a>(&'a mut dyn DeterministicHasher);
