@@ -343,8 +343,9 @@ function loadNative() {
       teardownCrashReporter: bindings.teardownCrashReporter,
       turbo: {
         startDev: (options) => bindings.startTurboDev(toBuffer(options)),
-        startTrace: (options) => bindings.runTurboTracing(toBuffer(options)),
-      }
+        startTrace: (options = {}) =>
+          bindings.runTurboTracing(toBuffer({ exact: true, ...options })),
+      },
     }
     return nativeBindings
   }

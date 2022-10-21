@@ -1608,7 +1608,7 @@ export default async function build(
 
       if (config.outputFileTracing) {
         let nodeFileTrace: any
-        if (config.experimental.enableTurboOutputFileTracing) {
+        if (config.experimental.turbotrace) {
           let binding = (await loadBindings()) as any
           if (!binding?.isWasm) {
             nodeFileTrace = binding.turbo?.startTrace
@@ -1763,9 +1763,10 @@ export default async function build(
             }
 
             let serverResult: import('next/dist/compiled/@vercel/nft').NodeFileTraceResult
-            if (config.experimental.enableTurboOutputFileTracing) {
-              serverResult = await nodeFileTrace({
-                action: 'Print',
+            if (config.experimental.turbotrace) {
+              // handle the cache in the turbo-tracing side in the future
+              await nodeFileTrace({
+                action: 'annotate',
                 input: toTrace,
                 contextDirectory: root,
               })
@@ -1793,33 +1794,32 @@ export default async function build(
                     : []),
                 ],
               })
-            }
+              const tracedFiles = new Set()
 
-            const tracedFiles = new Set()
-
-            serverResult.fileList.forEach((file) => {
-              tracedFiles.add(
-                path
-                  .relative(distDir, path.join(root, file))
-                  .replace(/\\/g, '/')
-              )
-            })
-
-            await promises.writeFile(
-              nextServerTraceOutput,
-              JSON.stringify({
-                version: 1,
-                cacheKey,
-                files: [...tracedFiles],
-              } as {
-                version: number
-                files: string[]
+              serverResult.fileList.forEach((file) => {
+                tracedFiles.add(
+                  path
+                    .relative(distDir, path.join(root, file))
+                    .replace(/\\/g, '/')
+                )
               })
-            )
-            await promises.unlink(cachedTracePath).catch(() => {})
-            await promises
-              .copyFile(nextServerTraceOutput, cachedTracePath)
-              .catch(() => {})
+
+              await promises.writeFile(
+                nextServerTraceOutput,
+                JSON.stringify({
+                  version: 1,
+                  cacheKey,
+                  files: [...tracedFiles],
+                } as {
+                  version: number
+                  files: string[]
+                })
+              )
+              await promises.unlink(cachedTracePath).catch(() => {})
+              await promises
+                .copyFile(nextServerTraceOutput, cachedTracePath)
+                .catch(() => {})
+            }
           })
       }
 

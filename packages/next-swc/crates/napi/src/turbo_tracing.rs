@@ -4,8 +4,8 @@ use napi::bindgen_prelude::*;
 use node_file_trace::{start, Args};
 
 #[napi]
-pub async fn run_turbo_tracing(options: Buffer) -> napi::Result<()> {
+pub async fn run_turbo_tracing(options: Buffer) -> napi::Result<Vec<String>> {
     let args: Args = serde_json::from_slice(options.as_ref())?;
-    start(Arc::new(args)).await?;
-    Ok(())
+    let files = start(Arc::new(args)).await?;
+    Ok(files)
 }

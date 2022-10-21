@@ -432,6 +432,33 @@ const configSchema = {
             enum: ['CLS', 'FCP', 'FID', 'INP', 'LCP', 'TTFB'],
           } as any,
         },
+        turbotrace: {
+          type: 'object',
+          properties: {
+            logLevel: {
+              type: 'string',
+              enum: [
+                'bug',
+                'fatal',
+                'error',
+                'warning',
+                'hint',
+                'note',
+                'suggestions',
+                'info',
+              ],
+            } as any,
+            logDetail: {
+              type: 'boolean',
+            },
+            contextDirectory: {
+              type: 'string',
+            },
+            processCwd: {
+              type: 'string',
+            },
+          },
+        },
       },
       type: 'object',
     },
