@@ -22,11 +22,16 @@ describe('edge api can use async local storage', () => {
         }
   
         async function getSomeData() {
-          const response = await fetch('https://example.vercel.sh')
-          return response.text()
+          try {
+            const response = await fetch('https://example.vercel.sh')
+            await response.text()
+          } finally {
+            return true
+          }
         }
       `,
-      expectResponse: (response, id) => expect(response).toMatchObject({ id }),
+      expectResponse: (response, id) =>
+        expect(response).toMatchObject({ status: 200, json: { id } }),
     },
     {
       title: 'multiple instances',
@@ -45,16 +50,19 @@ describe('edge api can use async local storage', () => {
         async function getSomeData(id) {
           const nestedStorage = new AsyncLocalStorage()
           return nestedStorage.run('nested-' + id, async () => {
-            const response = await fetch('https://example.vercel.sh')
-            await response.text()
-            return { nestedId: nestedStorage.getStore() }
+            try {
+              const response = await fetch('https://example.vercel.sh')
+              await response.text()
+            } finally {
+              return { nestedId: nestedStorage.getStore() }
+            }
           })
         }
       `,
       expectResponse: (response, id) =>
         expect(response).toMatchObject({
-          id: id,
-          nestedId: `nested-${id}`,
+          status: 200,
+          json: { id: id, nestedId: `nested-${id}` },
         }),
     },
   ]
@@ -81,7 +89,19 @@ describe('edge api can use async local storage', () => {
             '/api/async',
             {},
             { headers: { 'req-id': id } }
-          ).then((response) => response.json())
+          ).then((response) =>
+            response.headers.get('content-type')?.startsWith('application/json')
+              ? response.json().then((json) => ({
+                  status: response.status,
+                  json,
+                  text: null,
+                }))
+              : response.text().then((text) => ({
+                  status: response.status,
+                  json: null,
+                  text,
+                }))
+          )
         )
       )
       const rankById = new Map(ids.map((id, rank) => [id, rank]))
