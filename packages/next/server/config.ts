@@ -23,7 +23,7 @@ import {
 } from '../shared/lib/image-config'
 import { loadEnvConfig } from '@next/env'
 import { gte as semverGte } from 'next/dist/compiled/semver'
-import { getPackageVersion } from '../lib/get-package-version'
+import { getDependencies } from '../lib/get-package-version'
 
 export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
 
@@ -75,6 +75,46 @@ export function setHttpClientAndAgentOptions(options: NextConfig) {
   ;(global as any).__NEXT_HTTP_AGENT_OPTIONS = options.httpAgentOptions
   ;(global as any).__NEXT_HTTP_AGENT = new HttpAgent(options.httpAgentOptions)
   ;(global as any).__NEXT_HTTPS_AGENT = new HttpsAgent(options.httpAgentOptions)
+}
+
+async function setFontLoaderDefaults(config: NextConfigComplete, dir: string) {
+  if (config.experimental?.fontLoaders) return
+
+  // Add @next/font loaders by default if they're installed
+  const hasNextFontDependency = (
+    await getDependencies({
+      cwd: dir,
+    })
+  ).dependencies['@next/font']
+
+  if (hasNextFontDependency) {
+    const googleFontLoader = {
+      loader: '@next/font/google',
+    }
+    const localFontLoader = {
+      loader: '@next/font/local',
+    }
+    if (!config.experimental) {
+      config.experimental = {}
+    }
+    if (!config.experimental.fontLoaders) {
+      config.experimental.fontLoaders = []
+    }
+    if (
+      !config.experimental.fontLoaders.find(
+        ({ loader }: any) => loader === '@next/font/goggle'
+      )
+    ) {
+      config.experimental.fontLoaders.push(googleFontLoader)
+    }
+    if (
+      !config.experimental.fontLoaders.find(
+        ({ loader }: any) => loader === '@next/font/local'
+      )
+    ) {
+      config.experimental.fontLoaders.push(localFontLoader)
+    }
+  }
 }
 
 function assignDefaults(userConfig: { [key: string]: any }) {
@@ -819,40 +859,6 @@ export default async function loadConfig(
           : canonicalBase) || ''
     }
 
-    // Add @next/font loaders by default if they're installed
-    const nextFontVersion = await getPackageVersion({
-      cwd: dir,
-      name: '@next/font',
-    })
-    if (nextFontVersion) {
-      const googleFontLoader = {
-        loader: '@next/font/google',
-      }
-      const localFontLoader = {
-        loader: '@next/font/local',
-      }
-      if (!userConfig.experimental) {
-        userConfig.experimental = {}
-      }
-      if (!userConfig.experimental.fontLoaders) {
-        userConfig.experimental.fontLoaders = []
-      }
-      if (
-        !userConfig.experimental.fontLoaders.find(
-          ({ loader }: any) => loader === '@next/font/goggle'
-        )
-      ) {
-        userConfig.experimental.fontLoaders.push(googleFontLoader)
-      }
-      if (
-        !userConfig.experimental.fontLoaders.find(
-          ({ loader }: any) => loader === '@next/font/local'
-        )
-      ) {
-        userConfig.experimental.fontLoaders.push(localFontLoader)
-      }
-    }
-
     return assignDefaults({
       configOrigin: relative(dir, path),
       configFile: path,
@@ -884,5 +890,6 @@ export default async function loadConfig(
   const completeConfig = assignDefaults(defaultConfig) as NextConfigComplete
   completeConfig.configFileName = configFileName
   setHttpClientAndAgentOptions(completeConfig)
+  await setFontLoaderDefaults(completeConfig, dir)
   return completeConfig
 }
