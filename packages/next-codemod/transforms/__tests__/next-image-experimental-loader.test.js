@@ -4,11 +4,11 @@ const Runner = require('jscodeshift/dist/Runner');
 const { cp, mkdir, rm, readdir, readFile } = require('fs/promises')
 const { join } = require('path')
 
-const fixtureDir = join(__dirname, '..', '__testfixtures__', 'next-image-experimental-loader')
+const fixtureDir = join(__dirname, '..', '__tmpfixtures__', 'next-image-experimental-loader')
 const transform = join(__dirname, '..', 'next-image-experimental.js')
 const opts = { recursive: true }
 
-async function serializeDir(dir) {
+async function toObj(dir) {
   const obj = {}
   const files = await readdir(dir)
   for (const file of files) {
@@ -16,20 +16,19 @@ async function serializeDir(dir) {
   }
   return obj
 }
-
-it('should work with imgix', async () => {
+it.each(['imgix', 'cloudinary', 'akamai'])('should transform loader %s', async (loader) => {
   try {
-    await mkdir(join(fixtureDir, 'dir-under-test'), opts)
-    await cp(join(fixtureDir, 'imgix-input'), join(fixtureDir, 'dir-under-test'), opts)
-    process.chdir(join(fixtureDir, 'dir-under-test'))
+    await mkdir(join(fixtureDir, 'tmp'), opts)
+    await cp(join(fixtureDir, loader, 'input'), join(fixtureDir, 'tmp'), opts)
+    process.chdir(join(fixtureDir, 'tmp'))
     const result = await Runner.run(transform, [`.`], {})
     expect(result.error).toBe(0)
     expect(
-      await serializeDir(join(fixtureDir, 'dir-under-test'))
+      await toObj(join(fixtureDir, 'tmp'))
     ).toStrictEqual(
-      await serializeDir(join(fixtureDir, 'imgix-output'))
+      await toObj(join(fixtureDir, loader, 'output'))
     )
   } finally {
-    await rm(join(fixtureDir, 'dir-under-test'), opts)
+    await rm(join(fixtureDir, 'tmp'), opts)
   }
 })
