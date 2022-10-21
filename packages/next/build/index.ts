@@ -2155,6 +2155,13 @@ export default async function build(
                 }
               } else {
                 hasDynamicData = true
+                // we might have determined during prerendering that this page
+                // used dynamic data
+                pageInfos.set(route, {
+                  ...(pageInfos.get(route) as PageInfo),
+                  isSsg: false,
+                  static: false,
+                })
               }
             })
 
