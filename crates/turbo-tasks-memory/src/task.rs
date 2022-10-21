@@ -921,20 +921,29 @@ impl Task {
                 "new {root_scope} for {:?} as internal root scope (replacing {scopes:?})",
                 self.ty
             );
-            let mut active_counter = 0;
+            let mut active_counter = 0isize;
             let mut tasks = HashSet::new();
             for (scope, count) in scopes.iter() {
                 backend.with_scope(*scope, |scope| {
                     // add the new root scope as child of old scopes
                     let mut state = scope.state.lock();
-                    if let Some(ScopeChildChangeEffect { notify, active }) = if *count > 0 {
-                        state.add_child_count(root_scope, *count as usize)
+                    if *count > 0 {
+                        if let Some(ScopeChildChangeEffect { notify, active }) =
+                            state.add_child_count(root_scope, *count as usize)
+                        {
+                            tasks.extend(notify);
+                            if active {
+                                active_counter += 1;
+                            }
+                        }
                     } else {
-                        state.remove_child_count(root_scope, (-*count) as usize)
-                    } {
-                        tasks.extend(notify);
-                        if active {
-                            active_counter += 1;
+                        if let Some(ScopeChildChangeEffect { notify, active }) =
+                            state.remove_child_count(root_scope, (-*count) as usize)
+                        {
+                            tasks.extend(notify);
+                            if active {
+                                active_counter -= 1;
+                            }
                         }
                     }
                 });
@@ -946,7 +955,13 @@ impl Task {
             // We collected how often the new root scope is considered as active by the old
             // scopes and increase the active counter by that.
             if active_counter > 0 {
-                backend.increase_scope_active_by(root_scope, active_counter, turbo_tasks);
+                backend.increase_scope_active_by(root_scope, active_counter as usize, turbo_tasks);
+            } else if active_counter < 0 {
+                backend.decrease_scope_active_by(
+                    root_scope,
+                    (-active_counter) as usize,
+                    turbo_tasks,
+                );
             }
 
             // add self to new root scope
@@ -954,8 +969,10 @@ impl Task {
                 self.add_self_to_new_scope(&mut state, root_scope, backend, turbo_tasks);
 
             // remove self from old scopes
-            for (scope, _) in scopes.iter() {
-                self.remove_self_from_scope(&mut state, *scope, backend, turbo_tasks);
+            for (scope, count) in scopes.iter() {
+                if *count > 0 {
+                    self.remove_self_from_scope(&mut state, *scope, backend, turbo_tasks);
+                }
             }
 
             if !state.children.is_empty() || schedule_self {
@@ -1310,7 +1327,6 @@ impl Task {
         backend: &MemoryBackend,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<Result<HashSet<RawVc>, EventListener>> {
-        // TODO technically we don't need a write lock here
         let mut state = self.state.write();
         state = self.ensure_root_scoped(state, backend, turbo_tasks);
         // We need to wait for all foreground jobs to be finished as there could be

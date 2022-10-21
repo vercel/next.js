@@ -176,12 +176,21 @@ impl MemoryBackend {
     pub(crate) fn decrease_scope_active(
         &self,
         scope: TaskScopeId,
+        turbo_tasks: &dyn TurboTasksBackendApi,
+    ) {
+        self.decrease_scope_active_by(scope, 1, turbo_tasks);
+    }
+
+    pub(crate) fn decrease_scope_active_by(
+        &self,
+        scope: TaskScopeId,
+        count: usize,
         _turbo_tasks: &dyn TurboTasksBackendApi,
     ) {
         let mut queue = vec![scope];
         while let Some(scope) = queue.pop() {
             self.with_scope(scope, |scope| {
-                scope.state.lock().decrement_active(&mut queue)
+                scope.state.lock().decrement_active_by(count, &mut queue)
             });
         }
     }

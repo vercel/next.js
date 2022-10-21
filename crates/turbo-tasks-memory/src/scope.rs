@@ -195,23 +195,25 @@ impl TaskScope {
     }
 
     pub fn increment_unfinished_tasks(&self) {
-        self.unfinished_tasks.fetch_add(1, Ordering::Relaxed);
+        self.unfinished_tasks.fetch_add(1, Ordering::AcqRel);
     }
 
     pub fn decrement_unfinished_tasks(&self, backend: &MemoryBackend) {
-        let value = backend.flag_scope_change();
-        let _ = self.last_task_finish_generation.fetch_update(
-            Ordering::Relaxed,
-            Ordering::Relaxed,
-            |v| {
-                if v < value {
-                    Some(value)
-                } else {
-                    None
-                }
-            },
-        );
-        if self.unfinished_tasks.fetch_sub(1, Ordering::Release) == 1 {
+        let old_count = self.unfinished_tasks.fetch_sub(1, Ordering::AcqRel);
+        debug_assert!(old_count > 0);
+        if old_count == 1 {
+            let value = backend.flag_scope_change();
+            let _ = self.last_task_finish_generation.fetch_update(
+                Ordering::Relaxed,
+                Ordering::Relaxed,
+                |v| {
+                    if v < value {
+                        Some(value)
+                    } else {
+                        None
+                    }
+                },
+            );
             self.event.notify(usize::MAX);
         }
     }
@@ -407,9 +409,9 @@ impl TaskScopeState {
         count: usize,
         more_jobs: &mut Vec<TaskScopeId>,
     ) -> Option<Vec<TaskId>> {
-        let was_zero = self.active == 0;
+        let was_zero = self.active <= 0;
         self.active += count as isize;
-        if was_zero {
+        if self.active > 0 && was_zero {
             more_jobs.extend(self.children.iter().copied());
             Some(self.dirty_tasks.iter().copied().collect())
         } else {
@@ -419,8 +421,14 @@ impl TaskScopeState {
     /// decrement the active counter, returns list of child scopes that need to
     /// be decremented after releasing the scope lock
     pub fn decrement_active(&mut self, more_jobs: &mut Vec<TaskScopeId>) {
-        self.active -= 1;
-        if self.active == 0 {
+        self.decrement_active_by(1, more_jobs);
+    }
+    /// decrement the active counter, returns list of child scopes that need to
+    /// be decremented after releasing the scope lock
+    pub fn decrement_active_by(&mut self, count: usize, more_jobs: &mut Vec<TaskScopeId>) {
+        let was_positive = self.active > 0;
+        self.active -= count as isize;
+        if self.active <= 0 && was_positive {
             more_jobs.extend(self.children.iter().copied());
         }
     }

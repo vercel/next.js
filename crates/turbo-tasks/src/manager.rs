@@ -449,11 +449,19 @@ impl<B: Backend> TurboTasks<B> {
     }
 
     pub async fn wait_foreground_done(&self) {
-        if self.currently_scheduled_tasks.load(Ordering::Acquire) == 0 {
+        if self
+            .currently_scheduled_foreground_jobs
+            .load(Ordering::Acquire)
+            == 0
+        {
             return;
         }
-        let listener = self.event.listen();
-        if self.currently_scheduled_tasks.load(Ordering::Acquire) != 0 {
+        let listener = self.event_foreground.listen();
+        if self
+            .currently_scheduled_foreground_jobs
+            .load(Ordering::Acquire)
+            != 0
+        {
             return;
         }
         listener.await;
@@ -770,11 +778,19 @@ impl<B: Backend> TurboTasksBackendApi for TurboTasks<B> {
     }
 
     fn try_foreground_done(&self) -> Result<(), EventListener> {
-        if self.currently_scheduled_tasks.load(Ordering::Acquire) == 0 {
+        if self
+            .currently_scheduled_foreground_jobs
+            .load(Ordering::Acquire)
+            == 0
+        {
             return Ok(());
         }
-        let listener = self.event.listen();
-        if self.currently_scheduled_tasks.load(Ordering::Acquire) != 0 {
+        let listener = self.event_foreground.listen();
+        if self
+            .currently_scheduled_foreground_jobs
+            .load(Ordering::Acquire)
+            != 0
+        {
             return Ok(());
         }
         Err(listener)
