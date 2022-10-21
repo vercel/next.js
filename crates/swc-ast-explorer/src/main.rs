@@ -2,6 +2,7 @@ use std::{io::stdin, sync::Arc};
 
 use anyhow::Result;
 use clap::Parser;
+use owo_colors::OwoColorize;
 use regex::{NoExpand, Regex};
 use swc_core::{
     base::{config::IsModule, try_with_handler, Compiler, HandlerOpts},
@@ -53,12 +54,17 @@ fn main() -> Result<()> {
     let stripped = if args.spans {
         print
     } else {
-        let span = Regex::new(r"(?m)^\s+span: Span \{[^}]*\},\n").unwrap();
+        let span = Regex::new(r"(?m)^\s+\w+: Span \{[^}]*\},\n").unwrap();
         span.replace_all(&print, NoExpand("")).to_string()
     };
 
+    let alernate_ws = Regex::new(r" {8}").unwrap();
+    let alternating = alernate_ws.replace_all(
+        &stripped,
+        NoExpand(&format!("{}{}", "    ".on_default_color(), "    ".on_black())),
+    );
     let ws = Regex::new(r" {4}").unwrap();
-    println!("{}", ws.replace_all(&stripped, NoExpand("  ")));
+    println!("{}", ws.replace_all(&alternating, NoExpand("  ")));
 
     Ok(())
 }
