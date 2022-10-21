@@ -21,8 +21,8 @@ describe('app-dir static/dynamic handling', () => {
     next = await createNext({
       files: new FileRef(path.join(__dirname, 'app-static')),
       dependencies: {
-        react: 'latest',
-        'react-dom': 'latest',
+        react: 'experimental',
+        'react-dom': 'experimental',
       },
     })
   })
