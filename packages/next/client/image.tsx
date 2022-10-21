@@ -146,10 +146,28 @@ function getWidths(
     for (let match; (match = viewportWidthRe.exec(sizes)); match) {
       percentSizes.push(parseInt(match[2]))
     }
+
+    const pxWidthRe = /(?:^|(?:(?:[^:]\s)))(\d+)px/gm
+    const pxSizes = []
+    for (let match; (match = pxWidthRe.exec(sizes)); match) {
+      pxSizes.push(parseInt(match[1]))
+    }
+
+    const sizeFilter: number[] = []
+    if (pxSizes.length) {
+      sizeFilter.push(Math.min(...pxSizes))
+    }
+
     if (percentSizes.length) {
-      const smallestRatio = Math.min(...percentSizes) * 0.01
+      sizeFilter.push(Math.min(...percentSizes) * 0.01 * deviceSizes[0])
+    }
+
+    console.log(deviceSizes)
+
+    if (sizeFilter.length) {
       return {
-        widths: allSizes.filter((s) => s >= deviceSizes[0] * smallestRatio),
+        widths: allSizes.filter((s) => s >= Math.min(...sizeFilter)),
+        //widths: allSizes,
         kind: 'w',
       }
     }
