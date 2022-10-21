@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from '@apollo/client'
-import { graphql, useFragment } from 'lib/gql'
+import { graphql } from 'lib/gql'
 import Link from 'next/link'
 import { useState } from 'react'
 import { initializeApollo } from '../lib/apollo'
