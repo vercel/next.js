@@ -75,7 +75,7 @@ export default async function nextFontLoader(this: any) {
               path.dirname(
                 path.join(this.rootContext, relativeFilePathFromRoot)
               ),
-              src
+              src.startsWith('.') ? src : `./${src}`
             ),
           fs: this.fs,
         })
