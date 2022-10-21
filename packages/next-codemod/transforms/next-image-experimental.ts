@@ -1,5 +1,5 @@
 import { join } from 'path'
-import { readFileSync } from 'fs'
+import { readFileSync, writeFileSync } from 'fs'
 import type {
   API,
   Collection,
@@ -168,6 +168,8 @@ export default function transformer(
   if (isConfig) {
     console.log('Detected next config file')
     const root = j(file.source)
+    let pathPrefix = ''
+    let loaderType = ''
     root.find(j.ObjectExpression).forEach((o) => {
       const [images] = o.value.properties || []
       if (
@@ -177,28 +179,84 @@ export default function transformer(
         images.value.type === 'ObjectExpression' &&
         images.value.properties
       ) {
-        images.value.properties.filter((p) => {
+        const properties = images.value.properties.filter((p) => {
           if (
             p.type === 'Property' &&
             p.key.type === 'Identifier' &&
             p.key.name === 'loader' &&
             'value' in p.value
           ) {
-            if (p.value.value === 'imgix') {
-              console.log('detected imgix loader')
-              p.value.value = 'custom'
-            } else if (p.value.value === 'cloudinary') {
-              console.log('detected cloudinary loader')
-              p.value.value = 'custom'
-            } else if (p.value.value === 'akamai') {
-              console.log('detected akamai loader')
+            if (
+              p.value.value === 'imgix' ||
+              p.value.value === 'cloudinary' ||
+              p.value.value === 'akamai'
+            ) {
+              loaderType = p.value.value
               p.value.value = 'custom'
             }
           }
+          if (
+            p.type === 'Property' &&
+            p.key.type === 'Identifier' &&
+            p.key.name === 'path' &&
+            'value' in p.value
+          ) {
+            pathPrefix = String(p.value.value)
+            return false
+          }
+          return true
         })
+        if (loaderType && pathPrefix) {
+          let filename = `./${loaderType}-loader.js`
+          properties.push(
+            j.property('init', j.identifier('loaderFile'), j.literal(filename))
+          )
+          images.value.properties = properties
+          const normalizeSrc = `const normalizeSrc = (src) => src[0] === '/' ? src.slice(1) : src`
+          if (loaderType === 'imgix') {
+            writeFileSync(
+              filename,
+              `${normalizeSrc}
+            export default function imgixLoader({ src, width, quality }) {
+              const url = new URL('${pathPrefix}' + normalizeSrc(src))
+              const params = url.searchParams
+              params.set('auto', params.getAll('auto').join(',') || 'format')
+              params.set('fit', params.get('fit') || 'max')
+              params.set('w', params.get('w') || width.toString())
+              if (quality) { params.set('q', quality.toString()) }
+              return url.href
+            }`
+                .split('\n')
+                .map((l) => l.trim())
+                .join('\n')
+            )
+          } else if (loaderType === 'cloudinary') {
+            writeFileSync(
+              filename,
+              `${normalizeSrc}
+            export default function cloudinaryLoader({ src, width, quality }) {
+              const params = ['f_auto', 'c_limit', 'w_' + width, 'q_' + (quality || 'auto')]
+              const paramsString = params.join(',') + '/'
+              return '${pathPrefix}' + paramsString + normalizeSrc(src)
+            }`
+                .split('\n')
+                .map((l) => l.trim())
+                .join('\n')
+            )
+          } else if (loaderType === 'akamai') {
+            writeFileSync(
+              filename,
+              `${normalizeSrc}
+            export default function akamaiLoader({ src, width, quality }) {
+              return '${pathPrefix}' + normalizeSrc(src) + '?imwidth=' + width
+            }`
+                .split('\n')
+                .map((l) => l.trim())
+                .join('\n')
+            )
+          }
+        }
       }
-      // TODO: remove "path"
-      // TODO: write new file
     })
     return root.toSource()
   }
