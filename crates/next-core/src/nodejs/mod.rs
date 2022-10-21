@@ -79,6 +79,7 @@ async fn internal_assets(
 ) -> Result<AssetsSetVc> {
     Ok(
         separate_assets(intermediate_asset, intermediate_output_path)
+            .strongly_consistent()
             .await?
             .internal_assets,
     )
@@ -99,9 +100,12 @@ async fn external_asset_entrypoints(
             runtime_entries,
             chunking_context,
             intermediate_output_path,
-        ),
+        )
+        .resolve()
+        .await?,
         intermediate_output_path,
     )
+    .strongly_consistent()
     .await?
     .external_asset_entrypoints)
 }
@@ -244,7 +248,9 @@ async fn render_static(
         ),
         intermediate_output_path,
     );
-    let pool = renderer_pool.await?;
+    // Read this strongly consistent, since we don't want to run inconsistent
+    // node.js code.
+    let pool = renderer_pool.strongly_consistent().await?;
     let mut op = pool
         .run(serde_json::to_string(&*data.await?)?.as_bytes())
         .await?;
