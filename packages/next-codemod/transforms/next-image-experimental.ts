@@ -1,3 +1,4 @@
+import { writeFileSync } from 'fs'
 import type {
   API,
   Collection,
@@ -141,6 +142,100 @@ function findAndReplaceProps(
     })
 }
 
+function nextConfigTransformer(j: JSCodeshift, root: Collection) {
+  let pathPrefix = ''
+  let loaderType = ''
+  root.find(j.ObjectExpression).forEach((o) => {
+    const [images] = o.value.properties || []
+    if (
+      images.type === 'Property' &&
+      images.key.type === 'Identifier' &&
+      images.key.name === 'images' &&
+      images.value.type === 'ObjectExpression' &&
+      images.value.properties
+    ) {
+      const properties = images.value.properties.filter((p) => {
+        if (
+          p.type === 'Property' &&
+          p.key.type === 'Identifier' &&
+          p.key.name === 'loader' &&
+          'value' in p.value
+        ) {
+          if (
+            p.value.value === 'imgix' ||
+            p.value.value === 'cloudinary' ||
+            p.value.value === 'akamai'
+          ) {
+            loaderType = p.value.value
+            p.value.value = 'custom'
+          }
+        }
+        if (
+          p.type === 'Property' &&
+          p.key.type === 'Identifier' &&
+          p.key.name === 'path' &&
+          'value' in p.value
+        ) {
+          pathPrefix = String(p.value.value)
+          return false
+        }
+        return true
+      })
+      if (loaderType && pathPrefix) {
+        let filename = `./${loaderType}-loader.js`
+        properties.push(
+          j.property('init', j.identifier('loaderFile'), j.literal(filename))
+        )
+        images.value.properties = properties
+        const normalizeSrc = `const normalizeSrc = (src) => src[0] === '/' ? src.slice(1) : src`
+        if (loaderType === 'imgix') {
+          writeFileSync(
+            filename,
+            `${normalizeSrc}
+            export default function imgixLoader({ src, width, quality }) {
+              const url = new URL('${pathPrefix}' + normalizeSrc(src))
+              const params = url.searchParams
+              params.set('auto', params.getAll('auto').join(',') || 'format')
+              params.set('fit', params.get('fit') || 'max')
+              params.set('w', params.get('w') || width.toString())
+              if (quality) { params.set('q', quality.toString()) }
+              return url.href
+            }`
+              .split('\n')
+              .map((l) => l.trim())
+              .join('\n')
+          )
+        } else if (loaderType === 'cloudinary') {
+          writeFileSync(
+            filename,
+            `${normalizeSrc}
+            export default function cloudinaryLoader({ src, width, quality }) {
+              const params = ['f_auto', 'c_limit', 'w_' + width, 'q_' + (quality || 'auto')]
+              const paramsString = params.join(',') + '/'
+              return '${pathPrefix}' + paramsString + normalizeSrc(src)
+            }`
+              .split('\n')
+              .map((l) => l.trim())
+              .join('\n')
+          )
+        } else if (loaderType === 'akamai') {
+          writeFileSync(
+            filename,
+            `${normalizeSrc}
+            export default function akamaiLoader({ src, width, quality }) {
+              return '${pathPrefix}' + normalizeSrc(src) + '?imwidth=' + width
+            }`
+              .split('\n')
+              .map((l) => l.trim())
+              .join('\n')
+          )
+        }
+      }
+    }
+  })
+  return root
+}
+
 export default function transformer(
   file: FileInfo,
   api: API,
@@ -148,6 +243,17 @@ export default function transformer(
 ) {
   const j = api.jscodeshift
   const root = j(file.source)
+
+  const isConfig =
+    file.path === 'next.config.js' ||
+    file.path === 'next.config.ts' ||
+    file.path === 'next.config.mjs' ||
+    file.path === 'next.config.cjs'
+
+  if (isConfig) {
+    const result = nextConfigTransformer(j, root)
+    return result.toSource()
+  }
 
   // Before: import Image from "next/legacy/image"
   //  After: import Image from "next/image"

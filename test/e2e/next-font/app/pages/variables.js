@@ -3,7 +3,8 @@ import localFont from '@next/font/local'
 
 const firaCode = Fira_Code({ variable: '--fira-code' })
 const roboto = Roboto({
-  variant: '100-italic',
+  weight: '100',
+  style: 'italic',
   display: 'swap',
   preload: true,
   variable: '--roboto-100-italic',

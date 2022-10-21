@@ -94,7 +94,7 @@ async function createTreeCodeFromPath({
               }
               return `${
                 file === FILE_TYPES.layout
-                  ? `layoutOrPagePath: '${filePath}',`
+                  ? `layoutOrPagePath: ${JSON.stringify(filePath)},`
                   : ''
               }'${file}': () => require(${JSON.stringify(filePath)}),`
             })

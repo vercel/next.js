@@ -12,10 +12,6 @@ describe('app-dir root layout', () => {
     return
   }
 
-  if (process.env.NEXT_TEST_REACT_VERSION === '^17') {
-    it('should skip for react v17', () => {})
-    return
-  }
   let next: NextInstance
 
   beforeAll(async () => {
@@ -44,9 +40,9 @@ describe('app-dir root layout', () => {
 
         expect(await hasRedbox(browser, true)).toBe(true)
         expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
-          "Please make sure to include the following tags in your root layout: <html>, <head>, <body>.
+          "Please make sure to include the following tags in your root layout: <html>, <body>.
 
-          Missing required root layout tags: html, head, body"
+          Missing required root layout tags: html, body"
         `)
       })
 
@@ -58,9 +54,9 @@ describe('app-dir root layout', () => {
 
         expect(await hasRedbox(browser, true)).toBe(true)
         expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
-          "Please make sure to include the following tags in your root layout: <html>, <head>, <body>.
+          "Please make sure to include the following tags in your root layout: <html>, <body>.
 
-          Missing required root layout tags: html, head, body"
+          Missing required root layout tags: html, body"
         `)
       })
 
@@ -71,9 +67,9 @@ describe('app-dir root layout', () => {
 
         expect(await hasRedbox(browser, true)).toBe(true)
         expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
-          "Please make sure to include the following tags in your root layout: <html>, <head>, <body>.
+          "Please make sure to include the following tags in your root layout: <html>, <body>.
 
-          Missing required root layout tags: html, head, body"
+          Missing required root layout tags: html, body"
         `)
       })
     })

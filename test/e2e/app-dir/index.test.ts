@@ -21,10 +21,6 @@ describe('app dir', () => {
     return
   }
 
-  if (process.env.NEXT_TEST_REACT_VERSION === '^17') {
-    it('should skip for react v17', () => {})
-    return
-  }
   let next: NextInstance
 
   function runTests() {
@@ -913,6 +909,42 @@ describe('app dir', () => {
             await browser.close()
           }
         })
+
+        it('should support router.back and router.forward', async () => {
+          const browser = await webdriver(next.url, '/back-forward/1')
+
+          const firstMessage = 'Hello from 1'
+          const secondMessage = 'Hello from 2'
+
+          expect(await browser.elementByCss('#message-1').text()).toBe(
+            firstMessage
+          )
+
+          try {
+            const message2 = await browser
+              .waitForElementByCss('#to-other-page')
+              .click()
+              .waitForElementByCss('#message-2')
+              .text()
+            expect(message2).toBe(secondMessage)
+
+            const message1 = await browser
+              .waitForElementByCss('#back-button')
+              .click()
+              .waitForElementByCss('#message-1')
+              .text()
+            expect(message1).toBe(firstMessage)
+
+            const message2Again = await browser
+              .waitForElementByCss('#forward-button')
+              .click()
+              .waitForElementByCss('#message-2')
+              .text()
+            expect(message2Again).toBe(secondMessage)
+          } finally {
+            await browser.close()
+          }
+        })
       })
 
       describe('hooks', () => {
@@ -1192,6 +1224,37 @@ describe('app dir', () => {
             const el = $('#params-and-query')
             expect(el.attr('data-params')).toBe('params')
             expect(el.attr('data-query')).toBe('query')
+          })
+        })
+
+        describe('useSelectedLayoutSegment', () => {
+          it.each`
+            path                                                           | outerLayout                                             | innerLayout
+            ${'/hooks/use-selected-layout-segment/first'}                  | ${['first']}                                            | ${[]}
+            ${'/hooks/use-selected-layout-segment/first/slug1'}            | ${['first', 'slug1']}                                   | ${['slug1']}
+            ${'/hooks/use-selected-layout-segment/first/slug2/second'}     | ${['first', 'slug2', '(group)', 'second']}              | ${['slug2', '(group)', 'second']}
+            ${'/hooks/use-selected-layout-segment/first/slug2/second/a/b'} | ${['first', 'slug2', '(group)', 'second', 'a/b']}       | ${['slug2', '(group)', 'second', 'a/b']}
+            ${'/hooks/use-selected-layout-segment/rewritten'}              | ${['first', 'slug3', '(group)', 'second', 'catch/all']} | ${['slug3', '(group)', 'second', 'catch/all']}
+            ${'/hooks/use-selected-layout-segment/rewritten-middleware'}   | ${['first', 'slug3', '(group)', 'second', 'catch/all']} | ${['slug3', '(group)', 'second', 'catch/all']}
+          `(
+            'should have the correct layout segments at $path',
+            async ({ path, outerLayout, innerLayout }) => {
+              const html = await renderViaHTTP(next.url, path)
+              const $ = cheerio.load(html)
+
+              expect(JSON.parse($('#outer-layout').text())).toEqual(outerLayout)
+              expect(JSON.parse($('#inner-layout').text())).toEqual(innerLayout)
+            }
+          )
+
+          it('should return an empty array in pages', async () => {
+            const html = await renderViaHTTP(
+              next.url,
+              '/hooks/use-selected-layout-segment/first/slug2/second/a/b'
+            )
+            const $ = cheerio.load(html)
+
+            expect(JSON.parse($('#page-layout-segments').text())).toEqual([])
           })
         })
       })

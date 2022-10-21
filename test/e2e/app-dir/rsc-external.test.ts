@@ -84,6 +84,11 @@ describe('app dir - rsc external dependency', () => {
     )
   })
 
+  it('should transpile specific external packages with the `transpilePackages` option', async () => {
+    const clientHtml = await renderViaHTTP(next.url, '/external-imports/client')
+    expect(clientHtml).toContain('transpilePackages:5')
+  })
+
   it('should resolve the subset react in server components based on the react-server condition', async () => {
     await fetchViaHTTP(next.url, '/react-server').then(async (response) => {
       const result = await resolveStreamResponse(response)

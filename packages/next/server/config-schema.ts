@@ -348,6 +348,12 @@ const configSchema = {
           },
           type: 'array',
         },
+        transpilePackages: {
+          items: {
+            type: 'string',
+          },
+          type: 'array',
+        },
         scrollRestoration: {
           type: 'boolean',
         },
@@ -577,6 +583,10 @@ const configSchema = {
         loader: {
           // automatic typing does not like enum
           enum: VALID_LOADERS as any,
+          type: 'string',
+        },
+        loaderFile: {
+          minLength: 1,
           type: 'string',
         },
         minimumCacheTTL: {
