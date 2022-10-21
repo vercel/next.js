@@ -14,6 +14,7 @@ use chromiumoxide::{
     Browser, Page,
 };
 use futures::{FutureExt, StreamExt};
+use owo_colors::OwoColorize;
 use tokio::task::spawn_blocking;
 use url::Url;
 
@@ -181,12 +182,20 @@ fn stop_process(proc: &mut Child) -> Result<()> {
                 std::thread::sleep(KILL_DEADLINE / KILL_DEADLINE_CHECK_STEPS);
             }
             if let Ok(None) = proc.try_wait() {
-                eprintln!("Process {} did not exit after SIGINT, sending SIGKILL", pid);
+                eprintln!(
+                    "{event_type} - process {pid} did not exit after SIGINT, sending SIGKILL",
+                    event_type = "error".red(),
+                    pid = pid
+                );
                 kill_process(proc)?;
             }
         }
         Err(_) => {
-            eprintln!("Failed to send SIGINT to process {}, sending SIGKILL", pid);
+            eprintln!(
+                "{event_type} - failed to send SIGINT to process {pid}, sending SIGKILL",
+                event_type = "error".red(),
+                pid = pid
+            );
             kill_process(proc)?;
         }
     }
