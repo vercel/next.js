@@ -325,7 +325,7 @@ fn bench_startup_cached_internal(mut g: BenchmarkGroup<WallTime>, hydration: boo
                             |mut app| async {
                                 app.start_server()?;
                                 let mut guard = app.with_page(browser).await?;
-                                if hydration {
+                                if wait_for_hydration {
                                     guard.wait_for_hydration().await?;
                                 }
 
