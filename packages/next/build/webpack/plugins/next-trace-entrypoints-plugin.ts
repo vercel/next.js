@@ -648,6 +648,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
             },
             undefined,
             null,
+            this.appDirEnabled,
             undefined,
             ESM_RESOLVE_OPTIONS,
             CJS_RESOLVE_OPTIONS,

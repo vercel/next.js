@@ -435,7 +435,7 @@ export const nextImageLoaderRegex =
   /\.(png|jpg|jpeg|gif|webp|avif|ico|bmp|svg)$/i
 
 export async function resolveExternal(
-  appDir: string,
+  rootDir: string,
   esmExternalsConfig: NextConfigComplete['experimental']['esmExternals'],
   context: string,
   request: string,
@@ -448,6 +448,7 @@ export async function resolveExternal(
   ) => Promise<[string | null, boolean]>,
   isLocalCallback?: (res: string) => any,
   layer: string | null = null,
+  hasAppDir: boolean = false,
   baseResolveCheck = true,
   esmResolveOptions: any = NODE_ESM_RESOLVE_OPTIONS,
   nodeResolveOptions: any = NODE_RESOLVE_OPTIONS,
@@ -465,7 +466,7 @@ export async function resolveExternal(
 
   // TODO-APP: temporarily disabled esm resolving for appDir until
   // react, react-dom are properly bundled for SSR client layer
-  if (appDir && layer == null) preferEsmOptions = [false]
+  if (hasAppDir && layer == null) preferEsmOptions = [false]
 
   for (const preferEsm of preferEsmOptions) {
     const resolve = getResolve(
@@ -506,7 +507,7 @@ export async function resolveExternal(
         const baseResolve = getResolve(
           isEsm ? baseEsmResolveOptions : baseResolveOptions
         )
-        ;[baseRes, baseIsEsm] = await baseResolve(appDir, request)
+        ;[baseRes, baseIsEsm] = await baseResolve(rootDir, request)
       } catch (err) {
         baseRes = null
         baseIsEsm = false
@@ -1128,7 +1129,8 @@ export default async function getBaseWebpackConfig(
       isEsmRequested,
       getResolve,
       isLocal ? isLocalCallback : undefined,
-      layer
+      layer,
+      hasAppDir
     )
 
     if ('localRes' in resolveResult) {
