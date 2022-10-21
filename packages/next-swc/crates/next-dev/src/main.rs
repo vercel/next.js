@@ -36,7 +36,7 @@ struct Cli {
     port: u16,
 
     /// Hostname on which to start the application
-    #[clap(short = 'H', long, value_parser, default_value = "127.0.0.1")]
+    #[clap(short = 'H', long, value_parser, default_value = "0.0.0.0")]
     hostname: IpAddr,
 
     /// Compile all, instead of only compiling referenced assets when their
@@ -108,13 +108,14 @@ async fn main() -> Result<()> {
         .await?;
 
     {
-        let index_uri = if server.addr.ip().is_loopback() {
+        let index_uri = if server.addr.ip().is_loopback() || server.addr.ip().is_unspecified() {
             format!("http://localhost:{}", server.addr.port())
         } else {
             format!("http://{}", server.addr)
         };
         println!(
-            "started server on 0.0.0.0:{}, url: {}",
+            "started server on {}:{}, url: {}",
+            server.addr.ip(),
             server.addr.port(),
             index_uri
         );
