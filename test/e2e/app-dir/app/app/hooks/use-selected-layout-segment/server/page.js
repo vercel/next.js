@@ -1,4 +1,3 @@
-'use client'
 // TODO-APP: enable once test is not skipped.
 // import { useSelectedLayoutSegment } from 'next/navigation'
 

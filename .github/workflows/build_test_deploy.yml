@@ -243,7 +243,7 @@ jobs:
     name: Test Development
     runs-on: ubuntu-latest
     needs: [build, build-native-test]
-    timeout-minutes: 30
+    timeout-minutes: 35
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
@@ -396,7 +396,7 @@ jobs:
     name: Test Development (E2E)
     runs-on: ubuntu-latest
     needs: [build, build-native-test]
-    timeout-minutes: 30
+    timeout-minutes: 35
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
@@ -686,7 +686,7 @@ jobs:
     name: Test Production (E2E)
     runs-on: ubuntu-latest
     needs: [build, build-native-test]
-    timeout-minutes: 30
+    timeout-minutes: 35
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
@@ -823,7 +823,7 @@ jobs:
     name: Test Integration
     runs-on: ubuntu-latest
     needs: [build, build-native-test]
-    timeout-minutes: 30
+    timeout-minutes: 35
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
