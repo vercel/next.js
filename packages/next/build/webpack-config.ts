@@ -574,11 +574,7 @@ export default async function getBaseWebpackConfig(
   // Only error in first one compiler (client) once
   if (isClient) {
     if (!hasReactRoot) {
-      if (config.experimental.runtime) {
-        throw new Error(
-          '`experimental.runtime` requires React 18 to be installed.'
-        )
-      }
+      throw new Error('Next.js requires React 18.2.0 to be installed.')
     }
   }
 
