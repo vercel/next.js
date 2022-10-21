@@ -695,19 +695,17 @@ pub async fn resolve(
         }
         Request::Uri {
             protocol: _,
-            remainer,
+            remainder: _,
         } => {
-            if remainer.ends_with("css") {
-                let issue: ResolvingIssueVc = ResolvingIssue {
-                    request_type: "CSS URI imports: not implemented yet".to_string(),
-                    request,
-                    context,
-                    resolve_options: options,
-                    error_message: Some("CSS URI imports are not implemented yet".to_string()),
-                }
-                .into();
-                issue.as_issue().emit();
+            let issue: ResolvingIssueVc = ResolvingIssue {
+                request_type: "URI imports: not implemented yet".to_string(),
+                request,
+                context,
+                resolve_options: options,
+                error_message: Some("URI imports are not implemented yet".to_string()),
             }
+            .into();
+            issue.as_issue().emit();
             ResolveResult::unresolveable().into()
         }
         Request::Unknown { path } => {

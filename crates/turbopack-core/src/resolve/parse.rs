@@ -32,7 +32,7 @@ pub enum Request {
     },
     Uri {
         protocol: String,
-        remainer: String,
+        remainder: String,
     },
     Unknown {
         path: Pattern,
@@ -68,7 +68,10 @@ impl Request {
             Request::PackageInternal {
                 path: Pattern::Constant(path),
             } => path.to_string(),
-            Request::Uri { protocol, remainer } => format!("{protocol}{remainer}"),
+            Request::Uri {
+                protocol,
+                remainder,
+            } => format!("{protocol}{remainder}"),
             Request::Unknown {
                 path: Pattern::Constant(path),
             } => path.to_string(),
@@ -104,11 +107,11 @@ impl Request {
                         return Request::Windows { path: request };
                     }
                     if let Some(caps) = URI_PATH.captures(r) {
-                        if let (Some(protocol), Some(remainer)) = (caps.get(1), caps.get(2)) {
+                        if let (Some(protocol), Some(remainder)) = (caps.get(1), caps.get(2)) {
                             // TODO data uri
                             return Request::Uri {
                                 protocol: protocol.as_str().to_string(),
-                                remainer: remainer.as_str().to_string(),
+                                remainder: remainder.as_str().to_string(),
                             };
                         }
                     }
@@ -246,7 +249,10 @@ impl ValueToString for Request {
             Request::Windows { path } => format!("windows {path}"),
             Request::Empty => "empty".to_string(),
             Request::PackageInternal { path } => format!("package internal {path}"),
-            Request::Uri { protocol, remainer } => format!("uri \"{protocol}\" \"{remainer}\""),
+            Request::Uri {
+                protocol,
+                remainder,
+            } => format!("uri \"{protocol}\" \"{remainder}\""),
             Request::Unknown { path } => format!("unknown {path}"),
             Request::Dynamic => "dynamic".to_string(),
             Request::Alternatives { requests } => requests
