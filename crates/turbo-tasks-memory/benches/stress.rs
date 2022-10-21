@@ -6,6 +6,13 @@ use turbo_tasks_memory::MemoryBackend;
 use super::register;
 
 pub fn fibonacci(c: &mut Criterion) {
+    if matches!(
+        std::env::var("TURBOPACK_BENCH_STRESS").ok().as_deref(),
+        None | Some("") | Some("no") | Some("false")
+    ) {
+        return;
+    }
+
     register();
 
     let mut group = c.benchmark_group("turbo_tasks_memory_stress");
