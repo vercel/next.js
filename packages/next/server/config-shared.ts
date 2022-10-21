@@ -162,7 +162,7 @@ export interface ExperimentalConfig {
   // A list of packages that should always be transpiled and bundled in the server
   transpilePackages?: string[]
 
-  fontLoaders?: [{ loader: string; options?: any }]
+  fontLoaders?: Array<{ loader: string; options?: any }>
 
   webVitalsAttribution?: Array<typeof WEB_VITALS[number]>
 }
