@@ -61,7 +61,11 @@ fn main() -> Result<()> {
     let alernate_ws = Regex::new(r" {8}").unwrap();
     let alternating = alernate_ws.replace_all(
         &stripped,
-        NoExpand(&format!("{}{}", "    ".on_default_color(), "    ".on_black())),
+        NoExpand(&format!(
+            "{}{}",
+            "    ".on_default_color(),
+            "    ".on_black()
+        )),
     );
     let ws = Regex::new(r" {4}").unwrap();
     println!("{}", ws.replace_all(&alternating, NoExpand("  ")));
