@@ -6,7 +6,7 @@ use std::{
 use anyhow::{anyhow, Context, Result};
 use swc_core::ecma::preset_env::{Version, Versions};
 use turbo_tasks::{
-    primitives::{BoolVc, StringVc, StringsVc},
+    primitives::{BoolVc, OptionStringVc, StringVc, StringsVc},
     Value,
 };
 use turbo_tasks_env::ProcessEnvVc;
@@ -74,7 +74,7 @@ impl EnvironmentVc {
     pub async fn compile_target(self) -> Result<CompileTargetVc> {
         let this = self.await?;
         Ok(match this.execution {
-            ExecutionEnvironment::NodeJsBuildTime(node_env)
+            ExecutionEnvironment::NodeJsBuildTime(node_env, ..)
             | ExecutionEnvironment::NodeJsLambda(node_env) => node_env.await?.compile_target,
             ExecutionEnvironment::Browser(_) => CompileTargetVc::unknown(),
             ExecutionEnvironment::EdgeFunction(_) => todo!(),
@@ -86,7 +86,7 @@ impl EnvironmentVc {
     pub async fn runtime_versions(self) -> Result<RuntimeVersionsVc> {
         let this = self.await?;
         Ok(match this.execution {
-            ExecutionEnvironment::NodeJsBuildTime(node_env)
+            ExecutionEnvironment::NodeJsBuildTime(node_env, ..)
             | ExecutionEnvironment::NodeJsLambda(node_env) => node_env.runtime_versions(),
             ExecutionEnvironment::Browser(browser_env) => {
                 RuntimeVersionsVc::cell(Versions::parse_versions(browserslist::resolve(
@@ -103,7 +103,7 @@ impl EnvironmentVc {
     pub async fn node_externals(self) -> Result<BoolVc> {
         let this = self.await?;
         Ok(match this.execution {
-            ExecutionEnvironment::NodeJsBuildTime(_) | ExecutionEnvironment::NodeJsLambda(_) => {
+            ExecutionEnvironment::NodeJsBuildTime(..) | ExecutionEnvironment::NodeJsLambda(_) => {
                 BoolVc::cell(true)
             }
             ExecutionEnvironment::Browser(_) => BoolVc::cell(false),
@@ -116,7 +116,7 @@ impl EnvironmentVc {
     pub async fn resolve_extensions(self) -> Result<StringsVc> {
         let env = self.await?;
         Ok(match env.execution {
-            ExecutionEnvironment::NodeJsBuildTime(_) | ExecutionEnvironment::NodeJsLambda(_) => {
+            ExecutionEnvironment::NodeJsBuildTime(..) | ExecutionEnvironment::NodeJsLambda(_) => {
                 StringsVc::cell(vec![
                     ".js".to_string(),
                     ".node".to_string(),
@@ -134,7 +134,7 @@ impl EnvironmentVc {
     pub async fn resolve_node_modules(self) -> Result<BoolVc> {
         let env = self.await?;
         Ok(match env.execution {
-            ExecutionEnvironment::NodeJsBuildTime(_) | ExecutionEnvironment::NodeJsLambda(_) => {
+            ExecutionEnvironment::NodeJsBuildTime(..) | ExecutionEnvironment::NodeJsLambda(_) => {
                 BoolVc::cell(true)
             }
             ExecutionEnvironment::EdgeFunction(_) | ExecutionEnvironment::Browser(_) => {
@@ -148,13 +148,23 @@ impl EnvironmentVc {
     pub async fn resolve_conditions(self) -> Result<StringsVc> {
         let env = self.await?;
         Ok(match env.execution {
-            ExecutionEnvironment::NodeJsBuildTime(_) | ExecutionEnvironment::NodeJsLambda(_) => {
+            ExecutionEnvironment::NodeJsBuildTime(..) | ExecutionEnvironment::NodeJsLambda(_) => {
                 StringsVc::cell(vec!["node".to_string()])
             }
             ExecutionEnvironment::EdgeFunction(_) | ExecutionEnvironment::Browser(_) => {
                 StringsVc::empty()
             }
             ExecutionEnvironment::Custom(_) => todo!(),
+        })
+    }
+
+    #[turbo_tasks::function]
+    pub async fn cwd(self) -> Result<OptionStringVc> {
+        let env = self.await?;
+        Ok(match env.execution {
+            ExecutionEnvironment::NodeJsBuildTime(env)
+            | ExecutionEnvironment::NodeJsLambda(env) => env.await?.cwd,
+            _ => unreachable!(),
         })
     }
 }
@@ -167,14 +177,16 @@ pub enum NodeEnvironmentType {
 pub struct NodeJsEnvironment {
     pub compile_target: CompileTargetVc,
     pub node_version: NodeJsVersionVc,
+    // user specified process.cwd
+    pub cwd: OptionStringVc,
 }
 
 impl Default for NodeJsEnvironment {
     fn default() -> Self {
-        Self {
+        NodeJsEnvironment {
             compile_target: CompileTargetVc::current(),
-            node_version: NodeJsVersion::Static(StringVc::cell(DEFAULT_NODEJS_VERSION.to_owned()))
-                .into(),
+            node_version: NodeJsVersionVc::default(),
+            cwd: OptionStringVc::cell(None),
         }
     }
 }
@@ -208,6 +220,7 @@ impl NodeJsEnvironmentVc {
         Self::cell(NodeJsEnvironment {
             compile_target: CompileTargetVc::current(),
             node_version: NodeJsVersionVc::cell(NodeJsVersion::Current(process_env)),
+            cwd: OptionStringVc::cell(None),
         })
     }
 }
@@ -216,6 +229,12 @@ impl NodeJsEnvironmentVc {
 pub enum NodeJsVersion {
     Current(ProcessEnvVc),
     Static(StringVc),
+}
+
+impl Default for NodeJsVersionVc {
+    fn default() -> Self {
+        NodeJsVersion::Static(StringVc::cell(DEFAULT_NODEJS_VERSION.to_owned())).cell()
+    }
 }
 
 #[turbo_tasks::value(shared)]

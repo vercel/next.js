@@ -830,23 +830,27 @@ impl JsValue {
                         "Object",
                         "The global Object variable",
                     ),
-                    WellKnownObjectKind::PathModule => (
+                    WellKnownObjectKind::PathModule | WellKnownObjectKind::PathModuleDefault => (
                         "path",
                         "The Node.js path module: https://nodejs.org/api/path.html",
                     ),
-                    WellKnownObjectKind::FsModule => (
+                    WellKnownObjectKind::FsModule | WellKnownObjectKind::FsModuleDefault => (
                         "fs",
                         "The Node.js fs module: https://nodejs.org/api/fs.html",
                     ),
-                    WellKnownObjectKind::UrlModule => (
+                    WellKnownObjectKind::FsModulePromises => (
+                        "fs/promises",
+                        "The Node.js fs module: https://nodejs.org/api/fs.html#promises-api",
+                    ),
+                    WellKnownObjectKind::UrlModule | WellKnownObjectKind::UrlModuleDefault => (
                         "url",
                         "The Node.js url module: https://nodejs.org/api/url.html",
                     ),
-                    WellKnownObjectKind::ChildProcess => (
+                    WellKnownObjectKind::ChildProcess | WellKnownObjectKind::ChildProcessDefault => (
                         "child_process",
                         "The Node.js child_process module: https://nodejs.org/api/child_process.html",
                     ),
-                    WellKnownObjectKind::OsModule => (
+                    WellKnownObjectKind::OsModule | WellKnownObjectKind::OsModuleDefault => (
                         "os",
                         "The Node.js os module: https://nodejs.org/api/os.html",
                     ),
@@ -931,6 +935,10 @@ impl JsValue {
                     WellKnownFunctionKind::OsEndianness => (
                         "os.endianness".to_string(),
                         "The Node.js os.endianness method: https://nodejs.org/api/os.html#os_os_endianness",
+                    ),
+                    WellKnownFunctionKind::ProcessCwd => (
+                        "process.cwd".to_string(),
+                        "The Node.js process.cwd method: https://nodejs.org/api/process.html#processcwd",
                     ),
                     WellKnownFunctionKind::NodePreGypFind => (
                         "find".to_string(),
@@ -1855,10 +1863,16 @@ pub enum FreeVarKind {
 pub enum WellKnownObjectKind {
     GlobalObject,
     PathModule,
+    PathModuleDefault,
     FsModule,
+    FsModuleDefault,
+    FsModulePromises,
     UrlModule,
+    UrlModuleDefault,
     ChildProcess,
+    ChildProcessDefault,
     OsModule,
+    OsModuleDefault,
     NodeProcess,
     NodePreGyp,
     NodeExpressApp,
@@ -1884,6 +1898,7 @@ pub enum WellKnownFunctionKind {
     OsArch,
     OsPlatform,
     OsEndianness,
+    ProcessCwd,
     NodePreGypFind,
     NodeGypBuild,
     NodeBindings,

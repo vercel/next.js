@@ -17,9 +17,12 @@ use anyhow::{anyhow, Context, Result};
 use clap::Parser;
 #[cfg(feature = "node-api")]
 use serde::{Deserialize, Serialize};
+use tokio::sync::mpsc::channel;
 use turbo_tasks::{
-    backend::Backend, primitives::StringsVc, util::FormatDuration, NothingVc, TaskId,
-    TransientInstance, TransientValue, TurboTasks, Value,
+    backend::Backend,
+    primitives::{OptionStringVc, StringsVc},
+    util::FormatDuration,
+    NothingVc, TaskId, TransientInstance, TransientValue, TurboTasks, Value,
 };
 use turbo_tasks_fs::{
     glob::GlobVc, DirectoryEntry, DiskFileSystemVc, FileSystemVc, ReadGlobResultVc,
@@ -34,7 +37,7 @@ use turbopack::{
 };
 use turbopack_cli_utils::issue::{ConsoleUi, IssueSeverityCliOption, LogOptions};
 use turbopack_core::{
-    asset::{AssetVc, AssetsVc},
+    asset::{Asset, AssetVc, AssetsVc},
     context::AssetContextVc,
     environment::{EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
     issue::{IssueSeverity, IssueVc},
@@ -46,7 +49,11 @@ use crate::nft_json::NftJsonAssetVc;
 
 #[cfg(feature = "persistent_cache")]
 #[cfg_attr(feature = "cli", derive(clap::Args))]
-#[cfg_attr(feature = "node-api", derive(Serialize, Deserialize))]
+#[cfg_attr(
+    feature = "node-api",
+    derive(Serialize, Deserialize),
+    serde(rename_all = "camelCase")
+)]
 #[derive(Debug, Clone)]
 struct CacheArgs {
     #[clap(long)]
@@ -58,12 +65,20 @@ struct CacheArgs {
 
 #[cfg(not(feature = "persistent_cache"))]
 #[cfg_attr(feature = "cli", derive(clap::Args))]
-#[cfg_attr(feature = "node-api", derive(Serialize, Deserialize))]
+#[cfg_attr(
+    feature = "node-api",
+    derive(Serialize, Deserialize),
+    serde(rename_all = "camelCase")
+)]
 #[derive(Debug, Clone, Default)]
 pub struct CacheArgs {}
 
 #[cfg_attr(feature = "cli", derive(clap::Args))]
-#[cfg_attr(feature = "node-api", derive(Serialize, Deserialize))]
+#[cfg_attr(
+    feature = "node-api",
+    derive(Serialize, Deserialize),
+    serde(rename_all = "camelCase")
+)]
 #[derive(Debug, Clone)]
 pub struct CommonArgs {
     input: Vec<String>,
@@ -71,6 +86,10 @@ pub struct CommonArgs {
     #[cfg_attr(feature = "cli", clap(short, long))]
     #[cfg_attr(feature = "node-api", serde(default))]
     context_directory: Option<String>,
+
+    #[cfg_attr(feature = "cli", clap(long))]
+    #[cfg_attr(feature = "node-api", serde(default))]
+    process_cwd: Option<String>,
 
     #[cfg_attr(feature = "cli", clap(flatten))]
     #[cfg_attr(feature = "node-api", serde(default))]
@@ -106,13 +125,14 @@ pub struct CommonArgs {
     exact: bool,
 }
 
-#[cfg_attr(feature = "cli", derive(Parser, Debug))]
+#[cfg_attr(feature = "cli", derive(Parser))]
 #[cfg_attr(feature = "cli", clap(author, version, about, long_about = None))]
 #[cfg_attr(
     feature = "node-api",
     derive(Serialize, Deserialize),
-    serde(tag = "action")
+    serde(tag = "action", rename_all = "camelCase")
 )]
+#[derive(Debug)]
 pub enum Args {
     // Print all files that the input files reference
     Print {
@@ -203,12 +223,17 @@ async fn add_glob_results(
 async fn input_to_modules<'a>(
     fs: FileSystemVc,
     input: Vec<String>,
+    process_cwd: Option<String>,
     exact: bool,
 ) -> Result<AssetsVc> {
     let root = fs.root();
     let env = EnvironmentVc::new(
         Value::new(ExecutionEnvironment::NodeJsLambda(
-            NodeJsEnvironment::default().into(),
+            NodeJsEnvironment {
+                cwd: OptionStringVc::cell(process_cwd),
+                ..Default::default()
+            }
+            .into(),
         )),
         Value::new(EnvironmentIntention::Api),
     );
@@ -275,7 +300,7 @@ fn process_input(dir: &Path, context: &str, input: &[String]) -> Result<Vec<Stri
         .collect()
 }
 
-pub async fn start(args: Arc<Args>) -> Result<()> {
+pub async fn start(args: Arc<Args>) -> Result<Vec<String>> {
     register();
     let &CommonArgs {
         visualize_graph,
@@ -363,7 +388,7 @@ async fn run<B: Backend + 'static, F: Future<Output = ()>>(
     args: Arc<Args>,
     create_tt: impl Fn() -> Arc<TurboTasks<B>>,
     final_finish: impl FnOnce(Arc<TurboTasks<B>>, TaskId, Duration) -> F,
-) -> Result<()> {
+) -> Result<Vec<String>> {
     let &CommonArgs {
         watch,
         show_all,
@@ -406,7 +431,9 @@ async fn run<B: Backend + 'static, F: Future<Output = ()>>(
             result
         }
     };
-
+    let has_return_value =
+        matches!(&*args, Args::Annotate { .. }) || matches!(&*args, Args::Print { .. });
+    let (sender, mut receiver) = channel(1);
     let dir = current_dir().unwrap();
     let tt = create_tt();
     let console_ui = Arc::new(ConsoleUi::new(LogOptions {
@@ -419,6 +446,7 @@ async fn run<B: Backend + 'static, F: Future<Output = ()>>(
         let dir = dir.clone();
         let args = args.clone();
         let console_ui = console_ui.clone();
+        let sender = sender.clone();
         Box::pin(async move {
             let output = main_operation(TransientValue::new(dir.clone()), args.clone().into());
 
@@ -427,14 +455,22 @@ async fn run<B: Backend + 'static, F: Future<Output = ()>>(
                 .group_and_display_issues(TransientValue::new(output.into()))
                 .await?;
 
-            for line in output.await?.iter() {
-                println!("{line}");
+            if has_return_value {
+                let output_read_ref = output.await?;
+                let output_iter = output_read_ref.iter().cloned();
+                sender.send(output_iter.collect::<Vec<String>>()).await?;
+                drop(sender);
             }
             Ok(NothingVc::new().into())
         })
     });
     finish(tt, task).await?;
-    Ok(())
+    let output = if has_return_value {
+        receiver.try_recv()?
+    } else {
+        Vec::new()
+    };
+    Ok(output)
 }
 
 #[turbo_tasks::function]
@@ -449,16 +485,19 @@ async fn main_operation(
         watch,
         exact,
         ref context_directory,
+        ref process_cwd,
         ..
     } = args.common();
-
+    let context = process_context(&dir, context_directory.as_ref()).unwrap();
+    let process_cwd = process_cwd
+        .clone()
+        .map(|p| p.trim_start_matches(&context).to_owned());
     match *args {
         Args::Print { common: _ } => {
-            let context = process_context(&dir, context_directory.as_ref()).unwrap();
             let input = process_input(&dir, &context, input).unwrap();
             let mut result = BTreeSet::new();
             let fs = create_fs("context directory", &context, watch).await?;
-            let modules = input_to_modules(fs, input, exact).await?;
+            let modules = input_to_modules(fs, input, process_cwd, exact).await?;
             for module in modules.iter() {
                 let set = all_assets(*module);
                 IssueVc::attach_context(module.path(), "gathering list of assets".to_string(), set)
@@ -472,26 +511,34 @@ async fn main_operation(
             return Ok(StringsVc::cell(result.into_iter().collect::<Vec<_>>()));
         }
         Args::Annotate { common: _ } => {
-            let context = process_context(&dir, context_directory.as_ref()).unwrap();
             let input = process_input(&dir, &context, input).unwrap();
             let fs = create_fs("context directory", &context, watch).await?;
-            for module in input_to_modules(fs, input, exact).await?.iter() {
-                let nft_asset = NftJsonAssetVc::new(*module).into();
-                emit(nft_asset)
+            let mut output_nft_assets = Vec::new();
+            for module in input_to_modules(fs, input, process_cwd, exact)
+                .await?
+                .iter()
+            {
+                let nft_asset = NftJsonAssetVc::new(*module);
+                let path = nft_asset.path().await?.path.clone();
+                output_nft_assets.push(path);
+                emit(nft_asset.into())
             }
+            return Ok(StringsVc::cell(output_nft_assets));
         }
         Args::Build {
             ref output_directory,
             common: _,
         } => {
-            let context = process_context(&dir, context_directory.as_ref()).unwrap();
             let output = process_context(&dir, Some(output_directory)).unwrap();
             let input = process_input(&dir, &context, input).unwrap();
             let fs = create_fs("context directory", &context, watch).await?;
             let out_fs = create_fs("output directory", &output, watch).await?;
             let input_dir = fs.root();
             let output_dir = out_fs.root();
-            for module in input_to_modules(fs, input, exact).await?.iter() {
+            for module in input_to_modules(fs, input, process_cwd, exact)
+                .await?
+                .iter()
+            {
                 let rebased = RebasedAssetVc::new(*module, input_dir, output_dir).into();
                 emit(rebased);
             }

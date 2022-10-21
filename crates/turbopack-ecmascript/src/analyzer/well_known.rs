@@ -68,6 +68,19 @@ pub async fn well_known_function_call(
         WellKnownFunctionKind::OsPlatform => {
             environment.compile_target().await?.platform.as_str().into()
         }
+        WellKnownFunctionKind::ProcessCwd => {
+            if let Some(cwd) = &*environment.cwd().await? {
+                cwd.clone().into()
+            } else {
+                JsValue::Unknown(
+                    Some(Arc::new(JsValue::call(
+                        box JsValue::WellKnownFunction(WellKnownFunctionKind::ProcessCwd),
+                        args,
+                    ))),
+                    "process.cwd is not specified in the environment",
+                )
+            }
+        }
         WellKnownFunctionKind::OsEndianness => environment
             .compile_target()
             .await?
@@ -373,11 +386,21 @@ pub async fn well_known_object_member(
 ) -> Result<JsValue> {
     Ok(match kind {
         WellKnownObjectKind::GlobalObject => global_object(prop),
-        WellKnownObjectKind::PathModule => path_module_member(prop),
-        WellKnownObjectKind::FsModule => fs_module_member(prop),
-        WellKnownObjectKind::UrlModule => url_module_member(prop),
-        WellKnownObjectKind::ChildProcess => child_process_module_member(prop),
-        WellKnownObjectKind::OsModule => os_module_member(prop),
+        WellKnownObjectKind::PathModule | WellKnownObjectKind::PathModuleDefault => {
+            path_module_member(kind, prop)
+        }
+        WellKnownObjectKind::FsModule | WellKnownObjectKind::FsModuleDefault => {
+            fs_module_member(kind, prop)
+        }
+        WellKnownObjectKind::UrlModule | WellKnownObjectKind::UrlModuleDefault => {
+            url_module_member(kind, prop)
+        }
+        WellKnownObjectKind::ChildProcess | WellKnownObjectKind::ChildProcessDefault => {
+            child_process_module_member(kind, prop)
+        }
+        WellKnownObjectKind::OsModule | WellKnownObjectKind::OsModuleDefault => {
+            os_module_member(kind, prop)
+        }
         WellKnownObjectKind::NodeProcess => node_process_member(prop, environment).await?,
         WellKnownObjectKind::NodePreGyp => node_pre_gyp(prop),
         WellKnownObjectKind::NodeExpressApp => express(prop),
@@ -406,13 +429,16 @@ fn global_object(prop: JsValue) -> JsValue {
     }
 }
 
-pub fn path_module_member(prop: JsValue) -> JsValue {
-    match prop.as_str() {
-        Some("join") => JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin),
-        Some("dirname") => JsValue::WellKnownFunction(WellKnownFunctionKind::PathDirname),
-        Some("resolve") => {
+pub fn path_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
+    match (kind, prop.as_str()) {
+        (.., Some("join")) => JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin),
+        (.., Some("dirname")) => JsValue::WellKnownFunction(WellKnownFunctionKind::PathDirname),
+        (.., Some("resolve")) => {
             // cwd is added while resolving in refernces.rs
             JsValue::WellKnownFunction(WellKnownFunctionKind::PathResolve(box JsValue::from("")))
+        }
+        (WellKnownObjectKind::PathModule, Some("default")) => {
+            JsValue::WellKnownObject(WellKnownObjectKind::PathModuleDefault)
         }
         _ => JsValue::Unknown(
             Some(Arc::new(JsValue::member(
@@ -424,16 +450,24 @@ pub fn path_module_member(prop: JsValue) -> JsValue {
     }
 }
 
-pub fn fs_module_member(prop: JsValue) -> JsValue {
+pub fn fs_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
     if let Some(word) = prop.as_str() {
-        match word {
-            "realpath" | "realpathSync" | "stat" | "statSync" | "existsSync"
-            | "createReadStream" | "exists" | "open" | "openSync" | "readFile" | "readFileSync" => {
+        match (kind, word) {
+            (
+                ..,
+                "realpath" | "realpathSync" | "stat" | "statSync" | "existsSync"
+                | "createReadStream" | "exists" | "open" | "openSync" | "readFile" | "readFileSync",
+            ) => {
                 return JsValue::WellKnownFunction(WellKnownFunctionKind::FsReadMethod(
                     word.into(),
                 ));
             }
-            "promises" => return JsValue::WellKnownObject(WellKnownObjectKind::FsModule),
+            (WellKnownObjectKind::FsModule | WellKnownObjectKind::FsModuleDefault, "promises") => {
+                return JsValue::WellKnownObject(WellKnownObjectKind::FsModulePromises)
+            }
+            (WellKnownObjectKind::FsModule, "default") => {
+                return JsValue::WellKnownObject(WellKnownObjectKind::FsModuleDefault)
+            }
             _ => {}
         }
     }
@@ -446,9 +480,14 @@ pub fn fs_module_member(prop: JsValue) -> JsValue {
     )
 }
 
-pub fn url_module_member(prop: JsValue) -> JsValue {
-    match prop.as_str() {
-        Some("pathToFileURL") => JsValue::WellKnownFunction(WellKnownFunctionKind::PathToFileUrl),
+pub fn url_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
+    match (kind, prop.as_str()) {
+        (.., Some("pathToFileURL")) => {
+            JsValue::WellKnownFunction(WellKnownFunctionKind::PathToFileUrl)
+        }
+        (WellKnownObjectKind::UrlModuleDefault, Some("default")) => {
+            JsValue::WellKnownObject(WellKnownObjectKind::UrlModuleDefault)
+        }
         _ => JsValue::Unknown(
             Some(Arc::new(JsValue::member(
                 box JsValue::WellKnownObject(WellKnownObjectKind::UrlModule),
@@ -459,15 +498,18 @@ pub fn url_module_member(prop: JsValue) -> JsValue {
     }
 }
 
-pub fn child_process_module_member(prop: JsValue) -> JsValue {
+pub fn child_process_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
     let prop_str = prop.as_str();
-    match prop_str {
-        Some("spawn") | Some("spawnSync") | Some("execFile") | Some("execFileSync") => {
+    match (kind, prop_str) {
+        (.., Some("spawn") | Some("spawnSync") | Some("execFile") | Some("execFileSync")) => {
             JsValue::WellKnownFunction(WellKnownFunctionKind::ChildProcessSpawnMethod(
                 prop_str.unwrap().into(),
             ))
         }
-        Some("fork") => JsValue::WellKnownFunction(WellKnownFunctionKind::ChildProcessFork),
+        (.., Some("fork")) => JsValue::WellKnownFunction(WellKnownFunctionKind::ChildProcessFork),
+        (WellKnownObjectKind::ChildProcess, Some("default")) => {
+            JsValue::WellKnownObject(WellKnownObjectKind::ChildProcessDefault)
+        }
         _ => JsValue::Unknown(
             Some(Arc::new(JsValue::member(
                 box JsValue::WellKnownObject(WellKnownObjectKind::ChildProcess),
@@ -478,11 +520,14 @@ pub fn child_process_module_member(prop: JsValue) -> JsValue {
     }
 }
 
-fn os_module_member(prop: JsValue) -> JsValue {
-    match prop.as_str() {
-        Some("platform") => JsValue::WellKnownFunction(WellKnownFunctionKind::OsPlatform),
-        Some("arch") => JsValue::WellKnownFunction(WellKnownFunctionKind::OsArch),
-        Some("endianness") => JsValue::WellKnownFunction(WellKnownFunctionKind::OsEndianness),
+fn os_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
+    match (kind, prop.as_str()) {
+        (.., Some("platform")) => JsValue::WellKnownFunction(WellKnownFunctionKind::OsPlatform),
+        (.., Some("arch")) => JsValue::WellKnownFunction(WellKnownFunctionKind::OsArch),
+        (.., Some("endianness")) => JsValue::WellKnownFunction(WellKnownFunctionKind::OsEndianness),
+        (WellKnownObjectKind::OsModule, Some("default")) => {
+            JsValue::WellKnownObject(WellKnownObjectKind::OsModuleDefault)
+        }
         _ => JsValue::Unknown(
             Some(Arc::new(JsValue::member(
                 box JsValue::WellKnownObject(WellKnownObjectKind::OsModule),
@@ -497,6 +542,7 @@ async fn node_process_member(prop: JsValue, environment: EnvironmentVc) -> Resul
     Ok(match prop.as_str() {
         Some("arch") => environment.compile_target().await?.arch.as_str().into(),
         Some("platform") => environment.compile_target().await?.platform.as_str().into(),
+        Some("cwd") => JsValue::WellKnownFunction(WellKnownFunctionKind::ProcessCwd),
         _ => JsValue::Unknown(
             Some(Arc::new(JsValue::member(
                 box JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess),

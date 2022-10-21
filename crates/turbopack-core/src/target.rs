@@ -15,6 +15,12 @@ pub struct CompileTarget {
     pub libc: Libc,
 }
 
+impl Default for CompileTargetVc {
+    fn default() -> Self {
+        Self::current()
+    }
+}
+
 #[turbo_tasks::value_impl]
 impl CompileTargetVc {
     #[turbo_tasks::function]
