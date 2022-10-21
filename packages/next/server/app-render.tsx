@@ -197,6 +197,21 @@ function createErrorHandler(
 
 let isFetchPatched = false
 
+class NextFetchRequest extends Request {
+  _next?: NextFetchRequestConfig
+  constructor(
+    input: RequestInfo | URL,
+    options?: NextFetchRequestOptions | undefined
+  ) {
+    super(input, options)
+    this._next = options?.next
+  }
+
+  next() {
+    return this._next
+  }
+}
+
 // we patch fetch to collect cache information used for
 // determining if a page is static or not
 function patchFetch(ComponentMod: any) {
@@ -208,8 +223,9 @@ function patchFetch(ComponentMod: any) {
 
   const staticGenerationAsyncStorage = ComponentMod.staticGenerationAsyncStorage
 
-  const origFetch = globalThis.fetch
-  globalThis.fetch = async (url, opts) => {
+  const originFetch = globalThis.fetch
+  globalThis.Request = NextFetchRequest
+  globalThis.fetch = async (input, opts) => {
     const staticGenerationStore =
       'getStore' in staticGenerationAsyncStorage
         ? staticGenerationAsyncStorage.getStore()
@@ -225,7 +241,7 @@ function patchFetch(ComponentMod: any) {
           // TODO: ensure this error isn't logged to the user
           // seems it's slipping through currently
           throw new DynamicServerError(
-            `no-store fetch ${url}${pathname ? ` ${pathname}` : ''}`
+            `no-store fetch ${input}${pathname ? ` ${pathname}` : ''}`
           )
         }
 
@@ -241,7 +257,7 @@ function patchFetch(ComponentMod: any) {
           // TODO: ensure this error isn't logged to the user
           // seems it's slipping through currently
           throw new DynamicServerError(
-            `revalidate: ${next.revalidate} fetch ${url}${
+            `revalidate: ${next.revalidate} fetch ${input}${
               pathname ? ` ${pathname}` : ''
             }`
           )
@@ -249,7 +265,7 @@ function patchFetch(ComponentMod: any) {
         if (hasNextConfig) delete opts.next
       }
     }
-    return origFetch(url, opts)
+    return originFetch(input, opts)
   }
 }
 
