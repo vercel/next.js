@@ -63,12 +63,13 @@ export async function verifyRootLayout({
       appDir,
       `**/layout.{${pageExtensions.join(',')}}`
     )
+    const hasLayout = layoutFiles.length !== 0
+
     const normalizedPagePath = pagePath.replace(`${APP_DIR_ALIAS}/`, '')
     const firstSegmentValue = normalizedPagePath.split('/')[0]
     const pageRouteGroup = firstSegmentValue.startsWith('(')
       ? firstSegmentValue
       : undefined
-    const hasLayout = layoutFiles.length !== 0
 
     if (pageRouteGroup || !hasLayout) {
       const resolvedTsConfigPath = path.join(dir, tsconfigPath)
@@ -80,7 +81,7 @@ export async function verifyRootLayout({
       const rootLayoutPath = path.join(
         appDir,
         // If the page is within a route group directly under app (e.g. app/(routegroup)/page.js)
-        // prefer createing the root layout in that route group. Otherwise create the root layout in the app root.
+        // prefer creating the root layout in that route group. Otherwise create the root layout in the app root.
         pageRouteGroup ? pageRouteGroup : '',
         `layout.${hasTsConfig ? 'tsx' : 'js'}`
       )
