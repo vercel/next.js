@@ -30,7 +30,8 @@ use turbopack_core::{
     },
     reference::{AssetReferenceVc, AssetReferencesVc},
     version::{
-        PartialUpdate, Update, UpdateVc, Version, VersionVc, VersionedContent, VersionedContentVc,
+        PartialUpdate, TotalUpdate, Update, UpdateVc, Version, VersionVc, VersionedContent,
+        VersionedContentVc,
     },
 };
 
@@ -662,10 +663,16 @@ impl VersionedContent for EcmascriptChunkContent {
         self_vc: EcmascriptChunkContentVc,
         from_version: VersionVc,
     ) -> Result<UpdateVc> {
-        let from_version = EcmascriptChunkVersionVc::resolve_from(from_version)
-            .await?
-            .expect("version must be an `EcmascriptChunkVersionVc`");
         let to_version = self_vc.version();
+        let from_version =
+            if let Some(from) = EcmascriptChunkVersionVc::resolve_from(from_version).await? {
+                from
+            } else {
+                return Ok(Update::Total(TotalUpdate {
+                    to: to_version.into(),
+                })
+                .cell());
+            };
 
         let to = to_version.await?;
         let from = from_version.await?;
