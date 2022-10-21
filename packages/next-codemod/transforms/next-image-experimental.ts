@@ -1,3 +1,5 @@
+import { join } from 'path'
+import { readFileSync } from 'fs'
 import type {
   API,
   Collection,
@@ -141,12 +143,66 @@ function findAndReplaceProps(
     })
 }
 
+function tryReadFile(filename: string) {
+  try {
+    const path = join(process.cwd(), filename)
+    return readFileSync(path, 'utf8')
+  } catch (err) {
+    return null
+  }
+}
+
 export default function transformer(
   file: FileInfo,
   api: API,
   options: Options
 ) {
   const j = api.jscodeshift
+
+  const isConfig =
+    file.path === 'next.config.js' ||
+    file.path === 'next.config.ts' ||
+    file.path === 'next.config.mjs' ||
+    file.path === 'next.config.cjs'
+
+  if (isConfig) {
+    console.log('Detected next config file')
+    const root = j(file.source)
+    root.find(j.ObjectExpression).forEach((o) => {
+      const [images] = o.value.properties || []
+      if (
+        images.type === 'Property' &&
+        images.key.type === 'Identifier' &&
+        images.key.name === 'images' &&
+        images.value.type === 'ObjectExpression' &&
+        images.value.properties
+      ) {
+        images.value.properties.filter((p) => {
+          if (
+            p.type === 'Property' &&
+            p.key.type === 'Identifier' &&
+            p.key.name === 'loader' &&
+            'value' in p.value
+          ) {
+            if (p.value.value === 'imgix') {
+              console.log('detected imgix loader')
+              p.value.value = 'custom'
+            } else if (p.value.value === 'cloudinary') {
+              console.log('detected cloudinary loader')
+              p.value.value = 'custom'
+            } else if (p.value.value === 'akamai') {
+              console.log('detected akamai loader')
+              p.value.value = 'custom'
+            }
+          }
+        })
+      }
+      // TODO: remove "path"
+      // TODO: write new file
+    })
+    return root.toSource()
+  }
+
   const root = j(file.source)
 
   // Before: import Image from "next/legacy/image"
