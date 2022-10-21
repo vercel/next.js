@@ -14,6 +14,7 @@ use chromiumoxide::{
 use futures::StreamExt;
 use lazy_static::lazy_static;
 use next_dev::{register, NextDevServerBuilder};
+use owo_colors::OwoColorize;
 use serde::Deserialize;
 use test_generator::test_resources;
 use tokio::{net::TcpSocket, task::JoinHandle};
@@ -141,7 +142,11 @@ async fn run_test(resource: &str) -> JestRunResult {
     .await
     .unwrap();
 
-    println!("server started at http://{}", server.addr);
+    println!(
+        "{event_type} - server started at http://{address}",
+        event_type = "ready".green(),
+        address = server.addr
+    );
 
     tokio::select! {
         r = run_browser(server.addr) => r.unwrap(),
