@@ -819,7 +819,7 @@ export default async function loadConfig(
           : canonicalBase) || ''
     }
 
-    // Add official font loaders by default if they're installed
+    // Add @next/font loaders by default if they're installed
     const nextFontVersion = await getPackageVersion({
       cwd: dir,
       name: '@next/font',
