@@ -75,6 +75,9 @@ async fn resolve_static_content(
         break Ok((
             match *content_source_result.await? {
                 ContentSourceResult::NotFound => None,
+                ContentSourceResult::HttpProxy(_) => {
+                    panic!("HTTP proxying is not supported in UpdateStream")
+                }
                 ContentSourceResult::Static(content) => Some(content),
                 ContentSourceResult::NeedData {
                     source,

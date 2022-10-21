@@ -1,5 +1,6 @@
 #![feature(min_specialization)]
 #![feature(trait_alias)]
+#![feature(array_chunks)]
 
 pub mod fs;
 pub mod html;
@@ -13,16 +14,22 @@ use std::{
     future::Future,
     net::SocketAddr,
     pin::Pin,
-    sync::Arc,
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc,
+    },
     time::{Duration, Instant},
 };
 
 use anyhow::{bail, Result};
+use futures::{StreamExt, TryStreamExt};
 use hyper::{
+    header::HeaderName,
     service::{make_service_fn, service_fn},
-    Body, Request, Response, Server,
+    Request, Response, Server,
 };
 use mime_guess::mime;
+use source::{Body, Bytes};
 use turbo_tasks::{
     run_once, trace::TraceRawVcs, util::FormatDuration, RawVc, TransientValue, TurboTasksApi, Value,
 };
@@ -83,9 +90,9 @@ async fn process_request_with_content_source(
     path: &str,
     mut resolved_source: ContentSourceVc,
     mut asset_path: Cow<'_, str>,
-    request: &Request<Body>,
+    mut request: Request<hyper::Body>,
     console_ui: ConsoleUiVc,
-) -> Result<Response<Body>> {
+) -> Result<Response<hyper::Body>> {
     let mut data = ContentSourceData::default();
     loop {
         let content_source_result = resolved_source.get(&asset_path, Value::new(data));
@@ -128,19 +135,34 @@ async fn process_request_with_content_source(
                             .status(200)
                             .header("Content-Type", content_type)
                             .header("Content-Length", bytes.len().to_string())
-                            .body(Body::from(bytes))?);
+                            .body(hyper::Body::from(bytes))?);
                     }
                 }
+            }
+            ContentSourceResult::HttpProxy(proxy_result_vc) => {
+                let proxy_result = proxy_result_vc.await?;
+
+                let mut response = Response::builder().status(proxy_result.status);
+                let headers = response.headers_mut().expect("headers must be defined");
+
+                for [name, value] in proxy_result.headers.array_chunks() {
+                    headers.append(
+                        HeaderName::from_bytes(name.as_bytes())?,
+                        hyper::header::HeaderValue::from_str(value)?,
+                    );
+                }
+
+                return Ok(response.body(hyper::Body::from(proxy_result.body.clone()))?);
             }
             ContentSourceResult::NeedData { source, path, vary } => {
                 resolved_source = source.resolve_strongly_consistent().await?;
                 asset_path = Cow::Owned(path.to_string());
-                data = request_to_data(request, vary)?;
+                data = request_to_data(&mut request, vary).await?;
                 continue;
             }
             ContentSourceResult::NotFound => {}
         }
-        return Ok(Response::builder().status(404).body(Body::empty())?);
+        return Ok(Response::builder().status(404).body(hyper::Body::empty())?);
     }
 }
 
@@ -156,7 +178,7 @@ impl DevServer {
             let source_provider = source_provider.clone();
             let console_ui = console_ui.clone();
             async move {
-                let handler = move |request: Request<Body>| {
+                let handler = move |request: Request<hyper::Body>| {
                     let console_ui = console_ui.clone();
                     let start = Instant::now();
                     let tt = tt.clone();
@@ -175,7 +197,9 @@ impl DevServer {
                             }
 
                             println!("[404] {} (WebSocket)", path);
-                            return Ok(Response::builder().status(404).body(Body::empty())?);
+                            return Ok(Response::builder()
+                                .status(404)
+                                .body(hyper::Body::empty())?);
                         }
 
                         run_once(tt, async move {
@@ -183,7 +207,7 @@ impl DevServer {
                             let uri = request.uri();
                             let path = uri.path();
                             // Remove leading slash.
-                            let path = &path[1..];
+                            let path = &path[1..].to_string();
                             let asset_path = urlencoding::decode(path)?;
                             let source = source_provider.get_source();
                             handle_issues(source, path, "get source", console_ui).await?;
@@ -192,7 +216,7 @@ impl DevServer {
                                 path,
                                 resolved_source,
                                 asset_path,
-                                &request,
+                                request,
                                 console_ui,
                             )
                             .await?;
@@ -220,7 +244,7 @@ impl DevServer {
                                 );
                                 Ok(Response::builder()
                                     .status(500)
-                                    .body(Body::from(format!("{:?}", e,)))?)
+                                    .body(hyper::Body::from(format!("{:?}", e,)))?)
                             }
                         }
                     }
@@ -240,8 +264,10 @@ impl DevServer {
     }
 }
 
-fn request_to_data(
-    request: &Request<Body>,
+static CACHE_BUSTER: AtomicU64 = AtomicU64::new(0);
+
+async fn request_to_data(
+    request: &mut Request<hyper::Body>,
     vary: &ContentSourceDataVary,
 ) -> Result<ContentSourceData> {
     let mut data = ContentSourceData::default();
@@ -250,6 +276,14 @@ fn request_to_data(
     }
     if vary.url {
         data.url = Some(request.uri().to_string());
+    }
+    if vary.body {
+        let bytes: Vec<_> = request
+            .body_mut()
+            .map(|bytes| bytes.map(|bytes| Bytes::from(bytes)))
+            .try_collect::<Vec<_>>()
+            .await?;
+        data.body = Some(Body::new(bytes).into());
     }
     if let Some(filter) = vary.query.as_ref() {
         if let Some(query) = request.uri().query() {
@@ -285,6 +319,9 @@ fn request_to_data(
             }
         }
         data.headers = Some(headers);
+    }
+    if vary.cache_buster {
+        data.cache_buster = CACHE_BUSTER.fetch_add(1, Ordering::SeqCst);
     }
     Ok(data)
 }

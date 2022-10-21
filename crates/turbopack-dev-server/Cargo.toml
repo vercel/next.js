@@ -13,6 +13,7 @@ bench = false
 anyhow = "1.0.47"
 event-listener = "2.5.2"
 futures = "0.3.21"
+httparse = "1.6.0"
 hyper = { version = "0.14", features = ["full"] }
 hyper-tungstenite = "0.8.1"
 indexmap = { workspace = true, features = ["serde"] }

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use anyhow::Result;
-use turbo_tasks::Value;
+use turbo_tasks::{primitives::BoolVc, Value};
 use turbo_tasks_env::ProcessEnvVc;
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc};
 use turbopack::{transition::TransitionsByNameVc, ModuleAssetContextVc};
@@ -38,7 +38,7 @@ use crate::{
         get_server_environment, get_server_module_options_context,
         get_server_resolve_options_context, ServerContextType,
     },
-    nodejs::node_rendered_source::{create_node_rendered_source, NodeRenderer, NodeRendererVc},
+    nodejs::{create_node_api_source, create_node_rendered_source, NodeEntry, NodeEntryVc},
     util::regular_expression_for_path,
 };
 
@@ -111,6 +111,7 @@ pub async fn create_server_rendered_source(
         fallback_page,
         server_root,
         server_root,
+        server_root.join("api"),
         output_path,
     );
     let fallback_source =
@@ -125,7 +126,7 @@ pub async fn create_server_rendered_source(
 
 /// Handles a single page file in the pages directory
 #[turbo_tasks::function]
-fn create_server_rendered_source_for_file(
+async fn create_server_rendered_source_for_file(
     context_path: FileSystemPathVc,
     context: AssetContextVc,
     pages_dir: FileSystemPathVc,
@@ -134,8 +135,9 @@ fn create_server_rendered_source_for_file(
     fallback_page: DevHtmlAssetVc,
     server_root: FileSystemPathVc,
     server_path: FileSystemPathVc,
+    is_api_path: BoolVc,
     intermediate_output_path: FileSystemPathVc,
-) -> ContentSourceVc {
+) -> Result<ContentSourceVc> {
     let source_asset = SourceAssetVc::new(page_file).into();
     let entry_asset = context.process(source_asset);
 
@@ -148,20 +150,38 @@ fn create_server_rendered_source_for_file(
     )
     .into();
 
-    create_node_rendered_source(
-        server_root,
-        regular_expression_for_path(server_root, server_path, true),
-        SsrRenderer {
-            context,
-            entry_asset,
-        }
-        .cell()
-        .into(),
-        chunking_context,
-        runtime_entries,
-        fallback_page,
-        intermediate_output_path,
-    )
+    Ok(if *is_api_path.await? {
+        create_node_api_source(
+            server_root,
+            regular_expression_for_path(server_root, server_path, true),
+            SsrEntry {
+                context,
+                entry_asset,
+                is_api_path,
+            }
+            .cell()
+            .into(),
+            chunking_context,
+            runtime_entries,
+            intermediate_output_path,
+        )
+    } else {
+        create_node_rendered_source(
+            server_root,
+            regular_expression_for_path(server_root, server_path, true),
+            SsrEntry {
+                context,
+                entry_asset,
+                is_api_path,
+            }
+            .cell()
+            .into(),
+            chunking_context,
+            runtime_entries,
+            fallback_page,
+            intermediate_output_path,
+        )
+    })
 }
 
 /// Handles a directory in the pages directory (or the pages directory itself).
@@ -177,6 +197,7 @@ async fn create_server_rendered_source_for_directory(
     fallback_page: DevHtmlAssetVc,
     server_root: FileSystemPathVc,
     server_path: FileSystemPathVc,
+    server_api_path: FileSystemPathVc,
     intermediate_output_path: FileSystemPathVc,
 ) -> Result<CombinedContentSourceVc> {
     let mut predefined_sources = vec![];
@@ -219,6 +240,7 @@ async fn create_server_rendered_source_for_directory(
                                         fallback_page,
                                         server_root,
                                         dev_server_path,
+                                        dev_server_path.is_inside(server_api_path),
                                         intermediate_output_path,
                                     ),
                                 ));
@@ -239,6 +261,7 @@ async fn create_server_rendered_source_for_directory(
                             fallback_page,
                             server_root,
                             server_path.join(name),
+                            server_api_path,
                             intermediate_output_path.join(name),
                         )
                         .into(),
@@ -265,21 +288,30 @@ async fn create_server_rendered_source_for_directory(
 
 /// The node.js renderer for SSR of pages.
 #[turbo_tasks::value]
-struct SsrRenderer {
+struct SsrEntry {
     context: AssetContextVc,
     entry_asset: AssetVc,
+    is_api_path: BoolVc,
 }
 
 #[turbo_tasks::value_impl]
-impl NodeRenderer for SsrRenderer {
+impl NodeEntry for SsrEntry {
     #[turbo_tasks::function]
-    fn module(&self) -> EcmascriptModuleAssetVc {
-        EcmascriptModuleAssetVc::new(
+    async fn entry(&self) -> Result<EcmascriptModuleAssetVc> {
+        let virtual_asset = if *self.is_api_path.await? {
+            VirtualAssetVc::new(
+                self.entry_asset.path().join("server-api.tsx"),
+                next_js_file("entry/server-api.tsx").into(),
+            )
+        } else {
             VirtualAssetVc::new(
                 self.entry_asset.path().join("server-renderer.tsx"),
                 next_js_file("entry/server-renderer.tsx").into(),
             )
-            .into(),
+        };
+
+        Ok(EcmascriptModuleAssetVc::new(
+            virtual_asset.into(),
             self.context,
             Value::new(EcmascriptModuleAssetType::Typescript),
             EcmascriptInputTransformsVc::cell(vec![
@@ -287,6 +319,6 @@ impl NodeRenderer for SsrRenderer {
                 EcmascriptInputTransform::React { refresh: false },
             ]),
             self.context.environment(),
-        )
+        ))
     }
 }

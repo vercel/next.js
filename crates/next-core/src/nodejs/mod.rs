@@ -1,18 +1,19 @@
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
+    io::Write,
     path::PathBuf,
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, bail, Result};
 use futures::{stream::FuturesUnordered, TryStreamExt};
 use indexmap::{IndexMap, IndexSet};
 use mime::TEXT_HTML_UTF_8;
-pub use node_rendered_source::{create_node_rendered_source, NodeRenderer, NodeRendererVc};
+pub use node_api_source::create_node_api_source;
+pub use node_entry::{NodeEntry, NodeEntryVc};
+pub use node_rendered_source::create_node_rendered_source;
 use serde::Deserialize;
 use serde_json::Value as JsonValue;
-use turbo_tasks::{
-    primitives::StringVc, spawn_blocking, CompletionVc, CompletionsVc, TryJoinIterExt,
-};
+use turbo_tasks::{primitives::StringVc, CompletionVc, CompletionsVc, TryJoinIterExt};
 use turbo_tasks_fs::{DiskFileSystemVc, File, FileContent, FileSystemPathVc};
 use turbopack::ecmascript::EcmascriptModuleAssetVc;
 use turbopack_core::{
@@ -22,7 +23,7 @@ use turbopack_core::{
 };
 use turbopack_dev_server::{
     html::DevHtmlAssetVc,
-    source::{query::Query, HeaderValue},
+    source::{query::Query, BodyVc, HeaderValue, ProxyResult, ProxyResultVc},
 };
 use turbopack_ecmascript::chunk::EcmascriptChunkPlaceablesVc;
 
@@ -31,9 +32,12 @@ use self::{
     issue::RenderingIssue,
     pool::{NodeJsPool, NodeJsPoolVc},
 };
+use crate::nodejs::pool::OperationEvent;
 
 pub(crate) mod bootstrap;
 pub(crate) mod issue;
+pub(crate) mod node_api_source;
+pub(crate) mod node_entry;
 pub(crate) mod node_rendered_source;
 pub(crate) mod pool;
 
@@ -269,15 +273,30 @@ async fn render_static(
     // Read this strongly consistent, since we don't want to run inconsistent
     // node.js code.
     let pool = renderer_pool.strongly_consistent().await?;
-    let mut op = pool
-        .run(serde_json::to_string(&*data.await?)?.as_bytes())
-        .await?;
-    let lines = spawn_blocking(move || {
-        let lines = op.read_lines()?;
-        drop(op);
-        Ok::<_, anyhow::Error>(lines)
-    })
-    .await?;
+    let mut operation = pool.operation().await?;
+    let data = data.await?;
+
+    // First, write the render data to the process as a JSON string.
+    let data = serde_json::to_string(&*data)?;
+    operation.write_all(data.as_bytes())?;
+    operation.write_all(&[b'\n'])?;
+
+    let mut buffer = Vec::new();
+
+    // Read the result headers as a UTF8 string.
+    let (_, event) = operation.read_event(&mut buffer)?;
+    let result = match event {
+        OperationEvent::Success => String::from_utf8(buffer)?,
+        event => {
+            bail!(
+                "unexpected event from Node.js rendering process: {:?}",
+                event
+            );
+        }
+    };
+
+    // Parse the result.
+    let lines: Vec<_> = result.lines().collect();
     let issue = if let Some(last_line) = lines.last() {
         if let Some(data) = last_line.strip_prefix("RESULT=") {
             let result: serde_json::Result<RenderResult> = serde_json::from_str(data);
@@ -351,4 +370,107 @@ async fn render_static(
     let html = fallback_page.with_body(body);
 
     Ok(html.content())
+}
+
+#[turbo_tasks::value(shared)]
+pub(super) struct ResponseHeaders {
+    status: u16,
+    headers: Vec<String>,
+}
+
+/// Renders a module as static HTML in a node.js process.
+#[turbo_tasks::function]
+async fn render_proxy(
+    path: FileSystemPathVc,
+    module: EcmascriptModuleAssetVc,
+    runtime_entries: EcmascriptChunkPlaceablesVc,
+    chunking_context: ChunkingContextVc,
+    intermediate_output_path: FileSystemPathVc,
+    data: RenderDataVc,
+    body: BodyVc,
+) -> Result<ProxyResultVc> {
+    let renderer_pool = get_renderer_pool(
+        get_intermediate_asset(
+            module,
+            runtime_entries,
+            chunking_context,
+            intermediate_output_path,
+        ),
+        intermediate_output_path,
+    );
+    let pool = renderer_pool.await?;
+    let mut operation = pool.operation().await?;
+    let data = data.await?;
+
+    // First, write the render data to the process as a JSON string.
+    let data = serde_json::to_string(&*data)?;
+    operation.write_all(data.as_bytes())?;
+    operation.write_step()?;
+
+    // Then, write the binary body.
+    for chunk in body.await?.chunks() {
+        operation.write_all(chunk.as_bytes())?;
+    }
+    operation.write_step()?;
+
+    let mut buffer = Vec::new();
+
+    // Read the response headers as a JSON string.
+    let (_, event) = operation.read_event(&mut buffer)?;
+    let headers: ResponseHeaders = match event {
+        OperationEvent::Step => serde_json::from_slice(&buffer)?,
+        OperationEvent::Error => return proxy_error(path, buffer),
+        event => {
+            bail!(
+                "unexpected event from Node.js rendering process: {:?}",
+                event
+            );
+        }
+    };
+
+    // Reuse the buffer.
+    buffer.truncate(0);
+
+    // Read the response body as a binary blob.
+    let (_, event) = operation.read_event(&mut buffer)?;
+    let body = match event {
+        OperationEvent::Success => buffer,
+        OperationEvent::Error => return proxy_error(path, buffer),
+        event => {
+            bail!(
+                "unexpected event from Node.js rendering process: {:?}",
+                event
+            );
+        }
+    };
+
+    Ok(ProxyResult {
+        status: headers.status,
+        headers: headers.headers,
+        body,
+    }
+    .cell())
+}
+
+fn proxy_error(path: FileSystemPathVc, buffer: Vec<u8>) -> Result<ProxyResultVc> {
+    let error_message = String::from_utf8(buffer.clone())?;
+
+    RenderingIssue {
+        context: path,
+        message: StringVc::cell(error_message),
+        logs: StringVc::cell("".to_string()),
+    }
+    .cell()
+    .as_issue()
+    .emit();
+
+    return Ok(ProxyResult {
+        status: 500,
+        headers: vec![
+            "content-type".to_string(),
+            "text/html; charset=utf-8".to_string(),
+        ],
+        body: buffer,
+    }
+    .cell());
 }

@@ -36,13 +36,13 @@ macro_rules! embed_directory {
 
         // make sure the types the `include_dir!` proc macro refers to are in scope
         use turbo_tasks_fs::embed::include_dir;
-        // check that the directory exists at compile time even for debug builds
-        static dir: include_dir::Dir<'static> = turbo_tasks_fs::embed::include_dir!($path);
-
         if cfg!(debug_assertions) {
             let path = $path.replace("$CARGO_MANIFEST_DIR", env!("CARGO_MANIFEST_DIR"));
             turbo_tasks_fs::embed::directory_from_relative_path($name, path)
         } else {
+            // check that the directory exists at compile time even for debug builds
+            static dir: include_dir::Dir<'static> = turbo_tasks_fs::embed::include_dir!($path);
+
             turbo_tasks_fs::embed::directory_from_include_dir(
                 $name,
                 turbo_tasks::TransientInstance::new(&dir),

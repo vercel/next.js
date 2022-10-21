@@ -13,17 +13,29 @@ use std::{
 };
 
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Serializer};
 use turbo_tasks::{trace::TraceRawVcs, Value};
 use turbopack_core::version::VersionedContentVc;
 
 use self::query::Query;
+
+/// The result of proxying a request to another HTTP server.
+#[turbo_tasks::value(shared)]
+pub struct ProxyResult {
+    /// The HTTP status code to return.
+    pub status: u16,
+    /// Headers arranged as contiguous (name, value) pairs.
+    pub headers: Vec<String>,
+    /// The body to return.
+    pub body: Vec<u8>,
+}
 
 #[turbo_tasks::value(shared)]
 // TODO add Dynamic variant in future to allow streaming and server responses
 pub enum ContentSourceResult {
     NotFound,
     Static(VersionedContentVc),
+    HttpProxy(ProxyResultVc),
     NeedData {
         source: ContentSourceVc,
         path: String,
@@ -112,6 +124,67 @@ pub struct ContentSourceData {
     /// http headers, might contain multiple headers with the same name, if
     /// requested
     pub headers: Option<BTreeMap<String, HeaderValue>>,
+    /// request body, if requested
+    pub body: Option<BodyVc>,
+    /// see [ContentSourceDataVary::cache_buster]
+    pub cache_buster: u64,
+}
+
+/// A request body.
+#[turbo_tasks::value(shared)]
+#[derive(Default)]
+pub struct Body {
+    #[turbo_tasks(debug_ignore, trace_ignore)]
+    chunks: Vec<Bytes>,
+}
+
+impl Body {
+    /// Creates a new body from a list of chunks.
+    pub fn new(chunks: Vec<Bytes>) -> Self {
+        Self { chunks }
+    }
+
+    /// Returns an iterator over the body's chunks.
+    pub fn chunks(&self) -> impl Iterator<Item = &Bytes> {
+        self.chunks.iter()
+    }
+}
+
+/// A wrapper around [hyper::body::Bytes] that implements [Serialize] and
+/// [Deserialize].
+#[derive(Clone, Eq, PartialEq)]
+pub struct Bytes(hyper::body::Bytes);
+
+impl Bytes {
+    /// Returns the bytes as a slice.
+    pub fn as_bytes(&self) -> &[u8] {
+        self.0.as_ref()
+    }
+}
+
+impl From<hyper::body::Bytes> for Bytes {
+    fn from(bytes: hyper::body::Bytes) -> Self {
+        Self(bytes)
+    }
+}
+
+impl Serialize for Bytes {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_bytes(self.0.as_ref())
+    }
+}
+
+impl<'de> Deserialize<'de> for Bytes {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let bytes = Vec::<u8>::deserialize(deserializer)?;
+        Ok(Bytes(hyper::body::Bytes::from(bytes)))
+    }
+}
+
+impl Default for BodyVc {
+    fn default() -> Self {
+        Body::default().cell()
+    }
 }
 
 /// Filter function that describes which information is required.
@@ -167,6 +240,11 @@ pub struct ContentSourceDataVary {
     pub url: bool,
     pub query: Option<ContentSourceDataFilter>,
     pub headers: Option<ContentSourceDataFilter>,
+    pub body: bool,
+    /// When true, a `cache_buster` value is added to the [ContentSourceData].
+    /// This value will be different on every request, which ensures the
+    /// content is never cached.
+    pub cache_buster: bool,
     pub placeholder_for_future_extensions: (),
 }
 
@@ -176,6 +254,8 @@ impl ContentSourceDataVary {
     pub fn extend(&mut self, other: &ContentSourceDataVary) {
         self.method = self.method || other.method;
         self.url = self.url || other.url;
+        self.body = self.body || other.body;
+        self.cache_buster = self.cache_buster || other.cache_buster;
         ContentSourceDataFilter::extend_options(&mut self.query, &other.query);
         ContentSourceDataFilter::extend_options(&mut self.headers, &other.headers);
     }
