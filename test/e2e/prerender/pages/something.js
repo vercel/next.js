@@ -22,12 +22,12 @@ export default ({ world, time, params, random }) => {
       <div id="random">{random}</div>
       <div id="params">{JSON.stringify(params)}</div>
       <div id="query">{JSON.stringify(useRouter().query)}</div>
-      <Link href="/">
-        <a id="home">to home</a>
+      <Link href="/" id="home">
+        to home
       </Link>
       <br />
-      <Link href="/another">
-        <a id="another">to another</a>
+      <Link href="/another" id="another">
+        to another
       </Link>
     </>
   )

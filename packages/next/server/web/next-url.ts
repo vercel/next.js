@@ -72,7 +72,7 @@ export class NextURL {
   private analyzeUrl() {
     const pathnameInfo = getNextPathnameInfo(this[Internal].url.pathname, {
       nextConfig: this[Internal].options.nextConfig,
-      parseData: true,
+      parseData: !process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE,
     })
 
     this[Internal].domainLocale = detectDomainLocale(
@@ -181,7 +181,7 @@ export class NextURL {
   get href() {
     const pathname = this.formatPathname()
     const search = this.formatSearch()
-    return `${this.protocol}//${this.host}${pathname}${search}`
+    return `${this.protocol}//${this.host}${pathname}${search}${this.hash}`
   }
 
   set href(url: string) {

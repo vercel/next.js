@@ -17,22 +17,22 @@ describe('@next/font/google loader', () => {
       ],
       [
         'Inter',
-        { variant: '400' },
+        { weight: '400' },
         'https://fonts.googleapis.com/css2?family=Inter:wght@400&display=optional',
       ],
       [
         'Inter',
-        { variant: '900', display: 'block' },
+        { weight: '900', display: 'block' },
         'https://fonts.googleapis.com/css2?family=Inter:wght@900&display=block',
       ],
       [
         'Source_Sans_Pro',
-        { variant: '900', display: 'auto' },
+        { weight: '900', display: 'auto' },
         'https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@900&display=auto',
       ],
       [
         'Source_Sans_Pro',
-        { variant: '200-italic' },
+        { weight: '200', style: 'italic' },
         'https://fonts.googleapis.com/css2?family=Source+Sans+Pro:ital,wght@1,200&display=optional',
       ],
       [
@@ -42,7 +42,7 @@ describe('@next/font/google loader', () => {
       ],
       [
         'Roboto_Flex',
-        { display: 'fallback', variant: 'variable', axes: ['opsz'] },
+        { display: 'fallback', weight: 'variable', axes: ['opsz'] },
         'https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght@8..144,100..1000&display=fallback',
       ],
       [
@@ -55,18 +55,23 @@ describe('@next/font/google loader', () => {
       ],
       [
         'Oooh_Baby',
-        { variant: '400' },
+        { weight: '400' },
         'https://fonts.googleapis.com/css2?family=Oooh+Baby:wght@400&display=optional',
       ],
       [
         'Albert_Sans',
-        { variant: 'variable-italic' },
+        { weight: 'variable', style: 'italic' },
         'https://fonts.googleapis.com/css2?family=Albert+Sans:ital,wght@1,100..900&display=optional',
       ],
       [
         'Fraunces',
-        { variant: 'variable-italic', axes: ['WONK', 'opsz', 'SOFT'] },
+        { weight: 'variable', style: 'italic', axes: ['WONK', 'opsz', 'SOFT'] },
         'https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@1,9..144,100..900,0..100,0..1&display=optional',
+      ],
+      [
+        'Molle',
+        { weight: '400' },
+        'https://fonts.googleapis.com/css2?family=Molle:ital,wght@1,400&display=optional',
       ],
     ])('%s', async (functionName: string, data: any, url: string) => {
       fetch.mockResolvedValue({
@@ -102,10 +107,11 @@ describe('@next/font/google loader', () => {
         fs: {} as any,
       })
       expect(adjustFontFallback).toEqual({
-        ascentOverride: '96.88',
-        descentOverride: '24.15',
+        ascentOverride: '88.84%',
+        descentOverride: '22.14%',
         fallbackFont: 'Arial',
-        lineGapOverride: '0.00',
+        lineGapOverride: '0.00%',
+        sizeAdjust: '109.04%',
       })
       expect(fallbackFonts).toBeUndefined()
     })
@@ -124,10 +130,11 @@ describe('@next/font/google loader', () => {
         fs: {} as any,
       })
       expect(adjustFontFallback).toEqual({
-        ascentOverride: '98.40',
-        descentOverride: '27.30',
+        ascentOverride: '80.28%',
+        descentOverride: '22.27%',
         fallbackFont: 'Arial',
-        lineGapOverride: '0.00',
+        lineGapOverride: '0.00%',
+        sizeAdjust: '122.56%',
       })
       expect(fallbackFonts).toBeUndefined()
     })
@@ -146,10 +153,11 @@ describe('@next/font/google loader', () => {
         fs: {} as any,
       })
       expect(adjustFontFallback).toEqual({
-        ascentOverride: '97.80',
-        descentOverride: '25.50',
+        ascentOverride: '83.79%',
+        descentOverride: '21.85%',
         fallbackFont: 'Times New Roman',
-        lineGapOverride: '0.00',
+        lineGapOverride: '0.00%',
+        sizeAdjust: '116.72%',
       })
       expect(fallbackFonts).toEqual(['Abc', 'Def'])
     })
@@ -180,17 +188,17 @@ describe('@next/font/google loader', () => {
 
       await expect(
         loader({
-          functionName: 'Inter',
-          data: [],
+          functionName: 'Alkalami',
+          data: [{ weight: '400' }],
           config: { subsets: [] },
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
           fs: {} as any,
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(`
-                        "Failed to fetch font  \`Inter\`.
-                        URL: https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=optional"
-                    `)
+              "Failed to fetch font  \`Alkalami\`.
+              URL: https://fonts.googleapis.com/css2?family=Alkalami:wght@400&display=optional"
+            `)
     })
 
     test('Missing config with subsets', async () => {
@@ -238,23 +246,23 @@ describe('@next/font/google loader', () => {
       )
     })
 
-    test('Unknown variant', async () => {
+    test('Unknown weight', async () => {
       await expect(
         loader({
           functionName: 'Inter',
-          data: [{ variant: '123' }],
+          data: [{ weight: '123' }],
           config: { subsets: [] },
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
           fs: {} as any,
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(`
-                      "Unknown variant \`123\` for font \`Inter\`.
-                      Available variants: \`100\`, \`200\`, \`300\`, \`400\`, \`500\`, \`600\`, \`700\`, \`800\`, \`900\`, \`variable\`"
-                  `)
+              "Unknown weight \`123\` for font \`Inter\`.
+              Available weights: \`100\`, \`200\`, \`300\`, \`400\`, \`500\`, \`600\`, \`700\`, \`800\`, \`900\`, \`variable\`"
+            `)
     })
 
-    test('Missing variant for non variable font', async () => {
+    test('Missing weight for non variable font', async () => {
       await expect(
         loader({
           functionName: 'Abel',
@@ -265,8 +273,24 @@ describe('@next/font/google loader', () => {
           fs: {} as any,
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(`
-              "Missing variant for font \`Abel\`.
-              Available variants: \`400\`"
+              "Missing weight for font \`Abel\`.
+              Available weights: \`400\`"
+            `)
+    })
+
+    test('Unknown style', async () => {
+      await expect(
+        loader({
+          functionName: 'Molle',
+          data: [{ weight: '400', style: 'normal' }],
+          config: { subsets: [] },
+          emitFontFile: jest.fn(),
+          resolve: jest.fn(),
+          fs: {} as any,
+        })
+      ).rejects.toThrowErrorMatchingInlineSnapshot(`
+              "Unknown style \`normal\` for font \`Molle\`.
+              Available styles: \`italic\`"
             `)
     })
 
@@ -290,7 +314,7 @@ describe('@next/font/google loader', () => {
       await expect(
         loader({
           functionName: 'Abel',
-          data: [{ variant: '400', axes: [] }],
+          data: [{ weight: '400', axes: [] }],
           config: { subsets: [] },
           emitFontFile: jest.fn(),
           resolve: jest.fn(),

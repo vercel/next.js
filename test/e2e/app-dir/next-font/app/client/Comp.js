@@ -1,5 +1,5 @@
-'client'
-import font6 from '../../fonts/font6'
+'use client'
+import { font6 } from '../../fonts'
 
 export default function Component() {
   return (

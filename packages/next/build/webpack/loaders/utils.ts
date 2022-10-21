@@ -10,3 +10,6 @@ export function isClientComponentModule(mod: {
   const hasClientDirective = mod.buildInfo.rsc?.type === RSC_MODULE_TYPES.client
   return hasClientDirective || imageRegex.test(mod.resource)
 }
+
+// TODO-APP: ensure .scss / .sass also works.
+export const regexCSS = /\.css(\?.*)?$/

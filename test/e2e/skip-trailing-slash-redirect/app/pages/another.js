@@ -4,8 +4,8 @@ export default function Page(props) {
   return (
     <>
       <p id="another">another page</p>
-      <Link href="/">
-        <a id="to-index">to index</a>
+      <Link href="/" id="to-index">
+        to index
       </Link>
       <br />
     </>

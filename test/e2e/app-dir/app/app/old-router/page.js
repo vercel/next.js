@@ -1,4 +1,4 @@
-import { cookies } from 'next/dist/client/components/hooks-server'
+import { cookies } from 'next/headers'
 import Router from './router'
 
 export default function Page() {

@@ -68,15 +68,33 @@ export class NextJsRequireCacheHotReloader implements WebpackPluginInstance {
         )
         deleteCache(runtimeChunkPath)
       })
+      let hasAppPath = false
 
       // we need to make sure to clear all server entries from cache
       // since they can have a stale webpack-runtime cache
       // which needs to always be in-sync
-      const entries = [...compilation.entries.keys()].filter(
-        (entry) =>
-          entry.toString().startsWith('pages/') ||
-          entry.toString().startsWith('app/')
-      )
+      const entries = [...compilation.entries.keys()].filter((entry) => {
+        const isAppPath = entry.toString().startsWith('app/')
+        hasAppPath = hasAppPath || isAppPath
+        return entry.toString().startsWith('pages/') || isAppPath
+      })
+
+      if (hasAppPath) {
+        // ensure we reset the cache for sc_server components
+        // loaded via react-server-dom-webpack
+        const reactServerDomModId = require.resolve(
+          'next/dist/compiled/react-server-dom-webpack/client'
+        )
+        const reactServerDomMod = require.cache[reactServerDomModId]
+
+        if (reactServerDomMod) {
+          for (const child of reactServerDomMod.children) {
+            child.parent = null
+            delete require.cache[child.id]
+          }
+        }
+        delete require.cache[reactServerDomModId]
+      }
 
       entries.forEach((page) => {
         const outputPath = path.join(

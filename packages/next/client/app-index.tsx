@@ -4,9 +4,11 @@ import '../build/polyfills/polyfill-module'
 import ReactDOMClient from 'react-dom/client'
 // TODO-APP: change to React.use once it becomes stable
 import React, { experimental_use as use } from 'react'
-import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
+import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack/client'
 
 import measureWebVitals from './performance-relayer'
+import { HeadManagerContext } from '../shared/lib/head-manager-context'
+import HotReload from './components/react-dev-overlay/hot-reloader'
 
 /// <reference types="react-dom/experimental" />
 
@@ -41,8 +43,6 @@ self.__next_require__ = __webpack_require__
   // eslint-disable-next-line no-undef
   return __webpack_chunk_load__(chunkId)
 }
-
-export const version = process.env.__NEXT_VERSION
 
 const appElement: HTMLElement | Document | null = document
 
@@ -115,8 +115,8 @@ if (document.readyState === 'loading') {
   DOMContentLoaded()
 }
 
-const nextServerDataLoadingGlobal = ((self as any).__next_s =
-  (self as any).__next_s || [])
+const nextServerDataLoadingGlobal = ((self as any).__next_f =
+  (self as any).__next_f || [])
 nextServerDataLoadingGlobal.forEach(nextServerDataCallback)
 nextServerDataLoadingGlobal.push = nextServerDataCallback
 
@@ -175,11 +175,43 @@ function RSCComponent(props: any): JSX.Element {
 }
 
 export function hydrate() {
+  if (process.env.NODE_ENV !== 'production') {
+    const rootLayoutMissingTagsError = (self as any)
+      .__next_root_layout_missing_tags_error
+
+    // Don't try to hydrate if root layout is missing required tags, render error instead
+    if (rootLayoutMissingTagsError) {
+      const reactRootElement = document.createElement('div')
+      document.body.appendChild(reactRootElement)
+      const reactRoot = (ReactDOMClient as any).createRoot(reactRootElement)
+
+      reactRoot.render(
+        <HotReload
+          assetPrefix={rootLayoutMissingTagsError.assetPrefix}
+          initialState={{
+            rootLayoutMissingTagsError: {
+              missingTags: rootLayoutMissingTagsError.missingTags,
+            },
+          }}
+          initialTree={rootLayoutMissingTagsError.tree}
+        />
+      )
+
+      return
+    }
+  }
+
   const reactEl = (
     <React.StrictMode>
-      <Root>
-        <RSCComponent />
-      </Root>
+      <HeadManagerContext.Provider
+        value={{
+          appDir: true,
+        }}
+      >
+        <Root>
+          <RSCComponent />
+        </Root>
+      </HeadManagerContext.Provider>
     </React.StrictMode>
   )
 

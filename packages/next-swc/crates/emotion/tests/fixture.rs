@@ -59,5 +59,6 @@ fn next_emotion_fixture(input: PathBuf) {
         },
         &input,
         &output,
+        Default::default(),
     );
 }

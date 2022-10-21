@@ -1,6 +1,5 @@
 import { stringify } from 'querystring'
 import path from 'path'
-import { relative } from 'path'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import {
   getInvalidator,
@@ -18,14 +17,14 @@ import {
   EDGE_RUNTIME_WEBPACK,
   FLIGHT_SERVER_CSS_MANIFEST,
 } from '../../../shared/lib/constants'
-import { FlightCSSManifest, traverseModules } from './flight-manifest-plugin'
+import { FlightCSSManifest } from './flight-manifest-plugin'
 import { ASYNC_CLIENT_MODULES } from './flight-manifest-plugin'
-import { isClientComponentModule } from '../loaders/utils'
+import { isClientComponentModule, regexCSS } from '../loaders/utils'
+import { traverseModules } from '../utils'
 
 interface Options {
   dev: boolean
   isEdgeServer: boolean
-  fontLoaderTargets?: string[]
 }
 
 const PLUGIN_NAME = 'ClientEntryPlugin'
@@ -35,21 +34,16 @@ export const injectedClientEntries = new Map()
 export const serverModuleIds = new Map<string, string | number>()
 export const edgeServerModuleIds = new Map<string, string | number>()
 
-// TODO-APP: ensure .scss / .sass also works.
-const regexCSS = /\.css$/
-
 // TODO-APP: move CSS manifest generation to the flight manifest plugin.
 const flightCSSManifest: FlightCSSManifest = {}
 
 export class FlightClientEntryPlugin {
   dev: boolean
   isEdgeServer: boolean
-  fontLoaderTargets?: string[]
 
   constructor(options: Options) {
     this.dev = options.dev
     this.isEdgeServer = options.isEdgeServer
-    this.fontLoaderTargets = options.fontLoaderTargets
   }
 
   apply(compiler: webpack.Compiler) {
@@ -96,7 +90,7 @@ export class FlightClientEntryPlugin {
           // Note that this isn't that reliable as webpack is still possible to assign
           // additional queries to make sure there's no conflict even using the `named`
           // module ID strategy.
-          let ssrNamedModuleId = relative(compiler.context, modResource)
+          let ssrNamedModuleId = path.relative(compiler.context, modResource)
           if (!ssrNamedModuleId.startsWith('.')) {
             // TODO use getModuleId instead
             ssrNamedModuleId = `./${ssrNamedModuleId.replace(/\\/g, '/')}`
@@ -113,27 +107,8 @@ export class FlightClientEntryPlugin {
         }
       }
 
-      compilation.chunkGroups.forEach((chunkGroup) => {
-        chunkGroup.chunks.forEach((chunk: webpack.Chunk) => {
-          const chunkModules = compilation.chunkGraph.getChunkModulesIterable(
-            chunk
-          ) as Iterable<webpack.NormalModule>
-
-          for (const mod of chunkModules) {
-            const modId = compilation.chunkGraph.getModuleId(mod)
-
-            recordModule(modId, mod)
-
-            // If this is a concatenation, register each child to the parent ID.
-            // TODO: remove any
-            const anyModule = mod as any
-            if (anyModule.modules) {
-              anyModule.modules.forEach((concatenatedMod: any) => {
-                recordModule(modId, concatenatedMod)
-              })
-            }
-          }
-        })
+      traverseModules(compilation, (mod, _chunk, _chunkGroup, modId) => {
+        recordModule(modId, mod)
       })
     })
   }
@@ -248,8 +223,56 @@ export class FlightClientEntryPlugin {
       )
     })
 
-    // After optimizing all the modules, we collect the CSS that are still used.
+    // After optimizing all the modules, we collect the CSS that are still used
+    // by the certain chunk.
     compilation.hooks.afterOptimizeModules.tap(PLUGIN_NAME, () => {
+      const cssImportsForChunk: Record<string, string[]> = {}
+
+      function collectModule(entryName: string, mod: any) {
+        const resource = mod.resource
+        if (resource) {
+          if (regexCSS.test(resource)) {
+            cssImportsForChunk[entryName].push(resource)
+          }
+        }
+      }
+
+      compilation.chunkGroups.forEach((chunkGroup: any) => {
+        chunkGroup.chunks.forEach((chunk: webpack.Chunk) => {
+          // Here we only track page chunks.
+          if (!chunk.name) return
+          if (!chunk.name.endsWith('/page')) return
+
+          const entryName = path.join(compiler.context, chunk.name)
+
+          if (!cssImportsForChunk[entryName]) {
+            cssImportsForChunk[entryName] = []
+          }
+
+          const chunkModules = compilation.chunkGraph.getChunkModulesIterable(
+            chunk
+          ) as Iterable<webpack.NormalModule>
+          for (const mod of chunkModules) {
+            collectModule(entryName, mod)
+
+            const anyModule = mod as any
+            if (anyModule.modules) {
+              anyModule.modules.forEach((concatenatedMod: any) => {
+                collectModule(entryName, concatenatedMod)
+              })
+            }
+          }
+
+          const entryCSSInfo: Record<string, string[]> =
+            flightCSSManifest.__entry_css__ || {}
+          entryCSSInfo[entryName] = cssImportsForChunk[entryName]
+
+          Object.assign(flightCSSManifest, {
+            __entry_css__: entryCSSInfo,
+          })
+        })
+      })
+
       forEachEntryModule(({ entryModule }) => {
         for (const connection of compilation.moduleGraph.getOutgoingConnections(
           entryModule
@@ -329,18 +352,14 @@ export class FlightClientEntryPlugin {
       // Request could be undefined or ''
       if (!rawRequest) return
 
-      const isFontLoader = this.fontLoaderTargets?.some((fontLoaderTarget) =>
-        mod.userRequest.startsWith(`${fontLoaderTarget}?`)
-      )
+      const isCSS = regexCSS.test(rawRequest)
       const modRequest: string | undefined =
-        !rawRequest.endsWith('.css') &&
+        !isCSS &&
         !rawRequest.startsWith('.') &&
         !rawRequest.startsWith('/') &&
         !rawRequest.startsWith(APP_DIR_ALIAS)
-          ? isFontLoader
-            ? mod.userRequest
-            : rawRequest
-          : mod.resourceResolveData?.path
+          ? rawRequest
+          : mod.resourceResolveData?.path + mod.resourceResolveData?.query
 
       // Ensure module is not walked again if it's already been visited
       if (!visitedBySegment[layoutOrPageRequest]) {
@@ -354,7 +373,6 @@ export class FlightClientEntryPlugin {
       }
       visitedBySegment[layoutOrPageRequest].add(modRequest)
 
-      const isCSS = isFontLoader || regexCSS.test(modRequest)
       const isClientComponent = isClientComponentModule(mod)
 
       if (isCSS) {
