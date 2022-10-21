@@ -16,7 +16,7 @@ import {
 type RuntimeConfig = any
 
 loadRequireHook()
-if (process.env.HAS_APP_DIR) {
+if (process.env.NEXT_PREBUNDLED_REACT) {
   overrideBuiltInReactPackages()
 }
 

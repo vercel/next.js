@@ -1647,12 +1647,15 @@ export default async function getBaseWebpackConfig(
                     resolve: {
                       // It needs `conditionNames` here to require the proper asset,
                       // when react is acting as dependency of compiled/react-dom.
+                      conditionNames: ['react-server', 'node', 'require'],
                       alias: {
-                        react: 'next/dist/compiled/react/react.shared-subset',
-                        // Use server rendering stub for RSC
-                        // x-ref: https://github.com/facebook/react/pull/25436
-                        'react-dom$':
-                          'next/dist/compiled/react-dom/server-rendering-stub',
+                        react: 'react',
+                        'react-dom': 'react-dom',
+                        // react: 'next/dist/compiled/react/react.shared-subset',
+                        // // Use server rendering stub for RSC
+                        // // x-ref: https://github.com/facebook/react/pull/25436
+                        // 'react-dom$':
+                        //   'next/dist/compiled/react-dom/server-rendering-stub',
                       },
                     },
                   },
@@ -1660,12 +1663,14 @@ export default async function getBaseWebpackConfig(
                     test: codeCondition.test,
                     resolve: {
                       alias: {
-                        react: 'next/dist/compiled/react',
-                        'react-dom$': isClient
-                          ? 'next/dist/compiled/react-dom/index'
-                          : 'next/dist/compiled/react-dom/server-rendering-stub',
-                        'react-dom/client$':
-                          'next/dist/compiled/react-dom/client',
+                        react: 'react',
+                        'react-dom': 'react-dom',
+                        // react: 'next/dist/compiled/react',
+                        // 'react-dom$': isClient
+                        //   ? 'next/dist/compiled/react-dom/index'
+                        //   : 'next/dist/compiled/react-dom/server-rendering-stub',
+                        // 'react-dom/client$':
+                        //   'next/dist/compiled/react-dom/client',
                       },
                     },
                   },
