@@ -1,7 +1,7 @@
 import dataUriToBuffer, {
   MimeBuffer,
 } from 'next/dist/compiled/data-uri-to-buffer'
-import type { EncodedSourceMap } from '@jridgewell/source-map'
+import type { EncodedSourceMap } from 'next/dist/compiled/@jridgewell/source-map'
 import { getSourceMapUrl } from './getSourceMapUrl'
 
 export function getRawSourceMap(fileContents: string): EncodedSourceMap | null {

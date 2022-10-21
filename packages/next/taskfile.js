@@ -1671,6 +1671,8 @@ export async function ncc_send(task, opts) {
 }
 // eslint-disable-next-line camelcase
 externals['source-map'] = 'next/dist/compiled/@jridgewell/source-map'
+externals['@jridgewell/source-map'] =
+  'next/dist/compiled/@jridgewell/source-map'
 export async function ncc_source_map(task, opts) {
   await task
     .source(
