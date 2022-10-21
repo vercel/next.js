@@ -2,8 +2,8 @@ import { codeFrameColumns } from '@babel/code-frame'
 import { constants as FS, promises as fs } from 'fs'
 import { IncomingMessage, ServerResponse } from 'http'
 import path from 'path'
-import type { NullableMappedPosition, RawSourceMap } from 'source-map'
-import { SourceMapConsumer } from 'source-map'
+import type { EncodedSourceMap } from '@jridgewell/source-map'
+import { SourceMapConsumer } from '@jridgewell/source-map'
 import { StackFrame } from 'stacktrace-parser'
 import url from 'url'
 // @ts-ignore
@@ -31,7 +31,7 @@ export type OriginalStackFrameResponse = {
   originalCodeFrame: string | null
 }
 
-type Source = { map: () => RawSourceMap } | null
+type Source = { map: () => EncodedSourceMap } | null
 
 function getModuleId(compilation: any, module: any) {
   return compilation.chunkGraph.getModuleId(module)
@@ -79,35 +79,27 @@ function getSourcePath(source: string) {
   return source
 }
 
-async function findOriginalSourcePositionAndContent(
+function findOriginalSourcePositionAndContent(
   webpackSource: any,
   position: { line: number; column: number | null }
 ) {
-  const consumer = await new SourceMapConsumer(webpackSource.map())
-  try {
-    const sourcePosition: NullableMappedPosition = consumer.originalPositionFor(
-      {
-        line: position.line,
-        column: position.column ?? 0,
-      }
-    )
+  const consumer = new SourceMapConsumer(webpackSource.map())
+  const sourcePosition = consumer.originalPositionFor({
+    line: position.line,
+    column: position.column ?? 0,
+  })
 
-    if (!sourcePosition.source) {
-      return null
-    }
+  if (!sourcePosition.source) {
+    return null
+  }
 
-    const sourceContent: string | null =
-      consumer.sourceContentFor(
-        sourcePosition.source,
-        /* returnNullOnMissing */ true
-      ) ?? null
+  const sourceContent: string | null = consumer.sourceContentFor(
+    sourcePosition.source
+  )
 
-    return {
-      sourcePosition,
-      sourceContent,
-    }
-  } finally {
-    consumer.destroy()
+  return {
+    sourcePosition,
+    sourceContent,
   }
 }
 
@@ -147,7 +139,7 @@ export async function createOriginalStackFrame({
           moduleNotFound,
           compilation
         )
-      : await findOriginalSourcePositionAndContent(source, {
+      : findOriginalSourcePositionAndContent(source, {
           line,
           column,
         })

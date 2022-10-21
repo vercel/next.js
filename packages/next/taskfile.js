@@ -374,8 +374,6 @@ export async function ncc_next__react_dev_overlay(task, opts) {
     react: 'react',
     'react-dom': 'react-dom',
   }
-  // dev-overlay needs a newer source-map version
-  delete overlayExternals['source-map']
 
   await task
     .source(
@@ -1672,14 +1670,14 @@ export async function ncc_send(task, opts) {
     .target('compiled/send')
 }
 // eslint-disable-next-line camelcase
-// NB: Used by other dependencies, but Vercel version is a duplicate
-// version so can be inlined anyway (although may change in future)
-externals['source-map'] = 'next/dist/compiled/source-map'
+externals['source-map'] = 'next/dist/compiled/@jridgewell/source-map'
 export async function ncc_source_map(task, opts) {
   await task
-    .source(opts.src || relative(__dirname, require.resolve('source-map')))
-    .ncc({ packageName: 'source-map', externals })
-    .target('compiled/source-map')
+    .source(
+      opts.src || relative(__dirname, require.resolve('@jridgewell/source-map'))
+    )
+    .ncc({ packageName: '@jridgewell/source-map', externals })
+    .target('compiled/@jridgewell/source-map')
 }
 // eslint-disable-next-line camelcase
 externals['string-hash'] = 'next/dist/compiled/string-hash'

@@ -1,8 +1,8 @@
 import dataUriToBuffer, { MimeBuffer } from 'data-uri-to-buffer'
-import type { RawSourceMap } from 'source-map'
+import type { EncodedSourceMap } from '@jridgewell/source-map'
 import { getSourceMapUrl } from './getSourceMapUrl'
 
-export function getRawSourceMap(fileContents: string): RawSourceMap | null {
+export function getRawSourceMap(fileContents: string): EncodedSourceMap | null {
   const sourceUrl = getSourceMapUrl(fileContents)
   if (!sourceUrl?.startsWith('data:')) {
     return null

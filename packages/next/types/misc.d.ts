@@ -250,8 +250,8 @@ declare module 'next/dist/compiled/send' {
   import m from 'send'
   export = m
 }
-declare module 'next/dist/compiled/source-map' {
-  import m from 'source-map'
+declare module 'next/dist/compiled/@jridgewell/source-map' {
+  import m from '@jridgewell/source-map'
   export = m
 }
 declare module 'next/dist/compiled/string-hash' {
