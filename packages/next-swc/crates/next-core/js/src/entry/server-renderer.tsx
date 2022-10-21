@@ -86,7 +86,6 @@ async function operation(renderData: RenderData) {
     buildId: "",
 
     /* RenderOptsPartial */
-    dev: true,
     runtimeConfig: {},
     assetPrefix: "",
     canonicalBase: "",
