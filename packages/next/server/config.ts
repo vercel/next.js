@@ -23,6 +23,7 @@ import {
 } from '../shared/lib/image-config'
 import { loadEnvConfig } from '@next/env'
 import { gte as semverGte } from 'next/dist/compiled/semver'
+import { getPackageVersion } from '../lib/get-package-version'
 
 export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
 
@@ -816,6 +817,37 @@ export default async function loadConfig(
         (canonicalBase.endsWith('/')
           ? canonicalBase.slice(0, -1)
           : canonicalBase) || ''
+    }
+
+    // Add official font loaders by default if they're installed
+    const nextFontVersion = await getPackageVersion({
+      cwd: dir,
+      name: '@next/font',
+    })
+    if (nextFontVersion) {
+      const googleFontLoader = {
+        loader: '@next/font/google',
+      }
+      const localFontLoader = {
+        loader: '@next/font/local',
+      }
+      if (!userConfig.experimental.fontLoaders) {
+        userConfig.experimental.fontLoaders = []
+      }
+      if (
+        !userConfig.experimental.fontLoaders.find(
+          ({ loader }: any) => loader === '@next/font/goggle'
+        )
+      ) {
+        userConfig.experimental.fontLoaders.push(googleFontLoader)
+      }
+      if (
+        !userConfig.experimental.fontLoaders.find(
+          ({ loader }: any) => loader === '@next/font/local'
+        )
+      ) {
+        userConfig.experimental.fontLoaders.push(localFontLoader)
+      }
     }
 
     return assignDefaults({
