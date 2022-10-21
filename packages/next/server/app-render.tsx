@@ -197,18 +197,6 @@ function createErrorHandler(
 
 let isFetchPatched = false
 
-const OriginalRequest = global.Request
-class NextFetchRequestImpl extends OriginalRequest {
-  next?: NextFetchRequestConfig | undefined
-  constructor(
-    input: RequestInfo | URL,
-    init?: NextFetchRequestOptions | undefined
-  ) {
-    super(input, init)
-    this.next = init?.next
-  }
-}
-
 // we patch fetch to collect cache information used for
 // determining if a page is static or not
 function patchFetch(ComponentMod: any) {
@@ -221,7 +209,17 @@ function patchFetch(ComponentMod: any) {
   const staticGenerationAsyncStorage = ComponentMod.staticGenerationAsyncStorage
 
   const originFetch = global.fetch
-  global.Request = NextFetchRequestImpl
+  const OriginalRequest = global.Request
+  global.Request = class NextFetchRequestImpl extends OriginalRequest {
+    next?: NextFetchRequestConfig | undefined
+    constructor(
+      input: RequestInfo | URL,
+      init?: NextFetchRequestOptions | undefined
+    ) {
+      super(input, init)
+      this.next = init?.next
+    }
+  }
   global.fetch = async (input, init) => {
     const staticGenerationStore =
       'getStore' in staticGenerationAsyncStorage
