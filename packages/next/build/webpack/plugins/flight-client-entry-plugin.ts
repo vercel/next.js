@@ -17,9 +17,10 @@ import {
   EDGE_RUNTIME_WEBPACK,
   FLIGHT_SERVER_CSS_MANIFEST,
 } from '../../../shared/lib/constants'
-import { FlightCSSManifest, traverseModules } from './flight-manifest-plugin'
+import { FlightCSSManifest } from './flight-manifest-plugin'
 import { ASYNC_CLIENT_MODULES } from './flight-manifest-plugin'
 import { isClientComponentModule, regexCSS } from '../loaders/utils'
+import { traverseModules } from '../utils'
 
 interface Options {
   dev: boolean
@@ -106,27 +107,8 @@ export class FlightClientEntryPlugin {
         }
       }
 
-      compilation.chunkGroups.forEach((chunkGroup) => {
-        chunkGroup.chunks.forEach((chunk: webpack.Chunk) => {
-          const chunkModules = compilation.chunkGraph.getChunkModulesIterable(
-            chunk
-          ) as Iterable<webpack.NormalModule>
-
-          for (const mod of chunkModules) {
-            const modId = compilation.chunkGraph.getModuleId(mod)
-
-            recordModule(modId, mod)
-
-            // If this is a concatenation, register each child to the parent ID.
-            // TODO: remove any
-            const anyModule = mod as any
-            if (anyModule.modules) {
-              anyModule.modules.forEach((concatenatedMod: any) => {
-                recordModule(modId, concatenatedMod)
-              })
-            }
-          }
-        })
+      traverseModules(compilation, (mod, _chunk, _chunkGroup, modId) => {
+        recordModule(modId, mod)
       })
     })
   }

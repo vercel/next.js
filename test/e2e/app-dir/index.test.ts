@@ -913,6 +913,42 @@ describe('app dir', () => {
             await browser.close()
           }
         })
+
+        it('should support router.back and router.forward', async () => {
+          const browser = await webdriver(next.url, '/back-forward/1')
+
+          const firstMessage = 'Hello from 1'
+          const secondMessage = 'Hello from 2'
+
+          expect(await browser.elementByCss('#message-1').text()).toBe(
+            firstMessage
+          )
+
+          try {
+            const message2 = await browser
+              .waitForElementByCss('#to-other-page')
+              .click()
+              .waitForElementByCss('#message-2')
+              .text()
+            expect(message2).toBe(secondMessage)
+
+            const message1 = await browser
+              .waitForElementByCss('#back-button')
+              .click()
+              .waitForElementByCss('#message-1')
+              .text()
+            expect(message1).toBe(firstMessage)
+
+            const message2Again = await browser
+              .waitForElementByCss('#forward-button')
+              .click()
+              .waitForElementByCss('#message-2')
+              .text()
+            expect(message2Again).toBe(secondMessage)
+          } finally {
+            await browser.close()
+          }
+        })
       })
 
       describe('hooks', () => {
@@ -1194,63 +1230,82 @@ describe('app dir', () => {
             expect(el.attr('data-query')).toBe('query')
           })
         })
+
+        describe('useSelectedLayoutSegment', () => {
+          it.each`
+            path                                                           | outerLayout                                             | innerLayout
+            ${'/hooks/use-selected-layout-segment/first'}                  | ${['first']}                                            | ${[]}
+            ${'/hooks/use-selected-layout-segment/first/slug1'}            | ${['first', 'slug1']}                                   | ${['slug1']}
+            ${'/hooks/use-selected-layout-segment/first/slug2/second'}     | ${['first', 'slug2', '(group)', 'second']}              | ${['slug2', '(group)', 'second']}
+            ${'/hooks/use-selected-layout-segment/first/slug2/second/a/b'} | ${['first', 'slug2', '(group)', 'second', 'a/b']}       | ${['slug2', '(group)', 'second', 'a/b']}
+            ${'/hooks/use-selected-layout-segment/rewritten'}              | ${['first', 'slug3', '(group)', 'second', 'catch/all']} | ${['slug3', '(group)', 'second', 'catch/all']}
+            ${'/hooks/use-selected-layout-segment/rewritten-middleware'}   | ${['first', 'slug3', '(group)', 'second', 'catch/all']} | ${['slug3', '(group)', 'second', 'catch/all']}
+          `(
+            'should have the correct layout segments at $path',
+            async ({ path, outerLayout, innerLayout }) => {
+              const html = await renderViaHTTP(next.url, path)
+              const $ = cheerio.load(html)
+
+              expect(JSON.parse($('#outer-layout').text())).toEqual(outerLayout)
+              expect(JSON.parse($('#inner-layout').text())).toEqual(innerLayout)
+            }
+          )
+
+          it('should return an empty array in pages', async () => {
+            const html = await renderViaHTTP(
+              next.url,
+              '/hooks/use-selected-layout-segment/first/slug2/second/a/b'
+            )
+            const $ = cheerio.load(html)
+
+            expect(JSON.parse($('#page-layout-segments').text())).toEqual([])
+          })
+        })
       })
 
       if (isDev) {
-        it('should throw an error when getServerSideProps is used', async () => {
-          const pageFile =
-            'app/client-with-errors/get-server-side-props/page.js'
-          const content = await next.readFile(pageFile)
-          const uncomment = content.replace(
-            '// export function getServerSideProps',
-            'export function getServerSideProps'
-          )
-          await next.patchFile(pageFile, uncomment)
-          const res = await fetchViaHTTP(
-            next.url,
-            '/client-with-errors/get-server-side-props'
-          )
-          await next.patchFile(pageFile, content)
+        it('should HMR correctly for client component', async () => {
+          const filePath = 'app/client-component-route/page.js'
+          const origContent = await next.readFile(filePath)
 
-          await check(async () => {
-            const { status } = await fetchViaHTTP(
+          try {
+            const browser = await webdriver(next.url, '/client-component-route')
+
+            const ssrInitial = await renderViaHTTP(
               next.url,
-              '/client-with-errors/get-server-side-props'
+              '/client-component-route'
             )
-            return status
-          }, /200/)
 
-          expect(res.status).toBe(500)
-          expect(await res.text()).toContain(
-            '`getServerSideProps` is not allowed in Client Components'
-          )
-        })
+            expect(ssrInitial).toContain(
+              'hello from app/client-component-route'
+            )
 
-        it('should throw an error when getStaticProps is used', async () => {
-          const pageFile = 'app/client-with-errors/get-static-props/page.js'
-          const content = await next.readFile(pageFile)
-          const uncomment = content.replace(
-            '// export function getStaticProps',
-            'export function getStaticProps'
-          )
-          await next.patchFile(pageFile, uncomment)
-          const res = await fetchViaHTTP(
-            next.url,
-            '/client-with-errors/get-static-props'
-          )
-          await next.patchFile(pageFile, content)
-          await check(async () => {
-            const { status } = await fetchViaHTTP(
+            expect(await browser.elementByCss('p').text()).toContain(
+              'hello from app/client-component-route'
+            )
+
+            await next.patchFile(
+              filePath,
+              origContent.replace('hello from', 'swapped from')
+            )
+
+            await check(() => browser.elementByCss('p').text(), /swapped from/)
+
+            const ssrUpdated = await renderViaHTTP(
               next.url,
-              '/client-with-errors/get-static-props'
+              '/client-component-route'
             )
-            return status
-          }, /200/)
+            expect(ssrUpdated).toContain('swapped from')
 
-          expect(res.status).toBe(500)
-          expect(await res.text()).toContain(
-            '`getStaticProps` is not allowed in Client Components'
-          )
+            await next.patchFile(filePath, origContent)
+
+            await check(() => browser.elementByCss('p').text(), /hello from/)
+            expect(
+              await renderViaHTTP(next.url, '/client-component-route')
+            ).toContain('hello from')
+          } finally {
+            await next.patchFile(filePath, origContent)
+          }
         })
       }
     })
@@ -1565,8 +1620,7 @@ describe('app dir', () => {
 
         if (isDev) {
           expect(await hasRedbox(browser)).toBe(true)
-          console.log('getRedboxHeader', await getRedboxHeader(browser))
-          // expect(await getRedboxHeader(browser)).toMatch(/An error occurred: this is a test/)
+          expect(await getRedboxHeader(browser)).toMatch(/this is a test/)
         } else {
           await browser
           expect(
@@ -1575,6 +1629,37 @@ describe('app dir', () => {
               .elementByCss('#error-boundary-message')
               .text()
           ).toBe('An error occurred: this is a test')
+        }
+      })
+
+      it('should trigger error component when an error happens during server components rendering', async () => {
+        const browser = await webdriver(next.url, '/error/server-component')
+
+        if (isDev) {
+          expect(
+            await browser
+              .waitForElementByCss('#error-boundary-message')
+              .elementByCss('#error-boundary-message')
+              .text()
+          ).toBe('this is a test')
+          expect(
+            await browser.waitForElementByCss('#error-boundary-digest').text()
+            // Digest of the error message should be stable.
+          ).not.toBe('')
+          // TODO-APP: ensure error overlay is shown for errors that happened before/during hydration
+          // expect(await hasRedbox(browser)).toBe(true)
+          // expect(await getRedboxHeader(browser)).toMatch(/this is a test/)
+        } else {
+          await browser
+          expect(
+            await browser.waitForElementByCss('#error-boundary-message').text()
+          ).toBe(
+            'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
+          )
+          expect(
+            await browser.waitForElementByCss('#error-boundary-digest').text()
+            // Digest of the error message should be stable.
+          ).not.toBe('')
         }
       })
 

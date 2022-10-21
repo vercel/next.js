@@ -3,12 +3,18 @@ import type { LoadComponentsReturnType } from './load-components'
 import type { ServerRuntime } from '../types'
 import type { FontLoaderManifest } from '../build/webpack/plugins/font-loader-manifest-plugin'
 
+// TODO-APP: investigate why require-hook doesn't work for app-render
 // TODO-APP: change to React.use once it becomes stable
-// @ts-ignore
-import React, { experimental_use as use } from 'react'
+import React, {
+  // @ts-ignore
+  experimental_use as use,
+} from 'next/dist/compiled/react'
 
-import { ParsedUrlQuery, stringify as stringifyQuery } from 'querystring'
-import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
+// this needs to be required lazily so that `next-server` can set
+// the env before we require
+import ReactDOMServer from 'next/dist/compiled/react-dom/server.browser'
+
+import { ParsedUrlQuery } from 'querystring'
 import { NextParsedUrlQuery } from './request-meta'
 import RenderResult from './render-result'
 import {
@@ -36,6 +42,7 @@ import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
 import { NOT_FOUND_ERROR_CODE } from '../client/components/not-found'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import { Writable } from 'stream'
+import stringHash from 'next/dist/compiled/string-hash'
 
 const INTERNAL_HEADERS_INSTANCE = Symbol('internal for headers readonly')
 
@@ -128,12 +135,6 @@ class ReadonlyNextCookies {
   }
 }
 
-// this needs to be required lazily so that `next-server` can set
-// the env before we require
-const ReactDOMServer = shouldUseReactRoot
-  ? require('react-dom/server.browser')
-  : require('react-dom/server')
-
 export type RenderOptsPartial = {
   err?: Error | null
   dev?: boolean
@@ -176,21 +177,21 @@ function createErrorHandler(
   _source: string,
   capturedErrors: Error[]
 ) {
-  return (err: any) => {
+  return (err: any): string => {
     if (
-      // TODO-APP: Handle redirect throw
-      err.digest !== DYNAMIC_ERROR_CODE &&
-      err.digest !== NOT_FOUND_ERROR_CODE &&
-      !err.digest?.startsWith(REDIRECT_ERROR_CODE)
+      err.digest === DYNAMIC_ERROR_CODE ||
+      err.digest === NOT_FOUND_ERROR_CODE ||
+      err.digest?.startsWith(REDIRECT_ERROR_CODE)
     ) {
-      // Used for debugging error source
-      // console.error(_source, err)
-      console.error(err)
-      capturedErrors.push(err)
-      return err.digest || err.message
+      return err.digest
     }
 
-    return err.digest
+    // Used for debugging error source
+    // console.error(_source, err)
+    console.error(err)
+    capturedErrors.push(err)
+    // TODO-APP: look at using webcrypto instead. Requires a promise to be awaited.
+    return stringHash(err.message + err.stack + (err.digest || '')).toString()
   }
 }
 
@@ -207,9 +208,8 @@ function patchFetch(ComponentMod: any) {
 
   const staticGenerationAsyncStorage = ComponentMod.staticGenerationAsyncStorage
 
-  const origFetch = (global as any).fetch
-
-  ;(global as any).fetch = async (init: any, opts: any) => {
+  const origFetch = globalThis.fetch
+  globalThis.fetch = async (url, opts) => {
     const staticGenerationStore =
       'getStore' in staticGenerationAsyncStorage
         ? staticGenerationAsyncStorage.getStore()
@@ -225,20 +225,31 @@ function patchFetch(ComponentMod: any) {
           // TODO: ensure this error isn't logged to the user
           // seems it's slipping through currently
           throw new DynamicServerError(
-            `no-store fetch ${init}${pathname ? ` ${pathname}` : ''}`
+            `no-store fetch ${url}${pathname ? ` ${pathname}` : ''}`
           )
         }
 
+        const hasNextConfig = 'next' in opts
+        const next = (hasNextConfig && opts.next) || {}
         if (
-          typeof opts.revalidate === 'number' &&
+          typeof next.revalidate === 'number' &&
           (typeof fetchRevalidate === 'undefined' ||
-            opts.revalidate < fetchRevalidate)
+            next.revalidate < fetchRevalidate)
         ) {
-          staticGenerationStore.fetchRevalidate = opts.revalidate
+          staticGenerationStore.fetchRevalidate = next.revalidate
+
+          // TODO: ensure this error isn't logged to the user
+          // seems it's slipping through currently
+          throw new DynamicServerError(
+            `revalidate: ${next.revalidate} fetch ${url}${
+              pathname ? ` ${pathname}` : ''
+            }`
+          )
         }
+        if (hasNextConfig) delete opts.next
       }
     }
-    return origFetch(init, opts)
+    return origFetch(url, opts)
   }
 }
 
@@ -261,6 +272,9 @@ function useFlightResponse(
   if (flightResponseRef.current !== null) {
     return flightResponseRef.current
   }
+  const {
+    createFromReadableStream,
+  } = require('next/dist/compiled/react-server-dom-webpack/client')
 
   const [renderStream, forwardStream] = readableStreamTee(req)
   const res = createFromReadableStream(renderStream, {
@@ -429,7 +443,8 @@ export type FlightRouterState = [
   segment: Segment,
   parallelRoutes: { [parallelRouterKey: string]: FlightRouterState },
   url?: string,
-  refresh?: 'refetch'
+  refresh?: 'refetch',
+  isRootLayout?: boolean
 ]
 
 /**
@@ -668,56 +683,6 @@ async function renderToString(element: React.ReactElement) {
   return streamToString(renderStream)
 }
 
-function getRootLayoutPath(
-  [segment, parallelRoutes, { layout }]: LoaderTree,
-  rootLayoutPath = ''
-): string | undefined {
-  rootLayoutPath += `${segment}/`
-  const isLayout = typeof layout !== 'undefined'
-  if (isLayout) return rootLayoutPath
-  // We can't assume it's `parallelRoutes.children` here in case the root layout is `app/@something/layout.js`
-  // But it's not possible to be more than one parallelRoutes before the root layout is found
-  const child = Object.values(parallelRoutes)[0]
-  if (!child) return
-  return getRootLayoutPath(child, rootLayoutPath)
-}
-
-function findRootLayoutInFlightRouterState(
-  [segment, parallelRoutes]: FlightRouterState,
-  rootLayoutSegments: string,
-  segments = ''
-): boolean {
-  segments += `${segment}/`
-  if (segments === rootLayoutSegments) {
-    return true
-  } else if (segments.length > rootLayoutSegments.length) {
-    return false
-  }
-  // We can't assume it's `parallelRoutes.children` here in case the root layout is `app/@something/layout.js`
-  // But it's not possible to be more than one parallelRoutes before the root layout is found
-  const child = Object.values(parallelRoutes)[0]
-  if (!child) return false
-  return findRootLayoutInFlightRouterState(child, rootLayoutSegments, segments)
-}
-
-function isNavigatingToNewRootLayout(
-  loaderTree: LoaderTree,
-  flightRouterState: FlightRouterState
-): boolean {
-  const newRootLayout = getRootLayoutPath(loaderTree)
-  // should always have a root layout
-  if (newRootLayout) {
-    const hasSameRootLayout = findRootLayoutInFlightRouterState(
-      flightRouterState,
-      newRootLayout
-    )
-
-    return !hasSameRootLayout
-  }
-
-  return false
-}
-
 export async function renderToHTMLOrFlight(
   req: IncomingMessage,
   res: ServerResponse,
@@ -810,28 +775,6 @@ export async function renderToHTMLOrFlight(
      */
     const loaderTree: LoaderTree = ComponentMod.tree
 
-    // If navigating to a new root layout we need to do a full page navigation.
-    if (
-      isFlight &&
-      Array.isArray(providedFlightRouterState) &&
-      isNavigatingToNewRootLayout(loaderTree, providedFlightRouterState)
-    ) {
-      stripInternalQueries(query)
-      const search = stringifyQuery(query)
-
-      // Empty so that the client-side router will do a full page navigation.
-      const flightData: FlightData = req.url! + (search ? `?${search}` : '')
-      return new FlightRenderResult(
-        ComponentMod.renderToReadableStream(
-          flightData,
-          serverComponentManifest,
-          {
-            onError: flightDataRendererErrorHandler,
-          }
-        ).pipeThrough(createBufferedTransformStream())
-      )
-    }
-
     stripInternalQueries(query)
 
     const LayoutRouter =
@@ -907,10 +850,10 @@ export async function renderToHTMLOrFlight(
       }
     }
 
-    const createFlightRouterStateFromLoaderTree = ([
-      segment,
-      parallelRoutes,
-    ]: LoaderTree): FlightRouterState => {
+    const createFlightRouterStateFromLoaderTree = (
+      [segment, parallelRoutes, { layout }]: LoaderTree,
+      rootLayoutIncluded = false
+    ): FlightRouterState => {
       const dynamicParam = getDynamicParamFromSegment(segment)
 
       const segmentTree: FlightRouterState = [
@@ -918,17 +861,21 @@ export async function renderToHTMLOrFlight(
         {},
       ]
 
-      if (parallelRoutes) {
-        segmentTree[1] = Object.keys(parallelRoutes).reduce(
-          (existingValue, currentValue) => {
-            existingValue[currentValue] = createFlightRouterStateFromLoaderTree(
-              parallelRoutes[currentValue]
-            )
-            return existingValue
-          },
-          {} as FlightRouterState[1]
-        )
+      if (!rootLayoutIncluded && typeof layout !== 'undefined') {
+        rootLayoutIncluded = true
+        segmentTree[4] = true
       }
+
+      segmentTree[1] = Object.keys(parallelRoutes).reduce(
+        (existingValue, currentValue) => {
+          existingValue[currentValue] = createFlightRouterStateFromLoaderTree(
+            parallelRoutes[currentValue],
+            rootLayoutIncluded
+          )
+          return existingValue
+        },
+        {} as FlightRouterState[1]
+      )
 
       return segmentTree
     }
@@ -943,6 +890,8 @@ export async function renderToHTMLOrFlight(
       serverCSSManifest!,
       ComponentMod.pages
     )
+
+    const assetPrefix = renderOpts.assetPrefix || ''
 
     /**
      * Use the provided loader tree to create the React Component tree.
@@ -1003,8 +952,8 @@ export async function renderToHTMLOrFlight(
         ? await page()
         : undefined
 
-      if (layoutOrPageMod?.config) {
-        defaultRevalidate = layoutOrPageMod.config.revalidate
+      if (typeof layoutOrPageMod?.revalidate !== 'undefined') {
+        defaultRevalidate = layoutOrPageMod.revalidate
 
         if (isStaticGeneration && defaultRevalidate === 0) {
           const { DynamicServerError } =
@@ -1177,7 +1126,7 @@ export async function renderToHTMLOrFlight(
                   <link
                     key={fontFile}
                     rel="preload"
-                    href={`/_next/${fontFile}`}
+                    href={`${assetPrefix}/_next/${fontFile}`}
                     as="font"
                     type={`font/${ext}`}
                     crossOrigin="anonymous"
@@ -1185,16 +1134,16 @@ export async function renderToHTMLOrFlight(
                 )
               })}
               {stylesheets
-                ? stylesheets.map((href) => (
+                ? stylesheets.map((href, index) => (
                     <link
                       rel="stylesheet"
-                      href={`/_next/${href}${cacheBustingUrlSuffix}`}
+                      href={`${assetPrefix}/_next/${href}${cacheBustingUrlSuffix}`}
                       // `Precedence` is an opt-in signal for React to handle
                       // resource loading and deduplication, etc:
                       // https://github.com/facebook/react/pull/25060
                       // @ts-ignore
                       precedence="high"
-                      key={href}
+                      key={index}
                     />
                   ))
                 : null}
@@ -1423,7 +1372,7 @@ export async function renderToHTMLOrFlight(
 
         return (
           <AppRouter
-            assetPrefix={renderOpts.assetPrefix || ''}
+            assetPrefix={assetPrefix}
             initialCanonicalUrl={initialCanonicalUrl}
             initialTree={initialTree}
           >
@@ -1469,7 +1418,7 @@ export async function renderToHTMLOrFlight(
             polyfill.endsWith('.js') && !polyfill.endsWith('.module.js')
         )
         .map((polyfill) => ({
-          src: `${renderOpts.assetPrefix || ''}/_next/${polyfill}`,
+          src: `${assetPrefix}/_next/${polyfill}`,
           integrity: subresourceIntegrityManifest?.[polyfill],
         }))
 
@@ -1516,11 +1465,11 @@ export async function renderToHTMLOrFlight(
             bootstrapScripts: [
               ...(subresourceIntegrityManifest
                 ? buildManifest.rootMainFiles.map((src) => ({
-                    src: `${renderOpts.assetPrefix || ''}/_next/` + src,
+                    src: `${assetPrefix}/_next/` + src,
                     integrity: subresourceIntegrityManifest[src],
                   }))
                 : buildManifest.rootMainFiles.map(
-                    (src) => `${renderOpts.assetPrefix || ''}/_next/` + src
+                    (src) => `${assetPrefix}/_next/` + src
                   )),
             ],
           },
@@ -1548,11 +1497,11 @@ export async function renderToHTMLOrFlight(
             // Include hydration scripts in the HTML
             bootstrapScripts: subresourceIntegrityManifest
               ? buildManifest.rootMainFiles.map((src) => ({
-                  src: `${renderOpts.assetPrefix || ''}/_next/` + src,
+                  src: `${assetPrefix}/_next/` + src,
                   integrity: subresourceIntegrityManifest[src],
                 }))
               : buildManifest.rootMainFiles.map(
-                  (src) => `${renderOpts.assetPrefix || ''}/_next/` + src
+                  (src) => `${assetPrefix}/_next/` + src
                 ),
           },
         })

@@ -47,19 +47,13 @@ function Home() {
   return (
     <ul>
       <li>
-        <Link href="/">
-          <a>Home</a>
-        </Link>
+        <Link href="/">Home</Link>
       </li>
       <li>
-        <Link href="/about">
-          <a>About Us</a>
-        </Link>
+        <Link href="/about">About Us</Link>
       </li>
       <li>
-        <Link href="/blog/hello-world">
-          <a>Blog Post</a>
-        </Link>
+        <Link href="/blog/hello-world">Blog Post</Link>
       </li>
     </ul>
   )
@@ -74,7 +68,7 @@ The example above uses multiple links. Each one maps a path (`href`) to a known 
 - `/about` → `pages/about.js`
 - `/blog/hello-world` → `pages/blog/[slug].js`
 
-Any `<Link />` in the viewport (initially or through scroll) will be prefetched by default (including the corresponding data) for pages using [Static Generation](/docs/basic-features/data-fetching/get-static-props.md). The corresponding data for [server-rendered](/docs/basic-features/data-fetching/get-server-side-props.md) routes is _not_ prefetched.
+Any `<Link />` in the viewport (initially or through scroll) will be prefetched by default (including the corresponding data) for pages using [Static Generation](/docs/basic-features/data-fetching/get-static-props.md). The corresponding data for [server-rendered](/docs/basic-features/data-fetching/get-server-side-props.md) routes is fetched _only when_ the <Link /> is clicked.
 
 ### Linking to dynamic paths
 
@@ -89,7 +83,7 @@ function Posts({ posts }) {
       {posts.map((post) => (
         <li key={post.id}>
           <Link href={`/blog/${encodeURIComponent(post.slug)}`}>
-            <a>{post.title}</a>
+            {post.title}
           </Link>
         </li>
       ))}
@@ -118,7 +112,7 @@ function Posts({ posts }) {
               query: { slug: post.slug },
             }}
           >
-            <a>{post.title}</a>
+            {post.title}
           </Link>
         </li>
       ))}

@@ -1,5 +1,6 @@
 // useLayoutSegments() // Only the segments for the current place. ['children', 'dashboard', 'children', 'integrations'] -> /dashboard/integrations (/dashboard/layout.js would get ['children', 'dashboard', 'children', 'integrations'])
 
+import type { FlightRouterState } from '../../server/app-render'
 import { useContext, useMemo } from 'react'
 import {
   SearchParamsContext,
@@ -69,7 +70,8 @@ class ReadonlyURLSearchParams {
 }
 
 /**
- * Get the current search params. For example useSearchParams() would return {"foo": "bar"} when ?foo=bar
+ * Get a read-only URLSearchParams object. For example searchParams.get('foo') would return 'bar' when ?foo=bar
+ * Learn more about URLSearchParams here: https://developer.mozilla.org/en-US/docs/Web/API/URLSearchParams
  */
 export function useSearchParams() {
   const searchParams = useContext(SearchParamsContext)
@@ -104,16 +106,45 @@ export function usePathname(): string {
 //   return useContext(LayoutSegmentsContext)
 // }
 
+// TODO-APP: handle parallel routes
+function getSelectedLayoutSegmentPath(
+  tree: FlightRouterState,
+  parallelRouteKey: string,
+  first = true,
+  segmentPath: string[] = []
+): string[] {
+  let node: FlightRouterState
+  if (first) {
+    // Use the provided parallel route key on the first parallel route
+    node = tree[1][parallelRouteKey]
+  } else {
+    // After first parallel route prefer children, if there's no children pick the first parallel route.
+    const parallelRoutes = tree[1]
+    node = parallelRoutes.children ?? Object.values(parallelRoutes)[0]
+  }
+
+  if (!node) return segmentPath
+  const segment = node[0]
+  const segmentValue = Array.isArray(segment) ? segment[1] : segment
+  if (!segmentValue) return segmentPath
+
+  segmentPath.push(segmentValue)
+
+  return getSelectedLayoutSegmentPath(
+    node,
+    parallelRouteKey,
+    false,
+    segmentPath
+  )
+}
+
 // TODO-APP: Expand description when the docs are written for it.
 /**
- * Get the current segment one level down from the layout.
+ * Get the canonical segment path from this level to the leaf node.
  */
 export function useSelectedLayoutSegment(
   parallelRouteKey: string = 'children'
-): string {
+): string[] {
   const { tree } = useContext(LayoutRouterContext)
-
-  const segment = tree[1][parallelRouteKey][0]
-
-  return Array.isArray(segment) ? segment[1] : segment
+  return getSelectedLayoutSegmentPath(tree, parallelRouteKey)
 }
