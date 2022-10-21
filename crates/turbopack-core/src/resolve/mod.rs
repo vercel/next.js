@@ -654,16 +654,74 @@ pub async fn resolve(
             let mut new_pat = path.clone();
             new_pat.push_front(".".to_string().into());
             let relative = RequestVc::relative(Value::new(new_pat), true);
+
+            let issue: ResolvingIssueVc = ResolvingIssue {
+                request_type: "server relative import: not implemented yet".to_string(),
+                request,
+                context,
+                resolve_options: options,
+                error_message: Some("server relative imports are not implemented yet".to_string()),
+            }
+            .into();
+            issue.as_issue().emit();
+
             resolve(context.root(), relative, options)
         }
-        Request::Windows { path: _ } => ResolveResult::unresolveable().into(),
+        Request::Windows { path: _ } => {
+            let issue: ResolvingIssueVc = ResolvingIssue {
+                request_type: "windows import: not implemented yet".to_string(),
+                request,
+                context,
+                resolve_options: options,
+                error_message: Some("windows imports are not implemented yet".to_string()),
+            }
+            .into();
+            issue.as_issue().emit();
+
+            ResolveResult::unresolveable().into()
+        }
         Request::Empty => ResolveResult::unresolveable().into(),
-        Request::PackageInternal { path: _ } => ResolveResult::unresolveable().into(),
+        Request::PackageInternal { path: _ } => {
+            let issue: ResolvingIssueVc = ResolvingIssue {
+                request_type: "package internal import: not implemented yet".to_string(),
+                request,
+                context,
+                resolve_options: options,
+                error_message: Some("package internal imports are not implemented yet".to_string()),
+            }
+            .into();
+            issue.as_issue().emit();
+            ResolveResult::unresolveable().into()
+        }
         Request::Uri {
             protocol: _,
-            remainer: _,
-        } => ResolveResult::unresolveable().into(),
-        Request::Unknown { path: _ } => ResolveResult::unresolveable().into(),
+            remainer,
+        } => {
+            if remainer.ends_with("css") {
+                let issue: ResolvingIssueVc = ResolvingIssue {
+                    request_type: "CSS URI imports: not implemented yet".to_string(),
+                    request,
+                    context,
+                    resolve_options: options,
+                    error_message: Some("CSS URI imports are not implemented yet".to_string()),
+                }
+                .into();
+                issue.as_issue().emit();
+            }
+            ResolveResult::unresolveable().into()
+        }
+        Request::Unknown { path } => {
+            let issue: ResolvingIssueVc = ResolvingIssue {
+                request_type: format!("unknown import: `{}`", path),
+                request,
+                context,
+                resolve_options: options,
+                error_message: None,
+            }
+            .into();
+            issue.as_issue().emit();
+            ResolveResult::unresolveable().into()
+        }
     };
 
     // Apply fallback import mappings if provided
