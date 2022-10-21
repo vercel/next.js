@@ -24,6 +24,7 @@ impl ModuleOptionsVc {
         let ModuleOptionsContext {
             enable_react_refresh,
             enable_styled_jsx,
+            enable_styled_components,
             enable_typescript_transform,
             preset_env_versions,
             ref custom_ecmascript_app_transforms,
@@ -38,6 +39,10 @@ impl ModuleOptionsVc {
         if enable_styled_jsx {
             transforms.push(EcmascriptInputTransform::StyledJsx)
         }
+        if enable_styled_components {
+            transforms.push(EcmascriptInputTransform::StyledComponents)
+        }
+
         transforms.push(EcmascriptInputTransform::React {
             refresh: enable_react_refresh,
         });

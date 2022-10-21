@@ -19,8 +19,12 @@ use swc_core::{
         visit::VisitMutWith,
     },
 };
-use turbo_tasks::{primitives::StringVc, Value, ValueToString};
-use turbo_tasks_fs::{FileContent, FileSystemPath};
+use turbo_tasks::{
+    primitives::{StringVc, U64Vc},
+    Value, ValueToString,
+};
+use turbo_tasks_fs::{FileContent, FileSystemPath, FileSystemPathVc};
+use turbo_tasks_hash::{DeterministicHasher, Xxh3Hash64Hasher};
 use turbopack_core::{
     asset::{AssetContent, AssetVc},
     code_builder::{EncodedSourceMap, EncodedSourceMapVc},
@@ -137,6 +141,7 @@ pub async fn parse(
     let content = source.content();
     let fs_path = &*source.path().await?;
     let fs_path_str = &*source.path().to_string().await?;
+    let file_path_hash = *hash_file_path(source.path()).await? as u128;
     let ty = ty.into_value();
     Ok(match &*content.await? {
         AssetContent::File(file) => match &*file.await? {
@@ -144,7 +149,16 @@ pub async fn parse(
             FileContent::Content(file) => match String::from_utf8(file.content().to_vec()) {
                 Ok(string) => {
                     let transforms = &*transforms.await?;
-                    parse_content(string, fs_path, fs_path_str, source, ty, transforms).await?
+                    parse_content(
+                        string,
+                        fs_path,
+                        fs_path_str,
+                        file_path_hash,
+                        source,
+                        ty,
+                        transforms,
+                    )
+                    .await?
                 }
                 // FIXME: report error
                 Err(_err) => ParseResult::Unparseable.cell(),
@@ -158,6 +172,7 @@ async fn parse_content(
     string: String,
     fs_path: &FileSystemPath,
     fs_path_str: &str,
+    file_path_hash: u128,
     source: AssetVc,
     ty: EcmascriptModuleAssetType,
     transforms: &[EcmascriptInputTransform],
@@ -262,6 +277,7 @@ async fn parse_content(
                 top_level_mark,
                 unresolved_mark,
                 file_name_str: fs_path.file_name(),
+                file_name_hash: file_path_hash,
             };
             for transform in transforms.iter() {
                 transform.apply(&mut parsed_program, &context).await?;
@@ -289,4 +305,12 @@ async fn parse_content(
         *g = globals;
     }
     Ok(result.cell())
+}
+
+#[turbo_tasks::function]
+async fn hash_file_path(file_path_vc: FileSystemPathVc) -> Result<U64Vc> {
+    let file_path = &*file_path_vc.await?;
+    let mut hasher = Xxh3Hash64Hasher::new();
+    hasher.write_bytes(file_path.file_name().as_bytes());
+    Ok(U64Vc::cell(hasher.finish()))
 }

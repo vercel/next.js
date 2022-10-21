@@ -30,6 +30,7 @@ pub enum EcmascriptInputTransform {
     },
     CommonJs,
     PresetEnv(EnvironmentVc),
+    StyledComponents,
     StyledJsx,
     TypeScript,
     ClientDirective(StringVc),
@@ -46,6 +47,7 @@ pub struct TransformContext<'a> {
     pub unresolved_mark: Mark,
     pub source_map: &'a Arc<SourceMap>,
     pub file_name_str: &'a str,
+    pub file_name_hash: u128,
 }
 
 impl EcmascriptInputTransform {
@@ -58,6 +60,7 @@ impl EcmascriptInputTransform {
             top_level_mark,
             unresolved_mark,
             file_name_str,
+            file_name_hash,
         }: &TransformContext<'_>,
     ) -> Result<()> {
         match *self {
@@ -125,6 +128,13 @@ impl EcmascriptInputTransform {
                         &mut FeatureFlag::empty(),
                     ),
                     inject_helpers()
+                ));
+            }
+            EcmascriptInputTransform::StyledComponents => {
+                program.visit_mut_with(&mut styled_components::styled_components(
+                    FileName::Anon,
+                    file_name_hash,
+                    serde_json::from_str("{}")?,
                 ));
             }
             EcmascriptInputTransform::StyledJsx => {

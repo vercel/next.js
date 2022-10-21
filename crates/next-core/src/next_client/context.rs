@@ -89,6 +89,7 @@ pub async fn get_client_module_options_context(
         // we try resolve it once at the root and pass down a context to all
         // the modules.
         enable_react_refresh,
+        enable_styled_components: true,
         enable_styled_jsx: true,
         enable_typescript_transform: true,
         preset_env_versions: Some(env),

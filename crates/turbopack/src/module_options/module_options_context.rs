@@ -5,6 +5,7 @@ use turbopack_ecmascript::EcmascriptInputTransform;
 #[derive(Default)]
 pub struct ModuleOptionsContext {
     pub enable_react_refresh: bool,
+    pub enable_styled_components: bool,
     pub enable_styled_jsx: bool,
     pub enable_typescript_transform: bool,
     pub preset_env_versions: Option<EnvironmentVc>,

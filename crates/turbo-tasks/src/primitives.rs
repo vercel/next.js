@@ -16,6 +16,9 @@ impl StringVc {
 }
 
 #[turbo_tasks::value(transparent)]
+pub struct U64(u64);
+
+#[turbo_tasks::value(transparent)]
 pub struct OptionString(Option<std::string::String>);
 
 #[turbo_tasks::value(transparent)]
