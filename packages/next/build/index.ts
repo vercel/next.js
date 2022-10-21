@@ -1370,7 +1370,6 @@ export default async function build(
                         isStatic = false
                         isSsg = false
                       } else {
-                        console.log('workerResult', workerResult, page)
                         if (
                           workerResult.encodedPrerenderRoutes &&
                           workerResult.prerenderRoutes
