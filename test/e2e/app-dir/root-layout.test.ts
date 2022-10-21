@@ -39,9 +39,9 @@ describe('app-dir root layout', () => {
 
         expect(await hasRedbox(browser, true)).toBe(true)
         expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
-          "Please make sure to include the following tags in your root layout: <html>, <head>, <body>.
+          "Please make sure to include the following tags in your root layout: <html>, <body>.
 
-          Missing required root layout tags: html, head, body"
+          Missing required root layout tags: html, body"
         `)
       })
 
@@ -53,9 +53,9 @@ describe('app-dir root layout', () => {
 
         expect(await hasRedbox(browser, true)).toBe(true)
         expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
-          "Please make sure to include the following tags in your root layout: <html>, <head>, <body>.
+          "Please make sure to include the following tags in your root layout: <html>, <body>.
 
-          Missing required root layout tags: html, head, body"
+          Missing required root layout tags: html, body"
         `)
       })
 
@@ -66,9 +66,9 @@ describe('app-dir root layout', () => {
 
         expect(await hasRedbox(browser, true)).toBe(true)
         expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
-          "Please make sure to include the following tags in your root layout: <html>, <head>, <body>.
+          "Please make sure to include the following tags in your root layout: <html>, <body>.
 
-          Missing required root layout tags: html, head, body"
+          Missing required root layout tags: html, body"
         `)
       })
     })

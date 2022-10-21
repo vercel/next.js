@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'async_hooks'
 import type { AssetBinding } from '../../../build/webpack/loaders/get-module-build-info'
 import {
   decorateServerError,
@@ -285,6 +286,8 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
       }
 
       Object.assign(context, wasm)
+
+      context.AsyncLocalStorage = AsyncLocalStorage
 
       return context
     },
