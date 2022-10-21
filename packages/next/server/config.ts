@@ -859,12 +859,14 @@ export default async function loadConfig(
           : canonicalBase) || ''
     }
 
-    return assignDefaults({
+    const completeConfig = assignDefaults({
       configOrigin: relative(dir, path),
       configFile: path,
       configFileName,
       ...userConfig,
     }) as NextConfigComplete
+    await setFontLoaderDefaults(completeConfig, dir)
+    return completeConfig
   } else {
     const configBaseName = basename(CONFIG_FILES[0], extname(CONFIG_FILES[0]))
     const nonJsPath = findUp.sync(
