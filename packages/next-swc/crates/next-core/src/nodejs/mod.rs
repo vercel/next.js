@@ -18,6 +18,7 @@ use turbopack::ecmascript::EcmascriptModuleAssetVc;
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc, AssetsSetVc},
     chunk::{ChunkGroupVc, ChunkingContextVc},
+    virtual_asset::VirtualAssetVc,
 };
 use turbopack_dev_server::{
     html::DevHtmlAssetVc,
@@ -177,7 +178,24 @@ async fn get_renderer_pool(
     intermediate_asset: AssetVc,
     intermediate_output_path: FileSystemPathVc,
 ) -> Result<NodeJsPoolVc> {
+    // Emit a basic package.json that sets the type of the package to commonjs.
+    // Currently code generated for Node is CommonJS, while authored code may be
+    // ESM, for example.
+    //
+    // Note that this is placed at .next/server/package.json, while Next.js
+    // currently creates this file at .next/package.json.
+    emit(
+        VirtualAssetVc::new(
+            intermediate_output_path.join("package.json"),
+            FileContent::Content(File::from("{\"type\": \"commonjs\"}")).into(),
+        )
+        .into(),
+        intermediate_output_path,
+    )
+    .await?;
+
     emit(intermediate_asset, intermediate_output_path).await?;
+
     let output = intermediate_output_path.await?;
     if let Some(disk) = DiskFileSystemVc::resolve_from(output.fs).await? {
         let dir = PathBuf::from(&disk.await?.root).join(&output.path);
