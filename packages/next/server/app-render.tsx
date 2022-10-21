@@ -197,14 +197,15 @@ function createErrorHandler(
 
 let isFetchPatched = false
 
-class NextFetchRequest extends Request {
-  next?: NextFetchRequestConfig
+const OriginalRequest = global.Request
+class NextFetchRequestImpl extends OriginalRequest {
+  next?: NextFetchRequestConfig | undefined
   constructor(
     input: RequestInfo | URL,
-    options?: NextFetchRequestOptions | undefined
+    init?: NextFetchRequestOptions | undefined
   ) {
-    super(input, options)
-    this.next = options?.next
+    super(input, init)
+    this.next = init?.next
   }
 }
 
@@ -219,9 +220,9 @@ function patchFetch(ComponentMod: any) {
 
   const staticGenerationAsyncStorage = ComponentMod.staticGenerationAsyncStorage
 
-  const originFetch = globalThis.fetch
-  globalThis.Request = NextFetchRequest
-  globalThis.fetch = async (input, opts) => {
+  const originFetch = global.fetch
+  global.Request = NextFetchRequestImpl
+  global.fetch = async (input, init) => {
     const staticGenerationStore =
       'getStore' in staticGenerationAsyncStorage
         ? staticGenerationAsyncStorage.getStore()
@@ -231,8 +232,8 @@ function patchFetch(ComponentMod: any) {
       staticGenerationStore || {}
 
     if (staticGenerationStore && isStaticGeneration) {
-      if (opts && typeof opts === 'object') {
-        if (opts.cache === 'no-store') {
+      if (init && typeof init === 'object') {
+        if (init.cache === 'no-store') {
           staticGenerationStore.revalidate = 0
           // TODO: ensure this error isn't logged to the user
           // seems it's slipping through currently
@@ -241,8 +242,8 @@ function patchFetch(ComponentMod: any) {
           )
         }
 
-        const hasNextConfig = 'next' in opts
-        const next = (hasNextConfig && opts.next) || {}
+        const hasNextConfig = 'next' in init
+        const next = (hasNextConfig && init.next) || {}
         if (
           typeof next.revalidate === 'number' &&
           (typeof fetchRevalidate === 'undefined' ||
@@ -258,10 +259,10 @@ function patchFetch(ComponentMod: any) {
             }`
           )
         }
-        if (hasNextConfig) delete opts.next
+        if (hasNextConfig) delete init.next
       }
     }
-    return originFetch(input, opts)
+    return originFetch(input, init)
   }
 }
 
