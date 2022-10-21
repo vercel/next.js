@@ -60,36 +60,39 @@ export function noSSR<P = {}>(
   )
 }
 
+const defaultLoading = ({ error, isLoading, pastDelay }: DynamicOptionsLoadingProps) => {
+  if (!pastDelay) return null
+  if (process.env.NODE_ENV === 'development') {
+    if (isLoading) {
+      return null
+    }
+    if (error) {
+      return (
+        <p>
+          {error.message}
+          <br />
+          {error.stack}
+        </p>
+      )
+    }
+  }
+
+  return null
+}
+
 export default function dynamic<P = {}>(
   dynamicOptions: DynamicOptions<P> | Loader<P>,
   options?: DynamicOptions<P>
 ): React.ComponentType<P> {
   let loadableFn: LoadableFn<P> = Loadable
 
+
   let loadableOptions: LoadableOptions<P> = options?.suspense
     ? {}
     : // only provide a default loading component when suspense is disabled
       {
         // A loading component is not required, so we default it
-        loading: ({ error, isLoading, pastDelay }) => {
-          if (!pastDelay) return null
-          if (process.env.NODE_ENV === 'development') {
-            if (isLoading) {
-              return null
-            }
-            if (error) {
-              return (
-                <p>
-                  {error.message}
-                  <br />
-                  {error.stack}
-                </p>
-              )
-            }
-          }
-
-          return null
-        },
+        loading: defaultLoading,
       }
 
   // Support for direct import(), eg: dynamic(import('../hello-world'))
@@ -131,7 +134,10 @@ export default function dynamic<P = {}>(
         )
       }
 
-      if (loadableOptions.loading != null) {
+      if (loadableOptions.loading === defaultLoading) {
+        loadableOptions.loading = undefined
+      } else if (loadableOptions.loading != null) {
+        loadableOptions.loading = undefined
         console.warn(
           `"loading" is ignored by next/dynamic because you have enabled "suspense". Place your loading element in your suspense boundary's "fallback" prop instead. Read more: https://nextjs.org/docs/messages/invalid-dynamic-suspense`
         )
