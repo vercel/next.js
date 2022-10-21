@@ -115,8 +115,8 @@ async fn main() -> Result<()> {
             format!("http://{}", server.addr)
         };
         println!(
-            "{event_type} - started server on {}:{}, url: {}",
-            event_type = "ready".green(),
+            "{} - started server on {}:{}, url: {}",
+            "ready".green(),
             server.addr.ip(),
             server.addr.port(),
             index_uri

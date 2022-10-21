@@ -14,7 +14,6 @@ use chromiumoxide::{
     Browser, Page,
 };
 use futures::{FutureExt, StreamExt};
-use owo_colors::OwoColorize;
 use tokio::task::spawn_blocking;
 use url::Url;
 
@@ -167,6 +166,7 @@ fn stop_process(proc: &mut Child) -> Result<()> {
         sys::signal::{kill, Signal},
         unistd::Pid,
     };
+    use owo_colors::OwoColorize;
 
     const KILL_DEADLINE: Duration = Duration::from_secs(5);
     const KILL_DEADLINE_CHECK_STEPS: u32 = 10;
