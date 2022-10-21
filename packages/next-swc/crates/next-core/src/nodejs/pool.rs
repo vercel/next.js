@@ -1,23 +1,22 @@
 use std::{
     collections::HashMap,
     io::{BufRead, BufReader, Write},
-    mem::transmute,
     path::{Path, PathBuf},
     process::{Child, ChildStdin, ChildStdout, Command, Stdio},
     sync::{Arc, Mutex},
 };
 
 use anyhow::{bail, Context, Result};
+use rand::Rng;
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 use turbo_tasks::spawn_blocking;
-
-const END_OF_OPERATION: &str =
-    "END_OF_OPERATION 4329g8b57hnz349bo58tzuasgnhv9o8e4zo6gvj END_OF_OPERATION\n";
+use turbo_tasks_hash::encode_hex_string;
 
 struct NodeJsPoolProcess {
     child: Child,
     stdin: ChildStdin,
     stdout: BufReader<ChildStdout>,
+    marker: Arc<OperationMarker>,
 }
 
 impl Drop for NodeJsPoolProcess {
@@ -27,12 +26,96 @@ impl Drop for NodeJsPoolProcess {
     }
 }
 
+/// A marker used to detect the limits of a single operation without the output
+/// of a Node.js process.
+struct OperationMarker {
+    marker: String,
+}
+
+impl OperationMarker {
+    const STEP: &str = "OPERATION_STEP";
+    const SUCCESS: &str = "OPERATION_END";
+    const ERROR: &str = "OPERATION_ERROR";
+
+    fn new() -> Self {
+        Self {
+            marker: encode_hex_string(&rand::thread_rng().gen::<[u8; 16]>()),
+        }
+    }
+
+    fn read_event(&self, orig_buffer: &[u8]) -> Option<(usize, OperationEvent)> {
+        let buffer = orig_buffer;
+        let buffer = buffer.strip_suffix(&[b'\n'])?;
+        let buffer = buffer.strip_suffix(self.marker.as_bytes())?;
+        let buffer = buffer.strip_suffix(&[b' '])?;
+
+        if let Some(buffer) = buffer
+            .strip_suffix(Self::STEP.as_bytes())
+            .and_then(|buffer| buffer.strip_suffix(&[b'\n']))
+        {
+            Some((orig_buffer.len() - buffer.len(), OperationEvent::Step))
+        } else if let Some(buffer) = buffer
+            .strip_suffix(Self::SUCCESS.as_bytes())
+            .and_then(|buffer| buffer.strip_suffix(&[b'\n']))
+        {
+            Some((orig_buffer.len() - buffer.len(), OperationEvent::Success))
+        } else if let Some(buffer) = buffer
+            .strip_suffix(Self::ERROR.as_bytes())
+            .and_then(|buffer| buffer.strip_suffix(&[b'\n']))
+        {
+            Some((orig_buffer.len() - buffer.len(), OperationEvent::Error))
+        } else {
+            None
+        }
+    }
+
+    fn write<W>(&self, mut writer: W, kind: &str) -> std::io::Result<()>
+    where
+        W: Write,
+    {
+        writer.write_all(&[b'\n'])?;
+        writer.write_all(kind.as_bytes())?;
+        writer.write_all(&[b' '])?;
+        writer.write_all(self.marker.as_bytes())?;
+        writer.write_all(&[b'\n'])?;
+        Ok(())
+    }
+
+    fn write_step<W>(&self, writer: W) -> std::io::Result<()>
+    where
+        W: Write,
+    {
+        self.write(writer, Self::STEP)
+    }
+}
+
+impl Default for OperationMarker {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub(super) enum OperationEvent {
+    Step,
+    Success,
+    Error,
+}
+
 impl NodeJsPoolProcess {
-    fn prepare(cwd: &Path, env: &HashMap<String, String>, entrypoint: &Path) -> Command {
+    fn prepare(
+        cwd: &Path,
+        env: &HashMap<String, String>,
+        entrypoint: &Path,
+        marker: &OperationMarker,
+    ) -> Command {
         let mut cmd = Command::new("node");
         cmd.current_dir(cwd);
         cmd.arg(entrypoint);
-        cmd.arg(&END_OF_OPERATION[..END_OF_OPERATION.len() - 1]);
+        cmd.arg(&marker.marker);
+        cmd.arg(&OperationMarker::STEP);
+        cmd.arg(&OperationMarker::SUCCESS);
+        cmd.arg(&OperationMarker::ERROR);
         cmd.env_clear();
         cmd.env(
             "PATH",
@@ -49,7 +132,7 @@ impl NodeJsPoolProcess {
         cmd
     }
 
-    fn start(mut cmd: Command) -> Result<Self> {
+    fn start(mut cmd: Command, marker: Arc<OperationMarker>) -> Result<Self> {
         let mut child = cmd.spawn().context("spawning node pool")?;
         let stdin = child.stdin.take().unwrap();
         let mut stdout = BufReader::new(child.stdout.take().unwrap());
@@ -68,15 +151,26 @@ impl NodeJsPoolProcess {
             child,
             stdin,
             stdout,
+            marker,
         })
     }
 
-    fn read_line(&mut self, buf: &mut String) -> std::io::Result<usize> {
-        self.stdout.read_line(buf)
+    fn read_until(&mut self, byte: u8, buf: &mut Vec<u8>) -> std::io::Result<usize> {
+        self.stdout.read_until(byte, buf)
     }
 
-    pub(super) fn write(&mut self, buf: &[u8]) -> std::io::Result<()> {
-        self.stdin.write_all(buf)
+    fn write_step(&mut self) -> std::io::Result<()> {
+        self.marker.write_step(&mut self.stdin)
+    }
+}
+
+impl Write for NodeJsPoolProcess {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        self.stdin.write(buf)
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.stdin.flush()
     }
 }
 
@@ -98,6 +192,8 @@ pub(super) struct NodeJsPool {
     processes: Arc<Mutex<Vec<NodeJsPoolProcess>>>,
     #[turbo_tasks(trace_ignore, debug_ignore)]
     semaphore: Arc<Semaphore>,
+    #[turbo_tasks(trace_ignore, debug_ignore)]
+    marker: Arc<OperationMarker>,
 }
 
 impl NodeJsPool {
@@ -113,6 +209,7 @@ impl NodeJsPool {
             env,
             processes: Arc::new(Mutex::new(Vec::new())),
             semaphore: Arc::new(Semaphore::new(concurrency)),
+            marker: Arc::new(OperationMarker::default()),
         }
     }
 
@@ -125,38 +222,30 @@ impl NodeJsPool {
         Ok(if let Some(child) = popped {
             (child, permit)
         } else {
+            let marker = Arc::clone(&self.marker);
             let cmd = NodeJsPoolProcess::prepare(
                 self.cwd.as_path(),
                 &self.env,
                 self.entrypoint.as_path(),
+                &*marker,
             );
-            let fresh = spawn_blocking(move || NodeJsPoolProcess::start(cmd)).await?;
+            let fresh = spawn_blocking(move || NodeJsPoolProcess::start(cmd, marker)).await?;
             (fresh, permit)
         })
     }
 
-    pub(super) async fn run(&self, input: &[u8]) -> Result<NodeJsOperationResult> {
-        let (mut child, permit) = self.acquire_child().await?;
-        // SAFETY we await spawn blocking so we stay within the lifetime of input
-        let static_input: &'static [u8] = unsafe { transmute(input) };
-        let child = spawn_blocking(move || {
-            child.write(static_input)?;
-            child.write(b"\n")?;
-            Ok::<_, anyhow::Error>(child)
-        })
-        .await?;
+    pub(super) async fn operation(&self) -> Result<NodeJsOperation> {
+        let (child, permit) = self.acquire_child().await?;
 
-        Ok(NodeJsOperationResult {
+        Ok(NodeJsOperation {
             child: Some(child),
-            child_ended: false,
             permit,
             processes: self.processes.clone(),
         })
     }
 }
 
-pub(super) struct NodeJsOperationResult {
-    child_ended: bool,
+pub(super) struct NodeJsOperation {
     child: Option<NodeJsPoolProcess>,
     // This is used for drop
     #[allow(dead_code)]
@@ -164,46 +253,61 @@ pub(super) struct NodeJsOperationResult {
     processes: Arc<Mutex<Vec<NodeJsPoolProcess>>>,
 }
 
-impl NodeJsOperationResult {
-    pub(super) fn read_line(&mut self, buf: &mut String) -> Result<usize, std::io::Error> {
-        if let Some(ref mut child) = self.child {
-            if self.child_ended {
-                return Ok(0);
-            }
-            let len = child.read_line(buf)?;
-            if len == 0 {
-                self.child = None;
-                return Ok(0);
-            }
-            if buf.ends_with(END_OF_OPERATION) {
-                buf.truncate(buf.len() - END_OF_OPERATION.len());
-                self.child_ended = true;
-                Ok(0)
-            } else {
-                Ok(len)
-            }
-        } else {
-            Ok(0)
-        }
+impl NodeJsOperation {
+    fn expect_child_mut(&mut self) -> &mut NodeJsPoolProcess {
+        self.child
+            .as_mut()
+            .expect("child must be present while operation is live")
     }
 
-    pub(super) fn read_lines(&mut self) -> Result<Vec<String>, std::io::Error> {
-        let mut lines = Vec::new();
+    fn take_child(&mut self) -> NodeJsPoolProcess {
+        self.child
+            .take()
+            .expect("child must be present while operation is live")
+    }
+
+    /// Writes the step event end marker to the child process.
+    pub(super) fn write_step(&mut self) -> std::io::Result<()> {
+        self.expect_child_mut().write_step()
+    }
+
+    /// Reads a completed event in the child process output. Blocks while
+    /// waiting for more output.
+    pub(super) fn read_event(
+        &mut self,
+        buf: &mut Vec<u8>,
+    ) -> std::io::Result<(usize, OperationEvent)> {
+        let child = self.expect_child_mut();
+        let mut total_read = 0;
         loop {
-            let mut line = String::new();
-            if self.read_line(&mut line)? == 0 {
-                return Ok(lines);
+            total_read += child.read_until(b'\n', buf)?;
+
+            match child.marker.read_event(&buf) {
+                Some((read, event)) => {
+                    buf.truncate(buf.len() - read);
+                    break Ok((total_read - read, event));
+                }
+                None => {}
             }
-            line.pop();
-            lines.push(line);
         }
     }
 }
 
-impl Drop for NodeJsOperationResult {
+impl Write for NodeJsOperation {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        let child = self.expect_child_mut();
+        child.write(buf)
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        let child = self.expect_child_mut();
+        child.flush()
+    }
+}
+
+impl Drop for NodeJsOperation {
     fn drop(&mut self) {
-        if let Some(child) = self.child.take() {
-            self.processes.lock().unwrap().push(child)
-        }
+        let child = self.take_child();
+        self.processes.lock().unwrap().push(child);
     }
 }

@@ -49,7 +49,7 @@ use crate::{
         get_server_environment, get_server_module_options_context,
         get_server_resolve_options_context, ServerContextType,
     },
-    nodejs::{create_node_rendered_source, NodeRenderer, NodeRendererVc},
+    nodejs::{create_node_rendered_source, NodeEntry, NodeEntryVc},
     util::regular_expression_for_path,
 };
 
@@ -328,9 +328,9 @@ struct AppRenderer {
 }
 
 #[turbo_tasks::value_impl]
-impl NodeRenderer for AppRenderer {
+impl NodeEntry for AppRenderer {
     #[turbo_tasks::function]
-    async fn module(&self) -> Result<EcmascriptModuleAssetVc> {
+    async fn entry(&self) -> Result<EcmascriptModuleAssetVc> {
         let layout_path = self.layout_path.await?;
         let page = layout_path
             .last()

@@ -20,20 +20,16 @@ use turbopack_dev_server::{
         ContentSourceResult, ContentSourceResultVc, ContentSourceVc,
     },
 };
-use turbopack_ecmascript::{chunk::EcmascriptChunkPlaceablesVc, EcmascriptModuleAssetVc};
+use turbopack_ecmascript::chunk::EcmascriptChunkPlaceablesVc;
 
-use super::{external_asset_entrypoints, get_intermediate_asset, render_static, RenderData};
+use super::{
+    external_asset_entrypoints, get_intermediate_asset, render_static, NodeEntryVc, RenderData,
+};
 use crate::path_regex::PathRegexVc;
 
-/// Trait that allows to get the entry module for rendering something in Node.js
-#[turbo_tasks::value_trait]
-pub trait NodeRenderer {
-    fn module(&self) -> EcmascriptModuleAssetVc;
-}
-
 /// Creates a content source that renders something in Node.js with the passed
-/// `renderer` when it matches a `path_regex`. Once rendered it serves
-/// all assets referenced by the `renderer` that are within the `server_root`.
+/// `entry` when it matches a `path_regex`. Once rendered it serves
+/// all assets referenced by the `entry` that are within the `server_root`.
 /// It needs a temporary directory (`intermediate_output_path`) to place file
 /// for Node.js execution during rendering. The `chunking_context` should emit
 /// to this directory.
@@ -41,7 +37,7 @@ pub trait NodeRenderer {
 pub fn create_node_rendered_source(
     server_root: FileSystemPathVc,
     path_regex: PathRegexVc,
-    renderer: NodeRendererVc,
+    entry: NodeEntryVc,
     chunking_context: ChunkingContextVc,
     runtime_entries: EcmascriptChunkPlaceablesVc,
     fallback_page: DevHtmlAssetVc,
@@ -50,7 +46,7 @@ pub fn create_node_rendered_source(
     let source = NodeRenderContentSource {
         server_root,
         path_regex,
-        renderer,
+        entry,
         chunking_context,
         runtime_entries,
         fallback_page,
@@ -73,7 +69,7 @@ pub fn create_node_rendered_source(
 struct NodeRenderContentSource {
     server_root: FileSystemPathVc,
     path_regex: PathRegexVc,
-    renderer: NodeRendererVc,
+    entry: NodeEntryVc,
     chunking_context: ChunkingContextVc,
     runtime_entries: EcmascriptChunkPlaceablesVc,
     fallback_page: DevHtmlAssetVc,
@@ -110,7 +106,7 @@ impl GetContentSource for NodeRenderContentSource {
         AssetGraphContentSourceVc::new_lazy_multiple(
             self.server_root,
             external_asset_entrypoints(
-                self.renderer.module(),
+                self.entry.entry(),
                 self.runtime_entries,
                 self.chunking_context,
                 self.intermediate_output_path,
@@ -143,7 +139,7 @@ impl ContentSource for NodeRenderContentSource {
                                 return Ok(ContentSourceResult::Static(
                                     render_static(
                                         this.server_root.join(path),
-                                        this.renderer.module(),
+                                        this.entry.entry(),
                                         this.runtime_entries,
                                         this.fallback_page,
                                         this.chunking_context,
@@ -222,12 +218,12 @@ impl Introspectable for NodeRenderContentSource {
         IntrospectableChildrenVc::cell(HashSet::from([
             (
                 StringVc::cell("module".to_string()),
-                IntrospectableAssetVc::new(self.renderer.module().into()),
+                IntrospectableAssetVc::new(self.entry.entry().into()),
             ),
             (
                 StringVc::cell("intermediate asset".to_string()),
                 IntrospectableAssetVc::new(get_intermediate_asset(
-                    self.renderer.module(),
+                    self.entry.entry(),
                     self.runtime_entries,
                     self.chunking_context,
                     self.intermediate_output_path,
