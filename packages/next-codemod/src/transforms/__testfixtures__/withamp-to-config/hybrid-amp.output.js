@@ -3,8 +3,8 @@ function Home() {
   return <h1>My AMP Page</h1>
 }
 
-export default Home
+export default Home;
 
 export const config = {
-  amp: 'hybrid',
-}
+  amp: "hybrid"
+};

@@ -1,1 +1,1 @@
-import { useAmp } from 'next/amp'
+import { useAmp } from 'next/amp';

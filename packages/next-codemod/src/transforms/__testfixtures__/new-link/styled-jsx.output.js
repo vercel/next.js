@@ -1,6 +1,10 @@
-import Link from 'next/link'
+import Link from 'next/link';
 
-const CustomLink = ({ href, title, children }) => {
+const CustomLink = ({
+  href,
+  title,
+  children,
+}) => {
   return (
     <span className="link-container">
       <Link href={href} legacyBehavior>
@@ -16,7 +20,7 @@ const CustomLink = ({ href, title, children }) => {
         }
       `}</style>
     </span>
-  )
-}
+  );
+};
 
-export default CustomLink
+export default CustomLink;

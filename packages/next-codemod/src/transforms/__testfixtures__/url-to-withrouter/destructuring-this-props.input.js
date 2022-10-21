@@ -1,6 +1,8 @@
 class AddonsPage extends React.Component {
   render() {
-    const { url } = this.props
+    const {
+      url
+    } = this.props
     return (
       <Page>
         <Header

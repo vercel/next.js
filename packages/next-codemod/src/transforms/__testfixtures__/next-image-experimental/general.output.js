@@ -1,10 +1,10 @@
-import Image from 'next/image'
-import Named, { Blarg } from 'next/image'
-import Foo from 'foo'
-import img from '../public/img.jpg'
+import Image from "next/image";
+import Named, { Blarg } from "next/image";
+import Foo from "foo";
+import img from "../public/img.jpg";
 
 export default function Home() {
-  const myStyle = { color: 'black' }
+  const myStyle = { color: 'black' };
   return (
     <div>
       <h1>Upgrade</h1>
@@ -13,29 +13,26 @@ export default function Home() {
         width="100"
         height="200"
         style={{
-          maxWidth: '100%',
-          height: 'auto',
-        }}
-      />
+          maxWidth: "100%",
+          height: "auto"
+        }} />
       <Image
         src="/test.jpg"
         width="300"
         height="400"
         style={{
-          maxWidth: '100%',
-          height: 'auto',
-        }}
-      />
+          maxWidth: "100%",
+          height: "auto"
+        }} />
       <Image
         src="/test.jpg"
         width="200"
         height="300"
         sizes="100vw"
         style={{
-          width: '100%',
-          height: 'auto',
-        }}
-      />
+          width: "100%",
+          height: "auto"
+        }} />
       <Image src="/test.jpg" width="200" height="300" />
       <div style={{ position: 'relative', width: '300px', height: '500px' }}>
         <Image
@@ -44,9 +41,8 @@ export default function Home() {
           fill
           sizes="100vw"
           style={{
-            objectFit: 'contain',
-          }}
-        />
+            objectFit: "contain"
+          }} />
       </div>
       <Named src="/test.png" width="500" height="400" />
       <Foo bar="1" />
@@ -56,11 +52,10 @@ export default function Home() {
         height="300"
         sizes="100vw"
         style={{
-          color: 'green',
-          width: '100%',
-          height: 'auto',
-        }}
-      />
+          color: "green",
+          width: "100%",
+          height: "auto"
+        }} />
       <Image
         src="/test.jpg"
         width="200"
@@ -68,21 +63,19 @@ export default function Home() {
         sizes="100vw"
         style={{
           color: myStyle.color,
-          width: '100%',
-          height: 'auto',
-        }}
-      />
+          width: "100%",
+          height: "auto"
+        }} />
       <Image
         src="/test.jpg"
         width="200"
         height="300"
         sizes="50vw"
         style={{
-          color: '#fff',
-          width: '100%',
-          height: 'auto',
-        }}
-      />
+          color: "#fff",
+          width: "100%",
+          height: "auto"
+        }} />
       <Image src="/test.jpg" width="200" height="300" />
       <Image
         src="/test.lit"
@@ -91,10 +84,9 @@ export default function Home() {
         sizes="100vw"
         style={{
           ...myStyle,
-          width: '100%',
-          height: 'auto',
-        }}
-      />
+          width: "100%",
+          height: "auto"
+        }} />
       <Image
         src="/test.dot"
         width="200"
@@ -102,10 +94,9 @@ export default function Home() {
         sizes="100vw"
         style={{
           ...myStyle,
-          width: '100%',
-          height: 'auto',
-        }}
-      />
+          width: "100%",
+          height: "auto"
+        }} />
     </div>
-  )
+  );
 }

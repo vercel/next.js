@@ -6,7 +6,7 @@ function Home() {
 
 export const config = {
   foo: 'bar',
-  amp: false,
+  amp: false
 }
 
 export default withAmp(Home)

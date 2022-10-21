@@ -1,1 +1,1 @@
-export default () => <div>Anonymous function</div>
+export default () => <div>Anonymous function</div>;

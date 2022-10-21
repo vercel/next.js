@@ -1,9 +1,9 @@
-const ExistingNameInput = null
+const ExistingNameInput = null;
 
 function nested() {
-  const ExistingNameInputComponent = null
+	const ExistingNameInputComponent = null;
 }
 
-const ExistingNameInputComponent = () => <div>Anonymous function</div>
+const ExistingNameInputComponent = () => <div>Anonymous function</div>;
 
-export default ExistingNameInputComponent
+export default ExistingNameInputComponent;

@@ -1,6 +1,6 @@
-const Image = require('next/legacy/image')
-const Named = require('next/legacy/image')
-const Foo = require('foo')
+const Image = require("next/legacy/image");
+const Named = require("next/legacy/image");
+const Foo = require("foo");
 
 export default function Home() {
   return (
@@ -10,5 +10,5 @@ export default function Home() {
       <Named src="/test.png" width="400" height="500" layout="fixed" />
       <Foo />
     </div>
-  )
+  );
 }

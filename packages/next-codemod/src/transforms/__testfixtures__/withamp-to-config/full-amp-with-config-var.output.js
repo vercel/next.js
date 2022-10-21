@@ -5,9 +5,9 @@ function Home() {
 
 const config = {
   foo: 'bar',
-  amp: true,
+  amp: true
 }
 
-export default Home
+export default Home;
 
 export { config }
