@@ -79,7 +79,7 @@ impl Bundler for Turbopack {
             proc.stdout
                 .as_mut()
                 .ok_or_else(|| anyhow!("missing stdout"))?,
-            Regex::new("server listening on: (.*)")?,
+            Regex::new("started server on .+, url: (.*)")?,
         )
         .ok_or_else(|| anyhow!("failed to find devserver address"))?;
 

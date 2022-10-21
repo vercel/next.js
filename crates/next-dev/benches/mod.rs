@@ -212,13 +212,15 @@ fn bench_hmr_internal(mut g: BenchmarkGroup<WallTime>, location: CodeLocation) {
                                     .await?;
 
                                 // Make warmup change
-                                for _ in 0..MAX_UPDATE_TIMEOUT.as_secs() / 5 {
+                                for i in (0..MAX_UPDATE_TIMEOUT.as_secs() / 5).rev() {
                                     match make_change(&mut guard, location, Duration::from_secs(5))
                                         .await
                                     {
                                         Ok(_) => break,
                                         Err(err) => {
-                                            if err.to_string().contains(CHANGE_TIMEOUT_MESSAGE) {
+                                            if i != 0
+                                                && err.to_string().contains(CHANGE_TIMEOUT_MESSAGE)
+                                            {
                                                 continue;
                                             }
                                             return Err(err);
