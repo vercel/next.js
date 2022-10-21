@@ -198,17 +198,13 @@ function createErrorHandler(
 let isFetchPatched = false
 
 class NextFetchRequest extends Request {
-  _next?: NextFetchRequestConfig
+  next?: NextFetchRequestConfig
   constructor(
     input: RequestInfo | URL,
     options?: NextFetchRequestOptions | undefined
   ) {
     super(input, options)
-    this._next = options?.next
-  }
-
-  next() {
-    return this._next
+    this.next = options?.next
   }
 }
 

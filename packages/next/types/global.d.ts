@@ -6,7 +6,9 @@ type NextFetchRequestConfig = {
   revalidate?: number
 }
 
-type NextFetchRequestOptions = RequestInit & { next?: NextFetchRequestConfig }
+type NextFetchRequestOptions = RequestInit & {
+  next?: NextFetchRequestConfig | undefined
+}
 
 declare namespace NodeJS {
   interface Process {
@@ -47,5 +49,5 @@ interface Window {
 }
 
 interface RequestInit {
-  next: NextFetchRequestConfig | undefined
+  next?: NextFetchRequestConfig | undefined
 }
