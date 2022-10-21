@@ -87,6 +87,12 @@ describe('app dir - rsc external dependency', () => {
 
     containClientContent(clientHtml)
     containClientContent(browserClientText)
+
+    // support esm module imports on server side, and indirect imports from shared components
+    expect(serverHtml).toContain('random-module-instance')
+    expect(sharedHtml).toContain(
+      'node_modules instance from client module random-module-instance'
+    )
   })
 
   it('should transpile specific external packages with the `transpilePackages` option', async () => {
