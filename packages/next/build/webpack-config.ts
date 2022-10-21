@@ -447,6 +447,7 @@ export async function resolveExternal(
     resolveRequest: string
   ) => Promise<[string | null, boolean]>,
   isLocalCallback?: (res: string) => any,
+  layer: string | null = null,
   baseResolveCheck = true,
   esmResolveOptions: any = NODE_ESM_RESOLVE_OPTIONS,
   nodeResolveOptions: any = NODE_RESOLVE_OPTIONS,
@@ -461,6 +462,11 @@ export async function resolveExternal(
 
   let preferEsmOptions =
     esmExternals && isEsmRequested ? [true, false] : [false]
+
+  // TODO-APP: temporarily disabled esm resolving for appDir until
+  // react, react-dom are properly bundled for SSR client layer
+  if (appDir && layer == null) preferEsmOptions = [false]
+
   for (const preferEsm of preferEsmOptions) {
     const resolve = getResolve(
       preferEsm ? esmResolveOptions : nodeResolveOptions
@@ -1121,7 +1127,8 @@ export default async function getBaseWebpackConfig(
       request,
       isEsmRequested,
       getResolve,
-      isLocal ? isLocalCallback : undefined
+      isLocal ? isLocalCallback : undefined,
+      layer
     )
 
     if ('localRes' in resolveResult) {
