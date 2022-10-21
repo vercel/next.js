@@ -297,7 +297,7 @@ describe('Image Optimizer', () => {
       await nextConfig.restore()
 
       expect(stderr).toContain(
-        `Cannot specify both images.loader and images.loaderFile configuration properties. Please remove images.loader in favor of images.loaderFile.`
+        `Specified images.loader property (imgix) cannot be used with images.loaderFile property. Please set images.loader to "custom".`
       )
     })
 

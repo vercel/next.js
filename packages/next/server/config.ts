@@ -402,7 +402,7 @@ function assignDefaults(dir: string, userConfig: { [key: string]: any }) {
     if (images.loaderFile) {
       if (images.loader !== 'default' && images.loader !== 'custom') {
         throw new Error(
-          'Cannot specify both images.loader and images.loaderFile configuration properties. Please remove images.loader in favor of images.loaderFile.'
+          `Specified images.loader property (${images.loader}) cannot be used with images.loaderFile property. Please set images.loader to "custom".`
         )
       }
       const absolutePath = join(dir, images.loaderFile)
