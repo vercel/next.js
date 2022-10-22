@@ -79,7 +79,7 @@
     "@types/html-validator": "5.0.3",
     "@types/http-proxy": "1.17.3",
     "@types/jest": "24.0.13",
-    "@types/node": "13.11.0",
+    "@types/node": "14.14.31",
     "@types/node-fetch": "2.6.1",
     "@types/react": "16.9.17",
     "@types/react-dom": "16.9.4",
