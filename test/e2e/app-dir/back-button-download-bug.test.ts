@@ -15,8 +15,8 @@ describe('app-dir back button download bug', () => {
     next = await createNext({
       files: new FileRef(path.join(__dirname, 'back-button-download-bug')),
       dependencies: {
-        react: 'experimental',
-        'react-dom': 'experimental',
+        react: '0.0.0-experimental-9cdf8a99e-20221018',
+        'react-dom': '0.0.0-experimental-9cdf8a99e-20221018',
       },
       skipStart: true,
     })
