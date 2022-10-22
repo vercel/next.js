@@ -120,7 +120,6 @@ import { RemotePattern } from '../shared/lib/image-config'
 import { eventSwcPlugins } from '../telemetry/events/swc-plugins'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { AppBuildManifest } from './webpack/plugins/app-build-manifest-plugin'
-import { verifyAppReactVersion } from '../lib/verifyAppReactVersion'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -307,10 +306,6 @@ export default async function build(
         process.env.NEXT_PREBUNDLED_REACT = '1'
       }
       const { pagesDir, appDir } = findPagesDir(dir, isAppDirEnabled)
-
-      if (isAppDirEnabled) {
-        await verifyAppReactVersion({ dir })
-      }
       const hasPublicDir = await fileExists(publicDir)
 
       telemetry.record(
