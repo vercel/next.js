@@ -164,7 +164,7 @@ impl EnvironmentVc {
         Ok(match env.execution {
             ExecutionEnvironment::NodeJsBuildTime(env)
             | ExecutionEnvironment::NodeJsLambda(env) => env.await?.cwd,
-            _ => unreachable!(),
+            _ => OptionStringVc::cell(None),
         })
     }
 }
