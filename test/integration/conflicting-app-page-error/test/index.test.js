@@ -8,7 +8,11 @@ const appDir = path.join(__dirname, '..')
 describe('conflict between app file and page file', () => {
   it('errors during build', async () => {
     const conflicts = ['/hello', '/another']
-    const results = await nextBuild(appDir, [], { stdout: true, stderr: true })
+    const results = await nextBuild(appDir, [], {
+      stdout: true,
+      stderr: true,
+      env: { NEXT_SKIP_APP_REACT_INSTALL: '1' },
+    })
     const output = results.stdout + results.stderr
     expect(output).toMatch(/Conflicting app and page files were found/)
 
