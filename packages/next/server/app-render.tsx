@@ -995,25 +995,31 @@ export async function renderToHTMLOrFlight(
 
       if (dev) {
         const { isValidElementType } = require('next/dist/compiled/react-is')
-        if (!isValidElementType(Component)) {
+        if (
+          typeof Component !== 'undefined' &&
+          !isValidElementType(Component)
+        ) {
           throw new Error(
             `The default export is not a React Component in page: "${pathname}"`
           )
         }
 
-        if (ErrorComponent && !isValidElementType(ErrorComponent)) {
+        if (
+          typeof ErrorComponent !== 'undefined' &&
+          !isValidElementType(ErrorComponent)
+        ) {
           throw new Error(
             `The default export of error is not a React Component in page: ${segment}`
           )
         }
 
-        if (Loading && !isValidElementType(Loading)) {
+        if (typeof Loading !== 'undefined' && !isValidElementType(Loading)) {
           throw new Error(
             `The default export of loading is not a React Component in ${segment}`
           )
         }
 
-        if (NotFound && !isValidElementType(NotFound)) {
+        if (typeof NotFound !== 'undefined' && !isValidElementType(NotFound)) {
           throw new Error(
             `The default export of notFound is not a React Component in ${segment}`
           )
