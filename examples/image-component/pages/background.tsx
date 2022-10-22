@@ -9,14 +9,12 @@ const BackgroundPage = () => (
     <div className={styles.bgWrap}>
       <Image
         alt="Mountains"
-        src={mountains}
+        src={bgImage}
         placeholder="blur"
         quality={100}
-        fill
+        layout="fill"
         sizes="100vw"
-        style={{
-          objectFit: 'cover',
-        }}
+        objectFit="cover"
       />
     </div>
     <p className={styles.bgText}>
