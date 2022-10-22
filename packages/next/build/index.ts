@@ -1365,148 +1365,152 @@ export default async function build(
 
                     if (pageType === 'app' && originalAppPath) {
                       appNormalizedPaths.set(originalAppPath, page)
-
                       // TODO-APP: handle prerendering with edge
-                      // runtime
                       if (pageRuntime === 'experimental-edge') {
-                        return
+                        isStatic = false
+                        isSsg = false
+                      } else {
+                        if (
+                          workerResult.encodedPrerenderRoutes &&
+                          workerResult.prerenderRoutes
+                        ) {
+                          appStaticPaths.set(
+                            originalAppPath,
+                            workerResult.prerenderRoutes
+                          )
+                          appStaticPathsEncoded.set(
+                            originalAppPath,
+                            workerResult.encodedPrerenderRoutes
+                          )
+                          ssgPageRoutes = workerResult.prerenderRoutes
+                          isSsg = true
+                        }
+                        if (
+                          !isDynamicRoute(page) &&
+                          workerResult.appConfig?.revalidate !== 0
+                        ) {
+                          appStaticPaths.set(originalAppPath, [page])
+                          appStaticPathsEncoded.set(originalAppPath, [page])
+                          isStatic = true
+                        }
+                        if (workerResult.prerenderFallback) {
+                          // whether or not to allow requests for paths not
+                          // returned from generateStaticParams
+                          appDynamicParamPaths.add(originalAppPath)
+                        }
+                        appDefaultConfigs.set(
+                          originalAppPath,
+                          workerResult.appConfig || {}
+                        )
+                      }
+                    } else {
+                      if (pageRuntime === SERVER_RUNTIME.edge) {
+                        if (workerResult.hasStaticProps) {
+                          console.warn(
+                            `"getStaticProps" is not yet supported fully with "experimental-edge", detected on ${page}`
+                          )
+                        }
+                        // TODO: add handling for statically rendering edge
+                        // pages and allow edge with Prerender outputs
+                        workerResult.isStatic = false
+                        workerResult.hasStaticProps = false
+                      }
+
+                      if (config.outputFileTracing) {
+                        pageTraceIncludes.set(
+                          page,
+                          workerResult.traceIncludes || []
+                        )
+                        pageTraceExcludes.set(
+                          page,
+                          workerResult.traceExcludes || []
+                        )
                       }
 
                       if (
-                        workerResult.encodedPrerenderRoutes &&
-                        workerResult.prerenderRoutes
+                        workerResult.isStatic === false &&
+                        (workerResult.isHybridAmp || workerResult.isAmpOnly)
                       ) {
-                        appStaticPaths.set(
-                          originalAppPath,
-                          workerResult.prerenderRoutes
-                        )
-                        appStaticPathsEncoded.set(
-                          originalAppPath,
-                          workerResult.encodedPrerenderRoutes
-                        )
+                        hasSsrAmpPages = true
                       }
-                      if (!isDynamicRoute(page)) {
-                        appStaticPaths.set(originalAppPath, [page])
-                        appStaticPathsEncoded.set(originalAppPath, [page])
-                      }
-                      if (workerResult.prerenderFallback) {
-                        // whether or not to allow requests for paths not
-                        // returned from generateStaticParams
-                        appDynamicParamPaths.add(originalAppPath)
-                      }
-                      appDefaultConfigs.set(
-                        originalAppPath,
-                        workerResult.appConfig || {}
-                      )
-                      return
-                    }
 
-                    if (pageRuntime === SERVER_RUNTIME.edge) {
+                      if (workerResult.isHybridAmp) {
+                        isHybridAmp = true
+                        hybridAmpPages.add(page)
+                      }
+
+                      if (workerResult.isNextImageImported) {
+                        isNextImageImported = true
+                      }
+
                       if (workerResult.hasStaticProps) {
-                        console.warn(
-                          `"getStaticProps" is not yet supported fully with "experimental-edge", detected on ${page}`
-                        )
-                      }
-                      // TODO: add handling for statically rendering edge
-                      // pages and allow edge with Prerender outputs
-                      workerResult.isStatic = false
-                      workerResult.hasStaticProps = false
-                    }
+                        ssgPages.add(page)
+                        isSsg = true
 
-                    if (config.outputFileTracing) {
-                      pageTraceIncludes.set(
-                        page,
-                        workerResult.traceIncludes || []
-                      )
-                      pageTraceExcludes.set(
-                        page,
-                        workerResult.traceExcludes || []
-                      )
-                    }
-
-                    if (
-                      workerResult.isStatic === false &&
-                      (workerResult.isHybridAmp || workerResult.isAmpOnly)
-                    ) {
-                      hasSsrAmpPages = true
-                    }
-
-                    if (workerResult.isHybridAmp) {
-                      isHybridAmp = true
-                      hybridAmpPages.add(page)
-                    }
-
-                    if (workerResult.isNextImageImported) {
-                      isNextImageImported = true
-                    }
-
-                    if (workerResult.hasStaticProps) {
-                      ssgPages.add(page)
-                      isSsg = true
-
-                      if (
-                        workerResult.prerenderRoutes &&
-                        workerResult.encodedPrerenderRoutes
-                      ) {
-                        additionalSsgPaths.set(
-                          page,
-                          workerResult.prerenderRoutes
-                        )
-                        additionalSsgPathsEncoded.set(
-                          page,
+                        if (
+                          workerResult.prerenderRoutes &&
                           workerResult.encodedPrerenderRoutes
-                        )
-                        ssgPageRoutes = workerResult.prerenderRoutes
+                        ) {
+                          additionalSsgPaths.set(
+                            page,
+                            workerResult.prerenderRoutes
+                          )
+                          additionalSsgPathsEncoded.set(
+                            page,
+                            workerResult.encodedPrerenderRoutes
+                          )
+                          ssgPageRoutes = workerResult.prerenderRoutes
+                        }
+
+                        if (workerResult.prerenderFallback === 'blocking') {
+                          ssgBlockingFallbackPages.add(page)
+                        } else if (workerResult.prerenderFallback === true) {
+                          ssgStaticFallbackPages.add(page)
+                        }
+                      } else if (workerResult.hasServerProps) {
+                        serverPropsPages.add(page)
+                      } else if (
+                        workerResult.isStatic &&
+                        !isServerComponent &&
+                        (await customAppGetInitialPropsPromise) === false
+                      ) {
+                        staticPages.add(page)
+                        isStatic = true
+                      } else if (isServerComponent) {
+                        // This is a static server component page that doesn't have
+                        // gSP or gSSP. We still treat it as a SSG page.
+                        ssgPages.add(page)
+                        isSsg = true
                       }
 
-                      if (workerResult.prerenderFallback === 'blocking') {
-                        ssgBlockingFallbackPages.add(page)
-                      } else if (workerResult.prerenderFallback === true) {
-                        ssgStaticFallbackPages.add(page)
+                      if (hasPages404 && page === '/404') {
+                        if (
+                          !workerResult.isStatic &&
+                          !workerResult.hasStaticProps
+                        ) {
+                          throw new Error(
+                            `\`pages/404\` ${STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR}`
+                          )
+                        }
+                        // we need to ensure the 404 lambda is present since we use
+                        // it when _app has getInitialProps
+                        if (
+                          (await customAppGetInitialPropsPromise) &&
+                          !workerResult.hasStaticProps
+                        ) {
+                          staticPages.delete(page)
+                        }
                       }
-                    } else if (workerResult.hasServerProps) {
-                      serverPropsPages.add(page)
-                    } else if (
-                      workerResult.isStatic &&
-                      !isServerComponent &&
-                      (await customAppGetInitialPropsPromise) === false
-                    ) {
-                      staticPages.add(page)
-                      isStatic = true
-                    } else if (isServerComponent) {
-                      // This is a static server component page that doesn't have
-                      // gSP or gSSP. We still treat it as a SSG page.
-                      ssgPages.add(page)
-                      isSsg = true
-                    }
 
-                    if (hasPages404 && page === '/404') {
                       if (
+                        STATIC_STATUS_PAGES.includes(page) &&
                         !workerResult.isStatic &&
                         !workerResult.hasStaticProps
                       ) {
                         throw new Error(
-                          `\`pages/404\` ${STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR}`
+                          `\`pages${page}\` ${STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR}`
                         )
                       }
-                      // we need to ensure the 404 lambda is present since we use
-                      // it when _app has getInitialProps
-                      if (
-                        (await customAppGetInitialPropsPromise) &&
-                        !workerResult.hasStaticProps
-                      ) {
-                        staticPages.delete(page)
-                      }
-                    }
-
-                    if (
-                      STATIC_STATUS_PAGES.includes(page) &&
-                      !workerResult.isStatic &&
-                      !workerResult.hasStaticProps
-                    ) {
-                      throw new Error(
-                        `\`pages${page}\` ${STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR}`
-                      )
                     }
                   } catch (err) {
                     if (
@@ -2151,6 +2155,13 @@ export default async function build(
                 }
               } else {
                 hasDynamicData = true
+                // we might have determined during prerendering that this page
+                // used dynamic data
+                pageInfos.set(route, {
+                  ...(pageInfos.get(route) as PageInfo),
+                  isSsg: false,
+                  static: false,
+                })
               }
             })
 
