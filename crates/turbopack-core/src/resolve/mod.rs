@@ -577,7 +577,8 @@ pub async fn resolve(
         let result_ref = import_map.lookup(request).await?;
         let result = &*result_ref;
         if !matches!(result, ImportMapResult::NoEntry) {
-            let resolve_result_vc = resolve_import_map_result(result, context, options).await?;
+            let resolve_result_vc =
+                resolve_import_map_result(result, context, context, request, options).await?;
             // We might have matched an alias in the import map, but there is no guarantee
             // the alias actually resolves to something. For instance, a tsconfig.json
             // `compilerOptions.paths` option might alias "@*" to "./*", which
@@ -615,7 +616,8 @@ pub async fn resolve(
             for m in matches.iter() {
                 match m {
                     PatternMatch::File(_, path) => {
-                        results.push(resolved(*path, options_value, options).await?);
+                        results
+                            .push(resolved(*path, context, request, options_value, options).await?);
                     }
                     PatternMatch::Directory(_, path) => {
                         let package_json_path = path.join("package.json");
@@ -728,7 +730,8 @@ pub async fn resolve(
             let result_ref = import_map.lookup(request).await?;
             let result = &*result_ref;
             if !matches!(result, ImportMapResult::NoEntry) {
-                let resolve_result_vc = resolve_import_map_result(result, context, options).await?;
+                let resolve_result_vc =
+                    resolve_import_map_result(result, context, context, request, options).await?;
                 return Ok(resolve_result_vc);
             }
         }
@@ -898,6 +901,8 @@ async fn resolve_module_request(
 async fn resolve_import_map_result(
     result: &ImportMapResult,
     context: FileSystemPathVc,
+    original_context: FileSystemPathVc,
+    original_request: RequestVc,
     options: ResolveOptionsVc,
 ) -> Result<ResolveResultVc> {
     Ok(match result {
@@ -905,12 +910,27 @@ async fn resolve_import_map_result(
         ImportMapResult::Alias(request, alias_context) => {
             let request = *request;
             let context = alias_context.unwrap_or(context);
-            resolve(context, request, options)
+            // We must avoid cycles during resolving
+            if request.resolve().await? == original_request
+                && context.resolve().await? == original_context
+            {
+                ResolveResult::unresolveable().cell()
+            } else {
+                resolve(context, request, options)
+            }
         }
         ImportMapResult::Alternatives(list) => {
             let results = list
                 .iter()
-                .map(|result| resolve_import_map_result_boxed(result, context, options))
+                .map(|result| {
+                    resolve_import_map_result_boxed(
+                        result,
+                        context,
+                        original_context,
+                        original_request,
+                        options,
+                    )
+                })
                 .try_join()
                 .await?;
             ResolveResultVc::select_first(results)
@@ -922,9 +942,14 @@ async fn resolve_import_map_result(
 fn resolve_import_map_result_boxed<'a>(
     result: &'a ImportMapResult,
     context: FileSystemPathVc,
+    original_context: FileSystemPathVc,
+    original_request: RequestVc,
     options: ResolveOptionsVc,
 ) -> Pin<Box<dyn Future<Output = Result<ResolveResultVc>> + Send + 'a>> {
-    Box::pin(async move { resolve_import_map_result(result, context, options).await })
+    Box::pin(async move {
+        resolve_import_map_result(result, context, original_context, original_request, options)
+            .await
+    })
 }
 
 async fn resolve_alias_field_result(
@@ -961,6 +986,8 @@ async fn resolve_alias_field_result(
 
 async fn resolved(
     fs_path: FileSystemPathVc,
+    original_context: FileSystemPathVc,
+    original_request: RequestVc,
     ResolveOptions {
         resolved_map,
         in_package,
@@ -1003,7 +1030,14 @@ async fn resolved(
     if let Some(resolved_map) = resolved_map {
         let result = resolved_map.lookup(*path).await?;
         if !matches!(&*result, ImportMapResult::NoEntry) {
-            return resolve_import_map_result(&result, path.parent(), options).await;
+            return resolve_import_map_result(
+                &result,
+                path.parent(),
+                original_context,
+                original_request,
+                options,
+            )
+            .await;
         }
     }
     Ok(ResolveResult::Single(

@@ -122,16 +122,6 @@ impl MemoryBackend {
         id
     }
 
-    pub fn create_new_active_scope(&self, tasks: usize, unfinished: usize) -> TaskScopeId {
-        let id = self.scope_id_factory.get();
-        // SAFETY: This is a fresh id
-        unsafe {
-            self.memory_task_scopes
-                .insert(*id, TaskScope::new_active(id, tasks, unfinished));
-        }
-        id
-    }
-
     fn increase_scope_active_queue(
         &self,
         mut queue: Vec<TaskScopeId>,

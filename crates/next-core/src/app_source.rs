@@ -108,14 +108,14 @@ async fn next_client_transition(
 
 #[turbo_tasks::function]
 fn next_ssr_client_module_transition(
-    project_path: FileSystemPathVc,
+    project_root: FileSystemPathVc,
     app_dir: FileSystemPathVc,
     process_env: ProcessEnvVc,
 ) -> TransitionVc {
     let ty = Value::new(ServerContextType::AppSSR { app_dir });
     NextSSRClientModuleTransition {
         ssr_module_options_context: get_server_module_options_context(ty),
-        ssr_resolve_options_context: get_server_resolve_options_context(project_path, ty),
+        ssr_resolve_options_context: get_server_resolve_options_context(project_root, ty),
         ssr_environment: get_server_environment(ty, process_env),
     }
     .cell()
@@ -148,13 +148,13 @@ fn next_layout_entry_transition(
 /// Next.js app folder.
 #[turbo_tasks::function]
 pub async fn create_app_source(
-    project_path: FileSystemPathVc,
+    project_root: FileSystemPathVc,
     output_path: FileSystemPathVc,
     server_root: FileSystemPathVc,
     env: ProcessEnvVc,
     browserslist_query: &str,
 ) -> Result<ContentSourceVc> {
-    let project_root = wrap_with_next_js_fs(project_path);
+    let project_root = wrap_with_next_js_fs(project_root);
 
     let app = project_root.join("app");
     let src_app = project_root.join("src/app");
@@ -202,7 +202,7 @@ pub async fn create_app_source(
     let server_runtime_entries =
         vec![ProcessEnvAssetVc::new(project_root, env).as_ecmascript_chunk_placeable()];
 
-    let fallback_page = get_fallback_page(project_path, server_root, browserslist_query);
+    let fallback_page = get_fallback_page(project_root, server_root, browserslist_query);
 
     Ok(create_app_source_for_directory(
         context,

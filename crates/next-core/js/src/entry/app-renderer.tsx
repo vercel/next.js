@@ -6,8 +6,6 @@ declare global {
   const BOOTSTRAP: string[];
 }
 
-const END_OF_OPERATION = process.argv[2];
-
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { FlightManifest } from "next/dist/build/webpack/plugins/flight-manifest-plugin";
 import type { RenderData } from "types/turbopack";
@@ -27,9 +25,18 @@ globalThis.__next_chunk_load__ = () => Promise.resolve();
 
 process.env.__NEXT_NEW_LINK_BEHAVIOR = "true";
 
-process.stdout.write("READY\n");
+const [MARKER, _OPERATION_STEP, OPERATION_SUCCESS, _OPERATION_ERROR] =
+  process.argv.slice(2, 6).map((arg) => Buffer.from(arg, "utf8"));
 
 const NEW_LINE = "\n".charCodeAt(0);
+const OPERATION_SUCCESS_MARKER = Buffer.concat([
+  OPERATION_SUCCESS,
+  Buffer.from(" ", "utf8"),
+  MARKER,
+]);
+
+process.stdout.write("READY\n");
+
 const buffer: Buffer[] = [];
 process.stdin.on("data", async (data) => {
   let idx = data.indexOf(NEW_LINE);
@@ -53,7 +60,7 @@ process.stdin.on("data", async (data) => {
     } catch (e: any) {
       console.log(`ERROR=${JSON.stringify(e.stack)}`);
     }
-    console.log(END_OF_OPERATION);
+    console.log(OPERATION_SUCCESS_MARKER.toString("utf8"));
     data = data.slice(idx + 1);
     idx = data.indexOf(NEW_LINE);
   }

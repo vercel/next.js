@@ -5,6 +5,6 @@ export { staticGenerationAsyncStorage } from "next/dist/esm/client/components/st
 export { requestAsyncStorage } from "next/dist/esm/client/components/request-async-storage.js";
 import * as serverHooks from "next/dist/esm/client/components/hooks-server-context.js";
 export { serverHooks };
-export { renderToReadableStream } from "next/dist/compiled/react-server-dom-webpack/writer.browser.server";
+export { renderToReadableStream } from "next/dist/compiled/react-server-dom-webpack/server.browser";
 
 export { default } from ".";

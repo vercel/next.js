@@ -3,7 +3,7 @@ use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::resolve::options::{ImportMap, ImportMapVc, ImportMapping, ImportMappingVc};
 
 use crate::{
-    embed_js::{attached_next_js_package_path, next_js_fs, VIRTUAL_PACKAGE_NAME},
+    embed_js::{attached_next_js_package_path, VIRTUAL_PACKAGE_NAME},
     next_client::context::ContextType,
     next_server::ServerContextType,
 };
@@ -39,21 +39,14 @@ pub fn get_next_client_import_map(
             );
         }
         ContextType::App { app_dir } => {
-            import_map.insert_exact_alias(
-                "react",
-                request_to_import_mapping(app_dir, "next/dist/compiled/react"),
-            );
-            import_map.insert_wildcard_alias(
-                "react/",
-                request_to_import_mapping(app_dir, "next/dist/compiled/react/*"),
-            );
-            import_map.insert_exact_alias(
-                "react-dom",
-                request_to_import_mapping(app_dir, "next/dist/compiled/react-dom"),
-            );
+            import_map.insert_exact_alias("react", request_to_import_mapping(app_dir, "react"));
+            import_map
+                .insert_wildcard_alias("react/", request_to_import_mapping(app_dir, "react/*"));
+            import_map
+                .insert_exact_alias("react-dom", request_to_import_mapping(app_dir, "react-dom"));
             import_map.insert_wildcard_alias(
                 "react-dom/",
-                request_to_import_mapping(app_dir, "next/dist/compiled/react-dom/*"),
+                request_to_import_mapping(app_dir, "react-dom/*"),
             );
         }
         ContextType::Other => {}
@@ -89,6 +82,10 @@ pub fn get_next_client_fallback_import_map(ty: Value<ContextType>) -> ImportMapV
     import_map.cell()
 }
 
+// TODO this should be a user configurable option
+/// Temporary hard coded externals list
+static HARD_CODED_EXTERNALS: &[&str] = &["prisma", "@prisma/client", "@mux/blurhash"];
+
 /// Computes the Next-specific server-side import map.
 #[turbo_tasks::function]
 pub fn get_next_server_import_map(
@@ -119,37 +116,33 @@ pub fn get_next_server_import_map(
                 ],
             );
 
-            import_map.insert_wildcard_alias(
-                format!("{VIRTUAL_PACKAGE_NAME}/"),
-                ImportMapping::PrimaryAlternative("./*".to_string(), Some(next_js_fs().root()))
-                    .cell(),
-            );
-
             import_map.insert_exact_alias("next", ImportMapping::External(None).into());
             import_map.insert_wildcard_alias("next/", ImportMapping::External(None).into());
             import_map.insert_exact_alias("react", ImportMapping::External(None).into());
             import_map.insert_wildcard_alias("react/", ImportMapping::External(None).into());
+            import_map.insert_exact_alias("react-dom", ImportMapping::External(None).into());
+            import_map.insert_wildcard_alias("react-dom/", ImportMapping::External(None).into());
         }
         ServerContextType::AppSSR { app_dir } | ServerContextType::AppRSC { app_dir } => {
-            import_map.insert_exact_alias(
-                "react",
-                request_to_import_mapping(app_dir, "next/dist/compiled/react"),
-            );
-            import_map.insert_wildcard_alias(
-                "react/",
-                request_to_import_mapping(app_dir, "next/dist/compiled/react/*"),
-            );
+            import_map.insert_exact_alias("react", request_to_import_mapping(app_dir, "react"));
+            import_map
+                .insert_wildcard_alias("react/", request_to_import_mapping(app_dir, "react/*"));
             import_map.insert_exact_alias(
                 "react-dom",
-                request_to_import_mapping(
-                    app_dir,
-                    "next/dist/compiled/react-dom/server-rendering-stub.js",
-                ),
+                request_to_import_mapping(app_dir, "react-dom/server-rendering-stub.js"),
             );
             import_map.insert_wildcard_alias(
                 "react-dom/",
-                request_to_import_mapping(app_dir, "next/dist/compiled/react-dom/*"),
+                request_to_import_mapping(app_dir, "react-dom/*"),
             );
+
+            for &external in HARD_CODED_EXTERNALS {
+                import_map.insert_exact_alias(external, ImportMapping::External(None).into());
+                import_map.insert_wildcard_alias(
+                    format!("{external}/"),
+                    ImportMapping::External(None).into(),
+                );
+            }
         }
     }
 
