@@ -90,10 +90,15 @@ export async function verifyAppReactVersion({
     deps.missing?.length ||
     installedVersion !== requiredReactVersion.split('-experimental').pop()
   ) {
+    const neededDeps = requiredPackages.map((dep) => {
+      dep.pkg = `${dep.pkg}@${requiredReactVersion}`
+      return dep
+    })
+
     if (isCI) {
       // we don't attempt auto install in CI to avoid side-effects
       // and instead log the error for installing needed packages
-      await missingDepsError(dir, deps.missing)
+      await missingDepsError(dir, neededDeps)
     }
     console.log(
       chalk.bold.yellow(
@@ -103,14 +108,7 @@ export async function verifyAppReactVersion({
         removalMsg +
         '\n'
     )
-    await installDependencies(
-      dir,
-      requiredPackages.map((dep) => {
-        dep.pkg = `${dep.pkg}@${requiredReactVersion}`
-        return dep
-      }),
-      true
-    ).catch((err) => {
+    await installDependencies(dir, neededDeps, true).catch((err) => {
       if (err && typeof err === 'object' && 'command' in err) {
         console.error(
           `\nFailed to install required react versions, please install them manually to continue:\n` +
