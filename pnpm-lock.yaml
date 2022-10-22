@@ -144,6 +144,8 @@ importers:
       react-17: npm:react@17.0.2
       react-dom: 18.2.0
       react-dom-17: npm:react-dom@17.0.2
+      react-dom-exp: npm:react-dom@0.0.0-experimental-9cdf8a99e-20221018
+      react-exp: npm:react@0.0.0-experimental-9cdf8a99e-20221018
       react-server-dom-webpack: 0.0.0-experimental-9cdf8a99e-20221018
       react-ssr-prepass: 1.0.8
       react-virtualized: 9.22.3
@@ -302,6 +304,8 @@ importers:
       react-17: /react/17.0.2
       react-dom: 18.2.0_react@18.2.0
       react-dom-17: /react-dom/17.0.2_react@18.2.0
+      react-dom-exp: /react-dom/0.0.0-experimental-9cdf8a99e-20221018_react@18.2.0
+      react-exp: /react/0.0.0-experimental-9cdf8a99e-20221018
       react-server-dom-webpack: 0.0.0-experimental-9cdf8a99e-20221018_4ifzx734of5j5ymg4ksx54vtqi
       react-ssr-prepass: 1.0.8_qncsgtzehe3fgiqp6tr7lwq6fm
       react-virtualized: 9.22.3_biqbaboplfbrettd7655fr4n2y
@@ -25317,6 +25321,19 @@ packages:
       strip-json-comments: 2.0.1
     dev: true
 
+  /react-dom/0.0.0-experimental-9cdf8a99e-20221018_react@18.2.0:
+    resolution:
+      {
+        integrity: sha512-9YwyvIuoWbPebCtr3Z2yVMvQHsSHNErh2u1SHefeouOz9jyRuvIKyfREbEtltn5xWOP+/fCDnuTw6usRKw6Gyw==,
+      }
+    peerDependencies:
+      react: 0.0.0-experimental-9cdf8a99e-20221018
+    dependencies:
+      loose-envify: 1.4.0
+      react: 18.2.0
+      scheduler: 0.0.0-experimental-9cdf8a99e-20221018
+    dev: true
+
   /react-dom/17.0.2_react@18.2.0:
     resolution:
       {
@@ -25429,6 +25446,16 @@ packages:
       react: 18.2.0
       react-dom: 18.2.0_react@18.2.0
       react-lifecycles-compat: 3.0.4
+    dev: true
+
+  /react/0.0.0-experimental-9cdf8a99e-20221018:
+    resolution:
+      {
+        integrity: sha512-Py2uVVYQD8P4swOQRpC9vPLGFWVJDzgqfkmSs2gl4WsgmYYSdoEkLgdEKIy/OZVhZYLYAWkZM1Ym7cbTdtvLUw==,
+      }
+    engines: { node: '>=0.10.0' }
+    dependencies:
+      loose-envify: 1.4.0
     dev: true
 
   /react/17.0.2:
@@ -26801,6 +26828,15 @@ packages:
     engines: { node: '>=10' }
     dependencies:
       xmlchars: 2.2.0
+    dev: true
+
+  /scheduler/0.0.0-experimental-9cdf8a99e-20221018:
+    resolution:
+      {
+        integrity: sha512-y6eQMry9B3xoaKzCk0IQsqzelgoSCodozMFO+H1KSn45BVwsVB+CnvOJEigVggAclkmDOdVveQ/aUQ0UrT/jxA==,
+      }
+    dependencies:
+      loose-envify: 1.4.0
     dev: true
 
   /scheduler/0.20.2:
