@@ -585,6 +585,10 @@ const configSchema = {
           enum: VALID_LOADERS as any,
           type: 'string',
         },
+        loaderFile: {
+          minLength: 1,
+          type: 'string',
+        },
         minimumCacheTTL: {
           type: 'number',
         },
