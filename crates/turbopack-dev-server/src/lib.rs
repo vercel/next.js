@@ -233,7 +233,10 @@ impl DevServer {
                             let status = response.status().as_u16();
                             let success = response.status().is_success();
                             let elapsed = start.elapsed();
-                            if !success || elapsed > Duration::from_secs(1) {
+                            if !success
+                                || (cfg!(feature = "log_request_stats")
+                                    && elapsed > Duration::from_secs(1))
+                            {
                                 println!(
                                     "[{status}] /{path} ({duration})",
                                     duration = FormatDuration(elapsed)

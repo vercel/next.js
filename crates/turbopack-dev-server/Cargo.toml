@@ -38,3 +38,6 @@ urlencoding = "2.1.2"
 
 [build-dependencies]
 turbo-tasks-build = { path = "../turbo-tasks-build" }
+
+[features]
+log_request_stats = []
