@@ -78,6 +78,11 @@ export class NextInstance {
       ...this.dependencies,
       ...this.packageJson?.dependencies,
     }
+    // Lock react version
+    if (reactVersion === 'experimental') {
+      finalDependencies['react'] = '0.0.0-experimental-9cdf8a99e-20221018'
+      finalDependencies['react-dom'] = '0.0.0-experimental-9cdf8a99e-20221018'
+    }
 
     if (skipInstall) {
       const pkgScripts = (this.packageJson['scripts'] as {}) || {}

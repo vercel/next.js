@@ -1550,29 +1550,6 @@ export default async function getBaseWebpackConfig(
     },
     module: {
       rules: [
-        // TODO: FIXME: do NOT webpack 5 support with this
-        // x-ref: https://github.com/webpack/webpack/issues/11467
-        ...(!config.experimental.fullySpecified
-          ? [
-              {
-                test: /\.m?js/,
-                resolve: {
-                  fullySpecified: false,
-                },
-              } as any,
-            ]
-          : []),
-        ...(hasAppDir && isEdgeServer
-          ? [
-              // The Edge bundle includes the server in its entrypoint, so it has to
-              // be in the SSR layer — here we convert the actual page request to
-              // the RSC layer via a webpack rule.
-              {
-                resourceQuery: /__edge_ssr_entry__/,
-                layer: WEBPACK_LAYERS.server,
-              },
-            ]
-          : []),
         ...(hasAppDir && !isClient && !isEdgeServer
           ? [
               {
@@ -1582,7 +1559,10 @@ export default async function getBaseWebpackConfig(
                   // bundling, don't resolve it.
                   if (
                     !codeCondition.test.test(req) ||
-                    isResourceInPackages(req, optoutBundlingPackages)
+                    isResourceInPackages(
+                      req,
+                      config.experimental.serverComponentsExternalPackages
+                    )
                   ) {
                     return false
                   }
@@ -1610,6 +1590,30 @@ export default async function getBaseWebpackConfig(
               },
             ]
           : []),
+        // TODO: FIXME: do NOT webpack 5 support with this
+        // x-ref: https://github.com/webpack/webpack/issues/11467
+        ...(!config.experimental.fullySpecified
+          ? [
+              {
+                test: /\.m?js/,
+                resolve: {
+                  fullySpecified: false,
+                },
+              } as any,
+            ]
+          : []),
+        ...(hasAppDir && isEdgeServer
+          ? [
+              // The Edge bundle includes the server in its entrypoint, so it has to
+              // be in the SSR layer — here we convert the actual page request to
+              // the RSC layer via a webpack rule.
+              {
+                resourceQuery: /__edge_ssr_entry__/,
+                layer: WEBPACK_LAYERS.server,
+              },
+            ]
+          : []),
+
         ...(hasServerComponents && !isClient
           ? [
               // RSC server compilation loaders
