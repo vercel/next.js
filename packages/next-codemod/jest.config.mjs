@@ -1,6 +1,6 @@
 import nextJest from 'next/jest.js'
 
 export default nextJest()({
-  testMatch: ['<rootDir>/test.js'],
+  testMatch: ['**/*test.js'],
   verbose: true,
 })
