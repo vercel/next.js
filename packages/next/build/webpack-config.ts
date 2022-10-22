@@ -1015,7 +1015,7 @@ export default async function getBaseWebpackConfig(
   const crossOrigin = config.crossOrigin
   const looseEsmExternals = config.experimental?.esmExternals === 'loose'
 
-  const optoutBundlingPackages = EXTERNAL_PACKAGES.concat(
+  const optOutBundlingPackages = EXTERNAL_PACKAGES.concat(
     ...(config.experimental.serverComponentsExternalPackages || [])
   )
 
@@ -1058,14 +1058,13 @@ export default async function getBaseWebpackConfig(
     // Treat react packages as external for SSR layer,
     // then let require-hook mapping them to internals.
     if (layer === WEBPACK_LAYERS.client) {
-      // console.log('WEBPACK_LAYERS.client', request)
-
       if (
         [
           'react',
           'react/jsx-runtime',
           'react/jsx-dev-runtime',
           'react-dom',
+          'scheduler',
         ].includes(request)
       ) {
         return `commonjs next/dist/compiled/${request}`
@@ -1204,12 +1203,7 @@ export default async function getBaseWebpackConfig(
       if (layer === WEBPACK_LAYERS.server) {
         // All packages should be bundled for the server layer if they're not opted out.
         // This option takes priority over the transpilePackages option.
-        if (
-          isResourceInPackages(
-            res,
-            config.experimental.serverComponentsExternalPackages
-          )
-        ) {
+        if (isResourceInPackages(res, optOutBundlingPackages)) {
           return `${externalType} ${request}`
         }
 
@@ -1585,35 +1579,6 @@ export default async function getBaseWebpackConfig(
               },
             ]
           : []),
-        ...(hasAppDir && !isClient
-          ? [
-              {
-                issuerLayer: WEBPACK_LAYERS.server,
-                test: (req: string) => {
-                  // If it's not a source code file, or has been opted out of
-                  // bundling, don't resolve it.
-                  if (
-                    !codeCondition.test.test(req) ||
-                    isResourceInPackages(req, optoutBundlingPackages)
-                  ) {
-                    return false
-                  }
-
-                  return true
-                },
-                resolve: {
-                  conditionNames: ['react-server', 'node', 'require'],
-                  alias: {
-                    // If missing the alias override here, the default alias will be used which aliases
-                    // react to the direct file path, not the package name. In that case the condition
-                    // will be ignored completely.
-                    react: 'react',
-                    'react-dom': 'react-dom',
-                  },
-                },
-              },
-            ]
-          : []),
         ...(hasServerComponents && !isClient
           ? [
               // RSC server compilation loaders
@@ -1663,7 +1628,7 @@ export default async function getBaseWebpackConfig(
                       // bundling, don't resolve it.
                       if (
                         !codeCondition.test.test(req) ||
-                        isResourceInPackages(req, optoutBundlingPackages)
+                        isResourceInPackages(req, optOutBundlingPackages)
                       ) {
                         return false
                       }
