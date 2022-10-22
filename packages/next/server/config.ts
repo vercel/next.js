@@ -24,6 +24,7 @@ import {
 } from '../shared/lib/image-config'
 import { loadEnvConfig } from '@next/env'
 import { gte as semverGte } from 'next/dist/compiled/semver'
+import { getDependencies } from '../lib/get-package-version'
 
 export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
 
@@ -75,6 +76,46 @@ export function setHttpClientAndAgentOptions(options: NextConfig) {
   ;(global as any).__NEXT_HTTP_AGENT_OPTIONS = options.httpAgentOptions
   ;(global as any).__NEXT_HTTP_AGENT = new HttpAgent(options.httpAgentOptions)
   ;(global as any).__NEXT_HTTPS_AGENT = new HttpsAgent(options.httpAgentOptions)
+}
+
+async function setFontLoaderDefaults(config: NextConfigComplete, dir: string) {
+  if (config.experimental?.fontLoaders) return
+
+  // Add @next/font loaders by default if they're installed
+  const hasNextFontDependency = (
+    await getDependencies({
+      cwd: dir,
+    })
+  ).dependencies['@next/font']
+
+  if (hasNextFontDependency) {
+    const googleFontLoader = {
+      loader: '@next/font/google',
+    }
+    const localFontLoader = {
+      loader: '@next/font/local',
+    }
+    if (!config.experimental) {
+      config.experimental = {}
+    }
+    if (!config.experimental.fontLoaders) {
+      config.experimental.fontLoaders = []
+    }
+    if (
+      !config.experimental.fontLoaders.find(
+        ({ loader }: any) => loader === '@next/font/goggle'
+      )
+    ) {
+      config.experimental.fontLoaders.push(googleFontLoader)
+    }
+    if (
+      !config.experimental.fontLoaders.find(
+        ({ loader }: any) => loader === '@next/font/local'
+      )
+    ) {
+      config.experimental.fontLoaders.push(localFontLoader)
+    }
+  }
 }
 
 function assignDefaults(dir: string, userConfig: { [key: string]: any }) {
@@ -835,12 +876,14 @@ export default async function loadConfig(
           : canonicalBase) || ''
     }
 
-    return assignDefaults(dir, {
+    const completeConfig = assignDefaults(dir, {
       configOrigin: relative(dir, path),
       configFile: path,
       configFileName,
       ...userConfig,
     }) as NextConfigComplete
+    await setFontLoaderDefaults(completeConfig, dir)
+    return completeConfig
   } else {
     const configBaseName = basename(CONFIG_FILES[0], extname(CONFIG_FILES[0]))
     const nonJsPath = findUp.sync(
@@ -869,5 +912,6 @@ export default async function loadConfig(
   ) as NextConfigComplete
   completeConfig.configFileName = configFileName
   setHttpClientAndAgentOptions(completeConfig)
+  await setFontLoaderDefaults(completeConfig, dir)
   return completeConfig
 }
