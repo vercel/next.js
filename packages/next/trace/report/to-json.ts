@@ -55,7 +55,7 @@ let batch: ReturnType<typeof batcher> | undefined
 
 const writeStreamOptions = {
   flags: 'a',
-  encoding: 'utf8',
+  encoding: 'utf8' as const,
 }
 class RotatingWriteStream {
   file: string
