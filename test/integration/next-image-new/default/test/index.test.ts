@@ -1047,7 +1047,7 @@ function runTests(mode) {
     it('should include a data-attribute on fill images', async () => {
       expect(
         await browser.elementById('fill-image-1').getAttribute('data-nimg')
-      ).toBe('future-fill')
+      ).toBe('fill')
     })
     it('should add position:absolute to fill images', async () => {
       expect(await getComputedStyle(browser, 'fill-image-1', 'position')).toBe(
