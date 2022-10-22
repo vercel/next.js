@@ -348,7 +348,7 @@ impl<B: Backend> TurboTasks<B> {
                             (result, duration, cell_mappings)
                         })
                         .await;
-                    if duration.as_millis() > 1000 {
+                    if cfg!(feature = "log_function_stats") && duration.as_millis() > 1000 {
                         println!(
                             "{} took {}",
                             this.backend.get_task_description(task_id),
