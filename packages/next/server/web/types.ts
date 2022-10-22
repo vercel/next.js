@@ -3,7 +3,6 @@ import type { NextRequest } from '../web/spec-extension/request'
 import type { NextFetchEvent } from '../web/spec-extension/fetch-event'
 import type { NextResponse } from './spec-extension/response'
 import type { ClonableBody } from '../body-streams'
-export type { CookieSerializeOptions } from 'next/dist/compiled/cookie'
 
 export interface NodeHeaders {
   [header: string]: string | string[] | undefined
