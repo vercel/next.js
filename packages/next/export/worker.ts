@@ -3,9 +3,9 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import type { DomainLocale, NextConfigComplete } from '../server/config-shared'
 import type { NextParsedUrlQuery } from '../server/request-meta'
 
-// `HAS_APP_DIR` env var is inherited from parent process,
+// `NEXT_PREBUNDLED_REACT` env var is inherited from parent process,
 // then override react packages here for export worker.
-if (process.env.HAS_APP_DIR) {
+if (process.env.NEXT_PREBUNDLED_REACT) {
   require('../build/webpack/require-hook').overrideBuiltInReactPackages()
 }
 import '../server/node-polyfill-fetch'
