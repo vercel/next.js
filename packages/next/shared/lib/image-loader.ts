@@ -1,5 +1,21 @@
-// TODO: change "any" to actual type
-function defaultLoader({ config, src, width, quality }: any): string {
+import type { ImageConfig } from './image-config'
+
+export type DefaultImageLoaderProps = {
+  src: string
+  width: number
+  quality?: number
+}
+
+export type ImageLoaderPropsWithConfig = DefaultImageLoaderProps & {
+  config: Readonly<ImageConfig>
+}
+
+function defaultLoader({
+  config,
+  src,
+  width,
+  quality,
+}: ImageLoaderPropsWithConfig): string {
   if (process.env.NODE_ENV !== 'production') {
     const missingValues = []
 

@@ -17,7 +17,9 @@ import {
 import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { warnOnce } from '../shared/lib/utils'
 // @ts-ignore - This is replaced by webpack alias
-import defaultLoader from 'next/dist/shared/lib/image-loader'
+import defaultLoader, {
+  type DefaultImageLoaderProps,
+} from 'next/dist/shared/lib/image-loader'
 
 const configEnv = process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
 const allImgs = new Map<
@@ -33,13 +35,9 @@ if (typeof window === 'undefined') {
 const VALID_LOADING_VALUES = ['lazy', 'eager', undefined] as const
 type LoadingValue = typeof VALID_LOADING_VALUES[number]
 type ImageConfig = ImageConfigComplete & { allSizes: number[] }
-export type ImageLoader = (p: ImageLoaderProps) => string
 
-export type ImageLoaderProps = {
-  src: string
-  width: number
-  quality?: number
-}
+export type ImageLoaderProps = DefaultImageLoaderProps
+export type ImageLoader = (p: ImageLoaderProps) => string
 
 // Do not export - this is an internal type only
 // because `next.config.js` is only meant for the
