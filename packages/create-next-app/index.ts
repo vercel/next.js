@@ -27,7 +27,7 @@ const program = new Commander.Command(packageJson.name)
 `
   )
   .option(
-    '--app-dir',
+    '--experimental-app',
     `
 
   Initialize as a \`app/\` directory project.
