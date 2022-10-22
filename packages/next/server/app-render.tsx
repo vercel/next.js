@@ -8,11 +8,11 @@ import type { FontLoaderManifest } from '../build/webpack/plugins/font-loader-ma
 import React, {
   // @ts-ignore
   experimental_use as use,
-} from 'next/dist/compiled/react'
+} from 'react'
 
 // this needs to be required lazily so that `next-server` can set
 // the env before we require
-import ReactDOMServer from 'next/dist/compiled/react-dom/server.browser'
+import ReactDOMServer from 'react-dom/server.browser'
 
 import { ParsedUrlQuery } from 'querystring'
 import { NextParsedUrlQuery } from './request-meta'
@@ -42,6 +42,7 @@ import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
 import { NOT_FOUND_ERROR_CODE } from '../client/components/not-found'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import { Writable } from 'stream'
+import stringHash from 'next/dist/compiled/string-hash'
 
 const INTERNAL_HEADERS_INSTANCE = Symbol('internal for headers readonly')
 
@@ -179,21 +180,21 @@ function createErrorHandler(
   _source: string,
   capturedErrors: Error[]
 ) {
-  return (err: any) => {
+  return (err: any): string => {
     if (
-      // TODO-APP: Handle redirect throw
-      err.digest !== DYNAMIC_ERROR_CODE &&
-      err.digest !== NOT_FOUND_ERROR_CODE &&
-      !err.digest?.startsWith(REDIRECT_ERROR_CODE)
+      err.digest === DYNAMIC_ERROR_CODE ||
+      err.digest === NOT_FOUND_ERROR_CODE ||
+      err.digest?.startsWith(REDIRECT_ERROR_CODE)
     ) {
-      // Used for debugging error source
-      // console.error(_source, err)
-      console.error(err)
-      capturedErrors.push(err)
-      return err.digest || err.message
+      return err.digest
     }
 
-    return err.digest
+    // Used for debugging error source
+    // console.error(_source, err)
+    console.error(err)
+    capturedErrors.push(err)
+    // TODO-APP: look at using webcrypto instead. Requires a promise to be awaited.
+    return stringHash(err.message + err.stack + (err.digest || '')).toString()
   }
 }
 
@@ -276,7 +277,7 @@ function useFlightResponse(
   }
   const {
     createFromReadableStream,
-  } = require('next/dist/compiled/react-server-dom-webpack')
+  } = require('next/dist/compiled/react-server-dom-webpack/client')
 
   const [renderStream, forwardStream] = readableStreamTee(req)
   const res = createFromReadableStream(renderStream, {
@@ -445,7 +446,8 @@ export type FlightRouterState = [
   segment: Segment,
   parallelRoutes: { [parallelRouterKey: string]: FlightRouterState },
   url?: string,
-  refresh?: 'refetch'
+  refresh?: 'refetch',
+  isRootLayout?: boolean
 ]
 
 /**
@@ -851,10 +853,10 @@ export async function renderToHTMLOrFlight(
       }
     }
 
-    const createFlightRouterStateFromLoaderTree = ([
-      segment,
-      parallelRoutes,
-    ]: LoaderTree): FlightRouterState => {
+    const createFlightRouterStateFromLoaderTree = (
+      [segment, parallelRoutes, { layout }]: LoaderTree,
+      rootLayoutIncluded = false
+    ): FlightRouterState => {
       const dynamicParam = getDynamicParamFromSegment(segment)
 
       const segmentTree: FlightRouterState = [
@@ -862,17 +864,21 @@ export async function renderToHTMLOrFlight(
         {},
       ]
 
-      if (parallelRoutes) {
-        segmentTree[1] = Object.keys(parallelRoutes).reduce(
-          (existingValue, currentValue) => {
-            existingValue[currentValue] = createFlightRouterStateFromLoaderTree(
-              parallelRoutes[currentValue]
-            )
-            return existingValue
-          },
-          {} as FlightRouterState[1]
-        )
+      if (!rootLayoutIncluded && typeof layout !== 'undefined') {
+        rootLayoutIncluded = true
+        segmentTree[4] = true
       }
+
+      segmentTree[1] = Object.keys(parallelRoutes).reduce(
+        (existingValue, currentValue) => {
+          existingValue[currentValue] = createFlightRouterStateFromLoaderTree(
+            parallelRoutes[currentValue],
+            rootLayoutIncluded
+          )
+          return existingValue
+        },
+        {} as FlightRouterState[1]
+      )
 
       return segmentTree
     }
@@ -949,8 +955,8 @@ export async function renderToHTMLOrFlight(
         ? await page()
         : undefined
 
-      if (layoutOrPageMod?.config) {
-        defaultRevalidate = layoutOrPageMod.config.revalidate
+      if (typeof layoutOrPageMod?.revalidate !== 'undefined') {
+        defaultRevalidate = layoutOrPageMod.revalidate
 
         if (isStaticGeneration && defaultRevalidate === 0) {
           const { DynamicServerError } =

@@ -16,7 +16,7 @@ import {
 type RuntimeConfig = any
 
 loadRequireHook()
-if (process.env.HAS_APP_DIR) {
+if (process.env.NEXT_PREBUNDLED_REACT) {
   overrideBuiltInReactPackages()
 }
 
@@ -80,7 +80,9 @@ export async function loadStaticPaths({
   workerWasUsed = true
 
   if (isAppPath) {
-    const generateParams = collectGenerateParams(components.ComponentMod.tree)
+    const generateParams = await collectGenerateParams(
+      components.ComponentMod.tree
+    )
     return buildAppStaticPaths({
       page: pathname,
       generateParams,

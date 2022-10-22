@@ -13,7 +13,7 @@ describe('beforeInteractive in document Head', () => {
         'pages/_document.js': `
           import { Html, Head, Main, NextScript } from 'next/document'
           import Script from 'next/script'
-          
+
           export default function Document() {
             return (
               <Html>
@@ -31,7 +31,7 @@ describe('beforeInteractive in document Head', () => {
             )
           }
         `,
-        'pages/index.js': `        
+        'pages/index.js': `
           export default function Home() {
             return (
               <>
@@ -42,8 +42,8 @@ describe('beforeInteractive in document Head', () => {
         `,
       },
       dependencies: {
-        react: '17.0.2',
-        'react-dom': '17.0.2',
+        react: 'latest',
+        'react-dom': 'latest',
       },
     })
   })
@@ -74,7 +74,7 @@ describe('beforeInteractive in document body', () => {
         'pages/_document.js': `
           import { Html, Head, Main, NextScript } from 'next/document'
           import Script from 'next/script'
-          
+
           export default function Document() {
             return (
               <Html>
@@ -91,7 +91,7 @@ describe('beforeInteractive in document body', () => {
             )
           }
         `,
-        'pages/index.js': `        
+        'pages/index.js': `
           export default function Home() {
             return (
               <>
@@ -102,8 +102,8 @@ describe('beforeInteractive in document body', () => {
         `,
       },
       dependencies: {
-        react: '17.0.2',
-        'react-dom': '17.0.2',
+        react: 'latest',
+        'react-dom': 'latest',
       },
     })
   })
@@ -149,8 +149,8 @@ describe('experimental.nextScriptWorkers: false with no Partytown dependency', (
       },
       // TODO: @housseindjirdeh: verify React 18 functionality
       dependencies: {
-        react: '17.0.2',
-        'react-dom': '17.0.2',
+        react: 'latest',
+        'react-dom': 'latest',
       },
     })
   })
@@ -182,10 +182,6 @@ describe('experimental.nextScriptWorkers: true with required Partytown dependenc
         experimental: {
           nextScriptWorkers: true,
         },
-        dependencies: {
-          react: '17',
-          'react-dom': '17',
-        },
       },
       files: {
         'pages/index.js': `
@@ -204,6 +200,8 @@ describe('experimental.nextScriptWorkers: true with required Partytown dependenc
         `,
       },
       dependencies: {
+        react: 'latest',
+        'react-dom': 'latest',
         '@builder.io/partytown': '0.4.2',
       },
     })
@@ -261,15 +259,11 @@ describe('experimental.nextScriptWorkers: true with required Partytown dependenc
         experimental: {
           nextScriptWorkers: true,
         },
-        dependencies: {
-          react: '17',
-          'react-dom': '17',
-        },
       },
       files: {
         'pages/index.js': `
         import Script from 'next/script'
-      
+
         export default function Page() {
           return (
             <>
@@ -281,6 +275,8 @@ describe('experimental.nextScriptWorkers: true with required Partytown dependenc
       `,
       },
       dependencies: {
+        react: 'latest',
+        'react-dom': 'latest',
         '@builder.io/partytown': '0.4.2',
       },
     })
@@ -399,8 +395,8 @@ describe('experimental.nextScriptWorkers: true with config override', () => {
       },
       dependencies: {
         '@builder.io/partytown': '0.4.2',
-        react: '17',
-        'react-dom': '17',
+        react: 'latest',
+        'react-dom': 'latest',
       },
     })
   })

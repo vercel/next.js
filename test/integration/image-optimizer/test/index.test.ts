@@ -274,6 +274,56 @@ describe('Image Optimizer', () => {
       )
     })
 
+    it('should error when images.loader and images.loaderFile are both assigned', async () => {
+      await nextConfig.replace(
+        '{ /* replaceme */ }',
+        JSON.stringify({
+          images: {
+            loader: 'imgix',
+            path: 'https://example.com',
+            loaderFile: './dummy.js',
+          },
+        })
+      )
+      let stderr = ''
+
+      app = await launchApp(appDir, await findPort(), {
+        onStderr(msg) {
+          stderr += msg || ''
+        },
+      })
+      await waitFor(1000)
+      await killApp(app).catch(() => {})
+      await nextConfig.restore()
+
+      expect(stderr).toContain(
+        `Specified images.loader property (imgix) cannot be used with images.loaderFile property. Please set images.loader to "custom".`
+      )
+    })
+
+    it('should error when images.loaderFile does not exist', async () => {
+      await nextConfig.replace(
+        '{ /* replaceme */ }',
+        JSON.stringify({
+          images: {
+            loaderFile: './fakefile.js',
+          },
+        })
+      )
+      let stderr = ''
+
+      app = await launchApp(appDir, await findPort(), {
+        onStderr(msg) {
+          stderr += msg || ''
+        },
+      })
+      await waitFor(1000)
+      await killApp(app).catch(() => {})
+      await nextConfig.restore()
+
+      expect(stderr).toContain(`Specified images.loaderFile does not exist at`)
+    })
+
     it('should error when images.dangerouslyAllowSVG is not a boolean', async () => {
       await nextConfig.replace(
         '{ /* replaceme */ }',

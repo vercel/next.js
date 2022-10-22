@@ -5,7 +5,7 @@ type CssVariable = `--${string}`
 type LocalFont = {
   src: string
   display?: Display
-  weight?: number
+  weight?: string
   style?: string
   adjustFontFallback?: 'Arial' | 'Times New Roman' | false
   fallback?: string[]

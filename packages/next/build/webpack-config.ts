@@ -13,6 +13,7 @@ import {
   WEBPACK_LAYERS,
   RSC_MOD_REF_PROXY_ALIAS,
 } from '../lib/constants'
+import { EXTERNAL_PACKAGES } from '../lib/server-external-packages'
 import { fileExists } from '../lib/file-exists'
 import { CustomRoutes } from '../lib/load-custom-routes.js'
 import {
@@ -47,6 +48,7 @@ import { regexLikeCss } from './webpack/config/blocks/css'
 import { CopyFilePlugin } from './webpack/plugins/copy-file-plugin'
 import { FlightManifestPlugin } from './webpack/plugins/flight-manifest-plugin'
 import { FlightClientEntryPlugin } from './webpack/plugins/flight-client-entry-plugin'
+import { FlightTypesPlugin } from './webpack/plugins/flight-types-plugin'
 import type {
   Feature,
   SWC_TARGET_TRIPLE,
@@ -68,8 +70,7 @@ const babelIncludeRegexes: RegExp[] = [
   /next[\\/]dist[\\/](esm[\\/])?shared[\\/]lib/,
   /next[\\/]dist[\\/](esm[\\/])?client/,
   /next[\\/]dist[\\/](esm[\\/])?pages/,
-  /[\\/](strip-ansi|ansi-regex)[\\/]/,
-  /styled-jsx[\\/]/,
+  /[\\/](strip-ansi|ansi-regex|styled-jsx)[\\/]/,
 ]
 
 const BABEL_CONFIG_FILES = [
@@ -118,14 +119,16 @@ function errorIfEnvConflicted(config: NextConfigComplete, key: string) {
 
 function isResourceInPackages(resource: string, packageNames?: string[]) {
   return packageNames?.some((p: string) =>
-    new RegExp('[/\\\\]node_modules[/\\\\]' + p + '[/\\\\]').test(resource)
+    resource.includes(
+      path.sep + pathJoin('node_modules', p.replace(/\//g, path.sep)) + path.sep
+    )
   )
 }
 
 const builtInReactImports = [
   'react',
   'react/jsx-runtime',
-  'next/dist/compiled/react-server-dom-webpack/writer.browser.server',
+  'next/dist/compiled/react-server-dom-webpack/server.browser',
 ]
 
 export function getDefineEnv({
@@ -571,11 +574,7 @@ export default async function getBaseWebpackConfig(
   // Only error in first one compiler (client) once
   if (isClient) {
     if (!hasReactRoot) {
-      if (config.experimental.runtime) {
-        throw new Error(
-          '`experimental.runtime` requires React 18 to be installed.'
-        )
-      }
+      throw new Error('Next.js requires React 18.2.0 to be installed.')
     }
   }
 
@@ -833,6 +832,9 @@ export default async function getBaseWebpackConfig(
     [COMPILER_NAMES.edgeServer]: ['browser', 'module', 'main'],
   }
 
+  const reactDir = path.dirname(require.resolve('react/package.json'))
+  const reactDomDir = path.dirname(require.resolve('react-dom/package.json'))
+
   const resolveConfig = {
     // Disable .mjs for node_modules bundling
     extensions: isNodeServer
@@ -863,21 +865,33 @@ export default async function getBaseWebpackConfig(
           }
         : undefined),
 
-      next: NEXT_PROJECT_ROOT,
-
-      ...(hasServerComponents
+      ...(config.images.loaderFile
         ? {
-            // For react and react-dom, alias them dynamically for server layer
-            // and others in the loaders configuration
-            'react-dom/client$': 'next/dist/compiled/react-dom/client',
-            'react-dom/server$': 'next/dist/compiled/react-dom/server',
-            'react-dom/server.browser$':
-              'next/dist/compiled/react-dom/server.browser',
-            'react/jsx-dev-runtime$':
-              'next/dist/compiled/react/jsx-dev-runtime',
-            'react/jsx-runtime$': 'next/dist/compiled/react/jsx-runtime',
+            'next/dist/shared/lib/image-loader': config.images.loaderFile,
           }
         : undefined),
+
+      next: NEXT_PROJECT_ROOT,
+
+      // Disable until pre-bundling is landed
+      // ...(hasServerComponents
+      //   ? {
+      //       // For react and react-dom, alias them dynamically for server layer
+      //       // and others in the loaders configuration
+      //       'react-dom/client$': 'next/dist/compiled/react-dom/client',
+      //       'react-dom/server$': 'next/dist/compiled/react-dom/server',
+      //       'react-dom/server.browser$':
+      //         'next/dist/compiled/react-dom/server.browser',
+      //       'react/jsx-dev-runtime$':
+      //         'next/dist/compiled/react/jsx-dev-runtime',
+      //       'react/jsx-runtime$': 'next/dist/compiled/react/jsx-runtime',
+      //     }
+      //   : undefined),
+      react: reactDir,
+      'react-dom$': reactDomDir,
+      'react-dom/server$': `${reactDomDir}/server`,
+      'react-dom/server.browser$': `${reactDomDir}/server.browser`,
+      'react-dom/client$': `${reactDomDir}/client`,
 
       'styled-jsx/style$': require.resolve(`styled-jsx/style`),
       'styled-jsx$': require.resolve(`styled-jsx`),
@@ -1007,6 +1021,10 @@ export default async function getBaseWebpackConfig(
 
   const crossOrigin = config.crossOrigin
   const looseEsmExternals = config.experimental?.esmExternals === 'loose'
+
+  const optoutBundlingPackages = EXTERNAL_PACKAGES.concat(
+    ...(config.experimental.serverComponentsExternalPackages || [])
+  )
 
   async function handleExternals(
     context: string,
@@ -1163,25 +1181,32 @@ export default async function getBaseWebpackConfig(
       return
     }
 
+    // If a package should be transpiled by Next.js, we skip making it external.
+    // It doesn't matter what the extension is, as we'll transpile it anyway.
+    const shouldBeBundled = isResourceInPackages(
+      res,
+      config.experimental.transpilePackages
+    )
+
     if (/node_modules[/\\].*\.[mc]?js$/.test(res)) {
       if (layer === WEBPACK_LAYERS.server) {
         // All packages should be bundled for the server layer if they're not opted out.
-        if (
-          isResourceInPackages(
-            res,
-            config.experimental.serverComponentsExternalPackages
-          )
-        ) {
+        // This option takes priority over the transpilePackages option.
+        if (isResourceInPackages(res, optoutBundlingPackages)) {
           return `${externalType} ${request}`
         }
 
         return
       }
 
+      if (shouldBeBundled) return
+
       // Anything else that is standard JavaScript within `node_modules`
       // can be externalized.
       return `${externalType} ${request}`
     }
+
+    if (shouldBeBundled) return
 
     // Default behavior: bundle the code!
   }
@@ -1196,6 +1221,13 @@ export default async function getBaseWebpackConfig(
       if (babelIncludeRegexes.some((r) => r.test(excludePath))) {
         return false
       }
+
+      const shouldBeBundled = isResourceInPackages(
+        excludePath,
+        config.experimental.transpilePackages
+      )
+      if (shouldBeBundled) return false
+
       return excludePath.includes('node_modules')
     },
   }
@@ -1513,6 +1545,46 @@ export default async function getBaseWebpackConfig(
     },
     module: {
       rules: [
+        ...(hasAppDir && !isClient && !isEdgeServer
+          ? [
+              {
+                issuerLayer: WEBPACK_LAYERS.server,
+                test: (req: string) => {
+                  // If it's not a source code file, or has been opted out of
+                  // bundling, don't resolve it.
+                  if (
+                    !codeCondition.test.test(req) ||
+                    isResourceInPackages(
+                      req,
+                      config.experimental.serverComponentsExternalPackages
+                    )
+                  ) {
+                    return false
+                  }
+
+                  return true
+                },
+                resolve: process.env.__NEXT_REACT_CHANNEL
+                  ? {
+                      conditionNames: ['react-server', 'node', 'require'],
+                      alias: {
+                        react: `react-${process.env.__NEXT_REACT_CHANNEL}`,
+                        'react-dom': `react-dom-${process.env.__NEXT_REACT_CHANNEL}`,
+                      },
+                    }
+                  : {
+                      conditionNames: ['react-server', 'node', 'require'],
+                      alias: {
+                        // If missing the alias override here, the default alias will be used which aliases
+                        // react to the direct file path, not the package name. In that case the condition
+                        // will be ignored completely.
+                        react: 'react',
+                        'react-dom': 'react-dom',
+                      },
+                    },
+              },
+            ]
+          : []),
         // TODO: FIXME: do NOT webpack 5 support with this
         // x-ref: https://github.com/webpack/webpack/issues/11467
         ...(!config.experimental.fullySpecified
@@ -1536,38 +1608,7 @@ export default async function getBaseWebpackConfig(
               },
             ]
           : []),
-        ...(hasAppDir && !isClient
-          ? [
-              {
-                issuerLayer: WEBPACK_LAYERS.server,
-                test: (req: string) => {
-                  // If it's not a source code file, or has been opted out of
-                  // bundling, don't resolve it.
-                  if (
-                    !codeCondition.test.test(req) ||
-                    isResourceInPackages(
-                      req,
-                      config.experimental.serverComponentsExternalPackages
-                    )
-                  ) {
-                    return false
-                  }
 
-                  return true
-                },
-                resolve: {
-                  conditionNames: ['react-server', 'node', 'require'],
-                  alias: {
-                    // If missing the alias override here, the default alias will be used which aliases
-                    // react to the direct file path, not the package name. In that case the condition
-                    // will be ignored completely.
-                    react: 'react',
-                    'react-dom': 'react-dom',
-                  },
-                },
-              },
-            ]
-          : []),
         ...(hasServerComponents && !isClient
           ? [
               // RSC server compilation loaders
@@ -1604,6 +1645,7 @@ export default async function getBaseWebpackConfig(
                 // Alias react-dom for ReactDOM.preload usage.
                 // Alias react for switching between default set and share subset.
                 oneOf: [
+                  /*
                   {
                     // test: codeCondition.test,
                     issuerLayer: WEBPACK_LAYERS.server,
@@ -1612,10 +1654,7 @@ export default async function getBaseWebpackConfig(
                       // bundling, don't resolve it.
                       if (
                         !codeCondition.test.test(req) ||
-                        isResourceInPackages(
-                          req,
-                          config.experimental.serverComponentsExternalPackages
-                        )
+                        isResourceInPackages(req, optoutBundlingPackages)
                       ) {
                         return false
                       }
@@ -1625,28 +1664,34 @@ export default async function getBaseWebpackConfig(
                     resolve: {
                       // It needs `conditionNames` here to require the proper asset,
                       // when react is acting as dependency of compiled/react-dom.
+                      conditionNames: ['react-server', 'node', 'require'],
                       alias: {
-                        react: 'next/dist/compiled/react/react.shared-subset',
-                        // Use server rendering stub for RSC
-                        // x-ref: https://github.com/facebook/react/pull/25436
-                        'react-dom$':
-                          'next/dist/compiled/react-dom/server-rendering-stub',
+                        react: 'react',
+                        'react-dom': 'react-dom',
+                        // Disable before prebundling is landed
+                        // react: 'next/dist/compiled/react/react.shared-subset',
+                        // // Use server rendering stub for RSC
+                        // // x-ref: https://github.com/facebook/react/pull/25436
+                        // 'react-dom$':
+                        //   'next/dist/compiled/react-dom/server-rendering-stub',
                       },
                     },
                   },
-                  {
-                    test: codeCondition.test,
-                    resolve: {
-                      alias: {
-                        react: 'next/dist/compiled/react',
-                        'react-dom$': isClient
-                          ? 'next/dist/compiled/react-dom/index'
-                          : 'next/dist/compiled/react-dom/server-rendering-stub',
-                        'react-dom/client$':
-                          'next/dist/compiled/react-dom/client',
-                      },
-                    },
-                  },
+                  */
+                  // Disable before prebundling is landed
+                  // {
+                  //   test: codeCondition.test,
+                  //   resolve: {
+                  //     alias: {
+                  //       react: 'next/dist/compiled/react',
+                  //       'react-dom$': isClient
+                  //         ? 'next/dist/compiled/react-dom/index'
+                  //         : 'next/dist/compiled/react-dom/server-rendering-stub',
+                  //       'react-dom/client$':
+                  //         'next/dist/compiled/react-dom/client',
+                  //     },
+                  //   },
+                  // },
                 ],
               },
             ]
@@ -1976,6 +2021,10 @@ export default async function getBaseWebpackConfig(
               dev,
               isEdgeServer,
             })),
+      hasAppDir &&
+        !isClient &&
+        !dev &&
+        new FlightTypesPlugin({ dir, appDir, dev, isEdgeServer }),
       !dev &&
         isClient &&
         !!config.experimental.sri?.algorithm &&

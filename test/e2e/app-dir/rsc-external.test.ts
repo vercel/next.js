@@ -29,8 +29,8 @@ describe('app dir - rsc external dependency', () => {
     next = await createNext({
       files: new FileRef(path.join(__dirname, './rsc-external')),
       dependencies: {
-        react: 'latest',
-        'react-dom': 'latest',
+        react: '0.0.0-experimental-9cdf8a99e-20221018',
+        'react-dom': '0.0.0-experimental-9cdf8a99e-20221018',
       },
       packageJson: {
         scripts: {
@@ -82,6 +82,11 @@ describe('app dir - rsc external dependency', () => {
     expect(sharedHtml).toContain(
       'node_modules instance from client module random-module-instance'
     )
+  })
+
+  it('should transpile specific external packages with the `transpilePackages` option', async () => {
+    const clientHtml = await renderViaHTTP(next.url, '/external-imports/client')
+    expect(clientHtml).toContain('transpilePackages:5')
   })
 
   it('should resolve the subset react in server components based on the react-server condition', async () => {
