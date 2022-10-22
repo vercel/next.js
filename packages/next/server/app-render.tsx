@@ -95,14 +95,8 @@ class ReadonlyNextCookiesError extends Error {
 class ReadonlyNextCookies {
   [INTERNAL_COOKIES_INSTANCE]: NextCookies
 
-  entries: NextCookies['entries']
-  forEach: NextCookies['forEach']
   get: NextCookies['get']
   getAll: NextCookies['getAll']
-  getWithOptions: NextCookies['getWithOptions']
-  has: NextCookies['has']
-  keys: NextCookies['keys']
-  values: NextCookies['values']
 
   constructor(request: {
     headers: {
@@ -114,17 +108,12 @@ class ReadonlyNextCookies {
     const cookiesInstance = new NextCookies(request as Request)
     this[INTERNAL_COOKIES_INSTANCE] = cookiesInstance
 
-    this.entries = cookiesInstance.entries.bind(cookiesInstance)
-    this.forEach = cookiesInstance.forEach.bind(cookiesInstance)
     this.get = cookiesInstance.get.bind(cookiesInstance)
     this.getAll = cookiesInstance.getAll.bind(cookiesInstance)
-    this.getWithOptions = cookiesInstance.getWithOptions.bind(cookiesInstance)
-    this.has = cookiesInstance.has.bind(cookiesInstance)
-    this.keys = cookiesInstance.keys.bind(cookiesInstance)
-    this.values = cookiesInstance.values.bind(cookiesInstance)
   }
+
   [Symbol.iterator]() {
-    return this[INTERNAL_COOKIES_INSTANCE][Symbol.iterator]()
+    return (this[INTERNAL_COOKIES_INSTANCE] as any)[Symbol.iterator]()
   }
 
   clear() {
