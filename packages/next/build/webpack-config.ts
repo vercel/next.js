@@ -832,6 +832,9 @@ export default async function getBaseWebpackConfig(
     [COMPILER_NAMES.edgeServer]: ['browser', 'module', 'main'],
   }
 
+  const reactDir = path.dirname(require.resolve('react/package.json'))
+  const reactDomDir = path.dirname(require.resolve('react-dom/package.json'))
+
   const resolveConfig = {
     // Disable .mjs for node_modules bundling
     extensions: isNodeServer
@@ -869,6 +872,12 @@ export default async function getBaseWebpackConfig(
         : undefined),
 
       next: NEXT_PROJECT_ROOT,
+
+      react: reactDir,
+      'react-dom$': reactDomDir,
+      'react-dom/server$': `${reactDomDir}/server`,
+      'react-dom/server.browser$': `${reactDomDir}/server.browser`,
+      'react-dom/client$': `${reactDomDir}/client`,
 
       ...(hasServerComponents
         ? {
@@ -1651,6 +1660,7 @@ export default async function getBaseWebpackConfig(
                       alias: {
                         react: 'react',
                         'react-dom': 'react-dom',
+                        // Disable before prebundling is landed
                         // react: 'next/dist/compiled/react/react.shared-subset',
                         // // Use server rendering stub for RSC
                         // // x-ref: https://github.com/facebook/react/pull/25436
@@ -1659,21 +1669,20 @@ export default async function getBaseWebpackConfig(
                       },
                     },
                   },
-                  {
-                    test: codeCondition.test,
-                    resolve: {
-                      alias: {
-                        react: 'react',
-                        'react-dom': 'react-dom',
-                        // react: 'next/dist/compiled/react',
-                        // 'react-dom$': isClient
-                        //   ? 'next/dist/compiled/react-dom/index'
-                        //   : 'next/dist/compiled/react-dom/server-rendering-stub',
-                        // 'react-dom/client$':
-                        //   'next/dist/compiled/react-dom/client',
-                      },
-                    },
-                  },
+                  // Disable before prebundling is landed
+                  // {
+                  //   test: codeCondition.test,
+                  //   resolve: {
+                  //     alias: {
+                  //       react: 'next/dist/compiled/react',
+                  //       'react-dom$': isClient
+                  //         ? 'next/dist/compiled/react-dom/index'
+                  //         : 'next/dist/compiled/react-dom/server-rendering-stub',
+                  //       'react-dom/client$':
+                  //         'next/dist/compiled/react-dom/client',
+                  //     },
+                  //   },
+                  // },
                 ],
               },
             ]
