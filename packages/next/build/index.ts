@@ -565,7 +565,7 @@ export default async function build(
 
         for (const appPath of pageKeys.app) {
           if (pageKeys.pages.includes(appPath)) {
-            conflictingAppPagePaths.push(`pages${appPath} - app${appPath}`)
+            conflictingAppPagePaths.push(appPath)
           }
         }
         const numConflicting = conflictingAppPagePaths.length
@@ -574,10 +574,11 @@ export default async function build(
           Log.error(
             `Conflicting app and page file${
               numConflicting === 1 ? ' was' : 's were'
-            } found, please remove the conflicting files to continue. \n${conflictingAppPagePaths.join(
-              '\n'
-            )}\n`
+            } found, please remove the conflicting files to continue:`
           )
+          for (const p of conflictingAppPagePaths) {
+            Log.error(`  "pages${p}" - "app${p}"`)
+          }
           process.exit(1)
         }
       }
