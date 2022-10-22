@@ -1022,6 +1022,10 @@ export default async function getBaseWebpackConfig(
   const crossOrigin = config.crossOrigin
   const looseEsmExternals = config.experimental?.esmExternals === 'loose'
 
+  const optoutBundlingPackages = EXTERNAL_PACKAGES.concat(
+    ...(config.experimental.serverComponentsExternalPackages || [])
+  )
+
   async function handleExternals(
     context: string,
     request: string,
@@ -1188,12 +1192,7 @@ export default async function getBaseWebpackConfig(
       if (layer === WEBPACK_LAYERS.server) {
         // All packages should be bundled for the server layer if they're not opted out.
         // This option takes priority over the transpilePackages option.
-        if (
-          isResourceInPackages(
-            res,
-            config.experimental.serverComponentsExternalPackages
-          )
-        ) {
+        if (isResourceInPackages(res, optoutBundlingPackages)) {
           return `${externalType} ${request}`
         }
 
