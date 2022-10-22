@@ -20,10 +20,17 @@ const program = new Commander.Command(packageJson.name)
     projectPath = name
   })
   .option(
-    '--ts, --typescript',
+    '--js, --javascript',
     `
 
-  Initialize as a TypeScript project.
+  Initialize as a JavaScript project.
+`
+  )
+  .option(
+    '--app-dir',
+    `
+
+  Initialize as a \`app/\` directory project.
 `
   )
   .option(
@@ -135,7 +142,8 @@ async function run(): Promise<void> {
       packageManager,
       example: example && example !== 'default' ? example : undefined,
       examplePath: program.examplePath,
-      typescript: program.typescript,
+      javascript: program.javascript,
+      appDir: program.appDir,
     })
   } catch (reason) {
     if (!(reason instanceof DownloadError)) {
@@ -157,7 +165,8 @@ async function run(): Promise<void> {
     await createApp({
       appPath: resolvedProjectPath,
       packageManager,
-      typescript: program.typescript,
+      javascript: program.javascript,
+      appDir: program.appDir,
     })
   }
 }
