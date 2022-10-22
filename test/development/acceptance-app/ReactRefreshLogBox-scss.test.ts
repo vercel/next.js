@@ -20,6 +20,8 @@ describe.skip('ReactRefreshLogBox app', () => {
       skipStart: true,
       dependencies: {
         sass: 'latest',
+        react: '0.0.0-experimental-9cdf8a99e-20221018',
+        'react-dom': '0.0.0-experimental-9cdf8a99e-20221018',
       },
     })
   })
