@@ -156,8 +156,17 @@ if ((typeof exports.default === 'function' || (typeof exports.default === 'objec
 }
 
 function setNextVersion(code) {
-  return code.replace(
-    /process\.env\.__NEXT_VERSION/g,
-    `"${require('./package.json').version}"`
-  )
+  return code
+    .replace(
+      /process\.env\.__NEXT_VERSION/g,
+      `"${require('./package.json').version}"`
+    )
+    .replace(
+      /process\.env\.REQUIRED_APP_REACT_VERSION/,
+      `"${
+        require('../../package.json').devDependencies[
+          'react-server-dom-webpack'
+        ]
+      }"`
+    )
 }
