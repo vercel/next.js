@@ -125,9 +125,11 @@ function isResourceInPackages(resource: string, packageNames?: string[]) {
   )
 }
 
-const builtInReactImports = [
+const bundledReactImports = [
   'react',
   'react/jsx-runtime',
+  'react/jsx-dev-runtime',
+  // 'react-dom',
   'next/dist/compiled/react-server-dom-webpack/server.browser',
 ]
 
@@ -837,9 +839,6 @@ export default async function getBaseWebpackConfig(
     [COMPILER_NAMES.edgeServer]: ['browser', 'module', 'main'],
   }
 
-  const reactDir = path.dirname(require.resolve('react/package.json'))
-  const reactDomDir = path.dirname(require.resolve('react-dom/package.json'))
-
   const resolveConfig = {
     // Disable .mjs for node_modules bundling
     extensions: isNodeServer
@@ -878,25 +877,19 @@ export default async function getBaseWebpackConfig(
 
       next: NEXT_PROJECT_ROOT,
 
-      // Disable until pre-bundling is landed
-      // ...(hasServerComponents
-      //   ? {
-      //       // For react and react-dom, alias them dynamically for server layer
-      //       // and others in the loaders configuration
-      //       'react-dom/client$': 'next/dist/compiled/react-dom/client',
-      //       'react-dom/server$': 'next/dist/compiled/react-dom/server',
-      //       'react-dom/server.browser$':
-      //         'next/dist/compiled/react-dom/server.browser',
-      //       'react/jsx-dev-runtime$':
-      //         'next/dist/compiled/react/jsx-dev-runtime',
-      //       'react/jsx-runtime$': 'next/dist/compiled/react/jsx-runtime',
-      //     }
-      //   : undefined),
-      react: reactDir,
-      'react-dom$': reactDomDir,
-      'react-dom/server$': `${reactDomDir}/server`,
-      'react-dom/server.browser$': `${reactDomDir}/server.browser`,
-      'react-dom/client$': `${reactDomDir}/client`,
+      ...(hasServerComponents
+        ? {
+            // For react and react-dom, alias them dynamically for server layer
+            // and others in the loaders configuration
+            'react-dom/client$': 'next/dist/compiled/react-dom/client',
+            'react-dom/server$': 'next/dist/compiled/react-dom/server',
+            'react-dom/server.browser$':
+              'next/dist/compiled/react-dom/server.browser',
+            'react/jsx-dev-runtime$':
+              'next/dist/compiled/react/jsx-dev-runtime',
+            'react/jsx-runtime$': 'next/dist/compiled/react/jsx-runtime',
+          }
+        : undefined),
 
       'styled-jsx/style$': require.resolve(`styled-jsx/style`),
       'styled-jsx$': require.resolve(`styled-jsx`),
@@ -1027,7 +1020,7 @@ export default async function getBaseWebpackConfig(
   const crossOrigin = config.crossOrigin
   const looseEsmExternals = config.experimental?.esmExternals === 'loose'
 
-  const optoutBundlingPackages = EXTERNAL_PACKAGES.concat(
+  const optOutBundlingPackages = EXTERNAL_PACKAGES.concat(
     ...(config.experimental.serverComponentsExternalPackages || [])
   )
 
@@ -1062,7 +1055,7 @@ export default async function getBaseWebpackConfig(
 
     // Special internal modules that must be bundled for Server Components.
     if (layer === WEBPACK_LAYERS.server) {
-      if (builtInReactImports.includes(request)) {
+      if (bundledReactImports.includes(request)) {
         return
       }
     }
@@ -1197,11 +1190,29 @@ export default async function getBaseWebpackConfig(
       if (layer === WEBPACK_LAYERS.server) {
         // All packages should be bundled for the server layer if they're not opted out.
         // This option takes priority over the transpilePackages option.
-        if (isResourceInPackages(res, optoutBundlingPackages)) {
+        if (isResourceInPackages(res, optOutBundlingPackages)) {
           return `${externalType} ${request}`
         }
 
         return
+      }
+
+      // Treat react packages as external for SSR layer,
+      // then let require-hook mapping them to internals.
+      if (layer === WEBPACK_LAYERS.client) {
+        if (
+          [
+            'react',
+            'react/jsx-runtime',
+            'react/jsx-dev-runtime',
+            'react-dom',
+            'scheduler',
+          ].includes(request)
+        ) {
+          return `commonjs next/dist/compiled/${request}`
+        } else {
+          return
+        }
       }
 
       if (shouldBeBundled) return
@@ -1569,24 +1580,19 @@ export default async function getBaseWebpackConfig(
 
                   return true
                 },
-                resolve: process.env.__NEXT_REACT_CHANNEL
-                  ? {
-                      conditionNames: ['react-server', 'node', 'require'],
-                      alias: {
-                        react: `react-${process.env.__NEXT_REACT_CHANNEL}`,
-                        'react-dom': `react-dom-${process.env.__NEXT_REACT_CHANNEL}`,
-                      },
-                    }
-                  : {
-                      conditionNames: ['react-server', 'node', 'require'],
-                      alias: {
-                        // If missing the alias override here, the default alias will be used which aliases
-                        // react to the direct file path, not the package name. In that case the condition
-                        // will be ignored completely.
-                        react: 'react',
-                        'react-dom': 'react-dom',
-                      },
-                    },
+                resolve: {
+                  conditionNames: ['react-server', 'node', 'require'],
+                  alias: {
+                    // If missing the alias override here, the default alias will be used which aliases
+                    // react to the direct file path, not the package name. In that case the condition
+                    // will be ignored completely.
+                    react: 'next/dist/compiled/react',
+                    'react-dom$': isClient
+                      ? 'next/dist/compiled/react-dom/index'
+                      : 'next/dist/compiled/react-dom/server-rendering-stub',
+                    'react-dom/client$': 'next/dist/compiled/react-dom/client',
+                  },
+                },
               },
             ]
           : []),
@@ -1613,7 +1619,6 @@ export default async function getBaseWebpackConfig(
               },
             ]
           : []),
-
         ...(hasServerComponents && !isClient
           ? [
               // RSC server compilation loaders
@@ -1636,7 +1641,12 @@ export default async function getBaseWebpackConfig(
           ? [
               {
                 test: codeCondition.test,
-                include: [appDir],
+                issuerLayer(layer: string) {
+                  return (
+                    layer === WEBPACK_LAYERS.client ||
+                    layer === WEBPACK_LAYERS.server
+                  )
+                },
                 resolve: {
                   alias: {
                     // Alias `next/dynamic` to React.lazy implementation for RSC
@@ -1650,16 +1660,15 @@ export default async function getBaseWebpackConfig(
                 // Alias react-dom for ReactDOM.preload usage.
                 // Alias react for switching between default set and share subset.
                 oneOf: [
-                  /*
                   {
                     // test: codeCondition.test,
                     issuerLayer: WEBPACK_LAYERS.server,
-                    test: (req: string) => {
+                    test(req: string) {
                       // If it's not a source code file, or has been opted out of
                       // bundling, don't resolve it.
                       if (
                         !codeCondition.test.test(req) ||
-                        isResourceInPackages(req, optoutBundlingPackages)
+                        isResourceInPackages(req, optOutBundlingPackages)
                       ) {
                         return false
                       }
@@ -1669,34 +1678,28 @@ export default async function getBaseWebpackConfig(
                     resolve: {
                       // It needs `conditionNames` here to require the proper asset,
                       // when react is acting as dependency of compiled/react-dom.
-                      conditionNames: ['react-server', 'node', 'require'],
                       alias: {
-                        react: 'react',
-                        'react-dom': 'react-dom',
-                        // Disable before prebundling is landed
-                        // react: 'next/dist/compiled/react/react.shared-subset',
-                        // // Use server rendering stub for RSC
-                        // // x-ref: https://github.com/facebook/react/pull/25436
-                        // 'react-dom$':
-                        //   'next/dist/compiled/react-dom/server-rendering-stub',
+                        react: 'next/dist/compiled/react/react.shared-subset',
+                        // Use server rendering stub for RSC
+                        // x-ref: https://github.com/facebook/react/pull/25436
+                        'react-dom$':
+                          'next/dist/compiled/react-dom/server-rendering-stub',
                       },
                     },
                   },
-                  */
-                  // Disable before prebundling is landed
-                  // {
-                  //   test: codeCondition.test,
-                  //   resolve: {
-                  //     alias: {
-                  //       react: 'next/dist/compiled/react',
-                  //       'react-dom$': isClient
-                  //         ? 'next/dist/compiled/react-dom/index'
-                  //         : 'next/dist/compiled/react-dom/server-rendering-stub',
-                  //       'react-dom/client$':
-                  //         'next/dist/compiled/react-dom/client',
-                  //     },
-                  //   },
-                  // },
+                  {
+                    test: codeCondition.test,
+                    resolve: {
+                      alias: {
+                        react: 'next/dist/compiled/react',
+                        'react-dom$': isClient
+                          ? 'next/dist/compiled/react-dom/index'
+                          : 'next/dist/compiled/react-dom/server-rendering-stub',
+                        'react-dom/client$':
+                          'next/dist/compiled/react-dom/client',
+                      },
+                    },
+                  },
                 ],
               },
             ]

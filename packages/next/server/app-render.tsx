@@ -8,11 +8,11 @@ import type { FontLoaderManifest } from '../build/webpack/plugins/font-loader-ma
 import React, {
   // @ts-ignore
   experimental_use as use,
-} from 'react'
+} from 'next/dist/compiled/react'
 
 // this needs to be required lazily so that `next-server` can set
 // the env before we require
-import ReactDOMServer from 'react-dom/server.browser'
+import ReactDOMServer from 'next/dist/compiled/react-dom/server.browser'
 
 import { ParsedUrlQuery } from 'querystring'
 import { NextParsedUrlQuery } from './request-meta'

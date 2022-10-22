@@ -17,8 +17,8 @@ describe('app dir next-image', () => {
     next = await createNext({
       files: new FileRef(path.join(__dirname, 'next-image')),
       dependencies: {
-        react: '0.0.0-experimental-9cdf8a99e-20221018',
-        'react-dom': '0.0.0-experimental-9cdf8a99e-20221018',
+        react: 'experimental',
+        'react-dom': 'experimental',
       },
       skipStart: true,
     })

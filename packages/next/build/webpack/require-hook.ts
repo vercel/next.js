@@ -45,7 +45,6 @@ export function loadRequireHook(aliases: [string, string][] = []) {
 }
 
 export function overrideBuiltInReactPackages() {
-  /*
   setRequireOverrides([
     ['react', require.resolve('next/dist/compiled/react')],
     [
@@ -73,5 +72,4 @@ export function overrideBuiltInReactPackages() {
       require.resolve('next/dist/compiled/react-dom/server.browser'),
     ],
   ])
-  */
 }
