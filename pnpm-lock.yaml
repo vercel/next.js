@@ -18,6 +18,7 @@ importers:
       '@babel/plugin-proposal-object-rest-spread': 7.14.7
       '@babel/preset-flow': 7.14.5
       '@babel/preset-react': 7.14.5
+      '@edge-runtime/cookies': 2.0.0-beta.34
       '@edge-runtime/jest-environment': 1.1.0-beta.36
       '@fullhuman/postcss-purgecss': 1.3.0
       '@mdx-js/loader': 0.18.0
@@ -175,6 +176,7 @@ importers:
       '@babel/plugin-proposal-object-rest-spread': 7.14.7_@babel+core@7.18.0
       '@babel/preset-flow': 7.14.5_@babel+core@7.18.0
       '@babel/preset-react': 7.14.5_@babel+core@7.18.0
+      '@edge-runtime/cookies': 2.0.0-beta.34
       '@edge-runtime/jest-environment': 1.1.0-beta.36
       '@fullhuman/postcss-purgecss': 1.3.0
       '@mdx-js/loader': 0.18.0_uuaxwgga6hqycsez5ok7v2wg4i
@@ -4004,6 +4006,13 @@ packages:
       }
     dependencies:
       protobufjs: 6.11.2
+    dev: true
+
+  /@edge-runtime/cookies/2.0.0-beta.34:
+    resolution:
+      {
+        integrity: sha512-UktHBsSS00uhuvHJvVRNY/ldWnq1uK42xNQNIOLy3hmGmf4834+8GWu9grrIcrWcqMdcfB1tpiYCUVf6Gn0rTw==,
+      }
     dev: true
 
   /@edge-runtime/format/1.1.0-beta.34:
