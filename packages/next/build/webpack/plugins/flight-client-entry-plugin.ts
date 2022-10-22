@@ -359,8 +359,7 @@ export class FlightClientEntryPlugin {
         !rawRequest.startsWith('.') &&
         !rawRequest.startsWith('/') &&
         !rawRequest.startsWith(APP_DIR_ALIAS)
-      // console.log('modRequest:before', rawRequest)
-      compilation.chunkGraph
+
       const modRequest: string | undefined = isLocal
         ? rawRequest // compilation.chunkGraph.getModuleId(mod) + ''
         : mod.resourceResolveData?.path + mod.resourceResolveData?.query
