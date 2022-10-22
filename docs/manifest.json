@@ -421,6 +421,10 @@
           "path": "/docs/api-reference/next/server.md"
         },
         {
+          "title": "@next/font",
+          "path": "/docs/api-reference/next/font.md"
+        },
+        {
           "path": "/docs/api-reference/next/streaming",
           "redirect": {
             "destination": "/docs/advanced-features/react-18"
