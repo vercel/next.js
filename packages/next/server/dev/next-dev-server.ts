@@ -76,6 +76,7 @@ import {
 } from '../../build/utils'
 import { getDefineEnv } from '../../build/webpack-config'
 import loadJsConfig from '../../build/load-jsconfig'
+import { verifyAppReactVersion } from '../../lib/verifyAppReactVersion'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -657,6 +658,10 @@ export default class DevServer extends Server {
   async prepare(): Promise<void> {
     setGlobal('distDir', this.distDir)
     setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
+
+    if (this.hasAppDir) {
+      await verifyAppReactVersion({ dir: this.dir })
+    }
 
     await this.verifyTypeScript()
     this.customRoutes = await loadCustomRoutes(this.nextConfig)
