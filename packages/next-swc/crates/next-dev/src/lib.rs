@@ -145,7 +145,7 @@ impl NextDevServerBuilder {
             console_ui_to_dev_server,
         );
 
-        Ok(server)
+        server
     }
 }
 
