@@ -89,4 +89,14 @@ describe('app dir - rsc basics', () => {
       'This module cannot be imported from a Server Component module. It should only be used from a Client Component.'
     )
   })
+
+  it('should error when page component export is not valid', async () => {
+    const html = await renderViaHTTP(
+      next.url,
+      '/server-with-errors/page-export'
+    )
+    expect(html).toContain(
+      'The default export is not a React Component in page: \\"/server-with-errors/page-export\\"'
+    )
+  })
 })

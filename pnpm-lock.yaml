@@ -598,7 +598,7 @@ importers:
       punycode: 2.1.1
       querystring-es3: 0.2.1
       raw-body: 2.4.1
-      react-is: 17.0.2
+      react-is: 18.2.0
       react-refresh: 0.12.0
       regenerator-runtime: 0.13.4
       sass-loader: 12.4.0
@@ -795,7 +795,7 @@ importers:
       punycode: 2.1.1
       querystring-es3: 0.2.1
       raw-body: 2.4.1
-      react-is: 17.0.2
+      react-is: 18.2.0
       react-refresh: 0.12.0
       regenerator-runtime: 0.13.4
       sass-loader: 12.4.0_webpack@5.74.0
@@ -25407,6 +25407,13 @@ packages:
     resolution:
       {
         integrity: sha512-Fl7FuabXsJnV5Q1qIOQwx/sagGF18kogb4gpfcG4gjLBWO0WDiiz1ko/ExayuxE7InyQkBLkxRFG5oxY6Uu3Kg==,
+      }
+    dev: true
+
+  /react-is/18.2.0:
+    resolution:
+      {
+        integrity: sha512-xWGDIW6x921xtzPkhiULtthJHoJvBbF3q26fzloPCK0hsvxtPVelvftw3zjbHWSkR2km9Z+4uxbDDK/6Zw9B8w==,
       }
     dev: true
 
