@@ -1,43 +1,37 @@
 import type { ReactNode } from 'react'
-import type { FlightRouterState } from '../../../server/app-render'
 import React, {
   useCallback,
-  useContext,
   useEffect,
-  useRef,
+  useReducer,
+  useMemo,
   // @ts-expect-error TODO-APP: startTransition exists
   startTransition,
 } from 'react'
-import { GlobalLayoutRouterContext } from '../../../shared/lib/app-router-context'
-import {
-  onBuildError,
-  onBuildOk,
-  onRefresh,
-  onUnhandledError,
-  onUnhandledRejection,
-  ReactDevOverlay,
-} from './client'
-import type { DispatchFn } from './client'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import formatWebpackMessages from '../../dev/error-overlay/format-webpack-messages'
 import { useRouter } from '../navigation'
+import { errorOverlayReducer } from './internal/error-overlay-reducer'
 import {
-  errorOverlayReducer,
-  OverlayState,
+  ACTION_BUILD_OK,
+  ACTION_BUILD_ERROR,
+  ACTION_REFRESH,
+  ACTION_UNHANDLED_ERROR,
+  ACTION_UNHANDLED_REJECTION,
 } from './internal/error-overlay-reducer'
+import { parseStack } from './internal/helpers/parseStack'
+import ReactDevOverlay from './internal/ReactDevOverlay'
+import { useErrorHandler } from './internal/helpers/use-error-handler'
+import {
+  useSendMessage,
+  useWebsocket,
+  useWebsocketPing,
+} from './internal/helpers/use-websocket'
 
-function getSocketProtocol(assetPrefix: string): string {
-  let protocol = window.location.protocol
-
-  try {
-    // assetPrefix is a url
-    protocol = new URL(assetPrefix).protocol
-  } catch (_) {}
-
-  return protocol === 'http:' ? 'ws' : 'wss'
+interface Dispatcher {
+  onBuildOk(): void
+  onBuildError(message: string): void
+  onRefresh(): void
 }
-
-// const TIMEOUT = 5000
 
 // TODO-APP: add actual type
 type PongEvent = any
@@ -45,32 +39,14 @@ type PongEvent = any
 let mostRecentCompilationHash: any = null
 let __nextDevClientId = Math.round(Math.random() * 100 + Date.now())
 let hadRuntimeError = false
-let hadRootlayoutError = false
 
 // let startLatency = undefined
 
-function onFastRefresh(dispatch: DispatchFn, hasUpdates: boolean) {
-  onBuildOk(dispatch)
+function onFastRefresh(dispatcher: Dispatcher, hasUpdates: boolean) {
+  dispatcher.onBuildOk()
   if (hasUpdates) {
-    onRefresh(dispatch)
+    dispatcher.onRefresh()
   }
-
-  // if (startLatency) {
-  //   const endLatency = Date.now()
-  //   const latency = endLatency - startLatency
-  //   console.log(`[Fast Refresh] done in ${latency}ms`)
-  //   sendMessage(
-  //     JSON.stringify({
-  //       event: 'client-hmr-latency',
-  //       id: __nextDevClientId,
-  //       startTime: startLatency,
-  //       endTime: endLatency,
-  //     })
-  //   )
-  //   // if (self.__NEXT_HMR_LATENCY_CB) {
-  //   //   self.__NEXT_HMR_LATENCY_CB(latency)
-  //   // }
-  // }
 }
 
 // There is a newer version of the code available.
@@ -93,21 +69,21 @@ function canApplyUpdates() {
   // @ts-expect-error module.hot exists
   return module.hot.status() === 'idle'
 }
-// function afterApplyUpdates(fn: any) {
-//   if (canApplyUpdates()) {
-//     fn()
-//   } else {
-//     function handler(status: any) {
-//       if (status === 'idle') {
-//         // @ts-expect-error module.hot exists
-//         module.hot.removeStatusHandler(handler)
-//         fn()
-//       }
-//     }
-//     // @ts-expect-error module.hot exists
-//     module.hot.addStatusHandler(handler)
-//   }
-// }
+function afterApplyUpdates(fn: any) {
+  if (canApplyUpdates()) {
+    fn()
+  } else {
+    function handler(status: any) {
+      if (status === 'idle') {
+        // @ts-expect-error module.hot exists
+        module.hot.removeStatusHandler(handler)
+        fn()
+      }
+    }
+    // @ts-expect-error module.hot exists
+    module.hot.addStatusHandler(handler)
+  }
+}
 
 function performFullReload(err: any, sendMessage: any) {
   const stackTrace =
@@ -130,23 +106,15 @@ function performFullReload(err: any, sendMessage: any) {
 function tryApplyUpdates(
   onHotUpdateSuccess: (hasUpdates: boolean) => void,
   sendMessage: any,
-  dispatch: DispatchFn
+  dispatcher: Dispatcher
 ) {
-  // @ts-expect-error module.hot exists
-  if (!module.hot) {
-    // HotModuleReplacementPlugin is not in Webpack configuration.
-    console.error('HotModuleReplacementPlugin is not in Webpack configuration.')
-    // window.location.reload();
-    return
-  }
-
   if (!isUpdateAvailable() || !canApplyUpdates()) {
-    onBuildOk(dispatch)
+    dispatcher.onBuildOk()
     return
   }
 
   function handleApplyUpdates(err: any, updatedModules: any) {
-    if (err || hadRuntimeError || hadRootlayoutError || !updatedModules) {
+    if (err || hadRuntimeError || !updatedModules) {
       if (err) {
         console.warn(
           '[Fast Refresh] performing full reload\n\n' +
@@ -174,20 +142,20 @@ function tryApplyUpdates(
     if (isUpdateAvailable()) {
       // While we were updating, there was a new update! Do it again.
       tryApplyUpdates(
-        hasUpdates ? () => onBuildOk(dispatch) : onHotUpdateSuccess,
+        hasUpdates ? () => dispatcher.onBuildOk() : onHotUpdateSuccess,
         sendMessage,
-        dispatch
+        dispatcher
       )
     } else {
-      onBuildOk(dispatch)
-      // if (process.env.__NEXT_TEST_MODE) {
-      //   afterApplyUpdates(() => {
-      //     if (self.__NEXT_HMR_CB) {
-      //       self.__NEXT_HMR_CB()
-      //       self.__NEXT_HMR_CB = null
-      //     }
-      //   })
-      // }
+      dispatcher.onBuildOk()
+      if (process.env.__NEXT_TEST_MODE) {
+        afterApplyUpdates(() => {
+          if (self.__NEXT_HMR_CB) {
+            self.__NEXT_HMR_CB()
+            self.__NEXT_HMR_CB = null
+          }
+        })
+      }
     }
   }
 
@@ -207,13 +175,12 @@ function processMessage(
   e: any,
   sendMessage: any,
   router: ReturnType<typeof useRouter>,
-  dispatch: DispatchFn
+  dispatcher: Dispatcher
 ) {
   const obj = JSON.parse(e.data)
 
   switch (obj.action) {
     case 'building': {
-      // startLatency = Date.now()
       console.log('[Fast Refresh] rebuilding')
       break
     }
@@ -242,7 +209,7 @@ function processMessage(
         })
 
         // Only show the first error.
-        onBuildError(dispatch, formatted.errors[0])
+        dispatcher.onBuildError(formatted.errors[0])
 
         // Also log them to the console.
         for (let i = 0; i < formatted.errors.length; i++) {
@@ -251,12 +218,12 @@ function processMessage(
 
         // Do not attempt to reload now.
         // We will reload on next success instead.
-        // if (process.env.__NEXT_TEST_MODE) {
-        //   if (self.__NEXT_HMR_CB) {
-        //     self.__NEXT_HMR_CB(formatted.errors[0])
-        //     self.__NEXT_HMR_CB = null
-        //   }
-        // }
+        if (process.env.__NEXT_TEST_MODE) {
+          if (self.__NEXT_HMR_CB) {
+            self.__NEXT_HMR_CB(formatted.errors[0])
+            self.__NEXT_HMR_CB = null
+          }
+        }
         return
       }
 
@@ -296,10 +263,10 @@ function processMessage(
             function onSuccessfulHotUpdate(hasUpdates: any) {
               // Only dismiss it when we're sure it's a hot update.
               // Otherwise it would flicker right before the reload.
-              onFastRefresh(dispatch, hasUpdates)
+              onFastRefresh(dispatcher, hasUpdates)
             },
             sendMessage,
-            dispatch
+            dispatcher
           )
         }
         return
@@ -323,10 +290,10 @@ function processMessage(
           function onSuccessfulHotUpdate(hasUpdates: any) {
             // Only dismiss it when we're sure it's a hot update.
             // Otherwise it would flicker right before the reload.
-            onFastRefresh(dispatch, hasUpdates)
+            onFastRefresh(dispatcher, hasUpdates)
           },
           sendMessage,
-          dispatch
+          dispatcher
         )
       }
       return
@@ -339,12 +306,12 @@ function processMessage(
           clientId: __nextDevClientId,
         })
       )
-      if (hadRuntimeError || hadRootlayoutError) {
+      if (hadRuntimeError) {
         return window.location.reload()
       }
       startTransition(() => {
         router.refresh()
-        onRefresh(dispatch)
+        dispatcher.onRefresh()
       })
 
       return
@@ -359,34 +326,13 @@ function processMessage(
       return window.location.reload()
     }
     case 'removedPage': {
-      // const [page] = obj.data
-      // if (page === window.next.router.pathname) {
-      //   sendMessage(
-      //     JSON.stringify({
-      //       event: 'client-removed-page',
-      //       clientId: window.__nextDevClientId,
-      //       page,
-      //     })
-      //   )
-      //   return window.location.reload()
-      // }
+      // TODO-APP: potentially only refresh if the currently viewed page was removed.
+      router.refresh()
       return
     }
     case 'addedPage': {
-      // const [page] = obj.data
-      // if (
-      //   page === window.next.router.pathname &&
-      //   typeof window.next.router.components[page] === 'undefined'
-      // ) {
-      //   sendMessage(
-      //     JSON.stringify({
-      //       event: 'client-added-page',
-      //       clientId: window.__nextDevClientId,
-      //       page,
-      //     })
-      //   )
-      //   return window.location.reload()
-      // }
+      // TODO-APP: potentially only refresh if the currently viewed page was added.
+      router.refresh()
       return
     }
     case 'pong': {
@@ -394,25 +340,7 @@ function processMessage(
       if (invalid) {
         // Payload can be invalid even if the page does exist.
         // So, we check if it can be created.
-        fetch(location.href, {
-          credentials: 'same-origin',
-        }).then((pageRes) => {
-          if (pageRes.status === 200) {
-            // Page exists now, reload
-            location.reload()
-          } else {
-            // TODO-APP: fix this
-            // Page doesn't exist
-            // if (
-            //   self.__NEXT_DATA__.page === Router.pathname &&
-            //   Router.pathname !== '/_error'
-            // ) {
-            //   // We are still on the page,
-            //   // reload to show 404 error page
-            //   location.reload()
-            // }
-          }
-        })
+        router.refresh()
       }
       return
     }
@@ -425,115 +353,96 @@ function processMessage(
 export default function HotReload({
   assetPrefix,
   children,
-  initialState,
-  initialTree,
 }: {
   assetPrefix: string
   children?: ReactNode
-  initialState?: Partial<OverlayState>
-  initialTree?: FlightRouterState
 }) {
-  if (initialState?.rootLayoutMissingTagsError) {
-    hadRootlayoutError = true
-  }
-  const stacktraceLimitRef = useRef<undefined | number>()
-  const [state, dispatch] = React.useReducer(errorOverlayReducer, {
+  const [state, dispatch] = useReducer(errorOverlayReducer, {
     nextId: 1,
     buildError: null,
     errors: [],
-    ...initialState,
   })
-
-  const handleOnUnhandledError = useCallback((ev) => {
-    if (
-      ev.error &&
-      ev.error.digest &&
-      (ev.error.digest.startsWith('NEXT_REDIRECT') ||
-        ev.error.digest === 'NEXT_NOT_FOUND')
-    ) {
-      ev.preventDefault()
-      return
+  const dispatcher = useMemo((): Dispatcher => {
+    return {
+      onBuildOk(): void {
+        dispatch({ type: ACTION_BUILD_OK })
+      },
+      onBuildError(message: string): void {
+        dispatch({ type: ACTION_BUILD_ERROR, message })
+      },
+      onRefresh(): void {
+        dispatch({ type: ACTION_REFRESH })
+      },
     }
+  }, [dispatch])
 
-    hadRuntimeError = true
-    onUnhandledError(dispatch, ev)
-  }, [])
-  const handleOnUnhandledRejection = useCallback((ev) => {
-    hadRuntimeError = true
-    onUnhandledRejection(dispatch, ev)
-  }, [])
-
-  const { tree } = useContext(GlobalLayoutRouterContext) ?? {
-    tree: initialTree,
-  }
-  const router = useRouter()
-
-  const webSocketRef = useRef<WebSocket>()
-  const sendMessage = useCallback((data) => {
-    const socket = webSocketRef.current
-    if (!socket || socket.readyState !== socket.OPEN) return
-    return socket.send(data)
-  }, [])
-
-  useEffect(() => {
-    try {
-      const limit = Error.stackTraceLimit
-      Error.stackTraceLimit = 50
-      stacktraceLimitRef.current = limit
-    } catch {}
-
-    window.addEventListener('error', handleOnUnhandledError)
-    window.addEventListener('unhandledrejection', handleOnUnhandledRejection)
-    return () => {
-      if (stacktraceLimitRef.current !== undefined) {
-        try {
-          Error.stackTraceLimit = stacktraceLimitRef.current
-        } catch {}
-        stacktraceLimitRef.current = undefined
+  const handleOnUnhandledError = useCallback(
+    (ev: WindowEventMap['error']): void => {
+      if (
+        ev.error &&
+        ev.error.digest &&
+        (ev.error.digest.startsWith('NEXT_REDIRECT') ||
+          ev.error.digest === 'NEXT_NOT_FOUND')
+      ) {
+        ev.preventDefault()
+        return
       }
 
-      window.removeEventListener('error', handleOnUnhandledError)
-      window.removeEventListener(
-        'unhandledrejection',
-        handleOnUnhandledRejection
-      )
-    }
-  }, [handleOnUnhandledError, handleOnUnhandledRejection])
+      hadRuntimeError = true
+      const error = ev?.error
+      if (
+        !error ||
+        !(error instanceof Error) ||
+        typeof error.stack !== 'string'
+      ) {
+        // A non-error was thrown, we don't have anything to show. :-(
+        return
+      }
 
-  useEffect(() => {
-    if (webSocketRef.current) {
-      return
-    }
+      if (
+        error.message.match(/(hydration|content does not match|did not match)/i)
+      ) {
+        error.message += `\n\nSee more info here: https://nextjs.org/docs/messages/react-hydration-error`
+      }
 
-    const { hostname, port } = window.location
-    const protocol = getSocketProtocol(assetPrefix)
-    const normalizedAssetPrefix = assetPrefix.replace(/^\/+/, '')
+      const e = error
+      dispatch({
+        type: ACTION_UNHANDLED_ERROR,
+        reason: error,
+        frames: parseStack(e.stack!),
+      })
+    },
+    []
+  )
+  const handleOnUnhandledRejection = useCallback(
+    (ev: WindowEventMap['unhandledrejection']): void => {
+      hadRuntimeError = true
+      const reason = ev?.reason
+      if (
+        !reason ||
+        !(reason instanceof Error) ||
+        typeof reason.stack !== 'string'
+      ) {
+        // A non-error was thrown, we don't have anything to show. :-(
+        return
+      }
 
-    let url = `${protocol}://${hostname}:${port}${
-      normalizedAssetPrefix ? `/${normalizedAssetPrefix}` : ''
-    }`
+      const e = reason
+      dispatch({
+        type: ACTION_UNHANDLED_REJECTION,
+        reason: reason,
+        frames: parseStack(e.stack!),
+      })
+    },
+    []
+  )
+  useErrorHandler(handleOnUnhandledError, handleOnUnhandledRejection)
 
-    if (normalizedAssetPrefix.startsWith('http')) {
-      url = `${protocol}://${normalizedAssetPrefix.split('://')[1]}`
-    }
+  const webSocketRef = useWebsocket(assetPrefix)
+  useWebsocketPing(webSocketRef)
+  const sendMessage = useSendMessage(webSocketRef)
 
-    webSocketRef.current = new window.WebSocket(`${url}/_next/webpack-hmr`)
-  }, [assetPrefix])
-  useEffect(() => {
-    // Taken from on-demand-entries-client.js
-    // TODO-APP: check 404 case
-    const interval = setInterval(() => {
-      sendMessage(
-        JSON.stringify({
-          event: 'ping',
-          // TODO-APP: fix case for dynamic parameters, this will be resolved wrong currently.
-          tree,
-          appDirRoute: true,
-        })
-      )
-    }, 2500)
-    return () => clearInterval(interval)
-  }, [tree, sendMessage])
+  const router = useRouter()
   useEffect(() => {
     const handler = (event: MessageEvent<PongEvent>) => {
       if (
@@ -545,32 +454,19 @@ export default function HotReload({
       }
 
       try {
-        processMessage(event, sendMessage, router, dispatch)
+        processMessage(event, sendMessage, router, dispatcher)
       } catch (ex) {
         console.warn('Invalid HMR message: ' + event.data + '\n', ex)
       }
     }
 
-    if (webSocketRef.current) {
-      webSocketRef.current.addEventListener('message', handler)
+    const websocket = webSocketRef.current
+    if (websocket) {
+      websocket.addEventListener('message', handler)
     }
 
-    return () =>
-      webSocketRef.current &&
-      webSocketRef.current.removeEventListener('message', handler)
-  }, [sendMessage, router])
-  // useEffect(() => {
-  //   const interval = setInterval(function () {
-  //     if (
-  //       lastActivityRef.current &&
-  //       Date.now() - lastActivityRef.current > TIMEOUT
-  //     ) {
-  //       handleDisconnect()
-  //     }
-  //   }, 2500)
-
-  //   return () => clearInterval(interval)
-  // })
+    return () => websocket && websocket.removeEventListener('message', handler)
+  }, [sendMessage, router, webSocketRef, dispatcher])
 
   return <ReactDevOverlay state={state}>{children}</ReactDevOverlay>
 }
