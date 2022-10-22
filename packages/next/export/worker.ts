@@ -324,7 +324,7 @@ export default async function exportPage({
           results.fromBuildExportRevalidate = revalidate
 
           if (revalidate !== 0) {
-            await promises.writeFile(htmlFilepath, html, 'utf8')
+            await promises.writeFile(htmlFilepath, html ?? '', 'utf8')
             await promises.writeFile(
               htmlFilepath.replace(/\.html$/, '.rsc'),
               flightData
