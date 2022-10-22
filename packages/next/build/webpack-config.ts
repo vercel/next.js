@@ -832,9 +832,6 @@ export default async function getBaseWebpackConfig(
     [COMPILER_NAMES.edgeServer]: ['browser', 'module', 'main'],
   }
 
-  const reactDir = path.dirname(require.resolve('react/package.json'))
-  const reactDomDir = path.dirname(require.resolve('react-dom/package.json'))
-
   const resolveConfig = {
     // Disable .mjs for node_modules bundling
     extensions: isNodeServer
@@ -873,25 +870,20 @@ export default async function getBaseWebpackConfig(
 
       next: NEXT_PROJECT_ROOT,
 
-      react: reactDir,
-      'react-dom$': reactDomDir,
-      'react-dom/server$': `${reactDomDir}/server`,
-      'react-dom/server.browser$': `${reactDomDir}/server.browser`,
-      'react-dom/client$': `${reactDomDir}/client`,
-
-      ...(hasServerComponents
-        ? {
-            // For react and react-dom, alias them dynamically for server layer
-            // and others in the loaders configuration
-            'react-dom/client$': 'next/dist/compiled/react-dom/client',
-            'react-dom/server$': 'next/dist/compiled/react-dom/server',
-            'react-dom/server.browser$':
-              'next/dist/compiled/react-dom/server.browser',
-            'react/jsx-dev-runtime$':
-              'next/dist/compiled/react/jsx-dev-runtime',
-            'react/jsx-runtime$': 'next/dist/compiled/react/jsx-runtime',
-          }
-        : undefined),
+      // Disable until pre-bundling is landed
+      // ...(hasServerComponents
+      //   ? {
+      //       // For react and react-dom, alias them dynamically for server layer
+      //       // and others in the loaders configuration
+      //       'react-dom/client$': 'next/dist/compiled/react-dom/client',
+      //       'react-dom/server$': 'next/dist/compiled/react-dom/server',
+      //       'react-dom/server.browser$':
+      //         'next/dist/compiled/react-dom/server.browser',
+      //       'react/jsx-dev-runtime$':
+      //         'next/dist/compiled/react/jsx-dev-runtime',
+      //       'react/jsx-runtime$': 'next/dist/compiled/react/jsx-runtime',
+      //     }
+      //   : undefined),
 
       'styled-jsx/style$': require.resolve(`styled-jsx/style`),
       'styled-jsx$': require.resolve(`styled-jsx`),
