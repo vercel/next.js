@@ -136,6 +136,7 @@ export class FlightManifestPlugin {
     function collectClientRequest(mod: webpack.NormalModule) {
       if (mod.resource === '' && mod.buildInfo.rsc) {
         const { requests = [] } = mod.buildInfo.rsc
+        console.log('requests', requests)
         requests.forEach((r: string) => {
           clientRequestsSet.add(r)
         })
@@ -175,7 +176,8 @@ export class FlightManifestPlugin {
           return
         }
 
-        const moduleExports = manifest[resource] || {}
+        const modId: string = compilation.chunkGraph.getModuleId(mod) + ''
+        const moduleExports = manifest[modId] || {}
         const moduleIdMapping = manifest.__ssr_module_mapping__
         const edgeModuleIdMapping = manifest.__edge_ssr_module_mapping__
 
@@ -186,14 +188,16 @@ export class FlightManifestPlugin {
           context,
           mod.resourceResolveData?.path || resource
         )
+        // if (resource.includes('script'))
+        //   console.log('ssrNamedModuleId', ssrNamedModuleId, modId)
         if (!ssrNamedModuleId.startsWith('.'))
           // TODO use getModuleId instead
           ssrNamedModuleId = `./${ssrNamedModuleId.replace(/\\/g, '/')}`
 
         if (isCSSModule) {
-          if (!manifest[resource]) {
+          if (!manifest[modId]) {
             const chunks = [...chunk.files].filter((f) => f.endsWith('.css'))
-            manifest[resource] = {
+            manifest[modId] = {
               default: {
                 id,
                 name: 'default',
@@ -203,7 +207,7 @@ export class FlightManifestPlugin {
           }
 
           if (chunkGroup.name) {
-            cssResourcesInChunkGroup.add(resource)
+            cssResourcesInChunkGroup.add(modId)
           }
 
           return
@@ -215,8 +219,9 @@ export class FlightManifestPlugin {
           return
         }
 
-        if (/[\\/](page|layout)\.(ts|js)x?$/.test(resource)) {
-          entryFilepath = resource
+        console.log('match page/layout modId', modId)
+        if (/[\\/](page|layout)\.(ts|js)x?$/.test(modId)) {
+          entryFilepath = modId
         }
 
         const exportsInfo = compilation.moduleGraph.getExportsInfo(mod)
@@ -298,13 +303,14 @@ export class FlightManifestPlugin {
           }
         })
 
-        manifest[resource] = moduleExports
+        manifest[modId] = moduleExports
 
         // The client compiler will always use the CJS Next.js build, so here we
         // also add the mapping for the ESM build (Edge runtime) to consume.
-        if (/\/next\/dist\//.test(resource)) {
-          manifest[resource.replace(/\/next\/dist\//, '/next/dist/esm/')] =
-            moduleExports
+        if (/[\\/]next[\\/]dist[\\/](?!esm)/.test(modId)) {
+          manifest[
+            modId.replace(/[\\/]next[\\/]dist[\\/]/, '/next/dist/esm/')
+          ] = moduleExports
         }
 
         manifest.__ssr_module_mapping__ = moduleIdMapping
@@ -317,7 +323,7 @@ export class FlightManifestPlugin {
           // TODO: Update type so that it doesn't have to be cast.
         ) as Iterable<webpack.NormalModule>
         for (const mod of chunkModules) {
-          const modId = compilation.chunkGraph.getModuleId(mod)
+          const modId: string = compilation.chunkGraph.getModuleId(mod) + ''
 
           recordModule(chunk, modId, mod)
 
