@@ -39,8 +39,8 @@ describe('app dir - rsc basics', () => {
       files: new FileRef(path.join(__dirname, './rsc-basic')),
       dependencies: {
         'styled-components': '6.0.0-beta.2',
-        react: '0.0.0-experimental-9cdf8a99e-20221018',
-        'react-dom': '0.0.0-experimental-9cdf8a99e-20221018',
+        react: 'latest',
+        'react-dom': 'latest',
       },
       packageJson: {
         scripts: {
