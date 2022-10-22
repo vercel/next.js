@@ -412,7 +412,7 @@ export async function printTreeView(
         (pageInfo?.ssgPageDurations?.reduce((a, b) => a + (b || 0), 0) || 0)
 
       const symbol =
-        routerType === 'app' || item === '/_app' || item === '/_app.server'
+        item === '/_app' || item === '/_app.server'
           ? ' '
           : pageInfo?.static
           ? '○'
@@ -427,7 +427,7 @@ export async function printTreeView(
       if (pageInfo?.initialRevalidateSeconds) usedSymbols.add('ISR')
 
       messages.push([
-        `${border} ${routerType === 'pages' ? `${symbol} ` : ''}${
+        `${border} ${symbol} ${
           pageInfo?.initialRevalidateSeconds
             ? `${item} (ISR: ${pageInfo?.initialRevalidateSeconds} Seconds)`
             : item
