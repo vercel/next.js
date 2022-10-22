@@ -103,14 +103,13 @@ export const createHeaderRoute = ({
 // values from rewrites/redirects
 export const stringifyQuery = (req: BaseNextRequest, query: ParsedUrlQuery) => {
   const initialQuery = getRequestMeta(req, '__NEXT_INIT_QUERY') || {}
-  const initialQueryValues: Array<string | string[]> =
-    Object.values(initialQuery)
+  const initialQueryValues = Object.values(initialQuery)
 
   return stringifyQs(query, undefined, undefined, {
     encodeURIComponent(value) {
       if (
         value in initialQuery ||
-        initialQueryValues.some((initialQueryVal: string | string[]) => {
+        initialQueryValues.some((initialQueryVal) => {
           // `value` always refers to a query value, even if it's nested in an array
           return Array.isArray(initialQueryVal)
             ? initialQueryVal.includes(value)

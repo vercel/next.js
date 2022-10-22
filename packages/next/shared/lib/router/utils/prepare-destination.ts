@@ -197,7 +197,7 @@ export function prepareDestination(args: {
       destQuery[key] = strOrArray.map((value) =>
         compileNonPath(unescapeSegments(value), args.params)
       )
-    } else {
+    } else if (typeof strOrArray === 'string') {
       destQuery[key] = compileNonPath(unescapeSegments(strOrArray), args.params)
     }
   }
