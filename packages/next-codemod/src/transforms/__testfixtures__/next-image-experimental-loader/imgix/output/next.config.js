@@ -1,6 +1,6 @@
 module.exports = {
   images: {
-    loader: 'custom',
-    loaderFile: './imgix-loader.js',
+    loader: "custom",
+    loaderFile: "./imgix-loader.js",
   },
 }

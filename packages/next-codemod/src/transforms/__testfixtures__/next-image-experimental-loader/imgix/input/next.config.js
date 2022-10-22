@@ -1,6 +1,6 @@
 module.exports = {
   images: {
-    loader: 'imgix',
-    path: 'https://example.com/',
+    loader: "imgix",
+    path: "https://example.com/",
   },
 }

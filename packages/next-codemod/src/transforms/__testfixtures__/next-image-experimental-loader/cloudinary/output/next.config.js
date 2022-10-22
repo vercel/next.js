@@ -1,6 +1,6 @@
 module.exports = {
   images: {
-    loader: 'custom',
-    loaderFile: './cloudinary-loader.js',
+    loader: "custom",
+    loaderFile: "./cloudinary-loader.js",
   },
 }
