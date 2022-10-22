@@ -4,15 +4,20 @@ const Runner = require('jscodeshift/dist/Runner')
 const { cp, mkdir, rm, readdir, readFile } = require('fs/promises')
 const { join } = require('path')
 
-const transformDirsPath = join(process.cwd(), 'src', 'transforms')
 const fixtureDir = join(
-  transformDirsPath,
+  __dirname,
+  '..',
   '__testfixtures__',
   'next-image-experimental-loader'
 )
-const transform = join(transformDirsPath, 'next-image-experimental.ts')
+const transform = join(
+  __dirname,
+  '../../../dist/transforms',
+  'next-image-experimental.js'
+)
 const opts = { recursive: true }
 
+console.log(transform)
 async function toObj(dir) {
   const obj = {}
   const files = await readdir(dir)
