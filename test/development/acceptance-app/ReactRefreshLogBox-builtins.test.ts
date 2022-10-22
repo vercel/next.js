@@ -4,7 +4,7 @@ import { NextInstance } from 'test/lib/next-modes/base'
 import path from 'path'
 
 // TODO-APP: Investigate snapshot mismatch
-describe.skip('ReactRefreshLogBox app', () => {
+describe('ReactRefreshLogBox app', () => {
   if (process.env.NEXT_TEST_REACT_VERSION === '^17') {
     it('should skip for react v17', () => {})
     return
@@ -15,6 +15,10 @@ describe.skip('ReactRefreshLogBox app', () => {
   beforeAll(async () => {
     next = await createNext({
       files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
+      dependencies: {
+        react: '0.0.0-experimental-9cdf8a99e-20221018',
+        'react-dom': '0.0.0-experimental-9cdf8a99e-20221018',
+      },
       skipStart: true,
     })
   })
@@ -109,7 +113,7 @@ describe.skip('ReactRefreshLogBox app', () => {
     await cleanup()
   })
 
-  test('Module not found (missing global CSS)', async () => {
+  test('Module not found missing global CSS', async () => {
     const { session, cleanup } = await sandbox(
       next,
       new Map([
