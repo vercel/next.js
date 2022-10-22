@@ -201,21 +201,6 @@ describe('@next/font/google loader', () => {
             `)
     })
 
-    test('Missing config with subsets', async () => {
-      await expect(
-        loader({
-          functionName: 'Inter',
-          data: [],
-          config: undefined,
-          emitFontFile: jest.fn(),
-          resolve: jest.fn(),
-          fs: {} as any,
-        })
-      ).rejects.toThrowErrorMatchingInlineSnapshot(
-        `"Please specify subsets for \`@next/font/google\` in your \`next.config.js\`"`
-      )
-    })
-
     test('Missing function name', async () => {
       await expect(
         loader({
