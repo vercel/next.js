@@ -996,7 +996,7 @@ export async function renderToHTMLOrFlight(
       if (dev) {
         const { isValidElementType } = require('next/dist/compiled/react-is')
         if (
-          typeof Component !== 'undefined' &&
+          (isPage || typeof Component !== 'undefined') &&
           !isValidElementType(Component)
         ) {
           throw new Error(

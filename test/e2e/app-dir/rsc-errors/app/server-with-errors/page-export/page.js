@@ -1,1 +1,1 @@
-export default 'invalid-page-export'
+export const a = 123
