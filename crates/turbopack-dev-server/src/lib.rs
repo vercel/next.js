@@ -196,16 +196,14 @@ impl DevServer {
                                 return Ok(response);
                             }
 
-                            println!("[404] {} (WebSocket)", path);
-                            if path == "/_next/webpack-hmr" {
+                            if path != "/_next/webpack-hmr" {
                                 // Special-case requests to webpack-hmr as these are made by Next.js
                                 // clients built without turbopack, which may be making requests in
                                 // development.
-                                println!("A non-turbopack next.js client is trying to connect.");
-                                println!(
-                                    "Make sure to reload/close any browser window which has been \
-                                     opened without --turbo."
-                                );
+                                //
+                                // Still respond with 404 to these, but don't clutter devserver logs
+                                // with these repeated messages.
+                                println!("[404] {} (WebSocket)", path);
                             }
                             return Ok(Response::builder()
                                 .status(404)
