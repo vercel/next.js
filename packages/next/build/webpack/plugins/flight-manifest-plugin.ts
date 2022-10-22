@@ -136,7 +136,6 @@ export class FlightManifestPlugin {
     function collectClientRequest(mod: webpack.NormalModule) {
       if (mod.resource === '' && mod.buildInfo.rsc) {
         const { requests = [] } = mod.buildInfo.rsc
-        console.log('requests', requests)
         requests.forEach((r: string) => {
           clientRequestsSet.add(r)
         })
@@ -176,8 +175,7 @@ export class FlightManifestPlugin {
           return
         }
 
-        const modId: string = compilation.chunkGraph.getModuleId(mod) + ''
-        const moduleExports = manifest[modId] || {}
+        const moduleExports = manifest[resource] || {}
         const moduleIdMapping = manifest.__ssr_module_mapping__
         const edgeModuleIdMapping = manifest.__edge_ssr_module_mapping__
 
@@ -195,9 +193,9 @@ export class FlightManifestPlugin {
           ssrNamedModuleId = `./${ssrNamedModuleId.replace(/\\/g, '/')}`
 
         if (isCSSModule) {
-          if (!manifest[modId]) {
+          if (!manifest[resource]) {
             const chunks = [...chunk.files].filter((f) => f.endsWith('.css'))
-            manifest[modId] = {
+            manifest[resource] = {
               default: {
                 id,
                 name: 'default',
@@ -207,7 +205,7 @@ export class FlightManifestPlugin {
           }
 
           if (chunkGroup.name) {
-            cssResourcesInChunkGroup.add(modId)
+            cssResourcesInChunkGroup.add(resource)
           }
 
           return
@@ -219,9 +217,8 @@ export class FlightManifestPlugin {
           return
         }
 
-        console.log('match page/layout modId', modId)
-        if (/[\\/](page|layout)\.(ts|js)x?$/.test(modId)) {
-          entryFilepath = modId
+        if (/[\\/](page|layout)\.(ts|js)x?$/.test(resource)) {
+          entryFilepath = resource
         }
 
         const exportsInfo = compilation.moduleGraph.getExportsInfo(mod)
@@ -303,14 +300,13 @@ export class FlightManifestPlugin {
           }
         })
 
-        manifest[modId] = moduleExports
+        manifest[resource] = moduleExports
 
         // The client compiler will always use the CJS Next.js build, so here we
         // also add the mapping for the ESM build (Edge runtime) to consume.
-        if (/[\\/]next[\\/]dist[\\/](?!esm)/.test(modId)) {
-          manifest[
-            modId.replace(/[\\/]next[\\/]dist[\\/]/, '/next/dist/esm/')
-          ] = moduleExports
+        if (/\/next\/dist\//.test(resource)) {
+          manifest[resource.replace(/\/next\/dist\//, '/next/dist/esm/')] =
+            moduleExports
         }
 
         manifest.__ssr_module_mapping__ = moduleIdMapping

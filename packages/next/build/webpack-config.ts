@@ -1055,24 +1055,6 @@ export default async function getBaseWebpackConfig(
       }
     }
 
-    // Treat react packages as external for SSR layer,
-    // then let require-hook mapping them to internals.
-    if (layer === WEBPACK_LAYERS.client) {
-      if (
-        [
-          'react',
-          'react/jsx-runtime',
-          'react/jsx-dev-runtime',
-          'react-dom',
-          'scheduler',
-        ].includes(request)
-      ) {
-        return `commonjs next/dist/compiled/${request}`
-      } else {
-        return
-      }
-    }
-
     // Relative requires don't need custom resolution, because they
     // are relative to requests we've already resolved here.
     // Absolute requires (require('/foo')) are extremely uncommon, but
@@ -1208,6 +1190,24 @@ export default async function getBaseWebpackConfig(
         }
 
         return
+      }
+
+      // Treat react packages as external for SSR layer,
+      // then let require-hook mapping them to internals.
+      if (layer === WEBPACK_LAYERS.client) {
+        if (
+          [
+            'react',
+            'react/jsx-runtime',
+            'react/jsx-dev-runtime',
+            'react-dom',
+            'scheduler',
+          ].includes(request)
+        ) {
+          return `commonjs next/dist/compiled/${request}`
+        } else {
+          return
+        }
       }
 
       if (shouldBeBundled) return
