@@ -406,7 +406,7 @@ function applyRouterStatePatchToTree(
   flightRouterState: FlightRouterState,
   treePatch: FlightRouterState
 ): FlightRouterState | null {
-  const [segment, parallelRoutes /* , url */] = flightRouterState
+  const [segment, parallelRoutes, , , isRootLayout] = flightRouterState
 
   // Root refresh
   if (flightSegmentPath.length === 1) {
@@ -451,6 +451,11 @@ function applyRouterStatePatchToTree(
     },
   ]
 
+  // Current segment is the root layout
+  if (isRootLayout) {
+    tree[4] = true
+  }
+
   // TODO-APP: Revisit
   // if (url) {
   //   tree[2] = url
@@ -494,6 +499,47 @@ function shouldHardNavigate(
   )
 }
 
+function isNavigatingToNewRootLayout(
+  currentTree: FlightRouterState,
+  nextTree: FlightRouterState
+): boolean {
+  // Compare segments
+  const currentTreeSegment = currentTree[0]
+  const nextTreeSegment = nextTree[0]
+  // If any segment is different before we find the root layout, the root layout has changed.
+  // E.g. /same/(group1)/layout.js -> /same/(group2)/layout.js
+  // First segment is 'same' for both, keep looking. (group1) changed to (group2) before the root layout was found, it must have changed.
+  if (Array.isArray(currentTreeSegment) && Array.isArray(nextTreeSegment)) {
+    // Compare dynamic param name and type but ignore the value, different values would not affect the current root layout
+    // /[name] - /slug1 and /slug2, both values (slug1 & slug2) still has the same layout /[name]/layout.js
+    if (
+      currentTreeSegment[0] !== nextTreeSegment[0] ||
+      currentTreeSegment[2] !== nextTreeSegment[2]
+    ) {
+      return true
+    }
+  } else if (currentTreeSegment !== nextTreeSegment) {
+    return true
+  }
+
+  // Current tree root layout found
+  if (currentTree[4]) {
+    // If the next tree doesn't have the root layout flag, it must have changed.
+    return !nextTree[4]
+  }
+  // Current tree  didn't have its root layout here, must have changed.
+  if (nextTree[4]) {
+    return true
+  }
+  // We can't assume it's `parallelRoutes.children` here in case the root layout is `app/@something/layout.js`
+  // But it's not possible to be more than one parallelRoutes before the root layout is found
+  // TODO-APP: change to traverse all parallel routes
+  const currentTreeChild = Object.values(currentTree[1])[0]
+  const nextTreeChild = Object.values(nextTree[1])[0]
+  if (!currentTreeChild || !nextTreeChild) return true
+  return isNavigatingToNewRootLayout(currentTreeChild, nextTreeChild)
+}
+
 export type FocusAndScrollRef = {
   /**
    * If focus and scroll should be set in the layout-router's useEffect()
@@ -518,6 +564,7 @@ interface RefreshAction {
   mutable: {
     previousTree?: FlightRouterState
     patchedTree?: FlightRouterState
+    mpaNavigation?: boolean
     canonicalUrlOverride?: string
   }
 }
@@ -553,6 +600,7 @@ interface NavigateAction {
   forceOptimisticNavigation: boolean
   cache: CacheNode
   mutable: {
+    mpaNavigation?: boolean
     previousTree?: FlightRouterState
     patchedTree?: FlightRouterState
     canonicalUrlOverride?: string
@@ -587,6 +635,7 @@ interface ServerPatchAction {
   cache: CacheNode
   mutable: {
     patchedTree?: FlightRouterState
+    mpaNavigation?: boolean
     canonicalUrlOverride?: string
   }
 }
@@ -671,18 +720,42 @@ function clientReducer(
       const href = createHrefFromUrl(url)
       const pendingPush = navigateType === 'push'
 
-      // Handle concurrent rendering / strict mode case where the cache and tree were already populated.
-      if (
-        mutable.patchedTree &&
+      const isForCurrentTree =
         JSON.stringify(mutable.previousTree) === JSON.stringify(state.tree)
-      ) {
+
+      if (mutable.mpaNavigation && isForCurrentTree) {
         return {
           // Set href.
           canonicalUrl: mutable.canonicalUrlOverride
             ? mutable.canonicalUrlOverride
             : href,
           // TODO-APP: verify mpaNavigation not being set is correct here.
-          pushRef: { pendingPush, mpaNavigation: false },
+          pushRef: {
+            pendingPush,
+            mpaNavigation: mutable.mpaNavigation,
+          },
+          // All navigation requires scroll and focus management to trigger.
+          focusAndScrollRef: { apply: false },
+          // Apply cache.
+          cache: state.cache,
+          prefetchCache: state.prefetchCache,
+          // Apply patched router state.
+          tree: state.tree,
+        }
+      }
+
+      // Handle concurrent rendering / strict mode case where the cache and tree were already populated.
+      if (mutable.patchedTree && isForCurrentTree) {
+        return {
+          // Set href.
+          canonicalUrl: mutable.canonicalUrlOverride
+            ? mutable.canonicalUrlOverride
+            : href,
+          // TODO-APP: verify mpaNavigation not being set is correct here.
+          pushRef: {
+            pendingPush,
+            mpaNavigation: false,
+          },
           // All navigation requires scroll and focus management to trigger.
           focusAndScrollRef: { apply: true },
           // Apply cache.
@@ -705,6 +778,10 @@ function clientReducer(
         if (newTree !== null) {
           mutable.previousTree = state.tree
           mutable.patchedTree = newTree
+          mutable.mpaNavigation = isNavigatingToNewRootLayout(
+            state.tree,
+            newTree
+          )
 
           const hardNavigate =
             // TODO-APP: Revisit if this is correct.
@@ -793,6 +870,10 @@ function clientReducer(
         if (!res?.bailOptimistic) {
           mutable.previousTree = state.tree
           mutable.patchedTree = optimisticTree
+          mutable.mpaNavigation = isNavigatingToNewRootLayout(
+            state.tree,
+            optimisticTree
+          )
           return {
             // Set href.
             canonicalUrl: href,
@@ -867,6 +948,7 @@ function clientReducer(
       }
       mutable.previousTree = state.tree
       mutable.patchedTree = newTree
+      mutable.mpaNavigation = isNavigatingToNewRootLayout(state.tree, newTree)
 
       if (flightDataPath.length === 2) {
         cache.subTreeData = subTreeData
@@ -904,6 +986,27 @@ function clientReducer(
         console.log('TREE MISMATCH')
         // Keep everything as-is.
         return state
+      }
+
+      if (mutable.mpaNavigation) {
+        return {
+          // Set href.
+          canonicalUrl: mutable.canonicalUrlOverride
+            ? mutable.canonicalUrlOverride
+            : state.canonicalUrl,
+          // TODO-APP: verify mpaNavigation not being set is correct here.
+          pushRef: {
+            pendingPush: true,
+            mpaNavigation: mutable.mpaNavigation,
+          },
+          // All navigation requires scroll and focus management to trigger.
+          focusAndScrollRef: { apply: false },
+          // Apply cache.
+          cache: state.cache,
+          prefetchCache: state.prefetchCache,
+          // Apply patched router state.
+          tree: state.tree,
+        }
       }
 
       // Handle concurrent rendering / strict mode case where the cache and tree were already populated.
@@ -968,6 +1071,7 @@ function clientReducer(
       }
 
       mutable.patchedTree = newTree
+      mutable.mpaNavigation = isNavigatingToNewRootLayout(state.tree, newTree)
 
       // Root refresh
       if (flightDataPath.length === 2) {
@@ -1013,11 +1117,32 @@ function clientReducer(
       const { cache, mutable } = action
       const href = state.canonicalUrl
 
-      // Handle concurrent rendering / strict mode case where the cache and tree were already populated.
-      if (
-        mutable.patchedTree &&
+      const isForCurrentTree =
         JSON.stringify(mutable.previousTree) === JSON.stringify(state.tree)
-      ) {
+
+      if (mutable.mpaNavigation && isForCurrentTree) {
+        return {
+          // Set href.
+          canonicalUrl: mutable.canonicalUrlOverride
+            ? mutable.canonicalUrlOverride
+            : state.canonicalUrl,
+          // TODO-APP: verify mpaNavigation not being set is correct here.
+          pushRef: {
+            pendingPush: true,
+            mpaNavigation: mutable.mpaNavigation,
+          },
+          // All navigation requires scroll and focus management to trigger.
+          focusAndScrollRef: { apply: false },
+          // Apply cache.
+          cache: state.cache,
+          prefetchCache: state.prefetchCache,
+          // Apply patched router state.
+          tree: state.tree,
+        }
+      }
+
+      // Handle concurrent rendering / strict mode case where the cache and tree were already populated.
+      if (mutable.patchedTree && isForCurrentTree) {
         return {
           // Set href.
           canonicalUrl: mutable.canonicalUrlOverride
@@ -1095,6 +1220,7 @@ function clientReducer(
 
       mutable.previousTree = state.tree
       mutable.patchedTree = newTree
+      mutable.mpaNavigation = isNavigatingToNewRootLayout(state.tree, newTree)
 
       // Set subTreeData for the root node of the cache.
       cache.subTreeData = subTreeData

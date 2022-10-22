@@ -8,11 +8,6 @@ import escapeStringRegexp from 'escape-string-regexp'
 describe('edge-render-getserversideprops', () => {
   let next: NextInstance
 
-  if (process.env.NEXT_TEST_REACT_VERSION === '^17') {
-    it('should skip for react v17', () => {})
-    return
-  }
-
   beforeAll(async () => {
     next = await createNext({
       files: new FileRef(join(__dirname, 'app')),

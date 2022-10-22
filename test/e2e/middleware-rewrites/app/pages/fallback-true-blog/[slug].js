@@ -9,12 +9,16 @@ export default function Page(props) {
   return (
     <>
       <p id="props">{JSON.stringify(props)}</p>
-      <Link href="/fallback-true-blog/first?hello=world" shallow>
-        <a id="to-query-shallow">to /fallback-true-blog/first?hello=world</a>
+      <Link
+        href="/fallback-true-blog/first?hello=world"
+        shallow
+        id="to-query-shallow"
+      >
+        to /fallback-true-blog/first?hello=world
       </Link>
       <br />
-      <Link href="/fallback-true-blog/second" shallow>
-        <a id="to-no-query-shallow">to /fallback-true-blog/second</a>
+      <Link href="/fallback-true-blog/second" shallow id="to-no-query-shallow">
+        to /fallback-true-blog/second
       </Link>
       <br />
     </>

@@ -21,6 +21,8 @@ module.exports = {
     path: '/_next/image',
     // loader can be 'default', 'imgix', 'cloudinary', 'akamai', or 'custom'
     loader: 'default',
+    // file with `export default function loader({src, width, quality})`
+    loaderFile: '',
     // disable static imports for image files
     disableStaticImages: false,
     // minimumCacheTTL is in seconds, must be integer 0 or more

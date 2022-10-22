@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react'
 import React, { useEffect, useMemo, useCallback } from 'react'
-import { createFromFetch } from 'next/dist/compiled/react-server-dom-webpack'
+import { createFromFetch } from 'next/dist/compiled/react-server-dom-webpack/client'
 import {
   AppRouterContext,
   LayoutRouterContext,
@@ -37,12 +37,12 @@ function urlToUrlWithoutFlightMarker(url: string): URL {
 }
 
 const HotReloader:
-  | typeof import('./react-dev-overlay/hot-reloader').default
+  | typeof import('./react-dev-overlay/hot-reloader-client').default
   | null =
   process.env.NODE_ENV === 'production'
     ? null
-    : (require('./react-dev-overlay/hot-reloader')
-        .default as typeof import('./react-dev-overlay/hot-reloader').default)
+    : (require('./react-dev-overlay/hot-reloader-client')
+        .default as typeof import('./react-dev-overlay/hot-reloader-client').default)
 
 /**
  * Fetch the flight data for the provided url. Takes in the current router state to decide what to render server-side.
@@ -203,6 +203,8 @@ function Router({
     }
 
     const routerInstance: AppRouterInstance = {
+      back: () => window.history.back(),
+      forward: () => window.history.forward(),
       // TODO-APP: implement prefetching of flight
       prefetch: async (href) => {
         // If prefetch has already been triggered, don't trigger it again.

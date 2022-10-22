@@ -84,7 +84,6 @@ export interface ExperimentalConfig {
   skipTrailingSlashRedirect?: boolean
   optimisticClientCache?: boolean
   legacyBrowsers?: boolean
-  browsersListForSwc?: boolean
   manualClientBasePath?: boolean
   newNextLinkBehavior?: boolean
   // custom path to a cache handler to use
@@ -160,7 +159,10 @@ export interface ExperimentalConfig {
   // A list of packages that should be treated as external in the RSC server build
   serverComponentsExternalPackages?: string[]
 
-  fontLoaders?: [{ loader: string; options?: any }]
+  // A list of packages that should always be transpiled and bundled in the server
+  transpilePackages?: string[]
+
+  fontLoaders?: Array<{ loader: string; options?: any }>
 
   webVitalsAttribution?: Array<typeof WEB_VITALS[number]>
 }
@@ -547,17 +549,14 @@ export const defaultConfig: NextConfig = {
   },
   outputFileTracing: true,
   staticPageGenerationTimeout: 60,
-  swcMinify: false,
+  swcMinify: true,
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   experimental: {
     optimisticClientCache: true,
     runtime: undefined,
     manualClientBasePath: false,
-    // TODO: change default in next major release (current v12.1.5)
-    legacyBrowsers: true,
-    browsersListForSwc: false,
-    // TODO: change default in next major release (current v12.1.5)
-    newNextLinkBehavior: false,
+    legacyBrowsers: false,
+    newNextLinkBehavior: true,
     cpus: Math.max(
       1,
       (Number(process.env.CIRCLE_NODE_TOTAL) ||

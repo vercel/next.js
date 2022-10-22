@@ -240,9 +240,6 @@ const configSchema = {
           },
           type: 'object',
         },
-        browsersListForSwc: {
-          type: 'boolean',
-        },
         cpus: {
           type: 'number',
         },
@@ -346,6 +343,12 @@ const configSchema = {
           type: 'string',
         },
         serverComponentsExternalPackages: {
+          items: {
+            type: 'string',
+          },
+          type: 'array',
+        },
+        transpilePackages: {
           items: {
             type: 'string',
           },
@@ -580,6 +583,10 @@ const configSchema = {
         loader: {
           // automatic typing does not like enum
           enum: VALID_LOADERS as any,
+          type: 'string',
+        },
+        loaderFile: {
+          minLength: 1,
           type: 'string',
         },
         minimumCacheTTL: {

@@ -29,8 +29,8 @@ describe('app dir - rsc external dependency', () => {
     next = await createNext({
       files: new FileRef(path.join(__dirname, './rsc-external')),
       dependencies: {
-        react: 'experimental',
-        'react-dom': 'experimental',
+        react: '0.0.0-experimental-9cdf8a99e-20221018',
+        'react-dom': '0.0.0-experimental-9cdf8a99e-20221018',
       },
       packageJson: {
         scripts: {
@@ -84,6 +84,11 @@ describe('app dir - rsc external dependency', () => {
     )
   })
 
+  it('should transpile specific external packages with the `transpilePackages` option', async () => {
+    const clientHtml = await renderViaHTTP(next.url, '/external-imports/client')
+    expect(clientHtml).toContain('transpilePackages:5')
+  })
+
   it('should resolve the subset react in server components based on the react-server condition', async () => {
     await fetchViaHTTP(next.url, '/react-server').then(async (response) => {
       const result = await resolveStreamResponse(response)
@@ -109,5 +114,14 @@ describe('app dir - rsc external dependency', () => {
         expect(result).toContain('Client subpath: subpath.default')
       }
     )
+  })
+
+  it('should correctly collect global css imports and mark them as side effects', async () => {
+    await fetchViaHTTP(next.url, '/css/a').then(async (response) => {
+      const result = await resolveStreamResponse(response)
+
+      // It should include the global CSS import
+      expect(result).toMatch(/\.css/)
+    })
   })
 })

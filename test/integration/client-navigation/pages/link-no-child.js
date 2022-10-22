@@ -4,7 +4,7 @@ import Link from 'next/link'
 export default function Page() {
   return (
     <div>
-      Hello World. <Link href="/about"></Link>
+      Hello World. <Link href="/about" legacyBehavior></Link>
     </div>
   )
 }

@@ -19,6 +19,30 @@ Codemods are transformations that run on your codebase programmatically. This al
 
 ## Next.js 13
 
+### `new-link`
+
+Safely removes `<a>` from `next/link` or adds `legacyBehavior` prop.
+
+For example:
+
+```jsx
+export default function Page() {
+  return (
+    <Link href="/about">
+      <a>About Us</a>
+    </Link>
+  )
+}
+```
+
+Transforms into:
+
+```jsx
+export default function Page() {
+  return <Link href="/about">About Us</Link>
+}
+```
+
 ### `next-image-to-legacy-image`
 
 Safely migrates existing Next.js 10, 11, 12 applications importing `next/image` to the renamed `next/legacy/image` import in Next.js 13.
@@ -64,7 +88,97 @@ Dangerously migrates from `next/legacy/image` to the new `next/image` by adding 
 - Removes `objectPosition` prop and adds `style`
 - Removes `lazyBoundary` prop
 - Removes `lazyRoot` prop
-- TODO: handle `loader`
+- Changes next.config.js `loader` to "custom", removes `path`, and sets `loaderFile` to a new file.
+
+#### Before: intrinsic
+
+```jsx
+import Image from 'next/image'
+import img from '../img.png'
+
+function Page() {
+  return <Image src={img} />
+}
+```
+
+#### After: intrinsic
+
+```jsx
+import Image from 'next/image'
+import img from '../img.png'
+
+const css = { maxWidth: '100%', height: 'auto' }
+function Page() {
+  return <Image src={img} style={css} />
+}
+```
+
+#### Before: responsive
+
+```jsx
+import Image from 'next/image'
+import img from '../img.png'
+
+function Page() {
+  return <Image src={img} layout="responsive" />
+}
+```
+
+#### After: responsive
+
+```jsx
+import Image from 'next/image'
+import img from '../img.png'
+
+const css = { width: '100%', height: 'auto' }
+function Page() {
+  return <Image src={img} sizes="100vw" style={css} />
+}
+```
+
+#### Before: fill
+
+```jsx
+import Image from 'next/image'
+import img from '../img.png'
+
+function Page() {
+  return <Image src={img} layout="fill" />
+}
+```
+
+#### After: fill
+
+```jsx
+import Image from 'next/image'
+import img from '../img.png'
+
+function Page() {
+  return <Image src={img} sizes="100vw" fill />
+}
+```
+
+#### Before: fixed
+
+```jsx
+import Image from 'next/image'
+import img from '../img.png'
+
+function Page() {
+  return <Image src={img} layout="fixed" />
+}
+```
+
+#### After: fixed
+
+```jsx
+import Image from 'next/image'
+import img from '../img.png'
+
+function Page() {
+  return <Image src={img} />
+}
+```
 
 ## Next.js 11
 
