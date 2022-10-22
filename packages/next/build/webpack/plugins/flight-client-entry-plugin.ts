@@ -81,8 +81,8 @@ export class FlightClientEntryPlugin {
         const modResource = mod.resourceResolveData?.path || mod.resource
 
         if (
-          mod.resourceResolveData?.context?.issuerLayer ===
-          WEBPACK_LAYERS.server
+          mod.resourceResolveData?.context?.issuerLayer !==
+          WEBPACK_LAYERS.client
         ) {
           return
         }
