@@ -16,6 +16,8 @@ import {
 } from '../shared/lib/image-config'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { warnOnce } from '../shared/lib/utils'
+// @ts-ignore - This is replaced by webpack alias
+import defaultLoader from 'next/dist/shared/lib/image-loader'
 
 const configEnv = process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
 const allImgs = new Map<
@@ -468,70 +470,6 @@ const ImageElement = ({
   )
 }
 
-function defaultLoader({
-  config,
-  src,
-  width,
-  quality,
-}: ImageLoaderPropsWithConfig): string {
-  if (process.env.NODE_ENV !== 'production') {
-    const missingValues = []
-
-    // these should always be provided but make sure they are
-    if (!src) missingValues.push('src')
-    if (!width) missingValues.push('width')
-
-    if (missingValues.length > 0) {
-      throw new Error(
-        `Next Image Optimization requires ${missingValues.join(
-          ', '
-        )} to be provided. Make sure you pass them as props to the \`next/image\` component. Received: ${JSON.stringify(
-          { src, width, quality }
-        )}`
-      )
-    }
-
-    if (src.startsWith('//')) {
-      throw new Error(
-        `Failed to parse src "${src}" on \`next/image\`, protocol-relative URL (//) must be changed to an absolute URL (http:// or https://)`
-      )
-    }
-
-    if (!src.startsWith('/') && (config.domains || config.remotePatterns)) {
-      let parsedSrc: URL
-      try {
-        parsedSrc = new URL(src)
-      } catch (err) {
-        console.error(err)
-        throw new Error(
-          `Failed to parse src "${src}" on \`next/image\`, if using relative image it must start with a leading slash "/" or be an absolute URL (http:// or https://)`
-        )
-      }
-
-      if (process.env.NODE_ENV !== 'test') {
-        // We use dynamic require because this should only error in development
-        const { hasMatch } = require('../shared/lib/match-remote-pattern')
-        if (!hasMatch(config.domains, config.remotePatterns, parsedSrc)) {
-          throw new Error(
-            `Invalid src prop (${src}) on \`next/image\`, hostname "${parsedSrc.hostname}" is not configured under images in your \`next.config.js\`\n` +
-              `See more info: https://nextjs.org/docs/messages/next-image-unconfigured-host`
-          )
-        }
-      }
-    }
-  }
-
-  if (src.endsWith('.svg') && !config.dangerouslyAllowSVG) {
-    // Special case to make svg serve as-is to avoid proxying
-    // through the built-in Image Optimization API.
-    return src
-  }
-
-  return `${config.path}?url=${encodeURIComponent(src)}&w=${width}&q=${
-    quality || 75
-  }`
-}
-
 export default function Image({
   src,
   sizes,
@@ -559,20 +497,29 @@ export default function Image({
   }, [configContext])
 
   let rest: Partial<ImageProps> = all
+  let loader: ImageLoaderWithConfig = rest.loader || defaultLoader
 
-  let loader: ImageLoaderWithConfig = defaultLoader
-  if ('loader' in rest) {
-    if (rest.loader) {
-      const customImageLoader = rest.loader
-      loader = (obj) => {
-        const { config: _, ...opts } = obj
-        // The config object is internal only so we must
-        // not pass it to the user-defined loader()
-        return customImageLoader(opts)
-      }
+  // Remove property so it's not spread on <img> element
+  delete rest.loader
+
+  if ('__next_img_default' in loader) {
+    // This special value indicates that the user
+    // didn't define a "loader" prop or config.
+    if (config.loader === 'custom') {
+      throw new Error(
+        `Image with src "${src}" is missing "loader" prop.` +
+          `\nRead more: https://nextjs.org/docs/messages/next-image-missing-loader`
+      )
     }
-    // Remove property so it's not spread on <img>
-    delete rest.loader
+  } else {
+    // The user defined a "loader" prop or config.
+    // Since the config object is internal only, we
+    // must not pass it to the user-defined "loader".
+    const customImageLoader = loader as ImageLoader
+    loader = (obj) => {
+      const { config: _, ...opts } = obj
+      return customImageLoader(opts)
+    }
   }
 
   let staticSrc = ''

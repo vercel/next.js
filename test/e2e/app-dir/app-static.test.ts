@@ -15,18 +15,14 @@ describe('app-dir static/dynamic handling', () => {
     return
   }
 
-  if (process.env.NEXT_TEST_REACT_VERSION === '^17') {
-    it('should skip for react v17', () => {})
-    return
-  }
   let next: NextInstance
 
   beforeAll(async () => {
     next = await createNext({
       files: new FileRef(path.join(__dirname, 'app-static')),
       dependencies: {
-        react: 'latest',
-        'react-dom': 'latest',
+        react: '0.0.0-experimental-9cdf8a99e-20221018',
+        'react-dom': '0.0.0-experimental-9cdf8a99e-20221018',
       },
     })
   })

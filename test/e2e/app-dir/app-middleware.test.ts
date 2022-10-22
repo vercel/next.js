@@ -12,11 +12,6 @@ describe('app-dir with middleware', () => {
     return
   }
 
-  if (process.env.NEXT_TEST_REACT_VERSION === '^17') {
-    it('should skip for react v17', () => {})
-    return
-  }
-
   let next: NextInstance
 
   afterAll(() => next.destroy())
@@ -24,8 +19,8 @@ describe('app-dir with middleware', () => {
     next = await createNext({
       files: new FileRef(path.join(__dirname, 'app-middleware')),
       dependencies: {
-        react: 'experimental',
-        'react-dom': 'experimental',
+        react: '0.0.0-experimental-9cdf8a99e-20221018',
+        'react-dom': '0.0.0-experimental-9cdf8a99e-20221018',
       },
     })
   })

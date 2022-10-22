@@ -1,6 +1,10 @@
 import type { AdjustFontFallback, FontLoader } from 'next/font'
 // @ts-ignore
 import { calculateSizeAdjustValues } from 'next/dist/server/font-utils'
+// @ts-ignore
+import * as Log from 'next/dist/build/output/log'
+// @ts-ignore
+import chalk from 'next/dist/compiled/chalk'
 import {
   fetchCSSFromGoogleFonts,
   fetchFontFile,
@@ -19,10 +23,15 @@ const downloadGoogleFonts: FontLoader = async ({
   emitFontFile,
 }) => {
   if (!config?.subsets) {
-    throw new Error(
-      'Please specify subsets for `@next/font/google` in your `next.config.js`'
+    Log.warn(
+      `${chalk.bold('@next/font/google')} is missing ${chalk.bold(
+        'options.subsets'
+      )} in your ${chalk.bold(
+        'next.config.js'
+      )}. Please specify subsets, otherwise no fonts will be preloaded.`
     )
   }
+  const subsets = config?.subsets || []
 
   const {
     fontFamily,
@@ -63,7 +72,7 @@ const downloadGoogleFonts: FontLoader = async ({
       if (googleFontFileUrl) {
         fontFiles.push({
           googleFontFileUrl,
-          preloadFontFile: !!preload && config.subsets.includes(currentSubset),
+          preloadFontFile: !!preload && subsets.includes(currentSubset),
         })
       }
     }
@@ -121,7 +130,7 @@ const downloadGoogleFonts: FontLoader = async ({
         sizeAdjust: `${sizeAdjust}%`,
       }
     } catch {
-      console.error(
+      Log.error(
         `Failed to find font override values for font \`${fontFamily}\``
       )
     }

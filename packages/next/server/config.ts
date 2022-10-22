@@ -1,4 +1,5 @@
-import { basename, extname, relative, isAbsolute, resolve } from 'path'
+import { existsSync } from 'fs'
+import { basename, extname, join, relative, isAbsolute, resolve } from 'path'
 import { pathToFileURL } from 'url'
 import { Agent as HttpAgent } from 'http'
 import { Agent as HttpsAgent } from 'https'
@@ -23,6 +24,7 @@ import {
 } from '../shared/lib/image-config'
 import { loadEnvConfig } from '@next/env'
 import { gte as semverGte } from 'next/dist/compiled/semver'
+import { getDependencies } from '../lib/get-package-version'
 
 export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
 
@@ -76,7 +78,47 @@ export function setHttpClientAndAgentOptions(options: NextConfig) {
   ;(global as any).__NEXT_HTTPS_AGENT = new HttpsAgent(options.httpAgentOptions)
 }
 
-function assignDefaults(userConfig: { [key: string]: any }) {
+async function setFontLoaderDefaults(config: NextConfigComplete, dir: string) {
+  if (config.experimental?.fontLoaders) return
+
+  // Add @next/font loaders by default if they're installed
+  const hasNextFontDependency = (
+    await getDependencies({
+      cwd: dir,
+    })
+  ).dependencies['@next/font']
+
+  if (hasNextFontDependency) {
+    const googleFontLoader = {
+      loader: '@next/font/google',
+    }
+    const localFontLoader = {
+      loader: '@next/font/local',
+    }
+    if (!config.experimental) {
+      config.experimental = {}
+    }
+    if (!config.experimental.fontLoaders) {
+      config.experimental.fontLoaders = []
+    }
+    if (
+      !config.experimental.fontLoaders.find(
+        ({ loader }: any) => loader === '@next/font/goggle'
+      )
+    ) {
+      config.experimental.fontLoaders.push(googleFontLoader)
+    }
+    if (
+      !config.experimental.fontLoaders.find(
+        ({ loader }: any) => loader === '@next/font/local'
+      )
+    ) {
+      config.experimental.fontLoaders.push(localFontLoader)
+    }
+  }
+}
+
+function assignDefaults(dir: string, userConfig: { [key: string]: any }) {
   const configFileName = userConfig.configFileName
   if (typeof userConfig.exportTrailingSlash !== 'undefined') {
     console.warn(
@@ -379,7 +421,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       images.path === imageConfigDefault.path
     ) {
       throw new Error(
-        `Specified images.loader property (${images.loader}) also requires images.path property to be assigned to a URL prefix.\nSee more info here: https://nextjs.org/docs/api-reference/next/image#loader-configuration`
+        `Specified images.loader property (${images.loader}) also requires images.path property to be assigned to a URL prefix.\nSee more info here: https://nextjs.org/docs/api-reference/next/legacy/image#loader-configuration`
       )
     }
 
@@ -396,6 +438,22 @@ function assignDefaults(userConfig: { [key: string]: any }) {
 
     if (images.path === imageConfigDefault.path && result.basePath) {
       images.path = `${result.basePath}${images.path}`
+    }
+
+    if (images.loaderFile) {
+      if (images.loader !== 'default' && images.loader !== 'custom') {
+        throw new Error(
+          `Specified images.loader property (${images.loader}) cannot be used with images.loaderFile property. Please set images.loader to "custom".`
+        )
+      }
+      const absolutePath = join(dir, images.loaderFile)
+      if (!existsSync(absolutePath)) {
+        throw new Error(
+          `Specified images.loaderFile does not exist at "${absolutePath}".`
+        )
+      }
+      images.loader = 'custom'
+      images.loaderFile = absolutePath
     }
 
     if (
@@ -739,7 +797,7 @@ export default async function loadConfig(
   let configFileName = 'next.config.js'
 
   if (customConfig) {
-    return assignDefaults({
+    return assignDefaults(dir, {
       configOrigin: 'server',
       configFileName,
       ...customConfig,
@@ -818,12 +876,14 @@ export default async function loadConfig(
           : canonicalBase) || ''
     }
 
-    return assignDefaults({
+    const completeConfig = assignDefaults(dir, {
       configOrigin: relative(dir, path),
       configFile: path,
       configFileName,
       ...userConfig,
     }) as NextConfigComplete
+    await setFontLoaderDefaults(completeConfig, dir)
+    return completeConfig
   } else {
     const configBaseName = basename(CONFIG_FILES[0], extname(CONFIG_FILES[0]))
     const nonJsPath = findUp.sync(
@@ -846,8 +906,12 @@ export default async function loadConfig(
 
   // always call assignDefaults to ensure settings like
   // reactRoot can be updated correctly even with no next.config.js
-  const completeConfig = assignDefaults(defaultConfig) as NextConfigComplete
+  const completeConfig = assignDefaults(
+    dir,
+    defaultConfig
+  ) as NextConfigComplete
   completeConfig.configFileName = configFileName
   setHttpClientAndAgentOptions(completeConfig)
+  await setFontLoaderDefaults(completeConfig, dir)
   return completeConfig
 }

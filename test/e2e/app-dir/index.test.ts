@@ -21,10 +21,6 @@ describe('app dir', () => {
     return
   }
 
-  if (process.env.NEXT_TEST_REACT_VERSION === '^17') {
-    it('should skip for react v17', () => {})
-    return
-  }
   let next: NextInstance
 
   function runTests() {
@@ -32,8 +28,8 @@ describe('app dir', () => {
       next = await createNext({
         files: new FileRef(path.join(__dirname, 'app')),
         dependencies: {
-          react: 'experimental',
-          'react-dom': 'experimental',
+          react: '0.0.0-experimental-9cdf8a99e-20221018',
+          'react-dom': '0.0.0-experimental-9cdf8a99e-20221018',
         },
         skipStart: true,
       })
