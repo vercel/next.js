@@ -21,7 +21,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use futures::{StreamExt, TryStreamExt};
 use hyper::{
     header::HeaderName,
@@ -172,7 +172,7 @@ impl DevServer {
         source_provider: impl SourceProvider + Clone + Send + Sync,
         addr: SocketAddr,
         console_ui: Arc<ConsoleUi>,
-    ) -> Self {
+    ) -> Result<Self, anyhow::Error> {
         let make_svc = make_service_fn(move |_| {
             let tt = turbo_tasks.clone();
             let source_provider = source_provider.clone();
@@ -260,15 +260,17 @@ impl DevServer {
                 anyhow::Ok(service_fn(handler))
             }
         });
-        let server = Server::bind(&addr).serve(make_svc);
+        let server = Server::try_bind(&addr)
+            .context("Not able to start server")?
+            .serve(make_svc);
 
-        Self {
+        Ok(Self {
             addr: server.local_addr(),
             future: Box::pin(async move {
                 server.await?;
                 Ok(())
             }),
-        }
+        })
     }
 }
 
