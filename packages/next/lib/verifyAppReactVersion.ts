@@ -11,10 +11,7 @@ import { isCI } from '../telemetry/ci-info'
 import { FatalError } from './fatal-error'
 import { getPkgManager } from './helpers/get-pkg-manager'
 import { getOxfordCommaList } from './oxford-comma-list'
-
-const nextPackage = require('next/package.json')
-const requiredReactVersion =
-  nextPackage.devDependencies['react-server-dom-webpack']
+const requiredReactVersion = process.env.REQUIRED_APP_REACT_VERSION || ''
 
 const removalMsg =
   '\n\n' +
