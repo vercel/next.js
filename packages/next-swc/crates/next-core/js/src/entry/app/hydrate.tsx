@@ -1,9 +1,15 @@
 import ReactDOMClient from "react-dom/client";
 import React, { experimental_use as use } from "react";
 import type { ReactElement } from "react";
-import { createFromReadableStream } from "next/dist/compiled/react-server-dom-webpack";
+import { createFromReadableStream } from "next/dist/compiled/react-server-dom-webpack/client";
 
 import { HeadManagerContext } from "next/dist/shared/lib/head-manager-context";
+
+import { initializeHMR } from "@vercel/turbopack-next/dev/client";
+
+initializeHMR({
+  assetPrefix: "",
+});
 
 globalThis.__next_require__ = (data) => {
   const [, client_id] = JSON.parse(data);

@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    io::{BufRead, BufReader, Write},
+    io::{BufRead, BufReader, ErrorKind, Write},
     path::{Path, PathBuf},
     process::{Child, ChildStdin, ChildStdout, Command, Stdio},
     sync::{Arc, Mutex},
@@ -280,14 +280,23 @@ impl NodeJsOperation {
         let child = self.expect_child_mut();
         let mut total_read = 0;
         loop {
-            total_read += child.read_until(b'\n', buf)?;
+            let read = child.read_until(b'\n', buf)?;
+            total_read += read;
 
             match child.marker.read_event(&buf) {
                 Some((read, event)) => {
                     buf.truncate(buf.len() - read);
                     break Ok((total_read - read, event));
                 }
-                None => {}
+                None => {
+                    if read == 0 {
+                        // we need to stop reading in this case otherwise this loop infinitely
+                        return Err(std::io::Error::new(
+                            ErrorKind::UnexpectedEof,
+                            "process closed unexpectedly while waiting for an operation result",
+                        ));
+                    }
+                }
             }
         }
     }
