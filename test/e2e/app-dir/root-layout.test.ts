@@ -31,7 +31,8 @@ describe('app-dir root layout', () => {
   afterAll(() => next.destroy())
 
   if (isDev) {
-    describe('Missing required tags', () => {
+    // TODO-APP: re-enable after reworking the error overlay.
+    describe.skip('Missing required tags', () => {
       it('should error on page load', async () => {
         const browser = await webdriver(next.url, '/missing-tags', {
           waitHydration: false,

@@ -54,6 +54,33 @@ export class NextInstance {
     Object.assign(this, opts)
   }
 
+  protected async writeInitialFiles() {
+    if (this.files instanceof FileRef) {
+      // if a FileRef is passed directly to `files` we copy the
+      // entire folder to the test directory
+      const stats = await fs.stat(this.files.fsPath)
+
+      if (!stats.isDirectory()) {
+        throw new Error(
+          `FileRef passed to "files" in "createNext" is not a directory ${this.files.fsPath}`
+        )
+      }
+      await fs.copy(this.files.fsPath, this.testDir)
+    } else {
+      for (const filename of Object.keys(this.files)) {
+        const item = this.files[filename]
+        const outputFilename = path.join(this.testDir, filename)
+
+        if (typeof item === 'string') {
+          await fs.ensureDir(path.dirname(outputFilename))
+          await fs.writeFile(outputFilename, item)
+        } else {
+          await fs.copy(item.fsPath, outputFilename)
+        }
+      }
+    }
+  }
+
   protected async createTestDir({
     skipInstall = false,
   }: { skipInstall?: boolean } = {}) {
@@ -128,30 +155,7 @@ export class NextInstance {
       require('console').log('created next.js install, writing test files')
     }
 
-    if (this.files instanceof FileRef) {
-      // if a FileRef is passed directly to `files` we copy the
-      // entire folder to the test directory
-      const stats = await fs.stat(this.files.fsPath)
-
-      if (!stats.isDirectory()) {
-        throw new Error(
-          `FileRef passed to "files" in "createNext" is not a directory ${this.files.fsPath}`
-        )
-      }
-      await fs.copy(this.files.fsPath, this.testDir)
-    } else {
-      for (const filename of Object.keys(this.files)) {
-        const item = this.files[filename]
-        const outputFilename = path.join(this.testDir, filename)
-
-        if (typeof item === 'string') {
-          await fs.ensureDir(path.dirname(outputFilename))
-          await fs.writeFile(outputFilename, item)
-        } else {
-          await fs.copy(item.fsPath, outputFilename)
-        }
-      }
-    }
+    await this.writeInitialFiles()
 
     let nextConfigFile = Object.keys(this.files).find((file) =>
       file.startsWith('next.config.')
@@ -234,6 +238,7 @@ export class NextInstance {
         await fs.remove(path.join(this.testDir, file))
       }
     }
+    await this.writeInitialFiles()
   }
 
   public async export(): Promise<{ exitCode?: number; cliOutput?: string }> {

@@ -37,12 +37,12 @@ function urlToUrlWithoutFlightMarker(url: string): URL {
 }
 
 const HotReloader:
-  | typeof import('./react-dev-overlay/hot-reloader').default
+  | typeof import('./react-dev-overlay/hot-reloader-client').default
   | null =
   process.env.NODE_ENV === 'production'
     ? null
-    : (require('./react-dev-overlay/hot-reloader')
-        .default as typeof import('./react-dev-overlay/hot-reloader').default)
+    : (require('./react-dev-overlay/hot-reloader-client')
+        .default as typeof import('./react-dev-overlay/hot-reloader-client').default)
 
 /**
  * Fetch the flight data for the provided url. Takes in the current router state to decide what to render server-side.
