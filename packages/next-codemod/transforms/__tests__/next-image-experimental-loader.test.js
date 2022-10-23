@@ -5,7 +5,7 @@ const { cp, mkdir, rm, readdir, readFile } = require('fs/promises')
 const { join } = require('path')
 
 const fixtureDir = join(__dirname, '..', '__testfixtures__', 'next-image-experimental-loader')
-const transform = join(__dirname, '../../../dist/transforms', 'next-image-experimental.js')
+const transform = join(__dirname, '..', 'next-image-experimental.js')
 const opts = { recursive: true }
 
 async function toObj(dir) {

@@ -14,5 +14,10 @@ const fixtures = [
 ]
 
 for (const fixture of fixtures) {
-  defineTest(__dirname, 'new-link', null, `new-link/${fixture}`)
+  defineTest(
+    __dirname,
+    'new-link',
+    null,
+    `new-link/${fixture}`
+  )
 }

@@ -13,7 +13,10 @@
     "meow": "7.0.1"
   },
   "files": [
-    "dist"
+    "transforms/*.js",
+    "bin/*.js",
+    "lib/**/*.js",
+    "lib/cra-to-next/gitignore"
   ],
   "scripts": {
     "build": "pnpm tsc -d -p tsconfig.json",
@@ -21,7 +24,7 @@
     "dev": "pnpm tsc -d -w -p tsconfig.json",
     "test": "jest"
   },
-  "bin": "./dist/bin/next-codemod.js",
+  "bin": "./bin/next-codemod.js",
   "devDependencies": {
     "@types/jscodeshift": "0.11.0"
   }
