@@ -951,10 +951,6 @@ export default class HotReloader {
         changedServerPagesEntries,
         changedClientEntries
       )
-      const edgeServerOnlyChanges = difference<string>(
-        changedEdgeServerEntries,
-        changedClientEntries
-      )
 
       const serverComponentChanges = Array.from(changedServerComponentEntries)
         .concat(Array.from(changedEdgeServerComponentsEntries))
