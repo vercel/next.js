@@ -595,11 +595,6 @@ export default async function getBaseWebpackConfig(
         'You are using the experimental Node.js Runtime with `experimental.runtime`.'
       )
     }
-    if (config.experimental.appDir) {
-      Log.warn(
-        'You are using the experimental app directory with `experimental.appDir`, the API might change.'
-      )
-    }
   }
 
   const babelConfigFile = await BABEL_CONFIG_FILES.reduce(
