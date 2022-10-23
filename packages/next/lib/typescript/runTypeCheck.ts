@@ -88,10 +88,9 @@ export async function runTypeCheck(
   const allDiagnostics = ts
     .getPreEmitDiagnostics(program as import('typescript').Program)
     .concat(result.diagnostics)
-    .filter((d) => !d.file)
 
   const diagnosticsWithoutIgnoredFiles = allDiagnostics
-    .filter((d) => !regexIgnoredFile.test(d.file.fileName))
+    .filter((d) => !(d.file && regexIgnoredFile.test(d.file.fileName)))
 
   if (allDiagnostics.length !== diagnosticsWithoutIgnoredFiles.length) {
     warn(
