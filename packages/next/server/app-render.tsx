@@ -195,6 +195,14 @@ function createErrorHandler(
   }
 }
 
+class NextFetchRequestImpl extends globalThis.Request {
+  next?: NextFetchRequestConfig | undefined
+  constructor(input: RequestInfo | URL, init?: RequestInit | undefined) {
+    super(input, init)
+    this.next = init?.next
+  }
+}
+
 let isFetchPatched = false
 
 // we patch fetch to collect cache information used for
@@ -208,19 +216,14 @@ function patchFetch(ComponentMod: any) {
 
   const staticGenerationAsyncStorage = ComponentMod.staticGenerationAsyncStorage
 
-  const originFetch = global.fetch
-  const OriginalRequest = global.Request
-  global.Request = class NextFetchRequestImpl extends OriginalRequest {
-    next?: NextFetchRequestConfig | undefined
-    constructor(
-      input: RequestInfo | URL,
-      init?: NextFetchRequestOptions | undefined
-    ) {
-      super(input, init)
-      this.next = init?.next
-    }
-  }
-  global.fetch = async (input, init) => {
+  Object.defineProperty(globalThis, 'Request', {
+    get() {
+      return NextFetchRequestImpl
+    },
+  })
+
+  const originFetch = globalThis.fetch
+  globalThis.fetch = async (input, init) => {
     const staticGenerationStore =
       'getStore' in staticGenerationAsyncStorage
         ? staticGenerationAsyncStorage.getStore()

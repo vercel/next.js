@@ -1,18 +1,6 @@
 /// <reference types="node" />
 
 // Extend the NodeJS namespace with Next.js-defined properties
-
-type NextFetchRequestConfig = {
-  revalidate?: number
-}
-
-type NextFetchRequestOptions = RequestInit & {
-  next?: NextFetchRequestConfig | undefined
-}
-
-interface RequestInit {
-  next?: NextFetchRequestConfig | undefined
-}
 declare namespace NodeJS {
   interface Process {
     /**
@@ -25,28 +13,13 @@ declare namespace NodeJS {
     readonly NODE_ENV: 'development' | 'production' | 'test'
   }
 
-  // Typing `global.fetch` for overriding in app-render
-  interface Global {
-    fetch(
-      url: RequestInfo,
-      init: NextFetchRequestOptions | undefined
-    ): Promise<Response>
-    Request: {
-      prototype: NextFetchRequest
-      new (
-        input: RequestInfo | URL,
-        init?: NextFetchRequestOptions
-      ): NextFetchRequest
-    }
+  interface RequestInit extends globalThis.RequestInit {
+    next?: NextFetchRequestConfig | undefined
   }
 }
 
-declare function fetch(
-  url: RequestInfo,
-  init: NextFetchRequestOptions | undefined
-): Promise<Response>
-interface NextFetchRequest extends Request {
-  readonly next?: NextFetchRequestConfig | undefined
+interface NextFetchRequestConfig {
+  revalidate?: number
 }
 
 declare module '*.module.css' {
@@ -67,4 +40,8 @@ declare module '*.module.scss' {
 interface Window {
   MSInputMethodContext?: unknown
   __NEXT_HMR_CB?: null | ((message?: string) => void)
+}
+
+interface RequestInit {
+  next?: { revalidate?: number } | undefined
 }
