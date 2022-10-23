@@ -153,6 +153,18 @@ var enableLazyContextPropagation = false; // FB-only usage. The new API has diff
 var enableLegacyHidden = false; // Enables unstable_avoidThisFallback feature in Fiber
 
 var enableSuspenseAvoidThisFallback = false; // Enables unstable_avoidThisFallback feature in Fizz
+// Chopping Block
+//
+// Planned feature deprecations and breaking changes. Sorted roughly in order of
+// when we plan to enable them.
+// -----------------------------------------------------------------------------
+// This flag enables Strict Effects by default. We're not turning this on until
+// after 18 because it requires migration work. Recommendation is to use
+// <StrictMode /> to gradually upgrade components.
+// If TRUE, trees rendered with createRoot will be StrictEffectsMode.
+// If FALSE, these trees will be StrictLegacyMode.
+
+var createRootStrictEffectsByDefault = false;
 // React DOM Chopping Block
 //
 // Similar to main Chopping Block but only flags related to React DOM. These are
@@ -2579,6 +2591,7 @@ var ELEMENT_NODE = 1;
 var TEXT_NODE = 3;
 var COMMENT_NODE = 8;
 var DOCUMENT_NODE = 9;
+var DOCUMENT_TYPE_NODE = 10;
 var DOCUMENT_FRAGMENT_NODE = 11;
 
 /**
@@ -10737,6 +10750,10 @@ var validateDOMNesting = function () {};
 
 var updatedAncestorInfo = function () {};
 
+var getResourceFormOnly = function () {
+  return false;
+};
+
 {
   // This validation code was written based on the HTML5 parsing spec:
   // https://html.spec.whatwg.org/multipage/syntax.html#has-an-element-in-scope
@@ -10767,7 +10784,8 @@ var updatedAncestorInfo = function () {};
     nobrTagInScope: null,
     pTagInButtonScope: null,
     listItemTagAutoclosing: null,
-    dlItemTagAutoclosing: null
+    dlItemTagAutoclosing: null,
+    resourceFormOnly: true
   };
 
   updatedAncestorInfo = function (oldInfo, tag) {
@@ -10792,6 +10810,10 @@ var updatedAncestorInfo = function () {};
     if (specialTags.indexOf(tag) !== -1 && tag !== 'address' && tag !== 'div' && tag !== 'p') {
       ancestorInfo.listItemTagAutoclosing = null;
       ancestorInfo.dlItemTagAutoclosing = null;
+    }
+
+    if (tag !== '#document' && tag !== 'html') {
+      ancestorInfo.resourceFormOnly = false;
     }
 
     ancestorInfo.current = info;
@@ -11048,21 +11070,35 @@ var updatedAncestorInfo = function () {};
       error('validateDOMNesting(...): %s cannot appear as a descendant of ' + '<%s>.', tagDisplayName, ancestorTag);
     }
   };
+
+  getResourceFormOnly = function (hostContextDev) {
+    return hostContextDev.ancestorInfo.resourceFormOnly;
+  };
 }
 
-function validateUnmatchedLinkResourceProps(pendingProps, currentProps) {
+function warnOnMissingHrefAndRel(pendingProps, currentProps) {
   {
     if (currentProps != null) {
       var originalResourceName = typeof currentProps.href === 'string' ? "Resource with href \"" + currentProps.href + "\"" : 'Resource';
       var originalRelStatement = getValueDescriptorExpectingEnumForWarning(currentProps.rel);
-      var pendingRelStatement = getValueDescriptorExpectingEnumForWarning(pendingProps.rel);
-      var pendingHrefStatement = typeof pendingProps.href === 'string' ? " and the updated href is \"" + pendingProps.href + "\"" : '';
+      var pendingRel = getValueDescriptorExpectingEnumForWarning(pendingProps.rel);
+      var pendingHref = getValueDescriptorExpectingEnumForWarning(pendingProps.href);
 
-      error('A <link> previously rendered as a %s but was updated with a rel type that is not' + ' valid for a Resource type. Generally Resources are not expected to ever have updated' + ' props however in some limited circumstances it can be valid when changing the href.' + ' When React encounters props that invalidate the Resource it is the same as not rendering' + ' a Resource at all. valid rel types for Resources are "stylesheet" and "preload". The previous' + ' rel for this instance was %s. The updated rel is %s%s.', originalResourceName, originalRelStatement, pendingRelStatement, pendingHrefStatement);
+      if (typeof pendingProps.rel !== 'string') {
+        error('A <link> previously rendered as a %s with rel "%s" but was updated with an invalid rel: %s. When a link' + ' does not have a valid rel prop it is not represented in the DOM. If this is intentional, instead' + ' do not render the <link> anymore.', originalResourceName, originalRelStatement, pendingRel);
+      } else if (typeof pendingProps.href !== 'string') {
+        error('A <link> previously rendered as a %s but was updated with an invalid href prop: %s. When a link' + ' does not have a valid href prop it is not represented in the DOM. If this is intentional, instead' + ' do not render the <link> anymore.', originalResourceName, pendingHref);
+      }
     } else {
-      var _pendingRelStatement = getValueDescriptorExpectingEnumForWarning(pendingProps.rel);
+      var _pendingRel = getValueDescriptorExpectingEnumForWarning(pendingProps.rel);
 
-      error('A <link> is rendering as a Resource but has an invalid rel property. The rel encountered is %s.' + ' This is a bug in React.', _pendingRelStatement);
+      var _pendingHref = getValueDescriptorExpectingEnumForWarning(pendingProps.href);
+
+      if (typeof pendingProps.rel !== 'string') {
+        error('A <link> is rendering with an invalid rel: %s. When a link' + ' does not have a valid rel prop it is not represented in the DOM. If this is intentional, instead' + ' do not render the <link> anymore.', _pendingRel);
+      } else if (typeof pendingProps.href !== 'string') {
+        error('A <link> is rendering with an invalid href: %s. When a link' + ' does not have a valid href prop it is not represented in the DOM. If this is intentional, instead' + ' do not render the <link> anymore.', _pendingHref);
+      }
     }
   }
 }
@@ -11570,6 +11606,9 @@ function popHostContext(fiber) {
 function getCurrentRootHostContainer$1() {
   return  getCurrentRootHostContainer();
 }
+function getHostContext$1() {
+  return  getHostContext();
+}
 
 var Dispatcher = Internals.Dispatcher;
 // In the future this may need to change, especially when modules / scripts are supported
@@ -11780,7 +11819,11 @@ function scriptPropsFromPreinitOptions(src, options) {
 // --------------------------------------
 
 
-// This function is called in begin work and we should always have a currentDocument set
+function getTitleKey(child) {
+  return 'title:' + child;
+} // This function is called in begin work and we should always have a currentDocument set
+
+
 function getResource(type, pendingProps, currentProps) {
   var resourceRoot = getCurrentResourceRoot();
 
@@ -11789,6 +11832,107 @@ function getResource(type, pendingProps, currentProps) {
   }
 
   switch (type) {
+    case 'meta':
+      {
+        var matcher, propertyString, parentResource;
+        var charSet = pendingProps.charSet,
+            content = pendingProps.content,
+            httpEquiv = pendingProps.httpEquiv,
+            name = pendingProps.name,
+            itemProp = pendingProps.itemProp,
+            property = pendingProps.property;
+        var headRoot = getDocumentFromRoot(resourceRoot);
+
+        var _getResourcesFromRoot = getResourcesFromRoot(headRoot),
+            headResources = _getResourcesFromRoot.head,
+            lastStructuredMeta = _getResourcesFromRoot.lastStructuredMeta;
+
+        if (typeof charSet === 'string') {
+          matcher = 'meta[charset]';
+        } else if (typeof content === 'string') {
+          if (typeof httpEquiv === 'string') {
+            matcher = "meta[http-equiv=\"" + escapeSelectorAttributeValueInsideDoubleQuotes(httpEquiv) + "\"][content=\"" + escapeSelectorAttributeValueInsideDoubleQuotes(content) + "\"]";
+          } else if (typeof property === 'string') {
+            propertyString = property;
+            matcher = "meta[property=\"" + escapeSelectorAttributeValueInsideDoubleQuotes(property) + "\"][content=\"" + escapeSelectorAttributeValueInsideDoubleQuotes(content) + "\"]";
+            var parentPropertyPath = property.split(':').slice(0, -1).join(':');
+            parentResource = lastStructuredMeta.get(parentPropertyPath);
+
+            if (parentResource) {
+              // When using parentResource the matcher is not functional for locating
+              // the instance in the DOM but it still serves as a unique key.
+              matcher = parentResource.matcher + matcher;
+            }
+          } else if (typeof name === 'string') {
+            matcher = "meta[name=\"" + escapeSelectorAttributeValueInsideDoubleQuotes(name) + "\"][content=\"" + escapeSelectorAttributeValueInsideDoubleQuotes(content) + "\"]";
+          } else if (typeof itemProp === 'string') {
+            matcher = "meta[itemprop=\"" + escapeSelectorAttributeValueInsideDoubleQuotes(itemProp) + "\"][content=\"" + escapeSelectorAttributeValueInsideDoubleQuotes(content) + "\"]";
+          }
+        }
+
+        if (matcher) {
+          var resource = headResources.get(matcher);
+
+          if (!resource) {
+            resource = {
+              type: 'meta',
+              matcher: matcher,
+              property: propertyString,
+              parentResource: parentResource,
+              props: assign({}, pendingProps),
+              count: 0,
+              instance: null,
+              root: headRoot
+            };
+            headResources.set(matcher, resource);
+          }
+
+          if (typeof resource.property === 'string') {
+            // We cast because flow doesn't know that this resource must be a Meta resource
+            lastStructuredMeta.set(resource.property, resource);
+          }
+
+          return resource;
+        }
+
+        return null;
+      }
+
+    case 'title':
+      {
+        var child = pendingProps.children;
+
+        if (Array.isArray(child) && child.length === 1) {
+          child = child[0];
+        }
+
+        if (typeof child === 'string' || typeof child === 'number') {
+          var _headRoot = getDocumentFromRoot(resourceRoot);
+
+          var _headResources = getResourcesFromRoot(_headRoot).head;
+          var key = getTitleKey(child);
+
+          var _resource2 = _headResources.get(key);
+
+          if (!_resource2) {
+            var titleProps = titlePropsFromRawProps(child, pendingProps);
+            _resource2 = {
+              type: 'title',
+              props: titleProps,
+              count: 0,
+              instance: null,
+              root: _headRoot
+            };
+
+            _headResources.set(key, _resource2);
+          }
+
+          return _resource2;
+        }
+
+        return null;
+      }
+
     case 'link':
       {
         var rel = pendingProps.rel;
@@ -11816,27 +11960,27 @@ function getResource(type, pendingProps, currentProps) {
                 // We've asserted all the specific types for StyleQualifyingProps
                 var styleRawProps = pendingProps; // We construct or get an existing resource for the style itself and return it
 
-                var resource = styleResources.get(href);
+                var _resource3 = styleResources.get(href);
 
-                if (resource) {
+                if (_resource3) {
                   {
                     if (!didWarn) {
                       var latestProps = stylePropsFromRawProps(styleRawProps);
 
-                      if (resource._dev_preload_props) {
-                        adoptPreloadPropsForStyle(latestProps, resource._dev_preload_props);
+                      if (_resource3._dev_preload_props) {
+                        adoptPreloadPropsForStyle(latestProps, _resource3._dev_preload_props);
                       }
 
-                      validateStyleResourceDifference(resource.props, latestProps);
+                      validateStyleResourceDifference(_resource3.props, latestProps);
                     }
                   }
                 } else {
                   var resourceProps = stylePropsFromRawProps(styleRawProps);
-                  resource = createStyleResource(styleResources, resourceRoot, href, precedence, resourceProps);
-                  immediatelyPreloadStyleResource(resource);
+                  _resource3 = createStyleResource(styleResources, resourceRoot, href, precedence, resourceProps);
+                  immediatelyPreloadStyleResource(_resource3);
                 }
 
-                return resource;
+                return _resource3;
               }
 
               return null;
@@ -11854,23 +11998,23 @@ function getResource(type, pendingProps, currentProps) {
                 // We've asserted all the specific types for PreloadQualifyingProps
                 var preloadRawProps = pendingProps;
 
-                var _resource2 = preloadResources.get(_href);
+                var _resource4 = preloadResources.get(_href);
 
-                if (_resource2) {
+                if (_resource4) {
                   {
-                    var originallyImplicit = _resource2._dev_implicit_construction === true;
+                    var originallyImplicit = _resource4._dev_implicit_construction === true;
 
                     var _latestProps2 = preloadPropsFromRawProps(preloadRawProps);
 
-                    validatePreloadResourceDifference(_resource2.props, originallyImplicit, _latestProps2, false);
+                    validatePreloadResourceDifference(_resource4.props, originallyImplicit, _latestProps2, false);
                   }
                 } else {
                   var _resourceProps2 = preloadPropsFromRawProps(preloadRawProps);
 
-                  _resource2 = createPreloadResource(getDocumentFromRoot(resourceRoot), _href, _resourceProps2);
+                  _resource4 = createPreloadResource(getDocumentFromRoot(resourceRoot), _href, _resourceProps2);
                 }
 
-                return _resource2;
+                return _resource4;
               }
 
               return null;
@@ -11878,8 +12022,39 @@ function getResource(type, pendingProps, currentProps) {
 
           default:
             {
+              var _href2 = pendingProps.href,
+                  sizes = pendingProps.sizes,
+                  media = pendingProps.media;
+
+              if (typeof rel === 'string' && typeof _href2 === 'string') {
+                var sizeKey = '::sizes:' + (typeof sizes === 'string' ? sizes : '');
+                var mediaKey = '::media:' + (typeof media === 'string' ? media : '');
+
+                var _key = 'rel:' + rel + '::href:' + _href2 + sizeKey + mediaKey;
+
+                var _headRoot2 = getDocumentFromRoot(resourceRoot);
+
+                var _headResources2 = getResourcesFromRoot(_headRoot2).head;
+
+                var _resource5 = _headResources2.get(_key);
+
+                if (!_resource5) {
+                  _resource5 = {
+                    type: 'link',
+                    props: assign({}, pendingProps),
+                    count: 0,
+                    instance: null,
+                    root: _headRoot2
+                  };
+
+                  _headResources2.set(_key, _resource5);
+                }
+
+                return _resource5;
+              }
+
               {
-                validateUnmatchedLinkResourceProps(pendingProps, currentProps);
+                warnOnMissingHrefAndRel(pendingProps, currentProps);
               }
 
               return null;
@@ -11905,27 +12080,27 @@ function getResource(type, pendingProps, currentProps) {
         if (async && typeof src === 'string') {
           var scriptRawProps = pendingProps;
 
-          var _resource3 = scriptResources.get(src);
+          var _resource6 = scriptResources.get(src);
 
-          if (_resource3) {
+          if (_resource6) {
             {
               if (!_didWarn) {
                 var _latestProps3 = scriptPropsFromRawProps(scriptRawProps);
 
-                if (_resource3._dev_preload_props) {
-                  adoptPreloadPropsForScript(_latestProps3, _resource3._dev_preload_props);
+                if (_resource6._dev_preload_props) {
+                  adoptPreloadPropsForScript(_latestProps3, _resource6._dev_preload_props);
                 }
 
-                validateScriptResourceDifference(_resource3.props, _latestProps3);
+                validateScriptResourceDifference(_resource6.props, _latestProps3);
               }
             }
           } else {
             var _resourceProps3 = scriptPropsFromRawProps(scriptRawProps);
 
-            _resource3 = createScriptResource(scriptResources, resourceRoot, src, _resourceProps3);
+            _resource6 = createScriptResource(scriptResources, resourceRoot, src, _resourceProps3);
           }
 
-          return _resource3;
+          return _resource6;
         }
 
         return null;
@@ -11940,6 +12115,13 @@ function getResource(type, pendingProps, currentProps) {
 
 function preloadPropsFromRawProps(rawBorrowedProps) {
   return assign({}, rawBorrowedProps);
+}
+
+function titlePropsFromRawProps(child, rawProps) {
+  var props = assign({}, rawProps);
+
+  props.children = child;
+  return props;
 }
 
 function stylePropsFromRawProps(rawProps) {
@@ -11961,6 +12143,13 @@ function scriptPropsFromRawProps(rawProps) {
 
 function acquireResource(resource) {
   switch (resource.type) {
+    case 'title':
+    case 'link':
+    case 'meta':
+      {
+        return acquireHeadResource(resource);
+      }
+
     case 'style':
       {
         return acquireStyleResource(resource);
@@ -11984,16 +12173,39 @@ function acquireResource(resource) {
 }
 function releaseResource(resource) {
   switch (resource.type) {
+    case 'link':
+    case 'title':
+    case 'meta':
+      {
+        return releaseHeadResource(resource);
+      }
+
     case 'style':
       {
         resource.count--;
+        return;
       }
+  }
+}
+
+function releaseHeadResource(resource) {
+  if (--resource.count === 0) {
+    // the instance will have existed since we acquired it
+    var instance = resource.instance;
+    var parent = instance.parentNode;
+
+    if (parent) {
+      parent.removeChild(instance);
+    }
+
+    resource.instance = null;
   }
 }
 
 function createResourceInstance(type, props, ownerDocument) {
   var element = createElement(type, props, ownerDocument, HTML_NAMESPACE);
   setInitialProperties(element, type, props);
+  markNodeAsResource(element);
   return element;
 }
 
@@ -12143,6 +12355,8 @@ function createScriptResource(scriptResources, root, src, props) {
         resource._dev_preload_props = preloadProps;
       }
     }
+  } else {
+    markNodeAsResource(existingEl);
   }
 
   return resource;
@@ -12160,7 +12374,9 @@ function createPreloadResource(ownerDocument, href, props) {
 
   if (!element) {
     element = createResourceInstance('link', props, ownerDocument);
-    insertResourceInstance(element, ownerDocument);
+    insertResourceInstanceBefore(ownerDocument, element, null);
+  } else {
+    markNodeAsResource(element);
   }
 
   return {
@@ -12172,8 +12388,129 @@ function createPreloadResource(ownerDocument, href, props) {
   };
 }
 
+function acquireHeadResource(resource) {
+  resource.count++;
+  var instance = resource.instance;
+
+  if (!instance) {
+    var props = resource.props,
+        root = resource.root,
+        type = resource.type;
+
+    switch (type) {
+      case 'title':
+        {
+          var titles = root.querySelectorAll('title');
+
+          for (var i = 0; i < titles.length; i++) {
+            if (titles[i].textContent === props.children) {
+              instance = resource.instance = titles[i];
+              markNodeAsResource(instance);
+              return instance;
+            }
+          }
+
+          instance = resource.instance = createResourceInstance(type, props, root);
+          insertResourceInstanceBefore(root, instance, titles.item(0));
+          break;
+        }
+
+      case 'meta':
+        {
+          var insertBefore = null;
+          var metaResource = resource;
+          var matcher = metaResource.matcher,
+              property = metaResource.property,
+              parentResource = metaResource.parentResource;
+
+          if (parentResource && typeof property === 'string') {
+            // This resoruce is a structured meta type with a parent.
+            // Instead of using the matcher we just traverse forward
+            // siblings of the parent instance until we find a match
+            // or exhaust.
+            var parent = parentResource.instance;
+
+            if (parent) {
+              var node = null;
+              var nextNode = insertBefore = parent.nextSibling;
+
+              while (node = nextNode) {
+                nextNode = node.nextSibling;
+
+                if (node.nodeName === 'META') {
+                  var meta = node;
+                  var propertyAttr = meta.getAttribute('property');
+
+                  if (typeof propertyAttr !== 'string') {
+                    continue;
+                  } else if (propertyAttr === property && meta.getAttribute('content') === props.content) {
+                    resource.instance = meta;
+                    markNodeAsResource(meta);
+                    return meta;
+                  } else if (property.startsWith(propertyAttr + ':')) {
+                    // This meta starts a new instance of a parent structure for this meta type
+                    // We need to halt our search here because even if we find a later match it
+                    // is for a different parent element
+                    break;
+                  }
+                }
+              }
+            }
+          } else if (instance = root.querySelector(matcher)) {
+            resource.instance = instance;
+            markNodeAsResource(instance);
+            return instance;
+          }
+
+          instance = resource.instance = createResourceInstance(type, props, root);
+          insertResourceInstanceBefore(root, instance, insertBefore);
+          break;
+        }
+
+      case 'link':
+        {
+          var linkProps = props;
+          var limitedEscapedRel = escapeSelectorAttributeValueInsideDoubleQuotes(linkProps.rel);
+          var limitedEscapedHref = escapeSelectorAttributeValueInsideDoubleQuotes(linkProps.href);
+          var selector = "link[rel=\"" + limitedEscapedRel + "\"][href=\"" + limitedEscapedHref + "\"]";
+
+          if (typeof linkProps.sizes === 'string') {
+            var limitedEscapedSizes = escapeSelectorAttributeValueInsideDoubleQuotes(linkProps.sizes);
+            selector += "[sizes=\"" + limitedEscapedSizes + "\"]";
+          }
+
+          if (typeof linkProps.media === 'string') {
+            var limitedEscapedMedia = escapeSelectorAttributeValueInsideDoubleQuotes(linkProps.media);
+            selector += "[media=\"" + limitedEscapedMedia + "\"]";
+          }
+
+          var existingEl = root.querySelector(selector);
+
+          if (existingEl) {
+            instance = resource.instance = existingEl;
+            markNodeAsResource(instance);
+            return instance;
+          }
+
+          instance = resource.instance = createResourceInstance(type, props, root);
+          insertResourceInstanceBefore(root, instance, null);
+          return instance;
+        }
+
+      default:
+        {
+          throw new Error("acquireHeadResource encountered a resource type it did not expect: \"" + type + "\". This is a bug in React.");
+        }
+    }
+  }
+
+  return instance;
+}
+
 function acquireStyleResource(resource) {
-  if (!resource.instance) {
+  var instance = resource.instance;
+
+  if (!instance) {
     var props = resource.props,
         root = resource.root,
         precedence = resource.precedence;
@@ -12181,7 +12518,8 @@ function acquireStyleResource(resource) {
     var existingEl = root.querySelector("link[rel=\"stylesheet\"][data-precedence][href=\"" + limitedEscapedHref + "\"]");
 
     if (existingEl) {
-      resource.instance = existingEl;
+      instance = resource.instance = existingEl;
+      markNodeAsResource(instance);
       resource.preloaded = true;
       var loadingState = existingEl._p;
 
@@ -12212,35 +12550,35 @@ function acquireStyleResource(resource) {
         resource.loaded = true;
       }
     } else {
-      var instance = createResourceInstance('link', resource.props, getDocumentFromRoot(root));
+      instance = resource.instance = createResourceInstance('link', resource.props, getDocumentFromRoot(root));
       attachLoadListeners(instance, resource);
       insertStyleInstance(instance, precedence, root);
-      resource.instance = instance;
     }
   }
 
-  resource.count++; // $FlowFixMe[incompatible-return] found when upgrading Flow
-
-  return resource.instance;
+  resource.count++;
+  return instance;
 }
 
 function acquireScriptResource(resource) {
-  if (!resource.instance) {
+  var instance = resource.instance;
+
+  if (!instance) {
     var props = resource.props,
         root = resource.root;
     var limitedEscapedSrc = escapeSelectorAttributeValueInsideDoubleQuotes(props.src);
     var existingEl = root.querySelector("script[async][src=\"" + limitedEscapedSrc + "\"]");
 
     if (existingEl) {
-      resource.instance = existingEl;
+      instance = resource.instance = existingEl;
+      markNodeAsResource(instance);
     } else {
-      var instance = createResourceInstance('script', resource.props, getDocumentFromRoot(root));
-      insertResourceInstance(instance, getDocumentFromRoot(root));
-      resource.instance = instance;
+      instance = resource.instance = createResourceInstance('script', resource.props, getDocumentFromRoot(root));
+      insertResourceInstanceBefore(getDocumentFromRoot(root), instance, null);
     }
   }
 
-  return resource.instance;
+  return instance;
 }
 
 function attachLoadListeners(instance, resource) {
@@ -12305,51 +12643,77 @@ function insertStyleInstance(instance, precedence, root) {
   }
 }
 
-function insertResourceInstance(instance, ownerDocument) {
+function insertResourceInstanceBefore(ownerDocument, instance, before) {
   {
     if (instance.tagName === 'LINK' && instance.rel === 'stylesheet') {
-      error('insertResourceInstance was called with a stylesheet. Stylesheets must be' + ' inserted with insertStyleInstance instead. This is a bug in React.');
+      error('insertResourceInstanceBefore was called with a stylesheet. Stylesheets must be' + ' inserted with insertStyleInstance instead. This is a bug in React.');
     }
   }
 
-  var parent = ownerDocument.head;
+  var parent = before && before.parentNode || ownerDocument.head;
 
   if (parent) {
-    parent.appendChild(instance);
+    parent.insertBefore(instance, before);
   } else {
     throw new Error('While attempting to insert a Resource, React expected the Document to contain' + ' a head element but it was not found.');
   }
 }
 
 function isHostResourceType(type, props) {
+  var resourceFormOnly;
+
+  {
+    var hostContext = getHostContext$1();
+    resourceFormOnly = getResourceFormOnly(hostContext);
+  }
+
   switch (type) {
+    case 'meta':
+    case 'title':
+      {
+        return true;
+      }
+
     case 'link':
       {
+        var onLoad = props.onLoad,
+            onError = props.onError;
+
+        if (onLoad || onError) {
+          {
+            if (resourceFormOnly) {
+              error('Cannot render a <link> with onLoad or onError listeners outside the main document.' + ' Try removing onLoad={...} and onError={...} or moving it into the root <head> tag or' + ' somewhere in the <body>.');
+            }
+          }
+
+          return false;
+        }
+
         switch (props.rel) {
           case 'stylesheet':
             {
-              {
-                validateLinkPropsForStyleResource(props);
-              }
-
               var href = props.href,
                   precedence = props.precedence,
-                  onLoad = props.onLoad,
-                  onError = props.onError,
                   disabled = props.disabled;
-              return typeof href === 'string' && typeof precedence === 'string' && !onLoad && !onError && disabled == null;
+
+              {
+                validateLinkPropsForStyleResource(props);
+
+                if (typeof precedence !== 'string' && resourceFormOnly) {
+                  error('Cannot render a <link rel="stylesheet" /> outside the main document without knowing its precedence.' + ' Consider adding precedence="default" or moving it into the root <head> tag.');
+                }
+              }
+
+              return typeof href === 'string' && typeof precedence === 'string' && disabled == null;
             }
 
-          case 'preload':
+          default:
             {
-              var _href2 = props.href,
-                  _onLoad = props.onLoad,
-                  _onError = props.onError;
-              return !_onLoad && !_onError && typeof _href2 === 'string';
+              var rel = props.rel,
+                  _href3 = props.href;
+              return typeof _href3 === 'string' && typeof rel === 'string';
             }
         }
-
-        return false;
       }
 
     case 'script':
@@ -12358,9 +12722,32 @@ function isHostResourceType(type, props) {
         // precedence with these for style resources
         var src = props.src,
             async = props.async,
-            _onLoad2 = props.onLoad,
-            _onError2 = props.onError;
-        return async && typeof src === 'string' && !_onLoad2 && !_onError2;
+            _onLoad = props.onLoad,
+            _onError = props.onError;
+
+        {
+          if (async !== true && resourceFormOnly) {
+            error('Cannot render a sync or defer <script> outside the main document without knowing its order.' + ' Try adding async="" or moving it into the root <head> tag.');
+          } else if ((_onLoad || _onError) && resourceFormOnly) {
+            error('Cannot render a <script> with onLoad or onError listeners outside the main document.' + ' Try removing onLoad={...} and onError={...} or moving it into the root <head> tag or' + ' somewhere in the <body>.');
+          }
+        }
+
+        return async && typeof src === 'string' && !_onLoad && !_onError;
+      }
+
+    case 'base':
+    case 'template':
+    case 'style':
+    case 'noscript':
+      {
+        {
+          if (resourceFormOnly) {
+            error('Cannot render <%s> outside the main document. Try moving it into the root <head> tag.', type);
+          }
+        }
+
+        return false;
       }
   }
 
@@ -12708,60 +13095,17 @@ function unhideTextInstance(textInstance, text) {
 }
 function clearContainer(container) {
   {
-    // We have refined the container to Element type
     var nodeType = container.nodeType;
 
-    if (nodeType === DOCUMENT_NODE || nodeType === ELEMENT_NODE) {
+    if (nodeType === DOCUMENT_NODE) {
+      clearContainerSparingly(container);
+    } else if (nodeType === ELEMENT_NODE) {
       switch (container.nodeName) {
-        case '#document':
         case 'HTML':
         case 'HEAD':
         case 'BODY':
-          {
-            var node = container.firstChild;
-
-            while (node) {
-              var nextNode = node.nextSibling;
-              var nodeName = node.nodeName;
-
-              switch (nodeName) {
-                case 'HTML':
-                case 'HEAD':
-                case 'BODY':
-                  {
-                    clearContainer(node); // If these singleton instances had previously been rendered with React they
-                    // may still hold on to references to the previous fiber tree. We detatch them
-                    // prospectiveyl to reset them to a baseline starting state since we cannot create
-                    // new instances.
-
-                    detachDeletedInstance(node);
-                    break;
-                  }
-
-                case 'STYLE':
-                  {
-                    break;
-                  }
-
-                case 'LINK':
-                  {
-                    if (node.rel.toLowerCase() === 'stylesheet') {
-                      break;
-                    }
-                  }
-                // eslint-disable-next-line no-fallthrough
-
-                default:
-                  {
-                    container.removeChild(node);
-                  }
-              }
-
-              node = nextNode;
-            }
-
-            return;
-          }
+          clearContainerSparingly(container);
+          return;
 
         default:
           {
@@ -12770,6 +13114,52 @@ function clearContainer(container) {
       }
     }
   }
+}
+
+function clearContainerSparingly(container) {
+  var node;
+  var nextNode = container.firstChild;
+
+  if (nextNode && nextNode.nodeType === DOCUMENT_TYPE_NODE) {
+    nextNode = nextNode.nextSibling;
+  }
+
+  while (nextNode) {
+    node = nextNode;
+    nextNode = nextNode.nextSibling;
+
+    switch (node.nodeName) {
+      case 'HTML':
+      case 'HEAD':
+      case 'BODY':
+        {
+          var element = node;
+          clearContainerSparingly(element); // If these singleton instances had previously been rendered with React they
+          // may still hold on to references to the previous fiber tree. We detatch them
+          // prospectively to reset them to a baseline starting state since we cannot create
+          // new instances.
+
+          detachDeletedInstance(element);
+          continue;
+        }
+
+      case 'STYLE':
+        {
+          continue;
+        }
+
+      case 'LINK':
+        {
+          if (node.rel.toLowerCase() === 'stylesheet') {
+            continue;
+          }
+        }
+    }
+
+    container.removeChild(node);
+  }
+
+  return;
 } // Making this so we can eventually move all of the instance caching to the commit phase.
 // inserted without breaking hydration
 
@@ -12887,6 +13277,7 @@ function getNextHydratable(node) {
               break;
             }
 
+          case 'TITLE':
           case 'HTML':
           case 'HEAD':
           case 'BODY':
@@ -13224,7 +13615,7 @@ function clearSingleton(instance) {
     var nextNode = node.nextSibling;
     var nodeName = node.nodeName;
 
-    if (getInstanceFromNode(node)) ; else if (nodeName === 'HEAD' || nodeName === 'BODY' || nodeName === 'STYLE' || nodeName === 'LINK' && node.rel.toLowerCase() === 'stylesheet') ; else {
+    if (isMarkedResource(node) || nodeName === 'HEAD' || nodeName === 'BODY' || nodeName === 'STYLE' || nodeName === 'LINK' && node.rel.toLowerCase() === 'stylesheet') ; else {
       element.removeChild(node);
     }
 
@@ -13242,6 +13633,7 @@ var internalEventHandlersKey = '__reactEvents$' + randomKey;
 var internalEventHandlerListenersKey = '__reactListeners$' + randomKey;
 var internalEventHandlesSetKey = '__reactHandles$' + randomKey;
 var internalRootNodeResourcesKey = '__reactResources$' + randomKey;
+var internalResourceMarker = '__reactMarker$' + randomKey;
 function detachDeletedInstance(node) {
   // TODO: This function is only called on host components. I don't think all of
   // these fields are relevant.
@@ -13411,11 +13803,19 @@ function getResourcesFromRoot(root) {
   if (!resources) {
     resources = root[internalRootNodeResourcesKey] = {
       styles: new Map(),
-      scripts: new Map()
+      scripts: new Map(),
+      head: new Map(),
+      lastStructuredMeta: new Map()
     };
   }
 
   return resources;
+}
+function isMarkedResource(node) {
+  return !!node[internalResourceMarker];
+}
+function markNodeAsResource(node) {
+  node[internalResourceMarker] = true;
 }
 
 var loggedTypeFailures = {};
@@ -15834,7 +16234,7 @@ function commitCallbacks(updateQueue, context) {
 var fakeInternalInstance = {}; // React.Component uses a shared frozen object by default.
 // We'll use it to determine whether we need to initialize legacy refs.
 
-var emptyRefsObject = new React.Component().refs;
+var emptyRefsObject = React.Component ? new React.Component().refs : {};
 var didWarnAboutStateAssignmentForComponent;
 var didWarnAboutUninitializedState;
 var didWarnAboutGetSnapshotBeforeUpdateWithoutDidUpdate;
@@ -18024,8 +18424,8 @@ function popCacheProvider(workInProgress, cache) {
   popProvider(CacheContext, workInProgress);
 }
 
+var ReactCurrentActQueue = ReactSharedInternals.ReactCurrentActQueue;
 var suspendedThenable = null;
-
 var usedThenables = null;
 function isTrackingSuspendedThenable() {
   return suspendedThenable !== null;
@@ -18038,12 +18438,16 @@ function suspendedThenableDidResolve() {
 
   return false;
 }
-function trackSuspendedWakeable(wakeable) {
-  // If this wakeable isn't already a thenable, turn it into one now. Then,
-  // when we resume the work loop, we can check if its status is
-  // still pending.
-  // TODO: Get rid of the Wakeable type? It's superseded by UntrackedThenable.
-  var thenable = wakeable;
+function trackUsedThenable(thenable, index) {
+  if ( ReactCurrentActQueue.current !== null) {
+    ReactCurrentActQueue.didUsePromise = true;
+  }
+
+  if (usedThenables === null) {
+    usedThenables = [thenable];
+  } else {
+    usedThenables[index] = thenable;
+  }
 
   suspendedThenable = thenable; // We use an expando to track the status and result of a thenable so that we
   // can synchronously unwrap the value. Think of this as an extension of the
@@ -18096,13 +18500,6 @@ function resetWakeableStateAfterEachAttempt() {
 }
 function resetThenableStateOnCompletion() {
   usedThenables = null;
-}
-function trackUsedThenable(thenable, index) {
-  if (usedThenables === null) {
-    usedThenables = [];
-  }
-
-  usedThenables[index] = thenable;
 }
 function getPreviouslyUsedThenableAtIndex(index) {
   if (usedThenables !== null) {
@@ -18561,6 +18958,8 @@ var createFunctionComponentUpdateQueue;
   };
 }
 
+function noop$1() {}
+
 function use(usable) {
   if (usable !== null && typeof usable === 'object') {
     // $FlowFixMe[method-unbinding]
@@ -18569,7 +18968,7 @@ function use(usable) {
       var thenable = usable; // Track the position of the thenable within this fiber.
 
       var index = thenableIndexCounter;
-      thenableIndexCounter += 1;
+      thenableIndexCounter += 1; // TODO: Unify this switch statement with the one in trackUsedThenable.
 
       switch (thenable.status) {
         case 'fulfilled':
@@ -18589,6 +18988,12 @@ function use(usable) {
             var prevThenableAtIndex = getPreviouslyUsedThenableAtIndex(index);
 
             if (prevThenableAtIndex !== null) {
+              if (thenable !== prevThenableAtIndex) {
+                // Avoid an unhandled rejection errors for the Promises that we'll
+                // intentionally ignore.
+                thenable.then(noop$1, noop$1);
+              }
+
               switch (prevThenableAtIndex.status) {
                 case 'fulfilled':
                   {
@@ -19254,48 +19659,56 @@ function updateEffect(create, deps) {
   return updateEffectImpl(Passive, Passive$1, create, deps);
 }
 
-function useEventImpl(event, nextImpl) {
+function useEventImpl(payload) {
   currentlyRenderingFiber$1.flags |= Update;
   var componentUpdateQueue = currentlyRenderingFiber$1.updateQueue;
 
   if (componentUpdateQueue === null) {
     componentUpdateQueue = createFunctionComponentUpdateQueue();
     currentlyRenderingFiber$1.updateQueue = componentUpdateQueue;
-    componentUpdateQueue.events = [event, nextImpl];
+    componentUpdateQueue.events = [payload];
   } else {
     var events = componentUpdateQueue.events;
 
     if (events === null) {
-      componentUpdateQueue.events = [event, nextImpl];
+      componentUpdateQueue.events = [payload];
     } else {
-      events.push(event, nextImpl);
+      events.push(payload);
     }
   }
 }
 
 function mountEvent(callback) {
   var hook = mountWorkInProgressHook();
+  var ref = {
+    impl: callback
+  };
+  hook.memoizedState = ref; // $FlowIgnore[incompatible-return]
 
-  var eventFn = function eventFn() {
+  return function eventFn() {
     if (isInvalidExecutionContextForEventFunction()) {
       throw new Error("A function wrapped in useEvent can't be called during rendering.");
-    } // $FlowFixMe[prop-missing] found when upgrading Flow
+    }
 
-
-    return eventFn._impl.apply(undefined, arguments);
+    return ref.impl.apply(undefined, arguments);
   };
-
-  eventFn._impl = callback;
-  useEventImpl(eventFn, callback);
-  hook.memoizedState = eventFn;
-  return eventFn;
 }
 
 function updateEvent(callback) {
   var hook = updateWorkInProgressHook();
-  var eventFn = hook.memoizedState;
-  useEventImpl(eventFn, callback);
-  return eventFn;
+  var ref = hook.memoizedState;
+  useEventImpl({
+    ref: ref,
+    nextImpl: callback
+  }); // $FlowIgnore[incompatible-return]
+
+  return function eventFn() {
+    if (isInvalidExecutionContextForEventFunction()) {
+      throw new Error("A function wrapped in useEvent can't be called during rendering.");
+    }
+
+    return ref.impl.apply(undefined, arguments);
+  };
 }
 
 function mountInsertionEffect(create, deps) {
@@ -22598,9 +23011,14 @@ function updateHostResource(current, workInProgress, renderLanes) {
   pushHostContext(workInProgress);
   markRef(current, workInProgress);
   var currentProps = current === null ? null : current.memoizedProps;
-  workInProgress.memoizedState = getResource(workInProgress.type, workInProgress.pendingProps, currentProps);
-  reconcileChildren(current, workInProgress, workInProgress.pendingProps.children, renderLanes);
-  return workInProgress.child;
+  workInProgress.memoizedState = getResource(workInProgress.type, workInProgress.pendingProps, currentProps); // Resources never have reconciler managed children. It is possible for
+  // the host implementation of getResource to consider children in the
+  // resource construction but they will otherwise be discarded. In practice
+  // this precludes all but the simplest children and Host specific warnings
+  // should be implemented to warn when children are passsed when otherwise not
+  // expected
+
+  return null;
 }
 
 function updateHostSingleton(current, workInProgress, renderLanes) {
@@ -24398,7 +24816,7 @@ function beginWork(current, workInProgress, renderLanes) {
 
     case HostResource:
       {
-        return updateHostResource(current, workInProgress, renderLanes);
+        return updateHostResource(current, workInProgress);
       }
 
     // eslint-disable-next-line no-fallthrough
@@ -26231,13 +26649,11 @@ function commitUseEventMount(finishedWork) {
   var eventPayloads = updateQueue !== null ? updateQueue.events : null;
 
   if (eventPayloads !== null) {
-    // FunctionComponentUpdateQueue.events is a flat array of
-    // [EventFunctionWrapper, EventFunction, ...], so increment by 2 each iteration to find the next
-    // pair.
-    for (var ii = 0; ii < eventPayloads.length; ii += 2) {
-      var eventFn = eventPayloads[ii];
-      var nextImpl = eventPayloads[ii + 1];
-      eventFn._impl = nextImpl;
+    for (var ii = 0; ii < eventPayloads.length; ii++) {
+      var _eventPayloads$ii = eventPayloads[ii],
+          ref = _eventPayloads$ii.ref,
+          nextImpl = _eventPayloads$ii.nextImpl;
+      ref.impl = nextImpl;
     }
   }
 }
@@ -27159,7 +27575,11 @@ function commitDeletionEffectsOnFiber(finishedRoot, nearestMountedAncestor, dele
           }
 
           recursivelyTraverseDeletionEffects(finishedRoot, nearestMountedAncestor, deletedFiber);
-          releaseResource(deletedFiber.memoizedState);
+
+          if (deletedFiber.memoizedState) {
+            releaseResource(deletedFiber.memoizedState);
+          }
+
           return;
         }
       }
@@ -29045,7 +29465,7 @@ function onCommitRoot$1() {
   }
 }
 
-var ReactCurrentActQueue = ReactSharedInternals.ReactCurrentActQueue;
+var ReactCurrentActQueue$1 = ReactSharedInternals.ReactCurrentActQueue;
 function isLegacyActEnvironment(fiber) {
   {
     // Legacy mode. We preserve the behavior of React 17's act. It assumes an
@@ -29063,7 +29483,7 @@ function isConcurrentActEnvironment() {
   {
     var isReactActEnvironmentGlobal = typeof IS_REACT_ACT_ENVIRONMENT !== 'undefined' ? IS_REACT_ACT_ENVIRONMENT : undefined;
 
-    if (!isReactActEnvironmentGlobal && ReactCurrentActQueue.current !== null) {
+    if (!isReactActEnvironmentGlobal && ReactCurrentActQueue$1.current !== null) {
       // TODO: Include link to relevant documentation page.
       error('The current testing environment is not configured to support ' + 'act(...)');
     }
@@ -29078,7 +29498,7 @@ var ReactCurrentDispatcher$2 = ReactSharedInternals.ReactCurrentDispatcher,
     ReactCurrentCache = ReactSharedInternals.ReactCurrentCache,
     ReactCurrentOwner$2 = ReactSharedInternals.ReactCurrentOwner,
     ReactCurrentBatchConfig$3 = ReactSharedInternals.ReactCurrentBatchConfig,
-    ReactCurrentActQueue$1 = ReactSharedInternals.ReactCurrentActQueue;
+    ReactCurrentActQueue$2 = ReactSharedInternals.ReactCurrentActQueue;
 var NoContext =
 /*             */
 0;
@@ -29347,7 +29767,7 @@ function scheduleUpdateOnFiber(root, fiber, lane, eventTime) {
     ensureRootIsScheduled(root, eventTime);
 
     if (lane === SyncLane && executionContext === NoContext && (fiber.mode & ConcurrentMode) === NoMode && // Treat `act` as if it's inside `batchedUpdates`, even in legacy mode.
-    !( ReactCurrentActQueue$1.isBatchingLegacy)) {
+    !( ReactCurrentActQueue$2.isBatchingLegacy)) {
       // Flush the synchronous work now, unless we're already working or inside
       // a batch. This is intentionally inside scheduleUpdateOnFiber instead of
       // scheduleCallbackForFiber to preserve the ability to schedule a callback
@@ -29413,7 +29833,7 @@ function ensureRootIsScheduled(root, currentTime) {
   if (existingCallbackPriority === newCallbackPriority && // Special case related to `act`. If the currently scheduled task is a
   // Scheduler task, rather than an `act` task, cancel it and re-scheduled
   // on the `act` queue.
-  !( ReactCurrentActQueue$1.current !== null && existingCallbackNode !== fakeActCallbackNode)) {
+  !( ReactCurrentActQueue$2.current !== null && existingCallbackNode !== fakeActCallbackNode)) {
     {
       // If we're going to re-use an existing task, it needs to exist.
       // Assume that discrete update microtasks are non-cancellable and null.
@@ -29439,8 +29859,8 @@ function ensureRootIsScheduled(root, currentTime) {
     // Special case: Sync React callbacks are scheduled on a special
     // internal queue
     if (root.tag === LegacyRoot) {
-      if ( ReactCurrentActQueue$1.isBatchingLegacy !== null) {
-        ReactCurrentActQueue$1.didScheduleLegacyUpdate = true;
+      if ( ReactCurrentActQueue$2.isBatchingLegacy !== null) {
+        ReactCurrentActQueue$2.didScheduleLegacyUpdate = true;
       }
 
       scheduleLegacySyncCallback(performSyncWorkOnRoot.bind(null, root));
@@ -29450,11 +29870,11 @@ function ensureRootIsScheduled(root, currentTime) {
 
     {
       // Flush the queue in a microtask.
-      if ( ReactCurrentActQueue$1.current !== null) {
+      if ( ReactCurrentActQueue$2.current !== null) {
         // Inside `act`, use our internal `act` queue so that these get flushed
         // at the end of the current scope even when using the sync version
         // of `act`.
-        ReactCurrentActQueue$1.current.push(flushSyncCallbacks);
+        ReactCurrentActQueue$2.current.push(flushSyncCallbacks);
       } else {
         scheduleMicrotask(function () {
           // In Safari, appending an iframe forces microtasks to run.
@@ -29994,7 +30414,7 @@ function batchedUpdates$1(fn, a) {
     // most batchedUpdates-like method.
 
     if (executionContext === NoContext && // Treat `act` as if it's inside `batchedUpdates`, even in legacy mode.
-    !( ReactCurrentActQueue$1.isBatchingLegacy)) {
+    !( ReactCurrentActQueue$2.isBatchingLegacy)) {
       resetRenderTimer();
       flushSyncCallbacksOnlyInLegacyMode();
     }
@@ -30145,8 +30565,6 @@ function handleThrow(root, thrownValue) {
     return;
   }
 
-  var isWakeable = thrownValue !== null && typeof thrownValue === 'object' && typeof thrownValue.then === 'function';
-
   if ( erroredWork.mode & ProfileMode) {
     // Record the time spent rendering before an error was thrown. This
     // avoids inaccurate Profiler durations in the case of a
@@ -30157,17 +30575,12 @@ function handleThrow(root, thrownValue) {
   {
     markComponentRenderStopped();
 
-    if (isWakeable) {
+    if (thrownValue !== null && typeof thrownValue === 'object' && typeof thrownValue.then === 'function') {
       var wakeable = thrownValue;
       markComponentSuspended(erroredWork, wakeable, workInProgressRootRenderLanes);
     } else {
       markComponentErrored(erroredWork, thrownValue, workInProgressRootRenderLanes);
     }
-  }
-
-  if (isWakeable) {
-    var _wakeable = thrownValue;
-    trackSuspendedWakeable(_wakeable);
   }
 }
 
@@ -31620,7 +32033,7 @@ function scheduleCallback$2(priorityLevel, callback) {
   {
     // If we're currently inside an `act` scope, bypass Scheduler and push to
     // the `act` queue instead.
-    var actQueue = ReactCurrentActQueue$1.current;
+    var actQueue = ReactCurrentActQueue$2.current;
 
     if (actQueue !== null) {
       actQueue.push(callback);
@@ -31642,7 +32055,7 @@ function cancelCallback$1(callbackNode) {
 
 function shouldForceFlushFallbacksInDEV() {
   // Never force flush in production. This function should get stripped out.
-  return  ReactCurrentActQueue$1.current !== null;
+  return  ReactCurrentActQueue$2.current !== null;
 }
 
 function warnIfUpdatesNotWrappedWithActDEV(fiber) {
@@ -31672,7 +32085,7 @@ function warnIfUpdatesNotWrappedWithActDEV(fiber) {
       }
     }
 
-    if (ReactCurrentActQueue$1.current === null) {
+    if (ReactCurrentActQueue$2.current === null) {
       var previousFiber = current;
 
       try {
@@ -31692,7 +32105,7 @@ function warnIfUpdatesNotWrappedWithActDEV(fiber) {
 
 function warnIfSuspenseResolutionNotWrappedWithActDEV(root) {
   {
-    if (root.tag !== LegacyRoot && isConcurrentActEnvironment() && ReactCurrentActQueue$1.current === null) {
+    if (root.tag !== LegacyRoot && isConcurrentActEnvironment() && ReactCurrentActQueue$2.current === null) {
       error('A suspended resource finished loading inside a test, but the event ' + 'was not wrapped in act(...).\n\n' + 'When testing, code that resolves suspended data should be wrapped ' + 'into act(...):\n\n' + 'act(() => {\n' + '  /* finish loading suspended data */\n' + '});\n' + '/* assert on the output */\n\n' + "This ensures that you're testing the behavior the user would see " + 'in the browser.' + ' Learn more at https://reactjs.org/link/wrap-tests-with-act');
     }
   }
@@ -32394,12 +32807,8 @@ function createHostRootFiber(tag, isStrictMode, concurrentUpdatesByDefaultOverri
   if (tag === ConcurrentRoot) {
     mode = ConcurrentMode;
 
-    if (isStrictMode === true) {
-      mode |= StrictLegacyMode;
-
-      {
-        mode |= StrictEffectsMode;
-      }
+    if (isStrictMode === true || createRootStrictEffectsByDefault) {
+      mode |= StrictLegacyMode | StrictEffectsMode;
     }
   } else {
     mode = NoMode;
@@ -32445,7 +32854,7 @@ key, pendingProps, owner, mode, lanes) {
         fiberTag = Mode;
         mode |= StrictLegacyMode;
 
-        if ( (mode & ConcurrentMode) !== NoMode) {
+        if ((mode & ConcurrentMode) !== NoMode) {
           // Strict effects should never run on legacy roots
           mode |= StrictEffectsMode;
         }
@@ -32811,7 +33220,7 @@ identifierPrefix, onRecoverableError, transitionCallbacks) {
   return root;
 }
 
-var ReactVersion = '18.3.0-experimental-9cdf8a99e-20221018';
+var ReactVersion = '18.3.0-experimental-1d3fc9c9c-20221023';
 
 function createPortal(children, containerInfo, // TODO: figure out the API for cross-renderer implementation.
 implementation) {

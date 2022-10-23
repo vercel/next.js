@@ -262,6 +262,12 @@ export default class NextNodeServer extends BaseServer {
         isAppPath: false,
       }).catch(() => {})
     }
+
+    if (this.nextConfig.experimental.appDir) {
+      // expose AsyncLocalStorage on global for react usage
+      const { AsyncLocalStorage } = require('async_hooks')
+      ;(global as any).AsyncLocalStorage = AsyncLocalStorage
+    }
   }
 
   private compression = this.nextConfig.compress
