@@ -4,7 +4,7 @@
 
 import { useCallback, useState } from 'react'
 
-export default function Page() {
+export default function Page({ whatIsThis }) {
   return <div>hello</div>
 }
 
