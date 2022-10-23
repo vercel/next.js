@@ -2067,7 +2067,7 @@ export async function ncc(task, opts) {
       'copy_regenerator_runtime',
       'copy_babel_runtime',
       'copy_constants_browserify',
-      'ncc_react',
+      // 'ncc_react',
       'ncc_react_server_dom_webpack',
       'copy_react_is',
       'ncc_sass_loader',

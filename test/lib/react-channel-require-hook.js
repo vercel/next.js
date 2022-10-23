@@ -1,7 +1,9 @@
 const mod = require('module')
 
 // The value will be '17' or 'exp' to alias the actual react channel
-const reactVersion = undefined
+const reactVersion = process.env.__NEXT_REACT_CHANNEL
+
+console.log('reactVersion', reactVersion)
 
 const reactDir = `react-${reactVersion}`
 const reactDomDir = `react-dom-${reactVersion}`

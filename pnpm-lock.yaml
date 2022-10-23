@@ -144,6 +144,9 @@ importers:
       react-17: npm:react@17.0.2
       react-dom: 18.2.0
       react-dom-17: npm:react-dom@17.0.2
+      react-dom-exp: npm:react-dom@0.0.0-experimental-9cdf8a99e-20221018
+      react-exp: npm:react@0.0.0-experimental-9cdf8a99e-20221018
+      react-server-dom-webpack: 0.0.0-experimental-9cdf8a99e-20221018
       react-ssr-prepass: 1.0.8
       react-virtualized: 9.22.3
       relay-compiler: 13.0.2
@@ -301,6 +304,9 @@ importers:
       react-17: /react/17.0.2
       react-dom: 18.2.0_react@18.2.0
       react-dom-17: /react-dom/17.0.2_react@18.2.0
+      react-dom-exp: /react-dom/0.0.0-experimental-9cdf8a99e-20221018_react@18.2.0
+      react-exp: /react/0.0.0-experimental-9cdf8a99e-20221018
+      react-server-dom-webpack: 0.0.0-experimental-9cdf8a99e-20221018_4ifzx734of5j5ymg4ksx54vtqi
       react-ssr-prepass: 1.0.8_qncsgtzehe3fgiqp6tr7lwq6fm
       react-virtualized: 9.22.3_biqbaboplfbrettd7655fr4n2y
       relay-compiler: 13.0.2
@@ -592,13 +598,8 @@ importers:
       punycode: 2.1.1
       querystring-es3: 0.2.1
       raw-body: 2.4.1
-      react: 18.2.0
-      react-builtin: npm:react@0.0.0-experimental-9cdf8a99e-20221018
-      react-dom: 18.2.0
-      react-dom-builtin: npm:react-dom@0.0.0-experimental-9cdf8a99e-20221018
       react-is: 17.0.2
       react-refresh: 0.12.0
-      react-server-dom-webpack: 0.0.0-experimental-9cdf8a99e-20221018
       regenerator-runtime: 0.13.4
       sass-loader: 12.4.0
       schema-utils2: npm:schema-utils@2.7.1
@@ -794,13 +795,8 @@ importers:
       punycode: 2.1.1
       querystring-es3: 0.2.1
       raw-body: 2.4.1
-      react: 18.2.0
-      react-builtin: /react/0.0.0-experimental-9cdf8a99e-20221018
-      react-dom: 18.2.0_react@18.2.0
-      react-dom-builtin: /react-dom/0.0.0-experimental-9cdf8a99e-20221018_react@18.2.0
       react-is: 17.0.2
       react-refresh: 0.12.0
-      react-server-dom-webpack: 0.0.0-experimental-9cdf8a99e-20221018_4ifzx734of5j5ymg4ksx54vtqi
       regenerator-runtime: 0.13.4
       sass-loader: 12.4.0_webpack@5.74.0
       schema-utils2: /schema-utils/2.7.1
@@ -8596,7 +8592,7 @@ packages:
     dependencies:
       acorn: 7.4.1
 
-  /acorn-jsx/5.3.1_acorn@8.6.0:
+  /acorn-jsx/5.3.1_acorn@8.8.0:
     resolution:
       {
         integrity: sha512-K0Ptm/47OKfQRpNQ2J/oIN/3QYiK6FwW+eJbILhsdxh2WTLdl+30o8aGdTbm5JbffpFFAg/g+zi1E+jvJha5ng==,
@@ -8604,7 +8600,7 @@ packages:
     peerDependencies:
       acorn: ^6.0.0 || ^7.0.0 || ^8.0.0
     dependencies:
-      acorn: 8.6.0
+      acorn: 8.8.0
     dev: true
 
   /acorn-walk/7.1.1:
@@ -19377,7 +19373,7 @@ packages:
         optional: true
     dependencies:
       abab: 2.0.5
-      acorn: 8.6.0
+      acorn: 8.8.0
       acorn-globals: 6.0.0
       cssom: 0.4.4
       cssstyle: 2.3.0
@@ -21080,8 +21076,8 @@ packages:
         integrity: sha512-NQuiYA0lw+eFDtSG4+c7ao3RG9dM4P0Kx/sn8OLyPhxtIc6k+9n14k5VfLxRKfAxYRTo8c5PLZPaRNmslGWxJw==,
       }
     dependencies:
-      acorn: 8.6.0
-      acorn-jsx: 5.3.1_acorn@8.6.0
+      acorn: 8.8.0
+      acorn-jsx: 5.3.1_acorn@8.8.0
       micromark: 2.11.4
       micromark-extension-mdx-expression: 0.3.2
       micromark-extension-mdx-jsx: 0.3.3
@@ -25416,7 +25412,7 @@ packages:
       neo-async: 2.6.2
       react: 18.2.0
       react-dom: 18.2.0_react@18.2.0
-      webpack: 5.74.0
+      webpack: 5.74.0_@swc+core@1.2.203
     dev: true
 
   /react-ssr-prepass/1.0.8_qncsgtzehe3fgiqp6tr7lwq6fm:
