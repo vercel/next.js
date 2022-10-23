@@ -14,7 +14,7 @@ if (process.env.NODE_ENV !== "production") {
   (function() {
 'use strict';
 
-var ReactVersion = '18.3.0-experimental-9cdf8a99e-20221018';
+var ReactVersion = '18.3.0-experimental-0c11baa6a-20221022';
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -79,7 +79,11 @@ var ReactCurrentActQueue = {
   current: null,
   // Used to reproduce behavior of `batchedUpdates` in legacy mode.
   isBatchingLegacy: false,
-  didScheduleLegacyUpdate: false
+  didScheduleLegacyUpdate: false,
+  // Tracks whether something called `use` during the current batch of work.
+  // Determines whether we should yield to microtasks to unwrap already resolved
+  // promises without suspending.
+  didUsePromise: false
 };
 
 /**
@@ -1483,6 +1487,111 @@ function memo(type, compare) {
   return elementType;
 }
 
+var UNTERMINATED = 0;
+var TERMINATED = 1;
+var ERRORED = 2;
+
+function createCacheRoot() {
+  return new WeakMap();
+}
+
+function createCacheNode() {
+  return {
+    s: UNTERMINATED,
+    // status, represents whether the cached computation returned a value or threw an error
+    v: undefined,
+    // value, either the cached result or an error, depending on s
+    o: null,
+    // object cache, a WeakMap where non-primitive arguments are stored
+    p: null // primitive cache, a regular Map where primitive arguments are stored.
+
+  };
+}
+
+function cache(fn) {
+  return function () {
+    var dispatcher = ReactCurrentCache.current;
+
+    if (!dispatcher) {
+      // If there is no dispatcher, then we treat this as not being cached.
+      // $FlowFixMe: We don't want to use rest arguments since we transpile the code.
+      return fn.apply(null, arguments);
+    }
+
+    var fnMap = dispatcher.getCacheForType(createCacheRoot);
+    var fnNode = fnMap.get(fn);
+    var cacheNode;
+
+    if (fnNode === undefined) {
+      cacheNode = createCacheNode();
+      fnMap.set(fn, cacheNode);
+    } else {
+      cacheNode = fnNode;
+    }
+
+    for (var i = 0, l = arguments.length; i < l; i++) {
+      var arg = arguments[i];
+
+      if (typeof arg === 'function' || typeof arg === 'object' && arg !== null) {
+        // Objects go into a WeakMap
+        var objectCache = cacheNode.o;
+
+        if (objectCache === null) {
+          cacheNode.o = objectCache = new WeakMap();
+        }
+
+        var objectNode = objectCache.get(arg);
+
+        if (objectNode === undefined) {
+          cacheNode = createCacheNode();
+          objectCache.set(arg, cacheNode);
+        } else {
+          cacheNode = objectNode;
+        }
+      } else {
+        // Primitives go into a regular Map
+        var primitiveCache = cacheNode.p;
+
+        if (primitiveCache === null) {
+          cacheNode.p = primitiveCache = new Map();
+        }
+
+        var primitiveNode = primitiveCache.get(arg);
+
+        if (primitiveNode === undefined) {
+          cacheNode = createCacheNode();
+          primitiveCache.set(arg, cacheNode);
+        } else {
+          cacheNode = primitiveNode;
+        }
+      }
+    }
+
+    if (cacheNode.s === TERMINATED) {
+      return cacheNode.v;
+    }
+
+    if (cacheNode.s === ERRORED) {
+      throw cacheNode.v;
+    }
+
+    try {
+      // $FlowFixMe: We don't want to use rest arguments since we transpile the code.
+      var result = fn.apply(null, arguments);
+      var terminatedNode = cacheNode;
+      terminatedNode.s = TERMINATED;
+      terminatedNode.v = result;
+      return result;
+    } catch (error) {
+      // We store the first error that's thrown and rethrow it.
+      var erroredNode = cacheNode;
+      erroredNode.s = ERRORED;
+      erroredNode.v = error;
+      throw error;
+    }
+  };
+}
+
 function resolveDispatcher() {
   var dispatcher = ReactCurrentDispatcher.current;
 
@@ -2389,6 +2498,119 @@ function startTransition(scope, options) {
   }
 }
 
+function createFetchCache() {
+  return new Map();
+}
+
+var simpleCacheKey = '["GET",[],null,"follow",null,null,null,null]'; // generateCacheKey(new Request('https://blank'));
+
+function generateCacheKey(request) {
+  // We pick the fields that goes into the key used to dedupe requests.
+  // We don't include the `cache` field, because we end up using whatever
+  // caching resulted from the first request.
+  // Notably we currently don't consider non-standard (or future) options.
+  // This might not be safe. TODO: warn for non-standard extensions differing.
+  // IF YOU CHANGE THIS UPDATE THE simpleCacheKey ABOVE.
+  return JSON.stringify([request.method, Array.from(request.headers.entries()), request.mode, request.redirect, request.credentials, request.referrer, request.referrerPolicy, request.integrity]);
+}
+
+{
+  if (typeof fetch === 'function') {
+    var originalFetch = fetch;
+
+    try {
+      // eslint-disable-next-line no-native-reassign
+      fetch = function fetch(resource, options) {
+        var dispatcher = ReactCurrentCache.current;
+
+        if (!dispatcher) {
+          // We're outside a cached scope.
+          return originalFetch(resource, options);
+        }
+
+        if (options && options.signal && options.signal !== dispatcher.getCacheSignal()) {
+          // If we're passed a signal that is not ours, then we assume that
+          // someone else controls the lifetime of this object and opts out of
+          // caching. It's effectively the opt-out mechanism.
+          // Ideally we should be able to check this on the Request but
+          // it always gets initialized with its own signal so we don't
+          // know if it's supposed to override - unless we also override the
+          // Request constructor.
+          return originalFetch(resource, options);
+        } // Normalize the Request
+
+
+        var url;
+        var cacheKey;
+
+        if (typeof resource === 'string' && !options) {
+          // Fast path.
+          cacheKey = simpleCacheKey;
+          url = resource;
+        } else {
+          // Normalize the request.
+          var request = new Request(resource, options);
+
+          if (request.method !== 'GET' && request.method !== 'HEAD' || // $FlowFixMe: keepalive is real
+          request.keepalive) {
+            // We currently don't dedupe requests that might have side-effects. Those
+            // have to be explicitly cached. We assume that the request doesn't have a
+            // body if it's GET or HEAD.
+            // keepalive gets treated the same as if you passed a custom cache signal.
+            return originalFetch(resource, options);
+          }
+
+          cacheKey = generateCacheKey(request);
+          url = request.url;
+        }
+
+        var cache = dispatcher.getCacheForType(createFetchCache);
+        var cacheEntries = cache.get(url);
+        var match;
+
+        if (cacheEntries === undefined) {
+          // We pass the original arguments here in case normalizing the Request
+          // doesn't include all the options in this environment.
+          match = originalFetch(resource, options);
+          cache.set(url, [cacheKey, match]);
+        } else {
+          // We use an array as the inner data structure since it's lighter and
+          // we typically only expect to see one or two entries here.
+          for (var i = 0, l = cacheEntries.length; i < l; i += 2) {
+            var key = cacheEntries[i];
+            var value = cacheEntries[i + 1];
+
+            if (key === cacheKey) {
+              match = value; // I would've preferred a labelled break but lint says no.
+
+              return match.then(function (response) {
+                return response.clone();
+              });
+            }
+          }
+
+          match = originalFetch(resource, options);
+          cacheEntries.push(cacheKey, match);
+        } // We clone the response so that each time you call this you get a new read
+        // of the body so that it can be read multiple times.
+
+
+        return match.then(function (response) {
+          return response.clone();
+        });
+      }; // We don't expect to see any extra properties on fetch but if there are any,
+      // copy them over. Useful for extended fetch environments or mocks.
+
+
+      assign(fetch, originalFetch);
+    } catch (error) {
+      // Log even in production just to make sure this is seen if only prod is frozen.
+      // eslint-disable-next-line react-internal/no-production-logging
+      warn('React was unable to patch the fetch() function in this environment. ' + 'Suspensey APIs might not work correctly as a result.');
+    }
+  }
+}
+
 var createElement$1 =  createElementWithValidation ;
 var cloneElement$1 =  cloneElementWithValidation ;
 var Children = {
@@ -2410,6 +2632,7 @@ exports.cloneElement = cloneElement$1;
 exports.createElement = createElement$1;
 exports.createRef = createRef;
 exports.createServerContext = createServerContext;
+exports.experimental_cache = cache;
 exports.experimental_use = use;
 exports.forwardRef = forwardRef;
 exports.isValidElement = isValidElement;
