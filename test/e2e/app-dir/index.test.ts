@@ -893,23 +893,6 @@ describe('app dir', () => {
       })
 
       describe('next/router', () => {
-        // `useRouter` should not be accessible in server components.
-        it('should always return null when accessed from /app', async () => {
-          const browser = await webdriver(next.url, '/old-router')
-
-          try {
-            await browser.waitForElementByCss('#old-router')
-
-            const notNull = await browser.elementsByCss('.was-not-null')
-            expect(notNull.length).toBe(0)
-
-            const wasNull = await browser.elementsByCss('.was-null')
-            expect(wasNull.length).toBe(6)
-          } finally {
-            await browser.close()
-          }
-        })
-
         it('should support router.back and router.forward', async () => {
           const browser = await webdriver(next.url, '/back-forward/1')
 
@@ -1134,42 +1117,6 @@ describe('app dir', () => {
 
     describe('client components', () => {
       describe('hooks', () => {
-        describe('cookies function', () => {
-          // TODO-APP: should enable when implemented
-          it.skip('should throw an error when imported', async () => {
-            const res = await fetchViaHTTP(
-              next.url,
-              '/hooks/use-cookies/client'
-            )
-            expect(res.status).toBe(500)
-            expect(await res.text()).toContain('Internal Server Error')
-          })
-        })
-
-        describe('previewData function', () => {
-          // TODO-APP: should enable when implemented
-          it.skip('should throw an error when imported', async () => {
-            const res = await fetchViaHTTP(
-              next.url,
-              '/hooks/use-preview-data/client'
-            )
-            expect(res.status).toBe(500)
-            expect(await res.text()).toContain('Internal Server Error')
-          })
-        })
-
-        describe('headers function', () => {
-          // TODO-APP: should enable when implemented
-          it.skip('should throw an error when imported', async () => {
-            const res = await fetchViaHTTP(
-              next.url,
-              '/hooks/use-headers/client'
-            )
-            expect(res.status).toBe(500)
-            expect(await res.text()).toContain('Internal Server Error')
-          })
-        })
-
         describe('usePathname', () => {
           it('should have the correct pathname', async () => {
             const html = await renderViaHTTP(next.url, '/hooks/use-pathname')
