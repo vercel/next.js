@@ -731,23 +731,41 @@ export default class HotReloader {
 
     // Watch for changes to client/server page files so we can tell when just
     // the server file changes and trigger a reload for GS(S)P pages
-    const changedClientPages = new Set<string>()
-    const changedServerPages = new Set<string>()
-    const changedEdgeServerPages = new Set<string>()
-    const changedCSSImportPages = new Set<string>()
+    const changedClientEntries = new Set<string>()
+    const changedServerComponentClientEntries = new Set<string>()
+    const changedServerPagesEntries = new Set<string>()
+    const changedServerComponentEntries = new Set<string>()
+    const changedEdgeServerEntries = new Set<string>()
+    const changedEdgeServerComponentsEntries = new Set<string>()
+    const changedCSSImportEntries = new Set<string>()
 
-    const prevClientPageHashes = new Map<string, string>()
-    const prevServerPageHashes = new Map<string, string>()
-    const prevEdgeServerPageHashes = new Map<string, string>()
+    const prevClientEntryHashes = new Map<string, string>()
+    const prevServerComponentClientEntryHashes = new Map<string, string>()
+    const prevServerPagesEntryHashes = new Map<string, string>()
+    const prevServerComponentEntryHashes = new Map<string, string>()
+    const prevEdgeServerEntryHashes = new Map<string, string>()
+    const prevEdgeServerComponentsEntryHashes = new Map<string, string>()
     const prevCSSImportModuleHashes = new Map<string, string>()
 
     const trackPageChanges =
-      (pageHashMap: Map<string, string>, changedItems: Set<string>) =>
+      (
+        entryHashMap: Map<string, string>,
+        changedEntries: Set<string>,
+        entryType: 'pages' | 'app'
+      ) =>
       (stats: webpack.Compilation) => {
         try {
           for (const [key, entry] of stats.entrypoints) {
             if (
+              entryType === 'pages' &&
               !key.startsWith('pages/') &&
+              !isMiddlewareFilename(key)
+            ) {
+              continue
+            }
+
+            if (
+              entryType === 'app' &&
               !key.startsWith('app/') &&
               !isMiddlewareFilename(key)
             ) {
@@ -805,16 +823,16 @@ export default class HotReloader {
               }
             }
 
-            const prevHash = pageHashMap.get(key)
-            const curHash = chunksHash.toString()
+            const previousHash = entryHashMap.get(key)
+            const currentHash = chunksHash.toString()
 
-            if (prevHash && prevHash !== curHash) {
-              changedItems.add(key)
+            if (previousHash && previousHash !== currentHash) {
+              changedEntries.add(key)
             }
-            pageHashMap.set(key, curHash)
+            entryHashMap.set(key, currentHash)
 
             if (hasCSSModuleChanges) {
-              changedCSSImportPages.add(key)
+              changedCSSImportEntries.add(key)
             }
           }
         } catch (err) {
@@ -824,15 +842,48 @@ export default class HotReloader {
 
     this.multiCompiler.compilers[0].hooks.emit.tap(
       'NextjsHotReloaderForClient',
-      trackPageChanges(prevClientPageHashes, changedClientPages)
+      trackPageChanges(prevClientEntryHashes, changedClientEntries, 'pages')
+    )
+    this.multiCompiler.compilers[0].hooks.emit.tap(
+      'NextjsHotReloaderForServerComponentClientEntry',
+      trackPageChanges(
+        prevServerComponentClientEntryHashes,
+        changedServerComponentClientEntries,
+        'app'
+      )
     )
     this.multiCompiler.compilers[1].hooks.emit.tap(
       'NextjsHotReloaderForServer',
-      trackPageChanges(prevServerPageHashes, changedServerPages)
+      trackPageChanges(
+        prevServerPagesEntryHashes,
+        changedServerPagesEntries,
+        'pages'
+      )
+    )
+    this.multiCompiler.compilers[1].hooks.emit.tap(
+      'NextjsHotReloaderForServerComponentEntries',
+      trackPageChanges(
+        prevServerComponentEntryHashes,
+        changedServerComponentEntries,
+        'app'
+      )
     )
     this.multiCompiler.compilers[2].hooks.emit.tap(
       'NextjsHotReloaderForServer',
-      trackPageChanges(prevEdgeServerPageHashes, changedEdgeServerPages)
+      trackPageChanges(
+        prevEdgeServerEntryHashes,
+        changedEdgeServerEntries,
+        'pages'
+      )
+    )
+
+    this.multiCompiler.compilers[2].hooks.emit.tap(
+      'NextjsHotReloaderForServer',
+      trackPageChanges(
+        prevEdgeServerComponentsEntryHashes,
+        changedEdgeServerComponentsEntries,
+        'app'
+      )
     )
 
     // This plugin watches for changes to _document.js and notifies the client side that it should reload the page
@@ -891,37 +942,31 @@ export default class HotReloader {
     )
     this.multiCompiler.hooks.done.tap('NextjsHotReloaderForServer', () => {
       const serverOnlyChanges = difference<string>(
-        changedServerPages,
-        changedClientPages
+        changedServerPagesEntries,
+        changedClientEntries
       )
       const edgeServerOnlyChanges = difference<string>(
-        changedEdgeServerPages,
-        changedClientPages
+        changedEdgeServerEntries,
+        changedClientEntries
       )
-      const serverComponentChanges = serverOnlyChanges
-        .concat(edgeServerOnlyChanges)
-        .filter((key) => key.startsWith('app/'))
-        .concat(Array.from(changedCSSImportPages))
+
+      const serverComponentChanges = Array.from(changedServerComponentEntries)
+        .concat(Array.from(changedEdgeServerComponentsEntries))
+        .concat(Array.from(changedCSSImportEntries))
 
       const pageChanges = serverOnlyChanges.filter((key) =>
         key.startsWith('pages/')
       )
-      const middlewareChanges = Array.from(changedEdgeServerPages).filter(
+      const middlewareChanges = Array.from(changedEdgeServerEntries).filter(
         (name) => isMiddlewareFilename(name)
       )
 
-      console.log({
-        serverOnlyChanges,
-        edgeServerOnlyChanges,
-        serverComponentChanges,
-        pageChanges,
-        middlewareChanges,
-      })
-
-      changedClientPages.clear()
-      changedServerPages.clear()
-      changedEdgeServerPages.clear()
-      changedCSSImportPages.clear()
+      changedClientEntries.clear()
+      changedServerComponentClientEntries.clear()
+      changedServerPagesEntries.clear()
+      changedServerComponentEntries.clear()
+      changedEdgeServerEntries.clear()
+      changedCSSImportEntries.clear()
 
       if (middlewareChanges.length > 0) {
         this.send({
