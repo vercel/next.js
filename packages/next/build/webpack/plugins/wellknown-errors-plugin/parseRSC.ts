@@ -25,14 +25,20 @@ export function formatRSCErrorMessage(
         '\n\nMaybe one of these should be marked as a client entry with "use client":\n'
     } else if (NEXT_RSC_ERR_SERVER_IMPORT.test(message)) {
       const matches = message.match(NEXT_RSC_ERR_SERVER_IMPORT)
-      if (matches && matches[1] === 'react-dom/server') {
-        // If importing "react-dom/server", we should show a different error.
-        formattedMessage = `\n\nYou're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.`
-      } else {
-        formattedMessage = message.replace(
-          NEXT_RSC_ERR_SERVER_IMPORT,
-          `\n\nYou're importing a component that imports $1. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.\n\n`
-        )
+      switch (matches && matches[1]) {
+        case 'react-dom/server':
+          // If importing "react-dom/server", we should show a different error.
+          formattedMessage = `\n\nYou're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.`
+          break
+        case 'next/router':
+          // If importing "next/router", we should tell them to use "next/navigation".
+          formattedMessage = `\n\nYou have a Server Component that imports next/router. Use next/navigation instead.`
+          break
+        default:
+          formattedMessage = message.replace(
+            NEXT_RSC_ERR_SERVER_IMPORT,
+            `\n\nYou're importing a component that imports $1. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.\n\n`
+          )
       }
       formattedVerboseMessage =
         '\n\nMaybe one of these should be marked as a client entry "use client":\n'

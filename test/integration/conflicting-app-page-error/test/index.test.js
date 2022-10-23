@@ -52,6 +52,7 @@ describe('Conflict between app file and page file', () => {
       const { stdout, stderr } = await nextBuild(appDir, [], {
         stdout: true,
         stderr: true,
+        env: { NEXT_SKIP_APP_REACT_INSTALL: '1' },
       })
       output = stdout + stderr
     })

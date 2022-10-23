@@ -395,14 +395,9 @@ pub fn server_components<C: Comments>(
             JsWord::from("client-only"),
             JsWord::from("react-dom/client"),
             JsWord::from("react-dom/server"),
-            // TODO-APP: JsWord::from("next/router"),
-            // TODO-APP: Rule out client hooks.
+            JsWord::from("next/router"),
         ],
-        invalid_client_imports: vec![
-            JsWord::from("server-only"),
-            // TODO-APP: Rule out server hooks such as `useCookies`, `useHeaders`,
-            // `usePreviewData`.
-        ],
+        invalid_client_imports: vec![JsWord::from("server-only"), JsWord::from("next/headers")],
         invalid_server_react_dom_apis: vec![
             JsWord::from("findDOMNode"),
             JsWord::from("flushSync"),
