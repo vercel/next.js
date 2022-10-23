@@ -439,11 +439,6 @@ const configSchema = {
       isFunction: true,
       errorMessage: 'must be a function that returns a Promise',
     } as any,
-    future: {
-      additionalProperties: false,
-      properties: {},
-      type: 'object',
-    },
     generateBuildId: {
       isFunction: true,
       errorMessage: 'must be a function that returns a Promise',

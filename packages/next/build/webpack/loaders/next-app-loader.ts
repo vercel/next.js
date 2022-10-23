@@ -1,8 +1,12 @@
 import type webpack from 'webpack'
+import chalk from 'next/dist/compiled/chalk'
 import type { ValueOf } from '../../../shared/lib/constants'
 import { NODE_RESOLVE_OPTIONS } from '../../webpack-config'
 import { getModuleBuildInfo } from './get-module-build-info'
 import { sep } from 'path'
+import { verifyRootLayout } from '../../../lib/verifyRootLayout'
+import * as Log from '../../../build/output/log'
+import { APP_DIR_ALIAS } from '../../../lib/constants'
 
 export const FILE_TYPES = {
   layout: 'layout',
@@ -35,6 +39,7 @@ async function createTreeCodeFromPath({
   const splittedPath = pagePath.split(/[\\/]/)
   const appDirPrefix = splittedPath[0]
   const pages: string[] = []
+  let rootLayout: string | undefined
 
   async function createSubtreePropsFromSegmentPath(
     segments: string[]
@@ -82,6 +87,12 @@ async function createTreeCodeFromPath({
         })
       )
 
+      if (!rootLayout) {
+        rootLayout = filePaths.find(
+          ([type, path]) => type === 'layout' && !!path
+        )?.[1]
+      }
+
       props[parallelKey] = `[
         '${parallelSegment}',
         ${subtree},
@@ -111,7 +122,7 @@ async function createTreeCodeFromPath({
   }
 
   const tree = await createSubtreePropsFromSegmentPath([])
-  return [`const tree = ${tree}.children;`, pages]
+  return [`const tree = ${tree}.children;`, pages, rootLayout]
 }
 
 function createAbsolutePath(appDir: string, pathToTurnAbsolute: string) {
@@ -129,9 +140,20 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
   appDir: string
   appPaths: string[] | null
   pageExtensions: string[]
+  rootDir?: string
+  tsconfigPath?: string
+  isDev?: boolean
 }> = async function nextAppLoader() {
-  const { name, appDir, appPaths, pagePath, pageExtensions } =
-    this.getOptions() || {}
+  const {
+    name,
+    appDir,
+    appPaths,
+    pagePath,
+    pageExtensions,
+    rootDir,
+    tsconfigPath,
+    isDev,
+  } = this.getOptions() || {}
 
   const buildInfo = getModuleBuildInfo((this as any)._module)
   buildInfo.route = {
@@ -182,11 +204,35 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
     }
   }
 
-  const [treeCode, pages] = await createTreeCodeFromPath({
+  const [treeCode, pages, rootLayout] = await createTreeCodeFromPath({
     pagePath,
     resolve: resolver,
     resolveParallelSegments,
   })
+
+  if (!rootLayout) {
+    const errorMessage = `${chalk.bold(
+      pagePath.replace(`${APP_DIR_ALIAS}/`, '')
+    )} doesn't have a root layout. To fix this error, make sure every page has a root layout.`
+
+    if (!isDev) {
+      // If we're building and missing a root layout, exit the build
+      Log.error(errorMessage)
+      process.exit(1)
+    } else {
+      // In dev we'll try to create a root layout
+      const createdRootLayout = await verifyRootLayout({
+        appDir: appDir,
+        dir: rootDir!,
+        tsconfigPath: tsconfigPath!,
+        pagePath,
+        pageExtensions,
+      })
+      if (!createdRootLayout) {
+        throw new Error(errorMessage)
+      }
+    }
+  }
 
   const result = `
     export ${treeCode}
