@@ -17,9 +17,10 @@ if (process.env.NODE_ENV !== "production") {
 var stream = require('stream');
 var React = require('react');
 var util = require('util');
+var async_hooks = require('async_hooks');
 var ReactDOM = require('react-dom');
 
-var ReactVersion = '18.3.0-experimental-0c11baa6a-20221022';
+var ReactVersion = '18.3.0-experimental-cce18e350-20221023';
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -88,6 +89,7 @@ function flushBuffered(destination) {
     destination.flush();
   }
 }
+var requestStorage = new async_hooks.AsyncLocalStorage();
 var VIEW_SIZE = 2048;
 var currentView = null;
 var writtenBytes = 0;
