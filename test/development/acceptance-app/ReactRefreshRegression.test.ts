@@ -150,8 +150,7 @@ describe('ReactRefreshRegression app', () => {
   })
 
   // https://github.com/vercel/next.js/issues/13978
-  // TODO-APP: fix case where server component is moved to a client component
-  test.skip('can fast refresh a page with dynamic rendering', async () => {
+  test('can fast refresh a page with dynamic rendering', async () => {
     const { session, cleanup } = await sandbox(next)
 
     await session.patch(
@@ -221,8 +220,7 @@ describe('ReactRefreshRegression app', () => {
   })
 
   // https://github.com/vercel/next.js/issues/13978
-  // TODO-APP: fix case where server component is moved to a client component
-  test.skip('can fast refresh a page with config', async () => {
+  test('can fast refresh a page with config', async () => {
     const { session, cleanup } = await sandbox(next)
 
     await session.patch(
