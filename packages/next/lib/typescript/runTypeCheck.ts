@@ -88,12 +88,21 @@ export async function runTypeCheck(
   const allDiagnostics = ts
     .getPreEmitDiagnostics(program as import('typescript').Program)
     .concat(result.diagnostics)
-    .filter((d) => !(d.file && regexIgnoredFile.test(d.file.fileName)))
+    .filter((d) => !d.file)
+
+  const diagnosticsWithoutIgnoredFiles = allDiagnostics
+    .filter((d) => !regexIgnoredFile.test(d.file.fileName))
+
+  if (allDiagnostics.length !== diagnosticsWithoutIgnoredFiles.length) {
+    warn(
+      'Some test files reported TypeScript type errors, proceeding anyway.'
+    )
+  }
 
   const firstError =
-    allDiagnostics.find(
+    diagnosticsWithoutIgnoredFiles.find(
       (d) => d.category === DiagnosticCategory.Error && Boolean(d.file)
-    ) ?? allDiagnostics.find((d) => d.category === DiagnosticCategory.Error)
+    ) ?? diagnosticsWithoutIgnoredFiles.find((d) => d.category === DiagnosticCategory.Error)
 
   if (firstError) {
     throw new CompileError(
