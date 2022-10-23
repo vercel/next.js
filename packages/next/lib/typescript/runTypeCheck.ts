@@ -110,7 +110,7 @@ export async function runTypeCheck(
   }
 
   const warnings = await Promise.all(
-    allDiagnostics
+    diagnosticsWithoutIgnoredFiles
       .filter((d) => d.category === DiagnosticCategory.Warning)
       .map((d) => getFormattedDiagnostic(ts, baseDir, d, isAppDirEnabled))
   )
