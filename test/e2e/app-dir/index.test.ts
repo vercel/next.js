@@ -28,6 +28,7 @@ describe('app dir', () => {
       next = await createNext({
         files: new FileRef(path.join(__dirname, 'app')),
         dependencies: {
+          swr: '2.0.0-rc.0',
           react: 'experimental',
           'react-dom': 'experimental',
         },

@@ -1158,7 +1158,7 @@ export default async function getBaseWebpackConfig(
       )
     }
 
-    const externalType = isEsm ? 'module' : 'commonjs'
+    const externalType = !hasAppDir && isEsm ? 'module' : 'commonjs'
 
     if (
       /next[/\\]dist[/\\]shared[/\\](?!lib[/\\]router[/\\]router)/.test(res) ||
