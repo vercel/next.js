@@ -1087,7 +1087,8 @@ export default async function getBaseWebpackConfig(
 
     // When in esm externals mode, and using import, we resolve with
     // ESM resolving options.
-    const isEsmRequested = dependencyType === 'esm'
+    // Also disable esm request when appDir is enabled
+    const isEsmRequested = !hasAppDir && dependencyType === 'esm'
 
     const isLocalCallback = (localRes: string) => {
       // Makes sure dist/shared and dist/server are not bundled

@@ -342,7 +342,7 @@ export default async function build(
           Log.info('Skipping validation of types')
         }
         if (runLint && ignoreESLint) {
-          // only print log when build requre lint while ignoreESLint is enabled
+          // only print log when build require lint while ignoreESLint is enabled
           Log.info('Skipping linting')
         }
 
