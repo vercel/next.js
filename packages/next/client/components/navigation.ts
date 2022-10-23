@@ -108,6 +108,10 @@ export function useSearchParams() {
     // To support migration from pages to app, this adds a workaround that'll
     // support the pages router here too.
     if (router) {
+      if (!router.isReady) {
+        return new ReadonlyURLSearchParams(new URLSearchParams())
+      }
+
       return new ReadonlyURLSearchParams(
         parsedURLQueryToURLSearchParams(router.query)
       )
