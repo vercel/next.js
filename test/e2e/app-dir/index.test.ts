@@ -30,6 +30,7 @@ describe('app dir', () => {
         dependencies: {
           react: 'experimental',
           'react-dom': 'experimental',
+          sass: 'latest',
         },
         skipStart: true,
       })
@@ -1445,7 +1446,7 @@ describe('app dir', () => {
 
       describe('client layouts', () => {
         it('should support global sass/scss inside client layouts', async () => {
-          const browser = await webdriver(next.url, '/css/sass/inner')
+          const browser = await webdriver(next.url, '/css/sass-client/inner')
           // .sass
           expect(
             await browser.eval(
@@ -1461,7 +1462,7 @@ describe('app dir', () => {
         })
 
         it('should support sass/scss modules inside client layouts', async () => {
-          const browser = await webdriver(next.url, '/css/sass/inner')
+          const browser = await webdriver(next.url, '/css/sass-client/inner')
           // .sass
           expect(
             await browser.eval(
