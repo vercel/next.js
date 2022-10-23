@@ -746,74 +746,77 @@ export default class HotReloader {
       (stats: webpack.Compilation) => {
         try {
           stats.entrypoints.forEach((entry, key) => {
+            console.log(key, entry.name, stats.name)
             if (
-              key.startsWith('pages/') ||
-              key.startsWith('app/') ||
-              isMiddlewareFilename(key)
+              !key.startsWith('pages/') &&
+              !key.startsWith('app/') &&
+              !isMiddlewareFilename(key)
             ) {
-              // TODO this doesn't handle on demand loaded chunks
-              entry.chunks.forEach((chunk) => {
-                if (chunk.id === key) {
-                  const modsIterable: any =
-                    stats.chunkGraph.getChunkModulesIterable(chunk)
-
-                  let hasCSSModuleChanges = false
-                  let chunksHash = new StringXor()
-
-                  modsIterable.forEach((mod: any) => {
-                    if (
-                      mod.resource &&
-                      mod.resource.replace(/\\/g, '/').includes(key)
-                    ) {
-                      // use original source to calculate hash since mod.hash
-                      // includes the source map in development which changes
-                      // every time for both server and client so we calculate
-                      // the hash without the source map for the page module
-                      const hash = require('crypto')
-                        .createHash('sha256')
-                        .update(mod.originalSource().buffer())
-                        .digest()
-                        .toString('hex')
-
-                      chunksHash.add(hash)
-                    } else {
-                      // for non-pages we can use the module hash directly
-                      const hash = stats.chunkGraph.getModuleHash(
-                        mod,
-                        chunk.runtime
-                      )
-                      chunksHash.add(hash)
-
-                      // Both CSS import changes from server and client
-                      // components are tracked.
-                      if (
-                        key.startsWith('app/') &&
-                        mod.resource?.endsWith('.css')
-                      ) {
-                        const prevHash = prevCSSImportModuleHashes.get(
-                          mod.resource
-                        )
-                        if (prevHash && prevHash !== hash) {
-                          hasCSSModuleChanges = true
-                        }
-                        prevCSSImportModuleHashes.set(mod.resource, hash)
-                      }
-                    }
-                  })
-                  const prevHash = pageHashMap.get(key)
-                  const curHash = chunksHash.toString()
-
-                  if (prevHash && prevHash !== curHash) {
-                    changedItems.add(key)
-                  }
-                  pageHashMap.set(key, curHash)
-
-                  if (hasCSSModuleChanges) {
-                    changedCSSImportPages.add(key)
-                  }
-                }
-              })
+              return
             }
+
+            // TODO this doesn't handle on demand loaded chunks
+            entry.chunks.forEach((chunk) => {
+              if (chunk.id === key) {
+                const modsIterable: any =
+                  stats.chunkGraph.getChunkModulesIterable(chunk)
+
+                let hasCSSModuleChanges = false
+                let chunksHash = new StringXor()
+
+                modsIterable.forEach((mod: any) => {
+                  if (
+                    mod.resource &&
+                    mod.resource.replace(/\\/g, '/').includes(key)
+                  ) {
+                    // use original source to calculate hash since mod.hash
+                    // includes the source map in development which changes
+                    // every time for both server and client so we calculate
+                    // the hash without the source map for the page module
+                    const hash = require('crypto')
+                      .createHash('sha256')
+                      .update(mod.originalSource().buffer())
+                      .digest()
+                      .toString('hex')
+
+                    chunksHash.add(hash)
+                  } else {
+                    // for non-pages we can use the module hash directly
+                    const hash = stats.chunkGraph.getModuleHash(
+                      mod,
+                      chunk.runtime
+                    )
+                    chunksHash.add(hash)
+
+                    // Both CSS import changes from server and client
+                    // components are tracked.
+                    if (
+                      key.startsWith('app/') &&
+                      mod.resource?.endsWith('.css')
+                    ) {
+                      const prevHash = prevCSSImportModuleHashes.get(
+                        mod.resource
+                      )
+                      if (prevHash && prevHash !== hash) {
+                        hasCSSModuleChanges = true
+                      }
+                      prevCSSImportModuleHashes.set(mod.resource, hash)
+                    }
+                  }
+                })
+                const prevHash = pageHashMap.get(key)
+                const curHash = chunksHash.toString()
+
+                if (prevHash && prevHash !== curHash) {
+                  changedItems.add(key)
+                }
+                pageHashMap.set(key, curHash)
+
+                if (hasCSSModuleChanges) {
+                  changedCSSImportPages.add(key)
+                }
+              }
+            })
           })
         } catch (err) {
           console.error(err)
@@ -900,12 +903,21 @@ export default class HotReloader {
         .concat(edgeServerOnlyChanges)
         .filter((key) => key.startsWith('app/'))
         .concat(Array.from(changedCSSImportPages))
+
       const pageChanges = serverOnlyChanges.filter((key) =>
         key.startsWith('pages/')
       )
       const middlewareChanges = Array.from(changedEdgeServerPages).filter(
         (name) => isMiddlewareFilename(name)
       )
+
+      console.log({
+        serverOnlyChanges,
+        edgeServerOnlyChanges,
+        serverComponentChanges,
+        pageChanges,
+        middlewareChanges,
+      })
 
       changedClientPages.clear()
       changedServerPages.clear()
