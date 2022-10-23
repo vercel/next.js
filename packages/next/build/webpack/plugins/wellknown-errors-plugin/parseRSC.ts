@@ -33,6 +33,7 @@ export function formatRSCErrorMessage(
         case 'next/router':
           // If importing "next/router", we should tell them to use "next/navigation".
           formattedMessage = `\n\nYou have a Server Component that imports next/router. Use next/navigation instead.`
+          break
         default:
           formattedMessage = message.replace(
             NEXT_RSC_ERR_SERVER_IMPORT,
