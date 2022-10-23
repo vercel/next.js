@@ -26,7 +26,7 @@ type TEntry = typeof entry
 check<IEntry, TEntry>(entry)
 
 type PageParams = Record<string, string>
-type PageProps = { params?: PageParams }
+type PageProps = { params?: PageParams, searchParams?: Record<string, string | string[]> }
 type LayoutProps = { children: React.ReactNode; params?: PageParams }
 
 type PageComponent = (props: PageProps) => React.ReactNode | null
