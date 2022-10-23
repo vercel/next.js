@@ -14,7 +14,7 @@ if (process.env.NODE_ENV !== "production") {
   (function() {
 'use strict';
 
-var ReactVersion = '18.3.0-experimental-9cdf8a99e-20221018';
+var ReactVersion = '18.3.0-experimental-1d3fc9c9c-20221023';
 
 var Internals = {
   usingClientEntryPoint: false,
