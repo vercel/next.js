@@ -125,9 +125,11 @@ function isResourceInPackages(resource: string, packageNames?: string[]) {
   )
 }
 
-const builtInReactImports = [
+const bundledReactImports = [
   'react',
   'react/jsx-runtime',
+  'react/jsx-dev-runtime',
+  // 'react-dom',
   'next/dist/compiled/react-server-dom-webpack/server.browser',
 ]
 
@@ -574,11 +576,7 @@ export default async function getBaseWebpackConfig(
   // Only error in first one compiler (client) once
   if (isClient) {
     if (!hasReactRoot) {
-      if (config.experimental.runtime) {
-        throw new Error(
-          '`experimental.runtime` requires React 18 to be installed.'
-        )
-      }
+      throw new Error('Next.js requires React 18.2.0 to be installed.')
     }
   }
 
@@ -595,6 +593,11 @@ export default async function getBaseWebpackConfig(
     if (config.experimental.runtime === 'nodejs') {
       Log.warn(
         'You are using the experimental Node.js Runtime with `experimental.runtime`.'
+      )
+    }
+    if (config.experimental.appDir) {
+      Log.warn(
+        'You are using the experimental app directory with `experimental.appDir`, the API might change.'
       )
     }
   }
@@ -866,6 +869,12 @@ export default async function getBaseWebpackConfig(
           }
         : undefined),
 
+      ...(config.images.loaderFile
+        ? {
+            'next/dist/shared/lib/image-loader': config.images.loaderFile,
+          }
+        : undefined),
+
       next: NEXT_PROJECT_ROOT,
 
       ...(hasServerComponents
@@ -1011,7 +1020,7 @@ export default async function getBaseWebpackConfig(
   const crossOrigin = config.crossOrigin
   const looseEsmExternals = config.experimental?.esmExternals === 'loose'
 
-  const optoutBundlingPackages = EXTERNAL_PACKAGES.concat(
+  const optOutBundlingPackages = EXTERNAL_PACKAGES.concat(
     ...(config.experimental.serverComponentsExternalPackages || [])
   )
 
@@ -1046,7 +1055,7 @@ export default async function getBaseWebpackConfig(
 
     // Special internal modules that must be bundled for Server Components.
     if (layer === WEBPACK_LAYERS.server) {
-      if (builtInReactImports.includes(request)) {
+      if (bundledReactImports.includes(request)) {
         return
       }
     }
@@ -1181,16 +1190,29 @@ export default async function getBaseWebpackConfig(
       if (layer === WEBPACK_LAYERS.server) {
         // All packages should be bundled for the server layer if they're not opted out.
         // This option takes priority over the transpilePackages option.
-        if (
-          isResourceInPackages(
-            res,
-            config.experimental.serverComponentsExternalPackages
-          )
-        ) {
+        if (isResourceInPackages(res, optOutBundlingPackages)) {
           return `${externalType} ${request}`
         }
 
         return
+      }
+
+      // Treat react packages as external for SSR layer,
+      // then let require-hook mapping them to internals.
+      if (layer === WEBPACK_LAYERS.client) {
+        if (
+          [
+            'react',
+            'react/jsx-runtime',
+            'react/jsx-dev-runtime',
+            'react-dom',
+            'scheduler',
+          ].includes(request)
+        ) {
+          return `commonjs next/dist/compiled/${request}`
+        } else {
+          return
+        }
       }
 
       if (shouldBeBundled) return
@@ -1539,6 +1561,41 @@ export default async function getBaseWebpackConfig(
     },
     module: {
       rules: [
+        ...(hasAppDir && !isClient && !isEdgeServer
+          ? [
+              {
+                issuerLayer: WEBPACK_LAYERS.server,
+                test: (req: string) => {
+                  // If it's not a source code file, or has been opted out of
+                  // bundling, don't resolve it.
+                  if (
+                    !codeCondition.test.test(req) ||
+                    isResourceInPackages(
+                      req,
+                      config.experimental.serverComponentsExternalPackages
+                    )
+                  ) {
+                    return false
+                  }
+
+                  return true
+                },
+                resolve: {
+                  conditionNames: ['react-server', 'node', 'require'],
+                  alias: {
+                    // If missing the alias override here, the default alias will be used which aliases
+                    // react to the direct file path, not the package name. In that case the condition
+                    // will be ignored completely.
+                    react: 'next/dist/compiled/react',
+                    'react-dom$': isClient
+                      ? 'next/dist/compiled/react-dom/index'
+                      : 'next/dist/compiled/react-dom/server-rendering-stub',
+                    'react-dom/client$': 'next/dist/compiled/react-dom/client',
+                  },
+                },
+              },
+            ]
+          : []),
         // TODO: FIXME: do NOT webpack 5 support with this
         // x-ref: https://github.com/webpack/webpack/issues/11467
         ...(!config.experimental.fullySpecified
@@ -1559,35 +1616,6 @@ export default async function getBaseWebpackConfig(
               {
                 resourceQuery: /__edge_ssr_entry__/,
                 layer: WEBPACK_LAYERS.server,
-              },
-            ]
-          : []),
-        ...(hasAppDir && !isClient
-          ? [
-              {
-                issuerLayer: WEBPACK_LAYERS.server,
-                test: (req: string) => {
-                  // If it's not a source code file, or has been opted out of
-                  // bundling, don't resolve it.
-                  if (
-                    !codeCondition.test.test(req) ||
-                    isResourceInPackages(req, optoutBundlingPackages)
-                  ) {
-                    return false
-                  }
-
-                  return true
-                },
-                resolve: {
-                  conditionNames: ['react-server', 'node', 'require'],
-                  alias: {
-                    // If missing the alias override here, the default alias will be used which aliases
-                    // react to the direct file path, not the package name. In that case the condition
-                    // will be ignored completely.
-                    react: 'react',
-                    'react-dom': 'react-dom',
-                  },
-                },
               },
             ]
           : []),
@@ -1613,7 +1641,12 @@ export default async function getBaseWebpackConfig(
           ? [
               {
                 test: codeCondition.test,
-                include: [appDir],
+                issuerLayer(layer: string) {
+                  return (
+                    layer === WEBPACK_LAYERS.client ||
+                    layer === WEBPACK_LAYERS.server
+                  )
+                },
                 resolve: {
                   alias: {
                     // Alias `next/dynamic` to React.lazy implementation for RSC
@@ -1630,12 +1663,12 @@ export default async function getBaseWebpackConfig(
                   {
                     // test: codeCondition.test,
                     issuerLayer: WEBPACK_LAYERS.server,
-                    test: (req: string) => {
+                    test(req: string) {
                       // If it's not a source code file, or has been opted out of
                       // bundling, don't resolve it.
                       if (
                         !codeCondition.test.test(req) ||
-                        isResourceInPackages(req, optoutBundlingPackages)
+                        isResourceInPackages(req, optOutBundlingPackages)
                       ) {
                         return false
                       }

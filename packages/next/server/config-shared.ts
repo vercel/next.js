@@ -162,7 +162,7 @@ export interface ExperimentalConfig {
   // A list of packages that should always be transpiled and bundled in the server
   transpilePackages?: string[]
 
-  fontLoaders?: [{ loader: string; options?: any }]
+  fontLoaders?: Array<{ loader: string; options?: any }>
 
   webVitalsAttribution?: Array<typeof WEB_VITALS[number]>
 }
@@ -232,12 +232,6 @@ export interface NextConfig extends Record<string, any> {
    * @see [Redirects configuration documentation](https://nextjs.org/docs/api-reference/next.config.js/redirects)
    */
   redirects?: () => Promise<Redirect[]>
-
-  /**
-   * @deprecated This option has been removed as webpack 5 is now default
-   * @see [Next.js webpack 5 documentation](https://nextjs.org/docs/messages/webpack5) for upgrading guidance.
-   */
-  webpack5?: false
 
   /**
    * @see [Moment.js locales excluded by default](https://nextjs.org/docs/upgrading#momentjs-locales-excluded-by-default)
@@ -405,13 +399,6 @@ export interface NextConfig extends Record<string, any> {
    */
   httpAgentOptions?: { keepAlive?: boolean }
 
-  future?: {
-    /**
-     * @deprecated This option has been removed as webpack 5 is now default
-     */
-    webpack5?: false
-  }
-
   /**
    * During a build, Next.js will automatically trace each page and its dependencies to determine all of the files
    * that are needed for deploying a production version of your application.
@@ -539,7 +526,6 @@ export const defaultConfig: NextConfig = {
   i18n: null,
   productionBrowserSourceMaps: false,
   optimizeFonts: true,
-  webpack5: undefined,
   excludeDefaultMomentLocales: true,
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},

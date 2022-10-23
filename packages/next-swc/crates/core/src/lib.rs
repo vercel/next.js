@@ -162,7 +162,10 @@ where
             _ => Either::Right(noop()),
         },
         if opts.styled_jsx {
-            Either::Left(styled_jsx::styled_jsx(cm.clone(), file.name.clone()))
+            Either::Left(styled_jsx::visitor::styled_jsx(
+                cm.clone(),
+                file.name.clone(),
+            ))
         } else {
             Either::Right(noop())
         },
