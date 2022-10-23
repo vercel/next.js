@@ -234,12 +234,6 @@ export interface NextConfig extends Record<string, any> {
   redirects?: () => Promise<Redirect[]>
 
   /**
-   * @deprecated This option has been removed as webpack 5 is now default
-   * @see [Next.js webpack 5 documentation](https://nextjs.org/docs/messages/webpack5) for upgrading guidance.
-   */
-  webpack5?: false
-
-  /**
    * @see [Moment.js locales excluded by default](https://nextjs.org/docs/upgrading#momentjs-locales-excluded-by-default)
    */
   excludeDefaultMomentLocales?: boolean
@@ -405,13 +399,6 @@ export interface NextConfig extends Record<string, any> {
    */
   httpAgentOptions?: { keepAlive?: boolean }
 
-  future?: {
-    /**
-     * @deprecated This option has been removed as webpack 5 is now default
-     */
-    webpack5?: false
-  }
-
   /**
    * During a build, Next.js will automatically trace each page and its dependencies to determine all of the files
    * that are needed for deploying a production version of your application.
@@ -539,7 +526,6 @@ export const defaultConfig: NextConfig = {
   i18n: null,
   productionBrowserSourceMaps: false,
   optimizeFonts: true,
-  webpack5: undefined,
   excludeDefaultMomentLocales: true,
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},
