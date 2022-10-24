@@ -43,7 +43,7 @@ const experimentalWarning = execOnce(
         `Use at your own risk.`
     )
     if (features.includes('appDir')) {
-      Log.warn(
+      Log.info(
         `Thank you for testing \`appDir\` please leave your feedback at https://nextjs.link/app-feedback`
       )
     }
