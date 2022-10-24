@@ -1,3 +1,4 @@
+import './initialize-require-hook'
 import './node-polyfill-fetch'
 import './node-polyfill-web-streams'
 
@@ -97,16 +98,12 @@ import { shouldUseReactRoot } from './utils'
 import ResponseCache from './response-cache'
 import { IncrementalCache } from './lib/incremental-cache'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
-import { loadRequireHook } from '../build/webpack/require-hook'
 
 if (shouldUseReactRoot) {
   ;(process.env as any).__NEXT_REACT_ROOT = 'true'
 }
 
 import { renderToHTMLOrFlight as appRenderToHTMLOrFlight } from './app-render'
-
-// require hook for custom server
-loadRequireHook()
 
 export * from './base-server'
 

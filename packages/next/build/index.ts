@@ -302,9 +302,31 @@ export default async function build(
 
       const publicDir = path.join(dir, 'public')
       const isAppDirEnabled = !!config.experimental.appDir
+      const initialRequireHookFilePath = require.resolve(
+        'next/dist/server/initialize-require-hook'
+      )
+      const content = await promises.readFile(
+        initialRequireHookFilePath,
+        'utf8'
+      )
+
       if (isAppDirEnabled) {
         process.env.NEXT_PREBUNDLED_REACT = '1'
       }
+      await promises
+        .writeFile(
+          initialRequireHookFilePath,
+          content.replace(
+            /isPrebundled = (true|false)/,
+            `isPrebundled = ${isAppDirEnabled}`
+          )
+        )
+        .catch((err) => {
+          if (isAppDirEnabled) {
+            throw err
+          }
+        })
+
       const { pagesDir, appDir } = findPagesDir(dir, isAppDirEnabled)
       const hasPublicDir = await fileExists(publicDir)
 
@@ -342,7 +364,7 @@ export default async function build(
           Log.info('Skipping validation of types')
         }
         if (runLint && ignoreESLint) {
-          // only print log when build requre lint while ignoreESLint is enabled
+          // only print log when build require lint while ignoreESLint is enabled
           Log.info('Skipping linting')
         }
 
