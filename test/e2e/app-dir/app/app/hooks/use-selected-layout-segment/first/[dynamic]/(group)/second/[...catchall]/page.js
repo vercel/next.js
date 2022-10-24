@@ -1,9 +1,9 @@
 'use client'
 
-import { useSelectedLayoutSegment } from 'next/navigation'
+import { useSelectedLayoutSegments } from 'next/navigation'
 
 export default function Page() {
-  const selectedLayoutSegment = useSelectedLayoutSegment()
+  const selectedLayoutSegment = useSelectedLayoutSegments()
 
   return (
     <p id="page-layout-segments">{JSON.stringify(selectedLayoutSegment)}</p>

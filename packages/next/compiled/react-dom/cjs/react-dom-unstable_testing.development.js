@@ -268,6 +268,7 @@ var warnAboutStringRefs = false;
 var enableSuspenseAvoidThisFallback = false;
 var enableClientRenderFallbackOnTextMismatch = true;
 var enableNewReconciler = false;
+var createRootStrictEffectsByDefault = false;
 var enableLazyContextPropagation = false;
 var enableLegacyHidden = false;
 var enableCustomElementPropertySupport = false;
@@ -4580,6 +4581,12 @@ var PassiveStatic =
 var PlacementDEV =
 /*                 */
 8388608;
+var MountLayoutDev =
+/*               */
+16777216;
+var MountPassiveDev =
+/*              */
+33554432; // Groups of flags that are used in the commit phase to skip over trees that
 // don't contain effects, by checking subtreeFlags.
 
 var BeforeMutationMask = // TODO: Remove Update flag from before mutation phase by re-landing Visibility
@@ -5268,6 +5275,9 @@ var ProfileMode =
 var StrictLegacyMode =
 /*               */
 8;
+var StrictEffectsMode =
+/*              */
+16;
 
 // TODO: This is pretty well supported by browsers. Maybe we can drop it.
 var clz32 = Math.clz32 ? Math.clz32 : clz32Fallback; // Count leading zeros.
@@ -10702,7 +10712,8 @@ var updatedAncestorInfo = function () {};
     nobrTagInScope: null,
     pTagInButtonScope: null,
     listItemTagAutoclosing: null,
-    dlItemTagAutoclosing: null
+    dlItemTagAutoclosing: null,
+    resourceFormOnly: true
   };
 
   updatedAncestorInfo = function (oldInfo, tag) {
@@ -10727,6 +10738,10 @@ var updatedAncestorInfo = function () {};
     if (specialTags.indexOf(tag) !== -1 && tag !== 'address' && tag !== 'div' && tag !== 'p') {
       ancestorInfo.listItemTagAutoclosing = null;
       ancestorInfo.dlItemTagAutoclosing = null;
+    }
+
+    if (tag !== '#document' && tag !== 'html') {
+      ancestorInfo.resourceFormOnly = false;
     }
 
     ancestorInfo.current = info;
@@ -11456,7 +11471,7 @@ function clearContainer(container) {
       }
     }
   }
-} // Making this so we can eventually move all of the instance caching to the commit phase.
+}
 function canHydrateInstance(instance, type, props) {
   if (instance.nodeType !== ELEMENT_NODE || type.toLowerCase() !== instance.nodeName.toLowerCase()) {
     return null;
@@ -14413,7 +14428,7 @@ function commitCallbacks(updateQueue, context) {
 var fakeInternalInstance = {}; // React.Component uses a shared frozen object by default.
 // We'll use it to determine whether we need to initialize legacy refs.
 
-var emptyRefsObject = new React.Component().refs;
+var emptyRefsObject = React.Component ? new React.Component().refs : {};
 var didWarnAboutStateAssignmentForComponent;
 var didWarnAboutUninitializedState;
 var didWarnAboutGetSnapshotBeforeUpdateWithoutDidUpdate;
@@ -14935,6 +14950,10 @@ function mountClassInstance(workInProgress, ctor, newProps, renderLanes) {
   if (typeof instance.componentDidMount === 'function') {
     var fiberFlags = Update | LayoutStatic;
 
+    if ( (workInProgress.mode & StrictEffectsMode) !== NoMode) {
+      fiberFlags |= MountLayoutDev;
+    }
+
     workInProgress.flags |= fiberFlags;
   }
 }
@@ -14979,6 +14998,10 @@ function resumeMountClassInstance(workInProgress, ctor, newProps, renderLanes) {
     if (typeof instance.componentDidMount === 'function') {
       var fiberFlags = Update | LayoutStatic;
 
+      if ( (workInProgress.mode & StrictEffectsMode) !== NoMode) {
+        fiberFlags |= MountLayoutDev;
+      }
+
       workInProgress.flags |= fiberFlags;
     }
 
@@ -15008,6 +15031,10 @@ function resumeMountClassInstance(workInProgress, ctor, newProps, renderLanes) {
     if (typeof instance.componentDidMount === 'function') {
       var _fiberFlags = Update | LayoutStatic;
 
+      if ( (workInProgress.mode & StrictEffectsMode) !== NoMode) {
+        _fiberFlags |= MountLayoutDev;
+      }
+
       workInProgress.flags |= _fiberFlags;
     }
   } else {
@@ -15015,6 +15042,10 @@ function resumeMountClassInstance(workInProgress, ctor, newProps, renderLanes) {
     // effect even though we're bailing out, so that cWU/cDU are called.
     if (typeof instance.componentDidMount === 'function') {
       var _fiberFlags2 = Update | LayoutStatic;
+
+      if ( (workInProgress.mode & StrictEffectsMode) !== NoMode) {
+        _fiberFlags2 |= MountLayoutDev;
+      }
 
       workInProgress.flags |= _fiberFlags2;
     } // If shouldComponentUpdate returned false, we should still update the
@@ -16555,6 +16586,7 @@ function popCacheProvider(workInProgress, cache) {
   popProvider(CacheContext, workInProgress);
 }
 
+var ReactCurrentActQueue = ReactSharedInternals.ReactCurrentActQueue;
 var suspendedThenable = null;
 function isTrackingSuspendedThenable() {
   return suspendedThenable !== null;
@@ -16566,59 +16598,6 @@ function suspendedThenableDidResolve() {
   }
 
   return false;
-}
-function trackSuspendedWakeable(wakeable) {
-  // If this wakeable isn't already a thenable, turn it into one now. Then,
-  // when we resume the work loop, we can check if its status is
-  // still pending.
-  // TODO: Get rid of the Wakeable type? It's superseded by UntrackedThenable.
-  var thenable = wakeable;
-
-  suspendedThenable = thenable; // We use an expando to track the status and result of a thenable so that we
-  // can synchronously unwrap the value. Think of this as an extension of the
-  // Promise API, or a custom interface that is a superset of Thenable.
-  //
-  // If the thenable doesn't have a status, set it to "pending" and attach
-  // a listener that will update its status and result when it resolves.
-
-  switch (thenable.status) {
-    case 'fulfilled':
-    case 'rejected':
-      // A thenable that already resolved shouldn't have been thrown, so this is
-      // unexpected. Suggests a mistake in a userspace data library. Don't track
-      // this thenable, because if we keep trying it will likely infinite loop
-      // without ever resolving.
-      // TODO: Log a warning?
-      suspendedThenable = null;
-      break;
-
-    default:
-      {
-        if (typeof thenable.status === 'string') {
-          // Only instrument the thenable if the status if not defined. If
-          // it's defined, but an unknown value, assume it's been instrumented by
-          // some custom userspace implementation. We treat it as "pending".
-          break;
-        }
-
-        var pendingThenable = thenable;
-        pendingThenable.status = 'pending';
-        pendingThenable.then(function (fulfilledValue) {
-          if (thenable.status === 'pending') {
-            var fulfilledThenable = thenable;
-            fulfilledThenable.status = 'fulfilled';
-            fulfilledThenable.value = fulfilledValue;
-          }
-        }, function (error) {
-          if (thenable.status === 'pending') {
-            var rejectedThenable = thenable;
-            rejectedThenable.status = 'rejected';
-            rejectedThenable.reason = error;
-          }
-        });
-        break;
-      }
-  }
 }
 function resetWakeableStateAfterEachAttempt() {
   suspendedThenable = null;
@@ -16914,7 +16893,9 @@ function bailoutHooks(current, workInProgress, lanes) {
   workInProgress.updateQueue = current.updateQueue; // TODO: Don't need to reset the flags here, because they're reset in the
   // complete phase (bubbleProperties).
 
-  {
+  if ( (workInProgress.mode & StrictEffectsMode) !== NoMode) {
+    workInProgress.flags &= ~(MountPassiveDev | MountLayoutDev | Passive | Update);
+  } else {
     workInProgress.flags &= ~(Passive | Update);
   }
 
@@ -17603,7 +17584,9 @@ function updateEffectImpl(fiberFlags, hookFlags, create, deps) {
 }
 
 function mountEffect(create, deps) {
-  {
+  if ( (currentlyRenderingFiber$1.mode & StrictEffectsMode) !== NoMode) {
+    return mountEffectImpl(MountPassiveDev | Passive | PassiveStatic, Passive$1, create, deps);
+  } else {
     return mountEffectImpl(Passive | PassiveStatic, Passive$1, create, deps);
   }
 }
@@ -17622,6 +17605,10 @@ function updateInsertionEffect(create, deps) {
 
 function mountLayoutEffect(create, deps) {
   var fiberFlags = Update | LayoutStatic;
+
+  if ( (currentlyRenderingFiber$1.mode & StrictEffectsMode) !== NoMode) {
+    fiberFlags |= MountLayoutDev;
+  }
 
   return mountEffectImpl(fiberFlags, Layout, create, deps);
 }
@@ -17668,6 +17655,10 @@ function mountImperativeHandle(ref, create, deps) {
 
   var effectDeps = deps !== null && deps !== undefined ? deps.concat([ref]) : null;
   var fiberFlags = Update | LayoutStatic;
+
+  if ( (currentlyRenderingFiber$1.mode & StrictEffectsMode) !== NoMode) {
+    fiberFlags |= MountLayoutDev;
+  }
 
   return mountEffectImpl(fiberFlags, Layout, imperativeHandleEffect.bind(null, create, ref), effectDeps);
 }
@@ -26727,6 +26718,112 @@ function commitPassiveUnmountInsideDeletedTreeOnFiber(current, nearestMountedAnc
   }
 }
 
+function invokeLayoutEffectMountInDEV(fiber) {
+  {
+    // We don't need to re-check StrictEffectsMode here.
+    // This function is only called if that check has already passed.
+    switch (fiber.tag) {
+      case FunctionComponent:
+      case ForwardRef:
+      case SimpleMemoComponent:
+        {
+          try {
+            commitHookEffectListMount(Layout | HasEffect, fiber);
+          } catch (error) {
+            captureCommitPhaseError(fiber, fiber.return, error);
+          }
+
+          break;
+        }
+
+      case ClassComponent:
+        {
+          var instance = fiber.stateNode;
+
+          try {
+            instance.componentDidMount();
+          } catch (error) {
+            captureCommitPhaseError(fiber, fiber.return, error);
+          }
+
+          break;
+        }
+    }
+  }
+}
+
+function invokePassiveEffectMountInDEV(fiber) {
+  {
+    // We don't need to re-check StrictEffectsMode here.
+    // This function is only called if that check has already passed.
+    switch (fiber.tag) {
+      case FunctionComponent:
+      case ForwardRef:
+      case SimpleMemoComponent:
+        {
+          try {
+            commitHookEffectListMount(Passive$1 | HasEffect, fiber);
+          } catch (error) {
+            captureCommitPhaseError(fiber, fiber.return, error);
+          }
+
+          break;
+        }
+    }
+  }
+}
+
+function invokeLayoutEffectUnmountInDEV(fiber) {
+  {
+    // We don't need to re-check StrictEffectsMode here.
+    // This function is only called if that check has already passed.
+    switch (fiber.tag) {
+      case FunctionComponent:
+      case ForwardRef:
+      case SimpleMemoComponent:
+        {
+          try {
+            commitHookEffectListUnmount(Layout | HasEffect, fiber, fiber.return);
+          } catch (error) {
+            captureCommitPhaseError(fiber, fiber.return, error);
+          }
+
+          break;
+        }
+
+      case ClassComponent:
+        {
+          var instance = fiber.stateNode;
+
+          if (typeof instance.componentWillUnmount === 'function') {
+            safelyCallComponentWillUnmount(fiber, fiber.return, instance);
+          }
+
+          break;
+        }
+    }
+  }
+}
+
+function invokePassiveEffectUnmountInDEV(fiber) {
+  {
+    // We don't need to re-check StrictEffectsMode here.
+    // This function is only called if that check has already passed.
+    switch (fiber.tag) {
+      case FunctionComponent:
+      case ForwardRef:
+      case SimpleMemoComponent:
+        {
+          try {
+            commitHookEffectListUnmount(Passive$1 | HasEffect, fiber, fiber.return);
+          } catch (error) {
+            captureCommitPhaseError(fiber, fiber.return, error);
+          }
+        }
+    }
+  }
+}
+
 function getCacheSignal() {
 
   var cache = readContext(CacheContext);
@@ -27193,7 +27290,7 @@ function observeVisibleRects(hostRoot, selectors, callback, options) {
   };
 }
 
-var ReactCurrentActQueue = ReactSharedInternals.ReactCurrentActQueue;
+var ReactCurrentActQueue$1 = ReactSharedInternals.ReactCurrentActQueue;
 function isLegacyActEnvironment(fiber) {
   {
     // Legacy mode. We preserve the behavior of React 17's act. It assumes an
@@ -27211,7 +27308,7 @@ function isConcurrentActEnvironment() {
   {
     var isReactActEnvironmentGlobal = typeof IS_REACT_ACT_ENVIRONMENT !== 'undefined' ? IS_REACT_ACT_ENVIRONMENT : undefined;
 
-    if (!isReactActEnvironmentGlobal && ReactCurrentActQueue.current !== null) {
+    if (!isReactActEnvironmentGlobal && ReactCurrentActQueue$1.current !== null) {
       // TODO: Include link to relevant documentation page.
       error('The current testing environment is not configured to support ' + 'act(...)');
     }
@@ -27226,7 +27323,7 @@ var ReactCurrentDispatcher$2 = ReactSharedInternals.ReactCurrentDispatcher,
     ReactCurrentCache = ReactSharedInternals.ReactCurrentCache,
     ReactCurrentOwner$2 = ReactSharedInternals.ReactCurrentOwner,
     ReactCurrentBatchConfig$3 = ReactSharedInternals.ReactCurrentBatchConfig,
-    ReactCurrentActQueue$1 = ReactSharedInternals.ReactCurrentActQueue;
+    ReactCurrentActQueue$2 = ReactSharedInternals.ReactCurrentActQueue;
 var NoContext =
 /*             */
 0;
@@ -27488,7 +27585,7 @@ function scheduleUpdateOnFiber(root, fiber, lane, eventTime) {
     ensureRootIsScheduled(root, eventTime);
 
     if (lane === SyncLane && executionContext === NoContext && (fiber.mode & ConcurrentMode) === NoMode && // Treat `act` as if it's inside `batchedUpdates`, even in legacy mode.
-    !( ReactCurrentActQueue$1.isBatchingLegacy)) {
+    !( ReactCurrentActQueue$2.isBatchingLegacy)) {
       // Flush the synchronous work now, unless we're already working or inside
       // a batch. This is intentionally inside scheduleUpdateOnFiber instead of
       // scheduleCallbackForFiber to preserve the ability to schedule a callback
@@ -27554,7 +27651,7 @@ function ensureRootIsScheduled(root, currentTime) {
   if (existingCallbackPriority === newCallbackPriority && // Special case related to `act`. If the currently scheduled task is a
   // Scheduler task, rather than an `act` task, cancel it and re-scheduled
   // on the `act` queue.
-  !( ReactCurrentActQueue$1.current !== null && existingCallbackNode !== fakeActCallbackNode)) {
+  !( ReactCurrentActQueue$2.current !== null && existingCallbackNode !== fakeActCallbackNode)) {
     {
       // If we're going to re-use an existing task, it needs to exist.
       // Assume that discrete update microtasks are non-cancellable and null.
@@ -27580,8 +27677,8 @@ function ensureRootIsScheduled(root, currentTime) {
     // Special case: Sync React callbacks are scheduled on a special
     // internal queue
     if (root.tag === LegacyRoot) {
-      if ( ReactCurrentActQueue$1.isBatchingLegacy !== null) {
-        ReactCurrentActQueue$1.didScheduleLegacyUpdate = true;
+      if ( ReactCurrentActQueue$2.isBatchingLegacy !== null) {
+        ReactCurrentActQueue$2.didScheduleLegacyUpdate = true;
       }
 
       scheduleLegacySyncCallback(performSyncWorkOnRoot.bind(null, root));
@@ -27591,11 +27688,11 @@ function ensureRootIsScheduled(root, currentTime) {
 
     {
       // Flush the queue in a microtask.
-      if ( ReactCurrentActQueue$1.current !== null) {
+      if ( ReactCurrentActQueue$2.current !== null) {
         // Inside `act`, use our internal `act` queue so that these get flushed
         // at the end of the current scope even when using the sync version
         // of `act`.
-        ReactCurrentActQueue$1.current.push(flushSyncCallbacks);
+        ReactCurrentActQueue$2.current.push(flushSyncCallbacks);
       } else {
         scheduleMicrotask(function () {
           // In Safari, appending an iframe forces microtasks to run.
@@ -28135,7 +28232,7 @@ function batchedUpdates$1(fn, a) {
     // most batchedUpdates-like method.
 
     if (executionContext === NoContext && // Treat `act` as if it's inside `batchedUpdates`, even in legacy mode.
-    !( ReactCurrentActQueue$1.isBatchingLegacy)) {
+    !( ReactCurrentActQueue$2.isBatchingLegacy)) {
       resetRenderTimer();
       flushSyncCallbacksOnlyInLegacyMode();
     }
@@ -28281,8 +28378,6 @@ function handleThrow(root, thrownValue) {
     return;
   }
 
-  var isWakeable = thrownValue !== null && typeof thrownValue === 'object' && typeof thrownValue.then === 'function';
-
   if ( erroredWork.mode & ProfileMode) {
     // Record the time spent rendering before an error was thrown. This
     // avoids inaccurate Profiler durations in the case of a
@@ -28293,17 +28388,12 @@ function handleThrow(root, thrownValue) {
   {
     markComponentRenderStopped();
 
-    if (isWakeable) {
+    if (thrownValue !== null && typeof thrownValue === 'object' && typeof thrownValue.then === 'function') {
       var wakeable = thrownValue;
       markComponentSuspended(erroredWork, wakeable, workInProgressRootRenderLanes);
     } else {
       markComponentErrored(erroredWork, thrownValue, workInProgressRootRenderLanes);
     }
-  }
-
-  if (isWakeable) {
-    var _wakeable = thrownValue;
-    trackSuspendedWakeable(_wakeable);
   }
 }
 
@@ -28924,6 +29014,8 @@ function commitRootImpl(root, recoverableErrors, transitions, renderPriorityLeve
     }
   }
 
+  var rootDidHavePassiveEffects = rootDoesHavePassiveEffects;
+
   if (rootDoesHavePassiveEffects) {
     // This commit has passive effects. Stash a reference to them. But don't
     // schedule a callback until after flushing layout work.
@@ -28957,6 +29049,12 @@ function commitRootImpl(root, recoverableErrors, transitions, renderPriorityLeve
     // If there's no remaining work, we can clear the set of already failed
     // error boundaries.
     legacyErrorBoundariesThatAlreadyFailed = null;
+  }
+
+  {
+    if (!rootDidHavePassiveEffects) {
+      commitDoubleInvokeEffectsInDEV(root, false);
+    }
   }
 
   onCommitRoot(finishedWork.stateNode, renderPriorityLevel);
@@ -29163,6 +29261,10 @@ function flushPassiveEffectsImpl() {
 
   {
     markPassiveEffectsStopped();
+  }
+
+  {
+    commitDoubleInvokeEffectsInDEV(root, true);
   }
 
   executionContext = prevExecutionContext;
@@ -29470,6 +29572,57 @@ function flushRenderPhaseStrictModeWarningsInDEV() {
   }
 }
 
+function commitDoubleInvokeEffectsInDEV(root, hasPassiveEffects) {
+  {
+    {
+      legacyCommitDoubleInvokeEffectsInDEV(root.current, hasPassiveEffects);
+    }
+  }
+}
+
+function legacyCommitDoubleInvokeEffectsInDEV(fiber, hasPassiveEffects) {
+  // TODO (StrictEffects) Should we set a marker on the root if it contains strict effects
+  // so we don't traverse unnecessarily? similar to subtreeFlags but just at the root level.
+  // Maybe not a big deal since this is DEV only behavior.
+  setCurrentFiber(fiber);
+  invokeEffectsInDev(fiber, MountLayoutDev, invokeLayoutEffectUnmountInDEV);
+
+  if (hasPassiveEffects) {
+    invokeEffectsInDev(fiber, MountPassiveDev, invokePassiveEffectUnmountInDEV);
+  }
+
+  invokeEffectsInDev(fiber, MountLayoutDev, invokeLayoutEffectMountInDEV);
+
+  if (hasPassiveEffects) {
+    invokeEffectsInDev(fiber, MountPassiveDev, invokePassiveEffectMountInDEV);
+  }
+
+  resetCurrentFiber();
+}
+
+function invokeEffectsInDev(firstChild, fiberFlags, invokeEffectFn) {
+  var current = firstChild;
+  var subtreeRoot = null;
+
+  while (current != null) {
+    var primarySubtreeFlag = current.subtreeFlags & fiberFlags;
+
+    if (current !== subtreeRoot && current.child != null && primarySubtreeFlag !== NoFlags) {
+      current = current.child;
+    } else {
+      if ((current.flags & fiberFlags) !== NoFlags) {
+        invokeEffectFn(current);
+      }
+
+      if (current.sibling !== null) {
+        current = current.sibling;
+      } else {
+        current = subtreeRoot = current.return;
+      }
+    }
+  }
+}
+
 var didWarnStateUpdateForNotYetMountedComponent = null;
 function warnAboutUpdateOnNotYetMountedFiberInDEV(fiber) {
   {
@@ -29574,7 +29727,7 @@ function scheduleCallback$2(priorityLevel, callback) {
   {
     // If we're currently inside an `act` scope, bypass Scheduler and push to
     // the `act` queue instead.
-    var actQueue = ReactCurrentActQueue$1.current;
+    var actQueue = ReactCurrentActQueue$2.current;
 
     if (actQueue !== null) {
       actQueue.push(callback);
@@ -29596,7 +29749,7 @@ function cancelCallback$1(callbackNode) {
 
 function shouldForceFlushFallbacksInDEV() {
   // Never force flush in production. This function should get stripped out.
-  return  ReactCurrentActQueue$1.current !== null;
+  return  ReactCurrentActQueue$2.current !== null;
 }
 
 function warnIfUpdatesNotWrappedWithActDEV(fiber) {
@@ -29626,7 +29779,7 @@ function warnIfUpdatesNotWrappedWithActDEV(fiber) {
       }
     }
 
-    if (ReactCurrentActQueue$1.current === null) {
+    if (ReactCurrentActQueue$2.current === null) {
       var previousFiber = current;
 
       try {
@@ -29646,7 +29799,7 @@ function warnIfUpdatesNotWrappedWithActDEV(fiber) {
 
 function warnIfSuspenseResolutionNotWrappedWithActDEV(root) {
   {
-    if (root.tag !== LegacyRoot && isConcurrentActEnvironment() && ReactCurrentActQueue$1.current === null) {
+    if (root.tag !== LegacyRoot && isConcurrentActEnvironment() && ReactCurrentActQueue$2.current === null) {
       error('A suspended resource finished loading inside a test, but the event ' + 'was not wrapped in act(...).\n\n' + 'When testing, code that resolves suspended data should be wrapped ' + 'into act(...):\n\n' + 'act(() => {\n' + '  /* finish loading suspended data */\n' + '});\n' + '/* assert on the output */\n\n' + "This ensures that you're testing the behavior the user would see " + 'in the browser.' + ' Learn more at https://reactjs.org/link/wrap-tests-with-act');
     }
   }
@@ -30348,8 +30501,8 @@ function createHostRootFiber(tag, isStrictMode, concurrentUpdatesByDefaultOverri
   if (tag === ConcurrentRoot) {
     mode = ConcurrentMode;
 
-    if (isStrictMode === true) {
-      mode |= StrictLegacyMode;
+    if (isStrictMode === true || createRootStrictEffectsByDefault) {
+      mode |= StrictLegacyMode | StrictEffectsMode;
     }
   } else {
     mode = NoMode;
@@ -30394,6 +30547,11 @@ key, pendingProps, owner, mode, lanes) {
       case REACT_STRICT_MODE_TYPE:
         fiberTag = Mode;
         mode |= StrictLegacyMode;
+
+        if ((mode & ConcurrentMode) !== NoMode) {
+          // Strict effects should never run on legacy roots
+          mode |= StrictEffectsMode;
+        }
 
         break;
 
@@ -30698,7 +30856,7 @@ identifierPrefix, onRecoverableError, transitionCallbacks) {
   return root;
 }
 
-var ReactVersion = '18.3.0-experimental-9cdf8a99e-20221018';
+var ReactVersion = '18.3.0-experimental-1d3fc9c9c-20221023';
 
 function createPortal(children, containerInfo, // TODO: figure out the API for cross-renderer implementation.
 implementation) {
