@@ -164,7 +164,7 @@ pub fn get_client_chunking_context(
     server_root: FileSystemPathVc,
     ty: Value<ContextType>,
 ) -> ChunkingContextVc {
-    DevChunkingContextVc::new(
+    DevChunkingContextVc::builder(
         project_root,
         server_root,
         match ty.into_value() {
@@ -174,8 +174,9 @@ pub fn get_client_chunking_context(
             ContextType::Other => server_root.join("/_chunks"),
         },
         get_client_assets_path(server_root, ty),
-        true,
     )
+    .hot_module_replacment()
+    .build()
     .into()
 }
 

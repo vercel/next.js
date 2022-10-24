@@ -7,7 +7,10 @@ declare global {
 }
 
 import type { IncomingMessage, ServerResponse } from "node:http";
-import type { FlightManifest } from "next/dist/build/webpack/plugins/flight-manifest-plugin";
+import type {
+  FlightCSSManifest,
+  FlightManifest,
+} from "next/dist/build/webpack/plugins/flight-manifest-plugin";
 import type { RenderData } from "types/turbopack";
 
 import "next/dist/server/node-polyfill-fetch";
@@ -68,10 +71,23 @@ process.stdin.on("data", async (data) => {
   buffer.push(data);
 });
 
-type LayoutTree = [
-  string,
-  { children?: LayoutTree },
-  { page: () => any } | { layout: () => any }
+// TODO expose these types in next.js
+type ComponentModule = () => any;
+export type ComponentsType = {
+  readonly [componentKey in
+    | "layout"
+    | "template"
+    | "error"
+    | "loading"
+    | "not-found"]?: ComponentModule;
+} & {
+  readonly layoutOrPagePath?: string;
+  readonly page?: ComponentModule;
+};
+type LoaderTree = [
+  segment: string,
+  parallelRoutes: { [parallelRouterKey: string]: LoaderTree },
+  components: ComponentsType
 ];
 
 type ServerComponentsManifest = {
@@ -82,17 +98,36 @@ type ServerComponentsManifestModule = {
 };
 
 async function operation(renderData: RenderData) {
-  const pageModule = LAYOUT_INFO[LAYOUT_INFO.length - 1].module;
+  const pageItem = LAYOUT_INFO[LAYOUT_INFO.length - 1];
+  const pageModule = pageItem.module;
   const Page = pageModule.default;
-  let tree: LayoutTree = ["", {}, { page: () => Page }];
+  let tree: LoaderTree = [
+    "",
+    {},
+    { page: () => Page, layoutOrPagePath: "page.js" },
+  ];
   for (let i = LAYOUT_INFO.length - 2; i >= 0; i--) {
     const info = LAYOUT_INFO[i];
-    const Layout = info.module.default;
-    tree = [info.segment, { children: tree }, { layout: () => Layout }];
+    const mod = info.module;
+    if (mod) {
+      const Layout = mod.default;
+      tree = [
+        info.segment,
+        { children: tree },
+        { layout: () => Layout, layoutOrPagePath: `layout${i}.js` },
+      ];
+    } else {
+      tree = [
+        info.segment,
+        { children: tree },
+        { layoutOrPagePath: `layout${i}.js` },
+      ];
+    }
   }
 
   const proxyMethodsForModule = (
-    id: string
+    id: string,
+    css: boolean
   ): ProxyHandler<FlightManifest[""]> => ({
     get(target, name, receiver) {
       return {
@@ -102,15 +137,35 @@ async function operation(renderData: RenderData) {
       };
     },
   });
-  const proxyMethods: ProxyHandler<FlightManifest> = {
-    get(target, name, receiver) {
-      if (name === "__ssr_module_mapping__") {
-        return manifest;
-      }
-      return new Proxy({}, proxyMethodsForModule(name as string));
-    },
+  const proxyMethods = (css: boolean): ProxyHandler<FlightManifest> => {
+    return {
+      get(target, name, receiver) {
+        if (name === "__ssr_module_mapping__") {
+          return manifest;
+        }
+        if (name === "__client_css_manifest__") {
+          return {};
+        }
+        return new Proxy({}, proxyMethodsForModule(name as string, css));
+      },
+    };
   };
-  const manifest: FlightManifest = new Proxy({} as any, proxyMethods);
+  const manifest: FlightManifest = new Proxy({} as any, proxyMethods(false));
+  const serverCSSManifest: FlightCSSManifest = {};
+  serverCSSManifest.__entry_css__ = {};
+  for (let i = 0; i < LAYOUT_INFO.length - 1; i++) {
+    const { chunks } = LAYOUT_INFO[i];
+    const cssChunks = (chunks || []).filter((path) => path.endsWith(".css"));
+    serverCSSManifest[`layout${i}.js`] = cssChunks.map((chunk) =>
+      JSON.stringify([chunk, [chunk]])
+    );
+  }
+  serverCSSManifest.__entry_css__ = {
+    page: pageItem.chunks
+      .filter((path) => path.endsWith(".css"))
+      .map((chunk) => JSON.stringify([chunk, [chunk]])),
+  };
+  serverCSSManifest["page.js"] = serverCSSManifest.__entry_css__.page;
   const req: IncomingMessage = {
     url: renderData.url,
     method: renderData.method,
@@ -126,9 +181,9 @@ async function operation(renderData: RenderData) {
     dev: true,
     buildManifest: {
       polyfillFiles: [],
-      rootMainFiles: LAYOUT_INFO.flatMap(({ chunks }) => chunks).concat(
-        BOOTSTRAP
-      ),
+      rootMainFiles: LAYOUT_INFO.flatMap(({ chunks }) => chunks || [])
+        .concat(BOOTSTRAP)
+        .filter((path) => !path.endsWith(".css")),
       devFiles: [],
       ampDevFiles: [],
       lowPriorityFiles: [],
@@ -141,10 +196,10 @@ async function operation(renderData: RenderData) {
       ...pageModule,
       default: undefined,
       tree,
-      pages: [],
+      pages: ["page.js"],
     },
     serverComponentManifest: manifest,
-    serverCSSManifest: {},
+    serverCSSManifest,
     runtime: "nodejs",
     serverComponents: true,
     assetPrefix: "",

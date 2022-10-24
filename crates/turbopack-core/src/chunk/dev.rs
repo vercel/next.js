@@ -1,7 +1,7 @@
 use anyhow::Result;
 use turbo_tasks::{
     primitives::{BoolVc, StringVc},
-    ValueToString,
+    Value, ValueToString,
 };
 use turbo_tasks_fs::FileSystemPathVc;
 use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
@@ -9,12 +9,38 @@ use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
 use super::{ChunkingContext, ChunkingContextVc};
 use crate::asset::AssetVc;
 
+pub struct DevChunkingContextBuilder {
+    context: DevChunkingContext,
+}
+
+impl DevChunkingContextBuilder {
+    pub fn hot_module_replacment(mut self) -> Self {
+        self.context.enable_hot_module_replacement = true;
+        self
+    }
+
+    pub fn layer(mut self, layer: &str) -> Self {
+        self.context.layer = (!layer.is_empty()).then(|| layer.to_string());
+        self
+    }
+
+    pub fn css_chunk_root_path(mut self, path: FileSystemPathVc) -> Self {
+        self.context.css_chunk_root_path = Some(path);
+        self
+    }
+
+    pub fn build(self) -> ChunkingContextVc {
+        self.context.cell().into()
+    }
+}
+
 /// A chunking context for development mode.
 /// It uses readable filenames and module ids to improve development.
 /// It also uses a chunking heuristic that is incremental and cacheable.
 /// It splits "node_modules" separately as these are less likely to change
 /// during development
-#[turbo_tasks::value]
+#[turbo_tasks::value(serialization = "auto_for_input")]
+#[derive(Debug, Clone, Hash, PartialOrd, Ord)]
 pub struct DevChunkingContext {
     /// This path get striped off of path before creating a name out of it
     context_path: FileSystemPathVc,
@@ -22,50 +48,42 @@ pub struct DevChunkingContext {
     output_root_path: FileSystemPathVc,
     /// Chunks are placed at this path
     chunk_root_path: FileSystemPathVc,
+    /// Css Chunks are placed at this path
+    css_chunk_root_path: Option<FileSystemPathVc>,
     /// Static assets are placed at this path
     asset_root_path: FileSystemPathVc,
     /// Layer name within this context
-    layer: StringVc,
+    layer: Option<String>,
     /// Enable HMR for this chunking
     enable_hot_module_replacement: bool,
 }
 
 impl DevChunkingContextVc {
-    pub fn new(
+    pub fn builder(
         context_path: FileSystemPathVc,
         output_root_path: FileSystemPathVc,
         chunk_root_path: FileSystemPathVc,
         asset_root_path: FileSystemPathVc,
-        enable_hot_module_replacement: bool,
-    ) -> Self {
-        DevChunkingContext {
-            context_path,
-            output_root_path,
-            chunk_root_path,
-            asset_root_path,
-            layer: StringVc::empty(),
-            enable_hot_module_replacement,
+    ) -> DevChunkingContextBuilder {
+        DevChunkingContextBuilder {
+            context: DevChunkingContext {
+                context_path,
+                output_root_path,
+                chunk_root_path,
+                css_chunk_root_path: None,
+                asset_root_path,
+                layer: None,
+                enable_hot_module_replacement: false,
+            },
         }
-        .cell()
     }
+}
 
-    pub fn new_with_layer(
-        context_path: FileSystemPathVc,
-        output_root_path: FileSystemPathVc,
-        chunk_root_path: FileSystemPathVc,
-        asset_root_path: FileSystemPathVc,
-        enable_hot_module_replacement: bool,
-        layer: &str,
-    ) -> Self {
-        DevChunkingContext {
-            context_path,
-            output_root_path,
-            chunk_root_path,
-            asset_root_path,
-            layer: StringVc::cell(layer.to_string()),
-            enable_hot_module_replacement,
-        }
-        .cell()
+#[turbo_tasks::value_impl]
+impl DevChunkingContextVc {
+    #[turbo_tasks::function]
+    fn new(this: Value<DevChunkingContext>) -> Self {
+        this.into_value().cell()
     }
 }
 
@@ -121,13 +139,21 @@ impl ChunkingContext for DevChunkingContext {
         if !name.ends_with(extension) {
             name += extension;
         }
-        let layer = &*self.layer.await?;
-        Ok(if layer.is_empty() {
-            self.chunk_root_path
-        } else {
-            self.chunk_root_path.join(layer)
+        let mut root_path = self.chunk_root_path;
+        match extension {
+            ".css" => {
+                if let Some(path) = self.css_chunk_root_path {
+                    root_path = path;
+                }
+            }
+            _ => {}
         }
-        .join(&name))
+        let root_path = if let Some(layer) = self.layer.as_deref() {
+            root_path.join(layer)
+        } else {
+            root_path
+        };
+        Ok(root_path.join(&name))
     }
 
     #[turbo_tasks::function]
@@ -157,27 +183,13 @@ impl ChunkingContext for DevChunkingContext {
 
     #[turbo_tasks::function]
     fn layer(&self) -> StringVc {
-        self.layer
+        StringVc::cell(self.layer.clone().unwrap_or_default())
     }
 
     #[turbo_tasks::function]
     async fn with_layer(self_vc: DevChunkingContextVc, layer: &str) -> Result<ChunkingContextVc> {
-        let DevChunkingContext {
-            output_root_path,
-            asset_root_path,
-            chunk_root_path,
-            context_path,
-            enable_hot_module_replacement,
-            layer: _,
-        } = *self_vc.await?;
-        Ok(DevChunkingContextVc::new_with_layer(
-            context_path,
-            output_root_path,
-            chunk_root_path,
-            asset_root_path,
-            enable_hot_module_replacement,
-            layer,
-        )
-        .into())
+        let mut context = self_vc.await?.clone_value();
+        context.layer = (!layer.is_empty()).then(|| layer.to_string());
+        Ok(DevChunkingContextVc::new(Value::new(context)).into())
     }
 }

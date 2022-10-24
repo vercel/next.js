@@ -4,7 +4,7 @@ pub mod next_layout_entry_transition;
 
 #[turbo_tasks::value(shared)]
 pub struct LayoutSegment {
-    pub file: FileSystemPathVc,
+    pub file: Option<FileSystemPathVc>,
     pub target: FileSystemPathVc,
 }
 
