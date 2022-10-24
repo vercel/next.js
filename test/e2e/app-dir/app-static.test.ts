@@ -358,4 +358,10 @@ describe('app-dir static/dynamic handling', () => {
 
     expect(secondDate).not.toBe(initialDate)
   })
+
+  it('should show a message to leave feedback for `appDir`', async () => {
+    expect(next.cliOutput).toContain(
+      `Thank you for testing \`appDir\` please leave your feedback at https://nextjs.link/app-feedback`
+    )
+  })
 })
