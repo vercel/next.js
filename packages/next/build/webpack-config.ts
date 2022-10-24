@@ -127,6 +127,7 @@ function isResourceInPackages(resource: string, packageNames?: string[]) {
 
 const bundledReactImports = [
   'react',
+  'react-dom',
   'react/jsx-runtime',
   'react/jsx-dev-runtime',
   'next/dist/compiled/react-server-dom-webpack/server.browser',
@@ -1069,6 +1070,10 @@ export default async function getBaseWebpackConfig(
         return `commonjs ${request}`
       }
       if (/^(react(?:$|\/)|react-dom(?:$|\/))/.test(request)) {
+        // override react-dom to server-rendering-stub for server
+        if (request === 'react-dom' && hasAppDir) {
+          request = 'react-dom/server-rendering-stub'
+        }
         return `commonjs ${hasAppDir ? 'next/dist/compiled/' : ''}${request}`
       }
 
