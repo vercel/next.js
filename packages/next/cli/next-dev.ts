@@ -152,7 +152,9 @@ const nextDev: cliCommand = (argv) => {
           )
         }
       )
-      const feedbackMessage = `Please direct any feedback to: ${chalk.underline(
+      const feedbackMessage = `Learn more about Next.js v13 and Turbopack: ${chalk.underline(
+        'https://nextjs.link/with-turbopack'
+      )}\nPlease direct feedback to: ${chalk.underline(
         'https://nextjs.link/turbopack-feedback'
       )}\n`
       if (babelrc) {
@@ -173,7 +175,13 @@ const nextDev: cliCommand = (argv) => {
           )}\n  To use Turbopack, remove other configuration options.`
         )}   `
       }
-
+      if (postcssFile || true) {
+        console.warn(
+          `${chalk.bold.yellow(
+            'Warning:'
+          )} PostCSS is not yet supported by Next.js v13 with Turbopack.\nTo use with Turbopack, remove your PostCSS configuration.\n`
+        )
+      }
       if (unsupportedParts) {
         const pkgManager = getPkgManager(dir)
 
@@ -189,15 +197,13 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
         ? 'npx create-next-app'
         : `${pkgManager} create next-app`
     } --example with-turbopack with-turbopack-app`
-  )}\n  cd with-turbopack-app\n  npm run dev
-  
+  )}\n  cd with-turbopack-app\n  npm run dev  
         `
         )
         console.warn(feedbackMessage)
         process.exit(1)
       }
-      console.warn(feedbackMessage)
-      process.exit(0)
+
       loadBindings()
         .then((bindings: any) => {
       const server = bindings.turbo.startDev({
