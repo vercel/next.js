@@ -120,11 +120,19 @@ function errorIfEnvConflicted(config: NextConfigComplete, key: string) {
   }
 }
 
-function isResourceInPackages(resource: string, packageNames?: string[]) {
+function isResourceInPackages(
+  resource: string,
+  packageNames?: string[],
+  packageDirMapping?: Map<string, string>
+) {
   return packageNames?.some((p: string) =>
-    resource.includes(
-      path.sep + pathJoin('node_modules', p.replace(/\//g, path.sep)) + path.sep
-    )
+    packageDirMapping && packageDirMapping.has(p)
+      ? resource.startsWith(packageDirMapping.get(p)! + path.sep)
+      : resource.includes(
+          path.sep +
+            pathJoin('node_modules', p.replace(/\//g, path.sep)) +
+            path.sep
+        )
   )
 }
 
@@ -1028,6 +1036,8 @@ export default async function getBaseWebpackConfig(
     ...(config.experimental.serverComponentsExternalPackages || [])
   )
 
+  let resolvedExternalPackageDirs: Map<string, string>
+
   async function handleExternals(
     context: string,
     request: string,
@@ -1194,9 +1204,30 @@ export default async function getBaseWebpackConfig(
 
     // If a package should be transpiled by Next.js, we skip making it external.
     // It doesn't matter what the extension is, as we'll transpile it anyway.
+    if (config.experimental.transpilePackages && !resolvedExternalPackageDirs) {
+      resolvedExternalPackageDirs = new Map()
+      // We need to reoslve all the external package dirs initially.
+      for (const pkg of config.experimental.transpilePackages) {
+        const pkgRes = await resolveExternal(
+          dir,
+          config.experimental.esmExternals,
+          context,
+          pkg + '/package.json',
+          hasAppDir,
+          isEsmRequested,
+          getResolve,
+          isLocal ? isLocalCallback : undefined
+        )
+        if (pkgRes.res) {
+          resolvedExternalPackageDirs.set(pkg, path.dirname(pkgRes.res))
+        }
+      }
+    }
+
     const shouldBeBundled = isResourceInPackages(
       res,
-      config.experimental.transpilePackages
+      config.experimental.transpilePackages,
+      resolvedExternalPackageDirs
     )
 
     if (/node_modules[/\\].*\.[mc]?js$/.test(res)) {
@@ -1240,9 +1271,12 @@ export default async function getBaseWebpackConfig(
     // Default behavior: bundle the code!
   }
 
+  const shouldIncludeExternalDirs =
+    config.experimental.externalDir || !!config.experimental.transpilePackages
+
   const codeCondition = {
     test: /\.(tsx|ts|js|cjs|mjs|jsx)$/,
-    ...(config.experimental.externalDir
+    ...(shouldIncludeExternalDirs
       ? // Allowing importing TS/TSX files from outside of the root dir.
         {}
       : { include: [dir, ...babelIncludeRegexes] }),
