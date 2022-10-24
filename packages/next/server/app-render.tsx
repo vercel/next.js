@@ -1525,26 +1525,6 @@ export async function renderToHTMLOrFlight(
           ...validateRootLayout,
         })
 
-        if (generateStaticHTML) {
-          let html = await streamToString(result)
-
-          if (
-            allCapturedErrors.some(
-              (e: any) => e.digest === NOT_FOUND_ERROR_CODE
-            )
-          ) {
-            // If a not found error is thrown, we return 404 and make sure to
-            // inject the noindex tag.
-            res.statusCode = 404
-            html = html.replace(
-              '<head>',
-              '<head><meta name="robots" content="noindex"/>'
-            )
-          }
-
-          return html
-        }
-
         return result
       } catch (err: any) {
         const shouldNotIndex = err.digest === NOT_FOUND_ERROR_CODE
