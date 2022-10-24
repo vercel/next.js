@@ -9,10 +9,7 @@ it('reflect .set into `set-cookie`', async () => {
 
   const response = new NextResponse()
   expect(response.cookies.get('foo')?.value).toBe(undefined)
-  expect(response.cookies.get('foo')).toEqual({
-    name: 'foo',
-    value: undefined,
-  })
+  expect(response.cookies.get('foo')).toEqual(undefined)
 
   response.cookies
     .set('foo', 'bar', { path: '/test' })
@@ -52,8 +49,8 @@ it('reflect .delete into `set-cookie`', async () => {
   expect(response.cookies.get('foo')?.value).toBe('bar')
   expect(response.cookies.get('foo')).toEqual({
     name: 'foo',
+    path: '/',
     value: 'bar',
-    Path: '/',
   })
 
   response.cookies.set('fooz', 'barz')
@@ -121,11 +118,6 @@ it('reflect .clear into `set-cookie`', async () => {
   response.cookies.set('fooz', 'barz')
   expect(Object.fromEntries(response.headers.entries())['set-cookie']).toBe(
     'foo=bar; Path=/, fooz=barz; Path=/'
-  )
-
-  response.cookies.clear()
-  expect(Object.fromEntries(response.headers.entries())['set-cookie']).toBe(
-    'foo=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT, fooz=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT'
   )
 })
 
