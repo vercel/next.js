@@ -2,7 +2,7 @@ import ReactRefreshWebpackPlugin from 'next/dist/compiled/@next/react-refresh-ut
 import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
-import path, { join as pathJoin, relative as relativePath, resolve } from 'path'
+import path from 'path'
 import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import {
   DOT_NEXT_ALIAS,
@@ -62,9 +62,12 @@ import { SubresourceIntegrityPlugin } from './webpack/plugins/subresource-integr
 import { FontLoaderManifestPlugin } from './webpack/plugins/font-loader-manifest-plugin'
 import { getSupportedBrowsers } from './utils'
 
-const NEXT_PROJECT_ROOT = pathJoin(__dirname, '..', '..')
-const NEXT_PROJECT_ROOT_DIST = pathJoin(NEXT_PROJECT_ROOT, 'dist')
-const NEXT_PROJECT_ROOT_DIST_CLIENT = pathJoin(NEXT_PROJECT_ROOT_DIST, 'client')
+const NEXT_PROJECT_ROOT = path.join(__dirname, '..', '..')
+const NEXT_PROJECT_ROOT_DIST = path.join(NEXT_PROJECT_ROOT, 'dist')
+const NEXT_PROJECT_ROOT_DIST_CLIENT = path.join(
+  NEXT_PROJECT_ROOT_DIST,
+  'client'
+)
 
 const babelIncludeRegexes: RegExp[] = [
   /next[\\/]dist[\\/](esm[\\/])?shared[\\/]lib/,
@@ -132,7 +135,7 @@ function isResourceInPackages(
       ? resource.startsWith(packageDirMapping.get(p)! + path.sep)
       : resource.includes(
           path.sep +
-            pathJoin('node_modules', p.replace(/\//g, path.sep)) +
+            path.join('node_modules', p.replace(/\//g, path.sep)) +
             path.sep
         )
   )
@@ -741,10 +744,12 @@ export default async function getBaseWebpackConfig(
               ),
               [CLIENT_STATIC_FILES_RUNTIME_AMP]:
                 `./` +
-                relativePath(
-                  dir,
-                  pathJoin(NEXT_PROJECT_ROOT_DIST_CLIENT, 'dev', 'amp-dev')
-                ).replace(/\\/g, '/'),
+                path
+                  .relative(
+                    dir,
+                    path.join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'dev', 'amp-dev')
+                  )
+                  .replace(/\\/g, '/'),
             }
           : {}),
         [CLIENT_STATIC_FILES_RUNTIME_MAIN]:
