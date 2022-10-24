@@ -737,6 +737,8 @@ export async function renderToHTMLOrFlight(
     supportsDynamicHTML,
   } = renderOpts
 
+  const generateStaticHTML = supportsDynamicHTML !== true || true
+
   patchFetch(ComponentMod)
 
   const staticGenerationAsyncStorage = ComponentMod.staticGenerationAsyncStorage
@@ -1516,21 +1518,22 @@ export async function renderToHTMLOrFlight(
 
         const result = await continueFromInitialStream(renderStream, {
           dataStream: serverComponentsInlinedTransformStream?.readable,
-          generateStaticHTML:
-            isStaticGeneration || supportsDynamicHTML !== true,
+          generateStaticHTML: isStaticGeneration || generateStaticHTML,
           getServerInsertedHTML,
           serverInsertedHTMLToHead: true,
           ...validateRootLayout,
         })
 
-        if (supportsDynamicHTML !== true) {
+        if (generateStaticHTML) {
           let html = await streamToString(result)
+
           if (
             allCapturedErrors.some(
               (e: any) => e.digest === NOT_FOUND_ERROR_CODE
             )
           ) {
-            // ???
+            // If a not found error is thrown, we return 404 and make sure to
+            // inject the noindex tag.
             res.statusCode = 404
             html = html.replace(
               '<head>',
@@ -1543,12 +1546,21 @@ export async function renderToHTMLOrFlight(
 
         return result
       } catch (err: any) {
+        const shouldNotIndex = err.digest === NOT_FOUND_ERROR_CODE
+        if (err.digest === NOT_FOUND_ERROR_CODE) {
+          res.statusCode = 404
+        }
+
         // TODO-APP: show error overlay in development. `element` should probably be wrapped in AppRouter for this case.
         const renderStream = await renderToInitialStream({
           ReactDOMServer,
           element: (
             <html id="__next_error__">
-              <head></head>
+              <head>
+                {shouldNotIndex ? (
+                  <meta name="robots" content="noindex" />
+                ) : null}
+              </head>
               <body></body>
             </html>
           ),
