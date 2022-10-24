@@ -105,7 +105,7 @@ class ReadonlyRequestCookies {
   }) {
     // Since `new Headers` uses `this.append()` to fill the headers object ReadonlyHeaders can't extend from Headers directly as it would throw.
     // Request overridden to not have to provide a fully request object.
-    const cookiesInstance = new RequestCookies(request.headers)
+    const cookiesInstance = new RequestCookies(request.headers as Headers)
     this[INTERNAL_COOKIES_INSTANCE] = cookiesInstance
 
     this.get = cookiesInstance.get.bind(cookiesInstance)

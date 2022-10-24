@@ -1,1 +1,7 @@
-export * from 'next/dist/compiled/@edge-runtime/cookies'
+export {
+  ResponseCookies,
+  ResponseCookie,
+  RequestCookies,
+  RequestCookie,
+  CookieListItem,
+} from 'next/dist/compiled/@edge-runtime/cookies'

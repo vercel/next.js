@@ -2082,6 +2082,7 @@ export async function ncc(task, opts) {
       'copy_react_is',
       'ncc_sass_loader',
       'ncc_jest_worker',
+      'ncc_edge_runtime_cookies',
       'ncc_edge_runtime_primitives',
       'ncc_edge_runtime',
     ],
