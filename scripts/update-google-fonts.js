@@ -15,7 +15,8 @@ const fetch = require('node-fetch')
   type CssVariable = \`--\${string}\`
   `
   const fontData = {}
-  for (let { family, fonts, axes } of familyMetadataList) {
+  for (let { family, fonts, axes, subsets } of familyMetadataList) {
+    subsets = subsets.filter((subset) => subset !== 'menu')
     const weights = new Set()
     const styles = new Set()
 
@@ -61,6 +62,7 @@ const fetch = require('node-fetch')
     preload?:boolean
     fallback?: string[]
     adjustFontFallback?: boolean
+    subsets?: Array<${subsets.map((subset) => `"${subset}"`).join('|')}>
     ${
       optionalAxes
         ? `axes?:(${optionalAxes.map(({ tag }) => `'${tag}'`).join('|')})[]`
