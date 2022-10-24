@@ -1,9 +1,12 @@
 import type { AsyncLocalStorage } from 'async_hooks'
-import type { RequestCookies } from '../../server/web/spec-extension/cookies'
+import type {
+  ReadonlyHeaders,
+  ReadonlyRequestCookies,
+} from '../../server/app-render'
 
 export interface RequestStore {
-  headers: Headers
-  cookies: RequestCookies
+  headers: ReadonlyHeaders
+  cookies: ReadonlyRequestCookies
   previewData: any
 }
 

@@ -2,7 +2,7 @@ import { cookies } from 'next/headers'
 
 export default function Page() {
   const cookiesList = cookies()
-  const cookie = cookiesList.get('use-cookies')
+  const cookie = cookiesList.get('use-cookies')?.value
 
   const hasCookie = cookie === 'value'
 

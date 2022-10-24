@@ -46,7 +46,7 @@ const INTERNAL_HEADERS_INSTANCE = Symbol('internal for headers readonly')
 function readonlyHeadersError() {
   return new Error('ReadonlyHeaders cannot be modified')
 }
-class ReadonlyHeaders {
+export class ReadonlyHeaders {
   [INTERNAL_HEADERS_INSTANCE]: Headers
 
   entries: Headers['entries']
@@ -89,7 +89,7 @@ class ReadonlyRequestCookiesError extends Error {
     'ReadonlyRequestCookies cannot be modified. Read more: https://nextjs.org/api-reference/cookies'
 }
 
-class ReadonlyRequestCookies {
+export class ReadonlyRequestCookies {
   [INTERNAL_COOKIES_INSTANCE]: RequestCookies
 
   get: RequestCookies['get']
