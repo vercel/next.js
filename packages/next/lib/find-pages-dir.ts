@@ -29,30 +29,27 @@ export function findPagesDir(
   appDir: string | undefined
 } {
   const pagesDir = findDir(dir, 'pages') || undefined
-  let appDir: undefined | string
+  const appDir = findDir(dir, 'app') || undefined
 
-  if (isAppDirEnabled) {
-    appDir = findDir(dir, 'app') || undefined
-  }
-  const hasAppDir =
-    !!appDir && fs.existsSync(appDir) && fs.statSync(appDir).isDirectory()
-
-  if (hasAppDir && appDir == null && pagesDir == null) {
+  if (isAppDirEnabled && appDir == null && pagesDir == null) {
     throw new Error(
       "> Couldn't find any `pages` or `app` directory. Please create one under the project root"
     )
   }
 
-  if (!isAppDirEnabled) {
-    if (pagesDir == null) {
+  if (!isAppDirEnabled && pagesDir == null) {
+    if (appDir != null) {
       throw new Error(
-        "> Couldn't find a `pages` directory. Please create one under the project root"
+        '> The `app` dir is experimental. Please add `{experimental:{appDir: true}}` to your `next.config.js` to enable it'
       )
     }
+    throw new Error(
+      "> Couldn't find a `pages` directory. Please create one under the project root"
+    )
   }
 
   return {
     pagesDir,
-    appDir,
+    appDir: isAppDirEnabled ? appDir : undefined,
   }
 }
