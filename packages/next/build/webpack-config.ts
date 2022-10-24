@@ -2,7 +2,7 @@ import ReactRefreshWebpackPlugin from 'next/dist/compiled/@next/react-refresh-ut
 import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
-import path, { join as pathJoin, relative as relativePath } from 'path'
+import path, { join as pathJoin, relative as relativePath, resolve } from 'path'
 import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import {
   DOT_NEXT_ALIAS,
@@ -73,8 +73,7 @@ const babelIncludeRegexes: RegExp[] = [
   /[\\/](strip-ansi|ansi-regex|styled-jsx)[\\/]/,
 ]
 
-const staticGenerationAsyncStorageRegex =
-  /next[\\/]dist[\\/]client[\\/]components[\\/]static-generation-async-storage/
+const reactPackagesRegex = /^(react(?:$|\/)|react-dom(?:$|\/)|scheduler$)/
 
 const BABEL_CONFIG_FILES = [
   '.babelrc',
@@ -135,14 +134,6 @@ function isResourceInPackages(
         )
   )
 }
-
-const bundledReactImports = [
-  'react',
-  'react-dom',
-  'react/jsx-runtime',
-  'react/jsx-dev-runtime',
-  'next/dist/compiled/react-server-dom-webpack/server.browser',
-]
 
 export function getDefineEnv({
   dev,
@@ -1069,7 +1060,10 @@ export default async function getBaseWebpackConfig(
 
     // Special internal modules that must be bundled for Server Components.
     if (layer === WEBPACK_LAYERS.server) {
-      if (bundledReactImports.includes(request)) {
+      if (
+        reactPackagesRegex.test(request) ||
+        request === 'next/dist/compiled/react-server-dom-webpack/server.browser'
+      ) {
         return
       }
     }
@@ -1082,7 +1076,7 @@ export default async function getBaseWebpackConfig(
       if (/^(?:next$)/.test(request)) {
         return `commonjs ${request}`
       }
-      if (/^(react(?:$|\/)|react-dom(?:$|\/))/.test(request)) {
+      if (reactPackagesRegex.test(request)) {
         // override react-dom to server-rendering-stub for server
         if (request === 'react-dom' && hasAppDir && !isClient) {
           request = 'react-dom/server-rendering-stub'
@@ -1206,7 +1200,7 @@ export default async function getBaseWebpackConfig(
     // It doesn't matter what the extension is, as we'll transpile it anyway.
     if (config.experimental.transpilePackages && !resolvedExternalPackageDirs) {
       resolvedExternalPackageDirs = new Map()
-      // We need to reoslve all the external package dirs initially.
+      // We need to resolve all the external package dirs initially.
       for (const pkg of config.experimental.transpilePackages) {
         const pkgRes = await resolveExternal(
           dir,
@@ -1241,22 +1235,13 @@ export default async function getBaseWebpackConfig(
         return
       }
 
-      // Treat react packages as external for SSR layer,
-      // then let require-hook mapping them to internals.
+      // Treat react packages and next internals as external for SSR layer,
+      // also map react to builtin ones with require-hook.
       if (layer === WEBPACK_LAYERS.client) {
-        if (
-          [
-            'react',
-            'react/jsx-runtime',
-            'react/jsx-dev-runtime',
-            'react-dom',
-            'scheduler',
-          ].includes(request)
-        ) {
+        if (reactPackagesRegex.test(request)) {
           return `commonjs next/dist/compiled/${request}`
-        } else {
-          return
         }
+        return
       }
 
       if (shouldBeBundled) return
@@ -1643,12 +1628,6 @@ export default async function getBaseWebpackConfig(
               },
             ]
           : []),
-        ...[
-          {
-            layer: WEBPACK_LAYERS.shared,
-            test: staticGenerationAsyncStorageRegex,
-          },
-        ],
         // TODO: FIXME: do NOT webpack 5 support with this
         // x-ref: https://github.com/webpack/webpack/issues/11467
         ...(!config.experimental.fullySpecified
@@ -1677,12 +1656,6 @@ export default async function getBaseWebpackConfig(
               // RSC server compilation loaders
               {
                 test: codeCondition.test,
-                include: [
-                  dir,
-                  // To let the internal client components passing through flight loader
-                  NEXT_PROJECT_ROOT_DIST,
-                ],
-                exclude: [staticGenerationAsyncStorageRegex],
                 issuerLayer: WEBPACK_LAYERS.server,
                 use: {
                   loader: 'next-flight-loader',
@@ -1715,8 +1688,6 @@ export default async function getBaseWebpackConfig(
                 // Alias react for switching between default set and share subset.
                 oneOf: [
                   {
-                    // test: codeCondition.test,
-                    exclude: [staticGenerationAsyncStorageRegex],
                     issuerLayer: WEBPACK_LAYERS.server,
                     test(req: string) {
                       // If it's not a source code file, or has been opted out of
@@ -1788,7 +1759,6 @@ export default async function getBaseWebpackConfig(
                   {
                     test: codeCondition.test,
                     issuerLayer: WEBPACK_LAYERS.server,
-                    exclude: [staticGenerationAsyncStorageRegex],
                     use: useSWCLoader
                       ? getSwcLoader({ isServerLayer: true })
                       : // When using Babel, we will have to add the SWC loader

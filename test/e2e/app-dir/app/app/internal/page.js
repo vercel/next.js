@@ -1,9 +1,13 @@
 import Link from 'next/link'
+import Head from 'next/head'
 
 export default function Page() {
   return (
     <div>
       <div>
+        <Head>
+          <title>123</title>
+        </Head>
         <Link href="/internal/test/rewrite" id="navigate-rewrite">
           Navigate Rewrite
         </Link>
