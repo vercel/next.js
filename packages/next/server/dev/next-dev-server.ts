@@ -794,7 +794,7 @@ export default class DevServer extends Server {
     }
     if (appFile && pagesFile) {
       throw new Error(
-        `Conflicting app and page file found: "${appFile}" and "${pagesFile}". Please remove one to continue.`
+        `Conflicting app and page file found: "app${appFile}" and "pages${pagesFile}". Please remove one to continue.`
       )
     }
 
