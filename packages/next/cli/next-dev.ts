@@ -134,8 +134,6 @@ const nextDev: cliCommand = (argv) => {
 
       let unsupportedParts = ''
       // TODO: warning for postcss mentioning sidecar
-      const postcssFile = await findConfig<string>(dir, 'postcss')
-      const tailwindFile = await findConfig<string>(dir, 'tailwind')
       const babelrc = await getBabelConfigFile(dir)
       const rawNextConfig = (await loadConfig(
         PHASE_DEVELOPMENT_SERVER,
@@ -156,6 +154,25 @@ const nextDev: cliCommand = (argv) => {
           )
         }
       )
+      const findUp =
+        require('next/dist/compiled/find-up') as typeof import('next/dist/compiled/find-up')
+      const turboJson = findUp.sync('turbo.json', { cwd: dir })
+      const packagePath = findUp.sync('package.json', { cwd: dir })
+      let hasSideCar = false
+
+      if (packagePath) {
+        const pkgData = require(packagePath)
+        hasSideCar = Object.values(
+          (pkgData.scripts || {}) as Record<string, string>
+        ).some((script) => {
+          script.includes('tailwindcss') || script.includes('postcss')
+        })
+      }
+      const postcssFile =
+        !hasSideCar && (await findConfig<string>(dir, 'postcss'))
+      const tailwindFile =
+        !hasSideCar && (await findConfig<string>(dir, 'tailwind'))
+
       const hasWarningOrError =
         tailwindFile || postcssFile || babelrc || hasNonDefaultConfig
       if (!hasWarningOrError) {
@@ -248,6 +265,7 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
 
           let server = bindings.diagnostics.startDiagnostics({
             ...devServerOptions,
+	    showAll: args['--show-all'] ?? false,
             rootDir:
               args['--root'] ?? turboJson
                 ? path.dirname(turboJson)
