@@ -5,8 +5,9 @@ export default function Page() {
   return (
     <div>
       <div>
+        {/* NOTE: next/head will not work in RSC for now but not break either */}
         <Head>
-          <title>123</title>
+          <title>internal-title</title>
         </Head>
         <Link href="/internal/test/rewrite" id="navigate-rewrite">
           Navigate Rewrite

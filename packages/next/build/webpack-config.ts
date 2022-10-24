@@ -1052,6 +1052,9 @@ export default async function getBaseWebpackConfig(
       // absolute paths.
       (process.platform === 'win32' && path.win32.isAbsolute(request))
 
+    const isRscLayer =
+      layer === WEBPACK_LAYERS.server || layer === WEBPACK_LAYERS.client
+
     // make sure import "next" shows a warning when imported
     // in pages/components
     if (request === 'next') {
@@ -1107,6 +1110,7 @@ export default async function getBaseWebpackConfig(
       // we need to process shared `router/router` and `dynamic`,
       // so that the DefinePlugin can inject process.env values
       const isNextExternal =
+        !isRscLayer &&
         /next[/\\]dist[/\\](shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic))/.test(
           localRes
         )
