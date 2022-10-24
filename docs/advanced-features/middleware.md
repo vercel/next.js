@@ -169,7 +169,7 @@ export function middleware(request: NextRequest) {
   console.log(value) // => 'fast'
   console.log(options) // => { Path: '/test' }
   response.cookies.has('nextjs') // => true
-  response.cookies.clear()
+  response.cookies.delete('nextjs')
   response.cookies.has('nextjs') // => false
 
   // Setting cookies on the response using the `ResponseCookies` API

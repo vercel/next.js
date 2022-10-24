@@ -248,9 +248,6 @@ export function middleware() {
   // deleting a cookie will mark it as expired
   response.cookies.delete('vercel')
 
-  // clear all cookies means mark all of them as expired
-  response.cookies.clear()
-
   return response
 }
 ```
