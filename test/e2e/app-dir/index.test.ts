@@ -1900,14 +1900,20 @@ describe('app dir', () => {
     })
 
     describe('bots', () => {
-      it.skip('should block rendering for bots', async () => {
-        const res = await fetchViaHTTP(next.url, '/dashboard/index', '', {
-          headers: {
-            'User-Agent': 'Googlebot',
-          },
-        })
+      it('should block rendering for bots and return 404 status', async () => {
+        const res = await fetchViaHTTP(
+          next.url,
+          '/not-found/servercomponent',
+          '',
+          {
+            headers: {
+              'User-Agent': 'Googlebot',
+            },
+          }
+        )
 
-        console.log(await res.text())
+        expect(res.status).toBe(404)
+        expect(await res.text()).toInclude('"noindex"')
       })
     })
 

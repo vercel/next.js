@@ -145,6 +145,7 @@ export type RenderOptsPartial = {
   serverComponents?: boolean
   assetPrefix?: string
   fontLoaderManifest?: FontLoaderManifest
+  isBot?: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -706,7 +707,8 @@ export async function renderToHTMLOrFlight(
    * These rules help ensure that other existing features like request caching,
    * coalescing, and ISR continue working as intended.
    */
-  const isStaticGeneration = renderOpts.supportsDynamicHTML !== true
+  const isStaticGeneration =
+    renderOpts.supportsDynamicHTML !== true && !renderOpts.isBot
   const isFlight = req.headers.__rsc__ !== undefined
 
   const capturedErrors: Error[] = []
@@ -737,9 +739,7 @@ export async function renderToHTMLOrFlight(
     supportsDynamicHTML,
   } = renderOpts
 
-  const generateStaticHTML = supportsDynamicHTML !== true || true
-
-  patchFetch(ComponentMod)
+  const generateStaticHTML = supportsDynamicHTML !== true
 
   const staticGenerationAsyncStorage = ComponentMod.staticGenerationAsyncStorage
   const requestAsyncStorage = ComponentMod.requestAsyncStorage
