@@ -76,7 +76,8 @@ const babelIncludeRegexes: RegExp[] = [
   /[\\/](strip-ansi|ansi-regex|styled-jsx)[\\/]/,
 ]
 
-const reactPackagesRegex = /^(react(?:$|\/)|react-dom(?:$|\/)|scheduler$)/
+const reactPackagesRegex = /^(react(?:$|\/)|react-dom(?:$|\/))/
+// /^(react(?:$|\/)|react-dom(?:$|\/))/
 
 const staticGenerationAsyncStorageRegex =
   /next[\\/]dist[\\/]client[\\/]components[\\/]static-generation-async-storage/
@@ -1060,9 +1061,6 @@ export default async function getBaseWebpackConfig(
       // absolute paths.
       (process.platform === 'win32' && path.win32.isAbsolute(request))
 
-    const isRscLayer =
-      layer === WEBPACK_LAYERS.server || layer === WEBPACK_LAYERS.client
-
     // make sure import "next" shows a warning when imported
     // in pages/components
     if (request === 'next') {
@@ -1087,11 +1085,7 @@ export default async function getBaseWebpackConfig(
       if (/^(?:next$)/.test(request)) {
         return `commonjs ${request}`
       }
-      if (reactPackagesRegex.test(request)) {
-        // override react-dom to server-rendering-stub for server
-        if (request === 'react-dom' && hasAppDir && !isClient) {
-          request = 'react-dom/server-rendering-stub'
-        }
+      if (/^(react(?:$|\/)|react-dom(?:$|\/))/.test(request)) {
         return `commonjs ${hasAppDir ? 'next/dist/compiled/' : ''}${request}`
       }
 
@@ -1118,10 +1112,12 @@ export default async function getBaseWebpackConfig(
       // we need to process shared `router/router` and `dynamic`,
       // so that the DefinePlugin can inject process.env values
       const isNextExternal =
-        !isRscLayer &&
-        /next[/\\]dist[/\\](shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic))/.test(
-          localRes
-        )
+        // Treat next internals as non-external for server layer
+        layer === WEBPACK_LAYERS.server
+          ? false
+          : /next[/\\]dist[/\\](shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic))/.test(
+              localRes
+            )
 
       if (isNextExternal) {
         // Generate Next.js external import
@@ -1631,10 +1627,8 @@ export default async function getBaseWebpackConfig(
                     // react to the direct file path, not the package name. In that case the condition
                     // will be ignored completely.
                     react: 'next/dist/compiled/react',
-                    'react-dom$': isClient
-                      ? 'next/dist/compiled/react-dom/index'
-                      : 'next/dist/compiled/react-dom/server-rendering-stub',
-                    'react-dom/client$': 'next/dist/compiled/react-dom/client',
+                    'react-dom$':
+                      'next/dist/compiled/react-dom/server-rendering-stub',
                   },
                 },
               },
@@ -1734,13 +1728,22 @@ export default async function getBaseWebpackConfig(
                     },
                   },
                   {
+                    issuerLayer: WEBPACK_LAYERS.client,
                     test: codeCondition.test,
                     resolve: {
                       alias: {
                         react: 'next/dist/compiled/react',
-                        'react-dom$': isClient
-                          ? 'next/dist/compiled/react-dom/index'
-                          : 'next/dist/compiled/react-dom/server-rendering-stub',
+                        'react-dom$':
+                          'next/dist/compiled/react-dom/server-rendering-stub',
+                      },
+                    },
+                  },
+                  {
+                    test: codeCondition.test,
+                    resolve: {
+                      alias: {
+                        react: 'next/dist/compiled/react',
+                        'react-dom$': 'next/dist/compiled/react-dom',
                         'react-dom/client$':
                           'next/dist/compiled/react-dom/client',
                       },

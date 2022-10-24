@@ -1,3 +1,4 @@
+'use client'
 // useLayoutSegments() // Only the segments for the current place. ['children', 'dashboard', 'children', 'integrations'] -> /dashboard/integrations (/dashboard/layout.js would get ['children', 'dashboard', 'children', 'integrations'])
 
 import type { FlightRouterState } from '../../../server/app-render'

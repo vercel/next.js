@@ -1,5 +1,3 @@
-'use client'
-
 import React from 'react'
 import type { FocusAndScrollRef } from '../../client/components/reducer'
 import type { FlightRouterState, FlightData } from '../../server/app-render'
