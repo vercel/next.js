@@ -533,7 +533,7 @@ importers:
       buffer: 5.6.0
       bytes: 3.1.1
       caniuse-lite: 1.0.30001406
-      chalk: 2.4.2
+      chalk: 5.1.2
       ci-info: watson/ci-info#f43f6a1cefff47fb361c88cf4b943fdbcaafe540
       cli-select: 1.1.2
       comment-json: 3.0.3
@@ -731,7 +731,7 @@ importers:
       browserslist: 4.20.2
       buffer: 5.6.0
       bytes: 3.1.1
-      chalk: 2.4.2
+      chalk: 5.1.2
       ci-info: github.com/watson/ci-info/f43f6a1cefff47fb361c88cf4b943fdbcaafe540
       cli-select: 1.1.2
       comment-json: 3.0.3
@@ -1594,7 +1594,7 @@ packages:
       '@babel/core': 7.18.0
       '@babel/helper-plugin-utils': 7.19.0
       '@babel/helper-skip-transparent-expression-wrappers': 7.16.0
-      '@babel/plugin-proposal-optional-chaining': 7.16.7_@babel+core@7.18.0
+      '@babel/plugin-proposal-optional-chaining': 7.17.12_@babel+core@7.18.0
     dev: true
 
   /@babel/plugin-bugfix-v8-spread-parameters-in-optional-chaining/7.17.12_@babel+core@7.18.0:
@@ -1715,7 +1715,7 @@ packages:
       '@babel/core': ^7.12.0
     dependencies:
       '@babel/core': 7.18.0
-      '@babel/helper-create-class-features-plugin': 7.17.1_@babel+core@7.18.0
+      '@babel/helper-create-class-features-plugin': 7.18.0_@babel+core@7.18.0
       '@babel/helper-plugin-utils': 7.19.0
       '@babel/plugin-syntax-class-static-block': 7.14.5_@babel+core@7.18.0
     transitivePeerDependencies:
@@ -2025,7 +2025,7 @@ packages:
       '@babel/core': ^7.0.0-0
     dependencies:
       '@babel/core': 7.18.0
-      '@babel/helper-create-class-features-plugin': 7.17.1_@babel+core@7.18.0
+      '@babel/helper-create-class-features-plugin': 7.18.0_@babel+core@7.18.0
       '@babel/helper-plugin-utils': 7.19.0
     transitivePeerDependencies:
       - supports-color
@@ -2073,7 +2073,7 @@ packages:
     dependencies:
       '@babel/core': 7.18.0
       '@babel/helper-annotate-as-pure': 7.16.7
-      '@babel/helper-create-class-features-plugin': 7.17.1_@babel+core@7.18.0
+      '@babel/helper-create-class-features-plugin': 7.18.0_@babel+core@7.18.0
       '@babel/helper-plugin-utils': 7.19.0
       '@babel/plugin-syntax-private-property-in-object': 7.14.5_@babel+core@7.18.0
     transitivePeerDependencies:
@@ -10735,6 +10735,14 @@ packages:
     resolution:
       {
         integrity: sha512-Fo07WOYGqMfCWHOzSXOt2CxDbC6skS/jO9ynEcmpANMoPrD+W1r1K6Vx7iNm+AQmETU1Xr2t+n8nzkV9t6xh3w==,
+      }
+    engines: { node: ^12.17.0 || ^14.13 || >=16.0.0 }
+    dev: true
+
+  /chalk/5.1.2:
+    resolution:
+      {
+        integrity: sha512-E5CkT4jWURs1Vy5qGJye+XwCkNj7Od3Af7CP6SujMetSMkLs8Do2RWJK5yx1wamHV/op8Rz+9rltjaTQWDnEFQ==,
       }
     engines: { node: ^12.17.0 || ^14.13 || >=16.0.0 }
     dev: true
@@ -19493,7 +19501,10 @@ packages:
     dev: true
 
   /json-schema/0.2.3:
-    resolution: { integrity: sha1-tIDIkuWaLwWVTOcnvT8qTogvnhM= }
+    resolution:
+      {
+        integrity: sha512-a3xHnILGMtk+hDOqNwHzF6e2fNbiMrXZvxKQiEv2MlgQP+pjIOzqAmKYD2mDpXYE/44M7g+n9p2bKkYWDUcXCQ==,
+      }
     dev: true
 
   /json-stable-stringify-without-jsonify/1.0.1:
@@ -20425,7 +20436,7 @@ packages:
       }
     engines: { node: '>=12' }
     dependencies:
-      chalk: 5.0.1
+      chalk: 5.1.2
       is-unicode-supported: 1.1.0
     dev: true
 
@@ -24848,7 +24859,7 @@ packages:
       '@jest/schemas': 28.1.3
       ansi-regex: 5.0.1
       ansi-styles: 5.1.0
-      react-is: 18.1.0
+      react-is: 18.2.0
     dev: true
 
   /pretty-hrtime/1.0.3:
@@ -25402,13 +25413,6 @@ packages:
     resolution:
       {
         integrity: sha512-w2GsyukL62IJnlaff/nRegPQR94C/XXamvMWmSHRJ4y7Ts/4ocGRmTHvOs8PSE6pB3dWOrD/nueuU5sduBsQ4w==,
-      }
-    dev: true
-
-  /react-is/18.1.0:
-    resolution:
-      {
-        integrity: sha512-Fl7FuabXsJnV5Q1qIOQwx/sagGF18kogb4gpfcG4gjLBWO0WDiiz1ko/ExayuxE7InyQkBLkxRFG5oxY6Uu3Kg==,
       }
     dev: true
 
@@ -30146,7 +30150,10 @@ packages:
     dev: true
 
   /verror/1.10.0:
-    resolution: { integrity: sha1-OhBcoXBTr1XW4nDB+CiGguGNpAA= }
+    resolution:
+      {
+        integrity: sha512-ZZKSmDAEFOijERBLkmYfJ+vmk3w+7hOLYDNkRCuRuMJGEmqYNCNLyBBFwWKVMhfwaEF3WOd0Zlw86U/WC/+nYw==,
+      }
     engines: { '0': node >=0.6.0 }
     dependencies:
       assert-plus: 1.0.0
