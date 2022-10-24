@@ -5,7 +5,7 @@ import React, {
   useEffect,
   useRef,
   // TODO-APP: change to React.use once it becomes stable
-  experimental_use as use,
+  use,
 } from 'react'
 import type {
   ChildProp,

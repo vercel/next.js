@@ -7,7 +7,7 @@ import type { FontLoaderManifest } from '../build/webpack/plugins/font-loader-ma
 // TODO-APP: change to React.use once it becomes stable
 import React, {
   // @ts-ignore
-  experimental_use as use,
+  use,
 } from 'next/dist/compiled/react'
 
 // this needs to be required lazily so that `next-server` can set

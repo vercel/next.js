@@ -178,7 +178,7 @@ var disableCommentsAsDOMContainers = true; // Disable javascript: URL strings in
 // element's object properties instead of only HTML attributes.
 // https://github.com/facebook/react/issues/11347
 
-var enableCustomElementPropertySupport = true; // Disables children for <textarea> elements
+var enableCustomElementPropertySupport = false; // Disables children for <textarea> elements
 var warnAboutStringRefs = false; // -----------------------------------------------------------------------------
 // Debugging and DevTools
 // -----------------------------------------------------------------------------
@@ -467,11 +467,6 @@ function shouldRemoveAttribute(name, value, propertyInfo, isCustomComponentTag) 
   }
 
   if (isCustomComponentTag) {
-    {
-      if (value === false) {
-        return true;
-      }
-    }
 
     return false;
   }
@@ -519,10 +514,6 @@ var reservedProps = ['children', 'dangerouslySetInnerHTML', // TODO: This preven
 // elements (not just inputs). Now that ReactDOMInput assigns to the
 // defaultValue property -- do we need this?
 'defaultValue', 'defaultChecked', 'innerHTML', 'suppressContentEditableWarning', 'suppressHydrationWarning', 'style'];
-
-{
-  reservedProps.push('innerText', 'textContent');
-}
 
 reservedProps.forEach(function (name) {
   // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
@@ -819,12 +810,6 @@ function getValueForAttribute(node, name, expected, isCustomComponentTag) {
     var value = node.getAttribute(name);
 
     {
-      if (isCustomComponentTag && value === '') {
-        return true;
-      }
-    }
-
-    {
       checkAttributeStringCoercion(expected, name);
     }
 
@@ -850,48 +835,9 @@ function setValueForProperty(node, name, value, isCustomComponentTag) {
     return;
   }
 
-  if ( isCustomComponentTag && name[0] === 'o' && name[1] === 'n') {
-    var eventName = name.replace(/Capture$/, '');
-    var useCapture = name !== eventName;
-    eventName = eventName.slice(2);
-    var prevProps = getFiberCurrentPropsFromNode(node);
-    var prevValue = prevProps != null ? prevProps[name] : null;
-
-    if (typeof prevValue === 'function') {
-      node.removeEventListener(eventName, prevValue, useCapture);
-    }
-
-    if (typeof value === 'function') {
-      if (typeof prevValue !== 'function' && prevValue !== null) {
-        // If we previously assigned a non-function type into this node, then
-        // remove it when switching to event listener mode.
-        if (name in node) {
-          node[name] = null;
-        } else if (node.hasAttribute(name)) {
-          node.removeAttribute(name);
-        }
-      } // $FlowFixMe value can't be casted to EventListener.
-
-
-      node.addEventListener(eventName, value, useCapture);
-      return;
-    }
-  }
-
-  if ( isCustomComponentTag && name in node) {
-    node[name] = value;
-    return;
-  }
-
   if (shouldRemoveAttribute(name, value, propertyInfo, isCustomComponentTag)) {
     value = null;
   }
-
-  {
-    if (isCustomComponentTag && value === true) {
-      value = '';
-    }
-  } // If the prop isn't in the special list, treat it as a simple attribute.
 
 
   if (isCustomComponentTag || propertyInfo === null) {
@@ -991,7 +937,6 @@ var REACT_LEGACY_HIDDEN_TYPE = Symbol.for('react.legacy_hidden');
 var REACT_CACHE_TYPE = Symbol.for('react.cache');
 var REACT_TRACING_MARKER_TYPE = Symbol.for('react.tracing_marker');
 var REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED = Symbol.for('react.default_value');
-var REACT_MEMO_CACHE_SENTINEL = Symbol.for('react.memo_cache_sentinel');
 var MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 var FAUX_ITERATOR_SYMBOL = '@@iterator';
 function getIteratorFn(maybeIterable) {
@@ -8172,8 +8117,6 @@ function extractEvents$1(dispatchQueue, domEventName, targetInst, nativeEvent, n
     }
   } else if (shouldUseClickEvent(targetNode)) {
     getTargetInstFunc = getTargetInstForClickEvent;
-  } else if ( targetInst && isCustomComponent(targetInst.elementType, targetInst.memoizedProps)) {
-    getTargetInstFunc = getTargetInstForChangeEvent;
   }
 
   if (getTargetInstFunc) {
@@ -10567,17 +10510,10 @@ function diffHydratedProperties(domElement, tag, rawProps, parentNamespace, isCo
             warnForPropDifference(propKey, serverValue, expectedStyle);
           }
         }
-      } else if ( isCustomComponentTag && (propKey === 'offsetParent' || propKey === 'offsetTop' || propKey === 'offsetLeft' || propKey === 'offsetWidth' || propKey === 'offsetHeight' || propKey === 'isContentEditable' || propKey === 'outerText' || propKey === 'outerHTML')) {
-        // $FlowFixMe - Should be inferred as not undefined.
-        extraAttributeNames.delete(propKey.toLowerCase());
-
-        {
-          error('Assignment to read-only property will result in a no-op: `%s`', propKey);
-        }
       } else if (isCustomComponentTag && !enableCustomElementPropertySupport) {
         // $FlowFixMe - Should be inferred as not undefined.
         extraAttributeNames.delete(propKey.toLowerCase());
-        serverValue = getValueForAttribute(domElement, propKey, nextProp, isCustomComponentTag);
+        serverValue = getValueForAttribute(domElement, propKey, nextProp);
 
         if (nextProp !== serverValue) {
           warnForPropDifference(propKey, serverValue, nextProp);
@@ -10617,10 +10553,10 @@ function diffHydratedProperties(domElement, tag, rawProps, parentNamespace, isCo
             extraAttributeNames.delete(propKey);
           }
 
-          serverValue = getValueForAttribute(domElement, propKey, nextProp, isCustomComponentTag);
+          serverValue = getValueForAttribute(domElement, propKey, nextProp);
         }
 
-        var dontWarnCustomElement =  isCustomComponentTag && (typeof nextProp === 'function' || typeof nextProp === 'object');
+        var dontWarnCustomElement = enableCustomElementPropertySupport  ;
 
         if (!dontWarnCustomElement && nextProp !== serverValue && !isMismatchDueToBadCasing) {
           warnForPropDifference(propKey, serverValue, nextProp);
@@ -11832,67 +11768,96 @@ function getResource(type, pendingProps, currentProps) {
   }
 
   switch (type) {
+    case 'base':
+      {
+        var headRoot = getDocumentFromRoot(resourceRoot);
+        var headResources = getResourcesFromRoot(headRoot).head;
+        var target = pendingProps.target,
+            href = pendingProps.href;
+        var matcher = 'base';
+        matcher += typeof href === 'string' ? "[href=\"" + escapeSelectorAttributeValueInsideDoubleQuotes(href) + "\"]" : ':not([href])';
+        matcher += typeof target === 'string' ? "[target=\"" + escapeSelectorAttributeValueInsideDoubleQuotes(target) + "\"]" : ':not([target])';
+        var resource = headResources.get(matcher);
+
+        if (!resource) {
+          resource = {
+            type: 'base',
+            matcher: matcher,
+            props: assign({}, pendingProps),
+            count: 0,
+            instance: null,
+            root: headRoot
+          };
+          headResources.set(matcher, resource);
+        }
+
+        return resource;
+      }
+
     case 'meta':
       {
-        var matcher, propertyString, parentResource;
+        var _matcher, propertyString, parentResource;
+
         var charSet = pendingProps.charSet,
             content = pendingProps.content,
             httpEquiv = pendingProps.httpEquiv,
             name = pendingProps.name,
             itemProp = pendingProps.itemProp,
             property = pendingProps.property;
-        var headRoot = getDocumentFromRoot(resourceRoot);
 
-        var _getResourcesFromRoot = getResourcesFromRoot(headRoot),
-            headResources = _getResourcesFromRoot.head,
+        var _headRoot = getDocumentFromRoot(resourceRoot);
+
+        var _getResourcesFromRoot = getResourcesFromRoot(_headRoot),
+            _headResources = _getResourcesFromRoot.head,
             lastStructuredMeta = _getResourcesFromRoot.lastStructuredMeta;
 
         if (typeof charSet === 'string') {
-          matcher = 'meta[charset]';
+          _matcher = 'meta[charset]';
         } else if (typeof content === 'string') {
           if (typeof httpEquiv === 'string') {
-            matcher = "meta[http-equiv=\"" + escapeSelectorAttributeValueInsideDoubleQuotes(httpEquiv) + "\"][content=\"" + escapeSelectorAttributeValueInsideDoubleQuotes(content) + "\"]";
+            _matcher = "meta[http-equiv=\"" + escapeSelectorAttributeValueInsideDoubleQuotes(httpEquiv) + "\"][content=\"" + escapeSelectorAttributeValueInsideDoubleQuotes(content) + "\"]";
           } else if (typeof property === 'string') {
             propertyString = property;
-            matcher = "meta[property=\"" + escapeSelectorAttributeValueInsideDoubleQuotes(property) + "\"][content=\"" + escapeSelectorAttributeValueInsideDoubleQuotes(content) + "\"]";
+            _matcher = "meta[property=\"" + escapeSelectorAttributeValueInsideDoubleQuotes(property) + "\"][content=\"" + escapeSelectorAttributeValueInsideDoubleQuotes(content) + "\"]";
             var parentPropertyPath = property.split(':').slice(0, -1).join(':');
             parentResource = lastStructuredMeta.get(parentPropertyPath);
 
             if (parentResource) {
               // When using parentResource the matcher is not functional for locating
               // the instance in the DOM but it still serves as a unique key.
-              matcher = parentResource.matcher + matcher;
+              _matcher = parentResource.matcher + _matcher;
             }
           } else if (typeof name === 'string') {
-            matcher = "meta[name=\"" + escapeSelectorAttributeValueInsideDoubleQuotes(name) + "\"][content=\"" + escapeSelectorAttributeValueInsideDoubleQuotes(content) + "\"]";
+            _matcher = "meta[name=\"" + escapeSelectorAttributeValueInsideDoubleQuotes(name) + "\"][content=\"" + escapeSelectorAttributeValueInsideDoubleQuotes(content) + "\"]";
           } else if (typeof itemProp === 'string') {
-            matcher = "meta[itemprop=\"" + escapeSelectorAttributeValueInsideDoubleQuotes(itemProp) + "\"][content=\"" + escapeSelectorAttributeValueInsideDoubleQuotes(content) + "\"]";
+            _matcher = "meta[itemprop=\"" + escapeSelectorAttributeValueInsideDoubleQuotes(itemProp) + "\"][content=\"" + escapeSelectorAttributeValueInsideDoubleQuotes(content) + "\"]";
           }
         }
 
-        if (matcher) {
-          var resource = headResources.get(matcher);
+        if (_matcher) {
+          var _resource2 = _headResources.get(_matcher);
 
-          if (!resource) {
-            resource = {
+          if (!_resource2) {
+            _resource2 = {
               type: 'meta',
-              matcher: matcher,
+              matcher: _matcher,
               property: propertyString,
               parentResource: parentResource,
               props: assign({}, pendingProps),
               count: 0,
               instance: null,
-              root: headRoot
+              root: _headRoot
             };
-            headResources.set(matcher, resource);
+
+            _headResources.set(_matcher, _resource2);
           }
 
-          if (typeof resource.property === 'string') {
+          if (typeof _resource2.property === 'string') {
             // We cast because flow doesn't know that this resource must be a Meta resource
-            lastStructuredMeta.set(resource.property, resource);
+            lastStructuredMeta.set(_resource2.property, _resource2);
           }
 
-          return resource;
+          return _resource2;
         }
 
         return null;
@@ -11907,27 +11872,27 @@ function getResource(type, pendingProps, currentProps) {
         }
 
         if (typeof child === 'string' || typeof child === 'number') {
-          var _headRoot = getDocumentFromRoot(resourceRoot);
+          var _headRoot2 = getDocumentFromRoot(resourceRoot);
 
-          var _headResources = getResourcesFromRoot(_headRoot).head;
+          var _headResources2 = getResourcesFromRoot(_headRoot2).head;
           var key = getTitleKey(child);
 
-          var _resource2 = _headResources.get(key);
+          var _resource3 = _headResources2.get(key);
 
-          if (!_resource2) {
+          if (!_resource3) {
             var titleProps = titlePropsFromRawProps(child, pendingProps);
-            _resource2 = {
+            _resource3 = {
               type: 'title',
               props: titleProps,
               count: 0,
               instance: null,
-              root: _headRoot
+              root: _headRoot2
             };
 
-            _headResources.set(key, _resource2);
+            _headResources2.set(key, _resource3);
           }
 
-          return _resource2;
+          return _resource3;
         }
 
         return null;
@@ -11954,33 +11919,33 @@ function getResource(type, pendingProps, currentProps) {
               }
 
               var precedence = pendingProps.precedence,
-                  href = pendingProps.href;
+                  _href = pendingProps.href;
 
-              if (typeof href === 'string' && typeof precedence === 'string') {
+              if (typeof _href === 'string' && typeof precedence === 'string') {
                 // We've asserted all the specific types for StyleQualifyingProps
                 var styleRawProps = pendingProps; // We construct or get an existing resource for the style itself and return it
 
-                var _resource3 = styleResources.get(href);
+                var _resource4 = styleResources.get(_href);
 
-                if (_resource3) {
+                if (_resource4) {
                   {
                     if (!didWarn) {
                       var latestProps = stylePropsFromRawProps(styleRawProps);
 
-                      if (_resource3._dev_preload_props) {
-                        adoptPreloadPropsForStyle(latestProps, _resource3._dev_preload_props);
+                      if (_resource4._dev_preload_props) {
+                        adoptPreloadPropsForStyle(latestProps, _resource4._dev_preload_props);
                       }
 
-                      validateStyleResourceDifference(_resource3.props, latestProps);
+                      validateStyleResourceDifference(_resource4.props, latestProps);
                     }
                   }
                 } else {
                   var resourceProps = stylePropsFromRawProps(styleRawProps);
-                  _resource3 = createStyleResource(styleResources, resourceRoot, href, precedence, resourceProps);
-                  immediatelyPreloadStyleResource(_resource3);
+                  _resource4 = createStyleResource(styleResources, resourceRoot, _href, precedence, resourceProps);
+                  immediatelyPreloadStyleResource(_resource4);
                 }
 
-                return _resource3;
+                return _resource4;
               }
 
               return null;
@@ -11992,29 +11957,29 @@ function getResource(type, pendingProps, currentProps) {
                 validateLinkPropsForPreloadResource(pendingProps);
               }
 
-              var _href = pendingProps.href;
+              var _href2 = pendingProps.href;
 
-              if (typeof _href === 'string') {
+              if (typeof _href2 === 'string') {
                 // We've asserted all the specific types for PreloadQualifyingProps
                 var preloadRawProps = pendingProps;
 
-                var _resource4 = preloadResources.get(_href);
+                var _resource5 = preloadResources.get(_href2);
 
-                if (_resource4) {
+                if (_resource5) {
                   {
-                    var originallyImplicit = _resource4._dev_implicit_construction === true;
+                    var originallyImplicit = _resource5._dev_implicit_construction === true;
 
                     var _latestProps2 = preloadPropsFromRawProps(preloadRawProps);
 
-                    validatePreloadResourceDifference(_resource4.props, originallyImplicit, _latestProps2, false);
+                    validatePreloadResourceDifference(_resource5.props, originallyImplicit, _latestProps2, false);
                   }
                 } else {
                   var _resourceProps2 = preloadPropsFromRawProps(preloadRawProps);
 
-                  _resource4 = createPreloadResource(getDocumentFromRoot(resourceRoot), _href, _resourceProps2);
+                  _resource5 = createPreloadResource(getDocumentFromRoot(resourceRoot), _href2, _resourceProps2);
                 }
 
-                return _resource4;
+                return _resource5;
               }
 
               return null;
@@ -12022,35 +11987,35 @@ function getResource(type, pendingProps, currentProps) {
 
           default:
             {
-              var _href2 = pendingProps.href,
+              var _href3 = pendingProps.href,
                   sizes = pendingProps.sizes,
                   media = pendingProps.media;
 
-              if (typeof rel === 'string' && typeof _href2 === 'string') {
+              if (typeof rel === 'string' && typeof _href3 === 'string') {
                 var sizeKey = '::sizes:' + (typeof sizes === 'string' ? sizes : '');
                 var mediaKey = '::media:' + (typeof media === 'string' ? media : '');
 
-                var _key = 'rel:' + rel + '::href:' + _href2 + sizeKey + mediaKey;
+                var _key = 'rel:' + rel + '::href:' + _href3 + sizeKey + mediaKey;
 
-                var _headRoot2 = getDocumentFromRoot(resourceRoot);
+                var _headRoot3 = getDocumentFromRoot(resourceRoot);
 
-                var _headResources2 = getResourcesFromRoot(_headRoot2).head;
+                var _headResources3 = getResourcesFromRoot(_headRoot3).head;
 
-                var _resource5 = _headResources2.get(_key);
+                var _resource6 = _headResources3.get(_key);
 
-                if (!_resource5) {
-                  _resource5 = {
+                if (!_resource6) {
+                  _resource6 = {
                     type: 'link',
                     props: assign({}, pendingProps),
                     count: 0,
                     instance: null,
-                    root: _headRoot2
+                    root: _headRoot3
                   };
 
-                  _headResources2.set(_key, _resource5);
+                  _headResources3.set(_key, _resource6);
                 }
 
-                return _resource5;
+                return _resource6;
               }
 
               {
@@ -12080,27 +12045,27 @@ function getResource(type, pendingProps, currentProps) {
         if (async && typeof src === 'string') {
           var scriptRawProps = pendingProps;
 
-          var _resource6 = scriptResources.get(src);
+          var _resource7 = scriptResources.get(src);
 
-          if (_resource6) {
+          if (_resource7) {
             {
               if (!_didWarn) {
                 var _latestProps3 = scriptPropsFromRawProps(scriptRawProps);
 
-                if (_resource6._dev_preload_props) {
-                  adoptPreloadPropsForScript(_latestProps3, _resource6._dev_preload_props);
+                if (_resource7._dev_preload_props) {
+                  adoptPreloadPropsForScript(_latestProps3, _resource7._dev_preload_props);
                 }
 
-                validateScriptResourceDifference(_resource6.props, _latestProps3);
+                validateScriptResourceDifference(_resource7.props, _latestProps3);
               }
             }
           } else {
             var _resourceProps3 = scriptPropsFromRawProps(scriptRawProps);
 
-            _resource6 = createScriptResource(scriptResources, resourceRoot, src, _resourceProps3);
+            _resource7 = createScriptResource(scriptResources, resourceRoot, src, _resourceProps3);
           }
 
-          return _resource6;
+          return _resource7;
         }
 
         return null;
@@ -12143,6 +12108,7 @@ function scriptPropsFromRawProps(rawProps) {
 
 function acquireResource(resource) {
   switch (resource.type) {
+    case 'base':
     case 'title':
     case 'link':
     case 'meta':
@@ -12497,6 +12463,23 @@ function acquireHeadResource(resource) {
           return instance;
         }
 
+      case 'base':
+        {
+          var baseResource = resource;
+          var _matcher2 = baseResource.matcher;
+          var base = root.querySelector(_matcher2);
+
+          if (base) {
+            instance = resource.instance = base;
+            markNodeAsResource(instance);
+          } else {
+            instance = resource.instance = createResourceInstance(type, props, root);
+            insertResourceInstanceBefore(root, instance, root.querySelector('base'));
+          }
+
+          return instance;
+        }
+
       default:
         {
           throw new Error("acquireHeadResource encountered a resource type it did not expect: \"" + type + "\". This is a bug in React.");
@@ -12668,6 +12651,7 @@ function isHostResourceType(type, props) {
   }
 
   switch (type) {
+    case 'base':
     case 'meta':
     case 'title':
       {
@@ -12710,8 +12694,8 @@ function isHostResourceType(type, props) {
           default:
             {
               var rel = props.rel,
-                  _href3 = props.href;
-              return typeof _href3 === 'string' && typeof rel === 'string';
+                  _href4 = props.href;
+              return typeof _href4 === 'string' && typeof rel === 'string';
             }
         }
       }
@@ -12736,7 +12720,6 @@ function isHostResourceType(type, props) {
         return async && typeof src === 'string' && !_onLoad && !_onError;
       }
 
-    case 'base':
     case 'template':
     case 'style':
     case 'noscript':
@@ -18425,92 +18408,114 @@ function popCacheProvider(workInProgress, cache) {
 }
 
 var ReactCurrentActQueue = ReactSharedInternals.ReactCurrentActQueue;
-var suspendedThenable = null;
-var usedThenables = null;
-function isTrackingSuspendedThenable() {
-  return suspendedThenable !== null;
+var thenableState = null;
+function prepareThenableState(prevThenableState) {
+  // This function is called before every function that might suspend
+  // with `use`. Right now, that's only Hooks, but in the future we'll use the
+  // same mechanism for unwrapping promises during reconciliation.
+  thenableState = prevThenableState;
 }
-function suspendedThenableDidResolve() {
-  if (suspendedThenable !== null) {
-    var status = suspendedThenable.status;
+function getThenableStateAfterSuspending() {
+  // Called by the work loop so it can stash the thenable state. It will use
+  // the state to replay the component when the promise resolves.
+  if (thenableState !== null && // If we only `use`-ed resolved promises, then there is no suspended state
+  // TODO: The only reason we do this is to distinguish between throwing a
+  // promise (old Suspense pattern) versus `use`-ing one. A better solution is
+  // for `use` to throw a special, opaque value instead of a promise.
+  !isThenableStateResolved(thenableState)) {
+    var state = thenableState;
+    thenableState = null;
+    return state;
+  }
+
+  return null;
+}
+function isThenableStateResolved(thenables) {
+  var lastThenable = thenables[thenables.length - 1];
+
+  if (lastThenable !== undefined) {
+    var status = lastThenable.status;
     return status === 'fulfilled' || status === 'rejected';
   }
 
-  return false;
+  return true;
 }
+
+function noop$1() {}
+
 function trackUsedThenable(thenable, index) {
   if ( ReactCurrentActQueue.current !== null) {
     ReactCurrentActQueue.didUsePromise = true;
   }
 
-  if (usedThenables === null) {
-    usedThenables = [thenable];
+  if (thenableState === null) {
+    thenableState = [thenable];
   } else {
-    usedThenables[index] = thenable;
-  }
+    var previous = thenableState[index];
 
-  suspendedThenable = thenable; // We use an expando to track the status and result of a thenable so that we
+    if (previous === undefined) {
+      thenableState.push(thenable);
+    } else {
+      if (previous !== thenable) {
+        // Reuse the previous thenable, and drop the new one. We can assume
+        // they represent the same value, because components are idempotent.
+        // Avoid an unhandled rejection errors for the Promises that we'll
+        // intentionally ignore.
+        thenable.then(noop$1, noop$1);
+        thenable = previous;
+      }
+    }
+  } // We use an expando to track the status and result of a thenable so that we
   // can synchronously unwrap the value. Think of this as an extension of the
   // Promise API, or a custom interface that is a superset of Thenable.
   //
   // If the thenable doesn't have a status, set it to "pending" and attach
   // a listener that will update its status and result when it resolves.
 
+
   switch (thenable.status) {
     case 'fulfilled':
+      {
+        var fulfilledValue = thenable.value;
+        return fulfilledValue;
+      }
+
     case 'rejected':
-      // A thenable that already resolved shouldn't have been thrown, so this is
-      // unexpected. Suggests a mistake in a userspace data library. Don't track
-      // this thenable, because if we keep trying it will likely infinite loop
-      // without ever resolving.
-      // TODO: Log a warning?
-      suspendedThenable = null;
-      break;
+      {
+        var rejectedError = thenable.reason;
+        throw rejectedError;
+      }
 
     default:
       {
-        if (typeof thenable.status === 'string') {
-          // Only instrument the thenable if the status if not defined. If
-          // it's defined, but an unknown value, assume it's been instrumented by
-          // some custom userspace implementation. We treat it as "pending".
-          break;
-        }
+        if (typeof thenable.status === 'string') ; else {
+          var pendingThenable = thenable;
+          pendingThenable.status = 'pending';
+          pendingThenable.then(function (fulfilledValue) {
+            if (thenable.status === 'pending') {
+              var fulfilledThenable = thenable;
+              fulfilledThenable.status = 'fulfilled';
+              fulfilledThenable.value = fulfilledValue;
+            }
+          }, function (error) {
+            if (thenable.status === 'pending') {
+              var rejectedThenable = thenable;
+              rejectedThenable.status = 'rejected';
+              rejectedThenable.reason = error;
+            }
+          });
+        } // Suspend.
+        // TODO: Throwing here is an implementation detail that allows us to
+        // unwind the call stack. But we shouldn't allow it to leak into
+        // userspace. Throw an opaque placeholder value instead of the
+        // actual thenable. If it doesn't get captured by the work loop, log
+        // a warning, because that means something in userspace must have
+        // caught it.
 
-        var pendingThenable = thenable;
-        pendingThenable.status = 'pending';
-        pendingThenable.then(function (fulfilledValue) {
-          if (thenable.status === 'pending') {
-            var fulfilledThenable = thenable;
-            fulfilledThenable.status = 'fulfilled';
-            fulfilledThenable.value = fulfilledValue;
-          }
-        }, function (error) {
-          if (thenable.status === 'pending') {
-            var rejectedThenable = thenable;
-            rejectedThenable.status = 'rejected';
-            rejectedThenable.reason = error;
-          }
-        });
-        break;
+
+        throw thenable;
       }
   }
-}
-function resetWakeableStateAfterEachAttempt() {
-  suspendedThenable = null;
-}
-function resetThenableStateOnCompletion() {
-  usedThenables = null;
-}
-function getPreviouslyUsedThenableAtIndex(index) {
-  if (usedThenables !== null) {
-    var thenable = usedThenables[index];
-
-    if (thenable !== undefined) {
-      return thenable;
-    }
-  }
-
-  return null;
 }
 
 var ReactCurrentDispatcher$1 = ReactSharedInternals.ReactCurrentDispatcher,
@@ -18711,8 +18716,11 @@ function renderWithHooks(current, workInProgress, Component, props, secondArg, n
     } else {
       ReactCurrentDispatcher$1.current = HooksDispatcherOnMountInDEV;
     }
-  }
+  } // If this is a replay, restore the thenable state from the previous attempt.
 
+
+  var prevThenableState = getSuspendedThenableState();
+  prepareThenableState(prevThenableState);
   var children = Component(props, secondArg); // Check if there was a render phase update
 
   if (didScheduleRenderPhaseUpdateDuringThisPass) {
@@ -18748,6 +18756,7 @@ function renderWithHooks(current, workInProgress, Component, props, secondArg, n
       }
 
       ReactCurrentDispatcher$1.current =  HooksDispatcherOnRerenderInDEV ;
+      prepareThenableState(prevThenableState);
       children = Component(props, secondArg);
     } while (didScheduleRenderPhaseUpdateDuringThisPass);
   } // We can assume the previous dispatcher is always this one, since we set it
@@ -18952,13 +18961,10 @@ var createFunctionComponentUpdateQueue;
     return {
       lastEffect: null,
       events: null,
-      stores: null,
-      memoCache: null
+      stores: null
     };
   };
 }
-
-function noop$1() {}
 
 function use(usable) {
   if (usable !== null && typeof usable === 'object') {
@@ -18968,68 +18974,8 @@ function use(usable) {
       var thenable = usable; // Track the position of the thenable within this fiber.
 
       var index = thenableIndexCounter;
-      thenableIndexCounter += 1; // TODO: Unify this switch statement with the one in trackUsedThenable.
-
-      switch (thenable.status) {
-        case 'fulfilled':
-          {
-            var fulfilledValue = thenable.value;
-            return fulfilledValue;
-          }
-
-        case 'rejected':
-          {
-            var rejectedError = thenable.reason;
-            throw rejectedError;
-          }
-
-        default:
-          {
-            var prevThenableAtIndex = getPreviouslyUsedThenableAtIndex(index);
-
-            if (prevThenableAtIndex !== null) {
-              if (thenable !== prevThenableAtIndex) {
-                // Avoid an unhandled rejection errors for the Promises that we'll
-                // intentionally ignore.
-                thenable.then(noop$1, noop$1);
-              }
-
-              switch (prevThenableAtIndex.status) {
-                case 'fulfilled':
-                  {
-                    var _fulfilledValue = prevThenableAtIndex.value;
-                    return _fulfilledValue;
-                  }
-
-                case 'rejected':
-                  {
-                    var _rejectedError = prevThenableAtIndex.reason;
-                    throw _rejectedError;
-                  }
-
-                default:
-                  {
-                    // The thenable still hasn't resolved. Suspend with the same
-                    // thenable as last time to avoid redundant listeners.
-                    throw prevThenableAtIndex;
-                  }
-              }
-            } else {
-              // This is the first time something has been used at this index.
-              // Stash the thenable at the current index so we can reuse it during
-              // the next attempt.
-              trackUsedThenable(thenable, index); // Suspend.
-              // TODO: Throwing here is an implementation detail that allows us to
-              // unwind the call stack. But we shouldn't allow it to leak into
-              // userspace. Throw an opaque placeholder value instead of the
-              // actual thenable. If it doesn't get captured by the work loop, log
-              // a warning, because that means something in userspace must have
-              // caught it.
-
-              throw thenable;
-            }
-          }
-      }
+      thenableIndexCounter += 1;
+      return trackUsedThenable(thenable, index);
     } else if (usable.$$typeof === REACT_CONTEXT_TYPE || usable.$$typeof === REACT_SERVER_CONTEXT_TYPE) {
       var context = usable;
       return readContext(context);
@@ -19038,70 +18984,6 @@ function use(usable) {
 
 
   throw new Error('An unsupported type was passed to use(): ' + String(usable));
-}
-
-function useMemoCache(size) {
-  var memoCache = null; // Fast-path, load memo cache from wip fiber if already prepared
-
-  var updateQueue = currentlyRenderingFiber$1.updateQueue;
-
-  if (updateQueue !== null) {
-    memoCache = updateQueue.memoCache;
-  } // Otherwise clone from the current fiber
-
-
-  if (memoCache == null) {
-    var current = currentlyRenderingFiber$1.alternate;
-
-    if (current !== null) {
-      var currentUpdateQueue = current.updateQueue;
-
-      if (currentUpdateQueue !== null) {
-        var currentMemoCache = currentUpdateQueue.memoCache;
-
-        if (currentMemoCache != null) {
-          memoCache = {
-            data: currentMemoCache.data.map(function (array) {
-              return array.slice();
-            }),
-            index: 0
-          };
-        }
-      }
-    }
-  } // Finally fall back to allocating a fresh instance of the cache
-
-
-  if (memoCache == null) {
-    memoCache = {
-      data: [],
-      index: 0
-    };
-  }
-
-  if (updateQueue === null) {
-    updateQueue = createFunctionComponentUpdateQueue();
-    currentlyRenderingFiber$1.updateQueue = updateQueue;
-  }
-
-  updateQueue.memoCache = memoCache;
-  var data = memoCache.data[memoCache.index];
-
-  if (data === undefined) {
-    data = memoCache.data[memoCache.index] = new Array(size);
-
-    for (var i = 0; i < size; i++) {
-      data[i] = REACT_MEMO_CACHE_SENTINEL;
-    }
-  } else if (data.length !== size) {
-    // TODO: consider warning or throwing here
-    {
-      error('Expected a constant size argument for each invocation of useMemoCache. ' + 'The previous cache was allocated with size %s but size %s was requested.', data.length, size);
-    }
-  }
-
-  memoCache.index++;
-  return data;
 }
 
 function basicStateReducer(state, action) {
@@ -19659,58 +19541,6 @@ function updateEffect(create, deps) {
   return updateEffectImpl(Passive, Passive$1, create, deps);
 }
 
-function useEventImpl(payload) {
-  currentlyRenderingFiber$1.flags |= Update;
-  var componentUpdateQueue = currentlyRenderingFiber$1.updateQueue;
-
-  if (componentUpdateQueue === null) {
-    componentUpdateQueue = createFunctionComponentUpdateQueue();
-    currentlyRenderingFiber$1.updateQueue = componentUpdateQueue;
-    componentUpdateQueue.events = [payload];
-  } else {
-    var events = componentUpdateQueue.events;
-
-    if (events === null) {
-      componentUpdateQueue.events = [payload];
-    } else {
-      events.push(payload);
-    }
-  }
-}
-
-function mountEvent(callback) {
-  var hook = mountWorkInProgressHook();
-  var ref = {
-    impl: callback
-  };
-  hook.memoizedState = ref; // $FlowIgnore[incompatible-return]
-
-  return function eventFn() {
-    if (isInvalidExecutionContextForEventFunction()) {
-      throw new Error("A function wrapped in useEvent can't be called during rendering.");
-    }
-
-    return ref.impl.apply(undefined, arguments);
-  };
-}
-
-function updateEvent(callback) {
-  var hook = updateWorkInProgressHook();
-  var ref = hook.memoizedState;
-  useEventImpl({
-    ref: ref,
-    nextImpl: callback
-  }); // $FlowIgnore[incompatible-return]
-
-  return function eventFn() {
-    if (isInvalidExecutionContextForEventFunction()) {
-      throw new Error("A function wrapped in useEvent can't be called during rendering.");
-    }
-
-    return ref.impl.apply(undefined, arguments);
-  };
-}
-
 function mountInsertionEffect(create, deps) {
   return mountEffectImpl(Update, Insertion, create, deps);
 }
@@ -20071,9 +19901,11 @@ function refreshCache(fiber, seedKey, seedValue) {
           var seededCache = createCache();
 
           if (seedKey !== null && seedKey !== undefined && root !== null) {
-            // Seed the cache with the value passed by the caller. This could be
-            // from a server mutation, or it could be a streaming response.
-            seededCache.data.set(seedKey, seedValue);
+            {
+              {
+                error('The seed argument is not enabled outside experimental channels.');
+              }
+            }
           }
 
           var payload = {
@@ -20274,14 +20106,6 @@ var ContextOnlyDispatcher = {
   ContextOnlyDispatcher.use = throwInvalidHookError;
 }
 
-{
-  ContextOnlyDispatcher.useMemoCache = throwInvalidHookError;
-}
-
-{
-  ContextOnlyDispatcher.useEvent = throwInvalidHookError;
-}
-
 var HooksDispatcherOnMountInDEV = null;
 var HooksDispatcherOnMountWithHookTypesInDEV = null;
 var HooksDispatcherOnUpdateInDEV = null;
@@ -20425,18 +20249,6 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
     HooksDispatcherOnMountInDEV.use = use;
   }
 
-  {
-    HooksDispatcherOnMountInDEV.useMemoCache = useMemoCache;
-  }
-
-  {
-    HooksDispatcherOnMountInDEV.useEvent = function useEvent(callback) {
-      currentHookNameInDev = 'useEvent';
-      mountHookTypesDev();
-      return mountEvent(callback);
-    };
-  }
-
   HooksDispatcherOnMountWithHookTypesInDEV = {
     readContext: function (context) {
       return readContext(context);
@@ -20555,18 +20367,6 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
 
   {
     HooksDispatcherOnMountWithHookTypesInDEV.use = use;
-  }
-
-  {
-    HooksDispatcherOnMountWithHookTypesInDEV.useMemoCache = useMemoCache;
-  }
-
-  {
-    HooksDispatcherOnMountWithHookTypesInDEV.useEvent = function useEvent(callback) {
-      currentHookNameInDev = 'useEvent';
-      updateHookTypesDev();
-      return mountEvent(callback);
-    };
   }
 
   HooksDispatcherOnUpdateInDEV = {
@@ -20689,18 +20489,6 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
     HooksDispatcherOnUpdateInDEV.use = use;
   }
 
-  {
-    HooksDispatcherOnUpdateInDEV.useMemoCache = useMemoCache;
-  }
-
-  {
-    HooksDispatcherOnUpdateInDEV.useEvent = function useEvent(callback) {
-      currentHookNameInDev = 'useEvent';
-      updateHookTypesDev();
-      return updateEvent(callback);
-    };
-  }
-
   HooksDispatcherOnRerenderInDEV = {
     readContext: function (context) {
       return readContext(context);
@@ -20819,18 +20607,6 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
 
   {
     HooksDispatcherOnRerenderInDEV.use = use;
-  }
-
-  {
-    HooksDispatcherOnRerenderInDEV.useMemoCache = useMemoCache;
-  }
-
-  {
-    HooksDispatcherOnRerenderInDEV.useEvent = function useEvent(callback) {
-      currentHookNameInDev = 'useEvent';
-      updateHookTypesDev();
-      return updateEvent(callback);
-    };
   }
 
   InvalidNestedHooksDispatcherOnMountInDEV = {
@@ -20970,22 +20746,6 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
     InvalidNestedHooksDispatcherOnMountInDEV.use = function (usable) {
       warnInvalidHookAccess();
       return use(usable);
-    };
-  }
-
-  {
-    InvalidNestedHooksDispatcherOnMountInDEV.useMemoCache = function (size) {
-      warnInvalidHookAccess();
-      return useMemoCache(size);
-    };
-  }
-
-  {
-    InvalidNestedHooksDispatcherOnMountInDEV.useEvent = function useEvent(callback) {
-      currentHookNameInDev = 'useEvent';
-      warnInvalidHookAccess();
-      mountHookTypesDev();
-      return mountEvent(callback);
     };
   }
 
@@ -21129,22 +20889,6 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
     };
   }
 
-  {
-    InvalidNestedHooksDispatcherOnUpdateInDEV.useMemoCache = function (size) {
-      warnInvalidHookAccess();
-      return useMemoCache(size);
-    };
-  }
-
-  {
-    InvalidNestedHooksDispatcherOnUpdateInDEV.useEvent = function useEvent(callback) {
-      currentHookNameInDev = 'useEvent';
-      warnInvalidHookAccess();
-      updateHookTypesDev();
-      return updateEvent(callback);
-    };
-  }
-
   InvalidNestedHooksDispatcherOnRerenderInDEV = {
     readContext: function (context) {
       warnInvalidContextAccess();
@@ -21282,22 +21026,6 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
     InvalidNestedHooksDispatcherOnRerenderInDEV.use = function (usable) {
       warnInvalidHookAccess();
       return use(usable);
-    };
-  }
-
-  {
-    InvalidNestedHooksDispatcherOnRerenderInDEV.useMemoCache = function (size) {
-      warnInvalidHookAccess();
-      return useMemoCache(size);
-    };
-  }
-
-  {
-    InvalidNestedHooksDispatcherOnRerenderInDEV.useEvent = function useEvent(callback) {
-      currentHookNameInDev = 'useEvent';
-      warnInvalidHookAccess();
-      updateHookTypesDev();
-      return updateEvent(callback);
     };
   }
 }
@@ -23491,28 +23219,6 @@ function updateSuspenseComponent(current, workInProgress, renderLanes) {
       workInProgress.memoizedState = SUSPENDED_MARKER;
 
       return fallbackFragment;
-    } else if ( typeof nextProps.unstable_expectedLoadTime === 'number') {
-      // This is a CPU-bound tree. Skip this tree and show a placeholder to
-      // unblock the surrounding content. Then immediately retry after the
-      // initial commit.
-      pushFallbackTreeSuspenseHandler(workInProgress);
-
-      var _fallbackFragment = mountSuspenseFallbackChildren(workInProgress, nextPrimaryChildren, nextFallbackChildren, renderLanes);
-
-      var _primaryChildFragment = workInProgress.child;
-      _primaryChildFragment.memoizedState = mountSuspenseOffscreenState(renderLanes);
-      workInProgress.memoizedState = SUSPENDED_MARKER; // TODO: Transition Tracing is not yet implemented for CPU Suspense.
-      // Since nothing actually suspended, there will nothing to ping this to
-      // get it started back up to attempt the next item. While in terms of
-      // priority this work has the same priority as this current render, it's
-      // not part of the same transition once the transition has committed. If
-      // it's sync, we still want to yield so that it can be painted.
-      // Conceptually, this is really the same as pinging. We can use any
-      // RetryLane even if it's the one currently rendering since we're leaving
-      // it behind on this node.
-
-      workInProgress.lanes = SomeRetryLane;
-      return _fallbackFragment;
     } else {
       pushPrimaryTreeSuspenseHandler(workInProgress);
       return mountSuspensePrimaryChildren(workInProgress, nextPrimaryChildren);
@@ -26425,11 +26131,6 @@ function commitBeforeMutationEffectsOnFiber(finishedWork) {
   switch (finishedWork.tag) {
     case FunctionComponent:
       {
-        {
-          if ((flags & Update) !== NoFlags) {
-            commitUseEventMount(finishedWork);
-          }
-        }
 
         break;
       }
@@ -26641,20 +26342,6 @@ function commitHookEffectListMount(flags, finishedWork) {
 
       effect = effect.next;
     } while (effect !== firstEffect);
-  }
-}
-
-function commitUseEventMount(finishedWork) {
-  var updateQueue = finishedWork.updateQueue;
-  var eventPayloads = updateQueue !== null ? updateQueue.events : null;
-
-  if (eventPayloads !== null) {
-    for (var ii = 0; ii < eventPayloads.length; ii++) {
-      var _eventPayloads$ii = eventPayloads[ii],
-          ref = _eventPayloads$ii.ref,
-          nextImpl = _eventPayloads$ii.nextImpl;
-      ref.impl = nextImpl;
-    }
   }
 }
 
@@ -29531,7 +29218,8 @@ var workInProgressRootRenderLanes = NoLanes; // When this is true, the work-in-p
 // immediately instead of unwinding the stack.
 
 var workInProgressIsSuspended = false;
-var workInProgressThrownValue = null; // Whether a ping listener was attached during this render. This is slightly
+var workInProgressThrownValue = null;
+var workInProgressSuspendedThenableState = null; // Whether a ping listener was attached during this render. This is slightly
 // different that whether something suspended, because we don't add multiple
 // listeners to a promise we've already seen (per root and lane).
 
@@ -30478,10 +30166,6 @@ function isAlreadyRendering() {
   // the wrong context.
   return  (executionContext & (RenderContext | CommitContext)) !== NoContext;
 }
-function isInvalidExecutionContextForEventFunction() {
-  // Used to throw if certain APIs are called from the wrong context.
-  return (executionContext & RenderContext) !== NoContext;
-}
 // hidden subtree. The stack logic is managed there because that's the only
 // place that ever modifies it. Which module it lives in doesn't matter for
 // performance because this function will get inlined regardless
@@ -30514,9 +30198,6 @@ function prepareFreshStack(root, lanes) {
       unwindInterruptedWork(current, interruptedWork);
       interruptedWork = interruptedWork.return;
     }
-
-    resetWakeableStateAfterEachAttempt();
-    resetThenableStateOnCompletion();
   }
 
   workInProgressRoot = root;
@@ -30525,6 +30206,7 @@ function prepareFreshStack(root, lanes) {
   workInProgressRootRenderLanes = renderLanes$1 = lanes;
   workInProgressIsSuspended = false;
   workInProgressThrownValue = null;
+  workInProgressSuspendedThenableState = null;
   workInProgressRootDidAttachPingListener = false;
   workInProgressRootExitStatus = RootInProgress;
   workInProgressRootFatalError = null;
@@ -30556,6 +30238,7 @@ function handleThrow(root, thrownValue) {
 
   workInProgressIsSuspended = true;
   workInProgressThrownValue = thrownValue;
+  workInProgressSuspendedThenableState = getThenableStateAfterSuspending();
   var erroredWork = workInProgress;
 
   if (erroredWork === null) {
@@ -30793,7 +30476,7 @@ function renderRootConcurrent(root, lanes) {
     } catch (thrownValue) {
       handleThrow(root, thrownValue);
 
-      if (isTrackingSuspendedThenable()) {
+      if (workInProgressSuspendedThenableState !== null) {
         // If this fiber just suspended, it's possible the data is already
         // cached. Yield to the main thread to give it a chance to ping. If
         // it does, we can retry immediately without unwinding the stack.
@@ -30887,13 +30570,12 @@ function resumeSuspendedUnitOfWork(unitOfWork, thrownValue) {
   // just suspended. In some cases, we may choose to retry the fiber immediately
   // instead of unwinding the stack. It's a separate function to keep the
   // additional logic out of the work loop's hot path.
-  var wasPinged = suspendedThenableDidResolve();
-  resetWakeableStateAfterEachAttempt();
+  var wasPinged = workInProgressSuspendedThenableState !== null && isThenableStateResolved(workInProgressSuspendedThenableState);
 
   if (!wasPinged) {
     // The thenable wasn't pinged. Return to the normal work loop. This will
     // unwind the stack, and potentially result in showing a fallback.
-    resetThenableStateOnCompletion();
+    workInProgressSuspendedThenableState = null;
     var returnFiber = unitOfWork.return;
 
     if (returnFiber === null || workInProgressRoot === null) {
@@ -30951,7 +30633,7 @@ function resumeSuspendedUnitOfWork(unitOfWork, thrownValue) {
   // work loop.
 
 
-  resetThenableStateOnCompletion();
+  workInProgressSuspendedThenableState = null;
   resetCurrentFiber();
   unitOfWork.memoizedProps = unitOfWork.pendingProps;
 
@@ -30963,6 +30645,10 @@ function resumeSuspendedUnitOfWork(unitOfWork, thrownValue) {
   }
 
   ReactCurrentOwner$2.current = null;
+}
+
+function getSuspendedThenableState() {
+  return workInProgressSuspendedThenableState;
 }
 
 function completeUnitOfWork(unitOfWork) {
@@ -33220,7 +32906,7 @@ identifierPrefix, onRecoverableError, transitionCallbacks) {
   return root;
 }
 
-var ReactVersion = '18.3.0-experimental-1d3fc9c9c-20221023';
+var ReactVersion = '18.3.0-next-e7c5af45c-20221023';
 
 function createPortal(children, containerInfo, // TODO: figure out the API for cross-renderer implementation.
 implementation) {
@@ -34306,6 +33992,27 @@ function unmountComponentAtNode(container) {
   }
 }
 
+function preinit$1() {
+  var dispatcher = Internals.Dispatcher.current;
+
+  if (dispatcher) {
+    dispatcher.preinit.apply(this, arguments);
+  } // We don't error because preinit needs to be resilient to being called in a variety of scopes
+  // and the runtime may not be capable of responding. The function is optimistic and not critical
+  // so we favor silent bailout over warning or erroring.
+
+}
+function preload$1() {
+  var dispatcher = Internals.Dispatcher.current;
+
+  if (dispatcher) {
+    dispatcher.preload.apply(this, arguments);
+  } // We don't error because preload needs to be resilient to being called in a variety of scopes
+  // and the runtime may not be capable of responding. The function is optimistic and not critical
+  // so we favor silent bailout over warning or erroring.
+
+}
+
 setAttemptSynchronousHydration(attemptSynchronousHydration$1);
 setAttemptContinuousHydration(attemptContinuousHydration$1);
 setAttemptHydrationAtCurrentPriority(attemptHydrationAtCurrentPriority$1);
@@ -34395,27 +34102,6 @@ var foundDevTools = injectIntoDevTools({
   }
 }
 
-function preinit$1() {
-  var dispatcher = Internals.Dispatcher.current;
-
-  if (dispatcher) {
-    dispatcher.preinit.apply(this, arguments);
-  } // We don't error because preinit needs to be resilient to being called in a variety of scopes
-  // and the runtime may not be capable of responding. The function is optimistic and not critical
-  // so we favor silent bailout over warning or erroring.
-
-}
-function preload$1() {
-  var dispatcher = Internals.Dispatcher.current;
-
-  if (dispatcher) {
-    dispatcher.preload.apply(this, arguments);
-  } // We don't error because preload needs to be resilient to being called in a variety of scopes
-  // and the runtime may not be capable of responding. The function is optimistic and not critical
-  // so we favor silent bailout over warning or erroring.
-
-}
-
 exports.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = Internals;
 exports.createPortal = createPortal$1;
 exports.createRoot = createRoot$1;
@@ -34429,7 +34115,6 @@ exports.render = render;
 exports.unmountComponentAtNode = unmountComponentAtNode;
 exports.unstable_batchedUpdates = batchedUpdates$1;
 exports.unstable_renderSubtreeIntoContainer = renderSubtreeIntoContainer;
-exports.unstable_runWithPriority = runWithPriority;
 exports.version = ReactVersion;
           /* global __REACT_DEVTOOLS_GLOBAL_HOOK__ */
 if (

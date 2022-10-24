@@ -19,7 +19,7 @@ var util = require('util');
 var async_hooks = require('async_hooks');
 var ReactDOM = require('react-dom');
 
-var ReactVersion = '18.3.0-experimental-1d3fc9c9c-20221023';
+var ReactVersion = '18.3.0-next-e7c5af45c-20221023';
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -437,10 +437,6 @@ var reservedProps = ['children', 'dangerouslySetInnerHTML', // TODO: This preven
 // elements (not just inputs). Now that ReactDOMInput assigns to the
 // defaultValue property -- do we need this?
 'defaultValue', 'defaultChecked', 'innerHTML', 'suppressContentEditableWarning', 'suppressHydrationWarning', 'style'];
-
-{
-  reservedProps.push('innerText', 'textContent');
-}
 
 reservedProps.forEach(function (name) {
   // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
@@ -2225,6 +2221,7 @@ function createResources() {
     headsMap: new Map(),
     // cleared on flush
     charset: null,
+    bases: new Set(),
     preconnects: new Set(),
     fontPreloads: new Set(),
     // usedImagePreloads: new Set(),
@@ -2686,11 +2683,33 @@ function resourcesFromElement(type, props) {
               resources.headResources.add(_resource2);
             }
           }
-
-          return true;
         }
 
-        return false;
+        return true;
+      }
+
+    case 'base':
+      {
+        var target = props.target,
+            href = props.href; // We mirror the key construction on the client since we will likely unify
+        // this code in the future to better guarantee key semantics are identical
+        // in both environments
+
+        var _key2 = 'base';
+        _key2 += typeof href === 'string' ? "[href=\"" + href + "\"]" : ':not([href])';
+        _key2 += typeof target === 'string' ? "[target=\"" + target + "\"]" : ':not([target])';
+
+        if (!resources.headsMap.has(_key2)) {
+          var _resource3 = {
+            type: 'base',
+            props: assign({}, props),
+            flushed: false
+          };
+          resources.headsMap.set(_key2, _resource3);
+          resources.bases.add(_resource3);
+        }
+
+        return true;
       }
   }
 
@@ -2746,26 +2765,26 @@ function resourcesFromLink(props) {
         } else {
           // We are able to convert this link element to a resource exclusively. We construct the relevant Resource
           // and return true indicating that this link was fully consumed.
-          var _resource3 = resources.stylesMap.get(href);
+          var _resource4 = resources.stylesMap.get(href);
 
-          if (_resource3) {
+          if (_resource4) {
             {
               var resourceProps = stylePropsFromRawProps(href, precedence, props);
-              adoptPreloadPropsForStyleProps(resourceProps, _resource3.hint.props);
-              validateStyleResourceDifference(_resource3.props, resourceProps);
+              adoptPreloadPropsForStyleProps(resourceProps, _resource4.hint.props);
+              validateStyleResourceDifference(_resource4.props, resourceProps);
             }
           } else {
             var _resourceProps = stylePropsFromRawProps(href, precedence, props);
 
-            _resource3 = createStyleResource( // $FlowFixMe[incompatible-call] found when upgrading Flow
+            _resource4 = createStyleResource( // $FlowFixMe[incompatible-call] found when upgrading Flow
             currentResources, href, precedence, _resourceProps);
-            resources.usedStylePreloads.add(_resource3.hint);
+            resources.usedStylePreloads.add(_resource4.hint);
           }
 
           if (resources.boundaryResources) {
-            resources.boundaryResources.add(_resource3);
+            resources.boundaryResources.add(_resource4);
           } else {
-            _resource3.set.add(_resource3);
+            _resource4.set.add(_resource4);
           }
 
           return true;
@@ -2785,33 +2804,33 @@ function resourcesFromLink(props) {
                 validateLinkPropsForPreloadResource(props);
               }
 
-              var _resource4 = resources.preloadsMap.get(href);
+              var _resource5 = resources.preloadsMap.get(href);
 
-              if (_resource4) {
+              if (_resource5) {
                 {
-                  var originallyImplicit = _resource4._dev_implicit_construction === true;
+                  var originallyImplicit = _resource5._dev_implicit_construction === true;
                   var latestProps = preloadPropsFromRawProps(href, as, props);
-                  validatePreloadResourceDifference(_resource4.props, originallyImplicit, latestProps, false);
+                  validatePreloadResourceDifference(_resource5.props, originallyImplicit, latestProps, false);
                 }
               } else {
-                _resource4 = createPreloadResource(resources, href, as, preloadPropsFromRawProps(href, as, props));
+                _resource5 = createPreloadResource(resources, href, as, preloadPropsFromRawProps(href, as, props));
 
                 switch (as) {
                   case 'script':
                     {
-                      resources.explicitScriptPreloads.add(_resource4);
+                      resources.explicitScriptPreloads.add(_resource5);
                       break;
                     }
 
                   case 'style':
                     {
-                      resources.explicitStylePreloads.add(_resource4);
+                      resources.explicitStylePreloads.add(_resource5);
                       break;
                     }
 
                   case 'font':
                     {
-                      resources.fontPreloads.add(_resource4);
+                      resources.fontPreloads.add(_resource5);
                       break;
                     }
                 }
@@ -3784,6 +3803,22 @@ function pushStartTextArea(target, props, responseState) {
   return null;
 }
 
+function pushBase(target, props, responseState, textEmbedded) {
+  if ( resourcesFromElement('base', props)) {
+    if (textEmbedded) {
+      // This link follows text but we aren't writing a tag. while not as efficient as possible we need
+      // to be safe and assume text will follow by inserting a textSeparator
+      target.push(textSeparator);
+    } // We have converted this link exclusively to a resource and no longer
+    // need to emit it
+
+
+    return null;
+  }
+
+  return pushSelfClosing(target, props, 'base', responseState);
+}
+
 function pushMeta(target, props, responseState, textEmbedded) {
   if ( resourcesFromElement('meta', props)) {
     if (textEmbedded) {
@@ -4109,27 +4144,6 @@ function pushStartCustomElement(target, props, tag, responseState) {
         continue;
       }
 
-      if ( (typeof propValue === 'function' || typeof propValue === 'object')) {
-        // It is normal to render functions and objects on custom elements when
-        // client rendering, but when server rendering the output isn't useful,
-        // so skip it.
-        continue;
-      }
-
-      if ( propValue === false) {
-        continue;
-      }
-
-      if ( propValue === true) {
-        propValue = '';
-      }
-
-      if ( propKey === 'className') {
-        // className gets rendered as class on the client, so it should be
-        // rendered as class on the server.
-        propKey = 'class';
-      }
-
       switch (propKey) {
         case 'children':
           children = propValue;
@@ -4306,6 +4320,9 @@ function pushStartInstance(target, preamble, type, props, responseState, formatC
 
     case 'meta':
       return pushMeta(target, props, responseState, textEmbedded);
+
+    case 'base':
+      return pushBase(target, props, responseState, textEmbedded);
     // Newline eating tags
 
     case 'listing':
@@ -4316,7 +4333,6 @@ function pushStartInstance(target, preamble, type, props, responseState, formatC
     // Omitted close tags
 
     case 'area':
-    case 'base':
     case 'br':
     case 'col':
     case 'embed':
@@ -4831,6 +4847,7 @@ function writeInitialResources(destination, resources, responseState) {
 
   var target = [];
   var charset = resources.charset,
+      bases = resources.bases,
       preconnects = resources.preconnects,
       fontPreloads = resources.fontPreloads,
       precedences = resources.precedences,
@@ -4847,6 +4864,11 @@ function writeInitialResources(destination, resources, responseState) {
     resources.charset = null;
   }
 
+  bases.forEach(function (r) {
+    pushSelfClosing(target, r.props, 'base', responseState);
+    r.flushed = true;
+  });
+  bases.clear();
   preconnects.forEach(function (r) {
     // font preload Resources should not already be flushed so we elide this check
     pushLinkImpl(target, r.props, responseState);
@@ -5217,7 +5239,6 @@ var REACT_OFFSCREEN_TYPE = Symbol.for('react.offscreen');
 var REACT_LEGACY_HIDDEN_TYPE = Symbol.for('react.legacy_hidden');
 var REACT_CACHE_TYPE = Symbol.for('react.cache');
 var REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED = Symbol.for('react.default_value');
-var REACT_MEMO_CACHE_SENTINEL = Symbol.for('react.memo_cache_sentinel');
 var MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 var FAUX_ITERATOR_SYMBOL = '@@iterator';
 function getIteratorFn(maybeIterable) {
@@ -6638,68 +6659,79 @@ function clz32Fallback(x) {
 // changes to one module should be reflected in the others.
 // TODO: Rename this module and the corresponding Fiber one to "Thenable"
 // instead of "Wakeable". Or some other more appropriate name.
-// TODO: Sparse arrays are bad for performance.
 function createThenableState() {
   // The ThenableState is created the first time a component suspends. If it
   // suspends again, we'll reuse the same state.
   return [];
 }
+
+function noop() {}
+
 function trackUsedThenable(thenableState, thenable, index) {
-  thenableState[index] = thenable; // We use an expando to track the status and result of a thenable so that we
+  var previous = thenableState[index];
+
+  if (previous === undefined) {
+    thenableState.push(thenable);
+  } else {
+    if (previous !== thenable) {
+      // Reuse the previous thenable, and drop the new one. We can assume
+      // they represent the same value, because components are idempotent.
+      // Avoid an unhandled rejection errors for the Promises that we'll
+      // intentionally ignore.
+      thenable.then(noop, noop);
+      thenable = previous;
+    }
+  } // We use an expando to track the status and result of a thenable so that we
   // can synchronously unwrap the value. Think of this as an extension of the
   // Promise API, or a custom interface that is a superset of Thenable.
   //
   // If the thenable doesn't have a status, set it to "pending" and attach
   // a listener that will update its status and result when it resolves.
 
+
   switch (thenable.status) {
     case 'fulfilled':
+      {
+        var fulfilledValue = thenable.value;
+        return fulfilledValue;
+      }
+
     case 'rejected':
-      // A thenable that already resolved shouldn't have been thrown, so this is
-      // unexpected. Suggests a mistake in a userspace data library. Don't track
-      // this thenable, because if we keep trying it will likely infinite loop
-      // without ever resolving.
-      // TODO: Log a warning?
-      break;
+      {
+        var rejectedError = thenable.reason;
+        throw rejectedError;
+      }
 
     default:
       {
-        if (typeof thenable.status === 'string') {
-          // Only instrument the thenable if the status if not defined. If
-          // it's defined, but an unknown value, assume it's been instrumented by
-          // some custom userspace implementation. We treat it as "pending".
-          break;
-        }
+        if (typeof thenable.status === 'string') ; else {
+          var pendingThenable = thenable;
+          pendingThenable.status = 'pending';
+          pendingThenable.then(function (fulfilledValue) {
+            if (thenable.status === 'pending') {
+              var fulfilledThenable = thenable;
+              fulfilledThenable.status = 'fulfilled';
+              fulfilledThenable.value = fulfilledValue;
+            }
+          }, function (error) {
+            if (thenable.status === 'pending') {
+              var rejectedThenable = thenable;
+              rejectedThenable.status = 'rejected';
+              rejectedThenable.reason = error;
+            }
+          });
+        } // Suspend.
+        // TODO: Throwing here is an implementation detail that allows us to
+        // unwind the call stack. But we shouldn't allow it to leak into
+        // userspace. Throw an opaque placeholder value instead of the
+        // actual thenable. If it doesn't get captured by the work loop, log
+        // a warning, because that means something in userspace must have
+        // caught it.
 
-        var pendingThenable = thenable;
-        pendingThenable.status = 'pending';
-        pendingThenable.then(function (fulfilledValue) {
-          if (thenable.status === 'pending') {
-            var fulfilledThenable = thenable;
-            fulfilledThenable.status = 'fulfilled';
-            fulfilledThenable.value = fulfilledValue;
-          }
-        }, function (error) {
-          if (thenable.status === 'pending') {
-            var rejectedThenable = thenable;
-            rejectedThenable.status = 'rejected';
-            rejectedThenable.reason = error;
-          }
-        });
-        break;
+
+        throw thenable;
       }
   }
-}
-function getPreviouslyUsedThenableAtIndex(thenableState, index) {
-  if (thenableState !== null) {
-    var thenable = thenableState[index];
-
-    if (thenable !== undefined) {
-      return thenable;
-    }
-  }
-
-  return null;
 }
 
 /**
@@ -7109,15 +7141,6 @@ function useCallback(callback, deps) {
     return callback;
   }, deps);
 }
-
-function throwOnUseEventCall() {
-  throw new Error("A function wrapped in useEvent can't be called during rendering.");
-}
-
-function useEvent(callback) {
-  // $FlowIgnore[incompatible-return]
-  return throwOnUseEventCall;
-} // TODO Decide on how to implement this hook for server rendering.
 // If a mutation occurs during render, consider triggering a Suspense boundary
 // and falling back to client rendering.
 
@@ -7169,72 +7192,13 @@ function use(usable) {
       var thenable = usable; // Track the position of the thenable within this fiber.
 
       var index = thenableIndexCounter;
-      thenableIndexCounter += 1; // TODO: Unify this switch statement with the one in trackUsedThenable.
+      thenableIndexCounter += 1;
 
-      switch (thenable.status) {
-        case 'fulfilled':
-          {
-            var fulfilledValue = thenable.value;
-            return fulfilledValue;
-          }
-
-        case 'rejected':
-          {
-            var rejectedError = thenable.reason;
-            throw rejectedError;
-          }
-
-        default:
-          {
-            var prevThenableAtIndex = getPreviouslyUsedThenableAtIndex(thenableState, index);
-
-            if (prevThenableAtIndex !== null) {
-              if (thenable !== prevThenableAtIndex) {
-                // Avoid an unhandled rejection errors for the Promises that we'll
-                // intentionally ignore.
-                thenable.then(noop, noop);
-              }
-
-              switch (prevThenableAtIndex.status) {
-                case 'fulfilled':
-                  {
-                    var _fulfilledValue = prevThenableAtIndex.value;
-                    return _fulfilledValue;
-                  }
-
-                case 'rejected':
-                  {
-                    var _rejectedError = prevThenableAtIndex.reason;
-                    throw _rejectedError;
-                  }
-
-                default:
-                  {
-                    // The thenable still hasn't resolved. Suspend with the same
-                    // thenable as last time to avoid redundant listeners.
-                    throw prevThenableAtIndex;
-                  }
-              }
-            } else {
-              // This is the first time something has been used at this index.
-              // Stash the thenable at the current index so we can reuse it during
-              // the next attempt.
-              if (thenableState === null) {
-                thenableState = createThenableState();
-              }
-
-              trackUsedThenable(thenableState, thenable, index); // Suspend.
-              // TODO: Throwing here is an implementation detail that allows us to
-              // unwind the call stack. But we shouldn't allow it to leak into
-              // userspace. Throw an opaque placeholder value instead of the
-              // actual thenable. If it doesn't get captured by the work loop, log
-              // a warning, because that means something in userspace must have
-              // caught it.
-
-              throw thenable;
-            }
-          }
+      if (thenableState === null) {
+        thenableState = createThenableState();
       }
+
+      return trackUsedThenable(thenableState, thenable, index);
     } else if (usable.$$typeof === REACT_CONTEXT_TYPE || usable.$$typeof === REACT_SERVER_CONTEXT_TYPE) {
       var context = usable;
       return readContext$1(context);
@@ -7253,17 +7217,7 @@ function useCacheRefresh() {
   return unsupportedRefresh;
 }
 
-function useMemoCache(size) {
-  var data = new Array(size);
-
-  for (var i = 0; i < size; i++) {
-    data[i] = REACT_MEMO_CACHE_SENTINEL;
-  }
-
-  return data;
-}
-
-function noop() {}
+function noop$1() {}
 
 var HooksDispatcher = {
   readContext: readContext$1,
@@ -7272,15 +7226,15 @@ var HooksDispatcher = {
   useReducer: useReducer,
   useRef: useRef,
   useState: useState,
-  useInsertionEffect: noop,
+  useInsertionEffect: noop$1,
   useLayoutEffect: useLayoutEffect,
   useCallback: useCallback,
   // useImperativeHandle is not run in the server environment
-  useImperativeHandle: noop,
+  useImperativeHandle: noop$1,
   // Effects are not run in the server environment.
-  useEffect: noop,
+  useEffect: noop$1,
   // Debugging effect
-  useDebugValue: noop,
+  useDebugValue: noop$1,
   useDeferredValue: useDeferredValue,
   useTransition: useTransition,
   useId: useId,
@@ -7291,14 +7245,6 @@ var HooksDispatcher = {
 
 {
   HooksDispatcher.useCacheRefresh = useCacheRefresh;
-}
-
-{
-  HooksDispatcher.useEvent = useEvent;
-}
-
-{
-  HooksDispatcher.useMemoCache = useMemoCache;
 }
 
 {
@@ -7387,7 +7333,7 @@ function defaultErrorHandler(error) {
   return null;
 }
 
-function noop$1() {}
+function noop$2() {}
 
 function createRequest(children, responseState, rootFormatContext, progressiveChunkSize, onError, onAllReady, onShellReady, onShellError, onFatalError) {
   var pingedTasks = [];
@@ -7412,10 +7358,10 @@ function createRequest(children, responseState, rootFormatContext, progressiveCh
     preamble: [],
     postamble: [],
     onError: onError === undefined ? defaultErrorHandler : onError,
-    onAllReady: onAllReady === undefined ? noop$1 : onAllReady,
-    onShellReady: onShellReady === undefined ? noop$1 : onShellReady,
-    onShellError: onShellError === undefined ? noop$1 : onShellError,
-    onFatalError: onFatalError === undefined ? noop$1 : onFatalError
+    onAllReady: onAllReady === undefined ? noop$2 : onAllReady,
+    onShellReady: onShellReady === undefined ? noop$2 : onShellReady,
+    onShellError: onShellError === undefined ? noop$2 : onShellError,
+    onFatalError: onFatalError === undefined ? noop$2 : onFatalError
   }; // This segment represents the root fallback.
 
   var rootSegment = createPendingSegment(request, 0, null, rootFormatContext, // Root segments are never embedded in Text on either edge
@@ -8539,7 +8485,7 @@ function finishedTask(request, boundary, segment) {
 
     if (request.pendingRootTasks === 0) {
       // We have completed the shell so the shell can't error anymore.
-      request.onShellError = noop$1;
+      request.onShellError = noop$2;
       var onShellReady = request.onShellReady;
       onShellReady();
     }
