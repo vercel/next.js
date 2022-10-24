@@ -1071,7 +1071,7 @@ export default async function getBaseWebpackConfig(
       }
       if (/^(react(?:$|\/)|react-dom(?:$|\/))/.test(request)) {
         // override react-dom to server-rendering-stub for server
-        if (request === 'react-dom' && hasAppDir) {
+        if (request === 'react-dom' && hasAppDir && !isClient) {
           request = 'react-dom/server-rendering-stub'
         }
         return `commonjs ${hasAppDir ? 'next/dist/compiled/' : ''}${request}`
