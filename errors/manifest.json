@@ -695,6 +695,10 @@
           "path": "/errors/nested-styled-jsx-tags.md"
         },
         {
+          "title": "new-link-a-tag",
+          "path": "/errors/new-link-a-tag.md"
+        },
+        {
           "title": "returning-response-body-in-middleware",
           "path": "/errors/returning-response-body-in-middleware.md"
         },

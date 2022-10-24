@@ -408,6 +408,14 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       } else {
         child = React.Children.only(children)
       }
+    } else {
+      if (process.env.NODE_ENV === 'development') {
+        if ((children as any)?.type === 'a') {
+          throw new Error(
+            'Invalid <Link> with <a> child. Please remove <a> or use <Link legacyBehavior>.\nLearn more: https://nextjs.org/docs/messages/new-link-a-tag'
+          )
+        }
+      }
     }
 
     const childRef: any = legacyBehavior
