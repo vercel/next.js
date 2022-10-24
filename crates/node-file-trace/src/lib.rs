@@ -42,6 +42,7 @@ use turbopack_core::{
     environment::{EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
     issue::{IssueSeverity, IssueVc},
     reference::all_assets,
+    resolve::options::{ImportMapping, ResolvedMap},
     source_asset::SourceAssetVc,
 };
 
@@ -237,12 +238,30 @@ async fn input_to_modules<'a>(
         )),
         Value::new(EnvironmentIntention::Api),
     );
+    let glob_mappings = vec![
+        (
+            root,
+            GlobVc::new("**/*/next/dist/server/next.js"),
+            ImportMapping::Ignore.into(),
+        ),
+        (
+            root,
+            GlobVc::new("**/*/next/dist/bin/next"),
+            ImportMapping::Ignore.into(),
+        ),
+    ];
     let context: AssetContextVc = ModuleAssetContextVc::new(
         TransitionsByNameVc::cell(HashMap::new()),
         env,
         Default::default(),
         ResolveOptionsContext {
             emulate_environment: Some(env),
+            resolved_map: Some(
+                ResolvedMap {
+                    by_glob: glob_mappings,
+                }
+                .cell(),
+            ),
             ..Default::default()
         }
         .cell(),

@@ -14,24 +14,20 @@ use turbo_tasks::{TransientInstance, TurboTasksApi, Value};
 use turbopack_core::version::Update;
 
 use super::{
-    protocol::{ClientMessage, ClientUpdateInstruction, Issue},
+    protocol::{ClientMessage, ClientUpdateInstruction, Issue, ResourceIdentifier},
     stream::UpdateStream,
 };
 use crate::{update::stream::UpdateStreamItem, SourceProvider};
 
 /// A server that listens for updates and sends them to connected clients.
 pub(crate) struct UpdateServer<P: SourceProvider> {
-    streams: StreamMap<String, UpdateStream>,
     source_provider: P,
 }
 
 impl<P: SourceProvider + Clone + Send + Sync> UpdateServer<P> {
     /// Create a new update server with the given websocket and content source.
     pub fn new(source_provider: P) -> Self {
-        Self {
-            streams: StreamMap::new(),
-            source_provider,
-        }
+        Self { source_provider }
     }
 
     /// Run the update server loop.
@@ -44,33 +40,35 @@ impl<P: SourceProvider + Clone + Send + Sync> UpdateServer<P> {
         }));
     }
 
-    async fn run_internal(mut self, ws: HyperWebsocket) -> Result<()> {
+    async fn run_internal(self, ws: HyperWebsocket) -> Result<()> {
         let mut client: UpdateClient = ws.await?.into();
 
-        // TODO(alexkirsz) To avoid sending an empty update in the beginning, skip the
-        // first update. Note that the first update *may not* be empty, but since we
-        // don't support client HMR yet, this would result in a reload loop.
+        let mut streams = StreamMap::new();
+
         loop {
             select! {
                 message = client.try_next() => {
-                    if let Some(ClientMessage::Subscribe { chunk_path }) = message? {
-                        let get_content = {
-                            let source_provider = self.source_provider.clone();
-                            let chunk_path = chunk_path.clone();
-                            move || {
-                                let source = source_provider.get_source();
-                                source.get(&chunk_path, Value::new(Default::default()))
-                            }
-                        };
-                        let stream = UpdateStream::new(TransientInstance::new(Box::new(get_content))).await?;
-                        self.streams.insert(chunk_path, stream);
-                    } else {
-                        // WebSocket was closed, stop sending updates
-                        break;
+                    match message? {
+                        Some(ClientMessage::Subscribe { resource }) => {
+                            let get_content = {
+                                let source_provider = self.source_provider.clone();
+                                let resource = resource.clone();
+                                move || {
+                                    let source = source_provider.get_source();
+                                    source.get(&resource.path, Value::new(Default::default()))
+                                }
+                            };
+                            let stream = UpdateStream::new(resource.clone(), TransientInstance::new(Box::new(get_content))).await?;
+                            streams.insert(resource, stream);
+                        }
+                        None => {
+                            // WebSocket was closed, stop sending updates
+                            break;
+                        }
                     }
                 }
-                Some((chunk_path, update)) = self.streams.next() => {
-                    Self::send_update(&mut client, chunk_path, &update).await?;
+                Some((resource, update)) = streams.next() => {
+                    Self::send_update(&mut client, resource, &update).await?;
                 }
                 else => break
             }
@@ -81,7 +79,7 @@ impl<P: SourceProvider + Clone + Send + Sync> UpdateServer<P> {
 
     async fn send_update(
         client: &mut UpdateClient,
-        chunk_path: String,
+        resource: ResourceIdentifier,
         update: &UpdateStreamItem,
     ) -> Result<()> {
         let issues = update
@@ -95,7 +93,7 @@ impl<P: SourceProvider + Clone + Send + Sync> UpdateServer<P> {
                 let partial_instruction = partial.instruction.await?;
                 client
                     .send(ClientUpdateInstruction::partial(
-                        &chunk_path,
+                        &resource,
                         &partial_instruction,
                         &issues,
                     ))
@@ -103,12 +101,12 @@ impl<P: SourceProvider + Clone + Send + Sync> UpdateServer<P> {
             }
             Update::Total(_total) => {
                 client
-                    .send(ClientUpdateInstruction::restart(&chunk_path, &issues))
+                    .send(ClientUpdateInstruction::restart(&resource, &issues))
                     .await?;
             }
             Update::None => {
                 client
-                    .send(ClientUpdateInstruction::issues(&chunk_path, &issues))
+                    .send(ClientUpdateInstruction::issues(&resource, &issues))
                     .await?;
             }
         }

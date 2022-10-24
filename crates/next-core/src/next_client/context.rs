@@ -27,7 +27,10 @@ use crate::{
     embed_js::attached_next_js_package_path,
     env::filter_for_client,
     next_client::runtime_entry::{RuntimeEntriesVc, RuntimeEntry},
-    next_import_map::{get_next_client_fallback_import_map, get_next_client_import_map},
+    next_import_map::{
+        get_next_client_fallback_import_map, get_next_client_import_map,
+        get_next_client_resolved_map,
+    },
     react_refresh::assert_can_resolve_react_refresh,
 };
 
@@ -62,6 +65,7 @@ pub fn get_client_resolve_options_context(
 ) -> ResolveOptionsContextVc {
     let next_client_import_map = get_next_client_import_map(project_root, ty);
     let next_client_fallback_import_map = get_next_client_fallback_import_map(ty);
+    let next_client_resolved_map = get_next_client_resolved_map(project_root, project_root);
     ResolveOptionsContext {
         enable_typescript: true,
         enable_react: true,
@@ -69,6 +73,7 @@ pub fn get_client_resolve_options_context(
         custom_conditions: vec!["development".to_string()],
         import_map: Some(next_client_import_map),
         fallback_import_map: Some(next_client_fallback_import_map),
+        resolved_map: Some(next_client_resolved_map),
         browser: true,
         module: true,
         ..Default::default()

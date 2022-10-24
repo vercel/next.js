@@ -19,7 +19,7 @@ import { ParsedUrlQuery } from "node:querystring";
 import { parse as parseStackTrace } from "@vercel/turbopack-next/compiled/stacktrace-parser";
 
 globalThis.__next_require__ = (data) => {
-  const [ssr_id] = JSON.parse(data);
+  const [, , ssr_id] = JSON.parse(data);
   return __turbopack_require__(ssr_id);
 };
 globalThis.__next_chunk_load__ = () => Promise.resolve();
@@ -97,7 +97,7 @@ async function operation(renderData: RenderData) {
     get(target, name, receiver) {
       return {
         id,
-        chunks: JSON.parse(id)[2],
+        chunks: JSON.parse(id)[1],
         name,
       };
     },

@@ -1,5 +1,8 @@
 use anyhow::Result;
-use turbopack_core::{environment::EnvironmentVc, resolve::options::ImportMapVc};
+use turbopack_core::{
+    environment::EnvironmentVc,
+    resolve::options::{ImportMapVc, ResolvedMapVc},
+};
 
 #[turbo_tasks::value(shared)]
 #[derive(Default, Clone)]
@@ -29,6 +32,8 @@ pub struct ResolveOptionsContext {
     /// `ResolveOption::fallback_import_map`. It is always applied last, so
     /// any mapping defined within will take precedence over any other.
     pub fallback_import_map: Option<ImportMapVc>,
+    /// An additional resolved map to use after modules have been resolved.
+    pub resolved_map: Option<ResolvedMapVc>,
     pub placeholder_for_future_extensions: (),
 }
 

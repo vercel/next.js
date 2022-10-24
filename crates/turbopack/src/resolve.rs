@@ -1,12 +1,12 @@
 use std::collections::BTreeMap;
 
 use anyhow::Result;
-use turbo_tasks_fs::{glob::GlobVc, FileSystemPathVc};
+use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::resolve::{
     find_context_file,
     options::{
         ConditionValue, ImportMap, ImportMapping, ResolveInPackage, ResolveIntoPackage,
-        ResolveModules, ResolveOptions, ResolveOptionsVc, ResolvedMap,
+        ResolveModules, ResolveOptions, ResolveOptionsVc,
     },
     AliasMap, AliasPattern, FindContextFileResult,
 };
@@ -102,28 +102,14 @@ async fn base_resolve_options(
             );
         }
     }
-    let glob_mappings = vec![
-        (
-            context,
-            GlobVc::new("**/*/next/dist/server/next.js"),
-            ImportMapping::Ignore.into(),
-        ),
-        (
-            context,
-            GlobVc::new("**/*/next/dist/bin/next"),
-            ImportMapping::Ignore.into(),
-        ),
-    ];
+
     let mut import_map = ImportMap::new(direct_mappings, Default::default());
     if let Some(additional_import_map) = opt.import_map {
         let additional_import_map = additional_import_map.await?;
         import_map.extend(&additional_import_map);
     }
     let import_map = import_map.cell();
-    let resolved_map = ResolvedMap {
-        by_glob: glob_mappings,
-    }
-    .into();
+
     Ok(ResolveOptions {
         extensions: if let Some(environment) = emulating {
             environment.resolve_extensions().await?.clone_value()
@@ -234,7 +220,7 @@ async fn base_resolve_options(
             resolve_in
         },
         import_map: Some(import_map),
-        resolved_map: Some(resolved_map),
+        resolved_map: opt.resolved_map,
         ..Default::default()
     }
     .into())

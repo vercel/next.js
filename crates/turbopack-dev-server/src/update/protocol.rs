@@ -1,4 +1,4 @@
-use std::{ops::Deref, path::PathBuf};
+use std::{collections::BTreeMap, ops::Deref, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -8,19 +8,26 @@ use turbopack_core::{
     source_pos::SourcePos,
 };
 
+#[turbo_tasks::value(serialization = "auto_for_input")]
+#[derive(Debug, Clone, Hash, PartialOrd, Ord)]
+pub struct ResourceIdentifier {
+    pub path: String,
+    pub headers: Option<BTreeMap<String, String>>,
+}
+
 #[derive(Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum ClientMessage {
     Subscribe {
-        #[serde(rename = "chunkPath")]
-        chunk_path: String,
+        #[serde(flatten)]
+        resource: ResourceIdentifier,
     },
 }
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientUpdateInstruction<'a> {
-    pub chunk_path: &'a str,
+    pub resource: &'a ResourceIdentifier,
     #[serde(flatten)]
     pub ty: ClientUpdateInstructionType<'a>,
     pub issues: &'a [Issue<'a>],
@@ -30,36 +37,40 @@ pub const EMPTY_ISSUES: &[Issue<'static>] = &[];
 
 impl<'a> ClientUpdateInstruction<'a> {
     pub fn new(
-        chunk_path: &'a str,
+        resource: &'a ResourceIdentifier,
         ty: ClientUpdateInstructionType<'a>,
         issues: &'a [Issue<'a>],
     ) -> Self {
         Self {
-            chunk_path,
+            resource,
             ty,
             issues,
         }
     }
 
-    pub fn restart(chunk_path: &'a str, issues: &'a [Issue<'a>]) -> Self {
-        Self::new(chunk_path, ClientUpdateInstructionType::Restart, issues)
+    pub fn restart(resource: &'a ResourceIdentifier, issues: &'a [Issue<'a>]) -> Self {
+        Self::new(resource, ClientUpdateInstructionType::Restart, issues)
     }
 
-    pub fn partial(chunk_path: &'a str, instruction: &'a Value, issues: &'a [Issue<'a>]) -> Self {
+    pub fn partial(
+        resource: &'a ResourceIdentifier,
+        instruction: &'a Value,
+        issues: &'a [Issue<'a>],
+    ) -> Self {
         Self::new(
-            chunk_path,
+            resource,
             ClientUpdateInstructionType::Partial { instruction },
             issues,
         )
     }
 
-    pub fn issues(chunk_path: &'a str, issues: &'a [Issue<'a>]) -> Self {
-        Self::new(chunk_path, ClientUpdateInstructionType::Issues, issues)
+    pub fn issues(resource: &'a ResourceIdentifier, issues: &'a [Issue<'a>]) -> Self {
+        Self::new(resource, ClientUpdateInstructionType::Issues, issues)
     }
 
     pub fn with_issues(self, issues: &'a [Issue<'a>]) -> Self {
         Self {
-            chunk_path: self.chunk_path,
+            resource: self.resource,
             ty: self.ty,
             issues,
         }

@@ -39,7 +39,7 @@ use turbopack_core::asset::AssetContent;
 
 use self::{
     source::{query::Query, ContentSourceDataVary, ContentSourceResultVc, ContentSourceVc},
-    update::UpdateServer,
+    update::{protocol::ResourceIdentifier, UpdateServer},
 };
 use crate::source::{ContentSourceData, ContentSourceResult, HeaderValue};
 
@@ -196,15 +196,18 @@ impl DevServer {
                                 return Ok(response);
                             }
 
-                            if path != "/_next/webpack-hmr" {
+                            println!("[404] {} (WebSocket)", path);
+                            if path == "/_next/webpack-hmr" {
                                 // Special-case requests to webpack-hmr as these are made by Next.js
                                 // clients built without turbopack, which may be making requests in
                                 // development.
-                                //
-                                // Still respond with 404 to these, but don't clutter devserver logs
-                                // with these repeated messages.
-                                println!("[404] {} (WebSocket)", path);
+                                println!("A non-turbopack next.js client is trying to connect.");
+                                println!(
+                                    "Make sure to reload/close any browser window which has been \
+                                     opened without --turbo."
+                                );
                             }
+
                             return Ok(Response::builder()
                                 .status(404)
                                 .body(hyper::Body::empty())?);
@@ -337,6 +340,48 @@ async fn request_to_data(
         data.cache_buster = CACHE_BUSTER.fetch_add(1, Ordering::SeqCst);
     }
     Ok(data)
+}
+
+pub(crate) fn resource_to_data(
+    resource: ResourceIdentifier,
+    vary: &ContentSourceDataVary,
+) -> ContentSourceData {
+    let mut data = ContentSourceData::default();
+    if vary.method {
+        data.method = Some("GET".to_string());
+    }
+    if vary.url {
+        data.url = Some(resource.path);
+    }
+    if vary.body {
+        data.body = Some(Body::new(Vec::new()).into());
+    }
+    if let Some(_) = vary.query.as_ref() {
+        data.query = Some(Query::default())
+    }
+    if let Some(filter) = vary.headers.as_ref() {
+        let mut headers = BTreeMap::new();
+        if let Some(resource_headers) = resource.headers {
+            for (header_name, header_value) in resource_headers {
+                if !filter.contains(header_name.as_str()) {
+                    continue;
+                }
+                match headers.entry(header_name) {
+                    Entry::Vacant(e) => {
+                        e.insert(HeaderValue::SingleString(header_value));
+                    }
+                    Entry::Occupied(mut e) => {
+                        e.get_mut().extend_with_string(header_value);
+                    }
+                }
+            }
+        }
+        data.headers = Some(headers);
+    }
+    if vary.cache_buster {
+        data.cache_buster = CACHE_BUSTER.fetch_add(1, Ordering::SeqCst);
+    }
+    data
 }
 
 pub fn register() {

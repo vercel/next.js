@@ -28,10 +28,12 @@ pub trait VersionedContent {
         // scheme of the content, we ask for a full invalidation, except in the
         // case where versions are the same. And we can't compare `VersionVc`s
         // directly since `.cell_local()` breaks referential equality checks.
-        let from_id = from.id();
         let to = self_vc.version();
+        let from_id = from.id();
         let to_id = to.id();
-        Ok(if *from_id.await? == *to_id.await? {
+        let from_id = from_id.await?;
+        let to_id = to_id.await?;
+        Ok(if *from_id == *to_id {
             Update::None.into()
         } else {
             Update::Total(TotalUpdate { to }).into()

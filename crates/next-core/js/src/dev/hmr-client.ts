@@ -2,11 +2,12 @@ import type {
   ClientMessage,
   EcmascriptChunkUpdate,
   Issue,
+  ResourceIdentifier,
   ServerMessage,
 } from "@vercel/turbopack-runtime/types/protocol";
 import type {
   ChunkPath,
-  ChunkUpdateCallback,
+  UpdateCallback,
   TurbopackGlobals,
 } from "@vercel/turbopack-runtime/types";
 
@@ -41,7 +42,7 @@ export function connect({ assetPrefix }: ClientOptions) {
     throw new Error("A separate HMR handler was already registered");
   }
   globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS = {
-    push: ([chunkPath, callback]: [ChunkPath, ChunkUpdateCallback]) => {
+    push: ([chunkPath, callback]: [ChunkPath, UpdateCallback]) => {
       onChunkUpdate(chunkPath, callback);
     },
   };
@@ -55,22 +56,30 @@ export function connect({ assetPrefix }: ClientOptions) {
   subscribeToInitialCssChunksUpdates(assetPrefix);
 }
 
-const chunkUpdateCallbacks: Map<ChunkPath, ChunkUpdateCallback[]> = new Map();
+const updateCallbacks: Map<ResourceKey, Set<UpdateCallback>> = new Map();
 
 function sendJSON(message: ClientMessage) {
   sendMessage(JSON.stringify(message));
 }
 
-function subscribeToChunkUpdates(chunkPath: ChunkPath) {
+type ResourceKey = string;
+function resourceKey(resource: ResourceIdentifier): ResourceKey {
+  return JSON.stringify({
+    path: resource.path,
+    headers: resource.headers || null,
+  });
+}
+
+function subscribeToUpdates(resource: ResourceIdentifier) {
   sendJSON({
     type: "subscribe",
-    chunkPath,
+    ...resource,
   });
 }
 
 function handleSocketConnected() {
-  for (const chunkPath of chunkUpdateCallbacks.keys()) {
-    subscribeToChunkUpdates(chunkPath);
+  for (const key of updateCallbacks.keys()) {
+    subscribeToUpdates(JSON.parse(key));
   }
 }
 
@@ -87,11 +96,12 @@ function aggregateUpdates(
   msg: ServerMessage,
   hasErrors: boolean
 ): ServerMessage {
-  const aggregated = chunksWithErrors.get(msg.chunkPath);
+  const key = resourceKey(msg.resource);
+  const aggregated = chunksWithErrors.get(key);
 
   if (msg.type === "issues" && aggregated != null) {
     if (!hasErrors) {
-      chunksWithErrors.delete(msg.chunkPath);
+      chunksWithErrors.delete(key);
     }
 
     return {
@@ -110,7 +120,7 @@ function aggregateUpdates(
 
   if (aggregated == null) {
     if (hasErrors) {
-      chunksWithErrors.set(msg.chunkPath, {
+      chunksWithErrors.set(key, {
         added: msg.instruction.added,
         modified: msg.instruction.modified,
         deleted: new Set(msg.instruction.deleted),
@@ -158,9 +168,9 @@ function aggregateUpdates(
   }
 
   if (!hasErrors) {
-    chunksWithErrors.delete(msg.chunkPath);
+    chunksWithErrors.delete(key);
   } else {
-    chunksWithErrors.set(msg.chunkPath, aggregated);
+    chunksWithErrors.set(key, aggregated);
   }
 
   return {
@@ -203,40 +213,54 @@ function handleSocketMessage(msg: ServerMessage) {
   }
 
   if (aggregatedMsg.type !== "issues") {
-    triggerChunkUpdate(aggregatedMsg);
+    triggerUpdate(aggregatedMsg);
     if (chunksWithErrors.size === 0) {
       onRefresh();
     }
   }
 }
 
-export function onChunkUpdate(
-  chunkPath: ChunkPath,
-  callback: ChunkUpdateCallback
-) {
-  const callbacks = chunkUpdateCallbacks.get(chunkPath);
-  if (!callbacks) {
-    chunkUpdateCallbacks.set(chunkPath, [callback]);
-  } else {
-    callbacks.push(callback);
-  }
-
-  subscribeToChunkUpdates(chunkPath);
+export function onChunkUpdate(chunkPath: ChunkPath, callback: UpdateCallback) {
+  onUpdate(
+    {
+      path: chunkPath,
+    },
+    callback
+  );
 }
 
-function triggerChunkUpdate(update: ServerMessage) {
-  const callbacks = chunkUpdateCallbacks.get(update.chunkPath);
+export function onUpdate(
+  resource: ResourceIdentifier,
+  callback: UpdateCallback
+) {
+  const key = resourceKey(resource);
+  let callbacks = updateCallbacks.get(key);
+  if (!callbacks) {
+    subscribeToUpdates(resource);
+    updateCallbacks.set(key, (callbacks = new Set([callback])));
+  } else {
+    callbacks.add(callback);
+  }
+
+  return () => {
+    callbacks!.delete(callback);
+  };
+}
+
+function triggerUpdate(msg: ServerMessage) {
+  const key = resourceKey(msg.resource);
+  const callbacks = updateCallbacks.get(key);
   if (!callbacks) {
     return;
   }
 
   try {
     for (const callback of callbacks) {
-      callback(update);
+      callback(msg);
     }
   } catch (err) {
     console.error(
-      `An error occurred during the update of chunk \`${update.chunkPath}\``,
+      `An error occurred during the update of resource \`${msg.resource.path}\``,
       err
     );
     location.reload();
