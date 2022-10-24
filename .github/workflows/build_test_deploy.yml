@@ -1167,18 +1167,19 @@ jobs:
             target: 'i686-pc-windows-msvc'
           - host: ubuntu-latest
             target: 'x86_64-unknown-linux-gnu'
-            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian
+            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2022-10-24-x64
             build: >-
               set -e &&
               rustup toolchain install "${RUST_TOOLCHAIN}" &&
               rustup default "${RUST_TOOLCHAIN}" &&
               rustup target add x86_64-unknown-linux-gnu &&
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi &&
+              unset CC_x86_64_unknown_linux_gnu && unset CC &&
               turbo run build-native --cache-dir=".turbo" -- --release --target x86_64-unknown-linux-gnu &&
               strip packages/next-swc/native/next-swc.*.node
           - host: ubuntu-latest
             target: 'x86_64-unknown-linux-musl'
-            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
+            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2022-10-24-alpine
             build: >-
               set -e &&
               rustup toolchain install "${RUST_TOOLCHAIN}" &&
@@ -1200,7 +1201,7 @@ jobs:
               strip -x packages/next-swc/native/next-swc.*.node
           - host: ubuntu-latest
             target: 'aarch64-unknown-linux-gnu'
-            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian-aarch64
+            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2022-10-24-aarch64
             build: >-
               set -e &&
               export JEMALLOC_SYS_WITH_LG_PAGE=16 &&
@@ -1252,7 +1253,7 @@ jobs:
               ${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip packages/next-swc/native/next-swc.*.node
           - host: ubuntu-latest
             target: 'aarch64-unknown-linux-musl'
-            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
+            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2022-10-24-alpine
             build: >-
               set -e &&
               export JEMALLOC_SYS_WITH_LG_PAGE=16 &&

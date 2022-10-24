@@ -12,6 +12,10 @@ declare namespace NodeJS {
   interface ProcessEnv {
     readonly NODE_ENV: 'development' | 'production' | 'test'
   }
+
+  interface RequestInit extends globalThis.RequestInit {
+    next?: NextFetchRequestConfig | undefined
+  }
 }
 
 declare module '*.module.css' {
@@ -34,11 +38,10 @@ interface Window {
   __NEXT_HMR_CB?: null | ((message?: string) => void)
 }
 
-type NextFetchRequestConfig = {
+interface NextFetchRequestConfig {
   revalidate?: number
 }
 
-declare function fetch(
-  url: RequestInfo,
-  opts: RequestInit & { next?: NextFetchRequestConfig }
-): Promise<Response>
+interface RequestInit {
+  next?: NextFetchRequestConfig | undefined
+}

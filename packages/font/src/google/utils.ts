@@ -1,3 +1,4 @@
+import fs from 'fs'
 // @ts-ignore
 import fetch from 'next/dist/compiled/node-fetch'
 import fontData from './font-data.json'
@@ -16,6 +17,7 @@ type FontOptions = {
   fallback?: string[]
   adjustFontFallback: boolean
   variable?: string
+  subsets?: string[]
 }
 export function validateData(functionName: string, data: any): FontOptions {
   let {
@@ -27,6 +29,7 @@ export function validateData(functionName: string, data: any): FontOptions {
     fallback,
     adjustFontFallback = true,
     variable,
+    subsets,
   } = data[0] || ({} as any)
   if (functionName === '') {
     throw new Error(`@next/font/google has no default export`)
@@ -98,6 +101,7 @@ export function validateData(functionName: string, data: any): FontOptions {
     fallback,
     adjustFontFallback,
     variable,
+    subsets,
   }
 }
 
@@ -158,6 +162,9 @@ export async function fetchCSSFromGoogleFonts(url: string, fontFamily: string) {
 
 export async function fetchFontFile(url: string) {
   if (process.env.NEXT_FONT_GOOGLE_MOCKED_RESPONSES) {
+    if (url.startsWith('/')) {
+      return fs.readFileSync(url)
+    }
     return Buffer.from(url)
   }
   const arrayBuffer = await fetch(url).then((r: any) => r.arrayBuffer())

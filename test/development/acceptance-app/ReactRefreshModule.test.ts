@@ -15,8 +15,8 @@ describe('ReactRefreshModule app', () => {
     next = await createNext({
       files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
       dependencies: {
-        react: '0.0.0-experimental-9cdf8a99e-20221018',
-        'react-dom': '0.0.0-experimental-9cdf8a99e-20221018',
+        react: 'latest',
+        'react-dom': 'latest',
       },
       skipStart: true,
     })
