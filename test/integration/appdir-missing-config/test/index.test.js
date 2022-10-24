@@ -17,12 +17,12 @@ const err =
   /Error: > The `app` dir is experimental. Please add `{experimental:{appDir: true}}` to your `next.config.js` to enable it/
 
 function runTests() {
-  it('should print error for conflicting app/page', async () => {
+  it('should print error when missing experimental.appDir', async () => {
     expect(output).toMatch(err)
   })
 }
 
-describe('Conflict between app file and page file', () => {
+describe('Error when app dir is present without experimental.appDir', () => {
   describe('next dev', () => {
     beforeAll(async () => {
       output = ''
