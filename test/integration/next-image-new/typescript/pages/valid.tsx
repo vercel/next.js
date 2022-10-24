@@ -96,7 +96,13 @@ const Page = () => {
         width={400}
         height={400}
       />
-      <ImageWithLoader id="image-with-loader" alt="image-with-loader" />
+      <ImageWithLoader
+        id="image-with-loader"
+        alt="image-with-loader"
+        src="test.jpg"
+        width={300}
+        height={300}
+      />
       <p id="stubtext">This is valid usage of the Image component</p>
     </div>
   )

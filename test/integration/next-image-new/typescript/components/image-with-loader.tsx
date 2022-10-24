@@ -6,8 +6,6 @@ function myLoader({ src, width, quality }: ImageLoaderProps): string {
 }
 const loader: ImageLoader = myLoader
 
-export function ImageWithLoader(props: Omit<ImageProps, 'src' | 'loader'>) {
-  return (
-    <Image id="image-with-loader" src="test.jpg" loader={loader} {...props} />
-  )
+export function ImageWithLoader(props: Omit<ImageProps, 'loader'>) {
+  return <Image loader={loader} {...props} />
 }
