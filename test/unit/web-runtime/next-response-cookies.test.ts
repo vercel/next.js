@@ -65,29 +65,31 @@ it('reflect .delete into `set-cookie`', async () => {
     value: 'barz',
   })
 
-  const firstDelete = response.cookies.delete('foo')
-  expect(firstDelete).toBe(true)
+  response.cookies.delete('foo')
   expect(Object.fromEntries(response.headers.entries())['set-cookie']).toBe(
     'foo=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT, fooz=barz; Path=/'
   )
 
   expect(response.cookies.get('foo')?.value).toBe(undefined)
   expect(response.cookies.get('foo')).toEqual({
+    expires: new Date(0),
     name: 'foo',
     value: undefined,
+    path: '/',
   })
 
-  const secondDelete = response.cookies.delete('fooz')
-  expect(secondDelete).toBe(true)
+  response.cookies.delete('fooz')
 
   expect(Object.fromEntries(response.headers.entries())['set-cookie']).toBe(
-    'fooz=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT, foo=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT'
+    'foo=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT, fooz=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT'
   )
 
   expect(response.cookies.get('fooz')?.value).toBe(undefined)
   expect(response.cookies.get('fooz')).toEqual({
+    expires: new Date(0),
     name: 'fooz',
     value: undefined,
+    path: '/',
   })
 })
 
