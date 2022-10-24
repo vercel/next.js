@@ -195,14 +195,6 @@ function createErrorHandler(
   }
 }
 
-class NextFetchRequestImpl extends globalThis.Request {
-  next?: NextFetchRequestConfig | undefined
-  constructor(input: RequestInfo | URL, init?: RequestInit | undefined) {
-    super(input, init)
-    this.next = init?.next
-  }
-}
-
 let isFetchPatched = false
 
 // we patch fetch to collect cache information used for
@@ -215,12 +207,6 @@ function patchFetch(ComponentMod: any) {
     ComponentMod.serverHooks as typeof import('../client/components/hooks-server-context')
 
   const staticGenerationAsyncStorage = ComponentMod.staticGenerationAsyncStorage
-
-  Object.defineProperty(globalThis, 'Request', {
-    get() {
-      return NextFetchRequestImpl
-    },
-  })
 
   const originFetch = globalThis.fetch
   globalThis.fetch = async (input, init) => {
@@ -244,7 +230,7 @@ function patchFetch(ComponentMod: any) {
         }
 
         const hasNextConfig = 'next' in init
-        const next = (hasNextConfig && init.next) || {}
+        const next = init.next || {}
         if (
           typeof next.revalidate === 'number' &&
           (typeof fetchRevalidate === 'undefined' ||

@@ -42,6 +42,10 @@ interface Window {
   __NEXT_HMR_CB?: null | ((message?: string) => void)
 }
 
+interface NextFetchRequestConfig {
+  revalidate?: number
+}
+
 interface RequestInit {
-  next?: { revalidate?: number } | undefined
+  next?: NextFetchRequestConfig | undefined
 }
