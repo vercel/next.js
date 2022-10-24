@@ -82,12 +82,7 @@ export function getOriginalStackFrame(
     };
   }
 
-  if (
-    !(
-      source.file?.startsWith("webpack-internal:") ||
-      source.file?.startsWith("file:")
-    )
-  ) {
+  if (!source.file?.startsWith(location.origin)) {
     return Promise.resolve({
       error: false,
       reason: null,

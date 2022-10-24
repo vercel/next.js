@@ -31,6 +31,7 @@ pub struct ProxyResult {
 }
 
 #[turbo_tasks::value(shared)]
+#[derive(Debug)]
 // TODO add Dynamic variant in future to allow streaming and server responses
 pub enum ContentSourceResult {
     NotFound,

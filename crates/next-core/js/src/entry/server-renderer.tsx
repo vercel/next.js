@@ -9,6 +9,7 @@ import { ServerResponseShim } from "@vercel/turbopack-next/internal/http";
 
 import App from "@vercel/turbopack-next/pages/_app";
 import Document from "@vercel/turbopack-next/pages/_document";
+import { parse as parseStackTrace } from "@vercel/turbopack-next/compiled/stacktrace-parser";
 
 import Component, * as otherExports from ".";
 ("TURBOPACK { transition: next-client }");
@@ -39,7 +40,7 @@ process.stdin.on("data", async (data) => {
       const result = await operation(json);
       console.log(`RESULT=${JSON.stringify(result)}`);
     } catch (e: any) {
-      console.log(`ERROR=${JSON.stringify(e.stack)}`);
+      console.log(`ERROR=${JSON.stringify(structuredError(e))}`);
     }
     console.log(OPERATION_SUCCESS_MARKER.toString("utf8"));
     data = data.slice(idx + 1);
@@ -150,4 +151,12 @@ async function operation(renderData: RenderData) {
       renderOpts
     )
   )?.toUnchunkedString();
+}
+
+function structuredError(e: Error) {
+  return {
+    name: e.name,
+    message: e.message,
+    stack: parseStackTrace(e.stack!),
+  };
 }

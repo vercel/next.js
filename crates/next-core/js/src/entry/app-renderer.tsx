@@ -16,6 +16,7 @@ import { RenderOpts, renderToHTMLOrFlight } from "next/dist/server/app-render";
 import { PassThrough } from "stream";
 import { ServerResponseShim } from "@vercel/turbopack-next/internal/http";
 import { ParsedUrlQuery } from "node:querystring";
+import { parse as parseStackTrace } from "@vercel/turbopack-next/compiled/stacktrace-parser";
 
 globalThis.__next_require__ = (data) => {
   const [ssr_id] = JSON.parse(data);
@@ -52,13 +53,13 @@ process.stdin.on("data", async (data) => {
       const input =
         str.length > 100 ? `${str.slice(0, 30)}...${str.slice(-30)}` : str;
       e.message += `\nduring processing input ${input}`;
-      console.log(`ERROR=${JSON.stringify(e.stack)}`);
+      console.log(`ERROR=${JSON.stringify(structuredError(e))}`);
     }
     try {
       const result = await operation(json);
       console.log(`RESULT=${JSON.stringify(result)}`);
     } catch (e: any) {
-      console.log(`ERROR=${JSON.stringify(e.stack)}`);
+      console.log(`ERROR=${JSON.stringify(structuredError(e))}`);
     }
     console.log(OPERATION_SUCCESS_MARKER.toString("utf8"));
     data = data.slice(idx + 1);
@@ -200,4 +201,12 @@ export function htmlEscapeJsonString(str: string) {
     ESCAPE_REGEX,
     (match) => ESCAPE_LOOKUP[match as keyof typeof ESCAPE_LOOKUP]
   );
+}
+
+function structuredError(e: Error) {
+  return {
+    name: e.name,
+    message: e.message,
+    stack: parseStackTrace(e.stack!),
+  };
 }

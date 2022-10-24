@@ -44,7 +44,7 @@ function readStep(buffer: Buffer): { data: Buffer; remaining: Buffer } | null {
   let endLineIdx = buffer.indexOf(NEW_LINE);
 
   while (endLineIdx !== -1) {
-    let considering = buffer.subarray(startLineIdx, endLineIdx);
+    const considering = buffer.subarray(startLineIdx, endLineIdx);
     if (considering.equals(OPERATION_STEP_MARKER)) {
       return {
         data: buffer.subarray(
@@ -170,7 +170,7 @@ async function createOperation(renderData: RenderData): Promise<Operation> {
 
 function handleClientResponse(server: Server, clientResponse: IncomingMessage) {
   const responseData: Buffer[] = [];
-  let responseHeaders: ResponseHeaders = {
+  const responseHeaders: ResponseHeaders = {
     status: clientResponse.statusCode!,
     headers: clientResponse.rawHeaders,
   };
@@ -256,7 +256,7 @@ function makeRequest(
     let clientRequest: ClientRequest | null = null;
     let clientResponseResolve: (value: IncomingMessage) => void;
     let clientResponseReject: (error: Error) => void;
-    let clientResponsePromise = new Promise<IncomingMessage>(
+    const clientResponsePromise = new Promise<IncomingMessage>(
       (resolve, reject) => {
         clientResponseResolve = resolve;
         clientResponseReject = reject;
