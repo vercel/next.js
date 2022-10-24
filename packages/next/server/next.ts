@@ -152,7 +152,7 @@ export class NextServer {
     if (!this.serverPromise) {
       this.serverPromise = this.loadConfig().then(async (conf) => {
         if (conf.experimental.appDir) {
-          process.env.HAS_APP_DIR = '1'
+          process.env.NEXT_PREBUNDLED_REACT = '1'
           overrideBuiltInReactPackages()
         }
 

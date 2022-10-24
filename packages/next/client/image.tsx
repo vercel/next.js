@@ -297,7 +297,7 @@ function handleLoading(
       onLoadingCompleteRef.current(img)
     }
     if (process.env.NODE_ENV !== 'production') {
-      if (img.getAttribute('data-nimg') === 'future-fill') {
+      if (img.getAttribute('data-nimg') === 'fill') {
         if (
           !img.getAttribute('sizes') ||
           img.getAttribute('sizes') === '100vw'
@@ -376,7 +376,7 @@ const ImageElement = ({
         width={widthInt}
         height={heightInt}
         decoding="async"
-        data-nimg={`future${fill ? '-fill' : ''}`}
+        data-nimg={fill ? 'fill' : '1'}
         className={className}
         // @ts-ignore - TODO: upgrade to `@types/react@17`
         loading={loading}

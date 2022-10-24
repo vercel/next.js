@@ -5,6 +5,7 @@ const roboto = Roboto({
   style: 'italic',
   display: 'swap',
   preload: true,
+  subsets: ['vietnamese'],
 })
 
 export default function Component() {

@@ -49,7 +49,7 @@ import {
 } from '../build/webpack/require-hook'
 
 loadRequireHook()
-if (process.env.HAS_APP_DIR) {
+if (process.env.NEXT_PREBUNDLED_REACT) {
   overrideBuiltInReactPackages()
 }
 

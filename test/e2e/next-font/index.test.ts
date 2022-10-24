@@ -303,7 +303,7 @@ describe('@next/font/google', () => {
       expect($('link[as="font"]').get(1).attribs).toEqual({
         as: 'font',
         crossorigin: 'anonymous',
-        href: '/_next/static/media/4f3dcdf40b3ca86d.p.woff2',
+        href: '/_next/static/media/675c25f648fd6a30.p.woff2',
         rel: 'preload',
         type: 'font/woff2',
       })
