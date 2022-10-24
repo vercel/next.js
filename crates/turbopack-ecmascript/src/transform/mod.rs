@@ -20,6 +20,7 @@ use turbo_tasks::primitives::StringVc;
 use turbopack_core::environment::EnvironmentVc;
 
 use self::server_to_client_proxy::{create_proxy_module, is_client_module};
+mod next_ssg;
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(PartialOrd, Ord, Hash, Debug, Copy, Clone)]
@@ -28,6 +29,12 @@ pub enum EcmascriptInputTransform {
     CommonJs,
     Custom,
     Emotion,
+    /// This enables the Next SSG transform, which will eliminate
+    /// `getStaticProps`/`getServerSideProps`/etc. exports from the output, as
+    /// well as any imports that are only used by those exports.
+    ///
+    /// It also provides diagnostics for improper use of `getServerSideProps`.
+    NextJs,
     PresetEnv(EnvironmentVc),
     React {
         #[serde(default)]
@@ -41,6 +48,16 @@ pub enum EcmascriptInputTransform {
 #[turbo_tasks::value(transparent, serialization = "auto_for_input")]
 #[derive(Debug, PartialOrd, Ord, Hash, Clone)]
 pub struct EcmascriptInputTransforms(Vec<EcmascriptInputTransform>);
+
+#[turbo_tasks::value_impl]
+impl EcmascriptInputTransformsVc {
+    #[turbo_tasks::function]
+    pub async fn extend(self, other: EcmascriptInputTransformsVc) -> Result<Self> {
+        let mut transforms = self.await?.clone_value();
+        transforms.extend(&*other.await?);
+        Ok(EcmascriptInputTransformsVc::cell(transforms))
+    }
+}
 
 pub struct TransformContext<'a> {
     pub comments: &'a SwcComments,
@@ -114,20 +131,7 @@ impl EcmascriptInputTransform {
                     ..Default::default()
                 };
 
-                let module_program = match program {
-                    Program::Module(_) => {
-                        std::mem::replace(program, Program::Module(Module::dummy()))
-                    }
-                    Program::Script(s) => Program::Module(Module {
-                        span: s.span,
-                        body: s
-                            .body
-                            .iter()
-                            .map(|stmt| ModuleItem::Stmt(stmt.clone()))
-                            .collect(),
-                        shebang: s.shebang.clone(),
-                    }),
-                };
+                let module_program = unwrap_module_program(program);
 
                 *program = module_program.fold_with(&mut chain!(
                     preset_env::preset_env(
@@ -167,8 +171,31 @@ impl EcmascriptInputTransform {
                     program.visit_mut_with(&mut resolver(unresolved_mark, top_level_mark, false));
                 }
             }
+            EcmascriptInputTransform::NextJs => {
+                use next_ssg::next_ssg;
+                let eliminated_packages = Default::default();
+
+                let module_program = unwrap_module_program(program);
+
+                *program = module_program.fold_with(&mut next_ssg(eliminated_packages));
+            }
             EcmascriptInputTransform::Custom => todo!(),
         }
         Ok(())
+    }
+}
+
+fn unwrap_module_program(program: &mut Program) -> Program {
+    match program {
+        Program::Module(module) => Program::Module(module.take()),
+        Program::Script(s) => Program::Module(Module {
+            span: s.span,
+            body: s
+                .body
+                .iter()
+                .map(|stmt| ModuleItem::Stmt(stmt.clone()))
+                .collect(),
+            shebang: s.shebang.clone(),
+        }),
     }
 }

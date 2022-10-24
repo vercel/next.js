@@ -1,8 +1,10 @@
 use turbopack_core::environment::EnvironmentVc;
 use turbopack_ecmascript::EcmascriptInputTransform;
 
+use super::ModuleRuleVc;
+
 #[turbo_tasks::value(shared)]
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct ModuleOptionsContext {
     pub enable_emotion: bool,
     pub enable_react_refresh: bool,
@@ -12,6 +14,8 @@ pub struct ModuleOptionsContext {
     pub preset_env_versions: Option<EnvironmentVc>,
     pub custom_ecmascript_app_transforms: Vec<EcmascriptInputTransform>,
     pub custom_ecmascript_transforms: Vec<EcmascriptInputTransform>,
+    /// Custom rules to be applied after all default rules.
+    pub custom_rules: Vec<ModuleRuleVc>,
     pub placeholder_for_future_extensions: (),
 }
 
