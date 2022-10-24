@@ -2094,11 +2094,13 @@ export default async function build(
               // revalidate periods and dynamicParams settings
               appStaticPaths.forEach((routes, originalAppPath) => {
                 const encodedRoutes = appStaticPathsEncoded.get(originalAppPath)
+                const appConfig = appDefaultConfigs.get(originalAppPath) || {}
 
                 routes.forEach((route, routeIdx) => {
                   defaultMap[route] = {
                     page: originalAppPath,
                     query: { __nextSsgPath: encodedRoutes?.[routeIdx] },
+                    _isDynamicError: appConfig.dynamic === 'error',
                     _isAppDir: true,
                   }
                 })
