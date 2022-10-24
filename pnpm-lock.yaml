@@ -19,7 +19,7 @@ importers:
       '@babel/preset-flow': 7.14.5
       '@babel/preset-react': 7.14.5
       '@edge-runtime/jest-environment': 1.1.0-beta.36
-      '@edge-runtime/primitives': 1.1.0-beta.36
+      '@edge-runtime/primitives': 1.1.0-beta.37
       '@fullhuman/postcss-purgecss': 1.3.0
       '@mdx-js/loader': 0.18.0
       '@next/bundle-analyzer': workspace:*
@@ -177,7 +177,7 @@ importers:
       '@babel/preset-flow': 7.14.5_@babel+core@7.18.0
       '@babel/preset-react': 7.14.5_@babel+core@7.18.0
       '@edge-runtime/jest-environment': 1.1.0-beta.36
-      '@edge-runtime/primitives': 1.1.0-beta.36
+      '@edge-runtime/primitives': 1.1.0-beta.37
       '@fullhuman/postcss-purgecss': 1.3.0
       '@mdx-js/loader': 0.18.0_uuaxwgga6hqycsez5ok7v2wg4i
       '@next/bundle-analyzer': link:packages/next-bundle-analyzer
@@ -624,7 +624,7 @@ importers:
       timers-browserify: 2.0.12
       tty-browserify: 0.0.1
       ua-parser-js: 0.7.28
-      undici: 5.10.0
+      undici: 5.11.0
       unistore: 3.4.1
       use-sync-external-store: 1.2.0
       util: 0.12.4
@@ -825,7 +825,7 @@ importers:
       timers-browserify: 2.0.12
       tty-browserify: 0.0.1
       ua-parser-js: 0.7.28
-      undici: 5.10.0
+      undici: 5.11.0
       unistore: 3.4.1_react@18.2.0
       util: 0.12.4
       uuid: 8.3.2
@@ -4025,13 +4025,6 @@ packages:
       '@jest/types': 28.1.3
       jest-mock: 28.1.3
       jest-util: 28.1.3
-    dev: true
-
-  /@edge-runtime/primitives/1.1.0-beta.36:
-    resolution:
-      {
-        integrity: sha512-Tji7SGWmn1+JGSnzFtWUoS7+kODIFprTyIAw0EBOVWEQKWfs7r0aTEm1XkJR0+d1jP9f0GB5LBKG/Z7KFyhx7g==,
-      }
     dev: true
 
   /@edge-runtime/primitives/1.1.0-beta.37:
@@ -10313,6 +10306,16 @@ packages:
     dependencies:
       dicer: 0.2.5
       readable-stream: 1.1.14
+    dev: true
+
+  /busboy/1.6.0:
+    resolution:
+      {
+        integrity: sha512-8SFQbg/0hQ9xy3UNTB0YEnsNBbWfhf7RtnzpL7TkBiTBRfrQ9Fxcnz7VJsleJpyp6rVLvXiuORqjlHi5q+PYuA==,
+      }
+    engines: { node: '>=10.16.0' }
+    dependencies:
+      streamsearch: 1.1.0
     dev: true
 
   /byline/5.0.0:
@@ -27762,6 +27765,14 @@ packages:
     engines: { node: '>=0.8.0' }
     dev: true
 
+  /streamsearch/1.1.0:
+    resolution:
+      {
+        integrity: sha512-Mcc5wHehp9aXz1ax6bZUyY5afg9u2rv5cqQI3mRrYkGC8rW2hM02jWuwjtL++LS5qinSyhj2QfLyNsuc+VsExg==,
+      }
+    engines: { node: '>=10.0.0' }
+    dev: true
+
   /string-argv/0.3.1:
     resolution:
       {
@@ -29328,12 +29339,14 @@ packages:
     engines: { node: '>=0.10.0' }
     dev: true
 
-  /undici/5.10.0:
+  /undici/5.11.0:
     resolution:
       {
-        integrity: sha512-c8HsD3IbwmjjbLvoZuRI26TZic+TSEe8FPMLLOkN1AfYRhdjnKBU6yL+IwcSCbdZiX4e5t0lfMDLDCqj4Sq70g==,
+        integrity: sha512-oWjWJHzFet0Ow4YZBkyiJwiK5vWqEYoH7BINzJAJOLedZ++JpAlCbUktW2GQ2DS2FpKmxD/JMtWUUWl1BtghGw==,
       }
     engines: { node: '>=12.18' }
+    dependencies:
+      busboy: 1.6.0
     dev: true
 
   /unfetch/4.1.0:
