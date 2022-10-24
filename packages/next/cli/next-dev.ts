@@ -118,21 +118,25 @@ const nextDev: cliCommand = (argv) => {
         require('../server/config') as typeof import('../server/config')
       const { PHASE_DEVELOPMENT_SERVER } =
         require('../shared/lib/constants') as typeof import('../shared/lib/constants')
-
       const chalk =
         require('next/dist/compiled/chalk') as typeof import('next/dist/compiled/chalk')
 
       // To regenerate the TURBOPACK gradient require('gradient-string')('blue', 'red')('>>> TURBOPACK')
-      console.log(
-        `${chalk.bold(
-          '\x1B[38;2;0;0;255m>\x1B[39m\x1B[38;2;23;0;232m>\x1B[39m\x1B[38;2;46;0;209m>\x1B[39m \x1B[38;2;70;0;185mT\x1B[39m\x1B[38;2;93;0;162mU\x1B[39m\x1B[38;2;116;0;139mR\x1B[39m\x1B[38;2;139;0;116mB\x1B[39m\x1B[38;2;162;0;93mO\x1B[39m\x1B[38;2;185;0;70mP\x1B[39m\x1B[38;2;209;0;46mA\x1B[39m\x1B[38;2;232;0;23mC\x1B[39m\x1B[38;2;255;0;0mK\x1B[39m'
-        )} ${chalk.dim('(alpha)')}\n\n` +
-          `Thank you for trying Next.js v13 with Turbopack! As a reminder,\nTurbopack is currently in alpha and not yet ready for production.\nWe appreciate your ongoing support as we work to make it ready\nfor everyone.\n\n`
-      )
+      const isTTY = process.stdout.isTTY
+
+      const turbopackGradient = `${chalk.bold(
+        isTTY
+          ? '\x1B[38;2;0;0;255m>\x1B[39m\x1B[38;2;23;0;232m>\x1B[39m\x1B[38;2;46;0;209m>\x1B[39m \x1B[38;2;70;0;185mT\x1B[39m\x1B[38;2;93;0;162mU\x1B[39m\x1B[38;2;116;0;139mR\x1B[39m\x1B[38;2;139;0;116mB\x1B[39m\x1B[38;2;162;0;93mO\x1B[39m\x1B[38;2;185;0;70mP\x1B[39m\x1B[38;2;209;0;46mA\x1B[39m\x1B[38;2;232;0;23mC\x1B[39m\x1B[38;2;255;0;0mK\x1B[39m'
+          : '>>> TURBOPACK'
+      )} ${chalk.dim('(alpha)')}\n\n`
+
+      let thankYouMsg = `Thank you for trying Next.js v13 with Turbopack! As a reminder,\nTurbopack is currently in alpha and not yet ready for production.\nWe appreciate your ongoing support as we work to make it ready\nfor everyone.\n`
+
       let unsupportedParts = ''
       // TODO: warning for postcss mentioning sidecar
-      const postcssFile = await findConfig(dir, 'postcss')
-      const babelrc = '.babelrc' || (await getBabelConfigFile(dir))
+      const postcssFile = await findConfig<string>(dir, 'postcss')
+      const tailwindFile = await findConfig<string>(dir, 'tailwind')
+      const babelrc = await getBabelConfigFile(dir)
       const rawNextConfig = (await loadConfig(
         PHASE_DEVELOPMENT_SERVER,
         dir,
@@ -152,11 +156,23 @@ const nextDev: cliCommand = (argv) => {
           )
         }
       )
-      const feedbackMessage = `Learn more about Next.js v13 and Turbopack: ${chalk.underline(
+      const hasWarningOrError =
+        tailwindFile || postcssFile || babelrc || hasNonDefaultConfig
+      if (!hasWarningOrError) {
+        thankYouMsg = chalk.dim(thankYouMsg)
+      }
+      console.log(turbopackGradient + thankYouMsg)
+
+      let feedbackMessage = `Learn more about Next.js v13 and Turbopack: ${chalk.underline(
         'https://nextjs.link/with-turbopack'
       )}\nPlease direct feedback to: ${chalk.underline(
         'https://nextjs.link/turbopack-feedback'
       )}\n`
+
+      if (!hasWarningOrError) {
+        feedbackMessage = chalk.dim(feedbackMessage)
+      }
+
       if (babelrc) {
         unsupportedParts += `\n- Babel detected (${chalk.cyan(
           babelrc
@@ -164,7 +180,7 @@ const nextDev: cliCommand = (argv) => {
           `Babel is not yet supported. To use Turbopack at the moment,\n  you'll need to remove your usage of Babel.`
         )}`
       }
-      if (hasNonDefaultConfig || true) {
+      if (hasNonDefaultConfig) {
         unsupportedParts += `\n\n- Unsupported Next.js configuration option(s) (${chalk.cyan(
           'next.config.js'
         )})\n  ${chalk.dim(
@@ -175,13 +191,33 @@ const nextDev: cliCommand = (argv) => {
           )}\n  To use Turbopack, remove other configuration options.`
         )}   `
       }
-      if (postcssFile || true) {
+
+      if (postcssFile || tailwindFile) {
         console.warn(
           `${chalk.bold.yellow(
             'Warning:'
-          )} PostCSS is not yet supported by Next.js v13 with Turbopack.\nTo use with Turbopack, use PostCSS \n`
+          )} You are using configuration that may require additional\nsetup with Turbopack. If you already made these changes please\nignore this warning.\n`
         )
       }
+
+      if (postcssFile) {
+        console.warn(
+          `- PostCSS detected (${chalk.cyan(postcssFile)})\n` +
+            `  ${chalk.dim(
+              'PostCSS is not yet supported by Next.js v13 with Turbopack.\n  To use with Turbopack, see: https://nextjs.link/turbopack-postcss'
+            )}\n`
+        )
+      }
+
+      if (tailwindFile) {
+        console.warn(
+          `- Tailwind detected (${chalk.cyan(tailwindFile)})\n` +
+            `  ${chalk.dim(
+              'Tailwind is not yet supported by Next.js v13 with Turbopack.\n  To use with Turbopack, see: https://nextjs.link/turbopack-tailwind'
+            )}\n`
+        )
+      }
+
       if (unsupportedParts) {
         const pkgManager = getPkgManager(dir)
 
@@ -197,13 +233,12 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
         ? 'npx create-next-app'
         : `${pkgManager} create next-app`
     } --example with-turbopack with-turbopack-app`
-  )}\n  cd with-turbopack-app\n  npm run dev  
+  )}\n  cd with-turbopack-app\n  ${pkgManager} run dev  
         `
         )
         console.warn(feedbackMessage)
         process.exit(1)
       }
-
       loadBindings()
         .then((bindings: any) => {
       const server = bindings.turbo.startDev({
