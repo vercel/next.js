@@ -33,7 +33,7 @@ function runTests({ dev }) {
       const browser = await webdriver(appPort, '/hello')
       expect(await hasRedbox(browser, true)).toBe(true)
       expect(await getRedboxHeader(browser)).toContain(
-        'Conflicting app and page file found: "/hello/page.js" and "/hello.js". Please remove one to continue'
+        'Conflicting app and page file found: "app/hello/page.js" and "pages/hello.js". Please remove one to continue.'
       )
     })
 
@@ -41,7 +41,7 @@ function runTests({ dev }) {
       const browser = await webdriver(appPort, '/another')
       expect(await hasRedbox(browser, true)).toBe(true)
       expect(await getRedboxHeader(browser)).toContain(
-        'Conflicting app and page file found: "/another/page.js" and "/another.js". Please remove one to continue'
+        'Conflicting app and page file found: "app/another/page.js" and "pages/another.js". Please remove one to continue.'
       )
     })
 
