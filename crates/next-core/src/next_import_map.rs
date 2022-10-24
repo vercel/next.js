@@ -39,14 +39,21 @@ pub fn get_next_client_import_map(
             );
         }
         ContextType::App { app_dir } => {
-            import_map.insert_exact_alias("react", request_to_import_mapping(app_dir, "react"));
-            import_map
-                .insert_wildcard_alias("react/", request_to_import_mapping(app_dir, "react/*"));
-            import_map
-                .insert_exact_alias("react-dom", request_to_import_mapping(app_dir, "react-dom"));
+            import_map.insert_exact_alias(
+                "react",
+                request_to_import_mapping(app_dir, "next/dist/compiled/react"),
+            );
+            import_map.insert_wildcard_alias(
+                "react/",
+                request_to_import_mapping(app_dir, "next/dist/compiled/react/*"),
+            );
+            import_map.insert_exact_alias(
+                "react-dom",
+                request_to_import_mapping(app_dir, "next/dist/compiled/react-dom"),
+            );
             import_map.insert_wildcard_alias(
                 "react-dom/",
-                request_to_import_mapping(app_dir, "react-dom/*"),
+                request_to_import_mapping(app_dir, "next/dist/compiled/react-dom/*"),
             );
         }
         ContextType::Other => {}
@@ -124,16 +131,24 @@ pub fn get_next_server_import_map(
             import_map.insert_wildcard_alias("react-dom/", ImportMapping::External(None).into());
         }
         ServerContextType::AppSSR { app_dir } | ServerContextType::AppRSC { app_dir } => {
-            import_map.insert_exact_alias("react", request_to_import_mapping(app_dir, "react"));
-            import_map
-                .insert_wildcard_alias("react/", request_to_import_mapping(app_dir, "react/*"));
+            import_map.insert_exact_alias(
+                "react",
+                request_to_import_mapping(app_dir, "next/dist/compiled/react"),
+            );
+            import_map.insert_wildcard_alias(
+                "react/",
+                request_to_import_mapping(app_dir, "next/dist/compiled/react/*"),
+            );
             import_map.insert_exact_alias(
                 "react-dom",
-                request_to_import_mapping(app_dir, "react-dom/server-rendering-stub.js"),
+                request_to_import_mapping(
+                    app_dir,
+                    "next/dist/compiled/react-dom/server-rendering-stub.js",
+                ),
             );
             import_map.insert_wildcard_alias(
                 "react-dom/",
-                request_to_import_mapping(app_dir, "react-dom/*"),
+                request_to_import_mapping(app_dir, "next/dist/compiled/react-dom/*"),
             );
 
             for &external in HARD_CODED_EXTERNALS {

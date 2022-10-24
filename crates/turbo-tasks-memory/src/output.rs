@@ -50,7 +50,7 @@ impl Output {
     /// using it could break cache invalidation.
     pub fn read_untracked(&mut self) -> Result<RawVc> {
         match &self.content {
-            OutputContent::Empty => Err(anyhow!("Output it empty")),
+            OutputContent::Empty => Err(anyhow!("Output is empty")),
             OutputContent::Error(err) => Err(err.clone().into()),
             OutputContent::Link(raw_vc) => Ok(*raw_vc),
             OutputContent::Panic(Some(message)) => Err(anyhow!("Task panic {message}")),
