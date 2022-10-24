@@ -3,7 +3,7 @@ import { loadEnvConfig } from '@next/env'
 import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
 import { isMatch, makeRe } from 'next/dist/compiled/micromatch'
-import { fstat, promises, writeFileSync } from 'fs'
+import { promises, writeFileSync } from 'fs'
 import { Worker as JestWorker } from 'next/dist/compiled/jest-worker'
 import { Worker } from '../lib/worker'
 import devalue from 'next/dist/compiled/devalue'
@@ -302,17 +302,20 @@ export default async function build(
 
       const publicDir = path.join(dir, 'public')
       const isAppDirEnabled = !!config.experimental.appDir
-      const filePath = require.resolve(
+      const initialRequireHookFilePath = require.resolve(
         'next/dist/server/initialize-require-hook'
       )
-      const content = await promises.readFile(filePath, 'utf8')
+      const content = await promises.readFile(
+        initialRequireHookFilePath,
+        'utf8'
+      )
 
       if (isAppDirEnabled) {
         process.env.NEXT_PREBUNDLED_REACT = '1'
       }
       await promises
         .writeFile(
-          filePath,
+          initialRequireHookFilePath,
           content.replace(
             /isPrebundled = (true|false)/,
             `isPrebundled = ${isAppDirEnabled}`
