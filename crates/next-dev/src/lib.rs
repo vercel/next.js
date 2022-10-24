@@ -1,21 +1,19 @@
 #![feature(future_join)]
 #![feature(min_specialization)]
 
-mod issue;
 mod turbo_tasks_viz;
 
 use std::{collections::HashSet, env::current_dir, net::IpAddr, path::MAIN_SEPARATOR, sync::Arc};
 
 use anyhow::{anyhow, Context, Result};
-use issue::UnimplementedFileIssue;
 use next_core::{
     create_app_source, create_server_rendered_source, create_web_entry_source, env::load_env,
     source_map::NextSourceMapTraceContentSourceVc,
 };
 use turbo_tasks::{
-    primitives::StringVc, RawVc, TransientInstance, TransientValue, TurboTasks, Value,
+    primitives::StringsVc, RawVc, TransientInstance, TransientValue, TurboTasks, Value,
 };
-use turbo_tasks_fs::{DiskFileSystemVc, FileSystemEntryType, FileSystemPathVc, FileSystemVc};
+use turbo_tasks_fs::{DiskFileSystemVc, FileSystemVc};
 use turbo_tasks_memory::MemoryBackend;
 use turbopack_cli_utils::issue::{ConsoleUi, ConsoleUiVc, LogOptions};
 use turbopack_core::{issue::IssueSeverity, resolve::parse::RequestVc};
@@ -34,6 +32,7 @@ pub struct NextDevServerBuilder {
     project_dir: String,
     root_dir: String,
     entry_requests: Vec<String>,
+    server_component_externals: Vec<String>,
     eager_compile: bool,
     hostname: Option<IpAddr>,
     port: Option<u16>,
@@ -54,6 +53,7 @@ impl NextDevServerBuilder {
             project_dir,
             root_dir,
             entry_requests: vec![],
+            server_component_externals: vec![],
             eager_compile: false,
             hostname: None,
             port: None,
@@ -68,6 +68,11 @@ impl NextDevServerBuilder {
 
     pub fn entry_request(mut self, entry_asset_path: String) -> NextDevServerBuilder {
         self.entry_requests.push(entry_asset_path);
+        self
+    }
+
+    pub fn server_component_external(mut self, external: String) -> NextDevServerBuilder {
+        self.server_component_externals.push(external);
         self
     }
 
@@ -112,6 +117,7 @@ impl NextDevServerBuilder {
         let project_dir = self.project_dir;
         let root_dir = self.root_dir;
         let entry_requests = self.entry_requests;
+        let server_component_externals = self.server_component_externals;
         let eager_compile = self.eager_compile;
         let show_all = self.show_all;
         let log_detail = self.log_detail;
@@ -136,6 +142,7 @@ impl NextDevServerBuilder {
                     turbo_tasks.clone().into(),
                     console_ui.clone().into(),
                     browserslist_query.clone(),
+                    server_component_externals.clone(),
                 )
             },
             (
@@ -160,34 +167,6 @@ async fn handle_issues<T: Into<RawVc>>(source: T, console_ui: ConsoleUiVc) -> Re
     } else {
         Ok(())
     }
-}
-
-async fn handle_unimplemented_files(project_path: &FileSystemPathVc) -> Result<()> {
-    const UNIMPLEMENTED_FILES: [&str; 5] = [
-        "next.config.js",
-        "babel.config.js",
-        ".babelrc.js",
-        "postcss.config.js",
-        "tailwind.config.js",
-    ];
-    for file in UNIMPLEMENTED_FILES {
-        let file_path = project_path.join(file);
-        let file_type = file_path.get_type().await?;
-
-        if *file_type == FileSystemEntryType::File {
-            UnimplementedFileIssue {
-                path: file_path,
-                description: StringVc::cell(format!(
-                    "Handling the file `{}` is currently unimplemented",
-                    file
-                )),
-            }
-            .cell()
-            .as_issue()
-            .emit();
-        }
-    }
-    Ok(())
 }
 
 #[turbo_tasks::function]
@@ -218,6 +197,7 @@ async fn source(
     turbo_tasks: TransientInstance<TurboTasks<MemoryBackend>>,
     console_ui: TransientInstance<ConsoleUi>,
     browserslist_query: String,
+    server_component_externals: Vec<String>,
 ) -> Result<ContentSourceVc> {
     let console_ui = (*console_ui).clone().cell();
     let output_fs = output_fs(&project_dir, console_ui);
@@ -227,8 +207,6 @@ async fn source(
         .strip_prefix(MAIN_SEPARATOR)
         .unwrap_or(project_relative);
     let project_path = fs.root().join(project_relative);
-
-    handle_unimplemented_files(&project_path).await?;
 
     let env = load_env(project_path);
 
@@ -261,6 +239,7 @@ async fn source(
         dev_server_root,
         env,
         &browserslist_query,
+        StringsVc::cell(server_component_externals),
     );
     let viz = turbo_tasks_viz::TurboTasksSource {
         turbo_tasks: turbo_tasks.into(),

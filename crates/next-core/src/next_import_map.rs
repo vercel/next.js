@@ -1,4 +1,5 @@
-use turbo_tasks::Value;
+use anyhow::Result;
+use turbo_tasks::{primitives::StringsVc, Value};
 use turbo_tasks_fs::{glob::GlobVc, FileSystemPathVc};
 use turbopack_core::resolve::options::{
     ImportMap, ImportMapVc, ImportMapping, ImportMappingVc, ResolvedMap, ResolvedMapVc,
@@ -91,16 +92,13 @@ pub fn get_next_client_fallback_import_map(ty: Value<ContextType>) -> ImportMapV
     import_map.cell()
 }
 
-// TODO this should be a user configurable option
-/// Temporary hard coded externals list
-static HARD_CODED_EXTERNALS: &[&str] = &["prisma", "@prisma/client", "@mux/blurhash"];
-
 /// Computes the Next-specific server-side import map.
 #[turbo_tasks::function]
-pub fn get_next_server_import_map(
+pub async fn get_next_server_import_map(
     project_path: FileSystemPathVc,
     ty: Value<ServerContextType>,
-) -> ImportMapVc {
+    externals: StringsVc,
+) -> Result<ImportMapVc> {
     let mut import_map = ImportMap::empty();
     let package_root = attached_next_js_package_path(project_path);
 
@@ -153,7 +151,7 @@ pub fn get_next_server_import_map(
                 request_to_import_mapping(app_dir, "next/dist/compiled/react-dom/*"),
             );
 
-            for &external in HARD_CODED_EXTERNALS {
+            for external in externals.await?.iter() {
                 import_map.insert_exact_alias(external, ImportMapping::External(None).into());
                 import_map.insert_wildcard_alias(
                     format!("{external}/"),
@@ -163,7 +161,7 @@ pub fn get_next_server_import_map(
         }
     }
 
-    import_map.cell()
+    Ok(import_map.cell())
 }
 
 pub fn get_next_client_resolved_map(
