@@ -322,6 +322,8 @@ export default class DevServer extends Server {
         const knownFiles = wp.getTimeInfoEntries()
         const appPaths: Record<string, string[]> = {}
         const edgeRoutesSet = new Set<string>()
+        const pageNameSet = new Set<string>()
+        const conflictingAppPagePaths: string[] = []
 
         let envChange = false
         let tsconfigChange = false
@@ -419,6 +421,12 @@ export default class DevServer extends Server {
             pageName = pageName.replace(/\/index$/, '') || '/'
           }
 
+          if (pageNameSet.has(pageName)) {
+            conflictingAppPagePaths.push(pageName)
+          } else {
+            pageNameSet.add(pageName)
+          }
+
           /**
            * If there is a middleware that is not declared in the root we will
            * warn without adding it so it doesn't make its way into the system.
@@ -440,6 +448,19 @@ export default class DevServer extends Server {
               edgeRoutesSet.add(pageName)
             },
           })
+        }
+
+        const numConflicting = conflictingAppPagePaths.length
+        if (numConflicting > 0) {
+          Log.error(
+            `Conflicting app and page file${
+              numConflicting === 1 ? ' was' : 's were'
+            } found, please remove the conflicting files to continue:`
+          )
+          for (const p of conflictingAppPagePaths) {
+            Log.error(`  "pages${p}" - "app${p}"`)
+          }
+          //process.exit(1)
         }
 
         if (!this.usingTypeScript && enabledTypeScript) {
@@ -751,27 +772,33 @@ export default class DevServer extends Server {
       ).then(Boolean)
     }
 
-    // check appDir first if enabled
+    let appFile: string | null = null
+    let pagesFile: string | null = null
+
     if (this.appDir) {
-      const pageFile = await findPageFile(
+      appFile = await findPageFile(
         this.appDir,
-        normalizedPath,
+        normalizedPath + '/page',
         this.nextConfig.pageExtensions,
         true
       )
-      if (pageFile) return true
     }
 
     if (this.pagesDir) {
-      const pageFile = await findPageFile(
+      pagesFile = await findPageFile(
         this.pagesDir,
         normalizedPath,
         this.nextConfig.pageExtensions,
         false
       )
-      return !!pageFile
     }
-    return false
+    if (appFile && pagesFile) {
+      throw new Error(
+        `Conflicting app and page file found: "app${appFile}" and "pages${pagesFile}". Please remove one to continue.`
+      )
+    }
+
+    return Boolean(appFile || pagesFile)
   }
 
   protected async _beforeCatchAllRender(

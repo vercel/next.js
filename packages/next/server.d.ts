@@ -1,3 +1,9 @@
+import type { AsyncLocalStorage as NodeAsyncLocalStorage } from 'async_hooks'
+
+declare global {
+  var AsyncLocalStorage: typeof NodeAsyncLocalStorage
+}
+
 export { NextFetchEvent } from 'next/dist/server/web/spec-extension/fetch-event'
 export { NextRequest } from 'next/dist/server/web/spec-extension/request'
 export { NextResponse } from 'next/dist/server/web/spec-extension/response'

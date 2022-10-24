@@ -111,6 +111,8 @@ const MyImage = (props) => {
 }
 ```
 
+Alternatively, you can use the [loaderFile](#loader-configuration) configuration in next.config.js to configure every instance of `next/image` in your application, without passing a prop.
+
 ### fill
 
 A boolean that causes the image to fill the parent element instead of setting [`width`](#width) and [`height`](#height).
@@ -342,6 +344,29 @@ module.exports = {
   },
 }
 ```
+
+### Loader Configuration
+
+If you want to use a cloud provider to optimize images instead of using the Next.js built-in Image Optimization API, you can configure the `loaderFile` in your `next.config.js` like the following:
+
+```js
+module.exports = {
+  images: {
+    loader: 'custom',
+    loaderFile: './my/image/loader.js',
+  },
+}
+```
+
+This must point to a file relative to the root of your Next.js application. The file must export a default function that returns a string, for example:
+
+```js
+export default function myImageLoader({ src, width, quality }) {
+  return `https://example.com/${src}?w=${width}&q=${quality || 75}`
+}
+```
+
+Alternatively, you can use the [`loader` prop](#loader) to configure each instance of `next/image`.
 
 ## Advanced
 

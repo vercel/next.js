@@ -17,9 +17,6 @@ describe('font-loader-in-document-error', () => {
     next = await createNext({
       files: {
         pages: new FileRef(join(__dirname, 'font-loader-in-document/pages')),
-        'next.config.js': new FileRef(
-          join(__dirname, 'font-loader-in-document/next.config.js')
-        ),
       },
       dependencies: {
         '@next/font': 'canary',

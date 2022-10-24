@@ -1,6 +1,10 @@
 import type { AdjustFontFallback, FontLoader } from 'next/font'
 // @ts-ignore
 import { calculateSizeAdjustValues } from 'next/dist/server/font-utils'
+// @ts-ignore
+import * as Log from 'next/dist/build/output/log'
+// @ts-ignore
+import chalk from 'next/dist/compiled/chalk'
 import {
   fetchCSSFromGoogleFonts,
   fetchFontFile,
@@ -17,12 +21,9 @@ const downloadGoogleFonts: FontLoader = async ({
   data,
   config,
   emitFontFile,
+  isServer,
 }) => {
-  if (!config?.subsets) {
-    throw new Error(
-      'Please specify subsets for `@next/font/google` in your `next.config.js`'
-    )
-  }
+  const subsets = config?.subsets || []
 
   const {
     fontFamily,
@@ -34,7 +35,19 @@ const downloadGoogleFonts: FontLoader = async ({
     fallback,
     adjustFontFallback,
     variable,
+    subsets: callSubsets,
   } = validateData(functionName, data)
+
+  if (isServer && preload && !callSubsets && !config?.subsets) {
+    Log.warn(
+      `The ${chalk.bold('@next/font/google')} font ${chalk.bold(
+        fontFamily
+      )} has no selected subsets. Please specify subsets in the function call or in your ${chalk.bold(
+        'next.config.js'
+      )}, otherwise no fonts will be preloaded. Read more: https://nextjs.org/docs/api-reference/components/font#nextfontgoogle`
+    )
+  }
+
   const fontAxes = getFontAxes(fontFamily, weight, style, selectedVariableAxes)
   const url = getUrl(fontFamily, fontAxes, display)
 
@@ -63,7 +76,8 @@ const downloadGoogleFonts: FontLoader = async ({
       if (googleFontFileUrl) {
         fontFiles.push({
           googleFontFileUrl,
-          preloadFontFile: !!preload && config.subsets.includes(currentSubset),
+          preloadFontFile:
+            !!preload && (callSubsets ?? subsets).includes(currentSubset),
         })
       }
     }
@@ -121,7 +135,7 @@ const downloadGoogleFonts: FontLoader = async ({
         sizeAdjust: `${sizeAdjust}%`,
       }
     } catch {
-      console.error(
+      Log.error(
         `Failed to find font override values for font \`${fontFamily}\``
       )
     }

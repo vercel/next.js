@@ -5,11 +5,6 @@ import path from 'path'
 import cheerio from 'cheerio'
 
 describe('app dir rendering', () => {
-  if (process.env.NEXT_TEST_REACT_VERSION === '^17') {
-    it('should skip for react v17', () => {})
-    return
-  }
-
   if ((global as any).isNextDeploy) {
     it('should skip next deploy for now', () => {})
     return

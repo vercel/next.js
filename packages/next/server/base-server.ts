@@ -526,6 +526,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         typeof req.headers['x-matched-path'] === 'string'
       ) {
         try {
+          if (this.hasAppDir) {
+            // ensure /index path is normalized for prerender
+            // in minimal mode
+            if (req.url.match(/^\/index($|\?)/)) {
+              req.url = req.url.replace(/^\/index/, '/')
+            }
+            parsedUrl.pathname =
+              parsedUrl.pathname === '/index' ? '/' : parsedUrl.pathname
+          }
           // x-matched-path is the source of truth, it tells what page
           // should be rendered because we don't process rewrites in minimalMode
           let matchedPath = normalizeRscPath(

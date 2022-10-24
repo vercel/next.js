@@ -4,12 +4,6 @@ import { NextInstance } from 'test/lib/next-modes/base'
 describe('next/jest newLinkBehavior', () => {
   let next: NextInstance
 
-  if (process.env.NEXT_TEST_REACT_VERSION === '^17') {
-    // react testing library is specific to react version
-    it('should bail on react v17', () => {})
-    return
-  }
-
   beforeAll(async () => {
     next = await createNext({
       files: {
