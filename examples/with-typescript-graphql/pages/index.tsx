@@ -1,13 +1,33 @@
 import { useMutation, useQuery } from '@apollo/client'
-import { UpdateNameDocument, ViewerDocument } from 'lib/graphql-operations'
+import { graphql } from 'lib/gql'
 import Link from 'next/link'
 import { useState } from 'react'
 import { initializeApollo } from '../lib/apollo'
 
+const updateNameDocument = graphql(/* GraphQL */ `
+  mutation UpdateName($name: String!) {
+    updateName(name: $name) {
+      id
+      name
+      status
+    }
+  }
+`)
+
+const viewerDocument = graphql(/* GraphQL */ `
+  query Viewer {
+    viewer {
+      id
+      name
+      status
+    }
+  }
+`)
+
 const Index = () => {
-  const { data } = useQuery(ViewerDocument)
+  const { data } = useQuery(viewerDocument)
   const [newName, setNewName] = useState('')
-  const [updateNameMutation] = useMutation(UpdateNameDocument)
+  const [updateNameMutation] = useMutation(updateNameDocument)
 
   const onChangeName = () => {
     updateNameMutation({
@@ -21,15 +41,16 @@ const Index = () => {
         if (!data) return // Cancel updating name in cache if no data is returned from mutation.
         // Read the data from our cache for this query.
         const result = cache.readQuery({
-          query: ViewerDocument,
+          query: viewerDocument,
         })
+
         const newViewer = result ? { ...result.viewer } : null
         // Add our comment from the mutation to the end.
         // Write our data back to the cache.
         if (newViewer) {
           newViewer.name = data.updateName.name
           cache.writeQuery({
-            query: ViewerDocument,
+            query: viewerDocument,
             data: { viewer: newViewer },
           })
         }
@@ -37,7 +58,7 @@ const Index = () => {
     })
   }
 
-  const viewer = data?.viewer
+  const viewer = data.viewer
 
   return viewer ? (
     <div>
@@ -62,7 +83,7 @@ export async function getStaticProps() {
   const apolloClient = initializeApollo()
 
   await apolloClient.query({
-    query: ViewerDocument,
+    query: viewerDocument,
   })
 
   return {
