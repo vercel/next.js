@@ -86,7 +86,7 @@ Public methods are available on an instance of the `NextResponse` class. Dependi
   A [ResponseCooies](https://edge-runtime.vercel.app/packages/cookies#for-response) instance with cookies from the `Response`. It reads/mutates the `Set-Cookie` header of the response. See also [Using cookies in Middleware](/docs/advanced-features/middleware#using-cookies).
   - `get` - A method that takes a cookie `name` and returns an object with `name` and `value`. If a cookie with `name` isn't found, it returns `undefined`. If multiple cookies match, it will only return the first match.
   - `getAll` - A method that is similar to `get`, but returns a list of all the cookies with a matching `name`. If `name` is unspecified, it returns all the available cookies.
-  - `set` - A method that takes an object with properties of `CookieListItem` as defined in the [W3C CookieStore API]() spec.
+  - `set` - A method that takes an object with properties of `CookieListItem` as defined in the [W3C CookieStore API](https://wicg.github.io/cookie-store/#dictdef-cookielistitem) spec.
   - `delete` - A method that takes either a cookie `name` or a list of names. and removes the cookies matching the name(s). Returns `true` for deleted and `false` for undeleted cookies.
 
 ### Static Methods
