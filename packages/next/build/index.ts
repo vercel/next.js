@@ -3,7 +3,7 @@ import { loadEnvConfig } from '@next/env'
 import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
 import { isMatch, makeRe } from 'next/dist/compiled/micromatch'
-import { promises, writeFileSync } from 'fs'
+import { fstat, promises, writeFileSync } from 'fs'
 import { Worker as JestWorker } from 'next/dist/compiled/jest-worker'
 import { Worker } from '../lib/worker'
 import devalue from 'next/dist/compiled/devalue'
@@ -304,6 +304,15 @@ export default async function build(
       const isAppDirEnabled = !!config.experimental.appDir
       if (isAppDirEnabled) {
         process.env.NEXT_PREBUNDLED_REACT = '1'
+
+        const filePath = require.resolve(
+          'next/dist/server/initialize-require-hook'
+        )
+        const content = await promises.readFile(filePath, 'utf8')
+        await promises.writeFile(
+          filePath,
+          content.replace(/process\.env\.NEXT_PREBUNDLED_REACT/, 'true')
+        )
       }
       const { pagesDir, appDir } = findPagesDir(dir, isAppDirEnabled)
       const hasPublicDir = await fileExists(publicDir)
