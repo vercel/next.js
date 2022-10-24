@@ -10,14 +10,14 @@ description: Learn about the server-only helpers for Middleware and Edge API Rou
 
 The `NextRequest` object is an extension of the native [`Request`](https://developer.mozilla.org/en-US/docs/Web/API/Request) interface, with the following added methods and properties:
 
-- `cookies` - A [RequestCooies](https://edge-runtime.vercel.app/packages/cookies#for-request) instance with cookies from the `Request`. It reads/mutates the `Cookie` header of the request. See also [Using cookies in Middleware](/docs/advanced-features/middleware#using-cookies).
+- `cookies` - A [RequestCookies](https://edge-runtime.vercel.app/packages/cookies#for-request) instance with cookies from the `Request`. It reads/mutates the `Cookie` header of the request. See also [Using cookies in Middleware](/docs/advanced-features/middleware#using-cookies).
 
   - `get` - A method that takes a cookie `name` and returns an object with `name` and `value`. If a cookie with `name` isn't found, it returns `undefined`. If multiple cookies match, it will only return the first match.
   - `getAll` - A method that is similar to `get`, but returns a list of all the cookies with a matching `name`. If `name` is unspecified, it returns all the available cookies.
   - `set` - A method that takes an object with properties of `CookieListItem` as defined in the [W3C CookieStore API]() spec.
   - `delete` - A method that takes either a cookie `name` or a list of names. and removes the cookies matching the name(s). Returns `true` for deleted and `false` for undeleted cookies.
   - `has` - A method that takes a cookie `name` and returns a `boolean` based on if the cookie exists (`true`) or not (`false`).
-  - `clear` - A method that takes no argument and will effectivly remove the `Cookie` header.
+  - `clear` - A method that takes no argument and will effectively remove the `Cookie` header.
 
 - `nextUrl`: Includes an extended, parsed, URL object that gives you access to Next.js specific properties such as `pathname`, `basePath`, `trailingSlash` and `i18n`. Includes the following properties:
   - `basePath` (`string`)
