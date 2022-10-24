@@ -1899,6 +1899,18 @@ describe('app dir', () => {
       })
     })
 
+    describe('bots', () => {
+      it.skip('should block rendering for bots', async () => {
+        const res = await fetchViaHTTP(next.url, '/dashboard/index', '', {
+          headers: {
+            'User-Agent': 'Googlebot',
+          },
+        })
+
+        console.log(await res.text())
+      })
+    })
+
     describe('redirect', () => {
       describe('components', () => {
         it('should redirect in a server component', async () => {

@@ -175,9 +175,12 @@ function createErrorHandler(
    * Used for debugging
    */
   _source: string,
-  capturedErrors: Error[]
+  capturedErrors: Error[],
+  allCapturedErrors?: Error[]
 ) {
   return (err: any): string => {
+    if (allCapturedErrors) allCapturedErrors.push(err)
+
     if (
       err.digest === DYNAMIC_ERROR_CODE ||
       err.digest === NOT_FOUND_ERROR_CODE ||
@@ -707,6 +710,7 @@ export async function renderToHTMLOrFlight(
   const isFlight = req.headers.__rsc__ !== undefined
 
   const capturedErrors: Error[] = []
+  const allCapturedErrors: Error[] = []
 
   const serverComponentsErrorHandler = createErrorHandler(
     'serverComponentsRenderer',
@@ -718,7 +722,8 @@ export async function renderToHTMLOrFlight(
   )
   const htmlRendererErrorHandler = createErrorHandler(
     'htmlRenderer',
-    capturedErrors
+    capturedErrors,
+    allCapturedErrors
   )
 
   const {
@@ -729,6 +734,7 @@ export async function renderToHTMLOrFlight(
     ComponentMod,
     dev,
     fontLoaderManifest,
+    supportsDynamicHTML,
   } = renderOpts
 
   patchFetch(ComponentMod)
@@ -1508,13 +1514,34 @@ export async function renderToHTMLOrFlight(
           },
         })
 
-        return await continueFromInitialStream(renderStream, {
+        const result = await continueFromInitialStream(renderStream, {
           dataStream: serverComponentsInlinedTransformStream?.readable,
-          generateStaticHTML: isStaticGeneration,
+          generateStaticHTML:
+            isStaticGeneration || supportsDynamicHTML !== true,
           getServerInsertedHTML,
           serverInsertedHTMLToHead: true,
           ...validateRootLayout,
         })
+
+        if (supportsDynamicHTML !== true) {
+          let html = await streamToString(result)
+          if (
+            allCapturedErrors.some(
+              (e: any) => e.digest === NOT_FOUND_ERROR_CODE
+            )
+          ) {
+            // ???
+            res.statusCode = 404
+            html = html.replace(
+              '<head>',
+              '<head><meta name="robots" content="noindex"/>'
+            )
+          }
+
+          return html
+        }
+
+        return result
       } catch (err: any) {
         // TODO-APP: show error overlay in development. `element` should probably be wrapped in AppRouter for this case.
         const renderStream = await renderToInitialStream({
