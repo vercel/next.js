@@ -1,4 +1,5 @@
-import { createNext, FileRef, hasRedbox } from 'e2e-utils'
+import { createNext, FileRef } from 'e2e-utils'
+import { getRedboxSource, hasRedbox } from 'next-test-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import webdriver from 'next-webdriver'
 import path from 'path'
@@ -26,5 +27,8 @@ describe('New Link Behavior with <a> child', () => {
   it('should throw error with <a> child', async () => {
     const browser = await webdriver(next.url, `/`)
     expect(await hasRedbox(browser, true)).toBe(true)
+    expect(await getRedboxSource(browser)).toContain(
+      'Error: Invalid <Link> with <a> child. Please remove <a> or use <Link legacyBehavior>'
+    )
   })
 })
