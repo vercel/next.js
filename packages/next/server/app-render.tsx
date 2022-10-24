@@ -7,6 +7,8 @@ import type { FontLoaderManifest } from '../build/webpack/plugins/font-loader-ma
 
 import React, { use } from 'next/dist/compiled/react'
 
+import { NotFound as DefaultNotFound } from '../client/components/error'
+
 // this needs to be required lazily so that `next-server` can set
 // the env before we require
 import ReactDOMServer from 'next/dist/compiled/react-dom/server.browser'
@@ -947,7 +949,6 @@ export async function renderToHTMLOrFlight(
       const Template = template
         ? await interopDefault(template())
         : React.Fragment
-      const NotFound = notFound ? await interopDefault(notFound()) : undefined
       const ErrorComponent = error ? await interopDefault(error()) : undefined
       const Loading = loading ? await interopDefault(loading()) : undefined
       const isLayout = typeof layout !== 'undefined'
@@ -956,6 +957,21 @@ export async function renderToHTMLOrFlight(
         ? await layout()
         : isPage
         ? await page()
+        : undefined
+      /**
+       * Checks if the current segment is a root layout.
+       */
+      const rootLayoutAtThisLevel = isLayout && !rootLayoutIncluded
+      /**
+       * Checks if the current segment or any level above it has a root layout.
+       */
+      const rootLayoutIncludedAtThisLevelOrAbove =
+        rootLayoutIncluded || rootLayoutAtThisLevel
+
+      const NotFound = notFound
+        ? await interopDefault(notFound())
+        : rootLayoutAtThisLevel
+        ? DefaultNotFound
         : undefined
 
       if (typeof layoutOrPageMod?.revalidate !== 'undefined') {
@@ -968,15 +984,6 @@ export async function renderToHTMLOrFlight(
           throw new DynamicServerError(`revalidate: 0 configured ${segment}`)
         }
       }
-      /**
-       * Checks if the current segment is a root layout.
-       */
-      const rootLayoutAtThisLevel = isLayout && !rootLayoutIncluded
-      /**
-       * Checks if the current segment or any level above it has a root layout.
-       */
-      const rootLayoutIncludedAtThisLevelOrAbove =
-        rootLayoutIncluded || rootLayoutAtThisLevel
 
       // TODO-APP: move these errors to the loader instead?
       // we will also need a migration doc here to link to
