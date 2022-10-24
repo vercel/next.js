@@ -1,6 +1,8 @@
 use turbo_tasks::Value;
-use turbo_tasks_fs::FileSystemPathVc;
-use turbopack_core::resolve::options::{ImportMap, ImportMapVc, ImportMapping, ImportMappingVc};
+use turbo_tasks_fs::{glob::GlobVc, FileSystemPathVc};
+use turbopack_core::resolve::options::{
+    ImportMap, ImportMapVc, ImportMapping, ImportMappingVc, ResolvedMap, ResolvedMapVc,
+};
 
 use crate::{
     embed_js::{attached_next_js_package_path, VIRTUAL_PACKAGE_NAME},
@@ -162,6 +164,30 @@ pub fn get_next_server_import_map(
     }
 
     import_map.cell()
+}
+
+pub fn get_next_client_resolved_map(
+    context: FileSystemPathVc,
+    root: FileSystemPathVc,
+) -> ResolvedMapVc {
+    let glob_mappings = vec![
+        // Temporary hack to replace the hot reloader until this is passable by props in next.js
+        (
+            context,
+            GlobVc::new(
+                "**/*/next/dist/client/components/react-dev-overlay/hot-reloader-client.js",
+            ),
+            ImportMapping::PrimaryAlternative(
+                "@vercel/turbopack-next/dev/hot-reloader".to_string(),
+                Some(root),
+            )
+            .into(),
+        ),
+    ];
+    ResolvedMap {
+        by_glob: glob_mappings,
+    }
+    .cell()
 }
 
 static NEXT_ALIASES: [(&str, &str); 23] = [

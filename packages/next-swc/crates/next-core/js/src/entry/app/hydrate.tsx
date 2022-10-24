@@ -1,5 +1,5 @@
 import ReactDOMClient from "react-dom/client";
-import React, { experimental_use as use } from "react";
+import React, { use } from "react";
 import type { ReactElement } from "react";
 import { createFromReadableStream } from "next/dist/compiled/react-server-dom-webpack/client";
 
@@ -12,7 +12,7 @@ initializeHMR({
 });
 
 globalThis.__next_require__ = (data) => {
-  const [, client_id] = JSON.parse(data);
+  const [client_id] = JSON.parse(data);
   return __turbopack_require__(client_id);
 };
 globalThis.__next_chunk_load__ = __turbopack_load__;

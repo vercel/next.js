@@ -1,11 +1,11 @@
 use std::collections::HashSet;
 
 use anyhow::{anyhow, Result};
-use indexmap::IndexMap;
+use indexmap::{IndexMap, IndexSet};
 use turbo_tasks::{primitives::StringVc, ValueToString};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
-    chunk::ChunkingContextVc,
+    asset::AssetsSetVc,
     introspect::{
         asset::IntrospectableAssetVc, Introspectable, IntrospectableChildrenVc, IntrospectableVc,
     },
@@ -38,19 +38,15 @@ pub fn create_node_rendered_source(
     server_root: FileSystemPathVc,
     path_regex: PathRegexVc,
     entry: NodeEntryVc,
-    chunking_context: ChunkingContextVc,
     runtime_entries: EcmascriptChunkPlaceablesVc,
     fallback_page: DevHtmlAssetVc,
-    intermediate_output_path: FileSystemPathVc,
 ) -> ContentSourceVc {
     let source = NodeRenderContentSource {
         server_root,
         path_regex,
         entry,
-        chunking_context,
         runtime_entries,
         fallback_page,
-        intermediate_output_path,
     }
     .cell();
     ConditionalContentSourceVc::new(
@@ -70,10 +66,8 @@ struct NodeRenderContentSource {
     server_root: FileSystemPathVc,
     path_regex: PathRegexVc,
     entry: NodeEntryVc,
-    chunking_context: ChunkingContextVc,
     runtime_entries: EcmascriptChunkPlaceablesVc,
     fallback_page: DevHtmlAssetVc,
-    intermediate_output_path: FileSystemPathVc,
 }
 
 impl NodeRenderContentSource {
@@ -102,17 +96,27 @@ impl GetContentSource for NodeRenderContentSource {
     /// Returns the [ContentSource] that serves all referenced external
     /// assets. This is wrapped into [LazyInstantiatedContentSource].
     #[turbo_tasks::function]
-    fn content_source(&self) -> ContentSourceVc {
-        AssetGraphContentSourceVc::new_lazy_multiple(
-            self.server_root,
-            external_asset_entrypoints(
-                self.entry.entry(),
-                self.runtime_entries,
-                self.chunking_context,
-                self.intermediate_output_path,
-            ),
+    async fn content_source(&self) -> Result<ContentSourceVc> {
+        let entries = self.entry.entries();
+        let mut set = IndexSet::new();
+        for &entry in entries.await?.iter() {
+            let entry = entry.await?;
+            set.extend(
+                external_asset_entrypoints(
+                    entry.module,
+                    self.runtime_entries,
+                    entry.chunking_context,
+                    entry.intermediate_output_path,
+                )
+                .await?
+                .iter()
+                .copied(),
+            )
+        }
+        Ok(
+            AssetGraphContentSourceVc::new_lazy_multiple(self.server_root, AssetsSetVc::cell(set))
+                .into(),
         )
-        .into()
     }
 }
 
@@ -136,14 +140,15 @@ impl ContentSource for NodeRenderContentSource {
                     {
                         if data.method.is_some() && data.url.is_some() {
                             if let Some(query) = &data.query {
+                                let entry = this.entry.entry(data.clone()).await?;
                                 return Ok(ContentSourceResult::Static(
                                     render_static(
                                         this.server_root.join(path),
-                                        this.entry.entry(),
+                                        entry.module,
                                         this.runtime_entries,
                                         this.fallback_page,
-                                        this.chunking_context,
-                                        this.intermediate_output_path,
+                                        entry.chunking_context,
+                                        entry.intermediate_output_path,
                                         RenderData {
                                             params,
                                             method: data.method.clone().ok_or_else(|| {
@@ -214,21 +219,24 @@ impl Introspectable for NodeRenderContentSource {
     }
 
     #[turbo_tasks::function]
-    fn children(&self) -> IntrospectableChildrenVc {
-        IntrospectableChildrenVc::cell(HashSet::from([
-            (
+    async fn children(&self) -> Result<IntrospectableChildrenVc> {
+        let mut set = HashSet::new();
+        for &entry in self.entry.entries().await?.iter() {
+            let entry = entry.await?;
+            set.insert((
                 StringVc::cell("module".to_string()),
-                IntrospectableAssetVc::new(self.entry.entry().into()),
-            ),
-            (
+                IntrospectableAssetVc::new(entry.module.into()),
+            ));
+            set.insert((
                 StringVc::cell("intermediate asset".to_string()),
                 IntrospectableAssetVc::new(get_intermediate_asset(
-                    self.entry.entry(),
+                    entry.module,
                     self.runtime_entries,
-                    self.chunking_context,
-                    self.intermediate_output_path,
+                    entry.chunking_context,
+                    entry.intermediate_output_path,
                 )),
-            ),
-        ]))
+            ));
+        }
+        Ok(IntrospectableChildrenVc::cell(set))
     }
 }
