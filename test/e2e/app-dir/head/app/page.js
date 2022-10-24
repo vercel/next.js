@@ -1,19 +1,24 @@
+import Link from 'next/link'
+
 export default function Page() {
   return (
     <>
       <p id="page">index page</p>
-    </>
-  )
-}
 
-export async function Head() {
-  return (
-    <>
-      <script async src="/hello.js" />
-      {/* TODO-APP: enable after react is updated to handle
-      other head tags
-      <title>hello from index</title>
-      <meta name="description" content="an index page" /> */}
+      <Link href="/blog" id="to-blog">
+        to /blog
+      </Link>
+      <br />
+
+      <Link href="/blog/post-1" id="to-blog-slug">
+        to /blog/post-1
+      </Link>
+      <br />
+
+      <Link href="/blog/about" id="to-blog-about">
+        to /blog/about
+      </Link>
+      <br />
     </>
   )
 }

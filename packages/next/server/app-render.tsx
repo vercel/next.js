@@ -904,6 +904,7 @@ export async function renderToHTMLOrFlight(
           template,
           error,
           loading,
+          head,
           page,
           'not-found': notFound,
         },
@@ -948,6 +949,7 @@ export async function renderToHTMLOrFlight(
       const NotFound = notFound ? await interopDefault(notFound()) : undefined
       const ErrorComponent = error ? await interopDefault(error()) : undefined
       const Loading = loading ? await interopDefault(loading()) : undefined
+      const Head = head ? await interopDefault(head()) : undefined
       const isLayout = typeof layout !== 'undefined'
       const isPage = typeof page !== 'undefined'
       const layoutOrPageMod = isLayout
@@ -1048,11 +1050,12 @@ export async function renderToHTMLOrFlight(
       const actualSegment = segmentParam ? segmentParam.treeSegment : segment
 
       // collect head pieces
-      if (typeof layoutOrPageMod?.Head === 'function') {
+      if (typeof Head === 'function') {
         collectedHeads.push(() =>
-          layoutOrPageMod.Head({
+          Head({
             params: currentParams,
-            ...(isPage ? { searchParams: query } : {}),
+            // TODO-APP: allow searchParams?
+            // ...(isPage ? { searchParams: query } : {}),
           })
         )
       }
@@ -1167,12 +1170,13 @@ export async function renderToHTMLOrFlight(
           const cacheBustingUrlSuffix = dev ? `?ts=${Date.now()}` : ''
           let HeadTags
           if (rootLayoutAtThisLevel) {
+            // TODO: iterate HeadTag children and add a data-path attribute
+            // so that we can remove elements on client-transition
             HeadTags = collectedHeads[collectedHeads.length - 1] as any
           }
 
           return (
             <>
-              {HeadTags ? <HeadTags /> : null}
               {preloadedFontFiles.map((fontFile) => {
                 const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(fontFile)![1]
                 return (
@@ -1210,6 +1214,7 @@ export async function renderToHTMLOrFlight(
                 // Query is only provided to page
                 {...(isPage ? { searchParams: query } : {})}
               />
+              {HeadTags ? <HeadTags /> : null}
             </>
           )
         },
