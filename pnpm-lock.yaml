@@ -18,7 +18,7 @@ importers:
       '@babel/plugin-proposal-object-rest-spread': 7.14.7
       '@babel/preset-flow': 7.14.5
       '@babel/preset-react': 7.14.5
-      '@edge-runtime/jest-environment': 1.1.0-beta.36
+      '@edge-runtime/jest-environment': 1.1.0
       '@fullhuman/postcss-purgecss': 1.3.0
       '@mdx-js/loader': 0.18.0
       '@next/bundle-analyzer': workspace:*
@@ -179,7 +179,7 @@ importers:
       '@babel/plugin-proposal-object-rest-spread': 7.14.7_@babel+core@7.18.0
       '@babel/preset-flow': 7.14.5_@babel+core@7.18.0
       '@babel/preset-react': 7.14.5_@babel+core@7.18.0
-      '@edge-runtime/jest-environment': 1.1.0-beta.36
+      '@edge-runtime/jest-environment': 1.1.0
       '@fullhuman/postcss-purgecss': 1.3.0
       '@mdx-js/loader': 0.18.0_uuaxwgga6hqycsez5ok7v2wg4i
       '@next/bundle-analyzer': link:packages/next-bundle-analyzer
@@ -465,7 +465,7 @@ importers:
       '@babel/runtime': 7.15.4
       '@babel/traverse': 7.18.0
       '@babel/types': 7.18.0
-      '@edge-runtime/primitives': 1.1.0-beta.37
+      '@edge-runtime/primitives': 1.1.0
       '@hapi/accept': 5.0.2
       '@napi-rs/cli': 2.12.0
       '@napi-rs/triples': 1.1.0
@@ -551,7 +551,7 @@ importers:
       debug: 4.1.1
       devalue: 2.0.1
       domain-browser: 4.19.0
-      edge-runtime: 1.1.0-beta.40
+      edge-runtime: 1.1.0
       events: 3.3.0
       find-cache-dir: 3.3.1
       find-up: 4.1.0
@@ -666,7 +666,7 @@ importers:
       '@babel/runtime': 7.15.4
       '@babel/traverse': 7.18.0
       '@babel/types': 7.18.0
-      '@edge-runtime/primitives': 1.1.0-beta.37
+      '@edge-runtime/primitives': 1.1.0
       '@hapi/accept': 5.0.2
       '@napi-rs/cli': 2.12.0
       '@napi-rs/triples': 1.1.0
@@ -749,7 +749,7 @@ importers:
       debug: 4.1.1
       devalue: 2.0.1
       domain-browser: 4.19.0
-      edge-runtime: 1.1.0-beta.40
+      edge-runtime: 1.1.0
       events: 3.3.0
       find-cache-dir: 3.3.1
       find-up: 4.1.0
@@ -4002,20 +4002,20 @@ packages:
       protobufjs: 6.11.2
     dev: true
 
-  /@edge-runtime/format/1.1.0-beta.34:
+  /@edge-runtime/format/1.1.0:
     resolution:
       {
-        integrity: sha512-AdV7FlpBDDiwdPxmrCmq2ICMxzJr3Zoq/bUuIMC09jEmx8fpIAepAABVTEqr+X/6vhIiD2ermIog8qvAG4RZMg==,
+        integrity: sha512-MkLDDtPhXZIMx83NykdFmOpF7gVWIdd6GBHYb8V/E+PKWvD2pK/qWx9B30oN1iDJ2XBm0SGDjz02S8nDHI9lMQ==,
       }
     dev: true
 
-  /@edge-runtime/jest-environment/1.1.0-beta.36:
+  /@edge-runtime/jest-environment/1.1.0:
     resolution:
       {
-        integrity: sha512-A4geGu+6i61CBlOGd5eqwNGiREatm7aWO3wJ4gUGcA2BH23v4SgVIJUdt0cpNQku69nMshb0AGk3XhHnqUC5rg==,
+        integrity: sha512-YwiR+zxAt3BksS1DrOuVdqnDw+18EZxm3vpGo8vuxqKXOg9UNdmj7c3nfkdTdhQ3gr3+sSpcS/4+vLoqW1QSKA==,
       }
     dependencies:
-      '@edge-runtime/vm': 1.1.0-beta.37
+      '@edge-runtime/vm': 1.1.0
       '@jest/environment': 28.1.3
       '@jest/fake-timers': 28.1.3
       '@jest/types': 28.1.3
@@ -4023,20 +4023,20 @@ packages:
       jest-util: 28.1.3
     dev: true
 
-  /@edge-runtime/primitives/1.1.0-beta.37:
+  /@edge-runtime/primitives/1.1.0:
     resolution:
       {
-        integrity: sha512-S3aN8X6wXhM7CJI3FRF480CMNkw4mH6grMV/enQz8VWGrvD1U5njQNRh/Zymoe0RHzEI/aIDjSk3V49h+ULt9g==,
+        integrity: sha512-MpL5fKlOs9mz5DMRuFchLe3Il84t7XpfbPq4qtaEK37uNMCRx1MzA3d7A4aTsR/guXSZvV/AtEbKVqBWjuSThA==,
       }
     dev: true
 
-  /@edge-runtime/vm/1.1.0-beta.37:
+  /@edge-runtime/vm/1.1.0:
     resolution:
       {
-        integrity: sha512-1OrFifIxDFpwb1VyrFD8kwWVppc6D1uN7xh5jQzW7jHaVJ0Dw4C2nSAbLe6YKPYj67o09vW72WLzfUcryeD0Pg==,
+        integrity: sha512-a3PSCdznoop5+ifkNDaSINB9V+Anwh+wpoaASIWhq9PLQuBF9D6Yxe/mLRZkuZRkOJ2ZmaTzMGDI5ROUChTL7g==,
       }
     dependencies:
-      '@edge-runtime/primitives': 1.1.0-beta.37
+      '@edge-runtime/primitives': 1.1.0
     dev: true
 
   /@emotion/is-prop-valid/0.8.8:
@@ -13487,15 +13487,15 @@ packages:
       safe-buffer: 5.2.0
     dev: true
 
-  /edge-runtime/1.1.0-beta.40:
+  /edge-runtime/1.1.0:
     resolution:
       {
-        integrity: sha512-KuoSRsQZUMyec6gtD9YOFA5ohmWtquTXKco+pLv1/1zcHmD0/rXU1QkTkE40BKwq+O02Esk9iPlx9LkHaQr3vg==,
+        integrity: sha512-CvUOrwV3Qx0V56LttLEvQWyuRsjaEKJH+UOT5Z8xmy0vr3/PAJC2RGW317LCl3XZgbiym4gcf36kQAbrsjKXmw==,
       }
     hasBin: true
     dependencies:
-      '@edge-runtime/format': 1.1.0-beta.34
-      '@edge-runtime/vm': 1.1.0-beta.37
+      '@edge-runtime/format': 1.1.0
+      '@edge-runtime/vm': 1.1.0
       exit-hook: 2.2.1
       http-status: 1.5.3
       mri: 1.2.0
@@ -24848,7 +24848,7 @@ packages:
       '@jest/schemas': 28.1.3
       ansi-regex: 5.0.1
       ansi-styles: 5.1.0
-      react-is: 18.1.0
+      react-is: 18.2.0
     dev: true
 
   /pretty-hrtime/1.0.3:
@@ -25402,13 +25402,6 @@ packages:
     resolution:
       {
         integrity: sha512-w2GsyukL62IJnlaff/nRegPQR94C/XXamvMWmSHRJ4y7Ts/4ocGRmTHvOs8PSE6pB3dWOrD/nueuU5sduBsQ4w==,
-      }
-    dev: true
-
-  /react-is/18.1.0:
-    resolution:
-      {
-        integrity: sha512-Fl7FuabXsJnV5Q1qIOQwx/sagGF18kogb4gpfcG4gjLBWO0WDiiz1ko/ExayuxE7InyQkBLkxRFG5oxY6Uu3Kg==,
       }
     dev: true
 
