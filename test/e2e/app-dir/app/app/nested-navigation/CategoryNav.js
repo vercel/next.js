@@ -1,10 +1,10 @@
 'use client'
 
 import { TabNavItem } from './TabNavItem'
-import { useSelectedLayoutSegment } from 'next/navigation'
+import { useSelectedLayoutSegments } from 'next/navigation'
 
 const CategoryNav = ({ categories }) => {
-  const selectedLayoutSegment = useSelectedLayoutSegment()
+  const selectedLayoutSegment = useSelectedLayoutSegments()
 
   return (
     <div style={{ display: 'flex' }}>
