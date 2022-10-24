@@ -353,12 +353,11 @@ class NotFoundErrorBoundary extends React.Component<
 }
 
 function NotFoundBoundary({ notFound, children }: NotFoundBoundaryProps) {
-  return notFound ? (
-    <NotFoundErrorBoundary notFound={notFound}>
+  return (
+    // TODO-APP: Add a default not found component.
+    <NotFoundErrorBoundary notFound={notFound || (() => null)}>
       {children}
     </NotFoundErrorBoundary>
-  ) : (
-    <>{children}</>
   )
 }
 

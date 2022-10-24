@@ -1,6 +1,12 @@
 export const dynamicParams = true
 
+import { notFound } from 'next/navigation'
+
 export default function Page({ params }) {
+  if (params.author === 'shu') {
+    notFound()
+  }
+
   return (
     <>
       <p id="page">/blog/[author]/[slug]</p>

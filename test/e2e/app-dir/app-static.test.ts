@@ -262,6 +262,19 @@ describe('app-dir static/dynamic handling', () => {
     expect(await browser.eval('window.beforeNav')).toBe(1)
   })
 
+  it('should render the not found page correctly', async () => {
+    const res = await fetchViaHTTP(next.url, `/blog/shu/hi`, undefined, {
+      redirect: 'manual',
+    })
+    expect(res.status).toBe(200)
+    const html = await res.text()
+    const $ = cheerio.load(html)
+
+    expect(JSON.parse($('#author-layout-params').text())).toEqual({
+      author: 'shu',
+    })
+  })
+
   it('should ssr dynamically when detected automatically with fetch cache option', async () => {
     const pathname = '/ssr-auto/cache-no-store'
     const initialRes = await fetchViaHTTP(next.url, pathname, undefined, {
