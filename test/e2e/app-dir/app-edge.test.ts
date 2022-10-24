@@ -9,11 +9,6 @@ describe('app-dir edge SSR', () => {
     return
   }
 
-  if (process.env.NEXT_TEST_REACT_VERSION === '^17') {
-    it('should skip for react v17', () => {})
-    return
-  }
-
   let next: NextInstance
 
   beforeAll(async () => {

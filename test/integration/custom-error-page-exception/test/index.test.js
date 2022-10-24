@@ -9,16 +9,15 @@ const nodeArgs = ['-r', join(appDir, '../../lib/react-channel-require-hook.js')]
 let appPort
 let app
 
-describe('Custom error page exception', () => {
+// TODO: re-enable with React 18
+describe.skip('Custom error page exception', () => {
   beforeAll(async () => {
     await nextBuild(appDir, undefined, {
       nodeArgs,
-      env: { __NEXT_REACT_CHANNEL: '17' },
     })
     appPort = await findPort()
     app = await nextStart(appDir, appPort, {
       nodeArgs,
-      env: { __NEXT_REACT_CHANNEL: '17' },
     })
   })
   afterAll(() => killApp(app))

@@ -2,13 +2,13 @@
 import '../build/polyfills/polyfill-module'
 // @ts-ignore react-dom/client exists when using React 18
 import ReactDOMClient from 'react-dom/client'
-// TODO-APP: change to React.use once it becomes stable
-import React, { experimental_use as use } from 'react'
+import React, { use } from 'react'
 import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack/client'
 
 import measureWebVitals from './performance-relayer'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
-import HotReload from './components/react-dev-overlay/hot-reloader'
+import HotReload from './components/react-dev-overlay/hot-reloader-client'
+import { GlobalLayoutRouterContext } from '../shared/lib/app-router-context'
 
 /// <reference types="react-dom/experimental" />
 
@@ -186,15 +186,24 @@ export function hydrate() {
       const reactRoot = (ReactDOMClient as any).createRoot(reactRootElement)
 
       reactRoot.render(
-        <HotReload
-          assetPrefix={rootLayoutMissingTagsError.assetPrefix}
-          initialState={{
-            rootLayoutMissingTagsError: {
-              missingTags: rootLayoutMissingTagsError.missingTags,
+        <GlobalLayoutRouterContext.Provider
+          value={{
+            tree: rootLayoutMissingTagsError.tree,
+            changeByServerResponse: () => {},
+            focusAndScrollRef: {
+              apply: false,
             },
           }}
-          initialTree={rootLayoutMissingTagsError.tree}
-        />
+        >
+          <HotReload
+            assetPrefix={rootLayoutMissingTagsError.assetPrefix}
+            // initialState={{
+            //   rootLayoutMissingTagsError: {
+            //     missingTags: rootLayoutMissingTagsError.missingTags,
+            //   },
+            // }}
+          />
+        </GlobalLayoutRouterContext.Provider>
       )
 
       return
