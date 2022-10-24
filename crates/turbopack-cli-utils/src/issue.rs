@@ -550,7 +550,7 @@ impl ConsoleUiVc {
             if let Some(severity_map) = grouped_issues.get_mut(&severity) {
                 let severity_map_size = severity_map.len();
                 let indent = if severity_map_size == 1 {
-                    print!("{} -", severity.style(severity_to_style(severity)));
+                    print!("{} - ", severity.style(severity_to_style(severity)));
                     ""
                 } else {
                     println!("{} -", severity.style(severity_to_style(severity)));
