@@ -21,6 +21,13 @@ use turbopack_core::{
     source_asset::SourceAssetVc,
 };
 
+#[turbo_tasks::value(shared)]
+pub struct TsConfigIssue {
+    pub severity: IssueSeverityVc,
+    pub path: FileSystemPathVc,
+    pub message: StringVc,
+}
+
 pub async fn read_tsconfigs(
     mut data: FileJsonContentVc,
     mut tsconfig: AssetVc,
@@ -30,13 +37,25 @@ pub async fn read_tsconfigs(
     loop {
         match &*data.await? {
             FileJsonContent::Unparseable => {
-                // TODO report to stream
-                println!("ERR {} is invalid JSON", tsconfig.path().to_string().await?);
+                TsConfigIssue {
+                    severity: IssueSeverity::Error.into(),
+                    path: tsconfig.path(),
+                    message: StringVc::cell("tsconfig is not parseable: invalid JSON".into()),
+                }
+                .cell()
+                .as_issue()
+                .emit();
                 break;
             }
             FileJsonContent::NotFound => {
-                // TODO report to stream
-                println!("ERR {} not found", tsconfig.path().to_string().await?);
+                TsConfigIssue {
+                    severity: IssueSeverity::Error.into(),
+                    path: tsconfig.path(),
+                    message: StringVc::cell("tsconfig not found".into()),
+                }
+                .cell()
+                .as_issue()
+                .emit();
                 break;
             }
             FileJsonContent::Content(json) => {
@@ -53,11 +72,14 @@ pub async fn read_tsconfigs(
                         data = asset.content().parse_json_with_comments();
                         tsconfig = asset;
                     } else {
-                        // TODO report to stream
-                        println!(
-                            "ERR extends in {} doesn't resolve correctly",
-                            tsconfig.path().to_string().await?
-                        );
+                        TsConfigIssue {
+                            severity: IssueSeverity::Error.into(),
+                            path: tsconfig.path(),
+                            message: StringVc::cell("extends doesn't resolve correctly".into()),
+                        }
+                        .cell()
+                        .as_issue()
+                        .emit();
                         break;
                     }
                 } else {
@@ -305,13 +327,6 @@ async fn apply_typescript_types_options(
         .into_package
         .push(ResolveIntoPackage::Default("index".to_string()));
     Ok(resolve_options.into())
-}
-
-#[turbo_tasks::value(shared)]
-pub struct TsConfigIssue {
-    pub severity: IssueSeverityVc,
-    pub path: FileSystemPathVc,
-    pub message: StringVc,
 }
 
 #[turbo_tasks::value_impl]
