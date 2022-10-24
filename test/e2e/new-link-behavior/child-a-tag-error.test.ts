@@ -25,10 +25,13 @@ describe('New Link Behavior with <a> child', () => {
   afterAll(() => next.destroy())
 
   it('should throw error with <a> child', async () => {
-    const browser = await webdriver(next.url, `/`)
-    expect(await hasRedbox(browser, true)).toBe(true)
-    expect(await getRedboxSource(browser)).toContain(
+    const msg =
       'Error: Invalid <Link> with <a> child. Please remove <a> or use <Link legacyBehavior>'
-    )
+    expect(next.cliOutput).toContain(msg)
+    if ((global as any).isDev) {
+      const browser = await webdriver(next.url, `/`)
+      expect(await hasRedbox(browser, true)).toBe(true)
+      expect(await getRedboxSource(browser)).toContain(msg)
+    }
   })
 })
