@@ -1,14 +1,4 @@
-import type { ImageConfig } from './image-config'
-
-export type DefaultImageLoaderProps = {
-  src: string
-  width: number
-  quality?: number
-}
-
-export type ImageLoaderPropsWithConfig = DefaultImageLoaderProps & {
-  config: Readonly<ImageConfig>
-}
+import type { ImageLoaderPropsWithConfig } from './image-config'
 
 function defaultLoader({
   config,
