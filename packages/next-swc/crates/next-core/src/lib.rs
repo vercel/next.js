@@ -15,6 +15,7 @@ mod path_regex;
 pub mod react_refresh;
 mod runtime;
 mod server_rendered_source;
+pub mod source_map;
 mod util;
 mod web_entry_source;
 
