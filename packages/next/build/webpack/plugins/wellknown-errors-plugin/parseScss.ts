@@ -1,7 +1,6 @@
 import Chalk from 'next/dist/compiled/chalk'
 import { SimpleWebpackError } from './simpleWebpackError'
 
-const chalk = new Chalk.constructor({ enabled: true })
 const regexScssError =
   /SassError: (.+)\n\s+on line (\d+) [\s\S]*?>> (.+)\n\s*(-+)\^$/m
 
@@ -35,10 +34,10 @@ export function getScssError(
     }
 
     return new SimpleWebpackError(
-      `${chalk.cyan(fileName)}:${chalk.yellow(
+      `${Chalk.cyan(fileName)}:${Chalk.yellow(
         lineNumber.toString()
-      )}:${chalk.yellow(column.toString())}`,
-      chalk.red
+      )}:${Chalk.yellow(column.toString())}`,
+      Chalk.red
         .bold('Syntax error')
         .concat(`: ${reason}\n\n${frame ?? backupFrame}`)
     )
