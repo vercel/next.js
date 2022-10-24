@@ -78,6 +78,7 @@ describe('@next/font/google loader', () => {
         ok: true,
         text: async () => 'OK',
       })
+      // @ts-expect-error
       const { css } = await loader({
         functionName,
         data: [{ adjustFontFallback: false, ...data }],
@@ -98,6 +99,7 @@ describe('@next/font/google loader', () => {
         ok: true,
         text: async () => '',
       })
+      // @ts-expect-error
       const { adjustFontFallback, fallbackFonts } = await loader({
         functionName: 'Inter',
         data: [],
@@ -121,6 +123,7 @@ describe('@next/font/google loader', () => {
         ok: true,
         text: async () => '',
       })
+      // @ts-expect-error
       const { fallbackFonts, adjustFontFallback } = await loader({
         functionName: 'Source_Code_Pro',
         data: [],
@@ -144,6 +147,7 @@ describe('@next/font/google loader', () => {
         ok: true,
         text: async () => '',
       })
+      // @ts-expect-error
       const { adjustFontFallback, fallbackFonts } = await loader({
         functionName: 'Fraunces',
         data: [{ fallback: ['Abc', 'Def'] }],
@@ -167,6 +171,7 @@ describe('@next/font/google loader', () => {
         ok: true,
         text: async () => '',
       })
+      // @ts-expect-error
       const { css, fallbackFonts } = await loader({
         functionName: 'Inter',
         data: [{ adjustFontFallback: false, fallback: ['system-ui', 'Arial'] }],
@@ -187,6 +192,7 @@ describe('@next/font/google loader', () => {
       })
 
       await expect(
+        // @ts-expect-error
         loader({
           functionName: 'Alkalami',
           data: [{ weight: '400' }],
@@ -203,6 +209,7 @@ describe('@next/font/google loader', () => {
 
     test('Missing function name', async () => {
       await expect(
+        // @ts-expect-error
         loader({
           functionName: '', // default import
           data: [],
@@ -218,6 +225,7 @@ describe('@next/font/google loader', () => {
 
     test('Unknown font', async () => {
       await expect(
+        // @ts-expect-error
         loader({
           functionName: 'Unknown_Font',
           data: [],
@@ -233,6 +241,7 @@ describe('@next/font/google loader', () => {
 
     test('Unknown weight', async () => {
       await expect(
+        // @ts-expect-error
         loader({
           functionName: 'Inter',
           data: [{ weight: '123' }],
@@ -249,6 +258,7 @@ describe('@next/font/google loader', () => {
 
     test('Missing weight for non variable font', async () => {
       await expect(
+        // @ts-expect-error
         loader({
           functionName: 'Abel',
           data: [],
@@ -265,6 +275,7 @@ describe('@next/font/google loader', () => {
 
     test('Unknown style', async () => {
       await expect(
+        // @ts-expect-error
         loader({
           functionName: 'Molle',
           data: [{ weight: '400', style: 'normal' }],
@@ -281,6 +292,7 @@ describe('@next/font/google loader', () => {
 
     test('Invalid display value', async () => {
       await expect(
+        // @ts-expect-error
         loader({
           functionName: 'Inter',
           data: [{ display: 'invalid' }],
@@ -297,6 +309,7 @@ describe('@next/font/google loader', () => {
 
     test('Setting axes on non variable font', async () => {
       await expect(
+        // @ts-expect-error
         loader({
           functionName: 'Abel',
           data: [{ weight: '400', axes: [] }],
@@ -312,6 +325,7 @@ describe('@next/font/google loader', () => {
 
     test('Setting axes on font without definable axes', async () => {
       await expect(
+        // @ts-expect-error
         loader({
           functionName: 'Lora',
           data: [{ axes: [] }],
@@ -327,6 +341,7 @@ describe('@next/font/google loader', () => {
 
     test('Invalid axes value', async () => {
       await expect(
+        // @ts-expect-error
         loader({
           functionName: 'Inter',
           data: [{ axes: true }],
@@ -343,6 +358,7 @@ describe('@next/font/google loader', () => {
 
     test('Invalid value in axes array', async () => {
       await expect(
+        // @ts-expect-error
         loader({
           functionName: 'Roboto_Flex',
           data: [{ axes: ['INVALID'] }],
