@@ -74,7 +74,7 @@
     ]
   },
   "dependencies": {
-    "@edge-runtime/cookies": "2.0.0",
+    "@edge-runtime/cookies": "2.0.1",
     "@next/env": "12.3.2-canary.39",
     "@swc/helpers": "0.4.11",
     "caniuse-lite": "^1.0.30001406",
