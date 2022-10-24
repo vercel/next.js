@@ -73,6 +73,9 @@ const babelIncludeRegexes: RegExp[] = [
   /[\\/](strip-ansi|ansi-regex|styled-jsx)[\\/]/,
 ]
 
+const staticGenerationAsyncStorageRegex =
+  /next[\\/]dist[\\/]client[\\/]components[\\/]static-generation-async-storage/
+
 const BABEL_CONFIG_FILES = [
   '.babelrc',
   '.babelrc.json',
@@ -1591,6 +1594,12 @@ export default async function getBaseWebpackConfig(
               },
             ]
           : []),
+        ...[
+          {
+            layer: WEBPACK_LAYERS.shared,
+            test: staticGenerationAsyncStorageRegex,
+          },
+        ],
         // TODO: FIXME: do NOT webpack 5 support with this
         // x-ref: https://github.com/webpack/webpack/issues/11467
         ...(!config.experimental.fullySpecified
@@ -1624,6 +1633,7 @@ export default async function getBaseWebpackConfig(
                   // To let the internal client components passing through flight loader
                   NEXT_PROJECT_ROOT_DIST,
                 ],
+                exclude: [staticGenerationAsyncStorageRegex],
                 issuerLayer: WEBPACK_LAYERS.server,
                 use: {
                   loader: 'next-flight-loader',
@@ -1657,6 +1667,7 @@ export default async function getBaseWebpackConfig(
                 oneOf: [
                   {
                     // test: codeCondition.test,
+                    exclude: [staticGenerationAsyncStorageRegex],
                     issuerLayer: WEBPACK_LAYERS.server,
                     test(req: string) {
                       // If it's not a source code file, or has been opted out of
@@ -1728,6 +1739,7 @@ export default async function getBaseWebpackConfig(
                   {
                     test: codeCondition.test,
                     issuerLayer: WEBPACK_LAYERS.server,
+                    exclude: [staticGenerationAsyncStorageRegex],
                     use: useSWCLoader
                       ? getSwcLoader({ isServerLayer: true })
                       : // When using Babel, we will have to add the SWC loader
