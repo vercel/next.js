@@ -78,6 +78,7 @@ export default async function nextFontLoader(this: any) {
               src.startsWith('.') ? src : `./${src}`
             ),
           fs: this.fs,
+          isServer,
         })
 
       const { postcss } = await getPostcss()
