@@ -1518,7 +1518,11 @@ export async function renderToHTMLOrFlight(
           ReactDOMServer,
           element: (
             <html id="__next_error__">
-              <head></head>
+              <head>
+                {err?.digest === NOT_FOUND_ERROR_CODE && (
+                  <meta name="robots" content="noindex" />
+                )}
+              </head>
               <body></body>
             </html>
           ),
