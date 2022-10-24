@@ -10,9 +10,7 @@ import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
 import { CONFIG_FILES } from '../shared/lib/constants'
 import path from 'path'
-import { loadBindings } from '../build/swc'
-import { NextConfig } from '../types'
-import { getPkgManager } from '../lib/helpers/get-pkg-manager'
+import type { NextConfig } from '../types'
 
 const nextDev: cliCommand = (argv) => {
   const validArgs: arg.Spec = {
@@ -106,6 +104,21 @@ const nextDev: cliCommand = (argv) => {
   if (args['--turbo']) {
     // check for postcss, babelrc, swc plugins
     return new Promise(async (resolve) => {
+      const { findConfig } =
+        require('../lib/find-config') as typeof import('../lib/find-config')
+      const { loadBindings } =
+        require('../build/swc') as typeof import('../build/swc')
+      const { getPkgManager } =
+        require('../lib/helpers/get-pkg-manager') as typeof import('../lib/helpers/get-pkg-manager')
+      const { getBabelConfigFile } =
+        require('../build/webpack-config') as typeof import('../build/webpack-config')
+      const { defaultConfig } =
+        require('../server/config-shared') as typeof import('../server/config-shared')
+      const { default: loadConfig } =
+        require('../server/config') as typeof import('../server/config')
+      const { PHASE_DEVELOPMENT_SERVER } =
+        require('../shared/lib/constants') as typeof import('../shared/lib/constants')
+
       const chalk =
         require('next/dist/compiled/chalk') as typeof import('next/dist/compiled/chalk')
 
@@ -116,17 +129,9 @@ const nextDev: cliCommand = (argv) => {
         )} ${chalk.dim('(alpha)')}\n\n` +
           `Thank you for trying Next.js v13 with Turbopack! As a reminder,\nTurbopack is currently in alpha and not yet ready for production.\nWe appreciate your ongoing support as we work to make it ready\nfor everyone.\n\n`
       )
-
-      const { getBabelConfigFile } =
-        require('../build/webpack-config') as typeof import('../build/webpack-config')
-      const { defaultConfig } =
-        require('../server/config-shared') as typeof import('../server/config-shared')
-      const { default: loadConfig } =
-        require('../server/config') as typeof import('../server/config')
-      const { PHASE_DEVELOPMENT_SERVER } =
-        require('../shared/lib/constants') as typeof import('../shared/lib/constants')
-
       let unsupportedParts = ''
+      // TODO: warning for postcss mentioning sidecar
+      const postcssFile = await findConfig(dir, 'postcss')
       const babelrc = '.babelrc' || (await getBabelConfigFile(dir))
       const rawNextConfig = (await loadConfig(
         PHASE_DEVELOPMENT_SERVER,
@@ -170,6 +175,8 @@ const nextDev: cliCommand = (argv) => {
       }
 
       if (unsupportedParts) {
+        const pkgManager = getPkgManager(dir)
+
         console.error(
           `${chalk.bold.red(
             'Error:'
@@ -177,7 +184,11 @@ const nextDev: cliCommand = (argv) => {
 If you cannot make the changes above, but still want to try out\nNext.js v13 with Turbopack, create the Next.js v13 playground app\nby running the following commands:
         
   ${chalk.bold.cyan(
-    `npx create-next-app --example with-turbopack with-turbopack-app`
+    `${
+      pkgManager === 'npm'
+        ? 'npx create-next-app'
+        : `${pkgManager} create next-app`
+    } --example with-turbopack with-turbopack-app`
   )}\n  cd with-turbopack-app\n  npm run dev
   
         `
