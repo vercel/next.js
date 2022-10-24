@@ -283,16 +283,6 @@ export async function ncc_acorn(task, opts) {
     .target('compiled/acorn')
 }
 
-externals['@edge-runtime/cookies'] = 'next/dist/compiled/@edge-runtime/cookies'
-export async function ncc_edge_runtime_cookies(task, opts) {
-  await task
-    .source(
-      opts.src || relative(__dirname, require.resolve('@edge-runtime/cookies'))
-    )
-    .ncc({ packageName: '@edge-runtime/cookies', externals })
-    .target('compiled/@edge-runtime/cookies')
-}
-
 // eslint-disable-next-line camelcase
 externals['@edge-runtime/primitives'] =
   'next/dist/compiled/@edge-runtime/primitives'
@@ -2082,7 +2072,6 @@ export async function ncc(task, opts) {
       'copy_react_is',
       'ncc_sass_loader',
       'ncc_jest_worker',
-      'ncc_edge_runtime_cookies',
       'ncc_edge_runtime_primitives',
       'ncc_edge_runtime',
     ],

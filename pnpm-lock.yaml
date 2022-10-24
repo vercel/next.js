@@ -465,7 +465,7 @@ importers:
       '@babel/runtime': 7.15.4
       '@babel/traverse': 7.18.0
       '@babel/types': 7.18.0
-      '@edge-runtime/cookies': 2.0.0-beta.35
+      '@edge-runtime/cookies': 2.0.0
       '@edge-runtime/primitives': 1.1.0
       '@hapi/accept': 5.0.2
       '@napi-rs/cli': 2.12.0
@@ -639,6 +639,7 @@ importers:
       webpack-sources3: npm:webpack-sources@3.2.3
       ws: 8.2.3
     dependencies:
+      '@edge-runtime/cookies': 2.0.0
       '@next/env': link:../next-env
       '@swc/helpers': 0.4.11
       caniuse-lite: 1.0.30001406
@@ -667,7 +668,6 @@ importers:
       '@babel/runtime': 7.15.4
       '@babel/traverse': 7.18.0
       '@babel/types': 7.18.0
-      '@edge-runtime/cookies': 2.0.0-beta.35
       '@edge-runtime/primitives': 1.1.0
       '@hapi/accept': 5.0.2
       '@napi-rs/cli': 2.12.0
@@ -4004,12 +4004,12 @@ packages:
       protobufjs: 6.11.2
     dev: true
 
-  /@edge-runtime/cookies/2.0.0-beta.35:
+  /@edge-runtime/cookies/2.0.0:
     resolution:
       {
-        integrity: sha512-Ss1XHe+/C6mIj4doxoYsRLaeME0iCCnoGCV5pDbmJ3pKAJh/QTL8Dm7tVs05HPaP6jrYIzXRPqzJKgGtpnNa3w==,
+        integrity: sha512-Xdb3/Uz/kfeNUKk9bhAs+/gVFQR9IJxdvto3ZLAy/B6M3r3seZ/5kRhHCMkDNlRmtQS/8nSXFxQbvsscSOxFpw==,
       }
-    dev: true
+    dev: false
 
   /@edge-runtime/format/1.1.0:
     resolution:
