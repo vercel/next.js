@@ -4,4 +4,4 @@ export {
   RequestCookies,
   RequestCookie,
   CookieListItem,
-} from '@edge-runtime/cookies'
+} from 'next/dist/compiled/@edge-runtime/cookies'
