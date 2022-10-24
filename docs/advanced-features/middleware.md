@@ -165,9 +165,7 @@ export function middleware(request: NextRequest) {
   console.log(cookie) // => 'fast'
   const allCookies = request.cookies.getAll()
   console.log(allCookies) // => [{ name: 'vercel', value: 'fast' }]
-  const { value, ...options } = response.cookies.get('vercel') ?? {}
-  console.log(value) // => 'fast'
-  console.log(options) // => { Path: '/test' }
+
   response.cookies.has('nextjs') // => true
   response.cookies.delete('nextjs')
   response.cookies.has('nextjs') // => false
@@ -180,6 +178,8 @@ export function middleware(request: NextRequest) {
     value: 'fast',
     path: '/test',
   })
+  const cookie = response.cookies.get('vercel')
+  console.log(cookie) // => { name: 'vercel', value: 'fast', Path: '/test' }
   // The outgoing response will have a `Set-Cookie:vercel=fast;path=/test` header.
 
   return response
