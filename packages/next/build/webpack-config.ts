@@ -1213,6 +1213,7 @@ export default async function getBaseWebpackConfig(
           config.experimental.esmExternals,
           context,
           pkg + '/package.json',
+          hasAppDir,
           isEsmRequested,
           getResolve,
           isLocal ? isLocalCallback : undefined
