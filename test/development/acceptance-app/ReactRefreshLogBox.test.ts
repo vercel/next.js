@@ -17,8 +17,8 @@ describe('ReactRefreshLogBox app', () => {
     next = await createNext({
       files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
       dependencies: {
-        react: '0.0.0-experimental-9cdf8a99e-20221018',
-        'react-dom': '0.0.0-experimental-9cdf8a99e-20221018',
+        react: 'latest',
+        'react-dom': 'latest',
       },
       skipStart: true,
     })
@@ -34,7 +34,7 @@ describe('ReactRefreshLogBox app', () => {
         export default function Page() {
           return (
             <>
-            
+
                           <p>index page</p>
 
                           <a onClick={() => {
@@ -984,7 +984,7 @@ describe('ReactRefreshLogBox app', () => {
       'index.js',
       `
         class Hello {}
-        
+
         export default () => {
           throw Hello
           return (

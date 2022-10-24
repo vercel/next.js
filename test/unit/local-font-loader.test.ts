@@ -3,6 +3,7 @@ import loader from '@next/font/local/loader'
 describe('@next/font/local', () => {
   describe('generated CSS', () => {
     test('Default CSS', async () => {
+      // @ts-expect-error
       const { css } = await loader({
         functionName: '',
         data: [{ src: './my-font.woff2' }],
@@ -24,6 +25,7 @@ describe('@next/font/local', () => {
     })
 
     test('Weight and style', async () => {
+      // @ts-expect-error
       const { css } = await loader({
         functionName: '',
         data: [{ src: './my-font.woff2', weight: '100 900', style: 'italic' }],
@@ -47,6 +49,7 @@ describe('@next/font/local', () => {
     })
 
     test('Other properties', async () => {
+      // @ts-expect-error
       const { css } = await loader({
         functionName: '',
         data: [
@@ -81,6 +84,7 @@ describe('@next/font/local', () => {
   describe('Errors', () => {
     test('Not using default export', async () => {
       await expect(
+        // @ts-expect-error
         loader({
           functionName: 'Named',
           data: [],
@@ -96,6 +100,7 @@ describe('@next/font/local', () => {
 
     test('Missing src', async () => {
       await expect(
+        // @ts-expect-error
         loader({
           functionName: '',
           data: [],
@@ -111,6 +116,7 @@ describe('@next/font/local', () => {
 
     test('Invalid file extension', async () => {
       await expect(
+        // @ts-expect-error
         loader({
           functionName: '',
           data: [{ src: './font/font-file.abc' }],
@@ -126,6 +132,7 @@ describe('@next/font/local', () => {
 
     test('Invalid display value', async () => {
       await expect(
+        // @ts-expect-error
         loader({
           functionName: '',
           data: [{ src: './font-file.woff2', display: 'invalid' }],
@@ -142,6 +149,7 @@ describe('@next/font/local', () => {
 
     test('Invalid declaration', async () => {
       await expect(
+        // @ts-expect-error
         loader({
           functionName: '',
           data: [

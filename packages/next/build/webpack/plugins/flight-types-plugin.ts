@@ -35,8 +35,8 @@ interface LayoutProps {
   params?: PageParams
 }
 
-type PageComponent = (props: PageProps) => React.ReactNode | null
-type LayoutComponent = (props: LayoutProps) => React.ReactNode | null
+type PageComponent = (props: PageProps) => React.ReactNode | Promise<React.ReactNode>
+type LayoutComponent = (props: LayoutProps) => React.ReactNode | Promise<React.ReactNode>
 
 interface IEntry {
   ${
