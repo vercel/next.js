@@ -280,7 +280,6 @@ impl Visit for Analyzer<'_> {
                     }
                 }
             }
-            self.data.reexports.push((i, Reexport::Star));
         }
     }
 
