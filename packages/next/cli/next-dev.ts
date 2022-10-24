@@ -165,7 +165,7 @@ const nextDev: cliCommand = (argv) => {
         hasSideCar = Object.values(
           (pkgData.scripts || {}) as Record<string, string>
         ).some((script) => {
-          script.includes('tailwindcss') || script.includes('postcss')
+          script.includes('tailwind') || script.includes('postcss')
         })
       }
       const postcssFile =
