@@ -2,10 +2,10 @@
 
 // TODO-APP: support typing for useSelectedLayoutSegment
 // @ts-ignore
-import { useSelectedLayoutSegment } from 'next/navigation'
+import { useSelectedLayoutSegments } from 'next/navigation'
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   // useSelectedLayoutSegment should not be thrown
-  useSelectedLayoutSegment()
+  useSelectedLayoutSegments()
   return children
 }
