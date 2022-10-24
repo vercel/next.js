@@ -114,7 +114,7 @@ const nextDev: cliCommand = (argv) => {
         `${chalk.bold(
           '\x1B[38;2;0;0;255m>\x1B[39m\x1B[38;2;23;0;232m>\x1B[39m\x1B[38;2;46;0;209m>\x1B[39m \x1B[38;2;70;0;185mT\x1B[39m\x1B[38;2;93;0;162mU\x1B[39m\x1B[38;2;116;0;139mR\x1B[39m\x1B[38;2;139;0;116mB\x1B[39m\x1B[38;2;162;0;93mO\x1B[39m\x1B[38;2;185;0;70mP\x1B[39m\x1B[38;2;209;0;46mA\x1B[39m\x1B[38;2;232;0;23mC\x1B[39m\x1B[38;2;255;0;0mK\x1B[39m'
         )} ${chalk.dim('(alpha)')}\n\n` +
-          `Thank you for trying Next.js 13 with Turbopack! As a reminder,\nTurbopack is currently in alpha and not yet ready for production\nuse. We appreciate your ongoing support as we work to make it ready\nfor everyone.\n\n`
+          `Thank you for trying Next.js v13 with Turbopack! As a reminder,\nTurbopack is currently in alpha and not yet ready for production.\nWe appreciate your ongoing support as we work to make it ready\nfor everyone.\n\n`
       )
 
       const { getBabelConfigFile } =
@@ -174,7 +174,7 @@ const nextDev: cliCommand = (argv) => {
           `${chalk.bold.red(
             'Error:'
           )} You are using configuration and/or tools that are not yet\nsupported by Next.js v13 with Turbopack:\n${unsupportedParts}\n
-If you cannot make the changes above, but still want to try out\nNext.js v13 with Turbopack, create the Next.js 13 playground app\nby running the following command
+If you cannot make the changes above, but still want to try out\nNext.js v13 with Turbopack, create the Next.js v13 playground app\nby running the following commands:
         
   ${chalk.bold.cyan(
     `npx create-next-app --example with-turbopack with-turbopack-app`
