@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fmt::Write};
 
 use anyhow::{anyhow, Result};
-use turbo_tasks::{TryJoinIterExt, Value, ValueToString};
+use turbo_tasks::{primitives::StringsVc, TryJoinIterExt, Value, ValueToString};
 use turbo_tasks_env::ProcessEnvVc;
 use turbo_tasks_fs::{
     DirectoryContent, DirectoryEntry, File, FileContent, FileSystemEntryType, FileSystemPathVc,
@@ -115,11 +115,16 @@ fn next_ssr_client_module_transition(
     project_root: FileSystemPathVc,
     app_dir: FileSystemPathVc,
     process_env: ProcessEnvVc,
+    externals: StringsVc,
 ) -> TransitionVc {
     let ty = Value::new(ServerContextType::AppSSR { app_dir });
     NextSSRClientModuleTransition {
         ssr_module_options_context: get_server_module_options_context(ty),
-        ssr_resolve_options_context: get_server_resolve_options_context(project_root, ty),
+        ssr_resolve_options_context: get_server_resolve_options_context(
+            project_root,
+            ty,
+            externals,
+        ),
         ssr_environment: get_server_environment(ty, process_env),
     }
     .cell()
@@ -132,10 +137,12 @@ fn next_layout_entry_transition(
     app_dir: FileSystemPathVc,
     server_root: FileSystemPathVc,
     process_env: ProcessEnvVc,
+    externals: StringsVc,
 ) -> TransitionVc {
     let ty = Value::new(ServerContextType::AppRSC { app_dir });
     let rsc_environment = get_server_environment(ty, process_env);
-    let rsc_resolve_options_context = get_server_resolve_options_context(project_root, ty);
+    let rsc_resolve_options_context =
+        get_server_resolve_options_context(project_root, ty, externals);
     let rsc_module_options_context = get_server_module_options_context(ty);
 
     NextLayoutEntryTransition {
@@ -156,13 +163,14 @@ fn app_context(
     env: ProcessEnvVc,
     browserslist_query: &str,
     ssr: bool,
+    externals: StringsVc,
 ) -> AssetContextVc {
     let next_server_to_client_transition = NextServerToClientTransition { ssr }.cell().into();
 
     let mut transitions = HashMap::new();
     transitions.insert(
         "next-layout-entry".to_string(),
-        next_layout_entry_transition(project_root, app_dir, server_root, env),
+        next_layout_entry_transition(project_root, app_dir, server_root, env, externals),
     );
     transitions.insert(
         "server-to-client".to_string(),
@@ -178,7 +186,7 @@ fn app_context(
     );
     transitions.insert(
         "next-ssr-client-module".to_string(),
-        next_ssr_client_module_transition(project_root, app_dir, env),
+        next_ssr_client_module_transition(project_root, app_dir, env, externals),
     );
 
     let ssr_ty = Value::new(ServerContextType::AppSSR { app_dir });
@@ -186,7 +194,7 @@ fn app_context(
         TransitionsByNameVc::cell(transitions),
         get_server_environment(ssr_ty, env),
         get_server_module_options_context(ssr_ty),
-        get_server_resolve_options_context(project_root, ssr_ty),
+        get_server_resolve_options_context(project_root, ssr_ty, externals),
     )
     .into()
 }
@@ -200,6 +208,7 @@ pub async fn create_app_source(
     server_root: FileSystemPathVc,
     env: ProcessEnvVc,
     browserslist_query: &str,
+    externals: StringsVc,
 ) -> Result<ContentSourceVc> {
     let project_root = wrap_with_next_js_fs(project_root);
 
@@ -220,6 +229,7 @@ pub async fn create_app_source(
         env,
         browserslist_query,
         true,
+        externals,
     );
     let context = app_context(
         project_root,
@@ -228,6 +238,7 @@ pub async fn create_app_source(
         env,
         browserslist_query,
         false,
+        externals,
     );
 
     let server_runtime_entries =
@@ -297,8 +308,6 @@ async fn create_app_source_for_directory(
         );
         layouts = LayoutSegmentsVc::cell(list);
         if let Some(page_path) = page.copied() {
-
-
             sources.push(create_node_rendered_source(
                 server_root,
                 regular_expression_for_path(server_root, target, false),

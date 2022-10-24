@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 
 use anyhow::Result;
-use turbo_tasks::{primitives::BoolVc, Value};
+use turbo_tasks::{
+    primitives::{BoolVc, StringsVc},
+    Value,
+};
 use turbo_tasks_env::ProcessEnvVc;
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc};
 use turbopack::{transition::TransitionsByNameVc, ModuleAssetContextVc};
@@ -102,7 +105,7 @@ pub async fn create_server_rendered_source(
         TransitionsByNameVc::cell(transitions),
         get_server_environment(server_ty, env),
         get_server_module_options_context(server_ty),
-        get_server_resolve_options_context(project_path, server_ty),
+        get_server_resolve_options_context(project_path, server_ty, StringsVc::empty()),
     )
     .into();
 

@@ -1,4 +1,7 @@
-use turbo_tasks::{primitives::StringVc, Value};
+use turbo_tasks::{
+    primitives::{StringVc, StringsVc},
+    Value,
+};
 use turbo_tasks_env::ProcessEnvVc;
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack::{
@@ -24,8 +27,9 @@ pub enum ServerContextType {
 pub fn get_server_resolve_options_context(
     project_path: FileSystemPathVc,
     ty: Value<ServerContextType>,
+    externals: StringsVc,
 ) -> ResolveOptionsContextVc {
-    let next_server_import_map = get_next_server_import_map(project_path, ty);
+    let next_server_import_map = get_next_server_import_map(project_path, ty, externals);
     match ty.into_value() {
         ServerContextType::Pages { .. } | ServerContextType::AppSSR { .. } => {
             ResolveOptionsContext {
