@@ -7,6 +7,7 @@ import {
   PathnameContext,
   // LayoutSegmentsContext,
 } from '../hooks-client-context'
+import { staticGenerationBailout } from '../static-generation-bailout'
 
 const INTERNAL_URLSEARCHPARAMS_INSTANCE = Symbol(
   'internal for urlsearchparams readonly'
@@ -64,6 +65,7 @@ class ReadonlyURLSearchParams {
  * Learn more about URLSearchParams here: https://developer.mozilla.org/en-US/docs/Web/API/URLSearchParams
  */
 export function useSearchParams() {
+  staticGenerationBailout('useSearchParams')
   const searchParams = useContext(SearchParamsContext)
   const readonlySearchParams = useMemo(() => {
     return new ReadonlyURLSearchParams(searchParams)
@@ -75,6 +77,7 @@ export function useSearchParams() {
  * Get the current pathname. For example usePathname() on /dashboard?foo=bar would return "/dashboard"
  */
 export function usePathname(): string {
+  staticGenerationBailout('usePathname')
   return useContext(PathnameContext)
 }
 
