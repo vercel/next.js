@@ -241,15 +241,25 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
       }
       loadBindings()
         .then((bindings: any) => {
-      const server = bindings.turbo.startDev({
+          const findUp =
+            require('next/dist/compiled/find-up') as typeof import('next/dist/compiled/find-up')
+          const turboJson = findUp.sync('turbo.json', { cwd: dir })
+          const packagePath = findUp.sync('package.json', { cwd: dir })
+
+          let server = bindings.diagnostics.startDiagnostics({
             ...devServerOptions,
-        showAll: args['--show-all'] ?? false,
+            rootDir:
+              args['--root'] ?? turboJson
+                ? path.dirname(turboJson)
+                : packagePath
+                ? path.dirname(packagePath)
+                : undefined,
             serverComponentsExternalPackages:
               rawNextConfig.experimental?.serverComponentsExternalPackages,
           })
           // Start preflight after server is listening and ignore errors:
           preflight().catch(() => {})
-      return server
+          return server
         })
         .then(resolve)
     })
