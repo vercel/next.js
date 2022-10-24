@@ -140,11 +140,26 @@ function getSelectedLayoutSegmentPath(
 
 // TODO-APP: Expand description when the docs are written for it.
 /**
- * Get the canonical segment path from this level to the leaf node.
+ * Get the canonical segment path from the current level to the leaf node.
  */
-export function useSelectedLayoutSegment(
+export function useSelectedLayoutSegments(
   parallelRouteKey: string = 'children'
 ): string[] {
   const { tree } = useContext(LayoutRouterContext)
   return getSelectedLayoutSegmentPath(tree, parallelRouteKey)
+}
+
+// TODO-APP: Expand description when the docs are written for it.
+/**
+ * Get the segment below the current level
+ */
+export function useSelectedLayoutSegment(
+  parallelRouteKey: string = 'children'
+): string {
+  const selectedLayoutSegments = useSelectedLayoutSegments(parallelRouteKey)
+  if (selectedLayoutSegments.length === 0) {
+    throw new Error('No selected layout segment below the current level')
+  }
+
+  return selectedLayoutSegments[0]
 }

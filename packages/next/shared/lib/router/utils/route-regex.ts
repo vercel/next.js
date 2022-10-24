@@ -53,7 +53,7 @@ function getParametrizedRoute(route: string) {
 
 /**
  * From a normalized route this function generates a regular expression and
- * a corresponding groups object inteded to be used to store matching groups
+ * a corresponding groups object intended to be used to store matching groups
  * from the regular expression.
  */
 export function getRouteRegex(normalizedRoute: string): RouteRegex {

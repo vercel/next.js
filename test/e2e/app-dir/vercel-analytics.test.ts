@@ -21,6 +21,7 @@ describe('vercel analytics', () => {
         dependencies: {
           react: 'experimental',
           'react-dom': 'experimental',
+          sass: 'latest',
         },
         skipStart: true,
         env: {
