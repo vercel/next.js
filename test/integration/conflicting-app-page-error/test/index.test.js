@@ -4,25 +4,61 @@ import path from 'path'
 import {
   killApp,
   findPort,
+  getRedboxHeader,
+  hasRedbox,
   launchApp,
   nextBuild,
   waitFor,
 } from 'next-test-utils'
+import webdriver from 'next-webdriver'
 
 let app
 let appPort
 const appDir = path.join(__dirname, '..')
 let output = ''
 
-function runTests() {
-  it('should print error for reach conflicting page', async () => {
+function runTests({ dev }) {
+  it('should print error for conflicting app/page', async () => {
     expect(output).toMatch(/Conflicting app and page files were found/)
 
     for (const conflict of ['/hello', '/another']) {
       expect(output).toContain(conflict)
     }
+    expect(output).not.toContain('/index')
     expect(output).not.toContain('/non-conflict')
   })
+
+  if (dev) {
+    it('should show error overlay for /hello', async () => {
+      const browser = await webdriver(appPort, '/hello')
+      expect(await hasRedbox(browser, true)).toBe(true)
+      expect(await getRedboxHeader(browser)).toContain(
+        'Conflicting app and page file found: "/hello/page.js" and "/hello.js". Please remove one to continue'
+      )
+    })
+
+    it('should show error overlay for /another', async () => {
+      const browser = await webdriver(appPort, '/another')
+      expect(await hasRedbox(browser, true)).toBe(true)
+      expect(await getRedboxHeader(browser)).toContain(
+        'Conflicting app and page file found: "/another/page.js" and "/another.js". Please remove one to continue'
+      )
+    })
+
+    it('should not show error overlay for /', async () => {
+      const browser = await webdriver(appPort, '/')
+      expect(await hasRedbox(browser, false)).toBe(false)
+      expect(await getRedboxHeader(browser)).toBe(null)
+      expect(await browser.elementByCss('p').text()).toBe('index page')
+    })
+
+    it('should not show error overlay for /non-conflict', async () => {
+      const browser = await webdriver(appPort, '/non-conflict')
+      expect(await hasRedbox(browser, false)).toBe(false)
+      expect(await getRedboxHeader(browser)).toBe(null)
+      expect(await browser.elementByCss('p').text()).toBe('non-conflict app')
+    })
+  }
 }
 
 describe('Conflict between app file and page file', () => {
@@ -43,7 +79,7 @@ describe('Conflict between app file and page file', () => {
     afterAll(() => {
       killApp(app)
     })
-    runTests()
+    runTests({ dev: true })
   })
 
   describe('next build', () => {
@@ -59,6 +95,6 @@ describe('Conflict between app file and page file', () => {
     afterAll(() => {
       killApp(app)
     })
-    runTests()
+    runTests({ dev: false })
   })
 })

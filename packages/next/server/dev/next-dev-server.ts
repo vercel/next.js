@@ -772,27 +772,33 @@ export default class DevServer extends Server {
       ).then(Boolean)
     }
 
-    // check appDir first if enabled
+    let appFile: string | null = null
+    let pagesFile: string | null = null
+
     if (this.appDir) {
-      const pageFile = await findPageFile(
+      appFile = await findPageFile(
         this.appDir,
-        normalizedPath,
+        normalizedPath + '/page',
         this.nextConfig.pageExtensions,
         true
       )
-      if (pageFile) return true
     }
 
     if (this.pagesDir) {
-      const pageFile = await findPageFile(
+      pagesFile = await findPageFile(
         this.pagesDir,
         normalizedPath,
         this.nextConfig.pageExtensions,
         false
       )
-      return !!pageFile
     }
-    return false
+    if (appFile && pagesFile) {
+      throw new Error(
+        `Conflicting app and page file found: "${appFile}" and "${pagesFile}". Please remove one to continue.`
+      )
+    }
+
+    return Boolean(appFile || pagesFile)
   }
 
   protected async _beforeCatchAllRender(
