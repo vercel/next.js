@@ -179,7 +179,7 @@ const nextDev: cliCommand = (argv) => {
         console.warn(
           `${chalk.bold.yellow(
             'Warning:'
-          )} PostCSS is not yet supported by Next.js v13 with Turbopack.\nTo use with Turbopack, remove your PostCSS configuration.\n`
+          )} PostCSS is not yet supported by Next.js v13 with Turbopack.\nTo use with Turbopack, use PostCSS \n`
         )
       }
       if (unsupportedParts) {
