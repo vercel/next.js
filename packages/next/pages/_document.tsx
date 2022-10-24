@@ -911,6 +911,19 @@ export class Head extends React.Component<HeadProps> {
   }
 }
 
+function isHeadElement(child: React.ReactElement) {
+  if (typeof child.type === 'function') {
+    let constructor = child.type
+    while (constructor) {
+      if (constructor === Head) {
+        return
+      }
+      constructor = Object.getPrototypeOf(constructor)
+    }
+  }
+  return false
+}
+
 function handleDocumentScriptLoaderItems(
   scriptLoader: { beforeInteractive?: any[] },
   __NEXT_DATA__: NEXT_DATA,
@@ -924,8 +937,8 @@ function handleDocumentScriptLoaderItems(
     ? props.children
     : [props.children]
 
-  const headChildren = children.find(
-    (child: React.ReactElement) => child.type === Head
+  const headChildren = children.find((child: React.ReactElement) =>
+    isHeadElement(child)
   )?.props?.children
   const bodyChildren = children.find(
     (child: React.ReactElement) => child.type === 'body'
