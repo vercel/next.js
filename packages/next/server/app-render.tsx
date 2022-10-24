@@ -739,6 +739,7 @@ export async function renderToHTMLOrFlight(
     supportsDynamicHTML,
   } = renderOpts
 
+  patchFetch(ComponentMod)
   const generateStaticHTML = supportsDynamicHTML !== true
 
   const staticGenerationAsyncStorage = ComponentMod.staticGenerationAsyncStorage
