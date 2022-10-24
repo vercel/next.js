@@ -20,13 +20,13 @@ it('reflect .set into `set-cookie`', async () => {
 
   expect(response.cookies.get('foo')).toEqual({
     name: 'foo',
+    path: '/test',
     value: 'bar',
-    Path: '/test',
   })
   expect(response.cookies.get('fooz')).toEqual({
     name: 'fooz',
+    path: '/test2',
     value: 'barz',
-    Path: '/test2',
   })
 
   expect(Object.fromEntries(response.headers.entries())['set-cookie']).toBe(
