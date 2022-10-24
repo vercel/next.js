@@ -18,7 +18,7 @@ use turbopack_dev_server::{
     html::DevHtmlAssetVc,
     source::{
         combined::{CombinedContentSource, CombinedContentSourceVc},
-        ContentSourceVc, NoContentSourceVc,
+        ContentSourceData, ContentSourceVc, NoContentSourceVc,
     },
 };
 use turbopack_ecmascript::{
@@ -49,7 +49,11 @@ use crate::{
         get_server_environment, get_server_module_options_context,
         get_server_resolve_options_context, ServerContextType,
     },
-    nodejs::{create_node_rendered_source, NodeEntry, NodeEntryVc},
+    nodejs::{
+        create_node_rendered_source,
+        node_entry::{NodeRenderingEntry, NodeRenderingEntryVc},
+        NodeEntry, NodeEntryVc,
+    },
     util::regular_expression_for_path,
 };
 
@@ -144,29 +148,16 @@ fn next_layout_entry_transition(
     .into()
 }
 
-/// Create a content source serving the `app` or `src/app` directory as
-/// Next.js app folder.
 #[turbo_tasks::function]
-pub async fn create_app_source(
+fn app_context(
     project_root: FileSystemPathVc,
-    output_path: FileSystemPathVc,
     server_root: FileSystemPathVc,
+    app_dir: FileSystemPathVc,
     env: ProcessEnvVc,
     browserslist_query: &str,
-) -> Result<ContentSourceVc> {
-    let project_root = wrap_with_next_js_fs(project_root);
-
-    let app = project_root.join("app");
-    let src_app = project_root.join("src/app");
-    let app_dir = if *app.get_type().await? == FileSystemEntryType::Directory {
-        app
-    } else if *src_app.get_type().await? == FileSystemEntryType::Directory {
-        src_app
-    } else {
-        return Ok(NoContentSourceVc::new().into());
-    };
-
-    let next_server_to_client_transition = NextServerToClientTransition {}.cell().into();
+    ssr: bool,
+) -> AssetContextVc {
+    let next_server_to_client_transition = NextServerToClientTransition { ssr }.cell().into();
 
     let mut transitions = HashMap::new();
     transitions.insert(
@@ -191,13 +182,53 @@ pub async fn create_app_source(
     );
 
     let ssr_ty = Value::new(ServerContextType::AppSSR { app_dir });
-    let context: AssetContextVc = ModuleAssetContextVc::new(
+    ModuleAssetContextVc::new(
         TransitionsByNameVc::cell(transitions),
         get_server_environment(ssr_ty, env),
         get_server_module_options_context(ssr_ty),
         get_server_resolve_options_context(project_root, ssr_ty),
     )
-    .into();
+    .into()
+}
+
+/// Create a content source serving the `app` or `src/app` directory as
+/// Next.js app folder.
+#[turbo_tasks::function]
+pub async fn create_app_source(
+    project_root: FileSystemPathVc,
+    output_path: FileSystemPathVc,
+    server_root: FileSystemPathVc,
+    env: ProcessEnvVc,
+    browserslist_query: &str,
+) -> Result<ContentSourceVc> {
+    let project_root = wrap_with_next_js_fs(project_root);
+
+    let app = project_root.join("app");
+    let src_app = project_root.join("src/app");
+    let app_dir = if *app.get_type().await? == FileSystemEntryType::Directory {
+        app
+    } else if *src_app.get_type().await? == FileSystemEntryType::Directory {
+        src_app
+    } else {
+        return Ok(NoContentSourceVc::new().into());
+    };
+
+    let context_ssr = app_context(
+        project_root,
+        server_root,
+        app_dir,
+        env,
+        browserslist_query,
+        true,
+    );
+    let context = app_context(
+        project_root,
+        server_root,
+        app_dir,
+        env,
+        browserslist_query,
+        false,
+    );
 
     let server_runtime_entries =
         vec![ProcessEnvAssetVc::new(project_root, env).as_ecmascript_chunk_placeable()];
@@ -205,6 +236,7 @@ pub async fn create_app_source(
     let fallback_page = get_fallback_page(project_root, server_root, browserslist_query);
 
     Ok(create_app_source_for_directory(
+        context_ssr,
         context,
         project_root,
         app_dir,
@@ -220,6 +252,7 @@ pub async fn create_app_source(
 
 #[turbo_tasks::function]
 async fn create_app_source_for_directory(
+    context_ssr: AssetContextVc,
     context: AssetContextVc,
     project_root: FileSystemPathVc,
     input_dir: FileSystemPathVc,
@@ -264,30 +297,21 @@ async fn create_app_source_for_directory(
             list.push(LayoutSegment { file, target }.cell());
             let layout_path = LayoutSegmentsVc::cell(list);
 
-            let chunking_context = DevChunkingContextVc::new_with_layer(
-                project_root,
-                intermediate_output_path,
-                intermediate_output_path.join("chunks"),
-                server_root.join("_next/static/assets"),
-                false,
-                "ssr",
-            )
-            .into();
-
             sources.push(create_node_rendered_source(
                 server_root,
                 regular_expression_for_path(server_root, target, false),
                 AppRenderer {
+                    context_ssr,
                     context,
                     server_root,
                     layout_path,
+                    project_root,
+                    intermediate_output_path,
                 }
                 .cell()
                 .into(),
-                chunking_context,
                 runtime_entries,
                 fallback_page,
-                intermediate_output_path,
             ));
         }
         for (name, entry) in entries.iter() {
@@ -302,6 +326,7 @@ async fn create_app_source_for_directory(
                 };
                 sources.push(
                     create_app_source_for_directory(
+                        context_ssr,
                         context,
                         project_root,
                         *dir,
@@ -322,15 +347,23 @@ async fn create_app_source_for_directory(
 
 #[turbo_tasks::value]
 struct AppRenderer {
+    context_ssr: AssetContextVc,
     context: AssetContextVc,
     server_root: FileSystemPathVc,
     layout_path: LayoutSegmentsVc,
+    project_root: FileSystemPathVc,
+    intermediate_output_path: FileSystemPathVc,
 }
 
 #[turbo_tasks::value_impl]
 impl NodeEntry for AppRenderer {
     #[turbo_tasks::function]
-    async fn entry(&self) -> Result<EcmascriptModuleAssetVc> {
+    async fn entry(&self, data: Value<ContentSourceData>) -> Result<NodeRenderingEntryVc> {
+        let is_rsc = if let Some(headers) = data.into_value().headers {
+            headers.contains_key("__rsc__")
+        } else {
+            false
+        };
         let layout_path = self.layout_path.await?;
         let page = layout_path
             .last()
@@ -421,15 +454,35 @@ import BOOTSTRAP from {};
             file.push_content(base_file.content());
         }
         let asset = VirtualAssetVc::new(path.join("entry"), FileContent::Content(file).into());
-        Ok(EcmascriptModuleAssetVc::new(
-            asset.into(),
-            self.context,
-            Value::new(EcmascriptModuleAssetType::Typescript),
-            EcmascriptInputTransformsVc::cell(vec![
-                EcmascriptInputTransform::React { refresh: false },
-                EcmascriptInputTransform::TypeScript,
-            ]),
-            self.context.environment(),
-        ))
+        let (context, intermediate_output_path) = if is_rsc {
+            (self.context, self.intermediate_output_path.join("__rsc__"))
+        } else {
+            (self.context_ssr, self.intermediate_output_path)
+        };
+
+        let chunking_context = DevChunkingContextVc::new_with_layer(
+            self.project_root,
+            intermediate_output_path,
+            intermediate_output_path.join("chunks"),
+            self.server_root.join("_next/static/assets"),
+            false,
+            "ssr",
+        )
+        .into();
+        Ok(NodeRenderingEntry {
+            module: EcmascriptModuleAssetVc::new(
+                asset.into(),
+                context,
+                Value::new(EcmascriptModuleAssetType::Typescript),
+                EcmascriptInputTransformsVc::cell(vec![
+                    EcmascriptInputTransform::React { refresh: false },
+                    EcmascriptInputTransform::TypeScript,
+                ]),
+                context.environment(),
+            ),
+            chunking_context,
+            intermediate_output_path,
+        }
+        .cell())
     }
 }

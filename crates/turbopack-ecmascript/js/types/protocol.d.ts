@@ -1,7 +1,7 @@
 import { ChunkPath, ModuleFactoryString, ModuleId } from "./index";
 
 export type ServerMessage = {
-  chunkPath: ChunkPath;
+  resource: ResourceIdentifier;
   issues: Issue[];
 } & (
   | {
@@ -33,10 +33,14 @@ export type HmrUpdateEntry = {
   map?: string;
 };
 
+type ResourceIdentifier = {
+  path: string;
+  headers?: { [string]: string };
+};
+
 export type ClientMessage = {
   type: "subscribe";
-  chunkPath: ChunkPath;
-};
+} & ResourceIdentifier;
 
 export type IssueSeverity =
   | "bug"

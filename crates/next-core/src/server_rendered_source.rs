@@ -6,15 +6,18 @@ use turbo_tasks_env::ProcessEnvVc;
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc};
 use turbopack::{transition::TransitionsByNameVc, ModuleAssetContextVc};
 use turbopack_core::{
-    asset::AssetVc, chunk::dev::DevChunkingContextVc, context::AssetContextVc,
-    source_asset::SourceAssetVc, virtual_asset::VirtualAssetVc,
+    asset::AssetVc,
+    chunk::{dev::DevChunkingContextVc, ChunkingContextVc},
+    context::AssetContextVc,
+    source_asset::SourceAssetVc,
+    virtual_asset::VirtualAssetVc,
 };
 use turbopack_dev_server::{
     html::DevHtmlAssetVc,
     source::{
         asset_graph::AssetGraphContentSourceVc,
         combined::{CombinedContentSource, CombinedContentSourceVc},
-        ContentSourceVc, NoContentSourceVc,
+        ContentSourceData, ContentSourceVc, NoContentSourceVc,
     },
 };
 use turbopack_ecmascript::{
@@ -28,9 +31,9 @@ use crate::{
     fallback::get_fallback_page,
     next_client::{
         context::{
-            get_client_assets_path, get_client_chunking_context, get_client_environment,
-            get_client_module_options_context, get_client_resolve_options_context,
-            get_client_runtime_entries, ContextType,
+            add_next_transforms_to_pages, get_client_assets_path, get_client_chunking_context,
+            get_client_environment, get_client_module_options_context,
+            get_client_resolve_options_context, get_client_runtime_entries, ContextType,
         },
         NextClientTransition,
     },
@@ -38,7 +41,11 @@ use crate::{
         get_server_environment, get_server_module_options_context,
         get_server_resolve_options_context, ServerContextType,
     },
-    nodejs::{create_node_api_source, create_node_rendered_source, NodeEntry, NodeEntryVc},
+    nodejs::{
+        create_node_api_source, create_node_rendered_source,
+        node_entry::{NodeRenderingEntry, NodeRenderingEntryVc},
+        NodeEntry, NodeEntryVc,
+    },
     util::regular_expression_for_path,
 };
 
@@ -71,6 +78,8 @@ pub async fn create_server_rendered_source(
     let client_environment = get_client_environment(browserslist_query);
     let client_module_options_context =
         get_client_module_options_context(project_path, client_environment, ty);
+    let client_module_options_context =
+        add_next_transforms_to_pages(client_module_options_context, pages_dir);
     let client_resolve_options_context = get_client_resolve_options_context(project_path, ty);
 
     let client_runtime_entries = get_client_runtime_entries(project_path, env, ty);
@@ -158,12 +167,12 @@ async fn create_server_rendered_source_for_file(
                 context,
                 entry_asset,
                 is_api_path,
+                chunking_context,
+                intermediate_output_path,
             }
             .cell()
             .into(),
-            chunking_context,
             runtime_entries,
-            intermediate_output_path,
         )
     } else {
         create_node_rendered_source(
@@ -173,13 +182,13 @@ async fn create_server_rendered_source_for_file(
                 context,
                 entry_asset,
                 is_api_path,
+                chunking_context,
+                intermediate_output_path,
             }
             .cell()
             .into(),
-            chunking_context,
             runtime_entries,
             fallback_page,
-            intermediate_output_path,
         )
     })
 }
@@ -292,12 +301,14 @@ struct SsrEntry {
     context: AssetContextVc,
     entry_asset: AssetVc,
     is_api_path: BoolVc,
+    chunking_context: ChunkingContextVc,
+    intermediate_output_path: FileSystemPathVc,
 }
 
 #[turbo_tasks::value_impl]
 impl NodeEntry for SsrEntry {
     #[turbo_tasks::function]
-    async fn entry(&self) -> Result<EcmascriptModuleAssetVc> {
+    async fn entry(&self, _data: Value<ContentSourceData>) -> Result<NodeRenderingEntryVc> {
         let virtual_asset = if *self.is_api_path.await? {
             VirtualAssetVc::new(
                 self.entry_asset.path().join("server-api.tsx"),
@@ -310,15 +321,20 @@ impl NodeEntry for SsrEntry {
             )
         };
 
-        Ok(EcmascriptModuleAssetVc::new(
-            virtual_asset.into(),
-            self.context,
-            Value::new(EcmascriptModuleAssetType::Typescript),
-            EcmascriptInputTransformsVc::cell(vec![
-                EcmascriptInputTransform::TypeScript,
-                EcmascriptInputTransform::React { refresh: false },
-            ]),
-            self.context.environment(),
-        ))
+        Ok(NodeRenderingEntry {
+            module: EcmascriptModuleAssetVc::new(
+                virtual_asset.into(),
+                self.context,
+                Value::new(EcmascriptModuleAssetType::Typescript),
+                EcmascriptInputTransformsVc::cell(vec![
+                    EcmascriptInputTransform::TypeScript,
+                    EcmascriptInputTransform::React { refresh: false },
+                ]),
+                self.context.environment(),
+            ),
+            chunking_context: self.chunking_context,
+            intermediate_output_path: self.intermediate_output_path,
+        }
+        .cell())
     }
 }

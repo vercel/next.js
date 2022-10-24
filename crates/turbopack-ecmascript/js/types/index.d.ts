@@ -79,16 +79,16 @@ interface Runtime {
   instantiateRuntimeModule: (moduleId: ModuleId) => Module;
 }
 
-export type ChunkUpdateCallback = (update: ServerMessage) => void;
+export type UpdateCallback = (update: ServerMessage) => void;
 export type ChunkUpdateProvider = {
-  push: (registration: [ChunkPath, ChunkUpdateCallback]) => void;
+  push: (registration: [ChunkPath, UpdateCallback]) => void;
 };
 
 export interface TurbopackGlobals {
   TURBOPACK?: ChunkRegistrations | ChunkRegistration[];
   TURBOPACK_CHUNK_UPDATE_LISTENERS?:
     | ChunkUpdateProvider
-    | [ChunkPath, ChunkUpdateCallback][];
+    | [ChunkPath, UpdateCallback][];
 }
 
 declare global {

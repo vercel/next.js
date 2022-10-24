@@ -1,7 +1,8 @@
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
+    fmt::Write as _,
     io::Write,
-    path::PathBuf,
+    path::{PathBuf, MAIN_SEPARATOR},
 };
 
 use anyhow::{anyhow, bail, Result};
@@ -12,7 +13,6 @@ pub use node_api_source::create_node_api_source;
 pub use node_entry::{NodeEntry, NodeEntryVc};
 pub use node_rendered_source::create_node_rendered_source;
 use serde::Deserialize;
-use serde_json::Value as JsonValue;
 use turbo_tasks::{primitives::StringVc, CompletionVc, CompletionsVc, TryJoinIterExt};
 use turbo_tasks_fs::{DiskFileSystemVc, File, FileContent, FileSystemPathVc};
 use turbopack::ecmascript::EcmascriptModuleAssetVc;
@@ -32,7 +32,10 @@ use self::{
     issue::RenderingIssue,
     pool::{NodeJsPool, NodeJsPoolVc},
 };
-use crate::nodejs::pool::OperationEvent;
+use crate::{
+    nodejs::pool::OperationEvent,
+    source_map::{SourceMapTraceVc, StackFrame, TraceResult},
+};
 
 pub(crate) mod bootstrap;
 pub(crate) mod issue;
@@ -261,15 +264,13 @@ async fn render_static(
     intermediate_output_path: FileSystemPathVc,
     data: RenderDataVc,
 ) -> Result<AssetContentVc> {
-    let renderer_pool = get_renderer_pool(
-        get_intermediate_asset(
-            module,
-            runtime_entries,
-            chunking_context,
-            intermediate_output_path,
-        ),
+    let intermediate_asset = get_intermediate_asset(
+        module,
+        runtime_entries,
+        chunking_context,
         intermediate_output_path,
     );
+    let renderer_pool = get_renderer_pool(intermediate_asset, intermediate_output_path);
     // Read this strongly consistent, since we don't want to run inconsistent
     // node.js code.
     let pool = renderer_pool.strongly_consistent().await?;
@@ -322,19 +323,12 @@ async fn render_static(
                 },
             }
         } else if let Some(data) = last_line.strip_prefix("ERROR=") {
-            let data: JsonValue = serde_json::from_str(data)?;
-            if let Some(s) = data.as_str() {
-                RenderingIssue {
-                    context: path,
-                    message: StringVc::cell(s.to_string()),
-                    logs: StringVc::cell(lines[..lines.len() - 1].join("\n")),
-                }
-            } else {
-                RenderingIssue {
-                    context: path,
-                    message: StringVc::cell(data.to_string()),
-                    logs: StringVc::cell(lines[..lines.len() - 1].join("\n")),
-                }
+            let error: StructuredError = serde_json::from_str(data)?;
+            let message = trace_stack(error.cell(), intermediate_asset, intermediate_output_path);
+            RenderingIssue {
+                context: path,
+                message,
+                logs: StringVc::cell(lines[..lines.len() - 1].join("\n")),
             }
         } else {
             RenderingIssue {
@@ -370,6 +364,95 @@ async fn render_static(
     let html = fallback_page.with_body(body);
 
     Ok(html.content())
+}
+
+#[turbo_tasks::value(shared)]
+struct StructuredError {
+    name: String,
+    message: String,
+    stack: Vec<StackFrame>,
+}
+
+#[turbo_tasks::function]
+async fn trace_stack(
+    error: StructuredErrorVc,
+    intermediate_asset: AssetVc,
+    intermediate_output_path: FileSystemPathVc,
+) -> Result<StringVc> {
+    let error = error.await?;
+    let fs = match DiskFileSystemVc::resolve_from(intermediate_output_path.fs()).await? {
+        Some(fs) => fs,
+        _ => bail!("couldn't extract disk fs from path"),
+    }
+    .await?;
+    let root = format!(
+        "{}{}",
+        fs.to_sys_path(intermediate_output_path)
+            .await?
+            .to_str()
+            .unwrap(),
+        MAIN_SEPARATOR
+    );
+
+    let assets = internal_assets(intermediate_asset, intermediate_output_path)
+        .await?
+        .iter()
+        .map(|a| async {
+            Ok(if *a.path().extension().await? == "map" {
+                // The path is something like "foo.js.abc123.map
+                let mut p = fs.to_sys_path(a.path()).await?;
+                p.set_extension("");
+                // The next extension is the hash
+                debug_assert!(p.extension().is_some());
+                debug_assert_ne!(p.extension().unwrap(), "js");
+                p.set_extension("");
+                let p = p.strip_prefix(&root).unwrap();
+                Some((p.to_str().unwrap().to_string(), *a))
+            } else {
+                None
+            })
+        })
+        .try_join()
+        .await?
+        .into_iter()
+        .flatten()
+        .collect::<HashMap<_, _>>();
+
+    let mut message = String::new();
+
+    macro_rules! write_frame {
+        ($f:ident) => {
+            match $f.get_pos() {
+                Some((l, c)) => match &$f.name {
+                    Some(n) => writeln!(message, "  at {} ({}:{}:{})", n, $f.file, l, c),
+                    None => writeln!(message, "  at {}:{}:{}", $f.file, l, c),
+                },
+                None => writeln!(message, "  at {}", $f.file),
+            }
+        };
+    }
+
+    writeln!(message, "{}: {}", error.name, error.message)?;
+
+    for frame in &error.stack {
+        if let Some((line, column)) = frame.get_pos() {
+            if let Some(path) = frame.file.strip_prefix(&root) {
+                if let Some(map) = assets.get(path) {
+                    let map_trace =
+                        SourceMapTraceVc::new(map.content(), line, column, frame.name.clone());
+                    let trace = map_trace.trace().await?;
+                    if let TraceResult::Found(f) = &*trace {
+                        write_frame!(f)?;
+                        continue;
+                    }
+                }
+            }
+        }
+
+        write_frame!(frame)?;
+    }
+
+    Ok(StringVc::cell(message))
 }
 
 #[turbo_tasks::value(shared)]
@@ -464,7 +547,7 @@ fn proxy_error(path: FileSystemPathVc, buffer: Vec<u8>) -> Result<ProxyResultVc>
     .as_issue()
     .emit();
 
-    return Ok(ProxyResult {
+    Ok(ProxyResult {
         status: 500,
         headers: vec![
             "content-type".to_string(),
@@ -472,5 +555,5 @@ fn proxy_error(path: FileSystemPathVc, buffer: Vec<u8>) -> Result<ProxyResultVc>
         ],
         body: buffer,
     }
-    .cell());
+    .cell())
 }

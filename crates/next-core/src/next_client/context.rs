@@ -6,7 +6,10 @@ use turbo_tasks::Value;
 use turbo_tasks_env::ProcessEnvVc;
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack::{
-    module_options::module_options_context::{ModuleOptionsContext, ModuleOptionsContextVc},
+    module_options::{
+        module_options_context::{ModuleOptionsContext, ModuleOptionsContextVc},
+        ModuleRuleCondition, ModuleRuleEffect, ModuleRuleVc,
+    },
     resolve_options_context::{ResolveOptionsContext, ResolveOptionsContextVc},
     transition::TransitionsByNameVc,
     ModuleAssetContextVc,
@@ -17,13 +20,17 @@ use turbopack_core::{
     environment::{BrowserEnvironment, EnvironmentIntention, EnvironmentVc, ExecutionEnvironment},
     resolve::{parse::RequestVc, pattern::Pattern},
 };
+use turbopack_ecmascript::{EcmascriptInputTransform, EcmascriptInputTransformsVc};
 use turbopack_env::ProcessEnvAssetVc;
 
 use crate::{
     embed_js::attached_next_js_package_path,
     env::filter_for_client,
     next_client::runtime_entry::{RuntimeEntriesVc, RuntimeEntry},
-    next_import_map::{get_next_client_fallback_import_map, get_next_client_import_map},
+    next_import_map::{
+        get_next_client_fallback_import_map, get_next_client_import_map,
+        get_next_client_resolved_map,
+    },
     react_refresh::assert_can_resolve_react_refresh,
 };
 
@@ -58,6 +65,7 @@ pub fn get_client_resolve_options_context(
 ) -> ResolveOptionsContextVc {
     let next_client_import_map = get_next_client_import_map(project_root, ty);
     let next_client_fallback_import_map = get_next_client_fallback_import_map(ty);
+    let next_client_resolved_map = get_next_client_resolved_map(project_root, project_root);
     ResolveOptionsContext {
         enable_typescript: true,
         enable_react: true,
@@ -65,6 +73,7 @@ pub fn get_client_resolve_options_context(
         custom_conditions: vec!["development".to_string()],
         import_map: Some(next_client_import_map),
         fallback_import_map: Some(next_client_fallback_import_map),
+        resolved_map: Some(next_client_resolved_map),
         browser: true,
         module: true,
         ..Default::default()
@@ -84,7 +93,7 @@ pub async fn get_client_module_options_context(
             .await?
             .is_found();
 
-    Ok(ModuleOptionsContext {
+    let module_options_context = ModuleOptionsContext {
         // We don't need to resolve React Refresh for each module. Instead,
         // we try resolve it once at the root and pass down a context to all
         // the modules.
@@ -95,8 +104,37 @@ pub async fn get_client_module_options_context(
         enable_typescript_transform: true,
         preset_env_versions: Some(env),
         ..Default::default()
-    }
-    .cell())
+    };
+
+    Ok(module_options_context.cell())
+}
+
+#[turbo_tasks::function]
+pub async fn add_next_transforms_to_pages(
+    module_options_context: ModuleOptionsContextVc,
+    pages_dir: FileSystemPathVc,
+) -> Result<ModuleOptionsContextVc> {
+    let mut module_options_context = module_options_context.await?.clone_value();
+    // Apply the Next SSG tranform to all pages.
+    module_options_context.custom_rules.push(ModuleRuleVc::new(
+        ModuleRuleCondition::all(vec![
+            ModuleRuleCondition::ResourcePathInExactDirectory(pages_dir),
+            ModuleRuleCondition::any(vec![
+                ModuleRuleCondition::ResourcePathEndsWith(".js".to_string()),
+                ModuleRuleCondition::ResourcePathEndsWith(".jsx".to_string()),
+                ModuleRuleCondition::ResourcePathEndsWith(".ts".to_string()),
+                ModuleRuleCondition::ResourcePathEndsWith(".tsx".to_string()),
+            ]),
+        ])
+        .cell(),
+        vec![
+            ModuleRuleEffect::AddEcmascriptTransforms(EcmascriptInputTransformsVc::cell(vec![
+                EcmascriptInputTransform::NextJs,
+            ]))
+            .cell(),
+        ],
+    ));
+    Ok(module_options_context.cell())
 }
 
 #[turbo_tasks::function]

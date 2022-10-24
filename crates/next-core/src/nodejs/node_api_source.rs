@@ -4,11 +4,8 @@ use anyhow::Result;
 use indexmap::IndexMap;
 use turbo_tasks::{primitives::StringVc, ValueToString};
 use turbo_tasks_fs::FileSystemPathVc;
-use turbopack_core::{
-    chunk::ChunkingContextVc,
-    introspect::{
-        asset::IntrospectableAssetVc, Introspectable, IntrospectableChildrenVc, IntrospectableVc,
-    },
+use turbopack_core::introspect::{
+    asset::IntrospectableAssetVc, Introspectable, IntrospectableChildrenVc, IntrospectableVc,
 };
 use turbopack_dev_server::source::{
     ContentSource, ContentSourceData, ContentSourceDataFilter, ContentSourceDataVary,
@@ -25,17 +22,13 @@ pub fn create_node_api_source(
     server_root: FileSystemPathVc,
     path_regex: PathRegexVc,
     entry: NodeEntryVc,
-    chunking_context: ChunkingContextVc,
     runtime_entries: EcmascriptChunkPlaceablesVc,
-    intermediate_output_path: FileSystemPathVc,
 ) -> ContentSourceVc {
     NodeApiContentSource {
         server_root,
         path_regex,
         entry,
-        chunking_context,
         runtime_entries,
-        intermediate_output_path,
     }
     .cell()
     .into()
@@ -52,9 +45,7 @@ struct NodeApiContentSource {
     server_root: FileSystemPathVc,
     path_regex: PathRegexVc,
     entry: NodeEntryVc,
-    chunking_context: ChunkingContextVc,
     runtime_entries: EcmascriptChunkPlaceablesVc,
-    intermediate_output_path: FileSystemPathVc,
 }
 
 impl NodeApiContentSource {
@@ -90,12 +81,13 @@ impl ContentSource for NodeApiContentSource {
                     ..
                 } = &*data
                 {
+                    let entry = this.entry.entry(data.clone()).await?;
                     return Ok(ContentSourceResult::HttpProxy(render_proxy(
                         this.server_root.join(path),
-                        this.entry.entry(),
+                        entry.module,
                         this.runtime_entries,
-                        this.chunking_context,
-                        this.intermediate_output_path,
+                        entry.chunking_context,
+                        entry.intermediate_output_path,
                         RenderData {
                             params,
                             method: method.clone(),
@@ -149,21 +141,24 @@ impl Introspectable for NodeApiContentSource {
     }
 
     #[turbo_tasks::function]
-    fn children(&self) -> IntrospectableChildrenVc {
-        IntrospectableChildrenVc::cell(HashSet::from([
-            (
+    async fn children(&self) -> Result<IntrospectableChildrenVc> {
+        let mut set = HashSet::new();
+        for &entry in self.entry.entries().await?.iter() {
+            let entry = entry.await?;
+            set.insert((
                 StringVc::cell("module".to_string()),
-                IntrospectableAssetVc::new(self.entry.entry().into()),
-            ),
-            (
+                IntrospectableAssetVc::new(entry.module.into()),
+            ));
+            set.insert((
                 StringVc::cell("intermediate asset".to_string()),
                 IntrospectableAssetVc::new(get_intermediate_asset(
-                    self.entry.entry(),
+                    entry.module,
                     self.runtime_entries,
-                    self.chunking_context,
-                    self.intermediate_output_path,
+                    entry.chunking_context,
+                    entry.intermediate_output_path,
                 )),
-            ),
-        ]))
+            ));
+        }
+        Ok(IntrospectableChildrenVc::cell(set))
     }
 }

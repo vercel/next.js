@@ -11,7 +11,7 @@ pub use module_rule::*;
 
 #[turbo_tasks::value(cell = "new", eq = "manual")]
 pub struct ModuleOptions {
-    pub rules: Vec<ModuleRule>,
+    pub rules: Vec<ModuleRuleVc>,
 }
 
 #[turbo_tasks::value_impl]
@@ -30,6 +30,7 @@ impl ModuleOptionsVc {
             preset_env_versions,
             ref custom_ecmascript_app_transforms,
             ref custom_ecmascript_transforms,
+            ref custom_rules,
             ..
         } = *context.await?;
         let mut transforms = custom_ecmascript_app_transforms.clone();
@@ -46,7 +47,6 @@ impl ModuleOptionsVc {
         if enable_styled_components {
             transforms.push(EcmascriptInputTransform::StyledComponents)
         }
-
         transforms.push(EcmascriptInputTransform::React {
             refresh: enable_react_refresh,
         });
@@ -77,118 +77,118 @@ impl ModuleOptionsVc {
 
         let css_transforms = CssInputTransformsVc::cell(vec![CssInputTransform::Nested]);
 
-        Ok(ModuleOptionsVc::cell(ModuleOptions {
-            rules: vec![
-                ModuleRule::new(
-                    ModuleRuleCondition::ResourcePathEndsWith(".json".to_string()),
-                    vec![ModuleRuleEffect::ModuleType(ModuleType::Json)],
-                ),
-                ModuleRule::new(
-                    ModuleRuleCondition::ResourcePathEndsWith(".css".to_string()),
-                    vec![ModuleRuleEffect::ModuleType(ModuleType::Css(
-                        css_transforms,
-                    ))],
-                ),
-                ModuleRule::new(
-                    ModuleRuleCondition::ResourcePathEndsWith(".module.css".to_string()),
-                    vec![ModuleRuleEffect::ModuleType(ModuleType::CssModule(
-                        css_transforms,
-                    ))],
-                ),
-                ModuleRule::new(
-                    ModuleRuleCondition::any(vec![
-                        ModuleRuleCondition::ResourcePathEndsWith(".js".to_string()),
-                        ModuleRuleCondition::ResourcePathEndsWith(".jsx".to_string()),
-                    ]),
-                    vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript(
-                        app_transforms,
-                    ))],
-                ),
-                ModuleRule::new(
-                    ModuleRuleCondition::all(vec![
-                        ModuleRuleCondition::ResourcePathEndsWith(".js".to_string()),
-                        ModuleRuleCondition::ResourcePathInDirectory("node_modules".to_string()),
-                    ]),
-                    vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript(
-                        vendor_transforms,
-                    ))],
-                ),
-                ModuleRule::new(
+        let mut rules = vec![
+            ModuleRuleVc::new(
+                ModuleRuleCondition::ResourcePathEndsWith(".json".to_string()).cell(),
+                vec![ModuleRuleEffect::ModuleType(ModuleType::Json).cell()],
+            ),
+            ModuleRuleVc::new(
+                ModuleRuleCondition::ResourcePathEndsWith(".css".to_string()).cell(),
+                vec![ModuleRuleEffect::ModuleType(ModuleType::Css(css_transforms)).cell()],
+            ),
+            ModuleRuleVc::new(
+                ModuleRuleCondition::ResourcePathEndsWith(".module.css".to_string()).cell(),
+                vec![ModuleRuleEffect::ModuleType(ModuleType::CssModule(css_transforms)).cell()],
+            ),
+            ModuleRuleVc::new(
+                ModuleRuleCondition::any(vec![
+                    ModuleRuleCondition::ResourcePathEndsWith(".js".to_string()),
+                    ModuleRuleCondition::ResourcePathEndsWith(".jsx".to_string()),
+                ])
+                .cell(),
+                vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript(app_transforms)).cell()],
+            ),
+            ModuleRuleVc::new(
+                ModuleRuleCondition::all(vec![
+                    ModuleRuleCondition::ResourcePathEndsWith(".js".to_string()),
+                    ModuleRuleCondition::ResourcePathInDirectory("node_modules".to_string()),
+                ])
+                .cell(),
+                vec![
+                    ModuleRuleEffect::ModuleType(ModuleType::Ecmascript(vendor_transforms)).cell(),
+                ],
+            ),
+            ModuleRuleVc::new(
+                ModuleRuleCondition::ResourcePathEndsWith(".mjs".to_string()).cell(),
+                vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript(app_transforms)).cell()],
+            ),
+            ModuleRuleVc::new(
+                ModuleRuleCondition::all(vec![
                     ModuleRuleCondition::ResourcePathEndsWith(".mjs".to_string()),
-                    vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript(
-                        app_transforms,
-                    ))],
-                ),
-                ModuleRule::new(
-                    ModuleRuleCondition::all(vec![
-                        ModuleRuleCondition::ResourcePathEndsWith(".mjs".to_string()),
-                        ModuleRuleCondition::ResourcePathInDirectory("node_modules".to_string()),
-                    ]),
-                    vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript(
-                        vendor_transforms,
-                    ))],
-                ),
-                ModuleRule::new(
+                    ModuleRuleCondition::ResourcePathInDirectory("node_modules".to_string()),
+                ])
+                .cell(),
+                vec![
+                    ModuleRuleEffect::ModuleType(ModuleType::Ecmascript(vendor_transforms)).cell(),
+                ],
+            ),
+            ModuleRuleVc::new(
+                ModuleRuleCondition::ResourcePathEndsWith(".cjs".to_string()).cell(),
+                vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript(app_transforms)).cell()],
+            ),
+            ModuleRuleVc::new(
+                ModuleRuleCondition::all(vec![
                     ModuleRuleCondition::ResourcePathEndsWith(".cjs".to_string()),
-                    vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript(
-                        app_transforms,
-                    ))],
-                ),
-                ModuleRule::new(
-                    ModuleRuleCondition::all(vec![
-                        ModuleRuleCondition::ResourcePathEndsWith(".cjs".to_string()),
-                        ModuleRuleCondition::ResourcePathInDirectory("node_modules".to_string()),
-                    ]),
-                    vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript(
+                    ModuleRuleCondition::ResourcePathInDirectory("node_modules".to_string()),
+                ])
+                .cell(),
+                vec![
+                    ModuleRuleEffect::ModuleType(ModuleType::Ecmascript(vendor_transforms)).cell(),
+                ],
+            ),
+            ModuleRuleVc::new(
+                ModuleRuleCondition::any(vec![
+                    ModuleRuleCondition::ResourcePathEndsWith(".ts".to_string()),
+                    ModuleRuleCondition::ResourcePathEndsWith(".tsx".to_string()),
+                ])
+                .cell(),
+                vec![
+                    ModuleRuleEffect::ModuleType(ModuleType::Typescript(ts_app_transforms)).cell(),
+                ],
+            ),
+            ModuleRuleVc::new(
+                ModuleRuleCondition::all(vec![
+                    ModuleRuleCondition::ResourcePathEndsWith(".ts".to_string()),
+                    ModuleRuleCondition::ResourcePathInDirectory("node_modules".to_string()),
+                ])
+                .cell(),
+                vec![ModuleRuleEffect::ModuleType(ModuleType::Typescript(ts_transforms)).cell()],
+            ),
+            ModuleRuleVc::new(
+                ModuleRuleCondition::ResourcePathEndsWith(".d.ts".to_string()).cell(),
+                vec![
+                    ModuleRuleEffect::ModuleType(ModuleType::TypescriptDeclaration(
                         vendor_transforms,
-                    ))],
-                ),
-                ModuleRule::new(
-                    ModuleRuleCondition::any(vec![
-                        ModuleRuleCondition::ResourcePathEndsWith(".ts".to_string()),
-                        ModuleRuleCondition::ResourcePathEndsWith(".tsx".to_string()),
-                    ]),
-                    vec![ModuleRuleEffect::ModuleType(ModuleType::Typescript(
-                        ts_app_transforms,
-                    ))],
-                ),
-                ModuleRule::new(
-                    ModuleRuleCondition::all(vec![
-                        ModuleRuleCondition::ResourcePathEndsWith(".ts".to_string()),
-                        ModuleRuleCondition::ResourcePathInDirectory("node_modules".to_string()),
-                    ]),
-                    vec![ModuleRuleEffect::ModuleType(ModuleType::Typescript(
-                        ts_transforms,
-                    ))],
-                ),
-                ModuleRule::new(
-                    ModuleRuleCondition::ResourcePathEndsWith(".d.ts".to_string()),
-                    vec![ModuleRuleEffect::ModuleType(
-                        ModuleType::TypescriptDeclaration(vendor_transforms),
-                    )],
-                ),
-                ModuleRule::new(
-                    ModuleRuleCondition::any(vec![
-                        ModuleRuleCondition::ResourcePathEndsWith(".apng".to_string()),
-                        ModuleRuleCondition::ResourcePathEndsWith(".avif".to_string()),
-                        ModuleRuleCondition::ResourcePathEndsWith(".gif".to_string()),
-                        ModuleRuleCondition::ResourcePathEndsWith(".ico".to_string()),
-                        ModuleRuleCondition::ResourcePathEndsWith(".jpg".to_string()),
-                        ModuleRuleCondition::ResourcePathEndsWith(".jpeg".to_string()),
-                        ModuleRuleCondition::ResourcePathEndsWith(".png".to_string()),
-                        ModuleRuleCondition::ResourcePathEndsWith(".svg".to_string()),
-                        ModuleRuleCondition::ResourcePathEndsWith(".webp".to_string()),
-                        ModuleRuleCondition::ResourcePathEndsWith(".woff2".to_string()),
-                    ]),
-                    vec![ModuleRuleEffect::ModuleType(ModuleType::Static)],
-                ),
-                ModuleRule::new(
-                    ModuleRuleCondition::ResourcePathHasNoExtension,
-                    vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript(
-                        vendor_transforms,
-                    ))],
-                ),
-            ],
-        }))
+                    ))
+                    .cell(),
+                ],
+            ),
+            ModuleRuleVc::new(
+                ModuleRuleCondition::any(vec![
+                    ModuleRuleCondition::ResourcePathEndsWith(".apng".to_string()),
+                    ModuleRuleCondition::ResourcePathEndsWith(".avif".to_string()),
+                    ModuleRuleCondition::ResourcePathEndsWith(".gif".to_string()),
+                    ModuleRuleCondition::ResourcePathEndsWith(".ico".to_string()),
+                    ModuleRuleCondition::ResourcePathEndsWith(".jpg".to_string()),
+                    ModuleRuleCondition::ResourcePathEndsWith(".jpeg".to_string()),
+                    ModuleRuleCondition::ResourcePathEndsWith(".png".to_string()),
+                    ModuleRuleCondition::ResourcePathEndsWith(".svg".to_string()),
+                    ModuleRuleCondition::ResourcePathEndsWith(".webp".to_string()),
+                    ModuleRuleCondition::ResourcePathEndsWith(".woff2".to_string()),
+                ])
+                .cell(),
+                vec![ModuleRuleEffect::ModuleType(ModuleType::Static).cell()],
+            ),
+            ModuleRuleVc::new(
+                ModuleRuleCondition::ResourcePathHasNoExtension.cell(),
+                vec![
+                    ModuleRuleEffect::ModuleType(ModuleType::Ecmascript(vendor_transforms)).cell(),
+                ],
+            ),
+        ];
+
+        rules.extend(custom_rules.iter().copied());
+
+        Ok(ModuleOptionsVc::cell(ModuleOptions { rules }))
     }
 }
