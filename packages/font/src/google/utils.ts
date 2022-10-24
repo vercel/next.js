@@ -16,6 +16,7 @@ type FontOptions = {
   fallback?: string[]
   adjustFontFallback: boolean
   variable?: string
+  subsets?: string[]
 }
 export function validateData(functionName: string, data: any): FontOptions {
   let {
@@ -27,6 +28,7 @@ export function validateData(functionName: string, data: any): FontOptions {
     fallback,
     adjustFontFallback = true,
     variable,
+    subsets,
   } = data[0] || ({} as any)
   if (functionName === '') {
     throw new Error(`@next/font/google has no default export`)
@@ -98,6 +100,7 @@ export function validateData(functionName: string, data: any): FontOptions {
     fallback,
     adjustFontFallback,
     variable,
+    subsets,
   }
 }
 

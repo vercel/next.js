@@ -21,16 +21,8 @@ const downloadGoogleFonts: FontLoader = async ({
   data,
   config,
   emitFontFile,
+  isServer,
 }) => {
-  if (!config?.subsets) {
-    Log.warn(
-      `${chalk.bold('@next/font/google')} is missing ${chalk.bold(
-        'options.subsets'
-      )} in your ${chalk.bold(
-        'next.config.js'
-      )}. Please specify subsets, otherwise no fonts will be preloaded.`
-    )
-  }
   const subsets = config?.subsets || []
 
   const {
@@ -43,7 +35,19 @@ const downloadGoogleFonts: FontLoader = async ({
     fallback,
     adjustFontFallback,
     variable,
+    subsets: callSubsets,
   } = validateData(functionName, data)
+
+  if (isServer && preload && !callSubsets && !config?.subsets) {
+    Log.warn(
+      `The ${chalk.bold('@next/font/google')} font ${chalk.bold(
+        fontFamily
+      )} has no selected subsets. Please specify subsets in the function call or in your ${chalk.bold(
+        'next.config.js'
+      )}, otherwise no fonts will be preloaded. Read more: https://nextjs.org/docs/api-reference/components/font#nextfontgoogle`
+    )
+  }
+
   const fontAxes = getFontAxes(fontFamily, weight, style, selectedVariableAxes)
   const url = getUrl(fontFamily, fontAxes, display)
 
@@ -72,7 +76,8 @@ const downloadGoogleFonts: FontLoader = async ({
       if (googleFontFileUrl) {
         fontFiles.push({
           googleFontFileUrl,
-          preloadFontFile: !!preload && subsets.includes(currentSubset),
+          preloadFontFile:
+            !!preload && (callSubsets ?? subsets).includes(currentSubset),
         })
       }
     }

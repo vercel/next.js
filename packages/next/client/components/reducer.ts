@@ -6,7 +6,6 @@ import type {
   FlightSegmentPath,
   Segment,
 } from '../../server/app-render'
-// TODO-APP: change to React.use once it becomes stable
 import { matchSegment } from './match-segments'
 import { fetchServerResponse } from './app-router'
 
