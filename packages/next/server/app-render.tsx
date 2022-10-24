@@ -4,11 +4,8 @@ import type { ServerRuntime } from '../types'
 import type { FontLoaderManifest } from '../build/webpack/plugins/font-loader-manifest-plugin'
 
 // TODO-APP: investigate why require-hook doesn't work for app-render
-// TODO-APP: change to React.use once it becomes stable
-import React, {
-  // @ts-ignore
-  experimental_use as use,
-} from 'next/dist/compiled/react'
+
+import React, { use } from 'next/dist/compiled/react'
 
 // this needs to be required lazily so that `next-server` can set
 // the env before we require
