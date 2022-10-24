@@ -2,7 +2,6 @@
 import '../build/polyfills/polyfill-module'
 // @ts-ignore react-dom/client exists when using React 18
 import ReactDOMClient from 'react-dom/client'
-// TODO-APP: change to React.use once it becomes stable
 import React, { use } from 'react'
 import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack/client'
 

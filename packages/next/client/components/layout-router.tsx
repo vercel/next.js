@@ -1,12 +1,6 @@
 'use client'
 
-import React, {
-  useContext,
-  useEffect,
-  useRef,
-  // TODO-APP: change to React.use once it becomes stable
-  use,
-} from 'react'
+import React, { useContext, useEffect, useRef, use } from 'react'
 import type {
   ChildProp,
   //Segment
