@@ -150,13 +150,13 @@ async fn create_server_rendered_source_for_file(
     let source_asset = SourceAssetVc::new(page_file).into();
     let entry_asset = context.process(source_asset);
 
-    let chunking_context = DevChunkingContextVc::new(
+    let chunking_context = DevChunkingContextVc::builder(
         context_path,
         intermediate_output_path,
         intermediate_output_path.join("chunks"),
         get_client_assets_path(server_root, Value::new(ContextType::Pages { pages_dir })),
-        false,
     )
+    .build()
     .into();
 
     Ok(if *is_api_path.await? {

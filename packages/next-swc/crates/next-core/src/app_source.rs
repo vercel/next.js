@@ -287,15 +287,17 @@ async fn create_app_source_for_directory(
                 }
             }
         }
-        if let Some(file) = layout.copied() {
-            let mut list = layouts.await?.clone_value();
-            list.push(LayoutSegment { file, target }.cell());
-            layouts = LayoutSegmentsVc::cell(list);
-        }
-        if let Some(file) = page.copied() {
-            let mut list = layouts.await?.clone_value();
-            list.push(LayoutSegment { file, target }.cell());
-            let layout_path = LayoutSegmentsVc::cell(list);
+        let mut list = layouts.await?.clone_value();
+        list.push(
+            LayoutSegment {
+                file: layout.copied(),
+                target,
+            }
+            .cell(),
+        );
+        layouts = LayoutSegmentsVc::cell(list);
+        if let Some(page_path) = page.copied() {
+
 
             sources.push(create_node_rendered_source(
                 server_root,
@@ -304,7 +306,9 @@ async fn create_app_source_for_directory(
                     context_ssr,
                     context,
                     server_root,
-                    layout_path,
+                    layout_path: layouts,
+                    page_path,
+                    target,
                     project_root,
                     intermediate_output_path,
                 }
@@ -351,6 +355,8 @@ struct AppRenderer {
     context: AssetContextVc,
     server_root: FileSystemPathVc,
     layout_path: LayoutSegmentsVc,
+    page_path: FileSystemPathVc,
+    target: FileSystemPathVc,
     project_root: FileSystemPathVc,
     intermediate_output_path: FileSystemPathVc,
 }
@@ -365,48 +371,59 @@ impl NodeEntry for AppRenderer {
             false
         };
         let layout_path = self.layout_path.await?;
-        let page = layout_path
-            .last()
-            .ok_or_else(|| anyhow!("layout path must not be empty"))?;
-        let path = page.await?.file.parent();
+        let page = self.page_path;
+        let path = page.parent();
         let path_value = &*path.await?;
-        let segments = layout_path
+        let layout_and_page = layout_path
             .iter()
             .copied()
+            .chain(std::iter::once(
+                LayoutSegment {
+                    file: Some(page),
+                    target: self.target,
+                }
+                .cell(),
+            ))
             .try_join()
-            .await?
+            .await?;
+        let segments: Vec<(String, Option<(String, String, String)>)> = layout_and_page
             .into_iter()
             .fold(
                 (self.server_root, Vec::new()),
                 |(last_path, mut futures), segment| {
                     (segment.target, {
                         futures.push(async move {
-                            let file_str = segment.file.to_string().await?;
                             let target = &*segment.target.await?;
                             let segment_path =
                                 last_path.await?.get_path_to(target).unwrap_or_default();
-                            let identifier = magic_identifier::encode(&format!(
-                                "imported namespace {}",
-                                file_str
-                            ));
-                            let chunks_identifier = magic_identifier::encode(&format!(
-                                "client chunks for {}",
-                                file_str
-                            ));
-                            if let Some(p) = path_value.get_relative_path_to(&*segment.file.await?)
-                            {
-                                Ok((
-                                    p,
-                                    stringify_str(segment_path),
-                                    identifier,
-                                    chunks_identifier,
-                                ))
+                            if let Some(file) = segment.file {
+                                let file_str = file.to_string().await?;
+                                let identifier = magic_identifier::encode(&format!(
+                                    "imported namespace {}",
+                                    file_str
+                                ));
+                                let chunks_identifier = magic_identifier::encode(&format!(
+                                    "client chunks for {}",
+                                    file_str
+                                ));
+                                if let Some(p) = path_value.get_relative_path_to(&*file.await?) {
+                                    Ok((
+                                        stringify_str(segment_path),
+                                        Some((p, identifier, chunks_identifier)),
+                                    ))
+                                } else {
+                                    Err(anyhow!(
+                                        "Unable to generate import as there
+                                is no relative path to the layout module {} from context
+                                path {}",
+                                        file_str,
+                                        path.to_string().await?
+                                    ))
+                                }
                             } else {
-                                Err(anyhow!(
-                                    "Unable to generate import as there is no relative path to \
-                                     the layout module {} from context path {}",
-                                    file_str,
-                                    path.to_string().await?
+                                Ok::<(String, Option<(String, String, String)>), _>((
+                                    stringify_str(segment_path),
+                                    None,
                                 ))
                             }
                         });
@@ -419,18 +436,20 @@ impl NodeEntry for AppRenderer {
             .try_join()
             .await?;
         let mut result = String::new();
-        for (p, _, identifier, chunks_identifier) in segments.iter() {
-            writeln!(
-                result,
-                r#"("TURBOPACK {{ transition: next-layout-entry; chunking-type: parallel }}");
+        for (_, import) in segments.iter() {
+            if let Some((p, identifier, chunks_identifier)) = import {
+                writeln!(
+                    result,
+                    r#"("TURBOPACK {{ transition: next-layout-entry; chunking-type: parallel }}");
 import {}, {{ chunks as {} }} from {};
 "#,
-                identifier,
-                chunks_identifier,
-                stringify_str(p)
-            )?
+                    identifier,
+                    chunks_identifier,
+                    stringify_str(p)
+                )?
+            }
         }
-        if let Some(page) = path_value.get_relative_path_to(&*page.await?.file.await?) {
+        if let Some(page) = path_value.get_relative_path_to(&*page.await?) {
             writeln!(
                 result,
                 r#"("TURBOPACK {{ transition: next-client }}");
@@ -440,12 +459,16 @@ import BOOTSTRAP from {};
             )?;
         }
         result.push_str("const LAYOUT_INFO = [");
-        for (_, segment_str_lit, identifier, chunks_identifier) in segments.iter() {
-            writeln!(
-                result,
-                "  {{ segment: {segment_str_lit}, module: {identifier}, chunks: \
-                 {chunks_identifier} }},",
-            )?
+        for (segment_str_lit, import) in segments.iter() {
+            if let Some((_, identifier, chunks_identifier)) = import {
+                writeln!(
+                    result,
+                    "  {{ segment: {segment_str_lit}, module: {identifier}, chunks: \
+                     {chunks_identifier} }},",
+                )?
+            } else {
+                writeln!(result, "  {{ segment: {segment_str_lit} }},",)?
+            }
         }
         result.push_str("];\n\n");
         let base_code = next_js_file("entry/app-renderer.tsx");
@@ -460,15 +483,16 @@ import BOOTSTRAP from {};
             (self.context_ssr, self.intermediate_output_path)
         };
 
-        let chunking_context = DevChunkingContextVc::new_with_layer(
+        let chunking_context = DevChunkingContextVc::builder(
             self.project_root,
             intermediate_output_path,
             intermediate_output_path.join("chunks"),
             self.server_root.join("_next/static/assets"),
-            false,
-            "ssr",
         )
-        .into();
+        .layer("ssr")
+        .css_chunk_root_path(self.server_root.join("_next/static/chunks"))
+        .build();
+
         Ok(NodeRenderingEntry {
             module: EcmascriptModuleAssetVc::new(
                 asset.into(),
