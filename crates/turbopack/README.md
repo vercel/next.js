@@ -35,7 +35,7 @@ Visit https://turbo.build/pack to view the full documentation.
 
 The Turborepo community can be found on [GitHub Discussions](https://github.com/vercel/turbo/discussions), where you can ask questions, voice ideas, and share your projects.
 
-To chat with other community members, you can join the [Turborepo Discord](https://turborepo.org/discord).
+To chat with other community members, you can join the [Turborepo Discord](https://turbo.build/discord).
 
 Our [Code of Conduct](https://github.com/vercel/turbo/blob/main/CODE_OF_CONDUCT.md) applies to all Turborepo community channels.
 
