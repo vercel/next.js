@@ -156,7 +156,6 @@ const nextDev: cliCommand = (argv) => {
       )
       const findUp =
         require('next/dist/compiled/find-up') as typeof import('next/dist/compiled/find-up')
-      const turboJson = findUp.sync('turbo.json', { cwd: dir })
       const packagePath = findUp.sync('package.json', { cwd: dir })
       let hasSideCar = false
 
@@ -164,9 +163,9 @@ const nextDev: cliCommand = (argv) => {
         const pkgData = require(packagePath)
         hasSideCar = Object.values(
           (pkgData.scripts || {}) as Record<string, string>
-        ).some((script) => {
-          script.includes('tailwind') || script.includes('postcss')
-        })
+        ).some(
+          (script) => script.includes('tailwind') || script.includes('postcss')
+        )
       }
       const postcssFile =
         !hasSideCar && (await findConfig<string>(dir, 'postcss'))
@@ -243,35 +242,39 @@ const nextDev: cliCommand = (argv) => {
             'Error:'
           )} You are using configuration and/or tools that are not yet\nsupported by Next.js v13 with Turbopack:\n${unsupportedParts}\n
 If you cannot make the changes above, but still want to try out\nNext.js v13 with Turbopack, create the Next.js v13 playground app\nby running the following commands:
-        
+
   ${chalk.bold.cyan(
     `${
       pkgManager === 'npm'
         ? 'npx create-next-app'
         : `${pkgManager} create next-app`
     } --example with-turbopack with-turbopack-app`
-  )}\n  cd with-turbopack-app\n  ${pkgManager} run dev  
+  )}\n  cd with-turbopack-app\n  ${pkgManager} run dev
         `
         )
         console.warn(feedbackMessage)
         process.exit(1)
       }
+
       loadBindings()
         .then((bindings: any) => {
+          // eslint-disable-next-line no-shadow
           const findUp =
             require('next/dist/compiled/find-up') as typeof import('next/dist/compiled/find-up')
           const turboJson = findUp.sync('turbo.json', { cwd: dir })
+          // eslint-disable-next-line no-shadow
           const packagePath = findUp.sync('package.json', { cwd: dir })
 
-          let server = bindings.diagnostics.startDiagnostics({
+          let server = bindings.turbo.startDev({
             ...devServerOptions,
-	    showAll: args['--show-all'] ?? false,
+            showAll: args['--show-all'] ?? false,
             rootDir:
-              args['--root'] ?? turboJson
+              args['--root'] ??
+              (turboJson
                 ? path.dirname(turboJson)
                 : packagePath
                 ? path.dirname(packagePath)
-                : undefined,
+                : undefined),
             serverComponentsExternalPackages:
               rawNextConfig.experimental?.serverComponentsExternalPackages,
           })
