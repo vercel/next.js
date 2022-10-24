@@ -75,6 +75,9 @@ const babelIncludeRegexes: RegExp[] = [
 
 const reactPackagesRegex = /^(react(?:$|\/)|react-dom(?:$|\/)|scheduler$)/
 
+const staticGenerationAsyncStorageRegex =
+  /next[\\/]dist[\\/]client[\\/]components[\\/]static-generation-async-storage/
+
 const BABEL_CONFIG_FILES = [
   '.babelrc',
   '.babelrc.json',
@@ -1632,6 +1635,12 @@ export default async function getBaseWebpackConfig(
               },
             ]
           : []),
+        ...[
+          {
+            layer: WEBPACK_LAYERS.shared,
+            test: staticGenerationAsyncStorageRegex,
+          },
+        ],
         // TODO: FIXME: do NOT webpack 5 support with this
         // x-ref: https://github.com/webpack/webpack/issues/11467
         ...(!config.experimental.fullySpecified
@@ -1660,6 +1669,7 @@ export default async function getBaseWebpackConfig(
               // RSC server compilation loaders
               {
                 test: codeCondition.test,
+                exclude: [staticGenerationAsyncStorageRegex],
                 issuerLayer: WEBPACK_LAYERS.server,
                 use: {
                   loader: 'next-flight-loader',
@@ -1692,6 +1702,7 @@ export default async function getBaseWebpackConfig(
                 // Alias react for switching between default set and share subset.
                 oneOf: [
                   {
+                    exclude: [staticGenerationAsyncStorageRegex],
                     issuerLayer: WEBPACK_LAYERS.server,
                     test(req: string) {
                       // If it's not a source code file, or has been opted out of
@@ -1763,6 +1774,7 @@ export default async function getBaseWebpackConfig(
                   {
                     test: codeCondition.test,
                     issuerLayer: WEBPACK_LAYERS.server,
+                    exclude: [staticGenerationAsyncStorageRegex],
                     use: useSWCLoader
                       ? getSwcLoader({ isServerLayer: true })
                       : // When using Babel, we will have to add the SWC loader
