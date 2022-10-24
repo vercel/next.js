@@ -11,6 +11,8 @@ import { getProjectDir } from '../lib/get-project-dir'
 import { CONFIG_FILES } from '../shared/lib/constants'
 import path from 'path'
 import { loadBindings } from '../build/swc'
+import { NextConfig } from '../types'
+import { getPkgManager } from '../lib/helpers/get-pkg-manager'
 
 const nextDev: cliCommand = (argv) => {
   const validArgs: arg.Spec = {
@@ -102,14 +104,89 @@ const nextDev: cliCommand = (argv) => {
   }
 
   if (args['--turbo']) {
-    loadBindings().then((bindings: any) => {
+    // check for postcss, babelrc, swc plugins
+    return new Promise(async (resolve) => {
+      const chalk =
+        require('next/dist/compiled/chalk') as typeof import('next/dist/compiled/chalk')
+
+      // To regenerate the TURBOPACK gradient require('gradient-string')('blue', 'red')('>>> TURBOPACK')
+      console.log(
+        `${chalk.bold(
+          '\x1B[38;2;0;0;255m>\x1B[39m\x1B[38;2;23;0;232m>\x1B[39m\x1B[38;2;46;0;209m>\x1B[39m \x1B[38;2;70;0;185mT\x1B[39m\x1B[38;2;93;0;162mU\x1B[39m\x1B[38;2;116;0;139mR\x1B[39m\x1B[38;2;139;0;116mB\x1B[39m\x1B[38;2;162;0;93mO\x1B[39m\x1B[38;2;185;0;70mP\x1B[39m\x1B[38;2;209;0;46mA\x1B[39m\x1B[38;2;232;0;23mC\x1B[39m\x1B[38;2;255;0;0mK\x1B[39m'
+        )} ${chalk.dim('(alpha)')}\n\n` +
+          `Thank you for trying Next.js 13 with Turbopack! As a reminder,\nTurbopack is currently in alpha and not yet ready for production\nuse. We appreciate your ongoing support as we work to make it ready\nfor everyone.\n\n` +
+          `Please direct any feedback to: ${chalk.underline(
+            'https://nextjs.link/turbopack-feedback'
+          )}\n`
+      )
+
+      const { getBabelConfigFile } =
+        require('../build/webpack-config') as typeof import('../build/webpack-config')
+      const { defaultConfig } =
+        require('../server/config-shared') as typeof import('../server/config-shared')
+      const { default: loadConfig } =
+        require('../server/config') as typeof import('../server/config')
+      const { PHASE_DEVELOPMENT_SERVER } =
+        require('../shared/lib/constants') as typeof import('../shared/lib/constants')
+
+      let unsupportedParts = ''
+      const babelrc = '.babelrc' || (await getBabelConfigFile(dir))
+      const rawNextConfig = (await loadConfig(
+        PHASE_DEVELOPMENT_SERVER,
+        dir,
+        undefined,
+        true
+      )) as NextConfig
+
+      const hasNonDefaultConfig = Object.keys(rawNextConfig).some(
+        (configKey) => {
+          if (!(configKey in defaultConfig)) return false
+          if (typeof defaultConfig[configKey] !== 'object') {
+            return defaultConfig[configKey] !== rawNextConfig[configKey]
+          }
+          return (
+            JSON.stringify(rawNextConfig[configKey]) !==
+            JSON.stringify(defaultConfig[configKey])
+          )
+        }
+      )
+      if (babelrc) {
+        unsupportedParts += `\n- Babel detected (${chalk.cyan(
+          babelrc
+        )})\n  ${chalk.dim(
+          `Babel is not yet supported. To use Turbopack at the moment,\n  you'll need to remove your usage of Babel.`
+        )}`
+      }
+      if (hasNonDefaultConfig || true) {
+        unsupportedParts += `\n- Unsupported Next.js configuration option (${chalk.cyan(
+          babelrc
+        )})\n  The only option supported is (${chalk.bold.cyan(
+          'experimental.serverComponentsExternalPackages'
+        )} and ${chalk.bold.cyan('experimental.transpilePackages')}).\n`
+      }
+
+      if (unsupportedParts) {
+        console.error(
+          `${chalk.bold.red(
+            'Error:'
+          )} You are using configuration and/or tools that are not yet\nsupported by Next.js v13 with Turbopack:\n${unsupportedParts}`
+        )
+        process.exit(1)
+      }
+      process.exit(0)
+      loadBindings()
+        .then((bindings: any) => {
       const server = bindings.turbo.startDev({
-        ...devServerOptions,
+            ...devServerOptions,
         showAll: args['--show-all'] ?? false,
-      })
-      // Start preflight after server is listening and ignore errors:
-      preflight().catch(() => {})
+            serverComponentsExternalPackages:
+              rawNextConfig.experimental?.serverComponentsExternalPackages,
+          })
+          // Start preflight after server is listening and ignore errors:
+          preflight().catch(() => {})
       return server
+        })
+        .then(resolve)
     })
   } else {
     startServer(devServerOptions)
