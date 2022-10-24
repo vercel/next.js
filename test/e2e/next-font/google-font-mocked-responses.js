@@ -1,3 +1,5 @@
+const path = require('path')
+
 module.exports = {
   'https://fonts.googleapis.com/css2?family=Open+Sans:wght@300..800&display=optional': `
 /* cyrillic-ext */
@@ -499,7 +501,10 @@ module.exports = {
     font-style: normal;
     font-weight: 400;
     font-display: optional;
-    src: url(https://fonts.gstatic.com/s/fraunces/v24/6NUh8FyLNQOQZAnv9bYEvDiIdE9Ea92uemAk_WBq8U_9v0c2Wa0K7iN7hzFUPJH58nib1603gg7S2nfgRYIctxuTBv7Tp05GNyXkb24.woff2) format('woff2');
+    src: url(${path.join(
+      __dirname,
+      './fonts/6NUh8FyLNQOQZAnv9bYEvDiIdE9Ea92uemAk_WBq8U_9v0c2Wa0K7iN7hzFUPJH58nib1603gg7S2nfgRYIctxuTBv7Tp05GNyXkb24.woff2'
+    )}) format('woff2');
     unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+1EA0-1EF9, U+20AB;
   }
   /* latin-ext */
@@ -508,7 +513,10 @@ module.exports = {
     font-style: normal;
     font-weight: 400;
     font-display: optional;
-    src: url(https://fonts.gstatic.com/s/fraunces/v24/6NUh8FyLNQOQZAnv9bYEvDiIdE9Ea92uemAk_WBq8U_9v0c2Wa0K7iN7hzFUPJH58nib1603gg7S2nfgRYIctxuTB_7Tp05GNyXkb24.woff2) format('woff2');
+    src: url(${path.join(
+      __dirname,
+      './fonts/6NUh8FyLNQOQZAnv9bYEvDiIdE9Ea92uemAk_WBq8U_9v0c2Wa0K7iN7hzFUPJH58nib1603gg7S2nfgRYIctxuTB_7Tp05GNyXkb24.woff2'
+    )}) format('woff2');
     unicode-range: U+0100-024F, U+0259, U+1E00-1EFF, U+2020, U+20A0-20AB, U+20AD-20CF, U+2113, U+2C60-2C7F, U+A720-A7FF;
   }
   /* latin */
@@ -517,7 +525,10 @@ module.exports = {
     font-style: normal;
     font-weight: 400;
     font-display: optional;
-    src: url(https://fonts.gstatic.com/s/fraunces/v24/6NUh8FyLNQOQZAnv9bYEvDiIdE9Ea92uemAk_WBq8U_9v0c2Wa0K7iN7hzFUPJH58nib1603gg7S2nfgRYIctxuTCf7Tp05GNyXk.woff2) format('woff2');
+    src: url(${path.join(
+      __dirname,
+      './fonts/6NUh8FyLNQOQZAnv9bYEvDiIdE9Ea92uemAk_WBq8U_9v0c2Wa0K7iN7hzFUPJH58nib1603gg7S2nfgRYIctxuTCf7Tp05GNyXk.woff2'
+    )}) format('woff2');
     unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
   }`,
   'https://fonts.googleapis.com/css2?family=Indie+Flower:wght@400&display=optional': `/* latin */
@@ -526,7 +537,10 @@ module.exports = {
     font-style: normal;
     font-weight: 400;
     font-display: optional;
-    src: url(https://fonts.gstatic.com/s/indieflower/v17/m8JVjfNVeKWVnh3QMuKkFcZVaUuH99GUDg.woff2) format('woff2');
+    src: url(${path.join(
+      __dirname,
+      './fonts/m8JVjfNVeKWVnh3QMuKkFcZVaUuH99GUDg.woff2'
+    )}) format('woff2');
     unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
   }`,
 }

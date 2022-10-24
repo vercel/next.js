@@ -45,6 +45,6 @@ export async function writeVscodeConfigurations(
       await fs.writeFile(gitIgnore, `${gitIgnoreContent}\n.vscode\n`)
     }
   } catch (e) {
-    await fs.writeFile(gitIgnore, `vscode\n`)
+    await fs.writeFile(gitIgnore, `.vscode\n`)
   }
 }
