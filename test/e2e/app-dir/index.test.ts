@@ -30,6 +30,7 @@ describe('app dir', () => {
         dependencies: {
           react: 'experimental',
           'react-dom': 'experimental',
+          sass: 'latest',
         },
         skipStart: true,
       })
@@ -1372,6 +1373,144 @@ describe('app dir', () => {
             )
           ).toBe('rgb(0, 0, 255)')
         })
+      })
+    })
+    describe('sass support', () => {
+      describe('server layouts', () => {
+        it('should support global sass/scss inside server layouts', async () => {
+          const browser = await webdriver(next.url, '/css/sass/inner')
+          // .sass
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('#sass-server-layout')).color`
+            )
+          ).toBe('rgb(165, 42, 42)')
+          // .scss
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('#scss-server-layout')).color`
+            )
+          ).toBe('rgb(222, 184, 135)')
+        })
+
+        it('should support sass/scss modules inside server layouts', async () => {
+          const browser = await webdriver(next.url, '/css/sass/inner')
+          // .sass
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('#sass-server-layout')).backgroundColor`
+            )
+          ).toBe('rgb(233, 150, 122)')
+          // .scss
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('#scss-server-layout')).backgroundColor`
+            )
+          ).toBe('rgb(139, 0, 0)')
+        })
+      })
+
+      describe('server pages', () => {
+        it('should support global sass/scss inside server pages', async () => {
+          const browser = await webdriver(next.url, '/css/sass/inner')
+          // .sass
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('#sass-server-page')).color`
+            )
+          ).toBe('rgb(245, 222, 179)')
+          // .scss
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('#scss-server-page')).color`
+            )
+          ).toBe('rgb(255, 99, 71)')
+        })
+
+        it('should support sass/scss modules inside server pages', async () => {
+          const browser = await webdriver(next.url, '/css/sass/inner')
+          // .sass
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('#sass-server-page')).backgroundColor`
+            )
+          ).toBe('rgb(75, 0, 130)')
+          // .scss
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('#scss-server-page')).backgroundColor`
+            )
+          ).toBe('rgb(0, 255, 255)')
+        })
+      })
+
+      describe('client layouts', () => {
+        it('should support global sass/scss inside client layouts', async () => {
+          const browser = await webdriver(next.url, '/css/sass-client/inner')
+          // .sass
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('#sass-client-layout')).color`
+            )
+          ).toBe('rgb(165, 42, 42)')
+          // .scss
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('#scss-client-layout')).color`
+            )
+          ).toBe('rgb(222, 184, 135)')
+        })
+
+        it('should support sass/scss modules inside client layouts', async () => {
+          const browser = await webdriver(next.url, '/css/sass-client/inner')
+          // .sass
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('#sass-client-layout')).backgroundColor`
+            )
+          ).toBe('rgb(233, 150, 122)')
+          // .scss
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('#scss-client-layout')).backgroundColor`
+            )
+          ).toBe('rgb(139, 0, 0)')
+        })
+      })
+    })
+
+    describe('client pages', () => {
+      it('should support global sass/scss inside client pages', async () => {
+        const browser = await webdriver(next.url, '/css/sass-client/inner')
+        await waitFor(5000)
+        // .sass
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.querySelector('#sass-client-page')).color`
+          )
+        ).toBe('rgb(245, 222, 179)')
+        // .scss
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.querySelector('#scss-client-page')).color`
+          )
+        ).toBe('rgb(255, 99, 71)')
+      })
+
+      it('should support sass/scss modules inside client pages', async () => {
+        const browser = await webdriver(next.url, '/css/sass-client/inner')
+        // .sass
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.querySelector('#sass-client-page')).backgroundColor`
+          )
+        ).toBe('rgb(75, 0, 130)')
+        // .scss
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.querySelector('#scss-client-page')).backgroundColor`
+          )
+        ).toBe('rgb(0, 255, 255)')
       })
     })
     ;(isDev ? describe.skip : describe)('Subresource Integrity', () => {

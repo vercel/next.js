@@ -11,5 +11,4 @@ export function isClientComponentModule(mod: {
   return hasClientDirective || imageRegex.test(mod.resource)
 }
 
-// TODO-APP: ensure .scss / .sass also works.
-export const regexCSS = /\.css(\?.*)?$/
+export const regexCSS = /\.(css|scss|sass)(\?.*)?$/
