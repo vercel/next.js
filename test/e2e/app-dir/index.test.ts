@@ -1899,6 +1899,24 @@ describe('app dir', () => {
       })
     })
 
+    describe('bots', () => {
+      it('should block rendering for bots and return 404 status', async () => {
+        const res = await fetchViaHTTP(
+          next.url,
+          '/not-found/servercomponent',
+          '',
+          {
+            headers: {
+              'User-Agent': 'Googlebot',
+            },
+          }
+        )
+
+        expect(res.status).toBe(404)
+        expect(await res.text()).toInclude('"noindex"')
+      })
+    })
+
     describe('redirect', () => {
       describe('components', () => {
         it('should redirect in a server component', async () => {

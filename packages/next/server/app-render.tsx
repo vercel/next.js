@@ -142,6 +142,7 @@ export type RenderOptsPartial = {
   serverComponents?: boolean
   assetPrefix?: string
   fontLoaderManifest?: FontLoaderManifest
+  isBot?: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -172,9 +173,12 @@ function createErrorHandler(
    * Used for debugging
    */
   _source: string,
-  capturedErrors: Error[]
+  capturedErrors: Error[],
+  allCapturedErrors?: Error[]
 ) {
   return (err: any): string => {
+    if (allCapturedErrors) allCapturedErrors.push(err)
+
     if (
       err.digest === DYNAMIC_ERROR_CODE ||
       err.digest === NOT_FOUND_ERROR_CODE ||
@@ -700,10 +704,12 @@ export async function renderToHTMLOrFlight(
    * These rules help ensure that other existing features like request caching,
    * coalescing, and ISR continue working as intended.
    */
-  const isStaticGeneration = renderOpts.supportsDynamicHTML !== true
+  const isStaticGeneration =
+    renderOpts.supportsDynamicHTML !== true && !renderOpts.isBot
   const isFlight = req.headers.__rsc__ !== undefined
 
   const capturedErrors: Error[] = []
+  const allCapturedErrors: Error[] = []
 
   const serverComponentsErrorHandler = createErrorHandler(
     'serverComponentsRenderer',
@@ -715,7 +721,8 @@ export async function renderToHTMLOrFlight(
   )
   const htmlRendererErrorHandler = createErrorHandler(
     'htmlRenderer',
-    capturedErrors
+    capturedErrors,
+    allCapturedErrors
   )
 
   const {
@@ -726,9 +733,11 @@ export async function renderToHTMLOrFlight(
     ComponentMod,
     dev,
     fontLoaderManifest,
+    supportsDynamicHTML,
   } = renderOpts
 
   patchFetch(ComponentMod)
+  const generateStaticHTML = supportsDynamicHTML !== true
 
   const staticGenerationAsyncStorage = ComponentMod.staticGenerationAsyncStorage
   const requestAsyncStorage = ComponentMod.requestAsyncStorage
@@ -1505,20 +1514,31 @@ export async function renderToHTMLOrFlight(
           },
         })
 
-        return await continueFromInitialStream(renderStream, {
+        const result = await continueFromInitialStream(renderStream, {
           dataStream: serverComponentsInlinedTransformStream?.readable,
-          generateStaticHTML: isStaticGeneration,
+          generateStaticHTML: isStaticGeneration || generateStaticHTML,
           getServerInsertedHTML,
           serverInsertedHTMLToHead: true,
           ...validateRootLayout,
         })
+
+        return result
       } catch (err: any) {
+        const shouldNotIndex = err.digest === NOT_FOUND_ERROR_CODE
+        if (err.digest === NOT_FOUND_ERROR_CODE) {
+          res.statusCode = 404
+        }
+
         // TODO-APP: show error overlay in development. `element` should probably be wrapped in AppRouter for this case.
         const renderStream = await renderToInitialStream({
           ReactDOMServer,
           element: (
             <html id="__next_error__">
-              <head></head>
+              <head>
+                {shouldNotIndex ? (
+                  <meta name="robots" content="noindex" />
+                ) : null}
+              </head>
               <body></body>
             </html>
           ),
