@@ -77,7 +77,6 @@ const babelIncludeRegexes: RegExp[] = [
 ]
 
 const reactPackagesRegex = /^(react(?:$|\/)|react-dom(?:$|\/))/
-// /^(react(?:$|\/)|react-dom(?:$|\/))/
 
 const staticGenerationAsyncStorageRegex =
   /next[\\/]dist[\\/]client[\\/]components[\\/]static-generation-async-storage/
