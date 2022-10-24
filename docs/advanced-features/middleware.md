@@ -148,10 +148,10 @@ To produce a response from Middleware, you should `rewrite` to a route ([Page](/
 
 ## Using Cookies
 
-Cookies are regular headers. On a `Request`, they are stored in the `Cookies` header. On a `Response` the are in the `Set-Cookie` header. Next.js provides a convenient way to access and manipulate these cookies through the `cookies` extension on `NextRequest` and `NextResponse`.
+Cookies are regular headers. On a `Request`, they are stored in the `Cookie` header. On a `Response` they are in the `Set-Cookie` header. Next.js provides a convenient way to access and manipulate these cookies through the `cookies` extension on `NextRequest` and `NextResponse`.
 
-1. For incoming requests, `cookies` is based on [RequestCookies](https://edge-runtime.vercel.app/packages/cookies#for-request) and allows you to `get`, `getAll`, `set`, and `delete` cookies. You can check for the existence of a cookie with `has` or remove all cookies with `clear`.
-2. For outgoing responses, `cookies` is based on [ResponseCookies](https://edge-runtime.vercel.app/packages/cookies#for-response) and allows you to `get`, `getAll`, `set`, and `delete` cookies.
+1. For incoming requests, `cookies` comes with the following methods: `get`, `getAll`, `set`, and `delete` cookies. You can check for the existence of a cookie with `has` or remove all cookies with `clear`.
+2. For outgoing responses, `cookies` have the following methods `get`, `getAll`, `set`, and `delete`.
 
 ```typescript
 // middleware.ts
