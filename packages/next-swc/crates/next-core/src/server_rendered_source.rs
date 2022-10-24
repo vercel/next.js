@@ -28,9 +28,9 @@ use crate::{
     fallback::get_fallback_page,
     next_client::{
         context::{
-            get_client_assets_path, get_client_chunking_context, get_client_environment,
-            get_client_module_options_context, get_client_resolve_options_context,
-            get_client_runtime_entries, ContextType,
+            add_next_transforms_to_pages, get_client_assets_path, get_client_chunking_context,
+            get_client_environment, get_client_module_options_context,
+            get_client_resolve_options_context, get_client_runtime_entries, ContextType,
         },
         NextClientTransition,
     },
@@ -71,6 +71,8 @@ pub async fn create_server_rendered_source(
     let client_environment = get_client_environment(browserslist_query);
     let client_module_options_context =
         get_client_module_options_context(project_path, client_environment, ty);
+    let client_module_options_context =
+        add_next_transforms_to_pages(client_module_options_context, pages_dir);
     let client_resolve_options_context = get_client_resolve_options_context(project_path, ty);
 
     let client_runtime_entries = get_client_runtime_entries(project_path, env, ty);
