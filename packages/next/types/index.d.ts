@@ -41,7 +41,8 @@ declare module 'react' {
   }
 
   // TODO-APP: check if this is the right type.
-  function experimental_use<T>(promise: Promise<T> | React.Context<T>): T
+  function use<T>(promise: Promise<T> | React.Context<T>): T
+  function cache<T extends Function>(fn: T): T
 }
 
 export type Redirect =
