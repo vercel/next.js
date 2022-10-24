@@ -520,12 +520,6 @@ function assignDefaults(dir: string, userConfig: { [key: string]: any }) {
     }
   }
 
-  if (result.webpack5 === false) {
-    throw new Error(
-      `Webpack 4 is no longer supported in Next.js. Please upgrade to webpack 5 by removing "webpack5: false" from ${configFileName}. https://nextjs.org/docs/messages/webpack5`
-    )
-  }
-
   if (result.experimental && 'relay' in (result.experimental as any)) {
     Log.warn(
       `\`relay\` has been moved out of \`experimental\` and into \`compiler\`. Please update your ${configFileName} file accordingly.`

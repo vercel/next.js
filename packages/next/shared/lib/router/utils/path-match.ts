@@ -22,7 +22,7 @@ interface Options {
 
 /**
  * Generates a path matcher function for a given path and options based on
- * path-to-regexp. By default the match will be case insesitive, non strict
+ * path-to-regexp. By default the match will be case insensitive, non strict
  * and delimited by `/`.
  */
 export function getPathMatch(path: string, options?: Options) {

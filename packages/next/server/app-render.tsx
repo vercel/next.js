@@ -4,15 +4,12 @@ import type { ServerRuntime } from '../types'
 import type { FontLoaderManifest } from '../build/webpack/plugins/font-loader-manifest-plugin'
 
 // TODO-APP: investigate why require-hook doesn't work for app-render
-// TODO-APP: change to React.use once it becomes stable
-import React, {
-  // @ts-ignore
-  experimental_use as use,
-} from 'react'
+
+import React, { use } from 'next/dist/compiled/react'
 
 // this needs to be required lazily so that `next-server` can set
 // the env before we require
-import ReactDOMServer from 'react-dom/server.browser'
+import ReactDOMServer from 'next/dist/compiled/react-dom/server.browser'
 
 import { ParsedUrlQuery } from 'querystring'
 import { NextParsedUrlQuery } from './request-meta'
@@ -200,8 +197,8 @@ function patchFetch(ComponentMod: any) {
 
   const staticGenerationAsyncStorage = ComponentMod.staticGenerationAsyncStorage
 
-  const origFetch = globalThis.fetch
-  globalThis.fetch = async (url, opts) => {
+  const originFetch = globalThis.fetch
+  globalThis.fetch = async (input, init) => {
     const staticGenerationStore =
       'getStore' in staticGenerationAsyncStorage
         ? staticGenerationAsyncStorage.getStore()
@@ -211,18 +208,18 @@ function patchFetch(ComponentMod: any) {
       staticGenerationStore || {}
 
     if (staticGenerationStore && isStaticGeneration) {
-      if (opts && typeof opts === 'object') {
-        if (opts.cache === 'no-store') {
+      if (init && typeof init === 'object') {
+        if (init.cache === 'no-store') {
           staticGenerationStore.revalidate = 0
           // TODO: ensure this error isn't logged to the user
           // seems it's slipping through currently
           throw new DynamicServerError(
-            `no-store fetch ${url}${pathname ? ` ${pathname}` : ''}`
+            `no-store fetch ${input}${pathname ? ` ${pathname}` : ''}`
           )
         }
 
-        const hasNextConfig = 'next' in opts
-        const next = (hasNextConfig && opts.next) || {}
+        const hasNextConfig = 'next' in init
+        const next = init.next || {}
         if (
           typeof next.revalidate === 'number' &&
           (typeof fetchRevalidate === 'undefined' ||
@@ -233,15 +230,15 @@ function patchFetch(ComponentMod: any) {
           // TODO: ensure this error isn't logged to the user
           // seems it's slipping through currently
           throw new DynamicServerError(
-            `revalidate: ${next.revalidate} fetch ${url}${
+            `revalidate: ${next.revalidate} fetch ${input}${
               pathname ? ` ${pathname}` : ''
             }`
           )
         }
-        if (hasNextConfig) delete opts.next
+        if (hasNextConfig) delete init.next
       }
     }
-    return origFetch(url, opts)
+    return originFetch(input, init)
   }
 }
 
@@ -984,6 +981,39 @@ export async function renderToHTMLOrFlight(
       const Component = layoutOrPageMod
         ? interopDefault(layoutOrPageMod)
         : undefined
+
+      if (dev) {
+        const { isValidElementType } = require('next/dist/compiled/react-is')
+        if (
+          (isPage || typeof Component !== 'undefined') &&
+          !isValidElementType(Component)
+        ) {
+          throw new Error(
+            `The default export is not a React Component in page: "${pathname}"`
+          )
+        }
+
+        if (
+          typeof ErrorComponent !== 'undefined' &&
+          !isValidElementType(ErrorComponent)
+        ) {
+          throw new Error(
+            `The default export of error is not a React Component in page: ${segment}`
+          )
+        }
+
+        if (typeof Loading !== 'undefined' && !isValidElementType(Loading)) {
+          throw new Error(
+            `The default export of loading is not a React Component in ${segment}`
+          )
+        }
+
+        if (typeof NotFound !== 'undefined' && !isValidElementType(NotFound)) {
+          throw new Error(
+            `The default export of notFound is not a React Component in ${segment}`
+          )
+        }
+      }
 
       // Handle dynamic segment params.
       const segmentParam = getDynamicParamFromSegment(segment)

@@ -19,6 +19,7 @@ export type FontLoader = (options: {
   emitFontFile: (content: Buffer, ext: string, preload: boolean) => string
   resolve: (src: string) => string
   fs: any
+  isServer: boolean
 }) => Promise<{
   css: string
   fallbackFonts?: string[]

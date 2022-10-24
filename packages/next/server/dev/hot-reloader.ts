@@ -624,6 +624,9 @@ export default class HotReloader {
                       ),
                       appDir: this.appDir!,
                       pageExtensions: this.config.pageExtensions,
+                      rootDir: this.dir,
+                      isDev: true,
+                      tsconfigPath: this.config.typescript.tsconfigPath,
                     }).import
                   : undefined
 
@@ -702,6 +705,9 @@ export default class HotReloader {
                         ),
                         appDir: this.appDir!,
                         pageExtensions: this.config.pageExtensions,
+                        rootDir: this.dir,
+                        isDev: true,
+                        tsconfigPath: this.config.typescript.tsconfigPath,
                       })
                     : relativeRequest,
                   hasAppDir,

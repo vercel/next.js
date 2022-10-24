@@ -149,7 +149,6 @@ export class NextServer {
   }
 
   private async getServer() {
-    setTimeout(getServerImpl, 10)
     if (!this.serverPromise) {
       this.serverPromise = this.loadConfig().then(async (conf) => {
         if (conf.experimental.appDir) {
