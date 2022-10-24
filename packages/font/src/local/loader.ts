@@ -1,12 +1,11 @@
 // @ts-ignore
-import { calculateSizeAdjustValues } from 'next/dist/server/font-utils'
-// @ts-ignore
 // eslint-disable-next-line import/no-extraneous-dependencies
 import fontFromBuffer from '@next/font/dist/fontkit'
 import type { AdjustFontFallback, FontLoader } from 'next/font'
 
 import { promisify } from 'util'
-import { calcAzWidth, validateData } from './utils'
+import { validateData } from './utils'
+import { calculateFallbackFontValues } from '../utils'
 
 const fetchFonts: FontLoader = async ({
   functionName,
@@ -44,29 +43,10 @@ const fetchFonts: FontLoader = async ({
   // Add fallback font
   let adjustFontFallbackMetrics: AdjustFontFallback | undefined
   if (fontMetadata && adjustFontFallback !== false) {
-    const {
-      ascent,
-      descent,
-      lineGap,
-      fallbackFont,
-      sizeAdjust: fallbackSizeAdjust,
-    } = calculateSizeAdjustValues({
-      category:
-        adjustFontFallback === 'Times New Roman' ? 'serif' : 'sans-serif',
-      ascent: fontMetadata.ascent,
-      descent: fontMetadata.descent,
-      lineGap: fontMetadata.lineGap,
-      unitsPerEm: fontMetadata.unitsPerEm,
-      xAvgCharWidth: (fontMetadata as any)['OS/2']?.xAvgCharWidth,
-      azAvgWidth: calcAzWidth(fontMetadata),
-    })
-    adjustFontFallbackMetrics = {
-      fallbackFont,
-      ascentOverride: `${ascent}%`,
-      descentOverride: `${descent}%`,
-      lineGapOverride: `${lineGap}%`,
-      sizeAdjust: `${fallbackSizeAdjust}%`,
-    }
+    adjustFontFallbackMetrics = calculateFallbackFontValues(
+      fontMetadata,
+      adjustFontFallback === 'Times New Roman' ? 'serif' : 'sans-serif'
+    )
   }
 
   const fontFaceProperties = [
