@@ -397,8 +397,11 @@ function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
           AppTree,
         },
       }
+      const isInitialRenderError = !!renderErrorProps.props?.err;
+      const hasGetInitialProps = Boolean((appCtx.Component as any).getInitialProps)
+
       return Promise.resolve(
-        renderErrorProps.props?.err
+        (isInitialRenderError || !hasGetInitialProps)
           ? renderErrorProps.props
           : loadGetInitialProps(App, appCtx)
       ).then((initProps) =>
