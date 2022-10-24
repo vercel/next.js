@@ -5,6 +5,8 @@ import {
 
 loadRequireHook()
 
-if (process.env.NEXT_PREBUNDLED_REACT) {
+const isPrebundled = false
+
+if (isPrebundled) {
   overrideBuiltInReactPackages()
 }

@@ -302,18 +302,28 @@ export default async function build(
 
       const publicDir = path.join(dir, 'public')
       const isAppDirEnabled = !!config.experimental.appDir
+      const filePath = require.resolve(
+        'next/dist/server/initialize-require-hook'
+      )
+      const content = await promises.readFile(filePath, 'utf8')
+
       if (isAppDirEnabled) {
         process.env.NEXT_PREBUNDLED_REACT = '1'
-
-        const filePath = require.resolve(
-          'next/dist/server/initialize-require-hook'
-        )
-        const content = await promises.readFile(filePath, 'utf8')
-        await promises.writeFile(
-          filePath,
-          content.replace(/process\.env\.NEXT_PREBUNDLED_REACT/, 'true')
-        )
       }
+      await promises
+        .writeFile(
+          filePath,
+          content.replace(
+            /isPrebundled = (true|false)/,
+            `isPrebundled = ${isAppDirEnabled}`
+          )
+        )
+        .catch((err) => {
+          if (isAppDirEnabled) {
+            throw err
+          }
+        })
+
       const { pagesDir, appDir } = findPagesDir(dir, isAppDirEnabled)
       const hasPublicDir = await fileExists(publicDir)
 
