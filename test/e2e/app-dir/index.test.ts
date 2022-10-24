@@ -1859,7 +1859,7 @@ describe('app dir', () => {
 
     describe('not-found', () => {
       it('should trigger not-found in a server component', async () => {
-        const html = renderViaHTTP(next.url, '/not-found/servercomponent')
+        const html = await renderViaHTTP(next.url, '/not-found/servercomponent')
         expect(html).toContain('<meta name="robots" content="noindex"/>')
 
         const browser = await webdriver(next.url, '/not-found/servercomponent')
@@ -1875,7 +1875,7 @@ describe('app dir', () => {
       })
 
       it('should trigger not-found in a client component', async () => {
-        const html = renderViaHTTP(next.url, '/not-found/clientcomponent')
+        const html = await renderViaHTTP(next.url, '/not-found/clientcomponent')
         expect(html).toContain('<meta name="robots" content="noindex"/>')
 
         const browser = await webdriver(next.url, '/not-found/clientcomponent')
