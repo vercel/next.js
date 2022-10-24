@@ -61,8 +61,8 @@ it('reflect .delete into `set-cookie`', async () => {
   expect(response.cookies.get('fooz')?.value).toBe('barz')
   expect(response.cookies.get('fooz')).toEqual({
     name: 'fooz',
+    path: '/',
     value: 'barz',
-    Path: '/',
   })
 
   const firstDelete = response.cookies.delete('foo')
