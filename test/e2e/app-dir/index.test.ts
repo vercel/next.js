@@ -936,7 +936,7 @@ describe('app dir', () => {
       })
 
       describe('hooks', () => {
-        describe.only('cookies function', () => {
+        describe('cookies function', () => {
           it('should retrieve cookies in a server component', async () => {
             const browser = await webdriver(next.url, '/hooks/use-cookies')
 
