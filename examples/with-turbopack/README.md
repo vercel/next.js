@@ -31,7 +31,7 @@ For more information, see: https://turbo.build/pack/docs/features/css#tailwind-c
 
 ## Documentation
 
-https://nextjs.org/docs/advanced-features/turbopack
+https://nextjs.link/with-turbopack
 
 ## Providing Feedback
 
