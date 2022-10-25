@@ -46,7 +46,7 @@ type IpcOutgoingMessage = {
       }
     }
 
-    let html = await runOperation(renderData);
+    const html = await runOperation(renderData);
 
     if (html == null) {
       throw new Error("no html returned");
