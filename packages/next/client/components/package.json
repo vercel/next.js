@@ -1,5 +1,0 @@
-{
-  "browser": {
-    "./static-generation-async-storage.js": "./static-generation-async-storage-browser.js"
-  }
-}

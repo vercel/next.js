@@ -2202,12 +2202,24 @@ export async function nextbuildjest(task, opts) {
 
 export async function copy_package_json(task, opts) {
   await fs.copy(
-    join(__dirname, 'client/components/package.json'),
-    join(__dirname, 'dist/client/components/package.json')
+    join(
+      __dirname,
+      'client/components/static-generation-async-storage/package.json'
+    ),
+    join(
+      __dirname,
+      'dist/client/components/static-generation-async-storage/package.json'
+    )
   )
   await fs.copy(
-    join(__dirname, 'client/components/package.json'),
-    join(__dirname, 'dist/esm/client/components/package.json')
+    join(
+      __dirname,
+      'client/components/static-generation-async-storage/package.json'
+    ),
+    join(
+      __dirname,
+      'dist/esm/client/components/static-generation-async-storage/package.json'
+    )
   )
 }
 
