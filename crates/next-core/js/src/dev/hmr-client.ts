@@ -184,11 +184,19 @@ function aggregateUpdates(
   };
 }
 
+const CRITICAL = ["bug", "error", "fatal"];
+
+function compareByList(list: any[], a: any, b: any) {
+  const aI = list.indexOf(a) + 1 || list.length;
+  const bI = list.indexOf(b) + 1 || list.length;
+  return aI - bI;
+}
+
 function handleIssues(msg: ServerMessage): boolean {
   let issueToReport = null;
 
   for (const issue of msg.issues) {
-    if (["bug", "error", "fatal"].includes(issue.severity)) {
+    if (CRITICAL.includes(issue.severity)) {
       issueToReport = issue;
       break;
     }
@@ -202,7 +210,23 @@ function handleIssues(msg: ServerMessage): boolean {
   return issueToReport != null;
 }
 
+const SEVERITY_ORDER = ["bug", "fatal", "error", "warning", "info", "log"];
+const CATEGORY_ORDER = [
+  "parse",
+  "resolve",
+  "code generation",
+  "rendering",
+  "typescript",
+  "other",
+];
+
 function handleSocketMessage(msg: ServerMessage) {
+  msg.issues.sort((a, b) => {
+    const first = compareByList(SEVERITY_ORDER, a.severity, b.severity);
+    if (first !== 0) return first;
+    return compareByList(CATEGORY_ORDER, a.category, b.category);
+  });
+
   const hasErrors = handleIssues(msg);
   const aggregatedMsg = aggregateUpdates(msg, hasErrors);
 
