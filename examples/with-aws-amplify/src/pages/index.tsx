@@ -1,5 +1,5 @@
-import { AmplifyAuthenticator } from '@aws-amplify/ui-react'
-import { Amplify, API, Auth, withSSRContext } from 'aws-amplify'
+import { Authenticator } from '@aws-amplify/ui-react'
+import { Amplify, API, withSSRContext } from 'aws-amplify'
 import Head from 'next/head'
 import awsExports from '../aws-exports'
 import { createTodo } from '../graphql/mutations'
@@ -50,7 +50,6 @@ export default function Home({ todos = [] }: { todos: Todo[] }) {
     <div className={styles.container}>
       <Head>
         <title>Amplify + Next.js</title>
-        <link rel="icon" href="/favicon.ico" />
       </Head>
 
       <main className={styles.main}>
@@ -72,30 +71,32 @@ export default function Home({ todos = [] }: { todos: Todo[] }) {
           <div className={styles.card}>
             <h3 className={styles.title}>New Todo</h3>
 
-            <AmplifyAuthenticator>
-              <form onSubmit={handleCreateTodo}>
-                <fieldset>
-                  <legend>Title</legend>
-                  <input
-                    defaultValue={`Today, ${new Date().toLocaleTimeString()}`}
-                    name="title"
-                  />
-                </fieldset>
+            <Authenticator>
+              {({ signOut }) => (
+                <form onSubmit={handleCreateTodo}>
+                  <fieldset>
+                    <legend>Title</legend>
+                    <input
+                      defaultValue={`Today, ${new Date().toLocaleTimeString()}`}
+                      name="title"
+                    />
+                  </fieldset>
 
-                <fieldset>
-                  <legend>Content</legend>
-                  <textarea
-                    defaultValue="I built an Amplify app with Next.js!"
-                    name="content"
-                  />
-                </fieldset>
+                  <fieldset>
+                    <legend>Content</legend>
+                    <textarea
+                      defaultValue="I built an Amplify app with Next.js!"
+                      name="content"
+                    />
+                  </fieldset>
 
-                <button>Create Todo</button>
-                <button type="button" onClick={() => Auth.signOut()}>
-                  Sign out
-                </button>
-              </form>
-            </AmplifyAuthenticator>
+                  <button>Create Todo</button>
+                  <button type="button" onClick={signOut}>
+                    Sign out
+                  </button>
+                </form>
+              )}
+            </Authenticator>
           </div>
         </div>
       </main>
