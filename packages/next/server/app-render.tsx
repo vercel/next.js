@@ -221,7 +221,7 @@ function patchFetch(ComponentMod: any) {
     if (staticGenerationStore && isStaticGeneration) {
       if (init && typeof init === 'object') {
         if (init.cache === 'no-store') {
-          staticGenerationStore.revalidate = 0
+          staticGenerationStore.fetchRevalidate = 0
           // TODO: ensure this error isn't logged to the user
           // seems it's slipping through currently
           throw new DynamicServerError(
