@@ -15,12 +15,6 @@ import webdriver from 'next-webdriver'
 
 describe('app dir', () => {
   const isDev = (global as any).isNextDev
-
-  if ((global as any).isNextDeploy) {
-    it('should skip next deploy for now', () => {})
-    return
-  }
-
   let next: NextInstance
 
   function runTests() {
@@ -139,22 +133,24 @@ describe('app dir', () => {
       expect(html).toContain('hello from app/dashboard')
     })
 
-    it('should serve /index as separate page', async () => {
-      const html = await renderViaHTTP(next.url, '/dashboard/index')
-      expect(html).toContain('hello from app/dashboard/index')
-      // should load chunks generated via async import correctly with React.lazy
-      expect(html).toContain('hello from lazy')
-      // should support `dynamic` in both server and client components
-      expect(html).toContain('hello from dynamic on server')
-      expect(html).toContain('hello from dynamic on client')
-    })
+    if (!(global as any).isNextDeploy) {
+      it('should serve /index as separate page', async () => {
+        const html = await renderViaHTTP(next.url, '/dashboard/index')
+        expect(html).toContain('hello from app/dashboard/index')
+        // should load chunks generated via async import correctly with React.lazy
+        expect(html).toContain('hello from lazy')
+        // should support `dynamic` in both server and client components
+        expect(html).toContain('hello from dynamic on server')
+        expect(html).toContain('hello from dynamic on client')
+      })
 
-    it('should serve polyfills for browsers that do not support modules', async () => {
-      const html = await renderViaHTTP(next.url, '/dashboard/index')
-      expect(html).toMatch(
-        /<script src="\/_next\/static\/chunks\/polyfills(-\w+)?\.js" nomodule="">/
-      )
-    })
+      it('should serve polyfills for browsers that do not support modules', async () => {
+        const html = await renderViaHTTP(next.url, '/dashboard/index')
+        expect(html).toMatch(
+          /<script src="\/_next\/static\/chunks\/polyfills(-\w+)?\.js" nomodule="">/
+        )
+      })
+    }
 
     // TODO-APP: handle css modules fouc in dev
     it.skip('should handle css imports in next/dynamic correctly', async () => {
@@ -402,17 +398,19 @@ describe('app dir', () => {
     })
 
     describe('parallel routes', () => {
-      it('should match parallel routes', async () => {
-        const html = await renderViaHTTP(next.url, '/parallel/nested')
-        expect(html).toContain('parallel/layout')
-        expect(html).toContain('parallel/@foo/nested/layout')
-        expect(html).toContain('parallel/@foo/nested/@a/page')
-        expect(html).toContain('parallel/@foo/nested/@b/page')
-        expect(html).toContain('parallel/@bar/nested/layout')
-        expect(html).toContain('parallel/@bar/nested/@a/page')
-        expect(html).toContain('parallel/@bar/nested/@b/page')
-        expect(html).toContain('parallel/nested/page')
-      })
+      if (!(global as any).isNextDeploy) {
+        it('should match parallel routes', async () => {
+          const html = await renderViaHTTP(next.url, '/parallel/nested')
+          expect(html).toContain('parallel/layout')
+          expect(html).toContain('parallel/@foo/nested/layout')
+          expect(html).toContain('parallel/@foo/nested/@a/page')
+          expect(html).toContain('parallel/@foo/nested/@b/page')
+          expect(html).toContain('parallel/@bar/nested/layout')
+          expect(html).toContain('parallel/@bar/nested/@a/page')
+          expect(html).toContain('parallel/@bar/nested/@b/page')
+          expect(html).toContain('parallel/nested/page')
+        })
+      }
 
       it('should match parallel routes in route groups', async () => {
         const html = await renderViaHTTP(next.url, '/parallel/nested-2')
@@ -955,6 +953,11 @@ describe('app dir', () => {
             }
           })
 
+          it('should retrieve cookies in a server component in the edge runtime', async () => {
+            const res = await fetchViaHTTP(next.url, '/edge-apis/cookies')
+            expect(await res.text()).toInclude('Hello')
+          })
+
           it('should access cookies on <Link /> navigation', async () => {
             const browser = await webdriver(next.url, '/navigation')
 
@@ -1130,6 +1133,17 @@ describe('app dir', () => {
               '/hooks/use-pathname'
             )
           })
+
+          it('should have the canonical url pathname on rewrite', async () => {
+            const html = await renderViaHTTP(
+              next.url,
+              '/rewritten-use-pathname'
+            )
+            const $ = cheerio.load(html)
+            expect($('#pathname').attr('data-pathname')).toBe(
+              '/rewritten-use-pathname'
+            )
+          })
         })
 
         describe('useSearchParams', () => {
@@ -1139,11 +1153,22 @@ describe('app dir', () => {
               '/hooks/use-search-params?first=value&second=other%20value&third'
             )
             const $ = cheerio.load(html)
-            const el = $('#params')
-            expect(el.attr('data-param-first')).toBe('value')
-            expect(el.attr('data-param-second')).toBe('other value')
-            expect(el.attr('data-param-third')).toBe('')
-            expect(el.attr('data-param-not-real')).toBe('N/A')
+            expect($('#params-first').text()).toBe('value')
+            expect($('#params-second').text()).toBe('other value')
+            expect($('#params-third').text()).toBe('')
+            expect($('#params-not-real').text()).toBe('N/A')
+          })
+
+          it('should have the canonical url search params on rewrite', async () => {
+            const html = await renderViaHTTP(
+              next.url,
+              '/rewritten-use-search-params?first=a&second=b&third=c'
+            )
+            const $ = cheerio.load(html)
+            expect($('#params-first').text()).toBe('a')
+            expect($('#params-second').text()).toBe('b')
+            expect($('#params-third').text()).toBe('c')
+            expect($('#params-not-real').text()).toBe('N/A')
           })
         })
 
@@ -1167,16 +1192,18 @@ describe('app dir', () => {
             }
           })
 
-          it('should have consistent query and params handling', async () => {
-            const html = await renderViaHTTP(
-              next.url,
-              '/param-and-query/params?slug=query'
-            )
-            const $ = cheerio.load(html)
-            const el = $('#params-and-query')
-            expect(el.attr('data-params')).toBe('params')
-            expect(el.attr('data-query')).toBe('query')
-          })
+          if (!(global as any).isNextDeploy) {
+            it('should have consistent query and params handling', async () => {
+              const html = await renderViaHTTP(
+                next.url,
+                '/param-and-query/params?slug=query'
+              )
+              const $ = cheerio.load(html)
+              const el = $('#params-and-query')
+              expect(el.attr('data-params')).toBe('params')
+              expect(el.attr('data-query')).toBe('query')
+            })
+          }
         })
 
         describe('useSelectedLayoutSegment', () => {
@@ -1379,6 +1406,91 @@ describe('app dir', () => {
         })
       })
     })
+
+    describe('searchParams prop', () => {
+      describe('client component', () => {
+        it('should have the correct search params', async () => {
+          const html = await renderViaHTTP(
+            next.url,
+            '/search-params-prop?first=value&second=other%20value&third'
+          )
+          const $ = cheerio.load(html)
+          const el = $('#params')
+          expect(el.attr('data-param-first')).toBe('value')
+          expect(el.attr('data-param-second')).toBe('other value')
+          expect(el.attr('data-param-third')).toBe('')
+          expect(el.attr('data-param-not-real')).toBe('N/A')
+        })
+
+        it('should have the correct search params on rewrite', async () => {
+          const html = await renderViaHTTP(
+            next.url,
+            '/search-params-prop-rewrite'
+          )
+          const $ = cheerio.load(html)
+          const el = $('#params')
+          expect(el.attr('data-param-first')).toBe('value')
+          expect(el.attr('data-param-second')).toBe('other value')
+          expect(el.attr('data-param-third')).toBe('')
+          expect(el.attr('data-param-not-real')).toBe('N/A')
+        })
+
+        it('should have the correct search params on middleware rewrite', async () => {
+          const html = await renderViaHTTP(
+            next.url,
+            '/search-params-prop-middleware-rewrite'
+          )
+          const $ = cheerio.load(html)
+          const el = $('#params')
+          expect(el.attr('data-param-first')).toBe('value')
+          expect(el.attr('data-param-second')).toBe('other value')
+          expect(el.attr('data-param-third')).toBe('')
+          expect(el.attr('data-param-not-real')).toBe('N/A')
+        })
+      })
+
+      describe('server component', () => {
+        it('should have the correct search params', async () => {
+          const html = await renderViaHTTP(
+            next.url,
+            '/search-params-prop/server?first=value&second=other%20value&third'
+          )
+          const $ = cheerio.load(html)
+          const el = $('#params')
+          expect(el.attr('data-param-first')).toBe('value')
+          expect(el.attr('data-param-second')).toBe('other value')
+          expect(el.attr('data-param-third')).toBe('')
+          expect(el.attr('data-param-not-real')).toBe('N/A')
+        })
+
+        it('should have the correct search params on rewrite', async () => {
+          const html = await renderViaHTTP(
+            next.url,
+            '/search-params-prop-server-rewrite'
+          )
+          const $ = cheerio.load(html)
+          const el = $('#params')
+          expect(el.attr('data-param-first')).toBe('value')
+          expect(el.attr('data-param-second')).toBe('other value')
+          expect(el.attr('data-param-third')).toBe('')
+          expect(el.attr('data-param-not-real')).toBe('N/A')
+        })
+
+        it('should have the correct search params on middleware rewrite', async () => {
+          const html = await renderViaHTTP(
+            next.url,
+            '/search-params-prop-server-middleware-rewrite'
+          )
+          const $ = cheerio.load(html)
+          const el = $('#params')
+          expect(el.attr('data-param-first')).toBe('value')
+          expect(el.attr('data-param-second')).toBe('other value')
+          expect(el.attr('data-param-third')).toBe('')
+          expect(el.attr('data-param-not-real')).toBe('N/A')
+        })
+      })
+    })
+
     describe('sass support', () => {
       describe('server layouts', () => {
         it('should support global sass/scss inside server layouts', async () => {
@@ -1900,21 +2012,23 @@ describe('app dir', () => {
     })
 
     describe('bots', () => {
-      it('should block rendering for bots and return 404 status', async () => {
-        const res = await fetchViaHTTP(
-          next.url,
-          '/not-found/servercomponent',
-          '',
-          {
-            headers: {
-              'User-Agent': 'Googlebot',
-            },
-          }
-        )
+      if (!(global as any).isNextDeploy) {
+        it('should block rendering for bots and return 404 status', async () => {
+          const res = await fetchViaHTTP(
+            next.url,
+            '/not-found/servercomponent',
+            '',
+            {
+              headers: {
+                'User-Agent': 'Googlebot',
+              },
+            }
+          )
 
-        expect(res.status).toBe(404)
-        expect(await res.text()).toInclude('"noindex"')
-      })
+          expect(res.status).toBe(404)
+          expect(await res.text()).toInclude('"noindex"')
+        })
+      }
     })
 
     describe('redirect', () => {
@@ -2033,22 +2147,24 @@ describe('app dir', () => {
     })
 
     describe('next/script', () => {
-      it('should support next/script and render in correct order', async () => {
-        const browser = await webdriver(next.url, '/script')
+      if (!(global as any).isNextDeploy) {
+        it('should support next/script and render in correct order', async () => {
+          const browser = await webdriver(next.url, '/script')
 
-        // Wait for lazyOnload scripts to be ready.
-        await new Promise((resolve) => setTimeout(resolve, 1000))
+          // Wait for lazyOnload scripts to be ready.
+          await new Promise((resolve) => setTimeout(resolve, 1000))
 
-        expect(await browser.eval(`window._script_order`)).toStrictEqual([
-          1,
-          1.5,
-          2,
-          2.5,
-          'render',
-          3,
-          4,
-        ])
-      })
+          expect(await browser.eval(`window._script_order`)).toStrictEqual([
+            1,
+            1.5,
+            2,
+            2.5,
+            'render',
+            3,
+            4,
+          ])
+        })
+      }
 
       it('should insert preload tags for beforeInteractive and afterInteractive scripts', async () => {
         const html = await renderViaHTTP(next.url, '/script')
