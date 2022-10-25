@@ -1217,12 +1217,12 @@ export async function renderToHTMLOrFlight(
           // Add extra cache busting (DEV only) for https://github.com/vercel/next.js/issues/5860
           // See also https://bugs.webkit.org/show_bug.cgi?id=187726
           const cacheBustingUrlSuffix = dev ? `?ts=${Date.now()}` : ''
-          let HeadTags
-          if (rootLayoutAtThisLevel) {
-            // TODO: iterate HeadTag children and add a data-path attribute
-            // so that we can remove elements on client-transition
-            HeadTags = collectedHeads[collectedHeads.length - 1] as any
-          }
+          // let HeadTags
+          // if (rootLayoutAtThisLevel) {
+          //   // TODO: iterate HeadTag children and add a data-path attribute
+          //   // so that we can remove elements on client-transition
+          //   // HeadTags = collectedHeads[collectedHeads.length - 1] as any
+          // }
 
           return (
             <>
@@ -1263,7 +1263,7 @@ export async function renderToHTMLOrFlight(
                 // Query is only provided to page
                 {...(isPage ? { searchParams: query } : {})}
               />
-              {HeadTags ? <HeadTags /> : null}
+              {/* {HeadTags ? <HeadTags /> : null} */}
             </>
           )
         },
