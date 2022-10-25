@@ -46,6 +46,7 @@ async fn emit(
 ) -> Result<CompletionVc> {
     Ok(CompletionsVc::cell(
         internal_assets(intermediate_asset, intermediate_output_path)
+            .strongly_consistent()
             .await?
             .iter()
             .map(|a| async {
