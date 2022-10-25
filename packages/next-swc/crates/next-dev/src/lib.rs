@@ -179,10 +179,7 @@ async fn project_fs(project_dir: &str, console_ui: ConsoleUiVc) -> Result<FileSy
 
 #[turbo_tasks::function]
 async fn output_fs(project_dir: &str, console_ui: ConsoleUiVc) -> Result<FileSystemVc> {
-    let disk_fs = DiskFileSystemVc::new(
-        "output".to_string(),
-        format!("{project_dir}{s}.next{s}server", s = MAIN_SEPARATOR),
-    );
+    let disk_fs = DiskFileSystemVc::new("output".to_string(), project_dir.to_string());
     handle_issues(disk_fs, console_ui).await?;
     disk_fs.await?.start_watching()?;
     Ok(disk_fs.into())
@@ -210,7 +207,7 @@ async fn source(
 
     let env = load_env(project_path);
 
-    let output_root = output_fs.root();
+    let output_root = output_fs.root().join("/.next/server");
 
     let dev_server_fs = DevServerFileSystemVc::new().as_file_system();
     let dev_server_root = dev_server_fs.root();
