@@ -112,7 +112,6 @@ function Router({
   children,
   assetPrefix,
 }: AppRouterProps) {
-  console.log({ initialHead })
   const initialState = useMemo(() => {
     return {
       tree: initialTree,
