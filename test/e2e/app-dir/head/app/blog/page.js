@@ -11,12 +11,3 @@ export default function Page() {
     </>
   )
 }
-
-export async function Head() {
-  return (
-    <>
-      <script async src="/hello3.js" />
-      <title>hello from blog page</title>
-    </>
-  )
-}
