@@ -29,9 +29,9 @@ describe('New Link Behavior with <a> child', () => {
     const link = await browser.elementsByCss('a[href="/about"]')
     const msg =
       'Error: Invalid <Link> with <a> child. Please remove <a> or use <Link legacyBehavior>'
-    expect(next.cliOutput).toContain(msg)
 
     if ((global as any).isDev) {
+      expect(next.cliOutput).toContain(msg)
       expect(await hasRedbox(browser, true)).toBe(true)
       expect(await getRedboxSource(browser)).toContain(msg)
       expect(link).not.toBeDefined()
