@@ -527,7 +527,6 @@ export function finalizeEntrypoint({
         ...entry,
       }
     }
-
     return {
       dependOn:
         name.startsWith('pages/') && name !== 'pages/_app'

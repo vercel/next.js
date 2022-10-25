@@ -7,7 +7,6 @@ import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-we
 
 import measureWebVitals from './performance-relayer'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
-import HotReload from './components/react-dev-overlay/hot-reloader-client'
 import { GlobalLayoutRouterContext } from '../shared/lib/app-router-context'
 
 /// <reference types="react-dom/experimental" />
@@ -176,6 +175,8 @@ function RSCComponent(props: any): JSX.Element {
 
 export function hydrate() {
   if (process.env.NODE_ENV !== 'production') {
+    const HotReload = require('./components/react-dev-overlay/hot-reloader-client')
+    typeof import('./components/react-dev-overlay/hot-reloader-client')
     const rootLayoutMissingTagsError = (self as any)
       .__next_root_layout_missing_tags_error
 
