@@ -10,13 +10,6 @@ import webdriver from 'next-webdriver'
 const glob = promisify(globOrig)
 
 describe('app-dir static/dynamic handling', () => {
-  const isDev = (global as any).isNextDev
-
-  if ((global as any).isNextDeploy) {
-    it('should skip next deploy for now', () => {})
-    return
-  }
-
   let next: NextInstance
 
   beforeAll(async () => {
@@ -296,15 +289,17 @@ describe('app-dir static/dynamic handling', () => {
     expect(secondDate).not.toBe(initialDate)
   })
 
-  it('should render not found pages correctly and fallback to the default one', async () => {
-    const res = await fetchViaHTTP(next.url, `/blog/shu/hi`, undefined, {
-      redirect: 'manual',
+  if (!(global as any).isNextDeploy) {
+    it('should render not found pages correctly and fallback to the default one', async () => {
+      const res = await fetchViaHTTP(next.url, `/blog/shu/hi`, undefined, {
+        redirect: 'manual',
+      })
+      expect(res.status).toBe(404)
+      const html = await res.text()
+      expect(html).toInclude('"noindex"')
+      expect(html).toInclude('This page could not be found.')
     })
-    expect(res.status).toBe(404)
-    const html = await res.text()
-    expect(html).toInclude('"noindex"')
-    expect(html).toInclude('This page could not be found.')
-  })
+  }
 
   // TODO-APP: support fetch revalidate case for dynamic rendering
   it.skip('should ssr dynamically when detected automatically with fetch revalidate option', async () => {

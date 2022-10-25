@@ -7,11 +7,6 @@ import cheerio from 'cheerio'
 import path from 'path'
 
 describe('app-dir with middleware', () => {
-  if ((global as any).isNextDeploy) {
-    it('should skip next deploy for now', () => {})
-    return
-  }
-
   let next: NextInstance
 
   afterAll(() => next.destroy())
