@@ -4,9 +4,6 @@ name = "next-swc"
 version = "0.0.0"
 publish = false
 
-[lib]
-crate-type = ["cdylib", "rlib"]
-
 [features]
 plugin = [
   "swc_core/plugin_transform_host_native"
@@ -22,13 +19,13 @@ pathdiff = "0.2.0"
 regex = "1.5"
 serde = "1"
 serde_json = "1"
-swc_emotion = {path="../emotion"}
-styled_components = {path="../styled_components"}
-styled_jsx = {path="../styled_jsx"}
-modularize_imports = {path="../modularize_imports"}
+swc_emotion = "0.28.1"
+styled_components = "0.52.1"
+styled_jsx = "0.29.1"
+modularize_imports = "0.25.1"
 tracing = { version = "0.1.32", features = ["release_max_level_info"] }
 
-swc_core = { version = "0.23.24", features = [
+swc_core = { features = [
   "common_concurrent",
   "ecma_ast",
   "ecma_visit",
@@ -45,9 +42,9 @@ swc_core = { version = "0.23.24", features = [
   "ecma_parser_typescript",
   "cached",
   "base"
-] }
+], version = "0.40.16" }
 
 [dev-dependencies]
-swc_core = { version = "0.23.24", features = ["testing_transform"] }
-testing = "0.30.7"
+swc_core = { features = ["testing_transform"], version = "0.40.16" }
+testing = "0.31.10"
 walkdir = "2.3.2"

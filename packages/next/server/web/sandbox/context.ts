@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'async_hooks'
 import type { AssetBinding } from '../../../build/webpack/loaders/get-module-build-info'
 import {
   decorateServerError,
@@ -123,6 +124,15 @@ function getDecorateUnhandledError(runtime: EdgeRuntime) {
   return (error: any) => {
     if (error instanceof EdgeRuntimeError) {
       decorateServerError(error, COMPILER_NAMES.edgeServer)
+    }
+  }
+}
+
+function getDecorateUnhandledRejection(runtime: EdgeRuntime) {
+  const EdgeRuntimeError = runtime.evaluate(`Error`)
+  return (rejected: { reason: typeof EdgeRuntimeError }) => {
+    if (rejected.reason instanceof EdgeRuntimeError) {
+      decorateServerError(rejected.reason, COMPILER_NAMES.edgeServer)
     }
   }
 }
@@ -255,6 +265,7 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
 
       const __Request = context.Request
       context.Request = class extends __Request {
+        next?: NextFetchRequestConfig | undefined
         constructor(input: URL | RequestInfo, init?: RequestInit | undefined) {
           const url =
             typeof input !== 'string' && 'url' in input
@@ -262,6 +273,7 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
               : String(input)
           validateURL(url)
           super(url, init)
+          this.next = init?.next
         }
       }
 
@@ -277,13 +289,19 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
 
       Object.assign(context, wasm)
 
+      context.AsyncLocalStorage = AsyncLocalStorage
+
       return context
     },
   })
 
   const decorateUnhandledError = getDecorateUnhandledError(runtime)
-  runtime.context.addEventListener('unhandledrejection', decorateUnhandledError)
   runtime.context.addEventListener('error', decorateUnhandledError)
+  const decorateUnhandledRejection = getDecorateUnhandledRejection(runtime)
+  runtime.context.addEventListener(
+    'unhandledrejection',
+    decorateUnhandledRejection
+  )
 
   return {
     runtime,
@@ -301,15 +319,8 @@ interface ModuleContextOptions {
   edgeFunctionEntry: Pick<EdgeFunctionDefinition, 'assets' | 'wasm'>
 }
 
-const pendingModuleCaches = new Map<string, Promise<ModuleContext>>()
-
 function getModuleContextShared(options: ModuleContextOptions) {
-  let deferredModuleContext = pendingModuleCaches.get(options.moduleName)
-  if (!deferredModuleContext) {
-    deferredModuleContext = createModuleContext(options)
-    pendingModuleCaches.set(options.moduleName, deferredModuleContext)
-  }
-  return deferredModuleContext
+  return createModuleContext(options)
 }
 
 /**

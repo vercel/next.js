@@ -1,0 +1,30 @@
+
+  x Font loaders must be called and assigned to a const in the module scope
+   ,-[input.js:3:1]
+ 3 | Aladin({})
+   : ^^^^^^
+   `----
+
+  x Font loaders must be called and assigned to a const in the module scope
+   ,-[input.js:6:1]
+ 6 | const a = (b = Aladin({ variant: '400' }))
+   :                ^^^^^^
+   `----
+
+  x Font loaders must be called and assigned to a const in the module scope
+   ,-[input.js:9:3]
+ 9 | const a = Aladin({
+   :           ^^^^^^
+   `----
+
+  x Font loaders must be called and assigned to a const in the module scope
+    ,-[input.js:16:5]
+ 16 | Aladin({
+    : ^^^^^^
+    `----
+
+  x Font loaders must be called and assigned to a const in the module scope
+    ,-[input.js:23:3]
+ 23 | Aladin({})
+    : ^^^^^^
+    `----

@@ -5,15 +5,12 @@ import path from 'path'
 import webdriver from 'next-webdriver'
 
 describe('app dir prefetching', () => {
-  if ((global as any).isNextDeploy) {
+  // TODO: re-enable for dev after https://vercel.slack.com/archives/C035J346QQL/p1663822388387959 is resolved (Sep 22nd 2022)
+  if ((global as any).isNextDeploy || (global as any).isNextDev) {
     it('should skip next deploy for now', () => {})
     return
   }
 
-  if (process.env.NEXT_TEST_REACT_VERSION === '^17') {
-    it('should skip for react v17', () => {})
-    return
-  }
   let next: NextInstance
 
   beforeAll(async () => {
@@ -53,5 +50,14 @@ describe('app dir prefetching', () => {
     expect(await browser.waitForElementByCss('#dashboard-page').text()).toBe(
       'Welcome to the dashboard'
     )
+  })
+
+  it('should not have prefetch error for static path', async () => {
+    const browser = await webdriver(next.url, '/')
+    await browser.eval('window.nd.router.prefetch("/dashboard/123")')
+    await waitFor(3000)
+    await browser.eval('window.nd.router.push("/dashboard/123")')
+    expect(next.cliOutput).not.toContain('ReferenceError')
+    expect(next.cliOutput).not.toContain('is not defined')
   })
 })

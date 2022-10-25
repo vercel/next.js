@@ -1,4 +1,4 @@
-import rule from '@next/eslint-plugin-next/lib/rules/no-script-component-in-head'
+import rule from '@next/eslint-plugin-next/dist/rules/no-script-component-in-head'
 import { RuleTester } from 'eslint'
 ;(RuleTester as any).setDefaultConfig({
   parserOptions: {

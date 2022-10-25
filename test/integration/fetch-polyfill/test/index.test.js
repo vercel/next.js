@@ -1,6 +1,5 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
 import { join } from 'path'
 import {
   killApp,
@@ -15,7 +14,6 @@ import {
 import cheerio from 'cheerio'
 
 const appDir = join(__dirname, '../')
-const nextConfig = join(appDir, 'next.config.js')
 let appPort
 let app
 let apiServerPort
@@ -31,20 +29,6 @@ const startApiServer = async (optEnv = {}, opts) => {
   )
 
   apiServer = await initNextServerScript(
-    scriptPath,
-    /ready on/i,
-    env,
-    /ReferenceError: options is not defined/,
-    opts
-  )
-}
-
-const startServerlessServer = async (optEnv = {}, opts) => {
-  const scriptPath = join(appDir, 'serverless-server.js')
-  appPort = await findPort()
-  const env = Object.assign({ ...process.env }, { PORT: `${appPort}` }, optEnv)
-
-  return await initNextServerScript(
     scriptPath,
     /ready on/i,
     env,
@@ -117,30 +101,6 @@ describe('Fetch polyfill', () => {
     })
     afterAll(async () => {
       await killApp(app)
-      await killApp(apiServer)
-    })
-
-    runTests()
-  })
-
-  describe('Serverless support', () => {
-    beforeAll(async () => {
-      await fs.writeFile(
-        nextConfig,
-        `module.exports = { target: 'serverless' }`
-      )
-      await startApiServer()
-      await nextBuild(appDir, [], {
-        env: {
-          NEXT_PUBLIC_API_PORT: apiServerPort,
-        },
-      })
-      appPort = await findPort()
-      app = await startServerlessServer()
-    })
-    afterAll(async () => {
-      await killApp(app)
-      await fs.remove(nextConfig)
       await killApp(apiServer)
     })
 

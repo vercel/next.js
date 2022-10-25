@@ -7,6 +7,25 @@ import { NextCookies } from './cookies'
 const INTERNALS = Symbol('internal response')
 const REDIRECTS = new Set([301, 302, 303, 307, 308])
 
+function handleMiddlewareField(
+  init: MiddlewareResponseInit | undefined,
+  headers: Headers
+) {
+  if (init?.request?.headers) {
+    if (!(init.request.headers instanceof Headers)) {
+      throw new Error('request.headers must be an instance of Headers')
+    }
+
+    const keys = []
+    for (const [key, value] of init.request.headers) {
+      headers.set('x-middleware-request-' + key, value)
+      keys.push(key)
+    }
+
+    headers.set('x-middleware-override-headers', keys.join(','))
+  }
+}
+
 export class NextResponse extends Response {
   [INTERNALS]: {
     cookies: NextCookies
@@ -71,15 +90,22 @@ export class NextResponse extends Response {
     })
   }
 
-  static rewrite(destination: string | NextURL | URL, init?: ResponseInit) {
+  static rewrite(
+    destination: string | NextURL | URL,
+    init?: MiddlewareResponseInit
+  ) {
     const headers = new Headers(init?.headers)
     headers.set('x-middleware-rewrite', validateURL(destination))
+
+    handleMiddlewareField(init, headers)
     return new NextResponse(null, { ...init, headers })
   }
 
-  static next(init?: ResponseInit) {
+  static next(init?: MiddlewareResponseInit) {
     const headers = new Headers(init?.headers)
     headers.set('x-middleware-next', '1')
+
+    handleMiddlewareField(init, headers)
     return new NextResponse(null, { ...init, headers })
   }
 }
@@ -91,4 +117,18 @@ interface ResponseInit extends globalThis.ResponseInit {
     trailingSlash?: boolean
   }
   url?: string
+}
+
+interface ModifiedRequest {
+  /**
+   * If this is set, the request headers will be overridden with this value.
+   */
+  headers?: Headers
+}
+
+interface MiddlewareResponseInit extends globalThis.ResponseInit {
+  /**
+   * These fields will override the request from clients.
+   */
+  request?: ModifiedRequest
 }

@@ -11,17 +11,18 @@ async function createNextInstall(
   dependencies,
   installCommand,
   packageJson = {},
-  packageLockPath = ''
+  packageLockPath = '',
+  dirSuffix = ''
 ) {
   const tmpDir = await fs.realpath(process.env.NEXT_TEST_DIR || os.tmpdir())
   const origRepoDir = path.join(__dirname, '../../')
   const installDir = path.join(
     tmpDir,
-    `next-install-${randomBytes(32).toString('hex')}`
+    `next-install-${randomBytes(32).toString('hex')}${dirSuffix}`
   )
   const tmpRepoDir = path.join(
     tmpDir,
-    `next-repo-${randomBytes(32).toString('hex')}`
+    `next-repo-${randomBytes(32).toString('hex')}${dirSuffix}`
   )
 
   // ensure swc binary is present in the native folder if
@@ -51,7 +52,8 @@ async function createNextInstall(
           !item.includes('node_modules') &&
           !item.includes('.DS_Store') &&
           // Exclude Rust compilation files
-          !/next[\\/]build[\\/]swc[\\/]target/.test(item)
+          !/next[\\/]build[\\/]swc[\\/]target/.test(item) &&
+          !/next-swc[\\/]target/.test(item)
         )
       },
     })

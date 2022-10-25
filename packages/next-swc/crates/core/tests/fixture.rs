@@ -1,6 +1,7 @@
 use next_swc::{
     amp_attributes::amp_attributes,
     next_dynamic::next_dynamic,
+    next_font_loaders::{next_font_loaders, Config as FontLoaderConfig},
     next_ssg::next_ssg,
     page_config::page_config_test,
     react_remove_properties::remove_properties,
@@ -28,7 +29,13 @@ fn syntax() -> Syntax {
 #[fixture("tests/fixture/amp/**/input.js")]
 fn amp_attributes_fixture(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
-    test_fixture(syntax(), &|_tr| amp_attributes(), &input, &output);
+    test_fixture(
+        syntax(),
+        &|_tr| amp_attributes(),
+        &input,
+        &output,
+        Default::default(),
+    );
 }
 
 #[fixture("tests/fixture/next-dynamic/**/input.js")]
@@ -48,6 +55,7 @@ fn next_dynamic_fixture(input: PathBuf) {
         },
         &input,
         &output_dev,
+        Default::default(),
     );
     test_fixture(
         syntax(),
@@ -61,6 +69,7 @@ fn next_dynamic_fixture(input: PathBuf) {
         },
         &input,
         &output_prod,
+        Default::default(),
     );
     test_fixture(
         syntax(),
@@ -74,6 +83,7 @@ fn next_dynamic_fixture(input: PathBuf) {
         },
         &input,
         &output_server,
+        Default::default(),
     );
 }
 
@@ -105,13 +115,20 @@ fn next_ssg_fixture(input: PathBuf) {
         },
         &input,
         &output,
+        Default::default(),
     );
 }
 
 #[fixture("tests/fixture/page-config/**/input.js")]
 fn page_config_fixture(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
-    test_fixture(syntax(), &|_tr| page_config_test(), &input, &output);
+    test_fixture(
+        syntax(),
+        &|_tr| page_config_test(),
+        &input,
+        &output,
+        Default::default(),
+    );
 }
 
 #[fixture("tests/fixture/relay/**/input.ts*")]
@@ -133,6 +150,7 @@ fn relay_no_artifact_dir_fixture(input: PathBuf) {
         },
         &input,
         &output,
+        Default::default(),
     );
 }
 
@@ -144,6 +162,7 @@ fn remove_console_fixture(input: PathBuf) {
         &|_tr| remove_console(next_swc::remove_console::Config::All(true)),
         &input,
         &output,
+        Default::default(),
     );
 }
 
@@ -155,6 +174,7 @@ fn react_remove_properties_default_fixture(input: PathBuf) {
         &|_tr| remove_properties(next_swc::react_remove_properties::Config::All(true)),
         &input,
         &output,
+        Default::default(),
     );
 }
 
@@ -172,6 +192,7 @@ fn react_remove_properties_custom_fixture(input: PathBuf) {
         },
         &input,
         &output,
+        Default::default(),
     );
 }
 
@@ -193,6 +214,7 @@ fn shake_exports_fixture(input: PathBuf) {
         },
         &input,
         &output,
+        Default::default(),
     );
 }
 
@@ -208,6 +230,7 @@ fn shake_exports_fixture_default(input: PathBuf) {
         },
         &input,
         &output,
+        Default::default(),
     );
 }
 
@@ -227,6 +250,7 @@ fn react_server_components_server_graph_fixture(input: PathBuf) {
         },
         &input,
         &output,
+        Default::default(),
     );
 }
 
@@ -246,5 +270,23 @@ fn react_server_components_client_graph_fixture(input: PathBuf) {
         },
         &input,
         &output,
+        Default::default(),
+    );
+}
+
+#[fixture("tests/fixture/next-font-loaders/**/input.js")]
+fn next_font_loaders_fixture(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture(
+        syntax(),
+        &|_tr| {
+            next_font_loaders(FontLoaderConfig {
+                relative_file_path_from_root: "pages/test.tsx".into(),
+                font_loaders: vec!["@next/font/google".into(), "cool-fonts".into()],
+            })
+        },
+        &input,
+        &output,
+        Default::default(),
     );
 }

@@ -27,6 +27,13 @@ const program = new Commander.Command(packageJson.name)
 `
   )
   .option(
+    '--experimental-app',
+    `
+
+  Initialize as a \`app/\` directory project.
+`
+  )
+  .option(
     '--use-npm',
     `
 
@@ -61,6 +68,12 @@ const program = new Commander.Command(packageJson.name)
   )
   .allowUnknownOption()
   .parse(process.argv)
+
+const packageManager = !!program.useNpm
+  ? 'npm'
+  : !!program.usePnpm
+  ? 'pnpm'
+  : getPkgManager()
 
 async function run(): Promise<void> {
   if (typeof projectPath === 'string') {
@@ -122,12 +135,6 @@ async function run(): Promise<void> {
     process.exit(1)
   }
 
-  const packageManager = !!program.useNpm
-    ? 'npm'
-    : !!program.usePnpm
-    ? 'pnpm'
-    : getPkgManager()
-
   const example = typeof program.example === 'string' && program.example.trim()
   try {
     await createApp({
@@ -136,6 +143,7 @@ async function run(): Promise<void> {
       example: example && example !== 'default' ? example : undefined,
       examplePath: program.examplePath,
       typescript: program.typescript,
+      experimentalApp: program.experimentalApp,
     })
   } catch (reason) {
     if (!(reason instanceof DownloadError)) {
@@ -158,6 +166,7 @@ async function run(): Promise<void> {
       appPath: resolvedProjectPath,
       packageManager,
       typescript: program.typescript,
+      experimentalApp: program.experimentalApp,
     })
   }
 }
@@ -168,16 +177,18 @@ async function notifyUpdate(): Promise<void> {
   try {
     const res = await update
     if (res?.latest) {
-      const pkgManager = getPkgManager()
+      const updateMessage =
+        packageManager === 'yarn'
+          ? 'yarn global add create-next-app'
+          : packageManager === 'pnpm'
+          ? 'pnpm add -g create-next-app'
+          : 'npm i -g create-next-app'
+
       console.log(
         chalk.yellow.bold('A new version of `create-next-app` is available!') +
           '\n' +
           'You can update by running: ' +
-          chalk.cyan(
-            pkgManager === 'yarn'
-              ? 'yarn global add create-next-app'
-              : `${pkgManager} install --global create-next-app`
-          ) +
+          chalk.cyan(updateMessage) +
           '\n'
       )
     }

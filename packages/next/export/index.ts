@@ -24,14 +24,13 @@ import {
   EXPORT_MARKER,
   FLIGHT_MANIFEST,
   FLIGHT_SERVER_CSS_MANIFEST,
+  FONT_LOADER_MANIFEST,
   PAGES_MANIFEST,
   PHASE_EXPORT,
   PRERENDER_MANIFEST,
-  SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
 } from '../shared/lib/constants'
 import loadConfig from '../server/config'
-import { isTargetLikeServerless } from '../server/utils'
 import { ExportPathMap, NextConfigComplete } from '../server/config-shared'
 import { eventCliSession } from '../telemetry/events'
 import { hasNextSupport } from '../telemetry/ci-info'
@@ -44,6 +43,15 @@ import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import { getPagePath } from '../server/require'
 import { Span } from '../trace'
 import { FontConfig } from '../server/font-utils'
+import {
+  loadRequireHook,
+  overrideBuiltInReactPackages,
+} from '../build/webpack/require-hook'
+
+loadRequireHook()
+if (process.env.NEXT_PREBUNDLED_REACT) {
+  overrideBuiltInReactPackages()
+}
 
 const exists = promisify(existsOrig)
 
@@ -146,6 +154,7 @@ export default async function exportApp(
   configuration?: NextConfigComplete
 ): Promise<void> {
   const nextExportSpan = span.traceChild('next-export')
+  const hasAppDir = !!options.appPaths
 
   return nextExportSpan.traceAsyncFn(async () => {
     dir = resolve(dir)
@@ -178,7 +187,6 @@ export default async function exportApp(
     }
 
     const subFolders = nextConfig.trailingSlash && !options.buildExport
-    const isLikeServerless = nextConfig.target !== 'server'
 
     if (!options.silent && !options.buildExport) {
       Log.info(`using build directory: ${distDir}`)
@@ -213,7 +221,7 @@ export default async function exportApp(
       !options.pages &&
       (require(join(
         distDir,
-        isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
+        SERVER_DIRECTORY,
         PAGES_MANIFEST
       )) as PagesManifest)
 
@@ -388,7 +396,10 @@ export default async function exportApp(
       nextScriptWorkers: nextConfig.experimental.nextScriptWorkers,
       optimizeFonts: nextConfig.optimizeFonts as FontConfig,
       largePageDataBytes: nextConfig.experimental.largePageDataBytes,
-      serverComponents: nextConfig.experimental.serverComponents,
+      serverComponents: hasAppDir,
+      fontLoaderManifest: nextConfig.experimental.fontLoaders
+        ? require(join(distDir, 'server', `${FONT_LOADER_MANIFEST}.json`))
+        : undefined,
     }
 
     const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -418,7 +429,7 @@ export default async function exportApp(
         return exportMap
       })
 
-    if (options.buildExport && nextConfig.experimental.appDir) {
+    if (options.buildExport && hasAppDir) {
       // @ts-expect-error untyped
       renderOpts.serverComponentManifest = require(join(
         distDir,
@@ -606,15 +617,15 @@ export default async function exportApp(
             serverRuntimeConfig,
             subFolders,
             buildExport: options.buildExport,
-            serverless: isTargetLikeServerless(nextConfig.target),
             optimizeFonts: nextConfig.optimizeFonts as FontConfig,
             optimizeCss: nextConfig.experimental.optimizeCss,
             disableOptimizedLoading:
               nextConfig.experimental.disableOptimizedLoading,
             parentSpanId: pageExportSpan.id,
             httpAgentOptions: nextConfig.httpAgentOptions,
-            serverComponents: nextConfig.experimental.serverComponents,
+            serverComponents: hasAppDir,
             appPaths: options.appPaths || [],
+            enableUndici: nextConfig.experimental.enableUndici,
           })
 
           for (const validation of result.ampValidations || []) {
@@ -667,7 +678,7 @@ export default async function exportApp(
           }
           route = normalizePagePath(route)
 
-          const pagePath = getPagePath(pageName, distDir, isLikeServerless)
+          const pagePath = getPagePath(pageName, distDir)
           const distPagesDir = join(
             pagePath,
             // strip leading / and then recurse number of nested dirs

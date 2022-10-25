@@ -1,0 +1,90 @@
+html,
+body {
+  padding: 0;
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
+    Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+@media (prefers-color-scheme: dark) {
+  html {
+    color-scheme: dark;
+  }
+  body {
+    color: white;
+    background: rgb(10, 10, 10);
+  }
+}
+
+.card {
+  margin: 5% 0%;
+  padding: 2%;
+  background: rgb(0, 0, 0);
+  background: -moz-radial-gradient(
+    circle,
+    rgba(0, 0, 0, 1) 0%,
+    rgba(11, 11, 78, 1) 35%,
+    rgba(0, 0, 0, 1) 100%
+  );
+  background: -webkit-radial-gradient(
+    circle,
+    rgba(0, 0, 0, 1) 0%,
+    rgba(11, 11, 78, 1) 35%,
+    rgba(0, 0, 0, 1) 100%
+  );
+  background: radial-gradient(
+    circle,
+    rgba(0, 0, 0, 1) 0%,
+    rgba(11, 11, 78, 1) 35%,
+    rgba(0, 0, 0, 1) 100%
+  );
+  filter: progid:DXImageTransform.Microsoft.gradient(startColorstr="#000000",endColorstr="#000000",GradientType=1);
+  border: 1px solid;
+  border-radius: 5px;
+}
+.flex {
+  display: flex;
+}
+.flex-wrap {
+  flex-wrap: wrap;
+}
+.my-1 {
+  margin-top: 1%;
+  margin-bottom: 1%;
+}
+.mx-1 {
+  margin-left: 1%;
+  margin-right: 1%;
+}
+.btn {
+  background-color: rgb(46, 46, 244);
+  padding: 0.5em 1em;
+  border: none;
+  border-radius: 2px;
+  color: white;
+}
+.btn:hover {
+  background-color: rgb(87, 87, 240);
+  cursor: pointer;
+}
+.btn:active {
+  background-color: rgb(0, 0, 255);
+}
+.items-center {
+  align-items: center;
+}
+.rounded {
+  border-radius: 2px;
+}
+.rounded-md {
+  border-radius: 5px;
+}

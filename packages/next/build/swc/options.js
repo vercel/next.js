@@ -33,6 +33,8 @@ function getBaseSWCOptions({
   jsConfig,
   swcCacheDir,
   isServerLayer,
+  relativeFilePathFromRoot,
+  hasServerComponents,
 }) {
   const parserConfig = getParserOptions({ filename, jsConfig })
   const paths = jsConfig?.compilerOptions?.paths
@@ -108,7 +110,6 @@ function getBaseSWCOptions({
       },
     },
     sourceMaps: jest ? 'inline' : undefined,
-    styledComponents: getStyledComponentsOptions(nextConfig, development),
     removeConsole: nextConfig?.compiler?.removeConsole,
     // disable "reactRemoveProperties" when "jest" is true
     // otherwise the setting from next.config.js will be used
@@ -117,12 +118,28 @@ function getBaseSWCOptions({
       : nextConfig?.compiler?.reactRemoveProperties,
     modularizeImports: nextConfig?.experimental?.modularizeImports,
     relay: nextConfig?.compiler?.relay,
-    emotion: getEmotionOptions(nextConfig, development),
-    serverComponents: nextConfig?.experimental?.serverComponents
+    // Disable css-in-js transform on server layer for server components
+    ...(isServerLayer
+      ? {}
+      : {
+          emotion: getEmotionOptions(nextConfig, development),
+          styledComponents: getStyledComponentsOptions(nextConfig, development),
+          styledJsx: true,
+        }),
+    serverComponents: hasServerComponents
       ? {
           isServer: !!isServerLayer,
         }
       : false,
+    fontLoaders:
+      nextConfig?.experimental?.fontLoaders && relativeFilePathFromRoot
+        ? {
+            fontLoaders: nextConfig.experimental.fontLoaders.map(
+              ({ loader }) => loader
+            ),
+            relativeFilePathFromRoot,
+          }
+        : null,
   }
 }
 
@@ -172,6 +189,7 @@ export function getJestSWCOptions({
   nextConfig,
   jsConfig,
   pagesDir,
+  hasServerComponents,
   // This is not passed yet as "paths" resolving needs a test first
   // resolvedBaseUrl,
 }) {
@@ -183,6 +201,7 @@ export function getJestSWCOptions({
     globalWindow: !isServer,
     nextConfig,
     jsConfig,
+    hasServerComponents,
     // resolvedBaseUrl,
   })
 
@@ -217,6 +236,8 @@ export function getLoaderSWCOptions({
   jsConfig,
   supportedBrowsers,
   swcCacheDir,
+  relativeFilePathFromRoot,
+  hasServerComponents,
   // This is not passed yet as "paths" resolving is handled by webpack currently.
   // resolvedBaseUrl,
 }) {
@@ -230,6 +251,8 @@ export function getLoaderSWCOptions({
     // resolvedBaseUrl,
     swcCacheDir,
     isServerLayer,
+    relativeFilePathFromRoot,
+    hasServerComponents,
   })
 
   const isNextDist = nextDistPath.test(filename)

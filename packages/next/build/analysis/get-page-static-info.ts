@@ -18,6 +18,7 @@ import { RSC_MODULE_TYPES } from '../../shared/lib/constants'
 export interface MiddlewareConfig {
   matchers: MiddlewareMatcher[]
   unstable_allowDynamicGlobs: string[]
+  regions: string[] | string
 }
 
 export interface MiddlewareMatcher {
@@ -47,11 +48,30 @@ export function getRSCModuleType(source: string): RSCModuleType {
  * requires a runtime to be specified. Those are:
  *   - Modules with `export function getStaticProps | getServerSideProps`
  *   - Modules with `export { getStaticProps | getServerSideProps } <from ...>`
+ *   - Modules with `export const runtime = ...`
  */
-export function checkExports(swcAST: any): { ssr: boolean; ssg: boolean } {
+function checkExports(swcAST: any): {
+  ssr: boolean
+  ssg: boolean
+  runtime?: string
+} {
   if (Array.isArray(swcAST?.body)) {
     try {
+      let runtime: string | undefined
+      let ssr: boolean = false
+      let ssg: boolean = false
+
       for (const node of swcAST.body) {
+        if (
+          node.type === 'ExportDeclaration' &&
+          node.declaration?.type === 'VariableDeclaration'
+        ) {
+          const id = node.declaration?.declarations[0]?.id.value
+          if (id === 'runtime') {
+            runtime = node.declaration?.declarations[0]?.init.value
+          }
+        }
+
         if (
           node.type === 'ExportDeclaration' &&
           node.declaration?.type === 'FunctionDeclaration' &&
@@ -59,10 +79,8 @@ export function checkExports(swcAST: any): { ssr: boolean; ssg: boolean } {
             node.declaration.identifier?.value
           )
         ) {
-          return {
-            ssg: node.declaration.identifier.value === 'getStaticProps',
-            ssr: node.declaration.identifier.value === 'getServerSideProps',
-          }
+          ssg = node.declaration.identifier.value === 'getStaticProps'
+          ssr = node.declaration.identifier.value === 'getServerSideProps'
         }
 
         if (
@@ -71,10 +89,8 @@ export function checkExports(swcAST: any): { ssr: boolean; ssg: boolean } {
         ) {
           const id = node.declaration?.declarations[0]?.id.value
           if (['getStaticProps', 'getServerSideProps'].includes(id)) {
-            return {
-              ssg: id === 'getStaticProps',
-              ssr: id === 'getServerSideProps',
-            }
+            ssg = id === 'getStaticProps'
+            ssr = id === 'getServerSideProps'
           }
         }
 
@@ -86,16 +102,14 @@ export function checkExports(swcAST: any): { ssr: boolean; ssg: boolean } {
               specifier.orig?.value
           )
 
-          return {
-            ssg: values.some((value: any) =>
-              ['getStaticProps'].includes(value)
-            ),
-            ssr: values.some((value: any) =>
-              ['getServerSideProps'].includes(value)
-            ),
-          }
+          ssg = values.some((value: any) => ['getStaticProps'].includes(value))
+          ssr = values.some((value: any) =>
+            ['getServerSideProps'].includes(value)
+          )
         }
       }
+
+      return { ssr, ssg, runtime }
     } catch (err) {}
   }
 
@@ -184,6 +198,14 @@ function getMiddlewareConfig(
     result.matchers = getMiddlewareMatchers(config.matcher, nextConfig)
   }
 
+  if (typeof config.regions === 'string' || Array.isArray(config.regions)) {
+    result.regions = config.regions
+  } else if (typeof config.regions !== 'undefined') {
+    Log.warn(
+      `The \`regions\` config was ignored: config must be empty, a string or an array of strings. (${pageFilePath})`
+    )
+  }
+
   if (config.unstable_allowDynamic) {
     result.unstable_allowDynamicGlobs = Array.isArray(
       config.unstable_allowDynamic
@@ -256,12 +278,12 @@ export async function getPageStaticInfo(params: {
 
   const fileContent = (await tryToReadFile(pageFilePath, !isDev)) || ''
   if (
-    /runtime|getStaticProps|getServerSideProps|matcher|unstable_allowDynamic/.test(
+    /runtime|getStaticProps|getServerSideProps|export const config/.test(
       fileContent
     )
   ) {
     const swcAST = await parseModule(pageFilePath, fileContent)
-    const { ssg, ssr } = checkExports(swcAST)
+    const { ssg, ssr, runtime } = checkExports(swcAST)
     const rsc = getRSCModuleType(fileContent)
 
     // default / failsafe value for config
@@ -275,12 +297,18 @@ export async function getPageStaticInfo(params: {
       // `export config` doesn't exist, or other unknown error throw by swc, silence them
     }
 
+    // Currently, we use `export const config = { runtime: '...' }` to specify the page runtime.
+    // But in the new app directory, we prefer to use `export const runtime = '...'`
+    // and deprecate the old way. To prevent breaking changes for `pages`, we use the exported config
+    // as the fallback value.
+    let resolvedRuntime = runtime || config.runtime
+
     if (
-      typeof config.runtime !== 'undefined' &&
-      !isServerRuntime(config.runtime)
+      typeof resolvedRuntime !== 'undefined' &&
+      !isServerRuntime(resolvedRuntime)
     ) {
       const options = Object.values(SERVER_RUNTIME).join(', ')
-      if (typeof config.runtime !== 'string') {
+      if (typeof resolvedRuntime !== 'string') {
         Log.error(
           `The \`runtime\` config must be a string. Please leave it empty or choose one of: ${options}`
         )
@@ -294,14 +322,14 @@ export async function getPageStaticInfo(params: {
       }
     }
 
-    let runtime =
-      SERVER_RUNTIME.edge === config?.runtime
+    resolvedRuntime =
+      SERVER_RUNTIME.edge === resolvedRuntime
         ? SERVER_RUNTIME.edge
         : ssr || ssg
-        ? config?.runtime || nextConfig.experimental?.runtime
+        ? resolvedRuntime || nextConfig.experimental?.runtime
         : undefined
 
-    if (runtime === SERVER_RUNTIME.edge) {
+    if (resolvedRuntime === SERVER_RUNTIME.edge) {
       warnAboutExperimentalEdgeApiFunctions()
     }
 
@@ -316,7 +344,7 @@ export async function getPageStaticInfo(params: {
       ssg,
       rsc,
       ...(middlewareConfig && { middleware: middlewareConfig }),
-      ...(runtime && { runtime }),
+      ...(resolvedRuntime && { runtime: resolvedRuntime }),
     }
   }
 

@@ -45,7 +45,7 @@ The majority of core Next.js features needed to build a static site are supporte
 - [Client-side data fetching](/docs/basic-features/data-fetching/client-side.md)
 - [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md)
 - [`getStaticPaths`](/docs/basic-features/data-fetching/get-static-paths.md)
-- [Image Optimization](/docs/basic-features/image-optimization.md) using a [custom loader](/docs/basic-features/image-optimization.md#loader)
+- [Image Optimization](/docs/basic-features/image-optimization.md) using a [custom loader](/docs/basic-features/image-optimization.md#loaders)
 
 ## Unsupported Features
 

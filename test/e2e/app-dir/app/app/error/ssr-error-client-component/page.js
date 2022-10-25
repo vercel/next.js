@@ -1,5 +1,8 @@
-'client'
+import ClientComp from './client-component'
+import { headers } from 'next/headers'
 
 export default function Page() {
-  throw new Error('Error during SSR')
+  // Opt-in to SSR.
+  headers()
+  return <ClientComp />
 }

@@ -9,19 +9,14 @@ describe('app-dir alias handling', () => {
     return
   }
 
-  if (process.env.NEXT_TEST_REACT_VERSION === '^17') {
-    it('should skip for react v17', () => {})
-    return
-  }
-
   let next: NextInstance
 
   beforeAll(async () => {
     next = await createNext({
       files: new FileRef(path.join(__dirname, 'app-alias')),
       dependencies: {
-        react: 'experimental',
-        'react-dom': 'experimental',
+        react: 'latest',
+        'react-dom': 'latest',
         typescript: 'latest',
         '@types/react': 'latest',
         '@types/node': 'latest',

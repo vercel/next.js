@@ -1187,7 +1187,7 @@ export default class Router implements BaseRouter {
     // hydration. Your app should _never_ use this property. It may change at
     // any time without notice.
     const isQueryUpdating = (options as any)._h
-    const shouldResolveHref =
+    let shouldResolveHref =
       isQueryUpdating ||
       (options as any)._shouldResolveHref ||
       parsePath(url).pathname === parsePath(as).pathname
@@ -1418,6 +1418,10 @@ export default class Router implements BaseRouter {
       pathname = this.pathname
     }
 
+    if (isQueryUpdating && isMiddlewareMatch) {
+      shouldResolveHref = false
+    }
+
     if (shouldResolveHref && pathname !== '/_error') {
       ;(options as any)._shouldResolveHref = true
 
@@ -1550,6 +1554,8 @@ export default class Router implements BaseRouter {
         locale: nextState.locale,
         isPreview: nextState.isPreview,
         hasMiddleware: isMiddlewareMatch,
+        unstable_skipClientCache: options.unstable_skipClientCache,
+        isQueryUpdating: isQueryUpdating && !this.isFallback,
       })
 
       if ('route' in routeInfo && isMiddlewareMatch) {
@@ -1596,7 +1602,9 @@ export default class Router implements BaseRouter {
             rewriteAs = localeResult.pathname
           }
           const routeRegex = getRouteRegex(pathname)
-          const curRouteMatch = getRouteMatcher(routeRegex)(rewriteAs)
+          const curRouteMatch = getRouteMatcher(routeRegex)(
+            new URL(rewriteAs, location.href).pathname
+          )
 
           if (curRouteMatch) {
             Object.assign(query, curRouteMatch)
@@ -1895,6 +1903,7 @@ export default class Router implements BaseRouter {
     hasMiddleware,
     isPreview,
     unstable_skipClientCache,
+    isQueryUpdating,
   }: {
     route: string
     pathname: string
@@ -1906,6 +1915,7 @@ export default class Router implements BaseRouter {
     locale: string | undefined
     isPreview: boolean
     unstable_skipClientCache?: boolean
+    isQueryUpdating?: boolean
   }) {
     /**
      * This `route` binding can change if there's a rewrite
@@ -1948,14 +1958,21 @@ export default class Router implements BaseRouter {
         persistCache: !isPreview,
         isPrefetch: false,
         unstable_skipClientCache,
+        isBackground: isQueryUpdating,
       }
 
-      const data = await withMiddlewareEffects({
-        fetchData: () => fetchNextData(fetchNextDataParams),
-        asPath: resolvedAs,
-        locale: locale,
-        router: this,
-      })
+      const data = isQueryUpdating
+        ? ({} as any)
+        : await withMiddlewareEffects({
+            fetchData: () => fetchNextData(fetchNextDataParams),
+            asPath: resolvedAs,
+            locale: locale,
+            router: this,
+          })
+
+      if (isQueryUpdating && data) {
+        data.json = self.__NEXT_DATA__.props
+      }
       handleCancelled()
 
       if (
@@ -2070,7 +2087,8 @@ export default class Router implements BaseRouter {
       if (
         !this.isPreview &&
         routeInfo.__N_SSG &&
-        process.env.NODE_ENV !== 'development'
+        process.env.NODE_ENV !== 'development' &&
+        !isQueryUpdating
       ) {
         fetchNextData(
           Object.assign({}, fetchNextDataParams, {

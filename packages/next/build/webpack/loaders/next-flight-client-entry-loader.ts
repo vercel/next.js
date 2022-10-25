@@ -1,5 +1,6 @@
 import { RSC_MODULE_TYPES } from '../../../shared/lib/constants'
 import { getModuleBuildInfo } from './get-module-build-info'
+import { regexCSS } from './utils'
 
 export type ClientComponentImports = string[]
 export type CssImports = Record<string, string[]>
@@ -20,25 +21,15 @@ export default async function transformSource(this: any): Promise<string> {
   }
 
   const requests = modules as string[]
-  const code =
-    requests
-      // Filter out css files on the server
-      .filter((request) => (isServer ? !request.endsWith('.css') : true))
-      .map((request) =>
-        request.endsWith('.css')
-          ? `(() => import(/* webpackMode: "lazy" */ ${JSON.stringify(
-              request
-            )}))`
-          : `import(/* webpackMode: "eager" */ ${JSON.stringify(request)})`
-      )
-      .join(';\n') +
-    `
-    export const __next_rsc__ = {
-      server: false,
-      __webpack_require__
-    };
-    export default function RSC() {};
-    `
+  const code = requests
+    // Filter out css files on the server
+    .filter((request) => (isServer ? !regexCSS.test(request) : true))
+    .map((request) =>
+      regexCSS.test(request)
+        ? `(() => import(/* webpackMode: "lazy" */ ${JSON.stringify(request)}))`
+        : `import(/* webpackMode: "eager" */ ${JSON.stringify(request)})`
+    )
+    .join(';\n')
 
   const buildInfo = getModuleBuildInfo(this._module)
   const resolve = this.getResolve()

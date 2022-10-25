@@ -1,9 +1,11 @@
 /* eslint-disable import/no-extraneous-dependencies */
 declare module 'next/dist/compiled/babel/plugin-transform-modules-commonjs'
 declare module 'next/dist/compiled/babel/plugin-syntax-jsx'
-declare module 'next/dist/compiled/react-server-dom-webpack'
-declare module 'next/dist/compiled/react-server-dom-webpack/writer.browser.server'
+declare module 'next/dist/compiled/react-server-dom-webpack/client'
+declare module 'next/dist/compiled/react-server-dom-webpack/server.browser'
+declare module 'next/dist/compiled/react-dom/server.browser'
 declare module 'next/dist/compiled/browserslist'
+declare module 'react-dom/server.browser'
 
 declare module 'next/dist/compiled/@next/react-dev-overlay/dist/client' {
   export * from '@next/react-dev-overlay/dist/client'
@@ -27,6 +29,8 @@ declare module 'next/dist/compiled/node-fetch' {
   export default m
   export * from 'node-fetch'
 }
+
+declare module 'next/dist/compiled/undici' {}
 
 declare module 'next/dist/compiled/jest-worker' {
   export * from 'jest-worker'
@@ -305,6 +309,8 @@ declare module 'next/dist/compiled/web-vitals' {
   import m from 'web-vitals'
   export = m
 }
+declare module 'next/dist/compiled/web-vitals-attribution' {}
+
 declare module 'next/dist/compiled/ws' {
   import m from 'ws'
   export = m
@@ -332,6 +338,44 @@ declare module 'next/dist/compiled/@edge-runtime/primitives' {
 
 declare module 'next/dist/compiled/@segment/ajv-human-errors' {
   import * as m from '@segment/ajv-human-errors'
+  export = m
+}
+
+declare module 'next/dist/compiled/react' {
+  import * as m from 'react'
+  export = m
+}
+declare module 'next/dist/compiled/react-dom' {
+  import * as m from 'react-dom'
+  export = m
+}
+
+declare module 'next/dist/compiled/stacktrace-parser' {
+  import * as m from 'stacktrace-parser'
+  export = m
+}
+
+declare module 'next/dist/compiled/anser' {
+  import * as m from 'anser'
+  export = m
+}
+
+declare module 'next/dist/compiled/platform' {
+  import * as m from 'platform'
+  export = m
+}
+
+declare module 'next/dist/compiled/css.escape' {
+  export = CSS.escape
+}
+
+declare module 'next/dist/compiled/data-uri-to-buffer' {
+  import * as m from 'data-uri-to-buffer'
+  export = m
+}
+
+declare module 'next/dist/compiled/shell-quote' {
+  import * as m from 'shell-quote'
   export = m
 }
 

@@ -25,7 +25,7 @@ async function resolveStreamResponse(response: any, onData?: any) {
   return result
 }
 
-describe('app dir - react server components', () => {
+describe('app dir - rsc basics', () => {
   let next: NextInstance
   let distDir: string
 
@@ -38,15 +38,14 @@ describe('app dir - react server components', () => {
     next = await createNext({
       files: new FileRef(path.join(__dirname, './rsc-basic')),
       dependencies: {
-        'styled-components': '6.0.0-alpha.5',
-        react: 'experimental',
-        'react-dom': 'experimental',
+        'styled-components': '6.0.0-beta.2',
+        react: 'latest',
+        'react-dom': 'latest',
       },
       packageJson: {
         scripts: {
-          setup: `cp -r ./node_modules_bak/non-isomorphic-text ./node_modules; cp -r ./node_modules_bak/random-module-instance ./node_modules`,
-          build: 'yarn setup && next build',
-          dev: 'yarn setup && next dev',
+          build: 'next build',
+          dev: 'next dev',
           start: 'next start',
         },
       },
@@ -74,16 +73,12 @@ describe('app dir - react server components', () => {
 
     // should have only 1 DOCTYPE
     expect(homeHTML).toMatch(/^<!DOCTYPE html><html/)
-    // TODO: support next/head
-    // expect(homeHTML).toMatch('<meta name="rsc-title" content="index"/>')
     expect(homeHTML).toContain('component:index.server')
-    // TODO: support env
-    // expect(homeHTML).toContain('env:env_var_test')
     expect(homeHTML).toContain('header:test-util')
 
     const inlineFlightContents = []
     const $ = cheerio.load(homeHTML)
-    $('script').each((index, tag) => {
+    $('script').each((_index, tag) => {
       const content = $(tag).text()
       if (content) inlineFlightContents.push(content)
     })
@@ -93,8 +88,9 @@ describe('app dir - react server components', () => {
       '__nextLocale',
       '__nextDefaultLocale',
       '__nextIsNotFound',
-      '__flight__',
-      '__flight_router_path__',
+      '__rsc__',
+      '__next_router_state_tree__',
+      '__next_router_prefetch__',
     ]
 
     const hasNextInternalQuery = inlineFlightContents.some((content) =>
@@ -110,14 +106,15 @@ describe('app dir - react server components', () => {
       beforePageLoad(page) {
         page.on('request', (request) => {
           requestsCount++
-          const url = request.url()
-          if (
-            url.includes('__flight__=1') &&
-            // Prefetches also include `__flight__`
-            !url.includes('__flight_prefetch__=1')
-          ) {
-            hasFlightRequest = true
-          }
+          return request.allHeaders().then((headers) => {
+            if (
+              headers.__rsc__ === '1' &&
+              // Prefetches also include `__rsc__`
+              headers.__next_router_prefetch__ !== '1'
+            ) {
+              hasFlightRequest = true
+            }
+          })
         })
       },
     })
@@ -130,26 +127,6 @@ describe('app dir - react server components', () => {
     const html = await renderViaHTTP(next.url, '/multi')
     expect(html).toContain('bar.server.js:')
     expect(html).toContain('foo.client')
-  })
-
-  it('should resolve different kinds of components correctly', async () => {
-    const html = await renderViaHTTP(next.url, '/shared')
-    const main = getNodeBySelector(html, '#main').html()
-
-    // Should have 5 occurrences of "client_component".
-    expect(Array.from(main.matchAll(/client_component/g)).length).toBe(5)
-
-    // Should have 2 occurrences of "shared:server", and 2 occurrences of
-    // "shared:client".
-    const sharedServerModule = Array.from(main.matchAll(/shared:server:(\d+)/g))
-    const sharedClientModule = Array.from(main.matchAll(/shared:client:(\d+)/g))
-    expect(sharedServerModule.length).toBe(2)
-    expect(sharedClientModule.length).toBe(2)
-
-    // Should have 2 modules created for the shared component.
-    expect(sharedServerModule[0][1]).toBe(sharedServerModule[1][1])
-    expect(sharedClientModule[0][1]).toBe(sharedClientModule[1][1])
-    expect(sharedServerModule[0][1]).not.toBe(sharedClientModule[0][1])
   })
 
   it('should be able to navigate between rsc routes', async () => {
@@ -215,14 +192,14 @@ describe('app dir - react server components', () => {
     const browser = await webdriver(next.url, '/root', {
       beforePageLoad(page) {
         page.on('request', (request) => {
-          const url = request.url()
-          if (
-            url.includes('__flight__=1') &&
-            // Prefetches also include `__flight__`
-            !url.includes('__flight_prefetch__=1')
-          ) {
-            hasFlightRequest = true
-          }
+          return request.allHeaders().then((headers) => {
+            if (
+              headers.__rsc__ === '1' &&
+              headers.__next_router_prefetch__ !== '1'
+            ) {
+              hasFlightRequest = true
+            }
+          })
         })
       },
     })
@@ -259,20 +236,18 @@ describe('app dir - react server components', () => {
     expect(html).toContain('This page could not be found')
   })
 
-  it('should suspense next/image in server components', async () => {
-    const imageHTML = await renderViaHTTP(next.url, '/next-api/image')
+  it('should suspense next/legacy/image in server components', async () => {
+    const imageHTML = await renderViaHTTP(next.url, '/next-api/image-legacy')
     const imageTag = getNodeBySelector(imageHTML, '#myimg')
 
     expect(imageTag.attr('src')).toContain('data:image')
   })
 
-  it('should handle external async module libraries correctly', async () => {
-    const html = await renderViaHTTP(next.url, '/external-imports')
-    expect(html).toContain('module type:esm-export')
-    expect(html).toContain('export named:named')
-    expect(html).toContain('export value:123')
-    expect(html).toContain('export array:4,5,6')
-    expect(html).toContain('export object:{x:1}')
+  it('should suspense next/image in server components', async () => {
+    const imageHTML = await renderViaHTTP(next.url, '/next-api/image-new')
+    const imageTag = getNodeBySelector(imageHTML, '#myimg')
+
+    expect(imageTag.attr('src')).toMatch(/test.+jpg/)
   })
 
   it('should handle various kinds of exports correctly', async () => {
@@ -302,10 +277,25 @@ describe('app dir - react server components', () => {
     expect(content).toContain('foo.client')
   })
 
-  it('should support the re-export syntax in server component', async () => {
+  it('should resolve different kinds of components correctly', async () => {
     const html = await renderViaHTTP(next.url, '/shared')
+    const main = getNodeBySelector(html, '#main').html()
     const content = getNodeBySelector(html, '#bar').text()
 
+    // Should have 5 occurrences of "client_component".
+    expect(Array.from(main.matchAll(/client_component/g)).length).toBe(5)
+
+    // Should have 2 occurrences of "shared:server", and 2 occurrences of
+    // "shared:client".
+    const sharedServerModule = Array.from(main.matchAll(/shared:server:(\d+)/g))
+    const sharedClientModule = Array.from(main.matchAll(/shared:client:(\d+)/g))
+    expect(sharedServerModule.length).toBe(2)
+    expect(sharedClientModule.length).toBe(2)
+
+    // Should have 2 modules created for the shared component.
+    expect(sharedServerModule[0][1]).toBe(sharedServerModule[1][1])
+    expect(sharedClientModule[0][1]).toBe(sharedClientModule[1][1])
+    expect(sharedServerModule[0][1]).not.toBe(sharedClientModule[0][1])
     expect(content).toContain('bar.server.js:')
   })
 
@@ -319,6 +309,11 @@ describe('app dir - react server components', () => {
 
     // from styled-components
     expect(head).toMatch(/{color:(\s*)blue;?}/)
+
+    // css-in-js like styled-jsx in server components won't be transformed
+    expect(html).toMatch(
+      /<style>\s*\.this-wont-be-transformed\s*\{\s*color:\s*purple;\s*\}\s*<\/style>/
+    )
   })
 
   it('should stick to the url without trailing /page suffix', async () => {
@@ -336,7 +331,16 @@ describe('app dir - react server components', () => {
   })
 
   it('should support streaming for flight response', async () => {
-    await fetchViaHTTP(next.url, '/?__flight__=1').then(async (response) => {
+    await fetchViaHTTP(
+      next.url,
+      '/',
+      {},
+      {
+        headers: {
+          __rsc__: '1',
+        },
+      }
+    ).then(async (response) => {
       const result = await resolveStreamResponse(response)
       expect(result).toContain('component:index.server')
     })
@@ -350,7 +354,7 @@ describe('app dir - react server components', () => {
         let gotInlinedData = false
 
         await resolveStreamResponse(response, (_, result) => {
-          gotInlinedData = result.includes('self.__next_s=')
+          gotInlinedData = result.includes('self.__next_f=')
           gotData = result.includes('next_streaming_data')
           if (!gotFallback) {
             gotFallback = result.includes('next_streaming_fallback')

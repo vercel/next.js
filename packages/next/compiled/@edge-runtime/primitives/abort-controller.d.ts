@@ -1,4 +1,6 @@
-declare const AbortControllerConstructor: AbortController
+declare const AbortControllerConstructor: typeof AbortController
+
+declare const DOMExceptionConstructor: typeof DOMException
 
 declare var AbortSignal: {
   prototype: typeof AbortSignal
@@ -9,4 +11,4 @@ declare var AbortSignal: {
   abort(reason?: string): AbortSignal
 }
 
-export { AbortControllerConstructor as AbortController, AbortSignal };
+export { AbortControllerConstructor as AbortController, AbortSignal, DOMExceptionConstructor as DOMException };

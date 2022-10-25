@@ -6,7 +6,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "msw": "^0.44.2",
+    "msw": "0.47.3",
     "next": "latest",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"

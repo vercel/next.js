@@ -1,0 +1,24 @@
+
+  x Unexpected object key type
+   ,-[input.js:4:1]
+ 4 | const a = ABeeZee({ 10: 'hello' })
+   :                     ^^
+   `----
+
+  x Font loader values must be explicitly written literals.
+   ,-[input.js:7:1]
+ 7 | const a = ABeeZee({ variant: [i1] })
+   :                               ^^
+   `----
+
+  x Font loader values must be explicitly written literals.
+    ,-[input.js:10:1]
+ 10 | const a = ABeeZee({ variant: () => {} })
+    :                              ^^^^^^^^
+    `----
+
+  x Unexpected spread
+    ,-[input.js:13:1]
+ 13 | const a = ABeeZee({ ...{} })
+    :                     ^^^
+    `----

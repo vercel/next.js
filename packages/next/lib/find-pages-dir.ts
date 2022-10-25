@@ -1,5 +1,6 @@
 import fs from 'fs'
 import path from 'path'
+import * as Log from '../build/output/log'
 
 export const existsSync = (f: string): boolean => {
   try {
@@ -10,7 +11,7 @@ export const existsSync = (f: string): boolean => {
   }
 }
 
-function findDir(dir: string, name: 'pages' | 'app'): string | null {
+export function findDir(dir: string, name: 'pages' | 'app'): string | null {
   // prioritize ./${name} over ./src/${name}
   let curDir = path.join(dir, name)
   if (existsSync(curDir)) return curDir
@@ -23,21 +24,31 @@ function findDir(dir: string, name: 'pages' | 'app'): string | null {
 
 export function findPagesDir(
   dir: string,
-  appDirEnabled?: boolean
-): { pages: string | undefined; appDir: string | undefined } {
+  isAppDirEnabled: boolean
+): {
+  pagesDir: string | undefined
+  appDir: string | undefined
+} {
   const pagesDir = findDir(dir, 'pages') || undefined
-  let appDir: undefined | string
+  const appDir = findDir(dir, 'app') || undefined
 
-  if (appDirEnabled) {
-    appDir = findDir(dir, 'app') || undefined
-    if (appDirEnabled == null && pagesDir == null) {
-      throw new Error(
-        "> Couldn't find any `pages` or `app` directory. Please create one under the project root"
-      )
-    }
+  if (isAppDirEnabled && appDir == null && pagesDir == null) {
+    throw new Error(
+      "> Couldn't find any `pages` or `app` directory. Please create one under the project root"
+    )
   }
 
-  if (!appDirEnabled) {
+  if (!isAppDirEnabled) {
+    if (appDir != null && pagesDir == null) {
+      throw new Error(
+        '> The `app` dir is experimental. Please add `{experimental:{appDir: true}}` to your `next.config.js` to enable it'
+      )
+    }
+    if (appDir != null && pagesDir != null) {
+      Log.warn(
+        'The `app` dir is experimental. Please add `{experimental:{appDir: true}}` to your `next.config.js` to enable it'
+      )
+    }
     if (pagesDir == null) {
       throw new Error(
         "> Couldn't find a `pages` directory. Please create one under the project root"
@@ -46,7 +57,7 @@ export function findPagesDir(
   }
 
   return {
-    pages: pagesDir,
-    appDir,
+    pagesDir,
+    appDir: isAppDirEnabled ? appDir : undefined,
   }
 }

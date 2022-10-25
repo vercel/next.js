@@ -169,55 +169,6 @@ async function runConfigs(
         )
       )
       curStats.General.buildDurationCached = Date.now() - secondBuildStart
-
-      if (statsConfig.appDevCommand) {
-        const port = await getPort()
-        const startTime = Date.now()
-        const child = exec.spawn(statsConfig.appDevCommand, {
-          cwd: statsAppDir,
-          env: {
-            PORT: port,
-          },
-          stdio: 'pipe',
-        })
-
-        let serverReadyResolve
-        let serverReadyResolved = false
-        const serverReadyPromise = new Promise((resolve) => {
-          serverReadyResolve = resolve
-        })
-
-        child.stdout.on('data', (data) => {
-          if (
-            data.toString().includes('started server') &&
-            !serverReadyResolved
-          ) {
-            serverReadyResolved = true
-            serverReadyResolve()
-          }
-          process.stdout.write(data)
-        })
-        child.stderr.on('data', (data) => process.stderr.write(data))
-
-        child.on('exit', (code) => {
-          if (!serverReadyResolved) {
-            serverReadyResolve()
-            serverReadyResolved = true
-          }
-          exitCode = code
-        })
-
-        setTimeout(() => {
-          if (!serverReadyResolved) {
-            child.kill()
-          }
-        }, 3 * 1000)
-
-        await serverReadyPromise
-        child.kill()
-
-        curStats['General']['nextDevReadyDuration'] = Date.now() - startTime
-      }
     }
 
     logger(`Finished running: ${config.title}`)
@@ -253,9 +204,13 @@ async function linkPkgs(pkgDir = '', pkgPaths) {
   await fs.writeFile(pkgJsonPath, JSON.stringify(pkgData, null, 2), 'utf8')
 
   await fs.remove(yarnEnvValues.YARN_CACHE_FOLDER)
-  await exec(`cd ${pkgDir} && pnpm install`, false, {
-    env: yarnEnvValues,
-  })
+  await exec(
+    `cd ${pkgDir} && pnpm install --strict-peer-dependencies=false`,
+    false,
+    {
+      env: yarnEnvValues,
+    }
+  )
 }
 
 module.exports = runConfigs

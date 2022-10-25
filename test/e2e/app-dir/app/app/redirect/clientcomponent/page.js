@@ -1,8 +1,8 @@
 import ClientComp from './client-component'
-import { useHeaders } from 'next/dist/client/components/hooks-server'
+import { headers } from 'next/headers'
 
 export default function Page() {
   // Opt-in to SSR.
-  useHeaders()
+  headers()
   return <ClientComp />
 }

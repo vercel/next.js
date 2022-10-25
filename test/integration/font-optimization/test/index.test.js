@@ -9,7 +9,6 @@ import {
   nextStart,
   nextBuild,
   renderViaHTTP,
-  initNextServerScript,
   waitFor,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
@@ -21,20 +20,6 @@ const fsExists = (file) =>
     .access(file)
     .then(() => true)
     .catch(() => false)
-
-async function getBuildId(appDir) {
-  return fs.readFile(join(appDir, '.next', 'BUILD_ID'), 'utf8')
-}
-
-const startServerlessEmulator = async (dir, port, opts = {}) => {
-  const scriptPath = join(dir, 'server.js')
-  const env = Object.assign(
-    {},
-    { ...process.env },
-    { PORT: port, BUILD_ID: await getBuildId(dir) }
-  )
-  return initNextServerScript(scriptPath, /ready on/i, env, false, opts)
-}
 
 describe('Font Optimization', () => {
   describe.each([
@@ -79,7 +64,6 @@ describe('Font Optimization', () => {
       preconnectUrl
     ) => {
       const appDir = join(fixturesDir, `with-${property}`)
-      const nextConfig = join(appDir, 'next.config.js')
       let builtServerPagesDir
       let builtPage
       let appPort
@@ -250,50 +234,6 @@ describe('Font Optimization', () => {
         runTests()
       })
 
-      describe('Font optimization for serverless apps', () => {
-        const origNextConfig = fs.readFileSync(nextConfig)
-
-        beforeAll(async () => {
-          await fs.writeFile(
-            nextConfig,
-            `module.exports = ({ target: 'serverless', cleanDistDir: false })`,
-            'utf8'
-          )
-          await nextBuild(appDir)
-          appPort = await findPort()
-          app = await nextStart(appDir, appPort)
-          builtServerPagesDir = join(appDir, '.next', 'serverless')
-          builtPage = (file) => join(builtServerPagesDir, file)
-        })
-        afterAll(async () => {
-          await fs.writeFile(nextConfig, origNextConfig)
-          await killApp(app)
-        })
-        runTests()
-      })
-
-      describe('Font optimization for emulated serverless apps', () => {
-        const origNextConfig = fs.readFileSync(nextConfig)
-
-        beforeAll(async () => {
-          await fs.writeFile(
-            nextConfig,
-            `module.exports = ({ target: 'experimental-serverless-trace', cleanDistDir: false })`,
-            'utf8'
-          )
-          await nextBuild(appDir)
-          appPort = await findPort()
-          app = await startServerlessEmulator(appDir, appPort)
-          builtServerPagesDir = join(appDir, '.next', 'serverless')
-          builtPage = (file) => join(builtServerPagesDir, file)
-        })
-        afterAll(async () => {
-          await fs.writeFile(nextConfig, origNextConfig)
-          await killApp(app)
-        })
-        runTests()
-      })
-
       describe('Font optimization for unreachable font definitions.', () => {
         beforeAll(async () => {
           await nextBuild(appDir)
@@ -359,14 +299,47 @@ describe('Font Optimization', () => {
       )
       expect(inlineStyle.length).toBe(1)
       expect(inlineStyle.html()).toContain(
-        '@font-face{font-family:"roboto-fallback";ascent-override:92.77%;descent-override:24.41%;line-gap-override:0.00%;src:local("Arial")}'
+        '@font-face{font-family:"Roboto Fallback";ascent-override:92.77%;descent-override:24.41%;line-gap-override:0.00%;src:local("Arial")}'
       )
       expect(inlineStyleMultiple.length).toBe(1)
       expect(inlineStyleMultiple.html()).toContain(
-        '@font-face{font-family:"libre-baskerville-fallback";ascent-override:97.00%;descent-override:27.00%;line-gap-override:0.00%;src:local("Times New Roman")}'
+        '@font-face{font-family:"Libre Baskerville Fallback";ascent-override:97.00%;descent-override:27.00%;line-gap-override:0.00%;src:local("Times New Roman")}'
       )
       expect(inlineStyleMultiple.html()).toContain(
-        '@font-face{font-family:"open-sans-fallback";ascent-override:106.88%;descent-override:29.30%;line-gap-override:0.00%;src:local("Arial")}'
+        '@font-face{font-family:"Open Sans Fallback";ascent-override:106.88%;descent-override:29.30%;line-gap-override:0.00%;src:local("Arial")}'
+      )
+    })
+  })
+
+  describe('font override with size adjust', () => {
+    let app, appPort
+
+    beforeAll(async () => {
+      const appDir = join(fixturesDir, 'font-override-size-adjust')
+      await nextBuild(appDir)
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(() => killApp(app))
+    it('should inline font-override values', async () => {
+      const html = await renderViaHTTP(appPort, '/')
+      const $ = cheerio.load(html)
+      const inlineStyle = $(
+        'style[data-href="https://fonts.googleapis.com/css2?family=Roboto&display=swap"]'
+      )
+      const inlineStyleMultiple = $(
+        'style[data-href="https://fonts.googleapis.com/css2?family=Open+Sans&family=Libre+Baskerville&display=swap"]'
+      )
+      expect(inlineStyle.length).toBe(1)
+      expect(inlineStyle.html()).toContain(
+        '@font-face{font-family:"Roboto Fallback";ascent-override:99.23%;descent-override:26.11%;line-gap-override:0.00%;size-adjust:93.49%;src:local("Arial")}'
+      )
+      expect(inlineStyleMultiple.length).toBe(1)
+      expect(inlineStyleMultiple.html()).toContain(
+        '@font-face{font-family:"Libre Baskerville Fallback";ascent-override:83.98%;descent-override:23.37%;line-gap-override:0.00%;size-adjust:115.51%;src:local("Times New Roman")}@font-face{font-family:"Open Sans Fallback";ascent-override:108.98%;descent-override:29.87%;line-gap-override:0.00%;size-adjust:98.08%;src:local("Arial")}'
+      )
+      expect(inlineStyleMultiple.html()).toContain(
+        '@font-face{font-family:"Open Sans Fallback";ascent-override:108.98%;descent-override:29.87%;line-gap-override:0.00%;size-adjust:98.08%;src:local("Arial")}'
       )
     })
   })

@@ -238,13 +238,19 @@ async function main() {
     `jest${process.platform === 'win32' ? '.CMD' : ''}`
   )
 
-  const runTest = (test = '', isFinalRun) =>
+  const runTest = (test = '', isFinalRun, isRetry) =>
     new Promise((resolve, reject) => {
       const start = new Date().getTime()
       let outputChunks = []
+
+      const shouldRecordTestWithReplay = process.env.RECORD_REPLAY && isRetry
+
       const child = spawn(
         jestPath,
         [
+          ...(shouldRecordTestWithReplay
+            ? [`--config=jest.replay.config.js`]
+            : []),
           '--runInBand',
           '--forceExit',
           '--verbose',
@@ -257,6 +263,7 @@ async function main() {
           stdio: ['ignore', 'pipe', 'pipe'],
           env: {
             ...process.env,
+            RECORD_REPLAY: shouldRecordTestWithReplay,
             // run tests in headless mode by default
             HEADLESS: 'true',
             TRACE_PLAYWRIGHT: 'true',
@@ -336,7 +343,7 @@ async function main() {
       for (let i = 0; i < numRetries + 1; i++) {
         try {
           console.log(`Starting ${test} retry ${i}/${numRetries}`)
-          const time = await runTest(test, i === numRetries)
+          const time = await runTest(test, i === numRetries, i > 0)
           timings.push({
             file: test,
             time,

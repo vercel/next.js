@@ -217,8 +217,7 @@ export default class HotReloader {
 
     this.config = config
     this.hasReactRoot = !!process.env.__NEXT_REACT_ROOT
-    this.hasServerComponents =
-      this.hasReactRoot && !!config.experimental.serverComponents
+    this.hasServerComponents = this.hasReactRoot && !!this.appDir
     this.previewProps = previewProps
     this.rewrites = rewrites
     this.hotReloaderSpan = trace('hot-reloader', undefined, {
@@ -449,7 +448,6 @@ export default class HotReloader {
             pagesDir: this.pagesDir,
             previewMode: this.previewProps,
             rootDir: this.dir,
-            target: 'server',
             pageExtensions: this.config.pageExtensions,
           })
         )
@@ -520,7 +518,6 @@ export default class HotReloader {
           pagesDir: this.pagesDir,
           previewMode: this.previewProps,
           rootDir: this.dir,
-          target: 'server',
           pageExtensions: this.config.pageExtensions,
         })
       ).client,
@@ -596,7 +593,8 @@ export default class HotReloader {
               }
             }
 
-            const isAppPath = !!this.appDir && bundlePath.startsWith('app/')
+            const hasAppDir = !!this.appDir
+            const isAppPath = hasAppDir && bundlePath.startsWith('app/')
             const staticInfo = isEntry
               ? await getPageStaticInfo({
                   pageFilePath: entryData.absolutePagePath,
@@ -613,22 +611,24 @@ export default class HotReloader {
               onEdgeServer: () => {
                 // TODO-APP: verify if child entry should support.
                 if (!isEdgeServerCompilation || !isEntry) return
-                const appDirLoader =
-                  isAppPath && this.appDir
-                    ? getAppEntry({
-                        name: bundlePath,
-                        appPaths: entryData.appPaths,
-                        pagePath: posix.join(
-                          APP_DIR_ALIAS,
-                          relative(
-                            this.appDir!,
-                            entryData.absolutePagePath
-                          ).replace(/\\/g, '/')
-                        ),
-                        appDir: this.appDir!,
-                        pageExtensions: this.config.pageExtensions,
-                      }).import
-                    : undefined
+                const appDirLoader = isAppPath
+                  ? getAppEntry({
+                      name: bundlePath,
+                      appPaths: entryData.appPaths,
+                      pagePath: posix.join(
+                        APP_DIR_ALIAS,
+                        relative(
+                          this.appDir!,
+                          entryData.absolutePagePath
+                        ).replace(/\\/g, '/')
+                      ),
+                      appDir: this.appDir!,
+                      pageExtensions: this.config.pageExtensions,
+                      rootDir: this.dir,
+                      isDev: true,
+                      tsconfigPath: this.config.typescript.tsconfigPath,
+                    }).import
+                  : undefined
 
                 entries[entryKey].status = BUILDING
                 entrypoints[bundlePath] = finalizeEntrypoint({
@@ -645,9 +645,9 @@ export default class HotReloader {
                     pages: this.pagesMapping,
                     isServerComponent,
                     appDirLoader,
-                    pagesType: isAppPath ? 'app' : undefined,
+                    pagesType: isAppPath ? 'app' : 'pages',
                   }),
-                  appDir: this.config.experimental.appDir,
+                  hasAppDir,
                 })
               },
               onClient: () => {
@@ -658,7 +658,7 @@ export default class HotReloader {
                     name: bundlePath,
                     compilerType: COMPILER_NAMES.client,
                     value: entryData.request,
-                    appDir: this.config.experimental.appDir,
+                    hasAppDir,
                   })
                 } else {
                   entries[entryKey].status = BUILDING
@@ -669,7 +669,7 @@ export default class HotReloader {
                       absolutePagePath: entryData.absolutePagePath,
                       page,
                     }),
-                    appDir: this.config.experimental.appDir,
+                    hasAppDir,
                   })
                 }
               },
@@ -689,26 +689,28 @@ export default class HotReloader {
                 }
 
                 entrypoints[bundlePath] = finalizeEntrypoint({
-                  compilerType: 'server',
+                  compilerType: COMPILER_NAMES.server,
                   name: bundlePath,
                   isServerComponent,
-                  value:
-                    this.appDir && bundlePath.startsWith('app/')
-                      ? getAppEntry({
-                          name: bundlePath,
-                          appPaths: entryData.appPaths,
-                          pagePath: posix.join(
-                            APP_DIR_ALIAS,
-                            relative(
-                              this.appDir!,
-                              entryData.absolutePagePath
-                            ).replace(/\\/g, '/')
-                          ),
-                          appDir: this.appDir!,
-                          pageExtensions: this.config.pageExtensions,
-                        })
-                      : relativeRequest,
-                  appDir: this.config.experimental.appDir,
+                  value: isAppPath
+                    ? getAppEntry({
+                        name: bundlePath,
+                        appPaths: entryData.appPaths,
+                        pagePath: posix.join(
+                          APP_DIR_ALIAS,
+                          relative(
+                            this.appDir!,
+                            entryData.absolutePagePath
+                          ).replace(/\\/g, '/')
+                        ),
+                        appDir: this.appDir!,
+                        pageExtensions: this.config.pageExtensions,
+                        rootDir: this.dir,
+                        isDev: true,
+                        tsconfigPath: this.config.typescript.tsconfigPath,
+                      })
+                    : relativeRequest,
+                  hasAppDir,
                 })
               },
             })
@@ -896,7 +898,12 @@ export default class HotReloader {
         changedServerPages,
         changedClientPages
       )
+      const edgeServerOnlyChanges = difference<string>(
+        changedEdgeServerPages,
+        changedClientPages
+      )
       const serverComponentChanges = serverOnlyChanges
+        .concat(edgeServerOnlyChanges)
         .filter((key) => key.startsWith('app/'))
         .concat(Array.from(changedCSSImportPages))
       const pageChanges = serverOnlyChanges.filter((key) =>
