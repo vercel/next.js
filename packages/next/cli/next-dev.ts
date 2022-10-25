@@ -255,6 +255,7 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
         console.warn(feedbackMessage)
         process.exit(1)
       }
+      console.log(feedbackMessage)
 
       loadBindings()
         .then((bindings: any) => {
