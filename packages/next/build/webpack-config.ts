@@ -93,6 +93,20 @@ const BABEL_CONFIG_FILES = [
   'babel.config.cjs',
 ]
 
+export const getBabelConfigFile = async (dir: string) => {
+  const babelConfigFile = await BABEL_CONFIG_FILES.reduce(
+    async (memo: Promise<string | undefined>, filename) => {
+      const configFilePath = path.join(dir, filename)
+      return (
+        (await memo) ||
+        ((await fileExists(configFilePath)) ? configFilePath : undefined)
+      )
+    },
+    Promise.resolve(undefined)
+  )
+  return babelConfigFile
+}
+
 // Support for NODE_PATH
 const nodePathList = (process.env.NODE_PATH || '')
   .split(process.platform === 'win32' ? ';' : ':')
@@ -611,17 +625,7 @@ export default async function getBaseWebpackConfig(
     }
   }
 
-  const babelConfigFile = await BABEL_CONFIG_FILES.reduce(
-    async (memo: Promise<string | undefined>, filename) => {
-      const configFilePath = path.join(dir, filename)
-      return (
-        (await memo) ||
-        ((await fileExists(configFilePath)) ? configFilePath : undefined)
-      )
-    },
-    Promise.resolve(undefined)
-  )
-
+  const babelConfigFile = await getBabelConfigFile(dir)
   const distDir = path.join(dir, config.distDir)
 
   let useSWCLoader = !babelConfigFile || config.experimental.forceSwcTransforms
@@ -1618,7 +1622,7 @@ export default async function getBaseWebpackConfig(
     },
     module: {
       rules: [
-        ...(hasAppDir && !isClient && !isEdgeServer
+        ...(hasAppDir && !isClient
           ? [
               {
                 issuerLayer: WEBPACK_LAYERS.server,
@@ -1643,7 +1647,7 @@ export default async function getBaseWebpackConfig(
                     // If missing the alias override here, the default alias will be used which aliases
                     // react to the direct file path, not the package name. In that case the condition
                     // will be ignored completely.
-                    react: 'next/dist/compiled/react',
+                    react: 'next/dist/compiled/react/react.shared-subset',
                     'react-dom$':
                       'next/dist/compiled/react-dom/server-rendering-stub',
                   },
@@ -1994,6 +1998,7 @@ export default async function getBaseWebpackConfig(
             esmExternals: config.experimental.esmExternals,
             outputFileTracingRoot: config.experimental.outputFileTracingRoot,
             appDirEnabled: hasAppDir,
+            turbotrace: config.experimental.turbotrace,
           }
         ),
       // Moment.js is an extremely popular library that bundles large locale files
