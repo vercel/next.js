@@ -1,6 +1,9 @@
 'use client'
-
 import { useSearchParams } from 'next/navigation'
+
+export const config = {
+  dynamicParams: false,
+}
 
 export default function Page() {
   const params = useSearchParams()
