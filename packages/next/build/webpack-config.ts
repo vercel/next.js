@@ -247,21 +247,23 @@ export function getDefineEnv({
     'process.env.__NEXT_SCROLL_RESTORATION': JSON.stringify(
       config.experimental.scrollRestoration
     ),
-    'process.env.__NEXT_IMAGE_OPTS': JSON.stringify({
-      deviceSizes: config.images.deviceSizes,
-      imageSizes: config.images.imageSizes,
-      path: config.images.path,
-      loader: config.images.loader,
-      dangerouslyAllowSVG: config.images.dangerouslyAllowSVG,
-      unoptimized: config?.images?.unoptimized,
-      ...(dev
-        ? {
-            // pass domains in development to allow validating on the client
-            domains: config.images.domains,
-            remotePatterns: config.images?.remotePatterns,
-          }
-        : {}),
-    }),
+    'process.env.__NEXT_IMAGE_OPTS': JSON.stringify(
+      JSON.stringify({
+        deviceSizes: config.images.deviceSizes,
+        imageSizes: config.images.imageSizes,
+        path: config.images.path,
+        loader: config.images.loader,
+        dangerouslyAllowSVG: config.images.dangerouslyAllowSVG,
+        unoptimized: config?.images?.unoptimized,
+        ...(dev
+          ? {
+              // pass domains in development to allow validating on the client
+              domains: config.images.domains,
+              remotePatterns: config.images?.remotePatterns,
+            }
+          : {}),
+      })
+    ),
     'process.env.__NEXT_ROUTER_BASEPATH': JSON.stringify(config.basePath),
     'process.env.__NEXT_HAS_REWRITES': JSON.stringify(hasRewrites),
     'process.env.__NEXT_I18N_SUPPORT': JSON.stringify(!!config.i18n),

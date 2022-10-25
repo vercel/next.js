@@ -21,7 +21,9 @@ import { warnOnce } from '../shared/lib/utils'
 // @ts-ignore - This is replaced by webpack alias
 import defaultLoader from 'next/dist/shared/lib/image-loader'
 
-const configEnv = process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
+const configEnv = JSON.parse(
+  process.env.__NEXT_IMAGE_OPTS as string
+) as ImageConfigComplete
 const allImgs = new Map<
   string,
   { src: string; priority: boolean; placeholder: string }
