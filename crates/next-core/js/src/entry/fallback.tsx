@@ -6,15 +6,23 @@ import {
   initializeHMR,
   ReactDevOverlay,
 } from "@vercel/turbopack-next/dev/client";
-import { onChunkUpdate } from "@vercel/turbopack-next/dev/hmr-client";
+import { onUpdate } from "@vercel/turbopack-next/dev/hmr-client";
 
 const pageChunkPath = location.pathname.slice(1);
 
-onChunkUpdate(pageChunkPath, (update) => {
-  if (update.type === "restart") {
-    location.reload();
+onUpdate(
+  {
+    path: pageChunkPath,
+    headers: {
+      accept: "text/html",
+    },
+  },
+  (update) => {
+    if (update.type === "restart") {
+      location.reload();
+    }
   }
-});
+);
 
 initializeHMR({
   assetPrefix: "",

@@ -100,9 +100,9 @@ async fn get_update_stream_item(
             }
             .cell())
         }
-        Some(content) => {
+        Some(resolved_content) => {
             let from = from.get();
-            let update = content.update(from);
+            let update = resolved_content.update(from);
 
             let mut plain_issues = peek_issues(update).await?;
             extend_issues(&mut plain_issues, peek_issues(content).await?);
