@@ -1,6 +1,6 @@
 {
   "name": "@next/swc",
-  "version": "12.3.2-canary.43",
+  "version": "13.0.0",
   "private": true,
   "scripts": {
     "build-native": "napi build --platform -p next-swc-napi --cargo-name next_swc_napi --features plugin --js false native",
