@@ -955,6 +955,11 @@ describe('app dir', () => {
             }
           })
 
+          it('should retrieve cookies in a server component in the edge runtime', async () => {
+            const res = await fetchViaHTTP(next.url, '/edge-apis/cookies')
+            expect(await res.text()).toInclude('Hello')
+          })
+
           it('should access cookies on <Link /> navigation', async () => {
             const browser = await webdriver(next.url, '/navigation')
 

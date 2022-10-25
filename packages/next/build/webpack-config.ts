@@ -729,6 +729,16 @@ export default async function getBaseWebpackConfig(
     babel: getBabelOrSwcLoader(),
   }
 
+  const swcLoaderForRSC = hasServerComponents
+    ? useSWCLoader
+      ? getSwcLoader({ isServerLayer: true })
+      : // When using Babel, we will have to add the SWC loader
+        // as an additional pass to handle RSC correctly.
+        // This will cause some performance overhead but
+        // acceptable as Babel will not be recommended.
+        [getSwcLoader({ isServerLayer: true }), getBabelLoader()]
+    : []
+
   const pageExtensions = config.pageExtensions
 
   const outputPath =
@@ -1789,16 +1799,12 @@ export default async function getBaseWebpackConfig(
                     test: codeCondition.test,
                     issuerLayer: WEBPACK_LAYERS.server,
                     exclude: [staticGenerationAsyncStorageRegex],
-                    use: useSWCLoader
-                      ? getSwcLoader({ isServerLayer: true })
-                      : // When using Babel, we will have to add the SWC loader
-                        // as an additional pass to handle RSC correctly.
-                        // This will cause some performance overhead but
-                        // acceptable as Babel will not be recommended.
-                        [
-                          getSwcLoader({ isServerLayer: true }),
-                          getBabelLoader(),
-                        ],
+                    use: swcLoaderForRSC,
+                  },
+                  {
+                    test: codeCondition.test,
+                    resourceQuery: /__edge_ssr_entry__/,
+                    use: swcLoaderForRSC,
                   },
                 ]
               : []),
