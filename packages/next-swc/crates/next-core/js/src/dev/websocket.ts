@@ -75,16 +75,9 @@ export function connectHMR(options: HMROptions) {
     // let timer: NodeJS.Timeout
 
     function handleDisconnect() {
-      // clearInterval(timer)
       source.close();
       setTimeout(init, timeout);
     }
-
-    // timer = setInterval(function() {
-    //   if (Date.now() - lastActivity > timeout) {
-    //     handleDisconnect()
-    //   }
-    // }, timeout / 2)
 
     const { hostname, port } = location;
     const protocol = getSocketProtocol(options.assetPrefix || "");
