@@ -948,7 +948,6 @@ export async function renderToHTMLOrFlight(
           template,
           error,
           loading,
-          head,
           page,
           'not-found': notFound,
         },
@@ -956,19 +955,12 @@ export async function renderToHTMLOrFlight(
       parentParams,
       firstItem,
       rootLayoutIncluded,
-      collectedHeads = [],
     }: {
       createSegmentPath: CreateSegmentPath
       loaderTree: LoaderTree
       parentParams: { [key: string]: any }
       rootLayoutIncluded?: boolean
       firstItem?: boolean
-      collectedHeads?: Array<
-        (ctx: {
-          params?: Record<string, string | string[]>
-          searchParams?: Record<string, string | string[]>
-        }) => Promise<React.ElementType>
-      >
     }): Promise<{ Component: React.ComponentType }> => {
       // TODO-APP: enable stylesheet per layout/page
       const stylesheets: string[] = layoutOrPagePath
@@ -992,7 +984,6 @@ export async function renderToHTMLOrFlight(
         : React.Fragment
       const ErrorComponent = error ? await interopDefault(error()) : undefined
       const Loading = loading ? await interopDefault(loading()) : undefined
-      const Head = head ? await interopDefault(head()) : undefined
       const isLayout = typeof layout !== 'undefined'
       const isPage = typeof page !== 'undefined'
       const layoutOrPageMod = isLayout
@@ -1098,17 +1089,6 @@ export async function renderToHTMLOrFlight(
       // Resolve the segment param
       const actualSegment = segmentParam ? segmentParam.treeSegment : segment
 
-      // collect head pieces
-      if (typeof Head === 'function') {
-        collectedHeads.push(() =>
-          Head({
-            params: currentParams,
-            // TODO-APP: allow searchParams?
-            // ...(isPage ? { searchParams: query } : {}),
-          })
-        )
-      }
-
       // This happens outside of rendering in order to eagerly kick off data fetching for layouts / the page further down
       const parallelRouteMap = await Promise.all(
         Object.keys(parallelRoutes).map(
@@ -1158,7 +1138,6 @@ export async function renderToHTMLOrFlight(
               loaderTree: parallelRoutes[parallelRouteKey],
               parentParams: currentParams,
               rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
-              collectedHeads,
             })
 
             const childProp: ChildProp = {
@@ -1217,12 +1196,6 @@ export async function renderToHTMLOrFlight(
           // Add extra cache busting (DEV only) for https://github.com/vercel/next.js/issues/5860
           // See also https://bugs.webkit.org/show_bug.cgi?id=187726
           const cacheBustingUrlSuffix = dev ? `?ts=${Date.now()}` : ''
-          // let HeadTags
-          // if (rootLayoutAtThisLevel) {
-          //   // TODO: iterate HeadTag children and add a data-path attribute
-          //   // so that we can remove elements on client-transition
-          //   // HeadTags = collectedHeads[collectedHeads.length - 1] as any
-          // }
 
           return (
             <>
