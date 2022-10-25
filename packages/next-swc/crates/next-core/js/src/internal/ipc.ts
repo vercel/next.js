@@ -25,7 +25,7 @@ function createIpc<TIncoming, TOutgoing>(
   const recvPromiseResolveQueue: Array<(message: TIncoming) => void> = [];
 
   function pushPacket(packet: Buffer) {
-    let recvPromiseResolve = recvPromiseResolveQueue.shift();
+    const recvPromiseResolve = recvPromiseResolveQueue.shift();
     if (recvPromiseResolve != null) {
       recvPromiseResolve(JSON.parse(packet.toString("utf8")) as TIncoming);
     } else {
@@ -86,7 +86,7 @@ function createIpc<TIncoming, TOutgoing>(
 
   return {
     async recv() {
-      let packet = packetQueue.shift();
+      const packet = packetQueue.shift();
       if (packet != null) {
         return JSON.parse(packet.toString("utf8")) as TIncoming;
       }
