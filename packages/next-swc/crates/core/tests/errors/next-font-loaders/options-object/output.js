@@ -1,7 +1,7 @@
-import a from '@next/font/google/target.css?{"arguments":[{}],"import":"ABeeZee","path":"pages/test.tsx"}';
-import a from '@next/font/google/target.css?{"arguments":[{}],"import":"ABeeZee","path":"pages/test.tsx"}';
-import a from '@next/font/google/target.css?{"arguments":[{}],"import":"ABeeZee","path":"pages/test.tsx"}';
-import a from '@next/font/google/target.css?{"arguments":[{}],"import":"ABeeZee","path":"pages/test.tsx"}';
+import a from '@next/font/google/target.css?{"path":"pages/test.tsx","import":"ABeeZee","arguments":[{}]}';
+import a from '@next/font/google/target.css?{"path":"pages/test.tsx","import":"ABeeZee","arguments":[{}]}';
+import a from '@next/font/google/target.css?{"path":"pages/test.tsx","import":"ABeeZee","arguments":[{}]}';
+import a from '@next/font/google/target.css?{"path":"pages/test.tsx","import":"ABeeZee","arguments":[{}]}';
 const a = fn({
     10: 'hello'
 });

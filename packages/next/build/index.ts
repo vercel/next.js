@@ -112,6 +112,7 @@ import {
   lockfilePatchPromise,
   teardownTraceSubscriber,
   teardownCrashReporter,
+  loadBindings,
 } from './swc'
 import { injectedClientEntries } from './webpack/plugins/flight-client-entry-plugin'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
@@ -302,11 +303,32 @@ export default async function build(
 
       const publicDir = path.join(dir, 'public')
       const isAppDirEnabled = !!config.experimental.appDir
+      const initialRequireHookFilePath = require.resolve(
+        'next/dist/server/initialize-require-hook'
+      )
+      const content = await promises.readFile(
+        initialRequireHookFilePath,
+        'utf8'
+      )
+
       if (isAppDirEnabled) {
         process.env.NEXT_PREBUNDLED_REACT = '1'
       }
-      const { pagesDir, appDir } = findPagesDir(dir, isAppDirEnabled)
+      await promises
+        .writeFile(
+          initialRequireHookFilePath,
+          content.replace(
+            /isPrebundled = (true|false)/,
+            `isPrebundled = ${isAppDirEnabled}`
+          )
+        )
+        .catch((err) => {
+          if (isAppDirEnabled) {
+            throw err
+          }
+        })
 
+      const { pagesDir, appDir } = findPagesDir(dir, isAppDirEnabled)
       const hasPublicDir = await fileExists(publicDir)
 
       telemetry.record(
@@ -343,7 +365,7 @@ export default async function build(
           Log.info('Skipping validation of types')
         }
         if (runLint && ignoreESLint) {
-          // only print log when build requre lint while ignoreESLint is enabled
+          // only print log when build require lint while ignoreESLint is enabled
           Log.info('Skipping linting')
         }
 
@@ -565,7 +587,7 @@ export default async function build(
 
         for (const appPath of pageKeys.app) {
           if (pageKeys.pages.includes(appPath)) {
-            conflictingAppPagePaths.push(`pages${appPath} - app${appPath}`)
+            conflictingAppPagePaths.push(appPath)
           }
         }
         const numConflicting = conflictingAppPagePaths.length
@@ -574,10 +596,11 @@ export default async function build(
           Log.error(
             `Conflicting app and page file${
               numConflicting === 1 ? ' was' : 's were'
-            } found, please remove the conflicting files to continue. \n${conflictingAppPagePaths.join(
-              '\n'
-            )}\n`
+            } found, please remove the conflicting files to continue:`
           )
+          for (const p of conflictingAppPagePaths) {
+            Log.error(`  "pages${p}" - "app${p}"`)
+          }
           process.exit(1)
         }
       }
@@ -1584,8 +1607,18 @@ export default async function build(
       }
 
       if (config.outputFileTracing) {
-        const { nodeFileTrace } =
-          require('next/dist/compiled/@vercel/nft') as typeof import('next/dist/compiled/@vercel/nft')
+        let nodeFileTrace: any
+        if (config.experimental.turbotrace) {
+          let binding = (await loadBindings()) as any
+          if (!binding?.isWasm) {
+            nodeFileTrace = binding.turbo?.startTrace
+          }
+        }
+
+        if (!nodeFileTrace) {
+          nodeFileTrace =
+            require('next/dist/compiled/@vercel/nft').nodeFileTrace
+        }
 
         const includeExcludeSpan = nextBuildSpan.traceChild(
           'apply-include-excludes'
@@ -1729,53 +1762,64 @@ export default async function build(
               )
             }
 
-            const serverResult = await nodeFileTrace(toTrace, {
-              base: root,
-              processCwd: dir,
-              ignore: [
-                '**/next/dist/pages/**/*',
-                '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
-                '**/node_modules/webpack5/**/*',
-                '**/next/dist/server/lib/squoosh/**/*.wasm',
-                ...(ciEnvironment.hasNextSupport
-                  ? [
-                      // only ignore image-optimizer code when
-                      // this is being handled outside of next-server
-                      '**/next/dist/server/image-optimizer.js',
-                      '**/node_modules/sharp/**/*',
-                    ]
-                  : []),
-                ...(!hasSsrAmpPages
-                  ? ['**/next/dist/compiled/@ampproject/toolbox-optimizer/**/*']
-                  : []),
-              ],
-            })
-
-            const tracedFiles = new Set()
-
-            serverResult.fileList.forEach((file) => {
-              tracedFiles.add(
-                path
-                  .relative(distDir, path.join(root, file))
-                  .replace(/\\/g, '/')
-              )
-            })
-
-            await promises.writeFile(
-              nextServerTraceOutput,
-              JSON.stringify({
-                version: 1,
-                cacheKey,
-                files: [...tracedFiles],
-              } as {
-                version: number
-                files: string[]
+            let serverResult: import('next/dist/compiled/@vercel/nft').NodeFileTraceResult
+            if (config.experimental.turbotrace) {
+              // handle the cache in the turbo-tracing side in the future
+              await nodeFileTrace({
+                action: 'annotate',
+                input: toTrace,
+                contextDirectory: root,
               })
-            )
-            await promises.unlink(cachedTracePath).catch(() => {})
-            await promises
-              .copyFile(nextServerTraceOutput, cachedTracePath)
-              .catch(() => {})
+            } else {
+              serverResult = await nodeFileTrace(toTrace, {
+                base: root,
+                processCwd: dir,
+                ignore: [
+                  '**/next/dist/pages/**/*',
+                  '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
+                  '**/node_modules/webpack5/**/*',
+                  '**/next/dist/server/lib/squoosh/**/*.wasm',
+                  ...(ciEnvironment.hasNextSupport
+                    ? [
+                        // only ignore image-optimizer code when
+                        // this is being handled outside of next-server
+                        '**/next/dist/server/image-optimizer.js',
+                        '**/node_modules/sharp/**/*',
+                      ]
+                    : []),
+                  ...(!hasSsrAmpPages
+                    ? [
+                        '**/next/dist/compiled/@ampproject/toolbox-optimizer/**/*',
+                      ]
+                    : []),
+                ],
+              })
+              const tracedFiles = new Set()
+
+              serverResult.fileList.forEach((file) => {
+                tracedFiles.add(
+                  path
+                    .relative(distDir, path.join(root, file))
+                    .replace(/\\/g, '/')
+                )
+              })
+
+              await promises.writeFile(
+                nextServerTraceOutput,
+                JSON.stringify({
+                  version: 1,
+                  cacheKey,
+                  files: [...tracedFiles],
+                } as {
+                  version: number
+                  files: string[]
+                })
+              )
+              await promises.unlink(cachedTracePath).catch(() => {})
+              await promises
+                .copyFile(nextServerTraceOutput, cachedTracePath)
+                .catch(() => {})
+            }
           })
       }
 
@@ -2072,11 +2116,13 @@ export default async function build(
               // revalidate periods and dynamicParams settings
               appStaticPaths.forEach((routes, originalAppPath) => {
                 const encodedRoutes = appStaticPathsEncoded.get(originalAppPath)
+                const appConfig = appDefaultConfigs.get(originalAppPath) || {}
 
                 routes.forEach((route, routeIdx) => {
                   defaultMap[route] = {
                     page: originalAppPath,
                     query: { __nextSsgPath: encodedRoutes?.[routeIdx] },
+                    _isDynamicError: appConfig.dynamic === 'error',
                     _isAppDir: true,
                   }
                 })

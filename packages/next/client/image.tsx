@@ -13,6 +13,8 @@ import { getImageBlurSvg } from '../shared/lib/image-blur-svg'
 import {
   ImageConfigComplete,
   imageConfigDefault,
+  ImageLoaderProps,
+  ImageLoaderPropsWithConfig,
 } from '../shared/lib/image-config'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { warnOnce } from '../shared/lib/utils'
@@ -33,21 +35,14 @@ if (typeof window === 'undefined') {
 const VALID_LOADING_VALUES = ['lazy', 'eager', undefined] as const
 type LoadingValue = typeof VALID_LOADING_VALUES[number]
 type ImageConfig = ImageConfigComplete & { allSizes: number[] }
-export type ImageLoader = (p: ImageLoaderProps) => string
 
-export type ImageLoaderProps = {
-  src: string
-  width: number
-  quality?: number
-}
+export { ImageLoaderProps }
+export type ImageLoader = (p: ImageLoaderProps) => string
 
 // Do not export - this is an internal type only
 // because `next.config.js` is only meant for the
 // built-in loaders, not for a custom loader() prop.
 type ImageLoaderWithConfig = (p: ImageLoaderPropsWithConfig) => string
-type ImageLoaderPropsWithConfig = ImageLoaderProps & {
-  config: Readonly<ImageConfig>
-}
 
 type PlaceholderValue = 'blur' | 'empty'
 type OnLoad = React.ReactEventHandler<HTMLImageElement> | undefined
@@ -299,7 +294,7 @@ function handleLoading(
       onLoadingCompleteRef.current(img)
     }
     if (process.env.NODE_ENV !== 'production') {
-      if (img.getAttribute('data-nimg') === 'future-fill') {
+      if (img.getAttribute('data-nimg') === 'fill') {
         if (
           !img.getAttribute('sizes') ||
           img.getAttribute('sizes') === '100vw'
@@ -378,7 +373,7 @@ const ImageElement = ({
         width={widthInt}
         height={heightInt}
         decoding="async"
-        data-nimg={`future${fill ? '-fill' : ''}`}
+        data-nimg={fill ? 'fill' : '1'}
         className={className}
         // @ts-ignore - TODO: upgrade to `@types/react@17`
         loading={loading}

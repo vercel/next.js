@@ -186,8 +186,8 @@ export class FlightManifestPlugin {
           context,
           mod.resourceResolveData?.path || resource
         )
+
         if (!ssrNamedModuleId.startsWith('.'))
-          // TODO use getModuleId instead
           ssrNamedModuleId = `./${ssrNamedModuleId.replace(/\\/g, '/')}`
 
         if (isCSSModule) {
@@ -317,7 +317,7 @@ export class FlightManifestPlugin {
           // TODO: Update type so that it doesn't have to be cast.
         ) as Iterable<webpack.NormalModule>
         for (const mod of chunkModules) {
-          const modId = compilation.chunkGraph.getModuleId(mod)
+          const modId: string = compilation.chunkGraph.getModuleId(mod) + ''
 
           recordModule(chunk, modId, mod)
 

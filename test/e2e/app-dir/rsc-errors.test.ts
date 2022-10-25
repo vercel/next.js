@@ -21,8 +21,8 @@ describe('app dir - rsc basics', () => {
     next = await createNext({
       files: new FileRef(path.join(__dirname, './rsc-errors')),
       dependencies: {
-        react: '0.0.0-experimental-9cdf8a99e-20221018',
-        'react-dom': '0.0.0-experimental-9cdf8a99e-20221018',
+        react: 'experimental',
+        'react-dom': 'experimental',
       },
     })
   })
@@ -87,6 +87,16 @@ describe('app dir - rsc basics', () => {
     const html = await renderViaHTTP(next.url, '/server-with-errors/styled-jsx')
     expect(html).toContain(
       'This module cannot be imported from a Server Component module. It should only be used from a Client Component.'
+    )
+  })
+
+  it('should error when page component export is not valid', async () => {
+    const html = await renderViaHTTP(
+      next.url,
+      '/server-with-errors/page-export'
+    )
+    expect(html).toContain(
+      'The default export is not a React Component in page: \\"/server-with-errors/page-export\\"'
     )
   })
 })

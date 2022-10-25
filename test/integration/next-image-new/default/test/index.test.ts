@@ -272,7 +272,7 @@ function runTests(mode) {
         browser.eval(
           `document.getElementById("img8").getAttribute("data-nimg")`
         ),
-      'future'
+      '1'
     )
     await check(
       () => browser.eval(`document.getElementById("img8").currentSrc`),
@@ -288,7 +288,7 @@ function runTests(mode) {
         browser.eval(
           `document.getElementById("img8").getAttribute("data-nimg")`
         ),
-      'future'
+      '1'
     )
     await check(
       () => browser.eval(`document.getElementById("img8").currentSrc`),
@@ -336,7 +336,7 @@ function runTests(mode) {
         browser.eval(
           `document.getElementById("img5").getAttribute("data-nimg")`
         ),
-      'future'
+      '1'
     )
 
     await browser.eval('document.getElementById("toggle").click()')
@@ -1047,7 +1047,7 @@ function runTests(mode) {
     it('should include a data-attribute on fill images', async () => {
       expect(
         await browser.elementById('fill-image-1').getAttribute('data-nimg')
-      ).toBe('future-fill')
+      ).toBe('fill')
     })
     it('should add position:absolute to fill images', async () => {
       expect(await getComputedStyle(browser, 'fill-image-1', 'position')).toBe(

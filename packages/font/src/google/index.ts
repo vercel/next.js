@@ -12,6 +12,7 @@ export declare function ABeeZee(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Abel(options: {
   weight: '400'
@@ -21,6 +22,7 @@ export declare function Abel(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Abhaya_Libre(options: {
   weight: '400' | '500' | '600' | '700' | '800'
@@ -30,6 +32,7 @@ export declare function Abhaya_Libre(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'sinhala'>
 }): FontModule
 export declare function Aboreto(options: {
   weight: '400'
@@ -39,6 +42,7 @@ export declare function Aboreto(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Abril_Fatface(options: {
   weight: '400'
@@ -48,6 +52,7 @@ export declare function Abril_Fatface(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Abyssinica_SIL(options: {
   weight: '400'
@@ -57,6 +62,7 @@ export declare function Abyssinica_SIL(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'ethiopic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Aclonica(options: {
   weight: '400'
@@ -66,6 +72,7 @@ export declare function Aclonica(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Acme(options: {
   weight: '400'
@@ -75,6 +82,7 @@ export declare function Acme(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Actor(options: {
   weight: '400'
@@ -84,6 +92,7 @@ export declare function Actor(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Adamina(options: {
   weight: '400'
@@ -93,6 +102,7 @@ export declare function Adamina(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Advent_Pro(options: {
   weight: '100' | '200' | '300' | '400' | '500' | '600' | '700'
@@ -102,6 +112,7 @@ export declare function Advent_Pro(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'greek' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Aguafina_Script(options: {
   weight: '400'
@@ -111,6 +122,7 @@ export declare function Aguafina_Script(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Akaya_Kanadaka(options: {
   weight: '400'
@@ -120,6 +132,7 @@ export declare function Akaya_Kanadaka(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'kannada' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Akaya_Telivigala(options: {
   weight: '400'
@@ -129,6 +142,7 @@ export declare function Akaya_Telivigala(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'telugu'>
 }): FontModule
 export declare function Akronim(options: {
   weight: '400'
@@ -138,6 +152,7 @@ export declare function Akronim(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Akshar(options?: {
   weight?: '300' | '400' | '500' | '600' | '700' | 'variable'
@@ -147,6 +162,7 @@ export declare function Akshar(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Aladin(options: {
   weight: '400'
@@ -156,6 +172,7 @@ export declare function Aladin(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Alata(options: {
   weight: '400'
@@ -165,6 +182,7 @@ export declare function Alata(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Alatsi(options: {
   weight: '400'
@@ -174,6 +192,7 @@ export declare function Alatsi(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Albert_Sans(options?: {
   weight?:
@@ -193,6 +212,7 @@ export declare function Albert_Sans(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Aldrich(options: {
   weight: '400'
@@ -202,6 +222,7 @@ export declare function Aldrich(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Alef(options: {
   weight: '400' | '700'
@@ -211,6 +232,7 @@ export declare function Alef(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'hebrew' | 'latin'>
 }): FontModule
 export declare function Alegreya(options?: {
   weight?: '400' | '500' | '600' | '700' | '800' | '900' | 'variable'
@@ -220,6 +242,15 @@ export declare function Alegreya(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    | 'cyrillic'
+    | 'cyrillic-ext'
+    | 'greek'
+    | 'greek-ext'
+    | 'latin'
+    | 'latin-ext'
+    | 'vietnamese'
+  >
 }): FontModule
 export declare function Alegreya_SC(options: {
   weight: '400' | '500' | '700' | '800' | '900'
@@ -229,6 +260,15 @@ export declare function Alegreya_SC(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    | 'cyrillic'
+    | 'cyrillic-ext'
+    | 'greek'
+    | 'greek-ext'
+    | 'latin'
+    | 'latin-ext'
+    | 'vietnamese'
+  >
 }): FontModule
 export declare function Alegreya_Sans(options: {
   weight: '100' | '300' | '400' | '500' | '700' | '800' | '900'
@@ -238,6 +278,15 @@ export declare function Alegreya_Sans(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    | 'cyrillic'
+    | 'cyrillic-ext'
+    | 'greek'
+    | 'greek-ext'
+    | 'latin'
+    | 'latin-ext'
+    | 'vietnamese'
+  >
 }): FontModule
 export declare function Alegreya_Sans_SC(options: {
   weight: '100' | '300' | '400' | '500' | '700' | '800' | '900'
@@ -247,6 +296,15 @@ export declare function Alegreya_Sans_SC(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    | 'cyrillic'
+    | 'cyrillic-ext'
+    | 'greek'
+    | 'greek-ext'
+    | 'latin'
+    | 'latin-ext'
+    | 'vietnamese'
+  >
 }): FontModule
 export declare function Aleo(options: {
   weight: '300' | '400' | '700'
@@ -256,6 +314,7 @@ export declare function Aleo(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Alex_Brush(options: {
   weight: '400'
@@ -265,6 +324,7 @@ export declare function Alex_Brush(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Alfa_Slab_One(options: {
   weight: '400'
@@ -274,6 +334,7 @@ export declare function Alfa_Slab_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Alice(options: {
   weight: '400'
@@ -283,6 +344,7 @@ export declare function Alice(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Alike(options: {
   weight: '400'
@@ -292,6 +354,7 @@ export declare function Alike(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Alike_Angular(options: {
   weight: '400'
@@ -301,6 +364,7 @@ export declare function Alike_Angular(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Alkalami(options: {
   weight: '400'
@@ -310,6 +374,7 @@ export declare function Alkalami(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Allan(options: {
   weight: '400' | '700'
@@ -319,6 +384,7 @@ export declare function Allan(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Allerta(options: {
   weight: '400'
@@ -328,6 +394,7 @@ export declare function Allerta(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Allerta_Stencil(options: {
   weight: '400'
@@ -337,6 +404,7 @@ export declare function Allerta_Stencil(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Allison(options: {
   weight: '400'
@@ -346,6 +414,7 @@ export declare function Allison(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Allura(options: {
   weight: '400'
@@ -355,6 +424,7 @@ export declare function Allura(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Almarai(options: {
   weight: '300' | '400' | '700' | '800'
@@ -364,6 +434,7 @@ export declare function Almarai(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'arabic'>
 }): FontModule
 export declare function Almendra(options: {
   weight: '400' | '700'
@@ -373,6 +444,7 @@ export declare function Almendra(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Almendra_Display(options: {
   weight: '400'
@@ -382,6 +454,7 @@ export declare function Almendra_Display(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Almendra_SC(options: {
   weight: '400'
@@ -391,6 +464,7 @@ export declare function Almendra_SC(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Alumni_Sans(options?: {
   weight?:
@@ -410,6 +484,9 @@ export declare function Alumni_Sans(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): FontModule
 export declare function Alumni_Sans_Collegiate_One(options: {
   weight: '400'
@@ -419,6 +496,7 @@ export declare function Alumni_Sans_Collegiate_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Alumni_Sans_Inline_One(options: {
   weight: '400'
@@ -428,6 +506,7 @@ export declare function Alumni_Sans_Inline_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Alumni_Sans_Pinstripe(options: {
   weight: '400'
@@ -437,6 +516,9 @@ export declare function Alumni_Sans_Pinstripe(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): FontModule
 export declare function Amarante(options: {
   weight: '400'
@@ -446,6 +528,7 @@ export declare function Amarante(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Amaranth(options: {
   weight: '400' | '700'
@@ -455,6 +538,7 @@ export declare function Amaranth(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Amatic_SC(options: {
   weight: '400' | '700'
@@ -464,6 +548,7 @@ export declare function Amatic_SC(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'hebrew' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Amethysta(options: {
   weight: '400'
@@ -473,6 +558,7 @@ export declare function Amethysta(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Amiko(options: {
   weight: '400' | '600' | '700'
@@ -482,6 +568,7 @@ export declare function Amiko(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Amiri(options: {
   weight: '400' | '700'
@@ -491,6 +578,7 @@ export declare function Amiri(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Amiri_Quran(options: {
   weight: '400'
@@ -500,6 +588,7 @@ export declare function Amiri_Quran(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'arabic' | 'latin'>
 }): FontModule
 export declare function Amita(options: {
   weight: '400' | '700'
@@ -509,6 +598,7 @@ export declare function Amita(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Anaheim(options: {
   weight: '400'
@@ -518,6 +608,7 @@ export declare function Anaheim(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Andada_Pro(options?: {
   weight?: '400' | '500' | '600' | '700' | '800' | 'variable'
@@ -527,6 +618,7 @@ export declare function Andada_Pro(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Andika(options: {
   weight: '400' | '700'
@@ -536,6 +628,9 @@ export declare function Andika(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): FontModule
 export declare function Anek_Bangla(options?: {
   weight?:
@@ -554,6 +649,7 @@ export declare function Anek_Bangla(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'bengali' | 'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): FontModule
 export declare function Anek_Devanagari(options?: {
@@ -573,6 +669,7 @@ export declare function Anek_Devanagari(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): FontModule
 export declare function Anek_Gujarati(options?: {
@@ -592,6 +689,7 @@ export declare function Anek_Gujarati(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'gujarati' | 'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): FontModule
 export declare function Anek_Gurmukhi(options?: {
@@ -611,6 +709,7 @@ export declare function Anek_Gurmukhi(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'gurmukhi' | 'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): FontModule
 export declare function Anek_Kannada(options?: {
@@ -630,6 +729,7 @@ export declare function Anek_Kannada(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'kannada' | 'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): FontModule
 export declare function Anek_Latin(options?: {
@@ -649,6 +749,7 @@ export declare function Anek_Latin(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
   axes?: 'wdth'[]
 }): FontModule
 export declare function Anek_Malayalam(options?: {
@@ -668,6 +769,7 @@ export declare function Anek_Malayalam(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'malayalam'>
   axes?: 'wdth'[]
 }): FontModule
 export declare function Anek_Odia(options?: {
@@ -687,6 +789,7 @@ export declare function Anek_Odia(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'oriya'>
   axes?: 'wdth'[]
 }): FontModule
 export declare function Anek_Tamil(options?: {
@@ -706,6 +809,7 @@ export declare function Anek_Tamil(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'tamil'>
   axes?: 'wdth'[]
 }): FontModule
 export declare function Anek_Telugu(options?: {
@@ -725,6 +829,7 @@ export declare function Anek_Telugu(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'telugu'>
   axes?: 'wdth'[]
 }): FontModule
 export declare function Angkor(options: {
@@ -735,6 +840,7 @@ export declare function Angkor(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'khmer' | 'latin'>
 }): FontModule
 export declare function Annie_Use_Your_Telescope(options: {
   weight: '400'
@@ -744,6 +850,7 @@ export declare function Annie_Use_Your_Telescope(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Anonymous_Pro(options: {
   weight: '400' | '700'
@@ -753,6 +860,7 @@ export declare function Anonymous_Pro(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'greek' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Antic(options: {
   weight: '400'
@@ -762,6 +870,7 @@ export declare function Antic(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Antic_Didone(options: {
   weight: '400'
@@ -771,6 +880,7 @@ export declare function Antic_Didone(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Antic_Slab(options: {
   weight: '400'
@@ -780,6 +890,7 @@ export declare function Antic_Slab(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Anton(options: {
   weight: '400'
@@ -789,6 +900,7 @@ export declare function Anton(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Antonio(options?: {
   weight?: '100' | '200' | '300' | '400' | '500' | '600' | '700' | 'variable'
@@ -798,6 +910,7 @@ export declare function Antonio(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Anybody(options?: {
   weight?:
@@ -817,6 +930,7 @@ export declare function Anybody(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
   axes?: 'wdth'[]
 }): FontModule
 export declare function Arapey(options: {
@@ -827,6 +941,7 @@ export declare function Arapey(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Arbutus(options: {
   weight: '400'
@@ -836,6 +951,7 @@ export declare function Arbutus(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Arbutus_Slab(options: {
   weight: '400'
@@ -845,6 +961,7 @@ export declare function Arbutus_Slab(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Architects_Daughter(options: {
   weight: '400'
@@ -854,6 +971,7 @@ export declare function Architects_Daughter(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Archivo(options?: {
   weight?:
@@ -873,6 +991,7 @@ export declare function Archivo(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
   axes?: 'wdth'[]
 }): FontModule
 export declare function Archivo_Black(options: {
@@ -883,6 +1002,7 @@ export declare function Archivo_Black(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Archivo_Narrow(options?: {
   weight?: '400' | '500' | '600' | '700' | 'variable'
@@ -892,6 +1012,7 @@ export declare function Archivo_Narrow(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Are_You_Serious(options: {
   weight: '400'
@@ -901,6 +1022,7 @@ export declare function Are_You_Serious(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Aref_Ruqaa(options: {
   weight: '400' | '700'
@@ -910,6 +1032,7 @@ export declare function Aref_Ruqaa(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Aref_Ruqaa_Ink(options: {
   weight: '400' | '700'
@@ -919,6 +1042,7 @@ export declare function Aref_Ruqaa_Ink(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Arima(options?: {
   weight?: '100' | '200' | '300' | '400' | '500' | '600' | '700' | 'variable'
@@ -928,6 +1052,15 @@ export declare function Arima(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    | 'greek'
+    | 'greek-ext'
+    | 'latin'
+    | 'latin-ext'
+    | 'malayalam'
+    | 'tamil'
+    | 'vietnamese'
+  >
 }): FontModule
 export declare function Arima_Madurai(options: {
   weight: '100' | '200' | '300' | '400' | '500' | '700' | '800' | '900'
@@ -937,6 +1070,7 @@ export declare function Arima_Madurai(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'tamil' | 'vietnamese'>
 }): FontModule
 export declare function Arimo(options?: {
   weight?: '400' | '500' | '600' | '700' | 'variable'
@@ -946,6 +1080,16 @@ export declare function Arimo(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    | 'cyrillic'
+    | 'cyrillic-ext'
+    | 'greek'
+    | 'greek-ext'
+    | 'hebrew'
+    | 'latin'
+    | 'latin-ext'
+    | 'vietnamese'
+  >
 }): FontModule
 export declare function Arizonia(options: {
   weight: '400'
@@ -955,6 +1099,7 @@ export declare function Arizonia(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Armata(options: {
   weight: '400'
@@ -964,6 +1109,7 @@ export declare function Armata(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Arsenal(options: {
   weight: '400' | '700'
@@ -973,6 +1119,9 @@ export declare function Arsenal(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): FontModule
 export declare function Artifika(options: {
   weight: '400'
@@ -982,6 +1131,7 @@ export declare function Artifika(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Arvo(options: {
   weight: '400' | '700'
@@ -991,6 +1141,7 @@ export declare function Arvo(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Arya(options: {
   weight: '400' | '700'
@@ -1000,6 +1151,7 @@ export declare function Arya(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Asap(options?: {
   weight?: '400' | '500' | '600' | '700' | 'variable'
@@ -1009,6 +1161,7 @@ export declare function Asap(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Asap_Condensed(options: {
   weight: '400' | '500' | '600' | '700'
@@ -1018,6 +1171,7 @@ export declare function Asap_Condensed(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Asar(options: {
   weight: '400'
@@ -1027,6 +1181,7 @@ export declare function Asar(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Asset(options: {
   weight: '400'
@@ -1036,6 +1191,7 @@ export declare function Asset(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Assistant(options?: {
   weight?: '200' | '300' | '400' | '500' | '600' | '700' | '800' | 'variable'
@@ -1045,6 +1201,7 @@ export declare function Assistant(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'hebrew' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Astloch(options: {
   weight: '400' | '700'
@@ -1054,6 +1211,7 @@ export declare function Astloch(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Asul(options: {
   weight: '400' | '700'
@@ -1063,6 +1221,7 @@ export declare function Asul(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Athiti(options: {
   weight: '200' | '300' | '400' | '500' | '600' | '700'
@@ -1072,6 +1231,7 @@ export declare function Athiti(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): FontModule
 export declare function Atkinson_Hyperlegible(options: {
   weight: '400' | '700'
@@ -1081,6 +1241,7 @@ export declare function Atkinson_Hyperlegible(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Atma(options: {
   weight: '300' | '400' | '500' | '600' | '700'
@@ -1090,6 +1251,7 @@ export declare function Atma(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'bengali' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Atomic_Age(options: {
   weight: '400'
@@ -1099,6 +1261,7 @@ export declare function Atomic_Age(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Aubrey(options: {
   weight: '400'
@@ -1108,6 +1271,7 @@ export declare function Aubrey(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Audiowide(options: {
   weight: '400'
@@ -1117,6 +1281,7 @@ export declare function Audiowide(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Autour_One(options: {
   weight: '400'
@@ -1126,6 +1291,7 @@ export declare function Autour_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Average(options: {
   weight: '400'
@@ -1135,6 +1301,7 @@ export declare function Average(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Average_Sans(options: {
   weight: '400'
@@ -1144,6 +1311,7 @@ export declare function Average_Sans(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Averia_Gruesa_Libre(options: {
   weight: '400'
@@ -1153,6 +1321,7 @@ export declare function Averia_Gruesa_Libre(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Averia_Libre(options: {
   weight: '300' | '400' | '700'
@@ -1162,6 +1331,7 @@ export declare function Averia_Libre(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Averia_Sans_Libre(options: {
   weight: '300' | '400' | '700'
@@ -1171,6 +1341,7 @@ export declare function Averia_Sans_Libre(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Averia_Serif_Libre(options: {
   weight: '300' | '400' | '700'
@@ -1180,6 +1351,7 @@ export declare function Averia_Serif_Libre(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Azeret_Mono(options?: {
   weight?:
@@ -1199,6 +1371,7 @@ export declare function Azeret_Mono(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function B612(options: {
   weight: '400' | '700'
@@ -1208,6 +1381,7 @@ export declare function B612(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function B612_Mono(options: {
   weight: '400' | '700'
@@ -1217,6 +1391,7 @@ export declare function B612_Mono(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function BIZ_UDGothic(options: {
   weight: '400' | '700'
@@ -1226,6 +1401,7 @@ export declare function BIZ_UDGothic(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'greek-ext' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function BIZ_UDMincho(options: {
   weight: '400'
@@ -1235,6 +1411,7 @@ export declare function BIZ_UDMincho(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'greek-ext' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function BIZ_UDPGothic(options: {
   weight: '400' | '700'
@@ -1244,6 +1421,7 @@ export declare function BIZ_UDPGothic(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'greek-ext' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function BIZ_UDPMincho(options: {
   weight: '400'
@@ -1253,6 +1431,7 @@ export declare function BIZ_UDPMincho(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'greek-ext' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Babylonica(options: {
   weight: '400'
@@ -1262,6 +1441,7 @@ export declare function Babylonica(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Bad_Script(options: {
   weight: '400'
@@ -1271,6 +1451,7 @@ export declare function Bad_Script(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'latin'>
 }): FontModule
 export declare function Bahiana(options: {
   weight: '400'
@@ -1280,6 +1461,7 @@ export declare function Bahiana(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Bahianita(options: {
   weight: '400'
@@ -1289,6 +1471,7 @@ export declare function Bahianita(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Bai_Jamjuree(options: {
   weight: '200' | '300' | '400' | '500' | '600' | '700'
@@ -1298,6 +1481,7 @@ export declare function Bai_Jamjuree(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): FontModule
 export declare function Bakbak_One(options: {
   weight: '400'
@@ -1307,6 +1491,7 @@ export declare function Bakbak_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Ballet(options?: {
   weight?: '400' | 'variable'
@@ -1316,6 +1501,7 @@ export declare function Ballet(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
   axes?: 'opsz'[]
 }): FontModule
 export declare function Baloo_2(options?: {
@@ -1326,6 +1512,7 @@ export declare function Baloo_2(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'devanagari' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Baloo_Bhai_2(options?: {
   weight?: '400' | '500' | '600' | '700' | '800' | 'variable'
@@ -1335,6 +1522,7 @@ export declare function Baloo_Bhai_2(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'gujarati' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Baloo_Bhaijaan_2(options?: {
   weight?: '400' | '500' | '600' | '700' | '800' | 'variable'
@@ -1344,6 +1532,7 @@ export declare function Baloo_Bhaijaan_2(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'arabic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Baloo_Bhaina_2(options?: {
   weight?: '400' | '500' | '600' | '700' | '800' | 'variable'
@@ -1353,6 +1542,7 @@ export declare function Baloo_Bhaina_2(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'oriya' | 'vietnamese'>
 }): FontModule
 export declare function Baloo_Chettan_2(options?: {
   weight?: '400' | '500' | '600' | '700' | '800' | 'variable'
@@ -1362,6 +1552,7 @@ export declare function Baloo_Chettan_2(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'malayalam' | 'vietnamese'>
 }): FontModule
 export declare function Baloo_Da_2(options?: {
   weight?: '400' | '500' | '600' | '700' | '800' | 'variable'
@@ -1371,6 +1562,7 @@ export declare function Baloo_Da_2(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'bengali' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Baloo_Paaji_2(options?: {
   weight?: '400' | '500' | '600' | '700' | '800' | 'variable'
@@ -1380,6 +1572,7 @@ export declare function Baloo_Paaji_2(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'gurmukhi' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Baloo_Tamma_2(options?: {
   weight?: '400' | '500' | '600' | '700' | '800' | 'variable'
@@ -1389,6 +1582,7 @@ export declare function Baloo_Tamma_2(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'kannada' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Baloo_Tammudu_2(options?: {
   weight?: '400' | '500' | '600' | '700' | '800' | 'variable'
@@ -1398,6 +1592,7 @@ export declare function Baloo_Tammudu_2(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'telugu' | 'vietnamese'>
 }): FontModule
 export declare function Baloo_Thambi_2(options?: {
   weight?: '400' | '500' | '600' | '700' | '800' | 'variable'
@@ -1407,6 +1602,7 @@ export declare function Baloo_Thambi_2(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'tamil' | 'vietnamese'>
 }): FontModule
 export declare function Balsamiq_Sans(options: {
   weight: '400' | '700'
@@ -1416,6 +1612,7 @@ export declare function Balsamiq_Sans(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Balthazar(options: {
   weight: '400'
@@ -1425,6 +1622,7 @@ export declare function Balthazar(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Bangers(options: {
   weight: '400'
@@ -1434,6 +1632,7 @@ export declare function Bangers(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Barlow(options: {
   weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
@@ -1443,6 +1642,7 @@ export declare function Barlow(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Barlow_Condensed(options: {
   weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
@@ -1452,6 +1652,7 @@ export declare function Barlow_Condensed(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Barlow_Semi_Condensed(options: {
   weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
@@ -1461,6 +1662,7 @@ export declare function Barlow_Semi_Condensed(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Barriecito(options: {
   weight: '400'
@@ -1470,6 +1672,7 @@ export declare function Barriecito(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Barrio(options: {
   weight: '400'
@@ -1479,6 +1682,7 @@ export declare function Barrio(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Basic(options: {
   weight: '400'
@@ -1488,6 +1692,7 @@ export declare function Basic(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Baskervville(options: {
   weight: '400'
@@ -1497,6 +1702,7 @@ export declare function Baskervville(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Battambang(options: {
   weight: '100' | '300' | '400' | '700' | '900'
@@ -1506,6 +1712,7 @@ export declare function Battambang(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'khmer' | 'latin'>
 }): FontModule
 export declare function Baumans(options: {
   weight: '400'
@@ -1515,6 +1722,7 @@ export declare function Baumans(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Bayon(options: {
   weight: '400'
@@ -1524,6 +1732,7 @@ export declare function Bayon(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'khmer' | 'latin'>
 }): FontModule
 export declare function Be_Vietnam_Pro(options: {
   weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
@@ -1533,6 +1742,7 @@ export declare function Be_Vietnam_Pro(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Beau_Rivage(options: {
   weight: '400'
@@ -1542,6 +1752,7 @@ export declare function Beau_Rivage(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Bebas_Neue(options: {
   weight: '400'
@@ -1551,6 +1762,7 @@ export declare function Bebas_Neue(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Belgrano(options: {
   weight: '400'
@@ -1560,6 +1772,7 @@ export declare function Belgrano(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Bellefair(options: {
   weight: '400'
@@ -1569,6 +1782,7 @@ export declare function Bellefair(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'hebrew' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Belleza(options: {
   weight: '400'
@@ -1578,6 +1792,7 @@ export declare function Belleza(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Bellota(options: {
   weight: '300' | '400' | '700'
@@ -1587,6 +1802,7 @@ export declare function Bellota(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Bellota_Text(options: {
   weight: '300' | '400' | '700'
@@ -1596,6 +1812,7 @@ export declare function Bellota_Text(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function BenchNine(options: {
   weight: '300' | '400' | '700'
@@ -1605,6 +1822,7 @@ export declare function BenchNine(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Benne(options: {
   weight: '400'
@@ -1614,6 +1832,7 @@ export declare function Benne(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'kannada' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Bentham(options: {
   weight: '400'
@@ -1623,6 +1842,7 @@ export declare function Bentham(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Berkshire_Swash(options: {
   weight: '400'
@@ -1632,6 +1852,7 @@ export declare function Berkshire_Swash(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Besley(options?: {
   weight?: '400' | '500' | '600' | '700' | '800' | '900' | 'variable'
@@ -1641,6 +1862,7 @@ export declare function Besley(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Beth_Ellen(options: {
   weight: '400'
@@ -1650,6 +1872,7 @@ export declare function Beth_Ellen(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Bevan(options: {
   weight: '400'
@@ -1659,6 +1882,7 @@ export declare function Bevan(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function BhuTuka_Expanded_One(options: {
   weight: '400'
@@ -1668,6 +1892,7 @@ export declare function BhuTuka_Expanded_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'gurmukhi' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Big_Shoulders_Display(options?: {
   weight?:
@@ -1687,6 +1912,7 @@ export declare function Big_Shoulders_Display(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Big_Shoulders_Inline_Display(options?: {
   weight?:
@@ -1706,6 +1932,7 @@ export declare function Big_Shoulders_Inline_Display(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Big_Shoulders_Inline_Text(options?: {
   weight?:
@@ -1725,6 +1952,7 @@ export declare function Big_Shoulders_Inline_Text(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Big_Shoulders_Stencil_Display(options?: {
   weight?:
@@ -1744,6 +1972,7 @@ export declare function Big_Shoulders_Stencil_Display(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Big_Shoulders_Stencil_Text(options?: {
   weight?:
@@ -1763,6 +1992,7 @@ export declare function Big_Shoulders_Stencil_Text(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Big_Shoulders_Text(options?: {
   weight?:
@@ -1782,6 +2012,7 @@ export declare function Big_Shoulders_Text(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Bigelow_Rules(options: {
   weight: '400'
@@ -1791,6 +2022,7 @@ export declare function Bigelow_Rules(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Bigshot_One(options: {
   weight: '400'
@@ -1800,6 +2032,7 @@ export declare function Bigshot_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Bilbo(options: {
   weight: '400'
@@ -1809,6 +2042,7 @@ export declare function Bilbo(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Bilbo_Swash_Caps(options: {
   weight: '400'
@@ -1818,6 +2052,7 @@ export declare function Bilbo_Swash_Caps(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function BioRhyme(options: {
   weight: '200' | '300' | '400' | '700' | '800'
@@ -1827,6 +2062,7 @@ export declare function BioRhyme(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function BioRhyme_Expanded(options: {
   weight: '200' | '300' | '400' | '700' | '800'
@@ -1836,6 +2072,7 @@ export declare function BioRhyme_Expanded(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Birthstone(options: {
   weight: '400'
@@ -1845,6 +2082,7 @@ export declare function Birthstone(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Birthstone_Bounce(options: {
   weight: '400' | '500'
@@ -1854,6 +2092,7 @@ export declare function Birthstone_Bounce(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Biryani(options: {
   weight: '200' | '300' | '400' | '600' | '700' | '800' | '900'
@@ -1863,6 +2102,7 @@ export declare function Biryani(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Bitter(options?: {
   weight?:
@@ -1882,6 +2122,9 @@ export declare function Bitter(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): FontModule
 export declare function Black_And_White_Picture(options: {
   weight: '400'
@@ -1891,6 +2134,7 @@ export declare function Black_And_White_Picture(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'korean' | 'latin'>
 }): FontModule
 export declare function Black_Han_Sans(options: {
   weight: '400'
@@ -1900,6 +2144,7 @@ export declare function Black_Han_Sans(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'korean' | 'latin'>
 }): FontModule
 export declare function Black_Ops_One(options: {
   weight: '400'
@@ -1909,6 +2154,7 @@ export declare function Black_Ops_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Blaka(options: {
   weight: '400'
@@ -1918,6 +2164,7 @@ export declare function Blaka(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Blaka_Hollow(options: {
   weight: '400'
@@ -1927,6 +2174,7 @@ export declare function Blaka_Hollow(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Blaka_Ink(options: {
   weight: '400'
@@ -1936,6 +2184,7 @@ export declare function Blaka_Ink(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Blinker(options: {
   weight: '100' | '200' | '300' | '400' | '600' | '700' | '800' | '900'
@@ -1945,6 +2194,7 @@ export declare function Blinker(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Bodoni_Moda(options?: {
   weight?: '400' | '500' | '600' | '700' | '800' | '900' | 'variable'
@@ -1954,6 +2204,7 @@ export declare function Bodoni_Moda(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
   axes?: 'opsz'[]
 }): FontModule
 export declare function Bokor(options: {
@@ -1964,6 +2215,7 @@ export declare function Bokor(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'khmer' | 'latin'>
 }): FontModule
 export declare function Bona_Nova(options: {
   weight: '400' | '700'
@@ -1973,6 +2225,15 @@ export declare function Bona_Nova(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    | 'cyrillic'
+    | 'cyrillic-ext'
+    | 'greek'
+    | 'hebrew'
+    | 'latin'
+    | 'latin-ext'
+    | 'vietnamese'
+  >
 }): FontModule
 export declare function Bonbon(options: {
   weight: '400'
@@ -1982,6 +2243,7 @@ export declare function Bonbon(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Bonheur_Royale(options: {
   weight: '400'
@@ -1991,6 +2253,7 @@ export declare function Bonheur_Royale(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Boogaloo(options: {
   weight: '400'
@@ -2000,6 +2263,7 @@ export declare function Boogaloo(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Bowlby_One(options: {
   weight: '400'
@@ -2009,6 +2273,7 @@ export declare function Bowlby_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Bowlby_One_SC(options: {
   weight: '400'
@@ -2018,6 +2283,7 @@ export declare function Bowlby_One_SC(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Brawler(options: {
   weight: '400' | '700'
@@ -2027,6 +2293,7 @@ export declare function Brawler(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Bree_Serif(options: {
   weight: '400'
@@ -2036,6 +2303,7 @@ export declare function Bree_Serif(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Brygada_1918(options?: {
   weight?: '400' | '500' | '600' | '700' | 'variable'
@@ -2045,6 +2313,9 @@ export declare function Brygada_1918(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'greek' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): FontModule
 export declare function Bubblegum_Sans(options: {
   weight: '400'
@@ -2054,6 +2325,7 @@ export declare function Bubblegum_Sans(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Bubbler_One(options: {
   weight: '400'
@@ -2063,6 +2335,7 @@ export declare function Bubbler_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Buda(options: {
   weight: '300'
@@ -2072,6 +2345,7 @@ export declare function Buda(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Buenard(options: {
   weight: '400' | '700'
@@ -2081,6 +2355,7 @@ export declare function Buenard(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Bungee(options: {
   weight: '400'
@@ -2090,6 +2365,7 @@ export declare function Bungee(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Bungee_Hairline(options: {
   weight: '400'
@@ -2099,6 +2375,7 @@ export declare function Bungee_Hairline(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Bungee_Inline(options: {
   weight: '400'
@@ -2108,6 +2385,7 @@ export declare function Bungee_Inline(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Bungee_Outline(options: {
   weight: '400'
@@ -2117,6 +2395,7 @@ export declare function Bungee_Outline(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Bungee_Shade(options: {
   weight: '400'
@@ -2126,6 +2405,7 @@ export declare function Bungee_Shade(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Bungee_Spice(options: {
   weight: '400'
@@ -2135,6 +2415,7 @@ export declare function Bungee_Spice(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Butcherman(options: {
   weight: '400'
@@ -2144,6 +2425,7 @@ export declare function Butcherman(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Butterfly_Kids(options: {
   weight: '400'
@@ -2153,6 +2435,7 @@ export declare function Butterfly_Kids(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Cabin(options?: {
   weight?: '400' | '500' | '600' | '700' | 'variable'
@@ -2162,6 +2445,7 @@ export declare function Cabin(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
   axes?: 'wdth'[]
 }): FontModule
 export declare function Cabin_Condensed(options: {
@@ -2172,6 +2456,7 @@ export declare function Cabin_Condensed(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Cabin_Sketch(options: {
   weight: '400' | '700'
@@ -2181,6 +2466,7 @@ export declare function Cabin_Sketch(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Caesar_Dressing(options: {
   weight: '400'
@@ -2190,6 +2476,7 @@ export declare function Caesar_Dressing(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Cagliostro(options: {
   weight: '400'
@@ -2199,6 +2486,7 @@ export declare function Cagliostro(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Cairo(options?: {
   weight?:
@@ -2218,6 +2506,7 @@ export declare function Cairo(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Cairo_Play(options?: {
   weight?:
@@ -2237,6 +2526,7 @@ export declare function Cairo_Play(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
   axes?: 'slnt'[]
 }): FontModule
 export declare function Caladea(options: {
@@ -2247,6 +2537,7 @@ export declare function Caladea(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Calistoga(options: {
   weight: '400'
@@ -2256,6 +2547,7 @@ export declare function Calistoga(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Calligraffitti(options: {
   weight: '400'
@@ -2265,6 +2557,7 @@ export declare function Calligraffitti(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Cambay(options: {
   weight: '400' | '700'
@@ -2274,6 +2567,7 @@ export declare function Cambay(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Cambo(options: {
   weight: '400'
@@ -2283,6 +2577,7 @@ export declare function Cambo(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Candal(options: {
   weight: '400'
@@ -2292,6 +2587,7 @@ export declare function Candal(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Cantarell(options: {
   weight: '400' | '700'
@@ -2301,6 +2597,7 @@ export declare function Cantarell(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Cantata_One(options: {
   weight: '400'
@@ -2310,6 +2607,7 @@ export declare function Cantata_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Cantora_One(options: {
   weight: '400'
@@ -2319,6 +2617,7 @@ export declare function Cantora_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Capriola(options: {
   weight: '400'
@@ -2328,6 +2627,7 @@ export declare function Capriola(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Caramel(options: {
   weight: '400'
@@ -2337,6 +2637,7 @@ export declare function Caramel(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Carattere(options: {
   weight: '400'
@@ -2346,6 +2647,7 @@ export declare function Carattere(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Cardo(options: {
   weight: '400' | '700'
@@ -2355,6 +2657,7 @@ export declare function Cardo(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'greek' | 'greek-ext' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Carme(options: {
   weight: '400'
@@ -2364,6 +2667,7 @@ export declare function Carme(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Carrois_Gothic(options: {
   weight: '400'
@@ -2373,6 +2677,7 @@ export declare function Carrois_Gothic(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Carrois_Gothic_SC(options: {
   weight: '400'
@@ -2382,6 +2687,7 @@ export declare function Carrois_Gothic_SC(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Carter_One(options: {
   weight: '400'
@@ -2391,6 +2697,7 @@ export declare function Carter_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Castoro(options: {
   weight: '400'
@@ -2400,6 +2707,7 @@ export declare function Castoro(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Catamaran(options?: {
   weight?:
@@ -2419,6 +2727,7 @@ export declare function Catamaran(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'tamil'>
 }): FontModule
 export declare function Caudex(options: {
   weight: '400' | '700'
@@ -2428,6 +2737,7 @@ export declare function Caudex(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'greek' | 'greek-ext' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Caveat(options?: {
   weight?: '400' | '500' | '600' | '700' | 'variable'
@@ -2437,6 +2747,7 @@ export declare function Caveat(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Caveat_Brush(options: {
   weight: '400'
@@ -2446,6 +2757,7 @@ export declare function Caveat_Brush(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Cedarville_Cursive(options: {
   weight: '400'
@@ -2455,6 +2767,7 @@ export declare function Cedarville_Cursive(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Ceviche_One(options: {
   weight: '400'
@@ -2464,6 +2777,7 @@ export declare function Ceviche_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Chakra_Petch(options: {
   weight: '300' | '400' | '500' | '600' | '700'
@@ -2473,6 +2787,7 @@ export declare function Chakra_Petch(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): FontModule
 export declare function Changa(options?: {
   weight?: '200' | '300' | '400' | '500' | '600' | '700' | '800' | 'variable'
@@ -2482,6 +2797,7 @@ export declare function Changa(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Changa_One(options: {
   weight: '400'
@@ -2491,6 +2807,7 @@ export declare function Changa_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Chango(options: {
   weight: '400'
@@ -2500,6 +2817,7 @@ export declare function Chango(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Charis_SIL(options: {
   weight: '400' | '700'
@@ -2509,6 +2827,9 @@ export declare function Charis_SIL(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): FontModule
 export declare function Charm(options: {
   weight: '400' | '700'
@@ -2518,6 +2839,7 @@ export declare function Charm(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): FontModule
 export declare function Charmonman(options: {
   weight: '400' | '700'
@@ -2527,6 +2849,7 @@ export declare function Charmonman(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): FontModule
 export declare function Chathura(options: {
   weight: '100' | '300' | '400' | '700' | '800'
@@ -2536,6 +2859,7 @@ export declare function Chathura(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'telugu'>
 }): FontModule
 export declare function Chau_Philomene_One(options: {
   weight: '400'
@@ -2545,6 +2869,7 @@ export declare function Chau_Philomene_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Chela_One(options: {
   weight: '400'
@@ -2554,6 +2879,7 @@ export declare function Chela_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Chelsea_Market(options: {
   weight: '400'
@@ -2563,6 +2889,7 @@ export declare function Chelsea_Market(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Chenla(options: {
   weight: '400'
@@ -2572,6 +2899,7 @@ export declare function Chenla(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'khmer'>
 }): FontModule
 export declare function Cherish(options: {
   weight: '400'
@@ -2581,6 +2909,7 @@ export declare function Cherish(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Cherry_Cream_Soda(options: {
   weight: '400'
@@ -2590,6 +2919,7 @@ export declare function Cherry_Cream_Soda(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Cherry_Swash(options: {
   weight: '400' | '700'
@@ -2599,6 +2929,7 @@ export declare function Cherry_Swash(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Chewy(options: {
   weight: '400'
@@ -2608,6 +2939,7 @@ export declare function Chewy(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Chicle(options: {
   weight: '400'
@@ -2617,6 +2949,7 @@ export declare function Chicle(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Chilanka(options: {
   weight: '400'
@@ -2626,6 +2959,7 @@ export declare function Chilanka(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'malayalam'>
 }): FontModule
 export declare function Chivo(options: {
   weight: '300' | '400' | '700' | '900'
@@ -2635,6 +2969,7 @@ export declare function Chivo(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Chonburi(options: {
   weight: '400'
@@ -2644,6 +2979,7 @@ export declare function Chonburi(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): FontModule
 export declare function Cinzel(options?: {
   weight?: '400' | '500' | '600' | '700' | '800' | '900' | 'variable'
@@ -2653,6 +2989,7 @@ export declare function Cinzel(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Cinzel_Decorative(options: {
   weight: '400' | '700' | '900'
@@ -2662,6 +2999,7 @@ export declare function Cinzel_Decorative(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Clicker_Script(options: {
   weight: '400'
@@ -2671,6 +3009,7 @@ export declare function Clicker_Script(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Coda(options: {
   weight: '400' | '800'
@@ -2680,6 +3019,7 @@ export declare function Coda(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Coda_Caption(options: {
   weight: '800'
@@ -2689,6 +3029,7 @@ export declare function Coda_Caption(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Codystar(options: {
   weight: '300' | '400'
@@ -2698,6 +3039,7 @@ export declare function Codystar(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Coiny(options: {
   weight: '400'
@@ -2707,6 +3049,7 @@ export declare function Coiny(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'tamil' | 'vietnamese'>
 }): FontModule
 export declare function Combo(options: {
   weight: '400'
@@ -2716,6 +3059,7 @@ export declare function Combo(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Comfortaa(options?: {
   weight?: '300' | '400' | '500' | '600' | '700' | 'variable'
@@ -2725,6 +3069,9 @@ export declare function Comfortaa(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'greek' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): FontModule
 export declare function Comforter(options: {
   weight: '400'
@@ -2734,6 +3081,7 @@ export declare function Comforter(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Comforter_Brush(options: {
   weight: '400'
@@ -2743,6 +3091,7 @@ export declare function Comforter_Brush(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Comic_Neue(options: {
   weight: '300' | '400' | '700'
@@ -2752,6 +3101,7 @@ export declare function Comic_Neue(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Coming_Soon(options: {
   weight: '400'
@@ -2761,6 +3111,7 @@ export declare function Coming_Soon(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Commissioner(options?: {
   weight?:
@@ -2780,6 +3131,9 @@ export declare function Commissioner(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'greek' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): FontModule
 export declare function Concert_One(options: {
   weight: '400'
@@ -2789,6 +3143,7 @@ export declare function Concert_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Condiment(options: {
   weight: '400'
@@ -2798,6 +3153,7 @@ export declare function Condiment(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Content(options: {
   weight: '400' | '700'
@@ -2807,6 +3163,7 @@ export declare function Content(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'khmer'>
 }): FontModule
 export declare function Contrail_One(options: {
   weight: '400'
@@ -2816,6 +3173,7 @@ export declare function Contrail_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Convergence(options: {
   weight: '400'
@@ -2825,6 +3183,7 @@ export declare function Convergence(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Cookie(options: {
   weight: '400'
@@ -2834,6 +3193,7 @@ export declare function Cookie(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Copse(options: {
   weight: '400'
@@ -2843,6 +3203,7 @@ export declare function Copse(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Corben(options: {
   weight: '400' | '700'
@@ -2852,6 +3213,7 @@ export declare function Corben(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Corinthia(options: {
   weight: '400' | '700'
@@ -2861,6 +3223,7 @@ export declare function Corinthia(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Cormorant(options?: {
   weight?: '300' | '400' | '500' | '600' | '700' | 'variable'
@@ -2870,6 +3233,9 @@ export declare function Cormorant(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): FontModule
 export declare function Cormorant_Garamond(options: {
   weight: '300' | '400' | '500' | '600' | '700'
@@ -2879,6 +3245,9 @@ export declare function Cormorant_Garamond(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): FontModule
 export declare function Cormorant_Infant(options: {
   weight: '300' | '400' | '500' | '600' | '700'
@@ -2888,6 +3257,9 @@ export declare function Cormorant_Infant(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): FontModule
 export declare function Cormorant_SC(options: {
   weight: '300' | '400' | '500' | '600' | '700'
@@ -2897,6 +3269,9 @@ export declare function Cormorant_SC(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): FontModule
 export declare function Cormorant_Unicase(options: {
   weight: '300' | '400' | '500' | '600' | '700'
@@ -2906,6 +3281,9 @@ export declare function Cormorant_Unicase(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): FontModule
 export declare function Cormorant_Upright(options: {
   weight: '300' | '400' | '500' | '600' | '700'
@@ -2915,6 +3293,7 @@ export declare function Cormorant_Upright(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Courgette(options: {
   weight: '400'
@@ -2924,6 +3303,7 @@ export declare function Courgette(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Courier_Prime(options: {
   weight: '400' | '700'
@@ -2933,6 +3313,7 @@ export declare function Courier_Prime(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Cousine(options: {
   weight: '400' | '700'
@@ -2942,6 +3323,16 @@ export declare function Cousine(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    | 'cyrillic'
+    | 'cyrillic-ext'
+    | 'greek'
+    | 'greek-ext'
+    | 'hebrew'
+    | 'latin'
+    | 'latin-ext'
+    | 'vietnamese'
+  >
 }): FontModule
 export declare function Coustard(options: {
   weight: '400' | '900'
@@ -2951,6 +3342,7 @@ export declare function Coustard(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Covered_By_Your_Grace(options: {
   weight: '400'
@@ -2960,6 +3352,7 @@ export declare function Covered_By_Your_Grace(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Crafty_Girls(options: {
   weight: '400'
@@ -2969,6 +3362,7 @@ export declare function Crafty_Girls(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Creepster(options: {
   weight: '400'
@@ -2978,6 +3372,7 @@ export declare function Creepster(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Crete_Round(options: {
   weight: '400'
@@ -2987,6 +3382,7 @@ export declare function Crete_Round(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Crimson_Pro(options?: {
   weight?:
@@ -3005,6 +3401,7 @@ export declare function Crimson_Pro(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Crimson_Text(options: {
   weight: '400' | '600' | '700'
@@ -3014,6 +3411,7 @@ export declare function Crimson_Text(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Croissant_One(options: {
   weight: '400'
@@ -3023,6 +3421,7 @@ export declare function Croissant_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Crushed(options: {
   weight: '400'
@@ -3032,6 +3431,7 @@ export declare function Crushed(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Cuprum(options?: {
   weight?: '400' | '500' | '600' | '700' | 'variable'
@@ -3041,6 +3441,9 @@ export declare function Cuprum(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): FontModule
 export declare function Cute_Font(options: {
   weight: '400'
@@ -3050,6 +3453,7 @@ export declare function Cute_Font(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'korean' | 'latin'>
 }): FontModule
 export declare function Cutive(options: {
   weight: '400'
@@ -3059,6 +3463,7 @@ export declare function Cutive(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Cutive_Mono(options: {
   weight: '400'
@@ -3068,6 +3473,7 @@ export declare function Cutive_Mono(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function DM_Mono(options: {
   weight: '300' | '400' | '500'
@@ -3077,6 +3483,7 @@ export declare function DM_Mono(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function DM_Sans(options: {
   weight: '400' | '500' | '700'
@@ -3086,6 +3493,7 @@ export declare function DM_Sans(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function DM_Serif_Display(options: {
   weight: '400'
@@ -3095,6 +3503,7 @@ export declare function DM_Serif_Display(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function DM_Serif_Text(options: {
   weight: '400'
@@ -3104,6 +3513,7 @@ export declare function DM_Serif_Text(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Damion(options: {
   weight: '400'
@@ -3113,6 +3523,7 @@ export declare function Damion(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Dancing_Script(options?: {
   weight?: '400' | '500' | '600' | '700' | 'variable'
@@ -3122,6 +3533,7 @@ export declare function Dancing_Script(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Dangrek(options: {
   weight: '400'
@@ -3131,6 +3543,7 @@ export declare function Dangrek(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'khmer' | 'latin'>
 }): FontModule
 export declare function Darker_Grotesque(options: {
   weight: '300' | '400' | '500' | '600' | '700' | '800' | '900'
@@ -3140,6 +3553,7 @@ export declare function Darker_Grotesque(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function David_Libre(options: {
   weight: '400' | '500' | '700'
@@ -3149,6 +3563,7 @@ export declare function David_Libre(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'hebrew' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Dawning_of_a_New_Day(options: {
   weight: '400'
@@ -3158,6 +3573,7 @@ export declare function Dawning_of_a_New_Day(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Days_One(options: {
   weight: '400'
@@ -3167,6 +3583,7 @@ export declare function Days_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Dekko(options: {
   weight: '400'
@@ -3176,6 +3593,7 @@ export declare function Dekko(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Dela_Gothic_One(options: {
   weight: '400'
@@ -3185,6 +3603,9 @@ export declare function Dela_Gothic_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'greek' | 'japanese' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): FontModule
 export declare function Delius(options: {
   weight: '400'
@@ -3194,6 +3615,7 @@ export declare function Delius(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Delius_Swash_Caps(options: {
   weight: '400'
@@ -3203,6 +3625,7 @@ export declare function Delius_Swash_Caps(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Delius_Unicase(options: {
   weight: '400' | '700'
@@ -3212,6 +3635,7 @@ export declare function Delius_Unicase(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Della_Respira(options: {
   weight: '400'
@@ -3221,6 +3645,7 @@ export declare function Della_Respira(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Denk_One(options: {
   weight: '400'
@@ -3230,6 +3655,7 @@ export declare function Denk_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Devonshire(options: {
   weight: '400'
@@ -3239,6 +3665,7 @@ export declare function Devonshire(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Dhurjati(options: {
   weight: '400'
@@ -3248,6 +3675,7 @@ export declare function Dhurjati(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'telugu'>
 }): FontModule
 export declare function Didact_Gothic(options: {
   weight: '400'
@@ -3257,6 +3685,9 @@ export declare function Didact_Gothic(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'greek' | 'greek-ext' | 'latin' | 'latin-ext'
+  >
 }): FontModule
 export declare function Diplomata(options: {
   weight: '400'
@@ -3266,6 +3697,7 @@ export declare function Diplomata(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Diplomata_SC(options: {
   weight: '400'
@@ -3275,6 +3707,7 @@ export declare function Diplomata_SC(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Do_Hyeon(options: {
   weight: '400'
@@ -3284,6 +3717,7 @@ export declare function Do_Hyeon(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'korean' | 'latin'>
 }): FontModule
 export declare function Dokdo(options: {
   weight: '400'
@@ -3293,6 +3727,7 @@ export declare function Dokdo(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'korean' | 'latin'>
 }): FontModule
 export declare function Domine(options?: {
   weight?: '400' | '500' | '600' | '700' | 'variable'
@@ -3302,6 +3737,7 @@ export declare function Domine(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Donegal_One(options: {
   weight: '400'
@@ -3311,6 +3747,7 @@ export declare function Donegal_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Dongle(options: {
   weight: '300' | '400' | '700'
@@ -3320,6 +3757,7 @@ export declare function Dongle(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'korean' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Doppio_One(options: {
   weight: '400'
@@ -3329,6 +3767,7 @@ export declare function Doppio_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Dorsa(options: {
   weight: '400'
@@ -3338,6 +3777,7 @@ export declare function Dorsa(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Dosis(options?: {
   weight?: '200' | '300' | '400' | '500' | '600' | '700' | '800' | 'variable'
@@ -3347,6 +3787,7 @@ export declare function Dosis(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function DotGothic16(options: {
   weight: '400'
@@ -3356,6 +3797,7 @@ export declare function DotGothic16(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Dr_Sugiyama(options: {
   weight: '400'
@@ -3365,6 +3807,7 @@ export declare function Dr_Sugiyama(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Duru_Sans(options: {
   weight: '400'
@@ -3374,6 +3817,7 @@ export declare function Duru_Sans(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function DynaPuff(options?: {
   weight?: '400' | '500' | '600' | '700' | 'variable'
@@ -3383,6 +3827,7 @@ export declare function DynaPuff(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic-ext' | 'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): FontModule
 export declare function Dynalight(options: {
@@ -3393,6 +3838,7 @@ export declare function Dynalight(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function EB_Garamond(options?: {
   weight?: '400' | '500' | '600' | '700' | '800' | 'variable'
@@ -3402,6 +3848,15 @@ export declare function EB_Garamond(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    | 'cyrillic'
+    | 'cyrillic-ext'
+    | 'greek'
+    | 'greek-ext'
+    | 'latin'
+    | 'latin-ext'
+    | 'vietnamese'
+  >
 }): FontModule
 export declare function Eagle_Lake(options: {
   weight: '400'
@@ -3411,6 +3866,7 @@ export declare function Eagle_Lake(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function East_Sea_Dokdo(options: {
   weight: '400'
@@ -3420,6 +3876,7 @@ export declare function East_Sea_Dokdo(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'korean' | 'latin'>
 }): FontModule
 export declare function Eater(options: {
   weight: '400'
@@ -3429,6 +3886,7 @@ export declare function Eater(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Economica(options: {
   weight: '400' | '700'
@@ -3438,6 +3896,7 @@ export declare function Economica(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Eczar(options?: {
   weight?: '400' | '500' | '600' | '700' | '800' | 'variable'
@@ -3447,6 +3906,7 @@ export declare function Eczar(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'devanagari' | 'greek' | 'greek-ext' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Edu_NSW_ACT_Foundation(options?: {
   weight?: '400' | '500' | '600' | '700' | 'variable'
@@ -3456,6 +3916,7 @@ export declare function Edu_NSW_ACT_Foundation(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Edu_QLD_Beginner(options?: {
   weight?: '400' | '500' | '600' | '700' | 'variable'
@@ -3465,6 +3926,7 @@ export declare function Edu_QLD_Beginner(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Edu_SA_Beginner(options?: {
   weight?: '400' | '500' | '600' | '700' | 'variable'
@@ -3474,6 +3936,7 @@ export declare function Edu_SA_Beginner(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Edu_TAS_Beginner(options?: {
   weight?: '400' | '500' | '600' | '700' | 'variable'
@@ -3483,6 +3946,7 @@ export declare function Edu_TAS_Beginner(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Edu_VIC_WA_NT_Beginner(options?: {
   weight?: '400' | '500' | '600' | '700' | 'variable'
@@ -3492,6 +3956,7 @@ export declare function Edu_VIC_WA_NT_Beginner(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function El_Messiri(options?: {
   weight?: '400' | '500' | '600' | '700' | 'variable'
@@ -3501,6 +3966,7 @@ export declare function El_Messiri(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'arabic' | 'cyrillic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Electrolize(options: {
   weight: '400'
@@ -3510,6 +3976,7 @@ export declare function Electrolize(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Elsie(options: {
   weight: '400' | '900'
@@ -3519,6 +3986,7 @@ export declare function Elsie(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Elsie_Swash_Caps(options: {
   weight: '400' | '900'
@@ -3528,6 +3996,7 @@ export declare function Elsie_Swash_Caps(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Emblema_One(options: {
   weight: '400'
@@ -3537,6 +4006,7 @@ export declare function Emblema_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Emilys_Candy(options: {
   weight: '400'
@@ -3546,6 +4016,7 @@ export declare function Emilys_Candy(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Encode_Sans(options?: {
   weight?:
@@ -3565,6 +4036,7 @@ export declare function Encode_Sans(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
   axes?: 'wdth'[]
 }): FontModule
 export declare function Encode_Sans_Condensed(options: {
@@ -3575,6 +4047,7 @@ export declare function Encode_Sans_Condensed(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Encode_Sans_Expanded(options: {
   weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
@@ -3584,6 +4057,7 @@ export declare function Encode_Sans_Expanded(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Encode_Sans_SC(options?: {
   weight?:
@@ -3603,6 +4077,7 @@ export declare function Encode_Sans_SC(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
   axes?: 'wdth'[]
 }): FontModule
 export declare function Encode_Sans_Semi_Condensed(options: {
@@ -3613,6 +4088,7 @@ export declare function Encode_Sans_Semi_Condensed(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Encode_Sans_Semi_Expanded(options: {
   weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
@@ -3622,6 +4098,7 @@ export declare function Encode_Sans_Semi_Expanded(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Engagement(options: {
   weight: '400'
@@ -3631,6 +4108,7 @@ export declare function Engagement(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Englebert(options: {
   weight: '400'
@@ -3640,6 +4118,7 @@ export declare function Englebert(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Enriqueta(options: {
   weight: '400' | '500' | '600' | '700'
@@ -3649,6 +4128,7 @@ export declare function Enriqueta(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Ephesis(options: {
   weight: '400'
@@ -3658,6 +4138,7 @@ export declare function Ephesis(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Epilogue(options?: {
   weight?:
@@ -3677,6 +4158,7 @@ export declare function Epilogue(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Erica_One(options: {
   weight: '400'
@@ -3686,6 +4168,7 @@ export declare function Erica_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Esteban(options: {
   weight: '400'
@@ -3695,6 +4178,7 @@ export declare function Esteban(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Estonia(options: {
   weight: '400'
@@ -3704,6 +4188,7 @@ export declare function Estonia(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Euphoria_Script(options: {
   weight: '400'
@@ -3713,6 +4198,7 @@ export declare function Euphoria_Script(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Ewert(options: {
   weight: '400'
@@ -3722,6 +4208,7 @@ export declare function Ewert(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Exo(options?: {
   weight?:
@@ -3741,6 +4228,7 @@ export declare function Exo(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Exo_2(options?: {
   weight?:
@@ -3760,6 +4248,9 @@ export declare function Exo_2(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): FontModule
 export declare function Expletus_Sans(options?: {
   weight?: '400' | '500' | '600' | '700' | 'variable'
@@ -3769,6 +4260,7 @@ export declare function Expletus_Sans(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Explora(options: {
   weight: '400'
@@ -3778,6 +4270,7 @@ export declare function Explora(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cherokee' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Fahkwang(options: {
   weight: '200' | '300' | '400' | '500' | '600' | '700'
@@ -3787,6 +4280,7 @@ export declare function Fahkwang(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): FontModule
 export declare function Familjen_Grotesk(options?: {
   weight?: '400' | '500' | '600' | '700' | 'variable'
@@ -3796,6 +4290,7 @@ export declare function Familjen_Grotesk(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Fanwood_Text(options: {
   weight: '400'
@@ -3805,6 +4300,7 @@ export declare function Fanwood_Text(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Farro(options: {
   weight: '300' | '400' | '500' | '700'
@@ -3814,6 +4310,7 @@ export declare function Farro(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Farsan(options: {
   weight: '400'
@@ -3823,6 +4320,7 @@ export declare function Farsan(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'gujarati' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Fascinate(options: {
   weight: '400'
@@ -3832,6 +4330,7 @@ export declare function Fascinate(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Fascinate_Inline(options: {
   weight: '400'
@@ -3841,6 +4340,7 @@ export declare function Fascinate_Inline(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Faster_One(options: {
   weight: '400'
@@ -3850,6 +4350,7 @@ export declare function Faster_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Fasthand(options: {
   weight: '400'
@@ -3859,6 +4360,7 @@ export declare function Fasthand(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'khmer' | 'latin'>
 }): FontModule
 export declare function Fauna_One(options: {
   weight: '400'
@@ -3868,6 +4370,7 @@ export declare function Fauna_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Faustina(options?: {
   weight?: '300' | '400' | '500' | '600' | '700' | '800' | 'variable'
@@ -3877,6 +4380,7 @@ export declare function Faustina(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Federant(options: {
   weight: '400'
@@ -3886,6 +4390,7 @@ export declare function Federant(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Federo(options: {
   weight: '400'
@@ -3895,6 +4400,7 @@ export declare function Federo(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Felipa(options: {
   weight: '400'
@@ -3904,6 +4410,7 @@ export declare function Felipa(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Fenix(options: {
   weight: '400'
@@ -3913,6 +4420,7 @@ export declare function Fenix(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Festive(options: {
   weight: '400'
@@ -3922,6 +4430,7 @@ export declare function Festive(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Figtree(options?: {
   weight?: '300' | '400' | '500' | '600' | '700' | '800' | '900' | 'variable'
@@ -3931,6 +4440,7 @@ export declare function Figtree(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Finger_Paint(options: {
   weight: '400'
@@ -3940,6 +4450,7 @@ export declare function Finger_Paint(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Finlandica(options?: {
   weight?: '400' | '500' | '600' | '700' | 'variable'
@@ -3949,6 +4460,7 @@ export declare function Finlandica(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Fira_Code(options?: {
   weight?: '300' | '400' | '500' | '600' | '700' | 'variable'
@@ -3958,6 +4470,9 @@ export declare function Fira_Code(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'greek' | 'greek-ext' | 'latin' | 'latin-ext'
+  >
 }): FontModule
 export declare function Fira_Mono(options: {
   weight: '400' | '500' | '700'
@@ -3967,6 +4482,9 @@ export declare function Fira_Mono(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'greek' | 'greek-ext' | 'latin' | 'latin-ext'
+  >
 }): FontModule
 export declare function Fira_Sans(options: {
   weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
@@ -3976,6 +4494,15 @@ export declare function Fira_Sans(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    | 'cyrillic'
+    | 'cyrillic-ext'
+    | 'greek'
+    | 'greek-ext'
+    | 'latin'
+    | 'latin-ext'
+    | 'vietnamese'
+  >
 }): FontModule
 export declare function Fira_Sans_Condensed(options: {
   weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
@@ -3985,6 +4512,15 @@ export declare function Fira_Sans_Condensed(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    | 'cyrillic'
+    | 'cyrillic-ext'
+    | 'greek'
+    | 'greek-ext'
+    | 'latin'
+    | 'latin-ext'
+    | 'vietnamese'
+  >
 }): FontModule
 export declare function Fira_Sans_Extra_Condensed(options: {
   weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
@@ -3994,6 +4530,15 @@ export declare function Fira_Sans_Extra_Condensed(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    | 'cyrillic'
+    | 'cyrillic-ext'
+    | 'greek'
+    | 'greek-ext'
+    | 'latin'
+    | 'latin-ext'
+    | 'vietnamese'
+  >
 }): FontModule
 export declare function Fjalla_One(options: {
   weight: '400'
@@ -4003,6 +4548,7 @@ export declare function Fjalla_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Fjord_One(options: {
   weight: '400'
@@ -4012,6 +4558,7 @@ export declare function Fjord_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Flamenco(options: {
   weight: '300' | '400'
@@ -4021,6 +4568,7 @@ export declare function Flamenco(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Flavors(options: {
   weight: '400'
@@ -4030,6 +4578,7 @@ export declare function Flavors(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Fleur_De_Leah(options: {
   weight: '400'
@@ -4039,6 +4588,7 @@ export declare function Fleur_De_Leah(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Flow_Block(options: {
   weight: '400'
@@ -4048,6 +4598,9 @@ export declare function Flow_Block(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): FontModule
 export declare function Flow_Circular(options: {
   weight: '400'
@@ -4057,6 +4610,9 @@ export declare function Flow_Circular(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): FontModule
 export declare function Flow_Rounded(options: {
   weight: '400'
@@ -4066,6 +4622,9 @@ export declare function Flow_Rounded(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): FontModule
 export declare function Fondamento(options: {
   weight: '400'
@@ -4075,6 +4634,7 @@ export declare function Fondamento(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Fontdiner_Swanky(options: {
   weight: '400'
@@ -4084,6 +4644,7 @@ export declare function Fontdiner_Swanky(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Forum(options: {
   weight: '400'
@@ -4093,6 +4654,7 @@ export declare function Forum(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Francois_One(options: {
   weight: '400'
@@ -4102,6 +4664,7 @@ export declare function Francois_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Frank_Ruhl_Libre(options: {
   weight: '300' | '400' | '500' | '700' | '900'
@@ -4111,6 +4674,7 @@ export declare function Frank_Ruhl_Libre(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'hebrew' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Fraunces(options?: {
   weight?:
@@ -4130,6 +4694,7 @@ export declare function Fraunces(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
   axes?: ('SOFT' | 'WONK' | 'opsz')[]
 }): FontModule
 export declare function Freckle_Face(options: {
@@ -4140,6 +4705,7 @@ export declare function Freckle_Face(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Fredericka_the_Great(options: {
   weight: '400'
@@ -4149,6 +4715,7 @@ export declare function Fredericka_the_Great(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Fredoka(options?: {
   weight?: '300' | '400' | '500' | '600' | '700' | 'variable'
@@ -4158,6 +4725,7 @@ export declare function Fredoka(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'hebrew' | 'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): FontModule
 export declare function Fredoka_One(options: {
@@ -4168,6 +4736,7 @@ export declare function Fredoka_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Freehand(options: {
   weight: '400'
@@ -4177,6 +4746,7 @@ export declare function Freehand(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'khmer' | 'latin'>
 }): FontModule
 export declare function Fresca(options: {
   weight: '400'
@@ -4186,6 +4756,7 @@ export declare function Fresca(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Frijole(options: {
   weight: '400'
@@ -4195,6 +4766,7 @@ export declare function Frijole(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Fruktur(options: {
   weight: '400'
@@ -4204,6 +4776,7 @@ export declare function Fruktur(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Fugaz_One(options: {
   weight: '400'
@@ -4213,6 +4786,7 @@ export declare function Fugaz_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Fuggles(options: {
   weight: '400'
@@ -4222,6 +4796,7 @@ export declare function Fuggles(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Fuzzy_Bubbles(options: {
   weight: '400' | '700'
@@ -4231,6 +4806,7 @@ export declare function Fuzzy_Bubbles(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function GFS_Didot(options: {
   weight: '400'
@@ -4240,6 +4816,7 @@ export declare function GFS_Didot(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'greek'>
 }): FontModule
 export declare function GFS_Neohellenic(options: {
   weight: '400' | '700'
@@ -4249,6 +4826,7 @@ export declare function GFS_Neohellenic(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'greek'>
 }): FontModule
 export declare function Gabriela(options: {
   weight: '400'
@@ -4258,6 +4836,7 @@ export declare function Gabriela(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin'>
 }): FontModule
 export declare function Gaegu(options: {
   weight: '300' | '400' | '700'
@@ -4267,6 +4846,7 @@ export declare function Gaegu(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'korean' | 'latin'>
 }): FontModule
 export declare function Gafata(options: {
   weight: '400'
@@ -4276,6 +4856,7 @@ export declare function Gafata(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Galada(options: {
   weight: '400'
@@ -4285,6 +4866,7 @@ export declare function Galada(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'bengali' | 'latin'>
 }): FontModule
 export declare function Galdeano(options: {
   weight: '400'
@@ -4294,6 +4876,7 @@ export declare function Galdeano(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Galindo(options: {
   weight: '400'
@@ -4303,6 +4886,7 @@ export declare function Galindo(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Gamja_Flower(options: {
   weight: '400'
@@ -4312,6 +4896,7 @@ export declare function Gamja_Flower(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'korean' | 'latin'>
 }): FontModule
 export declare function Gantari(options?: {
   weight?:
@@ -4331,6 +4916,7 @@ export declare function Gantari(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Gayathri(options: {
   weight: '100' | '400' | '700'
@@ -4340,6 +4926,7 @@ export declare function Gayathri(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'malayalam'>
 }): FontModule
 export declare function Gelasio(options: {
   weight: '400' | '500' | '600' | '700'
@@ -4349,6 +4936,7 @@ export declare function Gelasio(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Gemunu_Libre(options?: {
   weight?: '200' | '300' | '400' | '500' | '600' | '700' | '800' | 'variable'
@@ -4358,6 +4946,7 @@ export declare function Gemunu_Libre(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'sinhala'>
 }): FontModule
 export declare function Genos(options?: {
   weight?:
@@ -4377,6 +4966,7 @@ export declare function Genos(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cherokee' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Gentium_Book_Basic(options: {
   weight: '400' | '700'
@@ -4386,6 +4976,7 @@ export declare function Gentium_Book_Basic(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Gentium_Book_Plus(options: {
   weight: '400' | '700'
@@ -4395,6 +4986,15 @@ export declare function Gentium_Book_Plus(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    | 'cyrillic'
+    | 'cyrillic-ext'
+    | 'greek'
+    | 'greek-ext'
+    | 'latin'
+    | 'latin-ext'
+    | 'vietnamese'
+  >
 }): FontModule
 export declare function Gentium_Plus(options: {
   weight: '400' | '700'
@@ -4404,6 +5004,15 @@ export declare function Gentium_Plus(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    | 'cyrillic'
+    | 'cyrillic-ext'
+    | 'greek'
+    | 'greek-ext'
+    | 'latin'
+    | 'latin-ext'
+    | 'vietnamese'
+  >
 }): FontModule
 export declare function Geo(options: {
   weight: '400'
@@ -4413,6 +5022,7 @@ export declare function Geo(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Georama(options?: {
   weight?:
@@ -4432,6 +5042,7 @@ export declare function Georama(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
   axes?: 'wdth'[]
 }): FontModule
 export declare function Geostar(options: {
@@ -4442,6 +5053,7 @@ export declare function Geostar(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Geostar_Fill(options: {
   weight: '400'
@@ -4451,6 +5063,7 @@ export declare function Geostar_Fill(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Germania_One(options: {
   weight: '400'
@@ -4460,6 +5073,7 @@ export declare function Germania_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Gideon_Roman(options: {
   weight: '400'
@@ -4469,6 +5083,7 @@ export declare function Gideon_Roman(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Gidugu(options: {
   weight: '400'
@@ -4478,6 +5093,7 @@ export declare function Gidugu(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'telugu'>
 }): FontModule
 export declare function Gilda_Display(options: {
   weight: '400'
@@ -4487,6 +5103,7 @@ export declare function Gilda_Display(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Girassol(options: {
   weight: '400'
@@ -4496,6 +5113,7 @@ export declare function Girassol(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Give_You_Glory(options: {
   weight: '400'
@@ -4505,6 +5123,7 @@ export declare function Give_You_Glory(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Glass_Antiqua(options: {
   weight: '400'
@@ -4514,6 +5133,7 @@ export declare function Glass_Antiqua(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Glegoo(options: {
   weight: '400' | '700'
@@ -4523,6 +5143,7 @@ export declare function Glegoo(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Gloria_Hallelujah(options: {
   weight: '400'
@@ -4532,6 +5153,7 @@ export declare function Gloria_Hallelujah(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Glory(options?: {
   weight?:
@@ -4550,6 +5172,7 @@ export declare function Glory(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Gluten(options?: {
   weight?:
@@ -4569,6 +5192,7 @@ export declare function Gluten(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
   axes?: 'slnt'[]
 }): FontModule
 export declare function Goblin_One(options: {
@@ -4579,6 +5203,7 @@ export declare function Goblin_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Gochi_Hand(options: {
   weight: '400'
@@ -4588,6 +5213,7 @@ export declare function Gochi_Hand(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Goldman(options: {
   weight: '400' | '700'
@@ -4597,6 +5223,7 @@ export declare function Goldman(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Gorditas(options: {
   weight: '400' | '700'
@@ -4606,6 +5233,7 @@ export declare function Gorditas(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Gothic_A1(options: {
   weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
@@ -4615,6 +5243,7 @@ export declare function Gothic_A1(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'korean' | 'latin'>
 }): FontModule
 export declare function Gotu(options: {
   weight: '400'
@@ -4624,6 +5253,7 @@ export declare function Gotu(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'devanagari' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Goudy_Bookletter_1911(options: {
   weight: '400'
@@ -4633,6 +5263,7 @@ export declare function Goudy_Bookletter_1911(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Gowun_Batang(options: {
   weight: '400' | '700'
@@ -4642,6 +5273,7 @@ export declare function Gowun_Batang(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'korean' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Gowun_Dodum(options: {
   weight: '400'
@@ -4651,6 +5283,7 @@ export declare function Gowun_Dodum(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'korean' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Graduate(options: {
   weight: '400'
@@ -4660,6 +5293,7 @@ export declare function Graduate(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Grand_Hotel(options: {
   weight: '400'
@@ -4669,6 +5303,7 @@ export declare function Grand_Hotel(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Grandstander(options?: {
   weight?:
@@ -4688,6 +5323,7 @@ export declare function Grandstander(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Grape_Nuts(options: {
   weight: '400'
@@ -4697,6 +5333,7 @@ export declare function Grape_Nuts(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Gravitas_One(options: {
   weight: '400'
@@ -4706,6 +5343,7 @@ export declare function Gravitas_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Great_Vibes(options: {
   weight: '400'
@@ -4715,6 +5353,7 @@ export declare function Great_Vibes(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Grechen_Fuemen(options: {
   weight: '400'
@@ -4724,6 +5363,7 @@ export declare function Grechen_Fuemen(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Grenze(options: {
   weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
@@ -4733,6 +5373,7 @@ export declare function Grenze(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Grenze_Gotisch(options?: {
   weight?:
@@ -4752,6 +5393,7 @@ export declare function Grenze_Gotisch(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Grey_Qo(options: {
   weight: '400'
@@ -4761,6 +5403,7 @@ export declare function Grey_Qo(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Griffy(options: {
   weight: '400'
@@ -4770,6 +5413,7 @@ export declare function Griffy(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Gruppo(options: {
   weight: '400'
@@ -4779,6 +5423,7 @@ export declare function Gruppo(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Gudea(options: {
   weight: '400' | '700'
@@ -4788,6 +5433,7 @@ export declare function Gudea(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Gugi(options: {
   weight: '400'
@@ -4797,6 +5443,7 @@ export declare function Gugi(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'korean' | 'latin'>
 }): FontModule
 export declare function Gulzar(options: {
   weight: '400'
@@ -4806,6 +5453,7 @@ export declare function Gulzar(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Gupter(options: {
   weight: '400' | '500' | '700'
@@ -4815,6 +5463,7 @@ export declare function Gupter(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Gurajada(options: {
   weight: '400'
@@ -4824,6 +5473,7 @@ export declare function Gurajada(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'telugu'>
 }): FontModule
 export declare function Gwendolyn(options: {
   weight: '400' | '700'
@@ -4833,6 +5483,7 @@ export declare function Gwendolyn(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Habibi(options: {
   weight: '400'
@@ -4842,6 +5493,7 @@ export declare function Habibi(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Hachi_Maru_Pop(options: {
   weight: '400'
@@ -4851,6 +5503,7 @@ export declare function Hachi_Maru_Pop(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Hahmlet(options?: {
   weight?:
@@ -4870,6 +5523,7 @@ export declare function Hahmlet(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'korean' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Halant(options: {
   weight: '300' | '400' | '500' | '600' | '700'
@@ -4879,6 +5533,7 @@ export declare function Halant(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Hammersmith_One(options: {
   weight: '400'
@@ -4888,6 +5543,7 @@ export declare function Hammersmith_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Hanalei(options: {
   weight: '400'
@@ -4897,6 +5553,7 @@ export declare function Hanalei(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Hanalei_Fill(options: {
   weight: '400'
@@ -4906,6 +5563,7 @@ export declare function Hanalei_Fill(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Handlee(options: {
   weight: '400'
@@ -4915,6 +5573,7 @@ export declare function Handlee(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Hanuman(options: {
   weight: '100' | '300' | '400' | '700' | '900'
@@ -4924,6 +5583,7 @@ export declare function Hanuman(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'khmer' | 'latin'>
 }): FontModule
 export declare function Happy_Monkey(options: {
   weight: '400'
@@ -4933,6 +5593,7 @@ export declare function Happy_Monkey(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Harmattan(options: {
   weight: '400' | '700'
@@ -4942,6 +5603,7 @@ export declare function Harmattan(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Headland_One(options: {
   weight: '400'
@@ -4951,6 +5613,7 @@ export declare function Headland_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Heebo(options?: {
   weight?:
@@ -4970,6 +5633,7 @@ export declare function Heebo(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'hebrew' | 'latin'>
 }): FontModule
 export declare function Henny_Penny(options: {
   weight: '400'
@@ -4979,6 +5643,7 @@ export declare function Henny_Penny(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Hepta_Slab(options?: {
   weight?:
@@ -4999,6 +5664,7 @@ export declare function Hepta_Slab(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Herr_Von_Muellerhoff(options: {
   weight: '400'
@@ -5008,6 +5674,7 @@ export declare function Herr_Von_Muellerhoff(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Hi_Melody(options: {
   weight: '400'
@@ -5017,6 +5684,7 @@ export declare function Hi_Melody(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'korean' | 'latin'>
 }): FontModule
 export declare function Hina_Mincho(options: {
   weight: '400'
@@ -5026,6 +5694,9 @@ export declare function Hina_Mincho(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'japanese' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): FontModule
 export declare function Hind(options: {
   weight: '300' | '400' | '500' | '600' | '700'
@@ -5035,6 +5706,7 @@ export declare function Hind(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Hind_Guntur(options: {
   weight: '300' | '400' | '500' | '600' | '700'
@@ -5044,6 +5716,7 @@ export declare function Hind_Guntur(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'telugu'>
 }): FontModule
 export declare function Hind_Madurai(options: {
   weight: '300' | '400' | '500' | '600' | '700'
@@ -5053,6 +5726,7 @@ export declare function Hind_Madurai(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'tamil'>
 }): FontModule
 export declare function Hind_Siliguri(options: {
   weight: '300' | '400' | '500' | '600' | '700'
@@ -5062,6 +5736,7 @@ export declare function Hind_Siliguri(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'bengali' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Hind_Vadodara(options: {
   weight: '300' | '400' | '500' | '600' | '700'
@@ -5071,6 +5746,7 @@ export declare function Hind_Vadodara(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'gujarati' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Holtwood_One_SC(options: {
   weight: '400'
@@ -5080,6 +5756,7 @@ export declare function Holtwood_One_SC(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Homemade_Apple(options: {
   weight: '400'
@@ -5089,6 +5766,7 @@ export declare function Homemade_Apple(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Homenaje(options: {
   weight: '400'
@@ -5098,6 +5776,7 @@ export declare function Homenaje(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Hubballi(options: {
   weight: '400'
@@ -5107,6 +5786,7 @@ export declare function Hubballi(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'kannada' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Hurricane(options: {
   weight: '400'
@@ -5116,6 +5796,7 @@ export declare function Hurricane(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function IBM_Plex_Mono(options: {
   weight: '100' | '200' | '300' | '400' | '500' | '600' | '700'
@@ -5125,6 +5806,9 @@ export declare function IBM_Plex_Mono(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): FontModule
 export declare function IBM_Plex_Sans(options: {
   weight: '100' | '200' | '300' | '400' | '500' | '600' | '700'
@@ -5134,6 +5818,9 @@ export declare function IBM_Plex_Sans(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'greek' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): FontModule
 export declare function IBM_Plex_Sans_Arabic(options: {
   weight: '100' | '200' | '300' | '400' | '500' | '600' | '700'
@@ -5143,6 +5830,7 @@ export declare function IBM_Plex_Sans_Arabic(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'arabic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function IBM_Plex_Sans_Condensed(options: {
   weight: '100' | '200' | '300' | '400' | '500' | '600' | '700'
@@ -5152,6 +5840,7 @@ export declare function IBM_Plex_Sans_Condensed(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function IBM_Plex_Sans_Devanagari(options: {
   weight: '100' | '200' | '300' | '400' | '500' | '600' | '700'
@@ -5161,6 +5850,7 @@ export declare function IBM_Plex_Sans_Devanagari(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic-ext' | 'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function IBM_Plex_Sans_Hebrew(options: {
   weight: '100' | '200' | '300' | '400' | '500' | '600' | '700'
@@ -5170,6 +5860,7 @@ export declare function IBM_Plex_Sans_Hebrew(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic-ext' | 'hebrew' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function IBM_Plex_Sans_KR(options: {
   weight: '100' | '200' | '300' | '400' | '500' | '600' | '700'
@@ -5179,6 +5870,7 @@ export declare function IBM_Plex_Sans_KR(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'korean' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function IBM_Plex_Sans_Thai(options: {
   weight: '100' | '200' | '300' | '400' | '500' | '600' | '700'
@@ -5188,6 +5880,7 @@ export declare function IBM_Plex_Sans_Thai(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic-ext' | 'latin' | 'latin-ext' | 'thai'>
 }): FontModule
 export declare function IBM_Plex_Sans_Thai_Looped(options: {
   weight: '100' | '200' | '300' | '400' | '500' | '600' | '700'
@@ -5197,6 +5890,7 @@ export declare function IBM_Plex_Sans_Thai_Looped(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic-ext' | 'latin' | 'latin-ext' | 'thai'>
 }): FontModule
 export declare function IBM_Plex_Serif(options: {
   weight: '100' | '200' | '300' | '400' | '500' | '600' | '700'
@@ -5206,6 +5900,9 @@ export declare function IBM_Plex_Serif(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): FontModule
 export declare function IM_Fell_DW_Pica(options: {
   weight: '400'
@@ -5215,6 +5912,7 @@ export declare function IM_Fell_DW_Pica(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function IM_Fell_DW_Pica_SC(options: {
   weight: '400'
@@ -5224,6 +5922,7 @@ export declare function IM_Fell_DW_Pica_SC(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function IM_Fell_Double_Pica(options: {
   weight: '400'
@@ -5233,6 +5932,7 @@ export declare function IM_Fell_Double_Pica(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function IM_Fell_Double_Pica_SC(options: {
   weight: '400'
@@ -5242,6 +5942,7 @@ export declare function IM_Fell_Double_Pica_SC(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function IM_Fell_English(options: {
   weight: '400'
@@ -5251,6 +5952,7 @@ export declare function IM_Fell_English(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function IM_Fell_English_SC(options: {
   weight: '400'
@@ -5260,6 +5962,7 @@ export declare function IM_Fell_English_SC(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function IM_Fell_French_Canon(options: {
   weight: '400'
@@ -5269,6 +5972,7 @@ export declare function IM_Fell_French_Canon(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function IM_Fell_French_Canon_SC(options: {
   weight: '400'
@@ -5278,6 +5982,7 @@ export declare function IM_Fell_French_Canon_SC(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function IM_Fell_Great_Primer(options: {
   weight: '400'
@@ -5287,6 +5992,7 @@ export declare function IM_Fell_Great_Primer(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function IM_Fell_Great_Primer_SC(options: {
   weight: '400'
@@ -5296,6 +6002,7 @@ export declare function IM_Fell_Great_Primer_SC(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Ibarra_Real_Nova(options?: {
   weight?: '400' | '500' | '600' | '700' | 'variable'
@@ -5305,6 +6012,7 @@ export declare function Ibarra_Real_Nova(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Iceberg(options: {
   weight: '400'
@@ -5314,6 +6022,7 @@ export declare function Iceberg(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Iceland(options: {
   weight: '400'
@@ -5323,6 +6032,7 @@ export declare function Iceland(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Imbue(options?: {
   weight?:
@@ -5342,6 +6052,7 @@ export declare function Imbue(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
   axes?: 'opsz'[]
 }): FontModule
 export declare function Imperial_Script(options: {
@@ -5352,6 +6063,7 @@ export declare function Imperial_Script(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Imprima(options: {
   weight: '400'
@@ -5361,6 +6073,7 @@ export declare function Imprima(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Inconsolata(options?: {
   weight?:
@@ -5379,6 +6092,7 @@ export declare function Inconsolata(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
   axes?: 'wdth'[]
 }): FontModule
 export declare function Inder(options: {
@@ -5389,6 +6103,7 @@ export declare function Inder(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Indie_Flower(options: {
   weight: '400'
@@ -5398,6 +6113,7 @@ export declare function Indie_Flower(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Ingrid_Darling(options: {
   weight: '400'
@@ -5407,6 +6123,7 @@ export declare function Ingrid_Darling(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Inika(options: {
   weight: '400' | '700'
@@ -5416,6 +6133,7 @@ export declare function Inika(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Inknut_Antiqua(options: {
   weight: '300' | '400' | '500' | '600' | '700' | '800' | '900'
@@ -5425,6 +6143,7 @@ export declare function Inknut_Antiqua(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Inria_Sans(options: {
   weight: '300' | '400' | '700'
@@ -5434,6 +6153,7 @@ export declare function Inria_Sans(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Inria_Serif(options: {
   weight: '300' | '400' | '700'
@@ -5443,6 +6163,7 @@ export declare function Inria_Serif(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Inspiration(options: {
   weight: '400'
@@ -5452,6 +6173,7 @@ export declare function Inspiration(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Inter(options?: {
   weight?:
@@ -5471,6 +6193,15 @@ export declare function Inter(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    | 'cyrillic'
+    | 'cyrillic-ext'
+    | 'greek'
+    | 'greek-ext'
+    | 'latin'
+    | 'latin-ext'
+    | 'vietnamese'
+  >
   axes?: 'slnt'[]
 }): FontModule
 export declare function Inter_Tight(options?: {
@@ -5491,6 +6222,15 @@ export declare function Inter_Tight(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    | 'cyrillic'
+    | 'cyrillic-ext'
+    | 'greek'
+    | 'greek-ext'
+    | 'latin'
+    | 'latin-ext'
+    | 'vietnamese'
+  >
 }): FontModule
 export declare function Irish_Grover(options: {
   weight: '400'
@@ -5500,6 +6240,7 @@ export declare function Irish_Grover(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Island_Moments(options: {
   weight: '400'
@@ -5509,6 +6250,7 @@ export declare function Island_Moments(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Istok_Web(options: {
   weight: '400' | '700'
@@ -5518,6 +6260,7 @@ export declare function Istok_Web(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Italiana(options: {
   weight: '400'
@@ -5527,6 +6270,7 @@ export declare function Italiana(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Italianno(options: {
   weight: '400'
@@ -5536,6 +6280,7 @@ export declare function Italianno(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Itim(options: {
   weight: '400'
@@ -5545,6 +6290,7 @@ export declare function Itim(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): FontModule
 export declare function Jacques_Francois(options: {
   weight: '400'
@@ -5554,6 +6300,7 @@ export declare function Jacques_Francois(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Jacques_Francois_Shadow(options: {
   weight: '400'
@@ -5563,6 +6310,7 @@ export declare function Jacques_Francois_Shadow(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Jaldi(options: {
   weight: '400' | '700'
@@ -5572,6 +6320,7 @@ export declare function Jaldi(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function JetBrains_Mono(options?: {
   weight?:
@@ -5590,6 +6339,9 @@ export declare function JetBrains_Mono(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'greek' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): FontModule
 export declare function Jim_Nightshade(options: {
   weight: '400'
@@ -5599,6 +6351,7 @@ export declare function Jim_Nightshade(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Joan(options: {
   weight: '400'
@@ -5608,6 +6361,7 @@ export declare function Joan(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Jockey_One(options: {
   weight: '400'
@@ -5617,6 +6371,7 @@ export declare function Jockey_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Jolly_Lodger(options: {
   weight: '400'
@@ -5626,6 +6381,7 @@ export declare function Jolly_Lodger(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Jomhuria(options: {
   weight: '400'
@@ -5635,6 +6391,7 @@ export declare function Jomhuria(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Jomolhari(options: {
   weight: '400'
@@ -5644,6 +6401,7 @@ export declare function Jomolhari(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'tibetan'>
 }): FontModule
 export declare function Josefin_Sans(options?: {
   weight?: '100' | '200' | '300' | '400' | '500' | '600' | '700' | 'variable'
@@ -5653,6 +6411,7 @@ export declare function Josefin_Sans(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Josefin_Slab(options?: {
   weight?: '100' | '200' | '300' | '400' | '500' | '600' | '700' | 'variable'
@@ -5662,6 +6421,7 @@ export declare function Josefin_Slab(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Jost(options?: {
   weight?:
@@ -5681,6 +6441,7 @@ export declare function Jost(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Joti_One(options: {
   weight: '400'
@@ -5690,6 +6451,7 @@ export declare function Joti_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Jua(options: {
   weight: '400'
@@ -5699,6 +6461,7 @@ export declare function Jua(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'korean' | 'latin'>
 }): FontModule
 export declare function Judson(options: {
   weight: '400' | '700'
@@ -5708,6 +6471,7 @@ export declare function Judson(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Julee(options: {
   weight: '400'
@@ -5717,6 +6481,7 @@ export declare function Julee(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Julius_Sans_One(options: {
   weight: '400'
@@ -5726,6 +6491,7 @@ export declare function Julius_Sans_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Junge(options: {
   weight: '400'
@@ -5735,6 +6501,7 @@ export declare function Junge(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Jura(options?: {
   weight?: '300' | '400' | '500' | '600' | '700' | 'variable'
@@ -5744,6 +6511,16 @@ export declare function Jura(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    | 'cyrillic'
+    | 'cyrillic-ext'
+    | 'greek'
+    | 'greek-ext'
+    | 'kayah-li'
+    | 'latin'
+    | 'latin-ext'
+    | 'vietnamese'
+  >
 }): FontModule
 export declare function Just_Another_Hand(options: {
   weight: '400'
@@ -5753,6 +6530,7 @@ export declare function Just_Another_Hand(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Just_Me_Again_Down_Here(options: {
   weight: '400'
@@ -5762,6 +6540,7 @@ export declare function Just_Me_Again_Down_Here(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function K2D(options: {
   weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800'
@@ -5771,6 +6550,7 @@ export declare function K2D(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): FontModule
 export declare function Kadwa(options: {
   weight: '400' | '700'
@@ -5780,6 +6560,7 @@ export declare function Kadwa(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'devanagari' | 'latin'>
 }): FontModule
 export declare function Kaisei_Decol(options: {
   weight: '400' | '500' | '700'
@@ -5789,6 +6570,7 @@ export declare function Kaisei_Decol(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Kaisei_HarunoUmi(options: {
   weight: '400' | '500' | '700'
@@ -5798,6 +6580,7 @@ export declare function Kaisei_HarunoUmi(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Kaisei_Opti(options: {
   weight: '400' | '500' | '700'
@@ -5807,6 +6590,7 @@ export declare function Kaisei_Opti(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Kaisei_Tokumin(options: {
   weight: '400' | '500' | '700' | '800'
@@ -5816,6 +6600,7 @@ export declare function Kaisei_Tokumin(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Kalam(options: {
   weight: '300' | '400' | '700'
@@ -5825,6 +6610,7 @@ export declare function Kalam(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Kameron(options: {
   weight: '400' | '700'
@@ -5834,6 +6620,7 @@ export declare function Kameron(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Kanit(options: {
   weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
@@ -5843,6 +6630,7 @@ export declare function Kanit(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): FontModule
 export declare function Kantumruy(options: {
   weight: '300' | '400' | '700'
@@ -5852,6 +6640,7 @@ export declare function Kantumruy(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'khmer'>
 }): FontModule
 export declare function Kantumruy_Pro(options?: {
   weight?: '100' | '200' | '300' | '400' | '500' | '600' | '700' | 'variable'
@@ -5861,6 +6650,7 @@ export declare function Kantumruy_Pro(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'khmer' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Karantina(options: {
   weight: '300' | '400' | '700'
@@ -5870,6 +6660,7 @@ export declare function Karantina(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'hebrew' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Karla(options?: {
   weight?: '200' | '300' | '400' | '500' | '600' | '700' | '800' | 'variable'
@@ -5879,6 +6670,7 @@ export declare function Karla(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Karma(options: {
   weight: '300' | '400' | '500' | '600' | '700'
@@ -5888,6 +6680,7 @@ export declare function Karma(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Katibeh(options: {
   weight: '400'
@@ -5897,6 +6690,7 @@ export declare function Katibeh(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Kaushan_Script(options: {
   weight: '400'
@@ -5906,6 +6700,7 @@ export declare function Kaushan_Script(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Kavivanar(options: {
   weight: '400'
@@ -5915,6 +6710,7 @@ export declare function Kavivanar(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'tamil'>
 }): FontModule
 export declare function Kavoon(options: {
   weight: '400'
@@ -5924,6 +6720,7 @@ export declare function Kavoon(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Kdam_Thmor_Pro(options: {
   weight: '400'
@@ -5933,6 +6730,7 @@ export declare function Kdam_Thmor_Pro(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'khmer' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Keania_One(options: {
   weight: '400'
@@ -5942,6 +6740,7 @@ export declare function Keania_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Kelly_Slab(options: {
   weight: '400'
@@ -5951,6 +6750,7 @@ export declare function Kelly_Slab(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Kenia(options: {
   weight: '400'
@@ -5960,6 +6760,7 @@ export declare function Kenia(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Khand(options: {
   weight: '300' | '400' | '500' | '600' | '700'
@@ -5969,6 +6770,7 @@ export declare function Khand(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Khmer(options: {
   weight: '400'
@@ -5978,6 +6780,7 @@ export declare function Khmer(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'khmer'>
 }): FontModule
 export declare function Khula(options: {
   weight: '300' | '400' | '600' | '700' | '800'
@@ -5987,6 +6790,7 @@ export declare function Khula(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Kings(options: {
   weight: '400'
@@ -5996,6 +6800,7 @@ export declare function Kings(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Kirang_Haerang(options: {
   weight: '400'
@@ -6005,6 +6810,7 @@ export declare function Kirang_Haerang(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'korean' | 'latin'>
 }): FontModule
 export declare function Kite_One(options: {
   weight: '400'
@@ -6014,6 +6820,7 @@ export declare function Kite_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Kiwi_Maru(options: {
   weight: '300' | '400' | '500'
@@ -6023,6 +6830,7 @@ export declare function Kiwi_Maru(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Klee_One(options: {
   weight: '400' | '600'
@@ -6032,6 +6840,7 @@ export declare function Klee_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'greek-ext' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Knewave(options: {
   weight: '400'
@@ -6041,6 +6850,7 @@ export declare function Knewave(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function KoHo(options: {
   weight: '200' | '300' | '400' | '500' | '600' | '700'
@@ -6050,6 +6860,7 @@ export declare function KoHo(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): FontModule
 export declare function Kodchasan(options: {
   weight: '200' | '300' | '400' | '500' | '600' | '700'
@@ -6059,6 +6870,7 @@ export declare function Kodchasan(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): FontModule
 export declare function Koh_Santepheap(options: {
   weight: '100' | '300' | '400' | '700' | '900'
@@ -6068,6 +6880,7 @@ export declare function Koh_Santepheap(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'khmer' | 'latin'>
 }): FontModule
 export declare function Kolker_Brush(options: {
   weight: '400'
@@ -6077,6 +6890,7 @@ export declare function Kolker_Brush(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Kosugi(options: {
   weight: '400'
@@ -6086,6 +6900,7 @@ export declare function Kosugi(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Kosugi_Maru(options: {
   weight: '400'
@@ -6095,6 +6910,7 @@ export declare function Kosugi_Maru(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Kotta_One(options: {
   weight: '400'
@@ -6104,6 +6920,7 @@ export declare function Kotta_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Koulen(options: {
   weight: '400'
@@ -6113,6 +6930,7 @@ export declare function Koulen(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'khmer' | 'latin'>
 }): FontModule
 export declare function Kranky(options: {
   weight: '400'
@@ -6122,6 +6940,7 @@ export declare function Kranky(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Kreon(options?: {
   weight?: '300' | '400' | '500' | '600' | '700' | 'variable'
@@ -6131,6 +6950,7 @@ export declare function Kreon(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Kristi(options: {
   weight: '400'
@@ -6140,6 +6960,7 @@ export declare function Kristi(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Krona_One(options: {
   weight: '400'
@@ -6149,6 +6970,7 @@ export declare function Krona_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Krub(options: {
   weight: '200' | '300' | '400' | '500' | '600' | '700'
@@ -6158,6 +6980,7 @@ export declare function Krub(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): FontModule
 export declare function Kufam(options?: {
   weight?: '400' | '500' | '600' | '700' | '800' | '900' | 'variable'
@@ -6167,6 +6990,7 @@ export declare function Kufam(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'arabic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Kulim_Park(options: {
   weight: '200' | '300' | '400' | '600' | '700'
@@ -6176,6 +7000,7 @@ export declare function Kulim_Park(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Kumar_One(options: {
   weight: '400'
@@ -6185,6 +7010,7 @@ export declare function Kumar_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'gujarati' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Kumar_One_Outline(options: {
   weight: '400'
@@ -6194,6 +7020,7 @@ export declare function Kumar_One_Outline(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'gujarati' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Kumbh_Sans(options?: {
   weight?:
@@ -6213,6 +7040,7 @@ export declare function Kumbh_Sans(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Kurale(options: {
   weight: '400'
@@ -6222,6 +7050,9 @@ export declare function Kurale(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'devanagari' | 'latin' | 'latin-ext'
+  >
 }): FontModule
 export declare function La_Belle_Aurore(options: {
   weight: '400'
@@ -6231,6 +7062,7 @@ export declare function La_Belle_Aurore(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Lacquer(options: {
   weight: '400'
@@ -6240,6 +7072,7 @@ export declare function Lacquer(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Laila(options: {
   weight: '300' | '400' | '500' | '600' | '700'
@@ -6249,6 +7082,7 @@ export declare function Laila(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Lakki_Reddy(options: {
   weight: '400'
@@ -6258,6 +7092,7 @@ export declare function Lakki_Reddy(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'telugu'>
 }): FontModule
 export declare function Lalezar(options: {
   weight: '400'
@@ -6267,6 +7102,7 @@ export declare function Lalezar(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'arabic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Lancelot(options: {
   weight: '400'
@@ -6276,6 +7112,7 @@ export declare function Lancelot(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Langar(options: {
   weight: '400'
@@ -6285,6 +7122,7 @@ export declare function Langar(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'gurmukhi' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Lateef(options: {
   weight: '200' | '300' | '400' | '500' | '600' | '700' | '800'
@@ -6294,6 +7132,7 @@ export declare function Lateef(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Lato(options: {
   weight: '100' | '300' | '400' | '700' | '900'
@@ -6303,6 +7142,7 @@ export declare function Lato(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Lavishly_Yours(options: {
   weight: '400'
@@ -6312,6 +7152,7 @@ export declare function Lavishly_Yours(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function League_Gothic(options?: {
   weight?: '400' | 'variable'
@@ -6321,6 +7162,7 @@ export declare function League_Gothic(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
   axes?: 'wdth'[]
 }): FontModule
 export declare function League_Script(options: {
@@ -6331,6 +7173,7 @@ export declare function League_Script(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function League_Spartan(options?: {
   weight?:
@@ -6350,6 +7193,7 @@ export declare function League_Spartan(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Leckerli_One(options: {
   weight: '400'
@@ -6359,6 +7203,7 @@ export declare function Leckerli_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Ledger(options: {
   weight: '400'
@@ -6368,6 +7213,7 @@ export declare function Ledger(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Lekton(options: {
   weight: '400' | '700'
@@ -6377,6 +7223,7 @@ export declare function Lekton(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Lemon(options: {
   weight: '400'
@@ -6386,6 +7233,7 @@ export declare function Lemon(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Lemonada(options?: {
   weight?: '300' | '400' | '500' | '600' | '700' | 'variable'
@@ -6395,6 +7243,7 @@ export declare function Lemonada(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'arabic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Lexend(options?: {
   weight?:
@@ -6414,6 +7263,7 @@ export declare function Lexend(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Lexend_Deca(options?: {
   weight?:
@@ -6433,6 +7283,7 @@ export declare function Lexend_Deca(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Lexend_Exa(options?: {
   weight?:
@@ -6452,6 +7303,7 @@ export declare function Lexend_Exa(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Lexend_Giga(options?: {
   weight?:
@@ -6471,6 +7323,7 @@ export declare function Lexend_Giga(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Lexend_Mega(options?: {
   weight?:
@@ -6490,6 +7343,7 @@ export declare function Lexend_Mega(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Lexend_Peta(options?: {
   weight?:
@@ -6509,6 +7363,7 @@ export declare function Lexend_Peta(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Lexend_Tera(options?: {
   weight?:
@@ -6528,6 +7383,7 @@ export declare function Lexend_Tera(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Lexend_Zetta(options?: {
   weight?:
@@ -6547,6 +7403,7 @@ export declare function Lexend_Zetta(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Libre_Barcode_128(options: {
   weight: '400'
@@ -6556,6 +7413,7 @@ export declare function Libre_Barcode_128(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Libre_Barcode_128_Text(options: {
   weight: '400'
@@ -6565,6 +7423,7 @@ export declare function Libre_Barcode_128_Text(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Libre_Barcode_39(options: {
   weight: '400'
@@ -6574,6 +7433,7 @@ export declare function Libre_Barcode_39(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Libre_Barcode_39_Extended(options: {
   weight: '400'
@@ -6583,6 +7443,7 @@ export declare function Libre_Barcode_39_Extended(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Libre_Barcode_39_Extended_Text(options: {
   weight: '400'
@@ -6592,6 +7453,7 @@ export declare function Libre_Barcode_39_Extended_Text(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Libre_Barcode_39_Text(options: {
   weight: '400'
@@ -6601,6 +7463,7 @@ export declare function Libre_Barcode_39_Text(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Libre_Barcode_EAN13_Text(options: {
   weight: '400'
@@ -6610,6 +7473,7 @@ export declare function Libre_Barcode_EAN13_Text(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Libre_Baskerville(options: {
   weight: '400' | '700'
@@ -6619,6 +7483,7 @@ export declare function Libre_Baskerville(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Libre_Bodoni(options?: {
   weight?: '400' | '500' | '600' | '700' | 'variable'
@@ -6628,6 +7493,7 @@ export declare function Libre_Bodoni(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Libre_Caslon_Display(options: {
   weight: '400'
@@ -6637,6 +7503,7 @@ export declare function Libre_Caslon_Display(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Libre_Caslon_Text(options: {
   weight: '400' | '700'
@@ -6646,6 +7513,7 @@ export declare function Libre_Caslon_Text(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Libre_Franklin(options?: {
   weight?:
@@ -6665,6 +7533,7 @@ export declare function Libre_Franklin(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Licorice(options: {
   weight: '400'
@@ -6674,6 +7543,7 @@ export declare function Licorice(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Life_Savers(options: {
   weight: '400' | '700' | '800'
@@ -6683,6 +7553,7 @@ export declare function Life_Savers(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Lilita_One(options: {
   weight: '400'
@@ -6692,6 +7563,7 @@ export declare function Lilita_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Lily_Script_One(options: {
   weight: '400'
@@ -6701,6 +7573,7 @@ export declare function Lily_Script_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Limelight(options: {
   weight: '400'
@@ -6710,6 +7583,7 @@ export declare function Limelight(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Linden_Hill(options: {
   weight: '400'
@@ -6719,6 +7593,7 @@ export declare function Linden_Hill(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Literata(options?: {
   weight?:
@@ -6737,6 +7612,15 @@ export declare function Literata(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    | 'cyrillic'
+    | 'cyrillic-ext'
+    | 'greek'
+    | 'greek-ext'
+    | 'latin'
+    | 'latin-ext'
+    | 'vietnamese'
+  >
   axes?: 'opsz'[]
 }): FontModule
 export declare function Liu_Jian_Mao_Cao(options: {
@@ -6747,6 +7631,7 @@ export declare function Liu_Jian_Mao_Cao(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'chinese-simplified' | 'latin'>
 }): FontModule
 export declare function Livvic(options: {
   weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '900'
@@ -6756,6 +7641,7 @@ export declare function Livvic(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Lobster(options: {
   weight: '400'
@@ -6765,6 +7651,9 @@ export declare function Lobster(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): FontModule
 export declare function Lobster_Two(options: {
   weight: '400' | '700'
@@ -6774,6 +7663,7 @@ export declare function Lobster_Two(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Londrina_Outline(options: {
   weight: '400'
@@ -6783,6 +7673,7 @@ export declare function Londrina_Outline(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Londrina_Shadow(options: {
   weight: '400'
@@ -6792,6 +7683,7 @@ export declare function Londrina_Shadow(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Londrina_Sketch(options: {
   weight: '400'
@@ -6801,6 +7693,7 @@ export declare function Londrina_Sketch(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Londrina_Solid(options: {
   weight: '100' | '300' | '400' | '900'
@@ -6810,6 +7703,7 @@ export declare function Londrina_Solid(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Long_Cang(options: {
   weight: '400'
@@ -6819,6 +7713,7 @@ export declare function Long_Cang(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'chinese-simplified' | 'latin'>
 }): FontModule
 export declare function Lora(options?: {
   weight?: '400' | '500' | '600' | '700' | 'variable'
@@ -6828,6 +7723,9 @@ export declare function Lora(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): FontModule
 export declare function Love_Light(options: {
   weight: '400'
@@ -6837,6 +7735,7 @@ export declare function Love_Light(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Love_Ya_Like_A_Sister(options: {
   weight: '400'
@@ -6846,6 +7745,7 @@ export declare function Love_Ya_Like_A_Sister(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Loved_by_the_King(options: {
   weight: '400'
@@ -6855,6 +7755,7 @@ export declare function Loved_by_the_King(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Lovers_Quarrel(options: {
   weight: '400'
@@ -6864,6 +7765,7 @@ export declare function Lovers_Quarrel(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Luckiest_Guy(options: {
   weight: '400'
@@ -6873,6 +7775,7 @@ export declare function Luckiest_Guy(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Lusitana(options: {
   weight: '400' | '700'
@@ -6882,6 +7785,7 @@ export declare function Lusitana(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Lustria(options: {
   weight: '400'
@@ -6891,6 +7795,7 @@ export declare function Lustria(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Luxurious_Roman(options: {
   weight: '400'
@@ -6900,6 +7805,7 @@ export declare function Luxurious_Roman(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Luxurious_Script(options: {
   weight: '400'
@@ -6909,6 +7815,7 @@ export declare function Luxurious_Script(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function M_PLUS_1(options?: {
   weight?:
@@ -6928,6 +7835,7 @@ export declare function M_PLUS_1(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'japanese' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function M_PLUS_1_Code(options?: {
   weight?: '100' | '200' | '300' | '400' | '500' | '600' | '700' | 'variable'
@@ -6937,6 +7845,7 @@ export declare function M_PLUS_1_Code(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'japanese' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function M_PLUS_1p(options: {
   weight: '100' | '300' | '400' | '500' | '700' | '800' | '900'
@@ -6946,6 +7855,17 @@ export declare function M_PLUS_1p(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    | 'cyrillic'
+    | 'cyrillic-ext'
+    | 'greek'
+    | 'greek-ext'
+    | 'hebrew'
+    | 'japanese'
+    | 'latin'
+    | 'latin-ext'
+    | 'vietnamese'
+  >
 }): FontModule
 export declare function M_PLUS_2(options?: {
   weight?:
@@ -6965,6 +7885,7 @@ export declare function M_PLUS_2(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'japanese' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function M_PLUS_Code_Latin(options?: {
   weight?: '100' | '200' | '300' | '400' | '500' | '600' | '700' | 'variable'
@@ -6974,6 +7895,7 @@ export declare function M_PLUS_Code_Latin(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
   axes?: 'wdth'[]
 }): FontModule
 export declare function M_PLUS_Rounded_1c(options: {
@@ -6984,6 +7906,17 @@ export declare function M_PLUS_Rounded_1c(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    | 'cyrillic'
+    | 'cyrillic-ext'
+    | 'greek'
+    | 'greek-ext'
+    | 'hebrew'
+    | 'japanese'
+    | 'latin'
+    | 'latin-ext'
+    | 'vietnamese'
+  >
 }): FontModule
 export declare function Ma_Shan_Zheng(options: {
   weight: '400'
@@ -6993,6 +7926,7 @@ export declare function Ma_Shan_Zheng(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'chinese-simplified' | 'latin'>
 }): FontModule
 export declare function Macondo(options: {
   weight: '400'
@@ -7002,6 +7936,7 @@ export declare function Macondo(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Macondo_Swash_Caps(options: {
   weight: '400'
@@ -7011,6 +7946,7 @@ export declare function Macondo_Swash_Caps(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Mada(options: {
   weight: '200' | '300' | '400' | '500' | '600' | '700' | '900'
@@ -7020,6 +7956,7 @@ export declare function Mada(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'arabic' | 'latin'>
 }): FontModule
 export declare function Magra(options: {
   weight: '400' | '700'
@@ -7029,6 +7966,7 @@ export declare function Magra(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Maiden_Orange(options: {
   weight: '400'
@@ -7038,6 +7976,7 @@ export declare function Maiden_Orange(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Maitree(options: {
   weight: '200' | '300' | '400' | '500' | '600' | '700'
@@ -7047,6 +7986,7 @@ export declare function Maitree(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): FontModule
 export declare function Major_Mono_Display(options: {
   weight: '400'
@@ -7056,6 +7996,7 @@ export declare function Major_Mono_Display(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Mako(options: {
   weight: '400'
@@ -7065,6 +8006,7 @@ export declare function Mako(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Mali(options: {
   weight: '200' | '300' | '400' | '500' | '600' | '700'
@@ -7074,6 +8016,7 @@ export declare function Mali(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): FontModule
 export declare function Mallanna(options: {
   weight: '400'
@@ -7083,6 +8026,7 @@ export declare function Mallanna(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'telugu'>
 }): FontModule
 export declare function Mandali(options: {
   weight: '400'
@@ -7092,6 +8036,7 @@ export declare function Mandali(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'telugu'>
 }): FontModule
 export declare function Manjari(options: {
   weight: '100' | '400' | '700'
@@ -7101,6 +8046,7 @@ export declare function Manjari(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'malayalam'>
 }): FontModule
 export declare function Manrope(options?: {
   weight?: '200' | '300' | '400' | '500' | '600' | '700' | '800' | 'variable'
@@ -7110,6 +8056,9 @@ export declare function Manrope(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'greek' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): FontModule
 export declare function Mansalva(options: {
   weight: '400'
@@ -7119,6 +8068,7 @@ export declare function Mansalva(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Manuale(options?: {
   weight?: '300' | '400' | '500' | '600' | '700' | '800' | 'variable'
@@ -7128,6 +8078,7 @@ export declare function Manuale(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Marcellus(options: {
   weight: '400'
@@ -7137,6 +8088,7 @@ export declare function Marcellus(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Marcellus_SC(options: {
   weight: '400'
@@ -7146,6 +8098,7 @@ export declare function Marcellus_SC(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Marck_Script(options: {
   weight: '400'
@@ -7155,6 +8108,7 @@ export declare function Marck_Script(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Margarine(options: {
   weight: '400'
@@ -7164,6 +8118,7 @@ export declare function Margarine(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Markazi_Text(options?: {
   weight?: '400' | '500' | '600' | '700' | 'variable'
@@ -7173,6 +8128,7 @@ export declare function Markazi_Text(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'arabic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Marko_One(options: {
   weight: '400'
@@ -7182,6 +8138,7 @@ export declare function Marko_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Marmelad(options: {
   weight: '400'
@@ -7191,6 +8148,7 @@ export declare function Marmelad(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Martel(options: {
   weight: '200' | '300' | '400' | '600' | '700' | '800' | '900'
@@ -7200,6 +8158,7 @@ export declare function Martel(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Martel_Sans(options: {
   weight: '200' | '300' | '400' | '600' | '700' | '800' | '900'
@@ -7209,6 +8168,7 @@ export declare function Martel_Sans(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Marvel(options: {
   weight: '400' | '700'
@@ -7218,6 +8178,7 @@ export declare function Marvel(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Mate(options: {
   weight: '400'
@@ -7227,6 +8188,7 @@ export declare function Mate(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Mate_SC(options: {
   weight: '400'
@@ -7236,6 +8198,7 @@ export declare function Mate_SC(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Maven_Pro(options?: {
   weight?: '400' | '500' | '600' | '700' | '800' | '900' | 'variable'
@@ -7245,6 +8208,7 @@ export declare function Maven_Pro(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function McLaren(options: {
   weight: '400'
@@ -7254,6 +8218,7 @@ export declare function McLaren(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Mea_Culpa(options: {
   weight: '400'
@@ -7263,6 +8228,7 @@ export declare function Mea_Culpa(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Meddon(options: {
   weight: '400'
@@ -7272,6 +8238,7 @@ export declare function Meddon(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function MedievalSharp(options: {
   weight: '400'
@@ -7281,6 +8248,7 @@ export declare function MedievalSharp(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Medula_One(options: {
   weight: '400'
@@ -7290,6 +8258,7 @@ export declare function Medula_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Meera_Inimai(options: {
   weight: '400'
@@ -7299,6 +8268,7 @@ export declare function Meera_Inimai(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'tamil'>
 }): FontModule
 export declare function Megrim(options: {
   weight: '400'
@@ -7308,6 +8278,7 @@ export declare function Megrim(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Meie_Script(options: {
   weight: '400'
@@ -7317,6 +8288,7 @@ export declare function Meie_Script(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Meow_Script(options: {
   weight: '400'
@@ -7326,6 +8298,7 @@ export declare function Meow_Script(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Merienda(options: {
   weight: '400' | '700'
@@ -7335,6 +8308,7 @@ export declare function Merienda(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Merienda_One(options: {
   weight: '400'
@@ -7344,6 +8318,7 @@ export declare function Merienda_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Merriweather(options: {
   weight: '300' | '400' | '700' | '900'
@@ -7353,6 +8328,9 @@ export declare function Merriweather(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): FontModule
 export declare function Merriweather_Sans(options?: {
   weight?: '300' | '400' | '500' | '600' | '700' | '800' | 'variable'
@@ -7362,6 +8340,7 @@ export declare function Merriweather_Sans(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Metal(options: {
   weight: '400'
@@ -7371,6 +8350,7 @@ export declare function Metal(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'khmer' | 'latin'>
 }): FontModule
 export declare function Metal_Mania(options: {
   weight: '400'
@@ -7380,6 +8360,7 @@ export declare function Metal_Mania(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Metamorphous(options: {
   weight: '400'
@@ -7389,6 +8370,7 @@ export declare function Metamorphous(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Metrophobic(options: {
   weight: '400'
@@ -7398,6 +8380,7 @@ export declare function Metrophobic(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Michroma(options: {
   weight: '400'
@@ -7407,6 +8390,7 @@ export declare function Michroma(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Milonga(options: {
   weight: '400'
@@ -7416,6 +8400,7 @@ export declare function Milonga(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Miltonian(options: {
   weight: '400'
@@ -7425,6 +8410,7 @@ export declare function Miltonian(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Miltonian_Tattoo(options: {
   weight: '400'
@@ -7434,6 +8420,7 @@ export declare function Miltonian_Tattoo(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Mina(options: {
   weight: '400' | '700'
@@ -7443,6 +8430,7 @@ export declare function Mina(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'bengali' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Mingzat(options: {
   weight: '400'
@@ -7452,6 +8440,7 @@ export declare function Mingzat(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'lepcha'>
 }): FontModule
 export declare function Miniver(options: {
   weight: '400'
@@ -7461,6 +8450,7 @@ export declare function Miniver(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Miriam_Libre(options: {
   weight: '400' | '700'
@@ -7470,6 +8460,7 @@ export declare function Miriam_Libre(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'hebrew' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Mirza(options: {
   weight: '400' | '500' | '600' | '700'
@@ -7479,6 +8470,7 @@ export declare function Mirza(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Miss_Fajardose(options: {
   weight: '400'
@@ -7488,6 +8480,7 @@ export declare function Miss_Fajardose(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Mitr(options: {
   weight: '200' | '300' | '400' | '500' | '600' | '700'
@@ -7497,6 +8490,7 @@ export declare function Mitr(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): FontModule
 export declare function Mochiy_Pop_One(options: {
   weight: '400'
@@ -7506,6 +8500,7 @@ export declare function Mochiy_Pop_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'japanese' | 'latin'>
 }): FontModule
 export declare function Mochiy_Pop_P_One(options: {
   weight: '400'
@@ -7515,6 +8510,7 @@ export declare function Mochiy_Pop_P_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'japanese' | 'latin'>
 }): FontModule
 export declare function Modak(options: {
   weight: '400'
@@ -7524,6 +8520,7 @@ export declare function Modak(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Modern_Antiqua(options: {
   weight: '400'
@@ -7533,6 +8530,7 @@ export declare function Modern_Antiqua(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Mogra(options: {
   weight: '400'
@@ -7542,6 +8540,7 @@ export declare function Mogra(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'gujarati' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Mohave(options?: {
   weight?: '300' | '400' | '500' | '600' | '700' | 'variable'
@@ -7551,6 +8550,7 @@ export declare function Mohave(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Molengo(options: {
   weight: '400'
@@ -7560,6 +8560,7 @@ export declare function Molengo(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Molle(options: {
   weight: '400'
@@ -7569,6 +8570,7 @@ export declare function Molle(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Monda(options: {
   weight: '400' | '700'
@@ -7578,6 +8580,7 @@ export declare function Monda(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Monofett(options: {
   weight: '400'
@@ -7587,6 +8590,7 @@ export declare function Monofett(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Monoton(options: {
   weight: '400'
@@ -7596,6 +8600,7 @@ export declare function Monoton(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Monsieur_La_Doulaise(options: {
   weight: '400'
@@ -7605,6 +8610,7 @@ export declare function Monsieur_La_Doulaise(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Montaga(options: {
   weight: '400'
@@ -7614,6 +8620,7 @@ export declare function Montaga(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Montagu_Slab(options?: {
   weight?: '100' | '200' | '300' | '400' | '500' | '600' | '700' | 'variable'
@@ -7623,6 +8630,7 @@ export declare function Montagu_Slab(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
   axes?: 'opsz'[]
 }): FontModule
 export declare function MonteCarlo(options: {
@@ -7633,6 +8641,7 @@ export declare function MonteCarlo(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Montez(options: {
   weight: '400'
@@ -7642,6 +8651,7 @@ export declare function Montez(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Montserrat(options?: {
   weight?:
@@ -7661,6 +8671,9 @@ export declare function Montserrat(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): FontModule
 export declare function Montserrat_Alternates(options: {
   weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
@@ -7670,6 +8683,9 @@ export declare function Montserrat_Alternates(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): FontModule
 export declare function Montserrat_Subrayada(options: {
   weight: '400' | '700'
@@ -7679,6 +8695,7 @@ export declare function Montserrat_Subrayada(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Moo_Lah_Lah(options: {
   weight: '400'
@@ -7688,6 +8705,7 @@ export declare function Moo_Lah_Lah(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Moon_Dance(options: {
   weight: '400'
@@ -7697,6 +8715,7 @@ export declare function Moon_Dance(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Moul(options: {
   weight: '400'
@@ -7706,6 +8725,7 @@ export declare function Moul(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'khmer' | 'latin'>
 }): FontModule
 export declare function Moulpali(options: {
   weight: '400'
@@ -7715,6 +8735,7 @@ export declare function Moulpali(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'khmer' | 'latin'>
 }): FontModule
 export declare function Mountains_of_Christmas(options: {
   weight: '400' | '700'
@@ -7724,6 +8745,7 @@ export declare function Mountains_of_Christmas(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Mouse_Memoirs(options: {
   weight: '400'
@@ -7733,6 +8755,7 @@ export declare function Mouse_Memoirs(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Mr_Bedfort(options: {
   weight: '400'
@@ -7742,6 +8765,7 @@ export declare function Mr_Bedfort(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Mr_Dafoe(options: {
   weight: '400'
@@ -7751,6 +8775,7 @@ export declare function Mr_Dafoe(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Mr_De_Haviland(options: {
   weight: '400'
@@ -7760,6 +8785,7 @@ export declare function Mr_De_Haviland(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Mrs_Saint_Delafield(options: {
   weight: '400'
@@ -7769,6 +8795,7 @@ export declare function Mrs_Saint_Delafield(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Mrs_Sheppards(options: {
   weight: '400'
@@ -7778,6 +8805,7 @@ export declare function Mrs_Sheppards(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Ms_Madi(options: {
   weight: '400'
@@ -7787,6 +8815,7 @@ export declare function Ms_Madi(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Mukta(options: {
   weight: '200' | '300' | '400' | '500' | '600' | '700' | '800'
@@ -7796,6 +8825,7 @@ export declare function Mukta(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Mukta_Mahee(options: {
   weight: '200' | '300' | '400' | '500' | '600' | '700' | '800'
@@ -7805,6 +8835,7 @@ export declare function Mukta_Mahee(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'gurmukhi' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Mukta_Malar(options: {
   weight: '200' | '300' | '400' | '500' | '600' | '700' | '800'
@@ -7814,6 +8845,7 @@ export declare function Mukta_Malar(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'tamil'>
 }): FontModule
 export declare function Mukta_Vaani(options: {
   weight: '200' | '300' | '400' | '500' | '600' | '700' | '800'
@@ -7823,6 +8855,7 @@ export declare function Mukta_Vaani(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'gujarati' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Mulish(options?: {
   weight?:
@@ -7842,6 +8875,9 @@ export declare function Mulish(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): FontModule
 export declare function Murecho(options?: {
   weight?:
@@ -7861,6 +8897,9 @@ export declare function Murecho(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'greek' | 'japanese' | 'latin' | 'latin-ext'
+  >
 }): FontModule
 export declare function MuseoModerno(options?: {
   weight?:
@@ -7880,6 +8919,7 @@ export declare function MuseoModerno(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function My_Soul(options: {
   weight: '400'
@@ -7889,6 +8929,7 @@ export declare function My_Soul(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Mystery_Quest(options: {
   weight: '400'
@@ -7898,6 +8939,7 @@ export declare function Mystery_Quest(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function NTR(options: {
   weight: '400'
@@ -7907,6 +8949,7 @@ export declare function NTR(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'telugu'>
 }): FontModule
 export declare function Nabla(options?: {
   weight?: '400' | 'variable'
@@ -7916,6 +8959,9 @@ export declare function Nabla(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic-ext' | 'latin' | 'latin-ext' | 'math' | 'vietnamese'
+  >
   axes?: ('EDPT' | 'EHLT')[]
 }): FontModule
 export declare function Nanum_Brush_Script(options: {
@@ -7926,6 +8972,7 @@ export declare function Nanum_Brush_Script(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'korean' | 'latin'>
 }): FontModule
 export declare function Nanum_Gothic(options: {
   weight: '400' | '700' | '800'
@@ -7935,6 +8982,7 @@ export declare function Nanum_Gothic(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'korean' | 'latin'>
 }): FontModule
 export declare function Nanum_Gothic_Coding(options: {
   weight: '400' | '700'
@@ -7944,6 +8992,7 @@ export declare function Nanum_Gothic_Coding(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'korean' | 'latin'>
 }): FontModule
 export declare function Nanum_Myeongjo(options: {
   weight: '400' | '700' | '800'
@@ -7953,6 +9002,7 @@ export declare function Nanum_Myeongjo(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'korean' | 'latin'>
 }): FontModule
 export declare function Nanum_Pen_Script(options: {
   weight: '400'
@@ -7962,6 +9012,7 @@ export declare function Nanum_Pen_Script(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'korean' | 'latin'>
 }): FontModule
 export declare function Neonderthaw(options: {
   weight: '400'
@@ -7971,6 +9022,7 @@ export declare function Neonderthaw(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Nerko_One(options: {
   weight: '400'
@@ -7980,6 +9032,7 @@ export declare function Nerko_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Neucha(options: {
   weight: '400'
@@ -7989,6 +9042,7 @@ export declare function Neucha(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'latin'>
 }): FontModule
 export declare function Neuton(options: {
   weight: '200' | '300' | '400' | '700' | '800'
@@ -7998,6 +9052,7 @@ export declare function Neuton(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function New_Rocker(options: {
   weight: '400'
@@ -8007,6 +9062,7 @@ export declare function New_Rocker(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function New_Tegomin(options: {
   weight: '400'
@@ -8016,6 +9072,7 @@ export declare function New_Tegomin(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function News_Cycle(options: {
   weight: '400' | '700'
@@ -8025,6 +9082,7 @@ export declare function News_Cycle(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Newsreader(options?: {
   weight?: '200' | '300' | '400' | '500' | '600' | '700' | '800' | 'variable'
@@ -8034,6 +9092,7 @@ export declare function Newsreader(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
   axes?: 'opsz'[]
 }): FontModule
 export declare function Niconne(options: {
@@ -8044,6 +9103,7 @@ export declare function Niconne(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Niramit(options: {
   weight: '200' | '300' | '400' | '500' | '600' | '700'
@@ -8053,6 +9113,7 @@ export declare function Niramit(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): FontModule
 export declare function Nixie_One(options: {
   weight: '400'
@@ -8062,6 +9123,7 @@ export declare function Nixie_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Nobile(options: {
   weight: '400' | '500' | '700'
@@ -8071,6 +9133,7 @@ export declare function Nobile(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Nokora(options: {
   weight: '100' | '300' | '400' | '700' | '900'
@@ -8080,6 +9143,7 @@ export declare function Nokora(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'khmer' | 'latin'>
 }): FontModule
 export declare function Norican(options: {
   weight: '400'
@@ -8089,6 +9153,7 @@ export declare function Norican(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Nosifer(options: {
   weight: '400'
@@ -8098,6 +9163,7 @@ export declare function Nosifer(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Notable(options: {
   weight: '400'
@@ -8107,6 +9173,7 @@ export declare function Notable(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Nothing_You_Could_Do(options: {
   weight: '400'
@@ -8116,6 +9183,7 @@ export declare function Nothing_You_Could_Do(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Noticia_Text(options: {
   weight: '400' | '700'
@@ -8125,6 +9193,7 @@ export declare function Noticia_Text(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Noto_Color_Emoji(options: {
   weight: '400'
@@ -8134,6 +9203,7 @@ export declare function Noto_Color_Emoji(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'emoji'>
 }): FontModule
 export declare function Noto_Emoji(options?: {
   weight?: '300' | '400' | '500' | '600' | '700' | 'variable'
@@ -8143,6 +9213,7 @@ export declare function Noto_Emoji(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'emoji'>
 }): FontModule
 export declare function Noto_Kufi_Arabic(options?: {
   weight?:
@@ -8162,6 +9233,7 @@ export declare function Noto_Kufi_Arabic(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'arabic'>
 }): FontModule
 export declare function Noto_Music(options: {
   weight: '400'
@@ -8171,6 +9243,7 @@ export declare function Noto_Music(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'music'>
 }): FontModule
 export declare function Noto_Naskh_Arabic(options?: {
   weight?: '400' | '500' | '600' | '700' | 'variable'
@@ -8180,6 +9253,7 @@ export declare function Noto_Naskh_Arabic(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'arabic'>
 }): FontModule
 export declare function Noto_Nastaliq_Urdu(options?: {
   weight?: '400' | '500' | '600' | '700' | 'variable'
@@ -8189,6 +9263,7 @@ export declare function Noto_Nastaliq_Urdu(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Noto_Rashi_Hebrew(options?: {
   weight?:
@@ -8208,6 +9283,7 @@ export declare function Noto_Rashi_Hebrew(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'hebrew' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Noto_Sans(options: {
   weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
@@ -8217,6 +9293,16 @@ export declare function Noto_Sans(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    | 'cyrillic'
+    | 'cyrillic-ext'
+    | 'devanagari'
+    | 'greek'
+    | 'greek-ext'
+    | 'latin'
+    | 'latin-ext'
+    | 'vietnamese'
+  >
 }): FontModule
 export declare function Noto_Sans_Adlam(options?: {
   weight?: '400' | '500' | '600' | '700' | 'variable'
@@ -8226,6 +9312,7 @@ export declare function Noto_Sans_Adlam(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'adlam' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Noto_Sans_Adlam_Unjoined(options?: {
   weight?: '400' | '500' | '600' | '700' | 'variable'
@@ -8235,6 +9322,7 @@ export declare function Noto_Sans_Adlam_Unjoined(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'adlam' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Noto_Sans_Anatolian_Hieroglyphs(options: {
   weight: '400'
@@ -8244,6 +9332,7 @@ export declare function Noto_Sans_Anatolian_Hieroglyphs(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'anatolian-hieroglyphs'>
 }): FontModule
 export declare function Noto_Sans_Arabic(options?: {
   weight?:
@@ -8263,6 +9352,7 @@ export declare function Noto_Sans_Arabic(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'arabic'>
   axes?: 'wdth'[]
 }): FontModule
 export declare function Noto_Sans_Armenian(options?: {
@@ -8283,6 +9373,7 @@ export declare function Noto_Sans_Armenian(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'armenian' | 'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): FontModule
 export declare function Noto_Sans_Avestan(options: {
@@ -8293,6 +9384,7 @@ export declare function Noto_Sans_Avestan(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'avestan' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Noto_Sans_Balinese(options?: {
   weight?: '400' | '500' | '600' | '700' | 'variable'
@@ -8302,6 +9394,7 @@ export declare function Noto_Sans_Balinese(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'balinese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Noto_Sans_Bamum(options?: {
   weight?: '400' | '500' | '600' | '700' | 'variable'
@@ -8311,6 +9404,7 @@ export declare function Noto_Sans_Bamum(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'bamum'>
 }): FontModule
 export declare function Noto_Sans_Bassa_Vah(options: {
   weight: '400'
@@ -8320,6 +9414,7 @@ export declare function Noto_Sans_Bassa_Vah(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'bassa-vah'>
 }): FontModule
 export declare function Noto_Sans_Batak(options: {
   weight: '400'
@@ -8329,6 +9424,7 @@ export declare function Noto_Sans_Batak(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'batak' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Noto_Sans_Bengali(options?: {
   weight?:
@@ -8348,6 +9444,7 @@ export declare function Noto_Sans_Bengali(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'bengali' | 'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): FontModule
 export declare function Noto_Sans_Bhaiksuki(options: {
@@ -8358,6 +9455,7 @@ export declare function Noto_Sans_Bhaiksuki(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'bhaiksuki'>
 }): FontModule
 export declare function Noto_Sans_Brahmi(options: {
   weight: '400'
@@ -8367,6 +9465,7 @@ export declare function Noto_Sans_Brahmi(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'brahmi'>
 }): FontModule
 export declare function Noto_Sans_Buginese(options: {
   weight: '400'
@@ -8376,6 +9475,7 @@ export declare function Noto_Sans_Buginese(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'buginese'>
 }): FontModule
 export declare function Noto_Sans_Buhid(options: {
   weight: '400'
@@ -8385,6 +9485,7 @@ export declare function Noto_Sans_Buhid(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'buhid' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Noto_Sans_Canadian_Aboriginal(options?: {
   weight?:
@@ -8404,6 +9505,7 @@ export declare function Noto_Sans_Canadian_Aboriginal(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'canadian-aboriginal' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Noto_Sans_Carian(options: {
   weight: '400'
@@ -8413,6 +9515,7 @@ export declare function Noto_Sans_Carian(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'carian'>
 }): FontModule
 export declare function Noto_Sans_Caucasian_Albanian(options: {
   weight: '400'
@@ -8422,6 +9525,7 @@ export declare function Noto_Sans_Caucasian_Albanian(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'caucasian-albanian'>
 }): FontModule
 export declare function Noto_Sans_Chakma(options: {
   weight: '400'
@@ -8431,6 +9535,7 @@ export declare function Noto_Sans_Chakma(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'chakma'>
 }): FontModule
 export declare function Noto_Sans_Cham(options?: {
   weight?:
@@ -8450,6 +9555,7 @@ export declare function Noto_Sans_Cham(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cham' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Noto_Sans_Cherokee(options?: {
   weight?:
@@ -8469,6 +9575,7 @@ export declare function Noto_Sans_Cherokee(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cherokee' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Noto_Sans_Coptic(options: {
   weight: '400'
@@ -8478,6 +9585,7 @@ export declare function Noto_Sans_Coptic(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'coptic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Noto_Sans_Cuneiform(options: {
   weight: '400'
@@ -8487,6 +9595,7 @@ export declare function Noto_Sans_Cuneiform(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cuneiform'>
 }): FontModule
 export declare function Noto_Sans_Cypriot(options: {
   weight: '400'
@@ -8496,6 +9605,7 @@ export declare function Noto_Sans_Cypriot(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cypriot'>
 }): FontModule
 export declare function Noto_Sans_Deseret(options: {
   weight: '400'
@@ -8505,6 +9615,7 @@ export declare function Noto_Sans_Deseret(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'deseret'>
 }): FontModule
 export declare function Noto_Sans_Devanagari(options?: {
   weight?:
@@ -8524,6 +9635,7 @@ export declare function Noto_Sans_Devanagari(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): FontModule
 export declare function Noto_Sans_Display(options?: {
@@ -8544,6 +9656,15 @@ export declare function Noto_Sans_Display(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    | 'cyrillic'
+    | 'cyrillic-ext'
+    | 'greek'
+    | 'greek-ext'
+    | 'latin'
+    | 'latin-ext'
+    | 'vietnamese'
+  >
   axes?: 'wdth'[]
 }): FontModule
 export declare function Noto_Sans_Duployan(options: {
@@ -8554,6 +9675,7 @@ export declare function Noto_Sans_Duployan(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'duployan'>
 }): FontModule
 export declare function Noto_Sans_Egyptian_Hieroglyphs(options: {
   weight: '400'
@@ -8563,6 +9685,7 @@ export declare function Noto_Sans_Egyptian_Hieroglyphs(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'egyptian-hieroglyphs'>
 }): FontModule
 export declare function Noto_Sans_Elbasan(options: {
   weight: '400'
@@ -8572,6 +9695,7 @@ export declare function Noto_Sans_Elbasan(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'elbasan'>
 }): FontModule
 export declare function Noto_Sans_Elymaic(options: {
   weight: '400'
@@ -8581,6 +9705,7 @@ export declare function Noto_Sans_Elymaic(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'elymaic'>
 }): FontModule
 export declare function Noto_Sans_Ethiopic(options?: {
   weight?:
@@ -8600,6 +9725,7 @@ export declare function Noto_Sans_Ethiopic(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'ethiopic' | 'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): FontModule
 export declare function Noto_Sans_Georgian(options?: {
@@ -8620,6 +9746,7 @@ export declare function Noto_Sans_Georgian(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'georgian' | 'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): FontModule
 export declare function Noto_Sans_Glagolitic(options: {
@@ -8630,6 +9757,7 @@ export declare function Noto_Sans_Glagolitic(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'glagolitic'>
 }): FontModule
 export declare function Noto_Sans_Gothic(options: {
   weight: '400'
@@ -8639,6 +9767,7 @@ export declare function Noto_Sans_Gothic(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'gothic'>
 }): FontModule
 export declare function Noto_Sans_Grantha(options: {
   weight: '400'
@@ -8648,6 +9777,7 @@ export declare function Noto_Sans_Grantha(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'grantha' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Noto_Sans_Gujarati(options?: {
   weight?:
@@ -8667,6 +9797,7 @@ export declare function Noto_Sans_Gujarati(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'gujarati' | 'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): FontModule
 export declare function Noto_Sans_Gunjala_Gondi(options: {
@@ -8677,6 +9808,7 @@ export declare function Noto_Sans_Gunjala_Gondi(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'gunjala-gondi'>
 }): FontModule
 export declare function Noto_Sans_Gurmukhi(options?: {
   weight?:
@@ -8696,6 +9828,7 @@ export declare function Noto_Sans_Gurmukhi(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'gurmukhi' | 'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): FontModule
 export declare function Noto_Sans_HK(options: {
@@ -8706,6 +9839,7 @@ export declare function Noto_Sans_HK(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'chinese-hongkong' | 'latin'>
 }): FontModule
 export declare function Noto_Sans_Hanifi_Rohingya(options?: {
   weight?: '400' | '500' | '600' | '700' | 'variable'
@@ -8715,6 +9849,7 @@ export declare function Noto_Sans_Hanifi_Rohingya(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'hanifi-rohingya'>
 }): FontModule
 export declare function Noto_Sans_Hanunoo(options: {
   weight: '400'
@@ -8724,6 +9859,7 @@ export declare function Noto_Sans_Hanunoo(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'hanunoo'>
 }): FontModule
 export declare function Noto_Sans_Hatran(options: {
   weight: '400'
@@ -8733,6 +9869,7 @@ export declare function Noto_Sans_Hatran(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'hatran'>
 }): FontModule
 export declare function Noto_Sans_Hebrew(options?: {
   weight?:
@@ -8752,6 +9889,7 @@ export declare function Noto_Sans_Hebrew(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'hebrew' | 'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): FontModule
 export declare function Noto_Sans_Imperial_Aramaic(options: {
@@ -8762,6 +9900,7 @@ export declare function Noto_Sans_Imperial_Aramaic(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'imperial-aramaic'>
 }): FontModule
 export declare function Noto_Sans_Indic_Siyaq_Numbers(options: {
   weight: '400'
@@ -8771,6 +9910,7 @@ export declare function Noto_Sans_Indic_Siyaq_Numbers(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'indic-siyaq-numbers'>
 }): FontModule
 export declare function Noto_Sans_Inscriptional_Pahlavi(options: {
   weight: '400'
@@ -8780,6 +9920,7 @@ export declare function Noto_Sans_Inscriptional_Pahlavi(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'inscriptional-pahlavi'>
 }): FontModule
 export declare function Noto_Sans_Inscriptional_Parthian(options: {
   weight: '400'
@@ -8789,6 +9930,7 @@ export declare function Noto_Sans_Inscriptional_Parthian(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'inscriptional-parthian'>
 }): FontModule
 export declare function Noto_Sans_JP(options: {
   weight: '100' | '300' | '400' | '500' | '700' | '900'
@@ -8798,6 +9940,7 @@ export declare function Noto_Sans_JP(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'japanese' | 'latin'>
 }): FontModule
 export declare function Noto_Sans_Javanese(options?: {
   weight?: '400' | '500' | '600' | '700' | 'variable'
@@ -8807,6 +9950,7 @@ export declare function Noto_Sans_Javanese(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'javanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Noto_Sans_KR(options: {
   weight: '100' | '300' | '400' | '500' | '700' | '900'
@@ -8816,6 +9960,7 @@ export declare function Noto_Sans_KR(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'korean' | 'latin'>
 }): FontModule
 export declare function Noto_Sans_Kaithi(options: {
   weight: '400'
@@ -8825,6 +9970,7 @@ export declare function Noto_Sans_Kaithi(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'kaithi'>
 }): FontModule
 export declare function Noto_Sans_Kannada(options?: {
   weight?:
@@ -8844,6 +9990,7 @@ export declare function Noto_Sans_Kannada(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'kannada' | 'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): FontModule
 export declare function Noto_Sans_Kayah_Li(options?: {
@@ -8854,6 +10001,7 @@ export declare function Noto_Sans_Kayah_Li(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'kayah-li'>
 }): FontModule
 export declare function Noto_Sans_Kharoshthi(options: {
   weight: '400'
@@ -8863,6 +10011,7 @@ export declare function Noto_Sans_Kharoshthi(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'kharoshthi'>
 }): FontModule
 export declare function Noto_Sans_Khmer(options?: {
   weight?:
@@ -8882,6 +10031,7 @@ export declare function Noto_Sans_Khmer(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'khmer' | 'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): FontModule
 export declare function Noto_Sans_Khojki(options: {
@@ -8892,6 +10042,7 @@ export declare function Noto_Sans_Khojki(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'khojki'>
 }): FontModule
 export declare function Noto_Sans_Khudawadi(options: {
   weight: '400'
@@ -8901,6 +10052,7 @@ export declare function Noto_Sans_Khudawadi(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'khudawadi'>
 }): FontModule
 export declare function Noto_Sans_Lao(options?: {
   weight?:
@@ -8920,6 +10072,7 @@ export declare function Noto_Sans_Lao(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'lao' | 'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): FontModule
 export declare function Noto_Sans_Lepcha(options: {
@@ -8930,6 +10083,7 @@ export declare function Noto_Sans_Lepcha(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'lepcha'>
 }): FontModule
 export declare function Noto_Sans_Limbu(options: {
   weight: '400'
@@ -8939,6 +10093,7 @@ export declare function Noto_Sans_Limbu(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'limbu'>
 }): FontModule
 export declare function Noto_Sans_Linear_A(options: {
   weight: '400'
@@ -8948,6 +10103,7 @@ export declare function Noto_Sans_Linear_A(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'linear-a'>
 }): FontModule
 export declare function Noto_Sans_Linear_B(options: {
   weight: '400'
@@ -8957,6 +10113,7 @@ export declare function Noto_Sans_Linear_B(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'linear-b'>
 }): FontModule
 export declare function Noto_Sans_Lisu(options?: {
   weight?: '400' | '500' | '600' | '700' | 'variable'
@@ -8966,6 +10123,7 @@ export declare function Noto_Sans_Lisu(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'lisu'>
 }): FontModule
 export declare function Noto_Sans_Lycian(options: {
   weight: '400'
@@ -8975,6 +10133,7 @@ export declare function Noto_Sans_Lycian(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'lycian'>
 }): FontModule
 export declare function Noto_Sans_Lydian(options: {
   weight: '400'
@@ -8984,6 +10143,7 @@ export declare function Noto_Sans_Lydian(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'lydian'>
 }): FontModule
 export declare function Noto_Sans_Mahajani(options: {
   weight: '400'
@@ -8993,6 +10153,7 @@ export declare function Noto_Sans_Mahajani(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'mahajani'>
 }): FontModule
 export declare function Noto_Sans_Malayalam(options?: {
   weight?:
@@ -9012,6 +10173,7 @@ export declare function Noto_Sans_Malayalam(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'malayalam'>
   axes?: 'wdth'[]
 }): FontModule
 export declare function Noto_Sans_Mandaic(options: {
@@ -9022,6 +10184,7 @@ export declare function Noto_Sans_Mandaic(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'mandaic'>
 }): FontModule
 export declare function Noto_Sans_Manichaean(options: {
   weight: '400'
@@ -9031,6 +10194,7 @@ export declare function Noto_Sans_Manichaean(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'manichaean'>
 }): FontModule
 export declare function Noto_Sans_Marchen(options: {
   weight: '400'
@@ -9040,6 +10204,7 @@ export declare function Noto_Sans_Marchen(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'marchen'>
 }): FontModule
 export declare function Noto_Sans_Masaram_Gondi(options: {
   weight: '400'
@@ -9049,6 +10214,7 @@ export declare function Noto_Sans_Masaram_Gondi(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'masaram-gondi'>
 }): FontModule
 export declare function Noto_Sans_Math(options: {
   weight: '400'
@@ -9058,6 +10224,7 @@ export declare function Noto_Sans_Math(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'math'>
 }): FontModule
 export declare function Noto_Sans_Mayan_Numerals(options: {
   weight: '400'
@@ -9067,6 +10234,7 @@ export declare function Noto_Sans_Mayan_Numerals(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'mayan-numerals'>
 }): FontModule
 export declare function Noto_Sans_Medefaidrin(options?: {
   weight?: '400' | '500' | '600' | '700' | 'variable'
@@ -9076,6 +10244,7 @@ export declare function Noto_Sans_Medefaidrin(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'medefaidrin'>
 }): FontModule
 export declare function Noto_Sans_Meetei_Mayek(options?: {
   weight?:
@@ -9095,6 +10264,7 @@ export declare function Noto_Sans_Meetei_Mayek(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'meetei-mayek'>
 }): FontModule
 export declare function Noto_Sans_Meroitic(options: {
   weight: '400'
@@ -9104,6 +10274,7 @@ export declare function Noto_Sans_Meroitic(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'meroitic'>
 }): FontModule
 export declare function Noto_Sans_Miao(options: {
   weight: '400'
@@ -9113,6 +10284,7 @@ export declare function Noto_Sans_Miao(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'miao'>
 }): FontModule
 export declare function Noto_Sans_Modi(options: {
   weight: '400'
@@ -9122,6 +10294,7 @@ export declare function Noto_Sans_Modi(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'modi'>
 }): FontModule
 export declare function Noto_Sans_Mongolian(options: {
   weight: '400'
@@ -9131,6 +10304,7 @@ export declare function Noto_Sans_Mongolian(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'mongolian'>
 }): FontModule
 export declare function Noto_Sans_Mono(options?: {
   weight?:
@@ -9150,6 +10324,15 @@ export declare function Noto_Sans_Mono(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    | 'cyrillic'
+    | 'cyrillic-ext'
+    | 'greek'
+    | 'greek-ext'
+    | 'latin'
+    | 'latin-ext'
+    | 'vietnamese'
+  >
   axes?: 'wdth'[]
 }): FontModule
 export declare function Noto_Sans_Mro(options: {
@@ -9160,6 +10343,7 @@ export declare function Noto_Sans_Mro(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'mro'>
 }): FontModule
 export declare function Noto_Sans_Multani(options: {
   weight: '400'
@@ -9169,6 +10353,7 @@ export declare function Noto_Sans_Multani(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'multani'>
 }): FontModule
 export declare function Noto_Sans_Myanmar(options: {
   weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
@@ -9178,6 +10363,7 @@ export declare function Noto_Sans_Myanmar(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'myanmar'>
 }): FontModule
 export declare function Noto_Sans_N_Ko(options: {
   weight: '400'
@@ -9187,6 +10373,7 @@ export declare function Noto_Sans_N_Ko(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'nko'>
 }): FontModule
 export declare function Noto_Sans_Nabataean(options: {
   weight: '400'
@@ -9196,6 +10383,7 @@ export declare function Noto_Sans_Nabataean(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'nabataean'>
 }): FontModule
 export declare function Noto_Sans_New_Tai_Lue(options: {
   weight: '400'
@@ -9205,6 +10393,7 @@ export declare function Noto_Sans_New_Tai_Lue(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'new-tai-lue'>
 }): FontModule
 export declare function Noto_Sans_Newa(options: {
   weight: '400'
@@ -9214,6 +10403,7 @@ export declare function Noto_Sans_Newa(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'newa'>
 }): FontModule
 export declare function Noto_Sans_Nushu(options: {
   weight: '400'
@@ -9223,6 +10413,7 @@ export declare function Noto_Sans_Nushu(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'nushu'>
 }): FontModule
 export declare function Noto_Sans_Ogham(options: {
   weight: '400'
@@ -9232,6 +10423,7 @@ export declare function Noto_Sans_Ogham(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'ogham'>
 }): FontModule
 export declare function Noto_Sans_Ol_Chiki(options?: {
   weight?: '400' | '500' | '600' | '700' | 'variable'
@@ -9241,6 +10433,7 @@ export declare function Noto_Sans_Ol_Chiki(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'ol-chiki'>
 }): FontModule
 export declare function Noto_Sans_Old_Hungarian(options: {
   weight: '400'
@@ -9250,6 +10443,7 @@ export declare function Noto_Sans_Old_Hungarian(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'old-hungarian'>
 }): FontModule
 export declare function Noto_Sans_Old_Italic(options: {
   weight: '400'
@@ -9259,6 +10453,7 @@ export declare function Noto_Sans_Old_Italic(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'old-italic'>
 }): FontModule
 export declare function Noto_Sans_Old_North_Arabian(options: {
   weight: '400'
@@ -9268,6 +10463,7 @@ export declare function Noto_Sans_Old_North_Arabian(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'old-north-arabian'>
 }): FontModule
 export declare function Noto_Sans_Old_Permic(options: {
   weight: '400'
@@ -9277,6 +10473,7 @@ export declare function Noto_Sans_Old_Permic(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'old-permic'>
 }): FontModule
 export declare function Noto_Sans_Old_Persian(options: {
   weight: '400'
@@ -9286,6 +10483,7 @@ export declare function Noto_Sans_Old_Persian(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'old-persian'>
 }): FontModule
 export declare function Noto_Sans_Old_Sogdian(options: {
   weight: '400'
@@ -9295,6 +10493,7 @@ export declare function Noto_Sans_Old_Sogdian(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'old-sogdian'>
 }): FontModule
 export declare function Noto_Sans_Old_South_Arabian(options: {
   weight: '400'
@@ -9304,6 +10503,7 @@ export declare function Noto_Sans_Old_South_Arabian(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'old-south-arabian'>
 }): FontModule
 export declare function Noto_Sans_Old_Turkic(options: {
   weight: '400'
@@ -9313,6 +10513,7 @@ export declare function Noto_Sans_Old_Turkic(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'old-turkic'>
 }): FontModule
 export declare function Noto_Sans_Oriya(options?: {
   weight?:
@@ -9332,6 +10533,7 @@ export declare function Noto_Sans_Oriya(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'oriya'>
   axes?: 'wdth'[]
 }): FontModule
 export declare function Noto_Sans_Osage(options: {
@@ -9342,6 +10544,7 @@ export declare function Noto_Sans_Osage(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'osage'>
 }): FontModule
 export declare function Noto_Sans_Osmanya(options: {
   weight: '400'
@@ -9351,6 +10554,7 @@ export declare function Noto_Sans_Osmanya(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'osmanya'>
 }): FontModule
 export declare function Noto_Sans_Pahawh_Hmong(options: {
   weight: '400'
@@ -9360,6 +10564,7 @@ export declare function Noto_Sans_Pahawh_Hmong(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'pahawh-hmong'>
 }): FontModule
 export declare function Noto_Sans_Palmyrene(options: {
   weight: '400'
@@ -9369,6 +10574,7 @@ export declare function Noto_Sans_Palmyrene(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'palmyrene'>
 }): FontModule
 export declare function Noto_Sans_Pau_Cin_Hau(options: {
   weight: '400'
@@ -9378,6 +10584,7 @@ export declare function Noto_Sans_Pau_Cin_Hau(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'pau-cin-hau'>
 }): FontModule
 export declare function Noto_Sans_Phags_Pa(options: {
   weight: '400'
@@ -9387,6 +10594,7 @@ export declare function Noto_Sans_Phags_Pa(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'phags-pa'>
 }): FontModule
 export declare function Noto_Sans_Phoenician(options: {
   weight: '400'
@@ -9396,6 +10604,7 @@ export declare function Noto_Sans_Phoenician(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'phoenician'>
 }): FontModule
 export declare function Noto_Sans_Psalter_Pahlavi(options: {
   weight: '400'
@@ -9405,6 +10614,7 @@ export declare function Noto_Sans_Psalter_Pahlavi(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'psalter-pahlavi'>
 }): FontModule
 export declare function Noto_Sans_Rejang(options: {
   weight: '400'
@@ -9414,6 +10624,7 @@ export declare function Noto_Sans_Rejang(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'rejang'>
 }): FontModule
 export declare function Noto_Sans_Runic(options: {
   weight: '400'
@@ -9423,6 +10634,7 @@ export declare function Noto_Sans_Runic(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'runic'>
 }): FontModule
 export declare function Noto_Sans_SC(options: {
   weight: '100' | '300' | '400' | '500' | '700' | '900'
@@ -9432,6 +10644,7 @@ export declare function Noto_Sans_SC(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'chinese-simplified' | 'latin'>
 }): FontModule
 export declare function Noto_Sans_Samaritan(options: {
   weight: '400'
@@ -9441,6 +10654,7 @@ export declare function Noto_Sans_Samaritan(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'samaritan'>
 }): FontModule
 export declare function Noto_Sans_Saurashtra(options: {
   weight: '400'
@@ -9450,6 +10664,7 @@ export declare function Noto_Sans_Saurashtra(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'saurashtra'>
 }): FontModule
 export declare function Noto_Sans_Sharada(options: {
   weight: '400'
@@ -9459,6 +10674,7 @@ export declare function Noto_Sans_Sharada(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'sharada'>
 }): FontModule
 export declare function Noto_Sans_Shavian(options: {
   weight: '400'
@@ -9468,6 +10684,7 @@ export declare function Noto_Sans_Shavian(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'shavian'>
 }): FontModule
 export declare function Noto_Sans_Siddham(options: {
   weight: '400'
@@ -9477,6 +10694,7 @@ export declare function Noto_Sans_Siddham(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'siddham'>
 }): FontModule
 export declare function Noto_Sans_Sinhala(options?: {
   weight?:
@@ -9496,6 +10714,7 @@ export declare function Noto_Sans_Sinhala(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'sinhala'>
   axes?: 'wdth'[]
 }): FontModule
 export declare function Noto_Sans_Sogdian(options: {
@@ -9506,6 +10725,7 @@ export declare function Noto_Sans_Sogdian(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'sogdian'>
 }): FontModule
 export declare function Noto_Sans_Sora_Sompeng(options?: {
   weight?: '400' | '500' | '600' | '700' | 'variable'
@@ -9515,6 +10735,7 @@ export declare function Noto_Sans_Sora_Sompeng(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'sora-sompeng'>
 }): FontModule
 export declare function Noto_Sans_Soyombo(options: {
   weight: '400'
@@ -9524,6 +10745,7 @@ export declare function Noto_Sans_Soyombo(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'soyombo'>
 }): FontModule
 export declare function Noto_Sans_Sundanese(options?: {
   weight?: '400' | '500' | '600' | '700' | 'variable'
@@ -9533,6 +10755,7 @@ export declare function Noto_Sans_Sundanese(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'sundanese'>
 }): FontModule
 export declare function Noto_Sans_Syloti_Nagri(options: {
   weight: '400'
@@ -9542,6 +10765,7 @@ export declare function Noto_Sans_Syloti_Nagri(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'syloti-nagri'>
 }): FontModule
 export declare function Noto_Sans_Symbols(options?: {
   weight?:
@@ -9561,6 +10785,7 @@ export declare function Noto_Sans_Symbols(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'symbols'>
 }): FontModule
 export declare function Noto_Sans_Symbols_2(options: {
   weight: '400'
@@ -9570,6 +10795,7 @@ export declare function Noto_Sans_Symbols_2(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'symbols'>
 }): FontModule
 export declare function Noto_Sans_Syriac(options: {
   weight: '100' | '400' | '900'
@@ -9579,6 +10805,7 @@ export declare function Noto_Sans_Syriac(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'syriac'>
 }): FontModule
 export declare function Noto_Sans_TC(options: {
   weight: '100' | '300' | '400' | '500' | '700' | '900'
@@ -9588,6 +10815,7 @@ export declare function Noto_Sans_TC(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'chinese-traditional' | 'latin'>
 }): FontModule
 export declare function Noto_Sans_Tagalog(options: {
   weight: '400'
@@ -9597,6 +10825,7 @@ export declare function Noto_Sans_Tagalog(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'tagalog'>
 }): FontModule
 export declare function Noto_Sans_Tagbanwa(options: {
   weight: '400'
@@ -9606,6 +10835,7 @@ export declare function Noto_Sans_Tagbanwa(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'tagbanwa'>
 }): FontModule
 export declare function Noto_Sans_Tai_Le(options: {
   weight: '400'
@@ -9615,6 +10845,7 @@ export declare function Noto_Sans_Tai_Le(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'tai-le'>
 }): FontModule
 export declare function Noto_Sans_Tai_Tham(options?: {
   weight?: '400' | '500' | '600' | '700' | 'variable'
@@ -9624,6 +10855,7 @@ export declare function Noto_Sans_Tai_Tham(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'tai-tham'>
 }): FontModule
 export declare function Noto_Sans_Tai_Viet(options: {
   weight: '400'
@@ -9633,6 +10865,7 @@ export declare function Noto_Sans_Tai_Viet(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'tai-viet'>
 }): FontModule
 export declare function Noto_Sans_Takri(options: {
   weight: '400'
@@ -9642,6 +10875,7 @@ export declare function Noto_Sans_Takri(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'takri'>
 }): FontModule
 export declare function Noto_Sans_Tamil(options?: {
   weight?:
@@ -9661,6 +10895,7 @@ export declare function Noto_Sans_Tamil(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'tamil'>
   axes?: 'wdth'[]
 }): FontModule
 export declare function Noto_Sans_Tamil_Supplement(options: {
@@ -9671,6 +10906,7 @@ export declare function Noto_Sans_Tamil_Supplement(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'tamil-supplement'>
 }): FontModule
 export declare function Noto_Sans_Telugu(options?: {
   weight?:
@@ -9690,6 +10926,7 @@ export declare function Noto_Sans_Telugu(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'telugu'>
   axes?: 'wdth'[]
 }): FontModule
 export declare function Noto_Sans_Thaana(options?: {
@@ -9710,6 +10947,7 @@ export declare function Noto_Sans_Thaana(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'thaana'>
 }): FontModule
 export declare function Noto_Sans_Thai(options?: {
   weight?:
@@ -9729,6 +10967,7 @@ export declare function Noto_Sans_Thai(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'thai'>
   axes?: 'wdth'[]
 }): FontModule
 export declare function Noto_Sans_Thai_Looped(options: {
@@ -9739,6 +10978,7 @@ export declare function Noto_Sans_Thai_Looped(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'thai'>
 }): FontModule
 export declare function Noto_Sans_Tifinagh(options: {
   weight: '400'
@@ -9748,6 +10988,7 @@ export declare function Noto_Sans_Tifinagh(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'tifinagh'>
 }): FontModule
 export declare function Noto_Sans_Tirhuta(options: {
   weight: '400'
@@ -9757,6 +10998,7 @@ export declare function Noto_Sans_Tirhuta(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'tirhuta'>
 }): FontModule
 export declare function Noto_Sans_Ugaritic(options: {
   weight: '400'
@@ -9766,6 +11008,7 @@ export declare function Noto_Sans_Ugaritic(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'ugaritic'>
 }): FontModule
 export declare function Noto_Sans_Vai(options: {
   weight: '400'
@@ -9775,6 +11018,7 @@ export declare function Noto_Sans_Vai(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vai'>
 }): FontModule
 export declare function Noto_Sans_Wancho(options: {
   weight: '400'
@@ -9784,6 +11028,7 @@ export declare function Noto_Sans_Wancho(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'wancho'>
 }): FontModule
 export declare function Noto_Sans_Warang_Citi(options: {
   weight: '400'
@@ -9793,6 +11038,7 @@ export declare function Noto_Sans_Warang_Citi(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'warang-citi'>
 }): FontModule
 export declare function Noto_Sans_Yi(options: {
   weight: '400'
@@ -9802,6 +11048,7 @@ export declare function Noto_Sans_Yi(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'yi'>
 }): FontModule
 export declare function Noto_Sans_Zanabazar_Square(options: {
   weight: '400'
@@ -9811,6 +11058,7 @@ export declare function Noto_Sans_Zanabazar_Square(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'zanabazar-square'>
 }): FontModule
 export declare function Noto_Serif(options: {
   weight: '400' | '700'
@@ -9820,6 +11068,15 @@ export declare function Noto_Serif(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    | 'cyrillic'
+    | 'cyrillic-ext'
+    | 'greek'
+    | 'greek-ext'
+    | 'latin'
+    | 'latin-ext'
+    | 'vietnamese'
+  >
 }): FontModule
 export declare function Noto_Serif_Ahom(options: {
   weight: '400'
@@ -9829,6 +11086,7 @@ export declare function Noto_Serif_Ahom(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'ahom' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Noto_Serif_Armenian(options?: {
   weight?:
@@ -9848,6 +11106,7 @@ export declare function Noto_Serif_Armenian(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'armenian' | 'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): FontModule
 export declare function Noto_Serif_Balinese(options: {
@@ -9858,6 +11117,7 @@ export declare function Noto_Serif_Balinese(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'balinese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Noto_Serif_Bengali(options?: {
   weight?:
@@ -9877,6 +11137,7 @@ export declare function Noto_Serif_Bengali(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'bengali' | 'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): FontModule
 export declare function Noto_Serif_Devanagari(options?: {
@@ -9897,6 +11158,7 @@ export declare function Noto_Serif_Devanagari(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): FontModule
 export declare function Noto_Serif_Display(options?: {
@@ -9917,6 +11179,15 @@ export declare function Noto_Serif_Display(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    | 'cyrillic'
+    | 'cyrillic-ext'
+    | 'greek'
+    | 'greek-ext'
+    | 'latin'
+    | 'latin-ext'
+    | 'vietnamese'
+  >
   axes?: 'wdth'[]
 }): FontModule
 export declare function Noto_Serif_Dogra(options: {
@@ -9927,6 +11198,7 @@ export declare function Noto_Serif_Dogra(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'dogra'>
 }): FontModule
 export declare function Noto_Serif_Ethiopic(options?: {
   weight?:
@@ -9946,6 +11218,7 @@ export declare function Noto_Serif_Ethiopic(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'ethiopic' | 'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): FontModule
 export declare function Noto_Serif_Georgian(options?: {
@@ -9966,6 +11239,7 @@ export declare function Noto_Serif_Georgian(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'georgian' | 'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): FontModule
 export declare function Noto_Serif_Grantha(options: {
@@ -9976,6 +11250,7 @@ export declare function Noto_Serif_Grantha(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'grantha' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Noto_Serif_Gujarati(options?: {
   weight?:
@@ -9995,6 +11270,7 @@ export declare function Noto_Serif_Gujarati(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'gujarati' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Noto_Serif_Gurmukhi(options?: {
   weight?:
@@ -10014,6 +11290,7 @@ export declare function Noto_Serif_Gurmukhi(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'gurmukhi' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Noto_Serif_HK(options?: {
   weight?:
@@ -10032,6 +11309,9 @@ export declare function Noto_Serif_HK(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'chinese-hongkong' | 'cyrillic' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): FontModule
 export declare function Noto_Serif_Hebrew(options?: {
   weight?:
@@ -10051,6 +11331,7 @@ export declare function Noto_Serif_Hebrew(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'hebrew' | 'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): FontModule
 export declare function Noto_Serif_JP(options: {
@@ -10061,6 +11342,7 @@ export declare function Noto_Serif_JP(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'japanese' | 'latin'>
 }): FontModule
 export declare function Noto_Serif_KR(options: {
   weight: '200' | '300' | '400' | '500' | '600' | '700' | '900'
@@ -10070,6 +11352,7 @@ export declare function Noto_Serif_KR(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'korean' | 'latin'>
 }): FontModule
 export declare function Noto_Serif_Kannada(options?: {
   weight?:
@@ -10089,6 +11372,7 @@ export declare function Noto_Serif_Kannada(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'kannada' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Noto_Serif_Khmer(options?: {
   weight?:
@@ -10108,6 +11392,7 @@ export declare function Noto_Serif_Khmer(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'khmer' | 'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): FontModule
 export declare function Noto_Serif_Lao(options?: {
@@ -10128,6 +11413,7 @@ export declare function Noto_Serif_Lao(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'lao' | 'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): FontModule
 export declare function Noto_Serif_Malayalam(options?: {
@@ -10148,6 +11434,7 @@ export declare function Noto_Serif_Malayalam(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'malayalam'>
 }): FontModule
 export declare function Noto_Serif_Myanmar(options: {
   weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
@@ -10157,6 +11444,7 @@ export declare function Noto_Serif_Myanmar(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'myanmar'>
 }): FontModule
 export declare function Noto_Serif_Nyiakeng_Puachue_Hmong(options?: {
   weight?: '400' | '500' | '600' | '700' | 'variable'
@@ -10166,6 +11454,7 @@ export declare function Noto_Serif_Nyiakeng_Puachue_Hmong(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'nyiakeng-puachue-hmong'>
 }): FontModule
 export declare function Noto_Serif_SC(options: {
   weight: '200' | '300' | '400' | '500' | '600' | '700' | '900'
@@ -10175,6 +11464,7 @@ export declare function Noto_Serif_SC(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'chinese-simplified' | 'latin'>
 }): FontModule
 export declare function Noto_Serif_Sinhala(options?: {
   weight?:
@@ -10194,6 +11484,7 @@ export declare function Noto_Serif_Sinhala(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'sinhala'>
   axes?: 'wdth'[]
 }): FontModule
 export declare function Noto_Serif_TC(options: {
@@ -10204,6 +11495,7 @@ export declare function Noto_Serif_TC(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'chinese-traditional' | 'latin'>
 }): FontModule
 export declare function Noto_Serif_Tamil(options?: {
   weight?:
@@ -10223,6 +11515,7 @@ export declare function Noto_Serif_Tamil(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'tamil'>
   axes?: 'wdth'[]
 }): FontModule
 export declare function Noto_Serif_Tangut(options: {
@@ -10233,6 +11526,7 @@ export declare function Noto_Serif_Tangut(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'tangut'>
 }): FontModule
 export declare function Noto_Serif_Telugu(options?: {
   weight?:
@@ -10252,6 +11546,7 @@ export declare function Noto_Serif_Telugu(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'telugu'>
 }): FontModule
 export declare function Noto_Serif_Thai(options?: {
   weight?:
@@ -10271,6 +11566,7 @@ export declare function Noto_Serif_Thai(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'thai'>
   axes?: 'wdth'[]
 }): FontModule
 export declare function Noto_Serif_Tibetan(options?: {
@@ -10291,6 +11587,7 @@ export declare function Noto_Serif_Tibetan(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'tibetan'>
 }): FontModule
 export declare function Noto_Serif_Yezidi(options?: {
   weight?: '400' | '500' | '600' | '700' | 'variable'
@@ -10300,6 +11597,7 @@ export declare function Noto_Serif_Yezidi(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'yezidi'>
 }): FontModule
 export declare function Noto_Traditional_Nushu(options: {
   weight: '400'
@@ -10309,6 +11607,7 @@ export declare function Noto_Traditional_Nushu(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'nushu'>
 }): FontModule
 export declare function Nova_Cut(options: {
   weight: '400'
@@ -10318,6 +11617,7 @@ export declare function Nova_Cut(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Nova_Flat(options: {
   weight: '400'
@@ -10327,6 +11627,7 @@ export declare function Nova_Flat(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Nova_Mono(options: {
   weight: '400'
@@ -10336,6 +11637,7 @@ export declare function Nova_Mono(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'greek' | 'latin'>
 }): FontModule
 export declare function Nova_Oval(options: {
   weight: '400'
@@ -10345,6 +11647,7 @@ export declare function Nova_Oval(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Nova_Round(options: {
   weight: '400'
@@ -10354,6 +11657,7 @@ export declare function Nova_Round(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Nova_Script(options: {
   weight: '400'
@@ -10363,6 +11667,7 @@ export declare function Nova_Script(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Nova_Slim(options: {
   weight: '400'
@@ -10372,6 +11677,7 @@ export declare function Nova_Slim(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Nova_Square(options: {
   weight: '400'
@@ -10381,6 +11687,7 @@ export declare function Nova_Square(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Numans(options: {
   weight: '400'
@@ -10390,6 +11697,7 @@ export declare function Numans(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Nunito(options?: {
   weight?:
@@ -10409,6 +11717,9 @@ export declare function Nunito(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): FontModule
 export declare function Nunito_Sans(options: {
   weight: '200' | '300' | '400' | '600' | '700' | '800' | '900'
@@ -10418,6 +11729,9 @@ export declare function Nunito_Sans(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): FontModule
 export declare function Nuosu_SIL(options: {
   weight: '400'
@@ -10427,6 +11741,7 @@ export declare function Nuosu_SIL(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'yi'>
 }): FontModule
 export declare function Odibee_Sans(options: {
   weight: '400'
@@ -10436,6 +11751,7 @@ export declare function Odibee_Sans(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Odor_Mean_Chey(options: {
   weight: '400'
@@ -10445,6 +11761,7 @@ export declare function Odor_Mean_Chey(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'khmer' | 'latin'>
 }): FontModule
 export declare function Offside(options: {
   weight: '400'
@@ -10454,6 +11771,7 @@ export declare function Offside(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Oi(options: {
   weight: '400'
@@ -10463,6 +11781,15 @@ export declare function Oi(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    | 'cyrillic'
+    | 'cyrillic-ext'
+    | 'greek'
+    | 'latin'
+    | 'latin-ext'
+    | 'tamil'
+    | 'vietnamese'
+  >
 }): FontModule
 export declare function Old_Standard_TT(options: {
   weight: '400' | '700'
@@ -10472,6 +11799,9 @@ export declare function Old_Standard_TT(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): FontModule
 export declare function Oldenburg(options: {
   weight: '400'
@@ -10481,6 +11811,7 @@ export declare function Oldenburg(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Ole(options: {
   weight: '400'
@@ -10490,6 +11821,7 @@ export declare function Ole(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Oleo_Script(options: {
   weight: '400' | '700'
@@ -10499,6 +11831,7 @@ export declare function Oleo_Script(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Oleo_Script_Swash_Caps(options: {
   weight: '400' | '700'
@@ -10508,6 +11841,7 @@ export declare function Oleo_Script_Swash_Caps(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Oooh_Baby(options: {
   weight: '400'
@@ -10517,6 +11851,7 @@ export declare function Oooh_Baby(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Open_Sans(options?: {
   weight?: '300' | '400' | '500' | '600' | '700' | '800' | 'variable'
@@ -10526,6 +11861,16 @@ export declare function Open_Sans(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    | 'cyrillic'
+    | 'cyrillic-ext'
+    | 'greek'
+    | 'greek-ext'
+    | 'hebrew'
+    | 'latin'
+    | 'latin-ext'
+    | 'vietnamese'
+  >
   axes?: 'wdth'[]
 }): FontModule
 export declare function Oranienbaum(options: {
@@ -10536,6 +11881,7 @@ export declare function Oranienbaum(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Orbitron(options?: {
   weight?: '400' | '500' | '600' | '700' | '800' | '900' | 'variable'
@@ -10545,6 +11891,7 @@ export declare function Orbitron(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Oregano(options: {
   weight: '400'
@@ -10554,6 +11901,7 @@ export declare function Oregano(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Orelega_One(options: {
   weight: '400'
@@ -10563,6 +11911,7 @@ export declare function Orelega_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Orienta(options: {
   weight: '400'
@@ -10572,6 +11921,7 @@ export declare function Orienta(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Original_Surfer(options: {
   weight: '400'
@@ -10581,6 +11931,7 @@ export declare function Original_Surfer(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Oswald(options?: {
   weight?: '200' | '300' | '400' | '500' | '600' | '700' | 'variable'
@@ -10590,6 +11941,9 @@ export declare function Oswald(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): FontModule
 export declare function Outfit(options?: {
   weight?:
@@ -10609,6 +11963,7 @@ export declare function Outfit(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Over_the_Rainbow(options: {
   weight: '400'
@@ -10618,6 +11973,7 @@ export declare function Over_the_Rainbow(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Overlock(options: {
   weight: '400' | '700' | '900'
@@ -10627,6 +11983,7 @@ export declare function Overlock(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Overlock_SC(options: {
   weight: '400'
@@ -10636,6 +11993,7 @@ export declare function Overlock_SC(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Overpass(options?: {
   weight?:
@@ -10655,6 +12013,9 @@ export declare function Overpass(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): FontModule
 export declare function Overpass_Mono(options?: {
   weight?: '300' | '400' | '500' | '600' | '700' | 'variable'
@@ -10664,6 +12025,9 @@ export declare function Overpass_Mono(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): FontModule
 export declare function Ovo(options: {
   weight: '400'
@@ -10673,6 +12037,7 @@ export declare function Ovo(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Oxanium(options?: {
   weight?: '200' | '300' | '400' | '500' | '600' | '700' | '800' | 'variable'
@@ -10682,6 +12047,7 @@ export declare function Oxanium(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Oxygen(options: {
   weight: '300' | '400' | '700'
@@ -10691,6 +12057,7 @@ export declare function Oxygen(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Oxygen_Mono(options: {
   weight: '400'
@@ -10700,6 +12067,7 @@ export declare function Oxygen_Mono(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function PT_Mono(options: {
   weight: '400'
@@ -10709,6 +12077,7 @@ export declare function PT_Mono(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function PT_Sans(options: {
   weight: '400' | '700'
@@ -10718,6 +12087,7 @@ export declare function PT_Sans(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function PT_Sans_Caption(options: {
   weight: '400' | '700'
@@ -10727,6 +12097,7 @@ export declare function PT_Sans_Caption(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function PT_Sans_Narrow(options: {
   weight: '400' | '700'
@@ -10736,6 +12107,7 @@ export declare function PT_Sans_Narrow(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function PT_Serif(options: {
   weight: '400' | '700'
@@ -10745,6 +12117,7 @@ export declare function PT_Serif(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function PT_Serif_Caption(options: {
   weight: '400'
@@ -10754,6 +12127,7 @@ export declare function PT_Serif_Caption(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Pacifico(options: {
   weight: '400'
@@ -10763,6 +12137,9 @@ export declare function Pacifico(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): FontModule
 export declare function Padauk(options: {
   weight: '400' | '700'
@@ -10772,6 +12149,7 @@ export declare function Padauk(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'myanmar'>
 }): FontModule
 export declare function Palanquin(options: {
   weight: '100' | '200' | '300' | '400' | '500' | '600' | '700'
@@ -10781,6 +12159,7 @@ export declare function Palanquin(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Palanquin_Dark(options: {
   weight: '400' | '500' | '600' | '700'
@@ -10790,6 +12169,7 @@ export declare function Palanquin_Dark(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Pangolin(options: {
   weight: '400'
@@ -10799,6 +12179,9 @@ export declare function Pangolin(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): FontModule
 export declare function Paprika(options: {
   weight: '400'
@@ -10808,6 +12191,7 @@ export declare function Paprika(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Parisienne(options: {
   weight: '400'
@@ -10817,6 +12201,7 @@ export declare function Parisienne(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Passero_One(options: {
   weight: '400'
@@ -10826,6 +12211,7 @@ export declare function Passero_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Passion_One(options: {
   weight: '400' | '700' | '900'
@@ -10835,6 +12221,7 @@ export declare function Passion_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Passions_Conflict(options: {
   weight: '400'
@@ -10844,6 +12231,7 @@ export declare function Passions_Conflict(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Pathway_Gothic_One(options: {
   weight: '400'
@@ -10853,6 +12241,7 @@ export declare function Pathway_Gothic_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Patrick_Hand(options: {
   weight: '400'
@@ -10862,6 +12251,7 @@ export declare function Patrick_Hand(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Patrick_Hand_SC(options: {
   weight: '400'
@@ -10871,6 +12261,7 @@ export declare function Patrick_Hand_SC(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Pattaya(options: {
   weight: '400'
@@ -10880,6 +12271,7 @@ export declare function Pattaya(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): FontModule
 export declare function Patua_One(options: {
   weight: '400'
@@ -10889,6 +12281,7 @@ export declare function Patua_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Pavanam(options: {
   weight: '400'
@@ -10898,6 +12291,7 @@ export declare function Pavanam(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'tamil'>
 }): FontModule
 export declare function Paytone_One(options: {
   weight: '400'
@@ -10907,6 +12301,7 @@ export declare function Paytone_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Peddana(options: {
   weight: '400'
@@ -10916,6 +12311,7 @@ export declare function Peddana(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'telugu'>
 }): FontModule
 export declare function Peralta(options: {
   weight: '400'
@@ -10925,6 +12321,7 @@ export declare function Peralta(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Permanent_Marker(options: {
   weight: '400'
@@ -10934,6 +12331,7 @@ export declare function Permanent_Marker(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Petemoss(options: {
   weight: '400'
@@ -10943,6 +12341,7 @@ export declare function Petemoss(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Petit_Formal_Script(options: {
   weight: '400'
@@ -10952,6 +12351,7 @@ export declare function Petit_Formal_Script(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Petrona(options?: {
   weight?:
@@ -10971,6 +12371,7 @@ export declare function Petrona(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Philosopher(options: {
   weight: '400' | '700'
@@ -10980,6 +12381,7 @@ export declare function Philosopher(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'vietnamese'>
 }): FontModule
 export declare function Piazzolla(options?: {
   weight?:
@@ -10999,6 +12401,15 @@ export declare function Piazzolla(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    | 'cyrillic'
+    | 'cyrillic-ext'
+    | 'greek'
+    | 'greek-ext'
+    | 'latin'
+    | 'latin-ext'
+    | 'vietnamese'
+  >
   axes?: 'opsz'[]
 }): FontModule
 export declare function Piedra(options: {
@@ -11009,6 +12420,7 @@ export declare function Piedra(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Pinyon_Script(options: {
   weight: '400'
@@ -11018,6 +12430,7 @@ export declare function Pinyon_Script(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Pirata_One(options: {
   weight: '400'
@@ -11027,6 +12440,7 @@ export declare function Pirata_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Plaster(options: {
   weight: '400'
@@ -11036,6 +12450,7 @@ export declare function Plaster(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Play(options: {
   weight: '400' | '700'
@@ -11045,6 +12460,9 @@ export declare function Play(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'greek' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): FontModule
 export declare function Playball(options: {
   weight: '400'
@@ -11054,6 +12472,7 @@ export declare function Playball(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Playfair_Display(options?: {
   weight?: '400' | '500' | '600' | '700' | '800' | '900' | 'variable'
@@ -11063,6 +12482,7 @@ export declare function Playfair_Display(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Playfair_Display_SC(options: {
   weight: '400' | '700' | '900'
@@ -11072,6 +12492,7 @@ export declare function Playfair_Display_SC(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Plus_Jakarta_Sans(options?: {
   weight?: '200' | '300' | '400' | '500' | '600' | '700' | '800' | 'variable'
@@ -11081,6 +12502,7 @@ export declare function Plus_Jakarta_Sans(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Podkova(options?: {
   weight?: '400' | '500' | '600' | '700' | '800' | 'variable'
@@ -11090,6 +12512,9 @@ export declare function Podkova(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): FontModule
 export declare function Poiret_One(options: {
   weight: '400'
@@ -11099,6 +12524,7 @@ export declare function Poiret_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Poller_One(options: {
   weight: '400'
@@ -11108,6 +12534,7 @@ export declare function Poller_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Poly(options: {
   weight: '400'
@@ -11117,6 +12544,7 @@ export declare function Poly(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Pompiere(options: {
   weight: '400'
@@ -11126,6 +12554,7 @@ export declare function Pompiere(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Pontano_Sans(options: {
   weight: '400'
@@ -11135,6 +12564,7 @@ export declare function Pontano_Sans(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Poor_Story(options: {
   weight: '400'
@@ -11144,6 +12574,7 @@ export declare function Poor_Story(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'korean' | 'latin'>
 }): FontModule
 export declare function Poppins(options: {
   weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
@@ -11153,6 +12584,7 @@ export declare function Poppins(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Port_Lligat_Sans(options: {
   weight: '400'
@@ -11162,6 +12594,7 @@ export declare function Port_Lligat_Sans(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Port_Lligat_Slab(options: {
   weight: '400'
@@ -11171,6 +12604,7 @@ export declare function Port_Lligat_Slab(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Potta_One(options: {
   weight: '400'
@@ -11180,6 +12614,7 @@ export declare function Potta_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'japanese' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Pragati_Narrow(options: {
   weight: '400' | '700'
@@ -11189,6 +12624,7 @@ export declare function Pragati_Narrow(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Praise(options: {
   weight: '400'
@@ -11198,6 +12634,7 @@ export declare function Praise(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Prata(options: {
   weight: '400'
@@ -11207,6 +12644,7 @@ export declare function Prata(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'vietnamese'>
 }): FontModule
 export declare function Preahvihear(options: {
   weight: '400'
@@ -11216,6 +12654,7 @@ export declare function Preahvihear(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'khmer' | 'latin'>
 }): FontModule
 export declare function Press_Start_2P(options: {
   weight: '400'
@@ -11225,6 +12664,7 @@ export declare function Press_Start_2P(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'greek' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Pridi(options: {
   weight: '200' | '300' | '400' | '500' | '600' | '700'
@@ -11234,6 +12674,7 @@ export declare function Pridi(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): FontModule
 export declare function Princess_Sofia(options: {
   weight: '400'
@@ -11243,6 +12684,7 @@ export declare function Princess_Sofia(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Prociono(options: {
   weight: '400'
@@ -11252,6 +12694,7 @@ export declare function Prociono(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Prompt(options: {
   weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
@@ -11261,6 +12704,7 @@ export declare function Prompt(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): FontModule
 export declare function Prosto_One(options: {
   weight: '400'
@@ -11270,6 +12714,7 @@ export declare function Prosto_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Proza_Libre(options: {
   weight: '400' | '500' | '600' | '700' | '800'
@@ -11279,6 +12724,7 @@ export declare function Proza_Libre(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Public_Sans(options?: {
   weight?:
@@ -11298,6 +12744,7 @@ export declare function Public_Sans(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Puppies_Play(options: {
   weight: '400'
@@ -11307,6 +12754,7 @@ export declare function Puppies_Play(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Puritan(options: {
   weight: '400' | '700'
@@ -11316,6 +12764,7 @@ export declare function Puritan(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Purple_Purse(options: {
   weight: '400'
@@ -11325,6 +12774,7 @@ export declare function Purple_Purse(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Qahiri(options: {
   weight: '400'
@@ -11334,6 +12784,7 @@ export declare function Qahiri(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'arabic' | 'latin'>
 }): FontModule
 export declare function Quando(options: {
   weight: '400'
@@ -11343,6 +12794,7 @@ export declare function Quando(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Quantico(options: {
   weight: '400' | '700'
@@ -11352,6 +12804,7 @@ export declare function Quantico(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Quattrocento(options: {
   weight: '400' | '700'
@@ -11361,6 +12814,7 @@ export declare function Quattrocento(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Quattrocento_Sans(options: {
   weight: '400' | '700'
@@ -11370,6 +12824,7 @@ export declare function Quattrocento_Sans(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Questrial(options: {
   weight: '400'
@@ -11379,6 +12834,7 @@ export declare function Questrial(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Quicksand(options?: {
   weight?: '300' | '400' | '500' | '600' | '700' | 'variable'
@@ -11388,6 +12844,7 @@ export declare function Quicksand(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Quintessential(options: {
   weight: '400'
@@ -11397,6 +12854,7 @@ export declare function Quintessential(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Qwigley(options: {
   weight: '400'
@@ -11406,6 +12864,7 @@ export declare function Qwigley(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Qwitcher_Grypen(options: {
   weight: '400' | '700'
@@ -11415,6 +12874,7 @@ export declare function Qwitcher_Grypen(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Racing_Sans_One(options: {
   weight: '400'
@@ -11424,6 +12884,7 @@ export declare function Racing_Sans_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Radio_Canada(options?: {
   weight?: '300' | '400' | '500' | '600' | '700' | 'variable'
@@ -11433,6 +12894,7 @@ export declare function Radio_Canada(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
   axes?: 'wdth'[]
 }): FontModule
 export declare function Radley(options: {
@@ -11443,6 +12905,7 @@ export declare function Radley(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Rajdhani(options: {
   weight: '300' | '400' | '500' | '600' | '700'
@@ -11452,6 +12915,7 @@ export declare function Rajdhani(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Rakkas(options: {
   weight: '400'
@@ -11461,6 +12925,7 @@ export declare function Rakkas(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Raleway(options?: {
   weight?:
@@ -11480,6 +12945,9 @@ export declare function Raleway(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): FontModule
 export declare function Raleway_Dots(options: {
   weight: '400'
@@ -11489,6 +12957,7 @@ export declare function Raleway_Dots(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Ramabhadra(options: {
   weight: '400'
@@ -11498,6 +12967,7 @@ export declare function Ramabhadra(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'telugu'>
 }): FontModule
 export declare function Ramaraja(options: {
   weight: '400'
@@ -11507,6 +12977,7 @@ export declare function Ramaraja(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'telugu'>
 }): FontModule
 export declare function Rambla(options: {
   weight: '400' | '700'
@@ -11516,6 +12987,7 @@ export declare function Rambla(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Rammetto_One(options: {
   weight: '400'
@@ -11525,6 +12997,7 @@ export declare function Rammetto_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Rampart_One(options: {
   weight: '400'
@@ -11534,6 +13007,7 @@ export declare function Rampart_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Ranchers(options: {
   weight: '400'
@@ -11543,6 +13017,7 @@ export declare function Ranchers(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Rancho(options: {
   weight: '400'
@@ -11552,6 +13027,7 @@ export declare function Rancho(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Ranga(options: {
   weight: '400' | '700'
@@ -11561,6 +13037,7 @@ export declare function Ranga(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Rasa(options?: {
   weight?: '300' | '400' | '500' | '600' | '700' | 'variable'
@@ -11570,6 +13047,7 @@ export declare function Rasa(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'gujarati' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Rationale(options: {
   weight: '400'
@@ -11579,6 +13057,7 @@ export declare function Rationale(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Ravi_Prakash(options: {
   weight: '400'
@@ -11588,6 +13067,7 @@ export declare function Ravi_Prakash(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'telugu'>
 }): FontModule
 export declare function Readex_Pro(options?: {
   weight?: '200' | '300' | '400' | '500' | '600' | '700' | 'variable'
@@ -11597,6 +13077,7 @@ export declare function Readex_Pro(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'arabic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Recursive(options?: {
   weight?:
@@ -11615,6 +13096,7 @@ export declare function Recursive(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'>
   axes?: ('CASL' | 'CRSV' | 'MONO' | 'slnt')[]
 }): FontModule
 export declare function Red_Hat_Display(options?: {
@@ -11625,6 +13107,7 @@ export declare function Red_Hat_Display(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Red_Hat_Mono(options?: {
   weight?: '300' | '400' | '500' | '600' | '700' | 'variable'
@@ -11634,6 +13117,7 @@ export declare function Red_Hat_Mono(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Red_Hat_Text(options?: {
   weight?: '300' | '400' | '500' | '600' | '700' | 'variable'
@@ -11643,6 +13127,7 @@ export declare function Red_Hat_Text(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Red_Rose(options?: {
   weight?: '300' | '400' | '500' | '600' | '700' | 'variable'
@@ -11652,6 +13137,7 @@ export declare function Red_Rose(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Redacted(options: {
   weight: '400'
@@ -11661,6 +13147,7 @@ export declare function Redacted(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Redacted_Script(options: {
   weight: '300' | '400' | '700'
@@ -11670,6 +13157,7 @@ export declare function Redacted_Script(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Redressed(options: {
   weight: '400'
@@ -11679,6 +13167,7 @@ export declare function Redressed(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Reem_Kufi(options?: {
   weight?: '400' | '500' | '600' | '700' | 'variable'
@@ -11688,6 +13177,7 @@ export declare function Reem_Kufi(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'arabic' | 'latin'>
 }): FontModule
 export declare function Reem_Kufi_Fun(options?: {
   weight?: '400' | '500' | '600' | '700' | 'variable'
@@ -11697,6 +13187,7 @@ export declare function Reem_Kufi_Fun(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'arabic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Reem_Kufi_Ink(options: {
   weight: '400'
@@ -11706,6 +13197,7 @@ export declare function Reem_Kufi_Ink(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'arabic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Reenie_Beanie(options: {
   weight: '400'
@@ -11715,6 +13207,7 @@ export declare function Reenie_Beanie(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Reggae_One(options: {
   weight: '400'
@@ -11724,6 +13217,7 @@ export declare function Reggae_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Revalia(options: {
   weight: '400'
@@ -11733,6 +13227,7 @@ export declare function Revalia(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Rhodium_Libre(options: {
   weight: '400'
@@ -11742,6 +13237,7 @@ export declare function Rhodium_Libre(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Ribeye(options: {
   weight: '400'
@@ -11751,6 +13247,7 @@ export declare function Ribeye(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Ribeye_Marrow(options: {
   weight: '400'
@@ -11760,6 +13257,7 @@ export declare function Ribeye_Marrow(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Righteous(options: {
   weight: '400'
@@ -11769,6 +13267,7 @@ export declare function Righteous(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Risque(options: {
   weight: '400'
@@ -11778,6 +13277,7 @@ export declare function Risque(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Road_Rage(options: {
   weight: '400'
@@ -11787,6 +13287,7 @@ export declare function Road_Rage(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Roboto(options: {
   weight: '100' | '300' | '400' | '500' | '700' | '900'
@@ -11796,6 +13297,15 @@ export declare function Roboto(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    | 'cyrillic'
+    | 'cyrillic-ext'
+    | 'greek'
+    | 'greek-ext'
+    | 'latin'
+    | 'latin-ext'
+    | 'vietnamese'
+  >
 }): FontModule
 export declare function Roboto_Condensed(options: {
   weight: '300' | '400' | '700'
@@ -11805,6 +13315,15 @@ export declare function Roboto_Condensed(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    | 'cyrillic'
+    | 'cyrillic-ext'
+    | 'greek'
+    | 'greek-ext'
+    | 'latin'
+    | 'latin-ext'
+    | 'vietnamese'
+  >
 }): FontModule
 export declare function Roboto_Flex(options?: {
   weight?:
@@ -11825,6 +13344,9 @@ export declare function Roboto_Flex(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'greek' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
   axes?: (
     | 'GRAD'
     | 'XTRA'
@@ -11847,6 +13369,9 @@ export declare function Roboto_Mono(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'greek' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): FontModule
 export declare function Roboto_Serif(options?: {
   weight?:
@@ -11866,6 +13391,7 @@ export declare function Roboto_Serif(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'>
   axes?: ('GRAD' | 'opsz' | 'wdth')[]
 }): FontModule
 export declare function Roboto_Slab(options?: {
@@ -11886,6 +13412,15 @@ export declare function Roboto_Slab(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    | 'cyrillic'
+    | 'cyrillic-ext'
+    | 'greek'
+    | 'greek-ext'
+    | 'latin'
+    | 'latin-ext'
+    | 'vietnamese'
+  >
 }): FontModule
 export declare function Rochester(options: {
   weight: '400'
@@ -11895,6 +13430,7 @@ export declare function Rochester(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Rock_Salt(options: {
   weight: '400'
@@ -11904,6 +13440,7 @@ export declare function Rock_Salt(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function RocknRoll_One(options: {
   weight: '400'
@@ -11913,6 +13450,7 @@ export declare function RocknRoll_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Rokkitt(options?: {
   weight?:
@@ -11932,6 +13470,7 @@ export declare function Rokkitt(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Romanesco(options: {
   weight: '400'
@@ -11941,6 +13480,7 @@ export declare function Romanesco(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Ropa_Sans(options: {
   weight: '400'
@@ -11950,6 +13490,7 @@ export declare function Ropa_Sans(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Rosario(options?: {
   weight?: '300' | '400' | '500' | '600' | '700' | 'variable'
@@ -11959,6 +13500,7 @@ export declare function Rosario(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Rosarivo(options: {
   weight: '400'
@@ -11968,6 +13510,7 @@ export declare function Rosarivo(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Rouge_Script(options: {
   weight: '400'
@@ -11977,6 +13520,7 @@ export declare function Rouge_Script(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Rowdies(options: {
   weight: '300' | '400' | '700'
@@ -11986,6 +13530,7 @@ export declare function Rowdies(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Rozha_One(options: {
   weight: '400'
@@ -11995,6 +13540,7 @@ export declare function Rozha_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Rubik(options?: {
   weight?: '300' | '400' | '500' | '600' | '700' | '800' | '900' | 'variable'
@@ -12004,6 +13550,9 @@ export declare function Rubik(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'hebrew' | 'latin' | 'latin-ext'
+  >
 }): FontModule
 export declare function Rubik_Beastly(options: {
   weight: '400'
@@ -12013,6 +13562,9 @@ export declare function Rubik_Beastly(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'hebrew' | 'latin' | 'latin-ext'
+  >
 }): FontModule
 export declare function Rubik_Bubbles(options: {
   weight: '400'
@@ -12022,6 +13574,9 @@ export declare function Rubik_Bubbles(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'hebrew' | 'latin' | 'latin-ext'
+  >
 }): FontModule
 export declare function Rubik_Burned(options: {
   weight: '400'
@@ -12031,6 +13586,9 @@ export declare function Rubik_Burned(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'hebrew' | 'latin' | 'latin-ext'
+  >
 }): FontModule
 export declare function Rubik_Dirt(options: {
   weight: '400'
@@ -12040,6 +13598,9 @@ export declare function Rubik_Dirt(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'hebrew' | 'latin' | 'latin-ext'
+  >
 }): FontModule
 export declare function Rubik_Distressed(options: {
   weight: '400'
@@ -12049,6 +13610,9 @@ export declare function Rubik_Distressed(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'hebrew' | 'latin' | 'latin-ext'
+  >
 }): FontModule
 export declare function Rubik_Glitch(options: {
   weight: '400'
@@ -12058,6 +13622,9 @@ export declare function Rubik_Glitch(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'hebrew' | 'latin' | 'latin-ext'
+  >
 }): FontModule
 export declare function Rubik_Iso(options: {
   weight: '400'
@@ -12067,6 +13634,9 @@ export declare function Rubik_Iso(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'hebrew' | 'latin' | 'latin-ext'
+  >
 }): FontModule
 export declare function Rubik_Marker_Hatch(options: {
   weight: '400'
@@ -12076,6 +13646,9 @@ export declare function Rubik_Marker_Hatch(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'hebrew' | 'latin' | 'latin-ext'
+  >
 }): FontModule
 export declare function Rubik_Maze(options: {
   weight: '400'
@@ -12085,6 +13658,9 @@ export declare function Rubik_Maze(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'hebrew' | 'latin' | 'latin-ext'
+  >
 }): FontModule
 export declare function Rubik_Microbe(options: {
   weight: '400'
@@ -12094,6 +13670,9 @@ export declare function Rubik_Microbe(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'hebrew' | 'latin' | 'latin-ext'
+  >
 }): FontModule
 export declare function Rubik_Mono_One(options: {
   weight: '400'
@@ -12103,6 +13682,7 @@ export declare function Rubik_Mono_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Rubik_Moonrocks(options: {
   weight: '400'
@@ -12112,6 +13692,9 @@ export declare function Rubik_Moonrocks(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'hebrew' | 'latin' | 'latin-ext'
+  >
 }): FontModule
 export declare function Rubik_Puddles(options: {
   weight: '400'
@@ -12121,6 +13704,9 @@ export declare function Rubik_Puddles(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'hebrew' | 'latin' | 'latin-ext'
+  >
 }): FontModule
 export declare function Rubik_Wet_Paint(options: {
   weight: '400'
@@ -12130,6 +13716,9 @@ export declare function Rubik_Wet_Paint(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'hebrew' | 'latin' | 'latin-ext'
+  >
 }): FontModule
 export declare function Ruda(options?: {
   weight?: '400' | '500' | '600' | '700' | '800' | '900' | 'variable'
@@ -12139,6 +13728,7 @@ export declare function Ruda(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Rufina(options: {
   weight: '400' | '700'
@@ -12148,6 +13738,7 @@ export declare function Rufina(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Ruge_Boogie(options: {
   weight: '400'
@@ -12157,6 +13748,7 @@ export declare function Ruge_Boogie(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Ruluko(options: {
   weight: '400'
@@ -12166,6 +13758,7 @@ export declare function Ruluko(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Rum_Raisin(options: {
   weight: '400'
@@ -12175,6 +13768,7 @@ export declare function Rum_Raisin(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Ruslan_Display(options: {
   weight: '400'
@@ -12184,6 +13778,7 @@ export declare function Ruslan_Display(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Russo_One(options: {
   weight: '400'
@@ -12193,6 +13788,7 @@ export declare function Russo_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Ruthie(options: {
   weight: '400'
@@ -12202,6 +13798,7 @@ export declare function Ruthie(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Rye(options: {
   weight: '400'
@@ -12211,6 +13808,7 @@ export declare function Rye(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function STIX_Two_Text(options?: {
   weight?: '400' | '500' | '600' | '700' | 'variable'
@@ -12220,6 +13818,9 @@ export declare function STIX_Two_Text(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'greek' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): FontModule
 export declare function Sacramento(options: {
   weight: '400'
@@ -12229,6 +13830,7 @@ export declare function Sacramento(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Sahitya(options: {
   weight: '400' | '700'
@@ -12238,6 +13840,7 @@ export declare function Sahitya(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'devanagari' | 'latin'>
 }): FontModule
 export declare function Sail(options: {
   weight: '400'
@@ -12247,6 +13850,7 @@ export declare function Sail(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Saira(options?: {
   weight?:
@@ -12266,6 +13870,7 @@ export declare function Saira(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
   axes?: 'wdth'[]
 }): FontModule
 export declare function Saira_Condensed(options: {
@@ -12276,6 +13881,7 @@ export declare function Saira_Condensed(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Saira_Extra_Condensed(options: {
   weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
@@ -12285,6 +13891,7 @@ export declare function Saira_Extra_Condensed(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Saira_Semi_Condensed(options: {
   weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
@@ -12294,6 +13901,7 @@ export declare function Saira_Semi_Condensed(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Saira_Stencil_One(options: {
   weight: '400'
@@ -12303,6 +13911,7 @@ export declare function Saira_Stencil_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Salsa(options: {
   weight: '400'
@@ -12312,6 +13921,7 @@ export declare function Salsa(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Sanchez(options: {
   weight: '400'
@@ -12321,6 +13931,7 @@ export declare function Sanchez(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Sancreek(options: {
   weight: '400'
@@ -12330,6 +13941,7 @@ export declare function Sancreek(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Sansita(options: {
   weight: '400' | '700' | '800' | '900'
@@ -12339,6 +13951,7 @@ export declare function Sansita(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Sansita_Swashed(options?: {
   weight?: '300' | '400' | '500' | '600' | '700' | '800' | '900' | 'variable'
@@ -12348,6 +13961,7 @@ export declare function Sansita_Swashed(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Sarabun(options: {
   weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800'
@@ -12357,6 +13971,7 @@ export declare function Sarabun(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): FontModule
 export declare function Sarala(options: {
   weight: '400' | '700'
@@ -12366,6 +13981,7 @@ export declare function Sarala(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Sarina(options: {
   weight: '400'
@@ -12375,6 +13991,7 @@ export declare function Sarina(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Sarpanch(options: {
   weight: '400' | '500' | '600' | '700' | '800' | '900'
@@ -12384,6 +14001,7 @@ export declare function Sarpanch(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Sassy_Frass(options: {
   weight: '400'
@@ -12393,6 +14011,7 @@ export declare function Sassy_Frass(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Satisfy(options: {
   weight: '400'
@@ -12402,6 +14021,7 @@ export declare function Satisfy(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Sawarabi_Gothic(options: {
   weight: '400'
@@ -12411,6 +14031,9 @@ export declare function Sawarabi_Gothic(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'japanese' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): FontModule
 export declare function Sawarabi_Mincho(options: {
   weight: '400'
@@ -12420,6 +14043,7 @@ export declare function Sawarabi_Mincho(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Scada(options: {
   weight: '400' | '700'
@@ -12429,6 +14053,7 @@ export declare function Scada(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Scheherazade_New(options: {
   weight: '400' | '700'
@@ -12438,6 +14063,7 @@ export declare function Scheherazade_New(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Schoolbell(options: {
   weight: '400'
@@ -12447,6 +14073,7 @@ export declare function Schoolbell(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Scope_One(options: {
   weight: '400'
@@ -12456,6 +14083,7 @@ export declare function Scope_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Seaweed_Script(options: {
   weight: '400'
@@ -12465,6 +14093,7 @@ export declare function Seaweed_Script(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Secular_One(options: {
   weight: '400'
@@ -12474,6 +14103,7 @@ export declare function Secular_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'hebrew' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Sedgwick_Ave(options: {
   weight: '400'
@@ -12483,6 +14113,7 @@ export declare function Sedgwick_Ave(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Sedgwick_Ave_Display(options: {
   weight: '400'
@@ -12492,6 +14123,7 @@ export declare function Sedgwick_Ave_Display(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Sen(options: {
   weight: '400' | '700' | '800'
@@ -12501,6 +14133,7 @@ export declare function Sen(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Send_Flowers(options: {
   weight: '400'
@@ -12510,6 +14143,7 @@ export declare function Send_Flowers(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Sevillana(options: {
   weight: '400'
@@ -12519,6 +14153,7 @@ export declare function Sevillana(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Seymour_One(options: {
   weight: '400'
@@ -12528,6 +14163,7 @@ export declare function Seymour_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Shadows_Into_Light(options: {
   weight: '400'
@@ -12537,6 +14173,7 @@ export declare function Shadows_Into_Light(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Shadows_Into_Light_Two(options: {
   weight: '400'
@@ -12546,6 +14183,7 @@ export declare function Shadows_Into_Light_Two(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Shalimar(options: {
   weight: '400'
@@ -12555,6 +14193,7 @@ export declare function Shalimar(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Shanti(options: {
   weight: '400'
@@ -12564,6 +14203,7 @@ export declare function Shanti(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Share(options: {
   weight: '400' | '700'
@@ -12573,6 +14213,7 @@ export declare function Share(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Share_Tech(options: {
   weight: '400'
@@ -12582,6 +14223,7 @@ export declare function Share_Tech(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Share_Tech_Mono(options: {
   weight: '400'
@@ -12591,6 +14233,7 @@ export declare function Share_Tech_Mono(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Shippori_Antique(options: {
   weight: '400'
@@ -12600,6 +14243,7 @@ export declare function Shippori_Antique(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Shippori_Antique_B1(options: {
   weight: '400'
@@ -12609,6 +14253,7 @@ export declare function Shippori_Antique_B1(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Shippori_Mincho(options: {
   weight: '400' | '500' | '600' | '700' | '800'
@@ -12618,6 +14263,7 @@ export declare function Shippori_Mincho(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Shippori_Mincho_B1(options: {
   weight: '400' | '500' | '600' | '700' | '800'
@@ -12627,6 +14273,7 @@ export declare function Shippori_Mincho_B1(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Shojumaru(options: {
   weight: '400'
@@ -12636,6 +14283,7 @@ export declare function Shojumaru(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Short_Stack(options: {
   weight: '400'
@@ -12645,6 +14293,7 @@ export declare function Short_Stack(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Shrikhand(options: {
   weight: '400'
@@ -12654,6 +14303,7 @@ export declare function Shrikhand(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'gujarati' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Siemreap(options: {
   weight: '400'
@@ -12663,6 +14313,7 @@ export declare function Siemreap(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'khmer'>
 }): FontModule
 export declare function Sigmar_One(options: {
   weight: '400'
@@ -12672,6 +14323,7 @@ export declare function Sigmar_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Signika(options?: {
   weight?: '300' | '400' | '500' | '600' | '700' | 'variable'
@@ -12681,6 +14333,7 @@ export declare function Signika(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Signika_Negative(options?: {
   weight?: '300' | '400' | '500' | '600' | '700' | 'variable'
@@ -12690,6 +14343,7 @@ export declare function Signika_Negative(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Silkscreen(options: {
   weight: '400' | '700'
@@ -12699,6 +14353,7 @@ export declare function Silkscreen(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Simonetta(options: {
   weight: '400' | '900'
@@ -12708,6 +14363,7 @@ export declare function Simonetta(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Single_Day(options: {
   weight: '400'
@@ -12717,6 +14373,7 @@ export declare function Single_Day(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'korean'>
 }): FontModule
 export declare function Sintony(options: {
   weight: '400' | '700'
@@ -12726,6 +14383,7 @@ export declare function Sintony(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Sirin_Stencil(options: {
   weight: '400'
@@ -12735,6 +14393,7 @@ export declare function Sirin_Stencil(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Six_Caps(options: {
   weight: '400'
@@ -12744,6 +14403,7 @@ export declare function Six_Caps(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Skranji(options: {
   weight: '400' | '700'
@@ -12753,6 +14413,7 @@ export declare function Skranji(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Slabo_13px(options: {
   weight: '400'
@@ -12762,6 +14423,7 @@ export declare function Slabo_13px(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Slabo_27px(options: {
   weight: '400'
@@ -12771,6 +14433,7 @@ export declare function Slabo_27px(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Slackey(options: {
   weight: '400'
@@ -12780,6 +14443,7 @@ export declare function Slackey(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Smokum(options: {
   weight: '400'
@@ -12789,6 +14453,7 @@ export declare function Smokum(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Smooch(options: {
   weight: '400'
@@ -12798,6 +14463,7 @@ export declare function Smooch(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Smooch_Sans(options?: {
   weight?:
@@ -12817,6 +14483,7 @@ export declare function Smooch_Sans(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Smythe(options: {
   weight: '400'
@@ -12826,6 +14493,7 @@ export declare function Smythe(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Sniglet(options: {
   weight: '400' | '800'
@@ -12835,6 +14503,7 @@ export declare function Sniglet(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Snippet(options: {
   weight: '400'
@@ -12844,6 +14513,7 @@ export declare function Snippet(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Snowburst_One(options: {
   weight: '400'
@@ -12853,6 +14523,7 @@ export declare function Snowburst_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Sofadi_One(options: {
   weight: '400'
@@ -12862,6 +14533,7 @@ export declare function Sofadi_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Sofia(options: {
   weight: '400'
@@ -12871,6 +14543,7 @@ export declare function Sofia(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Solway(options: {
   weight: '300' | '400' | '500' | '700' | '800'
@@ -12880,6 +14553,7 @@ export declare function Solway(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Song_Myung(options: {
   weight: '400'
@@ -12889,6 +14563,7 @@ export declare function Song_Myung(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'korean' | 'latin'>
 }): FontModule
 export declare function Sonsie_One(options: {
   weight: '400'
@@ -12898,6 +14573,7 @@ export declare function Sonsie_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Sora(options?: {
   weight?:
@@ -12916,6 +14592,7 @@ export declare function Sora(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Sorts_Mill_Goudy(options: {
   weight: '400'
@@ -12925,6 +14602,7 @@ export declare function Sorts_Mill_Goudy(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Source_Code_Pro(options?: {
   weight?:
@@ -12943,6 +14621,15 @@ export declare function Source_Code_Pro(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    | 'cyrillic'
+    | 'cyrillic-ext'
+    | 'greek'
+    | 'greek-ext'
+    | 'latin'
+    | 'latin-ext'
+    | 'vietnamese'
+  >
 }): FontModule
 export declare function Source_Sans_3(options?: {
   weight?:
@@ -12961,6 +14648,15 @@ export declare function Source_Sans_3(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    | 'cyrillic'
+    | 'cyrillic-ext'
+    | 'greek'
+    | 'greek-ext'
+    | 'latin'
+    | 'latin-ext'
+    | 'vietnamese'
+  >
 }): FontModule
 export declare function Source_Sans_Pro(options: {
   weight: '200' | '300' | '400' | '600' | '700' | '900'
@@ -12970,6 +14666,15 @@ export declare function Source_Sans_Pro(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    | 'cyrillic'
+    | 'cyrillic-ext'
+    | 'greek'
+    | 'greek-ext'
+    | 'latin'
+    | 'latin-ext'
+    | 'vietnamese'
+  >
 }): FontModule
 export declare function Source_Serif_4(options?: {
   weight?:
@@ -12988,6 +14693,9 @@ export declare function Source_Serif_4(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'greek' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
   axes?: 'opsz'[]
 }): FontModule
 export declare function Source_Serif_Pro(options: {
@@ -12998,6 +14706,9 @@ export declare function Source_Serif_Pro(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'greek' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): FontModule
 export declare function Space_Grotesk(options?: {
   weight?: '300' | '400' | '500' | '600' | '700' | 'variable'
@@ -13007,6 +14718,7 @@ export declare function Space_Grotesk(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Space_Mono(options: {
   weight: '400' | '700'
@@ -13016,6 +14728,7 @@ export declare function Space_Mono(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Special_Elite(options: {
   weight: '400'
@@ -13025,6 +14738,7 @@ export declare function Special_Elite(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Spectral(options: {
   weight: '200' | '300' | '400' | '500' | '600' | '700' | '800'
@@ -13034,6 +14748,7 @@ export declare function Spectral(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Spectral_SC(options: {
   weight: '200' | '300' | '400' | '500' | '600' | '700' | '800'
@@ -13043,6 +14758,7 @@ export declare function Spectral_SC(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Spicy_Rice(options: {
   weight: '400'
@@ -13052,6 +14768,7 @@ export declare function Spicy_Rice(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Spinnaker(options: {
   weight: '400'
@@ -13061,6 +14778,7 @@ export declare function Spinnaker(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Spirax(options: {
   weight: '400'
@@ -13070,6 +14788,7 @@ export declare function Spirax(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Splash(options: {
   weight: '400'
@@ -13079,6 +14798,7 @@ export declare function Splash(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Spline_Sans(options?: {
   weight?: '300' | '400' | '500' | '600' | '700' | 'variable'
@@ -13088,6 +14808,7 @@ export declare function Spline_Sans(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Spline_Sans_Mono(options?: {
   weight?: '300' | '400' | '500' | '600' | '700' | 'variable'
@@ -13097,6 +14818,7 @@ export declare function Spline_Sans_Mono(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Squada_One(options: {
   weight: '400'
@@ -13106,6 +14828,7 @@ export declare function Squada_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Square_Peg(options: {
   weight: '400'
@@ -13115,6 +14838,7 @@ export declare function Square_Peg(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Sree_Krushnadevaraya(options: {
   weight: '400'
@@ -13124,6 +14848,7 @@ export declare function Sree_Krushnadevaraya(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'telugu'>
 }): FontModule
 export declare function Sriracha(options: {
   weight: '400'
@@ -13133,6 +14858,7 @@ export declare function Sriracha(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): FontModule
 export declare function Srisakdi(options: {
   weight: '400' | '700'
@@ -13142,6 +14868,7 @@ export declare function Srisakdi(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): FontModule
 export declare function Staatliches(options: {
   weight: '400'
@@ -13151,6 +14878,7 @@ export declare function Staatliches(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Stalemate(options: {
   weight: '400'
@@ -13160,6 +14888,7 @@ export declare function Stalemate(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Stalinist_One(options: {
   weight: '400'
@@ -13169,6 +14898,7 @@ export declare function Stalinist_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Stardos_Stencil(options: {
   weight: '400' | '700'
@@ -13178,6 +14908,7 @@ export declare function Stardos_Stencil(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Stick(options: {
   weight: '400'
@@ -13187,6 +14918,7 @@ export declare function Stick(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Stick_No_Bills(options?: {
   weight?: '200' | '300' | '400' | '500' | '600' | '700' | '800' | 'variable'
@@ -13196,6 +14928,7 @@ export declare function Stick_No_Bills(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'sinhala'>
 }): FontModule
 export declare function Stint_Ultra_Condensed(options: {
   weight: '400'
@@ -13205,6 +14938,7 @@ export declare function Stint_Ultra_Condensed(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Stint_Ultra_Expanded(options: {
   weight: '400'
@@ -13214,6 +14948,7 @@ export declare function Stint_Ultra_Expanded(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Stoke(options: {
   weight: '300' | '400'
@@ -13223,6 +14958,7 @@ export declare function Stoke(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Strait(options: {
   weight: '400'
@@ -13232,6 +14968,7 @@ export declare function Strait(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Style_Script(options: {
   weight: '400'
@@ -13241,6 +14978,7 @@ export declare function Style_Script(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Stylish(options: {
   weight: '400'
@@ -13250,6 +14988,7 @@ export declare function Stylish(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'korean' | 'latin'>
 }): FontModule
 export declare function Sue_Ellen_Francisco(options: {
   weight: '400'
@@ -13259,6 +14998,7 @@ export declare function Sue_Ellen_Francisco(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Suez_One(options: {
   weight: '400'
@@ -13268,6 +15008,7 @@ export declare function Suez_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'hebrew' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Sulphur_Point(options: {
   weight: '300' | '400' | '700'
@@ -13277,6 +15018,7 @@ export declare function Sulphur_Point(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Sumana(options: {
   weight: '400' | '700'
@@ -13286,6 +15028,7 @@ export declare function Sumana(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Sunflower(options: {
   weight: '300' | '500' | '700'
@@ -13295,6 +15038,7 @@ export declare function Sunflower(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'korean' | 'latin'>
 }): FontModule
 export declare function Sunshiney(options: {
   weight: '400'
@@ -13304,6 +15048,7 @@ export declare function Sunshiney(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Supermercado_One(options: {
   weight: '400'
@@ -13313,6 +15058,7 @@ export declare function Supermercado_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Sura(options: {
   weight: '400' | '700'
@@ -13322,6 +15068,7 @@ export declare function Sura(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Suranna(options: {
   weight: '400'
@@ -13331,6 +15078,7 @@ export declare function Suranna(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'telugu'>
 }): FontModule
 export declare function Suravaram(options: {
   weight: '400'
@@ -13340,6 +15088,7 @@ export declare function Suravaram(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'telugu'>
 }): FontModule
 export declare function Suwannaphum(options: {
   weight: '100' | '300' | '400' | '700' | '900'
@@ -13349,6 +15098,7 @@ export declare function Suwannaphum(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'khmer' | 'latin'>
 }): FontModule
 export declare function Swanky_and_Moo_Moo(options: {
   weight: '400'
@@ -13358,6 +15108,7 @@ export declare function Swanky_and_Moo_Moo(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Syncopate(options: {
   weight: '400' | '700'
@@ -13367,6 +15118,7 @@ export declare function Syncopate(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Syne(options?: {
   weight?: '400' | '500' | '600' | '700' | '800' | 'variable'
@@ -13376,6 +15128,7 @@ export declare function Syne(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'greek' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Syne_Mono(options: {
   weight: '400'
@@ -13385,6 +15138,7 @@ export declare function Syne_Mono(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Syne_Tactile(options: {
   weight: '400'
@@ -13394,6 +15148,7 @@ export declare function Syne_Tactile(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Tai_Heritage_Pro(options: {
   weight: '400' | '700'
@@ -13403,6 +15158,7 @@ export declare function Tai_Heritage_Pro(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'tai-viet' | 'vietnamese'>
 }): FontModule
 export declare function Tajawal(options: {
   weight: '200' | '300' | '400' | '500' | '700' | '800' | '900'
@@ -13412,6 +15168,7 @@ export declare function Tajawal(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'arabic' | 'latin'>
 }): FontModule
 export declare function Tangerine(options: {
   weight: '400' | '700'
@@ -13421,6 +15178,7 @@ export declare function Tangerine(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Tapestry(options: {
   weight: '400'
@@ -13430,6 +15188,7 @@ export declare function Tapestry(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Taprom(options: {
   weight: '400'
@@ -13439,6 +15198,7 @@ export declare function Taprom(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'khmer' | 'latin'>
 }): FontModule
 export declare function Tauri(options: {
   weight: '400'
@@ -13448,6 +15208,7 @@ export declare function Tauri(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Taviraj(options: {
   weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
@@ -13457,6 +15218,7 @@ export declare function Taviraj(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): FontModule
 export declare function Teko(options: {
   weight: '300' | '400' | '500' | '600' | '700'
@@ -13466,6 +15228,7 @@ export declare function Teko(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Telex(options: {
   weight: '400'
@@ -13475,6 +15238,7 @@ export declare function Telex(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Tenali_Ramakrishna(options: {
   weight: '400'
@@ -13484,6 +15248,7 @@ export declare function Tenali_Ramakrishna(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'telugu'>
 }): FontModule
 export declare function Tenor_Sans(options: {
   weight: '400'
@@ -13493,6 +15258,7 @@ export declare function Tenor_Sans(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Text_Me_One(options: {
   weight: '400'
@@ -13502,6 +15268,7 @@ export declare function Text_Me_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Texturina(options?: {
   weight?:
@@ -13521,6 +15288,7 @@ export declare function Texturina(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
   axes?: 'opsz'[]
 }): FontModule
 export declare function Thasadith(options: {
@@ -13531,6 +15299,7 @@ export declare function Thasadith(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): FontModule
 export declare function The_Girl_Next_Door(options: {
   weight: '400'
@@ -13540,6 +15309,7 @@ export declare function The_Girl_Next_Door(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function The_Nautigal(options: {
   weight: '400' | '700'
@@ -13549,6 +15319,7 @@ export declare function The_Nautigal(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Tienne(options: {
   weight: '400' | '700' | '900'
@@ -13558,6 +15329,7 @@ export declare function Tienne(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Tillana(options: {
   weight: '400' | '500' | '600' | '700' | '800'
@@ -13567,6 +15339,7 @@ export declare function Tillana(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Timmana(options: {
   weight: '400'
@@ -13576,6 +15349,7 @@ export declare function Timmana(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'telugu'>
 }): FontModule
 export declare function Tinos(options: {
   weight: '400' | '700'
@@ -13585,6 +15359,16 @@ export declare function Tinos(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    | 'cyrillic'
+    | 'cyrillic-ext'
+    | 'greek'
+    | 'greek-ext'
+    | 'hebrew'
+    | 'latin'
+    | 'latin-ext'
+    | 'vietnamese'
+  >
 }): FontModule
 export declare function Tiro_Bangla(options: {
   weight: '400'
@@ -13594,6 +15378,7 @@ export declare function Tiro_Bangla(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'bengali' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Tiro_Devanagari_Hindi(options: {
   weight: '400'
@@ -13603,6 +15388,7 @@ export declare function Tiro_Devanagari_Hindi(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Tiro_Devanagari_Marathi(options: {
   weight: '400'
@@ -13612,6 +15398,7 @@ export declare function Tiro_Devanagari_Marathi(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Tiro_Devanagari_Sanskrit(options: {
   weight: '400'
@@ -13621,6 +15408,7 @@ export declare function Tiro_Devanagari_Sanskrit(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Tiro_Gurmukhi(options: {
   weight: '400'
@@ -13630,6 +15418,7 @@ export declare function Tiro_Gurmukhi(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'gurmukhi' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Tiro_Kannada(options: {
   weight: '400'
@@ -13639,6 +15428,7 @@ export declare function Tiro_Kannada(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'kannada' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Tiro_Tamil(options: {
   weight: '400'
@@ -13648,6 +15438,7 @@ export declare function Tiro_Tamil(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'tamil'>
 }): FontModule
 export declare function Tiro_Telugu(options: {
   weight: '400'
@@ -13657,6 +15448,7 @@ export declare function Tiro_Telugu(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'telugu'>
 }): FontModule
 export declare function Titan_One(options: {
   weight: '400'
@@ -13666,6 +15458,7 @@ export declare function Titan_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Titillium_Web(options: {
   weight: '200' | '300' | '400' | '600' | '700' | '900'
@@ -13675,6 +15468,7 @@ export declare function Titillium_Web(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Tomorrow(options: {
   weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
@@ -13684,6 +15478,7 @@ export declare function Tomorrow(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Tourney(options?: {
   weight?:
@@ -13703,6 +15498,7 @@ export declare function Tourney(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
   axes?: 'wdth'[]
 }): FontModule
 export declare function Trade_Winds(options: {
@@ -13713,6 +15509,7 @@ export declare function Trade_Winds(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Train_One(options: {
   weight: '400'
@@ -13722,6 +15519,7 @@ export declare function Train_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Trirong(options: {
   weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
@@ -13731,6 +15529,7 @@ export declare function Trirong(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): FontModule
 export declare function Trispace(options?: {
   weight?:
@@ -13749,6 +15548,7 @@ export declare function Trispace(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
   axes?: 'wdth'[]
 }): FontModule
 export declare function Trocchi(options: {
@@ -13759,6 +15559,7 @@ export declare function Trocchi(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Trochut(options: {
   weight: '400' | '700'
@@ -13768,6 +15569,7 @@ export declare function Trochut(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Truculenta(options?: {
   weight?:
@@ -13787,6 +15589,7 @@ export declare function Truculenta(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
   axes?: ('opsz' | 'wdth')[]
 }): FontModule
 export declare function Trykker(options: {
@@ -13797,6 +15600,7 @@ export declare function Trykker(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Tulpen_One(options: {
   weight: '400'
@@ -13806,6 +15610,7 @@ export declare function Tulpen_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Turret_Road(options: {
   weight: '200' | '300' | '400' | '500' | '700' | '800'
@@ -13815,6 +15620,7 @@ export declare function Turret_Road(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Twinkle_Star(options: {
   weight: '400'
@@ -13824,6 +15630,7 @@ export declare function Twinkle_Star(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Ubuntu(options: {
   weight: '300' | '400' | '500' | '700'
@@ -13833,6 +15640,9 @@ export declare function Ubuntu(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'greek' | 'greek-ext' | 'latin' | 'latin-ext'
+  >
 }): FontModule
 export declare function Ubuntu_Condensed(options: {
   weight: '400'
@@ -13842,6 +15652,9 @@ export declare function Ubuntu_Condensed(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'greek' | 'greek-ext' | 'latin' | 'latin-ext'
+  >
 }): FontModule
 export declare function Ubuntu_Mono(options: {
   weight: '400' | '700'
@@ -13851,6 +15664,9 @@ export declare function Ubuntu_Mono(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'greek' | 'greek-ext' | 'latin' | 'latin-ext'
+  >
 }): FontModule
 export declare function Uchen(options: {
   weight: '400'
@@ -13860,6 +15676,7 @@ export declare function Uchen(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'tibetan'>
 }): FontModule
 export declare function Ultra(options: {
   weight: '400'
@@ -13869,6 +15686,7 @@ export declare function Ultra(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Uncial_Antiqua(options: {
   weight: '400'
@@ -13878,6 +15696,7 @@ export declare function Uncial_Antiqua(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Underdog(options: {
   weight: '400'
@@ -13887,6 +15706,7 @@ export declare function Underdog(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Unica_One(options: {
   weight: '400'
@@ -13896,6 +15716,7 @@ export declare function Unica_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function UnifrakturCook(options: {
   weight: '700'
@@ -13905,6 +15726,7 @@ export declare function UnifrakturCook(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function UnifrakturMaguntia(options: {
   weight: '400'
@@ -13914,6 +15736,7 @@ export declare function UnifrakturMaguntia(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Unkempt(options: {
   weight: '400' | '700'
@@ -13923,6 +15746,7 @@ export declare function Unkempt(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Unlock(options: {
   weight: '400'
@@ -13932,6 +15756,7 @@ export declare function Unlock(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Unna(options: {
   weight: '400' | '700'
@@ -13941,6 +15766,7 @@ export declare function Unna(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Updock(options: {
   weight: '400'
@@ -13950,6 +15776,7 @@ export declare function Updock(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Urbanist(options?: {
   weight?:
@@ -13969,6 +15796,7 @@ export declare function Urbanist(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function VT323(options: {
   weight: '400'
@@ -13978,6 +15806,7 @@ export declare function VT323(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Vampiro_One(options: {
   weight: '400'
@@ -13987,6 +15816,7 @@ export declare function Vampiro_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Varela(options: {
   weight: '400'
@@ -13996,6 +15826,7 @@ export declare function Varela(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Varela_Round(options: {
   weight: '400'
@@ -14005,6 +15836,7 @@ export declare function Varela_Round(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'hebrew' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Varta(options?: {
   weight?: '300' | '400' | '500' | '600' | '700' | 'variable'
@@ -14014,6 +15846,7 @@ export declare function Varta(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Vast_Shadow(options: {
   weight: '400'
@@ -14023,6 +15856,7 @@ export declare function Vast_Shadow(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Vazirmatn(options?: {
   weight?:
@@ -14042,6 +15876,7 @@ export declare function Vazirmatn(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Vesper_Libre(options: {
   weight: '400' | '500' | '700' | '900'
@@ -14051,6 +15886,7 @@ export declare function Vesper_Libre(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Viaoda_Libre(options: {
   weight: '400'
@@ -14060,6 +15896,9 @@ export declare function Viaoda_Libre(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): FontModule
 export declare function Vibes(options: {
   weight: '400'
@@ -14069,6 +15908,7 @@ export declare function Vibes(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'arabic' | 'latin'>
 }): FontModule
 export declare function Vibur(options: {
   weight: '400'
@@ -14078,6 +15918,7 @@ export declare function Vibur(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Vidaloka(options: {
   weight: '400'
@@ -14087,6 +15928,7 @@ export declare function Vidaloka(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Viga(options: {
   weight: '400'
@@ -14096,6 +15938,7 @@ export declare function Viga(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Voces(options: {
   weight: '400'
@@ -14105,6 +15948,7 @@ export declare function Voces(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Volkhov(options: {
   weight: '400' | '700'
@@ -14114,6 +15958,7 @@ export declare function Volkhov(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Vollkorn(options?: {
   weight?: '400' | '500' | '600' | '700' | '800' | '900' | 'variable'
@@ -14123,6 +15968,9 @@ export declare function Vollkorn(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'greek' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): FontModule
 export declare function Vollkorn_SC(options: {
   weight: '400' | '600' | '700' | '900'
@@ -14132,6 +15980,9 @@ export declare function Vollkorn_SC(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): FontModule
 export declare function Voltaire(options: {
   weight: '400'
@@ -14141,6 +15992,7 @@ export declare function Voltaire(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Vujahday_Script(options: {
   weight: '400'
@@ -14150,6 +16002,7 @@ export declare function Vujahday_Script(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Waiting_for_the_Sunrise(options: {
   weight: '400'
@@ -14159,6 +16012,7 @@ export declare function Waiting_for_the_Sunrise(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Wallpoet(options: {
   weight: '400'
@@ -14168,6 +16022,7 @@ export declare function Wallpoet(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Walter_Turncoat(options: {
   weight: '400'
@@ -14177,6 +16032,7 @@ export declare function Walter_Turncoat(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Warnes(options: {
   weight: '400'
@@ -14186,6 +16042,7 @@ export declare function Warnes(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Water_Brush(options: {
   weight: '400'
@@ -14195,6 +16052,7 @@ export declare function Water_Brush(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Waterfall(options: {
   weight: '400'
@@ -14204,6 +16062,7 @@ export declare function Waterfall(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Wellfleet(options: {
   weight: '400'
@@ -14213,6 +16072,7 @@ export declare function Wellfleet(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Wendy_One(options: {
   weight: '400'
@@ -14222,6 +16082,7 @@ export declare function Wendy_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Whisper(options: {
   weight: '400'
@@ -14231,6 +16092,7 @@ export declare function Whisper(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function WindSong(options: {
   weight: '400' | '500'
@@ -14240,6 +16102,7 @@ export declare function WindSong(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Wire_One(options: {
   weight: '400'
@@ -14249,6 +16112,7 @@ export declare function Wire_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Work_Sans(options?: {
   weight?:
@@ -14268,6 +16132,7 @@ export declare function Work_Sans(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Xanh_Mono(options: {
   weight: '400'
@@ -14277,6 +16142,7 @@ export declare function Xanh_Mono(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Yaldevi(options?: {
   weight?: '200' | '300' | '400' | '500' | '600' | '700' | 'variable'
@@ -14286,6 +16152,7 @@ export declare function Yaldevi(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'sinhala'>
 }): FontModule
 export declare function Yanone_Kaffeesatz(options?: {
   weight?: '200' | '300' | '400' | '500' | '600' | '700' | 'variable'
@@ -14295,6 +16162,7 @@ export declare function Yanone_Kaffeesatz(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Yantramanav(options: {
   weight: '100' | '300' | '400' | '500' | '700' | '900'
@@ -14304,6 +16172,7 @@ export declare function Yantramanav(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Yatra_One(options: {
   weight: '400'
@@ -14313,6 +16182,7 @@ export declare function Yatra_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Yellowtail(options: {
   weight: '400'
@@ -14322,6 +16192,7 @@ export declare function Yellowtail(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Yeon_Sung(options: {
   weight: '400'
@@ -14331,6 +16202,7 @@ export declare function Yeon_Sung(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'korean' | 'latin'>
 }): FontModule
 export declare function Yeseva_One(options: {
   weight: '400'
@@ -14340,6 +16212,9 @@ export declare function Yeseva_One(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): FontModule
 export declare function Yesteryear(options: {
   weight: '400'
@@ -14349,6 +16224,7 @@ export declare function Yesteryear(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Yomogi(options: {
   weight: '400'
@@ -14358,6 +16234,9 @@ export declare function Yomogi(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'japanese' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): FontModule
 export declare function Yrsa(options?: {
   weight?: '300' | '400' | '500' | '600' | '700' | 'variable'
@@ -14367,6 +16246,7 @@ export declare function Yrsa(options?: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Yuji_Boku(options: {
   weight: '400'
@@ -14376,6 +16256,7 @@ export declare function Yuji_Boku(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Yuji_Mai(options: {
   weight: '400'
@@ -14385,6 +16266,7 @@ export declare function Yuji_Mai(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Yuji_Syuku(options: {
   weight: '400'
@@ -14394,6 +16276,7 @@ export declare function Yuji_Syuku(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Yusei_Magic(options: {
   weight: '400'
@@ -14403,6 +16286,7 @@ export declare function Yusei_Magic(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function ZCOOL_KuaiLe(options: {
   weight: '400'
@@ -14412,6 +16296,7 @@ export declare function ZCOOL_KuaiLe(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'chinese-simplified' | 'latin'>
 }): FontModule
 export declare function ZCOOL_QingKe_HuangYou(options: {
   weight: '400'
@@ -14421,6 +16306,7 @@ export declare function ZCOOL_QingKe_HuangYou(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'chinese-simplified' | 'latin'>
 }): FontModule
 export declare function ZCOOL_XiaoWei(options: {
   weight: '400'
@@ -14430,6 +16316,7 @@ export declare function ZCOOL_XiaoWei(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'chinese-simplified' | 'latin'>
 }): FontModule
 export declare function Zen_Antique(options: {
   weight: '400'
@@ -14439,6 +16326,7 @@ export declare function Zen_Antique(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'greek' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Zen_Antique_Soft(options: {
   weight: '400'
@@ -14448,6 +16336,7 @@ export declare function Zen_Antique_Soft(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'greek' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Zen_Dots(options: {
   weight: '400'
@@ -14457,6 +16346,7 @@ export declare function Zen_Dots(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Zen_Kaku_Gothic_Antique(options: {
   weight: '300' | '400' | '500' | '700' | '900'
@@ -14466,6 +16356,7 @@ export declare function Zen_Kaku_Gothic_Antique(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Zen_Kaku_Gothic_New(options: {
   weight: '300' | '400' | '500' | '700' | '900'
@@ -14475,6 +16366,7 @@ export declare function Zen_Kaku_Gothic_New(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Zen_Kurenaido(options: {
   weight: '400'
@@ -14484,6 +16376,7 @@ export declare function Zen_Kurenaido(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'greek' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Zen_Loop(options: {
   weight: '400'
@@ -14493,6 +16386,7 @@ export declare function Zen_Loop(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Zen_Maru_Gothic(options: {
   weight: '300' | '400' | '500' | '700' | '900'
@@ -14502,6 +16396,7 @@ export declare function Zen_Maru_Gothic(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'greek' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Zen_Old_Mincho(options: {
   weight: '400' | '700' | '900'
@@ -14511,6 +16406,7 @@ export declare function Zen_Old_Mincho(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'greek' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Zen_Tokyo_Zoo(options: {
   weight: '400'
@@ -14520,6 +16416,7 @@ export declare function Zen_Tokyo_Zoo(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Zeyada(options: {
   weight: '400'
@@ -14529,6 +16426,7 @@ export declare function Zeyada(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin'>
 }): FontModule
 export declare function Zhi_Mang_Xing(options: {
   weight: '400'
@@ -14538,6 +16436,7 @@ export declare function Zhi_Mang_Xing(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'chinese-simplified' | 'latin'>
 }): FontModule
 export declare function Zilla_Slab(options: {
   weight: '300' | '400' | '500' | '600' | '700'
@@ -14547,6 +16446,7 @@ export declare function Zilla_Slab(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Zilla_Slab_Highlight(options: {
   weight: '400' | '700'
@@ -14556,4 +16456,5 @@ export declare function Zilla_Slab_Highlight(options: {
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule

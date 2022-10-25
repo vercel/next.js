@@ -134,6 +134,7 @@ export default async function exportPage({
       const { query: originalQuery = {} } = pathMap
       const { page } = pathMap
       const isAppDir = (pathMap as any)._isAppDir
+      const isDynamicError = (pathMap as any)._isDynamicError
       const filePath = normalizePagePath(path)
       const isDynamic = isDynamicRoute(page)
       const ampPath = `${filePath}.amp`
@@ -323,8 +324,14 @@ export default async function exportPage({
           const revalidate = (curRenderOpts as any).revalidate
           results.fromBuildExportRevalidate = revalidate
 
+          if (isDynamicError) {
+            throw new Error(
+              `Page with dynamic = "error" encountered dynamic data method ${path}.`
+            )
+          }
+
           if (revalidate !== 0) {
-            await promises.writeFile(htmlFilepath, html, 'utf8')
+            await promises.writeFile(htmlFilepath, html ?? '', 'utf8')
             await promises.writeFile(
               htmlFilepath.replace(/\.html$/, '.rsc'),
               flightData

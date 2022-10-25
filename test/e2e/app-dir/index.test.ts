@@ -15,12 +15,6 @@ import webdriver from 'next-webdriver'
 
 describe('app dir', () => {
   const isDev = (global as any).isNextDev
-
-  if ((global as any).isNextDeploy) {
-    it('should skip next deploy for now', () => {})
-    return
-  }
-
   let next: NextInstance
 
   function runTests() {
@@ -28,8 +22,10 @@ describe('app dir', () => {
       next = await createNext({
         files: new FileRef(path.join(__dirname, 'app')),
         dependencies: {
-          react: '0.0.0-experimental-9cdf8a99e-20221018',
-          'react-dom': '0.0.0-experimental-9cdf8a99e-20221018',
+          swr: '2.0.0-rc.0',
+          react: 'latest',
+          'react-dom': 'latest',
+          sass: 'latest',
         },
         skipStart: true,
       })
@@ -117,6 +113,9 @@ describe('app dir', () => {
     it('should serve from pages', async () => {
       const html = await renderViaHTTP(next.url, '/')
       expect(html).toContain('hello from pages/index')
+
+      // esm imports should work fine in pages/
+      expect(html).toContain('swr-index')
     })
 
     it('should serve dynamic route from pages', async () => {
@@ -134,22 +133,24 @@ describe('app dir', () => {
       expect(html).toContain('hello from app/dashboard')
     })
 
-    it('should serve /index as separate page', async () => {
-      const html = await renderViaHTTP(next.url, '/dashboard/index')
-      expect(html).toContain('hello from app/dashboard/index')
-      // should load chunks generated via async import correctly with React.lazy
-      expect(html).toContain('hello from lazy')
-      // should support `dynamic` in both server and client components
-      expect(html).toContain('hello from dynamic on server')
-      expect(html).toContain('hello from dynamic on client')
-    })
+    if (!(global as any).isNextDeploy) {
+      it('should serve /index as separate page', async () => {
+        const html = await renderViaHTTP(next.url, '/dashboard/index')
+        expect(html).toContain('hello from app/dashboard/index')
+        // should load chunks generated via async import correctly with React.lazy
+        expect(html).toContain('hello from lazy')
+        // should support `dynamic` in both server and client components
+        expect(html).toContain('hello from dynamic on server')
+        expect(html).toContain('hello from dynamic on client')
+      })
 
-    it('should serve polyfills for browsers that do not support modules', async () => {
-      const html = await renderViaHTTP(next.url, '/dashboard/index')
-      expect(html).toMatch(
-        /<script src="\/_next\/static\/chunks\/polyfills(-\w+)?\.js" nomodule="">/
-      )
-    })
+      it('should serve polyfills for browsers that do not support modules', async () => {
+        const html = await renderViaHTTP(next.url, '/dashboard/index')
+        expect(html).toMatch(
+          /<script src="\/_next\/static\/chunks\/polyfills(-\w+)?\.js" nomodule="">/
+        )
+      })
+    }
 
     // TODO-APP: handle css modules fouc in dev
     it.skip('should handle css imports in next/dynamic correctly', async () => {
@@ -397,17 +398,19 @@ describe('app dir', () => {
     })
 
     describe('parallel routes', () => {
-      it('should match parallel routes', async () => {
-        const html = await renderViaHTTP(next.url, '/parallel/nested')
-        expect(html).toContain('parallel/layout')
-        expect(html).toContain('parallel/@foo/nested/layout')
-        expect(html).toContain('parallel/@foo/nested/@a/page')
-        expect(html).toContain('parallel/@foo/nested/@b/page')
-        expect(html).toContain('parallel/@bar/nested/layout')
-        expect(html).toContain('parallel/@bar/nested/@a/page')
-        expect(html).toContain('parallel/@bar/nested/@b/page')
-        expect(html).toContain('parallel/nested/page')
-      })
+      if (!(global as any).isNextDeploy) {
+        it('should match parallel routes', async () => {
+          const html = await renderViaHTTP(next.url, '/parallel/nested')
+          expect(html).toContain('parallel/layout')
+          expect(html).toContain('parallel/@foo/nested/layout')
+          expect(html).toContain('parallel/@foo/nested/@a/page')
+          expect(html).toContain('parallel/@foo/nested/@b/page')
+          expect(html).toContain('parallel/@bar/nested/layout')
+          expect(html).toContain('parallel/@bar/nested/@a/page')
+          expect(html).toContain('parallel/@bar/nested/@b/page')
+          expect(html).toContain('parallel/nested/page')
+        })
+      }
 
       it('should match parallel routes in route groups', async () => {
         const html = await renderViaHTTP(next.url, '/parallel/nested-2')
@@ -893,23 +896,6 @@ describe('app dir', () => {
       })
 
       describe('next/router', () => {
-        // `useRouter` should not be accessible in server components.
-        it('should always return null when accessed from /app', async () => {
-          const browser = await webdriver(next.url, '/old-router')
-
-          try {
-            await browser.waitForElementByCss('#old-router')
-
-            const notNull = await browser.elementsByCss('.was-not-null')
-            expect(notNull.length).toBe(0)
-
-            const wasNull = await browser.elementsByCss('.was-null')
-            expect(wasNull.length).toBe(6)
-          } finally {
-            await browser.close()
-          }
-        })
-
         it('should support router.back and router.forward', async () => {
           const browser = await webdriver(next.url, '/back-forward/1')
 
@@ -965,6 +951,11 @@ describe('app dir', () => {
             } finally {
               await browser.close()
             }
+          })
+
+          it('should retrieve cookies in a server component in the edge runtime', async () => {
+            const res = await fetchViaHTTP(next.url, '/edge-apis/cookies')
+            expect(await res.text()).toInclude('Hello')
           })
 
           it('should access cookies on <Link /> navigation', async () => {
@@ -1134,48 +1125,23 @@ describe('app dir', () => {
 
     describe('client components', () => {
       describe('hooks', () => {
-        describe('cookies function', () => {
-          // TODO-APP: should enable when implemented
-          it.skip('should throw an error when imported', async () => {
-            const res = await fetchViaHTTP(
-              next.url,
-              '/hooks/use-cookies/client'
-            )
-            expect(res.status).toBe(500)
-            expect(await res.text()).toContain('Internal Server Error')
-          })
-        })
-
-        describe('previewData function', () => {
-          // TODO-APP: should enable when implemented
-          it.skip('should throw an error when imported', async () => {
-            const res = await fetchViaHTTP(
-              next.url,
-              '/hooks/use-preview-data/client'
-            )
-            expect(res.status).toBe(500)
-            expect(await res.text()).toContain('Internal Server Error')
-          })
-        })
-
-        describe('headers function', () => {
-          // TODO-APP: should enable when implemented
-          it.skip('should throw an error when imported', async () => {
-            const res = await fetchViaHTTP(
-              next.url,
-              '/hooks/use-headers/client'
-            )
-            expect(res.status).toBe(500)
-            expect(await res.text()).toContain('Internal Server Error')
-          })
-        })
-
         describe('usePathname', () => {
           it('should have the correct pathname', async () => {
             const html = await renderViaHTTP(next.url, '/hooks/use-pathname')
             const $ = cheerio.load(html)
             expect($('#pathname').attr('data-pathname')).toBe(
               '/hooks/use-pathname'
+            )
+          })
+
+          it('should have the canonical url pathname on rewrite', async () => {
+            const html = await renderViaHTTP(
+              next.url,
+              '/rewritten-use-pathname'
+            )
+            const $ = cheerio.load(html)
+            expect($('#pathname').attr('data-pathname')).toBe(
+              '/rewritten-use-pathname'
             )
           })
         })
@@ -1187,11 +1153,22 @@ describe('app dir', () => {
               '/hooks/use-search-params?first=value&second=other%20value&third'
             )
             const $ = cheerio.load(html)
-            const el = $('#params')
-            expect(el.attr('data-param-first')).toBe('value')
-            expect(el.attr('data-param-second')).toBe('other value')
-            expect(el.attr('data-param-third')).toBe('')
-            expect(el.attr('data-param-not-real')).toBe('N/A')
+            expect($('#params-first').text()).toBe('value')
+            expect($('#params-second').text()).toBe('other value')
+            expect($('#params-third').text()).toBe('')
+            expect($('#params-not-real').text()).toBe('N/A')
+          })
+
+          it('should have the canonical url search params on rewrite', async () => {
+            const html = await renderViaHTTP(
+              next.url,
+              '/rewritten-use-search-params?first=a&second=b&third=c'
+            )
+            const $ = cheerio.load(html)
+            expect($('#params-first').text()).toBe('a')
+            expect($('#params-second').text()).toBe('b')
+            expect($('#params-third').text()).toBe('c')
+            expect($('#params-not-real').text()).toBe('N/A')
           })
         })
 
@@ -1215,16 +1192,18 @@ describe('app dir', () => {
             }
           })
 
-          it('should have consistent query and params handling', async () => {
-            const html = await renderViaHTTP(
-              next.url,
-              '/param-and-query/params?slug=query'
-            )
-            const $ = cheerio.load(html)
-            const el = $('#params-and-query')
-            expect(el.attr('data-params')).toBe('params')
-            expect(el.attr('data-query')).toBe('query')
-          })
+          if (!(global as any).isNextDeploy) {
+            it('should have consistent query and params handling', async () => {
+              const html = await renderViaHTTP(
+                next.url,
+                '/param-and-query/params?slug=query'
+              )
+              const $ = cheerio.load(html)
+              const el = $('#params-and-query')
+              expect(el.attr('data-params')).toBe('params')
+              expect(el.attr('data-query')).toBe('query')
+            })
+          }
         })
 
         describe('useSelectedLayoutSegment', () => {
@@ -1425,6 +1404,229 @@ describe('app dir', () => {
             )
           ).toBe('rgb(0, 0, 255)')
         })
+      })
+    })
+
+    describe('searchParams prop', () => {
+      describe('client component', () => {
+        it('should have the correct search params', async () => {
+          const html = await renderViaHTTP(
+            next.url,
+            '/search-params-prop?first=value&second=other%20value&third'
+          )
+          const $ = cheerio.load(html)
+          const el = $('#params')
+          expect(el.attr('data-param-first')).toBe('value')
+          expect(el.attr('data-param-second')).toBe('other value')
+          expect(el.attr('data-param-third')).toBe('')
+          expect(el.attr('data-param-not-real')).toBe('N/A')
+        })
+
+        it('should have the correct search params on rewrite', async () => {
+          const html = await renderViaHTTP(
+            next.url,
+            '/search-params-prop-rewrite'
+          )
+          const $ = cheerio.load(html)
+          const el = $('#params')
+          expect(el.attr('data-param-first')).toBe('value')
+          expect(el.attr('data-param-second')).toBe('other value')
+          expect(el.attr('data-param-third')).toBe('')
+          expect(el.attr('data-param-not-real')).toBe('N/A')
+        })
+
+        it('should have the correct search params on middleware rewrite', async () => {
+          const html = await renderViaHTTP(
+            next.url,
+            '/search-params-prop-middleware-rewrite'
+          )
+          const $ = cheerio.load(html)
+          const el = $('#params')
+          expect(el.attr('data-param-first')).toBe('value')
+          expect(el.attr('data-param-second')).toBe('other value')
+          expect(el.attr('data-param-third')).toBe('')
+          expect(el.attr('data-param-not-real')).toBe('N/A')
+        })
+      })
+
+      describe('server component', () => {
+        it('should have the correct search params', async () => {
+          const html = await renderViaHTTP(
+            next.url,
+            '/search-params-prop/server?first=value&second=other%20value&third'
+          )
+          const $ = cheerio.load(html)
+          const el = $('#params')
+          expect(el.attr('data-param-first')).toBe('value')
+          expect(el.attr('data-param-second')).toBe('other value')
+          expect(el.attr('data-param-third')).toBe('')
+          expect(el.attr('data-param-not-real')).toBe('N/A')
+        })
+
+        it('should have the correct search params on rewrite', async () => {
+          const html = await renderViaHTTP(
+            next.url,
+            '/search-params-prop-server-rewrite'
+          )
+          const $ = cheerio.load(html)
+          const el = $('#params')
+          expect(el.attr('data-param-first')).toBe('value')
+          expect(el.attr('data-param-second')).toBe('other value')
+          expect(el.attr('data-param-third')).toBe('')
+          expect(el.attr('data-param-not-real')).toBe('N/A')
+        })
+
+        it('should have the correct search params on middleware rewrite', async () => {
+          const html = await renderViaHTTP(
+            next.url,
+            '/search-params-prop-server-middleware-rewrite'
+          )
+          const $ = cheerio.load(html)
+          const el = $('#params')
+          expect(el.attr('data-param-first')).toBe('value')
+          expect(el.attr('data-param-second')).toBe('other value')
+          expect(el.attr('data-param-third')).toBe('')
+          expect(el.attr('data-param-not-real')).toBe('N/A')
+        })
+      })
+    })
+
+    describe('sass support', () => {
+      describe('server layouts', () => {
+        it('should support global sass/scss inside server layouts', async () => {
+          const browser = await webdriver(next.url, '/css/sass/inner')
+          // .sass
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('#sass-server-layout')).color`
+            )
+          ).toBe('rgb(165, 42, 42)')
+          // .scss
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('#scss-server-layout')).color`
+            )
+          ).toBe('rgb(222, 184, 135)')
+        })
+
+        it('should support sass/scss modules inside server layouts', async () => {
+          const browser = await webdriver(next.url, '/css/sass/inner')
+          // .sass
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('#sass-server-layout')).backgroundColor`
+            )
+          ).toBe('rgb(233, 150, 122)')
+          // .scss
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('#scss-server-layout')).backgroundColor`
+            )
+          ).toBe('rgb(139, 0, 0)')
+        })
+      })
+
+      describe('server pages', () => {
+        it('should support global sass/scss inside server pages', async () => {
+          const browser = await webdriver(next.url, '/css/sass/inner')
+          // .sass
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('#sass-server-page')).color`
+            )
+          ).toBe('rgb(245, 222, 179)')
+          // .scss
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('#scss-server-page')).color`
+            )
+          ).toBe('rgb(255, 99, 71)')
+        })
+
+        it('should support sass/scss modules inside server pages', async () => {
+          const browser = await webdriver(next.url, '/css/sass/inner')
+          // .sass
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('#sass-server-page')).backgroundColor`
+            )
+          ).toBe('rgb(75, 0, 130)')
+          // .scss
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('#scss-server-page')).backgroundColor`
+            )
+          ).toBe('rgb(0, 255, 255)')
+        })
+      })
+
+      describe('client layouts', () => {
+        it('should support global sass/scss inside client layouts', async () => {
+          const browser = await webdriver(next.url, '/css/sass-client/inner')
+          // .sass
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('#sass-client-layout')).color`
+            )
+          ).toBe('rgb(165, 42, 42)')
+          // .scss
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('#scss-client-layout')).color`
+            )
+          ).toBe('rgb(222, 184, 135)')
+        })
+
+        it('should support sass/scss modules inside client layouts', async () => {
+          const browser = await webdriver(next.url, '/css/sass-client/inner')
+          // .sass
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('#sass-client-layout')).backgroundColor`
+            )
+          ).toBe('rgb(233, 150, 122)')
+          // .scss
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('#scss-client-layout')).backgroundColor`
+            )
+          ).toBe('rgb(139, 0, 0)')
+        })
+      })
+    })
+
+    describe('client pages', () => {
+      it('should support global sass/scss inside client pages', async () => {
+        const browser = await webdriver(next.url, '/css/sass-client/inner')
+        await waitFor(5000)
+        // .sass
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.querySelector('#sass-client-page')).color`
+          )
+        ).toBe('rgb(245, 222, 179)')
+        // .scss
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.querySelector('#scss-client-page')).color`
+          )
+        ).toBe('rgb(255, 99, 71)')
+      })
+
+      it('should support sass/scss modules inside client pages', async () => {
+        const browser = await webdriver(next.url, '/css/sass-client/inner')
+        // .sass
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.querySelector('#sass-client-page')).backgroundColor`
+          )
+        ).toBe('rgb(75, 0, 130)')
+        // .scss
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.querySelector('#scss-client-page')).backgroundColor`
+          )
+        ).toBe('rgb(0, 255, 255)')
       })
     })
     ;(isDev ? describe.skip : describe)('Subresource Integrity', () => {
@@ -1809,6 +2011,26 @@ describe('app dir', () => {
       })
     })
 
+    describe('bots', () => {
+      if (!(global as any).isNextDeploy) {
+        it('should block rendering for bots and return 404 status', async () => {
+          const res = await fetchViaHTTP(
+            next.url,
+            '/not-found/servercomponent',
+            '',
+            {
+              headers: {
+                'User-Agent': 'Googlebot',
+              },
+            }
+          )
+
+          expect(res.status).toBe(404)
+          expect(await res.text()).toInclude('"noindex"')
+        })
+      }
+    })
+
     describe('redirect', () => {
       describe('components', () => {
         it('should redirect in a server component', async () => {
@@ -1925,22 +2147,24 @@ describe('app dir', () => {
     })
 
     describe('next/script', () => {
-      it('should support next/script and render in correct order', async () => {
-        const browser = await webdriver(next.url, '/script')
+      if (!(global as any).isNextDeploy) {
+        it('should support next/script and render in correct order', async () => {
+          const browser = await webdriver(next.url, '/script')
 
-        // Wait for lazyOnload scripts to be ready.
-        await new Promise((resolve) => setTimeout(resolve, 1000))
+          // Wait for lazyOnload scripts to be ready.
+          await new Promise((resolve) => setTimeout(resolve, 1000))
 
-        expect(await browser.eval(`window._script_order`)).toStrictEqual([
-          1,
-          1.5,
-          2,
-          2.5,
-          'render',
-          3,
-          4,
-        ])
-      })
+          expect(await browser.eval(`window._script_order`)).toStrictEqual([
+            1,
+            1.5,
+            2,
+            2.5,
+            'render',
+            3,
+            4,
+          ])
+        })
+      }
 
       it('should insert preload tags for beforeInteractive and afterInteractive scripts', async () => {
         const html = await renderViaHTTP(next.url, '/script')

@@ -29,15 +29,21 @@ export async function createApp({
   example,
   examplePath,
   typescript,
+  experimentalApp,
 }: {
   appPath: string
   packageManager: PackageManager
   example?: string
   examplePath?: string
-  typescript?: boolean
+  typescript: boolean
+  experimentalApp: boolean
 }): Promise<void> {
   let repoInfo: RepoInfo | undefined
-  const template = typescript ? 'typescript' : 'default'
+  const template = experimentalApp
+    ? 'experimental-app'
+    : typescript
+    ? 'typescript'
+    : 'default'
 
   if (example) {
     let repoUrl: URL | undefined
@@ -238,7 +244,7 @@ export async function createApp({
     /**
      * TypeScript projects will have type definitions and other devDependencies.
      */
-    if (typescript) {
+    if (template !== 'default') {
       devDependencies.push(
         'typescript',
         '@types/react',
@@ -273,7 +279,7 @@ export async function createApp({
       const devInstallFlags = { devDependencies: true, ...installFlags }
       await install(root, devDependencies, devInstallFlags)
     }
-    console.log()
+    console.log('\nInitializing project with template: ', template, '\n')
     /**
      * Copy the template files to the target directory.
      */
