@@ -112,6 +112,7 @@ import {
   lockfilePatchPromise,
   teardownTraceSubscriber,
   teardownCrashReporter,
+  loadBindings,
 } from './swc'
 import { injectedClientEntries } from './webpack/plugins/flight-client-entry-plugin'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
@@ -1606,8 +1607,18 @@ export default async function build(
       }
 
       if (config.outputFileTracing) {
-        const { nodeFileTrace } =
-          require('next/dist/compiled/@vercel/nft') as typeof import('next/dist/compiled/@vercel/nft')
+        let nodeFileTrace: any
+        if (config.experimental.turbotrace) {
+          let binding = (await loadBindings()) as any
+          if (!binding?.isWasm) {
+            nodeFileTrace = binding.turbo?.startTrace
+          }
+        }
+
+        if (!nodeFileTrace) {
+          nodeFileTrace =
+            require('next/dist/compiled/@vercel/nft').nodeFileTrace
+        }
 
         const includeExcludeSpan = nextBuildSpan.traceChild(
           'apply-include-excludes'
@@ -1751,53 +1762,64 @@ export default async function build(
               )
             }
 
-            const serverResult = await nodeFileTrace(toTrace, {
-              base: root,
-              processCwd: dir,
-              ignore: [
-                '**/next/dist/pages/**/*',
-                '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
-                '**/node_modules/webpack5/**/*',
-                '**/next/dist/server/lib/squoosh/**/*.wasm',
-                ...(ciEnvironment.hasNextSupport
-                  ? [
-                      // only ignore image-optimizer code when
-                      // this is being handled outside of next-server
-                      '**/next/dist/server/image-optimizer.js',
-                      '**/node_modules/sharp/**/*',
-                    ]
-                  : []),
-                ...(!hasSsrAmpPages
-                  ? ['**/next/dist/compiled/@ampproject/toolbox-optimizer/**/*']
-                  : []),
-              ],
-            })
-
-            const tracedFiles = new Set()
-
-            serverResult.fileList.forEach((file) => {
-              tracedFiles.add(
-                path
-                  .relative(distDir, path.join(root, file))
-                  .replace(/\\/g, '/')
-              )
-            })
-
-            await promises.writeFile(
-              nextServerTraceOutput,
-              JSON.stringify({
-                version: 1,
-                cacheKey,
-                files: [...tracedFiles],
-              } as {
-                version: number
-                files: string[]
+            let serverResult: import('next/dist/compiled/@vercel/nft').NodeFileTraceResult
+            if (config.experimental.turbotrace) {
+              // handle the cache in the turbo-tracing side in the future
+              await nodeFileTrace({
+                action: 'annotate',
+                input: toTrace,
+                contextDirectory: root,
               })
-            )
-            await promises.unlink(cachedTracePath).catch(() => {})
-            await promises
-              .copyFile(nextServerTraceOutput, cachedTracePath)
-              .catch(() => {})
+            } else {
+              serverResult = await nodeFileTrace(toTrace, {
+                base: root,
+                processCwd: dir,
+                ignore: [
+                  '**/next/dist/pages/**/*',
+                  '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
+                  '**/node_modules/webpack5/**/*',
+                  '**/next/dist/server/lib/squoosh/**/*.wasm',
+                  ...(ciEnvironment.hasNextSupport
+                    ? [
+                        // only ignore image-optimizer code when
+                        // this is being handled outside of next-server
+                        '**/next/dist/server/image-optimizer.js',
+                        '**/node_modules/sharp/**/*',
+                      ]
+                    : []),
+                  ...(!hasSsrAmpPages
+                    ? [
+                        '**/next/dist/compiled/@ampproject/toolbox-optimizer/**/*',
+                      ]
+                    : []),
+                ],
+              })
+              const tracedFiles = new Set()
+
+              serverResult.fileList.forEach((file) => {
+                tracedFiles.add(
+                  path
+                    .relative(distDir, path.join(root, file))
+                    .replace(/\\/g, '/')
+                )
+              })
+
+              await promises.writeFile(
+                nextServerTraceOutput,
+                JSON.stringify({
+                  version: 1,
+                  cacheKey,
+                  files: [...tracedFiles],
+                } as {
+                  version: number
+                  files: string[]
+                })
+              )
+              await promises.unlink(cachedTracePath).catch(() => {})
+              await promises
+                .copyFile(nextServerTraceOutput, cachedTracePath)
+                .catch(() => {})
+            }
           })
       }
 
