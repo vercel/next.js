@@ -30,7 +30,7 @@ impl DevChunkingContextBuilder {
     }
 
     pub fn build(self) -> ChunkingContextVc {
-        self.context.cell().into()
+        DevChunkingContextVc::new(Value::new(self.context)).into()
     }
 }
 
