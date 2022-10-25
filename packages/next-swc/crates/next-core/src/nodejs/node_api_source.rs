@@ -99,8 +99,7 @@ impl ContentSource for NodeApiContentSource {
                         .cell(),
                         *body,
                     ))
-                    .cell()
-                    .into());
+                    .cell());
                 } else {
                     return Ok(ContentSourceResult::NeedData {
                         source: self_vc.into(),

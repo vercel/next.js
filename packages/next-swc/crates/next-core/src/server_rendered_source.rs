@@ -159,8 +159,7 @@ async fn create_server_rendered_source_for_file(
         intermediate_output_path.join("chunks"),
         get_client_assets_path(server_root, Value::new(ContextType::Pages { pages_dir })),
     )
-    .build()
-    .into();
+    .build();
 
     Ok(if *is_api_path.await? {
         create_node_api_source(

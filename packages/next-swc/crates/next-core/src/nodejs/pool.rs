@@ -113,9 +113,9 @@ impl NodeJsPoolProcess {
         cmd.current_dir(cwd);
         cmd.arg(entrypoint);
         cmd.arg(&marker.marker);
-        cmd.arg(&OperationMarker::STEP);
-        cmd.arg(&OperationMarker::SUCCESS);
-        cmd.arg(&OperationMarker::ERROR);
+        cmd.arg(OperationMarker::STEP);
+        cmd.arg(OperationMarker::SUCCESS);
+        cmd.arg(OperationMarker::ERROR);
         cmd.env_clear();
         cmd.env(
             "PATH",
@@ -227,7 +227,7 @@ impl NodeJsPool {
                 self.cwd.as_path(),
                 &self.env,
                 self.entrypoint.as_path(),
-                &*marker,
+                &marker,
             );
             let fresh = spawn_blocking(move || NodeJsPoolProcess::start(cmd, marker)).await?;
             (fresh, permit)
@@ -283,7 +283,7 @@ impl NodeJsOperation {
             let read = child.read_until(b'\n', buf)?;
             total_read += read;
 
-            match child.marker.read_event(&buf) {
+            match child.marker.read_event(buf) {
                 Some((read, event)) => {
                     buf.truncate(buf.len() - read);
                     break Ok((total_read - read, event));
