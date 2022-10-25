@@ -18,7 +18,7 @@ var React = require('react');
 var ReactDOM = require('react-dom');
 var stream = require('stream');
 
-var ReactVersion = '18.3.0-next-e7c5af45c-20221023';
+var ReactVersion = '18.3.0-next-d925a8d0b-20221024';
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
