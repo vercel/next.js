@@ -1068,8 +1068,8 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         let TaskState { ref mut memory, .. } = *state;
         let mem_state = memory.as_mut().unwrap();
         let result = result.unwrap_or_else(|panic| match panic {
-            Some(message) => Err(anyhow!("Task panic {message}")),
-            None => Err(anyhow!("Task panic")),
+            Some(message) => Err(anyhow!("A task panicked: {message}")),
+            None => Err(anyhow!("A task panicked")),
         });
         let output_change = if let (Some(Ok(old)), Ok(new)) = (&mem_state.output, &result) {
             old != new

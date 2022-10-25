@@ -1,3 +1,5 @@
+import IPC, { Ipc } from "@vercel/turbopack-next/internal/ipc";
+
 import type { ClientRequest, IncomingMessage, Server } from "node:http";
 import http, { ServerResponse } from "node:http";
 import type { AddressInfo, Socket } from "node:net";
@@ -9,89 +11,28 @@ import * as allExports from ".";
 import { NextParsedUrlQuery } from "next/dist/server/request-meta";
 import { apiResolver } from "next/dist/server/api-utils/node";
 
-const [MARKER, OPERATION_STEP, OPERATION_SUCCESS, OPERATION_ERROR] =
-  process.argv.slice(2, 6).map((arg) => Buffer.from(arg, "utf8"));
+const ipc = IPC as Ipc<IpcIncomingMessage, IpcOutgoingMessage>;
 
-const NEW_LINE = "\n".charCodeAt(0);
-const OPERATION_STEP_MARKER = Buffer.concat([
-  OPERATION_STEP,
-  Buffer.from(" ", "utf8"),
-  MARKER,
-]);
-const OPERATION_SUCCESS_MARKER = Buffer.concat([
-  OPERATION_SUCCESS,
-  Buffer.from(" ", "utf8"),
-  MARKER,
-]);
-const OPERATION_ERROR_MARKER = Buffer.concat([
-  OPERATION_ERROR,
-  Buffer.from(" ", "utf8"),
-  MARKER,
-]);
-
-process.stdout.write("READY\n");
-
-function bufferEndsWith(buffer: Buffer, suffix: Buffer): boolean {
-  if (buffer.length < suffix.length) {
-    return false;
-  }
-
-  return buffer.subarray(buffer.length - suffix.length).equals(suffix);
-}
-
-function readStep(buffer: Buffer): { data: Buffer; remaining: Buffer } | null {
-  let startLineIdx = 0;
-  let endLineIdx = buffer.indexOf(NEW_LINE);
-
-  while (endLineIdx !== -1) {
-    const considering = buffer.subarray(startLineIdx, endLineIdx);
-    if (considering.equals(OPERATION_STEP_MARKER)) {
-      return {
-        data: buffer.subarray(
-          0,
-          // Remove the newline character right before the marker.
-          startLineIdx === 0 ? 0 : startLineIdx - 1
-        ),
-        remaining: buffer.subarray(endLineIdx + 1),
-      };
+type IpcIncomingMessage =
+  | {
+      type: "headers";
+      data: RenderData;
     }
-
-    // Consider the next line.
-    startLineIdx = endLineIdx + 1;
-    endLineIdx = buffer.indexOf(NEW_LINE, startLineIdx);
-  }
-
-  return null;
-}
-
-type State = "headers" | "body" | "done";
-let readState: State = "headers";
-let buffer: Buffer = Buffer.from([]);
-let operationPromise: Promise<Operation> | null = null;
-
-process.stdin.on("data", async (chunk) => {
-  buffer = Buffer.concat([buffer, chunk]);
-
-  let step = readStep(buffer);
-  while (step != null) {
-    switch (readState) {
-      case "headers": {
-        readState = "body";
-        const renderData = JSON.parse(step.data.toString("utf-8"));
-        operationPromise = createOperation(renderData);
-        break;
-      }
-      case "body": {
-        readState = "headers";
-        const body = step.data;
-        endOperation(operationPromise!, body);
-        break;
-      }
+  | {
+      type: "bodyChunk";
+      data: Array<number>;
     }
-    buffer = step.remaining;
-    step = readStep(step.remaining);
-  }
-});
+  | { type: "bodyEnd" };
+
+type IpcOutgoingMessage =
+  | {
+      type: "headers";
+      data: ResponseHeaders;
+    }
+  | {
+      type: "body";
+      data: Array<number>;
+    };
 
 type RenderData = {
   method: string;
@@ -105,29 +46,58 @@ type ResponseHeaders = {
   headers: string[];
 };
 
-function writeEventMarker(eventMarker: Buffer) {
-  process.stdout.write("\n");
-  process.stdout.write(eventMarker);
-  process.stdout.write("\n");
-}
+(async () => {
+  while (true) {
+    let operationPromise: Promise<Operation> | null = null;
 
-function writeStep(data: Buffer | string) {
-  process.stdout.write(data);
-  writeEventMarker(OPERATION_STEP_MARKER);
-}
+    const msg = await ipc.recv();
 
-function writeSuccess(data: Buffer | string) {
-  process.stdout.write(data);
-  writeEventMarker(OPERATION_SUCCESS_MARKER);
-}
+    switch (msg.type) {
+      case "headers": {
+        operationPromise = createOperation(msg.data);
+        break;
+      }
+      default: {
+        console.error("unexpected message type", msg.type);
+        process.exit(1);
+      }
+    }
 
-function writeError(error: string) {
-  process.stdout.write(error);
-  writeEventMarker(OPERATION_ERROR_MARKER);
-}
+    let body = Buffer.alloc(0);
+    let operation: Operation;
+    loop: while (true) {
+      const msg = await ipc.recv();
+
+      switch (msg.type) {
+        case "bodyChunk": {
+          body = Buffer.concat([body, Buffer.from(msg.data)]);
+          break;
+        }
+        case "bodyEnd": {
+          operation = await operationPromise;
+          break loop;
+        }
+        default: {
+          console.error("unexpected message type", msg.type);
+          process.exit(1);
+        }
+      }
+    }
+
+    await Promise.all([
+      endOperation(operation, body),
+      operation.clientResponsePromise.then((clientResponse) =>
+        handleClientResponse(operation.server, clientResponse)
+      ),
+    ]);
+  }
+})().catch((err) => {
+  ipc.sendError(err);
+});
 
 type Operation = {
   clientRequest: ClientRequest;
+  clientResponsePromise: Promise<IncomingMessage>;
   apiOperation: Promise<void>;
   server: Server;
 };
@@ -144,13 +114,10 @@ async function createOperation(renderData: RenderData): Promise<Operation> {
 
   const query = { ...renderData.query, ...renderData.params };
 
-  clientResponsePromise.then((clientResponse) =>
-    handleClientResponse(server, clientResponse)
-  );
-
   return {
     clientRequest,
     server,
+    clientResponsePromise,
     apiOperation: apiResolver(
       serverRequest,
       serverResponse,
@@ -175,51 +142,41 @@ function handleClientResponse(server: Server, clientResponse: IncomingMessage) {
     headers: clientResponse.rawHeaders,
   };
 
-  writeStep(JSON.stringify(responseHeaders));
+  ipc.send({
+    type: "headers",
+    data: responseHeaders,
+  });
 
   clientResponse.on("data", (chunk) => {
     responseData.push(chunk);
   });
 
   clientResponse.once("end", () => {
-    writeSuccess(Buffer.concat(responseData));
+    ipc.send({
+      type: "body",
+      data: Buffer.concat(responseData).toJSON().data,
+    });
     server.close();
   });
 
   clientResponse.once("error", (err) => {
-    // TODO(alexkirsz) We need to ensure that we haven't already written an error in `endOperation`.
-    writeError(err.stack ?? "an unknown error occurred");
-    server.close();
+    ipc.sendError(err);
   });
 }
 
 /**
  * Ends an operation by writing the response body to the client and waiting for the Next.js API resolver to finish.
  */
-async function endOperation(
-  operationPromise: Promise<Operation>,
-  body: Buffer
-) {
-  const operation = await operationPromise;
-
+async function endOperation(operation: Operation, body: Buffer) {
   operation.clientRequest.end(body);
 
   try {
     await operation.apiOperation;
   } catch (error) {
-    if (
-      error instanceof Error ||
-      (error != null && (error as any).stack != null)
-    ) {
-      const stack = (error as any).stack as string | null;
-
-      if (stack != null) {
-        writeError(stack);
-        operation.server.close();
-      }
+    if (error instanceof Error) {
+      await ipc.sendError(error);
     } else {
-      writeError("an unknown error occurred");
-      operation.server.close();
+      await ipc.sendError(new Error("an unknown error occurred"));
     }
 
     return;
@@ -230,7 +187,7 @@ async function endOperation(
  * Creates a server that listens a random port.
  */
 function createServer(): Promise<Server> {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const server = http.createServer();
     server.listen(0, () => {
       resolve(server);

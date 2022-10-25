@@ -53,8 +53,8 @@ impl Output {
             OutputContent::Empty => Err(anyhow!("Output is empty")),
             OutputContent::Error(err) => Err(err.clone().into()),
             OutputContent::Link(raw_vc) => Ok(*raw_vc),
-            OutputContent::Panic(Some(message)) => Err(anyhow!("Task panic {message}")),
-            OutputContent::Panic(None) => Err(anyhow!("Task panic")),
+            OutputContent::Panic(Some(message)) => Err(anyhow!("A task panicked: {message}")),
+            OutputContent::Panic(None) => Err(anyhow!("A task panicked")),
         }
     }
 

@@ -1,3 +1,5 @@
+import IPC, { Ipc } from "@vercel/turbopack-next/internal/ipc";
+
 import type { IncomingMessage, ServerResponse } from "node:http";
 
 import "@vercel/turbopack-next/internal/shims";
@@ -9,7 +11,6 @@ import { ServerResponseShim } from "@vercel/turbopack-next/internal/http";
 
 import App from "@vercel/turbopack-next/pages/_app";
 import Document from "@vercel/turbopack-next/pages/_document";
-import { parse as parseStackTrace } from "@vercel/turbopack-next/compiled/stacktrace-parser";
 
 import Component, * as otherExports from ".";
 ("TURBOPACK { transition: next-client }");
@@ -17,46 +18,52 @@ import chunkGroup from ".";
 import type { BuildManifest } from "next/dist/server/get-page-files";
 import type { ChunkGroup } from "types/next";
 
-const [MARKER, _OPERATION_STEP, OPERATION_SUCCESS, _OPERATION_ERROR] =
-  process.argv.slice(2, 6).map((arg) => Buffer.from(arg, "utf8"));
+const ipc = IPC as Ipc<IpcIncomingMessage, IpcOutgoingMessage>;
 
-const NEW_LINE = "\n".charCodeAt(0);
-const OPERATION_SUCCESS_MARKER = Buffer.concat([
-  OPERATION_SUCCESS,
-  Buffer.from(" ", "utf8"),
-  MARKER,
-]);
+type IpcIncomingMessage = {
+  type: "headers";
+  data: RenderData;
+};
 
-process.stdout.write("READY\n");
+type IpcOutgoingMessage = {
+  type: "result";
+  result: string | { body: string; contentType?: string };
+};
 
-const buffer: Buffer[] = [];
-process.stdin.on("data", async (data) => {
-  let idx = data.indexOf(NEW_LINE);
-  while (idx >= 0) {
-    buffer.push(data.slice(0, idx));
-    try {
-      const json = JSON.parse(Buffer.concat(buffer).toString("utf-8"));
-      buffer.length = 0;
-      const result = await operation(json);
-      console.log(`RESULT=${JSON.stringify(result)}`);
-    } catch (e: any) {
-      console.log(`ERROR=${JSON.stringify(structuredError(e))}`);
+(async () => {
+  while (true) {
+    const msg = await ipc.recv();
+
+    let renderData: RenderData;
+    switch (msg.type) {
+      case "headers": {
+        renderData = msg.data;
+        break;
+      }
+      default: {
+        console.error("unexpected message type", msg.type);
+        process.exit(1);
+      }
     }
-    console.log(OPERATION_SUCCESS_MARKER.toString("utf8"));
-    data = data.slice(idx + 1);
-    idx = data.indexOf(NEW_LINE);
+
+    let html = await runOperation(renderData);
+
+    if (html == null) {
+      throw new Error("no html returned");
+    }
+
+    ipc.send({
+      type: "result",
+      result: html,
+    });
   }
-  buffer.push(data);
+})().catch((err) => {
+  ipc.sendError(err);
 });
 
-type QueryValue = string | QueryValue[] | Query;
-interface Query {
-  [key: string]: QueryValue;
-}
-
-type HeaderValue = string | string[];
-
-async function operation(renderData: RenderData) {
+async function runOperation(
+  renderData: RenderData
+): Promise<string | undefined> {
   // TODO(alexkirsz) This is missing *a lot* of data, but it's enough to get a
   // basic render working.
 
@@ -151,12 +158,4 @@ async function operation(renderData: RenderData) {
       renderOpts
     )
   )?.toUnchunkedString();
-}
-
-function structuredError(e: Error) {
-  return {
-    name: e.name,
-    message: e.message,
-    stack: parseStackTrace(e.stack!),
-  };
 }

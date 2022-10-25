@@ -311,8 +311,9 @@ impl EcmascriptChunkItem for ModuleChunkItem {
         } else {
             Ok(EcmascriptChunkItemContent {
                 inner_code: format!(
-                    "/* unparseable {} */",
-                    self.module.path().to_string().await?
+                    "const e = new Error(\"Could not parse module '{path}'\");\ne.code = \
+                     'MODULE_UNPARSEABLE';\nthrow e;",
+                    path = self.module.path().to_string().await?
                 ),
                 ..Default::default()
             }

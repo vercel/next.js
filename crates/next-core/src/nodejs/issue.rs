@@ -8,7 +8,7 @@ use turbopack_core::issue::{Issue, IssueVc};
 pub(super) struct RenderingIssue {
     pub context: FileSystemPathVc,
     pub message: StringVc,
-    pub logs: StringVc,
+    pub status: Option<i32>,
 }
 
 #[turbo_tasks::value_impl]
@@ -34,8 +34,14 @@ impl Issue for RenderingIssue {
     }
 
     #[turbo_tasks::function]
-    fn detail(&self) -> StringVc {
-        self.logs
+    async fn detail(&self) -> Result<StringVc> {
+        let mut details = vec![];
+
+        if let Some(status) = self.status {
+            details.push(format!("Node.js exit code: {status}"));
+        }
+
+        Ok(StringVc::cell(details.join("\n")))
     }
 
     // TODO parse stack trace into source location
