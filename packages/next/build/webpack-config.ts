@@ -1618,7 +1618,7 @@ export default async function getBaseWebpackConfig(
     },
     module: {
       rules: [
-        ...(hasAppDir && !isClient && !isEdgeServer
+        ...(hasAppDir && !isClient
           ? [
               {
                 issuerLayer: WEBPACK_LAYERS.server,
@@ -1643,7 +1643,7 @@ export default async function getBaseWebpackConfig(
                     // If missing the alias override here, the default alias will be used which aliases
                     // react to the direct file path, not the package name. In that case the condition
                     // will be ignored completely.
-                    react: 'next/dist/compiled/react',
+                    react: 'next/dist/compiled/react/react.shared-subset',
                     'react-dom$':
                       'next/dist/compiled/react-dom/server-rendering-stub',
                   },
