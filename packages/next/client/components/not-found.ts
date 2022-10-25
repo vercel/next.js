@@ -6,3 +6,7 @@ export function notFound() {
   ;(error as any).digest = NOT_FOUND_ERROR_CODE
   throw error
 }
+
+export class NotFound extends Error {
+  readonly digest = NOT_FOUND_ERROR_CODE
+}

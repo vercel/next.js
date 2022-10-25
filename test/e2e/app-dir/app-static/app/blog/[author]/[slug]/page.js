@@ -1,10 +1,10 @@
-import { notFound } from 'next/navigation'
+import { NotFound } from 'next/navigation'
 
 export const dynamicParams = true
 
 export default function Page({ params }) {
   if (params.author === 'shu') {
-    notFound()
+    throw new NotFound()
   }
 
   return (

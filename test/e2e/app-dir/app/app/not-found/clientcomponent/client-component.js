@@ -1,7 +1,6 @@
 'use client'
-import { notFound } from 'next/navigation'
+import { NotFound } from 'next/navigation'
 
 export default function ClientComp() {
-  notFound()
-  return <></>
+  throw new NotFound()
 }

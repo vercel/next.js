@@ -168,4 +168,4 @@ export function useSelectedLayoutSegment(
 }
 
 export { redirect } from './redirect'
-export { notFound } from './not-found'
+export { notFound, NotFound } from './not-found'
