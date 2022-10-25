@@ -10,6 +10,7 @@ import webdriver from 'next-webdriver'
 const glob = promisify(globOrig)
 
 describe('app-dir static/dynamic handling', () => {
+  const isDev = (global as any).isNextDev
   let next: NextInstance
 
   beforeAll(async () => {
