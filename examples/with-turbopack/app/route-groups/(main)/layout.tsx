@@ -1,8 +1,7 @@
-import { use } from 'react';
-import { fetchCategories, getCategories } from '@/lib/getCategories';
+import { fetchCategories } from '@/lib/getCategories';
 import { Boundary } from '@/ui/Boundary';
 import ClickCounter from '@/ui/ClickCounter';
-import React from 'react';
+import React, { use } from 'react';
 import CategoryNav from '../CategoryNav';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
