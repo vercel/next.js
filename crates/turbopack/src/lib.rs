@@ -96,7 +96,7 @@ async fn get_module_type(path: FileSystemPathVc, options: ModuleOptionsVc) -> Re
             for (_, effect) in rule.await?.effects() {
                 match &*effect.await? {
                     ModuleRuleEffect::ModuleType(module) => {
-                        current_module_type = Some(module.clone());
+                        current_module_type = Some(*module);
                     }
                     ModuleRuleEffect::AddEcmascriptTransforms(additional_transforms) => {
                         current_module_type = match current_module_type {
@@ -146,9 +146,7 @@ async fn get_module_type(path: FileSystemPathVc, options: ModuleOptionsVc) -> Re
         }
     }
 
-    Ok(current_module_type
-        .unwrap_or_else(|| ModuleType::Raw)
-        .cell())
+    Ok(current_module_type.unwrap_or(ModuleType::Raw).cell())
 }
 
 #[turbo_tasks::function]

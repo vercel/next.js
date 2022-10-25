@@ -1,6 +1,7 @@
 use std::{
     borrow::Cow,
     cell::RefCell,
+    cmp::Ordering,
     collections::HashSet,
     fmt::{self, Debug, Display, Formatter, Write},
     future::Future,
@@ -44,6 +45,8 @@ task_local! {
     pub(crate) static DEPENDENCIES_TO_TRACK: RefCell<HashSet<TaskDependency>>;
 }
 
+type OnceTaskFn = Mutex<Option<Pin<Box<dyn Future<Output = Result<RawVc>> + Send + 'static>>>>;
+
 /// Different Task types
 enum TaskType {
     /// A root task that will track dependencies and re-execute when
@@ -57,7 +60,7 @@ enum TaskType {
     /// start of the task. It may or may not include invalidations that
     /// happened after that. It may see these invalidations partially
     /// applied.
-    Once(Mutex<Option<Pin<Box<dyn Future<Output = Result<RawVc>> + Send + 'static>>>>),
+    Once(OnceTaskFn),
 
     /// A normal task execution a native (rust) function
     Native(FunctionId, NativeTaskFn),
@@ -927,24 +930,28 @@ impl Task {
                 backend.with_scope(*scope, |scope| {
                     // add the new root scope as child of old scopes
                     let mut state = scope.state.lock();
-                    if *count > 0 {
-                        if let Some(ScopeChildChangeEffect { notify, active }) =
-                            state.add_child_count(root_scope, *count as usize)
-                        {
-                            tasks.extend(notify);
-                            if active {
-                                active_counter += 1;
+                    match count.cmp(&0) {
+                        Ordering::Greater => {
+                            if let Some(ScopeChildChangeEffect { notify, active }) =
+                                state.add_child_count(root_scope, *count as usize)
+                            {
+                                tasks.extend(notify);
+                                if active {
+                                    active_counter += 1;
+                                }
                             }
                         }
-                    } else {
-                        if let Some(ScopeChildChangeEffect { notify, active }) =
-                            state.remove_child_count(root_scope, (-*count) as usize)
-                        {
-                            tasks.extend(notify);
-                            if active {
-                                active_counter -= 1;
+                        Ordering::Less => {
+                            if let Some(ScopeChildChangeEffect { notify, active }) =
+                                state.remove_child_count(root_scope, (-*count) as usize)
+                            {
+                                tasks.extend(notify);
+                                if active {
+                                    active_counter -= 1;
+                                }
                             }
                         }
+                        _ => {}
                     }
                 });
             }
@@ -954,14 +961,22 @@ impl Task {
 
             // We collected how often the new root scope is considered as active by the old
             // scopes and increase the active counter by that.
-            if active_counter > 0 {
-                backend.increase_scope_active_by(root_scope, active_counter as usize, turbo_tasks);
-            } else if active_counter < 0 {
-                backend.decrease_scope_active_by(
-                    root_scope,
-                    (-active_counter) as usize,
-                    turbo_tasks,
-                );
+            match active_counter.cmp(&0) {
+                Ordering::Greater => {
+                    backend.increase_scope_active_by(
+                        root_scope,
+                        active_counter as usize,
+                        turbo_tasks,
+                    );
+                }
+                Ordering::Less => {
+                    backend.decrease_scope_active_by(
+                        root_scope,
+                        (-active_counter) as usize,
+                        turbo_tasks,
+                    );
+                }
+                _ => {}
             }
 
             // add self to new root scope

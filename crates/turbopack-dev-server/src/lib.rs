@@ -296,7 +296,7 @@ async fn request_to_data(
     if vary.body {
         let bytes: Vec<_> = request
             .body_mut()
-            .map(|bytes| bytes.map(|bytes| Bytes::from(bytes)))
+            .map(|bytes| bytes.map(Bytes::from))
             .try_collect::<Vec<_>>()
             .await?;
         data.body = Some(Body::new(bytes).into());
@@ -356,7 +356,7 @@ pub(crate) fn resource_to_data(
     if vary.body {
         data.body = Some(Body::new(Vec::new()).into());
     }
-    if let Some(_) = vary.query.as_ref() {
+    if vary.query.is_some() {
         data.query = Some(Query::default())
     }
     if let Some(filter) = vary.headers.as_ref() {

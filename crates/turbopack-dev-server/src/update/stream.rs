@@ -55,18 +55,16 @@ async fn get_content_wrapper(
 async fn resolve_static_content(
     content_source_result: ContentSourceResultVc,
 ) -> Result<Option<VersionedContentVc>> {
-    loop {
-        break Ok(match *content_source_result.await? {
-            ContentSourceResult::NotFound => None,
-            ContentSourceResult::HttpProxy(_) => {
-                panic!("HTTP proxying is not supported in UpdateStream")
-            }
-            ContentSourceResult::Static(content) => Some(content),
-            ContentSourceResult::NeedData { .. } => {
-                bail!("this might only happen temporary as get_content_wrapper resolves the data")
-            }
-        });
-    }
+    Ok(match *content_source_result.await? {
+        ContentSourceResult::NotFound => None,
+        ContentSourceResult::HttpProxy(_) => {
+            panic!("HTTP proxying is not supported in UpdateStream")
+        }
+        ContentSourceResult::Static(content) => Some(content),
+        ContentSourceResult::NeedData { .. } => {
+            bail!("this might only happen temporary as get_content_wrapper resolves the data")
+        }
+    })
 }
 
 #[turbo_tasks::function]

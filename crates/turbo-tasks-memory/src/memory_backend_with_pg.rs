@@ -28,9 +28,12 @@ use turbo_tasks::{
     RawVc, TaskId, TraitTypeId, TurboTasksBackendApi,
 };
 
+type RootTaskFn =
+    Box<dyn Fn() -> Pin<Box<dyn Future<Output = Result<RawVc>> + Send>> + Send + Sync>;
+
 enum TaskType {
     Persistent(PersistentTaskType),
-    Root(Box<dyn Fn() -> Pin<Box<dyn Future<Output = Result<RawVc>> + Send>> + Send + Sync>),
+    Root(RootTaskFn),
     Once(Mutex<Pin<Box<dyn Future<Output = Result<RawVc>> + Send + 'static>>>),
 }
 

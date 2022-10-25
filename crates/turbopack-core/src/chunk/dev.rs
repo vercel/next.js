@@ -140,6 +140,7 @@ impl ChunkingContext for DevChunkingContext {
             name += extension;
         }
         let mut root_path = self.chunk_root_path;
+        #[allow(clippy::single_match, reason = "future extensions")]
         match extension {
             ".css" => {
                 if let Some(path) = self.css_chunk_root_path {
