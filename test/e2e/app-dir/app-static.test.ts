@@ -10,6 +10,8 @@ import webdriver from 'next-webdriver'
 const glob = promisify(globOrig)
 
 describe('app-dir static/dynamic handling', () => {
+  const isDev = (global as any).isNextDev
+
   if ((global as any).isNextDeploy) {
     it('should skip next deploy for now', () => {})
     return
@@ -56,6 +58,8 @@ describe('app-dir static/dynamic handling', () => {
         'blog/tim/first-post.rsc',
         'dynamic-no-gen-params-ssr/[slug]/page.js',
         'dynamic-no-gen-params/[slug]/page.js',
+        'hooks/use-pathname/[slug]/page.js',
+        'hooks/use-search-params/[slug]/page.js',
         'ssr-auto/cache-no-store/page.js',
         'ssr-auto/fetch-revalidate-zero/page.js',
         'ssr-forced/page.js',
@@ -359,9 +363,79 @@ describe('app-dir static/dynamic handling', () => {
     expect(secondDate).not.toBe(initialDate)
   })
 
-  it('should show a message to leave feedback for `appDir`', async () => {
-    expect(next.cliOutput).toContain(
-      `Thank you for testing \`appDir\` please leave your feedback at https://nextjs.link/app-feedback`
-    )
+  describe('hooks', () => {
+    describe('useSearchParams', () => {
+      if (isDev) {
+        it('should bail out to client rendering during SSG', async () => {
+          const res = await fetchViaHTTP(
+            next.url,
+            '/hooks/use-search-params/slug'
+          )
+          const html = await res.text()
+          expect(html).toInclude('<html id="__next_error__">')
+        })
+      }
+
+      it('should have the correct values', async () => {
+        const browser = await webdriver(
+          next.url,
+          '/hooks/use-search-params/slug?first=value&second=other&third'
+        )
+
+        expect(await browser.elementByCss('#params-first').text()).toBe('value')
+        expect(await browser.elementByCss('#params-second').text()).toBe(
+          'other'
+        )
+        expect(await browser.elementByCss('#params-third').text()).toBe('')
+        expect(await browser.elementByCss('#params-not-real').text()).toBe(
+          'N/A'
+        )
+      })
+
+      it('should have values from canonical url on rewrite', async () => {
+        const browser = await webdriver(
+          next.url,
+          '/rewritten-use-search-params?first=a&second=b&third=c'
+        )
+
+        expect(await browser.elementByCss('#params-first').text()).toBe('a')
+        expect(await browser.elementByCss('#params-second').text()).toBe('b')
+        expect(await browser.elementByCss('#params-third').text()).toBe('c')
+        expect(await browser.elementByCss('#params-not-real').text()).toBe(
+          'N/A'
+        )
+      })
+    })
+
+    describe('usePathname', () => {
+      if (isDev) {
+        it('should bail out to client rendering during SSG', async () => {
+          const res = await fetchViaHTTP(next.url, '/hooks/use-pathname/slug')
+          const html = await res.text()
+          expect(html).toInclude('<html id="__next_error__">')
+        })
+      }
+
+      it('should have the correct values', async () => {
+        const browser = await webdriver(next.url, '/hooks/use-pathname/slug')
+
+        expect(await browser.elementByCss('#pathname').text()).toBe(
+          '/hooks/use-pathname/slug'
+        )
+      })
+
+      it('should have values from canonical url on rewrite', async () => {
+        const browser = await webdriver(next.url, '/rewritten-use-pathname')
+
+        expect(await browser.elementByCss('#pathname').text()).toBe(
+          '/rewritten-use-pathname'
+        )
+      })
+    })
+    it('should show a message to leave feedback for `appDir`', async () => {
+      expect(next.cliOutput).toContain(
+        `Thank you for testing \`appDir\` please leave your feedback at https://nextjs.link/app-feedback`
+      )
+    })
   })
 })
