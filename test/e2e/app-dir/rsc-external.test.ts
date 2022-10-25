@@ -21,11 +21,6 @@ async function resolveStreamResponse(response: any, onData?: any) {
 describe('app dir - rsc external dependency', () => {
   let next: NextInstance
 
-  if ((global as any).isNextDeploy) {
-    it('should skip for deploy mode for now', () => {})
-    return
-  }
-
   beforeAll(async () => {
     next = await createNext({
       files: new FileRef(path.join(__dirname, './rsc-external')),

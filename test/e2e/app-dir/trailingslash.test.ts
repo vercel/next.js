@@ -6,11 +6,6 @@ import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 
 describe('app-dir trailingSlash handling', () => {
-  if ((global as any).isNextDeploy) {
-    it('should skip next deploy for now', () => {})
-    return
-  }
-
   let next: NextInstance
 
   beforeAll(async () => {

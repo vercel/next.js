@@ -4,11 +4,6 @@ import path from 'path'
 import webdriver from 'next-webdriver'
 
 describe('app-dir back button download bug', () => {
-  if ((global as any).isNextDeploy) {
-    it('should skip next deploy for now', () => {})
-    return
-  }
-
   let next: NextInstance
 
   beforeAll(async () => {
