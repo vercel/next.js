@@ -29,11 +29,6 @@ describe('app dir - rsc basics', () => {
   let next: NextInstance
   let distDir: string
 
-  if ((global as any).isNextDeploy) {
-    it('should skip for deploy mode for now', () => {})
-    return
-  }
-
   beforeAll(async () => {
     next = await createNext({
       files: new FileRef(path.join(__dirname, './rsc-basic')),

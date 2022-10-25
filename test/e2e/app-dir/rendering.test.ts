@@ -5,11 +5,6 @@ import path from 'path'
 import cheerio from 'cheerio'
 
 describe('app dir rendering', () => {
-  if ((global as any).isNextDeploy) {
-    it('should skip next deploy for now', () => {})
-    return
-  }
-
   const isDev = (global as any).isNextDev
   let next: NextInstance
 

@@ -4,11 +4,6 @@ import { renderViaHTTP } from 'next-test-utils'
 import path from 'path'
 
 describe('app-dir alias handling', () => {
-  if ((global as any).isNextDeploy) {
-    it('should skip next deploy for now', () => {})
-    return
-  }
-
   let next: NextInstance
 
   beforeAll(async () => {
