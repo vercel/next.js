@@ -2,7 +2,6 @@ use std::{
     collections::{BTreeMap, HashMap, HashSet},
     fmt::Write as _,
     io::Write,
-    path::{PathBuf, MAIN_SEPARATOR},
 };
 
 use anyhow::{anyhow, bail, Result};
@@ -71,6 +70,7 @@ async fn emit(
 
 /// List of the all assets of the "internal" subgraph and a list of boundary
 /// assets that are not considered "internal" ("external")
+#[derive(Debug)]
 #[turbo_tasks::value]
 struct SeparatedAssets {
     internal_assets: AssetsSetVc,
@@ -203,9 +203,9 @@ async fn get_renderer_pool(
 
     emit(intermediate_asset, intermediate_output_path).await?;
 
-    let output = intermediate_output_path.await?;
-    if let Some(disk) = DiskFileSystemVc::resolve_from(output.fs).await? {
-        let dir = PathBuf::from(&disk.await?.root).join(&output.path);
+    if let Some(fs) = DiskFileSystemVc::resolve_from(intermediate_output_path.fs()).await? {
+        let disk = fs.await?;
+        let dir = disk.to_sys_path(intermediate_output_path).await?;
         let entrypoint = dir.join("index.js");
         let pool = NodeJsPool::new(dir, entrypoint, HashMap::new(), 4);
         Ok(pool.cell())
@@ -385,16 +385,13 @@ async fn trace_stack(
         _ => bail!("couldn't extract disk fs from path"),
     }
     .await?;
-    let root = format!(
-        "{}{}",
-        fs.to_sys_path(intermediate_output_path)
-            .await?
-            .to_str()
-            .unwrap(),
-        MAIN_SEPARATOR
-    );
+    let root = fs
+        .to_sys_path(intermediate_output_path.root())
+        .await?
+        .to_string_lossy()
+        .to_string();
 
-    let assets = internal_assets(intermediate_asset, intermediate_output_path)
+    let assets = internal_assets(intermediate_asset, intermediate_output_path.root())
         .await?
         .iter()
         .map(|a| async {
@@ -421,13 +418,13 @@ async fn trace_stack(
     let mut message = String::new();
 
     macro_rules! write_frame {
-        ($f:ident) => {
+        ($f:ident, $path:expr) => {
             match $f.get_pos() {
                 Some((l, c)) => match &$f.name {
-                    Some(n) => writeln!(message, "  at {} ({}:{}:{})", n, $f.file, l, c),
-                    None => writeln!(message, "  at {}:{}:{}", $f.file, l, c),
+                    Some(n) => writeln!(message, "  at {} ({}:{}:{})", n, $path, l, c),
+                    None => writeln!(message, "  at {}:{}:{}", $path, l, c),
                 },
-                None => writeln!(message, "  at {}", $f.file),
+                None => writeln!(message, "  at {}", $path),
             }
         };
     }
@@ -442,14 +439,17 @@ async fn trace_stack(
                         SourceMapTraceVc::new(map.content(), line, column, frame.name.clone());
                     let trace = map_trace.trace().await?;
                     if let TraceResult::Found(f) = &*trace {
-                        write_frame!(f)?;
+                        write_frame!(f, path)?;
                         continue;
                     }
                 }
+
+                write_frame!(frame, path)?;
+                continue;
             }
         }
 
-        write_frame!(frame)?;
+        write_frame!(frame, frame.file)?;
     }
 
     Ok(StringVc::cell(message))

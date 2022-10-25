@@ -88,8 +88,6 @@ impl DecodedSourceMapVc {
             _ => bail!("could not read file content"),
         };
 
-        // It'd be great if we could cache this, but SM can't be stored in a Vc and I'm
-        // too sleepy to mess with it.
         let sm = match decode_source_map(content.as_ref()) {
             Ok(sm) => sm,
             _ => bail!("could not decode source map"),
@@ -184,7 +182,7 @@ impl SourceMapTraceVc {
 
         let sm = decoded_map.lock().unwrap();
         let trace = match sectioned_lookup(&sm, this.line.saturating_sub(1), this.column) {
-            Some(t) => t,
+            Some(t) if t.has_source() => t,
             _ => return Ok(TraceResult::NotFound.cell()),
         };
 
