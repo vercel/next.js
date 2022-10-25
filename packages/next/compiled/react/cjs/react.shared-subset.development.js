@@ -291,7 +291,7 @@ function generateCacheKey(request) {
     } catch (error) {
       // Log even in production just to make sure this is seen if only prod is frozen.
       // eslint-disable-next-line react-internal/no-production-logging
-      warn('React was unable to patch the fetch() function in this environment. ' + 'Suspensey APIs might not work correctly as a result.');
+      warn('React was unable to patch the fetch() function in this environment. ' + 'Suspense APIs might not work correctly as a result.');
     }
   }
 }
