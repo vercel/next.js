@@ -1,3 +1,5 @@
+'use client'
+
 import { createContext } from 'react'
 
 export const SearchParamsContext = createContext<URLSearchParams>(null as any)
