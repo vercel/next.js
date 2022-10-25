@@ -13,6 +13,7 @@ export const FILE_TYPES = {
   template: 'template',
   error: 'error',
   loading: 'loading',
+  head: 'head',
   'not-found': 'not-found',
 } as const
 
