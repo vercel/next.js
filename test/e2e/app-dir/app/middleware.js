@@ -42,4 +42,24 @@ export function middleware(request) {
 
     return NextResponse[method](new URL('/internal/success', request.url))
   }
+
+  if (request.nextUrl.pathname === '/search-params-prop-middleware-rewrite') {
+    return NextResponse.rewrite(
+      new URL(
+        '/search-params-prop?first=value&second=other%20value&third',
+        request.url
+      )
+    )
+  }
+
+  if (
+    request.nextUrl.pathname === '/search-params-prop-server-middleware-rewrite'
+  ) {
+    return NextResponse.rewrite(
+      new URL(
+        '/search-params-prop/server?first=value&second=other%20value&third',
+        request.url
+      )
+    )
+  }
 }

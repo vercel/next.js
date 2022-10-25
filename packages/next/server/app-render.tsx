@@ -3,16 +3,13 @@ import type { LoadComponentsReturnType } from './load-components'
 import type { ServerRuntime } from '../types'
 import type { FontLoaderManifest } from '../build/webpack/plugins/font-loader-manifest-plugin'
 
-// TODO-APP: investigate why require-hook doesn't work for app-render
-
+// Import builtin react directly to avoid require cache conflicts
 import React, { use } from 'next/dist/compiled/react'
-
 import { NotFound as DefaultNotFound } from '../client/components/error'
 
 // this needs to be required lazily so that `next-server` can set
 // the env before we require
 import ReactDOMServer from 'next/dist/compiled/react-dom/server.browser'
-
 import { ParsedUrlQuery } from 'querystring'
 import { NextParsedUrlQuery } from './request-meta'
 import RenderResult from './render-result'
