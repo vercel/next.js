@@ -1,17 +1,17 @@
 {
   "private": true,
   "scripts": {
-    "codegen": "graphql-codegen -r ts-node/register",
-    "dev": "yarn codegen && next",
-    "build": "yarn codegen && next build",
-    "test": "yarn codegen && jest",
+    "codegen": "graphql-codegen -w",
+    "dev": "yarn graphql-codegen && next",
+    "build": "yarn graphql-codegen && next build",
+    "test": "yarn graphql-codegen && jest",
     "start": "next start"
   },
   "dependencies": {
     "@apollo/client": "^3.5.10",
     "graphql-tag": "^2.12.6",
     "@graphql-tools/load-files": "6.0.18",
-    "@graphql-yoga/node": "^2.2.1",
+    "graphql-yoga": "three",
     "@graphql-tools/merge": "6.0.18",
     "@graphql-tools/schema": "6.0.18",
     "graphql": "15.6.0",
@@ -21,9 +21,8 @@
   },
   "devDependencies": {
     "@graphql-codegen/typed-document-node": "^2.2.8",
-    "@graphql-codegen/cli": "^2.6.2",
-    "@graphql-codegen/typescript": "^2.4.8",
-    "@graphql-codegen/typescript-operations": "^2.3.5",
+    "@graphql-codegen/cli": "2.13.7",
+    "@graphql-codegen/client-preset": "1.1.0",
     "@graphql-codegen/typescript-resolvers": "^2.6.1",
     "@types/jest": "^27.0.2",
     "@types/mocha": "^9.0.0",

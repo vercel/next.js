@@ -248,7 +248,10 @@ fn expr_to_json(expr: &Expr) -> Result<Value, ()> {
         }
         lit => HANDLER.with(|handler| {
             handler
-                .struct_span_err(lit.span(), "Unexpected value")
+                .struct_span_err(
+                    lit.span(),
+                    "Font loader values must be explicitly written literals.",
+                )
                 .emit();
             Err(())
         }),

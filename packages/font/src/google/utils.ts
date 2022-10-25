@@ -1,3 +1,4 @@
+import fs from 'fs'
 // @ts-ignore
 import fetch from 'next/dist/compiled/node-fetch'
 import fontData from './font-data.json'
@@ -161,6 +162,9 @@ export async function fetchCSSFromGoogleFonts(url: string, fontFamily: string) {
 
 export async function fetchFontFile(url: string) {
   if (process.env.NEXT_FONT_GOOGLE_MOCKED_RESPONSES) {
+    if (url.startsWith('/')) {
+      return fs.readFileSync(url)
+    }
     return Buffer.from(url)
   }
   const arrayBuffer = await fetch(url).then((r: any) => r.arrayBuffer())

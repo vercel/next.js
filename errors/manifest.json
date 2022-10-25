@@ -695,6 +695,10 @@
           "path": "/errors/nested-styled-jsx-tags.md"
         },
         {
+          "title": "invalid-new-link-with-extra-anchor",
+          "path": "/errors/invalid-new-link-with-extra-anchor.md"
+        },
+        {
           "title": "returning-response-body-in-middleware",
           "path": "/errors/returning-response-body-in-middleware.md"
         },
