@@ -5,7 +5,7 @@ use indexmap::{IndexMap, IndexSet};
 use turbo_tasks::{primitives::StringVc, ValueToString};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
-    asset::AssetsSetVc,
+    asset::{Asset, AssetsSetVc},
     introspect::{
         asset::IntrospectableAssetVc, Introspectable, IntrospectableChildrenVc, IntrospectableVc,
     },
@@ -99,6 +99,15 @@ impl GetContentSource for NodeRenderContentSource {
     async fn content_source(&self) -> Result<ContentSourceVc> {
         let entries = self.entry.entries();
         let mut set = IndexSet::new();
+        for reference in self.fallback_page.references().await?.iter() {
+            set.extend(
+                reference
+                    .resolve_reference()
+                    .primary_assets()
+                    .await?
+                    .copied(),
+            )
+        }
         for &entry in entries.await?.iter() {
             let entry = entry.await?;
             set.extend(
