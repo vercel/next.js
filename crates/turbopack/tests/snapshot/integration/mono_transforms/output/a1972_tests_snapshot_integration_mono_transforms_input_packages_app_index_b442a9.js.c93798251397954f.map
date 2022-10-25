@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["/[project]/crates/turbopack/tests/snapshot/integration/mono_transforms/input/packages/app/index.js"],"sourcesContent":["import MyApp from \"component\";\nimport ThirdPartyComponent from \"third_party_component\";\n\nconsole.log(MyApp, ThirdPartyComponent);\n"],"names":[],"mappings":"AAAA;;;;;AAGA,QAAQ,GAAG"}},
+    {"offset": {"line": 10, "column": 0}, "map": {"version": 3, "names": [], "sources": [], "mappings": "A"}}]
+}

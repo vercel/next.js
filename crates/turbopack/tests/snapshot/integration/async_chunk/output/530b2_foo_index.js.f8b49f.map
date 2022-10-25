@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sections": [
+    {"offset": {"line": 2, "column": 0}, "map": {"version":3,"sources":["/[project]/crates/turbopack/tests/snapshot/integration/async_chunk/input/node_modules/foo/index.js"],"sourcesContent":["export function foo(value) {\n  console.assert(value);\n}\n"],"names":[],"mappings":"AAAA;;;AAAO,SAAS,IAAI,KAAK,EAAE;IACzB,QAAQ,MAAM,CAAC;AACjB"}},
+    {"offset": {"line": 8, "column": 0}, "map": {"version": 3, "names": [], "sources": [], "mappings": "A"}}]
+}

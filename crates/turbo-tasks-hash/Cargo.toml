@@ -1,0 +1,17 @@
+[package]
+name = "turbo-tasks-hash"
+version = "0.1.0"
+description = "TBD"
+license = "MPL-2.0"
+edition = "2021"
+autobenches = false
+
+[lib]
+bench = false
+
+[dependencies]
+base16 = "0.2.1"
+hex = "0.4.3"
+md4 = "0.10.1"
+turbo-tasks-macros = { path = "../turbo-tasks-macros" }
+twox-hash = "1.6.3"

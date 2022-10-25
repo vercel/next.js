@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["/[project]/crates/turbopack/tests/snapshot/integration/mono_transforms/input/node_modules/react/jsx-runtime.js"],"sourcesContent":["export function jsx() {\n  // This is a stub to satisfy turbopack's resolution. Snapshot tests are never actually run.\n}\n"],"names":[],"mappings":"AAAA;;;AAAO,SAAS,MAAM,CAEtB"}},
+    {"offset": {"line": 8, "column": 0}, "map": {"version": 3, "names": [], "sources": [], "mappings": "A"}}]
+}

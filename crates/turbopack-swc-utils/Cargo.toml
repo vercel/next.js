@@ -1,0 +1,27 @@
+[package]
+name = "turbopack-swc-utils"
+version = "0.1.0"
+description = "TBD"
+license = "MPL-2.0"
+edition = "2021"
+autobenches = false
+
+[lib]
+bench = false
+
+[dependencies]
+anyhow = "1.0.47"
+async-trait = "0.1.56"
+turbo-tasks = { path = "../turbo-tasks" }
+turbo-tasks-fs = { path = "../turbo-tasks-fs" }
+turbopack-core = { path = "../turbopack-core" }
+
+swc_core = { workspace = true, features = [
+  "base",
+  "common",
+  "common_concurrent",
+  "common_sourcemap",
+] }
+
+[build-dependencies]
+turbo-tasks-build = { path = "../turbo-tasks-build" }

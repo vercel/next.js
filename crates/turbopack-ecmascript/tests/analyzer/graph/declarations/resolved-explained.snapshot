@@ -1,0 +1,37 @@
+*anonymous function 25* = (...) => ???*0*
+- *0* FreeVar(undefined)
+  ⚠️  unknown global
+
+a = (...) => ???*0*
+- *0* FreeVar(undefined)
+  ⚠️  unknown global
+
+aa = (...) => ???*0*
+- *0* FreeVar(undefined)
+  ⚠️  unknown global
+
+b = (...) => ???*0*
+- *0* FreeVar(undefined)
+  ⚠️  unknown global
+
+bb = (...) => ???*0*
+- *0* FreeVar(undefined)
+  ⚠️  unknown global
+
+c = 123
+
+cc = 123
+
+d = "hello"
+
+dd = "hello"
+
+e = ???*0*
+- *0* unsupported expression
+
+ee = ???*0*
+- *0* unsupported expression
+
+ff = ???*0*
+- *0* FreeVar(f)
+  ⚠️  unknown global

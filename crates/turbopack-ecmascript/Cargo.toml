@@ -1,0 +1,72 @@
+[package]
+name = "turbopack-ecmascript"
+version = "0.1.0"
+description = "TBD"
+license = "MPL-2.0"
+edition = "2021"
+autobenches = false
+
+[lib]
+bench = false
+
+[dependencies]
+anyhow = "1.0.47"
+async-trait = "0.1.56"
+easy-error = "1.0.0"
+fxhash = "0.2.1"
+indexmap = { workspace = true }
+lazy_static = "1.4.0"
+once_cell = "1.13.0"
+rand = "0.8.5"
+regex = "1.5.4"
+serde = "1.0.136"
+serde_json = "1.0.85"
+serde_regex = "1.1.0"
+styled_components = "0.52.1"
+styled_jsx = "0.29.1"
+swc_emotion = "0.28.1"
+tokio = "1.11.0"
+tracing = "0.1.37"
+turbo-tasks = { path = "../turbo-tasks" }
+turbo-tasks-fs = { path = "../turbo-tasks-fs" }
+turbo-tasks-hash = { path = "../turbo-tasks-hash" }
+turbopack-core = { path = "../turbopack-core" }
+turbopack-swc-utils = { path = "../turbopack-swc-utils" }
+url = "2.2.2"
+
+swc_core = { workspace = true, features = [
+  "ecma_ast",
+  "common",
+  "common_concurrent",
+  "common_sourcemap",
+  "ecma_codegen",
+  "ecma_parser",
+  "ecma_preset_env",
+  "ecma_transforms",
+  "ecma_transforms_module",
+  "ecma_transforms_react",
+  "ecma_transforms_typescript",
+  "ecma_quote",
+  "ecma_visit",
+  "ecma_visit_path",
+  "ecma_utils",
+  "testing",
+  "base",
+] }
+
+[dependencies.num-bigint]
+version = "0.4"
+
+[dev-dependencies]
+criterion = { version = "0.3.5", features = ["async_tokio"] }
+difference = "2.0"
+rstest = "0.12.0"
+turbo-tasks-memory = { path = "../turbo-tasks-memory" }
+turbo-tasks-testing = { path = "../turbo-tasks-testing" }
+
+[build-dependencies]
+turbo-tasks-build = { path = "../turbo-tasks-build" }
+
+[[bench]]
+name = "mod"
+harness = false

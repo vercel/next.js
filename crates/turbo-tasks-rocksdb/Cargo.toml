@@ -1,0 +1,41 @@
+[package]
+name = "turbo-tasks-rocksdb"
+version = "0.1.0"
+description = "TBD"
+license = "MPL-2.0"
+edition = "2021"
+
+# don't publish this crate (for now)
+publish = false
+
+[lib]
+bench = false
+
+[dependencies]
+anyhow = "1.0.47"
+event-listener = "2.5.2"
+lazy_static = "1.4.0"
+tokio = "1.11.0"
+turbo-tasks = { path = "../turbo-tasks" }
+# https://github.com/rust-rocksdb/rust-rocksdb/issues/609
+# disable "bzip2" feature
+bincode = "1.3.3"
+byteorder = "1.4.3"
+concurrent-queue = "1.2.2"
+flurry = "0.4.0"
+num_cpus = "1.13.1"
+owning_ref = "0.4.1"
+rocksdb = { version = "0.18.0", default-features = false, features = [
+  "snappy",
+  "lz4",
+  "zstd",
+  "zlib",
+] }
+serde = "1.0.136"
+
+[features]
+default = []
+log_db = []
+log_backend = []
+log_running_tasks = []
+unsafe_once_map = []

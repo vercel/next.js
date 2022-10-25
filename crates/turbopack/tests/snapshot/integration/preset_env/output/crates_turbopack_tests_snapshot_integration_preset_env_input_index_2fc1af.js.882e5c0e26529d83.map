@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["/[project]/crates/turbopack/tests/snapshot/integration/preset_env/input/index.js"],"sourcesContent":["class Foo {}\n\nconsole.log(Foo, [].includes(\"foo\"));\n"],"names":[],"mappings":"AAAA;;;AAAA,IAAA,AAAM,MAAN,SAAM;;yMAAA;;AAEN,QAAQ,GAAG,CAAC,KAAK,EAAE,CAAC,QAAQ,CAAC"}},
+    {"offset": {"line": 12, "column": 0}, "map": {"version": 3, "names": [], "sources": [], "mappings": "A"}}]
+}

@@ -1,0 +1,23 @@
+[package]
+name = "turbopack-create-test-app"
+version = "0.1.0"
+description = "TBD"
+license = "MPL-2.0"
+edition = "2021"
+
+# don't publish this crate (for now)
+publish = false
+
+[[bin]]
+name = "turbopack-create-test-app"
+path = "src/main.rs"
+bench = false
+
+[lib]
+bench = false
+
+[dependencies]
+anyhow = "1.0.47"
+clap = { version = "3", features = ["derive"] }
+serde_json = "1.0.85"
+tempfile = "3.3.0"

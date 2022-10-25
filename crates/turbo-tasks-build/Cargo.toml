@@ -1,0 +1,23 @@
+[package]
+name = "turbo-tasks-build"
+version = "0.1.0"
+description = "TBD"
+license = "MPL-2.0"
+edition = "2021"
+
+[lib]
+bench = false
+
+[dependencies]
+anyhow = "1.0.53"
+cargo-lock = "8.0.2"
+glob = "0.3.0"
+pmutil = "0.5.3"
+quote = "1.0"
+serde = "1.0.136"
+toml = "0.5"
+turbo-tasks-macros-shared = { path = "../turbo-tasks-macros-shared" }
+
+[dependencies.syn]
+features = ["full"]
+version = "1.0"

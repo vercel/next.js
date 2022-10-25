@@ -1,0 +1,41 @@
+[package]
+name = "turbopack-core"
+version = "0.1.0"
+description = "TBD"
+license = "MPL-2.0"
+edition = "2021"
+autobenches = false
+
+[lib]
+bench = false
+
+[dependencies]
+anyhow = "1.0.47"
+async-trait = "0.1.56"
+browserslist-rs = "=0.11.0"                                               # Keep consistent with preset_env_base through swc_core
+futures = "0.3.24"
+indexmap = { workspace = true }
+lazy_static = "1.4.0"
+patricia_tree = "0.3.1"
+rand = "0.8.5"
+regex = "1.5.4"
+serde = "1.0.136"
+serde_json = { version = "1.0.85", features = ["preserve_order"] }
+serde_regex = "1.1.0"
+sourcemap = "6.0.2"
+swc_core = { workspace = true, features = ["ecma_preset_env", "common"] }
+tokio = "1.11.0"
+turbo-tasks = { path = "../turbo-tasks" }
+turbo-tasks-env = { path = "../turbo-tasks-env" }
+turbo-tasks-fs = { path = "../turbo-tasks-fs" }
+turbo-tasks-hash = { path = "../turbo-tasks-hash" }
+url = "2.2.2"
+
+[build-dependencies]
+turbo-tasks-build = { path = "../turbo-tasks-build" }
+
+[dev-dependencies]
+rstest = "0.12.0"
+
+[features]
+issue_path = []

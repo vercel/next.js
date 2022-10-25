@@ -1,0 +1,9 @@
+{
+  "devDependencies": {
+    "@swc/helpers": "^0.4.11",
+    "styled-components": "^5.3.6",
+    "react": "^18.0.0",
+    "@emotion/react": "11.10.4",
+    "@emotion/styled": "11.10.4"
+  }
+}

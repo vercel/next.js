@@ -1,0 +1,530 @@
+[
+    (
+        "a",
+        Member(
+            3,
+            Variable(
+                (
+                    Atom('object' type=static),
+                    #1,
+                ),
+            ),
+            Constant(
+                StrWord(
+                    Atom('a' type=static),
+                ),
+            ),
+        ),
+    ),
+    (
+        "a1",
+        Member(
+            3,
+            Variable(
+                (
+                    Atom('object' type=static),
+                    #1,
+                ),
+            ),
+            Constant(
+                StrWord(
+                    Atom('a' type=static),
+                ),
+            ),
+        ),
+    ),
+    (
+        "a2",
+        Member(
+            3,
+            Variable(
+                (
+                    Atom('object' type=static),
+                    #1,
+                ),
+            ),
+            Constant(
+                StrWord(
+                    Atom('a' type=static),
+                ),
+            ),
+        ),
+    ),
+    (
+        "a3",
+        Member(
+            3,
+            Variable(
+                (
+                    Atom('object_spread' type=dynamic),
+                    #1,
+                ),
+            ),
+            Constant(
+                StrWord(
+                    Atom('a' type=static),
+                ),
+            ),
+        ),
+    ),
+    (
+        "a4",
+        Member(
+            3,
+            Variable(
+                (
+                    Atom('object' type=static),
+                    #1,
+                ),
+            ),
+            Constant(
+                StrWord(
+                    Atom('a' type=static),
+                ),
+            ),
+        ),
+    ),
+    (
+        "a5",
+        Member(
+            3,
+            Variable(
+                (
+                    Atom('unknown_spread' type=dynamic),
+                    #1,
+                ),
+            ),
+            Constant(
+                StrWord(
+                    Atom('a' type=static),
+                ),
+            ),
+        ),
+    ),
+    (
+        "b",
+        Member(
+            3,
+            Variable(
+                (
+                    Atom('object' type=static),
+                    #1,
+                ),
+            ),
+            Constant(
+                StrWord(
+                    Atom('b' type=static),
+                ),
+            ),
+        ),
+    ),
+    (
+        "b1",
+        Member(
+            3,
+            Variable(
+                (
+                    Atom('object' type=static),
+                    #1,
+                ),
+            ),
+            Constant(
+                StrWord(
+                    Atom('b' type=static),
+                ),
+            ),
+        ),
+    ),
+    (
+        "b2",
+        Member(
+            3,
+            Variable(
+                (
+                    Atom('object' type=static),
+                    #1,
+                ),
+            ),
+            Constant(
+                StrWord(
+                    Atom('b' type=static),
+                ),
+            ),
+        ),
+    ),
+    (
+        "b3",
+        Member(
+            3,
+            Variable(
+                (
+                    Atom('object_spread' type=dynamic),
+                    #1,
+                ),
+            ),
+            Constant(
+                StrWord(
+                    Atom('b' type=static),
+                ),
+            ),
+        ),
+    ),
+    (
+        "b4",
+        Member(
+            3,
+            Variable(
+                (
+                    Atom('object' type=static),
+                    #1,
+                ),
+            ),
+            Constant(
+                StrWord(
+                    Atom('b' type=static),
+                ),
+            ),
+        ),
+    ),
+    (
+        "b5",
+        Member(
+            3,
+            Variable(
+                (
+                    Atom('unknown_spread' type=dynamic),
+                    #1,
+                ),
+            ),
+            Constant(
+                StrWord(
+                    Atom('b' type=static),
+                ),
+            ),
+        ),
+    ),
+    (
+        "c",
+        Member(
+            3,
+            Variable(
+                (
+                    Atom('object' type=static),
+                    #1,
+                ),
+            ),
+            Constant(
+                StrWord(
+                    Atom('c' type=inline),
+                ),
+            ),
+        ),
+    ),
+    (
+        "c1",
+        Member(
+            3,
+            Variable(
+                (
+                    Atom('object' type=static),
+                    #1,
+                ),
+            ),
+            Constant(
+                StrWord(
+                    Atom('c' type=inline),
+                ),
+            ),
+        ),
+    ),
+    (
+        "c2",
+        Member(
+            3,
+            Variable(
+                (
+                    Atom('object' type=static),
+                    #1,
+                ),
+            ),
+            Constant(
+                StrWord(
+                    Atom('c' type=inline),
+                ),
+            ),
+        ),
+    ),
+    (
+        "c3",
+        Member(
+            3,
+            Variable(
+                (
+                    Atom('object_spread' type=dynamic),
+                    #1,
+                ),
+            ),
+            Constant(
+                StrWord(
+                    Atom('c' type=inline),
+                ),
+            ),
+        ),
+    ),
+    (
+        "c4",
+        Member(
+            3,
+            Variable(
+                (
+                    Atom('object' type=static),
+                    #1,
+                ),
+            ),
+            Constant(
+                StrWord(
+                    Atom('c' type=inline),
+                ),
+            ),
+        ),
+    ),
+    (
+        "c5",
+        Member(
+            3,
+            Variable(
+                (
+                    Atom('unknown_spread' type=dynamic),
+                    #1,
+                ),
+            ),
+            Constant(
+                StrWord(
+                    Atom('c' type=inline),
+                ),
+            ),
+        ),
+    ),
+    (
+        "d",
+        Member(
+            3,
+            Variable(
+                (
+                    Atom('object' type=static),
+                    #1,
+                ),
+            ),
+            Constant(
+                StrWord(
+                    Atom('d' type=inline),
+                ),
+            ),
+        ),
+    ),
+    (
+        "d1",
+        Member(
+            3,
+            Variable(
+                (
+                    Atom('object' type=static),
+                    #1,
+                ),
+            ),
+            Constant(
+                StrWord(
+                    Atom('d' type=inline),
+                ),
+            ),
+        ),
+    ),
+    (
+        "d2",
+        Member(
+            3,
+            Variable(
+                (
+                    Atom('object' type=static),
+                    #1,
+                ),
+            ),
+            Constant(
+                StrWord(
+                    Atom('d' type=inline),
+                ),
+            ),
+        ),
+    ),
+    (
+        "d3",
+        Member(
+            3,
+            Variable(
+                (
+                    Atom('object_spread' type=dynamic),
+                    #1,
+                ),
+            ),
+            Constant(
+                StrWord(
+                    Atom('d' type=inline),
+                ),
+            ),
+        ),
+    ),
+    (
+        "d4",
+        Member(
+            3,
+            Variable(
+                (
+                    Atom('object' type=static),
+                    #1,
+                ),
+            ),
+            Constant(
+                StrWord(
+                    Atom('d' type=inline),
+                ),
+            ),
+        ),
+    ),
+    (
+        "object",
+        Object(
+            7,
+            [
+                KeyValue(
+                    Constant(
+                        StrWord(
+                            Atom('a' type=static),
+                        ),
+                    ),
+                    Constant(
+                        Num(
+                            ConstantNumber(
+                                1.0,
+                            ),
+                        ),
+                    ),
+                ),
+                KeyValue(
+                    Constant(
+                        StrWord(
+                            Atom('b' type=static),
+                        ),
+                    ),
+                    Constant(
+                        Num(
+                            ConstantNumber(
+                                2.0,
+                            ),
+                        ),
+                    ),
+                ),
+                KeyValue(
+                    Constant(
+                        StrWord(
+                            Atom('c' type=inline),
+                        ),
+                    ),
+                    Constant(
+                        Num(
+                            ConstantNumber(
+                                3.0,
+                            ),
+                        ),
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "object_spread",
+        Object(
+            6,
+            [
+                KeyValue(
+                    Constant(
+                        StrWord(
+                            Atom('a' type=static),
+                        ),
+                    ),
+                    Constant(
+                        Num(
+                            ConstantNumber(
+                                11.0,
+                            ),
+                        ),
+                    ),
+                ),
+                Spread(
+                    Variable(
+                        (
+                            Atom('object' type=static),
+                            #1,
+                        ),
+                    ),
+                ),
+                KeyValue(
+                    Constant(
+                        StrWord(
+                            Atom('b' type=static),
+                        ),
+                    ),
+                    Constant(
+                        Num(
+                            ConstantNumber(
+                                22.0,
+                            ),
+                        ),
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "unknown_spread",
+        Object(
+            6,
+            [
+                KeyValue(
+                    Constant(
+                        StrWord(
+                            Atom('a' type=static),
+                        ),
+                    ),
+                    Constant(
+                        Num(
+                            ConstantNumber(
+                                1.0,
+                            ),
+                        ),
+                    ),
+                ),
+                Spread(
+                    FreeVar(
+                        Other(
+                            Atom('global' type=static),
+                        ),
+                    ),
+                ),
+                KeyValue(
+                    Constant(
+                        StrWord(
+                            Atom('b' type=static),
+                        ),
+                    ),
+                    Constant(
+                        Num(
+                            ConstantNumber(
+                                2.0,
+                            ),
+                        ),
+                    ),
+                ),
+            ],
+        ),
+    ),
+]

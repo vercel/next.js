@@ -1,0 +1,34 @@
+[
+    (
+        "a",
+        Constant(
+            StrAtom(
+                "",
+            ),
+        ),
+    ),
+    (
+        "b",
+        Constant(
+            StrAtom(
+                "hello",
+            ),
+        ),
+    ),
+    (
+        "c",
+        Constant(
+            StrWord(
+                Atom('--service=0.14.12' type=dynamic),
+            ),
+        ),
+    ),
+    (
+        "d",
+        Constant(
+            StrWord(
+                Atom('--service=0.14.12' type=dynamic),
+            ),
+        ),
+    ),
+]

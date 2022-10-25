@@ -1,0 +1,307 @@
+[
+    (
+        "binPath",
+        Alternatives(
+            9,
+            [
+                Unknown(
+                    Some(
+                        Variable(
+                            (
+                                Atom('binPath' type=inline),
+                                #4,
+                            ),
+                        ),
+                    ),
+                    "pattern without value",
+                ),
+                MemberCall(
+                    7,
+                    FreeVar(
+                        Require,
+                    ),
+                    Constant(
+                        StrWord(
+                            Atom('resolve' type=inline),
+                        ),
+                    ),
+                    [
+                        Concat(
+                            4,
+                            [
+                                Variable(
+                                    (
+                                        Atom('pkg' type=inline),
+                                        #4,
+                                    ),
+                                ),
+                                Constant(
+                                    StrAtom(
+                                        "/",
+                                    ),
+                                ),
+                                Variable(
+                                    (
+                                        Atom('subpath' type=inline),
+                                        #4,
+                                    ),
+                                ),
+                            ],
+                        ),
+                    ],
+                ),
+            ],
+        ),
+    ),
+    (
+        "e",
+        Unknown(
+            Some(
+                Variable(
+                    (
+                        Atom('e' type=inline),
+                        #5,
+                    ),
+                ),
+            ),
+            "pattern without value",
+        ),
+    ),
+    (
+        "generateBinPath",
+        Function(
+            2,
+            Variable(
+                (
+                    Atom('binPath' type=inline),
+                    #4,
+                ),
+            ),
+        ),
+    ),
+    (
+        "knownWindowsPackages",
+        Object(
+            7,
+            [
+                KeyValue(
+                    Constant(
+                        StrWord(
+                            Atom('win32 arm64 LE' type=dynamic),
+                        ),
+                    ),
+                    Constant(
+                        StrWord(
+                            Atom('esbuild-windows-arm64' type=dynamic),
+                        ),
+                    ),
+                ),
+                KeyValue(
+                    Constant(
+                        StrWord(
+                            Atom('win32 ia32 LE' type=dynamic),
+                        ),
+                    ),
+                    Constant(
+                        StrWord(
+                            Atom('esbuild-windows-32' type=dynamic),
+                        ),
+                    ),
+                ),
+                KeyValue(
+                    Constant(
+                        StrWord(
+                            Atom('win32 x64 LE' type=dynamic),
+                        ),
+                    ),
+                    Constant(
+                        StrWord(
+                            Atom('esbuild-windows-64' type=dynamic),
+                        ),
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "path",
+        Call(
+            3,
+            FreeVar(
+                Require,
+            ),
+            [
+                Constant(
+                    StrWord(
+                        Atom('path' type=static),
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "path2",
+        Call(
+            3,
+            FreeVar(
+                Require,
+            ),
+            [
+                Constant(
+                    StrWord(
+                        Atom('path' type=static),
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "pkg#3",
+        Alternatives(
+            5,
+            [
+                Unknown(
+                    Some(
+                        Variable(
+                            (
+                                Atom('pkg' type=inline),
+                                #3,
+                            ),
+                        ),
+                    ),
+                    "pattern without value",
+                ),
+                Member(
+                    3,
+                    Variable(
+                        (
+                            Atom('knownWindowsPackages' type=dynamic),
+                            #1,
+                        ),
+                    ),
+                    FreeVar(
+                        Other(
+                            Atom('platformKey' type=dynamic),
+                        ),
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "pkg#4",
+        Member(
+            4,
+            Call(
+                2,
+                Variable(
+                    (
+                        Atom('pkgAndSubpathForCurrentPlatform' type=dynamic),
+                        #1,
+                    ),
+                ),
+                [],
+            ),
+            Constant(
+                StrWord(
+                    Atom('pkg' type=inline),
+                ),
+            ),
+        ),
+    ),
+    (
+        "pkgAndSubpathForCurrentPlatform",
+        Function(
+            6,
+            Object(
+                5,
+                [
+                    KeyValue(
+                        Constant(
+                            StrWord(
+                                Atom('pkg' type=inline),
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('pkg' type=inline),
+                                #3,
+                            ),
+                        ),
+                    ),
+                    KeyValue(
+                        Constant(
+                            StrWord(
+                                Atom('subpath' type=inline),
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('subpath' type=inline),
+                                #3,
+                            ),
+                        ),
+                    ),
+                ],
+            ),
+        ),
+    ),
+    (
+        "subpath#3",
+        Alternatives(
+            3,
+            [
+                Unknown(
+                    Some(
+                        Variable(
+                            (
+                                Atom('subpath' type=inline),
+                                #3,
+                            ),
+                        ),
+                    ),
+                    "pattern without value",
+                ),
+                Constant(
+                    StrWord(
+                        Atom('esbuild.exe' type=dynamic),
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "subpath#4",
+        Member(
+            4,
+            Call(
+                2,
+                Variable(
+                    (
+                        Atom('pkgAndSubpathForCurrentPlatform' type=dynamic),
+                        #1,
+                    ),
+                ),
+                [],
+            ),
+            Constant(
+                StrWord(
+                    Atom('subpath' type=inline),
+                ),
+            ),
+        ),
+    ),
+    (
+        "x",
+        Call(
+            2,
+            Variable(
+                (
+                    Atom('generateBinPath' type=dynamic),
+                    #1,
+                ),
+            ),
+            [],
+        ),
+    ),
+]

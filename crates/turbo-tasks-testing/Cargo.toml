@@ -1,0 +1,17 @@
+[package]
+name = "turbo-tasks-testing"
+version = "0.1.0"
+description = "TBD"
+license = "MPL-2.0"
+edition = "2021"
+autobenches = false
+
+[lib]
+bench = false
+
+[dependencies]
+anyhow = "1.0.47"
+event-listener = "2.5.2"
+lazy_static = "1.4.0"
+tokio = "1.11.0"
+turbo-tasks = { path = "../turbo-tasks" }

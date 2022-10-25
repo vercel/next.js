@@ -1,0 +1,204 @@
+[
+    (
+        "a",
+        Call(
+            3,
+            FreeVar(
+                Require,
+            ),
+            [
+                Constant(
+                    StrWord(
+                        Atom('foo' type=inline),
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "path",
+        Call(
+            3,
+            FreeVar(
+                Require,
+            ),
+            [
+                Constant(
+                    StrWord(
+                        Atom('path' type=static),
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "z1_joined",
+        MemberCall(
+            5,
+            Variable(
+                (
+                    Atom('path' type=static),
+                    #1,
+                ),
+            ),
+            Constant(
+                StrWord(
+                    Atom('join' type=inline),
+                ),
+            ),
+            [
+                Constant(
+                    StrWord(
+                        Atom('foo' type=inline),
+                    ),
+                ),
+                Constant(
+                    StrWord(
+                        Atom('bar' type=inline),
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "z2_joined",
+        MemberCall(
+            5,
+            Variable(
+                (
+                    Atom('path' type=static),
+                    #1,
+                ),
+            ),
+            Constant(
+                StrWord(
+                    Atom('join' type=inline),
+                ),
+            ),
+            [
+                Constant(
+                    StrWord(
+                        Atom('foo/' type=inline),
+                    ),
+                ),
+                Constant(
+                    StrWord(
+                        Atom('bar' type=inline),
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "z3_joined",
+        MemberCall(
+            5,
+            Variable(
+                (
+                    Atom('path' type=static),
+                    #1,
+                ),
+            ),
+            Constant(
+                StrWord(
+                    Atom('join' type=inline),
+                ),
+            ),
+            [
+                Constant(
+                    StrWord(
+                        Atom('foo' type=inline),
+                    ),
+                ),
+                Constant(
+                    StrWord(
+                        Atom('/bar' type=inline),
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "z4_joined",
+        MemberCall(
+            5,
+            Variable(
+                (
+                    Atom('path' type=static),
+                    #1,
+                ),
+            ),
+            Constant(
+                StrWord(
+                    Atom('join' type=inline),
+                ),
+            ),
+            [
+                Constant(
+                    StrWord(
+                        Atom('foo/' type=inline),
+                    ),
+                ),
+                Constant(
+                    StrWord(
+                        Atom('/bar' type=inline),
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "z5_joined",
+        MemberCall(
+            10,
+            Variable(
+                (
+                    Atom('path' type=static),
+                    #1,
+                ),
+            ),
+            Constant(
+                StrWord(
+                    Atom('join' type=inline),
+                ),
+            ),
+            [
+                Constant(
+                    StrWord(
+                        Atom('foo' type=inline),
+                    ),
+                ),
+                Constant(
+                    StrWord(
+                        Atom('bar' type=inline),
+                    ),
+                ),
+                Constant(
+                    StrWord(
+                        Atom('..' type=inline),
+                    ),
+                ),
+                Constant(
+                    StrWord(
+                        Atom('baz' type=inline),
+                    ),
+                ),
+                FreeVar(
+                    Other(
+                        Atom('global' type=static),
+                    ),
+                ),
+                Constant(
+                    StrWord(
+                        Atom('..' type=inline),
+                    ),
+                ),
+                Constant(
+                    StrWord(
+                        Atom('foo' type=inline),
+                    ),
+                ),
+            ],
+        ),
+    ),
+]

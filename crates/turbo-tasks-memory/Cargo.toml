@@ -1,0 +1,45 @@
+[package]
+name = "turbo-tasks-memory"
+version = "0.1.0"
+description = "TBD"
+license = "MPL-2.0"
+edition = "2021"
+autobenches = false
+
+[lib]
+bench = false
+
+[dependencies]
+anyhow = "1.0.47"
+concurrent-queue = "1.2.2"
+event-listener = "2.5.2"
+flurry = "0.4.0"
+lazy_static = "1.4.0"
+nohash-hasher = "0.2.0"
+num_cpus = "1.13.1"
+parking_lot = "0.12.1"
+tokio = "1.11.0"
+turbo-tasks = { path = "../turbo-tasks" }
+turbo-tasks-hash = { path = "../turbo-tasks-hash" }
+
+[dev-dependencies]
+criterion = { version = "0.3.5", features = ["async_tokio"] }
+serde = "1.0.136"
+tokio = { version = "1.11.0", features = ["full"] }
+turbo-tasks-testing = { path = "../turbo-tasks-testing" }
+
+[build-dependencies]
+turbo-tasks-build = { path = "../turbo-tasks-build" }
+
+[features]
+unsafe_once_map = []
+log_running_tasks = []
+log_scheduled_tasks = []
+log_activate_tasks = []
+log_connect_tasks = []
+report_expensive = []
+print_scope_updates = []
+
+[[bench]]
+name = "mod"
+harness = false

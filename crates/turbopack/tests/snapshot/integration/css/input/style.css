@@ -1,0 +1,4 @@
+@import url("./imported.css") layer(layer) print;
+.style {
+  color: yellow;
+}

@@ -1,0 +1,18 @@
+[package]
+name = "turbo-tasks-macros-shared"
+version = "0.1.0"
+description = "TBD"
+license = "MPL-2.0"
+edition = "2021"
+
+[lib]
+bench = false
+
+[dependencies]
+proc-macro-error = "1.0.4"
+proc-macro2 = "1.0.36"
+quote = "1.0"
+
+[dependencies.syn]
+features = ["full"]
+version = "1.0"

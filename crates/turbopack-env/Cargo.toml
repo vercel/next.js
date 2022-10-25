@@ -1,0 +1,24 @@
+[package]
+name = "turbopack-env"
+version = "0.1.0"
+description = "TBD"
+license = "MPL-2.0"
+edition = "2021"
+autobenches = false
+
+[lib]
+bench = false
+
+[dependencies]
+anyhow = "1.0.47"
+dotenvy = "0.15.5"
+indexmap = { workspace = true }
+serde = "1.0.136"
+turbo-tasks = { path = "../turbo-tasks" }
+turbo-tasks-env = { path = "../turbo-tasks-env" }
+turbo-tasks-fs = { path = "../turbo-tasks-fs" }
+turbopack-core = { path = "../turbopack-core" }
+turbopack-ecmascript = { path = "../turbopack-ecmascript" }
+
+[build-dependencies]
+turbo-tasks-build = { path = "../turbo-tasks-build" }

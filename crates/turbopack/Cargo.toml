@@ -1,0 +1,66 @@
+[package]
+name = "turbopack"
+version = "0.1.0"
+description = "TBD"
+license = "MPL-2.0"
+edition = "2021"
+autobenches = false
+
+[lib]
+bench = false
+
+[features]
+test_persistent_cache = []
+bench_against_node_nft = []
+
+[dependencies]
+anyhow = "1.0.47"
+lazy_static = "1.4.0"
+rand = "0.8.5"
+regex = "1.5.4"
+serde = "1.0.136"
+serde_json = "1.0.85"
+serde_regex = "1.1.0"
+tokio = "1.11.0"
+turbo-tasks = { path = "../turbo-tasks" }
+turbo-tasks-env = { path = "../turbo-tasks-env" }
+turbo-tasks-fs = { path = "../turbo-tasks-fs" }
+turbopack-core = { path = "../turbopack-core" }
+turbopack-css = { path = "../turbopack-css" }
+turbopack-ecmascript = { path = "../turbopack-ecmascript" }
+turbopack-env = { path = "../turbopack-env" }
+turbopack-json = { path = "../turbopack-json" }
+turbopack-static = { path = "../turbopack-static" }
+url = "2.2.2"
+# turbo-tasks-rocksdb could be a dev dependencies, but optional dev dependencies are not allowed
+# turbo-tasks-rocksdb = { path = "../turbo-tasks-rocksdb", optional = true }
+
+swc_core = { workspace = true, features = [
+  "common",
+  "common_concurrent",
+  "ecma_parser",
+  "ecma_utils",
+  "ecma_visit",
+] }
+
+[dependencies.num-bigint]
+version = "0.4"
+
+[dev-dependencies]
+criterion = { version = "0.3.5", features = ["async_tokio"] }
+difference = "2.0"
+futures = "0.3.21"
+rstest = "0.12.0"
+rstest_reuse = "0.3.0"
+test-generator = "0.3.0"
+tokio = "1.11.0"
+turbo-malloc = { path = "../turbo-malloc" }
+turbo-tasks-memory = { path = "../turbo-tasks-memory" }
+
+
+[build-dependencies]
+turbo-tasks-build = { path = "../turbo-tasks-build" }
+
+[[bench]]
+name = "mod"
+harness = false

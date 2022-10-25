@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sections": [
+    {"offset": {"line": 2, "column": 0}, "map": {"version":3,"sources":["/[project]/crates/turbopack/tests/snapshot/integration/css/input/index.js"],"sourcesContent":["import \"foo/style.css\";\nimport \"foo\";\nimport \"./style.css\";\nimport fooStyle from \"foo/style.module.css\";\nimport style from \"./style.module.css\";\n\nconsole.log(style, fooStyle);\n"],"names":[],"mappings":"AAAA;;;;;;;;AAMA,QAAQ,GAAG"}},
+    {"offset": {"line": 11, "column": 0}, "map": {"version": 3, "names": [], "sources": [], "mappings": "A"}}]
+}

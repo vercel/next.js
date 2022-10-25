@@ -1,0 +1,13 @@
+a = arguments[0]
+
+b = arguments[1]
+
+c = (...) => [`${arguments[0]}${arguments[1]}`, arguments[0]]
+
+d = ["12", "1"]
+
+e = "12"
+
+f = "1"
+
+x = arguments[1]

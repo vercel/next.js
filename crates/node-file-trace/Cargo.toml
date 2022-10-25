@@ -1,0 +1,45 @@
+[package]
+name = "node-file-trace"
+version = "0.1.0"
+description = "TBD"
+license = "MPL-2.0"
+edition = "2021"
+
+[[bin]]
+name = "node-file-trace"
+path = "src/main.rs"
+bench = false
+
+[features]
+default = ["cli"]
+cli = ["dep:clap", "dep:turbo-malloc"]
+persistent_cache = [
+  # "dep:turbo-tasks-rocksdb"
+]
+tokio_console = [
+  "dep:console-subscriber",
+  "tokio/tracing",
+  "turbo-tasks/tokio_tracing",
+]
+node-api = []
+
+[dependencies]
+clap = { version = "3", optional = true, features = ["derive"] }
+owo-colors = "3"
+turbo-malloc = { path = "../turbo-malloc", optional = true }
+turbo-tasks = { path = "../turbo-tasks" }
+# turbo-tasks-memory = { path = "../turbo-tasks-memory", features = ["log_running_tasks", "log_scheduled_tasks", "log_activate_tasks", "log_connect_tasks"] }
+turbo-tasks-memory = { path = "../turbo-tasks-memory" }
+# turbo-tasks-rocksdb = { path = "../turbo-tasks-rocksdb", optional = true }
+anyhow = "1.0.47"
+console-subscriber = { version = "0.1.6", optional = true }
+serde = { version = "1.0.136", features = ["derive"] }
+serde_json = "1.0.85"
+tokio = { version = "1.11.0", features = ["full"] }
+turbo-tasks-fs = { path = "../turbo-tasks-fs" }
+turbopack = { path = "../turbopack" }
+turbopack-cli-utils = { path = "../turbopack-cli-utils" }
+turbopack-core = { path = "../turbopack-core" }
+
+[build-dependencies]
+turbo-tasks-build = { path = "../turbo-tasks-build" }

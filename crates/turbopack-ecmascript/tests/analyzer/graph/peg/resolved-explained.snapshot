@@ -1,0 +1,3108 @@
+*anonymous function 10064* = (...) => "OR"
+
+*anonymous function 10192* = (...) => "NOT"
+
+*anonymous function 10796* = (...) => {"type": "identifier", "name": arguments[0]}
+
+*anonymous function 11187* = (...) => (arguments[0] + arguments[1]["join"](""))
+
+*anonymous function 11339* = ???*0*
+- *0* in progress nodes limit reached
+
+*anonymous function 11668* = ???*0*
+- *0* in progress nodes limit reached
+
+*anonymous function 11725* = (...) => arguments[0]
+
+*anonymous function 11890* = (...) => ""
+
+*anonymous function 12016* = (...) => ""
+
+*anonymous function 12142* = (...) => "
+"
+
+*anonymous function 12268* = (...) => ""
+
+*anonymous function 12394* = (...) => "	"
+
+*anonymous function 12449* = ???*0*
+- *0* in progress nodes limit reached
+
+*anonymous function 12577* = (...) => ???*0*
+- *0* ???*1*(???*3*)
+  ⚠️  call of unknown function
+- *1* ???*2*["fromCharCode"]
+  ⚠️  property on unknown
+- *2* FreeVar(String)
+  ⚠️  unknown global
+- *3* ???*4*(arguments[0], 16)
+  ⚠️  call of unknown function
+- *4* FreeVar(parseInt)
+  ⚠️  unknown global
+
+*anonymous function 1271* = (...) => "any character"
+
+*anonymous function 12829* = (...) => arguments[1]
+
+*anonymous function 12892* = (...) => {"property": arguments[0], "alias": arguments[1]}
+
+*anonymous function 12977* = (...) => arguments[0]
+
+*anonymous function 13048* = (...) => {"type": "array_subquery_expression", "expression": arguments[0]}
+
+*anonymous function 13181* = (...) => {"type": "exists_subquery_expression", "expression": arguments[0]}
+
+*anonymous function 13315* = (...) => {"type": "scalar_subquery_expression", "expression": arguments[0]}
+
+*anonymous function 1343* = (...) => "end of input"
+
+*anonymous function 13449* = (...) => {"property": arguments[1], "computed": false}
+
+*anonymous function 13543* = (...) => {"property": arguments[1], "computed": true}
+
+*anonymous function 13636* = (...) => arguments[1]["reduce"]((...) => ???*0*, arguments[0])
+- *0* unsupported expression
+
+*anonymous function 13891* = (...) => {"type": "scalar_unary_expression", "operator": arguments[0], "argument": arguments[1]}
+
+*anonymous function 1416* = (...) => arguments[0]["description"]
+
+*anonymous function 14188* = (...) => {
+    "type": "scalar_conditional_expression",
+    "test": arguments[0],
+    "consequent": arguments[1],
+    "alternate": arguments[2]
+}
+
+*anonymous function 14448* = (...) => arguments[1]["reduce"]((...) => ???*0*, arguments[0])
+- *0* unsupported expression
+
+*anonymous function 15047* = (...) => {"type": "scalar_in_expression", "value": arguments[0], "list": arguments[1]}
+
+*anonymous function 15185* = (...) => {
+    "type": "scalar_between_expression",
+    "value": arguments[0],
+    "begin": arguments[1],
+    "end": arguments[2]
+}
+
+*anonymous function 15997* = (...) => {"key": arguments[0], "value": arguments[1]}
+
+*anonymous function 16072* = (...) => {"type": "collection_expression", "expression": arguments[0]}
+
+*anonymous function 16201* = (...) => arguments[1]["reduce"]((...) => ???*0*, arguments[0])
+- *0* unsupported expression
+
+*anonymous function 16460* = (...) => {"type": "collection_subquery_expression", "expression": arguments[0]}
+
+*anonymous function 16598* = (...) => {"type": "top_specification", "value": arguments[0]}
+
+*anonymous function 16713* = ???*0*
+- *0* in progress nodes limit reached
+
+*anonymous function 16837* = (...) => (???*0* | [])
+- *0* spread is not supported
+
+*anonymous function 16925* = (...) => arguments[0]
+
+*anonymous function 1822* = (...) => `\x0${arguments[0]["charCodeAt"](0)["toString"](16)["toUpperCase"]()}`
+
+*anonymous function 1920* = (...) => `\x${arguments[0]["charCodeAt"](0)["toString"](16)["toUpperCase"]()}`
+
+*anonymous function 2287* = (...) => `\x0${arguments[0]["charCodeAt"](0)["toString"](16)["toUpperCase"]()}`
+
+*anonymous function 2385* = (...) => `\x${arguments[0]["charCodeAt"](0)["toString"](16)["toUpperCase"]()}`
+
+*anonymous function 3852* = (...) => {"type": "sql", "body": arguments[0]}
+
+*anonymous function 3949* = (...) => arguments[0]
+
+*anonymous function 4000* = (...) => arguments[2]
+
+*anonymous function 4064* = (...) => arguments[3]
+
+*anonymous function 4134* = (...) => arguments[4]
+
+*anonymous function 4211* = (...) => {
+    "type": "select_query",
+    "top": arguments[0],
+    "select": arguments[1],
+    "from": arguments[2],
+    "where": arguments[3],
+    "orderBy": arguments[4]
+}
+
+*anonymous function 4474* = (...) => {"type": "select_specification", "*": true}
+
+*anonymous function 4589* = (...) => {"type": "select_specification", "properties": arguments[0]}
+
+*anonymous function 4716* = (...) => {"type": "select_specification", "value": arguments[0]}
+
+*anonymous function 4902* = (...) => arguments[1]
+
+*anonymous function 4960* = (...) => {"type": "object_property_list", "properties": ???*0*}
+- *0* spread is not supported
+
+*anonymous function 5104* = (...) => arguments[1]
+
+*anonymous function 5164* = (...) => {"type": "from_specification", "source": arguments[0], "joins": arguments[1]}
+
+*anonymous function 5303* = (...) => {"type": "from_source", "expression": arguments[1], "alias": arguments[0], "iteration": true}
+
+*anonymous function 5468* = (...) => arguments[1]
+
+*anonymous function 5532* = (...) => {"type": "from_source", "expression": arguments[0], "alias": arguments[1]}
+
+*anonymous function 5672* = (...) => {"type": "filter_condition", "condition": arguments[0]}
+
+*anonymous function 5793* = (...) => {"type": "sort_specification", "expressions": ???*0*}
+- *0* spread is not supported
+
+*anonymous function 5936* = (...) => {"type": "sort_expression", "expression": arguments[0], "order": arguments[1]}
+
+*anonymous function 625* = (...) => ???*0*
+- *0* unsupported expression
+
+*anonymous function 6287* = (...) => {"type": "scalar_function_expression", "name": arguments[0], "arguments": arguments[1], "udf": true}
+
+*anonymous function 6458* = (...) => {"type": "scalar_function_expression", "name": arguments[0], "arguments": arguments[1]}
+
+*anonymous function 6748* = (...) => {"type": "scalar_object_expression", "properties": (???*0* | [])}
+- *0* spread is not supported
+
+*anonymous function 702* = (...) => `"${...(..., ...)["replace"](/\n/g, "\n")["replace"](/\r/g, "\r")["replace"](/[\x00-\x0F]/g, (...) => `\x0${...[...](16)["toUpperCase"]()}`)["replace"](
+        /[\x10-\x1F\x7F-\x9F]/g,
+        (...) => `\x${...[...](0)["toString"](16)["toUpperCase"]()}`
+    )}"`
+
+*anonymous function 7046* = (...) => {"type": "scalar_array_expression", "elements": arguments[0]}
+
+*anonymous function 7257* = (...) => {"type": "undefined_constant"}
+
+*anonymous function 7337* = (...) => {"type": "null_constant"}
+
+*anonymous function 7412* = (...) => {"type": "boolean_constant", "value": false}
+
+*anonymous function 7527* = (...) => {"type": "boolean_constant", "value": true}
+
+*anonymous function 7869* = ???*0*
+- *0* in progress nodes limit reached
+
+*anonymous function 804* = (...) => `[${???*0*}]`
+- *0* unsupported expression
+
+*anonymous function 8139* = (...) => {"type": "string_constant", "value": arguments[0]["join"]("")}
+
+*anonymous function 8336* = (...) => {"type": "array_constant", "elements": ???*0*}
+- *0* spread is not supported
+
+*anonymous function 8472* = (...) => {"type": "object_constant", "properties": ???*0*}
+- *0* spread is not supported
+
+*anonymous function 9682* = (...) => "ASC"
+
+*anonymous function 9811* = (...) => "DESC"
+
+*anonymous function 9939* = (...) => "AND"
+
+*arrow function 13694* = (...) => ???*0*
+- *0* unsupported expression
+
+*arrow function 16259* = (...) => ???*0*
+- *0* unsupported expression
+
+*arrow function 169161* = (...) => ???*0*
+- *0* unsupported expression
+
+DESCRIBE_EXPECTATION_FNS = {
+    "literal": (...) => `"${...[...](/\n/g, "\n")["replace"](/\r/g, "\r")["replace"](/[\x00-\x0F]/g, (...) => `\x0${...(...)["toUpperCase"]()}`)["replace"](
+            /[\x10-\x1F\x7F-\x9F]/g,
+            (...) => `\x${...(...)["toString"](16)["toUpperCase"]()}`
+        )}"`,
+    "class": (...) => `[${???*0*}]`,
+    "any": (...) => "any character",
+    "end": (...) => "end of input",
+    "other": (...) => arguments[0]["description"]
+}
+- *0* unsupported expression
+
+alias#34 = arguments[0]
+
+alias#36 = arguments[1]
+
+alias#53 = arguments[1]
+
+alternate = arguments[2]
+
+args#40 = arguments[1]
+
+args#41 = arguments[1]
+
+argument = arguments[1]
+
+begin = arguments[1]
+
+body = arguments[0]
+
+buildBinaryExpression = (...) => arguments[1]["reduce"]((...) => ???*0*, arguments[0])
+- *0* unsupported expression
+
+ch#11 = arguments[0]
+
+ch#13 = arguments[0]
+
+ch#14 = arguments[0]
+
+ch#16 = arguments[0]
+
+ch#17 = arguments[0]
+
+chars = arguments[0]
+
+child = arguments[0]
+
+classEscape = (...) => ...[...](/\t/g, "\t")["replace"](/\n/g, "\n")["replace"](/\r/g, "\r")["replace"](
+    /[\x00-\x0F]/g,
+    (...) => `\x0${...(...)["toString"](16)["toUpperCase"]()}`
+)["replace"](
+    /[\x10-\x1F\x7F-\x9F]/g,
+    (...) => `\x${arguments[0]["charCodeAt"](0)["toString"](16)["toUpperCase"]()}`
+)
+
+condition = arguments[0]
+
+consequent = arguments[1]
+
+ctor = (...) => ???*0*
+- *0* FreeVar(undefined)
+  ⚠️  unknown global
+
+describeExpectation = (...) => {
+    "literal": (...) => `"${...(..., ...)["replace"](/[\x00-\x0F]/g, (...) => `\x0${...}`)["replace"](/[\x10-\x1F\x7F-\x9F]/g, (...) => `\x${...[...]()}`)}"`,
+    "class": (...) => `[${???*0*}]`,
+    "any": (...) => "any character",
+    "end": (...) => "end of input",
+    "other": (...) => arguments[0]["description"]
+}[arguments[0]["type"]](arguments[0])
+- *0* unsupported expression
+
+describeExpected = (...) => (???*0* | `${???*2*} or ${???*4*}` | ???*6*)
+- *0* ???*1*[0]
+  ⚠️  property on unknown
+- *1* new expression are not supported
+- *2* ???*3*[0]
+  ⚠️  property on unknown
+- *3* new expression are not supported
+- *4* ???*5*[1]
+  ⚠️  property on unknown
+- *5* new expression are not supported
+- *6* unsupported expression
+
+describeFound = (...) => (
+  | `"${...[...](/\n/g, "\n")["replace"](/\r/g, "\r")["replace"](/[\x00-\x0F]/g, (...) => `\x0${...(...)["toUpperCase"]()}`)["replace"](
+            /[\x10-\x1F\x7F-\x9F]/g,
+            (...) => `\x${...(...)["toString"](16)["toUpperCase"]()}`
+        )}"`
+  | "end of input"
+)
+
+description#75 = arguments[0]
+
+description#79 = arguments[0]
+
+descriptions = ???*0*
+- *0* new expression are not supported
+
+details = (
+  | [{"line": 1, "column": 1}][arguments[0]]
+  | {"line": 1, "column": 1}
+  | ???*0*
+  | {
+        "line": ([{"line": 1, "column": 1}][arguments[0]]["line"] | 1 | ???*2*),
+        "column": ([{"line": 1, "column": 1}][arguments[0]]["column"] | 1 | ???*5*)
+    }
+)
+- *0* [][???*1*]
+  ⚠️  unknown array prototype methods or values
+- *1* p
+  ⚠️  pattern without value
+- *2* ???*3*["line"]
+  ⚠️  property on unknown
+- *3* [][???*4*]
+  ⚠️  unknown array prototype methods or values
+- *4* p
+  ⚠️  pattern without value
+- *5* ???*6*["column"]
+  ⚠️  property on unknown
+- *6* [][???*7*]
+  ⚠️  unknown array prototype methods or values
+- *7* p
+  ⚠️  pattern without value
+
+digits = arguments[0]
+
+elements = arguments[0]
+
+end = arguments[2]
+
+endPos = arguments[1]
+
+endPosDetails = (
+  | [{"line": 1, "column": 1}][arguments[1]]
+  | {"line": 1, "column": 1}
+  | ???*0*
+  | {"line": ???*2*, "column": ???*4*}
+)
+- *0* [][???*1*]
+  ⚠️  unknown array prototype methods or values
+- *1* p
+  ⚠️  pattern without value
+- *2* ???*3*["line"]
+  ⚠️  property on unknown
+- *3* details
+  ⚠️  circular variable reference
+- *4* ???*5*["column"]
+  ⚠️  property on unknown
+- *5* details
+  ⚠️  circular variable reference
+
+error = (...) => ???*0*
+- *0* FreeVar(undefined)
+  ⚠️  unknown global
+
+escapedParts = ""
+
+expectation#10 = arguments[0]
+
+expectation#18 = arguments[0]
+
+expectation#6 = arguments[0]
+
+expectation#7 = arguments[0]
+
+expectation#8 = arguments[0]
+
+expectation#9 = arguments[0]
+
+expected#19 = arguments[0]
+
+expected#21 = (...) => ???*0*
+- *0* FreeVar(undefined)
+  ⚠️  unknown global
+
+expected#3 = arguments[1]
+
+expected#5 = arguments[0]
+
+expected#82 = arguments[0]
+
+expected#84 = arguments[0]
+
+expression#34 = arguments[1]
+
+expression#35 = arguments[0]
+
+expression#36 = arguments[0]
+
+expression#39 = arguments[0]
+
+expression#54 = arguments[0]
+
+expression#55 = arguments[0]
+
+expression#56 = arguments[0]
+
+expression#57 = arguments[0]
+
+expression#68 = arguments[0]
+
+expression#71 = arguments[0]
+
+found#20 = arguments[0]
+
+found#3 = arguments[2]
+
+found#5 = arguments[1]
+
+found#84 = arguments[1]
+
+from#25 = arguments[2]
+
+from#26 = arguments[2]
+
+from#27 = arguments[2]
+
+head#177 = arguments[0]
+
+head#30 = arguments[0]
+
+head#31 = arguments[0]
+
+head#38 = arguments[0]
+
+head#42 = arguments[0]
+
+head#46 = arguments[0]
+
+head#47 = arguments[0]
+
+head#49 = arguments[0]
+
+head#58 = arguments[0]
+
+head#59 = arguments[0]
+
+head#60 = arguments[0]
+
+head#64 = arguments[0]
+
+head#69 = arguments[0]
+
+head#73 = arguments[0]
+
+hex#44 = arguments[0]
+
+hex#5 = (...) => arguments[0]["charCodeAt"](0)["toString"](16)["toUpperCase"]()
+
+i#19 = (???*0* | 0 | 1)
+- *0* i
+  ⚠️  pattern without value
+
+i#7 = (???*0* | 0)
+- *0* i
+  ⚠️  pattern without value
+
+ignoreCase#77 = arguments[1]
+
+ignoreCase#78 = arguments[2]
+
+input = arguments[0]
+
+inverted = arguments[1]
+
+j = (???*0* | 1)
+- *0* j
+  ⚠️  pattern without value
+
+joins = arguments[1]
+
+key = arguments[0]
+
+left = ???*0*
+- *0* left
+  ⚠️  pattern without value
+
+list = arguments[1]
+
+literalEscape = (...) => ...[...](/\t/g, "\t")["replace"](/\n/g, "\n")["replace"](/\r/g, "\r")["replace"](
+    /[\x00-\x0F]/g,
+    (...) => `\x0${...(...)["toString"](16)["toUpperCase"]()}`
+)["replace"](
+    /[\x10-\x1F\x7F-\x9F]/g,
+    (...) => `\x${arguments[0]["charCodeAt"](0)["toString"](16)["toUpperCase"]()}`
+)
+
+location#21 = ???*0*
+- *0* in progress nodes limit reached
+
+location#3 = arguments[3]
+
+location#75 = ???*0*
+- *0* in progress nodes limit reached
+
+location#76 = ???*0*
+- *0* in progress nodes limit reached
+
+location#83 = arguments[1]
+
+location#84 = arguments[2]
+
+message#3 = arguments[0]
+
+message#76 = arguments[0]
+
+message#83 = arguments[0]
+
+name#40 = arguments[0]
+
+name#41 = arguments[0]
+
+name#48 = arguments[0]
+
+object#61 = ???*0*
+- *0* object
+  ⚠️  pattern without value
+
+object#70 = ???*0*
+- *0* object
+  ⚠️  pattern without value
+
+operator#178 = ???*0*
+- *0* operator
+  ⚠️  pattern without value
+
+operator#62 = arguments[0]
+
+options = (arguments[1] | ???*0* | {})
+- *0* options
+  ⚠️  circular variable reference
+
+order = arguments[1]
+
+orderBy = arguments[4]
+
+p = (???*0* | ???*1*)
+- *0* p
+  ⚠️  pattern without value
+- *1* unsupported expression
+
+parent = arguments[1]
+
+parts = arguments[0]
+
+peg$FAILED = {}
+
+peg$SyntaxError = (...) => ???*0*
+- *0* FreeVar(undefined)
+  ⚠️  unknown global
+
+peg$anyExpectation = (...) => {"type": "any"}
+
+peg$buildSimpleError = (...) => ???*0*
+- *0* new expression are not supported
+
+peg$buildStructuredError = (...) => ???*0*
+- *0* new expression are not supported
+
+peg$c0 = (...) => {"type": "sql", "body": arguments[0]}
+
+peg$c1 = (...) => arguments[0]
+
+peg$c10 = (...) => {"type": "select_specification", "value": arguments[0]}
+
+peg$c100 = {"type": "literal", "text": "NOT", "ignoreCase": true}
+
+peg$c101 = (...) => "NOT"
+
+peg$c102 = "between"
+
+peg$c103 = {"type": "literal", "text": "BETWEEN", "ignoreCase": true}
+
+peg$c104 = "exists"
+
+peg$c105 = {"type": "literal", "text": "EXISTS", "ignoreCase": true}
+
+peg$c106 = "array"
+
+peg$c107 = {"type": "literal", "text": "ARRAY", "ignoreCase": true}
+
+peg$c108 = "null"
+
+peg$c109 = {"type": "literal", "text": "null", "ignoreCase": false}
+
+peg$c11 = ","
+
+peg$c110 = "true"
+
+peg$c111 = {"type": "literal", "text": "true", "ignoreCase": false}
+
+peg$c112 = "false"
+
+peg$c113 = {"type": "literal", "text": "false", "ignoreCase": false}
+
+peg$c114 = "udf"
+
+peg$c115 = {"type": "literal", "text": "udf", "ignoreCase": false}
+
+peg$c116 = (...) => {"type": "identifier", "name": arguments[0]}
+
+peg$c117 = /^[a-zA-Z_]/
+
+peg$c118 = {"type": "class", "parts": [["a", "z"], ["A", "Z"], "_"], "inverted": false, "ignoreCase": false}
+
+peg$c119 = /^[a-zA-Z0-9_]/
+
+peg$c12 = {"type": "literal", "text": ",", "ignoreCase": false}
+
+peg$c120 = {
+    "type": "class",
+    "parts": [["a", "z"], ["A", "Z"], ["0", "9"], "_"],
+    "inverted": false,
+    "ignoreCase": false
+}
+
+peg$c121 = (...) => (arguments[0] + arguments[1]["join"](""))
+
+peg$c122 = "@"
+
+peg$c123 = {"type": "literal", "text": "@", "ignoreCase": false}
+
+peg$c124 = ???*0*
+- *0* in progress nodes limit reached
+
+peg$c125 = "+"
+
+peg$c126 = {"type": "literal", "text": "+", "ignoreCase": false}
+
+peg$c127 = "~"
+
+peg$c128 = {"type": "literal", "text": "~", "ignoreCase": false}
+
+peg$c129 = "\"
+
+peg$c13 = (...) => arguments[1]
+
+peg$c130 = {"type": "literal", "text": "\", "ignoreCase": false}
+
+peg$c131 = ???*0*
+- *0* in progress nodes limit reached
+
+peg$c132 = (...) => arguments[0]
+
+peg$c133 = {"type": "any"}
+
+peg$c134 = "b"
+
+peg$c135 = {"type": "literal", "text": "b", "ignoreCase": false}
+
+peg$c136 = (...) => ""
+
+peg$c137 = "f"
+
+peg$c138 = {"type": "literal", "text": "f", "ignoreCase": false}
+
+peg$c139 = (...) => ""
+
+peg$c14 = (...) => {"type": "object_property_list", "properties": ???*0*}
+- *0* spread is not supported
+
+peg$c140 = "n"
+
+peg$c141 = {"type": "literal", "text": "n", "ignoreCase": false}
+
+peg$c142 = (...) => "
+"
+
+peg$c143 = "r"
+
+peg$c144 = {"type": "literal", "text": "r", "ignoreCase": false}
+
+peg$c145 = (...) => ""
+
+peg$c146 = "t"
+
+peg$c147 = {"type": "literal", "text": "t", "ignoreCase": false}
+
+peg$c148 = (...) => "	"
+
+peg$c149 = ???*0*
+- *0* in progress nodes limit reached
+
+peg$c15 = (...) => arguments[1]
+
+peg$c150 = "u"
+
+peg$c151 = {"type": "literal", "text": "u", "ignoreCase": false}
+
+peg$c152 = (...) => ???*0*
+- *0* ???*1*(???*3*)
+  ⚠️  call of unknown function
+- *1* ???*2*["fromCharCode"]
+  ⚠️  property on unknown
+- *2* FreeVar(String)
+  ⚠️  unknown global
+- *3* ???*4*(arguments[0], 16)
+  ⚠️  call of unknown function
+- *4* FreeVar(parseInt)
+  ⚠️  unknown global
+
+peg$c153 = /^[0-9a-f]/i
+
+peg$c154 = {"type": "class", "parts": [["0", "9"], ["a", "f"]], "inverted": false, "ignoreCase": true}
+
+peg$c155 = (...) => arguments[1]
+
+peg$c156 = (...) => {"property": arguments[0], "alias": arguments[1]}
+
+peg$c157 = (...) => arguments[0]
+
+peg$c158 = (...) => {"type": "array_subquery_expression", "expression": arguments[0]}
+
+peg$c159 = (...) => {"type": "exists_subquery_expression", "expression": arguments[0]}
+
+peg$c16 = (...) => {"type": "from_specification", "source": arguments[0], "joins": arguments[1]}
+
+peg$c160 = (...) => {"type": "scalar_subquery_expression", "expression": arguments[0]}
+
+peg$c161 = (...) => {"property": arguments[1], "computed": false}
+
+peg$c162 = (...) => {"property": arguments[1], "computed": true}
+
+peg$c163 = (...) => arguments[1]["reduce"]((...) => ???*0*, arguments[0])
+- *0* unsupported expression
+
+peg$c164 = (...) => {"type": "scalar_unary_expression", "operator": arguments[0], "argument": arguments[1]}
+
+peg$c165 = "?"
+
+peg$c166 = {"type": "literal", "text": "?", "ignoreCase": false}
+
+peg$c167 = ":"
+
+peg$c168 = {"type": "literal", "text": ":", "ignoreCase": false}
+
+peg$c169 = (...) => {
+    "type": "scalar_conditional_expression",
+    "test": arguments[0],
+    "consequent": arguments[1],
+    "alternate": arguments[2]
+}
+
+peg$c17 = (...) => {"type": "from_source", "expression": arguments[1], "alias": arguments[0], "iteration": true}
+
+peg$c170 = "??"
+
+peg$c171 = {"type": "literal", "text": "??", "ignoreCase": false}
+
+peg$c172 = (...) => arguments[1]["reduce"]((...) => ???*0*, arguments[0])
+- *0* unsupported expression
+
+peg$c173 = "="
+
+peg$c174 = {"type": "literal", "text": "=", "ignoreCase": false}
+
+peg$c175 = "!="
+
+peg$c176 = {"type": "literal", "text": "!=", "ignoreCase": false}
+
+peg$c177 = "<>"
+
+peg$c178 = {"type": "literal", "text": "<>", "ignoreCase": false}
+
+peg$c179 = "<="
+
+peg$c18 = (...) => arguments[1]
+
+peg$c180 = {"type": "literal", "text": "<=", "ignoreCase": false}
+
+peg$c181 = ">="
+
+peg$c182 = {"type": "literal", "text": ">=", "ignoreCase": false}
+
+peg$c183 = "<"
+
+peg$c184 = {"type": "literal", "text": "<", "ignoreCase": false}
+
+peg$c185 = ">"
+
+peg$c186 = {"type": "literal", "text": ">", "ignoreCase": false}
+
+peg$c187 = (...) => {"type": "scalar_in_expression", "value": arguments[0], "list": arguments[1]}
+
+peg$c188 = (...) => {
+    "type": "scalar_between_expression",
+    "value": arguments[0],
+    "begin": arguments[1],
+    "end": arguments[2]
+}
+
+peg$c189 = "|"
+
+peg$c19 = (...) => {"type": "from_source", "expression": arguments[0], "alias": arguments[1]}
+
+peg$c190 = {"type": "literal", "text": "|", "ignoreCase": false}
+
+peg$c191 = "^"
+
+peg$c192 = {"type": "literal", "text": "^", "ignoreCase": false}
+
+peg$c193 = "&"
+
+peg$c194 = {"type": "literal", "text": "&", "ignoreCase": false}
+
+peg$c195 = "<<"
+
+peg$c196 = {"type": "literal", "text": "<<", "ignoreCase": false}
+
+peg$c197 = ">>>"
+
+peg$c198 = {"type": "literal", "text": ">>>", "ignoreCase": false}
+
+peg$c199 = ">>"
+
+peg$c2 = (...) => arguments[2]
+
+peg$c20 = (...) => {"type": "filter_condition", "condition": arguments[0]}
+
+peg$c200 = {"type": "literal", "text": ">>", "ignoreCase": false}
+
+peg$c201 = "||"
+
+peg$c202 = {"type": "literal", "text": "||", "ignoreCase": false}
+
+peg$c203 = "/"
+
+peg$c204 = {"type": "literal", "text": "/", "ignoreCase": false}
+
+peg$c205 = "%"
+
+peg$c206 = {"type": "literal", "text": "%", "ignoreCase": false}
+
+peg$c207 = (...) => {"key": arguments[0], "value": arguments[1]}
+
+peg$c208 = (...) => {"type": "collection_expression", "expression": arguments[0]}
+
+peg$c209 = (...) => arguments[1]["reduce"]((...) => ???*0*, arguments[0])
+- *0* unsupported expression
+
+peg$c21 = (...) => {"type": "sort_specification", "expressions": ???*0*}
+- *0* spread is not supported
+
+peg$c210 = (...) => {"type": "collection_subquery_expression", "expression": arguments[0]}
+
+peg$c211 = (...) => {"type": "top_specification", "value": arguments[0]}
+
+peg$c212 = ???*0*
+- *0* in progress nodes limit reached
+
+peg$c213 = (...) => (???*0* | [])
+- *0* spread is not supported
+
+peg$c214 = (...) => arguments[0]
+
+peg$c22 = (...) => {"type": "sort_expression", "expression": arguments[0], "order": arguments[1]}
+
+peg$c23 = "."
+
+peg$c24 = {"type": "literal", "text": ".", "ignoreCase": false}
+
+peg$c25 = "("
+
+peg$c26 = {"type": "literal", "text": "(", "ignoreCase": false}
+
+peg$c27 = ")"
+
+peg$c28 = {"type": "literal", "text": ")", "ignoreCase": false}
+
+peg$c29 = (...) => {"type": "scalar_function_expression", "name": arguments[0], "arguments": arguments[1], "udf": true}
+
+peg$c3 = (...) => arguments[3]
+
+peg$c30 = (...) => {"type": "scalar_function_expression", "name": arguments[0], "arguments": arguments[1]}
+
+peg$c31 = "{"
+
+peg$c32 = {"type": "literal", "text": "{", "ignoreCase": false}
+
+peg$c33 = "}"
+
+peg$c34 = {"type": "literal", "text": "}", "ignoreCase": false}
+
+peg$c35 = (...) => {"type": "scalar_object_expression", "properties": (???*0* | [])}
+- *0* spread is not supported
+
+peg$c36 = "["
+
+peg$c37 = {"type": "literal", "text": "[", "ignoreCase": false}
+
+peg$c38 = "]"
+
+peg$c39 = {"type": "literal", "text": "]", "ignoreCase": false}
+
+peg$c4 = (...) => arguments[4]
+
+peg$c40 = (...) => {"type": "scalar_array_expression", "elements": arguments[0]}
+
+peg$c41 = "undefined"
+
+peg$c42 = {"type": "literal", "text": "undefined", "ignoreCase": false}
+
+peg$c43 = (...) => {"type": "undefined_constant"}
+
+peg$c44 = (...) => {"type": "null_constant"}
+
+peg$c45 = (...) => {"type": "boolean_constant", "value": false}
+
+peg$c46 = (...) => {"type": "boolean_constant", "value": true}
+
+peg$c47 = "-"
+
+peg$c48 = {"type": "literal", "text": "-", "ignoreCase": false}
+
+peg$c49 = "0x"
+
+peg$c5 = (...) => {
+    "type": "select_query",
+    "top": arguments[0],
+    "select": arguments[1],
+    "from": arguments[2],
+    "where": arguments[3],
+    "orderBy": arguments[4]
+}
+
+peg$c50 = {"type": "literal", "text": "0x", "ignoreCase": false}
+
+peg$c51 = /^[0-9]/
+
+peg$c52 = {"type": "class", "parts": [["0", "9"]], "inverted": false, "ignoreCase": false}
+
+peg$c53 = ???*0*
+- *0* in progress nodes limit reached
+
+peg$c54 = """
+
+peg$c55 = {"type": "literal", "text": """, "ignoreCase": false}
+
+peg$c56 = (...) => {"type": "string_constant", "value": arguments[0]["join"]("")}
+
+peg$c57 = "'"
+
+peg$c58 = {"type": "literal", "text": "'", "ignoreCase": false}
+
+peg$c59 = (...) => {"type": "array_constant", "elements": ???*0*}
+- *0* spread is not supported
+
+peg$c6 = "*"
+
+peg$c60 = (...) => {"type": "object_constant", "properties": ???*0*}
+- *0* spread is not supported
+
+peg$c61 = /^[ \t\n\r]/
+
+peg$c62 = {
+    "type": "class",
+    "parts": [
+        " ",
+        "	",
+        "
+",
+        ""
+    ],
+    "inverted": false,
+    "ignoreCase": false
+}
+
+peg$c63 = "--"
+
+peg$c64 = {"type": "literal", "text": "--", "ignoreCase": false}
+
+peg$c65 = /^[\n\r]/
+
+peg$c66 = {
+    "type": "class",
+    "parts": [
+        "
+",
+        ""
+    ],
+    "inverted": false,
+    "ignoreCase": false
+}
+
+peg$c67 = "select"
+
+peg$c68 = {"type": "literal", "text": "SELECT", "ignoreCase": true}
+
+peg$c69 = "top"
+
+peg$c7 = {"type": "literal", "text": "*", "ignoreCase": false}
+
+peg$c70 = {"type": "literal", "text": "TOP", "ignoreCase": true}
+
+peg$c71 = "from"
+
+peg$c72 = {"type": "literal", "text": "FROM", "ignoreCase": true}
+
+peg$c73 = "where"
+
+peg$c74 = {"type": "literal", "text": "WHERE", "ignoreCase": true}
+
+peg$c75 = "order"
+
+peg$c76 = {"type": "literal", "text": "ORDER", "ignoreCase": true}
+
+peg$c77 = "by"
+
+peg$c78 = {"type": "literal", "text": "BY", "ignoreCase": true}
+
+peg$c79 = "as"
+
+peg$c8 = (...) => {"type": "select_specification", "*": true}
+
+peg$c80 = {"type": "literal", "text": "AS", "ignoreCase": true}
+
+peg$c81 = "join"
+
+peg$c82 = {"type": "literal", "text": "JOIN", "ignoreCase": true}
+
+peg$c83 = "in"
+
+peg$c84 = {"type": "literal", "text": "IN", "ignoreCase": true}
+
+peg$c85 = "value"
+
+peg$c86 = {"type": "literal", "text": "VALUE", "ignoreCase": true}
+
+peg$c87 = "asc"
+
+peg$c88 = {"type": "literal", "text": "ASC", "ignoreCase": true}
+
+peg$c89 = (...) => "ASC"
+
+peg$c9 = (...) => {"type": "select_specification", "properties": arguments[0]}
+
+peg$c90 = "desc"
+
+peg$c91 = {"type": "literal", "text": "DESC", "ignoreCase": true}
+
+peg$c92 = (...) => "DESC"
+
+peg$c93 = "and"
+
+peg$c94 = {"type": "literal", "text": "AND", "ignoreCase": true}
+
+peg$c95 = (...) => "AND"
+
+peg$c96 = "or"
+
+peg$c97 = {"type": "literal", "text": "OR", "ignoreCase": true}
+
+peg$c98 = (...) => "OR"
+
+peg$c99 = "not"
+
+peg$classExpectation = (...) => {"type": "class", "parts": arguments[0], "inverted": arguments[1], "ignoreCase": arguments[2]}
+
+peg$computeLocation = (...) => {
+    "start": {
+        "offset": arguments[0],
+        "line": ([{"line": 1, "column": 1}][arguments[0]]["line"] | 1 | ???*0*),
+        "column": ([{"line": 1, "column": 1}][arguments[0]]["column"] | 1 | ???*3*)
+    },
+    "end": {
+        "offset": arguments[1],
+        "line": ([{"line": 1, "column": 1}][arguments[1]]["line"] | 1 | ???*6*),
+        "column": ([{"line": 1, "column": 1}][arguments[1]]["column"] | 1 | ???*9*)
+    }
+}
+- *0* ???*1*["line"]
+  ⚠️  property on unknown
+- *1* [][???*2*]
+  ⚠️  unknown array prototype methods or values
+- *2* p
+  ⚠️  pattern without value
+- *3* ???*4*["column"]
+  ⚠️  property on unknown
+- *4* [][???*5*]
+  ⚠️  unknown array prototype methods or values
+- *5* p
+  ⚠️  pattern without value
+- *6* ???*7*["line"]
+  ⚠️  property on unknown
+- *7* [][???*8*]
+  ⚠️  unknown array prototype methods or values
+- *8* p
+  ⚠️  pattern without value
+- *9* ???*10*["column"]
+  ⚠️  property on unknown
+- *10* [][???*11*]
+  ⚠️  unknown array prototype methods or values
+- *11* p
+  ⚠️  pattern without value
+
+peg$computePosDetails = (...) => (
+  | [{"line": 1, "column": 1}][arguments[0]]
+  | {"line": 1, "column": 1}
+  | ???*0*
+  | {"line": ???*2*, "column": ???*4*}
+)
+- *0* [][???*1*]
+  ⚠️  unknown array prototype methods or values
+- *1* p
+  ⚠️  pattern without value
+- *2* ???*3*["line"]
+  ⚠️  property on unknown
+- *3* details
+  ⚠️  circular variable reference
+- *4* ???*5*["column"]
+  ⚠️  property on unknown
+- *5* details
+  ⚠️  circular variable reference
+
+peg$currPos = ???*0*
+- *0* in progress nodes limit reached
+
+peg$endExpectation = (...) => {"type": "end"}
+
+peg$fail = (...) => ???*0*
+- *0* FreeVar(undefined)
+  ⚠️  unknown global
+
+peg$literalExpectation = (...) => {"type": "literal", "text": arguments[0], "ignoreCase": arguments[1]}
+
+peg$maxFailExpected = []
+
+peg$maxFailPos = ???*0*
+- *0* in progress nodes limit reached
+
+peg$otherExpectation = (...) => {"type": "other", "description": arguments[0]}
+
+peg$parse = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parse_ = (...) => (???*0* | [])
+- *0* s0
+  ⚠️  pattern without value
+
+peg$parseand = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsearray = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsearray_constant = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsearray_subquery_expression = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parseas = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parseasc = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsebetween = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parseboolean_constant = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parseby = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsecharactor_escape_sequence = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsecollection_expression = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsecollection_member_expression = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsecollection_primary_expression = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsecollection_subquery_expression = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsecomment = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parseconstant = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsedesc = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsedouble_string_character = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parseescape_character = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parseescape_sequence = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parseexists = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parseexists_subquery_expression = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsefalse = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsefilter_condition = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsefrom = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsefrom_source = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsefrom_specification = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsehex_digit = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parseidentifier = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parseidentifier_name = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parseidentifier_start = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsein = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsejoin = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsenon_escape_character = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsenot = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsenull = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsenull_constant = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsenumber_constant = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parseobject_constant = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parseobject_constant_property = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parseobject_property = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parseobject_property_list = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parseor = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parseorder = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parseparameter_name = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsereserved = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsescalar_array_expression = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsescalar_between_expression = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsescalar_binary_additive_expression = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsescalar_binary_and_expression = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsescalar_binary_bitwise_and_expression = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsescalar_binary_bitwise_or_expression = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsescalar_binary_bitwise_xor_expression = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsescalar_binary_equality_expression = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsescalar_binary_multiplicative_expression = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsescalar_binary_or_expression = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsescalar_binary_relational_expression = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsescalar_binary_shift_expression = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsescalar_conditional_expression = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsescalar_expression_list = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsescalar_function_expression = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsescalar_in_expression = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsescalar_member_expression = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsescalar_object_element_property = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsescalar_object_expression = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsescalar_primary_expression = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsescalar_subquery_expression = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsescalar_unary_expression = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parseselect = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parseselect_query = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parseselect_specification = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsesingle_escape_character = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsesingle_string_character = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsesort_expression = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsesort_specification = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsesource_character = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsesql = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsestring_constant = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsesubquery = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsesubquery_expression = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsetop = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsetop_specification = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsetrue = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parseudf = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parseunary_operator = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parseundefined_constant = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parseunicode_escape_sequence = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parseunsigned_integer = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsevalue = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsewhere = ???*0*
+- *0* in progress nodes limit reached
+
+peg$parsewhitespace = ???*0*
+- *0* in progress nodes limit reached
+
+peg$posDetailsCache = [{"line": 1, "column": 1}]
+
+peg$result = ???*0*
+- *0* in progress nodes limit reached
+
+peg$savedPos = ???*0*
+- *0* in progress nodes limit reached
+
+peg$silentFails = 0
+
+peg$startRuleFunction = ???*0*
+- *0* in progress nodes limit reached
+
+peg$startRuleFunctions = ???*0*
+- *0* in progress nodes limit reached
+
+peg$subclass = (...) => ???*0*
+- *0* FreeVar(undefined)
+  ⚠️  unknown global
+
+pos = arguments[0]
+
+properties = arguments[0]
+
+property#52 = arguments[0]
+
+property#53 = arguments[0]
+
+property#58 = arguments[1]
+
+property#59 = arguments[1]
+
+right = ???*0*
+- *0* right
+  ⚠️  pattern without value
+
+s#12 = arguments[0]
+
+s#15 = arguments[0]
+
+s0#100 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#101 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#102 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#103 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#104 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#105 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#106 = (???*0* | [])
+- *0* s0
+  ⚠️  pattern without value
+
+s0#107 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#108 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#109 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#110 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#111 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#112 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#113 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#114 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#115 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#116 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#117 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#118 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#119 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#120 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#121 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#122 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#123 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#124 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#125 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#126 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#127 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#128 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#129 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#130 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#131 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#132 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#133 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#134 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#135 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#136 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#137 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#138 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#139 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#140 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#141 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#142 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#143 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#144 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#145 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#146 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#147 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#148 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#149 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#150 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#151 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#152 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#153 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#154 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#155 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#156 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#157 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#158 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#159 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#160 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#161 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#162 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#163 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#164 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#165 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#166 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#167 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#168 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#169 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#170 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#171 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#172 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#173 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#174 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#175 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#176 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#85 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#86 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#87 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#88 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#89 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#90 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#91 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#92 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#93 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#94 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#95 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#96 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#97 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#98 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#99 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#100 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#101 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#102 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#103 = (
+  | ???*0*
+  | """
+  | {}
+  | {"type": "string_constant", "value": (???*1* | [])["join"]("")}
+  | "'"
+)
+- *0* s1
+  ⚠️  pattern without value
+- *1* s2
+  ⚠️  pattern without value
+
+s1#104 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#105 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#106 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#108 = (
+  | ???*0*
+  | "--"
+  | {}
+  | [(???*1* | "--" | {} | [???*2*, (???*3* | [])]), (???*4* | [])]
+)
+- *0* s1
+  ⚠️  pattern without value
+- *1* s1
+  ⚠️  pattern without value
+- *2* s1
+  ⚠️  circular variable reference
+- *3* s2
+  ⚠️  pattern without value
+- *4* s2
+  ⚠️  pattern without value
+
+s1#109 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#110 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#111 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#112 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#113 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#114 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#115 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#116 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#117 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#118 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#119 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#120 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#121 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#122 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#123 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#124 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#125 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#126 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#127 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#128 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#129 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#130 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#132 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#134 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#135 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#137 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#138 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#142 = (
+  | ???*0*
+  | "b"
+  | {}
+  | ""
+  | "f"
+  | ""
+  | "n"
+  | "
+"
+  | "r"
+  | ""
+  | "t"
+  | "	"
+)
+- *0* s1
+  ⚠️  pattern without value
+
+s1#143 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#145 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#147 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#148 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#150 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#151 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#152 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#153 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#154 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#155 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#156 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#157 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#158 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#159 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#160 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#161 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#162 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#163 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#164 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#165 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#166 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#167 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#168 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#169 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#170 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#171 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#172 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#173 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#174 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#175 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#176 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#85 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#86 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#87 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#88 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#89 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#90 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#92 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#93 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#94 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#95 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#96 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#97 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#99 = (???*0* | "undefined" | {} | {"type": "undefined_constant"})
+- *0* s1
+  ⚠️  pattern without value
+
+s10#86 = ???*0*
+- *0* in progress nodes limit reached
+
+s10#95 = (???*0* | [])
+- *0* s10
+  ⚠️  pattern without value
+
+s11#86 = ???*0*
+- *0* in progress nodes limit reached
+
+s11#95 = (???*0* | ")" | {})
+- *0* s11
+  ⚠️  pattern without value
+
+s12 = ???*0*
+- *0* in progress nodes limit reached
+
+s13 = (???*0* | [])
+- *0* s13
+  ⚠️  pattern without value
+
+s14 = ???*0*
+- *0* in progress nodes limit reached
+
+s15 = (???*0* | [])
+- *0* s15
+  ⚠️  pattern without value
+
+s16 = ???*0*
+- *0* in progress nodes limit reached
+
+s2#102 = (???*0* | "0x" | {} | null)
+- *0* s2
+  ⚠️  pattern without value
+
+s2#103 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#104 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#105 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#108 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#109 = ???*0*
+- *0* in progress nodes limit reached
+
+s2#110 = ???*0*
+- *0* in progress nodes limit reached
+
+s2#111 = ???*0*
+- *0* in progress nodes limit reached
+
+s2#112 = ???*0*
+- *0* in progress nodes limit reached
+
+s2#113 = ???*0*
+- *0* in progress nodes limit reached
+
+s2#114 = ???*0*
+- *0* in progress nodes limit reached
+
+s2#115 = ???*0*
+- *0* in progress nodes limit reached
+
+s2#116 = ???*0*
+- *0* in progress nodes limit reached
+
+s2#117 = ???*0*
+- *0* in progress nodes limit reached
+
+s2#118 = ???*0*
+- *0* in progress nodes limit reached
+
+s2#119 = ???*0*
+- *0* in progress nodes limit reached
+
+s2#120 = ???*0*
+- *0* in progress nodes limit reached
+
+s2#121 = ???*0*
+- *0* in progress nodes limit reached
+
+s2#122 = ???*0*
+- *0* in progress nodes limit reached
+
+s2#123 = ???*0*
+- *0* in progress nodes limit reached
+
+s2#124 = ???*0*
+- *0* in progress nodes limit reached
+
+s2#125 = ???*0*
+- *0* in progress nodes limit reached
+
+s2#126 = ???*0*
+- *0* in progress nodes limit reached
+
+s2#127 = ???*0*
+- *0* in progress nodes limit reached
+
+s2#128 = ???*0*
+- *0* in progress nodes limit reached
+
+s2#129 = ???*0*
+- *0* in progress nodes limit reached
+
+s2#130 = ???*0*
+- *0* in progress nodes limit reached
+
+s2#132 = ???*0*
+- *0* in progress nodes limit reached
+
+s2#134 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#135 = ???*0*
+- *0* in progress nodes limit reached
+
+s2#137 = ???*0*
+- *0* in progress nodes limit reached
+
+s2#138 = ???*0*
+- *0* in progress nodes limit reached
+
+s2#143 = ???*0*
+- *0* in progress nodes limit reached
+
+s2#145 = ???*0*
+- *0* in progress nodes limit reached
+
+s2#147 = ???*0*
+- *0* in progress nodes limit reached
+
+s2#148 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#150 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#151 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#153 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#154 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#155 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#156 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#157 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#158 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#159 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#160 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#161 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#162 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#163 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#164 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#165 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#166 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#167 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#168 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#169 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#171 = (???*0* | [] | {})
+- *0* s2
+  ⚠️  pattern without value
+
+s2#174 = ???*0*
+- *0* in progress nodes limit reached
+
+s2#175 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#176 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#85 = ???*0*
+- *0* in progress nodes limit reached
+
+s2#86 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#87 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#88 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#89 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#90 = ???*0*
+- *0* in progress nodes limit reached
+
+s2#93 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#94 = ???*0*
+- *0* in progress nodes limit reached
+
+s2#95 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#96 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#97 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s3#102 = (???*0* | [] | {})
+- *0* s3
+  ⚠️  pattern without value
+
+s3#103 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#104 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#105 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#108 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#109 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#110 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#111 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#112 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#113 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#114 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#115 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#116 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#117 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#118 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#119 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#120 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#121 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#122 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#123 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#124 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#125 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#126 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#127 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#128 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#129 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#130 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#134 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#145 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#147 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#148 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#150 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#151 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#153 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#154 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#155 = (???*0* | "?" | {})
+- *0* s3
+  ⚠️  pattern without value
+
+s3#156 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#157 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#158 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#159 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#160 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#161 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#162 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#163 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#164 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#165 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#166 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#167 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#168 = (???*0* | ":" | {})
+- *0* s3
+  ⚠️  pattern without value
+
+s3#169 = (???*0* | ":" | {})
+- *0* s3
+  ⚠️  pattern without value
+
+s3#171 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#175 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#176 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#85 = (???*0* | [])
+- *0* s3
+  ⚠️  pattern without value
+
+s3#86 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#87 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#88 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#89 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#90 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#93 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#94 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#95 = (???*0* | "." | {} | "(")
+- *0* s3
+  ⚠️  pattern without value
+
+s3#96 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#97 = ???*0*
+- *0* in progress nodes limit reached
+
+s4#102 = ???*0*
+- *0* in progress nodes limit reached
+
+s4#104 = (???*0* | [])
+- *0* s4
+  ⚠️  pattern without value
+
+s4#105 = (???*0* | [])
+- *0* s4
+  ⚠️  pattern without value
+
+s4#108 = ???*0*
+- *0* in progress nodes limit reached
+
+s4#145 = ???*0*
+- *0* in progress nodes limit reached
+
+s4#147 = ???*0*
+- *0* in progress nodes limit reached
+
+s4#148 = (???*0* | [])
+- *0* s4
+  ⚠️  pattern without value
+
+s4#153 = ???*0*
+- *0* in progress nodes limit reached
+
+s4#155 = (???*0* | [])
+- *0* s4
+  ⚠️  pattern without value
+
+s4#156 = ???*0*
+- *0* in progress nodes limit reached
+
+s4#157 = ???*0*
+- *0* in progress nodes limit reached
+
+s4#158 = ???*0*
+- *0* in progress nodes limit reached
+
+s4#159 = ???*0*
+- *0* in progress nodes limit reached
+
+s4#160 = (???*0* | [])
+- *0* s4
+  ⚠️  pattern without value
+
+s4#161 = (???*0* | [])
+- *0* s4
+  ⚠️  pattern without value
+
+s4#162 = ???*0*
+- *0* in progress nodes limit reached
+
+s4#163 = ???*0*
+- *0* in progress nodes limit reached
+
+s4#164 = ???*0*
+- *0* in progress nodes limit reached
+
+s4#165 = ???*0*
+- *0* in progress nodes limit reached
+
+s4#166 = ???*0*
+- *0* in progress nodes limit reached
+
+s4#167 = ???*0*
+- *0* in progress nodes limit reached
+
+s4#168 = (???*0* | [])
+- *0* s4
+  ⚠️  pattern without value
+
+s4#169 = (???*0* | [])
+- *0* s4
+  ⚠️  pattern without value
+
+s4#171 = ???*0*
+- *0* in progress nodes limit reached
+
+s4#175 = ???*0*
+- *0* in progress nodes limit reached
+
+s4#176 = (???*0* | [])
+- *0* s4
+  ⚠️  pattern without value
+
+s4#86 = ???*0*
+- *0* in progress nodes limit reached
+
+s4#88 = ???*0*
+- *0* in progress nodes limit reached
+
+s4#89 = ???*0*
+- *0* in progress nodes limit reached
+
+s4#90 = ???*0*
+- *0* in progress nodes limit reached
+
+s4#93 = ???*0*
+- *0* in progress nodes limit reached
+
+s4#94 = ???*0*
+- *0* in progress nodes limit reached
+
+s4#95 = (???*0* | [])
+- *0* s4
+  ⚠️  pattern without value
+
+s4#96 = (???*0* | [])
+- *0* s4
+  ⚠️  pattern without value
+
+s4#97 = (???*0* | [])
+- *0* s4
+  ⚠️  pattern without value
+
+s5#102 = (
+  | ???*0*
+  | "."
+  | {}
+  | [(???*1* | "." | {} | [???*2*, (???*3* | [] | {})]), (???*4* | [] | {})]
+)
+- *0* s5
+  ⚠️  pattern without value
+- *1* s5
+  ⚠️  pattern without value
+- *2* s5
+  ⚠️  circular variable reference
+- *3* s6
+  ⚠️  pattern without value
+- *4* s6
+  ⚠️  pattern without value
+
+s5#104 = ???*0*
+- *0* in progress nodes limit reached
+
+s5#105 = ???*0*
+- *0* in progress nodes limit reached
+
+s5#108 = ???*0*
+- *0* in progress nodes limit reached
+
+s5#145 = ???*0*
+- *0* in progress nodes limit reached
+
+s5#147 = ???*0*
+- *0* in progress nodes limit reached
+
+s5#148 = (???*0* | ")" | {})
+- *0* s5
+  ⚠️  pattern without value
+
+s5#153 = (???*0* | "." | {} | "[")
+- *0* s5
+  ⚠️  pattern without value
+
+s5#155 = ???*0*
+- *0* in progress nodes limit reached
+
+s5#156 = ???*0*
+- *0* in progress nodes limit reached
+
+s5#157 = ???*0*
+- *0* in progress nodes limit reached
+
+s5#158 = (???*0* | "=" | {} | "!=" | "<>")
+- *0* s5
+  ⚠️  pattern without value
+
+s5#159 = (???*0* | "<=" | {} | ">=" | "<" | ">")
+- *0* s5
+  ⚠️  pattern without value
+
+s5#160 = (???*0* | "(" | {})
+- *0* s5
+  ⚠️  pattern without value
+
+s5#161 = ???*0*
+- *0* in progress nodes limit reached
+
+s5#162 = (???*0* | "|" | {})
+- *0* s5
+  ⚠️  pattern without value
+
+s5#163 = (???*0* | "^" | {})
+- *0* s5
+  ⚠️  pattern without value
+
+s5#164 = (???*0* | "&" | {})
+- *0* s5
+  ⚠️  pattern without value
+
+s5#165 = (???*0* | "<<" | {} | ">>>" | ">>")
+- *0* s5
+  ⚠️  pattern without value
+
+s5#166 = (???*0* | "+" | {} | "-" | "||")
+- *0* s5
+  ⚠️  pattern without value
+
+s5#167 = (???*0* | "*" | {} | "/" | "%")
+- *0* s5
+  ⚠️  pattern without value
+
+s5#168 = ???*0*
+- *0* in progress nodes limit reached
+
+s5#169 = ???*0*
+- *0* in progress nodes limit reached
+
+s5#171 = (???*0* | "." | {} | "[")
+- *0* s5
+  ⚠️  pattern without value
+
+s5#175 = (???*0* | "," | {})
+- *0* s5
+  ⚠️  pattern without value
+
+s5#176 = (???*0* | ")" | {})
+- *0* s5
+  ⚠️  pattern without value
+
+s5#86 = ???*0*
+- *0* in progress nodes limit reached
+
+s5#88 = (???*0* | "," | {})
+- *0* s5
+  ⚠️  pattern without value
+
+s5#89 = ???*0*
+- *0* in progress nodes limit reached
+
+s5#90 = ???*0*
+- *0* in progress nodes limit reached
+
+s5#93 = (???*0* | "," | {})
+- *0* s5
+  ⚠️  pattern without value
+
+s5#95 = ???*0*
+- *0* in progress nodes limit reached
+
+s5#96 = ???*0*
+- *0* in progress nodes limit reached
+
+s5#97 = (???*0* | "]" | {})
+- *0* s5
+  ⚠️  pattern without value
+
+s6#102 = (???*0* | [] | {})
+- *0* s6
+  ⚠️  pattern without value
+
+s6#104 = ???*0*
+- *0* in progress nodes limit reached
+
+s6#105 = ???*0*
+- *0* in progress nodes limit reached
+
+s6#145 = ???*0*
+- *0* in progress nodes limit reached
+
+s6#153 = (???*0* | [])
+- *0* s6
+  ⚠️  pattern without value
+
+s6#155 = (???*0* | [])
+- *0* s6
+  ⚠️  pattern without value
+
+s6#156 = (???*0* | [])
+- *0* s6
+  ⚠️  pattern without value
+
+s6#157 = (???*0* | [])
+- *0* s6
+  ⚠️  pattern without value
+
+s6#158 = (???*0* | [])
+- *0* s6
+  ⚠️  pattern without value
+
+s6#159 = (???*0* | [])
+- *0* s6
+  ⚠️  pattern without value
+
+s6#160 = (???*0* | [])
+- *0* s6
+  ⚠️  pattern without value
+
+s6#161 = (???*0* | [])
+- *0* s6
+  ⚠️  pattern without value
+
+s6#162 = (???*0* | [])
+- *0* s6
+  ⚠️  pattern without value
+
+s6#163 = (???*0* | [])
+- *0* s6
+  ⚠️  pattern without value
+
+s6#164 = (???*0* | [])
+- *0* s6
+  ⚠️  pattern without value
+
+s6#165 = (???*0* | [])
+- *0* s6
+  ⚠️  pattern without value
+
+s6#166 = (???*0* | [])
+- *0* s6
+  ⚠️  pattern without value
+
+s6#167 = (???*0* | [])
+- *0* s6
+  ⚠️  pattern without value
+
+s6#171 = (???*0* | [])
+- *0* s6
+  ⚠️  pattern without value
+
+s6#175 = (???*0* | [])
+- *0* s6
+  ⚠️  pattern without value
+
+s6#86 = ???*0*
+- *0* in progress nodes limit reached
+
+s6#88 = (???*0* | [])
+- *0* s6
+  ⚠️  pattern without value
+
+s6#89 = (???*0* | [])
+- *0* s6
+  ⚠️  pattern without value
+
+s6#93 = (???*0* | [])
+- *0* s6
+  ⚠️  pattern without value
+
+s6#95 = (???*0* | [])
+- *0* s6
+  ⚠️  pattern without value
+
+s6#96 = ???*0*
+- *0* in progress nodes limit reached
+
+s7#102 = ???*0*
+- *0* in progress nodes limit reached
+
+s7#104 = (???*0* | "," | {})
+- *0* s7
+  ⚠️  pattern without value
+
+s7#105 = (???*0* | "," | {})
+- *0* s7
+  ⚠️  pattern without value
+
+s7#145 = ???*0*
+- *0* in progress nodes limit reached
+
+s7#153 = ???*0*
+- *0* in progress nodes limit reached
+
+s7#155 = (???*0* | ":" | {})
+- *0* s7
+  ⚠️  pattern without value
+
+s7#156 = ???*0*
+- *0* in progress nodes limit reached
+
+s7#157 = ???*0*
+- *0* in progress nodes limit reached
+
+s7#158 = ???*0*
+- *0* in progress nodes limit reached
+
+s7#159 = ???*0*
+- *0* in progress nodes limit reached
+
+s7#160 = ???*0*
+- *0* in progress nodes limit reached
+
+s7#161 = ???*0*
+- *0* in progress nodes limit reached
+
+s7#162 = ???*0*
+- *0* in progress nodes limit reached
+
+s7#163 = ???*0*
+- *0* in progress nodes limit reached
+
+s7#164 = ???*0*
+- *0* in progress nodes limit reached
+
+s7#165 = ???*0*
+- *0* in progress nodes limit reached
+
+s7#166 = ???*0*
+- *0* in progress nodes limit reached
+
+s7#167 = ???*0*
+- *0* in progress nodes limit reached
+
+s7#171 = ???*0*
+- *0* in progress nodes limit reached
+
+s7#175 = ???*0*
+- *0* in progress nodes limit reached
+
+s7#86 = ???*0*
+- *0* in progress nodes limit reached
+
+s7#88 = ???*0*
+- *0* in progress nodes limit reached
+
+s7#89 = ???*0*
+- *0* in progress nodes limit reached
+
+s7#93 = ???*0*
+- *0* in progress nodes limit reached
+
+s7#95 = (???*0* | "(" | {} | ")")
+- *0* s7
+  ⚠️  pattern without value
+
+s7#96 = (???*0* | "," | {})
+- *0* s7
+  ⚠️  pattern without value
+
+s8#104 = (???*0* | [])
+- *0* s8
+  ⚠️  pattern without value
+
+s8#105 = (???*0* | [])
+- *0* s8
+  ⚠️  pattern without value
+
+s8#153 = (???*0* | [])
+- *0* s8
+  ⚠️  pattern without value
+
+s8#155 = (???*0* | [])
+- *0* s8
+  ⚠️  pattern without value
+
+s8#160 = (???*0* | [])
+- *0* s8
+  ⚠️  pattern without value
+
+s8#161 = (???*0* | [])
+- *0* s8
+  ⚠️  pattern without value
+
+s8#171 = (???*0* | [])
+- *0* s8
+  ⚠️  pattern without value
+
+s8#86 = ???*0*
+- *0* in progress nodes limit reached
+
+s8#95 = (???*0* | [])
+- *0* s8
+  ⚠️  pattern without value
+
+s8#96 = (???*0* | [])
+- *0* s8
+  ⚠️  pattern without value
+
+s9#104 = ???*0*
+- *0* in progress nodes limit reached
+
+s9#105 = ???*0*
+- *0* in progress nodes limit reached
+
+s9#153 = (???*0* | "]" | {})
+- *0* s9
+  ⚠️  pattern without value
+
+s9#155 = ???*0*
+- *0* in progress nodes limit reached
+
+s9#160 = (???*0* | ")" | {})
+- *0* s9
+  ⚠️  pattern without value
+
+s9#161 = ???*0*
+- *0* in progress nodes limit reached
+
+s9#171 = (???*0* | "]" | {})
+- *0* s9
+  ⚠️  pattern without value
+
+s9#86 = ???*0*
+- *0* in progress nodes limit reached
+
+s9#95 = ???*0*
+- *0* in progress nodes limit reached
+
+s9#96 = ???*0*
+- *0* in progress nodes limit reached
+
+select#24 = arguments[1]
+
+select#25 = arguments[1]
+
+select#26 = arguments[1]
+
+select#27 = arguments[1]
+
+seq = arguments[0]
+
+source#32 = arguments[0]
+
+source#33 = arguments[0]
+
+startPos = arguments[0]
+
+startPosDetails = (
+  | [{"line": 1, "column": 1}][arguments[0]]
+  | {"line": 1, "column": 1}
+  | ???*0*
+  | {"line": ???*2*, "column": ???*4*}
+)
+- *0* [][???*1*]
+  ⚠️  unknown array prototype methods or values
+- *1* p
+  ⚠️  pattern without value
+- *2* ???*3*["line"]
+  ⚠️  property on unknown
+- *3* details
+  ⚠️  circular variable reference
+- *4* ???*5*["column"]
+  ⚠️  property on unknown
+- *5* details
+  ⚠️  circular variable reference
+
+subquery = arguments[0]
+
+tail#177 = arguments[1]
+
+tail#31 = arguments[1]
+
+tail#38 = arguments[1]
+
+tail#42 = arguments[1]
+
+tail#46 = arguments[1]
+
+tail#47 = arguments[1]
+
+tail#49 = arguments[1]
+
+tail#60 = arguments[1]
+
+tail#64 = arguments[1]
+
+tail#69 = arguments[1]
+
+tail#73 = arguments[1]
+
+test = arguments[0]
+
+text#21 = ???*0*
+- *0* in progress nodes limit reached
+
+text#77 = arguments[0]
+
+top#24 = arguments[0]
+
+top#25 = arguments[0]
+
+top#26 = arguments[0]
+
+top#27 = arguments[0]
+
+v#23 = arguments[0]
+
+v#24 = arguments[2]
+
+v#25 = arguments[3]
+
+v#26 = arguments[4]
+
+v#30 = arguments[1]
+
+v#32 = arguments[1]
+
+v#35 = arguments[1]
+
+v#52 = arguments[1]
+
+value#29 = arguments[0]
+
+value#65 = arguments[0]
+
+value#66 = arguments[0]
+
+value#67 = arguments[1]
+
+value#72 = arguments[0]
+
+where#26 = arguments[3]
+
+where#27 = arguments[3]

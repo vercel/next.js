@@ -1,0 +1,16 @@
+{
+  "name": "@vercel/turbopack-runtime",
+  "version": "0.0.0",
+  "description": "turbopack runtime",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@next/react-refresh-utils": "^12.2.5"
+  },
+  "devDependencies": {
+    "@types/node": "^18.8.4"
+  }
+}

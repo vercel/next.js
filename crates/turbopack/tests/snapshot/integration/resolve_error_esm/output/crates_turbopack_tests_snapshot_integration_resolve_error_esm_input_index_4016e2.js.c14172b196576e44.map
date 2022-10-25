@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["/[project]/crates/turbopack/tests/snapshot/integration/resolve_error_esm/input/index.js"],"sourcesContent":["import dne from \"does-not-exist/path\";\n\nconsole.log(dne);\nconsole.log({}[dne]);\n"],"names":[],"mappings":"AAAA;;;;;;;AAEA,QAAQ,GAAG,CAAC;AACZ,QAAQ,GAAG,CAAC,CAAC,CAAC,CAAC,IAAI"}},
+    {"offset": {"line": 13, "column": 0}, "map": {"version": 3, "names": [], "sources": [], "mappings": "A"}}]
+}

@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sections": [
+    {"offset": {"line": 2, "column": 0}, "map": {"version":3,"sources":["/[project]/crates/turbopack/tests/snapshot/integration/styled_components/input/index.js"],"sourcesContent":["import styled from \"styled-components\";\n\nconst MyButton = styled.button`\n  background: blue;\n`;\n\nconsole.log(MyButton);\n"],"names":[],"mappings":"AAAA;;;AAEA,MAAM,WAAW,2OAAO,MAAM;;;EAAA,CAAC;;AAE/B,CAAC;AAED,QAAQ,GAAG,CAAC"}},
+    {"offset": {"line": 12, "column": 0}, "map": {"version": 3, "names": [], "sources": [], "mappings": "A"}}]
+}

@@ -1,0 +1,41 @@
+[
+    (
+        "x",
+        Alternatives(
+            3,
+            [
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            1.0,
+                        ),
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('y' type=inline),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "y",
+        Variable(
+            (
+                Atom('x' type=static),
+                #1,
+            ),
+        ),
+    ),
+    (
+        "z",
+        Variable(
+            (
+                Atom('x' type=static),
+                #1,
+            ),
+        ),
+    ),
+]

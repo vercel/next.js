@@ -1,0 +1,84 @@
+[
+    (
+        "a",
+        Function(
+            2,
+            FreeVar(
+                Other(
+                    Atom('undefined' type=static),
+                ),
+            ),
+        ),
+    ),
+    (
+        "b",
+        Function(
+            2,
+            FreeVar(
+                Other(
+                    Atom('undefined' type=static),
+                ),
+            ),
+        ),
+    ),
+    (
+        "c",
+        Function(
+            2,
+            FreeVar(
+                Other(
+                    Atom('undefined' type=static),
+                ),
+            ),
+        ),
+    ),
+    (
+        "x",
+        Alternatives(
+            5,
+            [
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            1.0,
+                        ),
+                    ),
+                ),
+                Concat(
+                    3,
+                    [
+                        Variable(
+                            (
+                                Atom('y' type=inline),
+                                #1,
+                            ),
+                        ),
+                        Constant(
+                            StrWord(
+                                Atom('.js' type=inline),
+                            ),
+                        ),
+                    ],
+                ),
+            ],
+        ),
+    ),
+    (
+        "y",
+        Alternatives(
+            3,
+            [
+                Constant(
+                    StrWord(
+                        Atom('hello' type=inline),
+                    ),
+                ),
+                Constant(
+                    StrWord(
+                        Atom('world' type=inline),
+                    ),
+                ),
+            ],
+        ),
+    ),
+]

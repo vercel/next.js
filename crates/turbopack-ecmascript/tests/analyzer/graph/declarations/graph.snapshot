@@ -1,0 +1,111 @@
+[
+    (
+        "*anonymous function 25*",
+        Function(
+            2,
+            FreeVar(
+                Other(
+                    Atom('undefined' type=static),
+                ),
+            ),
+        ),
+    ),
+    (
+        "a",
+        Function(
+            2,
+            FreeVar(
+                Other(
+                    Atom('undefined' type=static),
+                ),
+            ),
+        ),
+    ),
+    (
+        "aa",
+        Variable(
+            (
+                Atom('a' type=static),
+                #1,
+            ),
+        ),
+    ),
+    (
+        "b",
+        Variable(
+            (
+                Atom('*anonymous function 25*' type=dynamic),
+                #0,
+            ),
+        ),
+    ),
+    (
+        "bb",
+        Variable(
+            (
+                Atom('b' type=static),
+                #1,
+            ),
+        ),
+    ),
+    (
+        "c",
+        Constant(
+            Num(
+                ConstantNumber(
+                    123.0,
+                ),
+            ),
+        ),
+    ),
+    (
+        "cc",
+        Variable(
+            (
+                Atom('c' type=inline),
+                #1,
+            ),
+        ),
+    ),
+    (
+        "d",
+        Constant(
+            StrWord(
+                Atom('hello' type=inline),
+            ),
+        ),
+    ),
+    (
+        "dd",
+        Variable(
+            (
+                Atom('d' type=inline),
+                #1,
+            ),
+        ),
+    ),
+    (
+        "e",
+        Unknown(
+            None,
+            "unsupported expression",
+        ),
+    ),
+    (
+        "ee",
+        Variable(
+            (
+                Atom('e' type=inline),
+                #1,
+            ),
+        ),
+    ),
+    (
+        "ff",
+        FreeVar(
+            Other(
+                Atom('f' type=inline),
+            ),
+        ),
+    ),
+]

@@ -1,0 +1,31 @@
+{
+  "name": "@vercel/turbopack-next",
+  "version": "0.0.0",
+  "description": "turbopack next runtime",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "check": "tsc --noEmit",
+    "build:compiled": "node build.mjs"
+  },
+  "dependencies": {
+    "@vercel/turbopack-runtime": "latest",
+    "anser": "2.1.1",
+    "css.escape": "1.5.1",
+    "next": "12.3.2-canary.39",
+    "platform": "1.3.6",
+    "react-dom": "^18.2.0",
+    "react": "^18.2.0",
+    "source-map": "0.8.0-beta.0",
+    "stacktrace-parser": "0.1.10",
+    "strip-ansi": "6.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^18.8.4",
+    "@types/platform": "^1.3.4",
+    "@types/react": "^18.0.21",
+    "@types/react-dom": "^18.0.6",
+    "@vercel/ncc": "^0.34.0",
+    "find-up": "^6.3.0"
+  }
+}

@@ -1,0 +1,41 @@
+[package]
+name = "turbopack-css"
+version = "0.1.0"
+description = "TBD"
+license = "MPL-2.0"
+edition = "2021"
+autobenches = false
+
+[lib]
+bench = false
+
+[dependencies]
+anyhow = "1.0.47"
+async-trait = "0.1.56"
+indexmap = { workspace = true }
+once_cell = "1.13.0"
+serde = "1.0.136"
+
+turbo-tasks = { path = "../turbo-tasks" }
+turbo-tasks-fs = { path = "../turbo-tasks-fs" }
+turbo-tasks-hash = { path = "../turbo-tasks-hash" }
+turbopack-core = { path = "../turbopack-core" }
+turbopack-ecmascript = { path = "../turbopack-ecmascript" }
+turbopack-swc-utils = { path = "../turbopack-swc-utils" }
+
+swc_core = { workspace = true, features = [
+  "ecma_ast",
+  "css_ast",
+  "css_codegen",
+  "css_parser",
+  "css_utils",
+  "css_visit",
+  "css_visit_path",
+  "css_compat",
+  "common",
+  "common_concurrent",
+] }
+swc_css_modules = "=0.10.2"
+
+[build-dependencies]
+turbo-tasks-build = { path = "../turbo-tasks-build" }

@@ -1,0 +1,119 @@
+[
+    (
+        "a",
+        Argument(
+            0,
+        ),
+    ),
+    (
+        "b",
+        Argument(
+            1,
+        ),
+    ),
+    (
+        "c",
+        Function(
+            6,
+            Array(
+                5,
+                [
+                    Concat(
+                        3,
+                        [
+                            Variable(
+                                (
+                                    Atom('a' type=static),
+                                    #2,
+                                ),
+                            ),
+                            Variable(
+                                (
+                                    Atom('x' type=static),
+                                    #2,
+                                ),
+                            ),
+                        ],
+                    ),
+                    Variable(
+                        (
+                            Atom('a' type=static),
+                            #2,
+                        ),
+                    ),
+                ],
+            ),
+        ),
+    ),
+    (
+        "d",
+        Call(
+            4,
+            Variable(
+                (
+                    Atom('c' type=inline),
+                    #1,
+                ),
+            ),
+            [
+                Constant(
+                    StrWord(
+                        Atom('1' type=inline),
+                    ),
+                ),
+                Constant(
+                    StrWord(
+                        Atom('2' type=inline),
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "e",
+        Member(
+            3,
+            Variable(
+                (
+                    Atom('d' type=inline),
+                    #1,
+                ),
+            ),
+            Constant(
+                Num(
+                    ConstantNumber(
+                        0.0,
+                    ),
+                ),
+            ),
+        ),
+    ),
+    (
+        "f",
+        Member(
+            3,
+            Variable(
+                (
+                    Atom('d' type=inline),
+                    #1,
+                ),
+            ),
+            Constant(
+                Num(
+                    ConstantNumber(
+                        1.0,
+                    ),
+                ),
+            ),
+        ),
+    ),
+    (
+        "x",
+        Variable(
+            (
+                Atom('b' type=static),
+                #2,
+            ),
+        ),
+    ),
+]

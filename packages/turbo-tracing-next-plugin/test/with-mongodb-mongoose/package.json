@@ -1,0 +1,20 @@
+{
+  "name": "@vercel/turbo-tracing-test-app",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "cross-env MONGODB_URI=localhost:27017 next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "mongoose": "^6.4.5",
+    "next": "latest",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "swr": "^1.3.0"
+  },
+  "devDependencies": {
+    "@vercel/experimental-nft-next-plugin": "workspace:*",
+    "cross-env": "^7.0.3"
+  }
+}

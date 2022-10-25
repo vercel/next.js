@@ -1,0 +1,26 @@
+[package]
+name = "swc-ast-explorer"
+version = "0.1.0"
+description = "TBD"
+license = "MPL-2.0"
+edition = "2021"
+
+# don't publish this crate (for now)
+publish = false
+
+[[bin]]
+name = "swc-ast-explorer"
+path = "src/main.rs"
+bench = false
+
+[dependencies]
+anyhow = "1.0.47"
+clap = { version = "3.2.15", features = ["derive"] }
+owo-colors = "3"
+regex = "1.6.0"
+swc_core = { workspace = true, features = [
+  "base",
+  "common",
+  "ecma_ast",
+  "ecma_parser",
+] }

@@ -1,0 +1,32 @@
+[package]
+name = "turbo-tasks-fs"
+version = "0.1.0"
+description = "TBD"
+license = "MPL-2.0"
+edition = "2021"
+
+[lib]
+bench = false
+
+[dependencies]
+anyhow = "1.0.47"
+bitflags = "1.3.2"
+concurrent-queue = "1.2.2"
+futures = "0.3.24"
+futures-retry = "0.6.0"
+include_dir = { version = "0.7.2", features = ["nightly"] }
+lazy_static = "1.4.0"
+mime = "0.3.16"
+notify = "4.0.17"
+serde = { version = "1.0.136", features = ["rc"] }
+serde_json = "1.0.85"
+tokio = "1.11.0"
+turbo-tasks = { path = "../turbo-tasks" }
+
+[dev-dependencies]
+rstest = "0.12.0"
+sha2 = "0.10.2"
+turbo-tasks-memory = { path = "../turbo-tasks-memory" }
+
+[build-dependencies]
+turbo-tasks-build = { path = "../turbo-tasks-build" }

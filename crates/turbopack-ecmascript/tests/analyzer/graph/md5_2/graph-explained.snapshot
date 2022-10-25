@@ -1,0 +1,266 @@
+*anonymous function 181* = (...) => crypt["endian"]([a, b, c, d])
+
+*anonymous function 5013* = (...) => (???*0* + b)
+- *0* unsupported expression
+
+*anonymous function 5163* = (...) => (???*0* + b)
+- *0* unsupported expression
+
+*anonymous function 5313* = (...) => (???*0* + b)
+- *0* unsupported expression
+
+*anonymous function 5454* = (...) => (???*0* + b)
+- *0* unsupported expression
+
+*anonymous function 5685* = (...) => (digestbytes | bin["bytesToString"](digestbytes) | crypt["bytesToHex"](digestbytes))
+
+FF = md5["_ff"]
+
+GG = md5["_gg"]
+
+HH = md5["_hh"]
+
+II = md5["_ii"]
+
+a#3 = (
+  | 1732584193
+  | FF(a, b, c, d, m[(i + 0)], 7, ???*0*)
+  | FF(a, b, c, d, m[(i + 4)], 7, ???*1*)
+  | FF(a, b, c, d, m[(i + 8)], 7, 1770035416)
+  | FF(a, b, c, d, m[(i + 12)], 7, 1804603682)
+  | GG(a, b, c, d, m[(i + 1)], 5, ???*2*)
+  | GG(a, b, c, d, m[(i + 5)], 5, ???*3*)
+  | GG(a, b, c, d, m[(i + 9)], 5, 568446438)
+  | GG(a, b, c, d, m[(i + 13)], 5, ???*4*)
+  | HH(a, b, c, d, m[(i + 5)], 4, ???*5*)
+  | HH(a, b, c, d, m[(i + 1)], 4, ???*6*)
+  | HH(a, b, c, d, m[(i + 13)], 4, 681279174)
+  | HH(a, b, c, d, m[(i + 9)], 4, ???*7*)
+  | II(a, b, c, d, m[(i + 0)], 6, ???*8*)
+  | II(a, b, c, d, m[(i + 12)], 6, 1700485571)
+  | II(a, b, c, d, m[(i + 8)], 6, 1873313359)
+  | II(a, b, c, d, m[(i + 4)], 6, ???*9*)
+  | ???*10*
+)
+- *0* unsupported expression
+- *1* unsupported expression
+- *2* unsupported expression
+- *3* unsupported expression
+- *4* unsupported expression
+- *5* unsupported expression
+- *6* unsupported expression
+- *7* unsupported expression
+- *8* unsupported expression
+- *9* unsupported expression
+- *10* unsupported expression
+
+a#4 = arguments[0]
+
+a#5 = arguments[0]
+
+a#6 = arguments[0]
+
+a#7 = arguments[0]
+
+aa = a
+
+b#3 = (
+  | ???*0*
+  | FF(b, c, d, a, m[(i + 3)], 22, ???*1*)
+  | FF(b, c, d, a, m[(i + 7)], 22, ???*2*)
+  | FF(b, c, d, a, m[(i + 11)], 22, ???*3*)
+  | FF(b, c, d, a, m[(i + 15)], 22, 1236535329)
+  | GG(b, c, d, a, m[(i + 0)], 20, ???*4*)
+  | GG(b, c, d, a, m[(i + 4)], 20, ???*5*)
+  | GG(b, c, d, a, m[(i + 8)], 20, 1163531501)
+  | GG(b, c, d, a, m[(i + 12)], 20, ???*6*)
+  | HH(b, c, d, a, m[(i + 14)], 23, ???*7*)
+  | HH(b, c, d, a, m[(i + 10)], 23, ???*8*)
+  | HH(b, c, d, a, m[(i + 6)], 23, 76029189)
+  | HH(b, c, d, a, m[(i + 2)], 23, ???*9*)
+  | II(b, c, d, a, m[(i + 5)], 21, ???*10*)
+  | II(b, c, d, a, m[(i + 1)], 21, ???*11*)
+  | II(b, c, d, a, m[(i + 13)], 21, 1309151649)
+  | II(b, c, d, a, m[(i + 9)], 21, ???*12*)
+)
+- *0* unsupported expression
+- *1* unsupported expression
+- *2* unsupported expression
+- *3* unsupported expression
+- *4* unsupported expression
+- *5* unsupported expression
+- *6* unsupported expression
+- *7* unsupported expression
+- *8* unsupported expression
+- *9* unsupported expression
+- *10* unsupported expression
+- *11* unsupported expression
+- *12* unsupported expression
+
+b#4 = arguments[1]
+
+b#5 = arguments[1]
+
+b#6 = arguments[1]
+
+b#7 = arguments[1]
+
+bb = b
+
+bin = FreeVar(Require)("charenc")["bin"]
+
+c#3 = (
+  | ???*0*
+  | FF(c, d, a, b, m[(i + 2)], 17, 606105819)
+  | FF(c, d, a, b, m[(i + 6)], 17, ???*1*)
+  | FF(c, d, a, b, m[(i + 10)], 17, ???*2*)
+  | FF(c, d, a, b, m[(i + 14)], 17, ???*3*)
+  | GG(c, d, a, b, m[(i + 11)], 14, 643717713)
+  | GG(c, d, a, b, m[(i + 15)], 14, ???*4*)
+  | GG(c, d, a, b, m[(i + 3)], 14, ???*5*)
+  | GG(c, d, a, b, m[(i + 7)], 14, 1735328473)
+  | HH(c, d, a, b, m[(i + 11)], 16, 1839030562)
+  | HH(c, d, a, b, m[(i + 7)], 16, ???*6*)
+  | HH(c, d, a, b, m[(i + 3)], 16, ???*7*)
+  | HH(c, d, a, b, m[(i + 15)], 16, 530742520)
+  | II(c, d, a, b, m[(i + 14)], 15, ???*8*)
+  | II(c, d, a, b, m[(i + 10)], 15, ???*9*)
+  | II(c, d, a, b, m[(i + 6)], 15, ???*10*)
+  | II(c, d, a, b, m[(i + 2)], 15, 718787259)
+)
+- *0* unsupported expression
+- *1* unsupported expression
+- *2* unsupported expression
+- *3* unsupported expression
+- *4* unsupported expression
+- *5* unsupported expression
+- *6* unsupported expression
+- *7* unsupported expression
+- *8* unsupported expression
+- *9* unsupported expression
+- *10* unsupported expression
+
+c#4 = arguments[2]
+
+c#5 = arguments[2]
+
+c#6 = arguments[2]
+
+c#7 = arguments[2]
+
+cc = c
+
+crypt = FreeVar(Require)("crypt")
+
+d#3 = (
+  | 271733878
+  | FF(d, a, b, c, m[(i + 1)], 12, ???*0*)
+  | FF(d, a, b, c, m[(i + 5)], 12, 1200080426)
+  | FF(d, a, b, c, m[(i + 9)], 12, ???*1*)
+  | FF(d, a, b, c, m[(i + 13)], 12, ???*2*)
+  | GG(d, a, b, c, m[(i + 6)], 9, ???*3*)
+  | GG(d, a, b, c, m[(i + 10)], 9, 38016083)
+  | GG(d, a, b, c, m[(i + 14)], 9, ???*4*)
+  | GG(d, a, b, c, m[(i + 2)], 9, ???*5*)
+  | HH(d, a, b, c, m[(i + 8)], 11, ???*6*)
+  | HH(d, a, b, c, m[(i + 4)], 11, 1272893353)
+  | HH(d, a, b, c, m[(i + 0)], 11, ???*7*)
+  | HH(d, a, b, c, m[(i + 12)], 11, ???*8*)
+  | II(d, a, b, c, m[(i + 7)], 10, 1126891415)
+  | II(d, a, b, c, m[(i + 3)], 10, ???*9*)
+  | II(d, a, b, c, m[(i + 15)], 10, ???*10*)
+  | II(d, a, b, c, m[(i + 11)], 10, ???*11*)
+  | ???*12*
+)
+- *0* unsupported expression
+- *1* unsupported expression
+- *2* unsupported expression
+- *3* unsupported expression
+- *4* unsupported expression
+- *5* unsupported expression
+- *6* unsupported expression
+- *7* unsupported expression
+- *8* unsupported expression
+- *9* unsupported expression
+- *10* unsupported expression
+- *11* unsupported expression
+- *12* unsupported expression
+
+d#4 = arguments[3]
+
+d#5 = arguments[3]
+
+d#6 = arguments[3]
+
+d#7 = arguments[3]
+
+dd = d
+
+digestbytes = crypt["wordsToBytes"](md5(message, options))
+
+i = 0
+
+isBuffer = FreeVar(Require)("is-buffer")
+
+l = ???*0*
+- *0* unsupported expression
+
+m = crypt["bytesToWords"](message)
+
+md5 = *anonymous function 181*
+
+message#3 = (
+  | arguments[0]
+  | bin["stringToBytes"](message)
+  | utf8["stringToBytes"](message)
+  | FreeVar(Array)["prototype"]["slice"]["call"](message, 0)
+  | message["toString"]()
+)
+
+message#8 = arguments[0]
+
+n#4 = (a + ???*0* + ???*1* + t)
+- *0* unsupported expression
+- *1* unsupported expression
+
+n#5 = (a + ???*0* + ???*1* + t)
+- *0* unsupported expression
+- *1* unsupported expression
+
+n#6 = (a + ???*0* + ???*1* + t)
+- *0* unsupported expression
+- *1* unsupported expression
+
+n#7 = (a + ???*0* + ???*1* + t)
+- *0* unsupported expression
+- *1* unsupported expression
+
+options#3 = arguments[1]
+
+options#8 = arguments[1]
+
+s#4 = arguments[5]
+
+s#5 = arguments[5]
+
+s#6 = arguments[5]
+
+s#7 = arguments[5]
+
+t#4 = arguments[6]
+
+t#5 = arguments[6]
+
+t#6 = arguments[6]
+
+t#7 = arguments[6]
+
+utf8 = FreeVar(Require)("charenc")["utf8"]
+
+x#4 = arguments[4]
+
+x#5 = arguments[4]
+
+x#6 = arguments[4]
+
+x#7 = arguments[4]

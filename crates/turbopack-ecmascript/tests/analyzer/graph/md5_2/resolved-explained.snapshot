@@ -1,0 +1,267 @@
+*anonymous function 181* = ???*0*
+- *0* max number of linking steps reached
+
+*anonymous function 5013* = (...) => (???*0* + arguments[1])
+- *0* unsupported expression
+
+*anonymous function 5163* = (...) => (???*0* + arguments[1])
+- *0* unsupported expression
+
+*anonymous function 5313* = (...) => (???*0* + arguments[1])
+- *0* unsupported expression
+
+*anonymous function 5454* = (...) => (???*0* + arguments[1])
+- *0* unsupported expression
+
+*anonymous function 5685* = ???*0*
+- *0* max number of linking steps reached
+
+FF = ???*0*
+- *0* max number of linking steps reached
+
+GG = ???*0*
+- *0* max number of linking steps reached
+
+HH = ???*0*
+- *0* max number of linking steps reached
+
+II = ???*0*
+- *0* max number of linking steps reached
+
+a#3 = ???*0*
+- *0* max number of linking steps reached
+
+a#4 = arguments[0]
+
+a#5 = arguments[0]
+
+a#6 = arguments[0]
+
+a#7 = arguments[0]
+
+aa = ???*0*
+- *0* max number of linking steps reached
+
+b#3 = ???*0*
+- *0* max number of linking steps reached
+
+b#4 = arguments[1]
+
+b#5 = arguments[1]
+
+b#6 = arguments[1]
+
+b#7 = arguments[1]
+
+bb = ???*0*
+- *0* max number of linking steps reached
+
+bin = module<charenc, {}>["bin"]
+
+c#3 = ???*0*
+- *0* max number of linking steps reached
+
+c#4 = arguments[2]
+
+c#5 = arguments[2]
+
+c#6 = arguments[2]
+
+c#7 = arguments[2]
+
+cc = ???*0*
+- *0* max number of linking steps reached
+
+crypt = module<crypt, {}>
+
+d#3 = ???*0*
+- *0* max number of linking steps reached
+
+d#4 = arguments[3]
+
+d#5 = arguments[3]
+
+d#6 = arguments[3]
+
+d#7 = arguments[3]
+
+dd = ???*0*
+- *0* max number of linking steps reached
+
+digestbytes = ???*0*
+- *0* max number of linking steps reached
+
+i = 0
+
+isBuffer = module<is-buffer, {}>
+
+l = ???*0*
+- *0* unsupported expression
+
+m = module<crypt, {}>["bytesToWords"](
+    (
+      | arguments[0]
+      | module<charenc, {}>["bin"]["stringToBytes"](???*0*)
+      | module<charenc, {}>["utf8"]["stringToBytes"](???*1*)
+      | ???*2*
+    )
+)
+- *0* message
+  ⚠️  circular variable reference
+- *1* message
+  ⚠️  circular variable reference
+- *2* ???*3*(???*7*, 0)
+  ⚠️  call of unknown function
+- *3* ???*4*["call"]
+  ⚠️  property on unknown
+- *4* ???*5*["slice"]
+  ⚠️  property on unknown
+- *5* ???*6*["prototype"]
+  ⚠️  property on unknown
+- *6* FreeVar(Array)
+  ⚠️  unknown global
+- *7* message
+  ⚠️  circular variable reference
+
+md5 = ???*0*
+- *0* max number of linking steps reached
+
+message#3 = (
+  | arguments[0]
+  | module<charenc, {}>["bin"]["stringToBytes"](
+        (
+          | arguments[0]
+          | module<charenc, {}>["bin"]["stringToBytes"](???*0*)
+          | module<charenc, {}>["utf8"]["stringToBytes"](???*1*)
+          | ???*2*
+        )
+    )
+  | module<charenc, {}>["utf8"]["stringToBytes"](
+        (
+          | arguments[0]
+          | module<charenc, {}>["bin"]["stringToBytes"](???*8*)
+          | module<charenc, {}>["utf8"]["stringToBytes"](???*9*)
+          | ???*10*
+        )
+    )
+  | ???*16*
+  | arguments[0]["toString"]()
+  | module<charenc, {}>["bin"]["stringToBytes"](???*28*)["toString"]()
+  | module<charenc, {}>["utf8"]["stringToBytes"](???*29*)["toString"]()
+)
+- *0* message
+  ⚠️  circular variable reference
+- *1* message
+  ⚠️  circular variable reference
+- *2* ???*3*(???*7*, 0)
+  ⚠️  call of unknown function
+- *3* ???*4*["call"]
+  ⚠️  property on unknown
+- *4* ???*5*["slice"]
+  ⚠️  property on unknown
+- *5* ???*6*["prototype"]
+  ⚠️  property on unknown
+- *6* FreeVar(Array)
+  ⚠️  unknown global
+- *7* message
+  ⚠️  circular variable reference
+- *8* message
+  ⚠️  circular variable reference
+- *9* message
+  ⚠️  circular variable reference
+- *10* ???*11*(???*15*, 0)
+  ⚠️  call of unknown function
+- *11* ???*12*["call"]
+  ⚠️  property on unknown
+- *12* ???*13*["slice"]
+  ⚠️  property on unknown
+- *13* ???*14*["prototype"]
+  ⚠️  property on unknown
+- *14* FreeVar(Array)
+  ⚠️  unknown global
+- *15* message
+  ⚠️  circular variable reference
+- *16* ???*17*(
+        (
+          | arguments[0]
+          | module<charenc, {}>["bin"]["stringToBytes"](???*21*)
+          | module<charenc, {}>["utf8"]["stringToBytes"](???*22*)
+          | ???*23*
+        ),
+        0
+    )
+  ⚠️  call of unknown function
+- *17* ???*18*["call"]
+  ⚠️  property on unknown
+- *18* ???*19*["slice"]
+  ⚠️  property on unknown
+- *19* ???*20*["prototype"]
+  ⚠️  property on unknown
+- *20* FreeVar(Array)
+  ⚠️  unknown global
+- *21* message
+  ⚠️  circular variable reference
+- *22* message
+  ⚠️  circular variable reference
+- *23* ???*24*(???*27*, 0)
+  ⚠️  call of unknown function
+- *24* ???*25*["call"]
+  ⚠️  property on unknown
+- *25* ???*26*["slice"]
+  ⚠️  property on unknown
+- *26* ???["prototype"]
+  ⚠️  property on unknown
+- *27* message
+  ⚠️  circular variable reference
+- *28* message
+  ⚠️  circular variable reference
+- *29* message
+  ⚠️  circular variable reference
+
+message#8 = arguments[0]
+
+n#4 = (arguments[0] + ???*0* + ???*1* + arguments[6])
+- *0* unsupported expression
+- *1* unsupported expression
+
+n#5 = (arguments[0] + ???*0* + ???*1* + arguments[6])
+- *0* unsupported expression
+- *1* unsupported expression
+
+n#6 = (arguments[0] + ???*0* + ???*1* + arguments[6])
+- *0* unsupported expression
+- *1* unsupported expression
+
+n#7 = (arguments[0] + ???*0* + ???*1* + arguments[6])
+- *0* unsupported expression
+- *1* unsupported expression
+
+options#3 = arguments[1]
+
+options#8 = arguments[1]
+
+s#4 = arguments[5]
+
+s#5 = arguments[5]
+
+s#6 = arguments[5]
+
+s#7 = arguments[5]
+
+t#4 = arguments[6]
+
+t#5 = arguments[6]
+
+t#6 = arguments[6]
+
+t#7 = arguments[6]
+
+utf8 = module<charenc, {}>["utf8"]
+
+x#4 = arguments[4]
+
+x#5 = arguments[4]
+
+x#6 = arguments[4]
+
+x#7 = arguments[4]

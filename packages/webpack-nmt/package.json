@@ -1,0 +1,23 @@
+{
+  "name": "@vercel/webpack-nft",
+  "version": "0.0.15-alpha.2",
+  "license": "MPL-2.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist/**/*"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@vercel/experimental-nft": "workspace:*"
+  },
+  "peerDependencies": {
+    "webpack": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/webpack": "^5.28.0",
+    "webpack": "^5.73.0"
+  }
+}

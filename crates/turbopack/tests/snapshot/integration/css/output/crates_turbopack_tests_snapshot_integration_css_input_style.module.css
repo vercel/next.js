@@ -1,0 +1,9 @@
+/* chunk [workspace]/crates/turbopack/tests/snapshot/integration/css/output/crates_turbopack_tests_snapshot_integration_css_input_style.module.css */
+/* [project]/crates/turbopack/tests/snapshot/integration/css/input/style.module.css */
+.module-style◽\[project\]\/crates\/turbopack\/tests\/snapshot\/integration\/css\/input\/style\.module\.css {
+  color: magenta;
+}
+.module-style◽\[project\]\/crates\/turbopack\/tests\/snapshot\/integration\/css\/input\/style\.module\.css > h1, 
+.module-style◽\[project\]\/crates\/turbopack\/tests\/snapshot\/integration\/css\/input\/style\.module\.css + .inner◽\[project\]\/crates\/turbopack\/tests\/snapshot\/integration\/css\/input\/style\.module\.css {
+  background: purple;
+}
