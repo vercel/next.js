@@ -34,10 +34,6 @@ var __privateSet = (obj, member, value, setter) => {
   setter ? setter.call(obj, value) : member.set(obj, value);
   return value;
 };
-var __privateMethod = (obj, member, method) => {
-  __accessCheck(obj, member, "access private method");
-  return method;
-};
 
 // src/index.ts
 var src_exports = {};
@@ -106,46 +102,34 @@ function parseSameSite(string) {
   return SAME_SITE.includes(string) ? string : void 0;
 }
 
-// src/cached.ts
-function cached(generate) {
-  let cache = void 0;
-  return (key) => {
-    if ((cache == null ? void 0 : cache.key) !== key) {
-      cache = { key, value: generate(key) };
-    }
-    return cache.value;
-  };
-}
-
 // src/request-cookies.ts
-var _headers, _cache, _parsed, parsed_fn;
+var _headers, _parsed;
 var RequestCookies = class {
   constructor(requestHeaders) {
-    __privateAdd(this, _parsed);
     __privateAdd(this, _headers, void 0);
-    __privateAdd(this, _cache, cached((header) => {
-      const parsed = header ? parseCookieString(header) : /* @__PURE__ */ new Map();
-      const cached2 = /* @__PURE__ */ new Map();
-      for (const [name, value] of parsed) {
-        cached2.set(name, { name, value });
-      }
-      return cached2;
-    }));
+    __privateAdd(this, _parsed, /* @__PURE__ */ new Map());
     __privateSet(this, _headers, requestHeaders);
+    const header = requestHeaders.get("cookie");
+    if (header) {
+      const parsed = parseCookieString(header);
+      for (const [name, value] of parsed) {
+        __privateGet(this, _parsed).set(name, { name, value });
+      }
+    }
   }
   [Symbol.iterator]() {
-    return __privateMethod(this, _parsed, parsed_fn).call(this)[Symbol.iterator]();
+    return __privateGet(this, _parsed)[Symbol.iterator]();
   }
   get size() {
-    return __privateMethod(this, _parsed, parsed_fn).call(this).size;
+    return __privateGet(this, _parsed).size;
   }
   get(...args) {
     const name = typeof args[0] === "string" ? args[0] : args[0].name;
-    return __privateMethod(this, _parsed, parsed_fn).call(this).get(name);
+    return __privateGet(this, _parsed).get(name);
   }
   getAll(...args) {
     var _a;
-    const all = Array.from(__privateMethod(this, _parsed, parsed_fn).call(this));
+    const all = Array.from(__privateGet(this, _parsed));
     if (!args.length) {
       return all.map(([_, value]) => value);
     }
@@ -153,11 +137,11 @@ var RequestCookies = class {
     return all.filter(([n]) => n === name).map(([_, value]) => value);
   }
   has(name) {
-    return __privateMethod(this, _parsed, parsed_fn).call(this).has(name);
+    return __privateGet(this, _parsed).has(name);
   }
   set(...args) {
     const [name, value] = args.length === 1 ? [args[0].name, args[0].value] : args;
-    const map = __privateMethod(this, _parsed, parsed_fn).call(this);
+    const map = __privateGet(this, _parsed);
     map.set(name, { name, value });
     __privateGet(this, _headers).set(
       "cookie",
@@ -166,7 +150,7 @@ var RequestCookies = class {
     return this;
   }
   delete(names) {
-    const map = __privateMethod(this, _parsed, parsed_fn).call(this);
+    const map = __privateGet(this, _parsed);
     const result = !Array.isArray(names) ? map.delete(names) : names.map((name) => map.delete(name));
     __privateGet(this, _headers).set(
       "cookie",
@@ -175,49 +159,38 @@ var RequestCookies = class {
     return result;
   }
   clear() {
-    this.delete(Array.from(__privateMethod(this, _parsed, parsed_fn).call(this).keys()));
+    this.delete(Array.from(__privateGet(this, _parsed).keys()));
     return this;
   }
   [Symbol.for("edge-runtime.inspect.custom")]() {
-    return `RequestCookies ${JSON.stringify(
-      Object.fromEntries(__privateMethod(this, _parsed, parsed_fn).call(this))
-    )}`;
+    return `RequestCookies ${JSON.stringify(Object.fromEntries(__privateGet(this, _parsed)))}`;
   }
 };
 _headers = new WeakMap();
-_cache = new WeakMap();
-_parsed = new WeakSet();
-parsed_fn = function() {
-  const header = __privateGet(this, _headers).get("cookie");
-  return __privateGet(this, _cache).call(this, header);
-};
+_parsed = new WeakMap();
 
 // src/response-cookies.ts
-var _headers2, _cache2, _parsed2, parsed_fn2;
+var _headers2, _parsed2;
 var ResponseCookies = class {
   constructor(responseHeaders) {
-    __privateAdd(this, _parsed2);
     __privateAdd(this, _headers2, void 0);
-    __privateAdd(this, _cache2, cached(() => {
-      const headers = __privateGet(this, _headers2).getAll("set-cookie");
-      const map = /* @__PURE__ */ new Map();
-      for (const header of headers) {
-        const parsed = parseSetCookieString(header);
-        if (parsed) {
-          map.set(parsed.name, parsed);
-        }
-      }
-      return map;
-    }));
+    __privateAdd(this, _parsed2, /* @__PURE__ */ new Map());
     __privateSet(this, _headers2, responseHeaders);
+    const headers = __privateGet(this, _headers2).getAll("set-cookie");
+    for (const header of headers) {
+      const parsed = parseSetCookieString(header);
+      if (parsed) {
+        __privateGet(this, _parsed2).set(parsed.name, parsed);
+      }
+    }
   }
   get(...args) {
     const key = typeof args[0] === "string" ? args[0] : args[0].name;
-    return __privateMethod(this, _parsed2, parsed_fn2).call(this).get(key);
+    return __privateGet(this, _parsed2).get(key);
   }
   getAll(...args) {
     var _a;
-    const all = Array.from(__privateMethod(this, _parsed2, parsed_fn2).call(this).values());
+    const all = Array.from(__privateGet(this, _parsed2).values());
     if (!args.length) {
       return all;
     }
@@ -226,7 +199,7 @@ var ResponseCookies = class {
   }
   set(...args) {
     const [name, value, cookie] = args.length === 1 ? [args[0].name, args[0].value, args[0]] : args;
-    const map = __privateMethod(this, _parsed2, parsed_fn2).call(this);
+    const map = __privateGet(this, _parsed2);
     map.set(name, normalizeCookie({ name, value, ...cookie }));
     replace(map, __privateGet(this, _headers2));
     return this;
@@ -236,18 +209,11 @@ var ResponseCookies = class {
     return this.set({ name, value: "", expires: new Date(0) });
   }
   [Symbol.for("edge-runtime.inspect.custom")]() {
-    return `ResponseCookies ${JSON.stringify(
-      Object.fromEntries(__privateMethod(this, _parsed2, parsed_fn2).call(this))
-    )}`;
+    return `ResponseCookies ${JSON.stringify(Object.fromEntries(__privateGet(this, _parsed2)))}`;
   }
 };
 _headers2 = new WeakMap();
-_cache2 = new WeakMap();
-_parsed2 = new WeakSet();
-parsed_fn2 = function() {
-  const allCookies = __privateGet(this, _headers2).get("set-cookie");
-  return __privateGet(this, _cache2).call(this, allCookies);
-};
+_parsed2 = new WeakMap();
 function replace(bag, headers) {
   headers.delete("set-cookie");
   for (const [, value] of bag) {
