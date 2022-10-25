@@ -34,6 +34,8 @@ import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { ImageConfigComplete } from '../shared/lib/image-config'
 import { removeBasePath } from './remove-base-path'
 import { hasBasePath } from './has-base-path'
+import { AppRouterContext } from '../shared/lib/app-router-context'
+import { adaptForAppRouterInstance } from '../shared/lib/router/adapters'
 
 const ReactDOM = process.env.__NEXT_REACT_ROOT
   ? require('react-dom/client')
@@ -306,15 +308,19 @@ function AppContainer({
         )
       }
     >
-      <RouterContext.Provider value={makePublicRouterInstance(router)}>
-        <HeadManagerContext.Provider value={headManager}>
-          <ImageConfigContext.Provider
-            value={process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete}
-          >
-            {children}
-          </ImageConfigContext.Provider>
-        </HeadManagerContext.Provider>
-      </RouterContext.Provider>
+      <AppRouterContext.Provider value={adaptForAppRouterInstance(router)}>
+        <RouterContext.Provider value={makePublicRouterInstance(router)}>
+          <HeadManagerContext.Provider value={headManager}>
+            <ImageConfigContext.Provider
+              value={
+                process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
+              }
+            >
+              {children}
+            </ImageConfigContext.Provider>
+          </HeadManagerContext.Provider>
+        </RouterContext.Provider>
+      </AppRouterContext.Provider>
     </Container>
   )
 }

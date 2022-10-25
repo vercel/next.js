@@ -8,6 +8,7 @@ import {
   PrefetchOptions,
   resolveHref,
 } from '../shared/lib/router/router'
+import { formatUrl } from '../shared/lib/router/utils/format-url'
 import { addLocale } from './add-locale'
 import { RouterContext } from '../shared/lib/router-context'
 import {
@@ -17,6 +18,7 @@ import {
 import { useIntersection } from './use-intersection'
 import { getDomainLocale } from './get-domain-locale'
 import { addBasePath } from './add-base-path'
+import { useRouter } from './components/navigation'
 
 type Url = string | UrlObject
 type RequiredKeys<T> = {
@@ -108,12 +110,13 @@ type LinkPropsOptional = OptionalKeys<InternalLinkProps>
 const prefetched: { [cacheKey: string]: boolean } = {}
 
 function prefetch(
-  router: NextRouter,
+  router: NextRouter | AppRouterInstance,
   href: string,
   as: string,
   options?: PrefetchOptions
 ): void {
   if (typeof window === 'undefined' || !router) return
+
   if (!isLocalURL(href)) return
   // Prefetch the JSON page if asked (only in the client)
   // We need to handle a prefetch error here since we may be
@@ -125,10 +128,13 @@ function prefetch(
       throw err
     }
   })
+
   const curLocale =
     options && typeof options.locale !== 'undefined'
       ? options.locale
-      : router && router.locale
+      : 'locale' in router
+      ? router.locale
+      : undefined
 
   // Join on an invalid URI character
   prefetched[href + '%' + as + (curLocale ? '%' + curLocale : '')] = true
@@ -179,11 +185,7 @@ function linkClicked(
         scroll,
       })
     } else {
-      // If `beforePopState` doesn't exist on the router it's the AppRouter.
-      const method: keyof AppRouterInstance = replace ? 'replace' : 'push'
-
-      // Apply `as` if it's provided.
-      router[method](as || href, {
+      router[replace ? 'replace' : 'push'](as || href, {
         forceOptimisticNavigation: !prefetchEnabled,
       })
     }
@@ -201,6 +203,14 @@ type LinkPropsReal = React.PropsWithChildren<
   Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, keyof LinkProps> &
     LinkProps
 >
+
+function formatStringOrUrl(urlObjOrString: UrlObject | string): string {
+  if (typeof urlObjOrString === 'string') {
+    return urlObjOrString
+  }
+
+  return formatUrl(urlObjOrString)
+}
 
 /**
  * React Component that enables client-side transitions between routes.
@@ -357,21 +367,36 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
     }
 
     const p = prefetchProp !== false
-    let router = React.useContext(RouterContext)
 
-    // TODO-APP: type error. Remove `as any`
-    const appRouter = React.useContext(AppRouterContext) as any
-    if (appRouter) {
-      router = appRouter
-    }
+    const pagesRouter = React.useContext(RouterContext)
+    const appRouter = useRouter()
+    const router = pagesRouter ?? appRouter
+
+    // We're in the app directory if there is no pages router.
+    const isAppRouter = !pagesRouter
 
     const { href, as } = React.useMemo(() => {
-      const [resolvedHref, resolvedAs] = resolveHref(router, hrefProp, true)
+      if (!pagesRouter) {
+        const resolvedHref = formatStringOrUrl(hrefProp)
+        return {
+          href: resolvedHref,
+          as: asProp ? formatStringOrUrl(asProp) : resolvedHref,
+        }
+      }
+
+      const [resolvedHref, resolvedAs] = resolveHref(
+        pagesRouter,
+        hrefProp,
+        true
+      )
+
       return {
         href: resolvedHref,
-        as: asProp ? resolveHref(router, asProp) : resolvedAs || resolvedHref,
+        as: asProp
+          ? resolveHref(pagesRouter, asProp)
+          : resolvedAs || resolvedHref,
       }
-    }, [router, hrefProp, asProp])
+    }, [pagesRouter, hrefProp, asProp])
 
     const previousHref = React.useRef<string>(href)
     const previousAs = React.useRef<string>(as)
@@ -448,7 +473,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
     React.useEffect(() => {
       const shouldPrefetch = isVisible && p && isLocalURL(href)
       const curLocale =
-        typeof locale !== 'undefined' ? locale : router && router.locale
+        typeof locale !== 'undefined' ? locale : pagesRouter?.locale
       const isPrefetched =
         prefetched[href + '%' + as + (curLocale ? '%' + curLocale : '')]
       if (shouldPrefetch && !isPrefetched) {
@@ -456,7 +481,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           locale: curLocale,
         })
       }
-    }, [as, href, isVisible, locale, p, router])
+    }, [as, href, isVisible, locale, p, pagesRouter?.locale, router])
 
     const childProps: {
       onTouchStart: React.TouchEventHandler
@@ -495,7 +520,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
             shallow,
             scroll,
             locale,
-            Boolean(appRouter),
+            isAppRouter,
             p
           )
         }
@@ -513,7 +538,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         }
 
         // Check for not prefetch disabled in page using appRouter
-        if (!(!p && appRouter)) {
+        if (!(!p && isAppRouter)) {
           if (isLocalURL(href)) {
             prefetch(router, href, as, { priority: true })
           }
@@ -533,7 +558,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         }
 
         // Check for not prefetch disabled in page using appRouter
-        if (!(!p && appRouter)) {
+        if (!(!p && isAppRouter)) {
           if (isLocalURL(href)) {
             prefetch(router, href, as, { priority: true })
           }
@@ -549,18 +574,22 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       (child.type === 'a' && !('href' in child.props))
     ) {
       const curLocale =
-        typeof locale !== 'undefined' ? locale : router && router.locale
+        typeof locale !== 'undefined' ? locale : pagesRouter?.locale
 
       // we only render domain locales if we are currently on a domain locale
       // so that locale links are still visitable in development/preview envs
       const localeDomain =
-        router &&
-        router.isLocaleDomain &&
-        getDomainLocale(as, curLocale, router.locales, router.domainLocales)
+        pagesRouter?.isLocaleDomain &&
+        getDomainLocale(
+          as,
+          curLocale,
+          pagesRouter?.locales,
+          pagesRouter?.domainLocales
+        )
 
       childProps.href =
         localeDomain ||
-        addBasePath(addLocale(as, curLocale, router && router.defaultLocale))
+        addBasePath(addLocale(as, curLocale, pagesRouter?.defaultLocale))
     }
 
     return legacyBehavior ? (

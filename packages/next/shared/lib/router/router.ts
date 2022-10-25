@@ -259,6 +259,7 @@ export function resolveHref(
     // fallback to / for invalid asPath values e.g. //
     base = new URL('/', 'http://n')
   }
+
   try {
     const finalUrl = new URL(urlAsString, base)
     finalUrl.pathname = normalizePathTrailingSlash(finalUrl.pathname)
@@ -542,6 +543,7 @@ export type NextRouter = BaseRouter &
     | 'replace'
     | 'reload'
     | 'back'
+    | 'forward'
     | 'prefetch'
     | 'beforePopState'
     | 'events'
@@ -1135,6 +1137,13 @@ export default class Router implements BaseRouter {
    */
   back() {
     window.history.back()
+  }
+
+  /**
+   * Go forward in history
+   */
+  forward() {
+    window.history.forward()
   }
 
   /**

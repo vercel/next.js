@@ -130,7 +130,12 @@ export default singletonRouter as SingletonRouter
 export { default as withRouter } from './with-router'
 
 export function useRouter(): NextRouter {
-  return React.useContext(RouterContext)
+  const router = React.useContext(RouterContext)
+  if (!router) {
+    throw new Error('invariant expected pages router to be mounted')
+  }
+
+  return router
 }
 
 // INTERNAL APIS
