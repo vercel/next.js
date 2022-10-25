@@ -7,7 +7,6 @@ import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-we
 
 import measureWebVitals from './performance-relayer'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
-import HotReload from './components/react-dev-overlay/hot-reloader-client'
 import { GlobalLayoutRouterContext } from '../shared/lib/app-router-context'
 
 /// <reference types="react-dom/experimental" />
@@ -178,6 +177,9 @@ export function hydrate() {
   if (process.env.NODE_ENV !== 'production') {
     const rootLayoutMissingTagsError = (self as any)
       .__next_root_layout_missing_tags_error
+    const HotReload: typeof import('./components/react-dev-overlay/hot-reloader-client').default =
+      require('./components/react-dev-overlay/hot-reloader-client')
+        .default as typeof import('./components/react-dev-overlay/hot-reloader-client').default
 
     // Don't try to hydrate if root layout is missing required tags, render error instead
     if (rootLayoutMissingTagsError) {
