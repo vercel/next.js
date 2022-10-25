@@ -106,8 +106,8 @@ impl DevHtmlAssetVc {
         for chunk_group in &this.chunk_groups {
             for chunk in chunk_group.chunks().await?.iter() {
                 let chunk_path = &*chunk.path().await?;
-                if let Some(relative_path) = context_path.get_relative_path_to(chunk_path) {
-                    chunk_paths.push(relative_path);
+                if let Some(relative_path) = context_path.get_path_to(chunk_path) {
+                    chunk_paths.push(format!("/{relative_path}"));
                 }
             }
         }
