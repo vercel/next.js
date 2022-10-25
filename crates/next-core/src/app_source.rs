@@ -1,10 +1,14 @@
 use std::{collections::HashMap, fmt::Write};
 
-use anyhow::{anyhow, Result};
-use turbo_tasks::{primitives::StringsVc, TryJoinIterExt, Value, ValueToString};
+use anyhow::{anyhow, Context, Result};
+use turbo_tasks::{
+    primitives::{StringVc, StringsVc},
+    TryJoinIterExt, Value, ValueToString,
+};
 use turbo_tasks_env::ProcessEnvVc;
 use turbo_tasks_fs::{
-    DirectoryContent, DirectoryEntry, File, FileContent, FileSystemEntryType, FileSystemPathVc,
+    DirectoryContent, DirectoryEntry, File, FileContent, FileContentVc, FileSystemEntryType,
+    FileSystemPathVc,
 };
 use turbopack::{
     ecmascript::EcmascriptInputTransform,
@@ -12,7 +16,10 @@ use turbopack::{
     ModuleAssetContextVc,
 };
 use turbopack_core::{
-    chunk::dev::DevChunkingContextVc, context::AssetContextVc, virtual_asset::VirtualAssetVc,
+    chunk::dev::DevChunkingContextVc,
+    context::AssetContextVc,
+    issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
+    virtual_asset::VirtualAssetVc,
 };
 use turbopack_dev_server::{
     html::DevHtmlAssetVc,
@@ -298,6 +305,49 @@ async fn create_app_source_for_directory(
                 }
             }
         }
+
+        let layout_js = input_dir.join("layout.js");
+        let layout_tsx = input_dir.join("layout.tsx");
+
+        // TODO: Use let Some(page_file) = page in expression below when
+        // https://rust-lang.github.io/rfcs/2497-if-let-chains.html lands
+        if page.is_some() && layout.is_none() && target == server_root {
+            // If a page exists but no layout exists, create a basic root layout
+            // in `app/layout.js` or `app/layout.tsx`.
+            let page_file = page.context("page must not be none")?;
+            // Use the extension to determine if the page file is TypeScript.
+            // TODO: Use the presence of a tsconfig.json instead, like Next.js
+            // stable does.
+            let is_tsx = *page_file.extension().await? == "tsx";
+
+            if is_tsx {
+                layout.replace(&layout_tsx);
+            } else {
+                layout.replace(&layout_js);
+            }
+            let content = if is_tsx {
+                include_str!("assets/layout.tsx")
+            } else {
+                include_str!("assets/layout.js")
+            };
+
+            let layout = layout.context("required")?;
+            layout.write(FileContentVc::from(File::from(content)));
+
+            AppSourceIssue {
+                severity: IssueSeverity::Warning.into(),
+                path: *page_file,
+                message: StringVc::cell(format!(
+                    "Your page {} did not have a root layout, we created {} for you.",
+                    page_file.await?.path,
+                    layout.await?.path,
+                )),
+            }
+            .cell()
+            .as_issue()
+            .emit();
+        }
+
         let mut list = layouts.await?.clone_value();
         list.push(
             LayoutSegment {
@@ -517,5 +567,42 @@ import BOOTSTRAP from {};
             intermediate_output_path,
         }
         .cell())
+    }
+}
+
+#[turbo_tasks::value(shared)]
+struct AppSourceIssue {
+    pub severity: IssueSeverityVc,
+    pub path: FileSystemPathVc,
+    pub message: StringVc,
+}
+
+#[turbo_tasks::value_impl]
+impl Issue for AppSourceIssue {
+    #[turbo_tasks::function]
+    fn severity(&self) -> IssueSeverityVc {
+        self.severity
+    }
+
+    #[turbo_tasks::function]
+    async fn title(&self) -> Result<StringVc> {
+        Ok(StringVc::cell(
+            "An issue occurred while preparing your Next.js app".to_string(),
+        ))
+    }
+
+    #[turbo_tasks::function]
+    fn category(&self) -> StringVc {
+        StringVc::cell("next app".to_string())
+    }
+
+    #[turbo_tasks::function]
+    fn context(&self) -> FileSystemPathVc {
+        self.path
+    }
+
+    #[turbo_tasks::function]
+    fn description(&self) -> StringVc {
+        self.message
     }
 }
