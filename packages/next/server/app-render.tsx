@@ -1593,9 +1593,9 @@ export async function renderToHTMLOrFlight(
 
       ;(renderOpts as any).pageData = filteredFlightData
       ;(renderOpts as any).revalidate =
-        typeof staticGenerationStore?.revalidate === 'undefined'
+        typeof staticGenerationStore?.fetchRevalidate === 'undefined'
           ? defaultRevalidate
-          : staticGenerationStore?.revalidate
+          : staticGenerationStore?.fetchRevalidate
 
       return new RenderResult(htmlResult)
     }
