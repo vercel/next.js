@@ -14,9 +14,12 @@ const BackgroundPage = () => (
         quality={100}
         fill
         sizes="100vw"
-        style={{
-          objectFit: 'cover',
-        }}
+        objectFit="cover"
+        
+        // NOTE: applies to select next.js versions.
+        // style={{
+        //  objectFit: 'cover',
+        // }}
       />
     </div>
     <p className={styles.bgText}>
