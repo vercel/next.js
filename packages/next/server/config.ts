@@ -42,6 +42,12 @@ const experimentalWarning = execOnce(
       `Experimental features are not covered by semver, and may cause unexpected or broken application behavior. ` +
         `Use at your own risk.`
     )
+    if (features.includes('appDir')) {
+      Log.info(
+        `Thank you for testing \`appDir\` please leave your feedback at https://nextjs.link/app-feedback`
+      )
+    }
+
     console.warn()
   }
 )
@@ -783,7 +789,8 @@ function assignDefaults(dir: string, userConfig: { [key: string]: any }) {
 export default async function loadConfig(
   phase: string,
   dir: string,
-  customConfig?: object | null
+  customConfig?: object | null,
+  rawConfig?: boolean
 ): Promise<NextConfigComplete> {
   await loadEnvConfig(dir, phase === PHASE_DEVELOPMENT_SERVER, Log)
   loadWebpackHook()
@@ -816,6 +823,10 @@ export default async function loadConfig(
         userConfigModule = require(path)
       } else {
         userConfigModule = await import(pathToFileURL(path).href)
+      }
+
+      if (rawConfig) {
+        return userConfigModule
       }
     } catch (err) {
       Log.error(

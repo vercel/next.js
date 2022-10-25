@@ -3,14 +3,13 @@ import type { LoadComponentsReturnType } from './load-components'
 import type { ServerRuntime } from '../types'
 import type { FontLoaderManifest } from '../build/webpack/plugins/font-loader-manifest-plugin'
 
-// TODO-APP: investigate why require-hook doesn't work for app-render
-
+// Import builtin react directly to avoid require cache conflicts
 import React, { use } from 'next/dist/compiled/react'
+import { NotFound as DefaultNotFound } from '../client/components/error'
 
 // this needs to be required lazily so that `next-server` can set
 // the env before we require
 import ReactDOMServer from 'next/dist/compiled/react-dom/server.browser'
-
 import { ParsedUrlQuery } from 'querystring'
 import { NextParsedUrlQuery } from './request-meta'
 import RenderResult from './render-result'
@@ -222,7 +221,7 @@ function patchFetch(ComponentMod: any) {
     if (staticGenerationStore && isStaticGeneration) {
       if (init && typeof init === 'object') {
         if (init.cache === 'no-store') {
-          staticGenerationStore.revalidate = 0
+          staticGenerationStore.fetchRevalidate = 0
           // TODO: ensure this error isn't logged to the user
           // seems it's slipping through currently
           throw new DynamicServerError(
@@ -239,13 +238,13 @@ function patchFetch(ComponentMod: any) {
         ) {
           staticGenerationStore.fetchRevalidate = next.revalidate
 
-          // TODO: ensure this error isn't logged to the user
-          // seems it's slipping through currently
-          throw new DynamicServerError(
-            `revalidate: ${next.revalidate} fetch ${input}${
-              pathname ? ` ${pathname}` : ''
-            }`
-          )
+          if (next.revalidate === 0) {
+            throw new DynamicServerError(
+              `revalidate: ${next.revalidate} fetch ${input}${
+                pathname ? ` ${pathname}` : ''
+              }`
+            )
+          }
         }
         if (hasNextConfig) delete init.next
       }
@@ -736,7 +735,9 @@ export async function renderToHTMLOrFlight(
     supportsDynamicHTML,
   } = renderOpts
 
-  patchFetch(ComponentMod)
+  if (process.env.NODE_ENV === 'production') {
+    patchFetch(ComponentMod)
+  }
   const generateStaticHTML = supportsDynamicHTML !== true
 
   const staticGenerationAsyncStorage = ComponentMod.staticGenerationAsyncStorage
@@ -856,6 +857,40 @@ export async function renderToHTMLOrFlight(
       }
     }
 
+    async function resolveHead(
+      [segment, parallelRoutes, { head }]: LoaderTree,
+      parentParams: { [key: string]: any }
+    ): Promise<React.ReactNode> {
+      // Handle dynamic segment params.
+      const segmentParam = getDynamicParamFromSegment(segment)
+      /**
+       * Create object holding the parent params and current params
+       */
+      const currentParams =
+        // Handle null case where dynamic param is optional
+        segmentParam && segmentParam.value !== null
+          ? {
+              ...parentParams,
+              [segmentParam.param]: segmentParam.value,
+            }
+          : // Pass through parent params to children
+            parentParams
+      for (const key in parallelRoutes) {
+        const childTree = parallelRoutes[key]
+        const returnedHead = await resolveHead(childTree, currentParams)
+        if (returnedHead) {
+          return returnedHead
+        }
+      }
+
+      if (head) {
+        const Head = await interopDefault(head())
+        return <Head params={currentParams} />
+      }
+
+      return null
+    }
+
     const createFlightRouterStateFromLoaderTree = (
       [segment, parallelRoutes, { layout }]: LoaderTree,
       rootLayoutIncluded = false
@@ -947,7 +982,6 @@ export async function renderToHTMLOrFlight(
       const Template = template
         ? await interopDefault(template())
         : React.Fragment
-      const NotFound = notFound ? await interopDefault(notFound()) : undefined
       const ErrorComponent = error ? await interopDefault(error()) : undefined
       const Loading = loading ? await interopDefault(loading()) : undefined
       const isLayout = typeof layout !== 'undefined'
@@ -956,6 +990,21 @@ export async function renderToHTMLOrFlight(
         ? await layout()
         : isPage
         ? await page()
+        : undefined
+      /**
+       * Checks if the current segment is a root layout.
+       */
+      const rootLayoutAtThisLevel = isLayout && !rootLayoutIncluded
+      /**
+       * Checks if the current segment or any level above it has a root layout.
+       */
+      const rootLayoutIncludedAtThisLevelOrAbove =
+        rootLayoutIncluded || rootLayoutAtThisLevel
+
+      const NotFound = notFound
+        ? await interopDefault(notFound())
+        : rootLayoutAtThisLevel
+        ? DefaultNotFound
         : undefined
 
       if (typeof layoutOrPageMod?.revalidate !== 'undefined') {
@@ -968,15 +1017,6 @@ export async function renderToHTMLOrFlight(
           throw new DynamicServerError(`revalidate: 0 configured ${segment}`)
         }
       }
-      /**
-       * Checks if the current segment is a root layout.
-       */
-      const rootLayoutAtThisLevel = isLayout && !rootLayoutIncluded
-      /**
-       * Checks if the current segment or any level above it has a root layout.
-       */
-      const rootLayoutIncludedAtThisLevelOrAbove =
-        rootLayoutIncluded || rootLayoutAtThisLevel
 
       // TODO-APP: move these errors to the loader instead?
       // we will also need a migration doc here to link to
@@ -1196,6 +1236,7 @@ export async function renderToHTMLOrFlight(
                 // Query is only provided to page
                 {...(isPage ? { searchParams: query } : {})}
               />
+              {/* {HeadTags ? <HeadTags /> : null} */}
             </>
           )
         },
@@ -1401,6 +1442,8 @@ export async function renderToHTMLOrFlight(
         }
       : {}
 
+    const initialHead = await resolveHead(loaderTree, {})
+
     /**
      * A new React Component that renders the provided React Component
      * using Flight which can then be rendered to HTML.
@@ -1414,6 +1457,7 @@ export async function renderToHTMLOrFlight(
             assetPrefix={assetPrefix}
             initialCanonicalUrl={initialCanonicalUrl}
             initialTree={initialTree}
+            initialHead={initialHead}
           >
             <ComponentTree />
           </AppRouter>
@@ -1587,9 +1631,9 @@ export async function renderToHTMLOrFlight(
 
       ;(renderOpts as any).pageData = filteredFlightData
       ;(renderOpts as any).revalidate =
-        typeof staticGenerationStore?.revalidate === 'undefined'
+        typeof staticGenerationStore?.fetchRevalidate === 'undefined'
           ? defaultRevalidate
-          : staticGenerationStore?.revalidate
+          : staticGenerationStore?.fetchRevalidate
 
       return new RenderResult(htmlResult)
     }
