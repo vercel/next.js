@@ -494,7 +494,8 @@ impl NodeEntry for AppRenderer {
             .into_iter()
             .try_join()
             .await?;
-        let mut result = String::new();
+        let mut result =
+            "import IPC, { Ipc } from \"@vercel/turbopack-next/internal/ipc\";\n".to_string();
         for (_, import) in segments.iter() {
             if let Some((p, identifier, chunks_identifier)) = import {
                 writeln!(

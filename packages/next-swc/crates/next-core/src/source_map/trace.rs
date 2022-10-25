@@ -167,7 +167,7 @@ impl SourceMapTraceVc {
     /// of a .map file, which means we're serializing all of the individual
     /// sections into a string and concatenating, taking that and
     /// deserializing into a DecodedMap, and then querying it. Besides being a
-    /// memory hog, it'd be so much faster if we could just direclty access
+    /// memory hog, it'd be so much faster if we could just directly access
     /// the individual sections of the JS file's map without the
     /// serialization.
     #[turbo_tasks::function]

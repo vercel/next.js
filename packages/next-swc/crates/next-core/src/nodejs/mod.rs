@@ -1,7 +1,6 @@
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
     fmt::Write as _,
-    io::Write,
 };
 
 use anyhow::{anyhow, bail, Result};
@@ -11,7 +10,7 @@ use mime::TEXT_HTML_UTF_8;
 pub use node_api_source::create_node_api_source;
 pub use node_entry::{NodeEntry, NodeEntryVc};
 pub use node_rendered_source::create_node_rendered_source;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use turbo_tasks::{primitives::StringVc, CompletionVc, CompletionsVc, TryJoinIterExt};
 use turbo_tasks_fs::{DiskFileSystemVc, File, FileContent, FileSystemPathVc};
 use turbopack::ecmascript::EcmascriptModuleAssetVc;
@@ -29,12 +28,9 @@ use turbopack_ecmascript::chunk::EcmascriptChunkPlaceablesVc;
 use self::{
     bootstrap::NodeJsBootstrapAsset,
     issue::RenderingIssue,
-    pool::{NodeJsPool, NodeJsPoolVc},
+    pool::{NodeJsOperation, NodeJsPool, NodeJsPoolVc},
 };
-use crate::{
-    nodejs::pool::OperationEvent,
-    source_map::{SourceMapTraceVc, StackFrame, TraceResult},
-};
+use crate::source_map::{SourceMapTraceVc, StackFrame, TraceResult};
 
 pub(crate) mod bootstrap;
 pub(crate) mod issue;
@@ -253,6 +249,19 @@ pub enum RenderResult {
     },
 }
 
+#[derive(Serialize)]
+#[serde(tag = "type", rename_all = "camelCase")]
+enum RenderStaticOutgoingMessage<'a> {
+    Headers { data: &'a RenderData },
+}
+
+#[derive(Deserialize)]
+#[serde(tag = "type", rename_all = "camelCase")]
+enum RenderStaticIncomingMessage {
+    Result { result: RenderResult },
+    Error(StructuredError),
+}
+
 /// Renders a module as static HTML in a node.js process.
 #[turbo_tasks::function]
 async fn render_static(
@@ -274,112 +283,101 @@ async fn render_static(
     // Read this strongly consistent, since we don't want to run inconsistent
     // node.js code.
     let pool = renderer_pool.strongly_consistent().await?;
-    let mut operation = pool.operation().await?;
+    let mut operation = match pool.operation().await {
+        Ok(operation) => operation,
+        Err(err) => {
+            return Ok(static_error(path, err, None, fallback_page).await?);
+        }
+    };
+
+    match run_static_operation(
+        &mut operation,
+        data,
+        intermediate_asset,
+        intermediate_output_path,
+    )
+    .await
+    {
+        Ok(asset) => Ok(asset),
+        Err(err) => Ok(static_error(path, err, Some(operation), fallback_page).await?),
+    }
+}
+
+async fn run_static_operation(
+    operation: &mut NodeJsOperation,
+    data: RenderDataVc,
+    intermediate_asset: AssetVc,
+    intermediate_output_path: FileSystemPathVc,
+) -> Result<AssetContentVc> {
     let data = data.await?;
 
-    // First, write the render data to the process as a JSON string.
-    let data = serde_json::to_string(&*data)?;
-    operation.write_all(data.as_bytes())?;
-    operation.write_all(&[b'\n'])?;
+    operation
+        .send(RenderStaticOutgoingMessage::Headers { data: &data })
+        .await?;
 
-    let mut buffer = Vec::new();
-
-    // Read the result headers as a UTF8 string.
-    let (_, event) = operation.read_event(&mut buffer)?;
-    let result = match event {
-        OperationEvent::Success => String::from_utf8(buffer)?,
-        event => {
-            bail!(
-                "unexpected event from Node.js rendering process: {:?}",
-                event
-            );
+    match operation.recv().await? {
+        RenderStaticIncomingMessage::Result {
+            result: RenderResult::Simple(body),
+        } => Ok(FileContent::Content(File::from(body).with_content_type(TEXT_HTML_UTF_8)).into()),
+        RenderStaticIncomingMessage::Result {
+            result: RenderResult::Advanced { body, content_type },
+        } => Ok(FileContent::Content(
+            File::from(body)
+                .with_content_type(content_type.map_or(Ok(TEXT_HTML_UTF_8), |c| c.parse())?),
+        )
+        .into()),
+        RenderStaticIncomingMessage::Error(error) => {
+            bail!(trace_stack(error, intermediate_asset, intermediate_output_path).await?)
         }
+    }
+}
+
+async fn static_error(
+    path: FileSystemPathVc,
+    error: anyhow::Error,
+    operation: Option<NodeJsOperation>,
+    fallback_page: DevHtmlAssetVc,
+) -> Result<AssetContentVc> {
+    let message = format!("{error:?}");
+    let status = match operation {
+        Some(operation) => Some(operation.wait_or_kill().await?),
+        None => None,
     };
 
-    // Parse the result.
-    let lines: Vec<_> = result.lines().collect();
-    let issue = if let Some(last_line) = lines.last() {
-        if let Some(data) = last_line.strip_prefix("RESULT=") {
-            let result: serde_json::Result<RenderResult> = serde_json::from_str(data);
-            match result {
-                Ok(RenderResult::Simple(body)) => {
-                    return Ok(FileContent::Content(
-                        File::from(body).with_content_type(TEXT_HTML_UTF_8),
-                    )
-                    .into());
-                }
-                Ok(RenderResult::Advanced { body, content_type }) => {
-                    return Ok(FileContent::Content(File::from(body).with_content_type(
-                        content_type.map_or(Ok(TEXT_HTML_UTF_8), |c| c.parse())?,
-                    ))
-                    .into());
-                }
-                Err(err) => RenderingIssue {
-                    context: path,
-                    message: StringVc::cell(format!(
-                        "Unexpected result provided by Node.js rendering process: {err}"
-                    )),
-                    logs: StringVc::cell(lines.join("\n")),
-                },
-            }
-        } else if let Some(data) = last_line.strip_prefix("ERROR=") {
-            let error: StructuredError = serde_json::from_str(data)?;
-            let message = trace_stack(error.cell(), intermediate_asset, intermediate_output_path);
-            RenderingIssue {
-                context: path,
-                message,
-                logs: StringVc::cell(lines[..lines.len() - 1].join("\n")),
-            }
-        } else {
-            RenderingIssue {
-                context: path,
-                message: StringVc::cell("No result provided by Node.js process".to_string()),
-                logs: StringVc::cell(lines.join("\n")),
-            }
-        }
+    let html_status = if let Some(status) = status {
+        format!("<h2>Exit status</h2><pre>{status}</pre>")
     } else {
-        RenderingIssue {
-            context: path,
-            message: StringVc::cell("No content received from Node.js process.".to_string()),
-            logs: StringVc::cell("".to_string()),
-        }
+        format!("<h3>No exit status</pre>")
     };
-
-    // Emit an issue for error reporting
-    issue.cell().as_issue().emit();
 
     let body = format!(
         "<script id=\"__NEXT_DATA__\" type=\"application/json\">{{ \"props\": {{}} }}</script>
     <div id=\"__next\">
         <h1>Error rendering page</h1>
         <h2>Message</h2>
-        <pre>{}</pre>
-        <h2>Logs</h2>
-        <pre>{}</pre>
+        <pre>{message}</pre>
+        {html_status}
     </div>",
-        issue.message.await?,
-        issue.logs.await?,
     );
+
+    let issue = RenderingIssue {
+        context: path,
+        message: StringVc::cell(format!("{error:?}")),
+        status: status.and_then(|status| status.code()),
+    };
+
+    issue.cell().as_issue().emit();
 
     let html = fallback_page.with_body(body);
 
     Ok(html.content())
 }
 
-#[turbo_tasks::value(shared)]
-struct StructuredError {
-    name: String,
-    message: String,
-    stack: Vec<StackFrame>,
-}
-
-#[turbo_tasks::function]
 async fn trace_stack(
-    error: StructuredErrorVc,
+    error: StructuredError,
     intermediate_asset: AssetVc,
     intermediate_output_path: FileSystemPathVc,
-) -> Result<StringVc> {
-    let error = error.await?;
+) -> Result<String> {
     let fs = match DiskFileSystemVc::resolve_from(intermediate_output_path.fs()).await? {
         Some(fs) => fs,
         _ => bail!("couldn't extract disk fs from path"),
@@ -452,13 +450,36 @@ async fn trace_stack(
         write_frame!(frame, frame.file)?;
     }
 
-    Ok(StringVc::cell(message))
+    Ok(message)
 }
 
 #[turbo_tasks::value(shared)]
 pub(super) struct ResponseHeaders {
     status: u16,
     headers: Vec<String>,
+}
+
+#[derive(Serialize)]
+#[serde(tag = "type", rename_all = "camelCase")]
+enum RenderProxyOutgoingMessage<'a> {
+    Headers { data: &'a RenderData },
+    BodyChunk { data: &'a [u8] },
+    BodyEnd,
+}
+
+#[derive(Deserialize)]
+#[serde(tag = "type", rename_all = "camelCase")]
+enum RenderProxyIncomingMessage {
+    Headers { data: ResponseHeaders },
+    Body { data: Vec<u8> },
+    Error(StructuredError),
+}
+
+#[turbo_tasks::value(shared)]
+struct StructuredError {
+    name: String,
+    message: String,
+    stack: Vec<StackFrame>,
 }
 
 /// Renders a module as static HTML in a node.js process.
@@ -472,76 +493,115 @@ async fn render_proxy(
     data: RenderDataVc,
     body: BodyVc,
 ) -> Result<ProxyResultVc> {
-    let renderer_pool = get_renderer_pool(
-        get_intermediate_asset(
-            module,
-            runtime_entries,
-            chunking_context,
-            intermediate_output_path,
-        ),
+    let intermediate_asset = get_intermediate_asset(
+        module,
+        runtime_entries,
+        chunking_context,
         intermediate_output_path,
     );
+    let renderer_pool = get_renderer_pool(intermediate_asset, intermediate_output_path);
     let pool = renderer_pool.await?;
-    let mut operation = pool.operation().await?;
-    let data = data.await?;
-
-    // First, write the render data to the process as a JSON string.
-    let data = serde_json::to_string(&*data)?;
-    operation.write_all(data.as_bytes())?;
-    operation.write_step()?;
-
-    // Then, write the binary body.
-    for chunk in body.await?.chunks() {
-        operation.write_all(chunk.as_bytes())?;
-    }
-    operation.write_step()?;
-
-    let mut buffer = Vec::new();
-
-    // Read the response headers as a JSON string.
-    let (_, event) = operation.read_event(&mut buffer)?;
-    let headers: ResponseHeaders = match event {
-        OperationEvent::Step => serde_json::from_slice(&buffer)?,
-        OperationEvent::Error => return proxy_error(path, buffer),
-        event => {
-            bail!(
-                "unexpected event from Node.js rendering process: {:?}",
-                event
-            );
+    let mut operation = match pool.operation().await {
+        Ok(operation) => operation,
+        Err(err) => {
+            return Ok(proxy_error(path, err, None).await?);
         }
     };
 
-    // Reuse the buffer.
-    buffer.truncate(0);
+    match run_proxy_operation(
+        &mut operation,
+        data,
+        body,
+        intermediate_asset,
+        intermediate_output_path,
+    )
+    .await
+    {
+        Ok(proxy_result) => Ok(proxy_result.cell()),
+        Err(err) => Ok(proxy_error(path, err, Some(operation)).await?),
+    }
+}
 
-    // Read the response body as a binary blob.
-    let (_, event) = operation.read_event(&mut buffer)?;
-    let body = match event {
-        OperationEvent::Success => buffer,
-        OperationEvent::Error => return proxy_error(path, buffer),
-        event => {
-            bail!(
-                "unexpected event from Node.js rendering process: {:?}",
-                event
-            );
+async fn run_proxy_operation(
+    operation: &mut NodeJsOperation,
+    data: RenderDataVc,
+    body: BodyVc,
+    intermediate_asset: AssetVc,
+    intermediate_output_path: FileSystemPathVc,
+) -> Result<ProxyResult> {
+    let data = data.await?;
+    // First, send the render data.
+    operation
+        .send(RenderProxyOutgoingMessage::Headers { data: &*data })
+        .await?;
+
+    let body = body.await?;
+    // Then, send the binary body in chunks.
+    for chunk in body.chunks() {
+        operation
+            .send(RenderProxyOutgoingMessage::BodyChunk {
+                data: chunk.as_bytes(),
+            })
+            .await?;
+    }
+
+    operation.send(RenderProxyOutgoingMessage::BodyEnd).await?;
+
+    let (status, headers) = match operation.recv().await? {
+        RenderProxyIncomingMessage::Headers {
+            data: ResponseHeaders { status, headers },
+        } => (status, headers),
+        RenderProxyIncomingMessage::Error(error) => {
+            bail!(trace_stack(error, intermediate_asset, intermediate_output_path).await?)
+        }
+        _ => {
+            bail!("unexpected response from the Node.js process while reading response headers")
+        }
+    };
+
+    let body = match operation.recv().await? {
+        RenderProxyIncomingMessage::Body { data: body } => body,
+        RenderProxyIncomingMessage::Error(error) => {
+            bail!(trace_stack(error, intermediate_asset, intermediate_output_path).await?)
+        }
+        _ => {
+            bail!("unexpected response from the Node.js process while reading response body")
         }
     };
 
     Ok(ProxyResult {
-        status: headers.status,
-        headers: headers.headers,
+        status,
+        headers,
         body,
-    }
-    .cell())
+    })
 }
 
-fn proxy_error(path: FileSystemPathVc, buffer: Vec<u8>) -> Result<ProxyResultVc> {
-    let error_message = String::from_utf8(buffer.clone())?;
+async fn proxy_error(
+    path: FileSystemPathVc,
+    error: anyhow::Error,
+    operation: Option<NodeJsOperation>,
+) -> Result<ProxyResultVc> {
+    let message = format!("{error:?}");
+
+    let status = match operation {
+        Some(operation) => Some(operation.wait_or_kill().await?),
+        None => None,
+    };
+
+    let mut details = vec![];
+    if let Some(status) = status {
+        details.push(format!("status: {status}"));
+    }
+
+    let body = format!(
+        "An error occurred while proxying a request to Node.js:\n{message}\n{}",
+        details.join("\n")
+    );
 
     RenderingIssue {
         context: path,
-        message: StringVc::cell(error_message),
-        logs: StringVc::cell("".to_string()),
+        message: StringVc::cell(message),
+        status: status.and_then(|status| status.code()),
     }
     .cell()
     .as_issue()
@@ -553,7 +613,7 @@ fn proxy_error(path: FileSystemPathVc, buffer: Vec<u8>) -> Result<ProxyResultVc>
             "content-type".to_string(),
             "text/html; charset=utf-8".to_string(),
         ],
-        body: buffer,
+        body: body.into_bytes(),
     }
     .cell())
 }

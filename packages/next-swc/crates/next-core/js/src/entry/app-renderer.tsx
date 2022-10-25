@@ -1,9 +1,12 @@
+import type { Ipc } from "@vercel/turbopack-next/internal/ipc";
+
 // Provided by the rust generate code
 declare global {
   // an array of all layouts and the page
   const LAYOUT_INFO: { segment: string; module: any; chunks: string[] }[];
   // array of chunks for the bootstrap script
   const BOOTSTRAP: string[];
+  const IPC: Ipc<unknown, unknown>;
 }
 
 import type { IncomingMessage, ServerResponse } from "node:http";
@@ -18,8 +21,8 @@ import "next/dist/server/node-polyfill-web-streams";
 import { RenderOpts, renderToHTMLOrFlight } from "next/dist/server/app-render";
 import { PassThrough } from "stream";
 import { ServerResponseShim } from "@vercel/turbopack-next/internal/http";
+import { structuredError } from "@vercel/turbopack-next/internal/error";
 import { ParsedUrlQuery } from "node:querystring";
-import { parse as parseStackTrace } from "@vercel/turbopack-next/compiled/stacktrace-parser";
 
 globalThis.__next_require__ = (data) => {
   const [, , ssr_id] = JSON.parse(data);
@@ -29,46 +32,47 @@ globalThis.__next_chunk_load__ = () => Promise.resolve();
 
 process.env.__NEXT_NEW_LINK_BEHAVIOR = "true";
 
-const [MARKER, _OPERATION_STEP, OPERATION_SUCCESS, _OPERATION_ERROR] =
-  process.argv.slice(2, 6).map((arg) => Buffer.from(arg, "utf8"));
+const ipc = IPC as Ipc<IpcIncomingMessage, IpcOutgoingMessage>;
 
-const NEW_LINE = "\n".charCodeAt(0);
-const OPERATION_SUCCESS_MARKER = Buffer.concat([
-  OPERATION_SUCCESS,
-  Buffer.from(" ", "utf8"),
-  MARKER,
-]);
+type IpcIncomingMessage = {
+  type: "headers";
+  data: RenderData;
+};
 
-process.stdout.write("READY\n");
+type IpcOutgoingMessage = {
+  type: "result";
+  result: string | { body: string; contentType?: string };
+};
 
-const buffer: Buffer[] = [];
-process.stdin.on("data", async (data) => {
-  let idx = data.indexOf(NEW_LINE);
-  while (idx >= 0) {
-    buffer.push(data.slice(0, idx));
-    const str = Buffer.concat(buffer).toString("utf-8");
-    buffer.length = 0;
-    let json: any;
-    try {
-      json = JSON.parse(str);
-      buffer.length = 0;
-    } catch (e: any) {
-      const input =
-        str.length > 100 ? `${str.slice(0, 30)}...${str.slice(-30)}` : str;
-      e.message += `\nduring processing input ${input}`;
-      console.log(`ERROR=${JSON.stringify(structuredError(e))}`);
+(async () => {
+  while (true) {
+    const msg = await ipc.recv();
+
+    let renderData: RenderData;
+    switch (msg.type) {
+      case "headers": {
+        renderData = msg.data;
+        break;
+      }
+      default: {
+        console.error("unexpected message type", msg.type);
+        process.exit(1);
+      }
     }
-    try {
-      const result = await operation(json);
-      console.log(`RESULT=${JSON.stringify(result)}`);
-    } catch (e: any) {
-      console.log(`ERROR=${JSON.stringify(structuredError(e))}`);
+
+    let html = await runOperation(renderData);
+
+    if (html == null) {
+      throw new Error("no html returned");
     }
-    console.log(OPERATION_SUCCESS_MARKER.toString("utf8"));
-    data = data.slice(idx + 1);
-    idx = data.indexOf(NEW_LINE);
+
+    ipc.send({
+      type: "result",
+      result: html,
+    });
   }
-  buffer.push(data);
+})().catch((err) => {
+  ipc.sendError(err);
 });
 
 // TODO expose these types in next.js
@@ -97,7 +101,7 @@ type ServerComponentsManifestModule = {
   [exportName: string]: { id: string; chunks: string[]; name: string };
 };
 
-async function operation(renderData: RenderData) {
+async function runOperation(renderData: RenderData) {
   const pageItem = LAYOUT_INFO[LAYOUT_INFO.length - 1];
   const pageModule = pageItem.module;
   const Page = pageModule.default;
@@ -256,12 +260,4 @@ export function htmlEscapeJsonString(str: string) {
     ESCAPE_REGEX,
     (match) => ESCAPE_LOOKUP[match as keyof typeof ESCAPE_LOOKUP]
   );
-}
-
-function structuredError(e: Error) {
-  return {
-    name: e.name,
-    message: e.message,
-    stack: parseStackTrace(e.stack!),
-  };
 }
