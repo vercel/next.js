@@ -1,4 +1,5 @@
 {
-  "browser": "./browser.js",
-  "main": "./node.js"
+  "browser": {
+    "./storage.js": "./storage-browser.js"
+  }
 }
