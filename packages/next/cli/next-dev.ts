@@ -104,7 +104,7 @@ const nextDev: cliCommand = (argv) => {
   if (args['--turbo']) {
     // check for postcss, babelrc, swc plugins
     return new Promise(async (resolve) => {
-      const { findConfig } =
+      const { findConfigPath } =
         require('../lib/find-config') as typeof import('../lib/find-config')
       const { loadBindings } =
         require('../build/swc') as typeof import('../build/swc')
@@ -134,7 +134,9 @@ const nextDev: cliCommand = (argv) => {
 
       let unsupportedParts = ''
       // TODO: warning for postcss mentioning sidecar
-      const babelrc = await getBabelConfigFile(dir)
+      let babelrc = await getBabelConfigFile(dir)
+      if (babelrc) babelrc = path.basename(babelrc)
+
       const rawNextConfig = (await loadConfig(
         PHASE_DEVELOPMENT_SERVER,
         dir,
@@ -167,10 +169,11 @@ const nextDev: cliCommand = (argv) => {
           (script) => script.includes('tailwind') || script.includes('postcss')
         )
       }
-      const postcssFile =
-        !hasSideCar && (await findConfig<string>(dir, 'postcss'))
-      const tailwindFile =
-        !hasSideCar && (await findConfig<string>(dir, 'tailwind'))
+      let postcssFile = !hasSideCar && (await findConfigPath(dir, 'postcss'))
+      let tailwindFile = !hasSideCar && (await findConfigPath(dir, 'tailwind'))
+
+      if (postcssFile) postcssFile = path.basename(postcssFile)
+      if (tailwindFile) tailwindFile = path.basename(tailwindFile)
 
       const hasWarningOrError =
         tailwindFile || postcssFile || babelrc || hasNonDefaultConfig
