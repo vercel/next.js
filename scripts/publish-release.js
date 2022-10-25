@@ -34,12 +34,6 @@ const cwd = process.cwd()
   }
   console.log(`Publishing ${isCanary ? 'canary' : 'stable'}`)
 
-  // TODO: remove after testing, this is a safe guard to ensure we
-  // don't publish stable unexpectedly
-  if (!isCanary) {
-    return
-  }
-
   const packagesDir = path.join(cwd, 'packages')
   const packageDirs = await readdir(packagesDir)
 
