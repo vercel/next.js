@@ -105,6 +105,7 @@ impl GetContentSource for NodeRenderContentSource {
                     .resolve_reference()
                     .primary_assets()
                     .await?
+                    .iter()
                     .copied(),
             )
         }
