@@ -20,7 +20,7 @@ export type Ipc<TIncoming, TOutgoing> = {
 function createIpc<TIncoming, TOutgoing>(
   port: number
 ): Ipc<TIncoming, TOutgoing> {
-  const socket = net.createConnection(port);
+  const socket = net.createConnection(port, "127.0.0.1");
   const packetQueue: Buffer[] = [];
   const recvPromiseResolveQueue: Array<(message: TIncoming) => void> = [];
 
