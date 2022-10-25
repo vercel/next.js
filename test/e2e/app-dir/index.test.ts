@@ -1133,6 +1133,17 @@ describe('app dir', () => {
               '/hooks/use-pathname'
             )
           })
+
+          it('should have the canonical url pathname on rewrite', async () => {
+            const html = await renderViaHTTP(
+              next.url,
+              '/rewritten-use-pathname'
+            )
+            const $ = cheerio.load(html)
+            expect($('#pathname').attr('data-pathname')).toBe(
+              '/rewritten-use-pathname'
+            )
+          })
         })
 
         describe('useSearchParams', () => {
@@ -1142,11 +1153,22 @@ describe('app dir', () => {
               '/hooks/use-search-params?first=value&second=other%20value&third'
             )
             const $ = cheerio.load(html)
-            const el = $('#params')
-            expect(el.attr('data-param-first')).toBe('value')
-            expect(el.attr('data-param-second')).toBe('other value')
-            expect(el.attr('data-param-third')).toBe('')
-            expect(el.attr('data-param-not-real')).toBe('N/A')
+            expect($('#params-first').text()).toBe('value')
+            expect($('#params-second').text()).toBe('other value')
+            expect($('#params-third').text()).toBe('')
+            expect($('#params-not-real').text()).toBe('N/A')
+          })
+
+          it('should have the canonical url search params on rewrite', async () => {
+            const html = await renderViaHTTP(
+              next.url,
+              '/rewritten-use-search-params?first=a&second=b&third=c'
+            )
+            const $ = cheerio.load(html)
+            expect($('#params-first').text()).toBe('a')
+            expect($('#params-second').text()).toBe('b')
+            expect($('#params-third').text()).toBe('c')
+            expect($('#params-not-real').text()).toBe('N/A')
           })
         })
 
@@ -1384,6 +1406,91 @@ describe('app dir', () => {
         })
       })
     })
+
+    describe('searchParams prop', () => {
+      describe('client component', () => {
+        it('should have the correct search params', async () => {
+          const html = await renderViaHTTP(
+            next.url,
+            '/search-params-prop?first=value&second=other%20value&third'
+          )
+          const $ = cheerio.load(html)
+          const el = $('#params')
+          expect(el.attr('data-param-first')).toBe('value')
+          expect(el.attr('data-param-second')).toBe('other value')
+          expect(el.attr('data-param-third')).toBe('')
+          expect(el.attr('data-param-not-real')).toBe('N/A')
+        })
+
+        it('should have the correct search params on rewrite', async () => {
+          const html = await renderViaHTTP(
+            next.url,
+            '/search-params-prop-rewrite'
+          )
+          const $ = cheerio.load(html)
+          const el = $('#params')
+          expect(el.attr('data-param-first')).toBe('value')
+          expect(el.attr('data-param-second')).toBe('other value')
+          expect(el.attr('data-param-third')).toBe('')
+          expect(el.attr('data-param-not-real')).toBe('N/A')
+        })
+
+        it('should have the correct search params on middleware rewrite', async () => {
+          const html = await renderViaHTTP(
+            next.url,
+            '/search-params-prop-middleware-rewrite'
+          )
+          const $ = cheerio.load(html)
+          const el = $('#params')
+          expect(el.attr('data-param-first')).toBe('value')
+          expect(el.attr('data-param-second')).toBe('other value')
+          expect(el.attr('data-param-third')).toBe('')
+          expect(el.attr('data-param-not-real')).toBe('N/A')
+        })
+      })
+
+      describe('server component', () => {
+        it('should have the correct search params', async () => {
+          const html = await renderViaHTTP(
+            next.url,
+            '/search-params-prop/server?first=value&second=other%20value&third'
+          )
+          const $ = cheerio.load(html)
+          const el = $('#params')
+          expect(el.attr('data-param-first')).toBe('value')
+          expect(el.attr('data-param-second')).toBe('other value')
+          expect(el.attr('data-param-third')).toBe('')
+          expect(el.attr('data-param-not-real')).toBe('N/A')
+        })
+
+        it('should have the correct search params on rewrite', async () => {
+          const html = await renderViaHTTP(
+            next.url,
+            '/search-params-prop-server-rewrite'
+          )
+          const $ = cheerio.load(html)
+          const el = $('#params')
+          expect(el.attr('data-param-first')).toBe('value')
+          expect(el.attr('data-param-second')).toBe('other value')
+          expect(el.attr('data-param-third')).toBe('')
+          expect(el.attr('data-param-not-real')).toBe('N/A')
+        })
+
+        it('should have the correct search params on middleware rewrite', async () => {
+          const html = await renderViaHTTP(
+            next.url,
+            '/search-params-prop-server-middleware-rewrite'
+          )
+          const $ = cheerio.load(html)
+          const el = $('#params')
+          expect(el.attr('data-param-first')).toBe('value')
+          expect(el.attr('data-param-second')).toBe('other value')
+          expect(el.attr('data-param-third')).toBe('')
+          expect(el.attr('data-param-not-real')).toBe('N/A')
+        })
+      })
+    })
+
     describe('sass support', () => {
       describe('server layouts', () => {
         it('should support global sass/scss inside server layouts', async () => {

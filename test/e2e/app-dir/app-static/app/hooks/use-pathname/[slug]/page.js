@@ -1,15 +1,12 @@
 'use client'
-
 import { usePathname } from 'next/navigation'
+
+export const config = {
+  dynamicParams: false,
+}
 
 export default function Page() {
   const pathname = usePathname()
 
-  return (
-    <>
-      <h1 id="pathname" data-pathname={pathname}>
-        hello from {pathname}
-      </h1>
-    </>
-  )
+  return <p id="pathname">{pathname}</p>
 }
