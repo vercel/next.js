@@ -292,6 +292,16 @@ describe('app-dir static/dynamic handling', () => {
     expect(secondDate).not.toBe(initialDate)
   })
 
+  it('should render not found pages correctly and fallback to the default one', async () => {
+    const res = await fetchViaHTTP(next.url, `/blog/shu/hi`, undefined, {
+      redirect: 'manual',
+    })
+    expect(res.status).toBe(404)
+    const html = await res.text()
+    expect(html).toInclude('"noindex"')
+    expect(html).toInclude('This page could not be found.')
+  })
+
   // TODO-APP: support fetch revalidate case for dynamic rendering
   it.skip('should ssr dynamically when detected automatically with fetch revalidate option', async () => {
     const pathname = '/ssr-auto/fetch-revalidate-zero'
@@ -347,5 +357,11 @@ describe('app-dir static/dynamic handling', () => {
     const secondDate = second$('#date').text()
 
     expect(secondDate).not.toBe(initialDate)
+  })
+
+  it('should show a message to leave feedback for `appDir`', async () => {
+    expect(next.cliOutput).toContain(
+      `Thank you for testing \`appDir\` please leave your feedback at https://nextjs.link/app-feedback`
+    )
   })
 })

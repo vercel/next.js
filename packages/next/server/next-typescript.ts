@@ -27,7 +27,7 @@ const DISALLOWED_SERVER_REACT_APIS: string[] = [
   'createFactory',
 ]
 
-const ALLOWED_EXPORTS = ['config', 'generateStaticParams', 'Head']
+const ALLOWED_EXPORTS = ['config', 'generateStaticParams']
 
 const API_DOCS: Record<
   string,

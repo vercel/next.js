@@ -89,7 +89,9 @@ export function getRscError(
       formattedError[1] +
       moduleTrace
         .map((m) =>
-          m.resource ? '  ' + relative(compiler.context, m.resource) : ''
+          m.resource
+            ? '  ' + relative(compiler.context, m.resource).replace(/\?.+$/, '')
+            : ''
         )
         .filter(Boolean)
         .join('\n')

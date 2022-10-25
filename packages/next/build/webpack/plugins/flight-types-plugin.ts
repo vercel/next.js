@@ -35,8 +35,8 @@ interface LayoutProps {
   params?: PageParams
 }
 
-type PageComponent = (props: PageProps) => React.ReactNode | null
-type LayoutComponent = (props: LayoutProps) => React.ReactNode | null
+type PageComponent = (props: PageProps) => React.ReactNode | Promise<React.ReactNode>
+type LayoutComponent = (props: LayoutProps) => React.ReactNode | Promise<React.ReactNode>
 
 interface IEntry {
   ${
@@ -45,7 +45,6 @@ interface IEntry {
       : `default: PageComponent`
   }
   config?: {}
-  Head?: any
   generateStaticParams?: (params?: PageParams) => Promise<any[]>
   revalidate?: RevalidateRange<TEntry> | false
   dynamic?: 'auto' | 'force-dynamic' | 'error' | 'force-static'

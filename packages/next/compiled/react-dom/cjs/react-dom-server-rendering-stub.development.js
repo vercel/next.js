@@ -14,7 +14,7 @@ if (process.env.NODE_ENV !== "production") {
   (function() {
 'use strict';
 
-var ReactVersion = '18.3.0-experimental-1d3fc9c9c-20221023';
+var ReactVersion = '18.3.0-next-e7c5af45c-20221023';
 
 var Internals = {
   usingClientEntryPoint: false,
@@ -23,13 +23,6 @@ var Internals = {
     current: null
   }
 };
-
-function createPortal() {
-  throw new Error('createPortal was called on the server. Portals are not currently' + ' supported on the server. Update your program to conditionally call' + ' createPortal on the client only.');
-}
-function flushSync() {
-  throw new Error('flushSync was called on the server. This is likely caused by a' + ' function being called during render or in module scope that was' + ' intended to be called from an effect or event handler. Update your' + ' to not call flushSync no the server.');
-}
 
 function preinit() {
   var dispatcher = Internals.Dispatcher.current;
@@ -50,6 +43,13 @@ function preload() {
   // and the runtime may not be capable of responding. The function is optimistic and not critical
   // so we favor silent bailout over warning or erroring.
 
+}
+
+function createPortal() {
+  throw new Error('createPortal was called on the server. Portals are not currently' + ' supported on the server. Update your program to conditionally call' + ' createPortal on the client only.');
+}
+function flushSync() {
+  throw new Error('flushSync was called on the server. This is likely caused by a' + ' function being called during render or in module scope that was' + ' intended to be called from an effect or event handler. Update your' + ' to not call flushSync no the server.');
 }
 
 exports.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = Internals;

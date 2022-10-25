@@ -302,9 +302,31 @@ export default async function build(
 
       const publicDir = path.join(dir, 'public')
       const isAppDirEnabled = !!config.experimental.appDir
+      const initialRequireHookFilePath = require.resolve(
+        'next/dist/server/initialize-require-hook'
+      )
+      const content = await promises.readFile(
+        initialRequireHookFilePath,
+        'utf8'
+      )
+
       if (isAppDirEnabled) {
         process.env.NEXT_PREBUNDLED_REACT = '1'
       }
+      await promises
+        .writeFile(
+          initialRequireHookFilePath,
+          content.replace(
+            /isPrebundled = (true|false)/,
+            `isPrebundled = ${isAppDirEnabled}`
+          )
+        )
+        .catch((err) => {
+          if (isAppDirEnabled) {
+            throw err
+          }
+        })
+
       const { pagesDir, appDir } = findPagesDir(dir, isAppDirEnabled)
       const hasPublicDir = await fileExists(publicDir)
 
@@ -342,7 +364,7 @@ export default async function build(
           Log.info('Skipping validation of types')
         }
         if (runLint && ignoreESLint) {
-          // only print log when build requre lint while ignoreESLint is enabled
+          // only print log when build require lint while ignoreESLint is enabled
           Log.info('Skipping linting')
         }
 
@@ -564,7 +586,7 @@ export default async function build(
 
         for (const appPath of pageKeys.app) {
           if (pageKeys.pages.includes(appPath)) {
-            conflictingAppPagePaths.push(`pages${appPath} - app${appPath}`)
+            conflictingAppPagePaths.push(appPath)
           }
         }
         const numConflicting = conflictingAppPagePaths.length
@@ -573,10 +595,11 @@ export default async function build(
           Log.error(
             `Conflicting app and page file${
               numConflicting === 1 ? ' was' : 's were'
-            } found, please remove the conflicting files to continue. \n${conflictingAppPagePaths.join(
-              '\n'
-            )}\n`
+            } found, please remove the conflicting files to continue:`
           )
+          for (const p of conflictingAppPagePaths) {
+            Log.error(`  "pages${p}" - "app${p}"`)
+          }
           process.exit(1)
         }
       }
@@ -2071,11 +2094,13 @@ export default async function build(
               // revalidate periods and dynamicParams settings
               appStaticPaths.forEach((routes, originalAppPath) => {
                 const encodedRoutes = appStaticPathsEncoded.get(originalAppPath)
+                const appConfig = appDefaultConfigs.get(originalAppPath) || {}
 
                 routes.forEach((route, routeIdx) => {
                   defaultMap[route] = {
                     page: originalAppPath,
                     query: { __nextSsgPath: encodedRoutes?.[routeIdx] },
+                    _isDynamicError: appConfig.dynamic === 'error',
                     _isAppDir: true,
                   }
                 })
