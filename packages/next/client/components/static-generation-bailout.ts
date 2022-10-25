@@ -10,7 +10,7 @@ export function staticGenerationBailout(reason: string) {
   if (staticGenerationStore?.isStaticGeneration) {
     // TODO: honor the dynamic: 'force-static'
     if (staticGenerationStore) {
-      staticGenerationStore.revalidate = 0
+      staticGenerationStore.fetchRevalidate = 0
     }
     throw new DynamicServerError(reason)
   }

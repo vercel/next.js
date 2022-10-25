@@ -238,13 +238,13 @@ function patchFetch(ComponentMod: any) {
         ) {
           staticGenerationStore.fetchRevalidate = next.revalidate
 
-          // TODO: ensure this error isn't logged to the user
-          // seems it's slipping through currently
-          throw new DynamicServerError(
-            `revalidate: ${next.revalidate} fetch ${input}${
-              pathname ? ` ${pathname}` : ''
-            }`
-          )
+          if (next.revalidate === 0) {
+            throw new DynamicServerError(
+              `revalidate: ${next.revalidate} fetch ${input}${
+                pathname ? ` ${pathname}` : ''
+              }`
+            )
+          }
         }
         if (hasNextConfig) delete init.next
       }
@@ -735,7 +735,9 @@ export async function renderToHTMLOrFlight(
     supportsDynamicHTML,
   } = renderOpts
 
-  patchFetch(ComponentMod)
+  if (process.env.NODE_ENV === 'production') {
+    patchFetch(ComponentMod)
+  }
   const generateStaticHTML = supportsDynamicHTML !== true
 
   const staticGenerationAsyncStorage = ComponentMod.staticGenerationAsyncStorage
@@ -1619,9 +1621,9 @@ export async function renderToHTMLOrFlight(
 
       ;(renderOpts as any).pageData = filteredFlightData
       ;(renderOpts as any).revalidate =
-        typeof staticGenerationStore?.revalidate === 'undefined'
+        typeof staticGenerationStore?.fetchRevalidate === 'undefined'
           ? defaultRevalidate
-          : staticGenerationStore?.revalidate
+          : staticGenerationStore?.fetchRevalidate
 
       return new RenderResult(htmlResult)
     }
