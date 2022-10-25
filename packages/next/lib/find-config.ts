@@ -32,7 +32,7 @@ export function findConfigPath(
 export async function findConfig<T>(
   directory: string,
   key: string,
-  returnFile?: boolean
+  _returnFile?: boolean
 ): Promise<RecursivePartial<T> | null> {
   // `package.json` configuration always wins. Let's check that first.
   const packageJsonPath = await findUp('package.json', { cwd: directory })
