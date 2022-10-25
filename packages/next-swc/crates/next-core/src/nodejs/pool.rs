@@ -254,8 +254,9 @@ impl NodeJsOperation {
             .take()
             .context("Node.js operation already finished")?;
 
-        child.start_kill()?;
-        let status = child.wait().await?;
+        // Ignore error since we are not sure if the process is still alive
+        let _ = child.start_kill();
+        let status = child.wait().await.context("waiting for process end")?;
 
         Ok(status)
     }
