@@ -5,9 +5,11 @@ import type { CookieSerializeOptions } from 'next/dist/compiled/cookie'
  * as specified by W3C.
  */
 export interface CookieListItem
-  extends Pick<
-    CookieSerializeOptions,
-    'domain' | 'path' | 'expires' | 'secure' | 'sameSite'
+  extends Partial<
+    Pick<
+      CookieSerializeOptions,
+      'domain' | 'path' | 'expires' | 'secure' | 'sameSite'
+    >
   > {
   /** A string with the name of a cookie. */
   name: string
@@ -20,7 +22,7 @@ export interface CookieListItem
  * the `httpOnly`, `maxAge` and `priority` properties.
  */
 export type ResponseCookie = CookieListItem &
-  Pick<CookieSerializeOptions, 'httpOnly' | 'maxAge'>
+  Partial<Pick<CookieSerializeOptions, 'httpOnly' | 'maxAge'>>
 
 /**
  * Subset of {@link CookieListItem}, only containing `name` and `value`
