@@ -217,6 +217,9 @@ export function getAppEntry(opts: {
   appDir: string
   appPaths: string[] | null
   pageExtensions: string[]
+  isDev?: boolean
+  rootDir?: string
+  tsconfigPath?: string
 }) {
   return {
     import: `next-app-loader?${stringify(opts)}!`,

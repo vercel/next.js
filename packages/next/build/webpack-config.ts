@@ -2,7 +2,7 @@ import ReactRefreshWebpackPlugin from 'next/dist/compiled/@next/react-refresh-ut
 import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
-import path, { join as pathJoin, relative as relativePath } from 'path'
+import path from 'path'
 import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import {
   DOT_NEXT_ALIAS,
@@ -62,9 +62,12 @@ import { SubresourceIntegrityPlugin } from './webpack/plugins/subresource-integr
 import { FontLoaderManifestPlugin } from './webpack/plugins/font-loader-manifest-plugin'
 import { getSupportedBrowsers } from './utils'
 
-const NEXT_PROJECT_ROOT = pathJoin(__dirname, '..', '..')
-const NEXT_PROJECT_ROOT_DIST = pathJoin(NEXT_PROJECT_ROOT, 'dist')
-const NEXT_PROJECT_ROOT_DIST_CLIENT = pathJoin(NEXT_PROJECT_ROOT_DIST, 'client')
+const NEXT_PROJECT_ROOT = path.join(__dirname, '..', '..')
+const NEXT_PROJECT_ROOT_DIST = path.join(NEXT_PROJECT_ROOT, 'dist')
+const NEXT_PROJECT_ROOT_DIST_CLIENT = path.join(
+  NEXT_PROJECT_ROOT_DIST,
+  'client'
+)
 
 const babelIncludeRegexes: RegExp[] = [
   /next[\\/]dist[\\/](esm[\\/])?shared[\\/]lib/,
@@ -72,6 +75,11 @@ const babelIncludeRegexes: RegExp[] = [
   /next[\\/]dist[\\/](esm[\\/])?pages/,
   /[\\/](strip-ansi|ansi-regex|styled-jsx)[\\/]/,
 ]
+
+const reactPackagesRegex = /^(react(?:$|\/)|react-dom(?:$|\/))/
+
+const staticGenerationAsyncStorageRegex =
+  /next[\\/]dist[\\/]client[\\/]components[\\/]static-generation-async-storage/
 
 const BABEL_CONFIG_FILES = [
   '.babelrc',
@@ -117,21 +125,21 @@ function errorIfEnvConflicted(config: NextConfigComplete, key: string) {
   }
 }
 
-function isResourceInPackages(resource: string, packageNames?: string[]) {
+function isResourceInPackages(
+  resource: string,
+  packageNames?: string[],
+  packageDirMapping?: Map<string, string>
+) {
   return packageNames?.some((p: string) =>
-    resource.includes(
-      path.sep + pathJoin('node_modules', p.replace(/\//g, path.sep)) + path.sep
-    )
+    packageDirMapping && packageDirMapping.has(p)
+      ? resource.startsWith(packageDirMapping.get(p)! + path.sep)
+      : resource.includes(
+          path.sep +
+            path.join('node_modules', p.replace(/\//g, path.sep)) +
+            path.sep
+        )
   )
 }
-
-const bundledReactImports = [
-  'react',
-  'react/jsx-runtime',
-  'react/jsx-dev-runtime',
-  // 'react-dom',
-  'next/dist/compiled/react-server-dom-webpack/server.browser',
-]
 
 export function getDefineEnv({
   dev,
@@ -437,11 +445,12 @@ export const nextImageLoaderRegex =
   /\.(png|jpg|jpeg|gif|webp|avif|ico|bmp|svg)$/i
 
 export async function resolveExternal(
-  appDir: string,
+  dir: string,
   esmExternalsConfig: NextConfigComplete['experimental']['esmExternals'],
   context: string,
   request: string,
   isEsmRequested: boolean,
+  hasAppDir: boolean,
   getResolve: (
     options: any
   ) => (
@@ -463,6 +472,11 @@ export async function resolveExternal(
 
   let preferEsmOptions =
     esmExternals && isEsmRequested ? [true, false] : [false]
+  // Disable esm resolving for app/ and pages/ so for esm package using under pages/
+  // won't load react through esm loader
+  if (hasAppDir) {
+    preferEsmOptions = [false]
+  }
   for (const preferEsm of preferEsmOptions) {
     const resolve = getResolve(
       preferEsm ? esmResolveOptions : nodeResolveOptions
@@ -502,7 +516,7 @@ export async function resolveExternal(
         const baseResolve = getResolve(
           isEsm ? baseEsmResolveOptions : baseResolveOptions
         )
-        ;[baseRes, baseIsEsm] = await baseResolve(appDir, request)
+        ;[baseRes, baseIsEsm] = await baseResolve(dir, request)
       } catch (err) {
         baseRes = null
         baseIsEsm = false
@@ -593,11 +607,6 @@ export default async function getBaseWebpackConfig(
     if (config.experimental.runtime === 'nodejs') {
       Log.warn(
         'You are using the experimental Node.js Runtime with `experimental.runtime`.'
-      )
-    }
-    if (config.experimental.appDir) {
-      Log.warn(
-        'You are using the experimental app directory with `experimental.appDir`, the API might change.'
       )
     }
   }
@@ -717,6 +726,16 @@ export default async function getBaseWebpackConfig(
     babel: getBabelOrSwcLoader(),
   }
 
+  const swcLoaderForRSC = hasServerComponents
+    ? useSWCLoader
+      ? getSwcLoader({ isServerLayer: true })
+      : // When using Babel, we will have to add the SWC loader
+        // as an additional pass to handle RSC correctly.
+        // This will cause some performance overhead but
+        // acceptable as Babel will not be recommended.
+        [getSwcLoader({ isServerLayer: true }), getBabelLoader()]
+    : []
+
   const pageExtensions = config.pageExtensions
 
   const outputPath =
@@ -735,10 +754,12 @@ export default async function getBaseWebpackConfig(
               ),
               [CLIENT_STATIC_FILES_RUNTIME_AMP]:
                 `./` +
-                relativePath(
-                  dir,
-                  pathJoin(NEXT_PROJECT_ROOT_DIST_CLIENT, 'dev', 'amp-dev')
-                ).replace(/\\/g, '/'),
+                path
+                  .relative(
+                    dir,
+                    path.join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'dev', 'amp-dev')
+                  )
+                  .replace(/\\/g, '/'),
             }
           : {}),
         [CLIENT_STATIC_FILES_RUNTIME_MAIN]:
@@ -1024,6 +1045,8 @@ export default async function getBaseWebpackConfig(
     ...(config.experimental.serverComponentsExternalPackages || [])
   )
 
+  let resolvedExternalPackageDirs: Map<string, string>
+
   async function handleExternals(
     context: string,
     request: string,
@@ -1055,7 +1078,10 @@ export default async function getBaseWebpackConfig(
 
     // Special internal modules that must be bundled for Server Components.
     if (layer === WEBPACK_LAYERS.server) {
-      if (bundledReactImports.includes(request)) {
+      if (
+        reactPackagesRegex.test(request) ||
+        request === 'next/dist/compiled/react-server-dom-webpack/server.browser'
+      ) {
         return
       }
     }
@@ -1065,8 +1091,19 @@ export default async function getBaseWebpackConfig(
     // Absolute requires (require('/foo')) are extremely uncommon, but
     // also have no need for customization as they're already resolved.
     if (!isLocal) {
-      if (/^(?:next$|react(?:$|\/)|react-dom(?:$|\/))/.test(request)) {
+      if (/^(?:next$)/.test(request)) {
         return `commonjs ${request}`
+      }
+
+      if (/^(react(?:$|\/)|react-dom(?:$|\/))/.test(request)) {
+        // override react-dom to server-rendering-stub for server
+        if (
+          request === 'react-dom' &&
+          (layer === WEBPACK_LAYERS.client || layer === WEBPACK_LAYERS.server)
+        ) {
+          request = 'react-dom/server-rendering-stub'
+        }
+        return `commonjs ${hasAppDir ? 'next/dist/compiled/' : ''}${request}`
       }
 
       const notExternalModules =
@@ -1084,6 +1121,7 @@ export default async function getBaseWebpackConfig(
 
     // When in esm externals mode, and using import, we resolve with
     // ESM resolving options.
+    // Also disable esm request when appDir is enabled
     const isEsmRequested = dependencyType === 'esm'
 
     const isLocalCallback = (localRes: string) => {
@@ -1091,9 +1129,12 @@ export default async function getBaseWebpackConfig(
       // we need to process shared `router/router` and `dynamic`,
       // so that the DefinePlugin can inject process.env values
       const isNextExternal =
-        /next[/\\]dist[/\\](shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic))/.test(
-          localRes
-        )
+        // Treat next internals as non-external for server layer
+        layer === WEBPACK_LAYERS.server
+          ? false
+          : /next[/\\]dist[/\\](shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic))/.test(
+              localRes
+            )
 
       if (isNextExternal) {
         // Generate Next.js external import
@@ -1110,7 +1151,7 @@ export default async function getBaseWebpackConfig(
             .replace(/\\/g, '/')
         )
         return `commonjs ${externalRequest}`
-      } else {
+      } else if (layer !== WEBPACK_LAYERS.client) {
         // We don't want to retry local requests
         // with other preferEsm options
         return
@@ -1123,6 +1164,7 @@ export default async function getBaseWebpackConfig(
       context,
       request,
       isEsmRequested,
+      hasAppDir,
       getResolve,
       isLocal ? isLocalCallback : undefined
     )
@@ -1181,9 +1223,30 @@ export default async function getBaseWebpackConfig(
 
     // If a package should be transpiled by Next.js, we skip making it external.
     // It doesn't matter what the extension is, as we'll transpile it anyway.
+    if (config.experimental.transpilePackages && !resolvedExternalPackageDirs) {
+      resolvedExternalPackageDirs = new Map()
+      // We need to resolve all the external package dirs initially.
+      for (const pkg of config.experimental.transpilePackages) {
+        const pkgRes = await resolveExternal(
+          dir,
+          config.experimental.esmExternals,
+          context,
+          pkg + '/package.json',
+          hasAppDir,
+          isEsmRequested,
+          getResolve,
+          isLocal ? isLocalCallback : undefined
+        )
+        if (pkgRes.res) {
+          resolvedExternalPackageDirs.set(pkg, path.dirname(pkgRes.res))
+        }
+      }
+    }
+
     const shouldBeBundled = isResourceInPackages(
       res,
-      config.experimental.transpilePackages
+      config.experimental.transpilePackages,
+      resolvedExternalPackageDirs
     )
 
     if (/node_modules[/\\].*\.[mc]?js$/.test(res)) {
@@ -1197,22 +1260,13 @@ export default async function getBaseWebpackConfig(
         return
       }
 
-      // Treat react packages as external for SSR layer,
-      // then let require-hook mapping them to internals.
+      // Treat react packages and next internals as external for SSR layer,
+      // also map react to builtin ones with require-hook.
       if (layer === WEBPACK_LAYERS.client) {
-        if (
-          [
-            'react',
-            'react/jsx-runtime',
-            'react/jsx-dev-runtime',
-            'react-dom',
-            'scheduler',
-          ].includes(request)
-        ) {
+        if (reactPackagesRegex.test(request)) {
           return `commonjs next/dist/compiled/${request}`
-        } else {
-          return
         }
+        return
       }
 
       if (shouldBeBundled) return
@@ -1227,9 +1281,12 @@ export default async function getBaseWebpackConfig(
     // Default behavior: bundle the code!
   }
 
+  const shouldIncludeExternalDirs =
+    config.experimental.externalDir || !!config.experimental.transpilePackages
+
   const codeCondition = {
     test: /\.(tsx|ts|js|cjs|mjs|jsx)$/,
-    ...(config.experimental.externalDir
+    ...(shouldIncludeExternalDirs
       ? // Allowing importing TS/TSX files from outside of the root dir.
         {}
       : { include: [dir, ...babelIncludeRegexes] }),
@@ -1587,15 +1644,19 @@ export default async function getBaseWebpackConfig(
                     // react to the direct file path, not the package name. In that case the condition
                     // will be ignored completely.
                     react: 'next/dist/compiled/react',
-                    'react-dom$': isClient
-                      ? 'next/dist/compiled/react-dom/index'
-                      : 'next/dist/compiled/react-dom/server-rendering-stub',
-                    'react-dom/client$': 'next/dist/compiled/react-dom/client',
+                    'react-dom$':
+                      'next/dist/compiled/react-dom/server-rendering-stub',
                   },
                 },
               },
             ]
           : []),
+        ...[
+          {
+            layer: WEBPACK_LAYERS.shared,
+            test: staticGenerationAsyncStorageRegex,
+          },
+        ],
         // TODO: FIXME: do NOT webpack 5 support with this
         // x-ref: https://github.com/webpack/webpack/issues/11467
         ...(!config.experimental.fullySpecified
@@ -1624,11 +1685,7 @@ export default async function getBaseWebpackConfig(
               // RSC server compilation loaders
               {
                 test: codeCondition.test,
-                include: [
-                  dir,
-                  // To let the internal client components passing through flight loader
-                  NEXT_PROJECT_ROOT_DIST,
-                ],
+                exclude: [staticGenerationAsyncStorageRegex],
                 issuerLayer: WEBPACK_LAYERS.server,
                 use: {
                   loader: 'next-flight-loader',
@@ -1661,7 +1718,7 @@ export default async function getBaseWebpackConfig(
                 // Alias react for switching between default set and share subset.
                 oneOf: [
                   {
-                    // test: codeCondition.test,
+                    exclude: [staticGenerationAsyncStorageRegex],
                     issuerLayer: WEBPACK_LAYERS.server,
                     test(req: string) {
                       // If it's not a source code file, or has been opted out of
@@ -1688,13 +1745,22 @@ export default async function getBaseWebpackConfig(
                     },
                   },
                   {
+                    issuerLayer: WEBPACK_LAYERS.client,
                     test: codeCondition.test,
                     resolve: {
                       alias: {
                         react: 'next/dist/compiled/react',
-                        'react-dom$': isClient
-                          ? 'next/dist/compiled/react-dom/index'
-                          : 'next/dist/compiled/react-dom/server-rendering-stub',
+                        'react-dom$':
+                          'next/dist/compiled/react-dom/server-rendering-stub',
+                      },
+                    },
+                  },
+                  {
+                    test: codeCondition.test,
+                    resolve: {
+                      alias: {
+                        react: 'next/dist/compiled/react',
+                        'react-dom$': 'next/dist/compiled/react-dom',
                         'react-dom/client$':
                           'next/dist/compiled/react-dom/client',
                       },
@@ -1733,16 +1799,13 @@ export default async function getBaseWebpackConfig(
                   {
                     test: codeCondition.test,
                     issuerLayer: WEBPACK_LAYERS.server,
-                    use: useSWCLoader
-                      ? getSwcLoader({ isServerLayer: true })
-                      : // When using Babel, we will have to add the SWC loader
-                        // as an additional pass to handle RSC correctly.
-                        // This will cause some performance overhead but
-                        // acceptable as Babel will not be recommended.
-                        [
-                          getSwcLoader({ isServerLayer: true }),
-                          getBabelLoader(),
-                        ],
+                    exclude: [staticGenerationAsyncStorageRegex],
+                    use: swcLoaderForRSC,
+                  },
+                  {
+                    test: codeCondition.test,
+                    resourceQuery: /__edge_ssr_entry__/,
+                    use: swcLoaderForRSC,
                   },
                 ]
               : []),

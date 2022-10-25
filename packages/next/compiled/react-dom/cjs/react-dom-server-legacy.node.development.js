@@ -18,7 +18,7 @@ var React = require('react');
 var ReactDOM = require('react-dom');
 var stream = require('stream');
 
-var ReactVersion = '18.3.0-experimental-9cdf8a99e-20221018';
+var ReactVersion = '18.3.0-next-d925a8d0b-20221024';
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -303,10 +303,6 @@ var reservedProps = ['children', 'dangerouslySetInnerHTML', // TODO: This preven
 // elements (not just inputs). Now that ReactDOMInput assigns to the
 // defaultValue property -- do we need this?
 'defaultValue', 'defaultChecked', 'innerHTML', 'suppressContentEditableWarning', 'suppressHydrationWarning', 'style'];
-
-{
-  reservedProps.push('innerText', 'textContent');
-}
 
 reservedProps.forEach(function (name) {
   // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
@@ -2088,7 +2084,11 @@ function createResources() {
     preloadsMap: new Map(),
     stylesMap: new Map(),
     scriptsMap: new Map(),
+    headsMap: new Map(),
     // cleared on flush
+    charset: null,
+    bases: new Set(),
+    preconnects: new Set(),
     fontPreloads: new Set(),
     // usedImagePreloads: new Set(),
     precedences: new Map(),
@@ -2098,6 +2098,9 @@ function createResources() {
     explicitStylePreloads: new Set(),
     // explicitImagePreloads: new Set(),
     explicitScriptPreloads: new Set(),
+    headResources: new Set(),
+    // cache for tracking structured meta tags
+    structuredMetaKeys: new Map(),
     // like a module global for currently rendering boundary
     boundaryResources: null
   };
@@ -2455,8 +2458,129 @@ function adoptPreloadPropsForScriptProps(resourceProps, preloadProps) {
   if (resourceProps.crossOrigin == null) resourceProps.crossOrigin = preloadProps.crossOrigin;
   if (resourceProps.referrerPolicy == null) resourceProps.referrerPolicy = preloadProps.referrerPolicy;
   if (resourceProps.integrity == null) resourceProps.integrity = preloadProps.integrity;
-} // Construct a resource from link props.
+}
 
+function titlePropsFromRawProps(child, rawProps) {
+  var props = assign({}, rawProps);
+
+  props.children = child;
+  return props;
+}
+
+function resourcesFromElement(type, props) {
+  if (!currentResources) {
+    throw new Error('"currentResources" was expected to exist. This is a bug in React.');
+  }
+
+  var resources = currentResources;
+
+  switch (type) {
+    case 'title':
+      {
+        var child = props.children;
+
+        if (Array.isArray(child) && child.length === 1) {
+          child = child[0];
+        }
+
+        if (typeof child === 'string' || typeof child === 'number') {
+          var key = 'title::' + child;
+          var resource = resources.headsMap.get(key);
+
+          if (!resource) {
+            resource = {
+              type: 'title',
+              props: titlePropsFromRawProps(child, props),
+              flushed: false
+            };
+            resources.headsMap.set(key, resource);
+            resources.headResources.add(resource);
+          }
+        }
+
+        return true;
+      }
+
+    case 'meta':
+      {
+        var _key, propertyPath;
+
+        if (typeof props.charSet === 'string') {
+          _key = 'charSet';
+        } else if (typeof props.content === 'string') {
+          var contentKey = '::' + props.content;
+
+          if (typeof props.httpEquiv === 'string') {
+            _key = 'httpEquiv::' + props.httpEquiv + contentKey;
+          } else if (typeof props.name === 'string') {
+            _key = 'name::' + props.name + contentKey;
+          } else if (typeof props.itemProp === 'string') {
+            _key = 'itemProp::' + props.itemProp + contentKey;
+          } else if (typeof props.property === 'string') {
+            var property = props.property;
+            _key = 'property::' + property + contentKey;
+            propertyPath = property;
+            var parentPath = property.split(':').slice(0, -1).join(':');
+            var parentResource = resources.structuredMetaKeys.get(parentPath);
+
+            if (parentResource) {
+              _key = parentResource.key + '::child::' + _key;
+            }
+          }
+        }
+
+        if (_key) {
+          if (!resources.headsMap.has(_key)) {
+            var _resource2 = {
+              type: 'meta',
+              key: _key,
+              props: assign({}, props),
+              flushed: false
+            };
+            resources.headsMap.set(_key, _resource2);
+
+            if (_key === 'charSet') {
+              resources.charset = _resource2;
+            } else {
+              if (propertyPath) {
+                resources.structuredMetaKeys.set(propertyPath, _resource2);
+              }
+
+              resources.headResources.add(_resource2);
+            }
+          }
+        }
+
+        return true;
+      }
+
+    case 'base':
+      {
+        var target = props.target,
+            href = props.href; // We mirror the key construction on the client since we will likely unify
+        // this code in the future to better guarantee key semantics are identical
+        // in both environments
+
+        var _key2 = 'base';
+        _key2 += typeof href === 'string' ? "[href=\"" + href + "\"]" : ':not([href])';
+        _key2 += typeof target === 'string' ? "[target=\"" + target + "\"]" : ':not([target])';
+
+        if (!resources.headsMap.has(_key2)) {
+          var _resource3 = {
+            type: 'base',
+            props: assign({}, props),
+            flushed: false
+          };
+          resources.headsMap.set(_key2, _resource3);
+          resources.bases.add(_resource3);
+        }
+
+        return true;
+      }
+  }
+
+  return false;
+} // Construct a resource from link props.
 
 function resourcesFromLink(props) {
   if (!currentResources) {
@@ -2467,9 +2591,11 @@ function resourcesFromLink(props) {
   var rel = props.rel,
       href = props.href;
 
-  if (!href || typeof href !== 'string') {
+  if (!href || typeof href !== 'string' || !rel || typeof rel !== 'string') {
     return false;
   }
+
+  var key = '';
 
   switch (rel) {
     case 'stylesheet':
@@ -2505,26 +2631,26 @@ function resourcesFromLink(props) {
         } else {
           // We are able to convert this link element to a resource exclusively. We construct the relevant Resource
           // and return true indicating that this link was fully consumed.
-          var resource = resources.stylesMap.get(href);
+          var _resource4 = resources.stylesMap.get(href);
 
-          if (resource) {
+          if (_resource4) {
             {
               var resourceProps = stylePropsFromRawProps(href, precedence, props);
-              adoptPreloadPropsForStyleProps(resourceProps, resource.hint.props);
-              validateStyleResourceDifference(resource.props, resourceProps);
+              adoptPreloadPropsForStyleProps(resourceProps, _resource4.hint.props);
+              validateStyleResourceDifference(_resource4.props, resourceProps);
             }
           } else {
             var _resourceProps = stylePropsFromRawProps(href, precedence, props);
 
-            resource = createStyleResource( // $FlowFixMe[incompatible-call] found when upgrading Flow
+            _resource4 = createStyleResource( // $FlowFixMe[incompatible-call] found when upgrading Flow
             currentResources, href, precedence, _resourceProps);
-            resources.usedStylePreloads.add(resource.hint);
+            resources.usedStylePreloads.add(_resource4.hint);
           }
 
           if (resources.boundaryResources) {
-            resources.boundaryResources.add(resource);
+            resources.boundaryResources.add(_resource4);
           } else {
-            resource.set.add(resource);
+            _resource4.set.add(_resource4);
           }
 
           return true;
@@ -2544,33 +2670,33 @@ function resourcesFromLink(props) {
                 validateLinkPropsForPreloadResource(props);
               }
 
-              var _resource2 = resources.preloadsMap.get(href);
+              var _resource5 = resources.preloadsMap.get(href);
 
-              if (_resource2) {
+              if (_resource5) {
                 {
-                  var originallyImplicit = _resource2._dev_implicit_construction === true;
+                  var originallyImplicit = _resource5._dev_implicit_construction === true;
                   var latestProps = preloadPropsFromRawProps(href, as, props);
-                  validatePreloadResourceDifference(_resource2.props, originallyImplicit, latestProps, false);
+                  validatePreloadResourceDifference(_resource5.props, originallyImplicit, latestProps, false);
                 }
               } else {
-                _resource2 = createPreloadResource(resources, href, as, preloadPropsFromRawProps(href, as, props));
+                _resource5 = createPreloadResource(resources, href, as, preloadPropsFromRawProps(href, as, props));
 
                 switch (as) {
                   case 'script':
                     {
-                      resources.explicitScriptPreloads.add(_resource2);
+                      resources.explicitScriptPreloads.add(_resource5);
                       break;
                     }
 
                   case 'style':
                     {
-                      resources.explicitStylePreloads.add(_resource2);
+                      resources.explicitStylePreloads.add(_resource5);
                       break;
                     }
 
                   case 'font':
                     {
-                      resources.fontPreloads.add(_resource2);
+                      resources.fontPreloads.add(_resource5);
                       break;
                     }
                 }
@@ -2580,11 +2706,43 @@ function resourcesFromLink(props) {
             }
         }
 
-        return false;
+        break;
       }
   }
 
-  return false;
+  if (props.onLoad || props.onError) {
+    return false;
+  }
+
+  var sizes = typeof props.sizes === 'string' ? props.sizes : '';
+  var media = typeof props.media === 'string' ? props.media : '';
+  key = 'rel:' + rel + '::href:' + href + '::sizes:' + sizes + '::media:' + media;
+  var resource = resources.headsMap.get(key);
+
+  if (!resource) {
+    resource = {
+      type: 'link',
+      props: assign({}, props),
+      flushed: false
+    };
+    resources.headsMap.set(key, resource);
+
+    switch (rel) {
+      case 'preconnect':
+      case 'dns-prefetch':
+        {
+          resources.preconnects.add(resource);
+          break;
+        }
+
+      default:
+        {
+          resources.headResources.add(resource);
+        }
+    }
+  }
+
+  return true;
 } // Construct a resource from link props.
 
 function resourcesFromScript(props) {
@@ -3506,6 +3664,38 @@ function pushStartTextArea(target, props, responseState) {
   return null;
 }
 
+function pushBase(target, props, responseState, textEmbedded) {
+  if ( resourcesFromElement('base', props)) {
+    if (textEmbedded) {
+      // This link follows text but we aren't writing a tag. while not as efficient as possible we need
+      // to be safe and assume text will follow by inserting a textSeparator
+      target.push(textSeparator);
+    } // We have converted this link exclusively to a resource and no longer
+    // need to emit it
+
+
+    return null;
+  }
+
+  return pushSelfClosing(target, props, 'base', responseState);
+}
+
+function pushMeta(target, props, responseState, textEmbedded) {
+  if ( resourcesFromElement('meta', props)) {
+    if (textEmbedded) {
+      // This link follows text but we aren't writing a tag. while not as efficient as possible we need
+      // to be safe and assume text will follow by inserting a textSeparator
+      target.push(textSeparator);
+    } // We have converted this link exclusively to a resource and no longer
+    // need to emit it
+
+
+    return null;
+  }
+
+  return pushSelfClosing(target, props, 'meta', responseState);
+}
+
 function pushLink(target, props, responseState, textEmbedded) {
   if ( resourcesFromLink(props)) {
     if (textEmbedded) {
@@ -3616,7 +3806,30 @@ function pushStartMenuItem(target, props, responseState) {
   return null;
 }
 
-function pushStartTitle(target, props, responseState) {
+function pushTitle(target, props, responseState) {
+  {
+    var children = props.children;
+    var childForValidation = Array.isArray(children) && children.length < 2 ? children[0] || null : children;
+
+    if (Array.isArray(children) && children.length > 1) {
+      error('A title element received an array with more than 1 element as children. ' + 'In browsers title Elements can only have Text Nodes as children. If ' + 'the children being rendered output more than a single text node in aggregate the browser ' + 'will display markup and comments as text in the title and hydration will likely fail and ' + 'fall back to client rendering');
+    } else if (childForValidation != null && childForValidation.$$typeof != null) {
+      error('A title element received a React element for children. ' + 'In the browser title Elements can only have Text Nodes as children. If ' + 'the children being rendered output more than a single text node in aggregate the browser ' + 'will display markup and comments as text in the title and hydration will likely fail and ' + 'fall back to client rendering');
+    } else if (childForValidation != null && typeof childForValidation !== 'string' && typeof childForValidation !== 'number') {
+      error('A title element received a value that was not a string or number for children. ' + 'In the browser title Elements can only have Text Nodes as children. If ' + 'the children being rendered output more than a single text node in aggregate the browser ' + 'will display markup and comments as text in the title and hydration will likely fail and ' + 'fall back to client rendering');
+    }
+  }
+
+  if ( resourcesFromElement('title', props)) {
+    // We have converted this link exclusively to a resource and no longer
+    // need to emit it
+    return null;
+  }
+
+  return pushTitleImpl(target, props, responseState);
+}
+
+function pushTitleImpl(target, props, responseState) {
   target.push(startChunkForTag('title'));
   var children = null;
 
@@ -3645,20 +3858,14 @@ function pushStartTitle(target, props, responseState) {
   }
 
   target.push(endOfStartTag);
+  var child = Array.isArray(children) && children.length < 2 ? children[0] || null : children;
 
-  {
-    var child = Array.isArray(children) && children.length < 2 ? children[0] || null : children;
-
-    if (Array.isArray(children) && children.length > 1) {
-      error('A title element received an array with more than 1 element as children. ' + 'In browsers title Elements can only have Text Nodes as children. If ' + 'the children being rendered output more than a single text node in aggregate the browser ' + 'will display markup and comments as text in the title and hydration will likely fail and ' + 'fall back to client rendering');
-    } else if (child != null && child.$$typeof != null) {
-      error('A title element received a React element for children. ' + 'In the browser title Elements can only have Text Nodes as children. If ' + 'the children being rendered output more than a single text node in aggregate the browser ' + 'will display markup and comments as text in the title and hydration will likely fail and ' + 'fall back to client rendering');
-    } else if (child != null && typeof child !== 'string' && typeof child !== 'number') {
-      error('A title element received a value that was not a string or number for children. ' + 'In the browser title Elements can only have Text Nodes as children. If ' + 'the children being rendered output more than a single text node in aggregate the browser ' + 'will display markup and comments as text in the title and hydration will likely fail and ' + 'fall back to client rendering');
-    }
+  if (typeof child === 'string' || typeof child === 'number') {
+    target.push(stringToChunk(escapeTextForBrowser(child)));
   }
 
-  return children;
+  target.push(endTag1, stringToChunk('title'), endTag2);
+  return null;
 }
 
 function pushStartHead(target, preamble, props, tag, responseState) {
@@ -3678,7 +3885,7 @@ function pushStartHtml(target, preamble, props, tag, responseState, formatContex
   return pushStartGenericElement(target, props, tag, responseState);
 }
 
-function pushStartScript(target, props, responseState, textEmbedded) {
+function pushScript(target, props, responseState, textEmbedded) {
   if ( resourcesFromScript(props)) {
     if (textEmbedded) {
       // This link follows text but we aren't writing a tag. while not as efficient as possible we need
@@ -3691,7 +3898,56 @@ function pushStartScript(target, props, responseState, textEmbedded) {
     return null;
   }
 
-  return pushStartGenericElement(target, props, 'script', responseState);
+  return pushScriptImpl(target, props, responseState);
+}
+
+function pushScriptImpl(target, props, responseState) {
+  target.push(startChunkForTag('script'));
+  var children = null;
+  var innerHTML = null;
+
+  for (var propKey in props) {
+    if (hasOwnProperty.call(props, propKey)) {
+      var propValue = props[propKey];
+
+      if (propValue == null) {
+        continue;
+      }
+
+      switch (propKey) {
+        case 'children':
+          children = propValue;
+          break;
+
+        case 'dangerouslySetInnerHTML':
+          innerHTML = propValue;
+          break;
+
+        default:
+          pushAttribute(target, responseState, propKey, propValue);
+          break;
+      }
+    }
+  }
+
+  target.push(endOfStartTag);
+
+  {
+    if (children != null && typeof children !== 'string') {
+      var descriptiveStatement = typeof children === 'number' ? 'a number for children' : Array.isArray(children) ? 'an array for children' : 'something unexpected for children';
+
+      error('A script element was rendered with %s. If script element has children it must be a single string.' + ' Consider using dangerouslySetInnerHTML or passing a plain string as children.', descriptiveStatement);
+    }
+  }
+
+  pushInnerHTML(target, innerHTML, children);
+
+  if (typeof children === 'string') {
+    target.push(stringToChunk(encodeHTMLTextNode(children)));
+  }
+
+  target.push(endTag1, stringToChunk('script'), endTag2);
+  return null;
 }
 
 function pushStartGenericElement(target, props, tag, responseState) {
@@ -3747,27 +4003,6 @@ function pushStartCustomElement(target, props, tag, responseState) {
 
       if (propValue == null) {
         continue;
-      }
-
-      if ( (typeof propValue === 'function' || typeof propValue === 'object')) {
-        // It is normal to render functions and objects on custom elements when
-        // client rendering, but when server rendering the output isn't useful,
-        // so skip it.
-        continue;
-      }
-
-      if ( propValue === false) {
-        continue;
-      }
-
-      if ( propValue === true) {
-        propValue = '';
-      }
-
-      if ( propKey === 'className') {
-        // className gets rendered as class on the client, so it should be
-        // rendered as class on the server.
-        propKey = 'class';
       }
 
       switch (propKey) {
@@ -3936,13 +4171,19 @@ function pushStartInstance(target, preamble, type, props, responseState, formatC
       return pushStartMenuItem(target, props, responseState);
 
     case 'title':
-      return pushStartTitle(target, props, responseState);
+      return  pushTitle(target, props, responseState) ;
 
     case 'link':
       return pushLink(target, props, responseState, textEmbedded);
 
     case 'script':
-      return pushStartScript(target, props, responseState, textEmbedded);
+      return  pushScript(target, props, responseState, textEmbedded) ;
+
+    case 'meta':
+      return pushMeta(target, props, responseState, textEmbedded);
+
+    case 'base':
+      return pushBase(target, props, responseState, textEmbedded);
     // Newline eating tags
 
     case 'listing':
@@ -3953,14 +4194,12 @@ function pushStartInstance(target, preamble, type, props, responseState, formatC
     // Omitted close tags
 
     case 'area':
-    case 'base':
     case 'br':
     case 'col':
     case 'embed':
     case 'hr':
     case 'img':
     case 'keygen':
-    case 'meta':
     case 'param':
     case 'source':
     case 'track':
@@ -4008,9 +4247,16 @@ var endTag1 = stringToPrecomputedChunk('</');
 var endTag2 = stringToPrecomputedChunk('>');
 function pushEndInstance(target, postamble, type, props) {
   switch (type) {
+    // When float is on we expect title and script tags to always be pushed in
+    // a unit and never return children. when we end up pushing the end tag we
+    // want to ensure there is no extra closing tag pushed
+    case 'title':
+    case 'script':
     // Omitted close tags
     // TODO: Instead of repeating this switch we could try to pass a flag from above.
     // That would require returning a tuple. Which might be ok if it gets inlined.
+    // eslint-disable-next-line-no-fallthrough
+
     case 'area':
     case 'base':
     case 'br':
@@ -4461,13 +4707,35 @@ function writeInitialResources(destination, resources, responseState) {
   }
 
   var target = [];
-  var fontPreloads = resources.fontPreloads,
+  var charset = resources.charset,
+      bases = resources.bases,
+      preconnects = resources.preconnects,
+      fontPreloads = resources.fontPreloads,
       precedences = resources.precedences,
       usedStylePreloads = resources.usedStylePreloads,
       scripts = resources.scripts,
       usedScriptPreloads = resources.usedScriptPreloads,
       explicitStylePreloads = resources.explicitStylePreloads,
-      explicitScriptPreloads = resources.explicitScriptPreloads;
+      explicitScriptPreloads = resources.explicitScriptPreloads,
+      headResources = resources.headResources;
+
+  if (charset) {
+    pushSelfClosing(target, charset.props, 'meta', responseState);
+    charset.flushed = true;
+    resources.charset = null;
+  }
+
+  bases.forEach(function (r) {
+    pushSelfClosing(target, r.props, 'base', responseState);
+    r.flushed = true;
+  });
+  bases.clear();
+  preconnects.forEach(function (r) {
+    // font preload Resources should not already be flushed so we elide this check
+    pushLinkImpl(target, r.props, responseState);
+    r.flushed = true;
+  });
+  preconnects.clear();
   fontPreloads.forEach(function (r) {
     // font preload Resources should not already be flushed so we elide this check
     pushLinkImpl(target, r.props, responseState);
@@ -4486,15 +4754,14 @@ function writeInitialResources(destination, resources, responseState) {
       });
       p.clear();
     } else {
-      target.push(precedencePlaceholderStart, escapeTextForBrowser(stringToChunk(precedence)), precedencePlaceholderEnd);
+      target.push(precedencePlaceholderStart, stringToChunk(escapeTextForBrowser(precedence)), precedencePlaceholderEnd);
     }
   });
   usedStylePreloads.forEach(flushLinkResource);
   usedStylePreloads.clear();
   scripts.forEach(function (r) {
     // should never be flushed already
-    pushStartGenericElement(target, r.props, 'script', responseState);
-    pushEndInstance(target, target, 'script', r.props);
+    pushScriptImpl(target, r.props, responseState);
     r.flushed = true;
     r.hint.flushed = true;
   });
@@ -4505,6 +4772,30 @@ function writeInitialResources(destination, resources, responseState) {
   explicitStylePreloads.clear();
   explicitScriptPreloads.forEach(flushLinkResource);
   explicitScriptPreloads.clear();
+  headResources.forEach(function (r) {
+    switch (r.type) {
+      case 'title':
+        {
+          pushTitleImpl(target, r.props, responseState);
+          break;
+        }
+
+      case 'meta':
+        {
+          pushSelfClosing(target, r.props, 'meta', responseState);
+          break;
+        }
+
+      case 'link':
+        {
+          pushLinkImpl(target, r.props, responseState);
+          break;
+        }
+    }
+
+    r.flushed = true;
+  });
+  headResources.clear();
   var i;
   var r = true;
 
@@ -4527,12 +4818,28 @@ function writeImmediateResources(destination, resources, responseState) {
   }
 
   var target = [];
-  var fontPreloads = resources.fontPreloads,
+  var charset = resources.charset,
+      preconnects = resources.preconnects,
+      fontPreloads = resources.fontPreloads,
       usedStylePreloads = resources.usedStylePreloads,
       scripts = resources.scripts,
       usedScriptPreloads = resources.usedScriptPreloads,
       explicitStylePreloads = resources.explicitStylePreloads,
-      explicitScriptPreloads = resources.explicitScriptPreloads;
+      explicitScriptPreloads = resources.explicitScriptPreloads,
+      headResources = resources.headResources;
+
+  if (charset) {
+    pushSelfClosing(target, charset.props, 'meta', responseState);
+    charset.flushed = true;
+    resources.charset = null;
+  }
+
+  preconnects.forEach(function (r) {
+    // font preload Resources should not already be flushed so we elide this check
+    pushLinkImpl(target, r.props, responseState);
+    r.flushed = true;
+  });
+  preconnects.clear();
   fontPreloads.forEach(function (r) {
     // font preload Resources should not already be flushed so we elide this check
     pushLinkImpl(target, r.props, responseState);
@@ -4555,6 +4862,30 @@ function writeImmediateResources(destination, resources, responseState) {
   explicitStylePreloads.clear();
   explicitScriptPreloads.forEach(flushLinkResource);
   explicitScriptPreloads.clear();
+  headResources.forEach(function (r) {
+    switch (r.type) {
+      case 'title':
+        {
+          pushTitleImpl(target, r.props, responseState);
+          break;
+        }
+
+      case 'meta':
+        {
+          pushSelfClosing(target, r.props, 'meta', responseState);
+          break;
+        }
+
+      case 'link':
+        {
+          pushLinkImpl(target, r.props, responseState);
+          break;
+        }
+    }
+
+    r.flushed = true;
+  });
+  headResources.clear();
   var i;
   var r = true;
 
@@ -4844,7 +5175,6 @@ var REACT_OFFSCREEN_TYPE = Symbol.for('react.offscreen');
 var REACT_LEGACY_HIDDEN_TYPE = Symbol.for('react.legacy_hidden');
 var REACT_CACHE_TYPE = Symbol.for('react.cache');
 var REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED = Symbol.for('react.default_value');
-var REACT_MEMO_CACHE_SENTINEL = Symbol.for('react.memo_cache_sentinel');
 var MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 var FAUX_ITERATOR_SYMBOL = '@@iterator';
 function getIteratorFn(maybeIterable) {
@@ -6265,77 +6595,79 @@ function clz32Fallback(x) {
 // changes to one module should be reflected in the others.
 // TODO: Rename this module and the corresponding Fiber one to "Thenable"
 // instead of "Wakeable". Or some other more appropriate name.
-// TODO: Sparse arrays are bad for performance.
 function createThenableState() {
   // The ThenableState is created the first time a component suspends. If it
   // suspends again, we'll reuse the same state.
   return [];
 }
-function trackSuspendedWakeable(wakeable) {
-  // If this wakeable isn't already a thenable, turn it into one now. Then,
-  // when we resume the work loop, we can check if its status is
-  // still pending.
-  // TODO: Get rid of the Wakeable type? It's superseded by UntrackedThenable.
-  var thenable = wakeable; // We use an expando to track the status and result of a thenable so that we
+
+function noop() {}
+
+function trackUsedThenable(thenableState, thenable, index) {
+  var previous = thenableState[index];
+
+  if (previous === undefined) {
+    thenableState.push(thenable);
+  } else {
+    if (previous !== thenable) {
+      // Reuse the previous thenable, and drop the new one. We can assume
+      // they represent the same value, because components are idempotent.
+      // Avoid an unhandled rejection errors for the Promises that we'll
+      // intentionally ignore.
+      thenable.then(noop, noop);
+      thenable = previous;
+    }
+  } // We use an expando to track the status and result of a thenable so that we
   // can synchronously unwrap the value. Think of this as an extension of the
   // Promise API, or a custom interface that is a superset of Thenable.
   //
   // If the thenable doesn't have a status, set it to "pending" and attach
   // a listener that will update its status and result when it resolves.
 
+
   switch (thenable.status) {
     case 'fulfilled':
+      {
+        var fulfilledValue = thenable.value;
+        return fulfilledValue;
+      }
+
     case 'rejected':
-      // A thenable that already resolved shouldn't have been thrown, so this is
-      // unexpected. Suggests a mistake in a userspace data library. Don't track
-      // this thenable, because if we keep trying it will likely infinite loop
-      // without ever resolving.
-      // TODO: Log a warning?
-      break;
+      {
+        var rejectedError = thenable.reason;
+        throw rejectedError;
+      }
 
     default:
       {
-        if (typeof thenable.status === 'string') {
-          // Only instrument the thenable if the status if not defined. If
-          // it's defined, but an unknown value, assume it's been instrumented by
-          // some custom userspace implementation. We treat it as "pending".
-          break;
-        }
+        if (typeof thenable.status === 'string') ; else {
+          var pendingThenable = thenable;
+          pendingThenable.status = 'pending';
+          pendingThenable.then(function (fulfilledValue) {
+            if (thenable.status === 'pending') {
+              var fulfilledThenable = thenable;
+              fulfilledThenable.status = 'fulfilled';
+              fulfilledThenable.value = fulfilledValue;
+            }
+          }, function (error) {
+            if (thenable.status === 'pending') {
+              var rejectedThenable = thenable;
+              rejectedThenable.status = 'rejected';
+              rejectedThenable.reason = error;
+            }
+          });
+        } // Suspend.
+        // TODO: Throwing here is an implementation detail that allows us to
+        // unwind the call stack. But we shouldn't allow it to leak into
+        // userspace. Throw an opaque placeholder value instead of the
+        // actual thenable. If it doesn't get captured by the work loop, log
+        // a warning, because that means something in userspace must have
+        // caught it.
 
-        var pendingThenable = thenable;
-        pendingThenable.status = 'pending';
-        pendingThenable.then(function (fulfilledValue) {
-          if (thenable.status === 'pending') {
-            var fulfilledThenable = thenable;
-            fulfilledThenable.status = 'fulfilled';
-            fulfilledThenable.value = fulfilledValue;
-          }
-        }, function (error) {
-          if (thenable.status === 'pending') {
-            var rejectedThenable = thenable;
-            rejectedThenable.status = 'rejected';
-            rejectedThenable.reason = error;
-          }
-        });
-        break;
+
+        throw thenable;
       }
   }
-}
-function trackUsedThenable(thenableState, thenable, index) {
-  // This is only a separate function from trackSuspendedWakeable for symmetry
-  // with Fiber.
-  thenableState[index] = thenable;
-}
-function getPreviouslyUsedThenableAtIndex(thenableState, index) {
-  if (thenableState !== null) {
-    var thenable = thenableState[index];
-
-    if (thenable !== undefined) {
-      return thenable;
-    }
-  }
-
-  return null;
 }
 
 /**
@@ -6745,14 +7077,6 @@ function useCallback(callback, deps) {
     return callback;
   }, deps);
 }
-
-function throwOnUseEventCall() {
-  throw new Error("A function wrapped in useEvent can't be called during rendering.");
-}
-
-function useEvent(callback) {
-  return throwOnUseEventCall;
-} // TODO Decide on how to implement this hook for server rendering.
 // If a mutation occurs during render, consider triggering a Suspense boundary
 // and falling back to client rendering.
 
@@ -6806,64 +7130,11 @@ function use(usable) {
       var index = thenableIndexCounter;
       thenableIndexCounter += 1;
 
-      switch (thenable.status) {
-        case 'fulfilled':
-          {
-            var fulfilledValue = thenable.value;
-            return fulfilledValue;
-          }
-
-        case 'rejected':
-          {
-            var rejectedError = thenable.reason;
-            throw rejectedError;
-          }
-
-        default:
-          {
-            var prevThenableAtIndex = getPreviouslyUsedThenableAtIndex(thenableState, index);
-
-            if (prevThenableAtIndex !== null) {
-              switch (prevThenableAtIndex.status) {
-                case 'fulfilled':
-                  {
-                    var _fulfilledValue = prevThenableAtIndex.value;
-                    return _fulfilledValue;
-                  }
-
-                case 'rejected':
-                  {
-                    var _rejectedError = prevThenableAtIndex.reason;
-                    throw _rejectedError;
-                  }
-
-                default:
-                  {
-                    // The thenable still hasn't resolved. Suspend with the same
-                    // thenable as last time to avoid redundant listeners.
-                    throw prevThenableAtIndex;
-                  }
-              }
-            } else {
-              // This is the first time something has been used at this index.
-              // Stash the thenable at the current index so we can reuse it during
-              // the next attempt.
-              if (thenableState === null) {
-                thenableState = createThenableState();
-              }
-
-              trackUsedThenable(thenableState, thenable, index); // Suspend.
-              // TODO: Throwing here is an implementation detail that allows us to
-              // unwind the call stack. But we shouldn't allow it to leak into
-              // userspace. Throw an opaque placeholder value instead of the
-              // actual thenable. If it doesn't get captured by the work loop, log
-              // a warning, because that means something in userspace must have
-              // caught it.
-
-              throw thenable;
-            }
-          }
+      if (thenableState === null) {
+        thenableState = createThenableState();
       }
+
+      return trackUsedThenable(thenableState, thenable, index);
     } else if (usable.$$typeof === REACT_CONTEXT_TYPE || usable.$$typeof === REACT_SERVER_CONTEXT_TYPE) {
       var context = usable;
       return readContext$1(context);
@@ -6882,17 +7153,7 @@ function useCacheRefresh() {
   return unsupportedRefresh;
 }
 
-function useMemoCache(size) {
-  var data = new Array(size);
-
-  for (var i = 0; i < size; i++) {
-    data[i] = REACT_MEMO_CACHE_SENTINEL;
-  }
-
-  return data;
-}
-
-function noop() {}
+function noop$1() {}
 
 var HooksDispatcher = {
   readContext: readContext$1,
@@ -6901,15 +7162,15 @@ var HooksDispatcher = {
   useReducer: useReducer,
   useRef: useRef,
   useState: useState,
-  useInsertionEffect: noop,
+  useInsertionEffect: noop$1,
   useLayoutEffect: useLayoutEffect,
   useCallback: useCallback,
   // useImperativeHandle is not run in the server environment
-  useImperativeHandle: noop,
+  useImperativeHandle: noop$1,
   // Effects are not run in the server environment.
-  useEffect: noop,
+  useEffect: noop$1,
   // Debugging effect
-  useDebugValue: noop,
+  useDebugValue: noop$1,
   useDeferredValue: useDeferredValue,
   useTransition: useTransition,
   useId: useId,
@@ -6920,14 +7181,6 @@ var HooksDispatcher = {
 
 {
   HooksDispatcher.useCacheRefresh = useCacheRefresh;
-}
-
-{
-  HooksDispatcher.useEvent = useEvent;
-}
-
-{
-  HooksDispatcher.useMemoCache = useMemoCache;
 }
 
 {
@@ -7016,7 +7269,7 @@ function defaultErrorHandler(error) {
   return null;
 }
 
-function noop$1() {}
+function noop$2() {}
 
 function createRequest(children, responseState, rootFormatContext, progressiveChunkSize, onError, onAllReady, onShellReady, onShellError, onFatalError) {
   var pingedTasks = [];
@@ -7041,10 +7294,10 @@ function createRequest(children, responseState, rootFormatContext, progressiveCh
     preamble: [],
     postamble: [],
     onError: onError === undefined ? defaultErrorHandler : onError,
-    onAllReady: onAllReady === undefined ? noop$1 : onAllReady,
-    onShellReady: onShellReady === undefined ? noop$1 : onShellReady,
-    onShellError: onShellError === undefined ? noop$1 : onShellError,
-    onFatalError: onFatalError === undefined ? noop$1 : onFatalError
+    onAllReady: onAllReady === undefined ? noop$2 : onAllReady,
+    onShellReady: onShellReady === undefined ? noop$2 : onShellReady,
+    onShellError: onShellError === undefined ? noop$2 : onShellError,
+    onFatalError: onFatalError === undefined ? noop$2 : onFatalError
   }; // This segment represents the root fallback.
 
   var rootSegment = createPendingSegment(request, 0, null, rootFormatContext, // Root segments are never embedded in Text on either edge
@@ -7956,7 +8209,6 @@ function spawnNewSuspendedTask(request, task, thenableState, x) {
 
   segment.lastPushedText = false;
   var newTask = createTask(request, thenableState, task.node, task.blockedBoundary, newSegment, task.abortSet, task.legacyContext, task.context, task.treeContext);
-  trackSuspendedWakeable(x);
 
   {
     if (task.componentStack !== null) {
@@ -8169,7 +8421,7 @@ function finishedTask(request, boundary, segment) {
 
     if (request.pendingRootTasks === 0) {
       // We have completed the shell so the shell can't error anymore.
-      request.onShellError = noop$1;
+      request.onShellError = noop$2;
       var onShellReady = request.onShellReady;
       onShellReady();
     }
@@ -8278,8 +8530,6 @@ function retryTask(request, task) {
       // Something suspended again, let's pick it back up later.
       var ping = task.ping;
       x.then(ping, ping);
-      var wakeable = x;
-      trackSuspendedWakeable(wakeable);
       task.thenableState = getThenableStateAfterSuspending();
     } else {
       task.abortSet.delete(task);

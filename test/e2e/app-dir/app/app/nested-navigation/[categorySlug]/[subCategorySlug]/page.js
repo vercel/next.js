@@ -1,4 +1,4 @@
-import { experimental_use as use } from 'react'
+import { use } from 'react'
 import { fetchSubCategory } from '../../getCategories'
 
 export default function Page({ params }) {
