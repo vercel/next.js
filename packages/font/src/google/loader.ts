@@ -1,10 +1,11 @@
 import type { AdjustFontFallback, FontLoader } from 'next/font'
 // @ts-ignore
-import { calculateSizeAdjustValues } from 'next/dist/server/font-utils'
-// @ts-ignore
 import * as Log from 'next/dist/build/output/log'
 // @ts-ignore
 import chalk from 'next/dist/compiled/chalk'
+// @ts-ignore
+// eslint-disable-next-line import/no-extraneous-dependencies
+import fontFromBuffer from '@next/font/dist/fontkit'
 import {
   fetchCSSFromGoogleFonts,
   fetchFontFile,
@@ -12,6 +13,7 @@ import {
   getUrl,
   validateData,
 } from './utils'
+import { calculateFallbackFontValues } from '../utils'
 
 const cssCache = new Map<string, Promise<string>>()
 const fontCache = new Map<string, any>()
@@ -64,6 +66,7 @@ const downloadGoogleFonts: FontLoader = async ({
   const fontFiles: Array<{
     googleFontFileUrl: string
     preloadFontFile: boolean
+    isLatin: boolean
   }> = []
   let currentSubset = ''
   for (const line of fontFaceDeclarations.split('\n')) {
@@ -78,17 +81,24 @@ const downloadGoogleFonts: FontLoader = async ({
           googleFontFileUrl,
           preloadFontFile:
             !!preload && (callSubsets ?? subsets).includes(currentSubset),
+          isLatin: currentSubset === 'latin',
         })
       }
     }
   }
 
   // Download font files
+  let latinFont: any
   const downloadedFiles = await Promise.all(
-    fontFiles.map(async ({ googleFontFileUrl, preloadFontFile }) => {
+    fontFiles.map(async ({ googleFontFileUrl, preloadFontFile, isLatin }) => {
       let cachedFontRequest = fontCache.get(googleFontFileUrl)
       const fontFileBuffer =
         cachedFontRequest ?? (await fetchFontFile(googleFontFileUrl))
+      if (isLatin) {
+        try {
+          latinFont = fontFromBuffer(fontFileBuffer)
+        } catch {}
+      }
       if (!cachedFontRequest) {
         fontCache.set(googleFontFileUrl, fontFileBuffer)
       } else {
@@ -121,19 +131,13 @@ const downloadGoogleFonts: FontLoader = async ({
 
   // Add fallback font
   let adjustFontFallbackMetrics: AdjustFontFallback | undefined
-  if (adjustFontFallback) {
+  if (adjustFontFallback && latinFont) {
     try {
-      const { ascent, descent, lineGap, fallbackFont, sizeAdjust } =
-        calculateSizeAdjustValues(
-          require('next/dist/server/google-font-metrics.json')[fontFamily]
-        )
-      adjustFontFallbackMetrics = {
-        fallbackFont,
-        ascentOverride: `${ascent}%`,
-        descentOverride: `${descent}%`,
-        lineGapOverride: `${lineGap}%`,
-        sizeAdjust: `${sizeAdjust}%`,
-      }
+      adjustFontFallbackMetrics = calculateFallbackFontValues(
+        latinFont,
+        require('next/dist/server/google-font-metrics.json')[fontFamily]
+          .category
+      )
     } catch {
       Log.error(
         `Failed to find font override values for font \`${fontFamily}\``
