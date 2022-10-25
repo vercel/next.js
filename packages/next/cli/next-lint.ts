@@ -116,7 +116,7 @@ const nextLint: cliCommand = async (argv) => {
           -d, --dir Array                Include directory, or directories, to run ESLint - default: 'pages', 'components', and 'lib'
           --file Array                   Include file, or files, to run ESLint
           -c, --config path::String      Use this configuration file, overriding all other config options
-          --ext [String]                 Specify JavaScript file extensions - default: .js, .jsx, .ts, .tsx
+          --ext [String]                 Specify JavaScript file extensions - default: .js, .mjs, .cjs, .jsx, .ts, .mts, .cts, .tsx
           --resolve-plugins-relative-to path::String  A folder where plugins should be resolved from, CWD by default
 
         Initial setup:
