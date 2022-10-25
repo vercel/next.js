@@ -3,7 +3,7 @@ use std::{
     fmt::Write as _,
 };
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use futures::{stream::FuturesUnordered, TryStreamExt};
 use indexmap::{IndexMap, IndexSet};
 use mime::TEXT_HTML_UTF_8;
@@ -313,9 +313,13 @@ async fn run_static_operation(
 
     operation
         .send(RenderStaticOutgoingMessage::Headers { data: &data })
-        .await?;
-
-    match operation.recv().await? {
+        .await
+        .context("sending headers to node.js process")?;
+    match operation
+        .recv()
+        .await
+        .context("receiving from node.js process")?
+    {
         RenderStaticIncomingMessage::Result {
             result: RenderResult::Simple(body),
         } => Ok(FileContent::Content(File::from(body).with_content_type(TEXT_HTML_UTF_8)).into()),
