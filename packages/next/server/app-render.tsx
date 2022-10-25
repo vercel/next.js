@@ -94,6 +94,7 @@ export class ReadonlyRequestCookies {
 
   get: RequestCookies['get']
   getAll: RequestCookies['getAll']
+  has: RequestCookies['has']
 
   constructor(request: {
     headers: {
@@ -107,6 +108,7 @@ export class ReadonlyRequestCookies {
 
     this.get = cookiesInstance.get.bind(cookiesInstance)
     this.getAll = cookiesInstance.getAll.bind(cookiesInstance)
+    this.has = cookiesInstance.has.bind(cookiesInstance)
   }
 
   [Symbol.iterator]() {
