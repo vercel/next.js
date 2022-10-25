@@ -175,8 +175,8 @@ function RSCComponent(props: any): JSX.Element {
 
 export function hydrate() {
   if (process.env.NODE_ENV !== 'production') {
-    const HotReload = require('./components/react-dev-overlay/hot-reloader-client')
-    typeof import('./components/react-dev-overlay/hot-reloader-client')
+    const HotReload: typeof import('./components/react-dev-overlay/hot-reloader-client').default = require('./components/react-dev-overlay/hot-reloader-client')
+
     const rootLayoutMissingTagsError = (self as any)
       .__next_root_layout_missing_tags_error
 
