@@ -460,11 +460,51 @@ export const css = curry(async function css(
         loader({
           oneOf: [
             markRemovable({
+              // A global SASS import always has side effects. Webpack will tree
+              // shake the CSS without this option if the issuer claims to have
+              // no side-effects.
+              // See https://github.com/webpack/webpack/issues/6571
+              sideEffects: true,
+              test: regexSassGlobal,
+              use: [
+                require.resolve('../../../loaders/next-flight-css-dev-loader'),
+                ...getGlobalCssLoader(
+                  ctx,
+                  lazyPostCSSInitializer,
+                  sassPreprocessors
+                ),
+              ],
+            }),
+          ],
+        })
+      )
+      fns.push(
+        loader({
+          oneOf: [
+            markRemovable({
               sideEffects: false,
               test: regexCssModules,
               use: [
                 require.resolve('../../../loaders/next-flight-css-dev-loader'),
                 ...getCssModuleLoader(ctx, lazyPostCSSInitializer),
+              ],
+            }),
+          ],
+        })
+      )
+      fns.push(
+        loader({
+          oneOf: [
+            markRemovable({
+              sideEffects: false,
+              test: regexSassModules,
+              use: [
+                require.resolve('../../../loaders/next-flight-css-dev-loader'),
+                ...getCssModuleLoader(
+                  ctx,
+                  lazyPostCSSInitializer,
+                  sassPreprocessors
+                ),
               ],
             }),
           ],

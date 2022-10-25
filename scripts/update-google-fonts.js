@@ -15,24 +15,27 @@ const fetch = require('node-fetch')
   type CssVariable = \`--\${string}\`
   `
   const fontData = {}
-  for (let { family, fonts, axes } of familyMetadataList) {
-    let hasItalic = false
-    const variants = Object.keys(fonts).map((variant) => {
+  for (let { family, fonts, axes, subsets } of familyMetadataList) {
+    subsets = subsets.filter((subset) => subset !== 'menu')
+    const weights = new Set()
+    const styles = new Set()
+
+    for (const variant of Object.keys(fonts)) {
       if (variant.endsWith('i')) {
-        hasItalic = true
-        return `${variant.slice(0, 3)}-italic`
+        styles.add('italic')
+        weights.add(variant.slice(0, -1))
+        continue
+      } else {
+        styles.add('normal')
+        weights.add(variant)
       }
-      return variant
-    })
+    }
 
     const hasVariableFont = axes.length > 0
 
     let optionalAxes
     if (hasVariableFont) {
-      variants.push('variable')
-      if (hasItalic) {
-        variants.push('variable-italic')
-      }
+      weights.add('variable')
 
       const nonWeightAxes = axes.filter(({ tag }) => tag !== 'wght')
       if (nonWeightAxes.length > 0) {
@@ -41,7 +44,8 @@ const fetch = require('node-fetch')
     }
 
     fontData[family] = {
-      variants,
+      weights: [...weights],
+      styles: [...styles],
       axes: hasVariableFont ? axes : undefined,
     }
     const optionalIfVariableFont = hasVariableFont ? '?' : ''
@@ -49,14 +53,16 @@ const fetch = require('node-fetch')
       ' ',
       '_'
     )}(options${optionalIfVariableFont}: {
-    variant${optionalIfVariableFont}:${variants
-      .map((variant) => `"${variant}"`)
+    weight${optionalIfVariableFont}:${[...weights]
+      .map((weight) => `"${weight}"`)
       .join('|')}
-    display?:Display,
+    style?: ${[...styles].map((style) => `"${style}"`).join('|')}
+    display?:Display
     variable?: CssVariable
-    preload?:boolean,
+    preload?:boolean
     fallback?: string[]
     adjustFontFallback?: boolean
+    subsets?: Array<${subsets.map((subset) => `"${subset}"`).join('|')}>
     ${
       optionalAxes
         ? `axes?:(${optionalAxes.map(({ tag }) => `'${tag}'`).join('|')})[]`

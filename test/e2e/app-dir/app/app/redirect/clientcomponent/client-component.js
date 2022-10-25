@@ -1,5 +1,5 @@
 'use client'
-import { redirect } from 'next/dist/client/components/redirect'
+import { redirect } from 'next/navigation'
 
 export default function ClientComp() {
   redirect('/redirect/result')

@@ -11,13 +11,33 @@ import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import { PageNotFoundError, MissingStaticPage } from '../shared/lib/utils'
+import LRUCache from 'next/dist/compiled/lru-cache'
 
-export function getPagePath(
+const pagePathCache =
+  process.env.NODE_ENV === 'development'
+    ? {
+        get: (_key: string) => {
+          return null
+        },
+        set: () => {},
+        has: () => false,
+      }
+    : new LRUCache<string, string | null>({
+        max: 1000,
+      })
+
+export function getMaybePagePath(
   page: string,
   distDir: string,
   locales?: string[],
   appDirEnabled?: boolean
-): string {
+): string | null {
+  const cacheKey = `${page}:${locales}`
+
+  if (pagePathCache.has(cacheKey)) {
+    return pagePathCache.get(cacheKey) as string | null
+  }
+
   const serverBuildPath = join(distDir, SERVER_DIRECTORY)
   let appPathsManifest: undefined | PagesManifest
 
@@ -61,9 +81,29 @@ export function getPagePath(
   }
 
   if (!pagePath) {
+    pagePathCache.set(cacheKey, null)
+    return null
+  }
+
+  const path = join(serverBuildPath, pagePath)
+  pagePathCache.set(cacheKey, path)
+
+  return path
+}
+
+export function getPagePath(
+  page: string,
+  distDir: string,
+  locales?: string[],
+  appDirEnabled?: boolean
+): string {
+  const pagePath = getMaybePagePath(page, distDir, locales, appDirEnabled)
+
+  if (!pagePath) {
     throw new PageNotFoundError(page)
   }
-  return join(serverBuildPath, pagePath)
+
+  return pagePath
 }
 
 export function requirePage(

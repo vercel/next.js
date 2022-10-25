@@ -17,9 +17,10 @@ import {
   EDGE_RUNTIME_WEBPACK,
   FLIGHT_SERVER_CSS_MANIFEST,
 } from '../../../shared/lib/constants'
-import { FlightCSSManifest, traverseModules } from './flight-manifest-plugin'
+import { FlightCSSManifest } from './flight-manifest-plugin'
 import { ASYNC_CLIENT_MODULES } from './flight-manifest-plugin'
 import { isClientComponentModule, regexCSS } from '../loaders/utils'
+import { traverseModules } from '../utils'
 
 interface Options {
   dev: boolean
@@ -66,6 +67,7 @@ export class FlightClientEntryPlugin {
 
     compiler.hooks.afterCompile.tap(PLUGIN_NAME, (compilation) => {
       traverseModules(compilation, (mod) => {
+        // const modId = compilation.chunkGraph.getModuleId(mod) + ''
         // The module must has request, and resource so it's not a new entry created with loader.
         // Using the client layer module, which doesn't have `rsc` tag in buildInfo.
         if (mod.request && mod.resource && !mod.buildInfo.rsc) {
@@ -75,17 +77,17 @@ export class FlightClientEntryPlugin {
         }
       })
 
-      const recordModule = (id: number | string, mod: any) => {
+      const recordModule = (modId: string, mod: any) => {
         const modResource = mod.resourceResolveData?.path || mod.resource
 
         if (
-          mod.resourceResolveData?.context?.issuerLayer ===
-          WEBPACK_LAYERS.server
+          mod.resourceResolveData?.context?.issuerLayer !==
+          WEBPACK_LAYERS.client
         ) {
           return
         }
 
-        if (typeof id !== 'undefined' && modResource) {
+        if (typeof modId !== 'undefined' && modResource) {
           // Note that this isn't that reliable as webpack is still possible to assign
           // additional queries to make sure there's no conflict even using the `named`
           // module ID strategy.
@@ -98,35 +100,16 @@ export class FlightClientEntryPlugin {
           if (this.isEdgeServer) {
             edgeServerModuleIds.set(
               ssrNamedModuleId.replace(/\/next\/dist\/esm\//, '/next/dist/'),
-              id
+              modId
             )
           } else {
-            serverModuleIds.set(ssrNamedModuleId, id)
+            serverModuleIds.set(ssrNamedModuleId, modId)
           }
         }
       }
 
-      compilation.chunkGroups.forEach((chunkGroup) => {
-        chunkGroup.chunks.forEach((chunk: webpack.Chunk) => {
-          const chunkModules = compilation.chunkGraph.getChunkModulesIterable(
-            chunk
-          ) as Iterable<webpack.NormalModule>
-
-          for (const mod of chunkModules) {
-            const modId = compilation.chunkGraph.getModuleId(mod)
-
-            recordModule(modId, mod)
-
-            // If this is a concatenation, register each child to the parent ID.
-            // TODO: remove any
-            const anyModule = mod as any
-            if (anyModule.modules) {
-              anyModule.modules.forEach((concatenatedMod: any) => {
-                recordModule(modId, concatenatedMod)
-              })
-            }
-          }
-        })
+      traverseModules(compilation, (mod, _chunk, _chunkGroup, modId) => {
+        recordModule(modId + '', mod)
       })
     })
   }
@@ -248,9 +231,10 @@ export class FlightClientEntryPlugin {
 
       function collectModule(entryName: string, mod: any) {
         const resource = mod.resource
-        if (resource) {
-          if (regexCSS.test(resource)) {
-            cssImportsForChunk[entryName].push(resource)
+        const modId = resource
+        if (modId) {
+          if (regexCSS.test(modId)) {
+            cssImportsForChunk[entryName].push(modId)
           }
         }
       }
@@ -366,18 +350,19 @@ export class FlightClientEntryPlugin {
       // native or installed js module: -> raw request, e.g. next/head
       // client js or css: -> user request
       const rawRequest = mod.rawRequest
-
       // Request could be undefined or ''
       if (!rawRequest) return
 
       const isCSS = regexCSS.test(rawRequest)
-      const modRequest: string | undefined =
+      const isLocal =
         !isCSS &&
         !rawRequest.startsWith('.') &&
         !rawRequest.startsWith('/') &&
         !rawRequest.startsWith(APP_DIR_ALIAS)
-          ? rawRequest
-          : mod.resourceResolveData?.path + mod.resourceResolveData?.query
+
+      const modRequest: string | undefined = isLocal
+        ? rawRequest
+        : mod.resourceResolveData?.path + mod.resourceResolveData?.query
 
       // Ensure module is not walked again if it's already been visited
       if (!visitedBySegment[layoutOrPageRequest]) {
@@ -519,9 +504,9 @@ export class FlightClientEntryPlugin {
       {
         // By using the same entry name
         name: entryName,
-        // Layer should be undefined for the SSR modules
-        // This ensures the client components are
-        layer: undefined,
+        // Layer should be client for the SSR modules
+        // This ensures the client components are bundled on client layer
+        layer: WEBPACK_LAYERS.client,
       }
     )
 

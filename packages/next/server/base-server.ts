@@ -205,6 +205,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     serverComponents?: boolean
     crossOrigin?: string
     supportsDynamicHTML?: boolean
+    isBot?: boolean
     serverComponentManifest?: any
     serverCSSManifest?: any
     fontLoaderManifest?: FontLoaderManifest
@@ -483,6 +484,16 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       if (typeof parsedUrl.query === 'string') {
         parsedUrl.query = parseQs(parsedUrl.query)
       }
+      // in minimal mode we detect RSC revalidate if the .rsc path is requested
+      if (
+        this.minimalMode &&
+        (req.url.endsWith('.rsc') ||
+          (typeof req.headers['x-matched-path'] === 'string' &&
+            req.headers['x-matched-path'].endsWith('.rsc')))
+      ) {
+        parsedUrl.query.__nextDataReq = '1'
+      }
+
       req.url = normalizeRscPath(req.url, this.hasAppDir)
       parsedUrl.pathname = normalizeRscPath(
         parsedUrl.pathname || '',
@@ -516,6 +527,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         typeof req.headers['x-matched-path'] === 'string'
       ) {
         try {
+          if (this.hasAppDir) {
+            // ensure /index path is normalized for prerender
+            // in minimal mode
+            if (req.url.match(/^\/index($|\?)/)) {
+              req.url = req.url.replace(/^\/index/, '/')
+            }
+            parsedUrl.pathname =
+              parsedUrl.pathname === '/index' ? '/' : parsedUrl.pathname
+          }
           // x-matched-path is the source of truth, it tells what page
           // should be rendered because we don't process rewrites in minimalMode
           let matchedPath = normalizeRscPath(
@@ -849,6 +869,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       renderOpts: {
         ...this.renderOpts,
         supportsDynamicHTML: !isBotRequest,
+        isBot: !!isBotRequest,
       },
     } as const
     const payload = await fn(ctx)
@@ -1042,7 +1063,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       )
 
       if (isSSG && req.headers['__rsc__']) {
-        isDataReq = true
+        if (!this.minimalMode) {
+          isDataReq = true
+        }
         // strip header so we generate HTML still
         if (
           opts.runtime !== 'experimental-edge' ||
@@ -1139,6 +1162,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       // cache if there are no dynamic data requirements
       opts.supportsDynamicHTML =
         !isSSG && !isBotRequest && !query.amp && isSupportedDocument
+      opts.isBot = isBotRequest
     }
 
     const defaultLocale = isSSG
