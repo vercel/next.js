@@ -25,7 +25,7 @@
 
 ## Getting Started
 
-Visit https://turbo.build/pack/docs/getting-started to get started with Turbopack.
+Visit https://turbo.build/pack/docs to get started with Turbopack.
 
 ## Documentation
 
