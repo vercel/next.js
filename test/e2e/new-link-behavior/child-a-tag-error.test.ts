@@ -4,7 +4,7 @@ import { NextInstance } from 'test/lib/next-modes/base'
 import webdriver from 'next-webdriver'
 import path from 'path'
 
-const appDir = path.join(__dirname, 'stitches')
+const appDir = path.join(__dirname, 'child-a-tag-error')
 
 describe('New Link Behavior with <a> child', () => {
   let next: NextInstance
@@ -25,13 +25,18 @@ describe('New Link Behavior with <a> child', () => {
   afterAll(() => next.destroy())
 
   it('should throw error with <a> child', async () => {
+    const browser = await webdriver(next.url, `/`)
+    const link = await browser.elementsByCss('a[href="/about"]')
     const msg =
       'Error: Invalid <Link> with <a> child. Please remove <a> or use <Link legacyBehavior>'
     expect(next.cliOutput).toContain(msg)
+
     if ((global as any).isDev) {
-      const browser = await webdriver(next.url, `/`)
       expect(await hasRedbox(browser, true)).toBe(true)
       expect(await getRedboxSource(browser)).toContain(msg)
+      expect(link).not.toBeDefined()
+    } else {
+      expect(link).toBeDefined()
     }
   })
 })
