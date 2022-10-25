@@ -1084,7 +1084,15 @@ export default async function getBaseWebpackConfig(
       if (/^(?:next$)/.test(request)) {
         return `commonjs ${request}`
       }
+
       if (/^(react(?:$|\/)|react-dom(?:$|\/))/.test(request)) {
+        // override react-dom to server-rendering-stub for server
+        if (
+          request === 'react-dom' &&
+          (layer === WEBPACK_LAYERS.client || layer === WEBPACK_LAYERS.server)
+        ) {
+          request = 'react-dom/server-rendering-stub'
+        }
         return `commonjs ${hasAppDir ? 'next/dist/compiled/' : ''}${request}`
       }
 
@@ -1133,7 +1141,7 @@ export default async function getBaseWebpackConfig(
             .replace(/\\/g, '/')
         )
         return `commonjs ${externalRequest}`
-      } else {
+      } else if (layer !== WEBPACK_LAYERS.client) {
         // We don't want to retry local requests
         // with other preferEsm options
         return
