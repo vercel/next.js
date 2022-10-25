@@ -847,6 +847,40 @@ export async function renderToHTMLOrFlight(
       }
     }
 
+    async function resolveHead(
+      [segment, parallelRoutes, { head }]: LoaderTree,
+      parentParams: { [key: string]: any }
+    ): Promise<React.ReactNode> {
+      // Handle dynamic segment params.
+      const segmentParam = getDynamicParamFromSegment(segment)
+      /**
+       * Create object holding the parent params and current params
+       */
+      const currentParams =
+        // Handle null case where dynamic param is optional
+        segmentParam && segmentParam.value !== null
+          ? {
+              ...parentParams,
+              [segmentParam.param]: segmentParam.value,
+            }
+          : // Pass through parent params to children
+            parentParams
+      for (const key in parallelRoutes) {
+        const childTree = parallelRoutes[key]
+        const returnedHead = await resolveHead(childTree, currentParams)
+        if (returnedHead) {
+          return returnedHead
+        }
+      }
+
+      if (head) {
+        const Head = await interopDefault(head())
+        return <Head params={currentParams} />
+      }
+
+      return null
+    }
+
     const createFlightRouterStateFromLoaderTree = (
       [segment, parallelRoutes, { layout }]: LoaderTree,
       rootLayoutIncluded = false
@@ -1392,6 +1426,8 @@ export async function renderToHTMLOrFlight(
         }
       : {}
 
+    const initialHead = await resolveHead(loaderTree, {})
+
     /**
      * A new React Component that renders the provided React Component
      * using Flight which can then be rendered to HTML.
@@ -1405,6 +1441,7 @@ export async function renderToHTMLOrFlight(
             assetPrefix={assetPrefix}
             initialCanonicalUrl={initialCanonicalUrl}
             initialTree={initialTree}
+            initialHead={initialHead}
           >
             <ComponentTree />
           </AppRouter>
