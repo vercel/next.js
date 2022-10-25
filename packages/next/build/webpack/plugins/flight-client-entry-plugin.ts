@@ -231,7 +231,7 @@ export class FlightClientEntryPlugin {
 
       function collectModule(entryName: string, mod: any) {
         const resource = mod.resource
-        const modId = resource // compilation.chunkGraph.getModuleId(mod) + ''
+        const modId = resource
         if (modId) {
           if (regexCSS.test(modId)) {
             cssImportsForChunk[entryName].push(modId)
@@ -361,9 +361,8 @@ export class FlightClientEntryPlugin {
         !rawRequest.startsWith(APP_DIR_ALIAS)
 
       const modRequest: string | undefined = isLocal
-        ? rawRequest // compilation.chunkGraph.getModuleId(mod) + ''
+        ? rawRequest
         : mod.resourceResolveData?.path + mod.resourceResolveData?.query
-      // console.log('modId:after', modRequest)
 
       // Ensure module is not walked again if it's already been visited
       if (!visitedBySegment[layoutOrPageRequest]) {

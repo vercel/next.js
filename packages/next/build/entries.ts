@@ -521,7 +521,7 @@ export function finalizeEntrypoint({
     name !== CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH
   ) {
     // TODO-APP: this is a temporary fix. @shuding is going to change the handling of server components
-    if (hasAppDir && entry.import.includes('flight')) {
+    if (hasAppDir && entry.import.includes('next-flight-client-entry-loader')) {
       return {
         dependOn: CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
         ...entry,

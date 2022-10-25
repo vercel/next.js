@@ -42,16 +42,18 @@ describe('app dir head', () => {
       ).toBeTruthy()
     })
 
-    it('should not use head from layout when on page', async () => {
+    it('should use correct head for /blog', async () => {
       const html = await renderViaHTTP(next.url, '/blog')
       const $ = cheerio.load(html)
       const headTags = $('head').children().toArray()
 
+      expect(headTags.find((el) => el.attribs.src === '/hello3.js')).toBeFalsy()
       expect(
-        headTags.find((el) => el.attribs.src === '/hello3.js')
+        headTags.find((el) => el.attribs.src === '/hello1.js')
       ).toBeTruthy()
-      expect(headTags.find((el) => el.attribs.src === '/hello1.js')).toBeFalsy()
-      expect(headTags.find((el) => el.attribs.src === '/hello2.js')).toBeFalsy()
+      expect(
+        headTags.find((el) => el.attribs.src === '/hello2.js')
+      ).toBeTruthy()
       expect(
         headTags.find((el) => el.attribs.src === '/another.js')
       ).toBeTruthy()

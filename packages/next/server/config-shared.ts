@@ -165,6 +165,20 @@ export interface ExperimentalConfig {
   fontLoaders?: Array<{ loader: string; options?: any }>
 
   webVitalsAttribution?: Array<typeof WEB_VITALS[number]>
+  turbotrace?: {
+    logLevel?:
+      | 'bug'
+      | 'fatal'
+      | 'error'
+      | 'warning'
+      | 'hint'
+      | 'note'
+      | 'suggestions'
+      | 'info'
+    logDetail?: boolean
+    contextDirectory?: string
+    processCwd?: string
+  }
 }
 
 export type ExportPathMap = {
@@ -581,6 +595,7 @@ export const defaultConfig: NextConfig = {
     enableUndici: false,
     adjustFontFallbacks: false,
     adjustFontFallbacksWithSizeAdjust: false,
+    turbotrace: undefined,
   },
 }
 
