@@ -1,5 +1,5 @@
-import firaCode from '@next/font/google/target.css?{"arguments":[],"import":"Abel","path":"pages/test.tsx"}';
-import inter from '@next/font/google/target.css?{"arguments":[],"import":"Inter","path":"pages/test.tsx"}';
+import firaCode from '@next/font/google/target.css?{"path":"pages/test.tsx","import":"Abel","arguments":[]}';
+import inter from '@next/font/google/target.css?{"path":"pages/test.tsx","import":"Inter","arguments":[]}';
 import React from 'react';
 export { firaCode };
 export default inter;

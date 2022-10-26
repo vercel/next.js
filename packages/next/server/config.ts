@@ -789,7 +789,8 @@ function assignDefaults(dir: string, userConfig: { [key: string]: any }) {
 export default async function loadConfig(
   phase: string,
   dir: string,
-  customConfig?: object | null
+  customConfig?: object | null,
+  rawConfig?: boolean
 ): Promise<NextConfigComplete> {
   await loadEnvConfig(dir, phase === PHASE_DEVELOPMENT_SERVER, Log)
   loadWebpackHook()
@@ -822,6 +823,10 @@ export default async function loadConfig(
         userConfigModule = require(path)
       } else {
         userConfigModule = await import(pathToFileURL(path).href)
+      }
+
+      if (rawConfig) {
+        return userConfigModule
       }
     } catch (err) {
       Log.error(

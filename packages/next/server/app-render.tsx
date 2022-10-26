@@ -221,7 +221,7 @@ function patchFetch(ComponentMod: any) {
     if (staticGenerationStore && isStaticGeneration) {
       if (init && typeof init === 'object') {
         if (init.cache === 'no-store') {
-          staticGenerationStore.revalidate = 0
+          staticGenerationStore.fetchRevalidate = 0
           // TODO: ensure this error isn't logged to the user
           // seems it's slipping through currently
           throw new DynamicServerError(
@@ -238,13 +238,13 @@ function patchFetch(ComponentMod: any) {
         ) {
           staticGenerationStore.fetchRevalidate = next.revalidate
 
-          // TODO: ensure this error isn't logged to the user
-          // seems it's slipping through currently
-          throw new DynamicServerError(
-            `revalidate: ${next.revalidate} fetch ${input}${
-              pathname ? ` ${pathname}` : ''
-            }`
-          )
+          if (next.revalidate === 0) {
+            throw new DynamicServerError(
+              `revalidate: ${next.revalidate} fetch ${input}${
+                pathname ? ` ${pathname}` : ''
+              }`
+            )
+          }
         }
         if (hasNextConfig) delete init.next
       }
@@ -735,7 +735,9 @@ export async function renderToHTMLOrFlight(
     supportsDynamicHTML,
   } = renderOpts
 
-  patchFetch(ComponentMod)
+  if (process.env.NODE_ENV === 'production') {
+    patchFetch(ComponentMod)
+  }
   const generateStaticHTML = supportsDynamicHTML !== true
 
   const staticGenerationAsyncStorage = ComponentMod.staticGenerationAsyncStorage
@@ -853,6 +855,40 @@ export async function renderToHTMLOrFlight(
         ],
         type: type,
       }
+    }
+
+    async function resolveHead(
+      [segment, parallelRoutes, { head }]: LoaderTree,
+      parentParams: { [key: string]: any }
+    ): Promise<React.ReactNode> {
+      // Handle dynamic segment params.
+      const segmentParam = getDynamicParamFromSegment(segment)
+      /**
+       * Create object holding the parent params and current params
+       */
+      const currentParams =
+        // Handle null case where dynamic param is optional
+        segmentParam && segmentParam.value !== null
+          ? {
+              ...parentParams,
+              [segmentParam.param]: segmentParam.value,
+            }
+          : // Pass through parent params to children
+            parentParams
+      for (const key in parallelRoutes) {
+        const childTree = parallelRoutes[key]
+        const returnedHead = await resolveHead(childTree, currentParams)
+        if (returnedHead) {
+          return returnedHead
+        }
+      }
+
+      if (head) {
+        const Head = await interopDefault(head())
+        return <Head params={currentParams} />
+      }
+
+      return null
     }
 
     const createFlightRouterStateFromLoaderTree = (
@@ -1200,6 +1236,7 @@ export async function renderToHTMLOrFlight(
                 // Query is only provided to page
                 {...(isPage ? { searchParams: query } : {})}
               />
+              {/* {HeadTags ? <HeadTags /> : null} */}
             </>
           )
         },
@@ -1405,6 +1442,8 @@ export async function renderToHTMLOrFlight(
         }
       : {}
 
+    const initialHead = await resolveHead(loaderTree, {})
+
     /**
      * A new React Component that renders the provided React Component
      * using Flight which can then be rendered to HTML.
@@ -1418,6 +1457,7 @@ export async function renderToHTMLOrFlight(
             assetPrefix={assetPrefix}
             initialCanonicalUrl={initialCanonicalUrl}
             initialTree={initialTree}
+            initialHead={initialHead}
           >
             <ComponentTree />
           </AppRouter>
@@ -1591,9 +1631,9 @@ export async function renderToHTMLOrFlight(
 
       ;(renderOpts as any).pageData = filteredFlightData
       ;(renderOpts as any).revalidate =
-        typeof staticGenerationStore?.revalidate === 'undefined'
+        typeof staticGenerationStore?.fetchRevalidate === 'undefined'
           ? defaultRevalidate
-          : staticGenerationStore?.revalidate
+          : staticGenerationStore?.fetchRevalidate
 
       return new RenderResult(htmlResult)
     }

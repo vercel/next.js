@@ -95,6 +95,7 @@ let initialParallelRoutes: CacheNode['parallelRoutes'] =
 const prefetched = new Set<string>()
 
 type AppRouterProps = {
+  initialHead: ReactNode
   initialTree: FlightRouterState
   initialCanonicalUrl: string
   children: ReactNode
@@ -105,6 +106,7 @@ type AppRouterProps = {
  * The global router that wraps the application components.
  */
 function Router({
+  initialHead,
   initialTree,
   initialCanonicalUrl,
   children,
@@ -361,10 +363,14 @@ function Router({
             >
               {HotReloader ? (
                 <HotReloader assetPrefix={assetPrefix}>
+                  {initialHead}
                   {cache.subTreeData}
                 </HotReloader>
               ) : (
-                cache.subTreeData
+                <>
+                  {initialHead}
+                  {cache.subTreeData}
+                </>
               )}
             </LayoutRouterContext.Provider>
           </AppRouterContext.Provider>
