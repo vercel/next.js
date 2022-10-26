@@ -1,4 +1,9 @@
-export default function Post({ title, children }) {
+type PostProps = {
+  title: string
+  children: React.ReactNode
+}
+
+export default function Post({ title, children }: PostProps) {
   return (
     <div className="main">
       <h1>{title}</h1>
