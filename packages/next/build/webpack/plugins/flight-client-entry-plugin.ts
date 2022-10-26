@@ -1,7 +1,6 @@
 import { stringify } from 'querystring'
 import path from 'path'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
-import type { Dependency, EntryOptions } from 'webpack'
 import {
   getInvalidator,
   entries,
@@ -519,8 +518,8 @@ export class FlightClientEntryPlugin {
   addEntry(
     compilation: any,
     context: string,
-    dependency: Dependency,
-    options: EntryOptions
+    dependency: any /* Dependency */,
+    options: any /* EntryOptions */
   ): Promise<any> /* Promise<module> */ {
     return new Promise((resolve, reject) => {
       const entry = compilation.entries.get(options.name)

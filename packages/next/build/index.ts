@@ -60,7 +60,7 @@ import {
   RSC_MODULE_TYPES,
   FONT_LOADER_MANIFEST,
   CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
-  APP_INTERNALS,
+  APP_CLIENT_INTERNALS,
 } from '../shared/lib/constants'
 import { getSortedRoutes, isDynamicRoute } from '../shared/lib/router/utils'
 import { __ApiPreviewProps } from '../server/api-utils'
@@ -978,7 +978,7 @@ export default async function build(
           if (!serverResult.errors.length && !edgeServerResult?.errors.length) {
             injectedClientEntries.forEach((value, key) => {
               const clientEntry = clientConfig.entry as webpack.EntryObject
-              if (key === APP_INTERNALS) {
+              if (key === APP_CLIENT_INTERNALS) {
                 clientEntry[CLIENT_STATIC_FILES_RUNTIME_MAIN_APP] = [
                   // TODO-APP: cast clientEntry[CLIENT_STATIC_FILES_RUNTIME_MAIN_APP] to type EntryDescription once it's available from webpack
                   // @ts-ignore clientEntry['main-app'] is type EntryDescription { import: ... }
