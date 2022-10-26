@@ -14,7 +14,7 @@ import type {
 } from '../loaders/next-flight-client-entry-loader'
 import { APP_DIR_ALIAS, WEBPACK_LAYERS } from '../../../lib/constants'
 import {
-  APP_INTERNALS,
+  APP_CLIENT_INTERNALS,
   COMPILER_NAMES,
   EDGE_RUNTIME_WEBPACK,
   FLIGHT_SERVER_CSS_MANIFEST,
@@ -221,7 +221,7 @@ export class FlightClientEntryPlugin {
           compilation,
           entryName: name,
           clientComponentImports: [...internalClientComponentEntryImports],
-          bundlePath: APP_INTERNALS,
+          bundlePath: APP_CLIENT_INTERNALS,
         })
       )
     })

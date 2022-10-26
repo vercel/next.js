@@ -123,7 +123,6 @@ import { RemotePattern } from '../shared/lib/image-config'
 import { eventSwcPlugins } from '../telemetry/events/swc-plugins'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { AppBuildManifest } from './webpack/plugins/app-build-manifest-plugin'
-import { EntryObject } from 'webpack'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false

@@ -28,7 +28,7 @@ import {
   SERVER_DIRECTORY,
   COMPILER_NAMES,
   CompilerNameValues,
-  APP_INTERNALS,
+  APP_CLIENT_INTERNALS,
 } from '../shared/lib/constants'
 import { execOnce } from '../shared/lib/utils'
 import { NextConfigComplete } from '../server/config-shared'
@@ -78,11 +78,6 @@ const babelIncludeRegexes: RegExp[] = [
 ]
 
 const reactPackagesRegex = /^(react(?:$|\/)|react-dom(?:$|\/))/
-
-const builtinReactPackages = [
-  /next[\\/]dist[\\/]compiled[\\/](react|react-dom)[\\/]/,
-  /next[\\/]dist[\\/]compiled[\\/]react-server-dom-webpack[\\/]server.browser/,
-]
 
 const staticGenerationAsyncStorageRegex =
   /next[\\/]dist[\\/]client[\\/]components[\\/]static-generation-async-storage/
