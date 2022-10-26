@@ -4,7 +4,7 @@ import { NextInstance } from 'test/lib/next-modes/base'
 import { renderViaHTTP } from 'next-test-utils'
 
 const files = {
-  'app/layout.tsx': `
+  'app/layout.jsx': `
     export default function AppLayout({ children }) {
       return (
         <html>
@@ -18,14 +18,18 @@ const files = {
       )
     }
   `,
-  'app/page.tsx': `
-    // @ts-expect-error
+  'app/page.jsx': `
     import wasm from '../wasm/add.wasm?module'
+    const instance$ = WebAssembly.instantiate(wasm);
 
-    console.log(wasm)
+    async function addOne(a) {
+      const { exports } = await instance$;
+      return exports.add_one(a);
+    }
 
-    export default function Page() {
-      return "index page"
+    export default async function Page() {
+      const two = await addOne(1)
+      return \`1 + 1 is: $\{two}\`
     }
 
     export const runtime = "experimental-edge"
@@ -42,9 +46,6 @@ describe('app-dir edge runtime with wasm', () => {
       dependencies: {
         react: 'experimental',
         'react-dom': 'experimental',
-        typescript: 'latest',
-        '@types/react': 'latest',
-        '@types/node': 'latest',
       },
       nextConfig: {
         experimental: {
@@ -57,6 +58,6 @@ describe('app-dir edge runtime with wasm', () => {
 
   it('should have built', async () => {
     const html = await renderViaHTTP(next.url, '/')
-    expect(html).toContain('index page')
+    expect(html).toContain('1 + 1 is: 2')
   })
 })
