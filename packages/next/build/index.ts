@@ -1751,7 +1751,10 @@ export default async function build(
               } catch (_) {}
             }
 
-            const root = config.experimental.outputFileTracingRoot || dir
+            const root =
+              config.experimental?.turbotrace?.contextDirectory ??
+              config.experimental?.outputFileTracingRoot ??
+              dir
             const toTrace = [require.resolve('next/dist/server/next-server')]
 
             // ensure we trace any dependencies needed for custom
@@ -1769,6 +1772,10 @@ export default async function build(
                 action: 'annotate',
                 input: toTrace,
                 contextDirectory: root,
+                logLevel: config.experimental.turbotrace.logLevel,
+                processCwd: config.experimental.turbotrace.processCwd,
+                logDetail: config.experimental.turbotrace.logDetail,
+                showAll: config.experimental.turbotrace.logAll,
               })
             } else {
               serverResult = await nodeFileTrace(toTrace, {

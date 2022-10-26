@@ -176,8 +176,10 @@ export interface ExperimentalConfig {
       | 'suggestions'
       | 'info'
     logDetail?: boolean
+    logAll?: boolean
     contextDirectory?: string
     processCwd?: string
+    maxFiles?: number
   }
 }
 
