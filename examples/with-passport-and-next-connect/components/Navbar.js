@@ -15,14 +15,14 @@ export default function Navbar() {
         <ul>
           <li>
             <Link href="/">
-              <a>Home</a>
+              Home
             </Link>
           </li>
           {user ? (
             <>
               <li>
                 <Link href="/profile">
-                  <a>Profile</a>
+                  Profile
                 </Link>
               </li>
               <li>
@@ -35,12 +35,12 @@ export default function Navbar() {
             <>
               <li>
                 <Link href="/signup">
-                  <a>Sign up</a>
+                  Sign up
                 </Link>
               </li>
               <li>
                 <Link href="/login">
-                  <a>Login</a>
+                  Login
                 </Link>
               </li>
             </>
@@ -72,7 +72,7 @@ export default function Navbar() {
         }
         header {
           color: #fff;
-          background-color: #333;
+          background-color: #666;
         }
       `}</style>
     </header>
