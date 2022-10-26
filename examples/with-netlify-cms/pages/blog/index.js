@@ -20,7 +20,11 @@ const Blog = ({ postsList }) => (
   <Layout>
     {postsList.map((post) => (
       <div key={post.slug} className="post">
-        <Link href="/blog/post/[slug]" as={`/blog/post/${post.slug}`}>
+        <Link
+          href="/blog/post/[slug]"
+          as={`/blog/post/${post.slug}`}
+          legacyBehavior
+        >
           <a>
             <img src={post.attributes.thumbnail} />
             <h2>{post.attributes.title}</h2>

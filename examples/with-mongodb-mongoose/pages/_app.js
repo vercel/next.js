@@ -12,12 +12,8 @@ function MyApp({ Component, pageProps }) {
 
       <div className="top-bar">
         <div className="nav">
-          <Link href="/">
-            <a>Home</a>
-          </Link>
-          <Link href="/new">
-            <a>Add Pet</a>
-          </Link>
+          <Link href="/">Home</Link>
+          <Link href="/new">Add Pet</Link>
         </div>
 
         <img

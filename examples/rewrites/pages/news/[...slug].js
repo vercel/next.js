@@ -19,9 +19,7 @@ export default function News() {
           The query <Code>slug</Code> for this page is:{' '}
           <Code>{JSON.stringify(query.slug)}</Code>
         </p>
-        <Link href="/">
-          <a> &larr; Back home</a>
-        </Link>
+        <Link href="/">&larr; Back home</Link>
       </div>
     </div>
   )

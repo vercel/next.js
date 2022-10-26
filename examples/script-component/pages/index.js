@@ -6,29 +6,19 @@ export default function Index() {
       <h1>Script component examples</h1>
       <ul>
         <li>
-          <Link href="/polyfill">
-            <a>Polyfill</a>
-          </Link>
+          <Link href="/polyfill">Polyfill</Link>
         </li>
         <li>
-          <Link href="/lazy">
-            <a>Lazy Loading</a>
-          </Link>
+          <Link href="/lazy">Lazy Loading</Link>
         </li>
         <li>
-          <Link href="/onload">
-            <a>Executing code after loading</a>
-          </Link>
+          <Link href="/onload">Executing code after loading</Link>
         </li>
         <li>
-          <Link href="/inline">
-            <a>Inline scripts</a>
-          </Link>
+          <Link href="/inline">Inline scripts</Link>
         </li>
         <li>
-          <Link href="/attributes">
-            <a>Forwarding attributes</a>
-          </Link>
+          <Link href="/attributes">Forwarding attributes</Link>
         </li>
       </ul>
     </main>

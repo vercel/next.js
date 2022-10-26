@@ -18,27 +18,21 @@ const Index = () => (
       <nav>
         <ul className={styles.list}>
           <li>
-            <Link href="/team">
-              <a>Visit /team (redirects to /about)</a>
-            </Link>
+            <Link href="/team">Visit /team (redirects to /about)</Link>
           </li>
           <li>
             <Link href="/old-blog/hello-world">
-              <a>
-                Visit /old-blog/hello-world (redirects to /news/hello-world)
-              </a>
+              Visit /old-blog/hello-world (redirects to /news/hello-world)
             </Link>
           </li>
           <li>
             <Link href="/blog/a/b/hello-world">
-              <a>
-                Visit /blog/a/b/hello-world (redirects to /news/a/b/hello-world)
-              </a>
+              Visit /blog/a/b/hello-world (redirects to /news/a/b/hello-world)
             </Link>
           </li>
           <li>
             <Link href="/post/123">
-              <a>Visit /post/123 (redirects to /news/123)</a>
+              Visit /post/123 (redirects to /news/123)
             </Link>
           </li>
         </ul>

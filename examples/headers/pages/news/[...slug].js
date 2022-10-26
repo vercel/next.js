@@ -20,9 +20,7 @@ const News = ({ props }) => {
           To check the response headers of this page, open the Network tab
           inside your browser inspector.
         </p>
-        <Link href="/">
-          <a> &larr; Back home</a>
-        </Link>
+        <Link href="/">&larr; Back home</Link>
       </div>
     </div>
   )

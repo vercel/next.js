@@ -23,9 +23,7 @@ export default function About() {
           {' '}
           This page was rendered by <Code>{`pages${route}.js`}</Code>.
         </p>
-        <Link href="/">
-          <a> &larr; Back home</a>
-        </Link>
+        <Link href="/">&larr; Back home</Link>
       </div>
     </div>
   )

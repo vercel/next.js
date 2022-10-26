@@ -8,11 +8,7 @@ const MyApp = ({ Component, pageProps, router }) => {
   return (
     <>
       <Component {...pageProps} />
-      {pathname !== '/' && (
-        <Link href="/">
-          <a>See all examples</a>
-        </Link>
-      )}
+      {pathname !== '/' && <Link href="/">See all examples</Link>}
     </>
   )
 }

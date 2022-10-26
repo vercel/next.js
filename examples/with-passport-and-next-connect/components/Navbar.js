@@ -14,14 +14,14 @@ export default function Navbar() {
       <nav>
         <ul>
           <li>
-            <Link href="/">
+            <Link href="/" legacyBehavior>
               <a>Home</a>
             </Link>
           </li>
           {user ? (
             <>
               <li>
-                <Link href="/profile">
+                <Link href="/profile" legacyBehavior>
                   <a>Profile</a>
                 </Link>
               </li>
@@ -34,12 +34,12 @@ export default function Navbar() {
           ) : (
             <>
               <li>
-                <Link href="/signup">
+                <Link href="/signup" legacyBehavior>
                   <a>Sign up</a>
                 </Link>
               </li>
               <li>
-                <Link href="/login">
+                <Link href="/login" legacyBehavior>
                   <a>Login</a>
                 </Link>
               </li>

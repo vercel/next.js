@@ -18,6 +18,7 @@ export const TabNavItem = ({
           !isActive,
         'bg-vercel-blue text-white': isActive,
       })}
+      legacyBehavior
     >
       {children}
     </Link>

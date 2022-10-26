@@ -19,22 +19,20 @@ const Index = () => (
         <ul className={styles.list}>
           <li>
             <Link href="/about" as="/team">
-              <a>Visit /team</a>
+              Visit /team
             </Link>
           </li>
           <li>
             <Link href="/about" as="/about-us">
-              <a>Visit /about-us</a>
+              Visit /about-us
             </Link>
           </li>
           <li>
-            <Link href="/post/first-post">
-              <a>Visit /post/first-post</a>
-            </Link>
+            <Link href="/post/first-post">Visit /post/first-post</Link>
           </li>
           <li>
             <Link href="/blog/2020/first-post">
-              <a>Visit /blog/2020/first-post</a>
+              Visit /blog/2020/first-post
             </Link>
           </li>
           <li>

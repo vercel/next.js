@@ -15,7 +15,7 @@ export default function LocaleSwitcher() {
           return (
             <li key={locale}>
               <Link href={{ pathname, query }} as={asPath} locale={locale}>
-                <a>{locale}</a>
+                {locale}
               </Link>
             </li>
           )
