@@ -10,7 +10,7 @@ import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
 import { CONFIG_FILES } from '../shared/lib/constants'
 import path from 'path'
-import { loadBindings } from '../build/swc'
+import type { NextConfig } from '../types'
 
 const nextDev: cliCommand = (argv) => {
   const validArgs: arg.Spec = {
@@ -18,7 +18,12 @@ const nextDev: cliCommand = (argv) => {
     '--help': Boolean,
     '--port': Number,
     '--hostname': String,
-    '--diagnostics': Boolean,
+    '--turbo': Boolean,
+
+    // To align current messages with native binary.
+    // Will need to adjust subcommand later.
+    '--show-all': Boolean,
+    '--root': String,
 
     // Aliases
     '-h': '--help',
@@ -96,20 +101,192 @@ const nextDev: cliCommand = (argv) => {
     port,
   }
 
-  if (args['--diagnostics']) {
-    Log.warn('running diagnostics...')
+  if (args['--turbo']) {
+    // check for postcss, babelrc, swc plugins
+    return new Promise(async (resolve) => {
+      const { findConfigPath } =
+        require('../lib/find-config') as typeof import('../lib/find-config')
+      const { loadBindings } =
+        require('../build/swc') as typeof import('../build/swc')
+      const { getPkgManager } =
+        require('../lib/helpers/get-pkg-manager') as typeof import('../lib/helpers/get-pkg-manager')
+      const { getBabelConfigFile } =
+        require('../build/webpack-config') as typeof import('../build/webpack-config')
+      const { defaultConfig } =
+        require('../server/config-shared') as typeof import('../server/config-shared')
+      const { default: loadConfig } =
+        require('../server/config') as typeof import('../server/config')
+      const { PHASE_DEVELOPMENT_SERVER } =
+        require('../shared/lib/constants') as typeof import('../shared/lib/constants')
+      const chalk =
+        require('next/dist/compiled/chalk') as typeof import('next/dist/compiled/chalk')
 
-    loadBindings().then((bindings: any) => {
-      const packagePath = require('next/dist/compiled/find-up').sync(
-        'package.json'
+      // To regenerate the TURBOPACK gradient require('gradient-string')('blue', 'red')('>>> TURBOPACK')
+      const isTTY = process.stdout.isTTY
+
+      const turbopackGradient = `${chalk.bold(
+        isTTY
+          ? '\x1B[38;2;0;0;255m>\x1B[39m\x1B[38;2;23;0;232m>\x1B[39m\x1B[38;2;46;0;209m>\x1B[39m \x1B[38;2;70;0;185mT\x1B[39m\x1B[38;2;93;0;162mU\x1B[39m\x1B[38;2;116;0;139mR\x1B[39m\x1B[38;2;139;0;116mB\x1B[39m\x1B[38;2;162;0;93mO\x1B[39m\x1B[38;2;185;0;70mP\x1B[39m\x1B[38;2;209;0;46mA\x1B[39m\x1B[38;2;232;0;23mC\x1B[39m\x1B[38;2;255;0;0mK\x1B[39m'
+          : '>>> TURBOPACK'
+      )} ${chalk.dim('(alpha)')}\n\n`
+
+      let thankYouMsg = `Thank you for trying Next.js v13 with Turbopack! As a reminder,\nTurbopack is currently in alpha and not yet ready for production.\nWe appreciate your ongoing support as we work to make it ready\nfor everyone.\n`
+
+      let unsupportedParts = ''
+      // TODO: warning for postcss mentioning sidecar
+      let babelrc = await getBabelConfigFile(dir)
+      if (babelrc) babelrc = path.basename(babelrc)
+
+      const rawNextConfig = (await loadConfig(
+        PHASE_DEVELOPMENT_SERVER,
+        dir,
+        undefined,
+        true
+      )) as NextConfig
+
+      const hasNonDefaultConfig = Object.keys(rawNextConfig).some(
+        (configKey) => {
+          if (!(configKey in defaultConfig)) return false
+          if (typeof defaultConfig[configKey] !== 'object') {
+            return defaultConfig[configKey] !== rawNextConfig[configKey]
+          }
+          return (
+            JSON.stringify(rawNextConfig[configKey]) !==
+            JSON.stringify(defaultConfig[configKey])
+          )
+        }
       )
-      let r = bindings.diagnostics.startDiagnostics({
-        ...devServerOptions,
-        rootDir: path.dirname(packagePath),
-      })
-      // Start preflight after server is listening and ignore errors:
-      preflight().catch(() => {})
-      return r
+      const findUp =
+        require('next/dist/compiled/find-up') as typeof import('next/dist/compiled/find-up')
+      const packagePath = findUp.sync('package.json', { cwd: dir })
+      let hasSideCar = false
+
+      if (packagePath) {
+        const pkgData = require(packagePath)
+        hasSideCar = Object.values(
+          (pkgData.scripts || {}) as Record<string, string>
+        ).some(
+          (script) => script.includes('tailwind') || script.includes('postcss')
+        )
+      }
+      let postcssFile = !hasSideCar && (await findConfigPath(dir, 'postcss'))
+      let tailwindFile = !hasSideCar && (await findConfigPath(dir, 'tailwind'))
+
+      if (postcssFile) postcssFile = path.basename(postcssFile)
+      if (tailwindFile) tailwindFile = path.basename(tailwindFile)
+
+      const hasWarningOrError =
+        tailwindFile || postcssFile || babelrc || hasNonDefaultConfig
+      if (!hasWarningOrError) {
+        thankYouMsg = chalk.dim(thankYouMsg)
+      }
+      console.log(turbopackGradient + thankYouMsg)
+
+      let feedbackMessage = `Learn more about Next.js v13 and Turbopack: ${chalk.underline(
+        'https://nextjs.link/with-turbopack'
+      )}\nPlease direct feedback to: ${chalk.underline(
+        'https://nextjs.link/turbopack-feedback'
+      )}\n`
+
+      if (!hasWarningOrError) {
+        feedbackMessage = chalk.dim(feedbackMessage)
+      }
+
+      if (babelrc) {
+        unsupportedParts += `\n- Babel detected (${chalk.cyan(
+          babelrc
+        )})\n  ${chalk.dim(
+          `Babel is not yet supported. To use Turbopack at the moment,\n  you'll need to remove your usage of Babel.`
+        )}`
+      }
+      if (hasNonDefaultConfig) {
+        unsupportedParts += `\n\n- Unsupported Next.js configuration option(s) (${chalk.cyan(
+          'next.config.js'
+        )})\n  ${chalk.dim(
+          `The only configurations options supported are:\n    - ${chalk.cyan(
+            'experimental.serverComponentsExternalPackages'
+          )}\n    - ${chalk.cyan(
+            'experimental.transpilePackages'
+          )}\n  To use Turbopack, remove other configuration options.`
+        )}   `
+      }
+
+      if (postcssFile || tailwindFile) {
+        console.warn(
+          `${chalk.bold.yellow(
+            'Warning:'
+          )} You are using configuration that may require additional\nsetup with Turbopack. If you already made these changes please\nignore this warning.\n`
+        )
+      }
+
+      if (postcssFile) {
+        console.warn(
+          `- PostCSS detected (${chalk.cyan(postcssFile)})\n` +
+            `  ${chalk.dim(
+              'PostCSS is not yet supported by Next.js v13 with Turbopack.\n  To use with Turbopack, see: https://nextjs.link/turbopack-postcss'
+            )}\n`
+        )
+      }
+
+      if (tailwindFile) {
+        console.warn(
+          `- Tailwind detected (${chalk.cyan(tailwindFile)})\n` +
+            `  ${chalk.dim(
+              'Tailwind is not yet supported by Next.js v13 with Turbopack.\n  To use with Turbopack, see: https://nextjs.link/turbopack-tailwind'
+            )}\n`
+        )
+      }
+
+      if (unsupportedParts) {
+        const pkgManager = getPkgManager(dir)
+
+        console.error(
+          `${chalk.bold.red(
+            'Error:'
+          )} You are using configuration and/or tools that are not yet\nsupported by Next.js v13 with Turbopack:\n${unsupportedParts}\n
+If you cannot make the changes above, but still want to try out\nNext.js v13 with Turbopack, create the Next.js v13 playground app\nby running the following commands:
+
+  ${chalk.bold.cyan(
+    `${
+      pkgManager === 'npm'
+        ? 'npx create-next-app'
+        : `${pkgManager} create next-app`
+    } --example with-turbopack with-turbopack-app`
+  )}\n  cd with-turbopack-app\n  ${pkgManager} run dev
+        `
+        )
+        console.warn(feedbackMessage)
+        process.exit(1)
+      }
+      console.log(feedbackMessage)
+
+      loadBindings()
+        .then((bindings: any) => {
+          // eslint-disable-next-line no-shadow
+          const findUp =
+            require('next/dist/compiled/find-up') as typeof import('next/dist/compiled/find-up')
+          const turboJson = findUp.sync('turbo.json', { cwd: dir })
+          // eslint-disable-next-line no-shadow
+          const packagePath = findUp.sync('package.json', { cwd: dir })
+
+          let server = bindings.turbo.startDev({
+            ...devServerOptions,
+            showAll: args['--show-all'] ?? false,
+            rootDir:
+              args['--root'] ??
+              (turboJson
+                ? path.dirname(turboJson)
+                : packagePath
+                ? path.dirname(packagePath)
+                : undefined),
+            serverComponentsExternalPackages:
+              rawNextConfig.experimental?.serverComponentsExternalPackages,
+          })
+          // Start preflight after server is listening and ignore errors:
+          preflight().catch(() => {})
+          return server
+        })
+        .then(resolve)
     })
   } else {
     startServer(devServerOptions)
