@@ -1,4 +1,4 @@
-# AWS Amplify and TypeScript with NextJS
+# AWS Amplify and TypeScript with Next.js
 
 [![amplifybutton](https://oneclick.amplifyapp.com/button.svg)](https://console.aws.amazon.com/amplify/home#/deploy?repo=https://github.com/vercel/next.js/tree/canary/examples/with-aws-amplify)
 
@@ -6,7 +6,7 @@ This example shows how to build a server rendered web application with NextJS an
 
 Two routes are implemented :
 
-- `/` : A server-rendered route that uses `getServersideProps` to load data from AppSync and renders it on the server (Code in [pages/index.tsx](src/pages/index.tsx))
+- `/` : A server-rendered route that uses `getServerSideProps` to load data from AppSync and renders it on the server (Code in [pages/index.tsx](src/pages/index.tsx))
 
 - `/todo/[id]` : A dynamic route that uses `getStaticPaths`, `getStaticProps` and the id from the provided context to load a single todo from AppSync and render it on the server. (Code in [pages/todo/[id].tsx](src/pages/todo/[id].tsx))
 
