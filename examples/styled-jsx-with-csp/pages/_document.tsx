@@ -1,7 +1,16 @@
-import Document, { Html, Head, Main, NextScript } from 'next/document'
+import Document, {
+  Html,
+  Head,
+  Main,
+  NextScript,
+  DocumentContext,
+} from 'next/document'
 import { nanoid } from 'nanoid'
+
 class CustomDocument extends Document {
-  static async getInitialProps(ctx) {
+  public props: any
+
+  static async getInitialProps(ctx: DocumentContext) {
     const nonce = nanoid()
     const docProps = await ctx.defaultGetInitialProps(ctx, { nonce })
 
@@ -15,7 +24,8 @@ class CustomDocument extends Document {
       contentSecurityPolicy = `default-src 'self'; style-src 'unsafe-inline'; script-src 'self' 'unsafe-eval';`
     }
 
-    ctx.res.setHeader('Content-Security-Policy', contentSecurityPolicy)
+    ctx.res?.setHeader('Content-Security-Policy', contentSecurityPolicy)
+
     return { ...docProps, nonce }
   }
 
