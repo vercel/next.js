@@ -15,7 +15,7 @@
   <a aria-label="Crates.io version" href="https://crates.io/crates/turbopack">
     <img alt="" src="https://img.shields.io/crates/v/turbopack.svg?style=for-the-badge&labelColor=000000">
   </a>
-  <a aria-label="License" href="https://github.com/vercel/turbo/blob/canary/license.md">
+  <a aria-label="License" href="https://github.com/vercel/turbo/blob/main/LICENSE">
     <img alt="" src="https://img.shields.io/npm/l/turbo.svg?style=for-the-badge&labelColor=000000&color=">
   </a>
   <a aria-label="Join the community on GitHub" href="https://github.com/vercel/turbo/discussions">
