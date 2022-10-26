@@ -4,7 +4,7 @@ description: Next.js provides an integrated ESLint experience by default. These 
 
 # ESLint
 
-Since version **11.0.0**, Next.js provides an integrated [ESLint](https://eslint.org/) experience out of the box. Add `next lint` as a script to `package.json`:
+Next.js provides an integrated [ESLint](https://eslint.org/) experience out of the box. Add `next lint` as a script to `package.json`:
 
 ```json
 "scripts": {
