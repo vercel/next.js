@@ -1,8 +1,15 @@
+import type {
+  GetStaticProps,
+  GetStaticPaths,
+  InferGetStaticPropsType,
+} from 'next'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
 import LocaleSwitcher from '../../components/locale-switcher'
 
-export default function GspPage(props) {
+type GspPageProps = InferGetStaticPropsType<typeof getStaticProps>
+
+export default function GspPage(props: GspPageProps) {
   const router = useRouter()
   const { defaultLocale, isFallback, query } = router
 
@@ -20,25 +27,27 @@ export default function GspPage(props) {
 
       <LocaleSwitcher />
 
-      <Link href="/gsp">
-        <a>To getStaticProps page</a>
-      </Link>
+      <Link href="/gsp">To getStaticProps page</Link>
       <br />
 
-      <Link href="/gssp">
-        <a>To getServerSideProps page</a>
-      </Link>
+      <Link href="/gssp">To getServerSideProps page</Link>
       <br />
 
-      <Link href="/">
-        <a>To index page</a>
-      </Link>
+      <Link href="/">To index page</Link>
       <br />
     </div>
   )
 }
 
-export const getStaticProps = ({ locale, locales }) => {
+type Props = {
+  locale?: string
+  locales?: string[]
+}
+
+export const getStaticProps: GetStaticProps<Props> = async ({
+  locale,
+  locales,
+}) => {
   return {
     props: {
       locale,
@@ -47,7 +56,7 @@ export const getStaticProps = ({ locale, locales }) => {
   }
 }
 
-export const getStaticPaths = ({ locales }) => {
+export const getStaticPaths: GetStaticPaths = ({ locales = [] }) => {
   const paths = []
 
   for (const locale of locales) {
