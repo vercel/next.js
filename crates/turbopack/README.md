@@ -45,7 +45,7 @@ Follow [@turborepo](https://twitter.com/turborepo) on Twitter and for project up
 
 ## Authors
 
-- Tobias Koppers ([@sokra](https://twitter.com/sokra))
+- Tobias Koppers ([@wSokra](https://twitter.com/wSokra))
 - Maia Teegarden ([@padmaia](https://twitter.com/padmaia))
 
 ## Security
