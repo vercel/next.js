@@ -6,11 +6,12 @@ import styles from '../styles/home.module.css'
 function throwError() {
   console.log(
     // The function body() is not defined
+    // @ts-ignore
     document.body()
   )
 }
 
-function Home() {
+export default function Home() {
   const [count, setCount] = useState(0)
   const increment = useCallback(() => {
     setCount((v) => v + 1)
@@ -56,7 +57,7 @@ function Home() {
         </p>
         <Button
           onClick={(e) => {
-            setTimeout(() => document.parentNode(), 0)
+            setTimeout(() => document.parentNode, 0)
             throwError()
           }}
         >
@@ -67,5 +68,3 @@ function Home() {
     </main>
   )
 }
-
-export default Home
