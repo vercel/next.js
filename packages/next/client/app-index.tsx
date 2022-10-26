@@ -149,13 +149,9 @@ function ServerRoot({ cacheKey }: { cacheKey: string }): JSX.Element {
   return root
 }
 
-function StrictModeIfEnabled({ children }: { children: React.ReactNode }) {
-  return process.env.__NEXT_STRICT_MODE ? (
-    <React.StrictMode>{children}</React.StrictMode>
-  ) : (
-    <>{children}</>
-  )
-}
+const StrictModeIfEnabled = process.env.__NEXT_STRICT_MODE
+  ? React.StrictMode
+  : React.Fragment
 
 function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
   React.useEffect(() => {
