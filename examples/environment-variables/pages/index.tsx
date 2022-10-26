@@ -1,6 +1,13 @@
+import Link from 'next/link'
 import styles from '../styles.module.css'
 
-const Code = (p) => <code className={styles.inlineCode} {...p} />
+type CodeProps = {
+  children: React.ReactNode
+}
+
+const Code = ({ children }: CodeProps) => (
+  <code className={styles.inlineCode}>{children}</code>
+)
 
 const IndexPage = () => (
   <div className={styles.container}>
@@ -9,9 +16,9 @@ const IndexPage = () => (
       <hr className={styles.hr} />
       <p>
         In the table below you'll see how{' '}
-        <a href="https://nextjs.org/docs/basic-features/environment-variables#exposing-environment-variables-to-the-browser">
+        <Link href="https://nextjs.org/docs/basic-features/environment-variables#exposing-environment-variables-to-the-browser">
           environment variables can be exposed to the browser
-        </a>{' '}
+        </Link>{' '}
         with Next.js.
       </p>
       <p>
