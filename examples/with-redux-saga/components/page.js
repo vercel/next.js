@@ -15,9 +15,7 @@ function Page({ linkTo, NavigateTo, title }) {
       <Clock lastUpdate={lastUpdate} light={light} />
       <Counter />
       <nav>
-        <Link href={linkTo}>
-          Navigate:{NavigateTo}
-        </Link>
+        <Link href={linkTo}>Navigate:{NavigateTo}</Link>
       </nav>
       {placeholderData && (
         <pre>
@@ -26,7 +24,7 @@ function Page({ linkTo, NavigateTo, title }) {
       )}
       {error && <p style={{ color: 'red' }}>Error: {error.message}</p>}
     </div>
-  );
+  )
 }
 
 export default Page

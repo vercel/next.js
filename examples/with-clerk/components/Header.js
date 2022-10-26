@@ -13,10 +13,8 @@ const Header = () => (
   <header className={styles.header}>
     <div className={styles.left}>
       <Link href="/" className={styles.logo}>
-
         <Image src="/logo.svg" width="32" height="32" alt="Logo" />
         <span className={styles.appName}>Your application</span>
-
       </Link>
     </div>
     <div className={styles.right}>

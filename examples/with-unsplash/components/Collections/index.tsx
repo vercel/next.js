@@ -21,8 +21,7 @@ const Collections = ({ id_collection }: CollectionProps) => {
     <div className={styles.chips}>
       {data.map(({ id, title, slug }) =>
         id_collection ? (
-          (<Link href="/" key={`collection_${slug}`} className={styles.chip}>
-
+          <Link href="/" key={`collection_${slug}`} className={styles.chip}>
             {title}
             <Link href="/" legacyBehavior>
               <button
@@ -31,20 +30,20 @@ const Collections = ({ id_collection }: CollectionProps) => {
                 aria-label="Return to home"
               ></button>
             </Link>
-
-          </Link>)
+          </Link>
         ) : (
           <Link
             href={{ pathname: '/collection/[slug]', query: { id: id } }}
             as={`/collection/${slug}?id=${id}`}
             key={`collection_${slug}`}
-            className={styles.chip}>
+            className={styles.chip}
+          >
             {title}
           </Link>
         )
       )}
     </div>
-  );
+  )
 }
 
 export default Collections

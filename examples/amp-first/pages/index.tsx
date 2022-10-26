@@ -247,7 +247,7 @@ export const getServerSideProps: GetServerSideProps = async ({ req }) => {
     }
     const forwardedProto = req.headers['x-forwarded-proto']
     if (forwardedProto) {
-      return forwardedProto.split(/\s*,\s*/)[0];
+      return forwardedProto.split(/\s*,\s*/)[0]
     }
     return 'http'
   }

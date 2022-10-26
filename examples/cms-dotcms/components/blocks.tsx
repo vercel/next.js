@@ -17,7 +17,7 @@ export const DotLink = ({ attrs: { href, target }, children }) => {
     <Link href={href} target={target || '_self'} legacyBehavior>
       {children}
     </Link>
-  );
+  )
 }
 
 const nodeMarks = {

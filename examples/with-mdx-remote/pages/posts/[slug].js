@@ -56,7 +56,7 @@ export default function PostPage({ source, frontMatter }) {
         }
       `}</style>
     </Layout>
-  );
+  )
 }
 
 export const getStaticProps = async ({ params }) => {

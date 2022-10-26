@@ -91,7 +91,7 @@ const Draft: React.FC = () => {
         }
       `}</style>
     </Layout>
-  );
+  )
 }
 
 export default Draft

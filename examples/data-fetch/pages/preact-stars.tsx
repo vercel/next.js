@@ -15,10 +15,10 @@ export async function getStaticProps() {
 export default function PreactStarsPage({
   stars,
 }: InferGetStaticPropsType<typeof getStaticProps>) {
-  return <>
-    <p>Preact has {stars} ⭐</p>
-    <Link href="/">
-      I bet Next.js has more stars (?)
-    </Link>
-  </>;
+  return (
+    <>
+      <p>Preact has {stars} ⭐</p>
+      <Link href="/">I bet Next.js has more stars (?)</Link>
+    </>
+  )
 }

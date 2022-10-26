@@ -12,5 +12,5 @@ export default function PersonComponent({ person }: PersonProps) {
         {person.name}
       </Link>
     </li>
-  );
+  )
 }

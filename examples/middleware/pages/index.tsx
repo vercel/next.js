@@ -21,7 +21,7 @@ const Home: NextPage = () => {
         </Link>
       </p>
     </div>
-  );
+  )
 }
 
 export default Home

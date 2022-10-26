@@ -5,9 +5,7 @@ const Two = () => (
   <div>
     <Trans>Page two.</Trans>{' '}
     <Link href="/">
-
       <Trans>Back home</Trans>
-
     </Link>
     <br />
   </div>

@@ -20,7 +20,7 @@ const Nav = () => {
         `}
       </style>
     </nav>
-  );
+  )
 }
 
 export default Nav

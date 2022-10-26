@@ -8,5 +8,5 @@ export default function Header() {
       </Link>
       .
     </h2>
-  );
+  )
 }

@@ -35,5 +35,5 @@ export default function CoverImage({ title, slug, image: source, priority }) {
         image
       )}
     </div>
-  );
+  )
 }

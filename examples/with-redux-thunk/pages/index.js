@@ -10,12 +10,12 @@ const Index = () => {
     dispatch(startClock())
   }, [dispatch])
 
-  return <>
-    <Examples />
-    <Link href="/show-redux-state">
-      Click to see current Redux State
-    </Link>
-  </>;
+  return (
+    <>
+      <Examples />
+      <Link href="/show-redux-state">Click to see current Redux State</Link>
+    </>
+  )
 }
 
 export default Index

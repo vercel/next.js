@@ -41,7 +41,7 @@ const HeroPost = (props: HeroPostProps) => {
         </div>
       </div>
     </section>
-  );
+  )
 }
 
 export default HeroPost

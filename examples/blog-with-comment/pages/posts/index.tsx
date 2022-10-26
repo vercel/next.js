@@ -15,7 +15,8 @@ export default function NotePage({
             <Link
               as={`/posts/${post.slug}`}
               href="/posts/[slug]"
-              className="text-lg leading-6 font-bold">
+              className="text-lg leading-6 font-bold"
+            >
               {post.title}
             </Link>
             <p>{post.excerpt}</p>
@@ -28,7 +29,7 @@ export default function NotePage({
         <p>No blog posted yet :/</p>
       )}
     </Container>
-  );
+  )
 }
 
 export async function getStaticProps() {

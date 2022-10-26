@@ -22,9 +22,8 @@ export default function PostPreview({
         <Link
           href={`/posts/${slug}`}
           className="hover:underline"
-          dangerouslySetInnerHTML={{ __html: title }}>
-
-        </Link>
+          dangerouslySetInnerHTML={{ __html: title }}
+        ></Link>
       </h3>
       <div className="text-lg mb-4">
         <Date dateString={date} />
@@ -35,5 +34,5 @@ export default function PostPreview({
       />
       <Avatar author={author} />
     </div>
-  );
+  )
 }

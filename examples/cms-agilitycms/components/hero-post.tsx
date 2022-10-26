@@ -39,7 +39,7 @@ export default function HeroPost({
         )}
       </div>
     </section>
-  );
+  )
 }
 
 // The data returned here will be send as `props` to the component

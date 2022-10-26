@@ -25,12 +25,10 @@ export default connect(
           <h1>{this.props.title}</h1>
           <Clock lastUpdate={this.props.lastUpdate} light={this.props.light} />
           <nav>
-            <Link href={this.props.linkTo}>
-              Navigate
-            </Link>
+            <Link href={this.props.linkTo}>Navigate</Link>
           </nav>
         </div>
-      );
+      )
     }
   }
 )

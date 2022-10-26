@@ -13,7 +13,8 @@ export default function PostCardGrid() {
             key={index}
             href={`/?postId=${id}`}
             as={`/post/${id}`}
-            className={styles.postCard}>
+            className={styles.postCard}
+          >
             {id}
           </Link>
         ))}
@@ -26,11 +27,12 @@ export default function PostCardGrid() {
             key={index}
             href="/article/[articleId]"
             as={`/article/${id}`}
-            className={styles.postCard}>
+            className={styles.postCard}
+          >
             {id}
           </Link>
         ))}
       </div>
     </div>
-  );
+  )
 }

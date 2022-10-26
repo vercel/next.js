@@ -38,5 +38,5 @@ export default function Blog({ posts }) {
         </div>
       </div>
     </section>
-  );
+  )
 }

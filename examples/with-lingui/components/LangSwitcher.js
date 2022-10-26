@@ -12,13 +12,12 @@ export default function LangSwitcher() {
   const otherLocale = locales?.find((cur) => cur !== locale)
 
   return (
-    (<Link
+    <Link
       href={route}
       locale={otherLocale}
-      style={{ display: 'block', marginBottom: '20px' }}>
-
+      style={{ display: 'block', marginBottom: '20px' }}
+    >
       {availableLanguageNames[otherLocale]}
-
-    </Link>)
-  );
+    </Link>
+  )
 }

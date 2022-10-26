@@ -5,11 +5,7 @@ export default function Form() {
   return (
     <div className="container">
       <h1 className={styles.title}>
-        Form{' '}
-        <Link href="/">
-          without
-        </Link>{' '}
-        JavaScript.
+        Form <Link href="/">without</Link> JavaScript.
       </h1>
       <p className={styles.description}>
         Get started by looking at{' '}
@@ -31,5 +27,5 @@ export default function Form() {
         <button type="submit">Submit</button>
       </form>
     </div>
-  );
+  )
 }

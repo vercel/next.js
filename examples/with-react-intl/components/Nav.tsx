@@ -9,22 +9,18 @@ export default function Nav() {
     <nav className={styles.nav}>
       <li className={styles.li}>
         <Link href="/" passHref>
-
           <FormattedMessage
             defaultMessage="Home"
             description="Nav: Index name"
           />
-
         </Link>
       </li>
       <li className={styles.li}>
         <Link href="/about" passHref>
-
           <FormattedMessage
             defaultMessage="About"
             description="Nav: About item"
           />
-
         </Link>
       </li>
 
@@ -37,13 +33,12 @@ export default function Nav() {
             locale={availableLocale}
             passHref
             prefetch={false}
-            className={availableLocale === locale ? styles.active : undefined}>
-
+            className={availableLocale === locale ? styles.active : undefined}
+          >
             {availableLocale}
-
           </Link>
         </li>
       ))}
     </nav>
-  );
+  )
 }

@@ -45,30 +45,30 @@ function SignIn() {
     }
   }
 
-  return <>
-    <h1>Sign In</h1>
-    <form onSubmit={handleSubmit}>
-      {errorMsg && <p>{errorMsg}</p>}
-      <Field
-        name="email"
-        type="email"
-        autoComplete="email"
-        required
-        label="Email"
-      />
-      <Field
-        name="password"
-        type="password"
-        autoComplete="password"
-        required
-        label="Password"
-      />
-      <button type="submit">Sign in</button> or{' '}
-      <Link href="/signup">
-        Sign up
-      </Link>
-    </form>
-  </>;
+  return (
+    <>
+      <h1>Sign In</h1>
+      <form onSubmit={handleSubmit}>
+        {errorMsg && <p>{errorMsg}</p>}
+        <Field
+          name="email"
+          type="email"
+          autoComplete="email"
+          required
+          label="Email"
+        />
+        <Field
+          name="password"
+          type="password"
+          autoComplete="password"
+          required
+          label="Password"
+        />
+        <button type="submit">Sign in</button> or{' '}
+        <Link href="/signup">Sign up</Link>
+      </form>
+    </>
+  )
 }
 
 export default SignIn

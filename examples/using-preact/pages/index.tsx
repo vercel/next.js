@@ -6,21 +6,15 @@ export default function IndexPage() {
       Hello World.{' '}
       <ul>
         <li>
-          <Link href="/about">
-            About
-          </Link>
+          <Link href="/about">About</Link>
         </li>
         <li>
-          <Link href="/ssr">
-            SSR
-          </Link>
+          <Link href="/ssr">SSR</Link>
         </li>
         <li>
-          <Link href="/ssg">
-            SSG
-          </Link>
+          <Link href="/ssg">SSG</Link>
         </li>
       </ul>
     </div>
-  );
+  )
 }

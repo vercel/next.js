@@ -44,11 +44,8 @@ const MyApp = ({ Component, pageProps }) => {
             <SignedOut>
               <main>
                 <p>
-                  Please{' '}
-                  <Link href="/sign-in">
-                    sign in
-                  </Link>{' '}
-                  to access this page.
+                  Please <Link href="/sign-in">sign in</Link> to access this
+                  page.
                 </p>
               </main>
             </SignedOut>
@@ -56,7 +53,7 @@ const MyApp = ({ Component, pageProps }) => {
         )}
       </Layout>
     </ClerkProvider>
-  );
+  )
 }
 
 export default MyApp

@@ -61,7 +61,7 @@ const Header = () => {
         }
       `}</style>
     </header>
-  );
+  )
 }
 
 export default Header

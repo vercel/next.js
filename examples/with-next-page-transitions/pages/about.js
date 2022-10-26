@@ -29,7 +29,7 @@ const About = (props) => {
         Go back home
       </Link>
     </div>
-  );
+  )
 }
 
 About.propTypes = {

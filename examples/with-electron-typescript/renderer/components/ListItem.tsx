@@ -8,11 +8,9 @@ type Props = {
 }
 
 const ListItem = ({ data }: Props) => (
-  (<Link href="/detail/[id]" as={`/detail/${data.id}`}>
-
+  <Link href="/detail/[id]" as={`/detail/${data.id}`}>
     {data.id}:{data.name}
-
-  </Link>)
+  </Link>
 )
 
 export default ListItem

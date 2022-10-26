@@ -37,11 +37,7 @@ export default function PageWithJSbasedForm() {
   return (
     <div className="container">
       <h1 className={styles.title}>
-        Form{' '}
-        <Link href="/">
-          with
-        </Link>{' '}
-        JavaScript.
+        Form <Link href="/">with</Link> JavaScript.
       </h1>
 
       <p className={styles.description}>
@@ -57,5 +53,5 @@ export default function PageWithJSbasedForm() {
         <button type="submit">Submit</button>
       </form>
     </div>
-  );
+  )
 }

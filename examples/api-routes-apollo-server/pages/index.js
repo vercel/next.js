@@ -16,7 +16,7 @@ export default function UserListing({ users }) {
         ))}
       </ul>
     </div>
-  );
+  )
 }
 
 export async function getStaticProps() {

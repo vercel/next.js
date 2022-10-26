@@ -9,9 +9,7 @@ export default function Index() {
     <CounterContainer.Provider>
       <ClockContainer.Provider>
         <div>
-          <Link href="/">
-            go to Index
-          </Link>
+          <Link href="/">go to Index</Link>
           <br />
           <br />
           <div>
@@ -21,5 +19,5 @@ export default function Index() {
         </div>
       </ClockContainer.Provider>
     </CounterContainer.Provider>
-  );
+  )
 }

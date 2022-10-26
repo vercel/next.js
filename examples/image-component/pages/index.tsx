@@ -36,34 +36,22 @@ const Index = () => (
       </p>
       <ul>
         <li>
-          <Link href="/responsive">
-            Responsive to viewport
-          </Link>
+          <Link href="/responsive">Responsive to viewport</Link>
         </li>
         <li>
-          <Link href="/fill">
-            Fill dimensions of parent element
-          </Link>
+          <Link href="/fill">Fill dimensions of parent element</Link>
         </li>
         <li>
-          <Link href="/placeholder">
-            Blur-up placeholder
-          </Link>
+          <Link href="/placeholder">Blur-up placeholder</Link>
         </li>
         <li>
-          <Link href="/shimmer">
-            Shimmer placeholder
-          </Link>
+          <Link href="/shimmer">Shimmer placeholder</Link>
         </li>
         <li>
-          <Link href="/color">
-            Color placeholder
-          </Link>
+          <Link href="/color">Color placeholder</Link>
         </li>
         <li>
-          <Link href="/background">
-            Text on background image
-          </Link>
+          <Link href="/background">Text on background image</Link>
         </li>
       </ul>
       <hr className={styles.hr} />

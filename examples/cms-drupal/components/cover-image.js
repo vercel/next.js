@@ -24,5 +24,5 @@ export default function CoverImage({ title, coverImage, slug }) {
         image
       )}
     </div>
-  );
+  )
 }

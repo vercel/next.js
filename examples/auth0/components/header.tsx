@@ -86,7 +86,7 @@ const Header = ({ user, loading }: HeaderProps) => {
         }
       `}</style>
     </header>
-  );
+  )
 }
 
 export default Header

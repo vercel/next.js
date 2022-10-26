@@ -107,5 +107,5 @@ export default function Movie() {
         `}
       </style>
     </div>
-  );
+  )
 }

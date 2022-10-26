@@ -39,6 +39,6 @@ const CoverImage: React.FC<TCoverImage> = ({
         image
       )}
     </div>
-  );
+  )
 }
 export default CoverImage

@@ -52,7 +52,7 @@ const Layout = ({ children }) => {
         </Content>
       </Footer>
     </Generic>
-  );
+  )
 }
 
 export default Layout

@@ -33,5 +33,5 @@ export default function HeroPost({
         </div>
       </div>
     </section>
-  );
+  )
 }

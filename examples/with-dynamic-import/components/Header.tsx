@@ -11,5 +11,5 @@ export default function Header() {
         About
       </Link>
     </div>
-  );
+  )
 }

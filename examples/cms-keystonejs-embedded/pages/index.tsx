@@ -27,20 +27,16 @@ export default function Home({ posts }) {
             posts.map((post) => (
               <li key={post.id} className={styles.card}>
                 <Link href={`/post/${post.slug}`}>
-
                   <h2>{post.title}</h2>
                   <p>Read now &rarr;</p>
-
                 </Link>
               </li>
             ))
           ) : (
             <li className={`${styles.noposts} ${styles.card}`}>
               <Link href="http://localhost:8000">
-
                 <h2>No Posts</h2>
                 <p>Add one via the Admin UI &rarr;</p>
-
               </Link>
             </li>
           )}
@@ -48,13 +44,14 @@ export default function Home({ posts }) {
         {process.env.NODE_ENV !== 'production' && (
           <Link
             href="/api/graphql?query=%7BallPosts%7Btitle%2Cslug%2Ccontent%7D%7D"
-            className={styles.playground}>
+            className={styles.playground}
+          >
             Visit the graphql playground
           </Link>
         )}
       </main>
     </div>
-  );
+  )
 }
 
 // Here we use the Lists API to load all the posts we want to display

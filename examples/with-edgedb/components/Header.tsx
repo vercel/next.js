@@ -49,7 +49,7 @@ const Header: React.FC = () => {
         }
       `}</style>
     </nav>
-  );
+  )
 }
 
 export default Header

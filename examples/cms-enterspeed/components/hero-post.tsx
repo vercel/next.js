@@ -34,9 +34,8 @@ export default function HeroPost({
             <Link
               href={`/posts${slug}`}
               className="hover:underline"
-              dangerouslySetInnerHTML={{ __html: title }}>
-
-            </Link>
+              dangerouslySetInnerHTML={{ __html: title }}
+            ></Link>
           </h3>
           <div className="mb-4 md:mb-0 text-lg">
             <Date dateString={date} />
@@ -51,5 +50,5 @@ export default function HeroPost({
         </div>
       </div>
     </section>
-  );
+  )
 }

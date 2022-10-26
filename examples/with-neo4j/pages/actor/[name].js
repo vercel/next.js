@@ -41,7 +41,8 @@ export default function Actor() {
                   as={{
                     pathname: `/movie/${encodeURIComponent(movie)}`,
                   }}
-                  legacyBehavior>
+                  legacyBehavior
+                >
                   <a>{movie}</a>
                 </Link>
               </div>
@@ -95,5 +96,5 @@ export default function Actor() {
         `}
       </style>
     </div>
-  );
+  )
 }

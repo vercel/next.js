@@ -29,5 +29,5 @@ export default function Nav() {
         }
       `}</style>
     </header>
-  );
+  )
 }

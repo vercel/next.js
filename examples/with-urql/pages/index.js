@@ -7,15 +7,13 @@ export default function Home({ pokemons }) {
       {pokemons.map((pokemon) => (
         <li key={pokemon.name}>
           <Link as={`/pokemon/${pokemon.name}`} href="/pokemon/[name]">
-
             <h2 style={{ textTransform: 'capitalize' }}>{pokemon.name}</h2>
             <img src={pokemon.image} alt={`${pokemon.name} picture`} />
-
           </Link>
         </li>
       ))}
     </ul>
-  );
+  )
 }
 
 export const getStaticProps = async () => {

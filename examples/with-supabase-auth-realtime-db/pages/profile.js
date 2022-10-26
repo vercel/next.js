@@ -18,14 +18,12 @@ export default function Profile({ user }) {
           </Typography.Text>
 
           <Typography.Text>
-            <Link href="/">
-              Static example with useSWR
-            </Link>
+            <Link href="/">Static example with useSWR</Link>
           </Typography.Text>
         </Space>
       </Card>
     </div>
-  );
+  )
 }
 
 export async function getServerSideProps({ req }) {

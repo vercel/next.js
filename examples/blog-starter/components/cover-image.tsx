@@ -27,7 +27,7 @@ const CoverImage = ({ title, src, slug }: Props) => {
         image
       )}
     </div>
-  );
+  )
 }
 
 export default CoverImage

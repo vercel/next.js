@@ -40,29 +40,19 @@ const Index = () => (
       </p>
       <ul>
         <li>
-          <Link href="/layout-intrinsic">
-            layout="intrinsic"
-          </Link>
+          <Link href="/layout-intrinsic">layout="intrinsic"</Link>
         </li>
         <li>
-          <Link href="/layout-responsive">
-            layout="responsive"
-          </Link>
+          <Link href="/layout-responsive">layout="responsive"</Link>
         </li>
         <li>
-          <Link href="/layout-fixed">
-            layout="fixed"
-          </Link>
+          <Link href="/layout-fixed">layout="fixed"</Link>
         </li>
         <li>
-          <Link href="/layout-fill">
-            layout="fill"
-          </Link>
+          <Link href="/layout-fill">layout="fill"</Link>
         </li>
         <li>
-          <Link href="/background">
-            background demo
-          </Link>
+          <Link href="/background">background demo</Link>
         </li>
       </ul>
       <hr className={styles.hr} />
@@ -81,9 +71,7 @@ const Index = () => (
       </p>
       <ul>
         <li>
-          <Link href="/placeholder">
-            placeholder="blur"
-          </Link>
+          <Link href="/placeholder">placeholder="blur"</Link>
         </li>
         <li>
           <Link href="/shimmer">

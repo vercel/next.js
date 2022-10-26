@@ -166,5 +166,5 @@ export default function Home() {
         }
       `}</style>
     </Layout>
-  );
+  )
 }

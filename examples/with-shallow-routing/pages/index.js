@@ -25,13 +25,11 @@ export default function Index({ initialPropsCounter }) {
   return (
     <div>
       <h2>This is the Home Page</h2>
-      <Link href="/about">
-        About
-      </Link>
+      <Link href="/about">About</Link>
       <button onClick={reload}>Reload</button>
       <button onClick={incrementCounter}>Change State Counter</button>
       <p>"getServerSideProps" ran for "{initialPropsCounter}" times.</p>
       <p>Counter: "{query.counter || 0}".</p>
     </div>
-  );
+  )
 }

@@ -26,7 +26,7 @@ export default function Index({ posts }) {
         ))}
       </ul>
     </Layout>
-  );
+  )
 }
 
 export function getStaticProps() {

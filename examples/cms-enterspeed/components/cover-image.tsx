@@ -30,5 +30,5 @@ export default function CoverImage({ title, coverImage, slug }: Props) {
         image
       )}
     </div>
-  );
+  )
 }

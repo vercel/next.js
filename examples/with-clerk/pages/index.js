@@ -5,8 +5,7 @@ import styles from '../styles/Home.module.css'
 import { SignedIn, SignedOut } from '@clerk/nextjs'
 
 const ClerkFeatures = () => (
-  (<Link href="/user" className={styles.cardContent}>
-
+  <Link href="/user" className={styles.cardContent}>
     <img src="/icons/layout.svg" />
     <div>
       <h3>Explore features provided by Clerk</h3>
@@ -18,13 +17,11 @@ const ClerkFeatures = () => (
     <div className={styles.arrow}>
       <img src="/icons/arrow-right.svg" />
     </div>
-
-  </Link>)
+  </Link>
 )
 
 const SignupLink = () => (
-  (<Link href="/sign-up" className={styles.cardContent}>
-
+  <Link href="/sign-up" className={styles.cardContent}>
     <img src="/icons/user-plus.svg" />
     <div>
       <h3>Sign up for an account</h3>
@@ -36,8 +33,7 @@ const SignupLink = () => (
     <div className={styles.arrow}>
       <img src="/icons/arrow-right.svg" />
     </div>
-
-  </Link>)
+  </Link>
 )
 
 const apiSample = `import { getAuth } from '@clerk/nextjs/server'
@@ -76,8 +72,8 @@ const Main = () => (
           href="https://dashboard.clerk.dev"
           target="_blank"
           rel="noreferrer"
-          className={styles.cardContent}>
-
+          className={styles.cardContent}
+        >
           <img src="/icons/settings.svg" />
           <div>
             <h3>Configure settings for your app</h3>
@@ -89,7 +85,6 @@ const Main = () => (
           <div className={styles.arrow}>
             <img src="/icons/arrow-right.svg" />
           </div>
-
         </Link>
       </div>
     </div>
@@ -101,19 +96,17 @@ const Main = () => (
         href="https://docs.clerk.dev"
         target="_blank"
         rel="noreferrer"
-        className={styles.link}>
-
+        className={styles.link}
+      >
         <span className={styles.linkText}>Read Clerk documentation</span>
-
       </Link>
       <Link
         href="https://nextjs.org/docs"
         target="_blank"
         rel="noreferrer"
-        className={styles.link}>
-
+        className={styles.link}
+      >
         <span className={styles.linkText}>Read NextJS documentation</span>
-
       </Link>
     </div>
   </main>

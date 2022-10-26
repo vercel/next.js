@@ -34,7 +34,7 @@ const Post: React.FC<{ post: PostProps }> = ({ post }) => {
         `}</style>
       </div>
     </Link>
-  );
+  )
 }
 
 export default Post

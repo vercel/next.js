@@ -60,7 +60,7 @@ const PetPage = ({ pet }) => {
       </div>
       {message && <p>{message}</p>}
     </div>
-  );
+  )
 }
 
 export async function getServerSideProps({ params }) {

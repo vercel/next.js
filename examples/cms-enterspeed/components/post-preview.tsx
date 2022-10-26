@@ -42,5 +42,5 @@ export default function PostPreview({
       />
       <Avatar author={author} />
     </div>
-  );
+  )
 }

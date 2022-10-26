@@ -24,10 +24,8 @@ export default function Home() {
 
         <div className={styles.grid}>
           <Link href="/about" className={styles.card}>
-
             <h2>About Page &rarr;</h2>
             <p>Cypress will test if this link is working.</p>
-
           </Link>
 
           <a href="https://nextjs.org/docs" className={styles.card}>
@@ -75,5 +73,5 @@ export default function Home() {
         </a>
       </footer>
     </div>
-  );
+  )
 }

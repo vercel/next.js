@@ -48,11 +48,7 @@ export default function Asset() {
         <>
           <ErrorMessage message={errorMessage} />
           <p>
-            Go{' '}
-            <Link href="/">
-              back home
-            </Link>{' '}
-            to upload another video.
+            Go <Link href="/">back home</Link> to upload another video.
           </p>
         </>
       ) : (
@@ -62,5 +58,5 @@ export default function Asset() {
         </>
       )}
     </UploadPage>
-  );
+  )
 }

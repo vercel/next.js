@@ -23,12 +23,10 @@ const IndexPage = () => {
       <h1>Hello Next.js 👋</h1>
       <button onClick={onSayHiClick}>Say hi to electron</button>
       <p>
-        <Link href="/about">
-          About
-        </Link>
+        <Link href="/about">About</Link>
       </p>
     </Layout>
-  );
+  )
 }
 
 export default IndexPage

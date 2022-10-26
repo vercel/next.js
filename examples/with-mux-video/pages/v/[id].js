@@ -119,5 +119,5 @@ export default function Playback({ playbackId, poster }) {
         }
       `}</style>
     </Layout>
-  );
+  )
 }

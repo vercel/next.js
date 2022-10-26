@@ -20,11 +20,9 @@ const Counter = () => {
       <UserInfo />
       <br />
       <nav>
-        <Link href="/other">
-          Navigate to "/other"
-        </Link>
+        <Link href="/other">Navigate to "/other"</Link>
       </nav>
     </div>
-  );
+  )
 }
 export default Counter

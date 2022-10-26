@@ -35,9 +35,7 @@ export default function HeroPost({
         <div>
           <h3 className="mb-4 text-4xl lg:text-6xl leading-tight">
             <Link href={href} className="hover:underline">
-
               <PrismicText field={title} />
-
             </Link>
           </h3>
           <div className="mb-4 md:mb-0 text-lg">
@@ -55,5 +53,5 @@ export default function HeroPost({
         </div>
       </div>
     </section>
-  );
+  )
 }

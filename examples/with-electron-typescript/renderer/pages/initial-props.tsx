@@ -18,12 +18,10 @@ const WithInitialProps = ({ items }: Props) => {
       <p>You are currently on: {router.pathname}</p>
       <List items={items} />
       <p>
-        <Link href="/">
-          Go home
-        </Link>
+        <Link href="/">Go home</Link>
       </p>
     </Layout>
-  );
+  )
 }
 
 export async function getStaticProps() {

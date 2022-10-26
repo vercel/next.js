@@ -23,7 +23,7 @@ const HomePage = () => {
         Use client-side routing to change language to 'de'
       </Link>
     </div>
-  );
+  )
 }
 
 export async function getStaticProps({ params }) {

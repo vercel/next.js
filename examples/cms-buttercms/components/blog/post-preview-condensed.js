@@ -23,9 +23,7 @@ export default function PostPreviewCondensed({
         )}
         <div className="blog-body">
           <h5 className="package-name">
-            <Link href={`/blog/${slug}`}>
-              {title}
-            </Link>
+            <Link href={`/blog/${slug}`}>{title}</Link>
           </h5>
           <p>{excerpt}</p>
         </div>
@@ -36,5 +34,5 @@ export default function PostPreviewCondensed({
         </div>
       </div>
     </div>
-  );
+  )
 }

@@ -10,8 +10,7 @@ export default function ProductCard({ product }) {
   const [isLoading, setLoading] = useState(true)
 
   return (
-    (<Link href={`/products/${product.id}`} className="group">
-
+    <Link href={`/products/${product.id}`} className="group">
       <div className="aspect-w-1 aspect-h-1 w-full overflow-hidden rounded-lg bg-gray-200 xl:aspect-w-7 xl:aspect-h-8">
         <Image
           alt=""
@@ -33,7 +32,6 @@ export default function ProductCard({ product }) {
       <p className="mt-1 text-sm italic text-gray-500">
         {product.shortDescription}
       </p>
-
-    </Link>)
-  );
+    </Link>
+  )
 }

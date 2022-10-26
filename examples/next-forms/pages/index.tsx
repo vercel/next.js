@@ -25,17 +25,13 @@ export default function IndexPage() {
 
         <div className={styles.grid}>
           <Link href="/js-form" className={styles.card}>
-
             <h2>Form with JavaScript &rarr;</h2>
             <p>Learn to handle forms with JavaScript in Next.js.</p>
-
           </Link>
 
           <Link href="/no-js-form" className={styles.card}>
-
             <h2>Form without JavaScript &rarr;</h2>
             <p>Learn to handle forms without JavaScript in Next.js.</p>
-
           </Link>
         </div>
       </main>
@@ -49,5 +45,5 @@ export default function IndexPage() {
         </a>
       </footer>
     </div>
-  );
+  )
 }

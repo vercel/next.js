@@ -36,5 +36,5 @@ export default function CoverImage({
         image
       )}
     </div>
-  );
+  )
 }

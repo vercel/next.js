@@ -12,7 +12,6 @@ const User = () => {
   return (
     <header className={styles.header}>
       <Link href="/">
-
         {data && (
           <img
             src={data.profile_image.large}
@@ -20,19 +19,16 @@ const User = () => {
             alt={data.name}
           />
         )}
-
       </Link>
       <h2 className={styles.headingLg}>
-        <Link href="/">
-          {data ? data.name : ''}
-        </Link>
+        <Link href="/">{data ? data.name : ''}</Link>
       </h2>
 
       {data ? <Social user={data} /> : ''}
 
       <p>{data ? data.bio : ''}</p>
     </header>
-  );
+  )
 }
 
 export default User

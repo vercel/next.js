@@ -10,12 +10,8 @@ export default function Navigation() {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
       <div style={{ display: 'flex', gap: 10 }}>
-        <Link href="/">
-          {t('index')}
-        </Link>
-        <Link href="/about">
-          {t('about')}
-        </Link>
+        <Link href="/">{t('index')}</Link>
+        <Link href="/about">{t('about')}</Link>
       </div>
       {otherLocale && (
         <Link href={route} locale={otherLocale}>
@@ -23,5 +19,5 @@ export default function Navigation() {
         </Link>
       )}
     </div>
-  );
+  )
 }

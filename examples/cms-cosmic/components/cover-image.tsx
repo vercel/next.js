@@ -38,6 +38,6 @@ const CoverImage = (props: CoverImageProps) => {
         image
       )}
     </div>
-  );
+  )
 }
 export default CoverImage

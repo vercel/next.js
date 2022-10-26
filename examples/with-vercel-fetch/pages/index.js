@@ -5,11 +5,9 @@ export default function Index({ stars }) {
   return (
     <div>
       <p>Next.js has {stars} ⭐️</p>
-      <Link href="/preact">
-        How about preact?
-      </Link>
+      <Link href="/preact">How about preact?</Link>
     </div>
-  );
+  )
 }
 
 export async function getStaticProps() {

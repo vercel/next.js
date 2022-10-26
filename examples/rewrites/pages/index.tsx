@@ -12,7 +12,8 @@ export default function Index() {
           The links below are{' '}
           <Link
             href="https://nextjs.org/docs/api-reference/next.config.js/rewrites"
-            legacyBehavior>
+            legacyBehavior
+          >
             <>
               custom <Code>rewrites</Code>
             </>
@@ -51,5 +52,5 @@ export default function Index() {
         <hr className={styles.hr} />
       </div>
     </div>
-  );
+  )
 }

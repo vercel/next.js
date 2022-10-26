@@ -12,7 +12,8 @@ export default function Index() {
           The links below are{' '}
           <Link
             href="https://nextjs.org/docs/api-reference/next.config.js/redirects"
-            legacyBehavior>
+            legacyBehavior
+          >
             <>
               custom <Code>redirects</Code>
             </>
@@ -49,5 +50,5 @@ export default function Index() {
         <hr className={styles.hr} />
       </div>
     </div>
-  );
+  )
 }

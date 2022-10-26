@@ -30,9 +30,7 @@ export default function Home() {
     <div style={content}>
       <div className="text-center mb-5">
         <Link href="#" className="logo mr-0">
-
           <SmileFilled style={{ fontSize: 48 }} />
-
         </Link>
 
         <p className="mb-0 mt-3 text-disabled">Welcome to the world !</p>
@@ -85,5 +83,5 @@ export default function Home() {
         </Form>
       </div>
     </div>
-  );
+  )
 }

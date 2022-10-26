@@ -40,7 +40,11 @@ export default function Movie() {
             <h2>Actors</h2>
             {data.movie.actors.map((actor) => (
               <div key={actor}>
-                <Link key={actor} href={`/actor/${encodeURIComponent(actor)}`} legacyBehavior>
+                <Link
+                  key={actor}
+                  href={`/actor/${encodeURIComponent(actor)}`}
+                  legacyBehavior
+                >
                   <a className="link">{actor}</a>
                 </Link>
               </div>
@@ -97,5 +101,5 @@ export default function Movie() {
         `}
       </style>
     </div>
-  );
+  )
 }

@@ -25,12 +25,10 @@ const SampleComponent: React.FC<IOwnProps> = observer((props) => {
       <h1>{props.title}</h1>
       <Clock lastUpdate={lastUpdate} light={light} />
       <nav>
-        <Link href={props.linkTo}>
-          Navigate
-        </Link>
+        <Link href={props.linkTo}>Navigate</Link>
       </nav>
     </div>
-  );
+  )
 })
 
 export default SampleComponent
