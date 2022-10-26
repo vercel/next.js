@@ -35,7 +35,15 @@ import { ImageConfigComplete } from '../shared/lib/image-config'
 import { removeBasePath } from './remove-base-path'
 import { hasBasePath } from './has-base-path'
 import { AppRouterContext } from '../shared/lib/app-router-context'
-import { adaptForAppRouterInstance } from '../shared/lib/router/adapters'
+import {
+  adaptForAppRouterInstance,
+  adaptForPathname,
+  adaptForSearchParams,
+} from '../shared/lib/router/adapters'
+import {
+  PathnameContext,
+  SearchParamsContext,
+} from '../shared/lib/hooks-client-context'
 
 const ReactDOM = process.env.__NEXT_REACT_ROOT
   ? require('react-dom/client')
@@ -309,17 +317,21 @@ function AppContainer({
       }
     >
       <AppRouterContext.Provider value={adaptForAppRouterInstance(router)}>
-        <RouterContext.Provider value={makePublicRouterInstance(router)}>
-          <HeadManagerContext.Provider value={headManager}>
-            <ImageConfigContext.Provider
-              value={
-                process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
-              }
-            >
-              {children}
-            </ImageConfigContext.Provider>
-          </HeadManagerContext.Provider>
-        </RouterContext.Provider>
+        <SearchParamsContext.Provider value={adaptForSearchParams(router)}>
+          <PathnameContext.Provider value={adaptForPathname(asPath)}>
+            <RouterContext.Provider value={makePublicRouterInstance(router)}>
+              <HeadManagerContext.Provider value={headManager}>
+                <ImageConfigContext.Provider
+                  value={
+                    process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
+                  }
+                >
+                  {children}
+                </ImageConfigContext.Provider>
+              </HeadManagerContext.Provider>
+            </RouterContext.Provider>
+          </PathnameContext.Provider>
+        </SearchParamsContext.Provider>
       </AppRouterContext.Provider>
     </Container>
   )

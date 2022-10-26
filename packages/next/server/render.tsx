@@ -82,8 +82,16 @@ import { ImageConfigContext } from '../shared/lib/image-config-context'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { shouldUseReactRoot } from './utils'
 import { stripInternalQueries } from './internal-utils'
-import { adaptForAppRouterInstance } from '../shared/lib/router/adapters'
+import {
+  adaptForAppRouterInstance,
+  adaptForPathname,
+  adaptForSearchParams,
+} from '../shared/lib/router/adapters'
 import { AppRouterContext } from '../shared/lib/app-router-context'
+import {
+  PathnameContext,
+  SearchParamsContext,
+} from '../shared/lib/hooks-client-context'
 
 let tryGetPreviewData: typeof import('./api-utils/node').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
@@ -645,32 +653,36 @@ export async function renderToHTML(
 
   const AppContainer = ({ children }: { children: JSX.Element }) => (
     <AppRouterContext.Provider value={appRouter}>
-      <RouterContext.Provider value={router}>
-        <AmpStateContext.Provider value={ampState}>
-          <HeadManagerContext.Provider
-            value={{
-              updateHead: (state) => {
-                head = state
-              },
-              updateScripts: (scripts) => {
-                scriptLoader = scripts
-              },
-              scripts: initialScripts,
-              mountedInstances: new Set(),
-            }}
-          >
-            <LoadableContext.Provider
-              value={(moduleName) => reactLoadableModules.push(moduleName)}
-            >
-              <StyleRegistry registry={jsxStyleRegistry}>
-                <ImageConfigContext.Provider value={images}>
-                  {children}
-                </ImageConfigContext.Provider>
-              </StyleRegistry>
-            </LoadableContext.Provider>
-          </HeadManagerContext.Provider>
-        </AmpStateContext.Provider>
-      </RouterContext.Provider>
+      <SearchParamsContext.Provider value={adaptForSearchParams(router)}>
+        <PathnameContext.Provider value={adaptForPathname(asPath)}>
+          <RouterContext.Provider value={router}>
+            <AmpStateContext.Provider value={ampState}>
+              <HeadManagerContext.Provider
+                value={{
+                  updateHead: (state) => {
+                    head = state
+                  },
+                  updateScripts: (scripts) => {
+                    scriptLoader = scripts
+                  },
+                  scripts: initialScripts,
+                  mountedInstances: new Set(),
+                }}
+              >
+                <LoadableContext.Provider
+                  value={(moduleName) => reactLoadableModules.push(moduleName)}
+                >
+                  <StyleRegistry registry={jsxStyleRegistry}>
+                    <ImageConfigContext.Provider value={images}>
+                      {children}
+                    </ImageConfigContext.Provider>
+                  </StyleRegistry>
+                </LoadableContext.Provider>
+              </HeadManagerContext.Provider>
+            </AmpStateContext.Provider>
+          </RouterContext.Provider>
+        </PathnameContext.Provider>
+      </SearchParamsContext.Provider>
     </AppRouterContext.Provider>
   )
 

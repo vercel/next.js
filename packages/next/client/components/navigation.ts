@@ -11,7 +11,7 @@ import {
   // ParamsContext,
   PathnameContext,
   // LayoutSegmentsContext,
-} from './hooks-client-context'
+} from '../../shared/lib/hooks-client-context'
 import { staticGenerationBailout } from './static-generation-bailout'
 
 const INTERNAL_URLSEARCHPARAMS_INSTANCE = Symbol(
