@@ -243,7 +243,7 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
     export const LayoutRouter = require('next/dist/client/components/layout-router.js').default
     export const RenderFromTemplateContext = require('next/dist/client/components/render-from-template-context.js').default
 
-    export const staticGenerationAsyncStorage = require('next/dist/client/components/static-generation-async-storage.js').staticGenerationAsyncStorage
+    export const staticGenerationAsyncStorage = require('next/dist/client/components/static-generation-async-storage').staticGenerationAsyncStorage
     export const requestAsyncStorage = require('next/dist/client/components/request-async-storage.js').requestAsyncStorage
 
     export const serverHooks = require('next/dist/client/components/hooks-server-context.js')

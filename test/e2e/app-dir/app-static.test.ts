@@ -85,17 +85,17 @@ describe('app-dir static/dynamic handling', () => {
       expect(manifest.version).toBe(3)
       expect(manifest.routes).toEqual({
         '/blog/tim': {
-          initialRevalidateSeconds: false,
+          initialRevalidateSeconds: 10,
           srcRoute: '/blog/[author]',
           dataRoute: '/blog/tim.rsc',
         },
         '/blog/seb': {
-          initialRevalidateSeconds: false,
+          initialRevalidateSeconds: 10,
           srcRoute: '/blog/[author]',
           dataRoute: '/blog/seb.rsc',
         },
         '/blog/styfle': {
-          initialRevalidateSeconds: false,
+          initialRevalidateSeconds: 10,
           srcRoute: '/blog/[author]',
           dataRoute: '/blog/styfle.rsc',
         },
