@@ -8,12 +8,12 @@ export default function Blog() {
       <ul>
         <li>
           <Link href="/post/1">
-            <a>Post 1</a>
+            Post 1
           </Link>
         </li>
         <li>
           <Link href="/post/2">
-            <a>Post 2</a>
+            Post 2
           </Link>
         </li>
       </ul>
@@ -27,5 +27,5 @@ export default function Blog() {
         />
       </div>
     </div>
-  )
+  );
 }

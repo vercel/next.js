@@ -68,7 +68,7 @@ export default function Movie() {
         </div>
 
         <div className="back">
-          <Link href="/">
+          <Link href="/" legacyBehavior>
             <a>🔙 Go Back</a>
           </Link>
         </div>
@@ -107,5 +107,5 @@ export default function Movie() {
         `}
       </style>
     </div>
-  )
+  );
 }

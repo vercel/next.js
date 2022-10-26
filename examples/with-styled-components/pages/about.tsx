@@ -8,10 +8,10 @@ export default function About() {
         <Title>About Page</Title>
         <Description>
           <Link href="/">
-            <a>&larr; Go Back</a>
+            &larr; Go Back
           </Link>
         </Description>
       </Main>
     </Container>
-  )
+  );
 }

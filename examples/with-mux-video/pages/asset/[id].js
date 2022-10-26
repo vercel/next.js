@@ -50,7 +50,7 @@ export default function Asset() {
           <p>
             Go{' '}
             <Link href="/">
-              <a>back home</a>
+              back home
             </Link>{' '}
             to upload another video.
           </p>
@@ -62,5 +62,5 @@ export default function Asset() {
         </>
       )}
     </UploadPage>
-  )
+  );
 }

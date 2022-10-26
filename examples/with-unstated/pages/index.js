@@ -10,7 +10,7 @@ export default function Index() {
       <ClockContainer.Provider>
         <div>
           <Link href="/about">
-            <a>go to About</a>
+            go to About
           </Link>
           <br />
           <br />
@@ -21,5 +21,5 @@ export default function Index() {
         </div>
       </ClockContainer.Provider>
     </CounterContainer.Provider>
-  )
+  );
 }

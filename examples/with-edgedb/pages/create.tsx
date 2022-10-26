@@ -54,7 +54,7 @@ const Draft: React.FC = () => {
             type="submit"
             value="Create"
           />
-          <Link href="/">
+          <Link href="/" legacyBehavior>
             <a className="back">Cancel</a>
           </Link>
         </form>
@@ -91,7 +91,7 @@ const Draft: React.FC = () => {
         }
       `}</style>
     </Layout>
-  )
+  );
 }
 
 export default Draft

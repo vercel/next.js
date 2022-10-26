@@ -14,10 +14,10 @@ export const DotLink = ({ attrs: { href, target }, children }) => {
       {children}
     </a>
   ) : (
-    <Link href={href} target={target || '_self'}>
+    <Link href={href} target={target || '_self'} legacyBehavior>
       {children}
     </Link>
-  )
+  );
 }
 
 const nodeMarks = {

@@ -84,7 +84,7 @@ const Index = () => (
           </a>{' '}
           or{' '}
           <Link href="/ssr/test1">
-            <a>Perform client side navigation</a>
+            Perform client side navigation
           </Link>
         </li>
         <li>
@@ -118,7 +118,7 @@ const Index = () => (
           There is a top-of-module Promise that rejects, but its result is not
           awaited. Sentry should record Error('Client Test 1').{' '}
           <Link href="/client/test1">
-            <a>Perform client side navigation</a>
+            Perform client side navigation
           </Link>{' '}
           or{' '}
           <a href="/client/test1" target="_blank">
@@ -129,7 +129,7 @@ const Index = () => (
           There is a top-of-module exception. _error.js should render and record
           ReferenceError('process is not defined') in Sentry.{' '}
           <Link href="/client/test2">
-            <a>Perform client side navigation</a>
+            Perform client side navigation
           </Link>{' '}
           or{' '}
           <a href="/client/test2" target="_blank">
@@ -142,7 +142,7 @@ const Index = () => (
           mounts. This should cause _error.js to render and record Error('Client
           Test 3') in Sentry.{' '}
           <Link href="/client/test3">
-            <a>Perform client side navigation</a>
+            Perform client side navigation
           </Link>{' '}
           or{' '}
           <a href="/client/test3" target="_blank">
@@ -154,7 +154,7 @@ const Index = () => (
           this case, when the component mounts. Sentry should record
           Error('Client Test 4').{' '}
           <Link href="/client/test4">
-            <a>Perform client side navigation</a>
+            Perform client side navigation
           </Link>{' '}
           or{' '}
           <a href="/client/test4" target="_blank">
@@ -166,7 +166,7 @@ const Index = () => (
           Error('Client Test 5'). (This page also demonstrates how to manually
           instrument your code for performance monitoring.){' '}
           <Link href="/client/test5">
-            <a>Perform client side navigation</a>
+            Perform client side navigation
           </Link>{' '}
           or{' '}
           <a href="/client/test5" target="_blank">

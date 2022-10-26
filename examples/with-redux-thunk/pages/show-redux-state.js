@@ -12,16 +12,14 @@ const codeStyle = {
 const ShowReduxState = () => {
   const state = useSelector((state) => state)
 
-  return (
-    <>
-      <pre style={codeStyle}>
-        <code>{JSON.stringify(state, null, 4)}</code>
-      </pre>
-      <Link href="/">
-        <a>Go Back Home</a>
-      </Link>
-    </>
-  )
+  return <>
+    <pre style={codeStyle}>
+      <code>{JSON.stringify(state, null, 4)}</code>
+    </pre>
+    <Link href="/">
+      Go Back Home
+    </Link>
+  </>;
 }
 
 export default ShowReduxState

@@ -7,7 +7,7 @@ export default function Form() {
       <h1 className={styles.title}>
         Form{' '}
         <Link href="/">
-          <a>without</a>
+          without
         </Link>{' '}
         JavaScript.
       </h1>
@@ -31,5 +31,5 @@ export default function Form() {
         <button type="submit">Submit</button>
       </form>
     </div>
-  )
+  );
 }

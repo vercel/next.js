@@ -6,14 +6,14 @@ export default function Sidebar() {
     <nav className={styles.nav}>
       <input className={styles.input} placeholder="Search..." />
       <Link href="/">
-        <a>Home</a>
+        Home
       </Link>
       <Link href="/about">
-        <a>About</a>
+        About
       </Link>
       <Link href="/contact">
-        <a>Contact</a>
+        Contact
       </Link>
     </nav>
-  )
+  );
 }

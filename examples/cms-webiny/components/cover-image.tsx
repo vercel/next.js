@@ -32,13 +32,13 @@ const CoverImage: React.FC<TCoverImage> = ({
   return (
     <div className="sm:mx-0">
       {slug ? (
-        <Link href={`/posts/${slug}`}>
-          <a aria-label={title}>{image}</a>
+        <Link href={`/posts/${slug}`} aria-label={title}>
+          {image}
         </Link>
       ) : (
         image
       )}
     </div>
-  )
+  );
 }
 export default CoverImage

@@ -70,7 +70,7 @@ export async function getStaticPaths({ preview }: { preview: boolean }) {
       params: { slug: post.url.replace(/^\/|\/$/g, '') },
     })),
     fallback: false,
-  }
+  };
 }
 
 type Params = {

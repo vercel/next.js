@@ -21,10 +21,10 @@ const Counter = () => {
       <br />
       <nav>
         <Link href="/other">
-          <a>Navigate to "/other"</a>
+          Navigate to "/other"
         </Link>
       </nav>
     </div>
-  )
+  );
 }
 export default Counter

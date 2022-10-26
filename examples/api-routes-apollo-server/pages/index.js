@@ -10,13 +10,13 @@ export default function UserListing({ users }) {
         {users.map((user) => (
           <li key={user.username}>
             <Link href="/[username]" as={`/${user.username}`}>
-              <a>{user.name}</a>
+              {user.name}
             </Link>
           </li>
         ))}
       </ul>
     </div>
-  )
+  );
 }
 
 export async function getStaticProps() {

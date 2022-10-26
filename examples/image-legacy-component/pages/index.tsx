@@ -41,27 +41,27 @@ const Index = () => (
       <ul>
         <li>
           <Link href="/layout-intrinsic">
-            <a>layout="intrinsic"</a>
+            layout="intrinsic"
           </Link>
         </li>
         <li>
           <Link href="/layout-responsive">
-            <a>layout="responsive"</a>
+            layout="responsive"
           </Link>
         </li>
         <li>
           <Link href="/layout-fixed">
-            <a>layout="fixed"</a>
+            layout="fixed"
           </Link>
         </li>
         <li>
           <Link href="/layout-fill">
-            <a>layout="fill"</a>
+            layout="fill"
           </Link>
         </li>
         <li>
           <Link href="/background">
-            <a>background demo</a>
+            background demo
           </Link>
         </li>
       </ul>
@@ -82,17 +82,17 @@ const Index = () => (
       <ul>
         <li>
           <Link href="/placeholder">
-            <a>placeholder="blur"</a>
+            placeholder="blur"
           </Link>
         </li>
         <li>
           <Link href="/shimmer">
-            <a>placeholder="blur" with animated shimmer blurDataURL</a>
+            placeholder="blur" with animated shimmer blurDataURL
           </Link>
         </li>
         <li>
           <Link href="/color">
-            <a>placeholder="blur" with solid color blurDataURL</a>
+            placeholder="blur" with solid color blurDataURL
           </Link>
         </li>
       </ul>

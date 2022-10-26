@@ -5,10 +5,10 @@ const Home = () => {
     <div>
       Hello World.{' '}
       <Link href="/about">
-        <a>About</a>
+        About
       </Link>
     </div>
-  )
+  );
 }
 
 export default Home

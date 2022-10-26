@@ -14,7 +14,7 @@ export default function Home() {
       </div>
       <div>
         <Link href="/about">
-          <a>About us</a>
+          About us
         </Link>
       </div>
       <Image
@@ -24,5 +24,5 @@ export default function Home() {
         height={160}
       />
     </div>
-  )
+  );
 }

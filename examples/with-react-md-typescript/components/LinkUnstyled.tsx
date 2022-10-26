@@ -30,8 +30,8 @@ export default function LinkUnstyled({
       replace={replace}
       href={href}
       as={as}
-    >
-      <a {...props}>{children}</a>
+      {...props}>
+      {children}
     </Link>
-  )
+  );
 }

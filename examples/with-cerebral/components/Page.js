@@ -26,11 +26,11 @@ export default connect(
           <Clock lastUpdate={this.props.lastUpdate} light={this.props.light} />
           <nav>
             <Link href={this.props.linkTo}>
-              <a>Navigate</a>
+              Navigate
             </Link>
           </nav>
         </div>
-      )
+      );
     }
   }
 )

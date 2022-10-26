@@ -9,13 +9,13 @@ function Header() {
     <div>
       <h1>{state.page}</h1>
       <Link href="/">
-        <a>Home page</a>
+        Home page
       </Link>
       <Link href="/about">
-        <a>About Page</a>
+        About Page
       </Link>
     </div>
-  )
+  );
 }
 
 export default Header

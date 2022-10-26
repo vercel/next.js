@@ -34,14 +34,14 @@ const Index = () => {
       <div>
         You're signed in as {viewer.email} goto{' '}
         <Link href="/about">
-          <a>about</a>
+          about
         </Link>{' '}
         page. or{' '}
         <Link href="/signout">
-          <a>signout</a>
+          signout
         </Link>
       </div>
-    )
+    );
   }
 
   return <p>Loading...</p>

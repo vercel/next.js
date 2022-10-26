@@ -10,7 +10,7 @@ const Page = ({ title, linkTo, tick }) => (
     <AddCount />
     <nav>
       <Link href={linkTo}>
-        <a>Navigate</a>
+        Navigate
       </Link>
     </nav>
   </div>

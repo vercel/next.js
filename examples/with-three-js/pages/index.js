@@ -4,11 +4,11 @@ export default function IndexPage() {
   return (
     <div className="main">
       <Link href="/birds">
-        <a>Birds Example</a>
+        Birds Example
       </Link>
       <Link href="/boxes">
-        <a>Boxes Example</a>
+        Boxes Example
       </Link>
     </div>
-  )
+  );
 }

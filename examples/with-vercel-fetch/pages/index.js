@@ -6,10 +6,10 @@ export default function Index({ stars }) {
     <div>
       <p>Next.js has {stars} ⭐️</p>
       <Link href="/preact">
-        <a>How about preact?</a>
+        How about preact?
       </Link>
     </div>
-  )
+  );
 }
 
 export async function getStaticProps() {

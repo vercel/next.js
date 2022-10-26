@@ -5,8 +5,8 @@ export default function Home() {
     <div>
       Hello World.{' '}
       <Link href="/about">
-        <a>About</a>
+        About
       </Link>
     </div>
-  )
+  );
 }

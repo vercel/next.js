@@ -9,8 +9,8 @@ export default function PersonComponent({ person }: PersonProps) {
   return (
     <li>
       <Link href="/person/[id]" as={`/person/${person.id}`}>
-        <a>{person.name}</a>
+        {person.name}
       </Link>
     </li>
-  )
+  );
 }

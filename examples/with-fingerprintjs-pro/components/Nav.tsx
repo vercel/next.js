@@ -20,11 +20,11 @@ const CustomLink: React.FC<PropsWithChildren<{ to: string }>> = ({
           query: { cacheStrategy },
         }}
         scroll={false}
-      >
-        <a className={className}>{children}</a>
+        className={className}>
+        {children}
       </Link>
     </div>
-  )
+  );
 }
 
 export const Nav: React.FC = () => {

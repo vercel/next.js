@@ -16,7 +16,7 @@ function Page({ linkTo, NavigateTo, title }) {
       <Counter />
       <nav>
         <Link href={linkTo}>
-          <a>Navigate: {NavigateTo}</a>
+          Navigate:{NavigateTo}
         </Link>
       </nav>
       {placeholderData && (
@@ -26,7 +26,7 @@ function Page({ linkTo, NavigateTo, title }) {
       )}
       {error && <p style={{ color: 'red' }}>Error: {error.message}</p>}
     </div>
-  )
+  );
 }
 
 export default Page

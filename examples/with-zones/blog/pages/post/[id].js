@@ -8,8 +8,8 @@ export default function Post() {
       <h3>Post #{router.query.id}</h3>
       <p>Lorem ipsum</p>
       <Link href="/">
-        <a>Back to blog</a>
+        Back to blog
       </Link>
     </div>
-  )
+  );
 }

@@ -15,12 +15,10 @@ export async function getStaticProps() {
 export default function IndexPage({
   stars,
 }: InferGetStaticPropsType<typeof getStaticProps>) {
-  return (
-    <>
-      <p>Next.js has {stars} ⭐️</p>
-      <Link href="/preact-stars">
-        <a>How about preact?</a>
-      </Link>
-    </>
-  )
+  return <>
+    <p>Next.js has {stars} ⭐️</p>
+    <Link href="/preact-stars">
+      How about preact?
+    </Link>
+  </>;
 }

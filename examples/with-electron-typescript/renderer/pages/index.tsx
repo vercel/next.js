@@ -24,11 +24,11 @@ const IndexPage = () => {
       <button onClick={onSayHiClick}>Say hi to electron</button>
       <p>
         <Link href="/about">
-          <a>About</a>
+          About
         </Link>
       </p>
     </Layout>
-  )
+  );
 }
 
 export default IndexPage

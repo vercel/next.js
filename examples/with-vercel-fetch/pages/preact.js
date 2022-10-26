@@ -6,10 +6,10 @@ export default function Preact({ stars }) {
     <div>
       <p>Preact has {stars} ⭐</p>
       <Link href="/">
-        <a>I bet Next.js has more stars (?)</a>
+        I bet Next.js has more stars (?)
       </Link>
     </div>
-  )
+  );
 }
 
 export async function getStaticProps() {

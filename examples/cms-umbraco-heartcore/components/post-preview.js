@@ -17,8 +17,8 @@ export default function PostPreview({
         <CoverImage slug={slug} title={title} url={coverImage.url} />
       </div>
       <h3 className="mb-3 text-3xl leading-snug">
-        <Link href={slug}>
-          <a className="hover:underline">{title}</a>
+        <Link href={slug} className="hover:underline">
+          {title}
         </Link>
       </h3>
       <div className="mb-4 text-lg">
@@ -27,5 +27,5 @@ export default function PostPreview({
       <p className="mb-4 text-lg leading-relaxed">{excerpt}</p>
       <Avatar name={author.name} picture={author.picture.url} />
     </div>
-  )
+  );
 }

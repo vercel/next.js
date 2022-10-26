@@ -5,7 +5,7 @@ const About = () => (
     <p>This is the about page.</p>
     <div>
       <Link href="/">
-        <a>Go Back</a>
+        Go Back
       </Link>
     </div>
     <img width={200} src="/static/vercel.png" />

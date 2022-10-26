@@ -7,14 +7,14 @@ export default function Home({ post }) {
       <main style={{ margin: '3rem' }}>
         <div>
           <Link href="/">
-            <a>&larr; back home</a>
+            &larr; back home
           </Link>
         </div>
         <h1>{post.title}</h1>
         <p>{post.content}</p>
       </main>
     </div>
-  )
+  );
 }
 
 export async function getStaticPaths() {

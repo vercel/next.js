@@ -10,7 +10,9 @@ export default function Index() {
         <hr className={styles.hr} />
         <p>
           The links below are examples of{' '}
-          <Link href="https://nextjs.org/docs/api-reference/next.config.js/headers">
+          <Link
+            href="https://nextjs.org/docs/api-reference/next.config.js/headers"
+            legacyBehavior>
             <>
               custom <Code>headers</Code>
             </>
@@ -38,5 +40,5 @@ export default function Index() {
         <hr className={styles.hr} />
       </div>
     </div>
-  )
+  );
 }

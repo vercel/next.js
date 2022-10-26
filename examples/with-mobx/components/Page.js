@@ -24,11 +24,11 @@ const Page = observer(function Page(props) {
       <Clock />
       <nav>
         <Link href={props.linkTo}>
-          <a>Navigate</a>
+          Navigate
         </Link>
       </nav>
     </div>
-  )
+  );
 })
 
 export default Page

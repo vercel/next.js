@@ -37,32 +37,32 @@ const Index = () => (
       <ul>
         <li>
           <Link href="/responsive">
-            <a>Responsive to viewport</a>
+            Responsive to viewport
           </Link>
         </li>
         <li>
           <Link href="/fill">
-            <a>Fill dimensions of parent element</a>
+            Fill dimensions of parent element
           </Link>
         </li>
         <li>
           <Link href="/placeholder">
-            <a>Blur-up placeholder</a>
+            Blur-up placeholder
           </Link>
         </li>
         <li>
           <Link href="/shimmer">
-            <a>Shimmer placeholder</a>
+            Shimmer placeholder
           </Link>
         </li>
         <li>
           <Link href="/color">
-            <a>Color placeholder</a>
+            Color placeholder
           </Link>
         </li>
         <li>
           <Link href="/background">
-            <a>Text on background image</a>
+            Text on background image
           </Link>
         </li>
       </ul>

@@ -4,13 +4,13 @@ const Nav = () => {
   return (
     <nav>
       <Link href="/">
-        <a>Experiments</a>
+        Experiments
       </Link>{' '}
       <Link href="/features">
-        <a>Features</a>
+        Features
       </Link>
     </nav>
-  )
+  );
 }
 
 export default Nav

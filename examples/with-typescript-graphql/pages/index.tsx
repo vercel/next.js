@@ -64,7 +64,7 @@ const Index = () => {
     <div>
       You're signed in as {viewer.name} and you're {viewer.status}. Go to the{' '}
       <Link href="/about">
-        <a>about</a>
+        about
       </Link>{' '}
       page.
       <div>
@@ -76,7 +76,7 @@ const Index = () => {
         <input type="button" value="change" onClick={onChangeName} />
       </div>
     </div>
-  ) : null
+  ) : null;
 }
 
 export async function getStaticProps() {

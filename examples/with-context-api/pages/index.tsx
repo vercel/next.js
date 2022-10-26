@@ -15,19 +15,17 @@ const IndexPage = () => {
       type: 'DECREASE',
     })
 
-  return (
-    <>
-      <h1>HOME</h1>
-      <p>Counter: {count}</p>
-      <button onClick={handleIncrease}>Increase</button>
-      <button onClick={handleDecrease}>Decrease</button>
-      <p>
-        <Link href="/about">
-          <a>About</a>
-        </Link>
-      </p>
-    </>
-  )
+  return <>
+    <h1>HOME</h1>
+    <p>Counter: {count}</p>
+    <button onClick={handleIncrease}>Increase</button>
+    <button onClick={handleDecrease}>Decrease</button>
+    <p>
+      <Link href="/about">
+        About
+      </Link>
+    </p>
+  </>;
 }
 
 export default IndexPage

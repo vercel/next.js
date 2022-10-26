@@ -40,5 +40,5 @@ export let backendConfig = (): AuthConfig => {
       SessionNode.init(),
     ],
     isInServerlessEnv: true,
-  }
+  };
 }

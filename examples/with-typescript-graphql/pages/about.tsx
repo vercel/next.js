@@ -5,9 +5,9 @@ export default function About() {
     <div>
       Welcome to the about page. Go to the{' '}
       <Link href="/">
-        <a>Home</a>
+        Home
       </Link>{' '}
       page.
     </div>
-  )
+  );
 }

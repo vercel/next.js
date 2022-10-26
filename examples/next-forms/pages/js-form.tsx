@@ -39,7 +39,7 @@ export default function PageWithJSbasedForm() {
       <h1 className={styles.title}>
         Form{' '}
         <Link href="/">
-          <a>with</a>
+          with
         </Link>{' '}
         JavaScript.
       </h1>
@@ -57,5 +57,5 @@ export default function PageWithJSbasedForm() {
         <button type="submit">Submit</button>
       </form>
     </div>
-  )
+  );
 }

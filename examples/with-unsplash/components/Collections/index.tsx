@@ -21,31 +21,30 @@ const Collections = ({ id_collection }: CollectionProps) => {
     <div className={styles.chips}>
       {data.map(({ id, title, slug }) =>
         id_collection ? (
-          <Link href="/" key={`collection_${slug}`}>
-            <a className={styles.chip}>
-              {title}
+          (<Link href="/" key={`collection_${slug}`} className={styles.chip}>
 
-              <Link href="/">
-                <button
-                  type="button"
-                  className={styles.chip_remove}
-                  aria-label="Return to home"
-                ></button>
-              </Link>
-            </a>
-          </Link>
+            {title}
+            <Link href="/" legacyBehavior>
+              <button
+                type="button"
+                className={styles.chip_remove}
+                aria-label="Return to home"
+              ></button>
+            </Link>
+
+          </Link>)
         ) : (
           <Link
             href={{ pathname: '/collection/[slug]', query: { id: id } }}
             as={`/collection/${slug}?id=${id}`}
             key={`collection_${slug}`}
-          >
-            <a className={styles.chip}>{title}</a>
+            className={styles.chip}>
+            {title}
           </Link>
         )
       )}
     </div>
-  )
+  );
 }
 
 export default Collections

@@ -35,10 +35,10 @@ export default function Home() {
       <p>
         Or checkout how{' '}
         <Link href="/jsonld">
-          <a>JSON-LD</a>
+          JSON-LD
         </Link>{' '}
         (Structured Data) is added
       </p>
     </div>
-  )
+  );
 }

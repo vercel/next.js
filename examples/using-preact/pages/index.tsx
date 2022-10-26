@@ -7,20 +7,20 @@ export default function IndexPage() {
       <ul>
         <li>
           <Link href="/about">
-            <a>About</a>
+            About
           </Link>
         </li>
         <li>
           <Link href="/ssr">
-            <a>SSR</a>
+            SSR
           </Link>
         </li>
         <li>
           <Link href="/ssg">
-            <a>SSG</a>
+            SSG
           </Link>
         </li>
       </ul>
     </div>
-  )
+  );
 }

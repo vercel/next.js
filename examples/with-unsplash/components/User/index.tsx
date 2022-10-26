@@ -12,19 +12,19 @@ const User = () => {
   return (
     <header className={styles.header}>
       <Link href="/">
-        <a>
-          {data && (
-            <img
-              src={data.profile_image.large}
-              className={`${styles.headerImage} ${styles.borderCircle}`}
-              alt={data.name}
-            />
-          )}
-        </a>
+
+        {data && (
+          <img
+            src={data.profile_image.large}
+            className={`${styles.headerImage} ${styles.borderCircle}`}
+            alt={data.name}
+          />
+        )}
+
       </Link>
       <h2 className={styles.headingLg}>
         <Link href="/">
-          <a>{data ? data.name : ''}</a>
+          {data ? data.name : ''}
         </Link>
       </h2>
 
@@ -32,7 +32,7 @@ const User = () => {
 
       <p>{data ? data.bio : ''}</p>
     </header>
-  )
+  );
 }
 
 export default User

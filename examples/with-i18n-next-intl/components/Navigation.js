@@ -11,17 +11,17 @@ export default function Navigation() {
     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
       <div style={{ display: 'flex', gap: 10 }}>
         <Link href="/">
-          <a>{t('index')}</a>
+          {t('index')}
         </Link>
         <Link href="/about">
-          <a>{t('about')}</a>
+          {t('about')}
         </Link>
       </div>
       {otherLocale && (
         <Link href={route} locale={otherLocale}>
-          <a>{t('switchLocale', { locale: otherLocale })}</a>
+          {t('switchLocale', { locale: otherLocale })}
         </Link>
       )}
     </div>
-  )
+  );
 }

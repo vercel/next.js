@@ -5,7 +5,7 @@ import { PostProps } from '../pages/blog/[id]'
 
 const Post: React.FC<{ post: PostProps }> = ({ post }) => {
   return (
-    <Link href={`/blog/${post.id}`} passHref>
+    <Link href={`/blog/${post.id}`} passHref legacyBehavior>
       <div>
         <h2>{post.title}</h2>
         <small>By {post.authorName}</small>
@@ -34,7 +34,7 @@ const Post: React.FC<{ post: PostProps }> = ({ post }) => {
         `}</style>
       </div>
     </Link>
-  )
+  );
 }
 
 export default Post

@@ -13,11 +13,11 @@ const Index: NextPage<IndexProps> = ({ name }) => {
       <p>Welcome, {name}</p>
       <div>
         <Link href="/about">
-          <a>About Page</a>
+          About Page
         </Link>
       </div>
     </div>
-  )
+  );
 }
 
 export default Index

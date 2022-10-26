@@ -4,9 +4,9 @@ export default function About() {
   return (
     <div>
       <Link href="/">
-        <a>Home</a>
+        Home
       </Link>
       <p>This is the about page</p>
     </div>
-  )
+  );
 }

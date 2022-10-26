@@ -8,10 +8,10 @@ export default function About() {
         <h1>About Page</h1>
         <p className={styles.description}>
           <Link href="/">
-            <a>&larr; Go Back</a>
+            &larr; Go Back
           </Link>
         </p>
       </main>
     </div>
-  )
+  );
 }

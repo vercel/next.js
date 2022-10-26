@@ -8,8 +8,8 @@ export default function NavigationPage() {
         Pixel, but will not reinitialize the pixel.
       </p>
       <Link href="/">
-        <a>Return to home</a>
+        Return to home
       </Link>
     </div>
-  )
+  );
 }
