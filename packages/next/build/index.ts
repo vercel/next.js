@@ -59,6 +59,8 @@ import {
   FLIGHT_SERVER_CSS_MANIFEST,
   RSC_MODULE_TYPES,
   FONT_LOADER_MANIFEST,
+  CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
+  APP_INTERNALS,
 } from '../shared/lib/constants'
 import { getSortedRoutes, isDynamicRoute } from '../shared/lib/router/utils'
 import { __ApiPreviewProps } from '../server/api-utils'
@@ -121,6 +123,7 @@ import { RemotePattern } from '../shared/lib/image-config'
 import { eventSwcPlugins } from '../telemetry/events/swc-plugins'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { AppBuildManifest } from './webpack/plugins/app-build-manifest-plugin'
+import { EntryObject } from 'webpack'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -975,7 +978,17 @@ export default async function build(
           // Only continue if there were no errors
           if (!serverResult.errors.length && !edgeServerResult?.errors.length) {
             injectedClientEntries.forEach((value, key) => {
-              ;(clientConfig.entry as webpack.EntryObject)[key] = value
+              const clientEntry = clientConfig.entry as webpack.EntryObject
+              if (key === APP_INTERNALS) {
+                clientEntry[CLIENT_STATIC_FILES_RUNTIME_MAIN_APP] = [
+                  // TODO-APP: cast clientEntry[CLIENT_STATIC_FILES_RUNTIME_MAIN_APP] to type EntryDescription once it's available from webpack
+                  // @ts-ignore clientEntry['main-app'] is type EntryDescription { import: ... }
+                  ...clientEntry[CLIENT_STATIC_FILES_RUNTIME_MAIN_APP].import,
+                  value,
+                ]
+              } else {
+                clientEntry[key] = value
+              }
             })
 
             clientResult = await runCompiler(clientConfig, {

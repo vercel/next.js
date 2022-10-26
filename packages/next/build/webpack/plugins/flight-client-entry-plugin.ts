@@ -1,6 +1,7 @@
 import { stringify } from 'querystring'
 import path from 'path'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
+import type { Dependency, EntryOptions } from 'webpack'
 import {
   getInvalidator,
   entries,
@@ -13,6 +14,7 @@ import type {
 } from '../loaders/next-flight-client-entry-loader'
 import { APP_DIR_ALIAS, WEBPACK_LAYERS } from '../../../lib/constants'
 import {
+  APP_INTERNALS,
   COMPILER_NAMES,
   EDGE_RUNTIME_WEBPACK,
   FLIGHT_SERVER_CSS_MANIFEST,
@@ -219,7 +221,7 @@ export class FlightClientEntryPlugin {
           compilation,
           entryName: name,
           clientComponentImports: [...internalClientComponentEntryImports],
-          bundlePath: 'app-internals',
+          bundlePath: APP_INTERNALS,
         })
       )
     })
@@ -517,28 +519,26 @@ export class FlightClientEntryPlugin {
   addEntry(
     compilation: any,
     context: string,
-    entry: any /* Dependency */,
-    options: {
-      name: string
-      layer: string | undefined
-    } /* EntryOptions */
+    dependency: Dependency,
+    options: EntryOptions
   ): Promise<any> /* Promise<module> */ {
     return new Promise((resolve, reject) => {
-      compilation.entries.get(options.name).includeDependencies.push(entry)
+      const entry = compilation.entries.get(options.name)
+      entry.includeDependencies.push(dependency)
       compilation.hooks.addEntry.call(entry, options)
       compilation.addModuleTree(
         {
           context,
-          dependency: entry,
+          dependency,
           contextInfo: { issuerLayer: options.layer },
         },
         (err: Error | undefined, module: any) => {
           if (err) {
-            compilation.hooks.failedEntry.call(entry, options, err)
+            compilation.hooks.failedEntry.call(dependency, options, err)
             return reject(err)
           }
 
-          compilation.hooks.succeedEntry.call(entry, options, module)
+          compilation.hooks.succeedEntry.call(dependency, options, module)
           return resolve(module)
         }
       )
