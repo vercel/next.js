@@ -1,6 +1,6 @@
-import Redis from 'ioredis'
+import IORedis, { Redis } from 'ioredis'
 
-function fixUrl(url) {
+function fixUrl(url: string) {
   if (!url) {
     return ''
   }
@@ -14,18 +14,18 @@ function fixUrl(url) {
 }
 
 class ClientRedis {
+  static instance: Redis
+
   constructor() {
     throw new Error('Use Singleton.getInstance()')
   }
 
-  static getInstance() {
+  static getInstance(): Redis | null {
     if (!ClientRedis.instance) {
-      ClientRedis.instance = new Redis(fixUrl(process.env.REDIS_URL))
+      ClientRedis.instance = new IORedis(fixUrl(process.env.REDIS_URL!))
     }
     return ClientRedis.instance
   }
 }
 
-const redis = ClientRedis.getInstance()
-
-export default redis
+export default ClientRedis.getInstance()

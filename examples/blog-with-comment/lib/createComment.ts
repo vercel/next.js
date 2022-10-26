@@ -1,13 +1,24 @@
+import type { NextApiRequest, NextApiResponse } from 'next'
+import type { Comment } from '../interfaces'
 import redis from './redis'
 import { nanoid } from 'nanoid'
 import getUser from './getUser'
 
-export default async function createComments(req, res) {
+export default async function createComments(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
   const { url, text } = req.body
   const { authorization } = req.headers
 
   if (!url || !text || !authorization) {
     return res.status(400).json({ message: 'Missing parameter.' })
+  }
+
+  if (!redis) {
+    return res
+      .status(400)
+      .json({ message: 'Failed to connect to redis client.' })
   }
 
   try {
@@ -17,7 +28,7 @@ export default async function createComments(req, res) {
 
     const { name, picture, sub, email } = user
 
-    const comment = {
+    const comment: Comment = {
       id: nanoid(),
       created_at: Date.now(),
       url,
