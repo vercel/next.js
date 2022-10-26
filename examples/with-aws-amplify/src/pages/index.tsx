@@ -1,5 +1,5 @@
-import { AmplifyAuthenticator } from '@aws-amplify/ui-react'
-import { Amplify, API, Auth, withSSRContext } from 'aws-amplify'
+import { Authenticator } from '@aws-amplify/ui-react'
+import { Amplify, API, withSSRContext } from 'aws-amplify'
 import Head from 'next/head'
 import awsExports from '../aws-exports'
 import { createTodo } from '../graphql/mutations'
@@ -12,6 +12,7 @@ import {
 } from '../API'
 import { GRAPHQL_AUTH_MODE } from '@aws-amplify/api'
 import { useRouter } from 'next/router'
+import Image from 'next/image'
 import { GetServerSideProps } from 'next'
 import styles from '../styles/Home.module.css'
 
@@ -72,33 +73,47 @@ export default function Home({ todos = [] }: { todos: Todo[] }) {
           <div className={styles.card}>
             <h3 className={styles.title}>New Todo</h3>
 
-            <AmplifyAuthenticator>
-              <form onSubmit={handleCreateTodo}>
-                <fieldset>
-                  <legend>Title</legend>
-                  <input
-                    defaultValue={`Today, ${new Date().toLocaleTimeString()}`}
-                    name="title"
-                  />
-                </fieldset>
+            <Authenticator>
+              {({ signOut }) => (
+                <form onSubmit={handleCreateTodo}>
+                  <fieldset>
+                    <legend>Title</legend>
+                    <input
+                      defaultValue={`Today, ${new Date().toLocaleTimeString()}`}
+                      name="title"
+                    />
+                  </fieldset>
 
-                <fieldset>
-                  <legend>Content</legend>
-                  <textarea
-                    defaultValue="I built an Amplify app with Next.js!"
-                    name="content"
-                  />
-                </fieldset>
+                  <fieldset>
+                    <legend>Content</legend>
+                    <textarea
+                      defaultValue="I built an Amplify app with Next.js!"
+                      name="content"
+                    />
+                  </fieldset>
 
-                <button>Create Todo</button>
-                <button type="button" onClick={() => Auth.signOut()}>
-                  Sign out
-                </button>
-              </form>
-            </AmplifyAuthenticator>
+                  <button>Create Todo</button>
+                  <button type="button" onClick={signOut}>
+                    Sign out
+                  </button>
+                </form>
+              )}
+            </Authenticator>
           </div>
         </div>
       </main>
+      <footer className={styles.footer}>
+        <a
+          href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Powered by{' '}
+          <span className={styles.logo}>
+            <Image src="/vercel.svg" alt="Vercel Logo" width={72} height={16} />
+          </span>
+        </a>
+      </footer>
     </div>
   )
 }
