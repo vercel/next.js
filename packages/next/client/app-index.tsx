@@ -2,7 +2,7 @@
 import '../build/polyfills/polyfill-module'
 // @ts-ignore react-dom/client exists when using React 18
 import ReactDOMClient from 'react-dom/client'
-import React, { use } from 'react'
+import React, { ReactNode, use } from 'react'
 import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack/client'
 
 import measureWebVitals from './performance-relayer'
@@ -149,6 +149,14 @@ function ServerRoot({ cacheKey }: { cacheKey: string }): JSX.Element {
   return root
 }
 
+function StrictModeIfEnabled({ children }: { children: React.ReactNode }) {
+  return process.env.__NEXT_STRICT_MODE ? (
+    <React.StrictMode>{children}</React.StrictMode>
+  ) : (
+    <>{children}</>
+  )
+}
+
 function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
   React.useEffect(() => {
     measureWebVitals()
@@ -213,7 +221,7 @@ export function hydrate() {
   }
 
   const reactEl = (
-    <React.StrictMode>
+    <StrictModeIfEnabled>
       <HeadManagerContext.Provider
         value={{
           appDir: true,
@@ -223,7 +231,7 @@ export function hydrate() {
           <RSCComponent />
         </Root>
       </HeadManagerContext.Provider>
-    </React.StrictMode>
+    </StrictModeIfEnabled>
   )
 
   const isError = document.documentElement.id === '__next_error__'
