@@ -1,10 +1,11 @@
+import type { NextPageWithLayout } from './_app'
 import Layout from '../components/layout'
 import Sidebar from '../components/sidebar'
 
-export default function Contact() {
+const About: NextPageWithLayout = () => {
   return (
     <section>
-      <h2>Layout Example (Contact)</h2>
+      <h2>Layout Example (About)</h2>
       <p>
         This example adds a property <code>getLayout</code> to your page,
         allowing you to return a React component for the layout. This allows you
@@ -32,7 +33,9 @@ export default function Contact() {
   )
 }
 
-Contact.getLayout = function getLayout(page) {
+export default About
+
+About.getLayout = function getLayout(page: React.ReactElement) {
   return (
     <Layout>
       <Sidebar />
