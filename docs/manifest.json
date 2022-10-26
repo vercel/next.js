@@ -200,6 +200,10 @@
               "path": "/docs/advanced-features/compiler.md"
             },
             {
+              "title": "Turbopack",
+              "path": "/docs/advanced-features/turbopack.md"
+            },
+            {
               "title": "Preview Mode",
               "path": "/docs/advanced-features/preview-mode.md"
             },
