@@ -1,6 +1,6 @@
 # AWS Amplify and TypeScript with NextJS
 
-[![amplifybutton](https://oneclick.amplifyapp.com/button.svg)](https://console.aws.amazon.com/amplify/home#/deploy?repo=https://github.com/vercel/next.js/tree/canary/examples/with-aws-amplify-typescript)
+[![amplifybutton](https://oneclick.amplifyapp.com/button.svg)](https://console.aws.amazon.com/amplify/home#/deploy?repo=https://github.com/vercel/next.js/tree/canary/examples/with-aws-amplify)
 
 This example shows how to build a server rendered web application with NextJS and AWS Amplify. We use AWS Amplify to generate code and to manage and consume the AWS cloud resources needed for our app. The NextJS app has dynamic and static routes to demonstrate how to load data on the server based on the incoming request.
 
@@ -54,14 +54,18 @@ Press Enter to continue
 
 Specify the AWS Region
 ? region:  <AWS_REGION>
+
 Specify the username of the new IAM user:
 ? user name:  <NEW_AWS_IAM_USERNAME>
+
 Complete the user creation using the AWS console
 Press Enter to continue
 
 Enter the access key of the newly created user:
 ? accessKeyId:  <ACCESS_KEY_ID>
+
 ? secretAccessKey:  <SECRET_ACCESS_KEY>
+
 This would update/create the AWS Profile in your local machine
 ? Profile Name:  <LOCAL_PROFILE_NAME>
 
@@ -109,7 +113,6 @@ Initialized provider successfully.
 Initialized your environment successfully.
 
 Your project has been successfully initialized and connected to the cloud!
-
 # </Interactive>
 ```
 
@@ -121,18 +124,20 @@ $ amplify add api
 ? Select from one of the below mentioned services: (Use arrow keys)
 ❯ GraphQL
   REST
+
 ? Here is the GraphQL API that we will create. Select a setting to edit or continue
   Name: <PROJECT_NAME>
   Authorization modes: API key (default, expiration time: 7 days from now)
   Conflict detection (required for DataStore): Disabled
 ❯ Continue
+
+
 ? Choose a schema template: (Use arrow keys)
 ❯ Single object with fields (e.g., “Todo” with ID, name, description)
   One-to-many relationship (e.g., “Blogs” with “Posts” and “Comments”)
   Blank Schema
 
 GraphQL schema compiled successfully.
-
 
 ? Do you want to edit the schema now? (Y/n): n
 
