@@ -40,7 +40,9 @@ const cwd = process.cwd()
             nativePackagesDir,
             platform
           )} --access public ${
-            gitref.includes('canary') ? ' --tag canary' : ''
+            gitref.includes('canary')
+              ? ' --tag next-12-3-2'
+              : '--tag next-12-3-2'
           }`
         )
       } catch (err) {
@@ -75,7 +77,9 @@ const cwd = process.cwd()
         `npm publish ${path.join(
           wasmDir,
           `pkg-${wasmTarget}`
-        )} --access public ${gitref.includes('canary') ? ' --tag canary' : ''}`
+        )} --access public ${
+          gitref.includes('canary') ? ' --tag next-12-3-2' : '--tag next-12-3-2'
+        }`
       )
     }
 
