@@ -1153,6 +1153,9 @@ describe('app dir', () => {
                 expect(await browser.elementById('pathname').text()).toBe(
                   pathname
                 )
+
+                await browser.elementByCss('button').click()
+                await browser.waitForElementByCss('#pushed')
               } finally {
                 await browser.close()
               }

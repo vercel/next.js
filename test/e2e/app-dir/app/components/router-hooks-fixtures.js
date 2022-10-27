@@ -1,26 +1,38 @@
-import { useRouter } from 'next/router'
-import { usePathname, useSearchParams } from 'next/navigation'
+import { useRouter as usePagesRouter } from 'next/router'
+import {
+  usePathname,
+  useRouter as useAppRouter,
+  useSearchParams,
+} from 'next/navigation'
 import { useState } from 'react'
 import { useEffect } from 'react'
 
 export const RouterHooksFixtures = () => {
-  const router = useRouter()
+  const pagesRouter = usePagesRouter()
+  const appRouter = useAppRouter()
   const searchParams = useSearchParams()
   const pathname = usePathname()
 
   const [value, setValue] = useState(null)
   useEffect(() => {
-    if (!router.isReady) {
+    if (!pagesRouter.isReady) {
       return
     }
 
     setValue(searchParams.get('key'))
-  }, [router.isReady, searchParams])
+  }, [pagesRouter.isReady, searchParams])
+
+  const onClick = () => {
+    appRouter.push('/adapter-hooks/pushed')
+  }
 
   return (
-    <div id={router.isReady ? 'router-ready' : 'router-not-ready'}>
+    <div id={pagesRouter.isReady ? 'router-ready' : 'router-not-ready'}>
       <div id="key-value">{value}</div>
       <div id="pathname">{pathname}</div>
+      <button type="button" onClick={onClick}>
+        Push
+      </button>
     </div>
   )
 }
