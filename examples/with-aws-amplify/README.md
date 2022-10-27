@@ -1,4 +1,4 @@
-# AWS Amplify with NextJS
+# AWS Amplify and TypeScript with Next.js
 
 [![amplifybutton](https://oneclick.amplifyapp.com/button.svg)](https://console.aws.amazon.com/amplify/home#/deploy?repo=https://github.com/vercel/next.js/tree/canary/examples/with-aws-amplify)
 
@@ -6,8 +6,9 @@ This example shows how to build a server rendered web application with NextJS an
 
 Two routes are implemented :
 
-- `/` : A static route that uses `getStaticProps` to load data from AppSync and renders it on the server (Code in [pages/index.js](/pages/index.js))
-- `/todo/[id]` : A dynamic route that uses `getServerSideProps` and the id from the provided context to load a single todo from AppSync and render it on the server. (Code in [pages/todo/:[id].js](/pages/todo/[id].js))
+- `/` : A server-rendered route that uses `getServerSideProps` to load data from AppSync and renders it on the server (Code in [pages/index.tsx](src/pages/index.tsx))
+
+- `/todo/[id]` : A dynamic route that uses `getStaticPaths`, `getStaticProps` and the id from the provided context to load a single todo from AppSync and render it on the server. (Code in [pages/todo/[id].tsx](src/pages/todo/[id].tsx))
 
 ## How to use
 
@@ -26,22 +27,51 @@ pnpm create next-app --example with-aws-amplify nextjs-aws-amplify-app
 <details>
   <summary>If you've never used amplify before </summary>
 
-#### Install & Configure Amplify
+#### Install Amplify
 
-1. [Sign up](https://portal.aws.amazon.com/billing/signup#/start) for an AWS account
+1. [Sign up](https://aws.amazon.com/free/) for an AWS account
 2. Install the AWS Amplify cli:
 
 ```sh
 npm install -g @aws-amplify/cli
 ```
 
-3. Configure the Amplify cli
+[Read More](https://docs.amplify.aws/cli/)
 
-```sh
-amplify configure
+#### Configure Amplify
+
+1. Configure the Amplify cli
+
+```bash
+$ amplify configure
+
+# <Interactive>
+Follow these steps to set up access to your AWS account:
+
+Sign in to your AWS administrator account:
+https://console.aws.amazon.com/
+Press Enter to continue
+
+Specify the AWS Region
+? region:  <AWS_REGION>
+
+Specify the username of the new IAM user:
+? user name:  <NEW_AWS_IAM_USERNAME>
+
+Complete the user creation using the AWS console
+Press Enter to continue
+
+Enter the access key of the newly created user:
+? accessKeyId:  <ACCESS_KEY_ID>
+
+? secretAccessKey:  <SECRET_ACCESS_KEY>
+
+This would update/create the AWS Profile in your local machine
+? Profile Name:  <LOCAL_PROFILE_NAME>
+
+Successfully set up the new user.
+# </Interactive>
 ```
-
-[Read More](https://aws-amplify.github.io/docs/cli-toolchain/quickstart?sdk=js)
 
 </details>
 
@@ -52,19 +82,37 @@ $ amplify init
 
 # <Interactive>
 ? Enter a name for the project <PROJECT_NAME>
-? Enter a name for the environment: dev (or whatever you would like to call this env)
-? Choose your default editor: <YOUR_EDITOR_OF_CHOICE>
-? Choose the type of app that you're building (Use arrow keys)
-  android
-  ios
-❯ javascript
-? What javascript framework are you using react
-? Source Directory Path:  src
-? Distribution Directory Path: out
-? Build Command:  (npm run-script build)
-? Start Command: (npm run-script start)
-? Do you want to use an AWS profile? Y
 
+Project information
+| Name: <PROJECT_NAME>
+| Environment: dev
+| Default editor: Visual Studio Code
+| App type: javascript
+| Javascript framework: react
+| Source Directory Path: src
+| Distribution Directory Path: build
+| Build Command: npm run-script build
+| Start Command: npm run-script start
+
+? Initialize the project with the above configuration? Yes
+
+Using default provider awscloudformation
+? Select the authentication method you want to use: AWS profile
+
+or more information on AWS Profiles, see:
+https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-profiles.html
+
+? Please choose the profile you want to use: <LOCAL_PROFILE_NAME>
+
+Deployment completed.
+
+? Help improve Amplify CLI by sharing non sensitive configurations on failures (y/N): y/N
+
+Deployment bucket fetched.
+Initialized provider successfully.
+Initialized your environment successfully.
+
+Your project has been successfully initialized and connected to the cloud!
 # </Interactive>
 ```
 
@@ -73,16 +121,49 @@ $ amplify init
 ```sh
 $ amplify add api
 # <Interactive>
-? Please select from one of the below mentioned services (Use arrow keys)
+? Select from one of the below mentioned services: (Use arrow keys)
 ❯ GraphQL
   REST
-? Provide API name: <API_NAME>
-? Choose an authorization type for the API (Use arrow keys)
-❯ API key
-  Amazon Cognito User Pool
-? Do you have an annotated GraphQL schema? (y/N) y
-? Provide your schema file path: ./schema.graphql
+
+? Here is the GraphQL API that we will create. Select a setting to edit or continue
+  Name: <PROJECT_NAME>
+  Authorization modes: API key (default, expiration time: 7 days from now)
+  Conflict detection (required for DataStore): Disabled
+❯ Continue
+
+
+? Choose a schema template: (Use arrow keys)
+❯ Single object with fields (e.g., “Todo” with ID, name, description)
+  One-to-many relationship (e.g., “Blogs” with “Posts” and “Comments”)
+  Blank Schema
+
+GraphQL schema compiled successfully.
+
+? Do you want to edit the schema now? (Y/n): n
+
+Successfully added resource <PROJECT_NAME> locally
 # </Interactive>
+```
+
+#### Edit GraphQL Schema
+
+Open [`amplify/backend/api/<PROJECT_NAME>/schema.graphql`](amplify/backend/api/<PROJECT_NAME>/schema.graphql) and change it to the following:
+
+```
+type Todo
+  @model
+  @auth(
+    rules: [
+      { allow: owner } # Allow the creator of a todo to perform Create, Update, Delete operations.
+      { allow: public, operations: [read] } # Allow public (guest users without an account) to Read todos.
+      { allow: private, operations: [read] } # Allow private (other signed in users) to Read todos.
+    ]
+  ) {
+  id: ID!
+  name: String!
+  description: String
+}
+
 ```
 
 #### Deploy infrastructure
@@ -91,15 +172,50 @@ $ amplify add api
 $ amplify push
 # <Interactive>
 ? Are you sure you want to continue? Y
-? Do you want to generate code for your newly created GraphQL API? Y
-? Choose the code generation language target (Use arrow keys)
-❯ javascript
-  typescript
+Cognito UserPool configuration
+Using service: Cognito, provided by: awscloudformation
+
+ The current configured provider is Amazon Cognito.
+
+? Do you want to use the default authentication and security configuration? (Use arrow keys)
+❯ Default configuration
+  Default configuration with Social Provider (Federation)
+  Manual configuration
+  I want to learn more.
+
+Warning: you will not be able to edit these selections.
+
+? How do you want users to be able to sign in?
+  Username
+❯ Email
+  Phone Number
+  Email or Phone Number
+  I want to learn more.
+
+? Do you want to configure advanced settings?
+❯ No, I am done.
+  Yes, I want to make some additional changes.
+
+GraphQL schema compiled successfully.
+
+? Do you want to generate code for your newly created GraphQL API: Yes
+
+? Choose the code generation language target:
+  javascript
+❯ typescript
   flow
-? Enter the file name pattern of graphql queries, mutations and subscriptions (src/graphql/**/*.js)
-? Do you want to generate/update all possible GraphQL operations - queries, mutations and subscriptions (Y/n) Y
+
+? Enter the file name pattern of graphql queries, mutations and subscriptions: (src/graphql/**/*.ts): Enter
+
+? Do you want to generate/update all possible GraphQL operations - queries, mutations and subscriptions: Yes
+
 ? Enter maximum statement depth [increase from default if your schema is deeply nested] (2)
 
+? Enter the file name for the generated code (src/API.ts) : Enter
+
+Generated GraphQL operations successfully and saved at src/graphql
+
+Code generated successfully and saved in file src/API.ts
 # </Interactive>
 ```
 
@@ -111,23 +227,4 @@ npm run dev
 # or
 yarn
 yarn dev
-```
-
-### Edit GraphQL Schema
-
-1. Open `amplify/backend/api/projectname/schema.graphql` and change what you need to.
-2. Run `amplify push`
-3. 👍
-
-### Use with new Amplify project
-
-Make sure to commit your changes before doing this.
-
-```sh
-mv amplify/backend/api/nextjswithawsamplify/schema.graphql ./schema.graphql
-rm -rf amplify/ src/
-amplify init
-amplify add api
-rm ./schema.graphql
-amplify push
 ```
