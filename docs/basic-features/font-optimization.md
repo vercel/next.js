@@ -26,40 +26,46 @@ Automatically self-host any Google Font. Fonts are included in the deployment an
 
 Import the font you would like to use from `@next/font/google` as a function. We recommend using [**variable fonts**](https://fonts.google.com/variablefonts) for the best performance and flexibility.
 
-```jsx:app/layout.tsx
-import { Inter } from '@next/font/google';
+```jsx
+// app/layout.tsx
+import { Inter } from '@next/font/google'
 
 // If loading a variable font, you don't need to specify the font weight
-const inter = Inter();
+const inter = Inter()
 
-export default function RootLayout({ children }: {
-  children: React.ReactNode;
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode,
 }) {
   return (
     <html lang="en" className={inter.className}>
       <body>{children}</body>
     </html>
-  );
+  )
 }
 ```
 
 If you can't use a variable font, you will **need to specify a weight**:
 
-```jsx:app/layout.tsx
-import { Roboto } from '@next/font/google';
+```jsx
+// app/layout.tsx
+import { Roboto } from '@next/font/google'
 
 const roboto = Roboto({
   weight: '400',
-});
+})
 
-export default function RootLayout({ children }: {
-  children: React.ReactNode;
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode,
 }) {
   return (
     <html lang="en" className={roboto.className}>
       <body>{children}</body>
     </html>
-  );
+  )
 }
 ```
 
@@ -95,20 +101,23 @@ View the [Font API Reference](/docs/api-reference/next/font.md#nextfontgoogle) f
 
 Import `@next/font/local` and specify the `src` of your local font file. We recommend using [**variable fonts**](https://fonts.google.com/variablefonts) for the best performance and flexibility.
 
-```jsx:app/layout.tsx
-import localFont from '@next/font/local';
+```jsx
+/// app/layout.tsx
+import localFont from '@next/font/local'
 
 // Font files can be colocated inside of `app`
-const myFont = localFont({ src: './my-font.woff2' });
+const myFont = localFont({ src: './my-font.woff2' })
 
-export default function RootLayout({ children }: {
-  children: React.ReactNode;
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode,
 }) {
   return (
     <html lang="en" className={localFont.className}>
       <body>{children}</body>
     </html>
-  );
+  )
 }
 ```
 
