@@ -129,9 +129,11 @@ export default singletonRouter as SingletonRouter
 // Reexport the withRoute HOC
 export { default as withRouter } from './with-router'
 
-export function useRouter(): NextRouter {
+export function useRouter(throwOnMissing: true): NextRouter
+export function useRouter(): NextRouter | null
+export function useRouter(throwOnMissing?: boolean) {
   const router = React.useContext(RouterContext)
-  if (!router) {
+  if (!router && throwOnMissing) {
     throw new Error('invariant expected pages router to be mounted')
   }
 
