@@ -42,6 +42,10 @@ pub enum Effect {
         ast_path: Vec<AstParentKind>,
         span: Span,
     },
+    ImportMeta {
+        span: Span,
+        ast_path: Vec<AstParentKind>,
+    },
 }
 
 impl Effect {
@@ -85,6 +89,10 @@ impl Effect {
                 export: _,
                 ast_path: _,
                 span: _,
+            } => {}
+            Effect::ImportMeta {
+                span: _,
+                ast_path: _,
             } => {}
         }
     }
@@ -1090,6 +1098,21 @@ impl VisitAstPath for Analyzer<'_> {
                 export,
                 ast_path: as_parent_path(ast_path),
                 span: ident.span(),
+            })
+        }
+    }
+
+    fn visit_meta_prop_expr<'ast: 'r, 'r>(
+        &mut self,
+        expr: &'ast MetaPropExpr,
+        ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
+    ) {
+        if expr.kind == MetaPropKind::ImportMeta {
+            // MetaPropExpr also covers `new.target`. Only consider `import.meta`
+            // an effect.
+            self.data.effects.push(Effect::ImportMeta {
+                span: expr.span,
+                ast_path: as_parent_path(ast_path),
             })
         }
     }

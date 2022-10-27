@@ -1157,6 +1157,15 @@ pub(crate) async fn analyze_ecmascript_module(
                             }
                         }
                     }
+                    Effect::ImportMeta { span, ast_path: _ } => {
+                        handler.span_warn_with_code(
+                            span,
+                            "import.meta is not yet supported",
+                            DiagnosticId::Error(
+                                errors::failed_to_analyse::ecmascript::IMPORT_META.to_string(),
+                            ),
+                        );
+                    }
                 }
             }
         }
