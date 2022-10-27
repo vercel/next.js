@@ -26,40 +26,46 @@ Automatically self-host any Google Font. Fonts are included in the deployment an
 
 Import the font you would like to use from `@next/font/google` as a function. We recommend using [**variable fonts**](https://fonts.google.com/variablefonts) for the best performance and flexibility.
 
-```jsx:app/layout.tsx
-import { Inter } from '@next/font/google';
+```jsx
+// app/layout.tsx
+import { Inter } from '@next/font/google'
 
 // If loading a variable font, you don't need to specify the font weight
-const inter = Inter();
+const inter = Inter()
 
-export default function RootLayout({ children }: {
-  children: React.ReactNode;
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode,
 }) {
   return (
     <html lang="en" className={inter.className}>
       <body>{children}</body>
     </html>
-  );
+  )
 }
 ```
 
 If you can't use a variable font, you will **need to specify a weight**:
 
-```jsx:app/layout.tsx
-import { Roboto } from '@next/font/google';
+```jsx
+// app/layout.tsx
+import { Roboto } from '@next/font/google'
 
 const roboto = Roboto({
   weight: '400',
-});
+})
 
-export default function RootLayout({ children }: {
-  children: React.ReactNode;
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode,
 }) {
   return (
     <html lang="en" className={roboto.className}>
       <body>{children}</body>
     </html>
-  );
+  )
 }
 ```
 
@@ -71,20 +77,22 @@ This can be done in 2 ways:
 
 - On a font per font basis by adding it to the function call
 
-  ```tsx:app/layout.tsx
-  const inter = Inter({ subsets: ["latin"] });
+  ```tsx
+  // app/layout.tsx
+  const inter = Inter({ subsets: ['latin'] })
   ```
 
 - Globally for all your fonts in your `next.config.js`
 
-  ```js:next.config.js
+  ```js
+  // next.config.js
   module.exports = {
     experimental: {
       fontLoaders: [
         { loader: '@next/font/google', options: { subsets: ['latin'] } },
       ],
     },
-  };
+  }
   ```
 
   - If both are configured, the subset in the function call is used.
@@ -95,20 +103,23 @@ View the [Font API Reference](/docs/api-reference/next/font.md#nextfontgoogle) f
 
 Import `@next/font/local` and specify the `src` of your local font file. We recommend using [**variable fonts**](https://fonts.google.com/variablefonts) for the best performance and flexibility.
 
-```jsx:app/layout.tsx
-import localFont from '@next/font/local';
+```jsx
+/// app/layout.tsx
+import localFont from '@next/font/local'
 
 // Font files can be colocated inside of `app`
-const myFont = localFont({ src: './my-font.woff2' });
+const myFont = localFont({ src: './my-font.woff2' })
 
-export default function RootLayout({ children }: {
-  children: React.ReactNode;
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode,
 }) {
   return (
     <html lang="en" className={localFont.className}>
       <body>{children}</body>
     </html>
-  );
+  )
 }
 ```
 
@@ -141,7 +152,7 @@ Every time you call the `localFont` or Google font function, that font is hosted
 
 <div class="card">
   <a href="/docs/basic-features/image-optimization.md">
-    <b>Image Optmization</b>
+    <b>Image Optimization</b>
     <small>Learn how to optimize images with the Image component.</small>
   </a>
 </div>

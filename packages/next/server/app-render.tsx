@@ -33,7 +33,7 @@ import { ServerInsertedHTMLContext } from '../shared/lib/server-inserted-html'
 import { stripInternalQueries } from './internal-utils'
 import type { ComponentsType } from '../build/webpack/loaders/next-app-loader'
 import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
-import { NextCookies } from './web/spec-extension/cookies'
+import { RequestCookies } from './web/spec-extension/cookies'
 import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
 import { NOT_FOUND_ERROR_CODE } from '../client/components/not-found'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
@@ -45,7 +45,7 @@ const INTERNAL_HEADERS_INSTANCE = Symbol('internal for headers readonly')
 function readonlyHeadersError() {
   return new Error('ReadonlyHeaders cannot be modified')
 }
-class ReadonlyHeaders {
+export class ReadonlyHeaders {
   [INTERNAL_HEADERS_INSTANCE]: Headers
 
   entries: Headers['entries']
@@ -83,20 +83,17 @@ class ReadonlyHeaders {
 }
 
 const INTERNAL_COOKIES_INSTANCE = Symbol('internal for cookies readonly')
-function readonlyCookiesError() {
-  return new Error('ReadonlyCookies cannot be modified')
+class ReadonlyRequestCookiesError extends Error {
+  message =
+    'ReadonlyRequestCookies cannot be modified. Read more: https://nextjs.org/api-reference/cookies'
 }
 
-class ReadonlyNextCookies {
-  [INTERNAL_COOKIES_INSTANCE]: NextCookies
+export class ReadonlyRequestCookies {
+  [INTERNAL_COOKIES_INSTANCE]: RequestCookies
 
-  entries: NextCookies['entries']
-  forEach: NextCookies['forEach']
-  get: NextCookies['get']
-  getWithOptions: NextCookies['getWithOptions']
-  has: NextCookies['has']
-  keys: NextCookies['keys']
-  values: NextCookies['values']
+  get: RequestCookies['get']
+  getAll: RequestCookies['getAll']
+  has: RequestCookies['has']
 
   constructor(request: {
     headers: {
@@ -105,29 +102,26 @@ class ReadonlyNextCookies {
   }) {
     // Since `new Headers` uses `this.append()` to fill the headers object ReadonlyHeaders can't extend from Headers directly as it would throw.
     // Request overridden to not have to provide a fully request object.
-    const cookiesInstance = new NextCookies(request as Request)
+    const cookiesInstance = new RequestCookies(request.headers as Headers)
     this[INTERNAL_COOKIES_INSTANCE] = cookiesInstance
 
-    this.entries = cookiesInstance.entries.bind(cookiesInstance)
-    this.forEach = cookiesInstance.forEach.bind(cookiesInstance)
     this.get = cookiesInstance.get.bind(cookiesInstance)
-    this.getWithOptions = cookiesInstance.getWithOptions.bind(cookiesInstance)
+    this.getAll = cookiesInstance.getAll.bind(cookiesInstance)
     this.has = cookiesInstance.has.bind(cookiesInstance)
-    this.keys = cookiesInstance.keys.bind(cookiesInstance)
-    this.values = cookiesInstance.values.bind(cookiesInstance)
   }
+
   [Symbol.iterator]() {
-    return this[INTERNAL_COOKIES_INSTANCE][Symbol.iterator]()
+    return (this[INTERNAL_COOKIES_INSTANCE] as any)[Symbol.iterator]()
   }
 
   clear() {
-    throw readonlyCookiesError()
+    throw new ReadonlyRequestCookiesError()
   }
   delete() {
-    throw readonlyCookiesError()
+    throw new ReadonlyRequestCookiesError()
   }
   set() {
-    throw readonlyCookiesError()
+    throw new ReadonlyRequestCookiesError()
   }
 }
 
@@ -1662,7 +1656,7 @@ export async function renderToHTMLOrFlight(
   )
 
   let cachedHeadersInstance: ReadonlyHeaders | undefined
-  let cachedCookiesInstance: ReadonlyNextCookies | undefined
+  let cachedCookiesInstance: ReadonlyRequestCookies | undefined
 
   const requestStore = {
     get headers() {
@@ -1675,7 +1669,7 @@ export async function renderToHTMLOrFlight(
     },
     get cookies() {
       if (!cachedCookiesInstance) {
-        cachedCookiesInstance = new ReadonlyNextCookies({
+        cachedCookiesInstance = new ReadonlyRequestCookies({
           headers: {
             get: (key) => {
               if (key !== 'cookie') {
