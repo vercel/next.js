@@ -1,129 +1,147 @@
 ---
-description: Next.js supports built-in web font optimization to inline font CSS. Learn more here.
+description: Optimizing loading web fonts with the built-in `@next/font` loaders.
 ---
 
-# Font Optimization
+# Optimizing Fonts
 
-Next.js helps you optimize loading web fonts by inlining font CSS during `next build`. This optimization eliminates an extra network round trip to fetch font declaration files. This results in improvements to [First Contentful Paint (FCP)](https://web.dev/fcp/) and [Largest Contentful Paint (LCP)](https://vercel.com/blog/core-web-vitals#largest-contentful-paint?utm_source=next-site&utm_medium=docs&utm_campaign=next-website). For example, this is the transformation Next.js makes:
+[**`@next/font`**](/docs/api-reference/next/font.md) will automatically optimize your fonts (including custom fonts) and remove external network requests for improved privacy and performance.
 
-```js
-// Before
-<link
-  href="https://fonts.googleapis.com/css2?family=Inter&display=optional"
-  rel="stylesheet"
-/>
+## Overview
 
-// After
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<style data-href="https://fonts.googleapis.com/css2?family=Inter&display=optional">
-  @font-face{font-family:'Inter';font-style:normal...
-</style>
-```
+`@next/font` includes **built-in automatic self-hosting** for _any_ font file. This means you can optimally load web fonts with zero layout shift, thanks to the underlying CSS `size-adjust` property used.
+
+This new font system also allows you to conveniently use all Google Fonts with performance and privacy in mind. CSS and font files are downloaded at build time and self-hosted with the rest of your static assets. **No requests are sent to Google by the browser.**
 
 ## Usage
 
-To add a web font to your Next.js application, add the font to a [Custom `Document`](/docs/advanced-features/custom-document.md).
+To get started, install `@next/font`:
 
-```js
-// pages/_document.js
+```bash
+npm install @next/font
+```
 
-import { Html, Head, Main, NextScript } from 'next/document'
+### Google Fonts
 
-export default function Document() {
+Automatically self-host any Google Font. Fonts are included in the deployment and served from the same domain as your deployment. **No requests are sent to Google by the browser.**
+
+Import the font you would like to use from `@next/font/google` as a function. We recommend using [**variable fonts**](https://fonts.google.com/variablefonts) for the best performance and flexibility.
+
+```jsx:app/layout.tsx
+import { Inter } from '@next/font/google';
+
+// If loading a variable font, you don't need to specify the font weight
+const inter = Inter();
+
+export default function RootLayout({ children }: {
+  children: React.ReactNode;
+}) {
   return (
-    <Html>
-      <Head>
-        <link
-          href="https://fonts.googleapis.com/css2?family=Inter&display=optional"
-          rel="stylesheet"
-        />
-      </Head>
-      <body>
-        <Main />
-        <NextScript />
-      </body>
-    </Html>
-  )
+    <html lang="en" className={inter.className}>
+      <body>{children}</body>
+    </html>
+  );
 }
 ```
 
-Adding fonts to `_document` is preferred over individual pages. When adding fonts to a single page with [`next/head`](/docs/api-reference/next/head.md), font optimizations included by Next.js will not work on navigations between pages client-side or when using [streaming](/docs/advanced-features/react-18/streaming.md).
+If you can't use a variable font, you will **need to specify a weight**:
 
-Next.js currently supports optimizing Google Fonts and Typekit, with support for other font providers coming soon. We're also planning to add control over [loading strategies](https://github.com/vercel/next.js/issues/21555) and `font-display` values. See [Google Font Display](https://nextjs.org/docs/messages/google-font-display) for more information.
+```jsx:app/layout.tsx
+import { Roboto } from '@next/font/google';
 
-> **Note**: Font Optimization does not currently support self-hosted fonts.
+const roboto = Roboto({
+  weight: '400',
+});
 
-## Disabling Optimization
-
-If you do not want Next.js to optimize your fonts, you can opt-out.
-
-```js
-// next.config.js
-
-module.exports = {
-  optimizeFonts: false,
+export default function RootLayout({ children }: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en" className={roboto.className}>
+      <body>{children}</body>
+    </html>
+  );
 }
 ```
 
-## Optimize CLS for Fonts
+#### Specifying a subset
 
-Next.js can reduce the Cumulative Layout Shift ([CLS](https://web.dev/cls/)) of your website by adjusting the size of your fallback fonts and inlining the font CSS.
+Google Fonts are automatically [subset](https://fonts.google.com/knowledge/glossary/subsetting). This reduces the size of the font file and improves performance. You'll need to define which of these subsets you want to preload. Failing to specify any subsets while [`preload`](/docs/api-reference/next/font.md#preload) is true will result in a warning.
 
-Sites that load fonts with `font-display: swap` usually suffer from ([CLS](https://web.dev/cls/)) when the web font loads and replaces the fallback font. This is due to differences in height, width, and alignment between the main and fallback fonts, which is common even if the CSS font size is the same.
+This can be done in 2 ways:
 
-Next.js can reduce CLS automatically by adjusting the size of the fallback font to match that of the main font using font override metric properties such as `size-adjust`, `ascent-override`, `descent-override`, and `line-gap-override`.
+- On a font per font basis by adding it to the function call
 
-To enable this experimental feature, update your `next.config.js` with the following configuration:
+  ```tsx:app/layout.tsx
+  const inter = Inter({ subsets: ["latin"] });
+  ```
 
-```js
-module.exports = {
-  experimental: {
-    adjustFontFallbacks: true,
-  },
+- Globally for all your fonts in your `next.config.js`
+
+  ```js:next.config.js
+  module.exports = {
+    experimental: {
+      fontLoaders: [
+        { loader: '@next/font/google', options: { subsets: ['latin'] } },
+      ],
+    },
+  };
+  ```
+
+  - If both are configured, the subset in the function call is used.
+
+View the [Font API Reference](/docs/api-reference/next/font.md#nextfontgoogle) for more information.
+
+### Local Fonts
+
+Import `@next/font/local` and specify the `src` of your local font file. We recommend using [**variable fonts**](https://fonts.google.com/variablefonts) for the best performance and flexibility.
+
+```jsx:app/layout.tsx
+import localFont from '@next/font/local';
+
+// Font files can be colocated inside of `app`
+const myFont = localFont({ src: './my-font.woff2' });
+
+export default function RootLayout({ children }: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en" className={localFont.className}>
+      <body>{children}</body>
+    </html>
+  );
 }
 ```
 
-When enabled, Next.js will generate a fallback font definition with the correct size overrides in the format `{fontName} Fallback`.
-For example, the font `Inter` will generate the fallback font `Inter Fallback`.
+View the [Font API Reference](/docs/api-reference/next/font.md#nextfontlocal) for more information.
 
-You can then use the fallback font in your stylesheets such as the following:
+## Preloading
 
-```css
-body {
-  font-family: 'Inter', 'Inter Fallback', sans-serif;
-}
-```
+When a font function is called on a page of your site, it is not globally available and preloaded on all routes. Rather, the font is only preloaded on the related route/s based on the type of file where it is used:
 
-> **NOTE**: Next.js currently supports one cross-platform serif font ('Times New Roman') and one cross-platform sans-serif font ('Arial')
+- if it's a [unique page](https://beta.nextjs.org/docs/routing/pages-and-layouts#pages), it is preloaded on the unique route for that page
+- if it's a [layout](https://beta.nextjs.org/docs/routing/pages-and-layouts#layouts), it is preloaded on all the routes wrapped by the layout
+- if it's the [root layout](https://beta.nextjs.org/docs/routing/pages-and-layouts#root-layout-required), it is preloaded on all routes
 
-The final output will include the fallback override definition.
+## Reusing fonts
 
-```html
-// Injected into index.html during build/render
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<style data-href="https://fonts.googleapis.com/css2?family=Inter&display=swap">
-  @font-face{
-    font-family: 'Inter';
-    font-style:normal
-    ...
-  }
+Every time you call the `localFont` or Google font function, that font is hosted as one instance in your application. Therefore, if you load the same font function in multiple files, multiple instances of the same font are hosted. In this situation, it is recommended to do the following:
 
-  @font-face {
-    font-family: 'Inter Fallback',
-    src: local('Arial');
-    ascent-override: 96.975%;
-    ...
-  }
-</style>
-```
+- Call the font loader function in one shared file
+- Export it as a constant
+- Import the constant in each file where you would like to use this font
 
-## Related
-
-For more information on what to do next, we recommend the following sections:
+## Next Steps
 
 <div class="card">
-  <a href="/docs/advanced-features/custom-document.md">
-    <b>Custom Document</b>
-    <small>Learn how to augment your application's html and body tags.</small>
+  <a href="/docs/api-reference/next/font.md">
+    <b>Font API Reference</b>
+    <small>See the API Reference for the Font module.</small>
+  </a>
+</div>
+
+<div class="card">
+  <a href="/docs/basic-features/image-optimization.md">
+    <b>Image Optmization</b>
+    <small>Learn how to optimize images with the Image component.</small>
   </a>
 </div>
