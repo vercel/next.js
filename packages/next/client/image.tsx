@@ -394,24 +394,6 @@ const ImageElement = ({
               if (!srcString) {
                 console.error(`Image is missing required "src" property:`, img)
               }
-              if (
-                img.getAttribute('objectFit') ||
-                img.getAttribute('objectfit')
-              ) {
-                console.error(
-                  `Image has unknown prop "objectFit". Did you mean to use the "style" prop instead?`,
-                  img
-                )
-              }
-              if (
-                img.getAttribute('objectPosition') ||
-                img.getAttribute('objectposition')
-              ) {
-                console.error(
-                  `Image has unknown prop "objectPosition". Did you mean to use the "style" prop instead?`,
-                  img
-                )
-              }
               if (img.getAttribute('alt') === null) {
                 console.error(
                   `Image is missing required "alt" property. Please add Alternative Text to describe the image for screen readers and search engines.`
@@ -559,6 +541,21 @@ export default function Image({
     }
   }
   src = typeof src === 'string' ? src : staticSrc
+
+  for (const legacyProp of [
+    'layout',
+    'objectFit',
+    'objectPosition',
+    'lazyBoundary',
+    'lazyRoot',
+  ]) {
+    if (legacyProp in rest) {
+      throw new Error(
+        `Image with src "${src}" has legacy prop "${legacyProp}". Did you forget to run the codemod?` +
+          `\nRead more: https://nextjs.org/docs/messages/next-image-upgrade-to-13`
+      )
+    }
+  }
 
   let isLazy =
     !priority && (loading === 'lazy' || typeof loading === 'undefined')
