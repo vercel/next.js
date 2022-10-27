@@ -87,9 +87,64 @@ describe('@next/font/google loader', () => {
         fs: {} as any,
         isServer: true,
       })
-      expect(css).toBe('OK')
+      expect(css).toBe('OK\n')
       expect(fetch).toHaveBeenCalledTimes(1)
       expect(fetch).toHaveBeenCalledWith(url, expect.any(Object))
+    })
+
+    test('Multiple weights and styles', async () => {
+      let i = 1
+      fetch.mockResolvedValue({
+        ok: true,
+        text: async () => `${i++}`,
+      })
+
+      const { css } = await loader({
+        functionName: 'Roboto',
+        data: [
+          {
+            weight: ['300', '400', '500'],
+            style: ['normal', 'italic'],
+          },
+        ],
+        config: { subsets: [] },
+        emitFontFile: jest.fn(),
+        resolve: jest.fn(),
+        fs: {} as any,
+        isServer: true,
+      })
+      expect(css).toBe('1\n2\n3\n4\n5\n6\n')
+      expect(fetch).toHaveBeenCalledTimes(6)
+      expect(fetch).toHaveBeenNthCalledWith(
+        1,
+        'https://fonts.googleapis.com/css2?family=Roboto:wght@300&display=optional',
+        expect.any(Object)
+      )
+      expect(fetch).toHaveBeenNthCalledWith(
+        2,
+        'https://fonts.googleapis.com/css2?family=Roboto:ital,wght@1,300&display=optional',
+        expect.any(Object)
+      )
+      expect(fetch).toHaveBeenNthCalledWith(
+        3,
+        'https://fonts.googleapis.com/css2?family=Roboto:wght@400&display=optional',
+        expect.any(Object)
+      )
+      expect(fetch).toHaveBeenNthCalledWith(
+        4,
+        'https://fonts.googleapis.com/css2?family=Roboto:ital,wght@1,400&display=optional',
+        expect.any(Object)
+      )
+      expect(fetch).toHaveBeenNthCalledWith(
+        5,
+        'https://fonts.googleapis.com/css2?family=Roboto:wght@500&display=optional',
+        expect.any(Object)
+      )
+      expect(fetch).toHaveBeenNthCalledWith(
+        6,
+        'https://fonts.googleapis.com/css2?family=Roboto:ital,wght@1,500&display=optional',
+        expect.any(Object)
+      )
     })
   })
 
@@ -279,6 +334,22 @@ describe('@next/font/google loader', () => {
               "Invalid axes value \`INVALID\` for font \`Roboto Flex\`.
               Available axes: \`GRAD\`, \`XTRA\`, \`YOPQ\`, \`YTAS\`, \`YTDE\`, \`YTFI\`, \`YTLC\`, \`YTUC\`, \`opsz\`, \`slnt\`, \`wdth\`"
             `)
+    })
+
+    test('Variable in weight array', async () => {
+      await expect(
+        loader({
+          functionName: 'Inter',
+          data: [{ weight: ['100', 'variable'] }],
+          config: { subsets: [] },
+          emitFontFile: jest.fn(),
+          resolve: jest.fn(),
+          fs: {} as any,
+          isServer: true,
+        })
+      ).rejects.toThrowErrorMatchingInlineSnapshot(
+        `"Unexpected \`variable\` in weight array for font \`Inter\`. You only need \`variable\`, it includes all available weights."`
+      )
     })
   })
 })
