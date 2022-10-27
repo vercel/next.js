@@ -103,7 +103,7 @@ const nextDev: cliCommand = (argv) => {
 
   if (args['--turbo']) {
     // check for postcss, babelrc, swc plugins
-    return new Promise(async (resolve) => {
+    return new Promise<void>(async (resolve) => {
       const { findConfigPath } =
         require('../lib/find-config') as typeof import('../lib/find-config')
       const { loadBindings } =
@@ -260,7 +260,7 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
       }
       console.log(feedbackMessage)
 
-      loadBindings()
+      return loadBindings()
         .then((bindings: any) => {
           // eslint-disable-next-line no-shadow
           const findUp =
@@ -286,7 +286,14 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
           preflight().catch(() => {})
           return server
         })
-        .then(resolve)
+        .then(
+          () => {
+            resolve()
+          },
+          (err: Error) => {
+            console.error(err)
+          }
+        )
     })
   } else {
     startServer(devServerOptions)

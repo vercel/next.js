@@ -1339,6 +1339,7 @@ export default async function build(
                         pagePath
                       ),
                       nextConfig: config,
+                      pageType,
                     })
                   : undefined
 

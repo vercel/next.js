@@ -8,17 +8,6 @@ export interface NodeHeaders {
   [header: string]: string | string[] | undefined
 }
 
-export interface CookieSerializeOptions {
-  domain?: string
-  encode?(val: string): string
-  expires?: Date
-  httpOnly?: boolean
-  maxAge?: number
-  path?: string
-  sameSite?: boolean | 'lax' | 'strict' | 'none'
-  secure?: boolean
-}
-
 export interface RequestData {
   geo?: {
     city?: string

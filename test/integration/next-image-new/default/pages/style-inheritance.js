@@ -15,7 +15,8 @@ const Page = () => {
         width={200}
         height={200}
         src="/test.jpg"
-        objectFit="cover"
+        fill
+        style={{ objectFit: 'cover' }}
       />
 
       <Image
