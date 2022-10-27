@@ -100,13 +100,13 @@ export const OPTIMIZED_FONT_PROVIDERS = [
 export const DEFAULT_SERIF_FONT = {
   name: 'Times New Roman',
   xAvgCharWidth: 821,
-  azAvgWidth: 940.6538,
+  azAvgWidth: 854.3953488372093,
   unitsPerEm: 2048,
 }
 export const DEFAULT_SANS_SERIF_FONT = {
   name: 'Arial',
   xAvgCharWidth: 904,
-  azAvgWidth: 1002.5769,
+  azAvgWidth: 934.5116279069767,
   unitsPerEm: 2048,
 }
 export const STATIC_STATUS_PAGES = ['/500']
