@@ -12,11 +12,6 @@ const glob = promisify(globOrig)
 describe('app-dir static/dynamic handling', () => {
   const isDev = (global as any).isNextDev
 
-  if ((global as any).isNextDeploy) {
-    it('should skip next deploy for now', () => {})
-    return
-  }
-
   let next: NextInstance
 
   beforeAll(async () => {
@@ -392,19 +387,22 @@ describe('app-dir static/dynamic handling', () => {
         )
       })
 
-      it('should have values from canonical url on rewrite', async () => {
-        const browser = await webdriver(
-          next.url,
-          '/rewritten-use-search-params?first=a&second=b&third=c'
-        )
+      // TODO-APP: re-enable after investigating rewrite params
+      if (!(global as any).isNextDeploy) {
+        it('should have values from canonical url on rewrite', async () => {
+          const browser = await webdriver(
+            next.url,
+            '/rewritten-use-search-params?first=a&second=b&third=c'
+          )
 
-        expect(await browser.elementByCss('#params-first').text()).toBe('a')
-        expect(await browser.elementByCss('#params-second').text()).toBe('b')
-        expect(await browser.elementByCss('#params-third').text()).toBe('c')
-        expect(await browser.elementByCss('#params-not-real').text()).toBe(
-          'N/A'
-        )
-      })
+          expect(await browser.elementByCss('#params-first').text()).toBe('a')
+          expect(await browser.elementByCss('#params-second').text()).toBe('b')
+          expect(await browser.elementByCss('#params-third').text()).toBe('c')
+          expect(await browser.elementByCss('#params-not-real').text()).toBe(
+            'N/A'
+          )
+        })
+      }
     })
 
     describe('usePathname', () => {
@@ -432,10 +430,13 @@ describe('app-dir static/dynamic handling', () => {
         )
       })
     })
-    it('should show a message to leave feedback for `appDir`', async () => {
-      expect(next.cliOutput).toContain(
-        `Thank you for testing \`appDir\` please leave your feedback at https://nextjs.link/app-feedback`
-      )
-    })
+
+    if (!(global as any).isNextDeploy) {
+      it('should show a message to leave feedback for `appDir`', async () => {
+        expect(next.cliOutput).toContain(
+          `Thank you for testing \`appDir\` please leave your feedback at https://nextjs.link/app-feedback`
+        )
+      })
+    }
   })
 })

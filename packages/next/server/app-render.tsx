@@ -1001,7 +1001,7 @@ export async function renderToHTMLOrFlight(
         ? DefaultNotFound
         : undefined
 
-      if (typeof layoutOrPageMod?.revalidate !== 'undefined') {
+      if (typeof layoutOrPageMod?.revalidate === 'number') {
         defaultRevalidate = layoutOrPageMod.revalidate
 
         if (isStaticGeneration && defaultRevalidate === 0) {
