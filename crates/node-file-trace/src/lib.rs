@@ -396,8 +396,6 @@ pub async fn start(args: Arc<Args>) -> Result<Vec<String>> {
                 fs::write("graph.html", viz::graph::wrap_html(&graph)).unwrap();
                 println!("graph.html written");
             }
-            // Dropping is slow, so just forget it...
-            std::mem::forget(tt)
         },
     )
     .await
