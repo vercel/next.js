@@ -200,6 +200,10 @@
               "path": "/docs/advanced-features/compiler.md"
             },
             {
+              "title": "Turbopack",
+              "path": "/docs/advanced-features/turbopack.md"
+            },
+            {
               "title": "Preview Mode",
               "path": "/docs/advanced-features/preview-mode.md"
             },
@@ -419,6 +423,10 @@
         {
           "title": "next/server",
           "path": "/docs/api-reference/next/server.md"
+        },
+        {
+          "title": "@next/font",
+          "path": "/docs/api-reference/next/font.md"
         },
         {
           "path": "/docs/api-reference/next/streaming",

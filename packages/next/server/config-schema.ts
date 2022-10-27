@@ -448,6 +448,9 @@ const configSchema = {
                 'info',
               ],
             } as any,
+            logAll: {
+              type: 'boolean',
+            },
             logDetail: {
               type: 'boolean',
             },
@@ -456,6 +459,9 @@ const configSchema = {
             },
             processCwd: {
               type: 'string',
+            },
+            maxFiles: {
+              type: 'integer',
             },
           },
         },
