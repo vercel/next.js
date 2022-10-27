@@ -160,9 +160,8 @@ struct TaskState {
     /// children are only modified from execution
     children: HashSet<TaskId>,
 
-    /// colletibles are only modified from execution
-    emitted_collectibles: HashSet<(TraitTypeId, RawVc)>,
-    unemitted_collectibles: HashSet<(TraitTypeId, RawVc)>,
+    /// Collectibles are only modified from execution
+    collectibles: MaybeCollectibles,
 
     output: Output,
     created_cells: Vec<Cell>,
@@ -172,6 +171,48 @@ struct TaskState {
     executions: u32,
     total_duration: Duration,
     last_duration: Duration,
+}
+
+/// Keeps track of emitted and unemitted collectibles. Defaults to None to avoid
+/// allocating memory for two empty hashsets when no collectibles are emitted.
+#[derive(Default)]
+struct MaybeCollectibles {
+    inner: Option<Box<Collectibles>>,
+}
+
+/// The collectibles of a task.
+#[derive(Default)]
+struct Collectibles {
+    emitted: HashSet<(TraitTypeId, RawVc)>,
+    unemitted: HashSet<(TraitTypeId, RawVc)>,
+}
+
+impl MaybeCollectibles {
+    /// Consumes the collectibles (if any) and return them.
+    fn take(&mut self) -> Option<Box<Collectibles>> {
+        self.inner.take()
+    }
+
+    /// Returns a reference to the collectibles (if any).
+    fn as_ref(&self) -> Option<&Box<Collectibles>> {
+        self.inner.as_ref()
+    }
+
+    /// Emits a collectible.
+    fn emit(&mut self, trait_type: TraitTypeId, value: RawVc) -> bool {
+        self.inner
+            .get_or_insert_default()
+            .emitted
+            .insert((trait_type, value))
+    }
+
+    /// Unemits a collectible.
+    fn unemit(&mut self, trait_type: TraitTypeId, value: RawVc) -> bool {
+        self.inner
+            .get_or_insert_default()
+            .unemitted
+            .insert((trait_type, value))
+    }
 }
 
 #[derive(PartialEq, Eq, Debug)]
@@ -427,11 +468,9 @@ impl Task {
                         }
                     }
                 }
-                if !state.emitted_collectibles.is_empty()
-                    || !state.unemitted_collectibles.is_empty()
-                {
-                    let emitted = take(&mut state.emitted_collectibles);
-                    let unemitted = take(&mut state.unemitted_collectibles);
+                if let Some(collectibles) = state.collectibles.take() {
+                    let emitted = collectibles.emitted;
+                    let unemitted = collectibles.unemitted;
                     state.scopes.iter().for_each(|id| {
                         backend.with_scope(id, |scope| {
                             let mut tasks = HashSet::new();
@@ -728,19 +767,19 @@ impl Task {
                 }
             }
 
-            if !state.emitted_collectibles.is_empty() || !state.unemitted_collectibles.is_empty() {
+            if let Some(collectibles) = state.collectibles.as_ref() {
                 let mut tasks = HashSet::new();
                 {
                     let mut scope_state = scope.state.lock();
-                    state
-                        .emitted_collectibles
+                    collectibles
+                        .emitted
                         .iter()
                         .filter_map(|(trait_id, collectible)| {
                             scope_state.add_collectible(*trait_id, *collectible)
                         })
                         .for_each(|e| tasks.extend(e.notify));
-                    state
-                        .unemitted_collectibles
+                    collectibles
+                        .unemitted
                         .iter()
                         .filter_map(|(trait_id, collectible)| {
                             scope_state.remove_collectible(*trait_id, *collectible)
@@ -770,19 +809,19 @@ impl Task {
             }
             scope.decrement_tasks();
 
-            if !state.emitted_collectibles.is_empty() || !state.unemitted_collectibles.is_empty() {
+            if let Some(collectibles) = state.collectibles.as_ref() {
                 let mut tasks = HashSet::new();
                 {
                     let mut scope_state = scope.state.lock();
-                    state
-                        .emitted_collectibles
+                    collectibles
+                        .emitted
                         .iter()
                         .filter_map(|(trait_id, collectible)| {
                             scope_state.remove_collectible(*trait_id, *collectible)
                         })
                         .for_each(|e| tasks.extend(e.notify));
-                    state
-                        .unemitted_collectibles
+                    collectibles
+                        .unemitted
                         .iter()
                         .filter_map(|(trait_id, collectible)| {
                             scope_state.add_collectible(*trait_id, *collectible)
@@ -1371,7 +1410,7 @@ impl Task {
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) {
         let mut state = self.state.write();
-        if state.emitted_collectibles.insert((trait_type, collectible)) {
+        if state.collectibles.emit(trait_type, collectible) {
             let mut tasks = HashSet::new();
             state
                 .scopes
@@ -1396,10 +1435,7 @@ impl Task {
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) {
         let mut state = self.state.write();
-        if state
-            .unemitted_collectibles
-            .insert((trait_type, collectible))
-        {
+        if state.collectibles.unemit(trait_type, collectible) {
             let mut tasks = HashSet::new();
             state
                 .scopes

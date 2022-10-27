@@ -1,4 +1,5 @@
 #![feature(hash_drain_filter)]
+#![feature(option_get_or_insert_default)]
 #![deny(unsafe_op_in_unsafe_fn)]
 
 mod cell;
