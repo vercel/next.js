@@ -28,7 +28,7 @@ check<IEntry, TEntry>(entry)
 type PageParams = Record<string, string>
 interface PageProps {
   params: any
-  searchParams: any
+  searchParams?: any
 }
 interface LayoutProps {
   children: React.ReactNode
