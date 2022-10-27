@@ -149,7 +149,7 @@ function ServerRoot({ cacheKey }: { cacheKey: string }): JSX.Element {
   return root
 }
 
-const StrictModeIfEnabled = process.env.__NEXT_STRICT_MODE
+const StrictModeIfEnabled = process.env.__NEXT_STRICT_MODE_APP
   ? React.StrictMode
   : React.Fragment
 
