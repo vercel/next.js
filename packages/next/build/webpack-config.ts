@@ -28,7 +28,6 @@ import {
   SERVER_DIRECTORY,
   COMPILER_NAMES,
   CompilerNameValues,
-  APP_CLIENT_INTERNALS,
 } from '../shared/lib/constants'
 import { execOnce } from '../shared/lib/utils'
 import { NextConfigComplete } from '../server/config-shared'
