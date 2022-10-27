@@ -9,8 +9,56 @@ use std::{
 
 const BUCKETS: usize = (usize::BITS + 1) as usize;
 
+/// An `Option`-like type that guarantees that a fully zeroed value is a valid
+/// `None` variant.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[repr(u8)]
+enum COption<T> {
+    // TODO(alexkirsz) We need a way to guarantee that a fully zeroed value is a
+    // valid `None` variant. This is theoretically possible when the wrapped
+    // type has no valid value that can be represented by all zeros, but there
+    // is no way to enforce this at the type level. For now, we just use a custom
+    // option type with explicit discriminant for the `None` variant.
+    // The issue with this implementation is that it disables niche optimization.
+    None = 0,
+    Some(T),
+}
+
+impl<T> Default for COption<T> {
+    fn default() -> Self {
+        Self::None
+    }
+}
+
+impl<T> COption<T> {
+    /// Returns a slice of the given size filled with the `None` variant.
+    fn new_none_slice(size: usize) -> Box<[Self]> {
+        let slice = Box::<[COption<T>]>::new_zeroed_slice(size);
+        // Safety:
+        // We know that a zeroed COption<T> is a valid COption::None value.
+        let slice = unsafe { slice.assume_init() };
+        slice
+    }
+
+    /// Returns a reference to the contained value, or `None` if it is `None`.
+    fn as_option_ref(&self) -> Option<&T> {
+        match self {
+            COption::None => None,
+            COption::Some(t) => Some(t),
+        }
+    }
+
+    /// Takes the value out of the option, leaving a `None` in its place.
+    fn take(&mut self) -> Option<T> {
+        match std::mem::take(self) {
+            COption::None => None,
+            COption::Some(t) => Some(t),
+        }
+    }
+}
+
 pub struct NoMoveVec<T, const INITIAL_CAPACITY_BITS: u32 = 6> {
-    buckets: [(AtomicPtr<Option<T>>, Mutex<()>); BUCKETS],
+    buckets: [(AtomicPtr<COption<T>>, Mutex<()>); BUCKETS],
 }
 
 fn get_bucket_index<const INITIAL_CAPACITY_BITS: u32>(idx: usize) -> u32 {
@@ -33,6 +81,13 @@ fn get_index_in_bucket<const INITIAL_CAPACITY_BITS: u32>(idx: usize, bucket_inde
     }
 }
 
+/// Allocates a new bucket of `COption<T>`s, all initialized to `None`.
+fn allocate_bucket<const INITIAL_CAPACITY_BITS: u32, T>(bucket_index: u32) -> *mut COption<T> {
+    let size = get_bucket_size::<INITIAL_CAPACITY_BITS>(bucket_index);
+    let slice = COption::<T>::new_none_slice(size);
+    Box::into_raw(slice) as *mut COption<T>
+}
+
 impl<T, const INITIAL_CAPACITY_BITS: u32> Default for NoMoveVec<T, INITIAL_CAPACITY_BITS> {
     fn default() -> Self {
         Self::new()
@@ -42,12 +97,7 @@ impl<T, const INITIAL_CAPACITY_BITS: u32> Default for NoMoveVec<T, INITIAL_CAPAC
 impl<T, const INITIAL_CAPACITY_BITS: u32> NoMoveVec<T, INITIAL_CAPACITY_BITS> {
     pub fn new() -> Self {
         let mut buckets = [null_mut(); BUCKETS];
-        buckets[0] = {
-            let size = get_bucket_size::<INITIAL_CAPACITY_BITS>(0);
-            let boxed_slice = (0..size).map(|_| None as Option<T>).collect();
-            let raw_box = Box::into_raw(boxed_slice);
-            raw_box as *mut Option<T>
-        };
+        buckets[0] = allocate_bucket::<INITIAL_CAPACITY_BITS, T>(0);
         let buckets = buckets.map(|p| (AtomicPtr::new(p), Mutex::new(())));
         NoMoveVec { buckets }
     }
@@ -61,7 +111,7 @@ impl<T, const INITIAL_CAPACITY_BITS: u32> NoMoveVec<T, INITIAL_CAPACITY_BITS> {
             return None;
         }
         let index = get_index_in_bucket::<INITIAL_CAPACITY_BITS>(idx, bucket_idx);
-        unsafe { &*bucket_ptr.add(index) }.as_ref()
+        unsafe { &*bucket_ptr.add(index) }.as_option_ref()
     }
 
     /// # Safety
@@ -88,15 +138,10 @@ impl<T, const INITIAL_CAPACITY_BITS: u32> NoMoveVec<T, INITIAL_CAPACITY_BITS> {
         let bucket = unsafe { self.buckets.get_unchecked(bucket_idx as usize) };
         let mut bucket_ptr = bucket.0.load(Ordering::Acquire);
         if bucket_ptr.is_null() {
-            let lock = bucket.1.lock().unwrap();
+            let lock = bucket.1.lock();
             let guarded_bucket_ptr = bucket.0.load(Ordering::Acquire);
             if guarded_bucket_ptr.is_null() {
-                let new_bucket = {
-                    let size = get_bucket_size::<INITIAL_CAPACITY_BITS>(bucket_idx);
-                    let boxed_slice = (0..size).map(|_| None as Option<T>).collect();
-                    let raw_box = Box::into_raw(boxed_slice);
-                    raw_box as *mut Option<T>
-                };
+                let new_bucket = allocate_bucket::<INITIAL_CAPACITY_BITS, T>(bucket_idx);
                 bucket_ptr = match bucket.0.compare_exchange(
                     null_mut(),
                     new_bucket,
@@ -116,9 +161,9 @@ impl<T, const INITIAL_CAPACITY_BITS: u32> NoMoveVec<T, INITIAL_CAPACITY_BITS> {
         }
         let index = get_index_in_bucket::<INITIAL_CAPACITY_BITS>(idx, bucket_idx);
         let item = unsafe { &mut *bucket_ptr.add(index) };
-        *item = Some(value);
+        *item = COption::Some(value);
         fence(Ordering::Release);
-        item.as_ref().unwrap()
+        item.as_option_ref().unwrap()
     }
 
     /// # Safety
@@ -132,7 +177,7 @@ impl<T, const INITIAL_CAPACITY_BITS: u32> NoMoveVec<T, INITIAL_CAPACITY_BITS> {
         }
         let index = get_index_in_bucket::<INITIAL_CAPACITY_BITS>(idx, bucket_idx);
         let item = unsafe { &mut *bucket_ptr.add(index) };
-        *item = None;
+        *item = COption::None;
         fence(Ordering::Release);
     }
 }
