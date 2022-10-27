@@ -745,6 +745,10 @@
         {
           "title": "babel-font-loader-conflict",
           "path": "/errors/babel-font-loader-conflict.md"
+        },
+        {
+          "title": "google-fonts-missing-subsets",
+          "path": "/errors/google-fonts-missing-subsets.md"
         }
       ]
     }
