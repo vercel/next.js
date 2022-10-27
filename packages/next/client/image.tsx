@@ -560,6 +560,21 @@ export default function Image({
   }
   src = typeof src === 'string' ? src : staticSrc
 
+  for (const legacyProp of [
+    'layout',
+    'objectFit',
+    'objectPosition',
+    'lazyBoundary',
+    'lazyRoot',
+  ]) {
+    if (legacyProp in rest) {
+      throw new Error(
+        `Image with src "${src}" has legacy props. Did you forget to run the codemod?` +
+          `\nRead more: https://nextjs.org/docs/messages/next-image-upgrade-to-13`
+      )
+    }
+  }
+
   let isLazy =
     !priority && (loading === 'lazy' || typeof loading === 'undefined')
   if (src.startsWith('data:') || src.startsWith('blob:')) {
