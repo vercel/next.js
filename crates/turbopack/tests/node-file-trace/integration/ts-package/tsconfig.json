@@ -15,5 +15,5 @@
   */
   "ts-node": {
     "require": ["tsconfig-paths/register"]
-  }
+  }, // trailing comma
 }

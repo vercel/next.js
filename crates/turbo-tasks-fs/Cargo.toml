@@ -15,6 +15,7 @@ concurrent-queue = "1.2.2"
 futures = "0.3.24"
 futures-retry = "0.6.0"
 include_dir = { version = "0.7.2", features = ["nightly"] }
+jsonc-parser = { version = "0.21.0", features = ["serde"] }
 lazy_static = "1.4.0"
 mime = "0.3.16"
 notify = "4.0.17"
