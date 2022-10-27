@@ -8,15 +8,9 @@
   },
   "dependencies": {
     "next": "latest",
-<<<<<<< Updated upstream:examples/next-offline/package.json
     "next-offline": "^5.0.5",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
-=======
-    "next-offline": "4.0.6",
-    "react": "^17.0.2",
-    "react-dom": "^17.0.2"
->>>>>>> Stashed changes:examples/with-next-offline/package.json
   },
   "devDependencies": {
     "@types/node": "^18.11.5",
