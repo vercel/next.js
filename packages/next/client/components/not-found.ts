@@ -5,4 +5,5 @@ export function notFound() {
   const error = new Error(NOT_FOUND_ERROR_CODE)
   ;(error as any).digest = NOT_FOUND_ERROR_CODE
   throw error
+  return null
 }
