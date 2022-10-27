@@ -1,7 +1,8 @@
 {
   "private": true,
   "scripts": {
-    "dev": "concurrently \"next dev --turbo\" \"npm run tailwind --watch\"",
+"dev": "next dev --turbo",
+"dev:tailwind": "concurrently 'next dev --turbo' 'npm run tailwind --watch'"
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
