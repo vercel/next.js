@@ -12,12 +12,13 @@ By default, Next.js uses the Node.js runtime. [Middleware](https://nextjs.org/do
 
 To configure the runtime for your whole application, you can set the experimental option `runtime` in your `next.config.js` file:
 
-```js:next.config.js
+```js
+// next.config.js
 module.exports = {
   experimental: {
     runtime: 'experimental-edge', // 'node.js' (default) | experimental-edge
   },
-};
+}
 ```
 
 You can detect which runtime you're using by looking at the `process.env.NEXT_RUNTIME` Environment Variable during runtime, and examining the `options.nextRuntime` variable during compilation.

@@ -194,18 +194,20 @@ If you would like to set your styles in an external style sheet and specify addi
 
 In addition to importing the font, also import the CSS file where the CSS variable is defined and set the variable option of the font loader object as follows:
 
-```tsx:app/page.tsx
-import { Inter } from '@next/font/google';
-import styles from '../styles/component.module.css';
+```tsx
+// app/page.tsx
+import { Inter } from '@next/font/google'
+import styles from '../styles/component.module.css'
 
 const inter = Inter({
   variable: '--inter-font',
-});
+})
 ```
 
 To use the font, set the `className` of the parent container of the text you would like to style to the font loader's `variable` value and the `className` of the text to the `styles` property from the external CSS file.
 
-```tsx:app/page.tsx
+```tsx
+// app/page.tsx
 <main className={inter.variable}>
   <p className={styles.text}>Hello World</p>
 </main>
@@ -213,7 +215,8 @@ To use the font, set the `className` of the parent container of the text you wou
 
 Define the `text` selector class in the `component.module.css` CSS file as follows:
 
-```css:styles/component.module.css
+```css
+/* styles/component.module.css */
 .text {
   font-family: var(--inter-font);
   font-weight: 200;
@@ -231,7 +234,8 @@ For example, create a `fonts.ts` file in a `styles` folder at the root of your a
 
 Then, specify your font definitions as follows:
 
-```ts:styles/fonts.ts
+```ts
+// styles/fonts.ts
 import { Inter, Lora, Source_Sans_Pro } from '@next/font/google';
 import localFont from '@next/font/local';
 
@@ -249,7 +253,8 @@ export { inter, lora, sourceCodePro400, sourceCodePro700, greatVibes };
 
 You can now use these definitions in your code as follows:
 
-```tsx:app/page.tsx
+```tsx
+// app/page.tsx
 import { inter, lora, sourceCodePro700, greatVibes } from '../styles/fonts';
 
 export default function Page() {
@@ -268,7 +273,8 @@ export default function Page() {
 
 To make it easier to access the font definitions in your code, you can define a path alias in your `tsconfig.json` or `jsconfig.json` files as follows:
 
-```json:tsconfig.json
+```json
+// tsconfig.json
 {
   "compilerOptions": {
     "paths": {
@@ -280,7 +286,8 @@ To make it easier to access the font definitions in your code, you can define a 
 
 You can now import any font definition as follows:
 
-```tsx:app/about/page.tsx
+```tsx
+// app/about/page.tsx
 import { greatVibes, sourceCodePro400 } from '@/fonts';
 ``` -->
 
