@@ -374,6 +374,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
         pageFilePath,
         isDev,
         page,
+        pageType: isInsideAppDir ? 'app' : 'pages',
       })
 
       const isServerComponent =
