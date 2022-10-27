@@ -46,7 +46,7 @@ const downloadGoogleFonts: FontLoader = async ({
         fontFamily
       )} has no selected subsets. Please specify subsets in the function call or in your ${chalk.bold(
         'next.config.js'
-      )}, otherwise no fonts will be preloaded. Read more: https://nextjs.org/docs/api-reference/components/font#nextfontgoogle`
+      )}, otherwise no fonts will be preloaded. Read more: https://nextjs.org/docs/messages/google-fonts-missing-subsets`
     )
   }
 
