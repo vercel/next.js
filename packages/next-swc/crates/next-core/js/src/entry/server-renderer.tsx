@@ -2,6 +2,7 @@ import IPC, { Ipc } from "@vercel/turbopack-next/internal/ipc";
 
 import type { IncomingMessage, ServerResponse } from "node:http";
 
+import 'next/dist/server/initialize-require-hook'
 import "@vercel/turbopack-next/internal/shims";
 import "next/dist/server/node-polyfill-fetch.js";
 import { renderToHTML } from "next/dist/server/render";
