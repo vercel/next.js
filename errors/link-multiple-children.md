@@ -21,7 +21,7 @@ export default function Home() {
 
 #### Possible Ways to Fix It
 
-Make sure only one child is used when using `<Link>`:
+Make sure that only one child is used with `<Link>` component:
 
 ```js
 import Link from 'next/link'
