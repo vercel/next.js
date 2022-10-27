@@ -240,7 +240,9 @@ export function InnerLayoutRouter({
 
   // Ensure root layout is not wrapped in a div as the root layout renders `<html>`
   return rootLayoutIncluded ? (
-    <div ref={focusAndScrollElementRef}>{subtree}</div>
+    <div ref={focusAndScrollElementRef} data-nextjs-scroll-focus-boundary={''}>
+      {subtree}
+    </div>
   ) : (
     subtree
   )

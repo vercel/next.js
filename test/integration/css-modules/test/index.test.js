@@ -130,7 +130,10 @@ describe('3rd Party CSS Module Support', () => {
   })
 })
 
-describe('Has CSS Module in computed styles in Development', () => {
+describe.each([
+  ['dev', false],
+  ['turbo', true],
+])('Has CSS Module in computed styles in Development %s', (turbo) => {
   const appDir = join(fixturesDir, 'dev-module')
 
   let appPort
@@ -138,7 +141,7 @@ describe('Has CSS Module in computed styles in Development', () => {
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
     appPort = await findPort()
-    app = await launchApp(appDir, appPort)
+    app = await launchApp(appDir, appPort, { turbo })
   })
   afterAll(async () => {
     await killApp(app)

@@ -77,20 +77,22 @@ This can be done in 2 ways:
 
 - On a font per font basis by adding it to the function call
 
-  ```tsx:app/layout.tsx
-  const inter = Inter({ subsets: ["latin"] });
+  ```tsx
+  // app/layout.tsx
+  const inter = Inter({ subsets: ['latin'] })
   ```
 
 - Globally for all your fonts in your `next.config.js`
 
-  ```js:next.config.js
+  ```js
+  // next.config.js
   module.exports = {
     experimental: {
       fontLoaders: [
         { loader: '@next/font/google', options: { subsets: ['latin'] } },
       ],
     },
-  };
+  }
   ```
 
   - If both are configured, the subset in the function call is used.
