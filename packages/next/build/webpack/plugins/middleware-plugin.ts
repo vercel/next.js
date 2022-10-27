@@ -35,6 +35,7 @@ export interface EdgeFunctionDefinition {
   matchers: MiddlewareMatcher[]
   wasm?: AssetBinding[]
   assets?: AssetBinding[]
+  regions?: string[] | string
 }
 
 export interface MiddlewareManifest {
@@ -51,6 +52,7 @@ interface EntryMetadata {
   env: Set<string>
   wasmBindings: Map<string, string>
   assetBindings: Map<string, string>
+  regions?: string[] | string
 }
 
 const NAME = 'MiddlewarePlugin'
@@ -173,6 +175,7 @@ function getCreateAssets(params: {
           name,
           filePath,
         })),
+        ...(metadata.regions && { regions: metadata.regions }),
       }
 
       if (metadata.edgeApiFunction || metadata.edgeSSR) {
@@ -730,6 +733,10 @@ function getExtractMetadata(params: {
               })
             )
           }
+        }
+
+        if (edgeFunctionConfig?.config?.regions) {
+          entryMetadata.regions = edgeFunctionConfig.config.regions
         }
 
         /**
