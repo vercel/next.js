@@ -12720,9 +12720,9 @@ function isHostResourceType(type, props) {
         return async && typeof src === 'string' && !_onLoad && !_onError;
       }
 
+    case 'noscript':
     case 'template':
     case 'style':
-    case 'noscript':
       {
         {
           if (resourceFormOnly) {
@@ -13148,7 +13148,13 @@ function clearContainerSparingly(container) {
 
 function isHydratable(type, props) {
   {
-    if (type === 'script') {
+    if (type === 'link') {
+      if (props.rel === 'stylesheet' && typeof props.precedence !== 'string') {
+        return true;
+      }
+
+      return false;
+    } else if (type === 'script') {
       var _ref = props,
           async = _ref.async,
           onLoad = _ref.onLoad,
@@ -13226,16 +13232,26 @@ function getNextHydratable(node) {
         var element = node;
 
         switch (element.tagName) {
+          case 'TITLE':
+          case 'META':
+          case 'BASE':
+          case 'HTML':
+          case 'HEAD':
+          case 'BODY':
+            {
+              continue;
+            }
+
           case 'LINK':
             {
-              var linkEl = element;
-              var rel = linkEl.rel;
+              var linkEl = element; // All links that are server rendered are resources except
+              // stylesheets that do not have a precedence
 
-              if (rel === 'preload' || rel === 'stylesheet' && linkEl.hasAttribute('data-precedence')) {
-                continue;
+              if (linkEl.rel === 'stylesheet' && !linkEl.hasAttribute('data-precedence')) {
+                break;
               }
 
-              break;
+              continue;
             }
 
           case 'STYLE':
@@ -13258,14 +13274,6 @@ function getNextHydratable(node) {
               }
 
               break;
-            }
-
-          case 'TITLE':
-          case 'HTML':
-          case 'HEAD':
-          case 'BODY':
-            {
-              continue;
             }
         }
 
@@ -32906,7 +32914,7 @@ identifierPrefix, onRecoverableError, transitionCallbacks) {
   return root;
 }
 
-var ReactVersion = '18.3.0-next-d925a8d0b-20221024';
+var ReactVersion = '18.3.0-next-28a574ea8-20221027';
 
 function createPortal(children, containerInfo, // TODO: figure out the API for cross-renderer implementation.
 implementation) {
