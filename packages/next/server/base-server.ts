@@ -205,6 +205,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     serverComponents?: boolean
     crossOrigin?: string
     supportsDynamicHTML?: boolean
+    isBot?: boolean
     serverComponentManifest?: any
     serverCSSManifest?: any
     fontLoaderManifest?: FontLoaderManifest
@@ -868,6 +869,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       renderOpts: {
         ...this.renderOpts,
         supportsDynamicHTML: !isBotRequest,
+        isBot: !!isBotRequest,
       },
     } as const
     const payload = await fn(ctx)
@@ -1160,6 +1162,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       // cache if there are no dynamic data requirements
       opts.supportsDynamicHTML =
         !isSSG && !isBotRequest && !query.amp && isSupportedDocument
+      opts.isBot = isBotRequest
     }
 
     const defaultLocale = isSSG
