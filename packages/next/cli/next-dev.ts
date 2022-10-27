@@ -147,11 +147,13 @@ const nextDev: cliCommand = (argv) => {
         parentUserConfig: any,
         parentDefaultConfig: any
       ): boolean => {
-        // these are supported
+        // these should not error
         if (
           configKey === 'serverComponentsExternalPackages' ||
           configKey === 'appDir' ||
-          configKey === 'transpilePackages'
+          configKey === 'transpilePackages' ||
+          configKey === 'reactStrictMode' ||
+          configKey === 'swcMinify'
         ) {
           return false
         }
