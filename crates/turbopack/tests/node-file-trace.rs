@@ -34,8 +34,9 @@ use turbopack::{
     resolve_options_context::ResolveOptionsContext, transition::TransitionsByNameVc,
     ModuleAssetContextVc,
 };
+#[cfg(not(feature = "bench_against_node_nft"))]
+use turbopack_core::asset::Asset;
 use turbopack_core::{
-    asset::Asset,
     context::AssetContext,
     environment::{EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
     source_asset::SourceAssetVc,
@@ -54,8 +55,11 @@ use turbopack_core::{
 #[case::azure_storage("integration/azure-storage.js")]
 #[case::bcrypt("integration/bcrypt.js")]
 #[case::better_sqlite3("integration/better-sqlite3.js")]
-#[should_panic(expected = "Error: Could not locate the bindings file.")]
-#[case::bindings_failure("integration/bindings-failure.js")]
+#[cfg_attr(
+    not(feature = "bench_against_node_nft"),
+    should_panic(expected = "Error: Could not locate the bindings file."),
+    case::bindings_failure("integration/bindings-failure.js")
+)]
 #[case::browserify_middleware("integration/browserify-middleware.js")]
 #[case::bugsnag_js("integration/bugsnag-js.js")]
 #[case::bull("integration/bull.js")]
@@ -66,8 +70,11 @@ use turbopack_core::{
 #[case::core_js("integration/core-js.js")]
 #[case::cosmosdb_query("integration/cosmosdb-query.js")]
 #[case::cowsay("integration/cowsay.js")]
-#[should_panic(expected = "Error: Cannot find module '../../out/node-file-trace'")]
-#[case::dogfood("integration/dogfood.js")]
+#[cfg_attr(
+    not(feature = "bench_against_node_nft"),
+    should_panic(expected = "Error: Cannot find module '../../out/node-file-trace'"),
+    case::dogfood("integration/dogfood.js")
+)]
 #[case::dynamic_in_package("integration/dynamic-in-package.js")]
 #[case::empty("integration/empty.js")]
 #[case::env_var("integration/env-var.js")]
@@ -311,6 +318,7 @@ fn bench_against_node_nft_inner(input: CaseInput, multi_threaded: bool) {
 fn node_file_trace<B: Backend + 'static>(
     CaseInput {
         path: input_path,
+        #[allow(unused)]
         expected_stderr,
     }: CaseInput,
     mode: &str,
@@ -344,10 +352,9 @@ fn node_file_trace<B: Backend + 'static>(
         ));
         let bench_suites = BENCH_SUITES.clone();
         let package_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        let workspace_root = package_root.parent().unwrap().parent().unwrap();
         let mut tests_output_root = temp_dir();
         tests_output_root.push("tests_output");
-        let workspace_root = workspace_root.to_string_lossy().to_string();
+        let package_root = package_root.to_string_lossy().to_string();
         let input = format!("node-file-trace/{input_path}");
         let directory_path = tests_output_root.join(&format!("{mode}_{input}"));
         let directory = directory_path.to_string_lossy().to_string();
@@ -365,9 +372,10 @@ fn node_file_trace<B: Backend + 'static>(
 
         for _ in 0..run_count {
             let bench_suites = bench_suites.clone();
-            let workspace_root = workspace_root.clone();
+            let package_root = package_root.clone();
             let input_string = input.clone();
             let directory = directory.clone();
+            #[cfg(not(feature = "bench_against_node_nft"))]
             let expected_stderr = expected_stderr.clone();
             let task = async move {
                 #[allow(unused)]
@@ -375,12 +383,12 @@ fn node_file_trace<B: Backend + 'static>(
                 #[cfg(feature = "bench_against_node_nft")]
                 let before_start = Instant::now();
                 let workspace_fs: FileSystemVc =
-                    DiskFileSystemVc::new("workspace".to_string(), workspace_root.clone()).into();
+                    DiskFileSystemVc::new("workspace".to_string(), package_root.clone()).into();
                 let input_dir = workspace_fs.root();
-                let input = input_dir.join(&format!("crates/turbopack/tests/{input_string}"));
+                let input = input_dir.join(&format!("tests/{input_string}"));
 
                 #[cfg(not(feature = "bench_against_node_nft"))]
-                let original_output = exec_node(workspace_root, input);
+                let original_output = exec_node(package_root, input);
 
                 let output_fs = DiskFileSystemVc::new("output".to_string(), directory.clone());
                 let output_dir = output_fs.root();
@@ -406,6 +414,7 @@ fn node_file_trace<B: Backend + 'static>(
                 let module = context.process(source.into());
                 let rebased = RebasedAssetVc::new(module, input_dir, output_dir);
 
+                #[cfg(not(feature = "bench_against_node_nft"))]
                 let output_path = rebased.path();
                 emit_with_completion(rebased.into(), output_dir).await?;
 
@@ -419,7 +428,7 @@ fn node_file_trace<B: Backend + 'static>(
                 {
                     let duration = before_start.elapsed();
                     let node_start = Instant::now();
-                    exec_node(tests_root, input.clone()).await?;
+                    exec_node(package_root, input.clone()).await?;
                     let node_duration = node_start.elapsed();
                     let is_faster = node_duration > duration;
                     {
@@ -458,6 +467,7 @@ fn node_file_trace<B: Backend + 'static>(
                 }
             };
             let handle_result = |result: Result<CommandOutputReadRef>| match result {
+                #[allow(unused)]
                 Ok(output) => {
                     #[cfg(not(feature = "bench_against_node_nft"))]
                     {
@@ -511,6 +521,7 @@ struct CommandOutput {
     stderr: String,
 }
 
+#[cfg(not(feature = "bench_against_node_nft"))]
 impl CommandOutput {
     fn is_empty(&self) -> bool {
         self.stderr.is_empty() && self.stdout.is_empty()
@@ -568,10 +579,8 @@ async fn exec_node(directory: String, path: FileSystemPathVc) -> Result<CommandO
     }
     #[cfg(feature = "bench_against_node_nft")]
     {
-        let mut current_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        current_dir.push("tests");
-        current_dir.push("node-file-trace");
-        cmd.arg(&p.path.trim_start_matches("node-file-trace/"));
+        let current_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        cmd.arg(&p.path);
         cmd.current_dir(current_dir);
     }
 
