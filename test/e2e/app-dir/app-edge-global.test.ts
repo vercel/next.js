@@ -1,6 +1,6 @@
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
-import { check, renderViaHTTP } from 'next-test-utils'
+import { renderViaHTTP } from 'next-test-utils'
 import path from 'path'
 
 describe('app-dir global edge configuration', () => {
