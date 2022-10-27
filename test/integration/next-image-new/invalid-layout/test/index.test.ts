@@ -3,8 +3,6 @@
 import { join } from 'path'
 import {
   findPort,
-  getRedboxHeader,
-  getRedboxSource,
   hasRedbox,
   killApp,
   launchApp,
