@@ -15,7 +15,7 @@ let appPort: number
 let app
 let stderr = ''
 const msg =
-  /Error: Image with src "(.*)logo(.*)png" has legacy props. Did you forget to run the codemod?./
+  /Error: Image with src "(.*)logo(.*)png" has legacy prop "layout". Did you forget to run the codemod?./
 
 function runTests({ isDev }) {
   it('should show error', async () => {
