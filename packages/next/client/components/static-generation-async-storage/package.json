@@ -1,0 +1,5 @@
+{
+  "browser": {
+    "./storage.js": "./storage-browser.js"
+  }
+}

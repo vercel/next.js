@@ -27,7 +27,7 @@ const DISALLOWED_SERVER_REACT_APIS: string[] = [
   'createFactory',
 ]
 
-const ALLOWED_EXPORTS = ['config', 'generateStaticParams', 'Head']
+const ALLOWED_EXPORTS = ['config', 'generateStaticParams']
 
 const API_DOCS: Record<
   string,
@@ -114,7 +114,7 @@ const API_DOCS: Record<
       'The `runtime` option controls the preferred runtime to render this route.',
     options: {
       '"nodejs"': 'Prefer the Node.js runtime.',
-      '"experimenta-edge"': 'Prefer the experimental Edge runtime.',
+      '"experimental-edge"': 'Prefer the experimental Edge runtime.',
     },
   },
 }
