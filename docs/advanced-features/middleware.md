@@ -148,7 +148,10 @@ To produce a response from Middleware, you should `rewrite` to a route ([Page](/
 
 ## Using Cookies
 
-The `cookies` API extends [Map](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map) and allows you to `get`, `set`, and `delete` cookies. It also includes methods like [entries](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map/entries) and [values](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map/entries).
+Cookies are regular headers. On a `Request`, they are stored in the `Cookie` header. On a `Response` they are in the `Set-Cookie` header. Next.js provides a convenient way to access and manipulate these cookies through the `cookies` extension on `NextRequest` and `NextResponse`.
+
+1. For incoming requests, `cookies` comes with the following methods: `get`, `getAll`, `set`, and `delete` cookies. You can check for the existence of a cookie with `has` or remove all cookies with `clear`.
+2. For outgoing responses, `cookies` have the following methods `get`, `getAll`, `set`, and `delete`.
 
 ```typescript
 // middleware.ts
@@ -156,23 +159,28 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export function middleware(request: NextRequest) {
-  // Setting cookies on the response
+  // Assume a "Cookie:vercel=fast" header to be present on the incoming request
+  // Getting cookies from the request using the `RequestCookies` API
+  const cookie = request.cookies.get('nextjs')?.value
+  console.log(cookie) // => 'fast'
+  const allCookies = request.cookies.getAll()
+  console.log(allCookies) // => [{ name: 'vercel', value: 'fast' }]
+
+  response.cookies.has('nextjs') // => true
+  response.cookies.delete('nextjs')
+  response.cookies.has('nextjs') // => false
+
+  // Setting cookies on the response using the `ResponseCookies` API
   const response = NextResponse.next()
   response.cookies.set('vercel', 'fast')
-  response.cookies.set('vercel', 'fast', { path: '/test' })
-
-  // Getting cookies from the request
-  const cookie = request.cookies.get('vercel')
-  console.log(cookie) // => 'fast'
-  const allCookies = request.cookies.entries()
-  console.log(allCookies) // => [{ key: 'vercel', value: 'fast' }]
-  const { value, options } = response.cookies.getWithOptions('vercel')
-  console.log(value) // => 'fast'
-  console.log(options) // => { Path: '/test' }
-
-  // Deleting cookies
-  response.cookies.delete('vercel')
-  response.cookies.clear()
+  response.cookies.set({
+    name: 'vercel',
+    value: 'fast',
+    path: '/test',
+  })
+  const cookie = response.cookies.get('vercel')
+  console.log(cookie) // => { name: 'vercel', value: 'fast', Path: '/test' }
+  // The outgoing response will have a `Set-Cookie:vercel=fast;path=/test` header.
 
   return response
 }
