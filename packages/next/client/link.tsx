@@ -78,7 +78,7 @@ type InternalLinkProps = {
    */
   locale?: string | false
   /**
-   * Enable legacy link behaviour.
+   * Enable legacy link behavior.
    * @defaultValue `false`
    * @see https://github.com/vercel/next.js/commit/489e65ed98544e69b0afd7e0cfc3f9f6c2b803b7
    */
@@ -122,18 +122,21 @@ function prefetch(
     return
   }
 
-  // Resolve the locale from the router.
-  const locale = 'locale' in router ? router.locale : undefined
+  // We should only dedupe requests when experimental.optimisticClientCache is
+  // disabled.
+  if (!process.env.__NEXT_OPTIMISTIC_CLIENT_CACHE) {
+    const locale = 'locale' in router ? router.locale : undefined
 
-  const key = href + '%' + as + (locale ? '%' + locale : '')
+    const key = href + '%' + as + (locale ? '%' + locale : '')
 
-  // If we've already fetched the key, then don't prefetch it again!
-  if (prefetched.has(key)) {
-    return
+    // If we've already fetched the key, then don't prefetch it again!
+    if (prefetched.has(key)) {
+      return
+    }
+
+    // Mark this URL as prefetched.
+    prefetched.add(key)
   }
-
-  // Mark this URL as prefetched.
-  prefetched.add(key)
 
   // Prefetch the JSON page if asked (only in the client)
   // We need to handle a prefetch error here since we may be
@@ -568,7 +571,6 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           return
         }
 
-        // Check for not prefetch disabled in page using appRouter
         if (!prefetchEnabled && isAppRouter) {
           return
         }
@@ -592,7 +594,6 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           return
         }
 
-        // Check for not prefetch disabled in page using appRouter
         if (!prefetchEnabled && isAppRouter) {
           return
         }

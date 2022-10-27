@@ -4,8 +4,7 @@ import {
   useRouter as useAppRouter,
   useSearchParams,
 } from 'next/navigation'
-import { useState } from 'react'
-import { useEffect } from 'react'
+import { useState, useEffect } from 'react'
 
 export const RouterHooksFixtures = () => {
   const pagesRouter = usePagesRouter()
