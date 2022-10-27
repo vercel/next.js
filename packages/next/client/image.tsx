@@ -394,24 +394,6 @@ const ImageElement = ({
               if (!srcString) {
                 console.error(`Image is missing required "src" property:`, img)
               }
-              if (
-                img.getAttribute('objectFit') ||
-                img.getAttribute('objectfit')
-              ) {
-                console.error(
-                  `Image has unknown prop "objectFit". Did you mean to use the "style" prop instead?`,
-                  img
-                )
-              }
-              if (
-                img.getAttribute('objectPosition') ||
-                img.getAttribute('objectposition')
-              ) {
-                console.error(
-                  `Image has unknown prop "objectPosition". Did you mean to use the "style" prop instead?`,
-                  img
-                )
-              }
               if (img.getAttribute('alt') === null) {
                 console.error(
                   `Image is missing required "alt" property. Please add Alternative Text to describe the image for screen readers and search engines.`
