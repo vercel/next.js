@@ -981,7 +981,7 @@ export default async function build(
               if (key === APP_CLIENT_INTERNALS) {
                 clientEntry[CLIENT_STATIC_FILES_RUNTIME_MAIN_APP] = [
                   // TODO-APP: cast clientEntry[CLIENT_STATIC_FILES_RUNTIME_MAIN_APP] to type EntryDescription once it's available from webpack
-                  // @ts-ignore clientEntry['main-app'] is type EntryDescription { import: ... }
+                  // @ts-expect-error clientEntry['main-app'] is type EntryDescription { import: ... }
                   ...clientEntry[CLIENT_STATIC_FILES_RUNTIME_MAIN_APP].import,
                   value,
                 ]
