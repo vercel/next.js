@@ -795,13 +795,18 @@ export default async function getBaseWebpackConfig(
                         )
                         .replace(/\\/g, '/'),
                   ]
-                : `./` +
-                  path
-                    .relative(
-                      dir,
-                      path.join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'app-next.js')
-                    )
-                    .replace(/\\/g, '/'),
+                : [
+                    `./` +
+                      path
+                        .relative(
+                          dir,
+                          path.join(
+                            NEXT_PROJECT_ROOT_DIST_CLIENT,
+                            'app-next.js'
+                          )
+                        )
+                        .replace(/\\/g, '/'),
+                  ],
             }
           : {}),
       } as ClientEntries)

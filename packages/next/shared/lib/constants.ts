@@ -76,6 +76,8 @@ export const MIDDLEWARE_REACT_LOADABLE_MANIFEST =
 // static/runtime/main.js
 export const CLIENT_STATIC_FILES_RUNTIME_MAIN = `main`
 export const CLIENT_STATIC_FILES_RUNTIME_MAIN_APP = `${CLIENT_STATIC_FILES_RUNTIME_MAIN}-app`
+// next internal client components chunk for layouts
+export const APP_CLIENT_INTERNALS = 'app-client-internals'
 // static/runtime/react-refresh.js
 export const CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH = `react-refresh`
 // static/runtime/amp.js
