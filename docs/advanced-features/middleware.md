@@ -9,6 +9,7 @@ description: Learn how to use Middleware to run code before a request is complet
 
 | Version   | Changes                                                                                    |
 | --------- | ------------------------------------------------------------------------------------------ |
+| `v13.0.0` | Support overriding request headers.                                                        |
 | `v12.2.0` | Middleware is stable                                                                       |
 | `v12.0.9` | Enforce absolute URLs in Edge Runtime ([PR](https://github.com/vercel/next.js/pull/33410)) |
 | `v12.0.0` | Middleware (Beta) added                                                                    |
@@ -188,7 +189,7 @@ export function middleware(request: NextRequest) {
 
 ## Setting Headers
 
-You can set request and response headers using the `NextResponse` API.
+You can set request and response headers using the `NextResponse` API (setting _request_ headers is available since Next.js v13.0.0).
 
 ```ts
 // middleware.ts
