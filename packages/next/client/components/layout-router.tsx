@@ -19,7 +19,6 @@ import {
   LayoutRouterContext,
   GlobalLayoutRouterContext,
   TemplateContext,
-  AppRouterContext,
 } from '../../shared/lib/app-router-context'
 import { fetchServerResponse } from './app-router'
 import { createInfinitePromise } from './infinite-promise'

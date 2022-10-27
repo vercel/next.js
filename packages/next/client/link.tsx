@@ -11,10 +11,7 @@ import {
 import { formatUrl } from '../shared/lib/router/utils/format-url'
 import { addLocale } from './add-locale'
 import { RouterContext } from '../shared/lib/router-context'
-import {
-  AppRouterContext,
-  AppRouterInstance,
-} from '../shared/lib/app-router-context'
+import { AppRouterInstance } from '../shared/lib/app-router-context'
 import { useIntersection } from './use-intersection'
 import { getDomainLocale } from './get-domain-locale'
 import { addBasePath } from './add-base-path'
