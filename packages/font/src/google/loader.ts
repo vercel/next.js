@@ -157,10 +157,8 @@ const downloadGoogleFonts: FontLoader = async ({
     css: updatedCssResponse,
     fallbackFonts: fallback,
     weight:
-      weights.length === 1
-        ? weights[0] === 'variable'
-          ? undefined
-          : weights[0]
+      weights.length === 1 && weights[0] !== 'variable'
+        ? weights[0]
         : undefined,
     style: styles.length === 1 ? styles[0] : undefined,
     variable,
