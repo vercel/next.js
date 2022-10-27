@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react'
 import React, { useEffect, useMemo, useCallback } from 'react'
-import { createFromFetch } from 'next/dist/compiled/react-server-dom-webpack'
+import { createFromFetch } from 'next/dist/compiled/react-server-dom-webpack/client'
 import {
   AppRouterContext,
   LayoutRouterContext,
@@ -16,7 +16,7 @@ import type { FlightRouterState, FlightData } from '../../server/app-render'
 import {
   ACTION_NAVIGATE,
   ACTION_PREFETCH,
-  ACTION_RELOAD,
+  ACTION_REFRESH,
   ACTION_RESTORE,
   ACTION_SERVER_PATCH,
   reducer,
@@ -37,12 +37,12 @@ function urlToUrlWithoutFlightMarker(url: string): URL {
 }
 
 const HotReloader:
-  | typeof import('./react-dev-overlay/hot-reloader').default
+  | typeof import('./react-dev-overlay/hot-reloader-client').default
   | null =
   process.env.NODE_ENV === 'production'
     ? null
-    : (require('./react-dev-overlay/hot-reloader')
-        .default as typeof import('./react-dev-overlay/hot-reloader').default)
+    : (require('./react-dev-overlay/hot-reloader-client')
+        .default as typeof import('./react-dev-overlay/hot-reloader-client').default)
 
 /**
  * Fetch the flight data for the provided url. Takes in the current router state to decide what to render server-side.
@@ -95,6 +95,7 @@ let initialParallelRoutes: CacheNode['parallelRoutes'] =
 const prefetched = new Set<string>()
 
 type AppRouterProps = {
+  initialHead: ReactNode
   initialTree: FlightRouterState
   initialCanonicalUrl: string
   children: ReactNode
@@ -105,6 +106,7 @@ type AppRouterProps = {
  * The global router that wraps the application components.
  */
 function Router({
+  initialHead,
   initialTree,
   initialCanonicalUrl,
   children,
@@ -147,12 +149,11 @@ function Router({
       typeof window === 'undefined' ? 'http://n' : window.location.href
     )
 
-    // Convert searchParams to a plain object to match server-side.
-    const searchParamsObj: { [key: string]: string } = {}
-    url.searchParams.forEach((value, key) => {
-      searchParamsObj[key] = value
-    })
-    return { searchParams: searchParamsObj, pathname: url.pathname }
+    return {
+      // This is turned into a readonly class in `useSearchParams`
+      searchParams: url.searchParams,
+      pathname: url.pathname,
+    }
   }, [canonicalUrl])
 
   /**
@@ -204,6 +205,8 @@ function Router({
     }
 
     const routerInstance: AppRouterInstance = {
+      back: () => window.history.back(),
+      forward: () => window.history.forward(),
       // TODO-APP: implement prefetching of flight
       prefetch: async (href) => {
         // If prefetch has already been triggered, don't trigger it again.
@@ -246,11 +249,11 @@ function Router({
           navigate(href, 'push', Boolean(options.forceOptimisticNavigation))
         })
       },
-      reload: () => {
+      refresh: () => {
         // @ts-ignore startTransition exists
         React.startTransition(() => {
           dispatch({
-            type: ACTION_RELOAD,
+            type: ACTION_REFRESH,
 
             // TODO-APP: revisit if this needs to be passed.
             cache: {
@@ -360,10 +363,14 @@ function Router({
             >
               {HotReloader ? (
                 <HotReloader assetPrefix={assetPrefix}>
+                  {initialHead}
                   {cache.subTreeData}
                 </HotReloader>
               ) : (
-                cache.subTreeData
+                <>
+                  {initialHead}
+                  {cache.subTreeData}
+                </>
               )}
             </LayoutRouterContext.Provider>
           </AppRouterContext.Provider>

@@ -1,12 +1,6 @@
 'use client'
 
-import React, {
-  useContext,
-  useEffect,
-  useRef,
-  // TODO-APP: change to React.use once it becomes stable
-  experimental_use as use,
-} from 'react'
+import React, { useContext, useEffect, useRef, use } from 'react'
 import type {
   ChildProp,
   //Segment
@@ -246,7 +240,9 @@ export function InnerLayoutRouter({
 
   // Ensure root layout is not wrapped in a div as the root layout renders `<html>`
   return rootLayoutIncluded ? (
-    <div ref={focusAndScrollElementRef}>{subtree}</div>
+    <div ref={focusAndScrollElementRef} data-nextjs-scroll-focus-boundary={''}>
+      {subtree}
+    </div>
   ) : (
     subtree
   )
@@ -278,9 +274,13 @@ interface RedirectBoundaryProps {
   children: React.ReactNode
 }
 
-function InfinitePromiseComponent() {
-  use(createInfinitePromise())
-  return <></>
+function HandleRedirect({ redirect }: { redirect: string }) {
+  const router = useContext(AppRouterContext)
+
+  useEffect(() => {
+    router.replace(redirect, {})
+  }, [redirect, router])
+  return null
 }
 
 class RedirectErrorBoundary extends React.Component<
@@ -297,20 +297,14 @@ class RedirectErrorBoundary extends React.Component<
       const url = error.digest.split(';')[1]
       return { redirect: url }
     }
-    // Re-throw if error is not for 404
+    // Re-throw if error is not for redirect
     throw error
   }
 
   render() {
     const redirect = this.state.redirect
     if (redirect !== null) {
-      setTimeout(() => {
-        // @ts-ignore startTransition exists
-        React.startTransition(() => {
-          this.props.router.replace(redirect, {})
-        })
-      })
-      return <InfinitePromiseComponent />
+      return <HandleRedirect redirect={redirect} />
     }
 
     return this.props.children
@@ -348,7 +342,12 @@ class NotFoundErrorBoundary extends React.Component<
 
   render() {
     if (this.state.notFoundTriggered) {
-      return this.props.notFound
+      return (
+        <>
+          <meta name="robots" content="noindex" />
+          {this.props.notFound}
+        </>
+      )
     }
 
     return this.props.children

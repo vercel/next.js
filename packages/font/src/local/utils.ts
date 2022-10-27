@@ -17,7 +17,7 @@ type FontOptions = {
   ext: string
   format: string
   display: string
-  weight?: number
+  weight?: string
   style?: string
   fallback?: string[]
   preload: boolean
@@ -58,7 +58,7 @@ export function validateData(functionName: string, data: any): FontOptions {
     throw new Error(`Unexpected file \`${src}\``)
   }
 
-  const family = /.+\/(.+?)\./.exec(src)![1]
+  const family = /(.*\/)?(.+?)\.(woff|woff2|eot|ttf|otf)$/.exec(src)![2]
 
   if (Array.isArray(declarations)) {
     declarations.forEach((declaration) => {

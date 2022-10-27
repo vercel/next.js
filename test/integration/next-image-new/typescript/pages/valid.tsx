@@ -5,6 +5,7 @@ import svg from '../public/test.svg'
 import avif from '../public/test.avif'
 import { ImageCard } from '../components/image-card'
 import { DynamicSrcImage } from '../components/image-dynamic-src'
+import { ImageWithLoader } from '../components/image-with-loader'
 
 const Page = () => {
   return (
@@ -94,6 +95,13 @@ const Page = () => {
         src="https://image-optimization-test.vercel.app/test.jpg"
         width={400}
         height={400}
+      />
+      <ImageWithLoader
+        id="image-with-loader"
+        alt="image-with-loader"
+        src="test.jpg"
+        width={300}
+        height={300}
       />
       <p id="stubtext">This is valid usage of the Image component</p>
     </div>

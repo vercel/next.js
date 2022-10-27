@@ -78,23 +78,23 @@ type InternalLinkProps = {
   locale?: string | false
   /**
    * Enable legacy link behaviour.
-   * @defaultValue `true`
+   * @defaultValue `false`
    * @see https://github.com/vercel/next.js/commit/489e65ed98544e69b0afd7e0cfc3f9f6c2b803b7
    */
   legacyBehavior?: boolean
   // e: any because as it would otherwise overlap with existing types
   /**
-   * requires experimental.newNextLinkBehavior
+   * Optional event handler for when the mouse pointer is moved onto Link
    */
   onMouseEnter?: (e: any) => void
   // e: any because as it would otherwise overlap with existing types
   /**
-   * requires experimental.newNextLinkBehavior
+   * Optional event handler for when Link is touched.
    */
   onTouchStart?: (e: any) => void
   // e: any because as it would otherwise overlap with existing types
   /**
-   * requires experimental.newNextLinkBehavior
+   * Optional event handler for when Link is clicked.
    */
   onClick?: (e: any) => void
 }
@@ -407,6 +407,14 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         }
       } else {
         child = React.Children.only(children)
+      }
+    } else {
+      if (process.env.NODE_ENV === 'development') {
+        if ((children as any)?.type === 'a') {
+          throw new Error(
+            'Invalid <Link> with <a> child. Please remove <a> or use <Link legacyBehavior>.\nLearn more: https://nextjs.org/docs/messages/invalid-new-link-with-extra-anchor'
+          )
+        }
       }
     }
 

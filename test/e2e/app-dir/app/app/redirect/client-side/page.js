@@ -1,6 +1,6 @@
 'use client'
 
-import { redirect } from 'next/dist/client/components/redirect'
+import { redirect } from 'next/navigation'
 import React from 'react'
 
 export default function Page() {

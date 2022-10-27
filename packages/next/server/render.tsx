@@ -253,6 +253,7 @@ export type RenderOptsPartial = {
   domainLocales?: DomainLocale[]
   disableOptimizedLoading?: boolean
   supportsDynamicHTML?: boolean
+  isBot?: boolean
   runtime?: ServerRuntime
   serverComponents?: boolean
   customServer?: boolean
@@ -1528,3 +1529,5 @@ export async function renderToHTML(
     )
   )
 }
+
+export type RenderToHTMLResult = typeof renderToHTML

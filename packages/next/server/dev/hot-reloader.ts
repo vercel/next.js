@@ -448,7 +448,6 @@ export default class HotReloader {
             pagesDir: this.pagesDir,
             previewMode: this.previewProps,
             rootDir: this.dir,
-            target: 'server',
             pageExtensions: this.config.pageExtensions,
           })
         )
@@ -519,7 +518,6 @@ export default class HotReloader {
           pagesDir: this.pagesDir,
           previewMode: this.previewProps,
           rootDir: this.dir,
-          target: 'server',
           pageExtensions: this.config.pageExtensions,
         })
       ).client,
@@ -626,6 +624,9 @@ export default class HotReloader {
                       ),
                       appDir: this.appDir!,
                       pageExtensions: this.config.pageExtensions,
+                      rootDir: this.dir,
+                      isDev: true,
+                      tsconfigPath: this.config.typescript.tsconfigPath,
                     }).import
                   : undefined
 
@@ -704,6 +705,9 @@ export default class HotReloader {
                         ),
                         appDir: this.appDir!,
                         pageExtensions: this.config.pageExtensions,
+                        rootDir: this.dir,
+                        isDev: true,
+                        tsconfigPath: this.config.typescript.tsconfigPath,
                       })
                     : relativeRequest,
                   hasAppDir,

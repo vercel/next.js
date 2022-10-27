@@ -4,9 +4,13 @@ description: Control page initialization and add a layout that persists for all 
 
 # Custom `App`
 
-Next.js uses the `App` component to initialize pages. You can override it and control the page initialization. Which allows you to do amazing things like:
+> **Note**: Next.js 13 introduces the `app/` directory (beta). This new directory has support for layouts, nested routes, and uses Server Components by default. Inside `app/`, you can fetch data for your entire application inside layouts, including support for more granular nested layouts (with [colocated data fetching](https://beta.nextjs.org/docs/data-fetching/fundamentals)).
+>
+> [Learn more about incrementally adopting `app/`](https://beta.nextjs.org/docs/upgrade-guide).
 
-- Persisting layout between page changes
+Next.js uses the `App` component to initialize pages. You can override it and control the page initialization and:
+
+- Persist layouts between page changes
 - Keeping state when navigating pages
 - Custom error handling using `componentDidCatch`
 - Inject additional data into pages
@@ -15,25 +19,9 @@ Next.js uses the `App` component to initialize pages. You can override it and co
 To override the default `App`, create the file `./pages/_app.js` as shown below:
 
 ```jsx
-// import App from 'next/app'
-
-function MyApp({ Component, pageProps }) {
+export default function MyApp({ Component, pageProps }) {
   return <Component {...pageProps} />
 }
-
-// Only uncomment this method if you have blocking data requirements for
-// every single page in your application. This disables the ability to
-// perform automatic static optimization, causing every page in your app to
-// be server-side rendered.
-//
-// MyApp.getInitialProps = async (appContext) => {
-//   // calls page's `getInitialProps` and fills `appProps.pageProps`
-//   const appProps = await App.getInitialProps(appContext);
-//
-//   return { ...appProps }
-// }
-
-export default MyApp
 ```
 
 The `Component` prop is the active `page`, so whenever you navigate between routes, `Component` will change to the new `page`. Therefore, any props you send to `Component` will be received by the `page`.
@@ -47,7 +35,7 @@ The `App.getInitialProps` receives a single argument called `context.ctx`. It's 
 - If your app is running and you added a custom `App`, you'll need to restart the development server. Only required if `pages/_app.js` didn't exist before.
 - Adding a custom [`getInitialProps`](/docs/api-reference/data-fetching/get-initial-props.md) in your `App` will disable [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md) in pages without [Static Generation](/docs/basic-features/data-fetching/get-static-props.md).
 - When you add `getInitialProps` in your custom app, you must `import App from "next/app"`, call `App.getInitialProps(appContext)` inside `getInitialProps` and merge the returned object into the return value.
-- `App` currently does not support Next.js [Data Fetching methods](/docs/basic-features/data-fetching/overview.md) like [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md) or [`getServerSideProps`](/docs/basic-features/data-fetching/get-server-side-props.md).
+- `App` does not support Next.js [Data Fetching methods](/docs/basic-features/data-fetching/overview.md) like [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md) or [`getServerSideProps`](/docs/basic-features/data-fetching/get-server-side-props.md). If you need global data fetching, consider [incrementally adopting the `app/` directory](https://beta.nextjs.org/docs/upgrade-guide).
 
 ### TypeScript
 

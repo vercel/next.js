@@ -1,3 +1,4 @@
+import './initialize-require-hook'
 import './node-polyfill-fetch'
 import './node-polyfill-web-streams'
 
@@ -43,11 +44,11 @@ import {
   CLIENT_PUBLIC_FILES_PATH,
   APP_PATHS_MANIFEST,
   FLIGHT_SERVER_CSS_MANIFEST,
-  SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
   FONT_LOADER_MANIFEST,
 } from '../shared/lib/constants'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
+import { findDir } from '../lib/find-pages-dir'
 import { format as formatUrl, UrlWithParsedQuery } from 'url'
 import compression from 'next/dist/compiled/compression'
 import { getPathMatch } from '../shared/lib/router/utils/path-match'
@@ -62,22 +63,19 @@ import { getExtension, serveStatic } from './serve-static'
 import { ParsedUrlQuery } from 'querystring'
 import { apiResolver } from './api-utils/node'
 import { RenderOpts, renderToHTML } from './render'
-import { renderToHTMLOrFlight as appRenderToHTMLOrFlight } from './app-render'
 import { ParsedUrl, parseUrl } from '../shared/lib/router/utils/parse-url'
 import { parse as nodeParseUrl } from 'url'
 import * as Log from '../build/output/log'
-import loadRequireHook from '../build/webpack/require-hook'
 
 import BaseServer, {
   Options,
   FindComponentsResult,
-  prepareServerlessUrl,
   MiddlewareRoutingItem,
   RoutingItem,
   NoFallbackError,
   RequestContext,
 } from './base-server'
-import { getPagePath, requireFontManifest } from './require'
+import { getMaybePagePath, getPagePath, requireFontManifest } from './require'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { loadComponents } from './load-components'
@@ -96,7 +94,7 @@ import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
 import { getClonableBody } from './body-streams'
 import { checkIsManualRevalidate } from './api-utils'
-import { shouldUseReactRoot, isTargetLikeServerless } from './utils'
+import { shouldUseReactRoot } from './utils'
 import ResponseCache from './response-cache'
 import { IncrementalCache } from './lib/incremental-cache'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
@@ -105,7 +103,7 @@ if (shouldUseReactRoot) {
   ;(process.env as any).__NEXT_REACT_ROOT = 'true'
 }
 
-loadRequireHook()
+import { renderToHTMLOrFlight as appRenderToHTMLOrFlight } from './app-render'
 
 export * from './base-server'
 
@@ -251,24 +249,27 @@ export default class NextNodeServer extends BaseServer {
       loadComponents({
         distDir: this.distDir,
         pathname: '/_document',
-        serverless: this._isLikeServerless,
         hasServerComponents: false,
         isAppPath: false,
       }).catch(() => {})
       loadComponents({
         distDir: this.distDir,
         pathname: '/_app',
-        serverless: this._isLikeServerless,
         hasServerComponents: false,
         isAppPath: false,
       }).catch(() => {})
     }
+
+    if (this.nextConfig.experimental.appDir) {
+      // expose AsyncLocalStorage on global for react usage
+      const { AsyncLocalStorage } = require('async_hooks')
+      ;(global as any).AsyncLocalStorage = AsyncLocalStorage
+    }
   }
 
-  private compression =
-    this.nextConfig.compress && this.nextConfig.target === 'server'
-      ? (compression() as ExpressMiddleware)
-      : undefined
+  private compression = this.nextConfig.compress
+    ? (compression() as ExpressMiddleware)
+    : undefined
 
   protected loadEnvConfig({
     dev,
@@ -329,12 +330,12 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected async hasPage(pathname: string): Promise<boolean> {
-    let found = false
-    try {
-      found = !!this.getPagePath(pathname, this.nextConfig.i18n?.locales)
-    } catch (_) {}
-
-    return found
+    return !!getMaybePagePath(
+      pathname,
+      this.distDir,
+      this.nextConfig.i18n?.locales,
+      this.hasAppDir
+    )
   }
 
   protected getBuildId(): string {
@@ -474,15 +475,7 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getHasAppDir(dev: boolean): boolean {
-    const appDirectory = dev
-      ? join(this.dir, 'app')
-      : join(this.serverDistDir, 'app')
-
-    try {
-      return fs.statSync(appDirectory).isDirectory()
-    } catch (err) {
-      return false
-    }
+    return Boolean(findDir(dev ? this.dir : this.serverDistDir, 'app'))
   }
 
   protected generateStaticRoutes(): Route[] {
@@ -792,14 +785,6 @@ export default class NextNodeServer extends BaseServer {
     delete query.__nextLocale
     delete query.__nextDefaultLocale
 
-    if (!this.renderOpts.dev && this._isLikeServerless) {
-      if (typeof pageModule.default === 'function') {
-        prepareServerlessUrl(req, query)
-        await pageModule.default(req, res)
-        return true
-      }
-    }
-
     await apiResolver(
       (req as NodeNextRequest).originalRequest,
       (res as NodeNextResponse).originalResponse,
@@ -889,14 +874,7 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getPagePath(pathname: string, locales?: string[]): string {
-    return getPagePath(
-      pathname,
-      this.distDir,
-      this._isLikeServerless,
-      this.renderOpts.dev,
-      locales,
-      this.hasAppDir
-    )
+    return getPagePath(pathname, this.distDir, locales, this.hasAppDir)
   }
 
   protected async renderPageComponent(
@@ -965,7 +943,6 @@ export default class NextNodeServer extends BaseServer {
         const components = await loadComponents({
           distDir: this.distDir,
           pathname: pagePath,
-          serverless: !this.renderOpts.dev && this._isLikeServerless,
           hasServerComponents: !!this.renderOpts.serverComponents,
           isAppPath,
         })
@@ -1007,7 +984,7 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getFontManifest(): FontManifest {
-    return requireFontManifest(this.distDir, this._isLikeServerless)
+    return requireFontManifest(this.distDir)
   }
 
   protected getServerComponentManifest() {
@@ -1908,6 +1885,37 @@ export default class NextNodeServer extends BaseServer {
               result.response.headers.set('x-middleware-rewrite', rel)
             }
 
+            if (result.response.headers.has('x-middleware-override-headers')) {
+              const overriddenHeaders: Set<string> = new Set()
+              for (const key of result.response.headers
+                .get('x-middleware-override-headers')!
+                .split(',')) {
+                overriddenHeaders.add(key.trim())
+              }
+
+              result.response.headers.delete('x-middleware-override-headers')
+
+              // Delete headers.
+              for (const key of Object.keys(req.headers)) {
+                if (!overriddenHeaders.has(key)) {
+                  delete req.headers[key]
+                }
+              }
+
+              // Update or add headers.
+              for (const key of overriddenHeaders.keys()) {
+                const valueKey = 'x-middleware-request-' + key
+                const newValue = result.response.headers.get(valueKey)
+                const oldValue = req.headers[key]
+
+                if (oldValue !== newValue) {
+                  req.headers[key] = newValue === null ? undefined : newValue
+                }
+
+                result.response.headers.delete(valueKey)
+              }
+            }
+
             if (result.response.headers.has('Location')) {
               const value = result.response.headers.get('Location')!
               const rel = relativizeURL(value, initUrl)
@@ -2163,14 +2171,7 @@ export default class NextNodeServer extends BaseServer {
     return result
   }
 
-  protected get _isLikeServerless(): boolean {
-    return isTargetLikeServerless(this.nextConfig.target)
-  }
-
   protected get serverDistDir() {
-    return join(
-      this.distDir,
-      this._isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
-    )
+    return join(this.distDir, SERVER_DIRECTORY)
   }
 }

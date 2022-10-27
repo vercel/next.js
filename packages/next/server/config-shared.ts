@@ -84,7 +84,6 @@ export interface ExperimentalConfig {
   skipTrailingSlashRedirect?: boolean
   optimisticClientCache?: boolean
   legacyBrowsers?: boolean
-  browsersListForSwc?: boolean
   manualClientBasePath?: boolean
   newNextLinkBehavior?: boolean
   // custom path to a cache handler to use
@@ -160,9 +159,28 @@ export interface ExperimentalConfig {
   // A list of packages that should be treated as external in the RSC server build
   serverComponentsExternalPackages?: string[]
 
-  fontLoaders?: [{ loader: string; options?: any }]
+  // A list of packages that should always be transpiled and bundled in the server
+  transpilePackages?: string[]
+
+  fontLoaders?: Array<{ loader: string; options?: any }>
 
   webVitalsAttribution?: Array<typeof WEB_VITALS[number]>
+  turbotrace?: {
+    logLevel?:
+      | 'bug'
+      | 'fatal'
+      | 'error'
+      | 'warning'
+      | 'hint'
+      | 'note'
+      | 'suggestions'
+      | 'info'
+    logDetail?: boolean
+    logAll?: boolean
+    contextDirectory?: string
+    processCwd?: string
+    maxFiles?: number
+  }
 }
 
 export type ExportPathMap = {
@@ -230,12 +248,6 @@ export interface NextConfig extends Record<string, any> {
    * @see [Redirects configuration documentation](https://nextjs.org/docs/api-reference/next.config.js/redirects)
    */
   redirects?: () => Promise<Redirect[]>
-
-  /**
-   * @deprecated This option has been removed as webpack 5 is now default
-   * @see [Next.js webpack 5 documentation](https://nextjs.org/docs/messages/webpack5) for upgrading guidance.
-   */
-  webpack5?: false
 
   /**
    * @see [Moment.js locales excluded by default](https://nextjs.org/docs/upgrading#momentjs-locales-excluded-by-default)
@@ -403,13 +415,6 @@ export interface NextConfig extends Record<string, any> {
    */
   httpAgentOptions?: { keepAlive?: boolean }
 
-  future?: {
-    /**
-     * @deprecated This option has been removed as webpack 5 is now default
-     */
-    webpack5?: false
-  }
-
   /**
    * During a build, Next.js will automatically trace each page and its dependencies to determine all of the files
    * that are needed for deploying a production version of your application.
@@ -537,7 +542,6 @@ export const defaultConfig: NextConfig = {
   i18n: null,
   productionBrowserSourceMaps: false,
   optimizeFonts: true,
-  webpack5: undefined,
   excludeDefaultMomentLocales: true,
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},
@@ -547,17 +551,14 @@ export const defaultConfig: NextConfig = {
   },
   outputFileTracing: true,
   staticPageGenerationTimeout: 60,
-  swcMinify: false,
+  swcMinify: true,
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   experimental: {
     optimisticClientCache: true,
     runtime: undefined,
     manualClientBasePath: false,
-    // TODO: change default in next major release (current v12.1.5)
-    legacyBrowsers: true,
-    browsersListForSwc: false,
-    // TODO: change default in next major release (current v12.1.5)
-    newNextLinkBehavior: false,
+    legacyBrowsers: false,
+    newNextLinkBehavior: true,
     cpus: Math.max(
       1,
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
@@ -596,6 +597,7 @@ export const defaultConfig: NextConfig = {
     enableUndici: false,
     adjustFontFallbacks: false,
     adjustFontFallbacksWithSizeAdjust: false,
+    turbotrace: undefined,
   },
 }
 

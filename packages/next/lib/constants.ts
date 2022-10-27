@@ -70,6 +70,7 @@ export const SERVER_RUNTIME: Record<string, ServerRuntime> = {
 }
 
 export const WEBPACK_LAYERS = {
+  shared: 'sc_shared',
   server: 'sc_server',
   client: 'sc_client',
   api: 'api',

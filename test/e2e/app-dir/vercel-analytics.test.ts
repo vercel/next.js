@@ -12,10 +12,6 @@ describe('vercel analytics', () => {
     return
   }
 
-  if (process.env.NEXT_TEST_REACT_VERSION === '^17') {
-    it('should skip for react v17', () => {})
-    return
-  }
   let next: NextInstance
 
   function runTests({ assetPrefix }: { assetPrefix?: boolean }) {
@@ -23,8 +19,10 @@ describe('vercel analytics', () => {
       next = await createNext({
         files: new FileRef(path.join(__dirname, 'app')),
         dependencies: {
+          swr: '2.0.0-rc.0',
           react: 'experimental',
           'react-dom': 'experimental',
+          sass: 'latest',
         },
         skipStart: true,
         env: {

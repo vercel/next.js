@@ -1,9 +1,8 @@
-import { createContext } from 'react'
-import type { NextParsedUrlQuery } from '../../server/request-meta'
+'use client'
 
-export const SearchParamsContext = createContext<NextParsedUrlQuery>(
-  null as any
-)
+import { createContext } from 'react'
+
+export const SearchParamsContext = createContext<URLSearchParams>(null as any)
 export const PathnameContext = createContext<string>(null as any)
 export const ParamsContext = createContext(null as any)
 export const LayoutSegmentsContext = createContext(null as any)

@@ -38,14 +38,6 @@ export default function Home() {
 
 > **Note**: In `import('path/to/component')`, the path must be explicitly written. It can't be a template string nor a variable. Furthermore the `import()` has to be inside the `dynamic()` call for Next.js to be able to match webpack bundles / module ids to the specific `dynamic()` call and preload them before rendering. `dynamic()` can't be used inside of React rendering as it needs to be marked in the top level of the module for preloading to work, similar to `React.lazy`.
 
-If you are not using React 18, you can use the `loading` attribute in place of the Suspense `fallback`.
-
-```jsx
-const DynamicHeader = dynamic(() => import('../components/header'), {
-  loading: () => <div>Loading...</div>,
-})
-```
-
 ## With named exports
 
 To dynamically import a named export, you can return it from the [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise) returned by [`import()`](https://github.com/tc39/proposal-dynamic-import#example):

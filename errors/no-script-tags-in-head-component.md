@@ -4,33 +4,27 @@
 
 A `<script>` tag was added using the `next/head` component.
 
-We don't recommend this pattern because it will potentially break when used with Suspense and/or streaming. In these contexts, `next/head` tags aren't:
-
-- guaranteed to be included in the initial SSR response, so loading could be delayed until client-side rendering, regressing performance.
-
-- loaded in any particular order. The order that the app's Suspense boundaries resolve will determine the loading order of your scripts.
+For the best performance, we recommend using `next/script`. Using `next/script` also ensures compatibility with React Suspense and streaming server-rendering.
 
 ### Possible Ways to Fix It
 
-#### Script component
+#### Script Component
 
-Use the Script component with the right loading strategy to defer loading of the script until necessary. You can see the possible strategies [here](https://nextjs.org/docs/basic-features/script/.)
+The **Script component**, [`next/script`](/docs/api-reference/next/script.md), allows you to optimally load third-party scripts anywhere in your Next.js application. It is an extension of the HTML `<script>` element and enables you to choose between multiple loading strategies to fit your use case.
 
 ```jsx
 import Script from 'next/script'
 
-const Home = () => {
+export default function Dashboard() {
   return (
-    <div class="container">
-      <Script src="https://third-party-script.js"></Script>
-      <div>Home Page</div>
-    </div>
+    <>
+      <Script src="https://example.com/script.js" />
+    </>
   )
 }
-
-export default Home
 ```
 
 ### Useful Links
 
-- [Script component docs](https://nextjs.org/docs/basic-features/script/)
+- [Optimizing Scripts](https://nextjs.org/docs/basic-features/script/)
+- [`next/script` API Reference](https://nextjs.org/docs/api-reference/next/script)

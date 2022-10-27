@@ -3,23 +3,23 @@ import Link from 'next/link'
 export default (props) => (
   <ul>
     <li>
-      <Link href="/hello">
-        <a id="hello">/hello</a>
+      <Link href="/hello" id="hello">
+        /hello
       </Link>
     </li>
     <li>
-      <Link href="/en/hello">
-        <a id="en_hello">/en/hello</a>
+      <Link href="/en/hello" id="en_hello">
+        /en/hello
       </Link>
     </li>
     <li>
-      <Link href="/nl-NL/hello">
-        <a id="nl-NL_hello">/nl-NL/hello</a>
+      <Link href="/nl-NL/hello" id="nl-NL_hello">
+        /nl-NL/hello
       </Link>
     </li>
     <li>
-      <Link href="/nl-NL/about">
-        <a id="nl-NL_about">/nl-NL/about</a>
+      <Link href="/nl-NL/about" id="nl-NL_about">
+        /nl-NL/about
       </Link>
     </li>
   </ul>

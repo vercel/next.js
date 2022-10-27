@@ -200,6 +200,10 @@
               "path": "/docs/advanced-features/compiler.md"
             },
             {
+              "title": "Turbopack",
+              "path": "/docs/advanced-features/turbopack.md"
+            },
+            {
               "title": "Preview Mode",
               "path": "/docs/advanced-features/preview-mode.md"
             },
@@ -421,14 +425,24 @@
           "path": "/docs/api-reference/next/server.md"
         },
         {
+          "title": "@next/font",
+          "path": "/docs/api-reference/next/font.md"
+        },
+        {
           "path": "/docs/api-reference/next/streaming",
           "redirect": {
             "destination": "/docs/advanced-features/react-18"
           }
         },
         {
-          "title": "next/future/image",
-          "path": "/docs/api-reference/next/future/image.md"
+          "path": "/docs/api-reference/next/future/image",
+          "redirect": {
+            "destination": "/docs/api-reference/next/image"
+          }
+        },
+        {
+          "title": "next/legacy/image",
+          "path": "/docs/api-reference/next/legacy/image.md"
         },
         {
           "title": "Edge Runtime",
