@@ -158,10 +158,10 @@ pub fn generate_register() {
     }
 }
 
-pub fn rerun_if_glob(globs: &str) {
+pub fn rerun_if_glob(globs: &str, root: &str) {
     let cwd = env::current_dir().unwrap();
     let globs = cwd.join(globs);
-    let mut seen = HashSet::from([cwd.as_path().to_owned()]);
+    let mut seen = HashSet::from([cwd.join(root)]);
     for entry in glob(globs.to_str().unwrap()).unwrap() {
         let path = entry.unwrap();
         for ancestor in path.ancestors() {

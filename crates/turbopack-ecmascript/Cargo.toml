@@ -59,7 +59,6 @@ version = "0.4"
 
 [dev-dependencies]
 criterion = { version = "0.3.5", features = ["async_tokio"] }
-difference = "2.0"
 rstest = "0.12.0"
 turbo-tasks-memory = { path = "../turbo-tasks-memory" }
 turbo-tasks-testing = { path = "../turbo-tasks-testing" }

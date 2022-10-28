@@ -1,0 +1,30 @@
+[package]
+name = "turbopack-tests"
+version = "0.1.0"
+description = "TBD"
+license = "MPL-2.0"
+edition = "2021"
+autobenches = false
+
+# don't publish this crate
+publish = false
+
+[dev-dependencies]
+anyhow = "1.0.47"
+once_cell = "1.13.0"
+serde = "1.0.136"
+serde_json = "1.0.85"
+similar = "2.2.0"
+test-generator = "0.3.0"
+tokio = "1.11.0"
+turbo-tasks = { path = "../turbo-tasks" }
+turbo-tasks-env = { path = "../turbo-tasks-env" }
+turbo-tasks-fs = { path = "../turbo-tasks-fs" }
+turbo-tasks-memory = { path = "../turbo-tasks-memory" }
+turbopack = { path = "../turbopack" }
+turbopack-core = { path = "../turbopack-core" }
+turbopack-ecmascript = { path = "../turbopack-ecmascript" }
+turbopack-env = { path = "../turbopack-env" }
+
+[build-dependencies]
+turbo-tasks-build = { path = "../turbo-tasks-build" }

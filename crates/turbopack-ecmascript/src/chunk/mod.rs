@@ -1,6 +1,6 @@
 pub mod loader;
 pub(crate) mod optimize;
-pub(crate) mod source_map;
+pub mod source_map;
 
 use std::{fmt::Write as _, slice::Iter};
 
