@@ -600,6 +600,7 @@ export default class HotReloader {
                   pageFilePath: entryData.absolutePagePath,
                   nextConfig: this.config,
                   isDev: true,
+                  pageType: isAppPath ? 'app' : 'pages',
                 })
               : {}
             const isServerComponent =

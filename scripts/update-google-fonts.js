@@ -49,23 +49,32 @@ const fetch = require('node-fetch')
       axes: hasVariableFont ? axes : undefined,
     }
     const optionalIfVariableFont = hasVariableFont ? '?' : ''
+
+    const formatUnion = (values) =>
+      values.map((value) => `"${value}"`).join('|')
+
+    const weightTypes = [...weights]
+    const styleTypes = [...styles]
+
     fontFunctions += `export declare function ${family.replaceAll(
       ' ',
       '_'
     )}(options${optionalIfVariableFont}: {
-    weight${optionalIfVariableFont}:${[...weights]
-      .map((weight) => `"${weight}"`)
-      .join('|')}
-    style?: ${[...styles].map((style) => `"${style}"`).join('|')}
+    weight${optionalIfVariableFont}:${formatUnion(
+      weightTypes
+    )} | Array<${formatUnion(
+      weightTypes.filter((weight) => weight !== 'variable')
+    )}>
+    style?: ${formatUnion(styleTypes)} | Array<${formatUnion(styleTypes)}>
     display?:Display
     variable?: CssVariable
     preload?:boolean
     fallback?: string[]
     adjustFontFallback?: boolean
-    subsets?: Array<${subsets.map((subset) => `"${subset}"`).join('|')}>
+    subsets?: Array<${formatUnion(subsets)}>
     ${
       optionalAxes
-        ? `axes?:(${optionalAxes.map(({ tag }) => `'${tag}'`).join('|')})[]`
+        ? `axes?:(${formatUnion(optionalAxes.map(({ tag }) => tag))})[]`
         : ''
     }
     }):FontModule

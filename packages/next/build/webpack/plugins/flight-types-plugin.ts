@@ -27,12 +27,12 @@ check<IEntry, TEntry>(entry)
 
 type PageParams = Record<string, string>
 interface PageProps {
-  params?: PageParams
-  searchParams?: Record<string, string | string[]>
+  params: any
+  searchParams?: any
 }
 interface LayoutProps {
   children: React.ReactNode
-  params?: PageParams
+  params: any
 }
 
 type PageComponent = (props: PageProps) => React.ReactNode | Promise<React.ReactNode>
