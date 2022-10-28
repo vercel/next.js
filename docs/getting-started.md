@@ -19,7 +19,12 @@ If you have questions about anything related to Next.js, you're always welcome t
 
 ## Automatic Setup
 
-We recommend creating a new Next.js app using `create-next-app`, which sets up everything automatically for you. To create a project, run:
+We recommend creating a new Next.js app using `create-next-app`, which sets up
+everything automatically for you.
+
+### Interactive
+
+You can create a new project interactively by running:
 
 ```bash
 npx create-next-app@latest
@@ -29,14 +34,63 @@ yarn create next-app
 pnpm create next-app
 ```
 
-If you want to start with a TypeScript project you can use the `--typescript` flag:
+You will be asked for the name of your project, and then whether you want to
+create a TypeScript project:
+
+```
+✔ Would you like to use TypeScript with this project? … No / Yes
+```
+
+Select **Yes** to install the necessary types/dependencies and create a new TS project.
+
+### Non-interactive
+
+You can also pass command line arguments to set up a new project
+non-interactively. See `create-next-app --help`:
+
+```
+create-next-app <project-directory> [options]
+
+Options:
+  -V, --version                      output the version number
+  --ts, --typescript
+
+    Initialize as a TypeScript project. (default)
+
+  --js, --javascript
+
+    Initialize as a JavaScript project.
+
+  --use-npm
+
+    Explicitly tell the CLI to bootstrap the app using npm
+
+  --use-pnpm
+
+    Explicitly tell the CLI to bootstrap the app using pnpm
+
+  -e, --example [name]|[github-url]
+
+    An example to bootstrap the app with. You can use an example name
+    from the official Next.js repo or a GitHub URL. The URL can use
+    any branch and/or subdirectory
+
+  --example-path <path-to-example>
+
+    In a rare case, your GitHub URL might contain a branch name with
+    a slash (e.g. bug/fix-1) and the path to the example (e.g. foo/bar).
+    In this case, you must specify the path to the example separately:
+    --example-path foo/bar
+```
+
+#### Examples
 
 ```bash
-npx create-next-app@latest --typescript
+npx create-next-app@latest --ts my-project
 # or
-yarn create next-app --typescript
+yarn create next-app --js my-project
 # or
-pnpm create next-app --typescript
+pnpm create next-app --javascript my-project
 ```
 
 After the installation is complete:
