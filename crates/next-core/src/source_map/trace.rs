@@ -1,7 +1,4 @@
-use std::{
-    ops::Deref,
-    sync::{Arc, Mutex},
-};
+use std::{ops::Deref, sync::Arc};
 
 use anyhow::{bail, Result};
 use serde_json::json;
@@ -59,6 +56,7 @@ pub enum TraceResult {
 /// so it's fine.
 struct DecodedMapWrapper(DecodedMap);
 unsafe impl Send for DecodedMapWrapper {}
+unsafe impl Sync for DecodedMapWrapper {}
 impl Deref for DecodedMapWrapper {
     type Target = DecodedMap;
 
@@ -69,9 +67,9 @@ impl Deref for DecodedMapWrapper {
 
 /// DecodedSourceMap wraps sourcemap::DecodedMap in a Vc for caching.
 #[turbo_tasks::value(serialization = "none", eq = "manual")]
-struct DecodedSourceMap(#[turbo_tasks(debug_ignore, trace_ignore)] Arc<Mutex<DecodedMapWrapper>>);
+struct DecodedSourceMap(#[turbo_tasks(debug_ignore, trace_ignore)] Arc<DecodedMapWrapper>);
 impl Deref for DecodedSourceMap {
-    type Target = Arc<Mutex<DecodedMapWrapper>>;
+    type Target = Arc<DecodedMapWrapper>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -93,7 +91,7 @@ impl DecodedSourceMapVc {
             _ => bail!("could not decode source map"),
         };
 
-        Ok(DecodedSourceMap(Arc::new(Mutex::new(DecodedMapWrapper(sm)))).cell())
+        Ok(DecodedSourceMap(Arc::new(DecodedMapWrapper(sm))).cell())
     }
 }
 
@@ -141,7 +139,11 @@ fn sectioned_lookup(map: &DecodedMap, line: u32, column: u32) -> Option<Token> {
         }
         None
     } else if let DecodedMap::Regular(sm) = map {
-        sm.lookup_token(line, column)
+        match sm.lookup_token(line, column) {
+            // The sourcemap package incorrectly returns the last token for large lookup lines.
+            Some(t) if t.get_dst_line() == line => Some(t),
+            _ => None,
+        }
     } else {
         unimplemented!("we should only be using the standard source map types");
     }
@@ -180,8 +182,7 @@ impl SourceMapTraceVc {
         };
         let decoded_map = DecodedSourceMapVc::from(*content).await?;
 
-        let sm = decoded_map.lock().unwrap();
-        let trace = match sectioned_lookup(&sm, this.line.saturating_sub(1), this.column) {
+        let trace = match sectioned_lookup(&decoded_map, this.line.saturating_sub(1), this.column) {
             Some(t) if t.has_source() => t,
             _ => return Ok(TraceResult::NotFound.cell()),
         };

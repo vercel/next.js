@@ -13,7 +13,7 @@ use crossterm::style::{StyledContent, Stylize};
 use owo_colors::{OwoColorize as _, Style};
 use turbo_tasks::{RawVc, TransientValue, TryJoinIterExt, ValueToString};
 use turbo_tasks_fs::{
-    attach::AttachedFileSystemVc, DiskFileSystemVc, FileLinesContent, FileSystemPathVc,
+    attach::AttachedFileSystemVc, to_sys_path, FileLinesContent, FileSystemPathVc,
 };
 use turbo_tasks_hash::Xxh3Hash64Hasher;
 use turbopack_core::issue::{
@@ -646,13 +646,12 @@ async fn make_relative_to_cwd(path: FileSystemPathVc, cwd: &PathBuf) -> Result<S
     } else {
         path
     };
-    if let Some(fs) = DiskFileSystemVc::resolve_from(path.fs()).await? {
-        let sys_path = fs.await?.to_sys_path(path).await?;
+    if let Some(sys_path) = to_sys_path(path).await? {
         let relative = sys_path
             .strip_prefix(cwd)
             .unwrap_or(&sys_path)
             .to_string_lossy()
-            .into_owned();
+            .to_string();
         Ok(relative)
     } else {
         Ok(path.to_string().await?.clone_value())

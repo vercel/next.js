@@ -21,7 +21,7 @@ use swc_core::{
 };
 use turbo_tasks::{
     primitives::{StringVc, U64Vc},
-    Value, ValueToString,
+    Value,
 };
 use turbo_tasks_fs::{FileContent, FileSystemPath, FileSystemPathVc};
 use turbo_tasks_hash::{DeterministicHasher, Xxh3Hash64Hasher};
@@ -122,7 +122,7 @@ impl SourceMapGenConfig for InlineSourcesContentConfig {
     fn file_name_to_source(&self, f: &FileName) -> String {
         match f {
             // The Custom filename surrounds the name with <>.
-            FileName::Custom(s) => String::from("/") + s,
+            FileName::Custom(s) => s.to_string(),
             _ => f.to_string(),
         }
     }
@@ -140,7 +140,6 @@ pub async fn parse(
 ) -> Result<ParseResultVc> {
     let content = source.content();
     let fs_path = &*source.path().await?;
-    let fs_path_str = &*source.path().to_string().await?;
     let file_path_hash = *hash_file_path(source.path()).await? as u128;
     let ty = ty.into_value();
     Ok(match &*content.await? {
@@ -149,16 +148,7 @@ pub async fn parse(
             FileContent::Content(file) => match String::from_utf8(file.content().to_vec()) {
                 Ok(string) => {
                     let transforms = &*transforms.await?;
-                    parse_content(
-                        string,
-                        fs_path,
-                        fs_path_str,
-                        file_path_hash,
-                        source,
-                        ty,
-                        transforms,
-                    )
-                    .await?
+                    parse_content(string, fs_path, file_path_hash, source, ty, transforms).await?
                 }
                 // FIXME: report error
                 Err(_err) => ParseResult::Unparseable.cell(),
@@ -171,7 +161,6 @@ pub async fn parse(
 async fn parse_content(
     string: String,
     fs_path: &FileSystemPath,
-    fs_path_str: &str,
     file_path_hash: u128,
     source: AssetVc,
     ty: EcmascriptModuleAssetType,
@@ -197,7 +186,7 @@ async fn parse_content(
             })
         },
         async {
-            let file_name = FileName::Custom(fs_path_str.to_string());
+            let file_name = FileName::Custom(fs_path.path.clone());
             let fm = source_map.new_source_file(file_name.clone(), string);
 
             let comments = SwcComments::default();

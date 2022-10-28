@@ -1561,6 +1561,14 @@ impl ValueToString for NullFileSystem {
     }
 }
 
+pub async fn to_sys_path(path: FileSystemPathVc) -> Result<Option<PathBuf>> {
+    if let Some(fs) = DiskFileSystemVc::resolve_from(path.fs()).await? {
+        let sys_path = fs.await?.to_sys_path(path).await?;
+        return Ok(Some(sys_path));
+    }
+    Ok(None)
+}
+
 pub fn register() {
     turbo_tasks::register();
     include!(concat!(env!("OUT_DIR"), "/register.rs"));
