@@ -1,7 +1,7 @@
 use std::{
     borrow::Cow,
     cell::RefCell,
-    collections::HashSet,
+    collections::{HashSet, VecDeque},
     future::Future,
     pin::Pin,
     sync::atomic::{AtomicUsize, Ordering},
@@ -521,8 +521,12 @@ pub(crate) enum Job {
     RemoveFromScopes(HashSet<TaskId>, Vec<TaskScopeId>),
     RemoveFromScope(HashSet<TaskId>, TaskScopeId),
     ScheduleWhenDirty(Vec<TaskId>),
-    AddToScopeQueue(Vec<(Vec<TaskId>, usize)>, usize, TaskScopeId, bool),
-    RemoveFromScopeQueue(Vec<Vec<TaskId>>, usize, TaskScopeId),
+    /// Add tasks from a scope. Scheduled by `run_add_from_scope_queue` to
+    /// split off work.
+    AddToScopeQueue(VecDeque<(TaskId, usize)>, TaskScopeId, bool),
+    /// Remove tasks from a scope. Scheduled by `run_remove_from_scope_queue` to
+    /// split off work.
+    RemoveFromScopeQueue(VecDeque<TaskId>, TaskScopeId),
 }
 
 impl Job {
@@ -549,18 +553,11 @@ impl Job {
                     })
                 }
             }
-            Job::AddToScopeQueue(queue, queue_size, id, is_optimization_scope) => {
-                run_add_to_scope_queue(
-                    queue,
-                    queue_size,
-                    id,
-                    is_optimization_scope,
-                    backend,
-                    turbo_tasks,
-                );
+            Job::AddToScopeQueue(queue, id, is_optimization_scope) => {
+                run_add_to_scope_queue(queue, id, is_optimization_scope, backend, turbo_tasks);
             }
-            Job::RemoveFromScopeQueue(queue, queue_size, id) => {
-                run_remove_from_scope_queue(queue, queue_size, id, backend, turbo_tasks);
+            Job::RemoveFromScopeQueue(queue, id) => {
+                run_remove_from_scope_queue(queue, id, backend, turbo_tasks);
             }
         }
     }

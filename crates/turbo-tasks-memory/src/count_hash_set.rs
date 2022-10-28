@@ -81,12 +81,12 @@ impl<T: Eq + Hash, H: BuildHasher> CountHashSet<T, H> {
         }
     }
 
-    /// Returns true, when the value has become visible from outside
+    /// Returns true when the value has become visible from outside
     pub fn add(&mut self, item: T) -> bool {
         self.add_count(item, 1)
     }
 
-    /// Returns true, when the value is no longer visible from outside
+    /// Returns true when the value is no longer visible from outside
     pub fn remove_count(&mut self, item: T, count: usize) -> bool {
         match self.inner.entry(item) {
             Entry::Occupied(mut e) => {
@@ -94,7 +94,7 @@ impl<T: Eq + Hash, H: BuildHasher> CountHashSet<T, H> {
                 let old = *value;
                 *value -= count as isize;
                 if *value > 0 {
-                    // It's was and still is positive
+                    // It was and still is positive
                     false
                 } else if *value == 0 {
                     // It was positive and has become zero

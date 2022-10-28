@@ -433,15 +433,15 @@ impl TaskScopeState {
         }
     }
 
-    /// Add a child scope. Returns true, when the child scope need to have it's
-    /// active counter increased.
+    /// Add a child scope. Returns a [ScopeChildChangeEffect] when the child
+    /// scope need to have its active counter increased.
     #[must_use]
     pub fn add_child(&mut self, child: TaskScopeId) -> Option<ScopeChildChangeEffect> {
         self.add_child_count(child, 1)
     }
 
-    /// Add a child scope. Returns true, when the child scope need to have it's
-    /// active counter increased.
+    /// Add a child scope. Returns a [ScopeChildChangeEffect] when the child
+    /// scope need to have its active counter increased.
     #[must_use]
     pub fn add_child_count(
         &mut self,
