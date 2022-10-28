@@ -20,6 +20,8 @@ const U16_PS: u16 = 0x2029;
     Eq,
     Copy,
     Clone,
+    PartialOrd,
+    Ord,
     TraceRawVcs,
     Serialize,
     Deserialize,

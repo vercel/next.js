@@ -4,21 +4,13 @@ use std::{
 };
 
 use anyhow::Result;
+use sourcemap::SourceMapBuilder;
 use turbo_tasks::primitives::StringVc;
 
-use crate::source_pos::SourcePos;
-
-#[turbo_tasks::value_trait]
-pub trait EncodedSourceMap {
-    /// Generates JSON of a source map, similar to `JSON.stringify({...})`.
-    fn encoded_map(&self) -> StringVc;
-}
-
-/// A source map that contains no actual source location information (no
-/// `sources`, no mappings that point into a source). This is used to tell
-/// Chrome that the generated code starting at a particular offset is no longer
-/// part of the previous section's mappings.
-const EMPTY_MAP: &str = r#"{"version": 3, "names": [], "sources": [], "mappings": "A"}"#;
+use crate::{
+    source_map::{GenerateSourceMap, GenerateSourceMapVc, SourceMapSection, SourceMapVc},
+    source_pos::SourcePos,
+};
 
 /// Code stores combined output code and the source map of that output code.
 #[turbo_tasks::value(shared)]
@@ -27,7 +19,7 @@ pub struct Code {
     code: String,
 
     /// A mapping of byte-offset in the code string to an associated source map.
-    mappings: Vec<(usize, Option<EncodedSourceMapVc>)>,
+    mappings: Vec<(usize, Option<GenerateSourceMapVc>)>,
 }
 
 impl Code {
@@ -44,7 +36,7 @@ impl Code {
     /// original code section. By inserting an empty source map when reaching a
     /// synthetic section directly after an original section, we tell Chrome
     /// that the previous map ended at this point.
-    fn push_map(&mut self, map: Option<EncodedSourceMapVc>) {
+    fn push_map(&mut self, map: Option<GenerateSourceMapVc>) {
         if map.is_none() && matches!(self.mappings.last(), None | Some((_, None))) {
             // No reason to push an empty map directly after an empty map
             return;
@@ -67,7 +59,7 @@ impl Code {
     /// Pushes original user code with an optional source map if one is
     /// available. If it's not, this is no different than pushing Synthetic
     /// code.
-    pub fn push_source(&mut self, code: &str, map: Option<EncodedSourceMapVc>) {
+    pub fn push_source(&mut self, code: &str, map: Option<GenerateSourceMapVc>) {
         self.push_map(map);
         self.code += code;
     }
@@ -122,7 +114,10 @@ impl CodeVc {
     pub async fn source_code(self) -> Result<StringVc> {
         Ok(StringVc::cell(self.await?.source_code().to_string()))
     }
+}
 
+#[turbo_tasks::value_impl]
+impl GenerateSourceMap for Code {
     /// Generates the source map out of all the pushed Original code.
     /// The SourceMap v3 spec has a "sectioned" source map specifically designed
     /// for concatenation in post-processing steps. This format consists of
@@ -132,53 +127,37 @@ impl CodeVc {
     /// far the simplest way to concatenate the source maps of the multiple
     /// chunk items into a single map file.
     #[turbo_tasks::function]
-    pub async fn source_map(self) -> Result<StringVc> {
-        let this = self.await?;
+    pub async fn generate_source_map(&self) -> Result<SourceMapVc> {
         let mut pos = SourcePos::new();
-        let mut last_index = 0;
+        let mut last_byte_pos = 0;
 
-        // Boy, the sourcemap crate only allows writing the source map directly
-        // into a string output. The map needs to be an object, and we can't inject
-        // the map string as an object because JsonValue doesn't provide a "raw"
-        // type (see https://github.com/tc39/proposal-json-parse-with-source).
-        //
-        // So, we need to manually construct the JSON. :sigh:
-        let mut source_map = r#"{
-  "version": 3,
-  "sections": ["#
-            .to_string();
+        let sections = self
+            .mappings
+            .iter()
+            .map(|(byte_pos, map)| {
+                pos.update(&self.code[last_byte_pos..*byte_pos]);
+                last_byte_pos = *byte_pos;
 
-        let mut first_section = true;
-        for (index, map) in &this.mappings {
-            pos.update(&this.code[last_index..*index]);
-            last_index = *index;
+                let encoded = match map {
+                    None => empty_map(),
+                    Some(map) => map.generate_source_map(),
+                };
 
-            let encoded = match map {
-                None => None,
-                Some(map) => Some(map.encoded_map().await?),
-            };
-            let encoded = if let Some(ref e) = encoded {
-                e
-            } else {
-                EMPTY_MAP
-            };
+                SourceMapSection::new(pos, encoded)
+            })
+            .collect();
 
-            if !first_section {
-                source_map += ",";
-            }
-            first_section = false;
-
-            write!(
-                &mut source_map,
-                r#"
-    {{"offset": {{"line": {}, "column": {}}}, "map": {}}}"#,
-                pos.line, pos.column, encoded,
-            )?;
-        }
-
-        source_map += r#"]
-}"#;
-
-        Ok(StringVc::cell(source_map))
+        Ok(SourceMapVc::new_sectioned(sections))
     }
+}
+
+/// A source map that contains no actual source location information (no
+/// `sources`, no mappings that point into a source). This is used to tell
+/// Chrome that the generated code starting at a particular offset is no longer
+/// part of the previous section's mappings.
+#[turbo_tasks::function]
+fn empty_map() -> SourceMapVc {
+    let mut builder = SourceMapBuilder::new(None);
+    builder.add(0, 0, 0, 0, None, None);
+    SourceMapVc::new_regular(builder.into_sourcemap())
 }

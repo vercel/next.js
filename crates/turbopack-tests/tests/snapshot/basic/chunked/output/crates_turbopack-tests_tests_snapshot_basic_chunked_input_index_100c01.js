@@ -1016,4 +1016,4 @@ __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$
 })();
 
 
-//# sourceMappingURL=crates_turbopack-tests_tests_snapshot_basic_chunked_input_index_100c01.js.e84c3ec844835b59.map
+//# sourceMappingURL=crates_turbopack-tests_tests_snapshot_basic_chunked_input_index_100c01.js.map

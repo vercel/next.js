@@ -29,6 +29,7 @@ use turbopack_core::{
         Introspectable, IntrospectableChildrenVc, IntrospectableVc,
     },
     reference::{AssetReferenceVc, AssetReferencesVc},
+    source_map::{GenerateSourceMap, GenerateSourceMapVc, SourceMapVc},
     version::{
         PartialUpdate, TotalUpdate, Update, UpdateVc, Version, VersionVc, VersionedContent,
         VersionedContentVc,
@@ -525,7 +526,7 @@ async fn module_factory(content: EcmascriptChunkItemContentVc) -> Result<CodeVc>
     } else {
         write!(code, "(({{ {} }}) => (() => {{\n\n", args,)?;
     }
-    let source_map = content.source_map.map(|sm| sm.as_encoded_source_map());
+    let source_map = content.source_map.map(|sm| sm.as_generate_source_map());
     code.push_source(&content.inner_code, source_map);
     if content.options.this {
         code += "\n}.call(this) })";
@@ -633,12 +634,7 @@ impl EcmascriptChunkContentVc {
 
         if code.has_source_map() {
             let filename = chunk_path.file_name();
-            let version = self.version().id().await?;
-            write!(
-                code,
-                "\n\n//# sourceMappingURL={}.{}.map",
-                filename, version
-            )?;
+            write!(code, "\n\n//# sourceMappingURL={}.map", filename)?;
         }
 
         Ok(code.cell())
@@ -734,6 +730,14 @@ impl VersionedContent for EcmascriptChunkContent {
         };
 
         Ok(update.into())
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl GenerateSourceMap for EcmascriptChunkContent {
+    #[turbo_tasks::function]
+    fn generate_source_map(self_vc: EcmascriptChunkContentVc) -> SourceMapVc {
+        self_vc.code().generate_source_map()
     }
 }
 
@@ -1010,6 +1014,14 @@ impl Introspectable for EcmascriptChunk {
             children.insert((entry_module_key(), IntrospectableAssetVc::new(entry.into())));
         }
         Ok(IntrospectableChildrenVc::cell(children))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl GenerateSourceMap for EcmascriptChunk {
+    #[turbo_tasks::function]
+    fn generate_source_map(self_vc: EcmascriptChunkVc) -> SourceMapVc {
+        self_vc.chunk_content().generate_source_map()
     }
 }
 

@@ -1013,4 +1013,4 @@ console.log("hello world");
 })();
 
 
-//# sourceMappingURL=crates_turbopack-tests_tests_snapshot_example_example_input_index_a7beb7.js.dc42bac4b591c14f.map
+//# sourceMappingURL=crates_turbopack-tests_tests_snapshot_example_example_input_index_a7beb7.js.map

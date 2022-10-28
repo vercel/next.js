@@ -2,7 +2,10 @@ use std::collections::HashSet;
 
 use anyhow::Result;
 use turbo_tasks::{primitives::StringVc, Value};
-use turbopack_core::introspect::{Introspectable, IntrospectableChildrenVc, IntrospectableVc};
+use turbopack_core::{
+    introspect::{Introspectable, IntrospectableChildrenVc, IntrospectableVc},
+    source_map::GenerateSourceMapVc,
+};
 use turbopack_dev_server::source::{
     ContentSource, ContentSourceData, ContentSourceDataVary, ContentSourceResult,
     ContentSourceResultVc, ContentSourceVc,
@@ -75,31 +78,22 @@ impl ContentSource for NextSourceMapTraceContentSource {
             _ => return Ok(ContentSourceResult::NotFound.cell()),
         };
 
-        // Source maps aren't stored as `foo.js.map`, but instead use a hash of the JS's
-        // contents: `foo.js.abc123.map`. In order to find the map, we need to
-        // get the JS's version id and then fetch the map.
         let this = self_vc.await?;
-        let js_file = this
+        let file = this
             .asset_source
             .get(path, Value::new(Default::default()))
             .await?;
-        let js_file = match &*js_file {
-            ContentSourceResult::Static(f) => f,
-            _ => return Ok(ContentSourceResult::NotFound.cell()),
-        };
-        let id = js_file.version().id().await?;
-
-        let map = this
-            .asset_source
-            .get(&format!("{path}.{id}.map"), Value::new(Default::default()))
-            .await?;
-        let map = match &*map {
+        let file = match &*file {
             ContentSourceResult::Static(f) => f,
             _ => return Ok(ContentSourceResult::NotFound.cell()),
         };
 
-        let traced = SourceMapTraceVc::new(map.content(), line, column, frame.name);
+        let gen = match GenerateSourceMapVc::resolve_from(file).await? {
+            Some(f) => f,
+            _ => return Ok(ContentSourceResult::NotFound.cell()),
+        };
 
+        let traced = SourceMapTraceVc::new(gen.generate_source_map(), line, column, frame.name);
         Ok(ContentSourceResult::Static(traced.content().into()).cell())
     }
 }

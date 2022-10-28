@@ -1024,4 +1024,4 @@ __turbopack_export_value__((__turbopack_import__) => {
 })();
 
 
-//# sourceMappingURL=crates_turbopack-tests_tests_snapshot_basic_async_chunk_input_index_9be35c.js.cd4f2d1f6d4fa4b4.map
+//# sourceMappingURL=crates_turbopack-tests_tests_snapshot_basic_async_chunk_input_index_9be35c.js.map

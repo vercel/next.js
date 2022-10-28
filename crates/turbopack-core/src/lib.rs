@@ -1,3 +1,4 @@
+#![feature(async_closure)]
 #![feature(min_specialization)]
 #![feature(option_get_or_insert_default)]
 #![feature(type_alias_impl_trait)]
@@ -14,6 +15,7 @@ pub mod issue;
 pub mod reference;
 pub mod resolve;
 pub mod source_asset;
+pub mod source_map;
 pub mod source_pos;
 pub mod target;
 mod utils;

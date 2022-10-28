@@ -18,4 +18,4 @@ function MyApp() {
 }]);
 
 
-//# sourceMappingURL=1cdd0_tests_snapshot_swc_transforms_mono_transforms_input_packages_component_index.js.508779819a88b788.map
+//# sourceMappingURL=1cdd0_tests_snapshot_swc_transforms_mono_transforms_input_packages_component_index.js.map

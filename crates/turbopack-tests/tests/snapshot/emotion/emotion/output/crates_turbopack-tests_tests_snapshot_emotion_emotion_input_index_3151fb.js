@@ -1,20 +1,32 @@
-(self.TURBOPACK = self.TURBOPACK || []).push(["output/crates_turbopack-tests_tests_snapshot_emotion_emotion_input_index_3be5b0.js", {
+(self.TURBOPACK = self.TURBOPACK || []).push(["output/crates_turbopack-tests_tests_snapshot_emotion_emotion_input_index_3151fb.js", {
 
 "[project]/crates/turbopack-tests/tests/snapshot/emotion/emotion/input/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, __dirname }) => (() => {
 
-var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f$react$40$18$2e$2$2e$0$2f$node_modules$2f$react$2f$jsx$2d$runtime$2e$js__ = __turbopack_import__("[project]/node_modules/.pnpm/react@18.2.0/node_modules/react/jsx-runtime.js (ecmascript)");
-var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f40$emotion$2b$react$40$11$2e$10$2e$4_b6k74wvxdvqypha4emuv7fd2ke$2f$node_modules$2f40$emotion$2f$react$2f$dist$2f$emotion$2d$react$2e$cjs$2e$js__ = __turbopack_import__("[project]/node_modules/.pnpm/@emotion+react@11.10.4_b6k74wvxdvqypha4emuv7fd2ke/node_modules/@emotion/react/dist/emotion-react.cjs.js (ecmascript)");
-var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f40$emotion$2b$styled$40$11$2e$10$2e$4_hn2242ymjfeigbcxwpi42fjy6u$2f$node_modules$2f40$emotion$2f$styled$2f$dist$2f$emotion$2d$styled$2e$cjs$2e$js__ = __turbopack_import__("[project]/node_modules/.pnpm/@emotion+styled@11.10.4_hn2242ymjfeigbcxwpi42fjy6u/node_modules/@emotion/styled/dist/emotion-styled.cjs.js (ecmascript)");
+(()=>{
+    const e = new Error("Cannot find module 'react/jsx-runtime'");
+    e.code = 'MODULE_NOT_FOUND';
+    throw e;
+})();
+(()=>{
+    const e = new Error("Cannot find module '@emotion/react'");
+    e.code = 'MODULE_NOT_FOUND';
+    throw e;
+})();
+(()=>{
+    const e = new Error("Cannot find module '@emotion/styled'");
+    e.code = 'MODULE_NOT_FOUND';
+    throw e;
+})();
 "__TURBOPACK__ecmascript__hoisting__location__";
 ;
 ;
 ;
-const StyledButton = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f40$emotion$2b$styled$40$11$2e$10$2e$4_hn2242ymjfeigbcxwpi42fjy6u$2f$node_modules$2f40$emotion$2f$styled$2f$dist$2f$emotion$2d$styled$2e$cjs$2e$js__["default"]("button", {
+const StyledButton = styled("button", {
     target: "e1r1p2t30",
     label: "StyledButton"
 })("background:blue;", "/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5kZXguanMiLCJzb3VyY2VzIjpbImluZGV4LmpzIl0sInNvdXJjZXNDb250ZW50IjpbIi8qKiBAanN4IGpzeCAqL1xuXG5pbXBvcnQgeyBqc3ggfSBmcm9tIFwiQGVtb3Rpb24vcmVhY3RcIjtcbmltcG9ydCBzdHlsZWQgZnJvbSBcIkBlbW90aW9uL3N0eWxlZFwiO1xuXG5jb25zdCBTdHlsZWRCdXR0b24gPSBzdHlsZWQuYnV0dG9uYFxuICBiYWNrZ3JvdW5kOiBibHVlO1xuYDtcblxuZnVuY3Rpb24gQ2xhc3NOYW1lQnV0dG9uKHsgY2hpbGRyZW4gfSkge1xuICByZXR1cm4gKFxuICAgIDxidXR0b25cbiAgICAgIGNsYXNzTmFtZT17Y3NzYFxuICAgICAgICBiYWNrZ3JvdW5kOiBibHVlO1xuICAgICAgYH1cbiAgICA+XG4gICAgICB7Y2hpbGRyZW59XG4gICAgPC9idXR0b24+XG4gICk7XG59XG5cbmNvbnNvbGUubG9nKFN0eWxlZEJ1dHRvbiwgQ2xhc3NOYW1lQnV0dG9uKTtcbiJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFLcUIifQ== */");
 function ClassNameButton({ children  }) {
-    return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f$react$40$18$2e$2$2e$0$2f$node_modules$2f$react$2f$jsx$2d$runtime$2e$js__["jsx"]("button", {
+    return _jsx("button", {
         className: css`
         background: blue;
       `,
@@ -25,7 +37,7 @@ console.log(StyledButton, ClassNameButton);
 
 })()),
 }, ({ loadedChunks, instantiateRuntimeModule }) => {
-    if(!(true && loadedChunks.has("output/_98b7c6.js") && loadedChunks.has("output/node_modules__8a125e.pnpm.js") && loadedChunks.has("output/node_modules__57b888.pnpm.js") && loadedChunks.has("output/node_modules__7a63ba.pnpm.js") && loadedChunks.has("output/node_modules__39d834.pnpm.js") && loadedChunks.has("output/node_modules__467271.pnpm.js") && loadedChunks.has("output/node_modules__9eb24e.pnpm.js") && loadedChunks.has("output/69399_@emotion_is-prop-valid_dist_emotion-is-prop-valid.cjs.js"))) return true;
+    if(!(true && loadedChunks.has("output/crates_turbopack-tests_tests_snapshot_emotion_emotion_input_index_b58c07.js"))) return true;
     instantiateRuntimeModule("[project]/crates/turbopack-tests/tests/snapshot/emotion/emotion/input/index.js (ecmascript)");
 }]);
 (() => {
@@ -1032,4 +1044,4 @@ console.log(StyledButton, ClassNameButton);
 })();
 
 
-//# sourceMappingURL=crates_turbopack-tests_tests_snapshot_emotion_emotion_input_index_3be5b0.js.09502617f0c92d6c.map
+//# sourceMappingURL=crates_turbopack-tests_tests_snapshot_emotion_emotion_input_index_3151fb.js.map

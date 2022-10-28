@@ -13,4 +13,4 @@ function ThirdPartyComponent() {
 }]);
 
 
-//# sourceMappingURL=bcbf2_third_party_component_index.js.6cdfd123cdb47414.map
+//# sourceMappingURL=bcbf2_third_party_component_index.js.map

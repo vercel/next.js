@@ -1,4 +1,4 @@
-(self.TURBOPACK = self.TURBOPACK || []).push(["output/1cdd0_tests_snapshot_swc_transforms_mono_transforms_input_packages_app_index_cfff39.js", {
+(self.TURBOPACK = self.TURBOPACK || []).push(["output/1cdd0_tests_snapshot_swc_transforms_mono_transforms_input_packages_app_index_928eb4.js", {
 
 "[project]/crates/turbopack-tests/tests/snapshot/swc_transforms/mono_transforms/input/packages/app/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, __dirname }) => (() => {
 
@@ -11,7 +11,7 @@ console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$
 
 })()),
 }, ({ loadedChunks, instantiateRuntimeModule }) => {
-    if(!(true && loadedChunks.has("output/1cdd0_tests_snapshot_swc_transforms_mono_transforms_input_packages_app_index_2f611b.js") && loadedChunks.has("output/bcbf2_third_party_component_index.js") && loadedChunks.has("output/1cdd0_tests_snapshot_swc_transforms_mono_transforms_input_packages_component_index.js") && loadedChunks.has("output/535ac_react_jsx-runtime.js") && loadedChunks.has("output/bcbf2_react_jsx-runtime.js"))) return true;
+    if(!(true && loadedChunks.has("output/1cdd0_tests_snapshot_swc_transforms_mono_transforms_input_packages_app_index_8b6777.js") && loadedChunks.has("output/bcbf2_third_party_component_index.js") && loadedChunks.has("output/1cdd0_tests_snapshot_swc_transforms_mono_transforms_input_packages_component_index.js") && loadedChunks.has("output/bcbf2_react_jsx-runtime.js"))) return true;
     instantiateRuntimeModule("[project]/crates/turbopack-tests/tests/snapshot/swc_transforms/mono_transforms/input/packages/app/index.js (ecmascript)");
 }]);
 (() => {
@@ -1018,4 +1018,4 @@ console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$
 })();
 
 
-//# sourceMappingURL=1cdd0_tests_snapshot_swc_transforms_mono_transforms_input_packages_app_index_cfff39.js.788680caf6b0a43f.map
+//# sourceMappingURL=1cdd0_tests_snapshot_swc_transforms_mono_transforms_input_packages_app_index_928eb4.js.map

@@ -1,6 +1,5 @@
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
-    ffi::OsStr,
     fmt::Write as _,
     path::PathBuf,
 };
@@ -18,16 +17,14 @@ use turbo_tasks_fs::{to_sys_path, File, FileContent, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc, AssetsSetVc},
     chunk::{ChunkGroupVc, ChunkingContextVc},
+    source_map::GenerateSourceMapVc,
     virtual_asset::VirtualAssetVc,
 };
 use turbopack_dev_server::{
     html::DevHtmlAssetVc,
     source::{query::Query, BodyVc, HeaderValue, ProxyResult, ProxyResultVc},
 };
-use turbopack_ecmascript::{
-    chunk::{source_map::EcmascriptChunkSourceMapAssetVc, EcmascriptChunkPlaceablesVc},
-    EcmascriptModuleAssetVc,
-};
+use turbopack_ecmascript::{chunk::EcmascriptChunkPlaceablesVc, EcmascriptModuleAssetVc};
 
 use self::{
     bootstrap::NodeJsBootstrapAsset,
@@ -387,35 +384,25 @@ async fn trace_stack(
         None => bail!("couldn't extract disk fs from path"),
     };
 
-    let map_ext = OsStr::new("map");
     let assets = internal_assets(intermediate_asset, intermediate_output_path.root())
         .await?
         .iter()
         .map(|a| async {
-            let mut path = match to_sys_path(a.path()).await? {
+            let gen = match GenerateSourceMapVc::resolve_from(*a).await? {
+                Some(gen) => gen,
+                None => return Ok(None),
+            };
+
+            let path = match to_sys_path(a.path()).await? {
                 Some(p) => p,
                 None => PathBuf::from(&a.path().await?.path),
             };
 
-            if path.extension() != Some(map_ext) {
-                return Ok(None);
-            }
-
-            // Strip the .map
-            path.set_extension("");
-
-            if EcmascriptChunkSourceMapAssetVc::resolve_from(*a)
-                .await?
-                .is_some()
-            {
-                // The path was something like "foo.js.abc123.map, and the next extension is the
-                // hash
-                debug_assert!(path.extension().is_some());
-                debug_assert_ne!(path.extension().unwrap(), "js");
-                path.set_extension("");
-            };
             let p = path.strip_prefix(&root).unwrap();
-            Ok(Some((p.to_str().unwrap().to_string(), *a)))
+            Ok(Some((
+                p.to_str().unwrap().to_string(),
+                gen.generate_source_map(),
+            )))
         })
         .try_join()
         .await?
@@ -443,9 +430,9 @@ async fn trace_stack(
         if let Some((line, column)) = frame.get_pos() {
             if let Some(path) = frame.file.strip_prefix(&root) {
                 if let Some(map) = assets.get(path) {
-                    let map_trace =
-                        SourceMapTraceVc::new(map.content(), line, column, frame.name.clone());
-                    let trace = map_trace.trace().await?;
+                    let trace = SourceMapTraceVc::new(*map, line, column, frame.name.clone())
+                        .trace()
+                        .await?;
                     if let TraceResult::Found(f) = &*trace {
                         write_frame!(f, f.file)?;
                         continue;

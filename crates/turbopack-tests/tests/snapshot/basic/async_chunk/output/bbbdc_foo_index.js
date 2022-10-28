@@ -13,4 +13,4 @@ function foo(value) {
 }]);
 
 
-//# sourceMappingURL=bbbdc_foo_index.js.aefa69dcbcd2072e.map
+//# sourceMappingURL=bbbdc_foo_index.js.map

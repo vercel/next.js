@@ -2,9 +2,7 @@
 
 use std::{
     collections::{HashMap, HashSet, VecDeque},
-    env,
-    ffi::OsStr,
-    fs,
+    env, fs,
     path::{Path, PathBuf},
 };
 
@@ -36,7 +34,6 @@ use turbopack_core::{
     reference::all_referenced_assets,
     source_asset::SourceAssetVc,
 };
-use turbopack_ecmascript::chunk::source_map::EcmascriptChunkSourceMapAssetVc;
 use turbopack_env::ProcessEnvAssetVc;
 
 // Updates the existing snapshot outputs with the actual outputs of this run.

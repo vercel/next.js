@@ -19,15 +19,12 @@ use swc_core::{
         visit::VisitMutWith,
     },
 };
-use turbo_tasks::{
-    primitives::{StringVc, U64Vc},
-    Value,
-};
+use turbo_tasks::{primitives::U64Vc, Value};
 use turbo_tasks_fs::{FileContent, FileSystemPath, FileSystemPathVc};
 use turbo_tasks_hash::{DeterministicHasher, Xxh3Hash64Hasher};
 use turbopack_core::{
     asset::{AssetContent, AssetVc},
-    code_builder::{EncodedSourceMap, EncodedSourceMapVc},
+    source_map::{GenerateSourceMap, GenerateSourceMapVc, SourceMapVc},
 };
 use turbopack_swc_utils::emitter::IssueEmitter;
 
@@ -97,19 +94,16 @@ impl ParseResultSourceMap {
 }
 
 #[turbo_tasks::value_impl]
-impl EncodedSourceMap for ParseResultSourceMap {
+impl GenerateSourceMap for ParseResultSourceMap {
     #[turbo_tasks::function]
-    fn encoded_map(&self) -> Result<StringVc> {
-        let source_map = self.source_map.build_source_map_with_config(
+    fn generate_source_map(&self) -> SourceMapVc {
+        let map = self.source_map.build_source_map_with_config(
             // SWC expects a mutable vec, but it never modifies. Seems like an oversight.
             &mut self.mappings.clone(),
             None,
             InlineSourcesContentConfig {},
         );
-        let mut bytes = vec![];
-        source_map.to_writer(&mut bytes)?;
-        let s = String::from_utf8(bytes)?;
-        Ok(StringVc::cell(s))
+        SourceMapVc::new_regular(map)
     }
 }
 
@@ -122,7 +116,7 @@ impl SourceMapGenConfig for InlineSourcesContentConfig {
     fn file_name_to_source(&self, f: &FileName) -> String {
         match f {
             // The Custom filename surrounds the name with <>.
-            FileName::Custom(s) => s.to_string(),
+            FileName::Custom(s) => format!("/{}", s),
             _ => f.to_string(),
         }
     }

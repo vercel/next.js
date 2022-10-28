@@ -1020,4 +1020,4 @@ __turbopack_export_value__("/crates/turbopack-tests/tests/snapshot/imports/stati
 })();
 
 
-//# sourceMappingURL=crates_turbopack-tests_tests_snapshot_imports_static_input_index_b8717b.js.3253e47cbbcdd5e4.map
+//# sourceMappingURL=crates_turbopack-tests_tests_snapshot_imports_static_input_index_b8717b.js.map

@@ -1,11 +1,15 @@
-(self.TURBOPACK = self.TURBOPACK || []).push(["output/1cdd0_tests_snapshot_styled_components_styled_components_input_index_ee92b9.js", {
+(self.TURBOPACK = self.TURBOPACK || []).push(["output/1cdd0_tests_snapshot_styled_components_styled_components_input_index_76327e.js", {
 
 "[project]/crates/turbopack-tests/tests/snapshot/styled_components/styled_components/input/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, __dirname }) => (() => {
 
-var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f$styled$2d$components$40$5$2e$3$2e$6_7i5myeigehqah43i5u7wbekgba$2f$node_modules$2f$styled$2d$components$2f$dist$2f$styled$2d$components$2e$cjs$2e$js__ = __turbopack_import__("[project]/node_modules/.pnpm/styled-components@5.3.6_7i5myeigehqah43i5u7wbekgba/node_modules/styled-components/dist/styled-components.cjs.js (ecmascript)");
+(()=>{
+    const e = new Error("Cannot find module 'styled-components'");
+    e.code = 'MODULE_NOT_FOUND';
+    throw e;
+})();
 "__TURBOPACK__ecmascript__hoisting__location__";
 ;
-const MyButton = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f$styled$2d$components$40$5$2e$3$2e$6_7i5myeigehqah43i5u7wbekgba$2f$node_modules$2f$styled$2d$components$2f$dist$2f$styled$2d$components$2e$cjs$2e$js__["default"].button.withConfig({
+const MyButton = styled.button.withConfig({
     displayName: "MyButton",
     componentId: "sc-39afcc54-0"
 })`
@@ -15,7 +19,7 @@ console.log(MyButton);
 
 })()),
 }, ({ loadedChunks, instantiateRuntimeModule }) => {
-    if(!(true && loadedChunks.has("output/_a63c49.js") && loadedChunks.has("output/node_modules__56ee81.pnpm.js") && loadedChunks.has("output/node_modules__509a48.pnpm.js") && loadedChunks.has("output/node_modules__ada459.pnpm.js") && loadedChunks.has("output/node_modules__98d4c7.pnpm.js") && loadedChunks.has("output/c6fe1_react-is_index.js"))) return true;
+    if(!(true && loadedChunks.has("output/1cdd0_tests_snapshot_styled_components_styled_components_input_index_3291c8.js"))) return true;
     instantiateRuntimeModule("[project]/crates/turbopack-tests/tests/snapshot/styled_components/styled_components/input/index.js (ecmascript)");
 }]);
 (() => {
@@ -1022,4 +1026,4 @@ console.log(MyButton);
 })();
 
 
-//# sourceMappingURL=1cdd0_tests_snapshot_styled_components_styled_components_input_index_ee92b9.js.f9da39fd3abd4bb1.map
+//# sourceMappingURL=1cdd0_tests_snapshot_styled_components_styled_components_input_index_76327e.js.map
