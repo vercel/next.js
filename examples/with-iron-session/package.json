@@ -9,7 +9,7 @@
     "iron-session": "latest",
     "next": "latest",
     "octokit": "^1.7.0",
-    "react": "^17.0.2",
+    "react": "^18.2.0",
     "react-dom": "^17.0.2",
     "swr": "^1.0.1"
   },
