@@ -52,7 +52,7 @@ impl Drop for RunningNodeJsPoolProcess {
     }
 }
 
-const CONNECT_TIMEOUT: Duration = Duration::from_secs(1);
+const CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
 
 impl NodeJsPoolProcess {
     async fn new(cwd: &Path, env: &HashMap<String, String>, entrypoint: &Path) -> Result<Self> {
@@ -92,7 +92,17 @@ impl NodeJsPoolProcess {
             NodeJsPoolProcess::Spawned(mut spawned) => {
                 let (connection, _) = select! {
                     connection = spawned.listener.accept() => connection.context("accepting connection")?,
-                    _ = sleep(CONNECT_TIMEOUT) => bail!("timed out waiting for the Node.js process to connect"),
+                    status = spawned.child.as_mut().unwrap().wait() => {
+                        match status {
+                            Ok(status) => {
+                                bail!("node process exited before we could connect to it with {}", status);
+                            }
+                            Err(err) => {
+                                bail!("node process exited before we could connect to it: {:?}", err);
+                            },
+                        }
+                    },
+                    _ = sleep(CONNECT_TIMEOUT) => bail!("timed out waiting for the Node.js process to connect ({:?} timeout)", CONNECT_TIMEOUT),
                 };
 
                 RunningNodeJsPoolProcess {
