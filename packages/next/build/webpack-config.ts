@@ -244,7 +244,17 @@ export function getDefineEnv({
     'process.env.__NEXT_BUILD_INDICATOR_POSITION': JSON.stringify(
       config.devIndicators.buildActivityPosition
     ),
-    'process.env.__NEXT_STRICT_MODE': JSON.stringify(config.reactStrictMode),
+    'process.env.__NEXT_STRICT_MODE': JSON.stringify(
+      config.reactStrictMode === null ? false : config.reactStrictMode
+    ),
+    'process.env.__NEXT_STRICT_MODE_APP': JSON.stringify(
+      // When next.config.js does not have reactStrictMode enabling appDir will enable it.
+      config.reactStrictMode === null
+        ? config.experimental.appDir
+          ? true
+          : false
+        : config.reactStrictMode
+    ),
     'process.env.__NEXT_REACT_ROOT': JSON.stringify(hasReactRoot),
     'process.env.__NEXT_OPTIMIZE_FONTS': JSON.stringify(
       !dev && config.optimizeFonts
