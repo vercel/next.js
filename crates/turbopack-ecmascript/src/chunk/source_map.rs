@@ -1,9 +1,10 @@
 use anyhow::Result;
 use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::{File, FileSystemPathVc};
-use turbo_tasks_hash::encode_hex;
+use turbo_tasks_hash::{encode_hex, Xxh3Hash64Hasher};
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
+    chunk::ModuleIdVc,
     code_builder::CodeVc,
     reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
     resolve::{ResolveResult, ResolveResultVc},
@@ -29,10 +30,9 @@ impl EcmascriptChunkSourceMapAssetVc {
 impl Asset for EcmascriptChunkSourceMapAsset {
     #[turbo_tasks::function]
     async fn path(&self) -> Result<FileSystemPathVc> {
-        Ok(self.chunk.path().append(&format!(
-            ".{}.map",
-            self.chunk.versioned_content().version().id().await?
-        )))
+        // NOTE(alexkirsz) We used to include the chunk's version id in the path,
+        // but this caused `all_assets_map` to be recomputed on every change.
+        Ok(self.chunk.path().append(".map"))
     }
 
     #[turbo_tasks::function]
@@ -51,17 +51,17 @@ impl Asset for EcmascriptChunkSourceMapAsset {
 #[turbo_tasks::value]
 pub struct EcmascriptChunkEntrySourceMapAsset {
     chunk_path: FileSystemPathVc,
-    hash: u64,
+    id: ModuleIdVc,
     code: CodeVc,
 }
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkEntrySourceMapAssetVc {
     #[turbo_tasks::function]
-    pub fn new(chunk_path: FileSystemPathVc, hash: u64, code: CodeVc) -> Self {
+    pub fn new(chunk_path: FileSystemPathVc, id: ModuleIdVc, code: CodeVc) -> Self {
         EcmascriptChunkEntrySourceMapAsset {
             chunk_path,
-            hash,
+            id,
             code,
         }
         .cell()
@@ -71,10 +71,14 @@ impl EcmascriptChunkEntrySourceMapAssetVc {
 #[turbo_tasks::value_impl]
 impl Asset for EcmascriptChunkEntrySourceMapAsset {
     #[turbo_tasks::function]
-    fn path(&self) -> FileSystemPathVc {
-        let hash = encode_hex(self.hash);
+    async fn path(&self) -> Result<FileSystemPathVc> {
+        // NOTE(alexkirsz) We used to asset's hash in the path, but this caused
+        // `all_assets_map` to be recomputed on every change.
+        let mut hasher = Xxh3Hash64Hasher::new();
+        hasher.write_value(self.id.await?);
+        let hash = encode_hex(hasher.finish());
         let truncated_hash = &hash[..6];
-        self.chunk_path.append(&format!(".{}.map", truncated_hash))
+        Ok(self.chunk_path.append(&format!(".{}.map", truncated_hash)))
     }
 
     #[turbo_tasks::function]
@@ -131,7 +135,7 @@ impl AssetReference for EcmascriptChunkSourceMapAssetReference {
                     EcmascriptChunkEntrySourceMapAsset {
                         chunk_path: path,
                         code: item.code_vc,
-                        hash: item.hash,
+                        id: item.chunk_item.id(),
                     }
                     .keyed_cell(EcmascriptChunkEntrySourceMapAssetCellKey(item.chunk_item))
                     .into(),
