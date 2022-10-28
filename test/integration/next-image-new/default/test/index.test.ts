@@ -861,6 +861,17 @@ function runTests(mode) {
       )
     })
 
+    it('should not warn when data url image with fill and sizes props', async () => {
+      const browser = await webdriver(appPort, '/data-url-with-fill-and-sizes')
+      const warnings = (await browser.log())
+        .map((log) => log.message)
+        .join('\n')
+      expect(await hasRedbox(browser)).toBe(false)
+      expect(warnings).not.toMatch(
+        /Image with src (.*) has "fill" but is missing "sizes" prop. Please add it to improve page performance/gm
+      )
+    })
+
     it('should not warn when svg, even if with loader prop or without', async () => {
       const browser = await webdriver(appPort, '/loader-svg')
       await browser.eval(`document.querySelector("footer").scrollIntoView()`)
