@@ -171,7 +171,7 @@ pub fn get_client_chunking_context(
         },
         get_client_assets_path(server_root, ty),
     )
-    .hot_module_replacment()
+    .hot_module_replacement()
     .build()
 }
 

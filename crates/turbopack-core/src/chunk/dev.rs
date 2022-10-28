@@ -14,7 +14,7 @@ pub struct DevChunkingContextBuilder {
 }
 
 impl DevChunkingContextBuilder {
-    pub fn hot_module_replacment(mut self) -> Self {
+    pub fn hot_module_replacement(mut self) -> Self {
         self.context.enable_hot_module_replacement = true;
         self
     }
