@@ -1,10 +1,10 @@
-use std::{ops::Deref, sync::Arc};
-
-use anyhow::{bail, Result};
+use anyhow::Result;
 use serde_json::json;
-use sourcemap::{decode as decode_source_map, DecodedMap, Token};
-use turbo_tasks_fs::{File, FileContent, FileContentVc};
-use turbopack_core::asset::{AssetContent, AssetContentVc};
+use turbo_tasks_fs::File;
+use turbopack_core::{
+    asset::AssetContentVc,
+    source_map::{SourceMapVc, Token},
+};
 
 /// An individual stack frame, as parsed by the stacktrace-parser npm module.
 ///
@@ -14,14 +14,14 @@ use turbopack_core::asset::{AssetContent, AssetContentVc};
 pub struct StackFrame {
     pub file: String,
     #[serde(rename = "lineNumber")]
-    pub line: Option<u32>,
-    pub column: Option<u32>,
+    pub line: Option<usize>,
+    pub column: Option<usize>,
     #[serde(rename = "methodName")]
     pub name: Option<String>,
 }
 
 impl StackFrame {
-    pub fn get_pos(&self) -> Option<(u32, u32)> {
+    pub fn get_pos(&self) -> Option<(usize, usize)> {
         match (self.line, self.column) {
             (Some(l), Some(c)) => Some((l, c)),
             _ => None,
@@ -29,14 +29,14 @@ impl StackFrame {
     }
 }
 
-/// Source Map Trace implmements the actual source map tracing logic, by parsing
-/// the source map and calling the appropriate methods.
+/// Source Map Trace is a convenient wrapper to perform and consume a source map
+/// trace's token.
 #[turbo_tasks::value(shared)]
 #[derive(Debug)]
 pub struct SourceMapTrace {
-    file: AssetContentVc,
-    line: u32,
-    column: u32,
+    map: SourceMapVc,
+    line: usize,
+    column: usize,
     name: Option<String>,
 }
 
@@ -48,113 +48,12 @@ pub enum TraceResult {
     Found(StackFrame),
 }
 
-/// Wraps DecodedMap so that it can be cached in a Vc.
-///
-/// DecodedMap contains a raw pointer, which isn't Send, which is required to
-/// cache in a Vc. So, we have wrap it in 4 layers of cruft to do it. We don't
-/// actually use the pointer, because we don't perform sources content lookup,
-/// so it's fine.
-struct DecodedMapWrapper(DecodedMap);
-unsafe impl Send for DecodedMapWrapper {}
-unsafe impl Sync for DecodedMapWrapper {}
-impl Deref for DecodedMapWrapper {
-    type Target = DecodedMap;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-/// DecodedSourceMap wraps sourcemap::DecodedMap in a Vc for caching.
-#[turbo_tasks::value(serialization = "none", eq = "manual")]
-struct DecodedSourceMap(#[turbo_tasks(debug_ignore, trace_ignore)] Arc<DecodedMapWrapper>);
-impl Deref for DecodedSourceMap {
-    type Target = Arc<DecodedMapWrapper>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl DecodedSourceMapVc {
-    #[turbo_tasks::function]
-    async fn from(file: FileContentVc) -> Result<Self> {
-        let file_content = file.await?;
-        let content = match &*file_content {
-            FileContent::Content(c) => c,
-            _ => bail!("could not read file content"),
-        };
-
-        let sm = match decode_source_map(content.as_ref()) {
-            Ok(sm) => sm,
-            _ => bail!("could not decode source map"),
-        };
-
-        Ok(DecodedSourceMap(Arc::new(DecodedMapWrapper(sm))).cell())
-    }
-}
-
-impl PartialEq for DecodedSourceMap {
-    fn eq(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.0, &other.0)
-    }
-}
-
-// sourcemap crate didn't implement sectioned sourcemap lookups correctly.
-// :face-palm:
-fn sectioned_lookup(map: &DecodedMap, line: u32, column: u32) -> Option<Token> {
-    if let DecodedMap::Index(idx) = map {
-        let len = idx.get_section_count();
-        let mut low = 0;
-        let mut high = len;
-
-        // A "greatest lower bound" binary search. We're looking for the closest section
-        // line/col <= to our line/col.
-        while low < high {
-            let mid = (low + high) / 2;
-            let section = idx.get_section(mid).unwrap();
-            if (line, column) < section.get_offset() {
-                high = mid;
-            } else {
-                low = mid + 1;
-            }
-        }
-        if low > 0 && low <= len {
-            let section = idx.get_section(low - 1).unwrap();
-            if let Some(map) = section.get_sourcemap() {
-                let (off_line, off_col) = section.get_offset();
-                // We're looking for the position `l` lines into region spanned by this
-                // sourcemap s section.
-                let l = line - off_line;
-                // The source map starts if offset by the column only on its first line. On the
-                // 2nd+ line, the sourcemap spans starting at column 0.
-                let c = if line == off_line {
-                    column - off_col
-                } else {
-                    column
-                };
-                return sectioned_lookup(map, l, c);
-            }
-        }
-        None
-    } else if let DecodedMap::Regular(sm) = map {
-        match sm.lookup_token(line, column) {
-            // The sourcemap package incorrectly returns the last token for large lookup lines.
-            Some(t) if t.get_dst_line() == line => Some(t),
-            _ => None,
-        }
-    } else {
-        unimplemented!("we should only be using the standard source map types");
-    }
-}
-
 #[turbo_tasks::value_impl]
 impl SourceMapTraceVc {
     #[turbo_tasks::function]
-    pub async fn new(file: AssetContentVc, line: u32, column: u32, name: Option<String>) -> Self {
+    pub async fn new(map: SourceMapVc, line: usize, column: usize, name: Option<String>) -> Self {
         SourceMapTrace {
-            file,
+            map,
             line,
             column,
             name,
@@ -175,31 +74,22 @@ impl SourceMapTraceVc {
     #[turbo_tasks::function]
     pub async fn trace(self) -> Result<TraceResultVc> {
         let this = self.await?;
-        let file = this.file.await?;
-        let content = match &*file {
-            AssetContent::File(c) => c,
-            _ => return Ok(TraceResult::NotFound.cell()),
-        };
-        let decoded_map = DecodedSourceMapVc::from(*content).await?;
 
-        let trace = match sectioned_lookup(&decoded_map, this.line.saturating_sub(1), this.column) {
-            Some(t) if t.has_source() => t,
-            _ => return Ok(TraceResult::NotFound.cell()),
+        let token = this
+            .map
+            .lookup_token(this.line.saturating_sub(1), this.column)
+            .await?;
+        let result = match &*token {
+            Some(Token::Original(t)) => TraceResult::Found(StackFrame {
+                file: t.original_file.clone(),
+                line: Some(t.original_line.saturating_add(1)),
+                column: Some(t.original_column),
+                name: t.name.clone().or_else(|| this.name.clone()),
+            }),
+            _ => TraceResult::NotFound,
         };
 
-        Ok(TraceResult::Found(StackFrame {
-            file: trace
-                .get_source()
-                .expect("trace was unwraped already")
-                .to_string(),
-            line: Some(trace.get_src_line().saturating_add(1)),
-            column: Some(trace.get_src_col()),
-            name: trace
-                .get_name()
-                .map(|s| s.to_string())
-                .or_else(|| this.name.clone()),
-        })
-        .cell())
+        Ok(result.cell())
     }
 
     /// Takes the trace and generates a (possibly valid) JSON asset content.
