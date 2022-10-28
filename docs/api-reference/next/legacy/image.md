@@ -4,7 +4,7 @@ description: Backwards compatible Image Optimization with the Legacy Image compo
 
 # next/legacy/image
 
-<details>
+<details open>
   <summary><b>Examples</b></summary>
   <ul>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/image-legacy-component">Legacy Image Component</a></li>

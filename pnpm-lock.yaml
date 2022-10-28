@@ -142,11 +142,11 @@ importers:
       random-seed: 0.3.0
       react: 18.2.0
       react-17: npm:react@17.0.2
-      react-builtin: npm:react@18.3.0-next-d925a8d0b-20221024
+      react-builtin: npm:react@18.3.0-next-28a574ea8-20221027
       react-dom: 18.2.0
       react-dom-17: npm:react-dom@17.0.2
-      react-dom-builtin: npm:react-dom@18.3.0-next-d925a8d0b-20221024
-      react-server-dom-webpack: 18.3.0-next-d925a8d0b-20221024
+      react-dom-builtin: npm:react-dom@18.3.0-next-28a574ea8-20221027
+      react-server-dom-webpack: 18.3.0-next-28a574ea8-20221027
       react-ssr-prepass: 1.0.8
       react-virtualized: 9.22.3
       relay-compiler: 13.0.2
@@ -303,11 +303,11 @@ importers:
       random-seed: 0.3.0
       react: 18.2.0
       react-17: /react/17.0.2
-      react-builtin: /react/18.3.0-next-d925a8d0b-20221024
+      react-builtin: /react/18.3.0-next-28a574ea8-20221027
       react-dom: 18.2.0_react@18.2.0
       react-dom-17: /react-dom/17.0.2_react@18.2.0
-      react-dom-builtin: /react-dom/18.3.0-next-d925a8d0b-20221024_react@18.2.0
-      react-server-dom-webpack: 18.3.0-next-d925a8d0b-20221024_4ifzx734of5j5ymg4ksx54vtqi
+      react-dom-builtin: /react-dom/18.3.0-next-28a574ea8-20221027_react@18.2.0
+      react-server-dom-webpack: 18.3.0-next-28a574ea8-20221027_4ifzx734of5j5ymg4ksx54vtqi
       react-ssr-prepass: 1.0.8_qncsgtzehe3fgiqp6tr7lwq6fm
       react-virtualized: 9.22.3_biqbaboplfbrettd7655fr4n2y
       relay-compiler: 13.0.2
@@ -25379,17 +25379,17 @@ packages:
       scheduler: 0.23.0
     dev: true
 
-  /react-dom/18.3.0-next-d925a8d0b-20221024_react@18.2.0:
+  /react-dom/18.3.0-next-28a574ea8-20221027_react@18.2.0:
     resolution:
       {
-        integrity: sha512-sh6eIzAtmw5a6zJQp75d3Ov3eTRFaDFUUvLBt7b+Y4CS5JuYFkzJHGAP4EHVzpwhQJdsi1GcJhXobU3jcU3vXA==,
+        integrity: sha512-f0CkrX744dPYQ5ilIfakH9HViwsHOuiXQ62h8b8tcrzbc1flnYO9ESMlBjw7gQuWxYz2Zdbx551yuq7FUekjGQ==,
       }
     peerDependencies:
-      react: 18.3.0-next-d925a8d0b-20221024
+      react: 18.3.0-next-28a574ea8-20221027
     dependencies:
       loose-envify: 1.4.0
       react: 18.2.0
-      scheduler: 0.24.0-next-d925a8d0b-20221024
+      scheduler: 0.24.0-next-28a574ea8-20221027
     dev: true
 
   /react-is/16.13.1:
@@ -25427,15 +25427,15 @@ packages:
     engines: { node: '>=0.10.0' }
     dev: true
 
-  /react-server-dom-webpack/18.3.0-next-d925a8d0b-20221024_4ifzx734of5j5ymg4ksx54vtqi:
+  /react-server-dom-webpack/18.3.0-next-28a574ea8-20221027_4ifzx734of5j5ymg4ksx54vtqi:
     resolution:
       {
-        integrity: sha512-elHlXJO9xBSDgMmywkzCQPU2Zh3+dRBzsolnSVGTUJi9gA1UBudYGhijcx4L8XbTbBpBoRRt57WnGPmw8iPGUA==,
+        integrity: sha512-WNVi7+dD3QfOOyHpy/TQIxkZiYBH01maBQzQ7rIb5cUJAF7asM0dldUOUMggDUGYjpq0mNbLEu9JnB9tQw0HEQ==,
       }
     engines: { node: '>=0.10.0' }
     peerDependencies:
-      react: 18.3.0-next-d925a8d0b-20221024
-      react-dom: 18.3.0-next-d925a8d0b-20221024
+      react: 18.3.0-next-28a574ea8-20221027
+      react-dom: 18.3.0-next-28a574ea8-20221027
       webpack: ^5.59.0
     dependencies:
       acorn: 6.4.2
@@ -25499,10 +25499,10 @@ packages:
     dependencies:
       loose-envify: 1.4.0
 
-  /react/18.3.0-next-d925a8d0b-20221024:
+  /react/18.3.0-next-28a574ea8-20221027:
     resolution:
       {
-        integrity: sha512-smH5B6nlV6DJS2pr2JrZGdM4Z3mMK2aUAHoUb2PJ1teqGMKzXGxswCMkQQC60PSrsSF+jR0qUlhv3yrG2bYbgg==,
+        integrity: sha512-FGjLFqLgevCgMKpFHW64KVihgmpsudHljyi3fxH7jPr2TpEJ+SpypjP1DmJZcKwooCFzBA0vskcsphAnUjgTGg==,
       }
     engines: { node: '>=0.10.0' }
     dependencies:
@@ -26895,10 +26895,10 @@ packages:
       loose-envify: 1.4.0
     dev: true
 
-  /scheduler/0.24.0-next-d925a8d0b-20221024:
+  /scheduler/0.24.0-next-28a574ea8-20221027:
     resolution:
       {
-        integrity: sha512-OEAUTOD2QgCCXDme8A7p9bMEYz9qOWGkGQDplth0Wj8idXB+3V/Yre5DQAhvY9l/adnJCg9E75ILQ6Ca9WYa4w==,
+        integrity: sha512-Z5FHoXJZ3rVzTjxhlI8Gjqp8+RzJzT+gva2mKJkgBZi4ZtsJ/rE4g5gmys/+MAcObHR4peq6gqnwHvBQuXsC7A==,
       }
     dependencies:
       loose-envify: 1.4.0
