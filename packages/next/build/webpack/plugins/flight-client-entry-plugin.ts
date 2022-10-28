@@ -280,7 +280,7 @@ export class FlightClientEntryPlugin {
         // To collect all CSS imports for a specific entry including the ones
         // that are in the client graph, we need to store a map for client boundary
         // dependencies.
-        const clientEntryDependencyMap: any = {}
+        const clientEntryDependencyMap: Record<string, any> = {}
         const entry = compilation.entries.get(name)
         entry.includeDependencies.forEach((dep: any) => {
           if (
@@ -357,7 +357,7 @@ export class FlightClientEntryPlugin {
     layoutOrPageRequest: string
     compilation: any
     dependency: any /* Dependency */
-    clientEntryDependencyMap?: any
+    clientEntryDependencyMap?: Record<string, any>
   }): [ClientComponentImports, CssImports] {
     /**
      * Keep track of checked modules to avoid infinite loops with recursive imports.
