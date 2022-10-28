@@ -188,19 +188,20 @@ impl NodeJsPool {
 
     async fn acquire_process(&self) -> Result<(NodeJsPoolProcess, OwnedSemaphorePermit)> {
         let permit = self.semaphore.clone().acquire_owned().await?;
+
         let popped = {
             let mut processes = self.processes.lock().unwrap();
             processes.pop()
         };
-        Ok(if let Some(process) = popped {
-            (process, permit)
-        } else {
-            let process =
+        let process = match popped {
+            Some(process) => process,
+            None => {
                 NodeJsPoolProcess::new(self.cwd.as_path(), &self.env, self.entrypoint.as_path())
                     .await
-                    .context("creating new process")?;
-            (process, permit)
-        })
+                    .context("creating new process")?
+            }
+        };
+        Ok((process, permit))
     }
 
     pub(super) async fn operation(&self) -> Result<NodeJsOperation> {
@@ -224,10 +225,9 @@ pub struct NodeJsOperation {
 
 impl NodeJsOperation {
     fn process_mut(&mut self) -> Result<&mut RunningNodeJsPoolProcess> {
-        Ok(self
-            .process
+        self.process
             .as_mut()
-            .context("Node.js operation already finished")?)
+            .context("Node.js operation already finished")
     }
 
     pub(super) async fn recv<M>(&mut self) -> Result<M>
@@ -239,18 +239,17 @@ impl NodeJsOperation {
             .recv()
             .await
             .context("receiving message")?;
-        Ok(serde_json::from_slice(&message).context("deserializing message")?)
+        serde_json::from_slice(&message).context("deserializing message")
     }
 
     pub(super) async fn send<M>(&mut self, message: M) -> Result<()>
     where
         M: Serialize,
     {
-        Ok(self
-            .process_mut()?
+        self.process_mut()?
             .send(serde_json::to_vec(&message).context("serializing message")?)
             .await
-            .context("sending message")?)
+            .context("sending message")
     }
 
     pub(super) async fn wait_or_kill(mut self) -> Result<ExitStatus> {
