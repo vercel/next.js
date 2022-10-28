@@ -8,7 +8,7 @@ use turbo_tasks_fs::FileSystemPathVc;
 use turbopack::{
     module_options::{
         module_options_context::{ModuleOptionsContext, ModuleOptionsContextVc},
-        ModuleRuleCondition, ModuleRuleEffect, ModuleRuleVc,
+        ModuleRule, ModuleRuleCondition, ModuleRuleEffect,
     },
     resolve_options_context::{ResolveOptionsContext, ResolveOptionsContextVc},
     transition::TransitionsByNameVc,
@@ -116,23 +116,19 @@ pub async fn add_next_transforms_to_pages(
 ) -> Result<ModuleOptionsContextVc> {
     let mut module_options_context = module_options_context.await?.clone_value();
     // Apply the Next SSG tranform to all pages.
-    module_options_context.custom_rules.push(ModuleRuleVc::new(
+    module_options_context.custom_rules.push(ModuleRule::new(
         ModuleRuleCondition::all(vec![
-            ModuleRuleCondition::ResourcePathInExactDirectory(pages_dir),
+            ModuleRuleCondition::ResourcePathInExactDirectory(pages_dir.await?),
             ModuleRuleCondition::any(vec![
                 ModuleRuleCondition::ResourcePathEndsWith(".js".to_string()),
                 ModuleRuleCondition::ResourcePathEndsWith(".jsx".to_string()),
                 ModuleRuleCondition::ResourcePathEndsWith(".ts".to_string()),
                 ModuleRuleCondition::ResourcePathEndsWith(".tsx".to_string()),
             ]),
-        ])
-        .cell(),
-        vec![
-            ModuleRuleEffect::AddEcmascriptTransforms(EcmascriptInputTransformsVc::cell(vec![
-                EcmascriptInputTransform::NextJs,
-            ]))
-            .cell(),
-        ],
+        ]),
+        vec![ModuleRuleEffect::AddEcmascriptTransforms(
+            EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::NextJs]),
+        )],
     ));
     Ok(module_options_context.cell())
 }
