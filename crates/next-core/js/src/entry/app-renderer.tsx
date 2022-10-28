@@ -16,7 +16,6 @@ import type {
 } from "next/dist/build/webpack/plugins/flight-manifest-plugin";
 import type { RenderData } from "types/turbopack";
 
-import "next/dist/server/initialize-require-hook";
 import "next/dist/server/node-polyfill-fetch";
 import "next/dist/server/node-polyfill-web-streams";
 import { RenderOpts, renderToHTMLOrFlight } from "next/dist/server/app-render";

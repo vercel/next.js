@@ -5,7 +5,6 @@ import http, { ServerResponse } from "node:http";
 import type { AddressInfo, Socket } from "node:net";
 import { Buffer } from "node:buffer";
 
-import "next/dist/server/initialize-require-hook";
 import "next/dist/server/node-polyfill-fetch.js";
 
 import * as allExports from ".";
