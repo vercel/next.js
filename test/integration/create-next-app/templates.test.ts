@@ -78,9 +78,12 @@ describe('create-next-app --experimental-app-dir', () => {
   it('should create TS appDir projects with --ts', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'appdir-test'
-      const childProcess = createNextApp([projectName, '--ts', '--experimental-app'], {
-        cwd,
-      })
+      const childProcess = createNextApp(
+        [projectName, '--ts', '--experimental-app'],
+        {
+          cwd,
+        }
+      )
 
       const exitCode = await spawnExitPromise(childProcess)
       expect(exitCode).toBe(0)
@@ -88,16 +91,19 @@ describe('create-next-app --experimental-app-dir', () => {
     })
   })
 
-//   it('should create JS appDir projects with --js', async () => {
-//     await useTempDir(async (cwd) => {
-//       const projectName = 'appdir-test'
-//       const childProcess = createNextApp([projectName, '--js', '--experimental-app'], {
-//         cwd,
-//       })
+  it('should create JS appDir projects with --js', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'appdir-test'
+      const childProcess = createNextApp(
+        [projectName, '--js', '--experimental-app'],
+        {
+          cwd,
+        }
+      )
 
-//       const exitCode = await spawnExitPromise(childProcess)
-//       expect(exitCode).toBe(0)
-//       shouldBeAppProject({ cwd, projectName })
-//     })
-//   })
+      const exitCode = await spawnExitPromise(childProcess)
+      expect(exitCode).toBe(0)
+      shouldBeTemplateProject({ cwd, projectName, template: 'app', mode: 'js' })
+    })
+  })
 })

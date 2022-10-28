@@ -19,7 +19,12 @@ import { getOnline } from './helpers/is-online'
 import { isWriteable } from './helpers/is-writeable'
 import type { PackageManager } from './helpers/get-pkg-manager'
 
-import { getTemplateFile, installTemplate, TemplateMode, TemplateType } from './templates'
+import {
+  getTemplateFile,
+  installTemplate,
+  TemplateMode,
+  TemplateType,
+} from './templates'
 
 export class DownloadError extends Error {}
 
@@ -39,10 +44,8 @@ export async function createApp({
   experimentalApp: boolean
 }): Promise<void> {
   let repoInfo: RepoInfo | undefined
-  const template: TemplateType = experimentalApp
-    ? 'app'
-    : 'default'
   const mode: TemplateMode = typescript ? 'ts' : 'js'
+  const template: TemplateType = experimentalApp ? 'app' : 'default'
 
   if (example) {
     let repoUrl: URL | undefined
@@ -211,8 +214,8 @@ export async function createApp({
       root,
       template,
       mode,
-      packageManager, 
-      isOnline 
+      packageManager,
+      isOnline,
     })
   }
 

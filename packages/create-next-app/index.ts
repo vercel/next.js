@@ -151,7 +151,7 @@ async function run(): Promise<void> {
    * @todo Allow appDir to support TS or JS, currently TS-only and disables all
    * --ts, --js features.
    */
-  if (!program.experimentalApp && !program.typescript && !program.javascript) {
+  if (!program.typescript && !program.javascript) {
     const styledTypeScript = chalk.hex('#007acc')('TypeScript')
     const { typescript } = await prompts(
       {
