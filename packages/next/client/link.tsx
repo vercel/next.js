@@ -5,7 +5,7 @@ import { UrlObject } from 'url'
 import {
   isLocalURL,
   NextRouter,
-  PrefetchOptions,
+  PrefetchOptions as RouterPrefetchOptions,
   resolveHref,
 } from '../shared/lib/router/router'
 import { formatUrl } from '../shared/lib/router/utils/format-url'
@@ -108,11 +108,19 @@ type LinkPropsOptional = OptionalKeys<InternalLinkProps>
 
 const prefetched = new Set<string>()
 
+type PrefetchOptions = Omit<RouterPrefetchOptions, 'locale'> & {
+  /**
+   * bypassPrefetchedCheck will bypass the check to see if the `href` has
+   * already been fetched.
+   */
+  bypassPrefetchedCheck?: boolean
+}
+
 function prefetch(
   router: NextRouter | AppRouterInstance,
   href: string,
   as: string,
-  options?: Omit<PrefetchOptions, 'locale'>
+  options?: PrefetchOptions
 ): void {
   if (typeof window === 'undefined') {
     return
@@ -124,7 +132,7 @@ function prefetch(
 
   // We should only dedupe requests when experimental.optimisticClientCache is
   // disabled.
-  if (!process.env.__NEXT_OPTIMISTIC_CLIENT_CACHE) {
+  if (!options?.bypassPrefetchedCheck) {
     const locale = 'locale' in router ? router.locale : undefined
 
     const key = href + '%' + as + (locale ? '%' + locale : '')
@@ -575,7 +583,11 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           return
         }
 
-        prefetch(router, href, as, { priority: true })
+        prefetch(router, href, as, {
+          priority: true,
+          // @see {https://github.com/vercel/next.js/discussions/40268?sort=top#discussioncomment-3572642}
+          bypassPrefetchedCheck: true,
+        })
       },
       onTouchStart: (e: React.TouchEvent<HTMLAnchorElement>) => {
         if (!legacyBehavior && typeof onTouchStartProp === 'function') {
@@ -598,7 +610,11 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           return
         }
 
-        prefetch(router, href, as, { priority: true })
+        prefetch(router, href, as, {
+          priority: true,
+          // @see {https://github.com/vercel/next.js/discussions/40268?sort=top#discussioncomment-3572642}
+          bypassPrefetchedCheck: true,
+        })
       },
     }
 
