@@ -166,10 +166,17 @@ pub fn resume_on_error<F: FnOnce() + UnwindSafe>(f: F) {
 }
 
 pub trait AsyncBencherExtension {
-    fn try_iter_async<I, O, S, SF, R, F, T, TF>(&mut self, setup: S, routine: R, teardown: T)
-    where
+    fn try_iter_async<I, O, S, SF, W, WF, R, F, T, TF>(
+        &mut self,
+        setup: S,
+        warmup: W,
+        routine: R,
+        teardown: T,
+    ) where
         S: Fn() -> SF,
         SF: Future<Output = Result<I>>,
+        W: Fn(I) -> WF,
+        WF: Future<Output = Result<I>>,
         R: Fn(I) -> F,
         F: Future<Output = Result<O>>,
         T: Fn(O) -> TF,
@@ -178,10 +185,17 @@ pub trait AsyncBencherExtension {
 
 impl<'a, 'b, A: AsyncExecutor> AsyncBencherExtension for AsyncBencher<'a, 'b, A, WallTime> {
     #[inline(never)]
-    fn try_iter_async<I, O, S, SF, R, F, T, TF>(&mut self, setup: S, routine: R, teardown: T)
-    where
+    fn try_iter_async<I, O, S, SF, W, WF, R, F, T, TF>(
+        &mut self,
+        setup: S,
+        warmup: W,
+        routine: R,
+        teardown: T,
+    ) where
         S: Fn() -> SF,
         SF: Future<Output = Result<I>>,
+        W: Fn(I) -> WF,
+        WF: Future<Output = Result<I>>,
         R: Fn(I) -> F,
         F: Future<Output = Result<O>>,
         T: Fn(O) -> TF,
@@ -194,6 +208,7 @@ impl<'a, 'b, A: AsyncExecutor> AsyncBencherExtension for AsyncBencher<'a, 'b, A,
         );
 
         let setup = &setup;
+        let warmup = &warmup;
         let routine = &routine;
         let teardown = &teardown;
         self.iter_custom(|iters| async move {
@@ -210,6 +225,7 @@ impl<'a, 'b, A: AsyncExecutor> AsyncBencherExtension for AsyncBencher<'a, 'b, A,
                             .await
                             .expect("failed to setup"),
                     );
+                    let input = black_box(warmup(input).await).expect("failed to warmup");
 
                     let start = early_start.unwrap_or_else(|| measurement.start());
                     match routine(input).await {
