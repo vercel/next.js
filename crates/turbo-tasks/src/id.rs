@@ -1,6 +1,7 @@
 use std::{
     cell::RefCell,
     fmt::{Debug, Display},
+    mem::ManuallyDrop,
     ops::Deref,
 };
 
@@ -142,6 +143,16 @@ where
     }
 }
 
+struct TemporarySwapGuard<'c, T>(&'c RefCell<T>, ManuallyDrop<T>);
+
+impl<'c, T> Drop for TemporarySwapGuard<'c, T> {
+    fn drop(&mut self) {
+        // Safety: T is "taken out" only once here before dropping the whole object.
+        let old = unsafe { ManuallyDrop::take(&mut self.1) };
+        *self.0.borrow_mut() = old;
+    }
+}
+
 pub fn with_task_id_mapping<'a, T, M>(mapping: M, func: impl FnOnce() -> T) -> T
 where
     M: IdMapping<TaskId> + 'a,
@@ -155,20 +166,16 @@ where
         let static_box: Box<dyn IdMapping<TaskId> + 'static> =
             unsafe { std::mem::transmute(dyn_box) };
         let old = std::mem::replace(&mut *cell.borrow_mut(), Some(static_box));
-        let t = func();
-        *cell.borrow_mut() = old;
-        t
+        let _swap_guard = TemporarySwapGuard(cell, ManuallyDrop::new(old.into()));
+        func()
     })
 }
 
 pub fn without_task_id_mapping<T>(func: impl FnOnce() -> T) -> T {
     TASK_ID_MAPPING.with(|cell| {
         let old = std::mem::replace(&mut *cell.borrow_mut(), None);
-        let t = func();
-        if old.is_some() {
-            *cell.borrow_mut() = old;
-        }
-        t
+        let _swap_guard = TemporarySwapGuard(cell, ManuallyDrop::new(old.into()));
+        func()
     })
 }
 
