@@ -191,7 +191,7 @@ impl TaskScope {
     }
 
     pub fn decrement_tasks(&self) {
-        self.tasks.fetch_add(1, Ordering::Relaxed);
+        self.tasks.fetch_sub(1, Ordering::Relaxed);
     }
 
     pub fn increment_unfinished_tasks(&self) {
