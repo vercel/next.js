@@ -51,7 +51,7 @@ describe('create next app', () => {
         const res = await run([projectName, '--js'], { cwd })
 
         expect(res.exitCode).toBe(0)
-        shouldBeJavascriptProject({ cwd, projectName })
+        shouldBeJavascriptProject({ cwd, projectName, template: 'default' })
       })
     })
   }
@@ -245,7 +245,7 @@ describe('create next app', () => {
         )
 
         expect(res.exitCode).toBe(0)
-        shouldBeJavascriptProject({ cwd, projectName })
+        shouldBeJavascriptProject({ cwd, projectName, template: 'default' })
       })
     })
   }
@@ -258,7 +258,7 @@ describe('create next app', () => {
       })
 
       expect(res.exitCode).toBe(0)
-      shouldBeJavascriptProject({ cwd, projectName })
+      shouldBeJavascriptProject({ cwd, projectName, template: 'default' })
     })
   })
 
@@ -320,7 +320,7 @@ describe('create next app', () => {
       await fs.remove(tmpBin)
 
       expect(res.exitCode).toBe(0)
-      shouldBeJavascriptProject({ cwd, projectName: '.' })
+      shouldBeJavascriptProject({ cwd, projectName: '.', template: 'default' })
     })
   })
 
@@ -330,7 +330,7 @@ describe('create next app', () => {
       const res = await run(['--js'], { cwd, input: `${projectName}\n` })
 
       expect(res.exitCode).toBe(0)
-      shouldBeJavascriptProject({ cwd, projectName })
+      shouldBeJavascriptProject({ cwd, projectName, template: 'default' })
     })
   })
 
@@ -340,7 +340,7 @@ describe('create next app', () => {
       const res = await run([projectName, '--js', '--use-npm'], { cwd })
 
       expect(res.exitCode).toBe(0)
-      shouldBeJavascriptProject({ cwd, projectName })
+      shouldBeJavascriptProject({ cwd, projectName, template: 'default' })
     })
   })
 

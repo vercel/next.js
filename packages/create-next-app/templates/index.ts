@@ -1,6 +1,4 @@
 
-import { PackageManager } from "../helpers/get-pkg-manager";
-import { tryGitInit } from '../helpers/git'
 import { install } from '../helpers/install'
 
 import cpy from 'cpy'
@@ -9,24 +7,32 @@ import fs from 'fs'
 import path from 'path'
 import chalk from 'chalk'
 
+import { GetTemplateFileArgs, InstallTemplateArgs } from './types'
 
-export interface InstallTemplateArgs {
-  appName: string
-  root: string
-  packageManager: PackageManager
-  isOnline: boolean
-  template: string
+/**
+ * Get the file path for a given file in a template, e.g. "next.config.js".
+ */
+ export const getTemplateFile = ({
+  template,
+  mode,
+  file,
+}: GetTemplateFileArgs): string => {
+  return path.join(__dirname, template, mode, file);
 }
 
+/**
+ * Install a Next.js internal template to a given `root` directory.
+ */
 export const installTemplate = async ({
   appName,
   root,
   packageManager,
   isOnline,
   template,
+  mode,
 }: InstallTemplateArgs) => {
   console.log(chalk.bold(`Using ${packageManager}.`))
-  
+
   /**
    * Create a package.json for the new project.
    */
@@ -64,7 +70,7 @@ export const installTemplate = async ({
   /**
    * TypeScript projects will have type definitions and other devDependencies.
    */
-  if (template !== 'default') {
+  if (mode === 'ts') {
     devDependencies.push(
       'typescript',
       '@types/react',
@@ -99,13 +105,14 @@ export const installTemplate = async ({
     const devInstallFlags = { devDependencies: true, ...installFlags }
     await install(root, devDependencies, devInstallFlags)
   }
-  console.log('\nInitializing project with template: ', template, '\n')
   /**
    * Copy the template files to the target directory.
    */
+  console.log('\nInitializing project with template: ', template, '\n')
+  const templatePath = path.join(__dirname, template, mode)
   await cpy('**', root, {
     parents: true,
-    cwd: path.join(__dirname, 'templates', template),
+    cwd: templatePath,
     rename: (name) => {
       switch (name) {
         case 'gitignore':
@@ -124,3 +131,5 @@ export const installTemplate = async ({
     },
   })
 };
+
+export * from './types'
