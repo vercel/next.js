@@ -9,8 +9,8 @@ const formatValues = (values: string[]) =>
 
 type FontOptions = {
   fontFamily: string
-  weight: string
-  style: string
+  weights: string[]
+  styles: string[]
   display: string
   preload: boolean
   selectedVariableAxes?: string[]
@@ -44,10 +44,17 @@ export function validateData(functionName: string, data: any): FontOptions {
   }
   const fontStyles = fontFamilyData.styles
 
-  // Set variable as default, throw if not available
-  if (!weight) {
+  const weights = !weight
+    ? []
+    : [...new Set(Array.isArray(weight) ? weight : [weight])]
+  const styles = !style
+    ? []
+    : [...new Set(Array.isArray(style) ? style : [style])]
+
+  if (weights.length === 0) {
+    // Set variable as default, throw if not available
     if (fontWeights.includes('variable')) {
-      weight = 'variable'
+      weights.push('variable')
     } else {
       throw new Error(
         `Missing weight for font \`${fontFamily}\`.\nAvailable weights: ${formatValues(
@@ -56,28 +63,40 @@ export function validateData(functionName: string, data: any): FontOptions {
       )
     }
   }
-  if (!fontWeights.includes(weight)) {
+
+  if (weights.length > 1 && weights.includes('variable')) {
     throw new Error(
-      `Unknown weight \`${weight}\` for font \`${fontFamily}\`.\nAvailable weights: ${formatValues(
-        fontWeights
-      )}`
+      `Unexpected \`variable\` in weight array for font \`${fontFamily}\`. You only need \`variable\`, it includes all available weights.`
     )
   }
 
-  if (!style) {
+  weights.forEach((selectedWeight) => {
+    if (!fontWeights.includes(selectedWeight)) {
+      throw new Error(
+        `Unknown weight \`${selectedWeight}\` for font \`${fontFamily}\`.\nAvailable weights: ${formatValues(
+          fontWeights
+        )}`
+      )
+    }
+  })
+
+  if (styles.length === 0) {
     if (fontStyles.length === 1) {
-      style = fontStyles[0]
+      styles.push(fontStyles[0])
     } else {
-      style = 'normal'
+      styles.push('normal')
     }
   }
-  if (!fontStyles.includes(style)) {
-    throw new Error(
-      `Unknown style \`${style}\` for font \`${fontFamily}\`.\nAvailable styles: ${formatValues(
-        fontStyles
-      )}`
-    )
-  }
+
+  styles.forEach((selectedStyle) => {
+    if (!fontStyles.includes(selectedStyle)) {
+      throw new Error(
+        `Unknown style \`${selectedStyle}\` for font \`${fontFamily}\`.\nAvailable styles: ${formatValues(
+          fontStyles
+        )}`
+      )
+    }
+  })
 
   if (!allowedDisplayValues.includes(display)) {
     throw new Error(
@@ -87,14 +106,14 @@ export function validateData(functionName: string, data: any): FontOptions {
     )
   }
 
-  if (weight !== 'variable' && axes) {
+  if (weights[0] !== 'variable' && axes) {
     throw new Error('Axes can only be defined for variable fonts')
   }
 
   return {
     fontFamily,
-    weight,
-    style,
+    weights,
+    styles,
     display,
     preload,
     selectedVariableAxes: axes,
