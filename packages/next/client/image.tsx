@@ -245,7 +245,8 @@ function handleLoading(
   placeholder: PlaceholderValue,
   onLoadRef: React.MutableRefObject<OnLoad | undefined>,
   onLoadingCompleteRef: React.MutableRefObject<OnLoadingComplete | undefined>,
-  setBlurComplete: (b: boolean) => void
+  setBlurComplete: (b: boolean) => void,
+  unoptimized: boolean
 ) {
   if (!img || img['data-loaded-src'] === src) {
     return
@@ -296,8 +297,8 @@ function handleLoading(
     if (process.env.NODE_ENV !== 'production') {
       if (img.getAttribute('data-nimg') === 'fill') {
         if (
-          !img.getAttribute('sizes') ||
-          img.getAttribute('sizes') === '100vw'
+          !unoptimized &&
+          (!img.getAttribute('sizes') || img.getAttribute('sizes') === '100vw')
         ) {
           let widthViewportRatio =
             img.getBoundingClientRect().width / window.innerWidth
@@ -407,7 +408,8 @@ const ImageElement = ({
                 placeholder,
                 onLoadRef,
                 onLoadingCompleteRef,
-                setBlurComplete
+                setBlurComplete,
+                unoptimized
               )
             }
           },
@@ -418,6 +420,7 @@ const ImageElement = ({
             onLoadingCompleteRef,
             setBlurComplete,
             onError,
+            unoptimized,
           ]
         )}
         onLoad={(event) => {
@@ -428,7 +431,8 @@ const ImageElement = ({
             placeholder,
             onLoadRef,
             onLoadingCompleteRef,
-            setBlurComplete
+            setBlurComplete,
+            unoptimized
           )
         }}
         onError={(event) => {
