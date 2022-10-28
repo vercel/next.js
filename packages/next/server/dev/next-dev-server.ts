@@ -381,6 +381,7 @@ export default class DevServer extends Server {
             nextConfig: this.nextConfig,
             page: rootFile,
             isDev: true,
+            pageType: isAppPath ? 'app' : 'pages',
           })
 
           if (isMiddlewareFile(rootFile)) {
