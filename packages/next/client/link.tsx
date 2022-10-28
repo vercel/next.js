@@ -135,14 +135,14 @@ function prefetch(
   if (!options.bypassPrefetchedCheck) {
     const locale =
       // Let the link's locale prop override the default router locale.
-      typeof options.locale === 'string'
+      typeof options.locale !== 'undefined'
         ? options.locale
         : // Otherwise fallback to the router's locale.
         'locale' in router
         ? router.locale
         : undefined
 
-    const prefetchedKey = href + '%' + as + (locale ? '%' + locale : '')
+    const prefetchedKey = href + '%' + as + '%' + locale
 
     // If we've already fetched the key, then don't prefetch it again!
     if (prefetched.has(prefetchedKey)) {
