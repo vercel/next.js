@@ -71,6 +71,7 @@ fn bench_startup_internal(mut g: BenchmarkGroup<WallTime>, hydration: bool) {
                             || async {
                                 PreparedApp::new(bundler, test_app.path().to_path_buf()).await
                             },
+                            |app| async { Ok(app) },
                             |mut app| async {
                                 app.start_server()?;
                                 let mut guard = app.with_page(browser).await?;
@@ -211,16 +212,29 @@ fn bench_hmr_internal(mut g: BenchmarkGroup<WallTime>, location: CodeLocation) {
                                     .evaluate_expression("globalThis.HMR_IS_HAPPENING = true")
                                     .await?;
 
-                                // Make warmup change
-                                for i in (0..MAX_UPDATE_TIMEOUT.as_secs() / 5).rev() {
-                                    match make_change(&mut guard, location, Duration::from_secs(5))
-                                        .await
-                                    {
-                                        Ok(_) => break,
+                                Ok(guard)
+                            },
+                            |mut guard| async {
+                                // Make 5 warmup changes
+                                let mut last_error = Some(anyhow!("not run yet"));
+                                let mut timeout = Duration::from_secs(1);
+                                let mut remaining = 5;
+                                while timeout < MAX_UPDATE_TIMEOUT * 2 {
+                                    match make_change(&mut guard, location, timeout).await {
+                                        Ok(_) => {
+                                            // Wait a second to allow background work to complete.
+                                            sleep(Duration::from_secs(1)).await;
+                                            last_error = None;
+                                            remaining -= 1;
+                                            if remaining == 0 {
+                                                break;
+                                            }
+                                            continue;
+                                        }
                                         Err(err) => {
-                                            if i != 0
-                                                && err.to_string().contains(CHANGE_TIMEOUT_MESSAGE)
-                                            {
+                                            if err.to_string().contains(CHANGE_TIMEOUT_MESSAGE) {
+                                                last_error = Some(err);
+                                                timeout *= 2;
                                                 continue;
                                             }
                                             return Err(err);
@@ -228,6 +242,9 @@ fn bench_hmr_internal(mut g: BenchmarkGroup<WallTime>, location: CodeLocation) {
                                     }
                                 }
 
+                                if let Some(err) = last_error {
+                                    return Err(err);
+                                }
                                 Ok(guard)
                             },
                             |mut guard| async move {
@@ -322,6 +339,7 @@ fn bench_startup_cached_internal(mut g: BenchmarkGroup<WallTime>, hydration: boo
                                 app.stop_server()?;
                                 Ok(app)
                             },
+                            |app| async { Ok(app) },
                             |mut app| async {
                                 app.start_server()?;
                                 let mut guard = app.with_page(browser).await?;
