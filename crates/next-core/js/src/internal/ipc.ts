@@ -105,10 +105,14 @@ function createIpc<TIncoming, TOutgoing>(
     },
 
     async sendError(error: Error): Promise<never> {
-      await send({
-        type: "error",
-        ...structuredError(error),
-      });
+      try {
+        await send({
+          type: "error",
+          ...structuredError(error),
+        });
+      } catch (err) {
+        // ignore and exit anyway
+      }
       process.exit(1);
     },
   };
