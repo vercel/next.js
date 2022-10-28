@@ -276,7 +276,31 @@ export class FlightClientEntryPlugin {
         })
       })
 
-      forEachEntryModule(({ entryModule }) => {
+      forEachEntryModule(({ name, entryModule }) => {
+        // To collect all CSS imports for a specific entry including the ones
+        // that are in the client graph, we need to store a map for client boundary
+        // dependencies.
+        const clientEntryDependencyMap: Record<string, any> = {}
+        const entry = compilation.entries.get(name)
+        entry.includeDependencies.forEach((dep: any) => {
+          if (
+            dep.request &&
+            dep.request.startsWith('next-flight-client-entry-loader?')
+          ) {
+            const mod: webpack.NormalModule =
+              compilation.moduleGraph.getResolvedModule(dep)
+
+            compilation.moduleGraph
+              .getOutgoingConnections(mod)
+              .forEach((connection: any) => {
+                if (connection.dependency) {
+                  clientEntryDependencyMap[connection.dependency.request] =
+                    connection.dependency
+                }
+              })
+          }
+        })
+
         for (const connection of compilation.moduleGraph.getOutgoingConnections(
           entryModule
         )) {
@@ -288,6 +312,7 @@ export class FlightClientEntryPlugin {
               layoutOrPageRequest,
               compilation,
               dependency: layoutOrPageDependency,
+              clientEntryDependencyMap,
             })
 
           Object.assign(flightCSSManifest, cssImports)
@@ -327,10 +352,12 @@ export class FlightClientEntryPlugin {
     layoutOrPageRequest,
     compilation,
     dependency,
+    clientEntryDependencyMap,
   }: {
     layoutOrPageRequest: string
     compilation: any
     dependency: any /* Dependency */
+    clientEntryDependencyMap?: Record<string, any>
   }): [ClientComponentImports, CssImports] {
     /**
      * Keep track of checked modules to avoid infinite loops with recursive imports.
@@ -369,13 +396,12 @@ export class FlightClientEntryPlugin {
       if (!visitedBySegment[layoutOrPageRequest]) {
         visitedBySegment[layoutOrPageRequest] = new Set()
       }
-      if (
-        !modRequest ||
-        visitedBySegment[layoutOrPageRequest].has(modRequest)
-      ) {
+      const storeKey =
+        (inClientComponentBoundary ? '0' : '1') + ':' + modRequest
+      if (!modRequest || visitedBySegment[layoutOrPageRequest].has(storeKey)) {
         return
       }
-      visitedBySegment[layoutOrPageRequest].add(modRequest)
+      visitedBySegment[layoutOrPageRequest].add(storeKey)
 
       const isClientComponent = isClientComponentModule(mod)
 
@@ -403,6 +429,14 @@ export class FlightClientEntryPlugin {
       // Check if request is for css file.
       if ((!inClientComponentBoundary && isClientComponent) || isCSS) {
         clientComponentImports.push(modRequest)
+
+        // Here we are entering a client boundary, and we need to collect dependencies
+        // in the client graph too.
+        if (isClientComponent && clientEntryDependencyMap) {
+          if (clientEntryDependencyMap[modRequest]) {
+            filterClientComponents(clientEntryDependencyMap[modRequest], true)
+          }
+        }
 
         return
       }
