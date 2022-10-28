@@ -54,6 +54,8 @@ const experimentalWarning = execOnce(
 
 export function setHttpClientAndAgentOptions(options: NextConfig) {
   if (semverGte(process.version, '16.8.0')) {
+    if (options.experimental?.appDir) options.experimental.enableUndici = true
+
     if (
       options.experimental?.enableUndici &&
       semverGte(process.version, '18.0.0')
@@ -608,8 +610,6 @@ function assignDefaults(dir: string, userConfig: { [key: string]: any }) {
     result.output = undefined
   }
 
-  // TODO: Change defaultConfig type to NextConfigComplete
-  // so we don't need "!" here.
   setHttpClientAndAgentOptions(result || defaultConfig)
 
   if (result.i18n) {
