@@ -420,6 +420,7 @@ const ImageElement = ({
             onLoadingCompleteRef,
             setBlurComplete,
             onError,
+            unoptimized,
           ]
         )}
         onLoad={(event) => {
