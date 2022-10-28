@@ -6,16 +6,20 @@ use std::{
     time::{Duration, Instant},
 };
 
+use pin_project_lite::pin_project;
 use tokio::{task::futures::TaskLocalFuture, task_local};
 
 task_local! {
     static EXTRA_DURATION: Arc<Mutex<Duration>>;
 }
 
-pub struct TimedFuture<T, F: Future<Output = T>> {
-    cell: Arc<Mutex<Duration>>,
-    future: TaskLocalFuture<Arc<Mutex<Duration>>, F>,
-    duration: Duration,
+pin_project! {
+    pub struct TimedFuture<T, F: Future<Output = T>> {
+        cell: Arc<Mutex<Duration>>,
+        #[pin]
+        future: TaskLocalFuture<Arc<Mutex<Duration>>, F>,
+        duration: Duration,
+    }
 }
 
 impl<T, F: Future<Output = T>> TimedFuture<T, F> {
@@ -37,14 +41,13 @@ impl<T, F: Future<Output = T>> Future for TimedFuture<T, F> {
     type Output = (T, Duration);
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let this = unsafe { self.get_unchecked_mut() };
-        let future = unsafe { Pin::new_unchecked(&mut this.future) };
+        let this = self.project();
         let start = Instant::now();
-        let result = future.poll(cx);
+        let result = this.future.poll(cx);
         let elapsed = start.elapsed();
-        this.duration += elapsed;
+        *this.duration += elapsed;
         match result {
-            Poll::Ready(r) => Poll::Ready((r, this.duration + *this.cell.lock().unwrap())),
+            Poll::Ready(r) => Poll::Ready((r, *this.duration + *this.cell.lock().unwrap())),
             Poll::Pending => Poll::Pending,
         }
     }
