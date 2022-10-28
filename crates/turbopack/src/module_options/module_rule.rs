@@ -2,128 +2,89 @@ use std::collections::HashMap;
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{
-    primitives::{BoolVc, RegexVc},
-    trace::TraceRawVcs,
-    TryJoinIterExt,
-};
-use turbo_tasks_fs::FileSystemPathVc;
+use turbo_tasks::{primitives::Regex, trace::TraceRawVcs};
+use turbo_tasks_fs::FileSystemPathReadRef;
 use turbopack_css::CssInputTransformsVc;
 use turbopack_ecmascript::EcmascriptInputTransformsVc;
 
-#[turbo_tasks::value]
+#[derive(Debug, Clone, Serialize, Deserialize, TraceRawVcs, PartialEq, Eq)]
 pub struct ModuleRule {
-    condition: ModuleRuleConditionVc,
-    effects: HashMap<ModuleRuleEffectKey, ModuleRuleEffectVc>,
+    condition: ModuleRuleCondition,
+    effects: HashMap<ModuleRuleEffectKey, ModuleRuleEffect>,
 }
 
-#[turbo_tasks::value_impl]
-impl ModuleRuleVc {
-    #[turbo_tasks::function]
-    pub async fn new(
-        condition: ModuleRuleConditionVc,
-        effects: Vec<ModuleRuleEffectVc>,
-    ) -> Result<Self> {
-        Ok(ModuleRule {
+impl ModuleRule {
+    pub fn new(condition: ModuleRuleCondition, effects: Vec<ModuleRuleEffect>) -> Self {
+        ModuleRule {
             condition,
-            effects: effects
-                .into_iter()
-                .map(|e| async move { Ok((e.await?.key(), e)) })
-                .try_join()
-                .await?
-                .into_iter()
-                .collect(),
+            effects: effects.into_iter().map(|e| (e.key(), e)).collect(),
         }
-        .cell())
     }
 }
 
 impl ModuleRule {
-    pub fn effects(&self) -> impl Iterator<Item = (&ModuleRuleEffectKey, &ModuleRuleEffectVc)> {
+    pub fn effects(&self) -> impl Iterator<Item = (&ModuleRuleEffectKey, &ModuleRuleEffect)> {
         self.effects.iter()
     }
 }
 
-#[turbo_tasks::value_impl]
-impl ModuleRuleVc {
-    #[turbo_tasks::function]
-    pub async fn matches(self, path: FileSystemPathVc) -> Result<BoolVc> {
-        Ok(self.await?.condition.matches(path))
+impl ModuleRule {
+    pub fn matches(&self, path: &FileSystemPathReadRef) -> bool {
+        self.condition.matches(path)
     }
 }
 
-#[turbo_tasks::value(shared)]
+#[derive(Debug, Clone, Serialize, Deserialize, TraceRawVcs, PartialEq, Eq)]
 pub enum ModuleRuleCondition {
-    All(Vec<ModuleRuleConditionVc>),
-    Any(Vec<ModuleRuleConditionVc>),
+    All(Vec<ModuleRuleCondition>),
+    Any(Vec<ModuleRuleCondition>),
     ResourcePathHasNoExtension,
     ResourcePathEndsWith(String),
     ResourcePathInDirectory(String),
-    ResourcePathInExactDirectory(FileSystemPathVc),
-    ResourcePathRegex(RegexVc),
+    ResourcePathInExactDirectory(FileSystemPathReadRef),
+    ResourcePathRegex(#[turbo_tasks(trace_ignore)] Regex),
 }
 
 impl ModuleRuleCondition {
     pub fn all(conditions: Vec<ModuleRuleCondition>) -> ModuleRuleCondition {
-        ModuleRuleCondition::All(conditions.into_iter().map(|c| c.cell()).collect())
+        ModuleRuleCondition::All(conditions)
     }
 
     pub fn any(conditions: Vec<ModuleRuleCondition>) -> ModuleRuleCondition {
-        ModuleRuleCondition::Any(conditions.into_iter().map(|c| c.cell()).collect())
+        ModuleRuleCondition::Any(conditions)
     }
 }
 
-#[turbo_tasks::value_impl]
-impl ModuleRuleConditionVc {
-    #[turbo_tasks::function]
-    pub async fn matches(self, path: FileSystemPathVc) -> Result<BoolVc> {
-        let path_ref = path.await?;
-        Ok(match &*self.await? {
-            ModuleRuleCondition::All(conditions) => BoolVc::cell(
-                conditions
-                    .iter()
-                    .map(|c| c.matches(path))
-                    .try_join()
-                    .await?
-                    .into_iter()
-                    .all(|c| *c),
-            ),
-            ModuleRuleCondition::Any(conditions) => BoolVc::cell(
-                conditions
-                    .iter()
-                    .map(|c| c.matches(path))
-                    .try_join()
-                    .await?
-                    .into_iter()
-                    .any(|c| *c),
-            ),
-            ModuleRuleCondition::ResourcePathEndsWith(end) => {
-                BoolVc::cell(path_ref.path.ends_with(end))
-            }
+impl ModuleRuleCondition {
+    pub fn matches(&self, path: &FileSystemPathReadRef) -> bool {
+        match self {
+            ModuleRuleCondition::All(conditions) => conditions.iter().all(|c| c.matches(path)),
+            ModuleRuleCondition::Any(conditions) => conditions.iter().any(|c| c.matches(path)),
+            ModuleRuleCondition::ResourcePathEndsWith(end) => path.path.ends_with(end),
             ModuleRuleCondition::ResourcePathHasNoExtension => {
-                BoolVc::cell(if let Some(i) = path_ref.path.rfind('.') {
-                    if let Some(j) = path_ref.path.rfind('/') {
+                if let Some(i) = path.path.rfind('.') {
+                    if let Some(j) = path.path.rfind('/') {
                         j > i
                     } else {
                         false
                     }
                 } else {
                     true
-                })
+                }
             }
-            ModuleRuleCondition::ResourcePathInDirectory(dir) => BoolVc::cell(
-                path_ref.path.starts_with(&format!("{dir}/"))
-                    || path_ref.path.contains(&format!("/{dir}/")),
-            ),
+            ModuleRuleCondition::ResourcePathInDirectory(dir) => {
+                path.path.starts_with(&format!("{dir}/")) || path.path.contains(&format!("/{dir}/"))
+            }
             ModuleRuleCondition::ResourcePathInExactDirectory(parent_path) => {
-                path.is_inside(*parent_path)
+                path.is_inside(parent_path)
             }
             _ => todo!("not implemented yet"),
-        })
+        }
     }
 }
 
 #[turbo_tasks::value(shared)]
+#[derive(Debug, Clone)]
 pub enum ModuleRuleEffect {
     ModuleType(ModuleType),
     AddEcmascriptTransforms(EcmascriptInputTransformsVc),
@@ -157,7 +118,7 @@ impl ModuleRuleEffect {
     }
 }
 
-#[derive(TraceRawVcs, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(TraceRawVcs, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum ModuleRuleEffectKey {
     ModuleType,
     AddEcmascriptTransforms,

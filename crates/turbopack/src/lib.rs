@@ -92,9 +92,9 @@ impl Issue for ModuleIssue {
 async fn get_module_type(path: FileSystemPathVc, options: ModuleOptionsVc) -> Result<ModuleTypeVc> {
     let mut current_module_type = None;
     for rule in options.await?.rules.iter() {
-        if *rule.matches(path).await? {
-            for (_, effect) in rule.await?.effects() {
-                match &*effect.await? {
+        if rule.matches(&path.await?) {
+            for (_, effect) in rule.effects() {
+                match effect {
                     ModuleRuleEffect::ModuleType(module) => {
                         current_module_type = Some(*module);
                     }

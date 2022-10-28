@@ -1,7 +1,7 @@
 use turbopack_core::environment::EnvironmentVc;
 use turbopack_ecmascript::EcmascriptInputTransform;
 
-use super::ModuleRuleVc;
+use super::ModuleRule;
 
 #[turbo_tasks::value(shared)]
 #[derive(Default, Clone)]
@@ -15,7 +15,7 @@ pub struct ModuleOptionsContext {
     pub custom_ecmascript_app_transforms: Vec<EcmascriptInputTransform>,
     pub custom_ecmascript_transforms: Vec<EcmascriptInputTransform>,
     /// Custom rules to be applied after all default rules.
-    pub custom_rules: Vec<ModuleRuleVc>,
+    pub custom_rules: Vec<ModuleRule>,
     pub placeholder_for_future_extensions: (),
 }
 

@@ -50,7 +50,7 @@ impl ValueToString for JsonValue {
 }
 
 #[turbo_tasks::value(transparent, eq = "manual")]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Regex(
     #[turbo_tasks(trace_ignore)]
     #[serde(with = "serde_regex")]
