@@ -1,17 +1,29 @@
 #![feature(future_join)]
 #![feature(min_specialization)]
 
+pub mod devserver_options;
 mod turbo_tasks_viz;
 
-use std::{collections::HashSet, env::current_dir, net::IpAddr, path::MAIN_SEPARATOR, sync::Arc};
+use std::{
+    collections::HashSet,
+    env::current_dir,
+    future::join,
+    net::IpAddr,
+    path::MAIN_SEPARATOR,
+    sync::Arc,
+    time::{Duration, Instant},
+};
 
 use anyhow::{anyhow, Context, Result};
+use devserver_options::DevServerOptions;
 use next_core::{
     create_app_source, create_server_rendered_source, create_web_entry_source, env::load_env,
     source_map::NextSourceMapTraceContentSourceVc,
 };
+use owo_colors::OwoColorize;
 use turbo_tasks::{
-    primitives::StringsVc, RawVc, TransientInstance, TransientValue, TurboTasks, Value,
+    primitives::StringsVc, util::FormatDuration, RawVc, TransientInstance, TransientValue,
+    TurboTasks, Value,
 };
 use turbo_tasks_fs::{DiskFileSystemVc, FileSystemVc};
 use turbo_tasks_memory::MemoryBackend;
@@ -279,4 +291,96 @@ async fn source(
 pub fn register() {
     next_core::register();
     include!(concat!(env!("OUT_DIR"), "/register.rs"));
+}
+
+/// Start a devserver with the given options.
+pub async fn start_server(options: &DevServerOptions) -> Result<()> {
+    let start = Instant::now();
+
+    #[cfg(feature = "tokio_console")]
+    console_subscriber::init();
+    register();
+
+    let dir = options
+        .dir
+        .as_ref()
+        .map(|dir| dir.canonicalize())
+        .unwrap_or_else(current_dir)
+        .context("project directory can't be found")?
+        .to_str()
+        .context("project directory contains invalid characters")?
+        .to_string();
+
+    let root_dir = if let Some(root) = options.root.as_ref() {
+        root.canonicalize()
+            .context("root directory can't be found")?
+            .to_str()
+            .context("root directory contains invalid characters")?
+            .to_string()
+    } else {
+        dir.clone()
+    };
+
+    let tt = TurboTasks::new(MemoryBackend::new());
+    let tt_clone = tt.clone();
+
+    let mut server = NextDevServerBuilder::new(tt, dir, root_dir)
+        .entry_request("src/index".into())
+        .eager_compile(options.eager_compile)
+        .hostname(options.hostname)
+        .port(options.port)
+        .log_detail(options.log_detail)
+        .show_all(options.show_all)
+        .log_level(
+            options
+                .log_level
+                .map_or_else(|| IssueSeverity::Warning, |l| l.0),
+        );
+
+    for package in options.server_components_external_packages.iter() {
+        server = server.server_component_external(package.to_string());
+    }
+
+    let server = server.build().await?;
+
+    {
+        let index_uri = if server.addr.ip().is_loopback() || server.addr.ip().is_unspecified() {
+            format!("http://localhost:{}", server.addr.port())
+        } else {
+            format!("http://{}", server.addr)
+        };
+        println!(
+            "{} - started server on {}:{}, url: {}",
+            "ready".green(),
+            server.addr.ip(),
+            server.addr.port(),
+            index_uri
+        );
+        if !options.no_open {
+            let _ = webbrowser::open(&index_uri);
+        }
+    }
+
+    let stats_future = async move {
+        println!(
+            "{event_type} - initial compilation {start}",
+            event_type = "event".purple(),
+            start = FormatDuration(start.elapsed()),
+        );
+
+        loop {
+            let (elapsed, _count) = tt_clone
+                .get_or_wait_update_info(Duration::from_millis(100))
+                .await;
+            println!(
+                "{event_type} - updated in {elapsed}",
+                event_type = "event".purple(),
+                elapsed = FormatDuration(elapsed),
+            );
+        }
+    };
+
+    join!(stats_future, async { server.future.await.unwrap() }).await;
+
+    Ok(())
 }
