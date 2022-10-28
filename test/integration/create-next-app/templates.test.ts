@@ -10,9 +10,9 @@ import {
   createNextApp,
   projectFilesShouldNotExist,
   shouldBeJavascriptProject,
-  shouldBeAppProject,
-  spawnExitPromise,
+  shouldBeTemplateProject,
   shouldBeTypescriptProject,
+  spawnExitPromise,
 } from './lib/utils'
 
 import { useTempDir } from '../../../test/lib/use-temp-dir'
@@ -58,7 +58,7 @@ describe('create-next-app templates', () => {
       const exitCode = await spawnExitPromise(childProcess)
 
       expect(exitCode).toBe(0)
-      shouldBeTypescriptProject({ cwd, projectName })
+      shouldBeTypescriptProject({ cwd, projectName, template: 'default' })
     })
   })
 
@@ -69,20 +69,41 @@ describe('create-next-app templates', () => {
       const exitCode = await spawnExitPromise(childProcess)
 
       expect(exitCode).toBe(0)
-      shouldBeJavascriptProject({ cwd, projectName })
+      shouldBeJavascriptProject({ cwd, projectName, template: 'default' })
     })
   })
+})
 
-  it('should create appDir projects with --experimental-app', async () => {
+describe('create-next-app --experimental-app-dir', () => {
+  it('should create TS appDir projects with --ts', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'appdir-test'
-      const childProcess = createNextApp([projectName, '--experimental-app'], {
-        cwd,
-      })
+      const childProcess = createNextApp(
+        [projectName, '--ts', '--experimental-app'],
+        {
+          cwd,
+        }
+      )
 
       const exitCode = await spawnExitPromise(childProcess)
       expect(exitCode).toBe(0)
-      shouldBeAppProject({ cwd, projectName })
+      shouldBeTemplateProject({ cwd, projectName, template: 'app', mode: 'ts' })
+    })
+  })
+
+  it('should create JS appDir projects with --js', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'appdir-test'
+      const childProcess = createNextApp(
+        [projectName, '--js', '--experimental-app'],
+        {
+          cwd,
+        }
+      )
+
+      const exitCode = await spawnExitPromise(childProcess)
+      expect(exitCode).toBe(0)
+      shouldBeTemplateProject({ cwd, projectName, template: 'app', mode: 'js' })
     })
   })
 })

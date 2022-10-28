@@ -7,21 +7,9 @@
 import { ChildProcess, spawn, SpawnOptions } from 'child_process'
 import { existsSync } from 'fs'
 import { resolve } from 'path'
-import { projectFiles, projectDeps, projectDevDeps } from './projectFiles'
 
-interface ProjectOptions {
-  cwd: string
-  projectName: string
-}
-
-interface ProjectFiles extends ProjectOptions {
-  files: string[]
-}
-
-interface ProjectDeps extends ProjectOptions {
-  type: 'dependencies' | 'devDependencies'
-  deps: string[]
-}
+import { getProjectSetting, projectSpecification } from './specification'
+import { CustomTemplateOptions, ProjectDeps, ProjectFiles } from './types'
 
 const cli = require.resolve('create-next-app/dist/index.js')
 
@@ -81,95 +69,54 @@ export const projectDepsShouldBe = ({
 }: ProjectDeps) => {
   const projectRoot = resolve(cwd, projectName)
   const pkgJson = require(resolve(projectRoot, 'package.json'))
-  expect(Object.keys(pkgJson[type])).toEqual(deps)
+  expect(Object.keys(pkgJson[type]).sort()).toEqual(deps.sort())
+}
+
+export const shouldBeTemplateProject = ({
+  cwd,
+  projectName,
+  template,
+  mode,
+}: CustomTemplateOptions) => {
+  projectFilesShouldExist({
+    cwd,
+    projectName,
+    files: getProjectSetting({ template, mode, setting: 'files' }),
+  })
+
+  projectFilesShouldNotExist({
+    cwd,
+    projectName,
+    files: projectSpecification[template][mode === 'js' ? 'ts' : 'js'].files,
+  })
+
+  projectDepsShouldBe({
+    type: 'dependencies',
+    cwd,
+    projectName,
+    deps: getProjectSetting({ template, mode, setting: 'deps' }),
+  })
+
+  projectDepsShouldBe({
+    type: 'devDependencies',
+    cwd,
+    projectName,
+    deps: getProjectSetting({ template, mode, setting: 'devDeps' }),
+  })
 }
 
 export const shouldBeJavascriptProject = ({
   cwd,
   projectName,
-}: ProjectOptions) => {
-  projectFilesShouldExist({
-    cwd,
-    projectName,
-    files: [...projectFiles.global, ...projectFiles.js],
-  })
-
-  projectFilesShouldNotExist({
-    cwd,
-    projectName,
-    files: projectFiles.ts,
-  })
-
-  projectDepsShouldBe({
-    cwd,
-    projectName,
-    type: 'dependencies',
-    deps: projectDeps.js,
-  })
-
-  projectDepsShouldBe({
-    cwd,
-    projectName,
-    type: 'devDependencies',
-    deps: projectDevDeps.js,
-  })
+  template,
+}: Omit<CustomTemplateOptions, 'mode'>) => {
+  shouldBeTemplateProject({ cwd, projectName, template, mode: 'js' })
 }
 
 export const shouldBeTypescriptProject = ({
   cwd,
   projectName,
-}: ProjectOptions) => {
-  projectFilesShouldExist({
-    cwd,
-    projectName,
-    files: [...projectFiles.global, ...projectFiles.ts],
-  })
-
-  projectFilesShouldNotExist({
-    cwd,
-    projectName,
-    files: projectFiles.js,
-  })
-
-  projectDepsShouldBe({
-    type: 'dependencies',
-    cwd,
-    projectName,
-    deps: projectDeps.ts,
-  })
-
-  projectDepsShouldBe({
-    type: 'devDependencies',
-    cwd,
-    projectName,
-    deps: projectDevDeps.ts,
-  })
-}
-
-export const shouldBeAppProject = ({ cwd, projectName }: ProjectOptions) => {
-  projectFilesShouldExist({
-    cwd,
-    projectName,
-    files: [...projectFiles.global, ...projectFiles.app],
-  })
-
-  projectFilesShouldNotExist({
-    cwd,
-    projectName,
-    files: projectFiles.js,
-  })
-
-  projectDepsShouldBe({
-    type: 'dependencies',
-    cwd,
-    projectName,
-    deps: projectDeps.ts,
-  })
-
-  projectDepsShouldBe({
-    type: 'devDependencies',
-    cwd,
-    projectName,
-    deps: projectDevDeps.ts,
-  })
+  template,
+}: Omit<CustomTemplateOptions, 'mode'>) => {
+  shouldBeTemplateProject({ cwd, projectName, template, mode: 'ts' })
 }
