@@ -18,51 +18,96 @@ use turbo_tasks_memory::MemoryBackend;
 use turbopack_cli_utils::issue::IssueSeverityCliOption;
 use turbopack_core::issue::IssueSeverity;
 
-#[derive(Parser, Debug)]
-#[clap(author, version, about, long_about = None)]
-struct Cli {
+#[derive(Debug)]
+#[cfg_attr(feature = "cli", derive(Parser))]
+#[cfg_attr(feature = "cli", clap(author, version, about, long_about = None))]
+#[cfg_attr(feature = "serializable", derive(serde::Deserialize))]
+#[cfg_attr(feature = "serializable", serde(rename_all = "camelCase"))]
+pub struct DevServerOptions {
     /// The directory of the Next.js application.
     /// If no directory is provided, the current directory will be used.
-    #[clap(value_parser)]
+    #[cfg_attr(feature = "cli", clap(value_parser))]
+    #[cfg_attr(feature = "serializable", serde(default))]
     dir: Option<PathBuf>,
 
     /// The root directory of the project. Nothing outside of this directory can
     /// be accessed. e. g. the monorepo root.
     /// If no directory is provided, `dir` will be used.
-    #[clap(long, value_parser)]
+    #[cfg_attr(feature = "cli", clap(long, value_parser))]
+    #[cfg_attr(feature = "serializable", serde(default))]
     root: Option<PathBuf>,
 
     /// The port number on which to start the application
-    #[clap(short, long, value_parser, default_value_t = 3000)]
+    #[cfg_attr(
+        feature = "cli",
+        clap(short, long, value_parser, default_value_t = 3000)
+    )]
+    #[cfg_attr(feature = "serializable", serde(default = "default_port"))]
     port: u16,
 
     /// Hostname on which to start the application
-    #[clap(short = 'H', long, value_parser, default_value = "0.0.0.0")]
+    #[cfg_attr(
+        feature = "cli",
+        clap(short = 'H', long, value_parser, default_value = "0.0.0.0")
+    )]
+    #[cfg_attr(feature = "serializable", serde(default = "default_host"))]
     hostname: IpAddr,
 
     /// Compile all, instead of only compiling referenced assets when their
     /// parent asset is requested
-    #[clap(long)]
+    #[cfg_attr(feature = "cli", clap(long))]
+    #[cfg_attr(feature = "serializable", serde(default))]
     eager_compile: bool,
 
     /// Don't open the browser automatically when the dev server has started.
-    #[clap(long)]
+    #[cfg_attr(feature = "cli", clap(long))]
+    #[cfg_attr(feature = "serializable", serde(default))]
     no_open: bool,
 
-    #[clap(short, long)]
+    #[cfg_attr(feature = "cli", clap(short, long))]
+    #[cfg_attr(feature = "serializable", serde(default))]
     /// Filter by issue severity.
     log_level: Option<IssueSeverityCliOption>,
 
-    #[clap(long)]
+    #[cfg_attr(feature = "cli", clap(long))]
+    #[cfg_attr(feature = "serializable", serde(default))]
     /// Show all log messages without limit.
     show_all: bool,
 
-    #[clap(long)]
+    #[cfg_attr(feature = "cli", clap(long))]
+    #[cfg_attr(feature = "serializable", serde(default))]
     /// Expand the log details.
     log_detail: bool,
+
+    // Inherited options from next-dev, need revisit later.
+    // This is not supported by CLI yet.
+    #[cfg_attr(feature = "serializable", serde(default))]
+    allow_retry: bool,
+    #[cfg_attr(feature = "serializable", serde(default))]
+    dev: bool,
+    #[cfg_attr(feature = "serializable", serde(default))]
+    is_next_dev_command: bool,
+    #[cfg_attr(feature = "serializable", serde(default))]
+    server_components_external_packages: Vec<String>,
+}
+
+#[cfg(feature = "serializable")]
+fn default_port() -> u16 {
+    3000
+}
+
+#[cfg(feature = "serializable")]
+fn default_host() -> IpAddr {
+    IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0))
+}
+
+#[cfg(not(feature = "cli"))]
+fn main() -> Result<()> {
+    unimplemented!("Cannot run binary without CLI feature enabled");
 }
 
 #[tokio::main]
+#[cfg(feature = "cli")]
 async fn main() -> Result<()> {
     let start = Instant::now();
 
@@ -70,7 +115,7 @@ async fn main() -> Result<()> {
     console_subscriber::init();
     register();
 
-    let args = Cli::parse();
+    let args = DevServerOptions::parse();
 
     let dir = args
         .dir
