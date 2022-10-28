@@ -2188,7 +2188,7 @@ describe('app dir', () => {
     })
 
     describe('very-large-data-fetch', () => {
-      it('should load crash when fetching a large amount of data', async () => {
+      it('should load page when fetching a large amount of data', async () => {
         const browser = await webdriver(next.url, '/very-large-data-fetch')
         expect(
           await (await browser.waitForElementByCss('#done', 10000)).text()
