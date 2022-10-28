@@ -34,34 +34,36 @@ describe('app dir', () => {
     })
     afterAll(() => next.destroy())
 
-    it('should not share edge workers', async () => {
-      const controller1 = new AbortController()
-      const controller2 = new AbortController()
-      fetchViaHTTP(next.url, '/slow-page-no-loading', undefined, {
-        signal: controller1.signal,
-      }).catch(() => {})
-      fetchViaHTTP(next.url, '/slow-page-no-loading', undefined, {
-        signal: controller2.signal,
-      }).catch(() => {})
+    if (!(global as any).isNextDeploy) {
+      it('should not share edge workers', async () => {
+        const controller1 = new AbortController()
+        const controller2 = new AbortController()
+        fetchViaHTTP(next.url, '/slow-page-no-loading', undefined, {
+          signal: controller1.signal,
+        }).catch(() => {})
+        fetchViaHTTP(next.url, '/slow-page-no-loading', undefined, {
+          signal: controller2.signal,
+        }).catch(() => {})
 
-      await waitFor(1000)
-      controller1.abort()
+        await waitFor(1000)
+        controller1.abort()
 
-      const controller3 = new AbortController()
-      fetchViaHTTP(next.url, '/slow-page-no-loading', undefined, {
-        signal: controller3.signal,
-      }).catch(() => {})
-      await waitFor(1000)
-      controller2.abort()
-      controller3.abort()
+        const controller3 = new AbortController()
+        fetchViaHTTP(next.url, '/slow-page-no-loading', undefined, {
+          signal: controller3.signal,
+        }).catch(() => {})
+        await waitFor(1000)
+        controller2.abort()
+        controller3.abort()
 
-      const res = await fetchViaHTTP(next.url, '/slow-page-no-loading')
-      expect(res.status).toBe(200)
-      expect(await res.text()).toContain('hello from slow page')
-      expect(next.cliOutput).not.toContain(
-        'A separate worker must be used for each render'
-      )
-    })
+        const res = await fetchViaHTTP(next.url, '/slow-page-no-loading')
+        expect(res.status).toBe(200)
+        expect(await res.text()).toContain('hello from slow page')
+        expect(next.cliOutput).not.toContain(
+          'A separate worker must be used for each render'
+        )
+      })
+    }
 
     if ((global as any).isNextStart) {
       it('should generate build traces correctly', async () => {
@@ -1403,6 +1405,18 @@ describe('app dir', () => {
               `window.getComputedStyle(document.querySelector('b')).color`
             )
           ).toBe('rgb(0, 0, 255)')
+        })
+      })
+
+      describe('client components', () => {
+        it('should support css modules inside client components', async () => {
+          const browser = await webdriver(next.url, '/css/css-client/inner')
+
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('#client-component')).fontSize`
+            )
+          ).toBe('100px')
         })
       })
     })

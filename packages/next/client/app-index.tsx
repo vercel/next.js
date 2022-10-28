@@ -149,6 +149,10 @@ function ServerRoot({ cacheKey }: { cacheKey: string }): JSX.Element {
   return root
 }
 
+const StrictModeIfEnabled = process.env.__NEXT_STRICT_MODE_APP
+  ? React.StrictMode
+  : React.Fragment
+
 function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
   React.useEffect(() => {
     measureWebVitals()
@@ -213,7 +217,7 @@ export function hydrate() {
   }
 
   const reactEl = (
-    <React.StrictMode>
+    <StrictModeIfEnabled>
       <HeadManagerContext.Provider
         value={{
           appDir: true,
@@ -223,7 +227,7 @@ export function hydrate() {
           <RSCComponent />
         </Root>
       </HeadManagerContext.Provider>
-    </React.StrictMode>
+    </StrictModeIfEnabled>
   )
 
   const isError = document.documentElement.id === '__next_error__'

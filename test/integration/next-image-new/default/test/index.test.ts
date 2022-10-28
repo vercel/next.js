@@ -861,6 +861,17 @@ function runTests(mode) {
       )
     })
 
+    it('should not warn when data url image with fill and sizes props', async () => {
+      const browser = await webdriver(appPort, '/data-url-with-fill-and-sizes')
+      const warnings = (await browser.log())
+        .map((log) => log.message)
+        .join('\n')
+      expect(await hasRedbox(browser)).toBe(false)
+      expect(warnings).not.toMatch(
+        /Image with src (.*) has "fill" but is missing "sizes" prop. Please add it to improve page performance/gm
+      )
+    })
+
     it('should not warn when svg, even if with loader prop or without', async () => {
       const browser = await webdriver(appPort, '/loader-svg')
       await browser.eval(`document.querySelector("footer").scrollIntoView()`)
@@ -911,20 +922,6 @@ function runTests(mode) {
         'Image with src "/test.png" was detected as the Largest Contentful Paint (LCP).'
       )
       expect(warnings.length).toBe(1)
-    })
-
-    it('should show console error for objectFit and objectPosition', async () => {
-      const browser = await webdriver(appPort, '/invalid-objectfit')
-
-      expect(await hasRedbox(browser)).toBe(false)
-
-      await check(async () => {
-        return (await browser.log()).map((log) => log.message).join('\n')
-      }, /Image has unknown prop "objectFit"/gm)
-
-      await check(async () => {
-        return (await browser.log()).map((log) => log.message).join('\n')
-      }, /Image has unknown prop "objectPosition"/gm)
     })
   } else {
     //server-only tests

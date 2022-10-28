@@ -244,7 +244,17 @@ export function getDefineEnv({
     'process.env.__NEXT_BUILD_INDICATOR_POSITION': JSON.stringify(
       config.devIndicators.buildActivityPosition
     ),
-    'process.env.__NEXT_STRICT_MODE': JSON.stringify(config.reactStrictMode),
+    'process.env.__NEXT_STRICT_MODE': JSON.stringify(
+      config.reactStrictMode === null ? false : config.reactStrictMode
+    ),
+    'process.env.__NEXT_STRICT_MODE_APP': JSON.stringify(
+      // When next.config.js does not have reactStrictMode enabling appDir will enable it.
+      config.reactStrictMode === null
+        ? config.experimental.appDir
+          ? true
+          : false
+        : config.reactStrictMode
+    ),
     'process.env.__NEXT_REACT_ROOT': JSON.stringify(hasReactRoot),
     'process.env.__NEXT_OPTIMIZE_FONTS': JSON.stringify(
       !dev && config.optimizeFonts
@@ -795,13 +805,18 @@ export default async function getBaseWebpackConfig(
                         )
                         .replace(/\\/g, '/'),
                   ]
-                : `./` +
-                  path
-                    .relative(
-                      dir,
-                      path.join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'app-next.js')
-                    )
-                    .replace(/\\/g, '/'),
+                : [
+                    `./` +
+                      path
+                        .relative(
+                          dir,
+                          path.join(
+                            NEXT_PROJECT_ROOT_DIST_CLIENT,
+                            'app-next.js'
+                          )
+                        )
+                        .replace(/\\/g, '/'),
+                  ],
             }
           : {}),
       } as ClientEntries)
@@ -1427,25 +1442,10 @@ export default async function getBaseWebpackConfig(
           // and all other chunk depend on them so there is no
           // duplication that need to be pulled out.
           chunks: (chunk: any) =>
-            !/^(polyfills|main|main-app|pages\/_app)$/.test(chunk.name),
+            !/^(polyfills|main|pages\/_app)$/.test(chunk.name),
           cacheGroups: {
             framework: {
-              chunks: (chunk) => {
-                const name = chunk.name
-
-                // Skip app directory and include shared modules in main-app.
-                if (
-                  name &&
-                  hasAppDir &&
-                  (name === 'main-app' ||
-                    name === 'app-internals' ||
-                    name.startsWith('app/'))
-                ) {
-                  return false
-                }
-
-                return true
-              },
+              chunks: 'all',
               name: 'framework',
               test(module: any) {
                 const resource = module.nameForCondition?.()

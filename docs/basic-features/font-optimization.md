@@ -116,7 +116,7 @@ export default function RootLayout({
   children: React.ReactNode,
 }) {
   return (
-    <html lang="en" className={localFont.className}>
+    <html lang="en" className={myFont.className}>
       <body>{children}</body>
     </html>
   )
@@ -152,7 +152,7 @@ Every time you call the `localFont` or Google font function, that font is hosted
 
 <div class="card">
   <a href="/docs/basic-features/image-optimization.md">
-    <b>Image Optmization</b>
+    <b>Image Optimization</b>
     <small>Learn how to optimize images with the Image component.</small>
   </a>
 </div>
