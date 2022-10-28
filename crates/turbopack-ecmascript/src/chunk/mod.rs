@@ -247,7 +247,8 @@ impl EcmascriptChunkContentResultVc {
 impl From<ChunkContentResult<EcmascriptChunkItemVc>> for EcmascriptChunkContentResult {
     fn from(from: ChunkContentResult<EcmascriptChunkItemVc>) -> Self {
         EcmascriptChunkContentResult {
-            chunk_items: EcmascriptChunkItems(from.chunk_items).cell(),
+            chunk_items: EcmascriptChunkItems(EcmascriptChunkItems::make_chunks(&from.chunk_items))
+                .cell(),
             chunks: from.chunks,
             async_chunk_groups: from.async_chunk_groups,
             external_asset_references: from.external_asset_references,
@@ -297,14 +298,18 @@ async fn ecmascript_chunk_content_internal(
             async_chunk_groups,
             external_asset_references,
         } = &*content.await?;
-        all_chunk_items.extend(chunk_items.await?.iter().copied());
+        for chunk in chunk_items.await?.iter() {
+            all_chunk_items.extend(chunk.await?.iter().copied());
+        }
         all_chunks.extend(chunks.iter().copied());
         all_async_chunk_groups.extend(async_chunk_groups.iter().copied());
         all_external_asset_references.extend(external_asset_references.iter().copied());
     }
 
+    let chunk_items =
+        EcmascriptChunkItems::make_chunks(&all_chunk_items.into_iter().collect::<Vec<_>>());
     Ok(EcmascriptChunkContentResult {
-        chunk_items: EcmascriptChunkItemsVc::cell(all_chunk_items.into_iter().collect()),
+        chunk_items: EcmascriptChunkItemsVc::cell(chunk_items),
         chunks: all_chunks.into_iter().collect(),
         async_chunk_groups: all_async_chunk_groups.into_iter().collect(),
         external_asset_references: all_external_asset_references.into_iter().collect(),
@@ -986,8 +991,10 @@ impl Introspectable for EcmascriptChunk {
             ecmascript_chunk_content(this.context, this.main_entries, this.omit_entries).await?;
         let chunk_items = chunk_content.chunk_items.await?;
         details += "Chunk items:\n\n";
-        for name in chunk_items.iter().map(|item| item.to_string()) {
-            writeln!(details, "- {}", name.await?)?;
+        for chunk in chunk_items.iter() {
+            for item in chunk.await?.iter() {
+                writeln!(details, "- {}", item.to_string().await?)?;
+            }
         }
         details += "\nContent:\n\n";
         write!(details, "{}", content.await?)?;
@@ -1113,51 +1120,58 @@ impl FromChunkableAsset for EcmascriptChunkItemVc {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct EcmascriptChunkItems(Vec<EcmascriptChunkItemVc>);
+pub struct EcmascriptChunkItemsChunk(Vec<EcmascriptChunkItemVc>);
 
-/// Maximum length of a Vec that is processed in only function. Longer lists
-/// will be split into LIST_CHUNK_COUNT shorter lists.
-const MAX_SHORT_LIST_LEN: usize = 100;
+#[turbo_tasks::value(transparent)]
+pub struct EcmascriptChunkItems(Vec<EcmascriptChunkItemsChunkVc>);
 
-/// Number of segments in which a long list is split. It's a trade-off between
-/// overhead of managing more functions (small values) and overhead of managing
-/// more function calls per function (large values)
-const LIST_CHUNK_COUNT: usize = 10;
+impl EcmascriptChunkItems {
+    pub fn make_chunks(list: &[EcmascriptChunkItemVc]) -> Vec<EcmascriptChunkItemsChunkVc> {
+        let size = list.len().div_ceil(100);
+        let chunk_items = list
+            .chunks(size)
+            .map(|chunk| EcmascriptChunkItemsChunkVc::cell(chunk.to_vec()))
+            .collect();
+        chunk_items
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl EcmascriptChunkItemsChunkVc {
+    #[turbo_tasks::function]
+    async fn to_entry_snapshot(self) -> Result<EcmascriptChunkContentEntriesSnapshotVc> {
+        let list = self.await?;
+        Ok(EcmascriptChunkContentEntries(
+            list.iter()
+                .map(|chunk_item| EcmascriptChunkContentEntryVc::new(*chunk_item))
+                .collect(),
+        )
+        .cell()
+        .snapshot())
+    }
+}
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItemsVc {
     #[turbo_tasks::function]
     async fn to_entry_snapshot(self) -> Result<EcmascriptChunkContentEntriesSnapshotVc> {
         let list = self.await?;
-        if list.len() > MAX_SHORT_LIST_LEN {
-            let chunk_size = list.len().div_ceil(LIST_CHUNK_COUNT);
-            Ok(EcmascriptChunkContentEntriesSnapshot::Nested(
-                list.chunks(chunk_size)
-                    .map(|chunk| {
-                        EcmascriptChunkItems(chunk.to_vec())
-                            .cell()
-                            .to_entry_snapshot()
-                    })
-                    .try_join()
-                    .await?,
-            )
-            .cell())
-        } else {
-            Ok(EcmascriptChunkContentEntries(
-                list.iter()
-                    .map(|chunk_item| EcmascriptChunkContentEntryVc::new(*chunk_item))
-                    .collect(),
-            )
-            .cell()
-            .snapshot())
-        }
+        Ok(EcmascriptChunkContentEntriesSnapshot::Nested(
+            list.iter()
+                .map(|chunk| chunk.to_entry_snapshot())
+                .try_join()
+                .await?,
+        )
+        .cell())
     }
 
     #[turbo_tasks::function]
     async fn to_set(self) -> Result<EcmascriptChunkItemsSetVc> {
-        Ok(EcmascriptChunkItemsSetVc::cell(
-            self.await?.iter().copied().collect(),
-        ))
+        let mut set = IndexSet::new();
+        for chunk in self.await?.iter().copied().try_join().await? {
+            set.extend(chunk.iter().copied())
+        }
+        Ok(EcmascriptChunkItemsSetVc::cell(set))
     }
 }
 
