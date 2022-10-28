@@ -36,8 +36,7 @@ impl<T> COption<T> {
         let slice = Box::<[COption<T>]>::new_zeroed_slice(size);
         // Safety:
         // We know that a zeroed COption<T> is a valid COption::None value.
-        let slice = unsafe { slice.assume_init() };
-        slice
+        unsafe { slice.assume_init() }
     }
 
     /// Returns a reference to the contained value, or `None` if it is `None`.

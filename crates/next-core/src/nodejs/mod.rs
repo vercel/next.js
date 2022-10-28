@@ -288,9 +288,7 @@ async fn render_static(
     let pool = renderer_pool.strongly_consistent().await?;
     let mut operation = match pool.operation().await {
         Ok(operation) => operation,
-        Err(err) => {
-            return Ok(static_error(path, err, None, fallback_page).await?);
-        }
+        Err(err) => return static_error(path, err, None, fallback_page).await,
     };
 
     match run_static_operation(
@@ -302,7 +300,7 @@ async fn render_static(
     .await
     {
         Ok(asset) => Ok(asset),
-        Err(err) => Ok(static_error(path, err, Some(operation), fallback_page).await?),
+        Err(err) => static_error(path, err, Some(operation), fallback_page).await,
     }
 }
 
@@ -351,10 +349,9 @@ async fn static_error(
         None => None,
     };
 
-    let html_status = if let Some(status) = status {
-        format!("<h2>Exit status</h2><pre>{status}</pre>")
-    } else {
-        format!("<h3>No exit status</pre>")
+    let html_status = match status {
+        Some(status) => format!("<h2>Exit status</h2><pre>{status}</pre>"),
+        None => "<h3>No exit status</pre>".to_owned(),
     };
 
     let body = format!(
@@ -387,7 +384,7 @@ async fn trace_stack(
 ) -> Result<String> {
     let root = match to_sys_path(intermediate_output_path.root()).await? {
         Some(r) => r.to_string_lossy().to_string(),
-        _ => bail!("couldn't extract disk fs from path"),
+        None => bail!("couldn't extract disk fs from path"),
     };
 
     let map_ext = OsStr::new("map");
@@ -517,7 +514,7 @@ async fn render_proxy(
     let mut operation = match pool.operation().await {
         Ok(operation) => operation,
         Err(err) => {
-            return Ok(proxy_error(path, err, None).await?);
+            return proxy_error(path, err, None).await;
         }
     };
 
@@ -545,7 +542,7 @@ async fn run_proxy_operation(
     let data = data.await?;
     // First, send the render data.
     operation
-        .send(RenderProxyOutgoingMessage::Headers { data: &*data })
+        .send(RenderProxyOutgoingMessage::Headers { data: &data })
         .await?;
 
     let body = body.await?;
