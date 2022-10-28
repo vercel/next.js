@@ -669,6 +669,38 @@ function runTests(mode) {
     ).toBe('color:transparent')
   })
 
+  it('should detect legacy props and forward to next/legacy/image', async () => {
+    let browser = await webdriver(appPort, '/legacy-layout-prop')
+
+    await check(async () => {
+      const result = await browser.eval(
+        `document.getElementById('img').naturalWidth`
+      )
+
+      if (result === 0) {
+        throw new Error('Incorrectly loaded image')
+      }
+
+      return 'result-correct'
+    }, /result-correct/)
+
+    const imgs = await browser.elementsByCss('span > img')
+    const img = imgs[0]
+    expect(img).toBeDefined()
+    expect(await img.getAttribute('data-img')).toBe('responsive')
+    expect(await img.getAttribute('loading')).toBe('')
+    expect(await img.getAttribute('src')).toBe(
+      '/_next/image?url=%2Ftest.png&w=3840&q=75'
+    )
+    expect(await img.getAttribute('srcset')).toContain(
+      '/_next/image?url=%2Ftest.png&w=640&q=75 640w,'
+    )
+    expect(await img.getAttribute('style')).toContain('position:absolute;')
+    expect(await hasRedbox(browser)).toBe(false)
+    const warnings = (await browser.log()).map((log) => log.message).join('\n')
+    expect(warnings).not.toMatch(/Image with src/gm)
+  })
+
   if (mode === 'dev') {
     it('should show missing src error', async () => {
       const browser = await webdriver(appPort, '/missing-src')

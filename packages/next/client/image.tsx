@@ -8,6 +8,7 @@ import React, {
   useMemo,
   useState,
 } from 'react'
+import dynamic from '../shared/lib/dynamic'
 import Head from '../shared/lib/head'
 import { getImageBlurSvg } from '../shared/lib/image-blur-svg'
 import {
@@ -31,6 +32,10 @@ let perfObserver: PerformanceObserver | undefined
 if (typeof window === 'undefined') {
   ;(global as any).__NEXT_IMAGE_IMPORTED = true
 }
+
+const LegacyImage = dynamic(() => import('./legacy/image'), {
+  suspense: true,
+})
 
 const VALID_LOADING_VALUES = ['lazy', 'eager', undefined] as const
 type LoadingValue = typeof VALID_LOADING_VALUES[number]
@@ -451,25 +456,18 @@ const ImageElement = ({
   )
 }
 
-export default function Image({
-  src,
-  sizes,
-  unoptimized = false,
-  priority = false,
-  loading,
-  className,
-  quality,
-  width,
-  height,
-  fill,
-  style,
-  onLoad,
-  onLoadingComplete,
-  placeholder = 'empty',
-  blurDataURL,
-  ...all
-}: ImageProps) {
+export default function Image(props: ImageProps) {
   const configContext = useContext(ImageConfigContext)
+  const [blurComplete, setBlurComplete] = useState(false)
+  const [showAltText, setShowAltText] = useState(false)
+  const onLoadRef = useRef(props.onLoad)
+  const onLoadingCompleteRef = useRef(props.onLoadingComplete)
+  useEffect(() => {
+    onLoadRef.current = props.onLoad
+  }, [props.onLoad])
+  useEffect(() => {
+    onLoadingCompleteRef.current = props.onLoadingComplete
+  }, [props.onLoadingComplete])
   const config: ImageConfig = useMemo(() => {
     const c = configEnv || configContext || imageConfigDefault
     const allSizes = [...c.deviceSizes, ...c.imageSizes].sort((a, b) => a - b)
@@ -477,6 +475,35 @@ export default function Image({
     return { ...c, allSizes, deviceSizes }
   }, [configContext])
 
+  for (const legacyProp of [
+    'layout',
+    'objectFit',
+    'objectPosition',
+    'lazyBoundary',
+    'lazyRoot',
+  ]) {
+    if (legacyProp in props) {
+      // @ts-ignore The props are not compatible, so this is best-effort
+      return <LegacyImage {...props} />
+    }
+  }
+
+  let {
+    src,
+    sizes,
+    unoptimized = false,
+    priority = false,
+    loading,
+    className,
+    quality,
+    width,
+    height,
+    fill,
+    style,
+    placeholder = 'empty',
+    blurDataURL,
+    ...all
+  } = props
   let rest: Partial<ImageProps> = all
   let loader: ImageLoaderWithConfig = rest.loader || defaultLoader
 
@@ -546,21 +573,6 @@ export default function Image({
   }
   src = typeof src === 'string' ? src : staticSrc
 
-  for (const legacyProp of [
-    'layout',
-    'objectFit',
-    'objectPosition',
-    'lazyBoundary',
-    'lazyRoot',
-  ]) {
-    if (legacyProp in rest) {
-      throw new Error(
-        `Image with src "${src}" has legacy prop "${legacyProp}". Did you forget to run the codemod?` +
-          `\nRead more: https://nextjs.org/docs/messages/next-image-upgrade-to-13`
-      )
-    }
-  }
-
   let isLazy =
     !priority && (loading === 'lazy' || typeof loading === 'undefined')
   if (src.startsWith('data:') || src.startsWith('blob:')) {
@@ -571,9 +583,6 @@ export default function Image({
   if (config.unoptimized) {
     unoptimized = true
   }
-
-  const [blurComplete, setBlurComplete] = useState(false)
-  const [showAltText, setShowAltText] = useState(false)
 
   const qualityInt = getInt(quality)
 
@@ -809,18 +818,6 @@ export default function Image({
     [imageSizesPropName]: imgAttributes.sizes,
     crossOrigin: rest.crossOrigin,
   }
-
-  const onLoadRef = useRef(onLoad)
-
-  useEffect(() => {
-    onLoadRef.current = onLoad
-  }, [onLoad])
-
-  const onLoadingCompleteRef = useRef(onLoadingComplete)
-
-  useEffect(() => {
-    onLoadingCompleteRef.current = onLoadingComplete
-  }, [onLoadingComplete])
 
   const imgElementArgs: ImageElementProps = {
     isLazy,
