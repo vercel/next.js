@@ -108,7 +108,7 @@ type LinkPropsOptional = OptionalKeys<InternalLinkProps>
 
 const prefetched = new Set<string>()
 
-type PrefetchOptions = Omit<RouterPrefetchOptions, 'locale'> & {
+type PrefetchOptions = RouterPrefetchOptions & {
   /**
    * bypassPrefetchedCheck will bypass the check to see if the `href` has
    * already been fetched.
@@ -120,7 +120,7 @@ function prefetch(
   router: NextRouter | AppRouterInstance,
   href: string,
   as: string,
-  options?: PrefetchOptions
+  options: PrefetchOptions
 ): void {
   if (typeof window === 'undefined') {
     return
@@ -132,18 +132,25 @@ function prefetch(
 
   // We should only dedupe requests when experimental.optimisticClientCache is
   // disabled.
-  if (!options?.bypassPrefetchedCheck) {
-    const locale = 'locale' in router ? router.locale : undefined
+  if (!options.bypassPrefetchedCheck) {
+    const locale =
+      // Let the link's locale prop override the default router locale.
+      typeof options.locale === 'string'
+        ? options.locale
+        : // Otherwise fallback to the router's locale.
+        'locale' in router
+        ? router.locale
+        : undefined
 
-    const key = href + '%' + as + (locale ? '%' + locale : '')
+    const prefetchedKey = href + '%' + as + (locale ? '%' + locale : '')
 
     // If we've already fetched the key, then don't prefetch it again!
-    if (prefetched.has(key)) {
+    if (prefetched.has(prefetchedKey)) {
       return
     }
 
     // Mark this URL as prefetched.
-    prefetched.add(key)
+    prefetched.add(prefetchedKey)
   }
 
   // Prefetch the JSON page if asked (only in the client)
@@ -501,7 +508,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       }
 
       // Prefetch the URL.
-      prefetch(router, href, as)
+      prefetch(router, href, as, { locale })
     }, [
       as,
       href,
@@ -584,6 +591,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         }
 
         prefetch(router, href, as, {
+          locale,
           priority: true,
           // @see {https://github.com/vercel/next.js/discussions/40268?sort=top#discussioncomment-3572642}
           bypassPrefetchedCheck: true,
@@ -611,6 +619,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         }
 
         prefetch(router, href, as, {
+          locale,
           priority: true,
           // @see {https://github.com/vercel/next.js/discussions/40268?sort=top#discussioncomment-3572642}
           bypassPrefetchedCheck: true,
