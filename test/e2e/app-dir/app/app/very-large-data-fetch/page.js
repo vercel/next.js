@@ -1,5 +1,7 @@
 export default async function Home() {
-  const res = await fetch('https://pokeapi.co/api/v2/pokemon/bulbasaur')
-  await res.json()
-  return <p id="done">Hello world</p>
+  // debugger
+  const res = await fetch('http://localhost:3000/api/large-data')
+  const resClone = res.clone()
+  const json = await resClone.json()
+  return <pre id="done">{JSON.stringify(json, null, ' ')}</pre>
 }
