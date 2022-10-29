@@ -784,6 +784,8 @@ export default function Image({
           top: 0,
           right: 0,
           bottom: 0,
+          objectFit,
+          objectPosition,
         }
       : {},
     showAltText ? {} : { color: 'transparent' },
@@ -793,9 +795,8 @@ export default function Image({
   const blurStyle =
     placeholder === 'blur' && blurDataURL && !blurComplete
       ? {
-          backgroundSize: objectFit || imgStyle.objectFit || 'cover',
-          backgroundPosition:
-            objectPosition || imgStyle.objectPosition || '50% 50%',
+          backgroundSize: imgStyle.objectFit || 'cover',
+          backgroundPosition: imgStyle.objectPosition || '50% 50%',
           backgroundRepeat: 'no-repeat',
           backgroundImage: `url("data:image/svg+xml;charset=utf-8,${getImageBlurSvg(
             {
