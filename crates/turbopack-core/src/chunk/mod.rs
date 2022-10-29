@@ -13,7 +13,7 @@ use turbo_tasks::{
     ValueToString, ValueToStringVc,
 };
 use turbo_tasks_fs::FileSystemPathVc;
-use turbo_tasks_hash::DeterministicHash;
+use turbo_tasks_hash::{encode_hex, DeterministicHash, Xxh3Hash64Hasher};
 
 use self::optimize::optimize;
 use crate::{
@@ -29,6 +29,17 @@ use crate::{
 pub enum ModuleId {
     Number(u32),
     String(String),
+}
+
+impl ModuleId {
+    /// Returns a truncated hash of the module id.
+    pub fn to_truncated_hash(&self) -> String {
+        let mut hasher = Xxh3Hash64Hasher::new();
+        hasher.write_ref(self);
+        let mut hash = encode_hex(hasher.finish());
+        hash.truncate(6);
+        hash
+    }
 }
 
 /// A list of module ids.

@@ -754,7 +754,7 @@ impl<'a> HmrUpdateEntry<'a> {
             map: entry
                 .code
                 .has_source_map()
-                .then(|| format!("{}.{}.map", chunk_path, encode_hex(entry.hash))),
+                .then(|| format!("{}.{}.map", chunk_path, entry.id.to_truncated_hash())),
         }
     }
 }
