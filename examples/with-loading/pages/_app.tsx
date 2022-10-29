@@ -32,19 +32,19 @@ export default function App({ Component, pageProps }: AppProps) {
   return (
     <>
       <nav>
-        <style jsx>{`
+        <style jsx global>{`
           a {
             margin: 0 10px 0 0;
           }
         `}</style>
-        <Link href="/" legacyBehavior>
-          <a>Home</a>
+        <Link href="/">
+          Home
         </Link>
-        <Link href="/about" legacyBehavior>
-          <a>About</a>
+        <Link href="/about">
+          About
         </Link>
-        <Link href="/forever" legacyBehavior>
-          <a>Forever</a>
+        <Link href="/forever">
+          Forever
         </Link>
         <a href="/non-existing">Non Existing Page</a>
       </nav>
