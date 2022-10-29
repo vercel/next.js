@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, collections::HashSet, mem::take};
+use std::{cmp::Ordering, collections::HashSet};
 
 use anyhow::{bail, Result};
 use indexmap::IndexSet;
@@ -78,12 +78,14 @@ const DUPLICATION_THRESHOLD: f32 = 0.1;
 /// Max percentage of unshared chunk items on either side before chunks are
 /// merged.
 const CONTAINED_THRESHOLD: f32 = 0.05;
-/// Max number of local chunks. Will be merged into a single chunk when over the
-/// threshold.
-const LOCAL_CHUNK_MERGE_THRESHOLD: usize = 10;
-/// Max number of total chunks. Will be merged randomly to stay within the
-/// limit.
-const TOTAL_CHUNK_MERGE_THRESHOLD: usize = 10;
+/// Max number of local chunks. Will start to merge into chunks of
+/// MAX_CHUNK_ITEMS_PER_CHUNK.
+const LOCAL_CHUNK_MERGE_THRESHOLD: usize = 20;
+/// Max number of total chunks. Will start to merge into chunks of
+/// MAX_CHUNK_ITEMS_PER_CHUNK.
+const TOTAL_CHUNK_MERGE_THRESHOLD: usize = 20;
+/// Max number of chunk items per chunk to merge.
+const MAX_CHUNK_ITEMS_PER_CHUNK: usize = 5000;
 
 async fn merge_duplicated_and_contained(
     chunks: &mut Vec<EcmascriptChunkVc>,
@@ -267,6 +269,43 @@ async fn merge_duplicated_and_contained(
     Ok(())
 }
 
+async fn merge_by_size(chunks: &[EcmascriptChunkVc]) -> Result<Vec<EcmascriptChunkVc>> {
+    let mut merged = Vec::new();
+    let mut current = Vec::new();
+    let mut current_items = 0;
+    for &chunk in chunks {
+        let chunk_items = *chunk.chunk_items_count().await?;
+        if chunk_items >= MAX_CHUNK_ITEMS_PER_CHUNK {
+            // chunk is too big, keep it separate
+            merged.push(chunk);
+        } else if current_items + chunk_items < MAX_CHUNK_ITEMS_PER_CHUNK {
+            // fits in this chunk
+            current.push(chunk);
+            current_items += chunk_items;
+        } else {
+            // doesn't fit in this chunk, merge current and start a new one
+            if !current.is_empty() {
+                if current.len() == 1 {
+                    merged.push(current.pop().unwrap());
+                } else {
+                    merged.push(merge_chunks(*current.first().unwrap(), &current).await?);
+                    current.clear();
+                }
+            }
+            current.push(chunk);
+            current_items = chunk_items;
+        }
+    }
+    if !current.is_empty() {
+        if current.len() == 1 {
+            merged.push(current.pop().unwrap());
+        } else {
+            merged.push(merge_chunks(*current.first().unwrap(), &current).await?);
+        }
+    }
+    Ok(merged)
+}
+
 #[turbo_tasks::function]
 async fn optimize_ecmascript(
     local: Option<ChunksVc>,
@@ -282,10 +321,7 @@ async fn optimize_ecmascript(
         let mut local = local.await?.iter().copied().map(ecma).try_join().await?;
         // Merge all local chunks when they are too many
         if local.len() > LOCAL_CHUNK_MERGE_THRESHOLD {
-            let merged = take(&mut local);
-            if let Some(first) = merged.first().copied() {
-                local.push(merge_chunks(first, &merged).await?);
-            }
+            local = merge_by_size(&local).await?;
         }
         for chunk in local.iter_mut() {
             let content = (*chunk).await?;
@@ -331,11 +367,7 @@ async fn optimize_ecmascript(
     // When there are too many chunks, try hard to reduce the number of chunks to
     // limit the request count.
     if chunks.len() > TOTAL_CHUNK_MERGE_THRESHOLD {
-        let size = chunks.len().div_ceil(TOTAL_CHUNK_MERGE_THRESHOLD);
-        // TODO be smarter in selecting the chunks to merge
-        for merged in take(&mut chunks).chunks(size) {
-            chunks.push(merge_chunks(*merged.first().unwrap(), merged).await?);
-        }
+        chunks = merge_by_size(&chunks).await?;
     }
     Ok(ChunksVc::cell(
         chunks.into_iter().map(|c| c.as_chunk()).collect(),

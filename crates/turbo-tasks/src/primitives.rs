@@ -39,6 +39,9 @@ pub struct Bytes(Vec<u8>);
 pub struct Bool(bool);
 
 #[turbo_tasks::value(transparent)]
+pub struct Usize(usize);
+
+#[turbo_tasks::value(transparent)]
 pub struct RawVcSet(HashSet<RawVc>);
 
 #[turbo_tasks::value(transparent)]

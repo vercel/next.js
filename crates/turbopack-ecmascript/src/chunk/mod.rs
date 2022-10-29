@@ -8,7 +8,7 @@ use anyhow::{anyhow, bail, Context, Result};
 use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    primitives::{JsonValueVc, StringReadRef, StringVc, StringsVc},
+    primitives::{JsonValueVc, StringReadRef, StringVc, StringsVc, UsizeVc},
     trace::TraceRawVcs,
     TryJoinIterExt, ValueToString, ValueToStringVc,
 };
@@ -856,6 +856,23 @@ impl EcmascriptChunkVc {
             this.context,
             this.main_entries,
             this.omit_entries,
+        ))
+    }
+
+    #[turbo_tasks::function]
+    async fn chunk_items_count(self) -> Result<UsizeVc> {
+        Ok(UsizeVc::cell(
+            self.chunk_content_result()
+                .await?
+                .chunk_items
+                .await?
+                .iter()
+                .map(|chunk| chunk)
+                .try_join()
+                .await?
+                .into_iter()
+                .map(|chunk| chunk.len())
+                .sum(),
         ))
     }
 
