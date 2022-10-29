@@ -29,6 +29,7 @@ import type { ReactReadableStream } from './node-web-streams-helper'
 import type { FontLoaderManifest } from '../build/webpack/plugins/font-loader-manifest-plugin'
 
 import React from 'react'
+import ReactDOMServer from 'react-dom/server.browser'
 import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
 import {
   GSP_NO_RETURNED_VALUE,
@@ -80,7 +81,6 @@ import {
 } from './node-web-streams-helper'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
-import { shouldUseReactRoot } from './utils'
 import { stripInternalQueries } from './internal-utils'
 
 let tryGetPreviewData: typeof import('./api-utils/node').tryGetPreviewData
@@ -88,9 +88,6 @@ let warn: typeof import('../build/output/log').warn
 let postProcessHTML: typeof import('./post-process').postProcessHTML
 
 const DOCTYPE = '<!DOCTYPE html>'
-const ReactDOMServer = shouldUseReactRoot
-  ? require('react-dom/server.browser')
-  : require('react-dom/server')
 
 if (process.env.NEXT_RUNTIME !== 'edge') {
   require('./node-polyfill-web-streams')
@@ -109,15 +106,9 @@ function noRouter() {
 }
 
 async function renderToString(element: React.ReactElement) {
-  if (!shouldUseReactRoot) return ReactDOMServer.renderToString(element)
   const renderStream = await ReactDOMServer.renderToReadableStream(element)
   await renderStream.allReady
   return streamToString(renderStream)
-}
-
-async function renderToStaticMarkup(element: React.ReactElement) {
-  if (!shouldUseReactRoot) return ReactDOMServer.renderToStaticMarkup(element)
-  return renderToString(element)
 }
 
 class ServerRouter implements NextRouter {
@@ -419,30 +410,6 @@ export async function renderToHTML(
 
   // next internal queries should be stripped out
   stripInternalQueries(query)
-
-  const callMiddleware = async (method: string, args: any[], props = false) => {
-    let results: any = props ? {} : []
-
-    if ((Document as any)[`${method}Middleware`]) {
-      let middlewareFunc = await (Document as any)[`${method}Middleware`]
-      middlewareFunc = middlewareFunc.default || middlewareFunc
-
-      const curResults = await middlewareFunc(...args)
-      if (props) {
-        for (const result of curResults) {
-          results = {
-            ...results,
-            ...result,
-          }
-        }
-      } else {
-        results = curResults
-      }
-    }
-    return results
-  }
-
-  const headTags = (...args: any) => callMiddleware('headTags', args)
 
   const isSSG = !!getStaticProps
   const isBuildTimeSSG = isSSG && renderOpts.nextExport
@@ -1247,123 +1214,85 @@ export async function renderToHTML(
       )
     }
 
-    if (!process.env.__NEXT_REACT_ROOT) {
-      // Enabling react legacy rendering mode: __NEXT_REACT_ROOT = false
-      if (Document.getInitialProps) {
-        const documentInitialProps = await loadDocumentInitialProps()
-        if (documentInitialProps === null) return null
-        const { docProps, documentCtx } = documentInitialProps
+    // Always using react concurrent rendering mode with required react version 18.x
+    const renderShell = async (
+      EnhancedApp: AppType,
+      EnhancedComponent: NextComponentType
+    ) => {
+      const content = renderContent(EnhancedApp, EnhancedComponent)
+      return await renderToInitialStream({
+        ReactDOMServer,
+        element: content,
+      })
+    }
 
-        return {
-          bodyResult: (suffix: string) =>
-            streamFromArray([docProps.html, suffix]),
-          documentElement: (htmlProps: HtmlProps) => (
-            <Document {...htmlProps} {...docProps} />
-          ),
-          head: docProps.head,
-          headTags: await headTags(documentCtx),
-          styles: docProps.styles,
-        }
-      } else {
-        const content = renderContent(App, Component)
-        // for non-concurrent rendering we need to ensure App is rendered
-        // before _document so that updateHead is called/collected before
-        // rendering _document's head
-        const result = await renderToString(content)
-        const bodyResult = (suffix: string) => streamFromArray([result, suffix])
-
-        const styles = jsxStyleRegistry.styles()
-        jsxStyleRegistry.flush()
-
-        return {
-          bodyResult,
-          documentElement: () => (Document as any)(),
-          head,
-          headTags: [],
-          styles,
-        }
+    const createBodyResult = (
+      initialStream: ReactReadableStream,
+      suffix?: string
+    ) => {
+      // this must be called inside bodyResult so appWrappers is
+      // up to date when `wrapApp` is called
+      const getServerInsertedHTML = async (): Promise<string> => {
+        return renderToString(styledJsxInsertedHTML())
       }
+
+      return continueFromInitialStream(initialStream, {
+        suffix,
+        dataStream: serverComponentsInlinedTransformStream?.readable,
+        generateStaticHTML,
+        getServerInsertedHTML,
+        serverInsertedHTMLToHead: false,
+      })
+    }
+
+    const hasDocumentGetInitialProps = !(
+      process.env.NEXT_RUNTIME === 'edge' || !Document.getInitialProps
+    )
+
+    let bodyResult: (s: string) => Promise<ReadableStream<Uint8Array>>
+
+    // If it has getInitialProps, we will render the shell in `renderPage`.
+    // Otherwise we do it right now.
+    let documentInitialPropsRes:
+      | {}
+      | Awaited<ReturnType<typeof loadDocumentInitialProps>>
+    if (hasDocumentGetInitialProps) {
+      documentInitialPropsRes = await loadDocumentInitialProps(renderShell)
+      if (documentInitialPropsRes === null) return null
+      const { docProps } = documentInitialPropsRes as any
+      // includes suffix in initial html stream
+      bodyResult = (suffix: string) =>
+        createBodyResult(streamFromArray([docProps.html, suffix]))
     } else {
-      // Enabling react concurrent rendering mode: __NEXT_REACT_ROOT = true
-      const renderShell = async (
-        EnhancedApp: AppType,
-        EnhancedComponent: NextComponentType
-      ) => {
-        const content = renderContent(EnhancedApp, EnhancedComponent)
-        return await renderToInitialStream({
-          ReactDOMServer,
-          element: content,
-        })
-      }
+      const stream = await renderShell(App, Component)
+      bodyResult = (suffix: string) => createBodyResult(stream, suffix)
+      documentInitialPropsRes = {}
+    }
 
-      const createBodyResult = (
-        initialStream: ReactReadableStream,
-        suffix?: string
-      ) => {
-        // this must be called inside bodyResult so appWrappers is
-        // up to date when `wrapApp` is called
-        const getServerInsertedHTML = async (): Promise<string> => {
-          return renderToString(styledJsxInsertedHTML())
-        }
-
-        return continueFromInitialStream(initialStream, {
-          suffix,
-          dataStream: serverComponentsInlinedTransformStream?.readable,
-          generateStaticHTML,
-          getServerInsertedHTML,
-          serverInsertedHTMLToHead: false,
-        })
-      }
-
-      const hasDocumentGetInitialProps = !(
-        process.env.NEXT_RUNTIME === 'edge' || !Document.getInitialProps
-      )
-
-      let bodyResult: (s: string) => Promise<ReadableStream<Uint8Array>>
-
-      // If it has getInitialProps, we will render the shell in `renderPage`.
-      // Otherwise we do it right now.
-      let documentInitialPropsRes:
-        | {}
-        | Awaited<ReturnType<typeof loadDocumentInitialProps>>
-      if (hasDocumentGetInitialProps) {
-        documentInitialPropsRes = await loadDocumentInitialProps(renderShell)
-        if (documentInitialPropsRes === null) return null
-        const { docProps } = documentInitialPropsRes as any
-        // includes suffix in initial html stream
-        bodyResult = (suffix: string) =>
-          createBodyResult(streamFromArray([docProps.html, suffix]))
+    const { docProps } = (documentInitialPropsRes as any) || {}
+    const documentElement = (htmlProps: any) => {
+      if (process.env.NEXT_RUNTIME === 'edge') {
+        return (Document as any)()
       } else {
-        const stream = await renderShell(App, Component)
-        bodyResult = (suffix: string) => createBodyResult(stream, suffix)
-        documentInitialPropsRes = {}
+        return <Document {...htmlProps} {...docProps} />
       }
+    }
 
-      const { docProps } = (documentInitialPropsRes as any) || {}
-      const documentElement = (htmlProps: any) => {
-        if (process.env.NEXT_RUNTIME === 'edge') {
-          return (Document as any)()
-        } else {
-          return <Document {...htmlProps} {...docProps} />
-        }
-      }
+    let styles
+    if (hasDocumentGetInitialProps) {
+      styles = docProps.styles
+      head = docProps.head
+    } else {
+      styles = jsxStyleRegistry.styles()
+      jsxStyleRegistry.flush()
+    }
 
-      let styles
-      if (hasDocumentGetInitialProps) {
-        styles = docProps.styles
-        head = docProps.head
-      } else {
-        styles = jsxStyleRegistry.styles()
-        jsxStyleRegistry.flush()
-      }
-
-      return {
-        bodyResult,
-        documentElement,
-        head,
-        headTags: [],
-        styles,
-      }
+    return {
+      bodyResult,
+      documentElement,
+      head,
+      headTags: [],
+      styles,
     }
   }
 
@@ -1471,7 +1400,7 @@ export async function renderToHTML(
     </AmpStateContext.Provider>
   )
 
-  const documentHTML = await renderToStaticMarkup(document)
+  const documentHTML = await renderToString(document)
 
   if (process.env.NODE_ENV !== 'production') {
     const nonRenderedComponents = []
