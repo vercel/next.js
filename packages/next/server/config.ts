@@ -28,6 +28,9 @@ import { getDependencies } from '../lib/get-package-version'
 
 export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
 
+const isAboveNodejs16 = semverGte(process.version, '16.8.0')
+const isAboveNodejs18 = semverGte(process.version, '18.0.0')
+
 const experimentalWarning = execOnce(
   (configFileName: string, features: string[]) => {
     const s = features.length > 1 ? 's' : ''
@@ -52,19 +55,19 @@ const experimentalWarning = execOnce(
   }
 )
 
-export function setHttpClientAndAgentOptions(options: NextConfig) {
-  if (semverGte(process.version, '16.8.0')) {
-    if (
-      options.experimental?.enableUndici &&
-      semverGte(process.version, '18.0.0')
-    ) {
+export function setHttpClientAndAgentOptions(config: NextConfig) {
+  if (isAboveNodejs16) {
+    if (config.experimental?.enableUndici && isAboveNodejs18) {
       Log.warn(
         '`enableUndici` option is unnecessary in Node.js v18.0.0 or greater.'
       )
     } else {
-      ;(global as any).__NEXT_USE_UNDICI = options.experimental?.enableUndici
+      // When appDir is enabled undici is the default because of Response.clone() issues in node-fetch
+      ;(global as any).__NEXT_USE_UNDICI = config.experimental?.appDir
+        ? true
+        : config.experimental?.enableUndici
     }
-  } else if (options.experimental?.enableUndici) {
+  } else if (config.experimental?.enableUndici) {
     Log.warn(
       '`enableUndici` option requires Node.js v16.8.0 or greater. Falling back to `node-fetch`'
     )
@@ -75,13 +78,13 @@ export function setHttpClientAndAgentOptions(options: NextConfig) {
     return
   }
 
-  if (!options) {
+  if (!config) {
     throw new Error('Expected config.httpAgentOptions to be an object')
   }
 
-  ;(global as any).__NEXT_HTTP_AGENT_OPTIONS = options.httpAgentOptions
-  ;(global as any).__NEXT_HTTP_AGENT = new HttpAgent(options.httpAgentOptions)
-  ;(global as any).__NEXT_HTTPS_AGENT = new HttpsAgent(options.httpAgentOptions)
+  ;(global as any).__NEXT_HTTP_AGENT_OPTIONS = config.httpAgentOptions
+  ;(global as any).__NEXT_HTTP_AGENT = new HttpAgent(config.httpAgentOptions)
+  ;(global as any).__NEXT_HTTPS_AGENT = new HttpsAgent(config.httpAgentOptions)
 }
 
 async function setFontLoaderDefaults(config: NextConfigComplete, dir: string) {
@@ -154,6 +157,16 @@ function assignDefaults(dir: string, userConfig: { [key: string]: any }) {
           for (const featureName of Object.keys(
             value
           ) as (keyof ExperimentalConfig)[]) {
+            const featureValue = value[featureName]
+            if (
+              featureName === 'appDir' &&
+              featureValue === true &&
+              !isAboveNodejs16
+            ) {
+              throw new Error(
+                'experimental.appDir requires Node 16.8.0 or later.'
+              )
+            }
             if (
               value[featureName] !== defaultConfig.experimental[featureName]
             ) {
