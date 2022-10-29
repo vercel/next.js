@@ -85,7 +85,7 @@ const LOCAL_CHUNK_MERGE_THRESHOLD: usize = 20;
 /// MAX_CHUNK_ITEMS_PER_CHUNK.
 const TOTAL_CHUNK_MERGE_THRESHOLD: usize = 20;
 /// Max number of chunk items per chunk to merge.
-const MAX_CHUNK_ITEMS_PER_CHUNK: usize = 5000;
+const MAX_CHUNK_ITEMS_PER_CHUNK: usize = 3000;
 
 async fn merge_duplicated_and_contained(
     chunks: &mut Vec<EcmascriptChunkVc>,
