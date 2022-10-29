@@ -265,11 +265,11 @@ To set up Jest, install `jest`, `jest-environment-jsdom`, `@testing-library/reac
 npm install --save-dev jest jest-environment-jsdom @testing-library/react @testing-library/jest-dom
 ```
 
-Create a `jest.config.js` file in your project's root directory and add the following:
+Create a `jest.config.mjs` file in your project's root directory and add the following:
 
 ```jsx
-// jest.config.js
-const nextJest = require('next/jest')
+// jest.config.mjs
+import nextJest from 'next/jest.js';
 
 const createJestConfig = nextJest({
   // Provide the path to your Next.js app to load next.config.js and .env files in your test environment
@@ -278,7 +278,7 @@ const createJestConfig = nextJest({
 
 // Add any custom config to be passed to Jest
 /** @type {import('jest').Config} */
-const customJestConfig = {
+const config = {
   // Add more setup options before each test is run
   // setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   // if using TypeScript with a baseUrl set to the root directory then you need the below for alias' to work
@@ -287,7 +287,7 @@ const customJestConfig = {
 }
 
 // createJestConfig is exported this way to ensure that next/jest can load the Next.js config which is async
-module.exports = createJestConfig(customJestConfig)
+export default createJestConfig(config)
 ```
 
 Under the hood, `next/jest` is automatically configuring Jest for you, including:
