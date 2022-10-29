@@ -21,6 +21,7 @@ pub use page_guard::PageGuard;
 pub use prepared_app::PreparedApp;
 use regex::Regex;
 use tungstenite::{error::ProtocolError::ResetWithoutClosingHandshake, Error::Protocol};
+use turbo_tasks::util::FormatDuration;
 use turbopack_create_test_app::test_app_builder::{PackageJsonConfig, TestApp, TestAppBuilder};
 
 use crate::bundlers::Bundler;
@@ -206,6 +207,10 @@ impl<'a, 'b, A: AsyncExecutor> AsyncBencherExtension for AsyncBencher<'a, 'b, A,
             config.as_deref(),
             None | Some("") | Some("no") | Some("false")
         );
+        let log_progress = !matches!(
+            std::env::var("TURBOPACK_BENCH_PROGRESS").ok().as_deref(),
+            None | Some("") | Some("no") | Some("false")
+        );
 
         let setup = &setup;
         let warmup = &warmup;
@@ -237,6 +242,9 @@ impl<'a, 'b, A: AsyncExecutor> AsyncBencherExtension for AsyncBencher<'a, 'b, A,
                             } else {
                                 duration = measurement.end(start);
                                 teardown(black_box(output)).await;
+                            }
+                            if log_progress {
+                                eprint!(" {} ", FormatDuration(duration));
                             }
                             value = measurement.add(&value, &duration);
                             iter += 1;
