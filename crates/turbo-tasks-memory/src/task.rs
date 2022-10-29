@@ -454,12 +454,12 @@ impl Task {
                     let state_scopes = &state.scopes;
                     match state_scopes {
                         TaskScopes::Root(scope) => {
-                            turbo_tasks.schedule_backend_background_job(
+                            turbo_tasks.schedule_backend_foreground_job(
                                 backend.create_backend_job(Job::RemoveFromScope(set, *scope)),
                             );
                         }
                         TaskScopes::Inner(ref scopes, _) => {
-                            turbo_tasks.schedule_backend_background_job(
+                            turbo_tasks.schedule_backend_foreground_job(
                                 backend.create_backend_job(Job::RemoveFromScopes(
                                     set,
                                     scopes.iter().copied().collect(),
@@ -908,7 +908,8 @@ impl Task {
             TaskScopes::Root(root) => {
                 log_scope_update!("removing root scope {root}");
                 state.scopes = TaskScopes::default();
-                turbo_tasks.schedule_backend_background_job(
+
+                turbo_tasks.schedule_backend_foreground_job(
                     backend.create_backend_job(Job::RemoveFromScope(state.children.clone(), root)),
                 );
             }
@@ -1488,7 +1489,8 @@ pub fn run_remove_from_scope_queue(
         });
         if queue.len() > SPLIT_OFF_QUEUE_AT {
             let split_off_queue = queue.split_off(SPLIT_OFF_QUEUE_AT);
-            turbo_tasks.schedule_backend_background_job(
+
+            turbo_tasks.schedule_backend_foreground_job(
                 backend.create_backend_job(Job::RemoveFromScopeQueue(split_off_queue, id)),
             );
         }
