@@ -1,5 +1,4 @@
 export default async function Home() {
-  // debugger
   const res = await fetch('http://localhost:3000/api/large-data')
   const resClone = res.clone()
   const json = await resClone.json()
