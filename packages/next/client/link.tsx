@@ -83,21 +83,18 @@ type InternalLinkProps = {
    * @see https://github.com/vercel/next.js/commit/489e65ed98544e69b0afd7e0cfc3f9f6c2b803b7
    */
   legacyBehavior?: boolean
-  // e: any because as it would otherwise overlap with existing types
   /**
    * Optional event handler for when the mouse pointer is moved onto Link
    */
-  onMouseEnter?: (e: any) => void
-  // e: any because as it would otherwise overlap with existing types
+  onMouseEnter?: React.MouseEventHandler<HTMLAnchorElement>
   /**
    * Optional event handler for when Link is touched.
    */
-  onTouchStart?: (e: any) => void
-  // e: any because as it would otherwise overlap with existing types
+  onTouchStart?: React.TouchEventHandler<HTMLAnchorElement>
   /**
    * Optional event handler for when Link is clicked.
    */
-  onClick?: (e: any) => void
+  onClick?: React.MouseEventHandler<HTMLAnchorElement>
 }
 
 // TODO-APP: Include the full set of Anchor props
@@ -520,14 +517,14 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
     ])
 
     const childProps: {
-      onTouchStart: React.TouchEventHandler
-      onMouseEnter: React.MouseEventHandler
-      onClick: React.MouseEventHandler
+      onTouchStart: React.TouchEventHandler<HTMLAnchorElement>
+      onMouseEnter: React.MouseEventHandler<HTMLAnchorElement>
+      onClick: React.MouseEventHandler<HTMLAnchorElement>
       href?: string
       ref?: any
     } = {
       ref: setRef,
-      onClick: (e: React.MouseEvent) => {
+      onClick: (e) => {
         if (process.env.NODE_ENV !== 'production') {
           if (!e) {
             throw new Error(
@@ -569,7 +566,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           prefetchEnabled
         )
       },
-      onMouseEnter: (e: React.MouseEvent) => {
+      onMouseEnter: (e) => {
         if (!legacyBehavior && typeof onMouseEnterProp === 'function') {
           onMouseEnterProp(e)
         }
@@ -597,7 +594,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           bypassPrefetchedCheck: true,
         })
       },
-      onTouchStart: (e: React.TouchEvent<HTMLAnchorElement>) => {
+      onTouchStart: (e) => {
         if (!legacyBehavior && typeof onTouchStartProp === 'function') {
           onTouchStartProp(e)
         }
