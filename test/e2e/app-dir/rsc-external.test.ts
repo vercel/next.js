@@ -135,4 +135,14 @@ describe('app dir - rsc external dependency', () => {
       expect(result).toMatch(/\.css/)
     })
   })
+
+  it('should handle external css modules', async () => {
+    const browser = await webdriver(next.url, '/css/modules')
+
+    expect(
+      await browser.eval(
+        `window.getComputedStyle(document.querySelector('h1')).color`
+      )
+    ).toBe('rgb(255, 0, 0)')
+  })
 })
