@@ -274,8 +274,6 @@ export default async function build(
       setGlobal('phase', PHASE_PRODUCTION_BUILD)
       setGlobal('distDir', distDir)
 
-      const hasReactRoot = !!process.env.__NEXT_REACT_ROOT
-
       const { target } = config
       const buildId: string = await nextBuildSpan
         .traceChild('generate-buildid')
@@ -910,7 +908,6 @@ export default async function build(
         const commonWebpackOptions = {
           buildId,
           config,
-          hasReactRoot,
           pagesDir,
           reactProductionProfiling,
           rewrites,
