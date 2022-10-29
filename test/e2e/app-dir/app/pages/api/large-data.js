@@ -1,9 +1,9 @@
 export default function largeData(req, res) {
   return res.json({
-    'array of objects': [
+    arrayOfObjects: [
       {
         index: '0',
-        'index start at 5': '5',
+        random: '5',
       },
       {
         index: '1',

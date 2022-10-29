@@ -2187,12 +2187,19 @@ describe('app dir', () => {
       })
     })
 
-    describe('very-large-data-fetch', () => {
+    describe('data fetch with response over 16KB with chunked encoding', () => {
       it('should load page when fetching a large amount of data', async () => {
         const browser = await webdriver(next.url, '/very-large-data-fetch')
+        await new Promise(() => {})
         expect(
-          await (await browser.waitForElementByCss('#done', 10000)).text()
+          await (await browser.waitForElementByCss('#done', 5000)).text()
         ).toBe('Hello world')
+        expect(
+          await (await browser.waitForElementByCss('#index', 2000)).text()
+        ).toBe('0')
+        expect(
+          await (await browser.waitForElementByCss('#random', 2000)).text()
+        ).toBe('5')
       })
     })
   }
