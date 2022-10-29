@@ -861,7 +861,7 @@ export default class MiddlewarePlugin {
       compilation.hooks.processAssets.tap(
         {
           name: 'NextJsMiddlewareManifest',
-          stage: (webpack as any).Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
+          stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
         },
         getCreateAssets({
           compilation,
