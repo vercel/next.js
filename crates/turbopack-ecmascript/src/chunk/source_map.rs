@@ -3,14 +3,12 @@ use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::{File, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
-    chunk::ModuleIdVc,
-    code_builder::CodeVc,
     reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
     resolve::{ResolveResult, ResolveResultVc},
     source_map::GenerateSourceMap,
 };
 
-use super::{EcmascriptChunkItemVc, EcmascriptChunkVc};
+use super::{EcmascriptChunkContentEntryVc, EcmascriptChunkItemVc, EcmascriptChunkVc};
 
 /// Represents the source map of an ecmascript chunk.
 #[turbo_tasks::value]
@@ -56,18 +54,16 @@ impl Asset for EcmascriptChunkSourceMapAsset {
 #[turbo_tasks::value]
 pub struct EcmascriptChunkEntrySourceMapAsset {
     chunk_path: FileSystemPathVc,
-    id: ModuleIdVc,
-    code: CodeVc,
+    chunk_item: EcmascriptChunkItemVc,
 }
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkEntrySourceMapAssetVc {
     #[turbo_tasks::function]
-    pub fn new(chunk_path: FileSystemPathVc, id: ModuleIdVc, code: CodeVc) -> Self {
+    pub fn new(chunk_path: FileSystemPathVc, chunk_item: EcmascriptChunkItemVc) -> Self {
         EcmascriptChunkEntrySourceMapAsset {
             chunk_path,
-            id,
-            code,
+            chunk_item,
         }
         .cell()
     }
@@ -79,14 +75,20 @@ impl Asset for EcmascriptChunkEntrySourceMapAsset {
     async fn path(&self) -> Result<FileSystemPathVc> {
         // NOTE(alexkirsz) We used to asset's hash in the path, but this caused
         // `all_assets_map` to be recomputed on every change.
-        Ok(self
-            .chunk_path
-            .append(&format!(".{}.map", self.id.await?.to_truncated_hash())))
+        Ok(self.chunk_path.append(&format!(
+            ".{}.map",
+            self.chunk_item.id().await?.to_truncated_hash()
+        )))
     }
 
     #[turbo_tasks::function]
     async fn content(&self) -> Result<AssetContentVc> {
-        let sm = self.code.generate_source_map().to_bytes().await?;
+        let sm = EcmascriptChunkContentEntryVc::new(self.chunk_item)
+            .await?
+            .code_vc
+            .generate_source_map()
+            .to_bytes()
+            .await?;
         Ok(File::from(sm.as_slice()).into())
     }
 
@@ -133,16 +135,17 @@ impl AssetReference for EcmascriptChunkSourceMapAssetReference {
         );
         if self.hot_module_replacement {
             // Expose a SourceMap for each chunk item when HMR is enabled
-            for item in &self.chunk.chunk_content().await?.module_factories {
-                source_maps.push(
-                    EcmascriptChunkEntrySourceMapAsset {
-                        chunk_path: path,
-                        code: item.code_vc,
-                        id: item.chunk_item.id(),
-                    }
-                    .keyed_cell(EcmascriptChunkEntrySourceMapAssetCellKey(item.chunk_item))
-                    .into(),
-                );
+            for chunk_items_chunk in self
+                .chunk
+                .chunk_content_result()
+                .await?
+                .chunk_items
+                .await?
+                .iter()
+            {
+                for item in chunk_items_chunk.await?.iter() {
+                    source_maps.push(EcmascriptChunkEntrySourceMapAssetVc::new(path, *item).into());
+                }
             }
         }
         Ok(ResolveResult::Alternatives(source_maps, vec![]).cell())

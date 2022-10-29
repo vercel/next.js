@@ -850,6 +850,16 @@ impl ValueToString for EcmascriptChunk {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkVc {
     #[turbo_tasks::function]
+    async fn chunk_content_result(self) -> Result<EcmascriptChunkContentResultVc> {
+        let this = self.await?;
+        Ok(ecmascript_chunk_content(
+            this.context,
+            this.main_entries,
+            this.omit_entries,
+        ))
+    }
+
+    #[turbo_tasks::function]
     async fn chunk_content(self) -> Result<EcmascriptChunkContentVc> {
         let this = self.await?;
         let evaluate = this
