@@ -211,39 +211,13 @@ fn bench_hmr_internal(mut g: BenchmarkGroup<WallTime>, location: CodeLocation) {
                                     .page()
                                     .evaluate_expression("globalThis.HMR_IS_HAPPENING = true")
                                     .await?;
-
                                 Ok(guard)
                             },
-                            |mut guard| async {
-                                // Make 5 warmup changes
-                                let mut last_error = Some(anyhow!("not run yet"));
-                                let mut timeout = Duration::from_secs(1);
-                                let mut remaining = 5;
-                                while timeout < MAX_UPDATE_TIMEOUT * 2 {
-                                    match make_change(&mut guard, location, timeout).await {
-                                        Ok(_) => {
-                                            // Wait a second to allow background work to complete.
-                                            sleep(Duration::from_secs(1)).await;
-                                            last_error = None;
-                                            remaining -= 1;
-                                            if remaining == 0 {
-                                                break;
-                                            }
-                                            continue;
-                                        }
-                                        Err(err) => {
-                                            if err.to_string().contains(CHANGE_TIMEOUT_MESSAGE) {
-                                                last_error = Some(err);
-                                                timeout *= 2;
-                                                continue;
-                                            }
-                                            return Err(err);
-                                        }
-                                    }
-                                }
-
-                                if let Some(err) = last_error {
-                                    return Err(err);
+                            |mut guard| async move {
+                                // Make 5 changes to warm up.
+                                for _ in 0..5 {
+                                    let _ =
+                                        make_change(&mut guard, location, MAX_UPDATE_TIMEOUT).await;
                                 }
                                 Ok(guard)
                             },
