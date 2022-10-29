@@ -1,24 +1,18 @@
-(self.TURBOPACK = self.TURBOPACK || []).push(["output/13a8f_turbopack-tests_tests_snapshot_swc_transforms_preset_env_input_index_b0c8e6.js", {
+(self.TURBOPACK = self.TURBOPACK || []).push(["output/1cdd0_tests_snapshot_swc_transforms_mono_transforms_input_packages_app_index_cfff39.js", {
 
-"[project]/crates/turbopack-tests/tests/snapshot/swc_transforms/preset_env/input/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, __dirname }) => (() => {
+"[project]/crates/turbopack-tests/tests/snapshot/swc_transforms/mono_transforms/input/packages/app/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, __dirname }) => (() => {
 
-(()=>{
-    const e = new Error("Cannot find module '@swc/helpers/src/_class_call_check.mjs'");
-    e.code = 'MODULE_NOT_FOUND';
-    throw e;
-})();
+var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$swc_transforms$2f$mono_transforms$2f$input$2f$packages$2f$component$2f$index$2e$js__ = __turbopack_import__("[project]/crates/turbopack-tests/tests/snapshot/swc_transforms/mono_transforms/input/packages/component/index.js (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$swc_transforms$2f$mono_transforms$2f$input$2f$node_modules$2f$third_party_component$2f$index$2e$js__ = __turbopack_import__("[project]/crates/turbopack-tests/tests/snapshot/swc_transforms/mono_transforms/input/node_modules/third_party_component/index.js (ecmascript)");
 "__TURBOPACK__ecmascript__hoisting__location__";
 ;
-var Foo = function Foo() {
-    "use strict";
-    _class_call_check(this, Foo);
-};
-console.log(Foo, [].includes("foo"));
+;
+console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$swc_transforms$2f$mono_transforms$2f$input$2f$packages$2f$component$2f$index$2e$js__["default"], __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$swc_transforms$2f$mono_transforms$2f$input$2f$node_modules$2f$third_party_component$2f$index$2e$js__["default"]);
 
 })()),
 }, ({ loadedChunks, instantiateRuntimeModule }) => {
-    if(!(true && loadedChunks.has("output/13a8f_turbopack-tests_tests_snapshot_swc_transforms_preset_env_input_index_55bfde.js"))) return true;
-    instantiateRuntimeModule("[project]/crates/turbopack-tests/tests/snapshot/swc_transforms/preset_env/input/index.js (ecmascript)");
+    if(!(true && loadedChunks.has("output/1cdd0_tests_snapshot_swc_transforms_mono_transforms_input_packages_app_index_2f611b.js") && loadedChunks.has("output/bcbf2_third_party_component_index.js") && loadedChunks.has("output/1cdd0_tests_snapshot_swc_transforms_mono_transforms_input_packages_component_index.js") && loadedChunks.has("output/535ac_react_jsx-runtime.js") && loadedChunks.has("output/bcbf2_react_jsx-runtime.js"))) return true;
+    instantiateRuntimeModule("[project]/crates/turbopack-tests/tests/snapshot/swc_transforms/mono_transforms/input/packages/app/index.js (ecmascript)");
 }]);
 (() => {
   // When a chunk is executed, it will either register itself with the current
@@ -1024,4 +1018,4 @@ console.log(Foo, [].includes("foo"));
 })();
 
 
-//# sourceMappingURL=13a8f_turbopack-tests_tests_snapshot_swc_transforms_preset_env_input_index_b0c8e6.js.map
+//# sourceMappingURL=1cdd0_tests_snapshot_swc_transforms_mono_transforms_input_packages_app_index_cfff39.js.map
