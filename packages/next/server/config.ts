@@ -28,8 +28,10 @@ import { getDependencies } from '../lib/get-package-version'
 
 export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
 
-const isAboveNodejs16 = semverGte(process.version, '16.8.0')
-const isAboveNodejs18 = semverGte(process.version, '18.0.0')
+const NODE_16_VERSION = '16.8.0'
+const NODE_18_VERSION = '18.0.0'
+const isAboveNodejs16 = semverGte(process.version, NODE_16_VERSION)
+const isAboveNodejs18 = semverGte(process.version, NODE_18_VERSION)
 
 const experimentalWarning = execOnce(
   (configFileName: string, features: string[]) => {
@@ -59,7 +61,7 @@ export function setHttpClientAndAgentOptions(config: NextConfig) {
   if (isAboveNodejs16) {
     if (config.experimental?.enableUndici && isAboveNodejs18) {
       Log.warn(
-        '`enableUndici` option is unnecessary in Node.js v18.0.0 or greater.'
+        `\`enableUndici\` option is unnecessary in Node.js v${NODE_18_VERSION} or greater.`
       )
     } else {
       // When appDir is enabled undici is the default because of Response.clone() issues in node-fetch
@@ -69,7 +71,7 @@ export function setHttpClientAndAgentOptions(config: NextConfig) {
     }
   } else if (config.experimental?.enableUndici) {
     Log.warn(
-      '`enableUndici` option requires Node.js v16.8.0 or greater. Falling back to `node-fetch`'
+      `\`enableUndici\` option requires Node.js v${NODE_16_VERSION} or greater. Falling back to \`node-fetch\``
     )
   }
   if ((global as any).__NEXT_HTTP_AGENT) {
@@ -164,7 +166,7 @@ function assignDefaults(dir: string, userConfig: { [key: string]: any }) {
               !isAboveNodejs16
             ) {
               throw new Error(
-                'experimental.appDir requires Node 16.8.0 or later.'
+                `experimental.appDir requires Node v${NODE_16_VERSION} or later.`
               )
             }
             if (
