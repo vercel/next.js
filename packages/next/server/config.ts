@@ -621,8 +621,6 @@ function assignDefaults(dir: string, userConfig: { [key: string]: any }) {
     result.output = undefined
   }
 
-  // TODO: Change defaultConfig type to NextConfigComplete
-  // so we don't need "!" here.
   setHttpClientAndAgentOptions(result || defaultConfig)
 
   if (result.i18n) {
