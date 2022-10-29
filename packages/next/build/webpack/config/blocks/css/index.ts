@@ -14,6 +14,7 @@ import {
   getFontLoaderImportError,
 } from './messages'
 import { getPostCssPlugins } from './plugins'
+import { WEBPACK_LAYERS } from '../../../../../lib/constants'
 
 // RegExps for all Style Sheet variants
 export const regexLikeCss = /\.(css|scss|sass)$/
@@ -284,16 +285,10 @@ export const css = curry(async function css(
             sideEffects: false,
             // CSS Modules are activated via this specific extension.
             test: regexCssModules,
-            // CSS Modules are only supported in the user's application. We're
-            // not yet allowing CSS imports _within_ `node_modules`.
-            issuer: {
-              and: [
-                {
-                  or: [ctx.rootDirectory, regexClientEntry],
-                },
-              ],
-              not: [/node_modules/],
-            },
+            // Match CSS modules that are used by the app dir.
+            issuerLayer: (layer: string) =>
+              layer === WEBPACK_LAYERS.server ||
+              layer === WEBPACK_LAYERS.client,
             use: [
               require.resolve('../../../loaders/next-flight-css-dev-loader'),
               ...getCssModuleLoader(ctx, lazyPostCSSInitializer),
@@ -314,12 +309,10 @@ export const css = curry(async function css(
             sideEffects: false,
             // Sass Modules are activated via this specific extension.
             test: regexSassModules,
-            // Sass Modules are only supported in the user's application. We're
-            // not yet allowing Sass imports _within_ `node_modules`.
-            issuer: {
-              and: [ctx.rootDirectory],
-              not: [/node_modules/],
-            },
+            // Match CSS modules that are used by the app dir.
+            issuerLayer: (layer: string) =>
+              layer === WEBPACK_LAYERS.server ||
+              layer === WEBPACK_LAYERS.client,
             use: [
               require.resolve('../../../loaders/next-flight-css-dev-loader'),
               ...getCssModuleLoader(
@@ -344,16 +337,10 @@ export const css = curry(async function css(
             sideEffects: false,
             // CSS Modules are activated via this specific extension.
             test: regexCssModules,
-            // CSS Modules are only supported in the user's application. We're
-            // not yet allowing CSS imports _within_ `node_modules`.
-            issuer: {
-              and: [
-                {
-                  or: [ctx.rootDirectory, regexClientEntry],
-                },
-              ],
-              not: [/node_modules/],
-            },
+            // Match CSS modules that are used by the app dir.
+            issuerLayer: (layer: string) =>
+              layer === WEBPACK_LAYERS.server ||
+              layer === WEBPACK_LAYERS.client,
             use: getCssModuleLoader(ctx, lazyPostCSSInitializer),
           }),
         ],
@@ -371,12 +358,10 @@ export const css = curry(async function css(
             sideEffects: false,
             // Sass Modules are activated via this specific extension.
             test: regexSassModules,
-            // Sass Modules are only supported in the user's application. We're
-            // not yet allowing Sass imports _within_ `node_modules`.
-            issuer: {
-              and: [ctx.rootDirectory],
-              not: [/node_modules/],
-            },
+            // Match CSS modules that are used by the app dir.
+            issuerLayer: (layer: string) =>
+              layer === WEBPACK_LAYERS.server ||
+              layer === WEBPACK_LAYERS.client,
             use: getCssModuleLoader(
               ctx,
               lazyPostCSSInitializer,
