@@ -2094,6 +2094,7 @@ export default async function getBaseWebpackConfig(
               dev,
             })
           : new FlightClientEntryPlugin({
+              appDir,
               dev,
               isEdgeServer,
             })),
