@@ -7,12 +7,11 @@
 
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import { FLIGHT_MANIFEST } from '../../../shared/lib/constants'
-import { relative } from 'path'
 import { isClientComponentModule, regexCSS } from '../loaders/utils'
 
 import {
-  edgeServerModuleIds,
-  serverModuleIds,
+  edgeServerResourceToModuleIdMap,
+  serverResourceToModuleIdMap,
 } from './flight-client-entry-plugin'
 
 import { traverseModules } from '../utils'
@@ -179,16 +178,7 @@ export class FlightManifestPlugin {
         const moduleIdMapping = manifest.__ssr_module_mapping__
         const edgeModuleIdMapping = manifest.__edge_ssr_module_mapping__
 
-        // Note that this isn't that reliable as webpack is still possible to assign
-        // additional queries to make sure there's no conflict even using the `named`
-        // module ID strategy.
-        let ssrNamedModuleId = relative(
-          context,
-          mod.resourceResolveData?.path || resource
-        )
-
-        if (!ssrNamedModuleId.startsWith('.'))
-          ssrNamedModuleId = `./${ssrNamedModuleId.replace(/\\/g, '/')}`
+        const modResource = mod.resourceResolveData?.path || resource
 
         if (isCSSModule) {
           if (!manifest[resource]) {
@@ -281,19 +271,19 @@ export class FlightManifestPlugin {
             }
           }
 
-          if (serverModuleIds.has(ssrNamedModuleId)) {
+          if (serverResourceToModuleIdMap.has(modResource)) {
             moduleIdMapping[id] = moduleIdMapping[id] || {}
             moduleIdMapping[id][name] = {
               ...moduleExports[name],
-              id: serverModuleIds.get(ssrNamedModuleId)!,
+              id: serverResourceToModuleIdMap.get(modResource)!,
             }
           }
 
-          if (edgeServerModuleIds.has(ssrNamedModuleId)) {
+          if (edgeServerResourceToModuleIdMap.has(modResource)) {
             edgeModuleIdMapping[id] = edgeModuleIdMapping[id] || {}
             edgeModuleIdMapping[id][name] = {
               ...moduleExports[name],
-              id: edgeServerModuleIds.get(ssrNamedModuleId)!,
+              id: edgeServerResourceToModuleIdMap.get(modResource)!,
             }
           }
         })

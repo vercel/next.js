@@ -33,8 +33,11 @@ const PLUGIN_NAME = 'ClientEntryPlugin'
 
 export const injectedClientEntries = new Map()
 
-export const serverModuleIds = new Map<string, string | number>()
-export const edgeServerModuleIds = new Map<string, string | number>()
+export const serverResourceToModuleIdMap = new Map<string, string | number>()
+export const edgeServerResourceToModuleIdMap = new Map<
+  string,
+  string | number
+>()
 
 // TODO-APP: move CSS manifest generation to the flight manifest plugin.
 const flightCSSManifest: FlightCSSManifest = {}
@@ -90,22 +93,14 @@ export class FlightClientEntryPlugin {
         }
 
         if (typeof modId !== 'undefined' && modResource) {
-          // Note that this isn't that reliable as webpack is still possible to assign
-          // additional queries to make sure there's no conflict even using the `named`
-          // module ID strategy.
-          let ssrNamedModuleId = path.relative(compiler.context, modResource)
-          if (!ssrNamedModuleId.startsWith('.')) {
-            // TODO use getModuleId instead
-            ssrNamedModuleId = `./${ssrNamedModuleId.replace(/\\/g, '/')}`
-          }
-
           if (this.isEdgeServer) {
-            edgeServerModuleIds.set(
-              ssrNamedModuleId.replace(/\/next\/dist\/esm\//, '/next/dist/'),
+            edgeServerResourceToModuleIdMap.set(
+              // Remove the "esm" path from the resource. Works for both Posix and Windows.
+              modResource.replace(/([/\\]next[/\\]dist[/\\])esm[/\\]/, '$1'),
               modId
             )
           } else {
-            serverModuleIds.set(ssrNamedModuleId, modId)
+            serverResourceToModuleIdMap.set(modResource, modId)
           }
         }
       }
