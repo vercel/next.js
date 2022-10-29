@@ -4,6 +4,8 @@ description: Get started with Next.js in the official documentation, and learn m
 
 # Getting Started
 
+** Next.js 13 is the latest version of Next.js. For Next.js 13 beta docs please visit [Next.js 13 docs](https://beta.nextjs.org/docs#). **
+
 Welcome to the Next.js documentation!
 
 If you're new to Next.js, we recommend starting with the [learn course](https://nextjs.org/learn/basics/create-nextjs-app).
