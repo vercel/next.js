@@ -4,8 +4,11 @@ import { NextInstance } from 'test/lib/next-modes/base'
 import {
   check,
   fetchViaHTTP,
+  findPort,
   getRedboxHeader,
   hasRedbox,
+  initNextServerScript,
+  killApp,
   renderViaHTTP,
   waitFor,
 } from 'next-test-utils'
@@ -16,9 +19,13 @@ import webdriver from 'next-webdriver'
 describe('app dir', () => {
   const isDev = (global as any).isNextDev
   let next: NextInstance
+  let apiServerPort: number
+  let apiInstance: any
 
   function runTests() {
     beforeAll(async () => {
+      apiServerPort = await findPort()
+
       next = await createNext({
         files: new FileRef(path.join(__dirname, 'app')),
         dependencies: {
@@ -27,12 +34,26 @@ describe('app dir', () => {
           'react-dom': 'latest',
           sass: 'latest',
         },
+        env: {
+          API_SERVER_PORT: apiServerPort.toString(),
+        },
         skipStart: true,
       })
 
+      apiInstance = await initNextServerScript(
+        path.join(__dirname, 'app', 'api-server.js'),
+        /Listening on/,
+        { ...process.env, PORT: apiServerPort },
+        undefined,
+        { cwd: next.testDir }
+      )
+
       await next.start()
     })
-    afterAll(() => next.destroy())
+    afterAll(() => {
+      next.destroy()
+      killApp(apiInstance)
+    })
 
     if (!(global as any).isNextDeploy) {
       it('should not share edge workers', async () => {
@@ -2190,7 +2211,6 @@ describe('app dir', () => {
     describe('data fetch with response over 16KB with chunked encoding', () => {
       it('should load page when fetching a large amount of data', async () => {
         const browser = await webdriver(next.url, '/very-large-data-fetch')
-        await new Promise(() => {})
         expect(
           await (await browser.waitForElementByCss('#done', 5000)).text()
         ).toBe('Hello world')
