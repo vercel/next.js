@@ -128,7 +128,8 @@ import { setCookie } from '../../utils/cookies'
 
 const handler = (req: NextApiRequest, res: NextApiResponse) => {
   // Calling our pure function using the `res` object, it will add the `set-cookie` header
-  setCookie(res, 'Next.js', 'api-middleware!')
+  // The path option here sets the cookie on the main domain and maxAge option sets the cookie to expire after 30 days
+  setCookie(res, 'Next.js', 'api-middleware!', { path: '/', maxAge: 2419200 })
   // Return the `set-cookie` header so we can display it in the browser and show that it works!
   res.end(res.getHeader('Set-Cookie'))
 }
