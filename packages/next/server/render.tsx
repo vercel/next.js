@@ -411,30 +411,6 @@ export async function renderToHTML(
   // next internal queries should be stripped out
   stripInternalQueries(query)
 
-  const callMiddleware = async (method: string, args: any[], props = false) => {
-    let results: any = props ? {} : []
-
-    if ((Document as any)[`${method}Middleware`]) {
-      let middlewareFunc = await (Document as any)[`${method}Middleware`]
-      middlewareFunc = middlewareFunc.default || middlewareFunc
-
-      const curResults = await middlewareFunc(...args)
-      if (props) {
-        for (const result of curResults) {
-          results = {
-            ...results,
-            ...result,
-          }
-        }
-      } else {
-        results = curResults
-      }
-    }
-    return results
-  }
-
-  const headTags = (...args: any) => callMiddleware('headTags', args)
-
   const isSSG = !!getStaticProps
   const isBuildTimeSSG = isSSG && renderOpts.nextExport
   const defaultAppGetInitialProps =
