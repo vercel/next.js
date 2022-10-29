@@ -1,16 +1,17 @@
-import { stringify } from 'querystring'
-import path from 'path'
-import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
-import {
-  getInvalidator,
-  entries,
-  EntryTypes,
-} from '../../../server/dev/on-demand-entry-handler'
 import type {
   CssImports,
   ClientComponentImports,
   NextFlightClientEntryLoaderOptions,
 } from '../loaders/next-flight-client-entry-loader'
+import { webpack } from 'next/dist/compiled/webpack/webpack'
+import { stringify } from 'querystring'
+import path from 'path'
+import { sources } from 'next/dist/compiled/webpack/webpack'
+import {
+  getInvalidator,
+  entries,
+  EntryTypes,
+} from '../../../server/dev/on-demand-entry-handler'
 import { APP_DIR_ALIAS, WEBPACK_LAYERS } from '../../../lib/constants'
 import {
   APP_CLIENT_INTERNALS,
@@ -52,12 +53,12 @@ export class FlightClientEntryPlugin {
       PLUGIN_NAME,
       (compilation, { normalModuleFactory }) => {
         compilation.dependencyFactories.set(
-          (webpack as any).dependencies.ModuleDependency,
+          webpack.dependencies.ModuleDependency,
           normalModuleFactory
         )
         compilation.dependencyTemplates.set(
-          (webpack as any).dependencies.ModuleDependency,
-          new (webpack as any).dependencies.NullDependency.Template()
+          webpack.dependencies.ModuleDependency,
+          new webpack.dependencies.NullDependency.Template()
         )
       }
     )
@@ -464,8 +465,8 @@ export class FlightClientEntryPlugin {
     clientComponentImports,
     bundlePath,
   }: {
-    compiler: any
-    compilation: any
+    compiler: webpack.Compiler
+    compilation: webpack.Compilation
     entryName: string
     clientComponentImports: ClientComponentImports
     bundlePath: string
@@ -524,11 +525,12 @@ export class FlightClientEntryPlugin {
     }
 
     // Inject the entry to the server compiler (__sc_client__).
-    const clientComponentEntryDep = (
-      webpack as any
-    ).EntryPlugin.createDependency(clientSSRLoader, {
-      name: bundlePath,
-    })
+    const clientComponentEntryDep = webpack.EntryPlugin.createDependency(
+      clientSSRLoader,
+      {
+        name: bundlePath,
+      }
+    )
 
     // Add the dependency to the server compiler.
     await this.addEntry(
@@ -552,8 +554,8 @@ export class FlightClientEntryPlugin {
   addEntry(
     compilation: any,
     context: string,
-    dependency: any /* Dependency */,
-    options: any /* EntryOptions */
+    dependency: webpack.Dependency,
+    options: webpack.EntryOptions
   ): Promise<any> /* Promise<module> */ {
     return new Promise((resolve, reject) => {
       const entry = compilation.entries.get(options.name)
