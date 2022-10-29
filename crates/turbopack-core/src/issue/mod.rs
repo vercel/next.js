@@ -2,6 +2,7 @@ pub mod analyze;
 pub mod code_gen;
 pub mod package_json;
 pub mod resolve;
+pub mod unsupported_module;
 
 use std::{cmp::Ordering, collections::HashSet, fmt::Display, future::IntoFuture, sync::Arc};
 

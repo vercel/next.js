@@ -20,6 +20,7 @@ use ecmascript::{
     EcmascriptModuleAssetVc,
 };
 use graph::{aggregate, AggregatedGraphNodeContent, AggregatedGraphVc};
+use lazy_static::lazy_static;
 use module_options::{
     ModuleOptionsContextVc, ModuleOptionsVc, ModuleRuleEffect, ModuleType, ModuleTypeVc,
 };
@@ -33,11 +34,14 @@ use turbopack_core::{
     asset::AssetVc,
     context::{AssetContext, AssetContextVc},
     environment::EnvironmentVc,
-    issue::{Issue, IssueVc},
+    issue::{unsupported_module::UnsupportedModuleIssue, Issue, IssueVc},
     reference::all_referenced_assets,
     resolve::{
-        options::ResolveOptionsVc, origin::PlainResolveOriginVc, parse::RequestVc, resolve,
-        ResolveResultVc,
+        options::ResolveOptionsVc,
+        origin::PlainResolveOriginVc,
+        parse::{Request, RequestVc},
+        pattern::Pattern,
+        resolve, ResolveResultVc,
     },
 };
 
@@ -57,6 +61,13 @@ use self::{
     resolve_options_context::ResolveOptionsContextVc,
     transition::{TransitionVc, TransitionsByNameVc},
 };
+
+lazy_static! {
+    static ref UNSUPPORTED_PACKAGES: HashSet<String> =
+        ["@vercel/og".to_owned(), "@next/font".to_owned()].into();
+    static ref UNSUPPORTED_PACKAGE_PATHS: HashSet<(String, String)> =
+        [("next".to_owned(), "/head".to_owned())].into();
+}
 
 #[turbo_tasks::value]
 struct ModuleIssue {
@@ -292,6 +303,8 @@ impl AssetContext for ModuleAssetContext {
         request: RequestVc,
         resolve_options: ResolveOptionsVc,
     ) -> Result<ResolveResultVc> {
+        warn_on_unsupported_modules(request, origin_path).await?;
+
         let context_path = origin_path.parent().resolve().await?;
 
         let result = resolve(context_path, request, resolve_options);
@@ -517,6 +530,40 @@ async fn print_references(list: ReferencesListVc) -> Result<()> {
             references.len()
         );
     }
+    Ok(())
+}
+
+async fn warn_on_unsupported_modules(
+    request: RequestVc,
+    origin_path: FileSystemPathVc,
+) -> Result<()> {
+    if let Request::Module { module, path } = &*request.await? {
+        // Warn if the package is known not to be supported by Turbopack at the moment.
+        if UNSUPPORTED_PACKAGES.contains(module) {
+            UnsupportedModuleIssue {
+                context: origin_path,
+                package: module.into(),
+                package_path: None,
+            }
+            .cell()
+            .as_issue()
+            .emit();
+        }
+
+        if let Pattern::Constant(path) = path {
+            if UNSUPPORTED_PACKAGE_PATHS.contains(&(module.to_string(), path.to_owned())) {
+                UnsupportedModuleIssue {
+                    context: origin_path,
+                    package: module.into(),
+                    package_path: Some(path.to_owned()),
+                }
+                .cell()
+                .as_issue()
+                .emit();
+            }
+        }
+    }
+
     Ok(())
 }
 
