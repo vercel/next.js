@@ -1271,11 +1271,7 @@ export async function renderToHTML(
 
     const { docProps } = (documentInitialPropsRes as any) || {}
     const documentElement = (htmlProps: any) => {
-      if (process.env.NEXT_RUNTIME === 'edge') {
-        return (Document as any)()
-      } else {
-        return <Document {...htmlProps} {...docProps} />
-      }
+      return <Document {...htmlProps} {...docProps} />
     }
 
     let styles
