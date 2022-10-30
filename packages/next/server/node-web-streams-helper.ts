@@ -157,7 +157,7 @@ export function createHeadInjectionTransformStream(
     async transform(chunk, controller) {
       const content = decodeText(chunk)
       let index
-      if (!injected && (index = content.indexOf('</head')) !== -1) {
+      if (!injected && (index = content.indexOf('</head>')) !== -1) {
         injected = true
         const injectedContent =
           content.slice(0, index) + (await inject()) + content.slice(index)
