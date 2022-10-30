@@ -969,19 +969,13 @@ export default function Image({
     }
   }
 
-  let imageSrcSetPropName = 'imagesrcset'
-  let imageSizesPropName = 'imagesizes'
-  if (process.env.__NEXT_REACT_ROOT) {
-    imageSrcSetPropName = 'imageSrcSet'
-    imageSizesPropName = 'imageSizes'
-  }
   const linkProps: React.DetailedHTMLProps<
     React.LinkHTMLAttributes<HTMLLinkElement>,
     HTMLLinkElement
   > = {
-    // Note: imagesrcset and imagesizes are not in the link element type with react 17.
-    [imageSrcSetPropName]: imgAttributes.srcSet,
-    [imageSizesPropName]: imgAttributes.sizes,
+    // @ts-expect-error upgrade react types to react 18
+    imageSrcSet: imgAttributes.srcSet,
+    imageSizes: imgAttributes.sizes,
     crossOrigin: rest.crossOrigin,
   }
 

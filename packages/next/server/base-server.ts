@@ -1150,10 +1150,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       const isBotRequest = isBot(req.headers['user-agent'] || '')
       const isSupportedDocument =
         typeof components.Document?.getInitialProps !== 'function' ||
-        // When concurrent features is enabled, the built-in `Document`
-        // component also supports dynamic HTML.
-        (!!process.env.__NEXT_REACT_ROOT &&
-          NEXT_BUILTIN_DOCUMENT in components.Document)
+        // The built-in `Document` component also supports dynamic HTML for concurrent mode.
+        NEXT_BUILTIN_DOCUMENT in components.Document
 
       // Disable dynamic HTML in cases that we know it won't be generated,
       // so that we can continue generating a cache key when possible.
