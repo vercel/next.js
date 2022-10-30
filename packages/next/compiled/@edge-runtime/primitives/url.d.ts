@@ -48,8 +48,8 @@ interface URLPatternComponentResult {
   };
 }
 
-declare const URLPatternConstructor: typeof URLPattern
-declare const URLConstructor: typeof URL
-declare const URLSearchParamsConstructor: typeof URLSearchParams
+declare const _URL: typeof URL
+declare const _URLSearchParams: typeof URLSearchParams
+declare class _URLPattern extends URLPattern {}
 
-export { URLConstructor as URL, URLPatternConstructor as URLPattern, URLSearchParamsConstructor as URLSearchParams };
+export { _URL as URL, _URLPattern as URLPattern, _URLSearchParams as URLSearchParams };

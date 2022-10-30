@@ -122,7 +122,7 @@ export async function downloadAndExtractExample(root: string, name: string) {
     file: tempFile,
     cwd: root,
     strip: 3,
-    filter: (p) => p.includes(`next.js-canary/examples/${name}`),
+    filter: (p) => p.includes(`next.js-canary/examples/${name}/`),
   })
 
   await fs.unlink(tempFile)

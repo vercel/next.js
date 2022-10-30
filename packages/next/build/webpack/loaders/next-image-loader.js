@@ -17,7 +17,6 @@ function nextImageLoader(content) {
       opts
     )
     const outputPath = assetPrefix + '/_next' + interpolatedName
-
     let extension = loaderUtils.interpolateName(this, '[ext]', opts)
     if (extension === 'jpg') {
       extension = 'jpeg'
@@ -25,8 +24,15 @@ function nextImageLoader(content) {
 
     const imageSizeSpan = imageLoaderSpan.traceChild('image-size-calculation')
     const imageSize = await imageSizeSpan.traceAsyncFn(() =>
-      getImageSize(content, extension)
+      getImageSize(content, extension).catch((err) => err)
     )
+
+    if (imageSize instanceof Error) {
+      const err = imageSize
+      err.name = 'InvalidImageFormatError'
+      throw err
+    }
+
     let blurDataURL
     let blurWidth
     let blurHeight
@@ -35,12 +41,14 @@ function nextImageLoader(content) {
       // Shrink the image's largest dimension
       if (imageSize.width >= imageSize.height) {
         blurWidth = BLUR_IMG_SIZE
-        blurHeight = Math.round(
-          (imageSize.height / imageSize.width) * BLUR_IMG_SIZE
+        blurHeight = Math.max(
+          Math.round((imageSize.height / imageSize.width) * BLUR_IMG_SIZE),
+          1
         )
       } else {
-        blurWidth = Math.round(
-          (imageSize.width / imageSize.height) * BLUR_IMG_SIZE
+        blurWidth = Math.max(
+          Math.round((imageSize.width / imageSize.height) * BLUR_IMG_SIZE),
+          1
         )
         blurHeight = BLUR_IMG_SIZE
       }

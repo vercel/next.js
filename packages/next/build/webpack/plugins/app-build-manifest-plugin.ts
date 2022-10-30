@@ -31,12 +31,12 @@ export class AppBuildManifestPlugin {
       PLUGIN_NAME,
       (compilation: any, { normalModuleFactory }: any) => {
         compilation.dependencyFactories.set(
-          (webpack as any).dependencies.ModuleDependency,
+          webpack.dependencies.ModuleDependency,
           normalModuleFactory
         )
         compilation.dependencyTemplates.set(
-          (webpack as any).dependencies.ModuleDependency,
-          new (webpack as any).dependencies.NullDependency.Template()
+          webpack.dependencies.ModuleDependency,
+          new webpack.dependencies.NullDependency.Template()
         )
       }
     )
@@ -45,7 +45,6 @@ export class AppBuildManifestPlugin {
       compilation.hooks.processAssets.tap(
         {
           name: PLUGIN_NAME,
-          // @ts-ignore TODO: Remove ignore when webpack 5 is stable
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
         },
         (assets: any) => this.createAsset(assets, compilation)

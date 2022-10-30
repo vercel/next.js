@@ -1,3 +1,6 @@
+'use client'
+
+import ReactDOM from 'react-dom'
 import React, { useEffect, useContext, useRef } from 'react'
 import { ScriptHTMLAttributes } from 'react'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
@@ -52,7 +55,8 @@ const loadScript = (props: ScriptProps): void => {
   // Contents of this script are already loading/loaded
   if (ScriptCache.has(src)) {
     LoadCache.add(cacheKey)
-    // Execute onLoad since the script loading has begun
+    // It is possible that multiple `next/script` components all have same "src", but has different "onLoad"
+    // This is to make sure the same remote script will only load once, but "onLoad" are executed in order
     ScriptCache.get(src).then(onLoad, onError)
     return
   }
@@ -174,7 +178,8 @@ function Script(props: ScriptProps): JSX.Element | null {
   } = props
 
   // Context is available only during SSR
-  const { updateScripts, scripts, getIsSsr } = useContext(HeadManagerContext)
+  const { updateScripts, scripts, getIsSsr, appDir, nonce } =
+    useContext(HeadManagerContext)
 
   /**
    * - First mount:
@@ -182,12 +187,13 @@ function Script(props: ScriptProps): JSX.Element | null {
    *   2. hasOnReadyEffectCalled.current is false, but the script hasn't loaded yet (not in LoadCache)
    *      onReady is skipped, set hasOnReadyEffectCalled.current to true
    *   3. The useEffect for loadScript executes
-   *      Once the script is loaded, the onReady will be called by then
+   *   4. hasLoadScriptEffectCalled.current is false, loadScript executes
+   *      Once the script is loaded, the onLoad and onReady will be called by then
    *   [If strict mode is enabled / is wrapped in <OffScreen /> component]
    *   5. The useEffect for onReady executes again
    *   6. hasOnReadyEffectCalled.current is true, so entire effect is skipped
    *   7. The useEffect for loadScript executes again
-   *   8. The script is already loaded/loading, loadScript bails out
+   *   8. hasLoadScriptEffectCalled.current is true, so entire effect is skipped
    *
    * - Second mount:
    *   1. The useEffect for onReady executes
@@ -199,7 +205,7 @@ function Script(props: ScriptProps): JSX.Element | null {
    *   5. The useEffect for onReady executes again
    *   6. hasOnReadyEffectCalled.current is true, so entire effect is skipped
    *   7. The useEffect for loadScript executes again
-   *   8. The script is already loaded, loadScript will bail out
+   *   8. hasLoadScriptEffectCalled.current is true, so entire effect is skipped
    */
   const hasOnReadyEffectCalled = useRef(false)
 
@@ -215,11 +221,17 @@ function Script(props: ScriptProps): JSX.Element | null {
     }
   }, [onReady, id, src])
 
+  const hasLoadScriptEffectCalled = useRef(false)
+
   useEffect(() => {
-    if (strategy === 'afterInteractive') {
-      loadScript(props)
-    } else if (strategy === 'lazyOnload') {
-      loadLazyScript(props)
+    if (!hasLoadScriptEffectCalled.current) {
+      if (strategy === 'afterInteractive') {
+        loadScript(props)
+      } else if (strategy === 'lazyOnload') {
+        loadLazyScript(props)
+      }
+
+      hasLoadScriptEffectCalled.current = true
     }
   }, [props, strategy])
 
@@ -241,6 +253,61 @@ function Script(props: ScriptProps): JSX.Element | null {
       LoadCache.add(id || src)
     } else if (getIsSsr && !getIsSsr()) {
       loadScript(props)
+    }
+  }
+
+  // For the app directory, we need React Float to preload these scripts.
+  if (appDir) {
+    // Before interactive scripts need to be loaded by Next.js' runtime instead
+    // of native <script> tags, because they no longer have `defer`.
+    if (strategy === 'beforeInteractive') {
+      if (!src) {
+        // For inlined scripts, we put the content in `children`.
+        if (restProps.dangerouslySetInnerHTML) {
+          restProps.children = restProps.dangerouslySetInnerHTML.__html
+          delete restProps.dangerouslySetInnerHTML
+        }
+
+        return (
+          <script
+            nonce={nonce}
+            dangerouslySetInnerHTML={{
+              __html: `(self.__next_s=self.__next_s||[]).push(${JSON.stringify([
+                0,
+                { ...restProps },
+              ])})`,
+            }}
+          />
+        )
+      }
+
+      // @ts-ignore
+      ReactDOM.preload(
+        src,
+        restProps.integrity
+          ? { as: 'script', integrity: restProps.integrity }
+          : { as: 'script' }
+      )
+      return (
+        <script
+          nonce={nonce}
+          dangerouslySetInnerHTML={{
+            __html: `(self.__next_s=self.__next_s||[]).push(${JSON.stringify([
+              src,
+            ])})`,
+          }}
+        />
+      )
+    } else if (strategy === 'afterInteractive') {
+      if (src) {
+        // @ts-ignore
+        ReactDOM.preload(
+          src,
+          restProps.integrity
+            ? { as: 'script', integrity: restProps.integrity }
+            : { as: 'script' }
+        )
+      }
     }
   }
 

@@ -33,25 +33,6 @@ describe('Cleaning distDir', () => {
     runTests()
   })
 
-  describe('serverless mode', () => {
-    beforeAll(async () => {
-      nextConfigContent = await fs.readFile(nextConfig, 'utf8')
-      await fs.writeFile(
-        nextConfig,
-        `
-        module.exports = {
-          target: 'serverless'
-        }
-      `
-      )
-    })
-    afterAll(async () => {
-      await fs.writeFile(nextConfig, nextConfigContent)
-    })
-
-    runTests()
-  })
-
   describe('disabled write', () => {
     beforeAll(async () => {
       nextConfigContent = await fs.readFile(nextConfig, 'utf8')

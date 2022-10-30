@@ -2,11 +2,8 @@ import { codeFrameColumns } from '@babel/code-frame'
 import { constants as FS, promises as fs } from 'fs'
 import { IncomingMessage, ServerResponse } from 'http'
 import path from 'path'
-import {
-  NullableMappedPosition,
-  RawSourceMap,
-  SourceMapConsumer,
-} from 'source-map'
+import type { NullableMappedPosition, RawSourceMap } from 'source-map'
+import { SourceMapConsumer } from 'source-map'
 import { StackFrame } from 'stacktrace-parser'
 import url from 'url'
 // @ts-ignore

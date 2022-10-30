@@ -10,7 +10,7 @@ type PackageJsonDependencies = {
 
 let cachedDeps: Promise<PackageJsonDependencies>
 
-function getDependencies({
+export function getDependencies({
   cwd,
 }: {
   cwd: string

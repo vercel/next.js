@@ -1,5 +1,3 @@
-import type { NextParsedUrlQuery } from './request-meta'
-import React from 'react'
 import { BLOCKED_PAGES } from '../shared/lib/constants'
 
 export function isBlockedPage(pathname: string): boolean {
@@ -16,25 +14,3 @@ export function cleanAmpPath(pathname: string): string {
   pathname = pathname.replace(/\?$/, '')
   return pathname
 }
-
-export function isTargetLikeServerless(target: string) {
-  const isServerless = target === 'serverless'
-  const isServerlessTrace = target === 'experimental-serverless-trace'
-  return isServerless || isServerlessTrace
-}
-
-export function stripInternalQueries(query: NextParsedUrlQuery) {
-  delete query.__nextFallback
-  delete query.__nextLocale
-  delete query.__nextDefaultLocale
-  delete query.__nextIsNotFound
-
-  // RSC
-  delete query.__flight__
-  delete query.__props__
-  // routing
-  delete query.__flight_router_state_tree__
-}
-
-// When react version is >= 18 opt-in using reactRoot
-export const shouldUseReactRoot = parseInt(React.version) >= 18

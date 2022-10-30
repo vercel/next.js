@@ -13,6 +13,7 @@ export const PAGES_DIR_ALIAS = 'private-next-pages'
 export const DOT_NEXT_ALIAS = 'private-dot-next'
 export const ROOT_DIR_ALIAS = 'private-next-root-dir'
 export const APP_DIR_ALIAS = 'private-next-app-dir'
+export const RSC_MOD_REF_PROXY_ALIAS = 'private-next-rsc-mod-ref-proxy'
 
 export const PUBLIC_DIR_MIDDLEWARE_CONFLICT = `You can not have a '_next' folder inside of your public folder. This conflicts with the internal '/_next' route. https://nextjs.org/docs/messages/public-next-folder-conflict`
 
@@ -69,10 +70,10 @@ export const SERVER_RUNTIME: Record<string, ServerRuntime> = {
 }
 
 export const WEBPACK_LAYERS = {
+  shared: 'sc_shared',
   server: 'sc_server',
   client: 'sc_client',
   api: 'api',
-  rscShared: 'rsc_shared_deps',
   middleware: 'middleware',
   edgeAsset: 'edge-asset',
 }

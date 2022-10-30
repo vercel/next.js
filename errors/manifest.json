@@ -347,6 +347,10 @@
           "path": "/errors/next-image-unconfigured-host.md"
         },
         {
+          "title": "next-image-upgrade-to-13",
+          "path": "/errors/next-image-upgrade-to-13.md"
+        },
+        {
           "title": "next-script-for-ga",
           "path": "/errors/next-script-for-ga.md"
         },
@@ -695,6 +699,10 @@
           "path": "/errors/nested-styled-jsx-tags.md"
         },
         {
+          "title": "invalid-new-link-with-extra-anchor",
+          "path": "/errors/invalid-new-link-with-extra-anchor.md"
+        },
+        {
           "title": "returning-response-body-in-middleware",
           "path": "/errors/returning-response-body-in-middleware.md"
         },
@@ -737,6 +745,14 @@
         {
           "title": "nonce-contained-invalid-characters",
           "path": "/errors/nonce-contained-invalid-characters.md"
+        },
+        {
+          "title": "babel-font-loader-conflict",
+          "path": "/errors/babel-font-loader-conflict.md"
+        },
+        {
+          "title": "google-fonts-missing-subsets",
+          "path": "/errors/google-fonts-missing-subsets.md"
         }
       ]
     }

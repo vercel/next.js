@@ -1,4 +1,4 @@
-import { createServer } from '@graphql-yoga/node'
+import { createYoga, createSchema } from 'graphql-yoga'
 
 const typeDefs = /* GraphQL */ `
   type Query {
@@ -17,13 +17,13 @@ const resolvers = {
   },
 }
 
-const server = createServer({
-  schema: {
-    typeDefs,
-    resolvers,
-  },
-  endpoint: '/api/graphql',
-  // graphiql: false // uncomment to disable GraphiQL
+const schema = createSchema({
+  typeDefs,
+  resolvers,
 })
 
-export default server
+export default createYoga({
+  schema,
+  // Needed to be defined explicitly because our endpoint lives at a different path other than `/graphql`
+  graphqlEndpoint: '/api/graphql',
+})

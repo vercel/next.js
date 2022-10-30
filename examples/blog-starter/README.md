@@ -36,6 +36,7 @@ Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_mediu
 - [Umbraco Heartcore](/examples/cms-umbraco-heartcore)
 - [Builder.io](/examples/cms-builder-io)
 - [TinaCMS](/examples/cms-tina/)
+- [Enterspeed](/examples/cms-enterspeed)
 
 ## How to use
 

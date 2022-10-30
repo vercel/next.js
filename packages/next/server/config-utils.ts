@@ -12,7 +12,7 @@ export function loadWebpackHook() {
 
   // hook the Node.js require so that webpack requires are
   // routed to the bundled and now initialized webpack version
-  require('../build/webpack/require-hook').default(
+  require('../build/webpack/require-hook').loadRequireHook(
     [
       ['webpack', 'next/dist/compiled/webpack/webpack-lib'],
       ['webpack/package', 'next/dist/compiled/webpack/package'],
@@ -139,6 +139,7 @@ export function loadWebpackHook() {
         'next/dist/compiled/@babel/runtime/package.json',
       ],
       ['node-fetch', 'next/dist/compiled/node-fetch'],
+      ['undici', 'next/dist/compiled/undici'],
     ].map(
       // Use dynamic require.resolve to avoid statically analyzable since they're only for build time
       ([request, replacement]) => [request, require.resolve(replacement)]

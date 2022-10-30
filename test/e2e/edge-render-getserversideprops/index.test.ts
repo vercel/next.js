@@ -8,11 +8,6 @@ import escapeStringRegexp from 'escape-string-regexp'
 describe('edge-render-getserversideprops', () => {
   let next: NextInstance
 
-  if (process.env.NEXT_TEST_REACT_VERSION === '^17') {
-    it('should skip for react v17', () => {})
-    return
-  }
-
   beforeAll(async () => {
     next = await createNext({
       files: new FileRef(join(__dirname, 'app')),
@@ -28,6 +23,7 @@ describe('edge-render-getserversideprops', () => {
     const props = JSON.parse($('#props').text())
     expect(props.query).toEqual({})
     expect(props.params).toBe(null)
+    expect(props.url).toBe('/')
   })
 
   it('should have correct query/params on /[id]', async () => {
@@ -37,6 +33,31 @@ describe('edge-render-getserversideprops', () => {
     const props = JSON.parse($('#props').text())
     expect(props.query).toEqual({ id: '123', hello: 'world' })
     expect(props.params).toEqual({ id: '123' })
+    expect(props.url).toBe('/123?hello=world')
+  })
+
+  it('should have correct query/params on rewrite', async () => {
+    const html = await renderViaHTTP(next.url, '/rewrite-me', {
+      hello: 'world',
+    })
+    const $ = cheerio.load(html)
+    expect($('#page').text()).toBe('/index')
+    const props = JSON.parse($('#props').text())
+    expect(props.query).toEqual({ hello: 'world' })
+    expect(props.params).toEqual(null)
+    expect(props.url).toBe('/rewrite-me?hello=world')
+  })
+
+  it('should have correct query/params on dynamic rewrite', async () => {
+    const html = await renderViaHTTP(next.url, '/rewrite-me-dynamic', {
+      hello: 'world',
+    })
+    const $ = cheerio.load(html)
+    expect($('#page').text()).toBe('/[id]')
+    const props = JSON.parse($('#props').text())
+    expect(props.query).toEqual({ id: 'first', hello: 'world' })
+    expect(props.params).toEqual({ id: 'first' })
+    expect(props.url).toBe('/rewrite-me-dynamic?hello=world')
   })
 
   it('should respond to _next/data for index correctly', async () => {

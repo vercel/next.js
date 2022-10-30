@@ -5,8 +5,8 @@ export default function Page(props) {
     <div>
       <p id="another-middleware">This should also run the middleware</p>
       <p id="props">{JSON.stringify(props)}</p>
-      <Link href="/">
-        <a id="to-index">to /</a>
+      <Link href="/" id="to-index">
+        to /
       </Link>
       <br />
     </div>

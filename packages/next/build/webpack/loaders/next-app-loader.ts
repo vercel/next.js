@@ -1,13 +1,20 @@
 import type webpack from 'webpack'
+import chalk from 'next/dist/compiled/chalk'
 import type { ValueOf } from '../../../shared/lib/constants'
 import { NODE_RESOLVE_OPTIONS } from '../../webpack-config'
 import { getModuleBuildInfo } from './get-module-build-info'
+import { sep } from 'path'
+import { verifyRootLayout } from '../../../lib/verifyRootLayout'
+import * as Log from '../../../build/output/log'
+import { APP_DIR_ALIAS } from '../../../lib/constants'
 
 export const FILE_TYPES = {
   layout: 'layout',
   template: 'template',
   error: 'error',
   loading: 'loading',
+  head: 'head',
+  'not-found': 'not-found',
 } as const
 
 // TODO-APP: check if this can be narrowed.
@@ -32,6 +39,8 @@ async function createTreeCodeFromPath({
 }) {
   const splittedPath = pagePath.split(/[\\/]/)
   const appDirPrefix = splittedPath[0]
+  const pages: string[] = []
+  let rootLayout: string | undefined
 
   async function createSubtreePropsFromSegmentPath(
     segments: string[]
@@ -55,6 +64,8 @@ async function createTreeCodeFromPath({
       if (parallelSegment === 'page') {
         const matchedPagePath = `${appDirPrefix}${parallelSegmentPath}`
         const resolvedPagePath = await resolve(matchedPagePath)
+        if (resolvedPagePath) pages.push(resolvedPagePath)
+
         // Use '' for segment as it's the page. There can't be a segment called '' so this is the safest way to add it.
         props[parallelKey] = `['', {}, {layoutOrPagePath: ${JSON.stringify(
           resolvedPagePath
@@ -77,6 +88,12 @@ async function createTreeCodeFromPath({
         })
       )
 
+      if (!rootLayout) {
+        rootLayout = filePaths.find(
+          ([type, path]) => type === 'layout' && !!path
+        )?.[1]
+      }
+
       props[parallelKey] = `[
         '${parallelSegment}',
         ${subtree},
@@ -89,9 +106,9 @@ async function createTreeCodeFromPath({
               }
               return `${
                 file === FILE_TYPES.layout
-                  ? `layoutOrPagePath: '${filePath}',`
+                  ? `layoutOrPagePath: ${JSON.stringify(filePath)},`
                   : ''
-              }${file}: () => require(${JSON.stringify(filePath)}),`
+              }'${file}': () => require(${JSON.stringify(filePath)}),`
             })
             .join('\n')}
         }
@@ -106,11 +123,16 @@ async function createTreeCodeFromPath({
   }
 
   const tree = await createSubtreePropsFromSegmentPath([])
-  return `const tree = ${tree}.children;`
+  return [`const tree = ${tree}.children;`, pages, rootLayout]
 }
 
 function createAbsolutePath(appDir: string, pathToTurnAbsolute: string) {
-  return pathToTurnAbsolute.replace(/^private-next-app-dir/, appDir)
+  return (
+    pathToTurnAbsolute
+      // Replace all POSIX path separators with the current OS path separator
+      .replace(/\//g, sep)
+      .replace(/^private-next-app-dir/, appDir)
+  )
 }
 
 const nextAppLoader: webpack.LoaderDefinitionFunction<{
@@ -119,9 +141,20 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
   appDir: string
   appPaths: string[] | null
   pageExtensions: string[]
+  rootDir?: string
+  tsconfigPath?: string
+  isDev?: boolean
 }> = async function nextAppLoader() {
-  const { name, appDir, appPaths, pagePath, pageExtensions } =
-    this.getOptions() || {}
+  const {
+    name,
+    appDir,
+    appPaths,
+    pagePath,
+    pageExtensions,
+    rootDir,
+    tsconfigPath,
+    isDev,
+  } = this.getOptions() || {}
 
   const buildInfo = getModuleBuildInfo((this as any)._module)
   buildInfo.route = {
@@ -172,25 +205,50 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
     }
   }
 
-  const treeCode = await createTreeCodeFromPath({
+  const [treeCode, pages, rootLayout] = await createTreeCodeFromPath({
     pagePath,
     resolve: resolver,
     resolveParallelSegments,
   })
 
+  if (!rootLayout) {
+    const errorMessage = `${chalk.bold(
+      pagePath.replace(`${APP_DIR_ALIAS}/`, '')
+    )} doesn't have a root layout. To fix this error, make sure every page has a root layout.`
+
+    if (!isDev) {
+      // If we're building and missing a root layout, exit the build
+      Log.error(errorMessage)
+      process.exit(1)
+    } else {
+      // In dev we'll try to create a root layout
+      const createdRootLayout = await verifyRootLayout({
+        appDir: appDir,
+        dir: rootDir!,
+        tsconfigPath: tsconfigPath!,
+        pagePath,
+        pageExtensions,
+      })
+      if (!createdRootLayout) {
+        throw new Error(errorMessage)
+      }
+    }
+  }
+
   const result = `
     export ${treeCode}
+    export const pages = ${JSON.stringify(pages)}
 
-    export const AppRouter = require('next/dist/client/components/app-router.client.js').default
-    export const LayoutRouter = require('next/dist/client/components/layout-router.client.js').default
-    export const RenderFromTemplateContext = require('next/dist/client/components/render-from-template-context.client.js').default
-    export const HotReloader = ${
-      // Disable HotReloader component in production
-      this.mode === 'development'
-        ? `require('next/dist/client/components/hot-reloader.client.js').default`
-        : 'null'
-    }
+    export const AppRouter = require('next/dist/client/components/app-router.js').default
+    export const LayoutRouter = require('next/dist/client/components/layout-router.js').default
+    export const RenderFromTemplateContext = require('next/dist/client/components/render-from-template-context.js').default
 
+    export const staticGenerationAsyncStorage = require('next/dist/client/components/static-generation-async-storage').staticGenerationAsyncStorage
+    export const requestAsyncStorage = require('next/dist/client/components/request-async-storage.js').requestAsyncStorage
+
+    export const serverHooks = require('next/dist/client/components/hooks-server-context.js')
+
+    export const renderToReadableStream = require('next/dist/compiled/react-server-dom-webpack/server.browser').renderToReadableStream
     export const __next_app_webpack_require__ = __webpack_require__
   `
 

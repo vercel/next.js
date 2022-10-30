@@ -28,6 +28,7 @@ DEALINGS IN THE SOFTWARE.
 
 #![recursion_limit = "2048"]
 #![deny(clippy::all)]
+#![feature(box_patterns)]
 
 use auto_cjs::contains_cjs;
 use either::Either;
@@ -49,11 +50,12 @@ use swc_core::{
 pub mod amp_attributes;
 mod auto_cjs;
 pub mod disallow_re_export_all_in_page;
-pub mod hook_optimizer;
 pub mod next_dynamic;
+pub mod next_font_loaders;
 pub mod next_ssg;
 pub mod page_config;
 pub mod react_remove_properties;
+pub mod react_server_components;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod relay;
 pub mod remove_console;
@@ -85,6 +87,12 @@ pub struct TransformOptions {
     pub is_server: bool,
 
     #[serde(default)]
+    pub server_components: Option<react_server_components::Config>,
+
+    #[serde(default)]
+    pub styled_jsx: bool,
+
+    #[serde(default)]
     pub styled_components: Option<styled_components::Config>,
 
     #[serde(default)]
@@ -97,6 +105,12 @@ pub struct TransformOptions {
     #[cfg(not(target_arch = "wasm32"))]
     pub relay: Option<relay::Config>,
 
+    #[allow(unused)]
+    #[serde(default)]
+    #[cfg(target_arch = "wasm32")]
+    /// Accept any value
+    pub relay: Option<serde_json::Value>,
+
     #[serde(default)]
     pub shake_exports: Option<shake_exports::Config>,
 
@@ -105,6 +119,9 @@ pub struct TransformOptions {
 
     #[serde(default)]
     pub modularize_imports: Option<modularize_imports::Config>,
+
+    #[serde(default)]
+    pub font_loaders: Option<next_font_loaders::Config>,
 }
 
 pub fn custom_before_pass<'a, C: Comments + 'a>(
@@ -113,7 +130,10 @@ pub fn custom_before_pass<'a, C: Comments + 'a>(
     opts: &'a TransformOptions,
     comments: C,
     eliminated_packages: Rc<RefCell<FxHashSet<String>>>,
-) -> impl Fold + 'a {
+) -> impl Fold + 'a
+where
+    C: Clone,
+{
     #[cfg(target_arch = "wasm32")]
     let relay_plugin = noop();
 
@@ -132,8 +152,23 @@ pub fn custom_before_pass<'a, C: Comments + 'a>(
 
     chain!(
         disallow_re_export_all_in_page::disallow_re_export_all_in_page(opts.is_page_file),
-        styled_jsx::styled_jsx(cm.clone(), file.name.clone()),
-        hook_optimizer::hook_optimizer(),
+        match &opts.server_components {
+            Some(config) if config.truthy() =>
+                Either::Left(react_server_components::server_components(
+                    file.name.clone(),
+                    config.clone(),
+                    comments.clone(),
+                )),
+            _ => Either::Right(noop()),
+        },
+        if opts.styled_jsx {
+            Either::Left(styled_jsx::visitor::styled_jsx(
+                cm.clone(),
+                file.name.clone(),
+            ))
+        } else {
+            Either::Right(noop())
+        },
         match &opts.styled_components {
             Some(config) => Either::Left(styled_components::styled_components(
                 file.name.clone(),
@@ -195,7 +230,11 @@ pub fn custom_before_pass<'a, C: Comments + 'a>(
         match &opts.modularize_imports {
             Some(config) => Either::Left(modularize_imports::modularize_imports(config.clone())),
             None => Either::Right(noop()),
-        }
+        },
+        match &opts.font_loaders {
+            Some(config) => Either::Left(next_font_loaders::next_font_loaders(config.clone())),
+            None => Either::Right(noop()),
+        },
     )
 }
 

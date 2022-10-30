@@ -19,6 +19,7 @@ import {
   NEXT_CLIENT_SSR_ENTRY_SUFFIX,
   FLIGHT_SERVER_CSS_MANIFEST,
   SUBRESOURCE_INTEGRITY_MANIFEST,
+  FONT_LOADER_MANIFEST,
 } from '../../../shared/lib/constants'
 import {
   getPageStaticInfo,
@@ -35,6 +36,7 @@ export interface EdgeFunctionDefinition {
   matchers: MiddlewareMatcher[]
   wasm?: AssetBinding[]
   assets?: AssetBinding[]
+  regions?: string[] | string
 }
 
 export interface MiddlewareManifest {
@@ -51,6 +53,7 @@ interface EntryMetadata {
   env: Set<string>
   wasmBindings: Map<string, string>
   assetBindings: Map<string, string>
+  regions?: string[] | string
 }
 
 const NAME = 'MiddlewarePlugin'
@@ -85,7 +88,7 @@ function isUsingIndirectEvalAndUsedByExports(args: {
 function getEntryFiles(
   entryFiles: string[],
   meta: EntryMetadata,
-  opts: { sriEnabled: boolean }
+  opts: { sriEnabled: boolean; hasFontLoaders: boolean }
 ) {
   const files: string[] = []
   if (meta.edgeSSR) {
@@ -114,6 +117,10 @@ function getEntryFiles(
       `server/${MIDDLEWARE_BUILD_MANIFEST}.js`,
       `server/${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`
     )
+
+    if (opts.hasFontLoaders) {
+      files.push(`server/${FONT_LOADER_MANIFEST}.js`)
+    }
   }
 
   files.push(
@@ -127,7 +134,7 @@ function getEntryFiles(
 function getCreateAssets(params: {
   compilation: webpack.Compilation
   metadataByEntry: Map<string, EntryMetadata>
-  opts: { sriEnabled: boolean }
+  opts: { sriEnabled: boolean; hasFontLoaders: boolean }
 }) {
   const { compilation, metadataByEntry, opts } = params
   return (assets: any) => {
@@ -173,6 +180,7 @@ function getCreateAssets(params: {
           name,
           filePath,
         })),
+        ...(metadata.regions && { regions: metadata.regions }),
       }
 
       if (metadata.edgeApiFunction || metadata.edgeSSR) {
@@ -332,12 +340,14 @@ function getCodeAnalyzer(params: {
   dev: boolean
   compiler: webpack.Compiler
   compilation: webpack.Compilation
+  allowMiddlewareResponseBody: boolean
 }) {
   return (parser: webpack.javascript.JavascriptParser) => {
     const {
       dev,
       compiler: { webpack: wp },
       compilation,
+      allowMiddlewareResponseBody,
     } = params
     const { hooks } = parser
 
@@ -433,16 +443,18 @@ function getCodeAnalyzer(params: {
         return
       }
 
-      const { ConstDependency } = wp.dependencies
-      const dep1 = new ConstDependency(
-        '__next_webassembly_instantiate__(function() { return ',
-        expr.range[0]
-      )
-      dep1.loc = expr.loc
-      parser.state.module.addPresentationalDependency(dep1)
-      const dep2 = new ConstDependency('})', expr.range[1])
-      dep2.loc = expr.loc
-      parser.state.module.addPresentationalDependency(dep2)
+      if (dev) {
+        const { ConstDependency } = wp.dependencies
+        const dep1 = new ConstDependency(
+          '__next_webassembly_instantiate__(function() { return ',
+          expr.range[0]
+        )
+        dep1.loc = expr.loc
+        parser.state.module.addPresentationalDependency(dep1)
+        const dep2 = new ConstDependency('})', expr.range[1])
+        dep2.loc = expr.loc
+        parser.state.module.addPresentationalDependency(dep2)
+      }
     }
 
     /**
@@ -543,8 +555,6 @@ Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime`,
       hooks.call.for(`${prefix}eval`).tap(NAME, handleWrapExpression)
       hooks.call.for(`${prefix}Function`).tap(NAME, handleWrapExpression)
       hooks.new.for(`${prefix}Function`).tap(NAME, handleWrapExpression)
-      hooks.expression.for(`${prefix}eval`).tap(NAME, handleExpression)
-      hooks.expression.for(`${prefix}Function`).tap(NAME, handleExpression)
       hooks.call
         .for(`${prefix}WebAssembly.compile`)
         .tap(NAME, handleWrapWasmCompileExpression)
@@ -552,8 +562,11 @@ Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime`,
         .for(`${prefix}WebAssembly.instantiate`)
         .tap(NAME, handleWrapWasmInstantiateExpression)
     }
-    hooks.new.for('Response').tap(NAME, handleNewResponseExpression)
-    hooks.new.for('NextResponse').tap(NAME, handleNewResponseExpression)
+
+    if (!allowMiddlewareResponseBody) {
+      hooks.new.for('Response').tap(NAME, handleNewResponseExpression)
+      hooks.new.for('NextResponse').tap(NAME, handleNewResponseExpression)
+    }
     hooks.callMemberChain.for('process').tap(NAME, handleCallMemberChain)
     hooks.expressionMemberChain.for('process').tap(NAME, handleCallMemberChain)
     hooks.importCall.tap(NAME, handleImport)
@@ -730,6 +743,10 @@ function getExtractMetadata(params: {
           }
         }
 
+        if (edgeFunctionConfig?.config?.regions) {
+          entryMetadata.regions = edgeFunctionConfig.config.regions
+        }
+
         /**
          * The entry module has to be either a page or a middleware and hold
          * the corresponding metadata.
@@ -788,10 +805,24 @@ function getExtractMetadata(params: {
 export default class MiddlewarePlugin {
   private readonly dev: boolean
   private readonly sriEnabled: boolean
+  private readonly hasFontLoaders: boolean
+  private readonly allowMiddlewareResponseBody: boolean
 
-  constructor({ dev, sriEnabled }: { dev: boolean; sriEnabled: boolean }) {
+  constructor({
+    dev,
+    sriEnabled,
+    hasFontLoaders,
+    allowMiddlewareResponseBody,
+  }: {
+    dev: boolean
+    sriEnabled: boolean
+    hasFontLoaders: boolean
+    allowMiddlewareResponseBody: boolean
+  }) {
     this.dev = dev
     this.sriEnabled = sriEnabled
+    this.hasFontLoaders = hasFontLoaders
+    this.allowMiddlewareResponseBody = allowMiddlewareResponseBody
   }
 
   public apply(compiler: webpack.Compiler) {
@@ -804,6 +835,7 @@ export default class MiddlewarePlugin {
         dev: this.dev,
         compiler,
         compilation,
+        allowMiddlewareResponseBody: this.allowMiddlewareResponseBody,
       })
       hooks.parser.for('javascript/auto').tap(NAME, codeAnalyzer)
       hooks.parser.for('javascript/dynamic').tap(NAME, codeAnalyzer)
@@ -829,19 +861,22 @@ export default class MiddlewarePlugin {
       compilation.hooks.processAssets.tap(
         {
           name: 'NextJsMiddlewareManifest',
-          stage: (webpack as any).Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
+          stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
         },
         getCreateAssets({
           compilation,
           metadataByEntry,
-          opts: { sriEnabled: this.sriEnabled },
+          opts: {
+            sriEnabled: this.sriEnabled,
+            hasFontLoaders: this.hasFontLoaders,
+          },
         })
       )
     })
   }
 }
 
-export async function handleWebpackExtenalForEdgeRuntime({
+export async function handleWebpackExternalForEdgeRuntime({
   request,
   context,
   contextInfo,

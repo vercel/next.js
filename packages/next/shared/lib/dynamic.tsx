@@ -109,13 +109,6 @@ export default function dynamic<P = {}>(
   // Support for passing options, eg: dynamic(import('../hello-world'), {loading: () => <p>Loading something</p>})
   loadableOptions = { ...loadableOptions, ...options }
 
-  // Error if Fizz rendering is not enabled and `suspense` option is set to true
-  if (!process.env.__NEXT_REACT_ROOT && loadableOptions.suspense) {
-    throw new Error(
-      `Invalid suspense option usage in next/dynamic. Read more: https://nextjs.org/docs/messages/invalid-dynamic-suspense`
-    )
-  }
-
   if (loadableOptions.suspense) {
     if (process.env.NODE_ENV !== 'production') {
       /**

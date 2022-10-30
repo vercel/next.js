@@ -1,3 +1,4 @@
+import './initialize-require-hook'
 import './node-polyfill-fetch'
 import './node-polyfill-web-streams'
 
@@ -43,17 +44,17 @@ import {
   CLIENT_PUBLIC_FILES_PATH,
   APP_PATHS_MANIFEST,
   FLIGHT_SERVER_CSS_MANIFEST,
-  SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
+  FONT_LOADER_MANIFEST,
 } from '../shared/lib/constants'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
+import { findDir } from '../lib/find-pages-dir'
 import { format as formatUrl, UrlWithParsedQuery } from 'url'
 import compression from 'next/dist/compiled/compression'
-import HttpProxy from 'next/dist/compiled/http-proxy'
 import { getPathMatch } from '../shared/lib/router/utils/path-match'
 import { createHeaderRoute, createRedirectRoute } from './server-route-utils'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
-import { run } from './web/sandbox'
+
 import { detectDomainLocale } from '../shared/lib/i18n/detect-domain-locale'
 
 import { NodeNextRequest, NodeNextResponse } from './base-http/node'
@@ -62,28 +63,25 @@ import { getExtension, serveStatic } from './serve-static'
 import { ParsedUrlQuery } from 'querystring'
 import { apiResolver } from './api-utils/node'
 import { RenderOpts, renderToHTML } from './render'
-import { renderToHTMLOrFlight as appRenderToHTMLOrFlight } from './app-render'
 import { ParsedUrl, parseUrl } from '../shared/lib/router/utils/parse-url'
 import { parse as nodeParseUrl } from 'url'
 import * as Log from '../build/output/log'
-import loadRequireHook from '../build/webpack/require-hook'
 
 import BaseServer, {
   Options,
   FindComponentsResult,
-  prepareServerlessUrl,
   MiddlewareRoutingItem,
   RoutingItem,
   NoFallbackError,
   RequestContext,
 } from './base-server'
-import { getPagePath, requireFontManifest } from './require'
+import { getMaybePagePath, getPagePath, requireFontManifest } from './require'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { loadComponents } from './load-components'
 import isError, { getProperError } from '../lib/is-error'
 import { FontManifest } from './font-utils'
-import { toNodeHeaders } from './web/utils'
+import { splitCookiesString, toNodeHeaders } from './web/utils'
 import { relativizeURL } from '../shared/lib/router/utils/relativize-url'
 import { prepareDestination } from '../shared/lib/router/utils/prepare-destination'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
@@ -94,20 +92,13 @@ import { getCustomRoute, stringifyQuery } from './server-route-utils'
 import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
-import { bodyStreamToNodeStream, getClonableBody } from './body-streams'
+import { getClonableBody } from './body-streams'
 import { checkIsManualRevalidate } from './api-utils'
-import { shouldUseReactRoot, isTargetLikeServerless } from './utils'
 import ResponseCache from './response-cache'
 import { IncrementalCache } from './lib/incremental-cache'
-import { interpolateDynamicPath } from '../build/webpack/loaders/next-serverless-loader/utils'
-import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 
-if (shouldUseReactRoot) {
-  ;(process.env as any).__NEXT_REACT_ROOT = 'true'
-}
-
-loadRequireHook()
+import { renderToHTMLOrFlight as appRenderToHTMLOrFlight } from './app-render'
 
 export * from './base-server'
 
@@ -224,7 +215,9 @@ export default class NextNodeServer extends BaseServer {
      * `process.env.__NEXT_OPTIMIZE_CSS`.
      */
     if (this.renderOpts.optimizeFonts) {
-      process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(true)
+      process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(
+        this.renderOpts.optimizeFonts
+      )
     }
     if (this.renderOpts.optimizeCss) {
       process.env.__NEXT_OPTIMIZE_CSS = JSON.stringify(true)
@@ -251,24 +244,27 @@ export default class NextNodeServer extends BaseServer {
       loadComponents({
         distDir: this.distDir,
         pathname: '/_document',
-        serverless: this._isLikeServerless,
         hasServerComponents: false,
         isAppPath: false,
       }).catch(() => {})
       loadComponents({
         distDir: this.distDir,
         pathname: '/_app',
-        serverless: this._isLikeServerless,
         hasServerComponents: false,
         isAppPath: false,
       }).catch(() => {})
     }
+
+    if (this.nextConfig.experimental.appDir) {
+      // expose AsyncLocalStorage on global for react usage
+      const { AsyncLocalStorage } = require('async_hooks')
+      ;(global as any).AsyncLocalStorage = AsyncLocalStorage
+    }
   }
 
-  private compression =
-    this.nextConfig.compress && this.nextConfig.target === 'server'
-      ? (compression() as ExpressMiddleware)
-      : undefined
+  private compression = this.nextConfig.compress
+    ? (compression() as ExpressMiddleware)
+    : undefined
 
   protected loadEnvConfig({
     dev,
@@ -285,6 +281,7 @@ export default class NextNodeServer extends BaseServer {
       fs: this.getCacheFilesystem(),
       dev,
       serverDistDir: this.serverDistDir,
+      appDir: this.hasAppDir,
       maxMemoryCacheSize: this.nextConfig.experimental.isrMemoryCacheSize,
       flushToDisk:
         !this.minimalMode && this.nextConfig.experimental.isrFlushToDisk,
@@ -321,19 +318,19 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getAppPathsManifest(): PagesManifest | undefined {
-    if (this.nextConfig.experimental.appDir) {
+    if (this.hasAppDir) {
       const appPathsManifestPath = join(this.serverDistDir, APP_PATHS_MANIFEST)
       return require(appPathsManifestPath)
     }
   }
 
   protected async hasPage(pathname: string): Promise<boolean> {
-    let found = false
-    try {
-      found = !!this.getPagePath(pathname, this.nextConfig.i18n?.locales)
-    } catch (_) {}
-
-    return found
+    return !!getMaybePagePath(
+      pathname,
+      this.distDir,
+      this.nextConfig.i18n?.locales,
+      this.hasAppDir
+    )
   }
 
   protected getBuildId(): string {
@@ -470,6 +467,10 @@ export default class NextNodeServer extends BaseServer {
         },
       },
     ]
+  }
+
+  protected getHasAppDir(dev: boolean): boolean {
+    return Boolean(findDir(dev ? this.dir : this.serverDistDir, 'app'))
   }
 
   protected generateStaticRoutes(): Route[] {
@@ -689,6 +690,8 @@ export default class NextNodeServer extends BaseServer {
     parsedUrl.search = stringifyQuery(req, query)
 
     const target = formatUrl(parsedUrl)
+    const HttpProxy =
+      require('next/dist/compiled/http-proxy') as typeof import('next/dist/compiled/http-proxy')
     const proxy = new HttpProxy({
       target,
       changeOrigin: true,
@@ -777,14 +780,6 @@ export default class NextNodeServer extends BaseServer {
     delete query.__nextLocale
     delete query.__nextDefaultLocale
 
-    if (!this.renderOpts.dev && this._isLikeServerless) {
-      if (typeof pageModule.default === 'function') {
-        prepareServerlessUrl(req, query)
-        await pageModule.default(req, res)
-        return true
-      }
-    }
-
     await apiResolver(
       (req as NodeNextRequest).originalRequest,
       (res as NodeNextResponse).originalResponse,
@@ -819,19 +814,15 @@ export default class NextNodeServer extends BaseServer {
     // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
     renderOpts.serverComponentManifest = this.serverComponentManifest
     renderOpts.serverCSSManifest = this.serverCSSManifest
+    renderOpts.fontLoaderManifest = this.fontLoaderManifest
 
-    if (
-      this.nextConfig.experimental.appDir &&
-      (renderOpts.isAppPath || query.__flight__)
-    ) {
-      const isPagesDir = !renderOpts.isAppPath
+    if (this.hasAppDir && renderOpts.isAppPath) {
       return appRenderToHTMLOrFlight(
         req.originalRequest,
         res.originalResponse,
         pathname,
         query,
-        renderOpts,
-        isPagesDir
+        renderOpts
       )
     }
 
@@ -878,14 +869,7 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getPagePath(pathname: string, locales?: string[]): string {
-    return getPagePath(
-      pathname,
-      this.distDir,
-      this._isLikeServerless,
-      this.renderOpts.dev,
-      locales,
-      this.nextConfig.experimental.appDir
-    )
+    return getPagePath(pathname, this.distDir, locales, this.hasAppDir)
   }
 
   protected async renderPageComponent(
@@ -954,7 +938,6 @@ export default class NextNodeServer extends BaseServer {
         const components = await loadComponents({
           distDir: this.distDir,
           pathname: pagePath,
-          serverless: !this.renderOpts.dev && this._isLikeServerless,
           hasServerComponents: !!this.renderOpts.serverComponents,
           isAppPath,
         })
@@ -978,7 +961,6 @@ export default class NextNodeServer extends BaseServer {
                   __nextDataReq: query.__nextDataReq,
                   __nextLocale: query.__nextLocale,
                   __nextDefaultLocale: query.__nextDefaultLocale,
-                  __flight__: query.__flight__,
                 } as NextParsedUrlQuery)
               : query),
             // For appDir params is excluded.
@@ -997,21 +979,26 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getFontManifest(): FontManifest {
-    return requireFontManifest(this.distDir, this._isLikeServerless)
+    return requireFontManifest(this.distDir)
   }
 
   protected getServerComponentManifest() {
-    if (!this.nextConfig.experimental.serverComponents) return undefined
+    if (!this.hasAppDir) return undefined
     return require(join(this.distDir, 'server', FLIGHT_MANIFEST + '.json'))
   }
 
   protected getServerCSSManifest() {
-    if (!this.nextConfig.experimental.serverComponents) return undefined
+    if (!this.hasAppDir) return undefined
     return require(join(
       this.distDir,
       'server',
       FLIGHT_SERVER_CSS_MANIFEST + '.json'
     ))
+  }
+
+  protected getFontLoaderManifest() {
+    if (!this.nextConfig.experimental.fontLoaders) return undefined
+    return require(join(this.distDir, 'server', `${FONT_LOADER_MANIFEST}.json`))
   }
 
   protected getFallback(page: string): Promise<string> {
@@ -1048,9 +1035,17 @@ export default class NextNodeServer extends BaseServer {
         name: '_next/data catchall',
         check: true,
         fn: async (req, res, params, _parsedUrl) => {
+          const isNextDataNormalizing = getRequestMeta(
+            req,
+            '_nextDataNormalizing'
+          )
+
           // Make sure to 404 for /_next/data/ itself and
           // we also want to 404 if the buildId isn't correct
           if (!params.path || params.path[0] !== this.buildId) {
+            if (isNextDataNormalizing) {
+              return { finished: false }
+            }
             await this.render404(req, res, _parsedUrl)
             return {
               finished: true,
@@ -1702,15 +1697,21 @@ export default class NextNodeServer extends BaseServer {
     }
     const normalizedPathname = removeTrailingSlash(params.parsed.pathname || '')
 
-    // For middleware to "fetch" we must always provide an absolute URL
-    const query = urlQueryToSearchParams(params.parsed.query).toString()
-    const locale = params.parsed.query.__nextLocale
+    let url: string
 
-    const url = `${getRequestMeta(params.request, '_protocol')}://${
-      this.hostname
-    }:${this.port}${locale ? `/${locale}` : ''}${params.parsed.pathname}${
-      query ? `?${query}` : ''
-    }`
+    if (this.nextConfig.experimental.skipMiddlewareUrlNormalize) {
+      url = getRequestMeta(params.request, '__NEXT_INIT_URL')!
+    } else {
+      // For middleware to "fetch" we must always provide an absolute URL
+      const query = urlQueryToSearchParams(params.parsed.query).toString()
+      const locale = params.parsed.query.__nextLocale
+
+      url = `${getRequestMeta(params.request, '_protocol')}://${
+        this.hostname
+      }:${this.port}${locale ? `/${locale}` : ''}${params.parsed.pathname}${
+        query ? `?${query}` : ''
+      }`
+    }
 
     if (!url.startsWith('http')) {
       throw new Error(
@@ -1751,6 +1752,7 @@ export default class NextNodeServer extends BaseServer {
     }
 
     const method = (params.request.method || 'GET').toUpperCase()
+    const { run } = require('./web/sandbox') as typeof import('./web/sandbox')
 
     const result = await run({
       distDir: this.distDir,
@@ -1770,7 +1772,7 @@ export default class NextNodeServer extends BaseServer {
         page: page,
         body: getRequestMeta(params.request, '__NEXT_CLONABLE_BODY'),
       },
-      useCache: !this.nextConfig.experimental.runtime,
+      useCache: false,
       onWarning: params.onWarning,
     })
 
@@ -1794,9 +1796,16 @@ export default class NextNodeServer extends BaseServer {
     } else {
       for (let [key, value] of allHeaders) {
         result.response.headers.set(key, value)
+
+        if (key.toLowerCase() === 'set-cookie') {
+          addRequestMeta(
+            params.request,
+            '_nextMiddlewareCookie',
+            splitCookiesString(value)
+          )
+        }
       }
     }
-
     return result
   }
 
@@ -1869,6 +1878,37 @@ export default class NextNodeServer extends BaseServer {
               const value = result.response.headers.get('x-middleware-rewrite')!
               const rel = relativizeURL(value, initUrl)
               result.response.headers.set('x-middleware-rewrite', rel)
+            }
+
+            if (result.response.headers.has('x-middleware-override-headers')) {
+              const overriddenHeaders: Set<string> = new Set()
+              for (const key of result.response.headers
+                .get('x-middleware-override-headers')!
+                .split(',')) {
+                overriddenHeaders.add(key.trim())
+              }
+
+              result.response.headers.delete('x-middleware-override-headers')
+
+              // Delete headers.
+              for (const key of Object.keys(req.headers)) {
+                if (!overriddenHeaders.has(key)) {
+                  delete req.headers[key]
+                }
+              }
+
+              // Update or add headers.
+              for (const key of overriddenHeaders.keys()) {
+                const valueKey = 'x-middleware-request-' + key
+                const newValue = result.response.headers.get(valueKey)
+                const oldValue = req.headers[key]
+
+                if (oldValue !== newValue) {
+                  req.headers[key] = newValue === null ? undefined : newValue
+                }
+
+                result.response.headers.delete(valueKey)
+              }
             }
 
             if (result.response.headers.has('Location')) {
@@ -2029,44 +2069,37 @@ export default class NextNodeServer extends BaseServer {
     appPaths: string[] | null
     onWarning?: (warning: Error) => void
   }): Promise<FetchEventResult | null> {
-    let middlewareInfo: ReturnType<typeof this.getEdgeFunctionInfo> | undefined
+    let edgeInfo: ReturnType<typeof this.getEdgeFunctionInfo> | undefined
 
     const { query, page } = params
 
     await this.ensureEdgeFunction({ page, appPaths: params.appPaths })
-    middlewareInfo = this.getEdgeFunctionInfo({
+    edgeInfo = this.getEdgeFunctionInfo({
       page,
       middleware: false,
     })
 
-    if (!middlewareInfo) {
+    if (!edgeInfo) {
       return null
     }
 
-    // For middleware to "fetch" we must always provide an absolute URL
-    const locale = query.__nextLocale
+    // For edge to "fetch" we must always provide an absolute URL
     const isDataReq = !!query.__nextDataReq
-    const queryString = urlQueryToSearchParams(query).toString()
+    const initialUrl = new URL(
+      getRequestMeta(params.req, '__NEXT_INIT_URL') || '/',
+      'http://n'
+    )
+    const queryString = urlQueryToSearchParams({
+      ...Object.fromEntries(initialUrl.searchParams),
+      ...query,
+      ...params.params,
+    }).toString()
 
     if (isDataReq) {
       params.req.headers['x-nextjs-data'] = '1'
     }
-
-    let normalizedPathname = normalizeAppPath(page)
-    if (isDynamicRoute(normalizedPathname)) {
-      const routeRegex = getNamedRouteRegex(normalizedPathname)
-      normalizedPathname = interpolateDynamicPath(
-        normalizedPathname,
-        Object.assign({}, params.params, query),
-        routeRegex
-      )
-    }
-
-    const url = `${getRequestMeta(params.req, '_protocol')}://${
-      this.hostname
-    }:${this.port}${locale ? `/${locale}` : ''}${normalizedPathname}${
-      queryString ? `?${queryString}` : ''
-    }`
+    initialUrl.search = queryString
+    const url = initialUrl.toString()
 
     if (!url.startsWith('http')) {
       throw new Error(
@@ -2074,12 +2107,13 @@ export default class NextNodeServer extends BaseServer {
       )
     }
 
+    const { run } = require('./web/sandbox') as typeof import('./web/sandbox')
     const result = await run({
       distDir: this.distDir,
-      name: middlewareInfo.name,
-      paths: middlewareInfo.paths,
-      env: middlewareInfo.env,
-      edgeFunctionEntry: middlewareInfo,
+      name: edgeInfo.name,
+      paths: edgeInfo.paths,
+      env: edgeInfo.env,
+      edgeFunctionEntry: edgeInfo,
       request: {
         headers: params.req.headers,
         method: params.req.method,
@@ -2095,22 +2129,36 @@ export default class NextNodeServer extends BaseServer {
         },
         body: getRequestMeta(params.req, '__NEXT_CLONABLE_BODY'),
       },
-      useCache: !this.nextConfig.experimental.runtime,
+      useCache: false,
       onWarning: params.onWarning,
     })
 
     params.res.statusCode = result.response.status
     params.res.statusMessage = result.response.statusText
 
-    result.response.headers.forEach((value, key) => {
-      params.res.appendHeader(key, value)
+    result.response.headers.forEach((value: string, key) => {
+      // the append handling is special cased for `set-cookie`
+      if (key.toLowerCase() === 'set-cookie') {
+        params.res.setHeader(key, value)
+      } else {
+        params.res.appendHeader(key, value)
+      }
     })
 
     if (result.response.body) {
       // TODO(gal): not sure that we always need to stream
-      bodyStreamToNodeStream(result.response.body).pipe(
-        (params.res as NodeNextResponse).originalResponse
-      )
+      const nodeResStream = (params.res as NodeNextResponse).originalResponse
+      const { consumeUint8ArrayReadableStream } =
+        require('next/dist/compiled/edge-runtime') as typeof import('next/dist/compiled/edge-runtime')
+      try {
+        for await (const chunk of consumeUint8ArrayReadableStream(
+          result.response.body
+        )) {
+          nodeResStream.write(chunk)
+        }
+      } finally {
+        nodeResStream.end()
+      }
     } else {
       ;(params.res as NodeNextResponse).originalResponse.end()
     }
@@ -2118,14 +2166,7 @@ export default class NextNodeServer extends BaseServer {
     return result
   }
 
-  protected get _isLikeServerless(): boolean {
-    return isTargetLikeServerless(this.nextConfig.target)
-  }
-
   protected get serverDistDir() {
-    return join(
-      this.distDir,
-      this._isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
-    )
+    return join(this.distDir, SERVER_DIRECTORY)
   }
 }

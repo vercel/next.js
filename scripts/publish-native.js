@@ -46,9 +46,19 @@ const cwd = process.cwd()
       } catch (err) {
         // don't block publishing other versions on single platform error
         console.error(`Failed to publish`, platform)
-        throw err
+
+        if (
+          err.message &&
+          err.message.includes(
+            'You cannot publish over the previously published versions'
+          )
+        ) {
+          console.error('Ignoring already published error', platform)
+        } else {
+          // throw err
+        }
       }
-      // lerna publish in next step will fail if git status is not clean
+      // lerna publish in next step sill fail if git status is not clean
       execSync(
         `git update-index --skip-worktree ${path.join(
           nativePackagesDir,
@@ -71,12 +81,31 @@ const cwd = process.cwd()
         path.join(wasmDir, `pkg-${wasmTarget}/package.json`),
         JSON.stringify(wasmPkg, null, 2)
       )
-      execSync(
-        `npm publish ${path.join(
-          wasmDir,
-          `pkg-${wasmTarget}`
-        )} --access public ${gitref.includes('canary') ? ' --tag canary' : ''}`
-      )
+
+      try {
+        execSync(
+          `npm publish ${path.join(
+            wasmDir,
+            `pkg-${wasmTarget}`
+          )} --access public ${
+            gitref.includes('canary') ? ' --tag canary' : ''
+          }`
+        )
+      } catch (err) {
+        // don't block publishing other versions on single platform error
+        console.error(`Failed to publish`, wasmTarget)
+
+        if (
+          err.message &&
+          err.message.includes(
+            'You cannot publish over the previously published versions'
+          )
+        ) {
+          console.error('Ignoring already published error', wasmTarget)
+        } else {
+          // throw err
+        }
+      }
     }
 
     // Update optional dependencies versions

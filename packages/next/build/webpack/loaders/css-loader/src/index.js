@@ -4,7 +4,6 @@
 */
 import CssSyntaxError from './CssSyntaxError'
 import Warning from '../../postcss-loader/src/Warning'
-// import { icssParser, importParser, urlParser } from './plugins'
 import { stringifyRequest } from '../../../stringify-request'
 
 const moduleRegExp = /\.module\.\w+$/i
@@ -128,6 +127,7 @@ function normalizeOptions(rawOptions, loaderContext) {
         : rawOptions.importLoaders,
     esModule:
       typeof rawOptions.esModule === 'undefined' ? true : rawOptions.esModule,
+    fontLoader: rawOptions.fontLoader,
   }
 }
 
@@ -169,10 +169,11 @@ export default async function loader(content, map, meta) {
       const { icssParser, importParser, urlParser } = require('./plugins')
 
       const replacements = []
-      const exports = []
+      // if it's a font loader next-font-loader will have exports that should be exported as is
+      const exports = options.fontLoader ? meta.exports : []
 
       if (shouldUseModulesPlugins(options)) {
-        plugins.push(...getModulesPlugins(options, this))
+        plugins.push(...getModulesPlugins(options, this, meta))
       }
 
       const importPluginImports = []

@@ -31,6 +31,7 @@ export class NextURL {
   [Internal]: {
     basePath: string
     buildId?: string
+    flightSearchParameters?: Record<string, string>
     defaultLocale?: string
     domainLocale?: DomainLocale
     locale?: string
@@ -71,7 +72,7 @@ export class NextURL {
   private analyzeUrl() {
     const pathnameInfo = getNextPathnameInfo(this[Internal].url.pathname, {
       nextConfig: this[Internal].options.nextConfig,
-      parseData: true,
+      parseData: !process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE,
     })
 
     this[Internal].domainLocale = detectDomainLocale(
@@ -102,6 +103,10 @@ export class NextURL {
       pathname: this[Internal].url.pathname,
       trailingSlash: this[Internal].trailingSlash,
     })
+  }
+
+  private formatSearch() {
+    return this[Internal].url.search
   }
 
   public get buildId() {
@@ -175,7 +180,8 @@ export class NextURL {
 
   get href() {
     const pathname = this.formatPathname()
-    return `${this.protocol}//${this.host}${pathname}${this[Internal].url.search}`
+    const search = this.formatSearch()
+    return `${this.protocol}//${this.host}${pathname}${search}${this.hash}`
   }
 
   set href(url: string) {

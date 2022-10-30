@@ -1,13 +1,15 @@
 import React from 'react'
 import Head from 'next/head'
 import styles from '../styles/Home.module.css'
-import ThirdPartyEmailPassword, {
-  ThirdPartyEmailPasswordAuth,
-} from 'supertokens-auth-react/recipe/thirdpartyemailpassword'
+import ThirdPartyEmailPassword from 'supertokens-auth-react/recipe/thirdpartyemailpassword'
 import supertokensNode from 'supertokens-node'
 import { backendConfig } from '../config/backendConfig'
 import Session from 'supertokens-node/recipe/session'
-import { useSessionContext } from 'supertokens-auth-react/recipe/session'
+import {
+  SessionAuth,
+  useSessionContext,
+} from 'supertokens-auth-react/recipe/session'
+import { redirectToAuth } from 'supertokens-auth-react'
 
 export async function getServerSideProps(context) {
   // this runs on the backend, so we must call init on supertokens-node SDK
@@ -18,7 +20,10 @@ export async function getServerSideProps(context) {
   } catch (err) {
     if (err.type === Session.Error.TRY_REFRESH_TOKEN) {
       return { props: { fromSupertokens: 'needs-refresh' } }
-    } else if (err.type === Session.Error.UNAUTHORISED) {
+    } else if (
+      err.type === Session.Error.UNAUTHORISED ||
+      err.type === Session.Error.INVALID_CLAIMS
+    ) {
       return { props: {} }
     } else {
       throw err
@@ -35,7 +40,7 @@ function ProtectedPage({ userId }) {
 
   async function logoutClicked() {
     await ThirdPartyEmailPassword.signOut()
-    ThirdPartyEmailPassword.redirectToAuth()
+    redirectToAuth()
   }
 
   async function fetchUserData() {
@@ -173,8 +178,8 @@ function ProtectedPage({ userId }) {
 
 export default function Home(props) {
   return (
-    <ThirdPartyEmailPasswordAuth>
+    <SessionAuth>
       <ProtectedPage userId={props.userId} />
-    </ThirdPartyEmailPasswordAuth>
+    </SessionAuth>
   )
 }

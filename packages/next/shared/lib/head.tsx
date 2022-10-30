@@ -1,3 +1,5 @@
+'use client'
+
 import React, { useContext } from 'react'
 import Effect from './side-effect'
 import { AmpStateContext } from './amp-context'
@@ -154,10 +156,7 @@ function reduceComponents<T extends {} & WithInAmpMode>(
           return React.cloneElement(c, newProps)
         }
       }
-      if (
-        process.env.NODE_ENV === 'development' &&
-        process.env.__NEXT_REACT_ROOT
-      ) {
+      if (process.env.NODE_ENV === 'development') {
         // omit JSON-LD structured data snippets from the warning
         if (c.type === 'script' && c.props['type'] !== 'application/ld+json') {
           const srcMessage = c.props['src']

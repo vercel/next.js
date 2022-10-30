@@ -19,23 +19,19 @@ let nodeServerAppPaths = {}
 export default class PagesManifestPlugin
   implements webpack.WebpackPluginInstance
 {
-  serverless: boolean
   dev: boolean
   isEdgeRuntime: boolean
   appDirEnabled: boolean
 
   constructor({
-    serverless,
     dev,
     isEdgeRuntime,
     appDirEnabled,
   }: {
-    serverless: boolean
     dev: boolean
     isEdgeRuntime: boolean
     appDirEnabled: boolean
   }) {
-    this.serverless = serverless
     this.dev = dev
     this.isEdgeRuntime = isEdgeRuntime
     this.appDirEnabled = appDirEnabled
@@ -127,11 +123,9 @@ export default class PagesManifestPlugin
 
   apply(compiler: webpack.Compiler): void {
     compiler.hooks.make.tap('NextJsPagesManifest', (compilation) => {
-      // @ts-ignore TODO: Remove ignore when webpack 5 is stable
       compilation.hooks.processAssets.tap(
         {
           name: 'NextJsPagesManifest',
-          // @ts-ignore TODO: Remove ignore when webpack 5 is stable
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
         },
         (assets: any) => {

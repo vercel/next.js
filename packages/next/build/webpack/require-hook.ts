@@ -2,16 +2,14 @@
 // this is in order for userland plugins to attach to the same webpack instance as next.js
 // the individual compiled modules are as defined for the compilation in bundles/webpack/packages/*
 
-export default function loadRequireHook(aliases: [string, string][] = []) {
-  const hookPropertyMap = new Map(
-    [
-      ...aliases,
-      // Use `require.resolve` explicitly to make them statically analyzable
-      ['styled-jsx', require.resolve('styled-jsx')],
-      ['styled-jsx/style', require.resolve('styled-jsx/style')],
-    ].map(([request, replacement]) => [request, replacement])
-  )
+const hookPropertyMap = new Map()
 
+let initialized = false
+function setupResolve() {
+  if (initialized) {
+    return
+  }
+  initialized = true
   const mod = require('module')
   const resolveFilename = mod._resolveFilename
   mod._resolveFilename = function (
@@ -24,4 +22,54 @@ export default function loadRequireHook(aliases: [string, string][] = []) {
     if (hookResolved) request = hookResolved
     return resolveFilename.call(mod, request, parent, isMain, options)
   }
+}
+
+export function setRequireOverrides(aliases: [string, string][]) {
+  for (const [key, value] of aliases) {
+    hookPropertyMap.set(key, value)
+  }
+}
+
+export function loadRequireHook(aliases: [string, string][] = []) {
+  const defaultAliases = [
+    ...aliases,
+    // Use `require.resolve` explicitly to make them statically analyzable
+    ['styled-jsx', require.resolve('styled-jsx')],
+    ['styled-jsx/style', require.resolve('styled-jsx/style')],
+    ['styled-jsx/style', require.resolve('styled-jsx/style')],
+  ] as [string, string][]
+
+  setRequireOverrides(defaultAliases)
+
+  setupResolve()
+}
+
+export function overrideBuiltInReactPackages() {
+  setRequireOverrides([
+    ['react', require.resolve('next/dist/compiled/react')],
+    [
+      'react/jsx-runtime',
+      require.resolve('next/dist/compiled/react/jsx-runtime'),
+    ],
+    [
+      'react/jsx-dev-runtime',
+      require.resolve('next/dist/compiled/react/jsx-dev-runtime'),
+    ],
+    [
+      'react-dom',
+      require.resolve('next/dist/compiled/react-dom/server-rendering-stub'),
+    ],
+    [
+      'react-dom/client',
+      require.resolve('next/dist/compiled/react-dom/client'),
+    ],
+    [
+      'react-dom/server',
+      require.resolve('next/dist/compiled/react-dom/server'),
+    ],
+    [
+      'react-dom/server.browser',
+      require.resolve('next/dist/compiled/react-dom/server.browser'),
+    ],
+  ])
 }

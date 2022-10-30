@@ -177,11 +177,11 @@ export default async function handler(req: NextRequest) {
 
 ### Summary of changes
 
-| Added                   | Removed       |
-| ----------------------- | ------------- |
-| `cookie.set`            | `cookie`      |
-| `cookie.delete`         | `clearCookie` |
-| `cookie.getWithOptions` | `cookies`     |
+| Added                    | Removed       |
+| ------------------------ | ------------- |
+| `cookies.set`            | `cookie`      |
+| `cookies.delete`         | `clearCookie` |
+| `cookies.getWithOptions` | `cookies`     |
 
 ### Explanation
 
@@ -191,9 +191,9 @@ Based on beta feedback, we are changing the Cookies API in `NextRequest` and `Ne
 
 `NextResponse` now has a `cookies` instance with:
 
-- `cookie.delete`
-- `cookie.set`
-- `cookie.getWithOptions`
+- `cookies.delete`
+- `cookies.set`
+- `cookies.getWithOptions`
 
 As well as other extended methods from `Map`.
 
@@ -241,15 +241,12 @@ export function middleware() {
   response.cookies.set('nextjs', 'awesome', { path: '/test' })
 
   // get all the details of a cookie
-  const { value, options } = response.cookies.getWithOptions('vercel')
+  const { value, ...options } = response.cookies.getWithOptions('vercel')
   console.log(value) // => 'fast'
-  console.log(options) // => { Path: '/test' }
+  console.log(options) // => { name: 'vercel', Path: '/test' }
 
   // deleting a cookie will mark it as expired
   response.cookies.delete('vercel')
-
-  // clear all cookies means mark all of them as expired
-  response.cookies.clear()
 
   return response
 }

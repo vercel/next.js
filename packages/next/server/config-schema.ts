@@ -219,6 +219,12 @@ const configSchema = {
     experimental: {
       additionalProperties: false,
       properties: {
+        adjustFontFallbacks: {
+          type: 'boolean',
+        },
+        adjustFontFallbacksWithSizeAdjust: {
+          type: 'boolean',
+        },
         amp: {
           additionalProperties: false,
           properties: {
@@ -233,12 +239,6 @@ const configSchema = {
             },
           },
           type: 'object',
-        },
-        appDir: {
-          type: 'boolean',
-        },
-        browsersListForSwc: {
-          type: 'boolean',
         },
         cpus: {
           type: 'number',
@@ -261,6 +261,12 @@ const configSchema = {
               const: 'loose',
             },
           ] as any,
+        },
+        appDir: {
+          type: 'boolean',
+        },
+        allowMiddlewareResponseBody: {
+          type: 'boolean',
         },
         externalDir: {
           type: 'boolean',
@@ -336,13 +342,28 @@ const configSchema = {
           enum: ['experimental-edge', 'nodejs'] as any,
           type: 'string',
         },
+        serverComponentsExternalPackages: {
+          items: {
+            type: 'string',
+          },
+          type: 'array',
+        },
+        transpilePackages: {
+          items: {
+            type: 'string',
+          },
+          type: 'array',
+        },
         scrollRestoration: {
           type: 'boolean',
         },
-        serverComponents: {
+        sharedPool: {
           type: 'boolean',
         },
-        sharedPool: {
+        skipMiddlewareUrlNormalize: {
+          type: 'boolean',
+        },
+        skipTrailingSlashRedirect: {
           type: 'boolean',
         },
         sri: {
@@ -384,8 +405,65 @@ const configSchema = {
           },
           type: 'array',
         },
+        enableUndici: {
+          type: 'boolean',
+        },
         workerThreads: {
           type: 'boolean',
+        },
+        fontLoaders: {
+          items: {
+            additionalProperties: false,
+            properties: {
+              loader: {
+                type: 'string',
+              },
+              options: {},
+            },
+            type: 'object',
+            required: ['loader'],
+          },
+          type: 'array',
+        } as any,
+        webVitalsAttribution: {
+          type: 'array',
+          items: {
+            type: 'string',
+            enum: ['CLS', 'FCP', 'FID', 'INP', 'LCP', 'TTFB'],
+          } as any,
+        },
+        turbotrace: {
+          type: 'object',
+          properties: {
+            logLevel: {
+              type: 'string',
+              enum: [
+                'bug',
+                'fatal',
+                'error',
+                'warning',
+                'hint',
+                'note',
+                'suggestions',
+                'info',
+              ],
+            } as any,
+            logAll: {
+              type: 'boolean',
+            },
+            logDetail: {
+              type: 'boolean',
+            },
+            contextDirectory: {
+              type: 'string',
+            },
+            processCwd: {
+              type: 'string',
+            },
+            maxFiles: {
+              type: 'integer',
+            },
+          },
         },
       },
       type: 'object',
@@ -394,11 +472,6 @@ const configSchema = {
       isFunction: true,
       errorMessage: 'must be a function that returns a Promise',
     } as any,
-    future: {
-      additionalProperties: false,
-      properties: {},
-      type: 'object',
-    },
     generateBuildId: {
       isFunction: true,
       errorMessage: 'must be a function that returns a Promise',
@@ -538,6 +611,10 @@ const configSchema = {
         loader: {
           // automatic typing does not like enum
           enum: VALID_LOADERS as any,
+          type: 'string',
+        },
+        loaderFile: {
+          minLength: 1,
           type: 'string',
         },
         minimumCacheTTL: {

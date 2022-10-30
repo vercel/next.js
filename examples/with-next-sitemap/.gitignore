@@ -34,3 +34,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# next sitemap build 
+public/robots.txt
+public/sitemap.xml
+public/sitemap-*.xml
