@@ -547,7 +547,6 @@ export default class DevServer extends Server {
                     distDir: this.distDir,
                     isClient,
                     hasRewrites,
-                    hasReactRoot: this.hotReloader?.hasReactRoot,
                     isNodeServer,
                     isEdgeServer,
                   })
