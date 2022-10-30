@@ -108,6 +108,27 @@ export type ImageProps = Omit<
   blurDataURL?: string
   unoptimized?: boolean
   onLoadingComplete?: OnLoadingComplete
+  /**
+   * @deprecated Use `fill` prop instead of `layout="fill"` or change import to `next/legacy/image`.
+   * @see https://nextjs.org/docs/api-reference/next/legacy/image
+   */
+  layout?: string
+  /**
+   * @deprecated Use `style` prop instead.
+   */
+  objectFit?: string
+  /**
+   * @deprecated Use `style` prop instead.
+   */
+  objectPosition?: string
+  /**
+   * @deprecated This prop does not do anything.
+   */
+  lazyBoundary?: string
+  /**
+   * @deprecated This prop does not do anything.
+   */
+  lazyRoot?: string
 }
 
 type ImageElementProps = Omit<ImageProps, 'src' | 'alt' | 'loader'> & {
@@ -467,6 +488,11 @@ export default function Image({
   onLoadingComplete,
   placeholder = 'empty',
   blurDataURL,
+  layout,
+  objectFit,
+  objectPosition,
+  lazyBoundary,
+  lazyRoot,
   ...all
 }: ImageProps) {
   const configContext = useContext(ImageConfigContext)
@@ -479,7 +505,6 @@ export default function Image({
 
   let rest: Partial<ImageProps> = all
   let loader: ImageLoaderWithConfig = rest.loader || defaultLoader
-
   // Remove property so it's not spread on <img> element
   delete rest.loader
 
@@ -500,6 +525,28 @@ export default function Image({
     loader = (obj) => {
       const { config: _, ...opts } = obj
       return customImageLoader(opts)
+    }
+  }
+
+  if (layout) {
+    if (layout === 'fill') {
+      fill = true
+    }
+    const layoutToStyle: Record<string, Record<string, string> | undefined> = {
+      intrinsic: { maxWidth: '100%', height: 'auto' },
+      responsive: { width: '100%', height: 'auto' },
+    }
+    const layoutToSizes: Record<string, string | undefined> = {
+      responsive: '100vw',
+      fill: '100vw',
+    }
+    const layoutStyle = layoutToStyle[layout]
+    if (layoutStyle) {
+      style = { ...style, ...layoutStyle }
+    }
+    const layoutSizes = layoutToSizes[layout]
+    if (layoutSizes && !sizes) {
+      sizes = layoutSizes
     }
   }
 
@@ -545,21 +592,6 @@ export default function Image({
     }
   }
   src = typeof src === 'string' ? src : staticSrc
-
-  for (const legacyProp of [
-    'layout',
-    'objectFit',
-    'objectPosition',
-    'lazyBoundary',
-    'lazyRoot',
-  ]) {
-    if (legacyProp in rest) {
-      throw new Error(
-        `Image with src "${src}" has legacy prop "${legacyProp}". Did you forget to run the codemod?` +
-          `\nRead more: https://nextjs.org/docs/messages/next-image-upgrade-to-13`
-      )
-    }
-  }
 
   let isLazy =
     !priority && (loading === 'lazy' || typeof loading === 'undefined')
@@ -691,6 +723,21 @@ export default function Image({
       }
     }
 
+    for (const [legacyKey, legacyValue] of Object.entries({
+      layout,
+      objectFit,
+      objectPosition,
+      lazyBoundary,
+      lazyRoot,
+    })) {
+      if (legacyValue) {
+        warnOnce(
+          `Image with src "${src}" has legacy prop "${legacyKey}". Did you forget to run the codemod?` +
+            `\nRead more: https://nextjs.org/docs/messages/next-image-upgrade-to-13`
+        )
+      }
+    }
+
     if (
       typeof window !== 'undefined' &&
       !perfObserver &&
@@ -737,6 +784,8 @@ export default function Image({
           top: 0,
           right: 0,
           bottom: 0,
+          objectFit,
+          objectPosition,
         }
       : {},
     showAltText ? {} : { color: 'transparent' },
