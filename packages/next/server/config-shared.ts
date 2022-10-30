@@ -391,7 +391,7 @@ export interface NextConfig extends Record<string, any> {
    *
    * @see [React Strict Mode](https://nextjs.org/docs/api-reference/next.config.js/react-strict-mode)
    */
-  reactStrictMode?: boolean
+  reactStrictMode?: boolean | null
 
   /**
    * Add public (in browser) runtime configuration to your app
@@ -545,7 +545,7 @@ export const defaultConfig: NextConfig = {
   excludeDefaultMomentLocales: true,
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},
-  reactStrictMode: false,
+  reactStrictMode: null,
   httpAgentOptions: {
     keepAlive: true,
   },

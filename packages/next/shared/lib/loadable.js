@@ -21,12 +21,8 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
 // https://github.com/jamiebuilds/react-loadable/blob/v5.5.0/src/index.js
 // Modified to be compatible with webpack 4 / Next.js
 
-import React from 'react'
+import React, { useSyncExternalStore } from 'react'
 import { LoadableContext } from './loadable-context'
-
-const { useSyncExternalStore } = process.env.__NEXT_REACT_ROOT
-  ? require('react')
-  : require('use-sync-external-store/shim')
 
 const ALL_INITIALIZERS = []
 const READY_INITIALIZERS = []

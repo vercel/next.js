@@ -116,7 +116,7 @@ export default function RootLayout({
   children: React.ReactNode,
 }) {
   return (
-    <html lang="en" className={localFont.className}>
+    <html lang="en" className={myFont.className}>
       <body>{children}</body>
     </html>
   )

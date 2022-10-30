@@ -1428,6 +1428,18 @@ describe('app dir', () => {
           ).toBe('rgb(0, 0, 255)')
         })
       })
+
+      describe('client components', () => {
+        it('should support css modules inside client components', async () => {
+          const browser = await webdriver(next.url, '/css/css-client/inner')
+
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('#client-component')).fontSize`
+            )
+          ).toBe('100px')
+        })
+      })
     })
 
     describe('searchParams prop', () => {

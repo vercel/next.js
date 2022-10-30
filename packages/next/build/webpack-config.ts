@@ -1,3 +1,4 @@
+import React from 'react'
 import ReactRefreshWebpackPlugin from 'next/dist/compiled/@next/react-refresh-utils/dist/ReactRefreshWebpackPlugin'
 import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
@@ -68,6 +69,10 @@ const NEXT_PROJECT_ROOT_DIST_CLIENT = path.join(
   NEXT_PROJECT_ROOT_DIST,
   'client'
 )
+
+if (parseInt(React.version) < 18) {
+  throw new Error('Next.js requires react >= 18.2.0 to be installed.')
+}
 
 const babelIncludeRegexes: RegExp[] = [
   /next[\\/]dist[\\/](esm[\\/])?shared[\\/]lib/,
@@ -161,7 +166,6 @@ export function getDefineEnv({
   distDir,
   isClient,
   hasRewrites,
-  hasReactRoot,
   isNodeServer,
   isEdgeServer,
   middlewareMatchers,
@@ -170,7 +174,6 @@ export function getDefineEnv({
   distDir: string
   isClient?: boolean
   hasRewrites?: boolean
-  hasReactRoot?: boolean
   isNodeServer?: boolean
   isEdgeServer?: boolean
   middlewareMatchers?: MiddlewareMatcher[]
@@ -244,8 +247,17 @@ export function getDefineEnv({
     'process.env.__NEXT_BUILD_INDICATOR_POSITION': JSON.stringify(
       config.devIndicators.buildActivityPosition
     ),
-    'process.env.__NEXT_STRICT_MODE': JSON.stringify(config.reactStrictMode),
-    'process.env.__NEXT_REACT_ROOT': JSON.stringify(hasReactRoot),
+    'process.env.__NEXT_STRICT_MODE': JSON.stringify(
+      config.reactStrictMode === null ? false : config.reactStrictMode
+    ),
+    'process.env.__NEXT_STRICT_MODE_APP': JSON.stringify(
+      // When next.config.js does not have reactStrictMode enabling appDir will enable it.
+      config.reactStrictMode === null
+        ? config.experimental.appDir
+          ? true
+          : false
+        : config.reactStrictMode
+    ),
     'process.env.__NEXT_OPTIMIZE_FONTS': JSON.stringify(
       !dev && config.optimizeFonts
     ),
@@ -559,7 +571,6 @@ export default async function getBaseWebpackConfig(
     compilerType,
     dev = false,
     entrypoints,
-    hasReactRoot,
     isDevFallback = false,
     pagesDir,
     reactProductionProfiling = false,
@@ -574,7 +585,6 @@ export default async function getBaseWebpackConfig(
     compilerType: CompilerNameValues
     dev?: boolean
     entrypoints: webpack.EntryObject
-    hasReactRoot: boolean
     isDevFallback?: boolean
     pagesDir?: string
     reactProductionProfiling?: boolean
@@ -598,19 +608,8 @@ export default async function getBaseWebpackConfig(
     rewrites.fallback.length > 0
 
   const hasAppDir = !!config.experimental.appDir && !!appDir
-  const hasConcurrentFeatures = hasReactRoot
   const hasServerComponents = hasAppDir
-
-  // Only error in first one compiler (client) once
-  if (isClient) {
-    if (!hasReactRoot) {
-      throw new Error('Next.js requires React 18.2.0 to be installed.')
-    }
-  }
-
-  const disableOptimizedLoading = hasConcurrentFeatures
-    ? true
-    : config.experimental.disableOptimizedLoading
+  const disableOptimizedLoading = true
 
   if (isClient) {
     if (config.experimental.runtime === SERVER_RUNTIME.edge) {
@@ -795,13 +794,18 @@ export default async function getBaseWebpackConfig(
                         )
                         .replace(/\\/g, '/'),
                   ]
-                : `./` +
-                  path
-                    .relative(
-                      dir,
-                      path.join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'app-next.js')
-                    )
-                    .replace(/\\/g, '/'),
+                : [
+                    `./` +
+                      path
+                        .relative(
+                          dir,
+                          path.join(
+                            NEXT_PROJECT_ROOT_DIST_CLIENT,
+                            'app-next.js'
+                          )
+                        )
+                        .replace(/\\/g, '/'),
+                  ],
             }
           : {}),
       } as ClientEntries)
@@ -1958,7 +1962,6 @@ export default async function getBaseWebpackConfig(
           distDir,
           isClient,
           hasRewrites,
-          hasReactRoot,
           isNodeServer,
           isEdgeServer,
           middlewareMatchers,
@@ -1968,7 +1971,7 @@ export default async function getBaseWebpackConfig(
         new ReactLoadablePlugin({
           filename: REACT_LOADABLE_MANIFEST,
           pagesDir,
-          runtimeAsset: hasConcurrentFeatures
+          runtimeAsset: true
             ? `server/${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`
             : undefined,
           dev,
@@ -2041,7 +2044,7 @@ export default async function getBaseWebpackConfig(
           buildId,
           rewrites,
           isDevFallback,
-          exportRuntime: hasConcurrentFeatures,
+          exportRuntime: true,
           appDirEnabled: hasAppDir,
         }),
       new ProfilingPlugin({ runWebpackSpan }),
@@ -2079,6 +2082,7 @@ export default async function getBaseWebpackConfig(
               dev,
             })
           : new FlightClientEntryPlugin({
+              appDir,
               dev,
               isEdgeServer,
             })),

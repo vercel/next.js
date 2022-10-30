@@ -11,6 +11,7 @@ import { getProjectDir } from '../lib/get-project-dir'
 import { CONFIG_FILES } from '../shared/lib/constants'
 import path from 'path'
 import type { NextConfig } from '../types'
+import { interopDefault } from '../lib/interop-default'
 
 const nextDev: cliCommand = (argv) => {
   const validArgs: arg.Spec = {
@@ -137,25 +138,40 @@ const nextDev: cliCommand = (argv) => {
       let babelrc = await getBabelConfigFile(dir)
       if (babelrc) babelrc = path.basename(babelrc)
 
-      const rawNextConfig = (await loadConfig(
-        PHASE_DEVELOPMENT_SERVER,
-        dir,
-        undefined,
-        true
-      )) as NextConfig
+      const rawNextConfig = interopDefault(
+        await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, undefined, true)
+      ) as NextConfig
 
-      const hasNonDefaultConfig = Object.keys(rawNextConfig).some(
-        (configKey) => {
-          if (!(configKey in defaultConfig)) return false
-          if (typeof defaultConfig[configKey] !== 'object') {
-            return defaultConfig[configKey] !== rawNextConfig[configKey]
-          }
-          return (
-            JSON.stringify(rawNextConfig[configKey]) !==
-            JSON.stringify(defaultConfig[configKey])
-          )
+      const checkUnsupportedCustomConfig = (
+        configKey = '',
+        parentUserConfig: any,
+        parentDefaultConfig: any
+      ): boolean => {
+        // these should not error
+        if (
+          configKey === 'serverComponentsExternalPackages' ||
+          configKey === 'appDir' ||
+          configKey === 'transpilePackages' ||
+          configKey === 'reactStrictMode' ||
+          configKey === 'swcMinify'
+        ) {
+          return false
         }
+        let userValue = parentUserConfig[configKey]
+        let defaultValue = parentDefaultConfig[configKey]
+
+        if (typeof defaultValue !== 'object') {
+          return defaultValue !== userValue
+        }
+        return Object.keys(userValue).some((key: string) => {
+          return checkUnsupportedCustomConfig(key, userValue, defaultValue)
+        })
+      }
+
+      const hasNonDefaultConfig = Object.keys(rawNextConfig).some((key) =>
+        checkUnsupportedCustomConfig(key, rawNextConfig, defaultConfig)
       )
+
       const findUp =
         require('next/dist/compiled/find-up') as typeof import('next/dist/compiled/find-up')
       const packagePath = findUp.sync('package.json', { cwd: dir })

@@ -59,6 +59,8 @@ import {
   FLIGHT_SERVER_CSS_MANIFEST,
   RSC_MODULE_TYPES,
   FONT_LOADER_MANIFEST,
+  CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
+  APP_CLIENT_INTERNALS,
 } from '../shared/lib/constants'
 import { getSortedRoutes, isDynamicRoute } from '../shared/lib/router/utils'
 import { __ApiPreviewProps } from '../server/api-utils'
@@ -271,8 +273,6 @@ export default async function build(
       const distDir = path.join(dir, config.distDir)
       setGlobal('phase', PHASE_PRODUCTION_BUILD)
       setGlobal('distDir', distDir)
-
-      const hasReactRoot = !!process.env.__NEXT_REACT_ROOT
 
       const { target } = config
       const buildId: string = await nextBuildSpan
@@ -908,7 +908,6 @@ export default async function build(
         const commonWebpackOptions = {
           buildId,
           config,
-          hasReactRoot,
           pagesDir,
           reactProductionProfiling,
           rewrites,
@@ -975,7 +974,17 @@ export default async function build(
           // Only continue if there were no errors
           if (!serverResult.errors.length && !edgeServerResult?.errors.length) {
             injectedClientEntries.forEach((value, key) => {
-              ;(clientConfig.entry as webpack.EntryObject)[key] = value
+              const clientEntry = clientConfig.entry as webpack.EntryObject
+              if (key === APP_CLIENT_INTERNALS) {
+                clientEntry[CLIENT_STATIC_FILES_RUNTIME_MAIN_APP] = [
+                  // TODO-APP: cast clientEntry[CLIENT_STATIC_FILES_RUNTIME_MAIN_APP] to type EntryDescription once it's available from webpack
+                  // @ts-expect-error clientEntry['main-app'] is type EntryDescription { import: ... }
+                  ...clientEntry[CLIENT_STATIC_FILES_RUNTIME_MAIN_APP].import,
+                  value,
+                ]
+              } else {
+                clientEntry[key] = value
+              }
             })
 
             clientResult = await runCompiler(clientConfig, {
@@ -2199,6 +2208,15 @@ export default async function build(
                     ? appConfig.revalidate
                     : false
               }
+
+              // ensure revalidate is normalized correctly
+              if (
+                typeof revalidate !== 'number' &&
+                typeof revalidate !== 'boolean'
+              ) {
+                revalidate = false
+              }
+
               if (revalidate !== 0) {
                 const normalizedRoute = normalizePagePath(route)
                 const dataRoute = path.posix.join(`${normalizedRoute}.rsc`)

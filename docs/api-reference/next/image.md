@@ -4,6 +4,13 @@ description: Enable Image Optimization with the built-in Image component.
 
 # next/image
 
+<details open>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/image-component">Image Component</a></li>
+  </ul>
+</details>
+
 <details>
   <summary><b>Version History</b></summary>
 
