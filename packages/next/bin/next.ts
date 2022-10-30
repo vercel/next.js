@@ -95,13 +95,6 @@ if (process.env.NODE_ENV) {
 ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
 ;(process.env as any).NEXT_RUNTIME = 'nodejs'
 
-// In node.js runtime, react has to be required after NODE_ENV is set,
-// so that the correct dev/prod bundle could be loaded into require.cache.
-const { shouldUseReactRoot } = require('../server/utils')
-if (shouldUseReactRoot) {
-  ;(process.env as any).__NEXT_REACT_ROOT = 'true'
-}
-
 // x-ref: https://github.com/vercel/next.js/pull/34688#issuecomment-1047994505
 if (process.versions.pnp === '3') {
   const nodeVersionParts = process.versions.node

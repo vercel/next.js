@@ -163,7 +163,6 @@ export default class HotReloader {
   private webpackHotMiddleware?: WebpackHotMiddleware
   private config: NextConfigComplete
   public hasServerComponents: boolean
-  public hasReactRoot: boolean
   public clientStats: webpack.Stats | null
   public serverStats: webpack.Stats | null
   public edgeServerStats: webpack.Stats | null
@@ -216,8 +215,7 @@ export default class HotReloader {
     this.serverPrevDocumentHash = null
 
     this.config = config
-    this.hasReactRoot = !!process.env.__NEXT_REACT_ROOT
-    this.hasServerComponents = this.hasReactRoot && !!this.appDir
+    this.hasServerComponents = !!this.appDir
     this.previewProps = previewProps
     this.rewrites = rewrites
     this.hotReloaderSpan = trace('hot-reloader', undefined, {
@@ -456,7 +454,6 @@ export default class HotReloader {
         dev: true,
         buildId: this.buildId,
         config: this.config,
-        hasReactRoot: this.hasReactRoot,
         pagesDir: this.pagesDir,
         rewrites: this.rewrites,
         runWebpackSpan: this.hotReloaderSpan,
@@ -521,7 +518,6 @@ export default class HotReloader {
           pageExtensions: this.config.pageExtensions,
         })
       ).client,
-      hasReactRoot: this.hasReactRoot,
     })
     const fallbackCompiler = webpack(fallbackConfig)
 
