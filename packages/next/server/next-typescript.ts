@@ -130,7 +130,7 @@ function getAPIDescription(api: string): string {
 }
 
 function removeStringQuotes(str: string): string {
-  return str.replace(/^['"]|['"]$/g, '')
+  return str.replace(/^['"`]|['"`]$/g, '')
 }
 
 export function createTSPlugin(modules: {
@@ -527,8 +527,16 @@ export function createTSPlugin(modules: {
                   } else if (API_DOCS[name.text]) {
                     // Check if the value is valid
                     const value = declarartion.initializer
+
                     if (value) {
-                      if (value.kind === ts.SyntaxKind.StringLiteral) {
+                      let displayedValue = ''
+                      let errorMessage = ''
+                      let isInvalid = false
+
+                      if (
+                        ts.isStringLiteral(value) ||
+                        ts.isNoSubstitutionTemplateLiteral(value)
+                      ) {
                         const text = removeStringQuotes(value.getText())
                         const allowedValues = Object.keys(
                           API_DOCS[name.text].options
@@ -537,35 +545,24 @@ export function createTSPlugin(modules: {
                           .map(removeStringQuotes)
 
                         if (!allowedValues.includes(text)) {
-                          prior.push({
-                            file: source,
-                            category: ts.DiagnosticCategory.Error,
-                            code: 71003,
-                            messageText: `"'${text}'" is not a valid value for the "${name.text}" option.`,
-                            start: value.getStart(),
-                            length: value.getEnd() - value.getStart(),
-                          })
+                          isInvalid = true
+                          displayedValue = `'${text}'`
                         }
                       } else if (
-                        value.kind === ts.SyntaxKind.NumericLiteral ||
-                        (value.kind === ts.SyntaxKind.PrefixUnaryExpression &&
-                          (value as any).operator ===
-                            ts.SyntaxKind.MinusToken &&
-                          (value as any).operand.kind ===
-                            ts.SyntaxKind.NumericLiteral) ||
-                        (value.kind === ts.SyntaxKind.Identifier &&
+                        ts.isNumericLiteral(value) ||
+                        (ts.isPrefixUnaryExpression(value) &&
+                          ts.isMinusToken((value as any).operator) &&
+                          (ts.isNumericLiteral((value as any).operand.kind) ||
+                            (ts.isIdentifier((value as any).operand.kind) &&
+                              (value as any).operand.kind.getText() ===
+                                'Infinity'))) ||
+                        (ts.isIdentifier(value) &&
                           value.getText() === 'Infinity')
                       ) {
                         const v = value.getText()
                         if (API_DOCS[name.text].isValid?.(v) === false) {
-                          prior.push({
-                            file: source,
-                            category: ts.DiagnosticCategory.Error,
-                            code: 71003,
-                            messageText: `"${v}" is not a valid value for the "${name.text}" option.`,
-                            start: value.getStart(),
-                            length: value.getEnd() - value.getStart(),
-                          })
+                          isInvalid = true
+                          displayedValue = v
                         }
                       } else if (
                         value.kind === ts.SyntaxKind.TrueKeyword ||
@@ -573,23 +570,33 @@ export function createTSPlugin(modules: {
                       ) {
                         const v = value.getText()
                         if (API_DOCS[name.text].isValid?.(v) === false) {
-                          prior.push({
-                            file: source,
-                            category: ts.DiagnosticCategory.Error,
-                            code: 71003,
-                            messageText: `"${v}" is not a valid value for the "${name.text}" option.`,
-                            start: value.getStart(),
-                            length: value.getEnd() - value.getStart(),
-                          })
+                          isInvalid = true
+                          displayedValue = v
                         }
+                      } else if (
+                        // Other literals
+                        ts.isBigIntLiteral(value) ||
+                        ts.isArrayLiteralExpression(value) ||
+                        ts.isObjectLiteralExpression(value) ||
+                        ts.isRegularExpressionLiteral(value)
+                      ) {
+                        isInvalid = true
+                        displayedValue = value.getText()
                       } else {
+                        // Not a literal, error because it's not statically analyzable
+                        isInvalid = true
+                        displayedValue = value.getText()
+                        errorMessage = `"${displayedValue}" is not a valid value for the "${name.text}" option. The configuration must be statically analyzable.`
+                      }
+
+                      if (isInvalid) {
                         prior.push({
                           file: source,
                           category: ts.DiagnosticCategory.Error,
                           code: 71003,
-                          messageText: `"${value.getText()}" is not a valid value for the "${
-                            name.text
-                          }" option.`,
+                          messageText:
+                            errorMessage ||
+                            `"${displayedValue}" is not a valid value for the "${name.text}" option.`,
                           start: value.getStart(),
                           length: value.getEnd() - value.getStart(),
                         })

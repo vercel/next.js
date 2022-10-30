@@ -26,6 +26,7 @@ import { traverseModules } from '../utils'
 
 interface Options {
   dev: boolean
+  appDir: string
   isEdgeServer: boolean
 }
 
@@ -41,10 +42,12 @@ const flightCSSManifest: FlightCSSManifest = {}
 
 export class FlightClientEntryPlugin {
   dev: boolean
+  appDir: string
   isEdgeServer: boolean
 
   constructor(options: Options) {
     this.dev = options.dev
+    this.appDir = options.appDir
     this.isEdgeServer = options.isEdgeServer
   }
 
@@ -247,7 +250,7 @@ export class FlightClientEntryPlugin {
           if (!chunk.name) return
           if (!chunk.name.endsWith('/page')) return
 
-          const entryName = path.join(compiler.context, chunk.name)
+          const entryName = path.join(this.appDir, '..', chunk.name)
 
           if (!cssImportsForChunk[entryName]) {
             cssImportsForChunk[entryName] = []
