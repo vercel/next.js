@@ -29,19 +29,21 @@ const styles = css`
     border-bottom: 1px solid var(--color-ansi-bright-black);
   }
   [data-nextjs-codeframe] > div > p {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    position: relative;
     cursor: pointer;
     margin: 0;
+    padding-right: calc(1em + 8px);
   }
   [data-nextjs-codeframe] > div > p:hover {
     text-decoration: underline dotted;
   }
   [data-nextjs-codeframe] div > p > svg {
-    width: auto;
+    position: absolute;
+    top: 50%;
+    right: 0;
+    width: 1em;
     height: 1em;
-    margin-left: 8px;
+    transform: translate(0, -50%);
   }
   [data-nextjs-codeframe] div > pre {
     overflow: hidden;
