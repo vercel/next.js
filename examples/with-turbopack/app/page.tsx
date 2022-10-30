@@ -25,6 +25,7 @@ export default function Page() {
                           href={`/${item.slug}`}
                           key={item.name}
                           className="block space-y-1.5 rounded-lg border border-white/10 px-4 py-3 hover:border-white/20"
+                          legacyBehavior
                         >
                           <div>{item.name}</div>
 
