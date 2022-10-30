@@ -1015,14 +1015,18 @@ impl FileSystemPathVc {
         let mut symlinks = Vec::new();
         for segment in segments {
             current = current.join(segment);
-            while let LinkContent::Link { target, link_type } = &*current.read_link().await? {
-                symlinks.push(current.resolve().await?);
-                current = if link_type.contains(LinkType::ABSOLUTE) {
-                    current.root()
+            while let FileSystemEntryType::Symlink = &*current.get_type().await? {
+                if let LinkContent::Link { target, link_type } = &*current.read_link().await? {
+                    symlinks.push(current.resolve().await?);
+                    current = if link_type.contains(LinkType::ABSOLUTE) {
+                        current.root()
+                    } else {
+                        current.parent()
+                    }
+                    .join(target);
                 } else {
-                    current.parent()
+                    break;
                 }
-                .join(target);
             }
         }
         if symlinks.is_empty() {
