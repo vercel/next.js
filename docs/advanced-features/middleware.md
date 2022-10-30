@@ -167,9 +167,9 @@ export function middleware(request: NextRequest) {
   const allCookies = request.cookies.getAll()
   console.log(allCookies) // => [{ name: 'vercel', value: 'fast' }]
 
-  response.cookies.has('nextjs') // => true
-  response.cookies.delete('nextjs')
-  response.cookies.has('nextjs') // => false
+  request.cookies.has('nextjs') // => true
+  request.cookies.delete('nextjs')
+  request.cookies.has('nextjs') // => false
 
   // Setting cookies on the response using the `ResponseCookies` API
   const response = NextResponse.next()
