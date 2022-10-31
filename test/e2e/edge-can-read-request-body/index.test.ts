@@ -30,8 +30,10 @@ describe('Edge can read request body', () => {
 
   describe('middleware', () => {
     it('reads a JSON body', async () => {
-      const response = await fetch(
-        `${next.url}/api/nothing?middleware-handler=json`,
+      const response = await fetchViaHTTP(
+        next.url,
+        '/api/nothing?middleware-handler=json',
+        null,
         {
           method: 'POST',
           body: JSON.stringify({ hello: 'world' }),
@@ -73,8 +75,10 @@ describe('Edge can read request body', () => {
     })
 
     it('reads an URL encoded form data', async () => {
-      const response = await fetch(
-        `${next.url}/api/nothing?middleware-handler=formData`,
+      const response = await fetchViaHTTP(
+        next.url,
+        '/api/nothing?middleware-handler=formData',
+        null,
         {
           method: 'POST',
           headers: {
