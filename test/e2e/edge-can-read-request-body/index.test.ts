@@ -18,9 +18,7 @@ describe('Edge can read request body', () => {
   beforeAll(async () => {
     next = await createNext({
       files: new FileRef(path.resolve(__dirname, './app')),
-      dependencies: {
-        'form-data': '4.0.0',
-      },
+      dependencies: {},
     })
   })
   afterAll(() => next.destroy())
