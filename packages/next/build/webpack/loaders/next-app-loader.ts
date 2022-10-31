@@ -42,6 +42,7 @@ async function createTreeCodeFromPath({
   const splittedPath = pagePath.split(/[\\/]/)
   const appDirPrefix = splittedPath[0]
   const pages: string[] = []
+
   let rootLayout: string | undefined
   async function createSubtreePropsFromSegmentPath(
     segments: string[]
