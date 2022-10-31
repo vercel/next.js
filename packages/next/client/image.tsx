@@ -17,7 +17,7 @@ import {
   ImageLoaderPropsWithConfig,
 } from '../shared/lib/image-config'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
-import { warnOnce } from '../shared/lib/utils'
+import { warnOnce } from '../shared/lib/utils/warn-once'
 // @ts-ignore - This is replaced by webpack alias
 import defaultLoader from 'next/dist/shared/lib/image-loader'
 
