@@ -90,8 +90,6 @@ export function setHttpClientAndAgentOptions(config: NextConfig) {
 }
 
 async function setFontLoaderDefaults(config: NextConfigComplete, dir: string) {
-  if (config.experimental?.fontLoaders) return
-
   // Add @next/font loaders by default if they're installed
   const hasNextFontDependency = (
     await getDependencies({
@@ -114,14 +112,14 @@ async function setFontLoaderDefaults(config: NextConfigComplete, dir: string) {
     }
     if (
       !config.experimental.fontLoaders.find(
-        ({ loader }: any) => loader === '@next/font/goggle'
+        ({ loader }: any) => loader === googleFontLoader.loader
       )
     ) {
       config.experimental.fontLoaders.push(googleFontLoader)
     }
     if (
       !config.experimental.fontLoaders.find(
-        ({ loader }: any) => loader === '@next/font/local'
+        ({ loader }: any) => loader === localFontLoader.loader
       )
     ) {
       config.experimental.fontLoaders.push(localFontLoader)
