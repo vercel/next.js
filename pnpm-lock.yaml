@@ -106,6 +106,7 @@ importers:
       faunadb: 2.6.1
       firebase: 7.14.5
       flat: 5.0.2
+      form-data: 4.0.0
       fs-extra: 9.0.0
       get-port: 5.1.1
       glob: 7.1.6
@@ -169,6 +170,7 @@ importers:
       tsec: 0.2.1
       turbo: 1.5.3
       typescript: 4.8.2
+      undici: 5.12.0
       wait-port: 0.2.2
       webpack: 5.74.0
       webpack-bundle-analyzer: 4.3.0
@@ -267,6 +269,7 @@ importers:
       faunadb: 2.6.1
       firebase: 7.14.5
       flat: 5.0.2
+      form-data: 4.0.0
       fs-extra: 9.0.0
       get-port: 5.1.1
       glob: 7.1.6
@@ -330,6 +333,7 @@ importers:
       tsec: 0.2.1_sbe2uaqno6akssxfwbhgeg7v2q
       turbo: 1.5.3
       typescript: 4.8.2
+      undici: 5.12.0
       wait-port: 0.2.2
       webpack: 5.74.0_@swc+core@1.2.203
       webpack-bundle-analyzer: 4.3.0
@@ -630,7 +634,7 @@ importers:
       timers-browserify: 2.0.12
       tty-browserify: 0.0.1
       ua-parser-js: 0.7.28
-      undici: 5.11.0
+      undici: 5.12.0
       unistore: 3.4.1
       use-sync-external-store: 1.2.0
       util: 0.12.4
@@ -826,7 +830,7 @@ importers:
       timers-browserify: 2.0.12
       tty-browserify: 0.0.1
       ua-parser-js: 0.7.28
-      undici: 5.11.0
+      undici: 5.12.0
       unistore: 3.4.1_react@18.2.0
       util: 0.12.4
       uuid: 8.3.2
@@ -11644,6 +11648,15 @@ packages:
       mime-types: 2.1.30
     dev: true
 
+  /form-data/4.0.0:
+    resolution: {integrity: sha512-ETEklSGi5t0QMZuiXoA/Q6vcnxcLQP5vdugSpuAyi6SVGi2clPPp+xgEhuMaHC+zGgn31Kd235W35f7Hykkaww==}
+    engines: {node: '>= 6'}
+    dependencies:
+      asynckit: 0.4.0
+      combined-stream: 1.0.8
+      mime-types: 2.1.30
+    dev: true
+
   /format/0.2.2:
     resolution: {integrity: sha1-1hcBB+nv3E7TDJ3DkBbflCtctYs=}
     engines: {node: '>=0.4.x'}
@@ -21934,8 +21947,8 @@ packages:
     engines: {node: '>=0.10.0'}
     dev: true
 
-  /undici/5.11.0:
-    resolution: {integrity: sha512-oWjWJHzFet0Ow4YZBkyiJwiK5vWqEYoH7BINzJAJOLedZ++JpAlCbUktW2GQ2DS2FpKmxD/JMtWUUWl1BtghGw==}
+  /undici/5.12.0:
+    resolution: {integrity: sha512-zMLamCG62PGjd9HHMpo05bSLvvwWOZgGeiWlN/vlqu3+lRo3elxktVGEyLMX+IO7c2eflLjcW74AlkhEZm15mg==}
     engines: {node: '>=12.18'}
     dependencies:
       busboy: 1.6.0

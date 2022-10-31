@@ -1,12 +1,8 @@
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
-import { EdgeRuntime } from 'next/dist/compiled/edge-runtime'
-import { renderViaHTTP } from 'next-test-utils'
+import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
+import FormData from 'form-data'
 import path from 'path'
-
-const runtime = new EdgeRuntime()
-const fetch = runtime.evaluate('fetch')
-const FormData = runtime.evaluate('FormData')
 
 async function serialize(response: Response) {
   return {
@@ -52,21 +48,28 @@ describe('Edge can read request body', () => {
     })
 
     it('reads a text body', async () => {
-      const response = await fetch(
-        `${next.url}/api/nothing?middleware-handler=text`,
-        {
-          method: 'POST',
-          body: JSON.stringify({ hello: 'world' }),
-        }
-      )
-      expect(await serialize(response)).toMatchObject({
-        text: expect.stringContaining('ok'),
-        status: 200,
-        headers: {
-          'x-req-type': 'text',
-          'x-serialized': '{"hello":"world"}',
-        },
-      })
+      try {
+        const response = await fetchViaHTTP(
+          next.url,
+          '/api/nothing?middleware-handler=text',
+          null,
+          {
+            method: 'POST',
+            body: JSON.stringify({ hello: 'world' }),
+          }
+        )
+
+        expect(await serialize(response)).toMatchObject({
+          text: expect.stringContaining('ok'),
+          status: 200,
+          headers: {
+            'x-req-type': 'text',
+            'x-serialized': '{"hello":"world"}',
+          },
+        })
+      } catch (err) {
+        console.log('FAILED', err)
+      }
     })
 
     it('reads an URL encoded form data', async () => {
@@ -92,14 +95,18 @@ describe('Edge can read request body', () => {
 
     it('reads a multipart form data', async () => {
       const formData = new FormData()
-      formData.set('hello', 'world')
-      const response = await fetch(
-        `${next.url}/api/nothing?middleware-handler=formData`,
+      formData.append('hello', 'world')
+
+      const response = await fetchViaHTTP(
+        next.url,
+        '/api/nothing?middleware-handler=formData',
+        null,
         {
           method: 'POST',
           body: formData,
         }
       )
+
       expect(await serialize(response)).toMatchObject({
         text: expect.stringContaining('ok'),
         status: 200,
