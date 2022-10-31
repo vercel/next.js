@@ -1658,7 +1658,9 @@ export async function copyTracedFiles(
       `${normalizePagePath(page)}.js`
     )
     const pageTraceFile = `${pageFile}.nft.json`
-    await handleTraceFiles(pageTraceFile)
+    await handleTraceFiles(pageTraceFile).catch((err) => {
+      Log.warn(`Failed to copy traced files for ${pageFile}`, err)
+    })
   }
   await handleTraceFiles(path.join(distDir, 'next-server.js.nft.json'))
   const serverOutputPath = path.join(
