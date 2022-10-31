@@ -36,7 +36,6 @@ export default function GlobalNav() {
                         'block rounded-md px-3 py-2 text-sm font-medium hover:bg-zinc-800 hover:text-zinc-100',
                         { 'text-zinc-400': !isActive, 'text-white': isActive },
                       )}
-                      legacyBehavior
                     >
                       {item.name}
                     </Link>
