@@ -17,7 +17,7 @@ import {
 } from '../../shared/lib/image-config'
 import { useIntersection } from '../use-intersection'
 import { ImageConfigContext } from '../../shared/lib/image-config-context'
-import { warnOnce } from '../../shared/lib/utils'
+import { warnOnce } from '../../shared/lib/utils/warn-once'
 import { normalizePathTrailingSlash } from '../normalize-trailing-slash'
 
 function normalizeSrc(src: string): string {

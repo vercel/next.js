@@ -34,6 +34,7 @@ export async function createApp({
   example,
   examplePath,
   typescript,
+  eslint,
   experimentalApp,
 }: {
   appPath: string
@@ -41,6 +42,7 @@ export async function createApp({
   example?: string
   examplePath?: string
   typescript: boolean
+  eslint: boolean
   experimentalApp: boolean
 }): Promise<void> {
   let repoInfo: RepoInfo | undefined
@@ -216,6 +218,7 @@ export async function createApp({
       mode,
       packageManager,
       isOnline,
+      eslint,
     })
   }
 

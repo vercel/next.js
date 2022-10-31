@@ -2,13 +2,13 @@
 description: Get started with Next.js in the official documentation, and learn more about all our features!
 ---
 
+> The beta version of Next.js 13 has been [publicly released](https://nextjs.org/blog/next-13), [read the new docs here](https://beta.nextjs.org/docs).
+
 # Getting Started
 
 Welcome to the Next.js documentation!
 
-If you're new to Next.js, we recommend starting with the [learn course](https://nextjs.org/learn/basics/create-nextjs-app).
-
-The interactive course with quizzes will guide you through everything you need to know to use Next.js.
+If you're new to Next.js, we recommend starting with the [learn course](https://nextjs.org/learn/basics/create-nextjs-app). The interactive course with quizzes will guide you through everything you need to know to use Next.js.
 
 If you have questions about anything related to Next.js, you're always welcome to ask our community on [GitHub Discussions](https://github.com/vercel/next.js/discussions).
 

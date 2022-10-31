@@ -1,6 +1,6 @@
 {
   "name": "create-next-app",
-  "version": "13.0.1-canary.2",
+  "version": "13.0.1-canary.3",
   "keywords": [
     "react",
     "next",
@@ -29,8 +29,8 @@
   },
   "devDependencies": {
     "@types/async-retry": "1.4.2",
-    "@types/cross-spawn": "6.0.0",
     "@types/ci-info": "2.0.0",
+    "@types/cross-spawn": "6.0.0",
     "@types/node": "^12.6.8",
     "@types/prompts": "2.0.1",
     "@types/rimraf": "3.0.0",

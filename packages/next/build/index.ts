@@ -984,7 +984,10 @@ export default async function build(
                   value,
                 ]
               } else {
-                clientEntry[key] = value
+                clientEntry[key] = {
+                  dependOn: [CLIENT_STATIC_FILES_RUNTIME_MAIN_APP],
+                  import: value,
+                }
               }
             })
 
