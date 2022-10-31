@@ -13,9 +13,7 @@ export default function Home() {
         <a href="/blog">Blog</a>
       </div>
       <div>
-        <Link href="/about">
-          <a>About us</a>
-        </Link>
+        <Link href="/about">About us</Link>
       </div>
       <Image
         src="/static/nextjs.png"
