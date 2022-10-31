@@ -10,7 +10,10 @@ export default function Index() {
         <hr className={styles.hr} />
         <p>
           The links below are{' '}
-          <Link href="https://nextjs.org/docs/api-reference/next.config.js/redirects">
+          <Link
+            href="https://nextjs.org/docs/api-reference/next.config.js/redirects"
+            legacyBehavior
+          >
             <>
               custom <Code>redirects</Code>
             </>

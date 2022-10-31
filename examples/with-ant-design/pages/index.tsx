@@ -29,10 +29,8 @@ export default function Home() {
   return (
     <div style={content}>
       <div className="text-center mb-5">
-        <Link href="#">
-          <a className="logo mr-0">
-            <SmileFilled style={{ fontSize: 48 }} />
-          </a>
+        <Link href="#" className="logo mr-0">
+          <SmileFilled style={{ fontSize: 48 }} />
         </Link>
 
         <p className="mb-0 mt-3 text-disabled">Welcome to the world !</p>

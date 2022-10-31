@@ -29,6 +29,7 @@ type EventCliSessionStarted = {
   trailingSlashEnabled: boolean
   reactStrictMode: boolean
   webpackVersion: number | null
+  turboFlag: boolean
 }
 
 function hasBabelConfig(dir: string): boolean {
@@ -111,6 +112,7 @@ export function eventCliSession(
     trailingSlashEnabled: !!nextConfig?.trailingSlash,
     reactStrictMode: !!nextConfig?.reactStrictMode,
     webpackVersion: event.webpackVersion || null,
+    turboFlag: event.turboFlag || false,
   }
   return [{ eventName: EVENT_VERSION, payload }]
 }

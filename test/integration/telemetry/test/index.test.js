@@ -368,6 +368,32 @@ describe('Telemetry CLI', () => {
     expect(stderr).toMatch(/isSrcDir.*?true/)
   })
 
+  it('detects --turbo correctly for `next dev`', async () => {
+    let port = await findPort()
+    let stderr = ''
+
+    const handleStderr = (msg) => {
+      stderr += msg
+    }
+    let app = await launchApp(appDir, port, {
+      onStderr: handleStderr,
+      env: {
+        NEXT_TELEMETRY_DEBUG: 1,
+      },
+      turbo: true,
+    })
+    await waitFor(1000)
+
+    if (app) {
+      await killApp(app)
+    }
+    const event1 = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
+      .exec(stderr)
+      .pop()
+
+    expect(event1).toMatch(/"turboFlag": true/)
+  })
+
   it('detect reportWebVitals correctly for `next build`', async () => {
     // Case 1: When _app.js does not exist.
     let build = await nextBuild(appDir, [], {
@@ -484,6 +510,7 @@ describe('Telemetry CLI', () => {
     expect(event1).toMatch(/"imageFormats": "image\/avif,image\/webp"/)
     expect(event1).toMatch(/"trailingSlashEnabled": false/)
     expect(event1).toMatch(/"reactStrictMode": false/)
+    expect(event1).toMatch(/"turboFlag": false/)
 
     await fs.rename(
       path.join(appDir, 'next.config.i18n-images'),
