@@ -360,6 +360,7 @@ importers:
   packages/create-next-app:
     specifiers:
       '@types/async-retry': 1.4.2
+      '@types/ci-info': 2.0.0
       '@types/cross-spawn': 6.0.0
       '@types/node': ^12.6.8
       '@types/prompts': 2.0.1
@@ -369,6 +370,7 @@ importers:
       '@vercel/ncc': 0.34.0
       async-retry: 1.3.1
       chalk: 2.4.2
+      ci-info: watson/ci-info#f43f6a1cefff47fb361c88cf4b943fdbcaafe540
       commander: 2.20.0
       cpy: 7.3.0
       cross-spawn: 6.0.5
@@ -380,6 +382,7 @@ importers:
       validate-npm-package-name: 3.0.0
     devDependencies:
       '@types/async-retry': 1.4.2
+      '@types/ci-info': 2.0.0
       '@types/cross-spawn': 6.0.0
       '@types/node': 12.12.24
       '@types/prompts': 2.0.1
@@ -389,6 +392,7 @@ importers:
       '@vercel/ncc': 0.34.0
       async-retry: 1.3.1
       chalk: 2.4.2
+      ci-info: github.com/watson/ci-info/f43f6a1cefff47fb361c88cf4b943fdbcaafe540
       commander: 2.20.0
       cpy: 7.3.0
       cross-spawn: 6.0.5

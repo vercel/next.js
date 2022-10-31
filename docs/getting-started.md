@@ -19,12 +19,7 @@ If you have questions about anything related to Next.js, you're always welcome t
 
 ## Automatic Setup
 
-We recommend creating a new Next.js app using `create-next-app`, which sets up
-everything automatically for you.
-
-### Interactive
-
-You can create a new project interactively by running:
+We recommend creating a new Next.js app using `create-next-app`, which sets up everything automatically for you. To create a project, run:
 
 ```bash
 npx create-next-app@latest
@@ -34,63 +29,14 @@ yarn create next-app
 pnpm create next-app
 ```
 
-You will be asked for the name of your project, and then whether you want to
-create a TypeScript project:
-
-```
-✔ Would you like to use TypeScript with this project? … No / Yes
-```
-
-Select **Yes** to install the necessary types/dependencies and create a new TS project.
-
-### Non-interactive
-
-You can also pass command line arguments to set up a new project
-non-interactively. See `create-next-app --help`:
-
-```
-create-next-app <project-directory> [options]
-
-Options:
-  -V, --version                      output the version number
-  --ts, --typescript
-
-    Initialize as a TypeScript project. (default)
-
-  --js, --javascript
-
-    Initialize as a JavaScript project.
-
-  --use-npm
-
-    Explicitly tell the CLI to bootstrap the app using npm
-
-  --use-pnpm
-
-    Explicitly tell the CLI to bootstrap the app using pnpm
-
-  -e, --example [name]|[github-url]
-
-    An example to bootstrap the app with. You can use an example name
-    from the official Next.js repo or a GitHub URL. The URL can use
-    any branch and/or subdirectory
-
-  --example-path <path-to-example>
-
-    In a rare case, your GitHub URL might contain a branch name with
-    a slash (e.g. bug/fix-1) and the path to the example (e.g. foo/bar).
-    In this case, you must specify the path to the example separately:
-    --example-path foo/bar
-```
-
-#### Examples
+If you want to start with a TypeScript project you can use the `--typescript` flag:
 
 ```bash
-npx create-next-app@latest --ts my-project
+npx create-next-app@latest --typescript
 # or
-yarn create next-app --js my-project
+yarn create next-app --typescript
 # or
-pnpm create next-app --javascript my-project
+pnpm create next-app --typescript
 ```
 
 After the installation is complete:
@@ -159,7 +105,7 @@ After the set up is complete:
 So far, we get:
 
 - Automatic compilation and [bundling](/docs/advanced-features/compiler.md)
-- [React Fast Refresh](https://nextjs.org/blog/next-9-4#fast-refresh)
+- [React Fast Refrebash](https://nextjs.org/blog/next-9-4#fast-refrebash)
 - [Static generation and server-side rendering](/docs/basic-features/data-fetching/overview.md) of [`pages/`](/docs/basic-features/pages.md)
 - [Static file serving](/docs/basic-features/static-file-serving.md) through `public/` which is mapped to the base URL (`/`)
 

@@ -9,6 +9,7 @@ import { createApp, DownloadError } from './create-app'
 import { getPkgManager } from './helpers/get-pkg-manager'
 import { validateNpmName } from './helpers/validate-pkg'
 import packageJson from './package.json'
+import ciInfo from 'ci-info'
 
 let projectPath: string = ''
 
@@ -151,34 +152,40 @@ async function run(): Promise<void> {
    * @todo Allow appDir to support TS or JS, currently TS-only and disables all
    * --ts, --js features.
    */
-  if (!program.typescript && !program.javascript) {
-    const styledTypeScript = chalk.hex('#007acc')('TypeScript')
-    const { typescript } = await prompts(
-      {
-        type: 'toggle',
-        name: 'typescript',
-        message: `Would you like to use ${styledTypeScript} with this project?`,
-        initial: true,
-        active: 'Yes',
-        inactive: 'No',
-      },
-      {
-        /**
-         * User inputs Ctrl+C or Ctrl+D to exit the prompt. We should close the
-         * process and not write to the file system.
-         */
-        onCancel: () => {
-          console.error('Exiting.')
-          process.exit(1)
+  if (!example && !program.typescript && !program.javascript) {
+    if (ciInfo.isCI) {
+      // default to JavaScript in CI as we can't prompt to
+      // prevent breaking setup flows
+      program.javascript = true
+      program.typescript = false
+    } else {
+      const styledTypeScript = chalk.hex('#007acc')('TypeScript')
+      const { typescript } = await prompts(
+        {
+          type: 'toggle',
+          name: 'typescript',
+          message: `Would you like to use ${styledTypeScript} with this project?`,
+          initial: true,
+          active: 'Yes',
+          inactive: 'No',
         },
-      }
-    )
-
-    /**
-     * Depending on the prompt response, set the appropriate program flags.
-     */
-    program.typescript = Boolean(typescript)
-    program.javascript = !Boolean(typescript)
+        {
+          /**
+           * User inputs Ctrl+C or Ctrl+D to exit the prompt. We should close the
+           * process and not write to the file system.
+           */
+          onCancel: () => {
+            console.error('Exiting.')
+            process.exit(1)
+          },
+        }
+      )
+      /**
+       * Depending on the prompt response, set the appropriate program flags.
+       */
+      program.typescript = Boolean(typescript)
+      program.javascript = !Boolean(typescript)
+    }
   }
 
   try {
