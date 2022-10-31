@@ -8,6 +8,7 @@
 // Based on https://github.com/reactjs/react-codemod/blob/dd8671c9a470a2c342b221ec903c574cf31e9f57/bin/cli.js
 // @next/codemod optional-name-of-transform optional/path/to/src [...options]
 
+/* eslint-disable import/no-extraneous-dependencies */
 import globby from 'globby'
 import inquirer from 'inquirer'
 import meow from 'meow'
