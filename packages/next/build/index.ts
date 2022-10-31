@@ -340,6 +340,7 @@ export default async function build(
             (!!appDir && path.relative(dir, appDir).startsWith('src')),
           hasNowJson: !!(await findUp('now.json', { cwd: dir })),
           isCustomServer: null,
+          turboFlag: false,
         })
       )
 
