@@ -4,3 +4,4 @@
 !transforms/__tests__/**/*.js
 !transforms/__testfixtures__/**/*.js
 !build.js
+!prepare-test.js
