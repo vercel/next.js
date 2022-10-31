@@ -1,8 +1,12 @@
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
+import { EdgeRuntime } from 'next/dist/compiled/edge-runtime'
 import { renderViaHTTP } from 'next-test-utils'
-import { FormData, fetch } from '@edge-runtime/primitives'
 import path from 'path'
+
+const runtime = new EdgeRuntime()
+const fetch = runtime.evaluate('fetch')
+const FormData = runtime.evaluate('FormData')
 
 async function serialize(response: Response) {
   return {
