@@ -160,7 +160,7 @@ const nextDev: cliCommand = (argv) => {
           configKey === 'transpilePackages' ||
           configKey === 'reactStrictMode' ||
           configKey === 'swcMinify' ||
-          configKey == 'configFileName'
+          configKey === 'configFileName'
         ) {
           return false
         }
