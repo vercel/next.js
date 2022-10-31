@@ -14,7 +14,6 @@ import {
   getFontLoaderImportError,
 } from './messages'
 import { getPostCssPlugins } from './plugins'
-import { WEBPACK_LAYERS } from '../../../../../lib/constants'
 
 // RegExps for all Style Sheet variants
 export const regexLikeCss = /\.(css|scss|sass)$/
