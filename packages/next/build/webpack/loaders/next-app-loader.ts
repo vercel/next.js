@@ -30,18 +30,19 @@ async function createTreeCodeFromPath({
   pagePath,
   resolve,
   resolveParallelSegments,
+  moduleType,
 }: {
   pagePath: string
   resolve: (pathname: string) => Promise<string | undefined>
   resolveParallelSegments: (
     pathname: string
   ) => [key: string, segment: string][]
+  moduleType: boolean
 }) {
   const splittedPath = pagePath.split(/[\\/]/)
   const appDirPrefix = splittedPath[0]
   const pages: string[] = []
   let rootLayout: string | undefined
-
   async function createSubtreePropsFromSegmentPath(
     segments: string[]
   ): Promise<string> {
@@ -69,7 +70,9 @@ async function createTreeCodeFromPath({
         // Use '' for segment as it's the page. There can't be a segment called '' so this is the safest way to add it.
         props[parallelKey] = `['', {}, {layoutOrPagePath: ${JSON.stringify(
           resolvedPagePath
-        )}, page: () => require(${JSON.stringify(resolvedPagePath)})}]`
+        )}, page: () => ${moduleType ? 'import' : 'require'}(${JSON.stringify(
+          resolvedPagePath
+        )})}]`
         continue
       }
 
@@ -108,7 +111,9 @@ async function createTreeCodeFromPath({
                 file === FILE_TYPES.layout
                   ? `layoutOrPagePath: ${JSON.stringify(filePath)},`
                   : ''
-              }'${file}': () => require(${JSON.stringify(filePath)}),`
+              }'${file}': () => ${
+                moduleType ? 'import' : 'require'
+              }(${JSON.stringify(filePath)}),`
             })
             .join('\n')}
         }
@@ -144,7 +149,8 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
   rootDir?: string
   tsconfigPath?: string
   isDev?: boolean
-}> = async function nextAppLoader() {
+  moduleType: boolean
+}> = async function () {
   const {
     name,
     appDir,
@@ -154,6 +160,7 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
     rootDir,
     tsconfigPath,
     isDev,
+    moduleType,
   } = this.getOptions() || {}
 
   const buildInfo = getModuleBuildInfo((this as any)._module)
@@ -209,6 +216,7 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
     pagePath,
     resolve: resolver,
     resolveParallelSegments,
+    moduleType,
   })
 
   if (!rootLayout) {

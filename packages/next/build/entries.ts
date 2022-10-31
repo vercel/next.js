@@ -10,6 +10,7 @@ import type {
 import type { LoadedEnvFiles } from '@next/env'
 import chalk from 'next/dist/compiled/chalk'
 import { posix, join } from 'path'
+import { readFile } from 'fs/promises'
 import { stringify } from 'querystring'
 import {
   API_ROUTE,
@@ -220,6 +221,7 @@ export function getAppEntry(opts: {
   isDev?: boolean
   rootDir?: string
   tsconfigPath?: string
+  moduleType: boolean
 }) {
   return {
     import: `next-app-loader?${stringify(opts)}!`,
@@ -386,6 +388,9 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
         ]
       }
 
+      const moduleType =
+        JSON.parse(await readFile(await join(rootDir, 'package.json'), 'utf8'))
+          .type === 'module'
       await runDependingOnPageType({
         page,
         pageRuntime: staticInfo.runtime,
@@ -410,6 +415,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
               appDir,
               appPaths: matchedAppPaths,
               pageExtensions,
+              moduleType,
             })
           } else {
             server[serverBundlePath] = [mappings[page]]
@@ -426,6 +432,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
               appDir: appDir!,
               appPaths: matchedAppPaths,
               pageExtensions,
+              moduleType,
             }).import
           }
 

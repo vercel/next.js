@@ -553,6 +553,11 @@ export default class HotReloader {
     }
     this.activeConfigs = await this.getWebpackConfig(startSpan)
 
+    const moduleType =
+      JSON.parse(
+        await fs.readFile(await join(this.dir, 'package.json'), 'utf8')
+      ).type === 'module'
+
     for (const config of this.activeConfigs) {
       const defaultEntry = config.entry
       config.entry = async (...args) => {
@@ -624,6 +629,7 @@ export default class HotReloader {
                       rootDir: this.dir,
                       isDev: true,
                       tsconfigPath: this.config.typescript.tsconfigPath,
+                      moduleType,
                     }).import
                   : undefined
 
@@ -705,6 +711,7 @@ export default class HotReloader {
                         rootDir: this.dir,
                         isDev: true,
                         tsconfigPath: this.config.typescript.tsconfigPath,
+                        moduleType,
                       })
                     : relativeRequest,
                   hasAppDir,
