@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::HashMap};
+use std::borrow::Cow;
 
 use swc_core::{
     common::pass::AstKindPath,
@@ -12,77 +12,95 @@ use crate::code_gen::VisitorFactory;
 
 pub type AstPath = Vec<AstParentKind>;
 
-pub struct ApplyVisitors<'a> {
+// Invariant: Each [AstPath] in `visitors` contains a value at position `index`.
+pub struct ApplyVisitors<'a, 'b> {
     /// `VisitMut` should be shallow. In other words, it should not visit
     /// children of the node.
-    visitors: HashMap<AstParentKind, Vec<(&'a AstPath, &'a dyn VisitorFactory)>>,
+    visitors: Cow<'b, [(&'a AstPath, &'a dyn VisitorFactory)]>,
 
     index: usize,
 }
 
-impl<'a> ApplyVisitors<'a> {
-    pub fn new(visitors: Vec<(&'a AstPath, &'a dyn VisitorFactory)>) -> Self {
-        let mut map = HashMap::<AstParentKind, Vec<(&'a AstPath, &'a dyn VisitorFactory)>>::new();
-        for (path, visitor) in visitors {
-            if let Some(span) = path.first() {
-                map.entry(*span).or_default().push((path, visitor));
-            }
-        }
+/// Do two binary searches to find the sub-slice that has `path[index] == kind`.
+/// Returns None if no item matches that. `visitors` need to be sorted by path.
+fn find_range<'a, 'b>(
+    visitors: &'b [(&'a AstPath, &'a dyn VisitorFactory)],
+    kind: &AstParentKind,
+    index: usize,
+) -> Option<&'b [(&'a AstPath, &'a dyn VisitorFactory)]> {
+    // Precondition: visitors is never empty
+    let start = if visitors.first().unwrap().0[index] >= *kind {
+        // Fast path: It's likely that the whole range is selected
+        0
+    } else {
+        visitors.partition_point(|(path, _)| path[index] < *kind)
+    };
+    if start >= visitors.len() {
+        return None;
+    }
+    let end = if visitors.last().unwrap().0[index] == *kind {
+        // Fast path: It's likely that the whole range is selected
+        visitors.len()
+    } else {
+        visitors[start..].partition_point(|(path, _)| path[index] == *kind) + start
+    };
+    if end == start {
+        return None;
+    }
+    // Postcondition: return value is never empty
+    Some(&visitors[start..end])
+}
+
+impl<'a, 'b> ApplyVisitors<'a, 'b> {
+    /// `visitors` must have an non-empty [AstPath].
+    pub fn new(mut visitors: Vec<(&'a AstPath, &'a dyn VisitorFactory)>) -> Self {
+        assert!(!visitors.is_empty());
+        visitors.sort_by_key(|(path, _)| *path);
         Self {
-            visitors: map,
+            visitors: Cow::Owned(visitors),
             index: 0,
         }
     }
 
+    #[inline(never)]
     fn visit_if_required<N>(&mut self, n: &mut N, ast_path: &mut AstKindPath<AstParentKind>)
     where
         N: for<'aa> VisitMutWith<dyn VisitMut + Send + Sync + 'aa>
-            + for<'aa> VisitMutWithPath<ApplyVisitors<'aa>>,
+            + for<'aa, 'bb> VisitMutWithPath<ApplyVisitors<'aa, 'bb>>,
     {
         let mut index = self.index;
-        let mut current_visitors_map = Cow::Borrowed(&self.visitors);
+        let mut current_visitors = self.visitors.as_ref();
         while index < ast_path.len() {
             let current = index == ast_path.len() - 1;
             let kind = ast_path[index];
-            if let Some(visitors) = current_visitors_map.get(&kind) {
-                let mut visitors_map = HashMap::<_, Vec<_>>::with_capacity(visitors.len());
-
+            if let Some(visitors) = find_range(current_visitors, &kind, index) {
+                // visitors contains all items that match kind at index. Some of them terminate
+                // here, some need furth visiting. The terminating items are at the start due to
+                // sorting of the list.
                 index += 1;
 
-                let mut active_visitors = Vec::new();
-                for (path, visitor) in visitors.iter() {
-                    if index == path.len() {
-                        if current {
-                            active_visitors.push(*visitor);
-                        }
-                    } else {
-                        debug_assert!(index < path.len());
-
-                        let span = path[index];
-                        visitors_map
-                            .entry(span)
-                            .or_default()
-                            .push((*path, *visitor));
-                    }
-                }
-
+                // skip items that terminate here
+                let nested_visitors_start =
+                    visitors.partition_point(|(path, _)| path.len() == index);
                 if current {
                     // Potentially skip visiting this sub tree
-                    if !visitors_map.is_empty() {
+                    if nested_visitors_start < visitors.len() {
                         n.visit_mut_children_with_path(
                             &mut ApplyVisitors {
-                                visitors: visitors_map,
+                                // We only select visitors starting from `nested_visitors_start`
+                                // which maintains the invariant.
+                                visitors: Cow::Borrowed(&visitors[nested_visitors_start..]),
                                 index,
                             },
                             ast_path,
                         );
                     }
-                    for visitor in active_visitors {
+                    for (_, visitor) in visitors[..nested_visitors_start].iter() {
                         n.visit_mut_with(&mut visitor.create());
                     }
                     return;
                 } else {
-                    current_visitors_map = Cow::Owned(visitors_map);
+                    current_visitors = &visitors[nested_visitors_start..];
                 }
             } else {
                 // Skip visiting this sub tree
@@ -102,7 +120,7 @@ macro_rules! method {
     };
 }
 
-impl VisitMutAstPath for ApplyVisitors<'_> {
+impl VisitMutAstPath for ApplyVisitors<'_, '_> {
     // TODO: we need a macro to apply that for all methods
     method!(visit_mut_prop, Prop);
     method!(visit_mut_expr, Expr);
