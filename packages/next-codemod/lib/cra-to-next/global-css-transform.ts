@@ -1,3 +1,4 @@
+/* eslint-disable import/no-extraneous-dependencies */
 import nodePath from 'path'
 import { API, FileInfo, Options } from 'jscodeshift'
 

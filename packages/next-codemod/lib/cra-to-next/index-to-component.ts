@@ -1,3 +1,4 @@
+/* eslint-disable import/no-extraneous-dependencies */
 import { API, FileInfo, JSXElement, Options } from 'jscodeshift'
 
 export const indexContext = {
