@@ -27,7 +27,9 @@ const handleSessionStop = async () => {
   const telemetry = traceGlobals.get('telemetry') as InstanceType<
     typeof import('../telemetry/storage').Telemetry
   >
-  if (!telemetry) return
+  if (!telemetry) {
+    process.exit(0)
+  }
 
   telemetry.record(
     eventCliSession({
