@@ -9,7 +9,7 @@
   "scripts": {
     "build": "node build.js",
     "prepublishOnly": "cd ../../ && turbo run build",
-    "test": "node prepare-test.js && jest ./dist/transforms"
+    "test": "node prepare-test.js && jest dist"
   },
   "devDependencies": {
     "@types/jscodeshift": "0.11.0",

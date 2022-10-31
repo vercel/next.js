@@ -236,7 +236,7 @@ jobs:
       - run: npm i -g pnpm@${PNPM_VERSION}
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
-      - run: pnpm --filter @next/codemod test
+      - run: cd ./packages/next-codemod && pnpm test && cd -
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
       - run: node run-tests.js --type unit
