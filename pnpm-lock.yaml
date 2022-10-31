@@ -847,6 +847,7 @@ importers:
   packages/next-codemod:
     specifiers:
       '@types/jscodeshift': 0.11.0
+      '@vercel/ncc': 0.34.0
       chalk: 4.1.0
       cheerio: 1.0.0-rc.9
       execa: 4.0.3
@@ -856,6 +857,7 @@ importers:
       jscodeshift: 0.13.1
       meow: 7.0.1
     dependencies:
+      '@vercel/ncc': 0.34.0
       chalk: 4.1.0
       cheerio: 1.0.0-rc.9
       execa: 4.0.3
@@ -6567,7 +6569,6 @@ packages:
   /@vercel/ncc/0.34.0:
     resolution: {integrity: sha512-G9h5ZLBJ/V57Ou9vz5hI8pda/YQX5HQszCs3AmIus3XzsmRn/0Ptic5otD3xVST8QLKk7AMk7AqpsyQGN7MZ9A==}
     hasBin: true
-    dev: true
 
   /@vercel/nft/0.22.1:
     resolution: {integrity: sha512-lYYZIoxRurqDOSoVIdBicGnpUIpfyaS5qVjdPq+EfI285WqtZK3NK/dyCkiyBul+X2U2OEhRyeMdXPCHGJbohw==}

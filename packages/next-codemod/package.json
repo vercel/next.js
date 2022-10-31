@@ -2,7 +2,18 @@
   "name": "@next/codemod",
   "version": "13.0.1-canary.2",
   "license": "MIT",
-  "dependencies": {
+  "bin": "dist/bin/index.js",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "node build.js",
+    "prepublishOnly": "cd ../../ && turbo run build",
+    "test": "jest"
+  },
+  "devDependencies": {
+    "@types/jscodeshift": "0.11.0",
+    "@vercel/ncc": "0.34.0",
     "chalk": "4.1.0",
     "cheerio": "1.0.0-rc.9",
     "execa": "4.0.3",
@@ -11,21 +22,5 @@
     "is-git-clean": "1.1.0",
     "jscodeshift": "0.13.1",
     "meow": "7.0.1"
-  },
-  "files": [
-    "transforms/*.js",
-    "bin/*.js",
-    "lib/**/*.js",
-    "lib/cra-to-next/gitignore"
-  ],
-  "scripts": {
-    "build": "pnpm tsc -d -p tsconfig.json",
-    "prepublishOnly": "cd ../../ && turbo run build",
-    "dev": "pnpm tsc -d -w -p tsconfig.json",
-    "test": "jest"
-  },
-  "bin": "./bin/next-codemod.js",
-  "devDependencies": {
-    "@types/jscodeshift": "0.11.0"
   }
 }

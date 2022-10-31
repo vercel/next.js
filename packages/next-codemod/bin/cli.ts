@@ -16,8 +16,10 @@ import execa from 'execa'
 import chalk from 'chalk'
 import isGitClean from 'is-git-clean'
 
-export const jscodeshiftExecutable = require.resolve('.bin/jscodeshift')
-export const transformerDirectory = path.join(__dirname, '../', 'transforms')
+export const jscodeshiftExecutable = require.resolve(
+  '__REPLACE_WITH_JSCODESHIFT__'
+)
+export const transformerDirectory = path.join(__dirname, '..', 'transforms')
 
 export function checkGitStatus(force) {
   let clean = false

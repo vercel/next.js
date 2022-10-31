@@ -1,10 +1,10 @@
 {
   "compilerOptions": {
+    "outDir": "dist",
     "module": "commonjs",
-    "sourceMap": true,
+    "sourceMap": false,
     "esModuleInterop": true,
-    "target": "es2015",
-    "downlevelIteration": true,
+    "target": "es2020",
     "preserveWatchOutput": true
   },
   "include": ["**/*.ts"],
