@@ -332,25 +332,6 @@ export const css = curry(async function css(
             sideEffects: false,
             // CSS Modules are activated via this specific extension.
             test: regexCssModules,
-            // CSS Modules are only supported in the user's application. We're
-            // not yet allowing CSS imports _within_ `node_modules`.
-            issuer: {
-              and: [
-                {
-                  or: [ctx.rootDirectory, regexClientEntry],
-                },
-              ],
-              not: [/node_modules/],
-            },
-            use: getCssModuleLoader(ctx, lazyPostCSSInitializer),
-          }),
-          markRemovable({
-            // For app dir, we can match the issuer layer instead of the issuer.
-            issuerLayer: (layer: string) =>
-              layer === WEBPACK_LAYERS.server ||
-              layer === WEBPACK_LAYERS.client,
-            sideEffects: false,
-            test: regexCssModules,
             use: getCssModuleLoader(ctx, lazyPostCSSInitializer),
           }),
         ],
@@ -367,25 +348,6 @@ export const css = curry(async function css(
             // via the `pure` mode in `css-loader`.
             sideEffects: false,
             // Sass Modules are activated via this specific extension.
-            test: regexSassModules,
-            // Sass Modules are only supported in the user's application. We're
-            // not yet allowing Sass imports _within_ `node_modules`.
-            issuer: {
-              and: [ctx.rootDirectory],
-              not: [/node_modules/],
-            },
-            use: getCssModuleLoader(
-              ctx,
-              lazyPostCSSInitializer,
-              sassPreprocessors
-            ),
-          }),
-          markRemovable({
-            // For app dir, we can match the issuer layer instead of the issuer.
-            issuerLayer: (layer: string) =>
-              layer === WEBPACK_LAYERS.server ||
-              layer === WEBPACK_LAYERS.client,
-            sideEffects: false,
             test: regexSassModules,
             use: getCssModuleLoader(
               ctx,
