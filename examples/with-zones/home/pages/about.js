@@ -4,9 +4,7 @@ const About = () => (
   <div>
     <p>This is the about page.</p>
     <div>
-      <Link href="/">
-        <a>Go Back</a>
-      </Link>
+      <Link href="/">Go Back</Link>
     </div>
     <img width={200} src="/static/vercel.png" />
   </div>

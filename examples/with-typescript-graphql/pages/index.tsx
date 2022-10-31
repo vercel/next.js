@@ -63,10 +63,7 @@ const Index = () => {
   return viewer ? (
     <div>
       You're signed in as {viewer.name} and you're {viewer.status}. Go to the{' '}
-      <Link href="/about">
-        <a>about</a>
-      </Link>{' '}
-      page.
+      <Link href="/about">about</Link> page.
       <div>
         <input
           type="text"

@@ -49,7 +49,7 @@ const PetPage = ({ pet }) => {
           </div>
 
           <div className="btn-container">
-            <Link href="/[id]/edit" as={`/${pet._id}/edit`}>
+            <Link href="/[id]/edit" as={`/${pet._id}/edit`} legacyBehavior>
               <button className="btn edit">Edit</button>
             </Link>
             <button className="btn delete" onClick={handleDelete}>

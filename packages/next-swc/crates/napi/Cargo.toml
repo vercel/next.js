@@ -56,12 +56,12 @@ tracing-futures = "0.2.5"
 tracing-subscriber = "0.3.9"
 tracing-chrome = "0.5.0"
 owo-colors = "3"
-turbo-tasks = { git = "https://github.com/vercel/turbo.git", rev = "56039940cdfac07b68e030da1396214962e99ceb" }
-turbo-tasks-memory = { git = "https://github.com/vercel/turbo.git", rev = "56039940cdfac07b68e030da1396214962e99ceb" }
-turbopack-core = { git = "https://github.com/vercel/turbo.git", rev = "56039940cdfac07b68e030da1396214962e99ceb" }
-turbopack-dev-server = { git = "https://github.com/vercel/turbo.git", rev = "56039940cdfac07b68e030da1396214962e99ceb" }
-next-dev = { git = "https://github.com/vercel/turbo.git", rev = "56039940cdfac07b68e030da1396214962e99ceb" }
-node-file-trace = { git = "https://github.com/vercel/turbo.git", rev = "56039940cdfac07b68e030da1396214962e99ceb", default-features = false, features = ["node-api"] }
+turbo-tasks = { git = "https://github.com/vercel/turbo.git", rev = "7023733ac66209f03a40f15b33d276d92bbbb242" }
+turbo-tasks-memory = { git = "https://github.com/vercel/turbo.git", rev = "7023733ac66209f03a40f15b33d276d92bbbb242" }
+turbopack-core = { git = "https://github.com/vercel/turbo.git", rev = "7023733ac66209f03a40f15b33d276d92bbbb242" }
+turbopack-dev-server = { git = "https://github.com/vercel/turbo.git", rev = "7023733ac66209f03a40f15b33d276d92bbbb242" }
+next-dev = { git = "https://github.com/vercel/turbo.git", rev = "7023733ac66209f03a40f15b33d276d92bbbb242" }
+node-file-trace = { git = "https://github.com/vercel/turbo.git", rev = "7023733ac66209f03a40f15b33d276d92bbbb242", default-features = false, features = ["node-api"] }
 # There are few build targets we can't use native-tls which default features rely on,
 # allow to specify alternative (rustls) instead via features.
 # Note to opt in rustls default-features should be disabled

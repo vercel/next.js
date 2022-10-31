@@ -23,7 +23,6 @@ import {
   streamToString,
 } from './node-web-streams-helper'
 import { ESCAPE_REGEX, htmlEscapeJsonString } from './htmlescape'
-import { shouldUseReactRoot } from './utils'
 import { matchSegment } from '../client/components/match-segments'
 import {
   FlightCSSManifest,
@@ -671,7 +670,6 @@ function headersWithoutFlight(headers: IncomingHttpHeaders) {
 }
 
 async function renderToString(element: React.ReactElement) {
-  if (!shouldUseReactRoot) return ReactDOMServer.renderToString(element)
   const renderStream = await ReactDOMServer.renderToReadableStream(element)
   await renderStream.allReady
   return streamToString(renderStream)
