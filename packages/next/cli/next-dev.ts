@@ -11,6 +11,9 @@ import { getProjectDir } from '../lib/get-project-dir'
 import { CONFIG_FILES } from '../shared/lib/constants'
 import path from 'path'
 import type { NextConfig } from '../types'
+import { interopDefault } from '../lib/interop-default'
+import { Telemetry } from '../telemetry/storage'
+import { NextConfigComplete } from '../server/config-shared'
 
 const nextDev: cliCommand = (argv) => {
   const validArgs: arg.Spec = {
@@ -120,6 +123,10 @@ const nextDev: cliCommand = (argv) => {
         require('../shared/lib/constants') as typeof import('../shared/lib/constants')
       const chalk =
         require('next/dist/compiled/chalk') as typeof import('next/dist/compiled/chalk')
+      const { eventCliSession } =
+        require('../telemetry/events/version') as typeof import('../telemetry/events/version')
+      const { findPagesDir } =
+        require('../lib/find-pages-dir') as typeof import('../lib/find-pages-dir')
 
       // To regenerate the TURBOPACK gradient require('gradient-string')('blue', 'red')('>>> TURBOPACK')
       const isTTY = process.stdout.isTTY
@@ -137,25 +144,41 @@ const nextDev: cliCommand = (argv) => {
       let babelrc = await getBabelConfigFile(dir)
       if (babelrc) babelrc = path.basename(babelrc)
 
-      const rawNextConfig = (await loadConfig(
-        PHASE_DEVELOPMENT_SERVER,
-        dir,
-        undefined,
-        true
-      )) as NextConfig
+      const rawNextConfig = interopDefault(
+        await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, undefined, true)
+      ) as NextConfig
 
-      const hasNonDefaultConfig = Object.keys(rawNextConfig).some(
-        (configKey) => {
-          if (!(configKey in defaultConfig)) return false
-          if (typeof defaultConfig[configKey] !== 'object') {
-            return defaultConfig[configKey] !== rawNextConfig[configKey]
-          }
-          return (
-            JSON.stringify(rawNextConfig[configKey]) !==
-            JSON.stringify(defaultConfig[configKey])
-          )
+      const checkUnsupportedCustomConfig = (
+        configKey = '',
+        parentUserConfig: any,
+        parentDefaultConfig: any
+      ): boolean => {
+        // these should not error
+        if (
+          configKey === 'serverComponentsExternalPackages' ||
+          configKey === 'appDir' ||
+          configKey === 'transpilePackages' ||
+          configKey === 'reactStrictMode' ||
+          configKey === 'swcMinify' ||
+          configKey === 'configFileName'
+        ) {
+          return false
         }
+        let userValue = parentUserConfig[configKey]
+        let defaultValue = parentDefaultConfig[configKey]
+
+        if (typeof defaultValue !== 'object') {
+          return defaultValue !== userValue
+        }
+        return Object.keys(userValue || {}).some((key: string) => {
+          return checkUnsupportedCustomConfig(key, userValue, defaultValue)
+        })
+      }
+
+      const hasNonDefaultConfig = Object.keys(rawNextConfig).some((key) =>
+        checkUnsupportedCustomConfig(key, rawNextConfig, defaultConfig)
       )
+
       const findUp =
         require('next/dist/compiled/find-up') as typeof import('next/dist/compiled/find-up')
       const packagePath = findUp.sync('package.json', { cwd: dir })
@@ -261,10 +284,29 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
       console.log(feedbackMessage)
 
       return loadBindings()
-        .then((bindings: any) => {
-          // eslint-disable-next-line no-shadow
-          const findUp =
-            require('next/dist/compiled/find-up') as typeof import('next/dist/compiled/find-up')
+        .then(async (bindings: any) => {
+          const distDir = path.join(dir, rawNextConfig.distDir || '.next')
+          const { pagesDir, appDir } = findPagesDir(
+            dir,
+            !!rawNextConfig.experimental?.appDir
+          )
+          const telemetry = new Telemetry({
+            distDir,
+          })
+
+          telemetry.record(
+            eventCliSession(distDir, rawNextConfig as NextConfigComplete, {
+              webpackVersion: 5,
+              cliCommand: 'dev',
+              isSrcDir:
+                (!!pagesDir &&
+                  path.relative(dir, pagesDir).startsWith('src')) ||
+                (!!appDir && path.relative(dir, appDir).startsWith('src')),
+              hasNowJson: !!(await findUp('now.json', { cwd: dir })),
+              isCustomServer: false,
+              turboFlag: true,
+            })
+          )
           const turboJson = findUp.sync('turbo.json', { cwd: dir })
           // eslint-disable-next-line no-shadow
           const packagePath = findUp.sync('package.json', { cwd: dir })
@@ -284,6 +326,8 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
           })
           // Start preflight after server is listening and ignore errors:
           preflight().catch(() => {})
+
+          await telemetry.flush()
           return server
         })
         .then(
