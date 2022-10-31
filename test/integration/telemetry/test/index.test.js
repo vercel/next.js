@@ -10,6 +10,7 @@ import {
   waitFor,
   nextBuild,
   nextLint,
+  check,
 } from 'next-test-utils'
 
 const appDir = path.join(__dirname, '..')
@@ -392,6 +393,61 @@ describe('Telemetry CLI', () => {
       .pop()
 
     expect(event1).toMatch(/"turboFlag": true/)
+  })
+
+  it('detects --turbo correctly for `next dev` stopped', async () => {
+    let port = await findPort()
+    let stderr = ''
+
+    const handleStderr = (msg) => {
+      stderr += msg
+    }
+    let app = await launchApp(appDir, port, {
+      onStderr: handleStderr,
+      env: {
+        NEXT_TELEMETRY_DEBUG: 1,
+      },
+      turbo: true,
+    })
+
+    if (app) {
+      await killApp(app)
+    }
+    await check(() => stderr, /NEXT_CLI_SESSION_STOPPED/)
+
+    const event1 = /NEXT_CLI_SESSION_STOPPED[\s\S]+?{([\s\S]+?)}/
+      .exec(stderr)
+      .pop()
+
+    expect(event1).toMatch(/"turboFlag": true/)
+  })
+
+  it('detects correctly for `next dev` stopped (no turbo)', async () => {
+    let port = await findPort()
+    let stderr = ''
+
+    const handleStderr = (msg) => {
+      stderr += msg
+    }
+    let app = await launchApp(appDir, port, {
+      onStderr: handleStderr,
+      env: {
+        NEXT_TELEMETRY_DEBUG: 1,
+      },
+    })
+
+    await check(() => stderr, /NEXT_CLI_SESSION_STARTED/)
+
+    if (app) {
+      await killApp(app)
+    }
+    await check(() => stderr, /NEXT_CLI_SESSION_STOPPED/)
+
+    const event1 = /NEXT_CLI_SESSION_STOPPED[\s\S]+?{([\s\S]+?)}/
+      .exec(stderr)
+      .pop()
+
+    expect(event1).toMatch(/"turboFlag": false/)
   })
 
   it('detect reportWebVitals correctly for `next build`', async () => {
