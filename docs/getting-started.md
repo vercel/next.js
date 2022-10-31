@@ -105,7 +105,7 @@ After the set up is complete:
 So far, we get:
 
 - Automatic compilation and [bundling](/docs/advanced-features/compiler.md)
-- [React Fast Refresh](https://nextjs.org/blog/next-9-4#fast-refrebash)
+- [React Fast Refresh](https://nextjs.org/blog/next-9-4#fast-refresh)
 - [Static generation and server-side rendering](/docs/basic-features/data-fetching/overview.md) of [`pages/`](/docs/basic-features/pages.md)
 - [Static file serving](/docs/basic-features/static-file-serving.md) through `public/` which is mapped to the base URL (`/`)
 
