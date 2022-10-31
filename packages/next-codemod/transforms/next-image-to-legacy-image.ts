@@ -1,3 +1,4 @@
+/* eslint-disable import/no-extraneous-dependencies */
 import type { API, FileInfo, Options } from 'jscodeshift'
 
 export default function transformer(

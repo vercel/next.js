@@ -1,3 +1,4 @@
+/* eslint-disable import/no-extraneous-dependencies */
 // @ts-ignore internal module
 import Runner from 'jscodeshift/src/Runner'
 

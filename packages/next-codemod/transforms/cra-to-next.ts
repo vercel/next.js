@@ -1,3 +1,4 @@
+/* eslint-disable import/no-extraneous-dependencies */
 import fs from 'fs'
 import path from 'path'
 import execa from 'execa'

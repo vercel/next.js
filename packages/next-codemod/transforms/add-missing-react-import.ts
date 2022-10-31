@@ -1,3 +1,4 @@
+/* eslint-disable import/no-extraneous-dependencies */
 import { API, Collection, FileInfo, JSCodeshift, Options } from 'jscodeshift'
 
 function addReactImport(j: JSCodeshift, root: Collection) {
