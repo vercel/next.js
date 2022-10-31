@@ -36,7 +36,10 @@ describe('create next app', () => {
       const pkg = path.join(cwd, projectName, 'package.json')
       fs.writeFileSync(pkg, '{ "foo": "bar" }')
 
-      const res = await run([projectName, '--js'], { cwd, reject: false })
+      const res = await run([projectName, '--js', '--eslint'], {
+        cwd,
+        reject: false,
+      })
       expect(res.exitCode).toBe(1)
       expect(res.stdout).toMatch(/contains files that could conflict/)
     })
@@ -48,7 +51,7 @@ describe('create next app', () => {
     it('empty directory', async () => {
       await useTempDir(async (cwd) => {
         const projectName = 'empty-directory'
-        const res = await run([projectName, '--js'], { cwd })
+        const res = await run([projectName, '--js', '--eslint'], { cwd })
 
         expect(res.exitCode).toBe(0)
         shouldBeJavascriptProject({ cwd, projectName, template: 'default' })
@@ -60,7 +63,7 @@ describe('create next app', () => {
     await useTempDir(async (cwd) => {
       const projectName = 'invalid-example-name'
       const res = await run(
-        [projectName, '--js', '--example', 'not a real example'],
+        [projectName, '--js', '--eslint', '--example', 'not a real example'],
         {
           cwd,
           reject: false,
@@ -79,9 +82,12 @@ describe('create next app', () => {
   it('valid example', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'valid-example'
-      const res = await run([projectName, '--js', '--example', 'basic-css'], {
-        cwd,
-      })
+      const res = await run(
+        [projectName, '--js', '--eslint', '--example', 'basic-css'],
+        {
+          cwd,
+        }
+      )
       expect(res.exitCode).toBe(0)
       projectFilesShouldExist({
         cwd,
@@ -100,7 +106,7 @@ describe('create next app', () => {
     await useTempDir(async (cwd) => {
       const projectName = 'valid-example-without-package-json'
       const res = await run(
-        [projectName, '--js', '--example', 'with-docker-compose'],
+        [projectName, '--js', '--eslint', '--example', 'with-docker-compose'],
         {
           cwd,
         }
@@ -119,7 +125,13 @@ describe('create next app', () => {
     await useTempDir(async (cwd) => {
       const projectName = 'github-app'
       const res = await run(
-        [projectName, '--js', '--example', `${exampleRepo}/${examplePath}`],
+        [
+          projectName,
+          '--js',
+          '--eslint',
+          '--example',
+          `${exampleRepo}/${examplePath}`,
+        ],
         {
           cwd,
         }
@@ -146,6 +158,7 @@ describe('create next app', () => {
         [
           projectName,
           '--js',
+          '--eslint',
           '--example',
           'https://github.com/vercel/nextjs-portfolio-starter/',
         ],
@@ -175,6 +188,7 @@ describe('create next app', () => {
         [
           projectName,
           '--js',
+          '--eslint',
           '--example',
           exampleRepo,
           '--example-path',
@@ -206,6 +220,7 @@ describe('create next app', () => {
         [
           projectName,
           '--js',
+          '--eslint',
           '--example',
           `${exampleRepo}/${examplePath}`,
           '--example-path',
@@ -237,7 +252,13 @@ describe('create next app', () => {
       await useTempDir(async (cwd) => {
         const projectName = 'fail-example'
         const res = await run(
-          [projectName, '--js', '--example', '__internal-testing-retry'],
+          [
+            projectName,
+            '--js',
+            '--eslint',
+            '--example',
+            '__internal-testing-retry',
+          ],
           {
             cwd,
             input: '\n',
@@ -253,9 +274,12 @@ describe('create next app', () => {
   it('should allow an example named default', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'default-example'
-      const res = await run([projectName, '--js', '--example', 'default'], {
-        cwd,
-      })
+      const res = await run(
+        [projectName, '--js', '--eslint', '--example', 'default'],
+        {
+          cwd,
+        }
+      )
 
       expect(res.exitCode).toBe(0)
       shouldBeJavascriptProject({ cwd, projectName, template: 'default' })
@@ -265,7 +289,7 @@ describe('create next app', () => {
   it('should exit if example flag is empty', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'no-example-provided'
-      const res = await run([projectName, '--js', '--example'], {
+      const res = await run([projectName, '--js', '--eslint', '--example'], {
         cwd,
         reject: false,
       })
@@ -277,7 +301,10 @@ describe('create next app', () => {
   it('should exit if the folder is not writable', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'not-writable'
-      const res = await run([projectName, '--js'], { cwd, reject: false })
+      const res = await run([projectName, '--js', '--eslint'], {
+        cwd,
+        reject: false,
+      })
 
       if (process.platform === 'win32') {
         expect(res.exitCode).toBe(0)
@@ -311,7 +338,7 @@ describe('create next app', () => {
         delete env.npm_config_user_agent
       }
 
-      const res = await run(['.', '--js'], {
+      const res = await run(['.', '--js', '--eslint'], {
         cwd,
         env,
         extendEnv: false,
@@ -327,7 +354,10 @@ describe('create next app', () => {
   it('should ask the user for a name for the project if none supplied', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'test-project'
-      const res = await run(['--js'], { cwd, input: `${projectName}\n` })
+      const res = await run(['--js', '--eslint'], {
+        cwd,
+        input: `${projectName}\n`,
+      })
 
       expect(res.exitCode).toBe(0)
       shouldBeJavascriptProject({ cwd, projectName, template: 'default' })
@@ -337,7 +367,9 @@ describe('create next app', () => {
   it('should use npm as the package manager on supplying --use-npm', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'use-npm'
-      const res = await run([projectName, '--js', '--use-npm'], { cwd })
+      const res = await run([projectName, '--js', '--eslint', '--use-npm'], {
+        cwd,
+      })
 
       expect(res.exitCode).toBe(0)
       shouldBeJavascriptProject({ cwd, projectName, template: 'default' })
@@ -351,6 +383,7 @@ describe('create next app', () => {
         [
           projectName,
           '--js',
+          '--eslint',
           '--use-npm',
           '--example',
           `${exampleRepo}/${examplePath}`,
@@ -376,7 +409,9 @@ describe('create next app', () => {
   it('should use pnpm as the package manager on supplying --use-pnpm', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'use-pnpm'
-      const res = await run([projectName, '--js', '--use-pnpm'], { cwd })
+      const res = await run([projectName, '--js', '--eslint', '--use-pnpm'], {
+        cwd,
+      })
 
       expect(res.exitCode).toBe(0)
       projectFilesShouldExist({
@@ -408,6 +443,7 @@ describe('create next app', () => {
         [
           projectName,
           '--js',
+          '--eslint',
           '--use-pnpm',
           '--example',
           `${exampleRepo}/${examplePath}`,
@@ -433,7 +469,7 @@ describe('create next app', () => {
   it('should infer npm as the package manager', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'infer-package-manager-npm'
-      const res = await run([projectName, '--js'], {
+      const res = await run([projectName, '--js', '--eslint'], {
         cwd,
         env: { ...process.env, npm_config_user_agent: 'npm' },
       })
@@ -456,7 +492,13 @@ describe('create next app', () => {
     await useTempDir(async (cwd) => {
       const projectName = 'infer-package-manager-npm'
       const res = await run(
-        [projectName, '--js', '--example', `${exampleRepo}/${examplePath}`],
+        [
+          projectName,
+          '--js',
+          '--eslint',
+          '--example',
+          `${exampleRepo}/${examplePath}`,
+        ],
         { cwd, env: { ...process.env, npm_config_user_agent: 'npm' } }
       )
 
@@ -483,7 +525,7 @@ describe('create next app', () => {
 
     await useTempDir(async (cwd) => {
       const projectName = 'infer-package-manager-yarn'
-      const res = await run([projectName, '--js'], {
+      const res = await run([projectName, '--js', '--eslint'], {
         cwd,
         env: { ...process.env, npm_config_user_agent: 'yarn' },
       })
@@ -513,7 +555,13 @@ describe('create next app', () => {
     await useTempDir(async (cwd) => {
       const projectName = 'infer-package-manager-npm'
       const res = await run(
-        [projectName, '--js', '--example', `${exampleRepo}/${examplePath}`],
+        [
+          projectName,
+          '--js',
+          '--eslint',
+          '--example',
+          `${exampleRepo}/${examplePath}`,
+        ],
         { cwd, env: { ...process.env, npm_config_user_agent: 'yarn' } }
       )
 
@@ -540,7 +588,7 @@ describe('create next app', () => {
 
     await useTempDir(async (cwd) => {
       const projectName = 'infer-package-manager'
-      const res = await run([projectName, '--js'], {
+      const res = await run([projectName, '--js', '--eslint'], {
         cwd,
         env: { ...process.env, npm_config_user_agent: 'pnpm' },
       })
@@ -571,7 +619,13 @@ it('should infer pnpm as the package manager with example', async () => {
   await useTempDir(async (cwd) => {
     const projectName = 'infer-package-manager-npm'
     const res = await run(
-      [projectName, '--js', '--example', `${exampleRepo}/${examplePath}`],
+      [
+        projectName,
+        '--js',
+        '--eslint',
+        '--example',
+        `${exampleRepo}/${examplePath}`,
+      ],
       { cwd, env: { ...process.env, npm_config_user_agent: 'pnpm' } }
     )
 
