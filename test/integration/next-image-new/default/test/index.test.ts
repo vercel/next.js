@@ -669,6 +669,64 @@ function runTests(mode) {
     ).toBe('color:transparent')
   })
 
+  it('should warn when legacy prop layout=fill', async () => {
+    let browser = await webdriver(appPort, '/legacy-layout-fill')
+    const img = await browser.elementById('img')
+    expect(img).toBeDefined()
+    expect(await img.getAttribute('data-nimg')).toBe('fill')
+    expect(await img.getAttribute('sizes')).toBe('200px')
+    expect(await img.getAttribute('src')).toBe(
+      '/_next/image?url=%2Ftest.jpg&w=3840&q=50'
+    )
+    expect(await img.getAttribute('srcset')).toContain(
+      '/_next/image?url=%2Ftest.jpg&w=640&q=50 640w,'
+    )
+    expect(await img.getAttribute('style')).toBe(
+      'position:absolute;height:100%;width:100%;left:0;top:0;right:0;bottom:0;object-fit:cover;object-position:10% 10%;color:transparent'
+    )
+    if (mode === 'dev') {
+      expect(await hasRedbox(browser)).toBe(false)
+      const warnings = (await browser.log())
+        .map((log) => log.message)
+        .join('\n')
+      expect(warnings).toContain(
+        'Image with src "/test.jpg" has legacy prop "layout". Did you forget to run the codemod?'
+      )
+      expect(warnings).toContain(
+        'Image with src "/test.jpg" has legacy prop "objectFit". Did you forget to run the codemod?'
+      )
+      expect(warnings).toContain(
+        'Image with src "/test.jpg" has legacy prop "objectPosition". Did you forget to run the codemod?'
+      )
+    }
+  })
+
+  it('should warn when legacy prop layout=responsive', async () => {
+    let browser = await webdriver(appPort, '/legacy-layout-responsive')
+    const img = await browser.elementById('img')
+    expect(img).toBeDefined()
+    expect(await img.getAttribute('sizes')).toBe('100vw')
+    expect(await img.getAttribute('data-nimg')).toBe('1')
+    expect(await img.getAttribute('src')).toBe(
+      '/_next/image?url=%2Ftest.png&w=3840&q=75'
+    )
+    expect(await img.getAttribute('srcset')).toContain(
+      '/_next/image?url=%2Ftest.png&w=640&q=75 640w,'
+    )
+    expect(await img.getAttribute('style')).toBe(
+      'color:transparent;width:100%;height:auto'
+    )
+    if (mode === 'dev') {
+      expect(await hasRedbox(browser)).toBe(false)
+      const warnings = (await browser.log())
+        .map((log) => log.message)
+        .join('\n')
+      expect(warnings).toContain(
+        'Image with src "/test.png" has legacy prop "layout". Did you forget to run the codemod?'
+      )
+    }
+  })
+
   if (mode === 'dev') {
     it('should show missing src error', async () => {
       const browser = await webdriver(appPort, '/missing-src')

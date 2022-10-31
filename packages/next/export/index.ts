@@ -182,6 +182,7 @@ export default async function exportApp(
           isSrcDir: null,
           hasNowJson: !!(await findUp('now.json', { cwd: dir })),
           isCustomServer: null,
+          turboFlag: false,
         })
       )
     }

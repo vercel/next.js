@@ -547,7 +547,6 @@ export default class DevServer extends Server {
                     distDir: this.distDir,
                     isClient,
                     hasRewrites,
-                    hasReactRoot: this.hotReloader?.hasReactRoot,
                     isNodeServer,
                     isEdgeServer,
                   })
@@ -729,6 +728,7 @@ export default class DevServer extends Server {
           (!!this.appDir && relative(this.dir, this.appDir).startsWith('src')),
         hasNowJson: !!(await findUp('now.json', { cwd: this.dir })),
         isCustomServer: this.isCustomServer,
+        turboFlag: false,
       })
     )
     // This is required by the tracing subsystem.
