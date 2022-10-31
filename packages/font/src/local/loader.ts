@@ -7,9 +7,16 @@ import { promisify } from 'util'
 import { validateData } from './utils'
 import { calculateFallbackFontValues } from '../utils'
 
+const NORMAL_WEIGHT = 400
+const BOLD_WEIGHT = 700
+
 function getWeightNumber(weight: string) {
   // Weight can be 'normal', 'bold' or a number https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-weight
-  return weight === 'normal' ? 400 : weight === 'bold' ? 700 : Number(weight)
+  return weight === 'normal'
+    ? NORMAL_WEIGHT
+    : weight === 'bold'
+    ? BOLD_WEIGHT
+    : Number(weight)
 }
 function getDistanceFromNormalWeight(weight?: string) {
   if (!weight) return 0
@@ -27,17 +34,17 @@ function getDistanceFromNormalWeight(weight?: string) {
 
   // Not a variable font
   if (!secondWeight) {
-    return firstWeight - 400
+    return firstWeight - NORMAL_WEIGHT
   }
 
-  if (firstWeight <= 400 && secondWeight >= 400) {
-    // normal weight is withing variable font range
+  // Normal weight is within variable font range
+  if (firstWeight <= NORMAL_WEIGHT && secondWeight >= NORMAL_WEIGHT) {
     return 0
   }
 
   // Return the distance of normal weight to the variable font range
-  const firstWeightDistance = firstWeight - 400
-  const secondWeightDistance = secondWeight - 400
+  const firstWeightDistance = firstWeight - NORMAL_WEIGHT
+  const secondWeightDistance = secondWeight - NORMAL_WEIGHT
   if (Math.abs(firstWeightDistance) < Math.abs(secondWeightDistance)) {
     return firstWeightDistance
   }
@@ -136,7 +143,7 @@ ${fontFaceProperties
         // Use closest absolute distance to normal weight
         if (absCurrentDistance < absUsedDistance) return currentFontFile
 
-        // Prefer thinner font if both are the same absolute distance from normal weight
+        // Prefer the thinner font if both are the same absolute distance from normal weight
         if (
           absUsedDistance === absCurrentDistance &&
           currentFontDistance < usedFontDistance
