@@ -69,7 +69,7 @@ export const projectDepsShouldBe = ({
 }: ProjectDeps) => {
   const projectRoot = resolve(cwd, projectName)
   const pkgJson = require(resolve(projectRoot, 'package.json'))
-  expect(Object.keys(pkgJson[type]).sort()).toEqual(deps.sort())
+  expect(Object.keys(pkgJson[type] || {}).sort()).toEqual(deps.sort())
 }
 
 export const shouldBeTemplateProject = ({
