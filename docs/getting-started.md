@@ -2,7 +2,7 @@
 description: Get started with Next.js in the official documentation, and learn more about all our features!
 ---
 
-> Next.js 13 has been [publicaly released](https://nextjs.org/blog/next-13) and with it we have created a new version of the docs: [Read them here](https://beta.nextjs.org/docs).
+> The beta version of Next.js 13 has been [publicly released](https://nextjs.org/blog/next-13), [read the new docs here](https://beta.nextjs.org/docs).
 
 # Getting Started
 
