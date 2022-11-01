@@ -122,11 +122,11 @@ function stripOrigin(url: string) {
   return url.startsWith(origin) ? url.substring(origin.length) : url
 }
 
-function omit<T extends { [key: string]: any }, K extends keyof T>(
+function omit<T extends { [key: string]: unknown }, K extends keyof T>(
   object: T,
   keys: K[]
 ): Omit<T, K> {
-  const omitted: { [key: string]: any } = {}
+  const omitted: { [key: string]: unknown } = {}
   Object.keys(object).forEach((key) => {
     if (!keys.includes(key as K)) {
       omitted[key] = object[key]
@@ -259,6 +259,7 @@ export function resolveHref(
     // fallback to / for invalid asPath values e.g. //
     base = new URL('/', 'http://n')
   }
+
   try {
     const finalUrl = new URL(urlAsString, base)
     finalUrl.pathname = normalizePathTrailingSlash(finalUrl.pathname)
@@ -542,6 +543,7 @@ export type NextRouter = BaseRouter &
     | 'replace'
     | 'reload'
     | 'back'
+    | 'forward'
     | 'prefetch'
     | 'beforePopState'
     | 'events'
@@ -1135,6 +1137,13 @@ export default class Router implements BaseRouter {
    */
   back() {
     window.history.back()
+  }
+
+  /**
+   * Go forward in history
+   */
+  forward() {
+    window.history.forward()
   }
 
   /**
