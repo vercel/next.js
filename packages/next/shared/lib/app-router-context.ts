@@ -59,8 +59,8 @@ export interface AppRouterInstance {
   prefetch(href: string): void
 }
 
-export const AppRouterContext = React.createContext<AppRouterInstance>(
-  null as any
+export const AppRouterContext = React.createContext<AppRouterInstance | null>(
+  null
 )
 export const LayoutRouterContext = React.createContext<{
   childNodes: CacheNode['parallelRoutes']

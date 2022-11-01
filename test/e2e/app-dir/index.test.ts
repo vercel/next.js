@@ -1148,6 +1148,42 @@ describe('app dir', () => {
 
     describe('client components', () => {
       describe('hooks', () => {
+        describe('from pages', () => {
+          it.each([
+            { pathname: '/adapter-hooks/static' },
+            { pathname: '/adapter-hooks/1' },
+            { pathname: '/adapter-hooks/2' },
+            { pathname: '/adapter-hooks/1/account' },
+            { pathname: '/adapter-hooks/static', keyValue: 'value' },
+            { pathname: '/adapter-hooks/1', keyValue: 'value' },
+            { pathname: '/adapter-hooks/2', keyValue: 'value' },
+            { pathname: '/adapter-hooks/1/account', keyValue: 'value' },
+          ])(
+            'should have the correct hooks',
+            async ({ pathname, keyValue = '' }) => {
+              const browser = await webdriver(
+                next.url,
+                pathname + (keyValue ? `?key=${keyValue}` : '')
+              )
+
+              try {
+                await browser.waitForElementByCss('#router-ready')
+                expect(await browser.elementById('key-value').text()).toBe(
+                  keyValue
+                )
+                expect(await browser.elementById('pathname').text()).toBe(
+                  pathname
+                )
+
+                await browser.elementByCss('button').click()
+                await browser.waitForElementByCss('#pushed')
+              } finally {
+                await browser.close()
+              }
+            }
+          )
+        })
+
         describe('usePathname', () => {
           it('should have the correct pathname', async () => {
             const html = await renderViaHTTP(next.url, '/hooks/use-pathname')
