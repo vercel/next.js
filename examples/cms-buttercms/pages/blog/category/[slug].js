@@ -19,14 +19,10 @@ export default function Category({ posts, categories, slug }) {
                 <h2>Blog Posts by Category</h2>
                 <ul className="breadcrumb-nav">
                   <li>
-                    <Link href="/">
-                      <a>Home</a>
-                    </Link>
+                    <Link href="/">Home</Link>
                   </li>
                   <li>
-                    <Link href="/blog">
-                      <a>Blog</a>
-                    </Link>
+                    <Link href="/blog">Blog</Link>
                   </li>
                   <li>Category: {slug}</li>
                 </ul>

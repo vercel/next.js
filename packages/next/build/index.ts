@@ -274,8 +274,6 @@ export default async function build(
       setGlobal('phase', PHASE_PRODUCTION_BUILD)
       setGlobal('distDir', distDir)
 
-      const hasReactRoot = !!process.env.__NEXT_REACT_ROOT
-
       const { target } = config
       const buildId: string = await nextBuildSpan
         .traceChild('generate-buildid')
@@ -342,6 +340,7 @@ export default async function build(
             (!!appDir && path.relative(dir, appDir).startsWith('src')),
           hasNowJson: !!(await findUp('now.json', { cwd: dir })),
           isCustomServer: null,
+          turboFlag: false,
         })
       )
 
@@ -910,7 +909,6 @@ export default async function build(
         const commonWebpackOptions = {
           buildId,
           config,
-          hasReactRoot,
           pagesDir,
           reactProductionProfiling,
           rewrites,
@@ -986,7 +984,10 @@ export default async function build(
                   value,
                 ]
               } else {
-                clientEntry[key] = value
+                clientEntry[key] = {
+                  dependOn: [CLIENT_STATIC_FILES_RUNTIME_MAIN_APP],
+                  import: value,
+                }
               }
             })
 
@@ -2211,6 +2212,15 @@ export default async function build(
                     ? appConfig.revalidate
                     : false
               }
+
+              // ensure revalidate is normalized correctly
+              if (
+                typeof revalidate !== 'number' &&
+                typeof revalidate !== 'boolean'
+              ) {
+                revalidate = false
+              }
+
               if (revalidate !== 0) {
                 const normalizedRoute = normalizePagePath(route)
                 const dataRoute = path.posix.join(`${normalizedRoute}.rsc`)

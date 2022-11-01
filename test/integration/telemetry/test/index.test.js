@@ -10,6 +10,7 @@ import {
   waitFor,
   nextBuild,
   nextLint,
+  check,
 } from 'next-test-utils'
 
 const appDir = path.join(__dirname, '..')
@@ -368,6 +369,87 @@ describe('Telemetry CLI', () => {
     expect(stderr).toMatch(/isSrcDir.*?true/)
   })
 
+  it('detects --turbo correctly for `next dev`', async () => {
+    let port = await findPort()
+    let stderr = ''
+
+    const handleStderr = (msg) => {
+      stderr += msg
+    }
+    let app = await launchApp(appDir, port, {
+      onStderr: handleStderr,
+      env: {
+        NEXT_TELEMETRY_DEBUG: 1,
+      },
+      turbo: true,
+    })
+    await waitFor(1000)
+
+    if (app) {
+      await killApp(app)
+    }
+    const event1 = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
+      .exec(stderr)
+      .pop()
+
+    expect(event1).toMatch(/"turboFlag": true/)
+  })
+
+  it('detects --turbo correctly for `next dev` stopped', async () => {
+    let port = await findPort()
+    let stderr = ''
+
+    const handleStderr = (msg) => {
+      stderr += msg
+    }
+    let app = await launchApp(appDir, port, {
+      onStderr: handleStderr,
+      env: {
+        NEXT_TELEMETRY_DEBUG: 1,
+      },
+      turbo: true,
+    })
+
+    if (app) {
+      await killApp(app)
+    }
+    await check(() => stderr, /NEXT_CLI_SESSION_STOPPED/)
+
+    const event1 = /NEXT_CLI_SESSION_STOPPED[\s\S]+?{([\s\S]+?)}/
+      .exec(stderr)
+      .pop()
+
+    expect(event1).toMatch(/"turboFlag": true/)
+  })
+
+  it('detects correctly for `next dev` stopped (no turbo)', async () => {
+    let port = await findPort()
+    let stderr = ''
+
+    const handleStderr = (msg) => {
+      stderr += msg
+    }
+    let app = await launchApp(appDir, port, {
+      onStderr: handleStderr,
+      env: {
+        NEXT_TELEMETRY_DEBUG: 1,
+      },
+    })
+
+    await check(() => stderr, /NEXT_CLI_SESSION_STARTED/)
+
+    if (app) {
+      await killApp(app)
+    }
+    await check(() => stderr, /NEXT_CLI_SESSION_STOPPED/)
+
+    const event1 = /NEXT_CLI_SESSION_STOPPED[\s\S]+?{([\s\S]+?)}/
+      .exec(stderr)
+      .pop()
+
+    expect(event1).toMatch(/"turboFlag": false/)
+  })
+
   it('detect reportWebVitals correctly for `next build`', async () => {
     // Case 1: When _app.js does not exist.
     let build = await nextBuild(appDir, [], {
@@ -484,6 +566,7 @@ describe('Telemetry CLI', () => {
     expect(event1).toMatch(/"imageFormats": "image\/avif,image\/webp"/)
     expect(event1).toMatch(/"trailingSlashEnabled": false/)
     expect(event1).toMatch(/"reactStrictMode": false/)
+    expect(event1).toMatch(/"turboFlag": false/)
 
     await fs.rename(
       path.join(appDir, 'next.config.i18n-images'),
