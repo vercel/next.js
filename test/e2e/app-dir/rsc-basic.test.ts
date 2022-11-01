@@ -38,7 +38,7 @@ describe('app dir - rsc basics', () => {
     next = await createNext({
       files: new FileRef(path.join(__dirname, './rsc-basic')),
       dependencies: {
-        'styled-components': '6.0.0-beta.2',
+        'styled-components': '6.0.0-beta.5',
         react: 'latest',
         'react-dom': 'latest',
       },
@@ -309,11 +309,55 @@ describe('app dir - rsc basics', () => {
 
     // from styled-components
     expect(head).toMatch(/{color:(\s*)blue;?}/)
+  })
 
-    // css-in-js like styled-jsx in server components won't be transformed
-    expect(html).toMatch(
-      /<style>\s*\.this-wont-be-transformed\s*\{\s*color:\s*purple;\s*\}\s*<\/style>/
+  it('should render css-in-js suspense boundary correctly', async () => {
+    await fetchViaHTTP(next.url, '/css-in-js/suspense', null, {}).then(
+      async (response) => {
+        const results = []
+
+        await resolveStreamResponse(response, (chunk: string) => {
+          // check if rsc refresh script for suspense show up, the test content could change with react version
+          const hasRCScript = /\$RC=function/.test(chunk)
+          if (hasRCScript) results.push('refresh-script')
+
+          const isSuspenseyDataResolved =
+            /<style[^<>]*>(\s)*.+{padding:2px;(\s)*color:orange;}/.test(chunk)
+          if (isSuspenseyDataResolved) results.push('data')
+
+          const isFallbackResolved = chunk.includes('fallback')
+          if (isFallbackResolved) results.push('fallback')
+        })
+
+        expect(results).toEqual(['fallback', 'data', 'refresh-script'])
+      }
     )
+    // // TODO-APP: fix streaming/suspense within browser for test suite
+    // const browser = await webdriver(next.url, '/css-in-js', { waitHydration: false })
+    // const footer = await browser.elementByCss('#footer')
+    // expect(await footer.text()).toBe('wait for fallback')
+    // expect(
+    //   await browser.eval(
+    //     `window.getComputedStyle(document.querySelector('#footer')).borderColor`
+    //   )
+    // ).toBe('rgb(255, 165, 0)')
+    // // Suspense is not rendered yet
+    // expect(
+    //   await browser.eval(
+    //     `document.querySelector('#footer-inner')`
+    //   )
+    // ).toBe('null')
+
+    // // Wait for suspense boundary
+    // await check(
+    //   () => browser.elementByCss('#footer').text(),
+    //   'wait for footer'
+    // )
+    // expect(
+    //   await browser.eval(
+    //     `window.getComputedStyle(document.querySelector('#footer-inner')).color`
+    //   )
+    // ).toBe('rgb(255, 165, 0)')
   })
 
   it('should stick to the url without trailing /page suffix', async () => {

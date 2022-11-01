@@ -153,15 +153,33 @@ export function createHeadInjectionTransformStream(
   inject: () => Promise<string>
 ): TransformStream<Uint8Array, Uint8Array> {
   let injected = false
+  let freezing = false
   return new TransformStream({
     async transform(chunk, controller) {
       const content = decodeText(chunk)
       let index
-      if (!injected && (index = content.indexOf('</head')) !== -1) {
-        injected = true
+      if (freezing) {
+        controller.enqueue(chunk)
+        return
+      }
+      if (injected) {
+        freezing = true
+        const injection = await inject()
+        controller.enqueue(encodeText(injection))
+        controller.enqueue(chunk)
+        setImmediate(() => {
+          freezing = false
+        })
+      } else if ((index = content.indexOf('</head')) !== -1) {
+        freezing = true
+        const injection = await inject()
         const injectedContent =
-          content.slice(0, index) + (await inject()) + content.slice(index)
+          content.slice(0, index) + injection + content.slice(index)
         controller.enqueue(encodeText(injectedContent))
+        injected = true
+        setImmediate(() => {
+          freezing = false
+        })
       } else {
         controller.enqueue(chunk)
       }

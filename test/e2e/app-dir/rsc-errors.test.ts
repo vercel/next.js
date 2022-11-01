@@ -88,6 +88,18 @@ describe('app dir - rsc basics', () => {
     expect(html).toContain(
       'This module cannot be imported from a Server Component module. It should only be used from a Client Component.'
     )
+    // css-in-js like styled-jsx in server components won't be transformed
+    expect(html).toMatch(
+      /<style>\s*\.this-wont-be-transformed\s*\{\s*color:\s*purple;\s*\}\s*<\/style>/
+    )
+  })
+
+  it('should not transform css-in-js such as styled-jsx in server components', async () => {
+    const html = await renderViaHTTP(next.url, '/not-transform/styled-jsx')
+
+    expect(html).toMatch(
+      /<style>\s*\.this-wont-be-transformed\s*\{\s*color:\s*purple;\s*\}\s*<\/style>/
+    )
   })
 
   it('should error when page component export is not valid', async () => {
