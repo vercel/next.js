@@ -3,7 +3,7 @@ import { check, fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 
-describe('app dir - rsc basics', () => {
+describe('app dir - rsc errors', () => {
   let next: NextInstance
 
   const { isNextDeploy, isNextDev } = global as any
@@ -87,10 +87,6 @@ describe('app dir - rsc basics', () => {
     const html = await renderViaHTTP(next.url, '/server-with-errors/styled-jsx')
     expect(html).toContain(
       'This module cannot be imported from a Server Component module. It should only be used from a Client Component.'
-    )
-    // css-in-js like styled-jsx in server components won't be transformed
-    expect(html).toMatch(
-      /<style>\s*\.this-wont-be-transformed\s*\{\s*color:\s*purple;\s*\}\s*<\/style>/
     )
   })
 

@@ -155,7 +155,7 @@ function createHeadInsertionTransformStream(
   let inserted = false
   let freezing = false
   const queueTask =
-    process.env.NEXT_RUNTIME === 'edge' ? setTimeout : setImmediate
+    process.env.NEXT_RUNTIME === 'edge' ? globalThis.setTimeout : setImmediate
   return new TransformStream({
     async transform(chunk, controller) {
       const content = decodeText(chunk)
