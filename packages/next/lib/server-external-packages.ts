@@ -19,4 +19,5 @@ export const EXTERNAL_PACKAGES = [
   'next-mdx-remote',
   'sqlite3',
   'mongodb',
+  'prisma',
 ]
