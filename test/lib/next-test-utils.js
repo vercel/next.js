@@ -290,11 +290,14 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
       const message = data.toString()
       const bootupMarkers = {
         dev: /compiled .*successfully/i,
+        turbo: /initial compilation/i,
         start: /started server/i,
       }
       if (
         (opts.bootupMarker && opts.bootupMarker.test(message)) ||
-        bootupMarkers[opts.nextStart || stdOut ? 'start' : 'dev'].test(message)
+        bootupMarkers[
+          opts.nextStart || stdOut ? 'start' : opts?.turbo ? 'turbo' : 'dev'
+        ].test(message)
       ) {
         if (!didResolve) {
           didResolve = true
@@ -342,7 +345,17 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
 
 // Launch the app in dev mode.
 export function launchApp(dir, port, opts) {
-  return runNextCommandDev([dir, '-p', port], undefined, opts)
+  const { turbo, ...options } = opts ?? {}
+  const useTurbo = !process.env.TEST_WASM && turbo
+
+  return runNextCommandDev(
+    [useTurbo ? '--turbo' : undefined, dir, '-p', port].filter(Boolean),
+    undefined,
+    {
+      ...options,
+      turbo: useTurbo,
+    }
+  )
 }
 
 export function nextBuild(dir, args = [], opts = {}) {

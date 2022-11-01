@@ -248,7 +248,7 @@ describe('SCSS Support', () => {
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
       ).toMatchInlineSnapshot(
-        `".redText ::-moz-placeholder{color:red}.redText :-ms-input-placeholder{color:red}.redText ::placeholder{color:red}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}"`
+        `".redText ::placeholder{color:red}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}"`
       )
 
       // Contains a source map
@@ -269,7 +269,7 @@ describe('SCSS Support', () => {
       const { version, mappings, sourcesContent } = JSON.parse(cssMapContent)
       expect({ version, mappings, sourcesContent }).toMatchInlineSnapshot(`
         Object {
-          "mappings": "AAEE,4BACE,SAHE,CAEJ,gCACE,SAHE,CAEJ,uBACE,SAHE,CAON,cACE,2CAAA",
+          "mappings": "AAEE,uBACE,SAHE,CAON,cACE,2CAAA",
           "sourcesContent": Array [
             "$var: red;
         .redText {

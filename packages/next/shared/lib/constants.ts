@@ -40,7 +40,6 @@ export const DEV_MIDDLEWARE_MANIFEST = '_devMiddlewareManifest.json'
 export const REACT_LOADABLE_MANIFEST = 'react-loadable-manifest.json'
 export const FONT_MANIFEST = 'font-manifest.json'
 export const SERVER_DIRECTORY = 'server'
-export const SERVERLESS_DIRECTORY = 'serverless'
 export const CONFIG_FILES = ['next.config.js', 'next.config.mjs']
 export const BUILD_ID_FILE = 'BUILD_ID'
 export const BLOCKED_PAGES = ['/_document', '/_app', '/_error']
@@ -48,12 +47,18 @@ export const CLIENT_PUBLIC_FILES_PATH = 'public'
 export const CLIENT_STATIC_FILES_PATH = 'static'
 export const CLIENT_STATIC_FILES_RUNTIME = 'runtime'
 export const STRING_LITERAL_DROP_BUNDLE = '__NEXT_DROP_CLIENT_FILE__'
+/**
+ * These are the browser versions that support all of the following:
+ * static import: https://caniuse.com/es6-module
+ * dynamic import: https://caniuse.com/es6-module-dynamic-import
+ * import.meta: https://caniuse.com/mdn-javascript_operators_import_meta
+ */
 export const MODERN_BROWSERSLIST_TARGET = [
-  'chrome 61',
-  'edge 16',
-  'firefox 60',
-  'opera 48',
-  'safari 11',
+  'chrome 64',
+  'edge 79',
+  'firefox 67',
+  'opera 51',
+  'safari 12',
 ]
 export const NEXT_BUILTIN_DOCUMENT = '__NEXT_BUILTIN_DOCUMENT__'
 export const NEXT_CLIENT_SSR_ENTRY_SUFFIX = '.__sc_client__'
@@ -71,6 +76,8 @@ export const MIDDLEWARE_REACT_LOADABLE_MANIFEST =
 // static/runtime/main.js
 export const CLIENT_STATIC_FILES_RUNTIME_MAIN = `main`
 export const CLIENT_STATIC_FILES_RUNTIME_MAIN_APP = `${CLIENT_STATIC_FILES_RUNTIME_MAIN}-app`
+// next internal client components chunk for layouts
+export const APP_CLIENT_INTERNALS = 'app-client-internals'
 // static/runtime/react-refresh.js
 export const CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH = `react-refresh`
 // static/runtime/amp.js
@@ -95,8 +102,15 @@ export const OPTIMIZED_FONT_PROVIDERS = [
 export const DEFAULT_SERIF_FONT = {
   name: 'Times New Roman',
   xAvgCharWidth: 821,
+  azAvgWidth: 854.3953488372093,
+  unitsPerEm: 2048,
 }
-export const DEFAULT_SANS_SERIF_FONT = { name: 'Arial', xAvgCharWidth: 904 }
+export const DEFAULT_SANS_SERIF_FONT = {
+  name: 'Arial',
+  xAvgCharWidth: 904,
+  azAvgWidth: 934.5116279069767,
+  unitsPerEm: 2048,
+}
 export const STATIC_STATUS_PAGES = ['/500']
 export const TRACE_OUTPUT_VERSION = 1
 

@@ -21,7 +21,8 @@ export async function runTypeCheck(
   ts: typeof import('typescript'),
   baseDir: string,
   tsConfigPath: string,
-  cacheDir?: string
+  cacheDir?: string,
+  isAppDirEnabled?: boolean
 ): Promise<TypeCheckResult> {
   const effectiveConfiguration = await getTypeScriptConfiguration(
     ts,
@@ -69,6 +70,7 @@ export async function runTypeCheck(
   } else {
     program = ts.createProgram(effectiveConfiguration.fileNames, options)
   }
+
   const result = program.emit()
 
   // Intended to match:
@@ -95,14 +97,14 @@ export async function runTypeCheck(
 
   if (firstError) {
     throw new CompileError(
-      await getFormattedDiagnostic(ts, baseDir, firstError)
+      await getFormattedDiagnostic(ts, baseDir, firstError, isAppDirEnabled)
     )
   }
 
   const warnings = await Promise.all(
     allDiagnostics
       .filter((d) => d.category === DiagnosticCategory.Warning)
-      .map((d) => getFormattedDiagnostic(ts, baseDir, d))
+      .map((d) => getFormattedDiagnostic(ts, baseDir, d, isAppDirEnabled))
   )
   return {
     hasWarnings: true,

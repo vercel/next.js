@@ -16,6 +16,9 @@ import superWidePNG from '../public/super-wide.png'
 
 import TallImage from '../components/TallImage'
 
+const blurDataURL =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNM/s/wBwAFjwJgf8HDLgAAAABJRU5ErkJggg=='
+
 const Page = () => {
   return (
     <div>
@@ -73,6 +76,22 @@ const Page = () => {
       <Image id="blur-jpg-fill" src={testJPG} placeholder="blur" fill />
       <Image id="blur-webp-fill" src={testWEBP} placeholder="blur" fill />
       <Image id="blur-avif-fill" src={testAVIF} placeholder="blur" fill />
+      <br />
+      <Image
+        id="blurdataurl-fill"
+        src="/test.jpg"
+        placeholder="blur"
+        blurDataURL={blurDataURL}
+        fill
+      />
+      <Image
+        id="blurdataurl-ratio"
+        src="/test.png"
+        placeholder="blur"
+        blurDataURL={blurDataURL}
+        width="100"
+        height="200"
+      />
       <br />
       <Image id="static-unoptimized" src={testJPG} unoptimized />
     </div>

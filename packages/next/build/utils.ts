@@ -1,7 +1,6 @@
 import type { NextConfigComplete } from '../server/config-shared'
 
 import '../server/node-polyfill-fetch'
-import loadRequireHook from '../build/webpack/require-hook'
 import chalk from 'next/dist/compiled/chalk'
 import getGzipSize from 'next/dist/compiled/gzip-size'
 import textTable from 'next/dist/compiled/text-table'
@@ -49,6 +48,15 @@ import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-pa
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { AppBuildManifest } from './webpack/plugins/app-build-manifest-plugin'
 import { getRuntimeContext } from '../server/web/sandbox'
+import {
+  loadRequireHook,
+  overrideBuiltInReactPackages,
+} from './webpack/require-hook'
+
+loadRequireHook()
+if (process.env.NEXT_PREBUNDLED_REACT) {
+  overrideBuiltInReactPackages()
+}
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -68,8 +76,6 @@ const fsStat = (file: string) => {
   if (cached) return cached
   return (fileStats[file] = fileSize(file))
 }
-
-loadRequireHook()
 
 export function unique<T>(main: ReadonlyArray<T>, sub: ReadonlyArray<T>): T[] {
   return [...new Set([...main, ...sub])]
@@ -293,7 +299,6 @@ export async function printTreeView(
     app?: ReadonlyArray<string>
   },
   pageInfos: Map<string, PageInfo>,
-  serverless: boolean,
   {
     distPath,
     buildId,
@@ -407,7 +412,7 @@ export async function printTreeView(
         (pageInfo?.ssgPageDurations?.reduce((a, b) => a + (b || 0), 0) || 0)
 
       const symbol =
-        routerType === 'app' || item === '/_app' || item === '/_app.server'
+        item === '/_app' || item === '/_app.server'
           ? ' '
           : pageInfo?.static
           ? '○'
@@ -422,7 +427,7 @@ export async function printTreeView(
       if (pageInfo?.initialRevalidateSeconds) usedSymbols.add('ISR')
 
       messages.push([
-        `${border} ${routerType === 'pages' ? `${symbol} ` : ''}${
+        `${border} ${symbol} ${
           pageInfo?.initialRevalidateSeconds
             ? `${item} (ISR: ${pageInfo?.initialRevalidateSeconds} Seconds)`
             : item
@@ -627,7 +632,7 @@ export async function printTreeView(
         ],
         usedSymbols.has('λ') && [
           'λ',
-          serverless ? '(Lambda)' : '(Server)',
+          '(Server)',
           `server-side renders at runtime (uses ${chalk.cyan(
             'getInitialProps'
           )} or ${chalk.cyan('getServerSideProps')})`,
@@ -1039,28 +1044,57 @@ export type AppConfig = {
   preferredRegion?: string
 }
 type GenerateParams = Array<{
-  config: AppConfig
+  config?: AppConfig
   segmentPath: string
   getStaticPaths?: GetStaticPaths
   generateStaticParams?: any
   isLayout?: boolean
 }>
 
-export const collectGenerateParams = (
+export const collectAppConfig = (mod: any): AppConfig | undefined => {
+  let hasConfig = false
+
+  const config: AppConfig = {}
+  if (typeof mod?.revalidate !== 'undefined') {
+    config.revalidate = mod.revalidate
+    hasConfig = true
+  }
+  if (typeof mod?.dynamicParams !== 'undefined') {
+    config.dynamicParams = mod.dynamicParams
+    hasConfig = true
+  }
+  if (typeof mod?.dynamic !== 'undefined') {
+    config.dynamic = mod.dynamic
+    hasConfig = true
+  }
+  if (typeof mod?.fetchCache !== 'undefined') {
+    config.fetchCache = mod.fetchCache
+    hasConfig = true
+  }
+  if (typeof mod?.preferredRegion !== 'undefined') {
+    config.preferredRegion = mod.preferredRegion
+    hasConfig = true
+  }
+
+  return hasConfig ? config : undefined
+}
+
+export const collectGenerateParams = async (
   segment: any,
   parentSegments: string[] = [],
   generateParams: GenerateParams = []
-): GenerateParams => {
+): Promise<GenerateParams> => {
   if (!Array.isArray(segment)) return generateParams
   const isLayout = !!segment[2]?.layout
-  const mod = isLayout ? segment[2]?.layout?.() : segment[2]?.page?.()
+  const mod = await (isLayout ? segment[2]?.layout?.() : segment[2]?.page?.())
+  const config = collectAppConfig(mod)
 
   const result = {
     isLayout,
     segmentPath: `/${parentSegments.join('/')}${
       segment[0] && parentSegments.length > 0 ? '/' : ''
     }${segment[0]}`,
-    config: mod?.config,
+    config,
     getStaticPaths: mod?.getStaticPaths,
     generateStaticParams: mod?.generateStaticParams,
   }
@@ -1165,7 +1199,6 @@ export async function buildAppStaticPaths({
 export async function isPageStatic({
   page,
   distDir,
-  serverless,
   configFileName,
   runtimeEnvConfig,
   httpAgentOptions,
@@ -1181,7 +1214,6 @@ export async function isPageStatic({
 }: {
   page: string
   distDir: string
-  serverless: boolean
   configFileName: string
   runtimeEnvConfig: any
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
@@ -1250,7 +1282,6 @@ export async function isPageStatic({
         componentsResult = await loadComponents({
           distDir,
           pathname: originalAppPath || page,
-          serverless,
           hasServerComponents: !!hasServerComponents,
           isAppPath: pageType === 'app',
         })
@@ -1262,7 +1293,7 @@ export async function isPageStatic({
 
       if (pageType === 'app') {
         const tree = componentsResult.ComponentMod.tree
-        const generateParams = collectGenerateParams(tree)
+        const generateParams = await collectGenerateParams(tree)
 
         appConfig = generateParams.reduce(
           (builtConfig: AppConfig, curGenParams): AppConfig => {
@@ -1430,7 +1461,6 @@ export async function isPageStatic({
 export async function hasCustomGetInitialProps(
   page: string,
   distDir: string,
-  isLikeServerless: boolean,
   runtimeEnvConfig: any,
   checkingApp: boolean
 ): Promise<boolean> {
@@ -1439,7 +1469,6 @@ export async function hasCustomGetInitialProps(
   const components = await loadComponents({
     distDir,
     pathname: page,
-    serverless: isLikeServerless,
     hasServerComponents: false,
     isAppPath: false,
   })
@@ -1457,14 +1486,12 @@ export async function hasCustomGetInitialProps(
 export async function getNamedExports(
   page: string,
   distDir: string,
-  isLikeServerless: boolean,
   runtimeEnvConfig: any
 ): Promise<Array<string>> {
   require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
   const components = await loadComponents({
     distDir,
     pathname: page,
-    serverless: isLikeServerless,
     hasServerComponents: false,
     isAppPath: false,
   })
@@ -1631,7 +1658,9 @@ export async function copyTracedFiles(
       `${normalizePagePath(page)}.js`
     )
     const pageTraceFile = `${pageFile}.nft.json`
-    await handleTraceFiles(pageTraceFile)
+    await handleTraceFiles(pageTraceFile).catch((err) => {
+      Log.warn(`Failed to copy traced files for ${pageFile}`, err)
+    })
   }
   await handleTraceFiles(path.join(distDir, 'next-server.js.nft.json'))
   const serverOutputPath = path.join(
@@ -1726,16 +1755,6 @@ export function getPossibleMiddlewareFilenames(
   )
 }
 
-export class MiddlewareInServerlessTargetError extends Error {
-  constructor() {
-    super(
-      'Next.js Middleware is not supported in the deprecated serverless target.\n' +
-        'Please remove `target: "serverless" from your next.config.js to use Middleware.'
-    )
-    this.name = 'MiddlewareInServerlessTargetError'
-  }
-}
-
 export class NestedMiddlewareError extends Error {
   constructor(nestedFileNames: string[], mainDir: string, pagesDir: string) {
     super(
@@ -1773,8 +1792,9 @@ export function getSupportedBrowsers(
     return browsers
   }
 
-  // When user does not have browserslist use the default target
-  // When `experimental.legacyBrowsers: false` the modern default is used
+  // When the user sets `legacyBrowsers: true`, we pass undefined
+  // to SWC which is basically ES5 and matches the default behavior
+  // prior to Next.js 13
   return config.experimental.legacyBrowsers
     ? undefined
     : MODERN_BROWSERSLIST_TARGET

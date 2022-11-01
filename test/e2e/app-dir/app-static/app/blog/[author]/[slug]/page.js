@@ -1,8 +1,14 @@
-export const config = {
-  dynamicParams: true,
-}
+import { notFound } from 'next/navigation'
+
+export const revalidate = null
+
+export const dynamicParams = true
 
 export default function Page({ params }) {
+  if (params.author === 'shu') {
+    notFound()
+  }
+
   return (
     <>
       <p id="page">/blog/[author]/[slug]</p>

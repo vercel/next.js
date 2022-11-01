@@ -9,6 +9,7 @@ description: Learn how to use Middleware to run code before a request is complet
 
 | Version   | Changes                                                                                    |
 | --------- | ------------------------------------------------------------------------------------------ |
+| `v13.0.0` | Support overriding request headers.                                                        |
 | `v12.2.0` | Middleware is stable                                                                       |
 | `v12.0.9` | Enforce absolute URLs in Edge Runtime ([PR](https://github.com/vercel/next.js/pull/33410)) |
 | `v12.0.0` | Middleware (Beta) added                                                                    |
@@ -140,6 +141,7 @@ The [`NextResponse`](#nextresponse) API allows you to:
 
 - `redirect` the incoming request to a different URL
 - `rewrite` the response by displaying a given URL
+- Set request headers for API Routes, `getServerSideProps`, and `rewrite` destinations
 - Set response cookies
 - Set response headers
 
@@ -147,7 +149,10 @@ To produce a response from Middleware, you should `rewrite` to a route ([Page](/
 
 ## Using Cookies
 
-The `cookies` API extends [Map](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map) and allows you to `get`, `set`, and `delete` cookies. It also includes methods like [entries](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map/entries) and [values](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map/entries).
+Cookies are regular headers. On a `Request`, they are stored in the `Cookie` header. On a `Response` they are in the `Set-Cookie` header. Next.js provides a convenient way to access and manipulate these cookies through the `cookies` extension on `NextRequest` and `NextResponse`.
+
+1. For incoming requests, `cookies` comes with the following methods: `get`, `getAll`, `set`, and `delete` cookies. You can check for the existence of a cookie with `has` or remove all cookies with `clear`.
+2. For outgoing responses, `cookies` have the following methods `get`, `getAll`, `set`, and `delete`.
 
 ```typescript
 // middleware.ts
@@ -155,27 +160,63 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export function middleware(request: NextRequest) {
-  // Setting cookies on the response
+  // Assume a "Cookie:vercel=fast" header to be present on the incoming request
+  // Getting cookies from the request using the `RequestCookies` API
+  const cookie = request.cookies.get('nextjs')?.value
+  console.log(cookie) // => 'fast'
+  const allCookies = request.cookies.getAll()
+  console.log(allCookies) // => [{ name: 'vercel', value: 'fast' }]
+
+  request.cookies.has('nextjs') // => true
+  request.cookies.delete('nextjs')
+  request.cookies.has('nextjs') // => false
+
+  // Setting cookies on the response using the `ResponseCookies` API
   const response = NextResponse.next()
   response.cookies.set('vercel', 'fast')
-  response.cookies.set('vercel', 'fast', { path: '/test' })
-
-  // Getting cookies from the request
-  const cookie = request.cookies.get('vercel')
-  console.log(cookie) // => 'fast'
-  const allCookies = request.cookies.entries()
-  console.log(allCookies) // => [{ key: 'vercel', value: 'fast' }]
-  const { value, options } = response.cookies.getWithOptions('vercel')
-  console.log(value) // => 'fast'
-  console.log(options) // => { Path: '/test' }
-
-  // Deleting cookies
-  response.cookies.delete('vercel')
-  response.cookies.clear()
+  response.cookies.set({
+    name: 'vercel',
+    value: 'fast',
+    path: '/test',
+  })
+  const cookie = response.cookies.get('vercel')
+  console.log(cookie) // => { name: 'vercel', value: 'fast', Path: '/test' }
+  // The outgoing response will have a `Set-Cookie:vercel=fast;path=/test` header.
 
   return response
 }
 ```
+
+## Setting Headers
+
+You can set request and response headers using the `NextResponse` API (setting _request_ headers is available since Next.js v13.0.0).
+
+```ts
+// middleware.ts
+
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+
+export function middleware(request: NextRequest) {
+  // Clone the request headers and set a new header `x-hello-from-middleware1`
+  const requestHeaders = new Headers(request.headers)
+  requestHeaders.set('x-hello-from-middleware1', 'hello')
+
+  // You can also set request headers in NextResponse.rewrite
+  const response = NextResponse.next({
+    request: {
+      // New request headers
+      headers: requestHeaders,
+    },
+  })
+
+  // Set a new response header `x-hello-from-middleware2`
+  response.headers.set('x-hello-from-middleware2', 'hello')
+  return response
+}
+```
+
+> **Note:** Avoid setting large headers as it might cause [431 Request Header Fields Too Large](https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/431) error depending on your backend web server configuration.
 
 ## Related
 

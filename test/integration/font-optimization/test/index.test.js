@@ -9,7 +9,6 @@ import {
   nextStart,
   nextBuild,
   renderViaHTTP,
-  initNextServerScript,
   waitFor,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
@@ -21,20 +20,6 @@ const fsExists = (file) =>
     .access(file)
     .then(() => true)
     .catch(() => false)
-
-async function getBuildId(appDir) {
-  return fs.readFile(join(appDir, '.next', 'BUILD_ID'), 'utf8')
-}
-
-const startServerlessEmulator = async (dir, port, opts = {}) => {
-  const scriptPath = join(dir, 'server.js')
-  const env = Object.assign(
-    {},
-    { ...process.env },
-    { PORT: port, BUILD_ID: await getBuildId(dir) }
-  )
-  return initNextServerScript(scriptPath, /ready on/i, env, false, opts)
-}
 
 describe('Font Optimization', () => {
   describe.each([
@@ -79,7 +64,6 @@ describe('Font Optimization', () => {
       preconnectUrl
     ) => {
       const appDir = join(fixturesDir, `with-${property}`)
-      const nextConfig = join(appDir, 'next.config.js')
       let builtServerPagesDir
       let builtPage
       let appPort
@@ -250,50 +234,6 @@ describe('Font Optimization', () => {
         runTests()
       })
 
-      describe.skip('Font optimization for serverless apps', () => {
-        const origNextConfig = fs.readFileSync(nextConfig)
-
-        beforeAll(async () => {
-          await fs.writeFile(
-            nextConfig,
-            `module.exports = ({ target: 'serverless', cleanDistDir: false })`,
-            'utf8'
-          )
-          await nextBuild(appDir)
-          appPort = await findPort()
-          app = await nextStart(appDir, appPort)
-          builtServerPagesDir = join(appDir, '.next', 'serverless')
-          builtPage = (file) => join(builtServerPagesDir, file)
-        })
-        afterAll(async () => {
-          await fs.writeFile(nextConfig, origNextConfig)
-          await killApp(app)
-        })
-        runTests()
-      })
-
-      describe.skip('Font optimization for emulated serverless apps', () => {
-        const origNextConfig = fs.readFileSync(nextConfig)
-
-        beforeAll(async () => {
-          await fs.writeFile(
-            nextConfig,
-            `module.exports = ({ target: 'experimental-serverless-trace', cleanDistDir: false })`,
-            'utf8'
-          )
-          await nextBuild(appDir)
-          appPort = await findPort()
-          app = await startServerlessEmulator(appDir, appPort)
-          builtServerPagesDir = join(appDir, '.next', 'serverless')
-          builtPage = (file) => join(builtServerPagesDir, file)
-        })
-        afterAll(async () => {
-          await fs.writeFile(nextConfig, origNextConfig)
-          await killApp(app)
-        })
-        runTests()
-      })
-
       describe('Font optimization for unreachable font definitions.', () => {
         beforeAll(async () => {
           await nextBuild(appDir)
@@ -392,14 +332,14 @@ describe('Font Optimization', () => {
       )
       expect(inlineStyle.length).toBe(1)
       expect(inlineStyle.html()).toContain(
-        '@font-face{font-family:"Roboto Fallback";ascent-override:72.42%;descent-override:19.06%;line-gap-override:0.00%;size-adjust:128.10%;src:local("Arial")}'
+        '@font-face{font-family:"Roboto Fallback";ascent-override:92.49%;descent-override:24.34%;line-gap-override:0.00%;size-adjust:100.30%;src:local("Arial")}'
       )
       expect(inlineStyleMultiple.length).toBe(1)
       expect(inlineStyleMultiple.html()).toContain(
-        '@font-face{font-family:"Libre Baskerville Fallback";ascent-override:155.24%;descent-override:43.21%;line-gap-override:0.00%;size-adjust:62.48%;src:local("Times New Roman")}'
+        '@font-face{font-family:"Libre Baskerville Fallback";ascent-override:76.28%;descent-override:21.23%;line-gap-override:0.00%;size-adjust:127.17%;src:local("Times New Roman")}'
       )
       expect(inlineStyleMultiple.html()).toContain(
-        '@font-face{font-family:"Open Sans Fallback";ascent-override:82.66%;descent-override:22.66%;line-gap-override:0.00%;size-adjust:129.31%;src:local("Arial")}'
+        '@font-face{font-family:"Open Sans Fallback";ascent-override:101.58%;descent-override:27.84%;line-gap-override:0.00%;size-adjust:105.22%;src:local("Arial")}'
       )
     })
   })

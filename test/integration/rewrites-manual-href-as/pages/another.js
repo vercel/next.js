@@ -10,13 +10,13 @@ export default function Page(props) {
       <p id="pathname">{router.pathname}</p>
       <p id="query">{JSON.stringify(router.query)}</p>
 
-      <Link href="/?imageId=123" as="/preview/123">
-        <a id="to-modal">open modal for /preview/123</a>
+      <Link href="/?imageId=123" as="/preview/123" id="to-modal">
+        open modal for /preview/123
       </Link>
       <br />
 
-      <Link href="/preview/123">
-        <a id="to-preview">go to /preview/123</a>
+      <Link href="/preview/123" id="to-preview">
+        go to /preview/123
       </Link>
       <br />
     </>

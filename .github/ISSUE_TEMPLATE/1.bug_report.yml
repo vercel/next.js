@@ -1,10 +1,10 @@
 name: Bug Report
 description: Create a bug report for the Next.js core
-labels: 'template: bug'
+labels: ['template: bug']
 body:
   - type: markdown
     attributes:
-      value: Thanks for taking the time to file a bug report! Please fill out this form as completely as possible.
+      value: 'NOTE: [examples](https://github.com/vercel/next.js/tree/canary/examples) related issue should be reported using [this](https://github.com/vercel/next.js/issues/new?assignees=&labels=type%3A+example%2Ctemplate%3A+bug&template=2.example_bug_report.yml) issue template instead.'
   - type: markdown
     attributes:
       value: If you leave out sections there is a high likelihood it will be moved to the GitHub Discussions ["Help" section](https://github.com/vercel/next.js/discussions/categories/help).
@@ -44,7 +44,7 @@ body:
   - type: input
     attributes:
       label: Link to reproduction
-      description: A link to a GitHub repository, a [StackBlitz](https://stackblitz.com/fork/github/vercel/next.js/tree/canary/examples/reproduction-template), or a [CodeSandbox](https://codesandbox.io/s/github/vercel/next.js/tree/canary/examples/reproduction-template) minimal reproduction. Minimal reproductions should be created from our [bug report template with `npx create next-app -e reproduction-template`](https://github.com/vercel/next.js/tree/canary/examples/reproduction-template) and should include only changes that contribute to the issue.
+      description: A link to a GitHub repository, a [StackBlitz](https://stackblitz.com/fork/github/vercel/next.js/tree/canary/examples/reproduction-template), or a [CodeSandbox](https://codesandbox.io/s/github/vercel/next.js/tree/canary/examples/reproduction-template) minimal reproduction. Minimal reproductions should be created from our [bug report template with `npx create-next-app -e reproduction-template`](https://github.com/vercel/next.js/tree/canary/examples/reproduction-template) and should include only changes that contribute to the issue.
     validations:
       required: true
   - type: textarea

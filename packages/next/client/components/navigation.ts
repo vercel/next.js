@@ -1,21 +1,18 @@
 // useLayoutSegments() // Only the segments for the current place. ['children', 'dashboard', 'children', 'integrations'] -> /dashboard/integrations (/dashboard/layout.js would get ['children', 'dashboard', 'children', 'integrations'])
 
 import { useContext, useMemo } from 'react'
+import type { FlightRouterState } from '../../server/app-render'
+import {
+  AppRouterContext,
+  LayoutRouterContext,
+} from '../../shared/lib/app-router-context'
 import {
   SearchParamsContext,
   // ParamsContext,
   PathnameContext,
   // LayoutSegmentsContext,
-} from './hooks-client-context'
-import {
-  AppRouterContext,
-  LayoutRouterContext,
-} from '../../shared/lib/app-router-context'
-
-export {
-  ServerInsertedHTMLContext,
-  useServerInsertedHTML,
-} from '../../shared/lib/server-inserted-html'
+} from '../../shared/lib/hooks-client-context'
+import { staticGenerationBailout } from './static-generation-bailout'
 
 const INTERNAL_URLSEARCHPARAMS_INSTANCE = Symbol(
   'internal for urlsearchparams readonly'
@@ -73,19 +70,31 @@ class ReadonlyURLSearchParams {
  * Learn more about URLSearchParams here: https://developer.mozilla.org/en-US/docs/Web/API/URLSearchParams
  */
 export function useSearchParams() {
+  staticGenerationBailout('useSearchParams')
   const searchParams = useContext(SearchParamsContext)
+  if (!searchParams) {
+    throw new Error('invariant expected search params to be mounted')
+  }
+
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   const readonlySearchParams = useMemo(() => {
     return new ReadonlyURLSearchParams(searchParams)
   }, [searchParams])
+
   return readonlySearchParams
 }
 
-// TODO-APP: Move the other router context over to this one
 /**
- * Get the router methods. For example router.push('/dashboard')
+ * Get the current pathname. For example usePathname() on /dashboard?foo=bar would return "/dashboard"
  */
-export function useRouter(): import('../../shared/lib/app-router-context').AppRouterInstance {
-  return useContext(AppRouterContext)
+export function usePathname(): string {
+  staticGenerationBailout('usePathname')
+  const pathname = useContext(PathnameContext)
+  if (pathname === null) {
+    throw new Error('invariant expected pathname to be mounted')
+  }
+
+  return pathname
 }
 
 // TODO-APP: getting all params when client-side navigating is non-trivial as it does not have route matchers so this might have to be a server context instead.
@@ -93,28 +102,86 @@ export function useRouter(): import('../../shared/lib/app-router-context').AppRo
 //   return useContext(ParamsContext)
 // }
 
-/**
- * Get the current pathname. For example usePathname() on /dashboard?foo=bar would return "/dashboard"
- */
-export function usePathname(): string {
-  return useContext(PathnameContext)
-}
-
 // TODO-APP: define what should be provided through context.
 // export function useLayoutSegments() {
 //   return useContext(LayoutSegmentsContext)
 // }
 
+export {
+  ServerInsertedHTMLContext,
+  useServerInsertedHTML,
+} from '../../shared/lib/server-inserted-html'
+
+// TODO-APP: Move the other router context over to this one
+/**
+ * Get the router methods. For example router.push('/dashboard')
+ */
+export function useRouter(): import('../../shared/lib/app-router-context').AppRouterInstance {
+  const router = useContext(AppRouterContext)
+  if (router === null) {
+    throw new Error('invariant expected app router to be mounted')
+  }
+
+  return router
+}
+
+// TODO-APP: handle parallel routes
+function getSelectedLayoutSegmentPath(
+  tree: FlightRouterState,
+  parallelRouteKey: string,
+  first = true,
+  segmentPath: string[] = []
+): string[] {
+  let node: FlightRouterState
+  if (first) {
+    // Use the provided parallel route key on the first parallel route
+    node = tree[1][parallelRouteKey]
+  } else {
+    // After first parallel route prefer children, if there's no children pick the first parallel route.
+    const parallelRoutes = tree[1]
+    node = parallelRoutes.children ?? Object.values(parallelRoutes)[0]
+  }
+
+  if (!node) return segmentPath
+  const segment = node[0]
+  const segmentValue = Array.isArray(segment) ? segment[1] : segment
+  if (!segmentValue) return segmentPath
+
+  segmentPath.push(segmentValue)
+
+  return getSelectedLayoutSegmentPath(
+    node,
+    parallelRouteKey,
+    false,
+    segmentPath
+  )
+}
+
 // TODO-APP: Expand description when the docs are written for it.
 /**
- * Get the current segment one level down from the layout.
+ * Get the canonical segment path from the current level to the leaf node.
+ */
+export function useSelectedLayoutSegments(
+  parallelRouteKey: string = 'children'
+): string[] {
+  const { tree } = useContext(LayoutRouterContext)
+  return getSelectedLayoutSegmentPath(tree, parallelRouteKey)
+}
+
+// TODO-APP: Expand description when the docs are written for it.
+/**
+ * Get the segment below the current level
  */
 export function useSelectedLayoutSegment(
   parallelRouteKey: string = 'children'
 ): string {
-  const { tree } = useContext(LayoutRouterContext)
+  const selectedLayoutSegments = useSelectedLayoutSegments(parallelRouteKey)
+  if (selectedLayoutSegments.length === 0) {
+    throw new Error('No selected layout segment below the current level')
+  }
 
-  const segment = tree[1][parallelRouteKey][0]
-
-  return Array.isArray(segment) ? segment[1] : segment
+  return selectedLayoutSegments[0]
 }
+
+export { redirect } from './redirect'
+export { notFound } from './not-found'

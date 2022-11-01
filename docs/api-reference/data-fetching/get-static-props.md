@@ -18,6 +18,10 @@ description: API reference for `getStaticProps`. Learn how to use `getStaticProp
 
 </details>
 
+> **Note**: Next.js 13 introduces the `app/` directory (beta). This new directory has support for [colocated data fetching](https://beta.nextjs.org/docs/data-fetching/fundamentals) at the component level, using the new React `use` hook and an extended `fetch` Web API.
+>
+> [Learn more about incrementally adopting `app/`](https://beta.nextjs.org/docs/upgrade-guide).
+
 Exporting a function called `getStaticProps` will pre-render a page at build time using the props returned from the function:
 
 ```jsx
@@ -147,7 +151,7 @@ Files can be read directly from the filesystem in `getStaticProps`.
 
 In order to do so you have to get the full path to a file.
 
-Since Next.js compiles your code into a separate directory you can't use `__dirname` as the path it will return will be different from the pages directory.
+Since Next.js compiles your code into a separate directory you can't use `__dirname` as the path it returns will be different from the pages directory.
 
 Instead you can use `process.cwd()` which gives you the directory where Next.js is being executed.
 

@@ -19,14 +19,10 @@ export default function Search({ posts, categories, query }) {
                 <h2>Search Results</h2>
                 <ul className="breadcrumb-nav">
                   <li>
-                    <Link href="/">
-                      <a>Home</a>
-                    </Link>
+                    <Link href="/">Home</Link>
                   </li>
                   <li>
-                    <Link href="/blog">
-                      <a>Blog</a>
-                    </Link>
+                    <Link href="/blog">Blog</Link>
                   </li>
                   <li>Search: &#34;{query}&#34;</li>
                 </ul>
