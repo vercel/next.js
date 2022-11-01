@@ -1,3 +1,3 @@
-import inter from '@next/font/google/target.css?{"arguments":[{"variant":"900"}],"import":"Inter","path":"pages/test.tsx","variableName":"inter"}';
-import fira from 'cool-fonts/target.css?{"arguments":[{"display":"swap","variant":"400"}],"import":"Fira_Code","path":"pages/test.tsx","variableName":"fira"}';
+import inter from '@next/font/google/target.css?{"path":"pages/test.tsx","import":"Inter","arguments":[{"variant":"900"}],"variableName":"inter"}';
+import fira from 'cool-fonts/target.css?{"path":"pages/test.tsx","import":"Fira_Code","arguments":[{"variant":"400","display":"swap"}],"variableName":"fira"}';
 import React from 'react';

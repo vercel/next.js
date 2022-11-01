@@ -1,7 +1,7 @@
-import a from '@next/font/google/target.css?{"arguments":[{}],"import":"ABeeZee","path":"pages/test.tsx","variableName":"a"}';
-import a from '@next/font/google/target.css?{"arguments":[{}],"import":"ABeeZee","path":"pages/test.tsx","variableName":"a"}';
-import a from '@next/font/google/target.css?{"arguments":[{}],"import":"ABeeZee","path":"pages/test.tsx","variableName":"a"}';
-import a from '@next/font/google/target.css?{"arguments":[{}],"import":"ABeeZee","path":"pages/test.tsx","variableName":"a"}';
+import a from '@next/font/google/target.css?{"path":"pages/test.tsx","import":"ABeeZee","arguments":[{}],"variableName":"a"}';
+import a from '@next/font/google/target.css?{"path":"pages/test.tsx","import":"ABeeZee","arguments":[{}],"variableName":"a"}';
+import a from '@next/font/google/target.css?{"path":"pages/test.tsx","import":"ABeeZee","arguments":[{}],"variableName":"a"}';
+import a from '@next/font/google/target.css?{"path":"pages/test.tsx","import":"ABeeZee","arguments":[{}],"variableName":"a"}';
 const a = fn({
     10: 'hello'
 });

@@ -1,2 +1,2 @@
-import acme1 from 'cool-fonts/target.css?{"arguments":[{"variant":"400"}],"import":"Acme","path":"pages/test.tsx","variableName":"acme1"}';
+import acme1 from 'cool-fonts/target.css?{"path":"pages/test.tsx","import":"Acme","arguments":[{"variant":"400"}],"variableName":"acme1"}';
 import React from 'react';
