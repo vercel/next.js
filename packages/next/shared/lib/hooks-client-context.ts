@@ -2,8 +2,8 @@
 
 import { createContext } from 'react'
 
-export const SearchParamsContext = createContext<URLSearchParams>(null as any)
-export const PathnameContext = createContext<string>(null as any)
+export const SearchParamsContext = createContext<URLSearchParams | null>(null)
+export const PathnameContext = createContext<string | null>(null)
 export const ParamsContext = createContext(null as any)
 export const LayoutSegmentsContext = createContext(null as any)
 

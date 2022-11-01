@@ -11,7 +11,7 @@ import {
   // ParamsContext,
   PathnameContext,
   // LayoutSegmentsContext,
-} from './hooks-client-context'
+} from '../../shared/lib/hooks-client-context'
 import { staticGenerationBailout } from './static-generation-bailout'
 
 const INTERNAL_URLSEARCHPARAMS_INSTANCE = Symbol(
@@ -72,9 +72,15 @@ class ReadonlyURLSearchParams {
 export function useSearchParams() {
   staticGenerationBailout('useSearchParams')
   const searchParams = useContext(SearchParamsContext)
+  if (!searchParams) {
+    throw new Error('invariant expected search params to be mounted')
+  }
+
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   const readonlySearchParams = useMemo(() => {
     return new ReadonlyURLSearchParams(searchParams)
   }, [searchParams])
+
   return readonlySearchParams
 }
 
@@ -83,7 +89,12 @@ export function useSearchParams() {
  */
 export function usePathname(): string {
   staticGenerationBailout('usePathname')
-  return useContext(PathnameContext)
+  const pathname = useContext(PathnameContext)
+  if (pathname === null) {
+    throw new Error('invariant expected pathname to be mounted')
+  }
+
+  return pathname
 }
 
 // TODO-APP: getting all params when client-side navigating is non-trivial as it does not have route matchers so this might have to be a server context instead.
@@ -106,7 +117,12 @@ export {
  * Get the router methods. For example router.push('/dashboard')
  */
 export function useRouter(): import('../../shared/lib/app-router-context').AppRouterInstance {
-  return useContext(AppRouterContext)
+  const router = useContext(AppRouterContext)
+  if (router === null) {
+    throw new Error('invariant expected app router to be mounted')
+  }
+
+  return router
 }
 
 // TODO-APP: handle parallel routes
