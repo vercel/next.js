@@ -610,6 +610,7 @@ export const css = curry(async function css(
             issuer: regexLikeCss,
             // Exclude extensions that webpack handles by default
             exclude: [
+              /\.(css|sass|scss)$/,
               /\.(js|mjs|jsx|ts|tsx)$/,
               /\.html$/,
               /\.json$/,
