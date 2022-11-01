@@ -26,7 +26,7 @@ import {
   // ParamsContext,
   PathnameContext,
   // LayoutSegmentsContext,
-} from './hooks-client-context'
+} from '../../shared/lib/hooks-client-context'
 import { useReducerWithReduxDevtools } from './use-reducer-with-devtools'
 import { ErrorBoundary, GlobalErrorComponent } from './error-boundary'
 
