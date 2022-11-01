@@ -273,6 +273,7 @@ export const css = curry(async function css(
   // CSS Modules support must be enabled on the server and client so the class
   // names are available for SSR or Prerendering.
   if (ctx.hasAppDir && !ctx.isProduction) {
+    // CSS modules
     fns.push(
       loader({
         oneOf: [
@@ -284,16 +285,6 @@ export const css = curry(async function css(
             sideEffects: false,
             // CSS Modules are activated via this specific extension.
             test: regexCssModules,
-            // CSS Modules are only supported in the user's application. We're
-            // not yet allowing CSS imports _within_ `node_modules`.
-            issuer: {
-              and: [
-                {
-                  or: [ctx.rootDirectory, regexClientEntry],
-                },
-              ],
-              not: [/node_modules/],
-            },
             use: [
               require.resolve('../../../loaders/next-flight-css-dev-loader'),
               ...getCssModuleLoader(ctx, lazyPostCSSInitializer),
@@ -302,10 +293,12 @@ export const css = curry(async function css(
         ],
       })
     )
+
+    // Opt-in support for Sass (using .scss or .sass extensions).
     fns.push(
       loader({
         oneOf: [
-          // Opt-in support for Sass (using .scss or .sass extensions).
+          // For app dir, we match both server and client layers.
           markRemovable({
             // Sass Modules should never have side effects. This setting will
             // allow unused Sass to be removed from the production build.
@@ -314,12 +307,6 @@ export const css = curry(async function css(
             sideEffects: false,
             // Sass Modules are activated via this specific extension.
             test: regexSassModules,
-            // Sass Modules are only supported in the user's application. We're
-            // not yet allowing Sass imports _within_ `node_modules`.
-            issuer: {
-              and: [ctx.rootDirectory],
-              not: [/node_modules/],
-            },
             use: [
               require.resolve('../../../loaders/next-flight-css-dev-loader'),
               ...getCssModuleLoader(
@@ -344,16 +331,6 @@ export const css = curry(async function css(
             sideEffects: false,
             // CSS Modules are activated via this specific extension.
             test: regexCssModules,
-            // CSS Modules are only supported in the user's application. We're
-            // not yet allowing CSS imports _within_ `node_modules`.
-            issuer: {
-              and: [
-                {
-                  or: [ctx.rootDirectory, regexClientEntry],
-                },
-              ],
-              not: [/node_modules/],
-            },
             use: getCssModuleLoader(ctx, lazyPostCSSInitializer),
           }),
         ],
@@ -371,12 +348,6 @@ export const css = curry(async function css(
             sideEffects: false,
             // Sass Modules are activated via this specific extension.
             test: regexSassModules,
-            // Sass Modules are only supported in the user's application. We're
-            // not yet allowing Sass imports _within_ `node_modules`.
-            issuer: {
-              and: [ctx.rootDirectory],
-              not: [/node_modules/],
-            },
             use: getCssModuleLoader(
               ctx,
               lazyPostCSSInitializer,

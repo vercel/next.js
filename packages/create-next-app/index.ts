@@ -35,6 +35,13 @@ const program = new Commander.Command(packageJson.name)
 `
   )
   .option(
+    '--eslint',
+    `
+
+  Initialize with eslint config.
+`
+  )
+  .option(
     '--experimental-app',
     `
 
@@ -148,9 +155,6 @@ async function run(): Promise<void> {
   /**
    * If the user does not provide the necessary flags, prompt them for whether
    * to use TS or JS.
-   *
-   * @todo Allow appDir to support TS or JS, currently TS-only and disables all
-   * --ts, --js features.
    */
   if (!example && !program.typescript && !program.javascript) {
     if (ciInfo.isCI) {
@@ -158,6 +162,7 @@ async function run(): Promise<void> {
       // prevent breaking setup flows
       program.javascript = true
       program.typescript = false
+      program.eslint = false
     } else {
       const styledTypeScript = chalk.hex('#007acc')('TypeScript')
       const { typescript } = await prompts(
@@ -180,6 +185,19 @@ async function run(): Promise<void> {
           },
         }
       )
+
+      if (!program.eslint) {
+        const styledEslint = chalk.hex('#007acc')('ESLint')
+        const { eslint } = await prompts({
+          type: 'toggle',
+          name: 'eslint',
+          message: `Would you like to use ${styledEslint} with this project?`,
+          initial: false,
+          active: 'Yes',
+          inactive: 'No',
+        })
+        program.eslint = Boolean(eslint)
+      }
       /**
        * Depending on the prompt response, set the appropriate program flags.
        */
@@ -195,6 +213,7 @@ async function run(): Promise<void> {
       example: example && example !== 'default' ? example : undefined,
       examplePath: program.examplePath,
       typescript: program.typescript,
+      eslint: program.eslint,
       experimentalApp: program.experimentalApp,
     })
   } catch (reason) {
@@ -218,6 +237,7 @@ async function run(): Promise<void> {
       appPath: resolvedProjectPath,
       packageManager,
       typescript: program.typescript,
+      eslint: program.eslint,
       experimentalApp: program.experimentalApp,
     })
   }

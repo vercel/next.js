@@ -42,14 +42,8 @@ const postcssFontLoaderPlugn = ({
             continue
           }
 
-          const currentFamily = normalizeFamily(familyNode.value)
-
           if (!fontFamily) {
-            fontFamily = currentFamily
-          } else if (fontFamily !== currentFamily) {
-            throw new Error(
-              `Font family mismatch, expected ${fontFamily} but got ${currentFamily}`
-            )
+            fontFamily = normalizeFamily(familyNode.value)
           }
 
           familyNode.value = formatFamily(fontFamily)

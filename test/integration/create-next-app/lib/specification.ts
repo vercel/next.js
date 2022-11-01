@@ -28,8 +28,8 @@ export const projectSpecification: ProjectSpecification = {
       'node_modules/next',
       '.gitignore',
     ],
-    deps: ['next', 'react', 'react-dom'],
-    devDeps: ['eslint', 'eslint-config-next'],
+    deps: ['next', 'react', 'react-dom', 'eslint', 'eslint-config-next'],
+    devDeps: [],
   },
   default: {
     js: {
@@ -45,13 +45,8 @@ export const projectSpecification: ProjectSpecification = {
         'tsconfig.json',
         'next-env.d.ts',
       ],
-      deps: [],
-      devDeps: [
-        '@types/node',
-        '@types/react',
-        '@types/react-dom',
-        'typescript',
-      ],
+      deps: ['@types/node', '@types/react', '@types/react-dom', 'typescript'],
+      devDeps: [],
     },
   },
   app: {
@@ -61,13 +56,8 @@ export const projectSpecification: ProjectSpecification = {
       files: ['app/page.jsx', 'app/layout.jsx', 'pages/api/hello.js'],
     },
     ts: {
-      deps: [],
-      devDeps: [
-        '@types/node',
-        '@types/react',
-        '@types/react-dom',
-        'typescript',
-      ],
+      deps: ['@types/node', '@types/react', '@types/react-dom', 'typescript'],
+      devDeps: [],
       files: [
         'app/page.tsx',
         'app/layout.tsx',
