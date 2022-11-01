@@ -154,30 +154,37 @@ function createHeadInsertionTransformStream(
 ): TransformStream<Uint8Array, Uint8Array> {
   let inserted = false
   let freezing = false
+  const queueTask =
+    process.env.NEXT_RUNTIME === 'edge' ? setTimeout : setImmediate
   return new TransformStream({
     async transform(chunk, controller) {
       const content = decodeText(chunk)
       let index
+      // While react is flushing chunks, we don't apply insertions
       if (freezing) {
         controller.enqueue(chunk)
         return
       }
       if (inserted) {
+        // Insert the subsequent insertion content to end of body.
         freezing = true
         const insertion = await insert()
         controller.enqueue(encodeText(insertion))
         controller.enqueue(chunk)
-        setImmediate(() => {
+        // Queue a task to wait for react flushing chunks in microtasks,
+        // to avoid content being messed up with style tags together.
+        queueTask(() => {
           freezing = false
         })
       } else if ((index = content.indexOf('</head')) !== -1) {
+        // When there's head element detected, insert into head element
         freezing = true
         const insertion = await insert()
         const insertedHeadContent =
           content.slice(0, index) + insertion + content.slice(index)
         controller.enqueue(encodeText(insertedHeadContent))
         inserted = true
-        setImmediate(() => {
+        queueTask(() => {
           freezing = false
         })
       } else {
