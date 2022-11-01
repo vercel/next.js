@@ -17,4 +17,5 @@ export const EXTERNAL_PACKAGES = [
   'next-seo',
   'rimraf',
   'next-mdx-remote',
+  'sqlite3',
 ]
