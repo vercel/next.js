@@ -113,7 +113,7 @@ if (process.versions.pnp === '3') {
 
 // Make sure commands gracefully respect termination signals (e.g. from Docker)
 // Allow the graceful termination to be manually configurable
-if (!process.env.NEXT_MANUAL_SIG_HANDLE) {
+if (!process.env.NEXT_MANUAL_SIG_HANDLE && command !== 'dev') {
   process.on('SIGTERM', () => process.exit(0))
   process.on('SIGINT', () => process.exit(0))
 }

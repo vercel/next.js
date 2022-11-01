@@ -5,7 +5,6 @@ import ReactDOMClient from 'react-dom/client'
 import React, { use } from 'react'
 import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack/client'
 
-import measureWebVitals from './performance-relayer'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import { GlobalLayoutRouterContext } from '../shared/lib/app-router-context'
 
@@ -155,7 +154,9 @@ const StrictModeIfEnabled = process.env.__NEXT_STRICT_MODE_APP
 
 function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
   React.useEffect(() => {
-    measureWebVitals()
+    if (process.env.__NEXT_ANALYTICS_ID) {
+      require('./performance-relayer-app')()
+    }
   }, [])
 
   if (process.env.__NEXT_TEST_MODE) {
