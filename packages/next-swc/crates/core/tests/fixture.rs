@@ -1,4 +1,4 @@
-use next_swc::{
+use next_rs::{
     amp_attributes::amp_attributes,
     next_dynamic::next_dynamic,
     next_font_loaders::{next_font_loaders, Config as FontLoaderConfig},
@@ -162,7 +162,7 @@ fn remove_console_fixture(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
     test_fixture(
         syntax(),
-        &|_tr| remove_console(next_swc::remove_console::Config::All(true)),
+        &|_tr| remove_console(next_rs::remove_console::Config::All(true)),
         &input,
         &output,
         Default::default(),
@@ -174,7 +174,7 @@ fn react_remove_properties_default_fixture(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
     test_fixture(
         syntax(),
-        &|_tr| remove_properties(next_swc::react_remove_properties::Config::All(true)),
+        &|_tr| remove_properties(next_rs::react_remove_properties::Config::All(true)),
         &input,
         &output,
         Default::default(),
@@ -187,8 +187,8 @@ fn react_remove_properties_custom_fixture(input: PathBuf) {
     test_fixture(
         syntax(),
         &|_tr| {
-            remove_properties(next_swc::react_remove_properties::Config::WithOptions(
-                next_swc::react_remove_properties::Options {
+            remove_properties(next_rs::react_remove_properties::Config::WithOptions(
+                next_rs::react_remove_properties::Options {
                     properties: vec!["^data-custom$".into()],
                 },
             ))
@@ -245,8 +245,8 @@ fn react_server_components_server_graph_fixture(input: PathBuf) {
         &|tr| {
             server_components(
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
-                next_swc::react_server_components::Config::WithOptions(
-                    next_swc::react_server_components::Options { is_server: true },
+                next_rs::react_server_components::Config::WithOptions(
+                    next_rs::react_server_components::Options { is_server: true },
                 ),
                 tr.comments.as_ref().clone(),
             )
@@ -265,8 +265,8 @@ fn react_server_components_client_graph_fixture(input: PathBuf) {
         &|tr| {
             server_components(
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
-                next_swc::react_server_components::Config::WithOptions(
-                    next_swc::react_server_components::Options { is_server: false },
+                next_rs::react_server_components::Config::WithOptions(
+                    next_rs::react_server_components::Options { is_server: false },
                 ),
                 tr.comments.as_ref().clone(),
             )

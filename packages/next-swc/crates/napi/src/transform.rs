@@ -37,7 +37,7 @@ use std::{
 use anyhow::{anyhow, bail, Context as _};
 use fxhash::FxHashSet;
 use napi::bindgen_prelude::*;
-use next_swc::{custom_before_pass, TransformOptions};
+use next_rs::{custom_before_pass, TransformOptions};
 use swc_core::common::comments::SingleThreadedComments;
 use swc_core::{
     base::{try_with_handler, Compiler, TransformOutput},

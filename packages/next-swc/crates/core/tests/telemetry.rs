@@ -3,7 +3,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use fxhash::FxHashSet;
-use next_swc::next_ssg::next_ssg;
+use next_rs::next_ssg::next_ssg;
 use once_cell::sync::Lazy;
 
 use swc_core::{

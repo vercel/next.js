@@ -1,4 +1,4 @@
-use next_swc::{
+use next_rs::{
     disallow_re_export_all_in_page::disallow_re_export_all_in_page,
     next_dynamic::next_dynamic,
     next_font_loaders::{next_font_loaders, Config as FontLoaderConfig},
@@ -83,8 +83,8 @@ fn react_server_components_server_graph_errors(input: PathBuf) {
         &|tr| {
             server_components(
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
-                next_swc::react_server_components::Config::WithOptions(
-                    next_swc::react_server_components::Options { is_server: true },
+                next_rs::react_server_components::Config::WithOptions(
+                    next_rs::react_server_components::Options { is_server: true },
                 ),
                 tr.comments.as_ref().clone(),
             )
@@ -106,8 +106,8 @@ fn react_server_components_client_graph_errors(input: PathBuf) {
         &|tr| {
             server_components(
                 FileName::Real(PathBuf::from("/some-project/src/page.js")),
-                next_swc::react_server_components::Config::WithOptions(
-                    next_swc::react_server_components::Options { is_server: false },
+                next_rs::react_server_components::Config::WithOptions(
+                    next_rs::react_server_components::Options { is_server: false },
                 ),
                 tr.comments.as_ref().clone(),
             )

@@ -1,6 +1,6 @@
 use anyhow::{Context, Error};
 use js_sys::JsString;
-use next_swc::{custom_before_pass, TransformOptions};
+use next_rs::{custom_before_pass, TransformOptions};
 use std::sync::Arc;
 use wasm_bindgen::{prelude::*, JsCast};
 use wasm_bindgen_futures::future_to_promise;
