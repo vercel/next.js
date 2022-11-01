@@ -177,7 +177,7 @@ export function useSelectedLayoutSegment(
 ): string {
   const selectedLayoutSegments = useSelectedLayoutSegments(parallelRouteKey)
   if (selectedLayoutSegments.length === 0) {
-    throw new Error('No selected layout segment below the current level')
+    return ''
   }
 
   return selectedLayoutSegments[0]
