@@ -1,24 +1,18 @@
-(self.TURBOPACK = self.TURBOPACK || []).push(["output/crates_turbopack-tests_tests_snapshot_basic_async_chunk_input_index_9be35c.js", {
+(self.TURBOPACK = self.TURBOPACK || []).push(["output/79fb1_turbopack-tests_tests_snapshot_imports_resolve_error_cjs_input_index_e00120.js", {
 
-"[project]/crates/turbopack-tests/tests/snapshot/basic/async_chunk/input/index.js (ecmascript)": (function({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, __dirname, m: module, e: exports }) { !function() {
+"[project]/crates/turbopack-tests/tests/snapshot/imports/resolve_error_cjs/input/index.js (ecmascript)": (function({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, __dirname, m: module, e: exports }) { !function() {
 
-__turbopack_require__("[project]/crates/turbopack-tests/tests/snapshot/basic/async_chunk/input/import.js/manifest-loader.js")(__turbopack_import__).then(({ foo  })=>{
-    foo(true);
-});
+const dne = __turbopack_require__((()=>{
+    const e = new Error("Cannot find module 'does-not-exist/path'");
+    e.code = 'MODULE_NOT_FOUND';
+    throw e;
+})());
+console.log(dne);
 
 }.call(this) }),
-"[project]/crates/turbopack-tests/tests/snapshot/basic/async_chunk/input/import.js/manifest-loader.js": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, __dirname }) => (() => {
-
-
-__turbopack_export_value__((__turbopack_import__) => {
-    return __turbopack_load__("output/79fb1_turbopack-tests_tests_snapshot_basic_async_chunk_input_import.js_manifest-chunk.js").then(() => {
-        return __turbopack_require__("[project]/crates/turbopack-tests/tests/snapshot/basic/async_chunk/input/import.js/manifest-chunk.js");
-    }).then(() => __turbopack_import__("[project]/crates/turbopack-tests/tests/snapshot/basic/async_chunk/input/import.js (ecmascript)"));
-});
-})()),
 }, ({ loadedChunks, instantiateRuntimeModule }) => {
-    if(!(true && loadedChunks.has("output/crates_turbopack-tests_tests_snapshot_basic_async_chunk_input_index_700c9a.js"))) return true;
-    instantiateRuntimeModule("[project]/crates/turbopack-tests/tests/snapshot/basic/async_chunk/input/index.js (ecmascript)");
+    if(!(true && loadedChunks.has("output/79fb1_turbopack-tests_tests_snapshot_imports_resolve_error_cjs_input_index_0a21b1.js"))) return true;
+    instantiateRuntimeModule("[project]/crates/turbopack-tests/tests/snapshot/imports/resolve_error_cjs/input/index.js (ecmascript)");
 }]);
 (() => {
   // When a chunk is executed, it will either register itself with the current
@@ -1024,4 +1018,4 @@ __turbopack_export_value__((__turbopack_import__) => {
 })();
 
 
-//# sourceMappingURL=crates_turbopack-tests_tests_snapshot_basic_async_chunk_input_index_9be35c.js.map
+//# sourceMappingURL=79fb1_turbopack-tests_tests_snapshot_imports_resolve_error_cjs_input_index_e00120.js.map

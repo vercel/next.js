@@ -1,24 +1,18 @@
-(self.TURBOPACK = self.TURBOPACK || []).push(["output/crates_turbopack-tests_tests_snapshot_basic_async_chunk_input_index_9be35c.js", {
+(self.TURBOPACK = self.TURBOPACK || []).push(["output/a587c_tests_snapshot_swc_transforms_mono_transforms_input_packages_app_index_aaedb6.js", {
 
-"[project]/crates/turbopack-tests/tests/snapshot/basic/async_chunk/input/index.js (ecmascript)": (function({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, __dirname, m: module, e: exports }) { !function() {
+"[project]/crates/turbopack-tests/tests/snapshot/swc_transforms/mono_transforms/input/packages/app/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, __dirname }) => (() => {
 
-__turbopack_require__("[project]/crates/turbopack-tests/tests/snapshot/basic/async_chunk/input/import.js/manifest-loader.js")(__turbopack_import__).then(({ foo  })=>{
-    foo(true);
-});
+var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$swc_transforms$2f$mono_transforms$2f$input$2f$packages$2f$component$2f$index$2e$js__ = __turbopack_import__("[project]/crates/turbopack-tests/tests/snapshot/swc_transforms/mono_transforms/input/packages/component/index.js (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$swc_transforms$2f$mono_transforms$2f$input$2f$node_modules$2f$third_party_component$2f$index$2e$js__ = __turbopack_import__("[project]/crates/turbopack-tests/tests/snapshot/swc_transforms/mono_transforms/input/node_modules/third_party_component/index.js (ecmascript)");
+"__TURBOPACK__ecmascript__hoisting__location__";
+;
+;
+console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$swc_transforms$2f$mono_transforms$2f$input$2f$packages$2f$component$2f$index$2e$js__["default"], __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$swc_transforms$2f$mono_transforms$2f$input$2f$node_modules$2f$third_party_component$2f$index$2e$js__["default"]);
 
-}.call(this) }),
-"[project]/crates/turbopack-tests/tests/snapshot/basic/async_chunk/input/import.js/manifest-loader.js": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, __dirname }) => (() => {
-
-
-__turbopack_export_value__((__turbopack_import__) => {
-    return __turbopack_load__("output/79fb1_turbopack-tests_tests_snapshot_basic_async_chunk_input_import.js_manifest-chunk.js").then(() => {
-        return __turbopack_require__("[project]/crates/turbopack-tests/tests/snapshot/basic/async_chunk/input/import.js/manifest-chunk.js");
-    }).then(() => __turbopack_import__("[project]/crates/turbopack-tests/tests/snapshot/basic/async_chunk/input/import.js (ecmascript)"));
-});
 })()),
 }, ({ loadedChunks, instantiateRuntimeModule }) => {
-    if(!(true && loadedChunks.has("output/crates_turbopack-tests_tests_snapshot_basic_async_chunk_input_index_700c9a.js"))) return true;
-    instantiateRuntimeModule("[project]/crates/turbopack-tests/tests/snapshot/basic/async_chunk/input/index.js (ecmascript)");
+    if(!(true && loadedChunks.has("output/a587c_tests_snapshot_swc_transforms_mono_transforms_input_packages_app_index_65e4d3.js") && loadedChunks.has("output/7b7bf_third_party_component_index.js") && loadedChunks.has("output/a587c_tests_snapshot_swc_transforms_mono_transforms_input_packages_component_index.js") && loadedChunks.has("output/cbe97_react_jsx-runtime.js") && loadedChunks.has("output/7b7bf_react_jsx-runtime.js"))) return true;
+    instantiateRuntimeModule("[project]/crates/turbopack-tests/tests/snapshot/swc_transforms/mono_transforms/input/packages/app/index.js (ecmascript)");
 }]);
 (() => {
   // When a chunk is executed, it will either register itself with the current
@@ -1024,4 +1018,4 @@ __turbopack_export_value__((__turbopack_import__) => {
 })();
 
 
-//# sourceMappingURL=crates_turbopack-tests_tests_snapshot_basic_async_chunk_input_index_9be35c.js.map
+//# sourceMappingURL=a587c_tests_snapshot_swc_transforms_mono_transforms_input_packages_app_index_aaedb6.js.map

@@ -127,14 +127,14 @@ impl Asset for StaticAsset {
         let content = self.source.content();
         let content_hash = if let AssetContent::File(file) = &*content.await? {
             if let FileContent::Content(file) = &*file.await? {
-                turbo_tasks_hash::hash_md4(file.content())
+                turbo_tasks_hash::hash_xxh3_hash64(file.content())
             } else {
                 return Err(anyhow!("StaticAsset::path: not found"));
             }
         } else {
             return Err(anyhow!("StaticAsset::path: unsupported file content"));
         };
-        let content_hash_b16 = turbo_tasks_hash::encode_base16(&content_hash);
+        let content_hash_b16 = turbo_tasks_hash::encode_hex(content_hash);
         let asset_path = match source_path.await?.extension() {
             Some(ext) => self.context.asset_path(&content_hash_b16, ext),
             None => self.context.asset_path(&content_hash_b16, "bin"),

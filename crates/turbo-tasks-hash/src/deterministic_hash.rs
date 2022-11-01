@@ -24,6 +24,18 @@ macro_rules! impl_write_number {
     )*}
 }
 
+/// DeterministicHash is a custom trait that signals the implementor can safely
+/// be hashed in a replicatable way across platforms and process runs. Note that
+/// the default Hash trait used by Rust is not deterministic for our purposes.
+///
+/// It's very important that Vcs never implement this, since they cannot be
+/// deterministic. The value that they wrap, however, can implement the trait.
+pub trait DeterministicHash {
+    /// Adds self's bytes to the [Hasher] state, in a way that is replicatable
+    /// on any platform or process run.
+    fn deterministic_hash<H: DeterministicHasher>(&self, state: &mut H);
+}
+
 /// DeterministicHasher is a custom trait that signals the implementor can
 /// safely hash in a replicatable way across platforms and process runs. Note
 /// that the default Hasher trait used by Rust allows for non-deterministic
@@ -69,25 +81,6 @@ pub trait DeterministicHasher {
     }
 }
 
-/// DeterministicHash is a custom trait that signals the implementor can safely
-/// be hashed in a replicatable way across platforms and process runs. Note that
-/// the default Hash trait used by Rust is not deterministic for our purposes.
-///
-/// It's very important that Vcs never implement this, since they cannot be
-/// deterministic. The value that they wrap, however, can implement the trait.
-pub trait DeterministicHash {
-    /// Adds self's bytes to the [Hasher] state, in a way that is replicatable
-    /// on any platform or process run.
-    fn deterministic_hash<H: DeterministicHasher>(&self, state: &mut H);
-}
-
-impl DeterministicHash for String {
-    fn deterministic_hash<H: DeterministicHasher>(&self, state: &mut H) {
-        state.write_usize(self.len());
-        state.write_bytes(self.as_bytes());
-    }
-}
-
 deterministic_hash_number! {
     (u8, write_u8),
     (u16, write_u16),
@@ -101,6 +94,26 @@ deterministic_hash_number! {
     (isize, write_isize),
     (u128, write_u128),
     (i128, write_i128),
+}
+
+impl<T: ?Sized + DeterministicHash> DeterministicHash for &T {
+    fn deterministic_hash<H: DeterministicHasher>(&self, state: &mut H) {
+        (**self).deterministic_hash(state);
+    }
+}
+
+impl DeterministicHash for String {
+    fn deterministic_hash<H: DeterministicHasher>(&self, state: &mut H) {
+        state.write_usize(self.len());
+        state.write_bytes(self.as_bytes());
+    }
+}
+
+impl DeterministicHash for [u8] {
+    fn deterministic_hash<H: DeterministicHasher>(&self, state: &mut H) {
+        state.write_usize(self.len());
+        state.write_bytes(self);
+    }
 }
 
 impl<T: DeterministicHash> DeterministicHash for Option<T> {
@@ -117,8 +130,8 @@ impl<T: DeterministicHash> DeterministicHash for Option<T> {
 
 /// HasherWrapper allows the DeterministicHasher to be used as a Hasher, for
 /// standard types that do not allow us to directly access their internals.
-struct HasherWrapper<'a>(&'a mut dyn DeterministicHasher);
-impl<'a> std::hash::Hasher for HasherWrapper<'a> {
+struct HasherWrapper<'a, D: DeterministicHasher>(&'a mut D);
+impl<'a, D: DeterministicHasher> std::hash::Hasher for HasherWrapper<'a, D> {
     fn write(&mut self, bytes: &[u8]) {
         self.0.write_bytes(bytes);
     }

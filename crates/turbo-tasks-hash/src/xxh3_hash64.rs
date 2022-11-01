@@ -5,8 +5,10 @@ use twox_hash::xxh3;
 use crate::{DeterministicHash, DeterministicHasher};
 
 /// Hash some content with the Xxh3Hash64 non-cryptographic hash function.
-pub fn hash_xxh3_hash64(input: &[u8]) -> u64 {
-    xxh3::hash64(input)
+pub fn hash_xxh3_hash64<T: DeterministicHash>(input: T) -> u64 {
+    let mut hasher = Xxh3Hash64Hasher::new();
+    input.deterministic_hash(&mut hasher);
+    hasher.finish()
 }
 
 /// Xxh3Hash64 hasher.
