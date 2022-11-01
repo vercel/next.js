@@ -149,10 +149,10 @@ export function renderToInitialStream({
   return ReactDOMServer.renderToReadableStream(element, streamOptions)
 }
 
-export function createHeadInjectionTransformStream(
-  inject: () => Promise<string>
+function createHeadInsertionTransformStream(
+  insert: () => Promise<string>
 ): TransformStream<Uint8Array, Uint8Array> {
-  let injected = false
+  let inserted = false
   let freezing = false
   return new TransformStream({
     async transform(chunk, controller) {
@@ -162,21 +162,21 @@ export function createHeadInjectionTransformStream(
         controller.enqueue(chunk)
         return
       }
-      if (injected) {
+      if (inserted) {
         freezing = true
-        const injection = await inject()
-        controller.enqueue(encodeText(injection))
+        const insertion = await insert()
+        controller.enqueue(encodeText(insertion))
         controller.enqueue(chunk)
         setImmediate(() => {
           freezing = false
         })
       } else if ((index = content.indexOf('</head')) !== -1) {
         freezing = true
-        const injection = await inject()
-        const injectedContent =
-          content.slice(0, index) + injection + content.slice(index)
-        controller.enqueue(encodeText(injectedContent))
-        injected = true
+        const insertion = await insert()
+        const insertedHeadContent =
+          content.slice(0, index) + insertion + content.slice(index)
+        controller.enqueue(encodeText(insertedHeadContent))
+        inserted = true
         setImmediate(() => {
           freezing = false
         })
@@ -351,7 +351,7 @@ export async function continueFromInitialStream(
     suffixUnclosed != null ? createDeferredSuffixStream(suffixUnclosed) : null,
     dataStream ? createInlineDataStream(dataStream) : null,
     suffixUnclosed != null ? createSuffixStream(closeTag) : null,
-    createHeadInjectionTransformStream(async () => {
+    createHeadInsertionTransformStream(async () => {
       // TODO-APP: Insert server side html to end of head in app layout rendering, to avoid
       // hydration errors. Remove this once it's ready to be handled by react itself.
       const serverInsertedHTML =
