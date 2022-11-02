@@ -1273,7 +1273,7 @@ describe('app dir', () => {
           }
         })
 
-        describe('useSelectedLayoutSegment', () => {
+        describe('useSelectedLayoutSegments', () => {
           it.each`
             path                                                           | outerLayout                                             | innerLayout
             ${'/hooks/use-selected-layout-segment/first'}                  | ${['first']}                                            | ${[]}
@@ -1301,6 +1301,38 @@ describe('app dir', () => {
             const $ = cheerio.load(html)
 
             expect(JSON.parse($('#page-layout-segments').text())).toEqual([])
+          })
+        })
+
+        describe('useSelectedLayoutSegment', () => {
+          it.each`
+            path                                                           | outerLayout | innerLayout
+            ${'/hooks/use-selected-layout-segment/first'}                  | ${'first'}  | ${null}
+            ${'/hooks/use-selected-layout-segment/first/slug1'}            | ${'first'}  | ${'slug1'}
+            ${'/hooks/use-selected-layout-segment/first/slug2/second/a/b'} | ${'first'}  | ${'slug2'}
+          `(
+            'should have the correct layout segment at $path',
+            async ({ path, outerLayout, innerLayout }) => {
+              const html = await renderViaHTTP(next.url, path)
+              const $ = cheerio.load(html)
+
+              expect(JSON.parse($('#outer-layout-segment').text())).toEqual(
+                outerLayout
+              )
+              expect(JSON.parse($('#inner-layout-segment').text())).toEqual(
+                innerLayout
+              )
+            }
+          )
+
+          it('should return null in pages', async () => {
+            const html = await renderViaHTTP(
+              next.url,
+              '/hooks/use-selected-layout-segment/first/slug2/second/a/b'
+            )
+            const $ = cheerio.load(html)
+
+            expect(JSON.parse($('#page-layout-segment').text())).toEqual(null)
           })
         })
       })

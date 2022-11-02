@@ -24,8 +24,7 @@ export async function writeVscodeConfigurations(
       }
     }
 
-    const libPath =
-      '.' + path.sep + path.join('node_modules', 'typescript', 'lib')
+    const libPath = './node_modules/typescript/lib'
     if (
       settings['typescript.tsdk'] === libPath &&
       settings['typescript.enablePromptUseWorkspaceTsdk']

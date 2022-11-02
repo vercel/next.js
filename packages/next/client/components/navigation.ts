@@ -174,10 +174,10 @@ export function useSelectedLayoutSegments(
  */
 export function useSelectedLayoutSegment(
   parallelRouteKey: string = 'children'
-): string {
+): string | null {
   const selectedLayoutSegments = useSelectedLayoutSegments(parallelRouteKey)
   if (selectedLayoutSegments.length === 0) {
-    throw new Error('No selected layout segment below the current level')
+    return null
   }
 
   return selectedLayoutSegments[0]
