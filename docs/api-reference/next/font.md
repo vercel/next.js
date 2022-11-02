@@ -295,7 +295,7 @@ import { greatVibes, sourceCodePro400 } from '@/fonts';
 
 <div class="card">
   <a href="/docs/basic-features/font-optimization.md">
-    <b>Font Optmization</b>
+    <b>Font Optimization</b>
     <small>Learn how to optimize fonts with the Font module.</small>
   </a>
 </div>
