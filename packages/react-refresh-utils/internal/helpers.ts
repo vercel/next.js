@@ -144,38 +144,41 @@ function scheduleUpdate() {
   if (isUpdateScheduled) {
     return
   }
+  isUpdateScheduled = true
 
   function canApplyUpdate(status: ModuleHotStatus) {
     return status === 'idle'
   }
 
-  let applyUpdate = canApplyUpdate(module.hot.status())
-
-  const statusHandler = (status) => {
-    applyUpdate = canApplyUpdate(status)
+  function applyUpdate() {
+    isUpdateScheduled = false
+    try {
+      RefreshRuntime.performReactRefresh()
+    } catch (err) {
+      console.warn(
+        'Warning: Failed to re-render. We will retry on the next Fast Refresh event.\n' +
+          err
+      )
+    }
   }
 
-  module.hot.addStatusHandler(statusHandler)
+  if (canApplyUpdate(module.hot.status())) {
+    // Apply update on the next tick.
+    Promise.resolve().then(() => {
+      applyUpdate()
+    })
+    return
+  }
 
-  isUpdateScheduled = true
-  Promise.resolve().then(() => {
-    isUpdateScheduled = false
-    module.hot.removeStatusHandler(statusHandler)
-
-    if (applyUpdate) {
-      try {
-        RefreshRuntime.performReactRefresh()
-      } catch (err) {
-        console.warn(
-          'Warning: Failed to re-render. We will retry on the next Fast Refresh event.\n' +
-            err
-        )
-      }
-      return
+  const statusHandler = (status) => {
+    if (canApplyUpdate(status)) {
+      module.hot.removeStatusHandler(statusHandler)
+      applyUpdate()
     }
+  }
 
-    return scheduleUpdate()
-  })
+  // Apply update once the HMR runtime's status is idle.
+  module.hot.addStatusHandler(statusHandler)
 }
 
 // Needs to be compatible with IE11
