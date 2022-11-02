@@ -95,10 +95,10 @@ export const config = {
     /*
      * Match all request paths except for the ones starting with:
      * - api (API routes)
-     * - static (static files)
+     * - _next/static (static files)
      * - favicon.ico (favicon file)
      */
-    '/((?!api|static|favicon.ico).*)',
+    '/((?!api|_next/static|favicon.ico).*)',
   ],
 }
 ```
