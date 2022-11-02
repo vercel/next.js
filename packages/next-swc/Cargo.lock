@@ -2314,7 +2314,6 @@ dependencies = [
  "next-swc",
  "node-file-trace",
  "once_cell",
- "owo-colors",
  "sentry",
  "serde",
  "serde_json",
@@ -2323,10 +2322,6 @@ dependencies = [
  "tracing-chrome",
  "tracing-futures",
  "tracing-subscriber",
- "turbo-tasks",
- "turbo-tasks-memory",
- "turbopack-core",
- "turbopack-dev-server",
 ]
 
 [[package]]

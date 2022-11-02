@@ -753,6 +753,10 @@
         {
           "title": "google-fonts-missing-subsets",
           "path": "/errors/google-fonts-missing-subsets.md"
+        },
+        {
+          "title": "invalid-segment-export",
+          "path": "/errors/invalid-segment-export.md"
         }
       ]
     }
