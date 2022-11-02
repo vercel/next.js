@@ -17,6 +17,8 @@ export const FILE_TYPES = {
   'not-found': 'not-found',
 } as const
 
+const PAGE_SEGMENT = 'page$'
+
 // TODO-APP: check if this can be narrowed.
 type ComponentModule = () => any
 export type ComponentsType = {
@@ -59,10 +61,8 @@ async function createTreeCodeFromPath({
     }
 
     for (const [parallelKey, parallelSegment] of parallelSegments) {
-      const parallelSegmentPath = segmentPath + '/' + parallelSegment
-
-      if (parallelSegment === 'page') {
-        const matchedPagePath = `${appDirPrefix}${parallelSegmentPath}`
+      if (parallelSegment === PAGE_SEGMENT) {
+        const matchedPagePath = `${appDirPrefix}${segmentPath}/page`
         const resolvedPagePath = await resolve(matchedPagePath)
         if (resolvedPagePath) pages.push(resolvedPagePath)
 
@@ -73,6 +73,7 @@ async function createTreeCodeFromPath({
         continue
       }
 
+      const parallelSegmentPath = segmentPath + '/' + parallelSegment
       const subtree = await createSubtreePropsFromSegmentPath([
         ...segments,
         parallelSegment,
@@ -175,12 +176,18 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
     const matched: Record<string, string> = {}
     for (const path of normalizedAppPaths) {
       if (path.startsWith(pathname + '/')) {
-        const restPath = path.slice(pathname.length + 1)
+        const rest = path.slice(pathname.length + 1).split('/')
 
-        const matchedSegment = restPath.split('/')[0]
+        let matchedSegment = rest[0]
+        // It is the actual page, mark it sepcially.
+        if (rest.length === 1 && matchedSegment === 'page') {
+          matchedSegment = PAGE_SEGMENT
+        }
+
         const matchedKey = matchedSegment.startsWith('@')
           ? matchedSegment.slice(1)
           : 'children'
+
         matched[matchedKey] = matchedSegment
       }
     }
