@@ -1302,7 +1302,7 @@ describe('app dir', () => {
         describe('useSelectedLayoutSegment', () => {
           it.each`
             path                                                           | outerLayout | innerLayout
-            ${'/hooks/use-selected-layout-segment/first'}                  | ${'first'}  | ${''}
+            ${'/hooks/use-selected-layout-segment/first'}                  | ${'first'}  | ${null}
             ${'/hooks/use-selected-layout-segment/first/slug1'}            | ${'first'}  | ${'slug1'}
             ${'/hooks/use-selected-layout-segment/first/slug2/second/a/b'} | ${'first'}  | ${'slug2'}
           `(
@@ -1327,7 +1327,7 @@ describe('app dir', () => {
             )
             const $ = cheerio.load(html)
 
-            expect(JSON.parse($('#page-layout-segment').text())).toEqual('')
+            expect(JSON.parse($('#page-layout-segment').text())).toEqual(null)
           })
         })
       })
