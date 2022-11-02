@@ -21,7 +21,7 @@ sentry_native_tls = ["_sentry_native_tls"]
 sentry_rustls = ["_sentry_rustls"]
 
 [dependencies]
-anyhow = "1.0"
+anyhow = "1.0.66"
 backtrace = "0.3"
 fxhash = "0.2.1"
 napi = { version = "2", default-features = false, features = ["napi3", "serde-json", "tokio_rt", "error_anyhow"] }
@@ -50,8 +50,8 @@ swc_core = { features = [
   "ecma_transforms_typescript",
   "ecma_utils",
   "ecma_visit",
-], version = "0.40.16" }
-tracing = { version = "0.1.32", features = ["release_max_level_info"] }
+], version = "0.40.40" }
+tracing = { version = "0.1.37", features = ["release_max_level_info"] }
 tracing-futures = "0.2.5"
 tracing-subscriber = "0.3.9"
 tracing-chrome = "0.5.0"
