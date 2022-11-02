@@ -7,6 +7,7 @@
 import { ChildProcess, spawn, SpawnOptions } from 'child_process'
 import { existsSync } from 'fs'
 import { resolve } from 'path'
+import glob from 'glob'
 
 import { getProjectSetting, projectSpecification } from './specification'
 import { CustomTemplateOptions, ProjectDeps, ProjectFiles } from './types'
@@ -49,7 +50,10 @@ export const projectFilesShouldExist = ({
     try {
       expect(existsSync(resolve(projectRoot, file))).toBe(true)
     } catch (err) {
-      require('console').error(`missing expected file ${file}`)
+      require('console').error(
+        `missing expected file ${file}`,
+        glob.sync('**/*', { cwd, ignore: 'node_modules/**' })
+      )
       throw err
     }
   }
@@ -65,7 +69,10 @@ export const projectFilesShouldNotExist = ({
     try {
       expect(existsSync(resolve(projectRoot, file))).toBe(false)
     } catch (err) {
-      require('console').error(`unexpected file present ${file}`)
+      require('console').error(
+        `unexpected file present ${file}`,
+        glob.sync('**/*', { cwd, ignore: 'node_modules/**' })
+      )
       throw err
     }
   }
