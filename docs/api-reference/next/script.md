@@ -246,7 +246,7 @@ export default function Page() {
     <>
       <Script
         src="https://example.com/script.js"
-        onLoad={(e) => {
+        onError={(e) => {
           console.error('Script failed to load', e)
         }}
       />
