@@ -1306,7 +1306,7 @@ describe('app dir', () => {
             ${'/hooks/use-selected-layout-segment/first/slug1'}            | ${'first'}  | ${'slug1'}
             ${'/hooks/use-selected-layout-segment/first/slug2/second/a/b'} | ${'first'}  | ${'slug2'}
           `(
-            'should have the correct layout segments at $path',
+            'should have the correct layout segment at $path',
             async ({ path, outerLayout, innerLayout }) => {
               const html = await renderViaHTTP(next.url, path)
               const $ = cheerio.load(html)
@@ -1320,7 +1320,7 @@ describe('app dir', () => {
             }
           )
 
-          it('should return an empty string in pages', async () => {
+          it('should return null in pages', async () => {
             const html = await renderViaHTTP(
               next.url,
               '/hooks/use-selected-layout-segment/first/slug2/second/a/b'
