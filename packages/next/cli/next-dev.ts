@@ -36,6 +36,8 @@ const handleSessionStop = async () => {
       cliCommand: 'dev',
       turboFlag: isTurboSession,
       durationMilliseconds: Date.now() - sessionStarted,
+      pagesDir: !!traceGlobals.get('pagesDir'),
+      appDir: !!traceGlobals.get('appDir'),
     })
   )
   await telemetry.flush()
@@ -329,6 +331,8 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
           const telemetry = new Telemetry({
             distDir,
           })
+          setGlobal('appDir', appDir)
+          setGlobal('pagesDir', pagesDir)
           setGlobal('telemetry', telemetry)
 
           telemetry.record(
@@ -342,6 +346,8 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
               hasNowJson: !!(await findUp('now.json', { cwd: dir })),
               isCustomServer: false,
               turboFlag: true,
+              pagesDir: !!pagesDir,
+              appDir: !!appDir,
             })
           )
           const turboJson = findUp.sync('turbo.json', { cwd: dir })
