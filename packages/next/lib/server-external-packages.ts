@@ -18,4 +18,5 @@ export const EXTERNAL_PACKAGES = [
   'rimraf',
   'next-mdx-remote',
   'sqlite3',
+  'mongodb',
 ]
