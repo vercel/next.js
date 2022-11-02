@@ -1,19 +1,10 @@
 import { Suspense } from 'react'
+import { createDataFetcher } from '../../lib/data'
 import Nav from '../../components/nav'
 
-let result
-let promise
-function Data() {
-  if (result) return result
-  if (!promise)
-    promise = new Promise((res) => {
-      setTimeout(() => {
-        result = 'next_streaming_data'
-        res()
-      }, 500)
-    })
-  throw promise
-}
+const Data = createDataFetcher('next_streaming_data', {
+  timeout: 500,
+})
 
 export default function Page() {
   return (
