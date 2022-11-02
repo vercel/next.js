@@ -26,7 +26,7 @@ Automatically self-host any Google Font. Fonts are included in the deployment an
 
 Import the font you would like to use from `@next/font/google` as a function. We recommend using [**variable fonts**](https://fonts.google.com/variablefonts) for the best performance and flexibility.
 
-To use the font in all your pages, add it to `_app.js` or `_app.tsx` under `/pages` as shown below:
+To use the font in all your pages, add it to [`_app.js` file](https://nextjs.org/docs/advanced-features/custom-app) under `/pages` as shown below:
 
 ```js:pages/_app.js
 import { Inter } from '@next/font/google';
