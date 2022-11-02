@@ -341,6 +341,8 @@ export default async function build(
           hasNowJson: !!(await findUp('now.json', { cwd: dir })),
           isCustomServer: null,
           turboFlag: false,
+          pagesDir: !!pagesDir,
+          appDir: !!appDir,
         })
       )
 

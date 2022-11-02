@@ -28,7 +28,7 @@ pnpm up next react react-dom eslint-config-next --latest
 
 ## Migrating shared features
 
-Next.js 13 introduces a new [`app` directory](https://beta.nextjs.org/docs/routing/fundamentals) with new features and conventions. However, upgrading to Next.js 13 does **not** require using the new [`app` directory](https://beta.nextjs.org/docs/routing/fundamentals.md#the-app-directory).
+Next.js 13 introduces a new [`app` directory](https://beta.nextjs.org/docs/routing/fundamentals) with new features and conventions. However, upgrading to Next.js 13 does **not** require using the new [`app` directory](https://beta.nextjs.org/docs/routing/fundamentals#the-app-directory).
 
 You can continue using `pages` with new features that work in both directories, such as the updated [Image component](#image-component), [Link component](#link-component), [Script component](#script-component), and [Font optimization](#font-optimization).
 
