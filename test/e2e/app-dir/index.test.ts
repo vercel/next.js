@@ -4,7 +4,6 @@ import { NextInstance } from 'test/lib/next-modes/base'
 import {
   check,
   fetchViaHTTP,
-  findPort,
   getRedboxHeader,
   hasRedbox,
   renderViaHTTP,
