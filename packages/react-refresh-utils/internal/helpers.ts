@@ -29,17 +29,23 @@
 
 import RefreshRuntime from 'react-refresh/runtime'
 
+type ModuleHotStatus =
+  | 'idle'
+  | 'check'
+  | 'prepare'
+  | 'ready'
+  | 'dispose'
+  | 'apply'
+  | 'abort'
+  | 'fail'
+
+type ModuleHotStatusHandler = (status: ModuleHotStatus) => void
+
 declare const module: {
   hot: {
-    status: () =>
-      | 'idle'
-      | 'check'
-      | 'prepare'
-      | 'ready'
-      | 'dispose'
-      | 'apply'
-      | 'abort'
-      | 'fail'
+    status: () => ModuleHotStatus
+    addStatusHandler: (handler: ModuleHotStatusHandler) => void
+    removeStatusHandler: (handler: ModuleHotStatusHandler) => void
   }
 }
 
@@ -133,21 +139,30 @@ function shouldInvalidateReactRefreshBoundary(
 }
 
 var isUpdateScheduled: boolean = false
+// This function aggregates updates from multiple modules into a single React Refresh call.
 function scheduleUpdate() {
   if (isUpdateScheduled) {
     return
   }
 
-  function canApplyUpdate() {
-    return module.hot.status() === 'idle'
+  function canApplyUpdate(status: ModuleHotStatus) {
+    return status === 'idle'
   }
 
-  isUpdateScheduled = true
-  setTimeout(function () {
-    isUpdateScheduled = false
+  let applyUpdate = canApplyUpdate(module.hot.status())
 
-    // Only trigger refresh if the webpack HMR state is idle
-    if (canApplyUpdate()) {
+  const statusHandler = (status) => {
+    applyUpdate = canApplyUpdate(status)
+  }
+
+  module.hot.addStatusHandler(statusHandler)
+
+  isUpdateScheduled = true
+  Promise.resolve().then(() => {
+    isUpdateScheduled = false
+    module.hot.removeStatusHandler(statusHandler)
+
+    if (applyUpdate) {
       try {
         RefreshRuntime.performReactRefresh()
       } catch (err) {
@@ -160,7 +175,7 @@ function scheduleUpdate() {
     }
 
     return scheduleUpdate()
-  }, 30)
+  })
 }
 
 // Needs to be compatible with IE11
