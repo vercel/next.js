@@ -292,6 +292,11 @@ describe('app dir', () => {
       )
     })
 
+    it('should serve page as a segment name correctly', async () => {
+      const html = await renderViaHTTP(next.url, '/dashboard/page')
+      expect(html).toContain('hello dashboard/page!')
+    })
+
     it('should include document html and body', async () => {
       const html = await renderViaHTTP(next.url, '/dashboard')
       const $ = cheerio.load(html)

@@ -26,46 +26,79 @@ Automatically self-host any Google Font. Fonts are included in the deployment an
 
 Import the font you would like to use from `@next/font/google` as a function. We recommend using [**variable fonts**](https://fonts.google.com/variablefonts) for the best performance and flexibility.
 
-```jsx
-// app/layout.tsx
-import { Inter } from '@next/font/google'
+To use the font in all your pages, add it to [`_app.js` file](https://nextjs.org/docs/advanced-features/custom-app) under `/pages` as shown below:
+
+```js:pages/_app.js
+import { Inter } from '@next/font/google';
 
 // If loading a variable font, you don't need to specify the font weight
 const inter = Inter()
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode,
-}) {
+export default function MyApp({ Component, pageProps }) {
   return (
-    <html lang="en" className={inter.className}>
-      <body>{children}</body>
-    </html>
+    <main className={inter.className}>
+      <Component {...pageProps} />
+    </main>
   )
 }
 ```
 
 If you can't use a variable font, you will **need to specify a weight**:
 
-```jsx
-// app/layout.tsx
-import { Roboto } from '@next/font/google'
+```js:pages/_app.js
+import { Roboto } from '@next/font/google';
 
 const roboto = Roboto({
   weight: '400',
 })
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode,
-}) {
+export default function MyApp({ Component, pageProps }) {
   return (
-    <html lang="en" className={roboto.className}>
-      <body>{children}</body>
-    </html>
+    <main className={roboto.className}>
+      <Component {...pageProps} />
+    </main>
   )
+}
+```
+
+#### Apply the font in `<head>`
+
+You can also use the font without a wrapper and `className` by injecting it inside the `<head>` as follows:
+
+```js:pages/_app.js
+import { Inter } from '@next/font/google';
+
+const inter = Inter();
+
+export default function MyApp({ Component, pageProps }) {
+  return (
+    <>
+      <style jsx global>{`
+        html {
+          font-family: ${inter.style.fontFamily};
+        }
+      `}</style>
+      <Component {...pageProps} />
+    </>
+  )
+}
+```
+
+#### Single page usage
+
+To use the font on a single page, add it to the specific page as shown below:
+
+```js:pages/index.js
+import { Inter } from '@next/font/google';
+
+const inter = Inter();
+
+export default function Home() {
+  return (
+    <div className={inter.className}>
+      <p>Hello World</p>
+    </div>
+  );
 }
 ```
 
@@ -77,9 +110,8 @@ This can be done in 2 ways:
 
 - On a font per font basis by adding it to the function call
 
-  ```tsx
-  // app/layout.tsx
-  const inter = Inter({ subsets: ['latin'] })
+  ```js:pages/_app.js
+  const inter = Inter({ subsets: ["latin"] });
   ```
 
 - Globally for all your fonts in your `next.config.js`
@@ -103,22 +135,17 @@ View the [Font API Reference](/docs/api-reference/next/font.md#nextfontgoogle) f
 
 Import `@next/font/local` and specify the `src` of your local font file. We recommend using [**variable fonts**](https://fonts.google.com/variablefonts) for the best performance and flexibility.
 
-```jsx
-/// app/layout.tsx
-import localFont from '@next/font/local'
+```js:pages/_app.js
+import localFont from '@next/font/local';
 
-// Font files can be colocated inside of `app`
-const myFont = localFont({ src: './my-font.woff2' })
+// Font files can be colocated inside of `pages`
+const myFont = localFont({ src: './my-font.woff2' });
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode,
-}) {
+export default function MyApp({ Component, pageProps }) {
   return (
-    <html lang="en" className={myFont.className}>
-      <body>{children}</body>
-    </html>
+    <main className={myFont.className}>
+      <Component {...pageProps} />
+    </main>
   )
 }
 ```
@@ -129,9 +156,8 @@ View the [Font API Reference](/docs/api-reference/next/font.md#nextfontlocal) fo
 
 When a font function is called on a page of your site, it is not globally available and preloaded on all routes. Rather, the font is only preloaded on the related route/s based on the type of file where it is used:
 
-- if it's a [unique page](https://beta.nextjs.org/docs/routing/pages-and-layouts#pages), it is preloaded on the unique route for that page
-- if it's a [layout](https://beta.nextjs.org/docs/routing/pages-and-layouts#layouts), it is preloaded on all the routes wrapped by the layout
-- if it's the [root layout](https://beta.nextjs.org/docs/routing/pages-and-layouts#root-layout-required), it is preloaded on all routes
+- if it's a [unique page](/docs/basic-features/pages), it is preloaded on the unique route for that page
+- if it's in the [custom App](/docs/advanced-features/custom-app), it is preloaded on all the routes of the site under `/pages`
 
 ## Reusing fonts
 
