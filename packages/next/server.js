@@ -7,6 +7,9 @@ const serverExports = {
     .userAgentFromString,
   userAgent: require('next/dist/server/web/spec-extension/user-agent')
     .userAgent,
+  RequestCookies:
+    require('next/dist/server/web/spec-extension/cookies/request-cookies')
+      .RequestCookies,
 }
 
 if (typeof URLPattern !== 'undefined') {
@@ -24,3 +27,4 @@ exports.NextResponse = serverExports.NextResponse
 exports.userAgentFromString = serverExports.userAgentFromString
 exports.userAgent = serverExports.userAgent
 exports.URLPattern = serverExports.URLPattern
+exports.RequestCookies = serverExports.RequestCookies

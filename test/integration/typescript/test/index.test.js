@@ -64,6 +64,11 @@ describe('TypeScript Features', () => {
       expect($('#imported-value').text()).toBe('OK')
     })
 
+    it('should handle edge api route and req cookies', async () => {
+      const data = await renderViaHTTP(appPort, '/api/edge')
+      expect(data).toEqual('ok')
+    })
+
     // old behavior:
     it.skip('should report type checking to stdout', async () => {
       expect(output).toContain('waiting for typecheck results...')
