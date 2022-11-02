@@ -196,7 +196,7 @@
     "selenium-webdriver": "4.0.0-beta.4",
     "semver": "7.3.7",
     "shell-quote": "1.7.3",
-    "styled-components": "5.3.3",
+    "styled-components": "6.0.0-beta.5",
     "styled-jsx-plugin-postcss": "3.0.2",
     "swr": "2.0.0-rc.0",
     "tailwindcss": "1.1.3",

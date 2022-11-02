@@ -6,6 +6,8 @@ export type EventCliSessionStopped = {
   nodeVersion: string
   turboFlag?: boolean | null
   durationMilliseconds?: number | null
+  pagesDir?: boolean
+  appDir?: boolean
 }
 
 export function eventCliSession(
@@ -26,6 +28,8 @@ export function eventCliSession(
           turboFlag: !!event.turboFlag,
         }
       : {}),
+    pagesDir: event.pagesDir,
+    appDir: event.appDir,
   }
   return [{ eventName: EVENT_VERSION, payload }]
 }
