@@ -107,14 +107,14 @@ For usage, review [Local Fonts](/docs/optimizing/fonts#local-fonts).
 
 ### `src`
 
-The path of the font file as a string relative to the directory where the font loader function is called or to the `app` directory.
+The path of the font file as a string relative to the directory where the font loader function is called or to the `pages` directory.
 
 - Required
 
 Examples are:
 
-- `'./fonts/my-font.woff2'` where `my-font.woff2` is placed in a directory named `fonts` inside the `app` directory
-- if the font loader function is called in `app/page.tsx` using `'../styles/fonts/my-font.ttf'`, then `my-font.ttf` is placed in `styles/fonts` at the root of the project
+- `'./fonts/my-font.woff2'` where `my-font.woff2` is placed in a directory named `fonts` inside the `pages` directory
+- if the font loader function is called in `pages/index.js` using `'../styles/fonts/my-font.ttf'`, then `my-font.ttf` is placed in `styles/fonts` at the root of the project
 
 ### `weight`
 
@@ -194,8 +194,8 @@ If you would like to set your styles in an external style sheet and specify addi
 
 In addition to importing the font, also import the CSS file where the CSS variable is defined and set the variable option of the font loader object as follows:
 
-```tsx
-// app/page.tsx
+```js
+// pages/index.js
 import { Inter } from '@next/font/google'
 import styles from '../styles/component.module.css'
 
@@ -206,8 +206,8 @@ const inter = Inter({
 
 To use the font, set the `className` of the parent container of the text you would like to style to the font loader's `variable` value and the `className` of the text to the `styles` property from the external CSS file.
 
-```tsx
-// app/page.tsx
+```js
+// pages/index.js
 <main className={inter.variable}>
   <p className={styles.text}>Hello World</p>
 </main>
