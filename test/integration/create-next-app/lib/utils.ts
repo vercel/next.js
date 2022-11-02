@@ -46,7 +46,11 @@ export const projectFilesShouldExist = ({
 }: ProjectFiles) => {
   const projectRoot = resolve(cwd, projectName)
   for (const file of files) {
-    expect(existsSync(resolve(projectRoot, file))).toBe(true)
+    try {
+      expect(existsSync(resolve(projectRoot, file))).toBe(true)
+    } finally {
+      require('console').error(`missing expected file ${file}`)
+    }
   }
 }
 
@@ -57,7 +61,11 @@ export const projectFilesShouldNotExist = ({
 }: ProjectFiles) => {
   const projectRoot = resolve(cwd, projectName)
   for (const file of files) {
-    expect(existsSync(resolve(projectRoot, file))).toBe(false)
+    try {
+      expect(existsSync(resolve(projectRoot, file))).toBe(false)
+    } finally {
+      require('console').error(`unexpected file present ${file}`)
+    }
   }
 }
 
