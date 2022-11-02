@@ -18,9 +18,10 @@ export = defineRule({
       JSXOpeningElement(node) {
         const paths = context.getFilename()
 
-        const isInAppDir = paths.includes('app/') && !paths.includes('pages/')
+        const isInAppDir = () =>
+          paths.includes('app/') && !paths.includes('pages/')
         // Only lint the <head> element in pages directory
-        if (node.name.name !== 'head' || isInAppDir) {
+        if (node.name.name !== 'head' || isInAppDir()) {
           return
         }
 
