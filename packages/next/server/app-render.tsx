@@ -39,6 +39,8 @@ import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import { Writable } from 'stream'
 import stringHash from 'next/dist/compiled/string-hash'
 
+const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
+
 function preloadComponent(Component: any, props: any) {
   const prev = console.error
   // Hide invalid hook call warning when calling component
@@ -238,7 +240,12 @@ function patchFetch(ComponentMod: any) {
 
     if (staticGenerationStore && isStaticGeneration) {
       if (init && typeof init === 'object') {
-        if (init.cache === 'no-store') {
+        const cache = init.cache
+        // Delete `cache` property as Cloudflare Workers will throw an error
+        if (isEdgeRuntime) {
+          delete init.cache
+        }
+        if (cache === 'no-store') {
           staticGenerationStore.fetchRevalidate = 0
           // TODO: ensure this error isn't logged to the user
           // seems it's slipping through currently
@@ -296,10 +303,9 @@ function useFlightResponse(
 
   const [renderStream, forwardStream] = readableStreamTee(req)
   const res = createFromReadableStream(renderStream, {
-    moduleMap:
-      process.env.NEXT_RUNTIME === 'edge'
-        ? serverComponentManifest.__edge_ssr_module_mapping__
-        : serverComponentManifest.__ssr_module_mapping__,
+    moduleMap: isEdgeRuntime
+      ? serverComponentManifest.__edge_ssr_module_mapping__
+      : serverComponentManifest.__ssr_module_mapping__,
   })
   flightResponseRef.current = res
 
