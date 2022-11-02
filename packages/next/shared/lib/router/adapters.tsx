@@ -1,6 +1,9 @@
 import type { ParsedUrlQuery } from 'node:querystring'
-import { AppRouterInstance } from '../app-router-context'
-import { NextRouter } from './router'
+import React, { useMemo } from 'react'
+import type { AppRouterInstance } from '../app-router-context'
+import { PathnameContext } from '../hooks-client-context'
+import type { NextRouter } from './router'
+import { isDynamicRoute } from './utils'
 
 /**
  * adaptForAppRouterInstance implements the AppRouterInstance with a NextRouter.
@@ -61,7 +64,9 @@ function transformQuery(query: ParsedUrlQuery): URLSearchParams {
  * @param router the router that contains the query.
  * @returns the search params in the URLSearchParams format
  */
-export function adaptForSearchParams(router: NextRouter): URLSearchParams {
+export function adaptForSearchParams(
+  router: Pick<NextRouter, 'isReady' | 'query'>
+): URLSearchParams {
   if (!router.isReady || !router.query) {
     return new URLSearchParams()
   }
@@ -69,13 +74,32 @@ export function adaptForSearchParams(router: NextRouter): URLSearchParams {
   return transformQuery(router.query)
 }
 
-/**
- * adaptForPathname adapts the `asPath` parameter from the router to a pathname.
- *
- * @param asPath the asPath parameter to transform that comes from the router
- * @returns pathname part of `asPath`
- */
-export function adaptForPathname(asPath: string): string {
-  const url = new URL(asPath, 'http://f')
-  return url.pathname
+export function PathnameContextProviderAdapter({
+  children,
+  router,
+  isAutoExport,
+  isFallback,
+}: React.PropsWithChildren<{
+  router: Pick<NextRouter, 'pathname' | 'asPath'>
+  isAutoExport: boolean
+  isFallback: boolean
+}>) {
+  const value = useMemo(() => {
+    // If this is a dynamic route with auto export or fallback is true...
+    if (isDynamicRoute(router.pathname) && (isAutoExport || isFallback)) {
+      // Return null. This will throw an error when accessed via `usePathname`,
+      // but it provides the correct API for folks considering the new router
+      // does not support `isReady`.
+      return null
+    }
+
+    const url = new URL(router.asPath, 'http://f')
+    return url.pathname
+  }, [router.pathname, router.asPath, isAutoExport, isFallback])
+
+  return (
+    <PathnameContext.Provider value={value}>
+      {children}
+    </PathnameContext.Provider>
+  )
 }
