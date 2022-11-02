@@ -182,4 +182,3 @@ Every time you call the `localFont` or Google font function, that font is hosted
     <small>Learn how to optimize images with the Image component.</small>
   </a>
 </div>
-````
