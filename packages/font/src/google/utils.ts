@@ -1,3 +1,4 @@
+import fs from 'fs'
 // @ts-ignore
 import fetch from 'next/dist/compiled/node-fetch'
 import fontData from './font-data.json'
@@ -8,14 +9,15 @@ const formatValues = (values: string[]) =>
 
 type FontOptions = {
   fontFamily: string
-  weight: string
-  style: string
+  weights: string[]
+  styles: string[]
   display: string
   preload: boolean
   selectedVariableAxes?: string[]
   fallback?: string[]
   adjustFontFallback: boolean
   variable?: string
+  subsets?: string[]
 }
 export function validateData(functionName: string, data: any): FontOptions {
   let {
@@ -27,6 +29,7 @@ export function validateData(functionName: string, data: any): FontOptions {
     fallback,
     adjustFontFallback = true,
     variable,
+    subsets,
   } = data[0] || ({} as any)
   if (functionName === '') {
     throw new Error(`@next/font/google has no default export`)
@@ -41,10 +44,17 @@ export function validateData(functionName: string, data: any): FontOptions {
   }
   const fontStyles = fontFamilyData.styles
 
-  // Set variable as default, throw if not available
-  if (!weight) {
+  const weights = !weight
+    ? []
+    : [...new Set(Array.isArray(weight) ? weight : [weight])]
+  const styles = !style
+    ? []
+    : [...new Set(Array.isArray(style) ? style : [style])]
+
+  if (weights.length === 0) {
+    // Set variable as default, throw if not available
     if (fontWeights.includes('variable')) {
-      weight = 'variable'
+      weights.push('variable')
     } else {
       throw new Error(
         `Missing weight for font \`${fontFamily}\`.\nAvailable weights: ${formatValues(
@@ -53,28 +63,40 @@ export function validateData(functionName: string, data: any): FontOptions {
       )
     }
   }
-  if (!fontWeights.includes(weight)) {
+
+  if (weights.length > 1 && weights.includes('variable')) {
     throw new Error(
-      `Unknown weight \`${weight}\` for font \`${fontFamily}\`.\nAvailable weights: ${formatValues(
-        fontWeights
-      )}`
+      `Unexpected \`variable\` in weight array for font \`${fontFamily}\`. You only need \`variable\`, it includes all available weights.`
     )
   }
 
-  if (!style) {
+  weights.forEach((selectedWeight) => {
+    if (!fontWeights.includes(selectedWeight)) {
+      throw new Error(
+        `Unknown weight \`${selectedWeight}\` for font \`${fontFamily}\`.\nAvailable weights: ${formatValues(
+          fontWeights
+        )}`
+      )
+    }
+  })
+
+  if (styles.length === 0) {
     if (fontStyles.length === 1) {
-      style = fontStyles[0]
+      styles.push(fontStyles[0])
     } else {
-      style = 'normal'
+      styles.push('normal')
     }
   }
-  if (!fontStyles.includes(style)) {
-    throw new Error(
-      `Unknown style \`${style}\` for font \`${fontFamily}\`.\nAvailable styles: ${formatValues(
-        fontStyles
-      )}`
-    )
-  }
+
+  styles.forEach((selectedStyle) => {
+    if (!fontStyles.includes(selectedStyle)) {
+      throw new Error(
+        `Unknown style \`${selectedStyle}\` for font \`${fontFamily}\`.\nAvailable styles: ${formatValues(
+          fontStyles
+        )}`
+      )
+    }
+  })
 
   if (!allowedDisplayValues.includes(display)) {
     throw new Error(
@@ -84,20 +106,21 @@ export function validateData(functionName: string, data: any): FontOptions {
     )
   }
 
-  if (weight !== 'variable' && axes) {
+  if (weights[0] !== 'variable' && axes) {
     throw new Error('Axes can only be defined for variable fonts')
   }
 
   return {
     fontFamily,
-    weight,
-    style,
+    weights,
+    styles,
     display,
     preload,
     selectedVariableAxes: axes,
     fallback,
     adjustFontFallback,
     variable,
+    subsets,
   }
 }
 
@@ -158,6 +181,9 @@ export async function fetchCSSFromGoogleFonts(url: string, fontFamily: string) {
 
 export async function fetchFontFile(url: string) {
   if (process.env.NEXT_FONT_GOOGLE_MOCKED_RESPONSES) {
+    if (url.startsWith('/')) {
+      return fs.readFileSync(url)
+    }
     return Buffer.from(url)
   }
   const arrayBuffer = await fetch(url).then((r: any) => r.arrayBuffer())

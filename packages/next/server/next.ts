@@ -11,7 +11,6 @@ import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
 import { IncomingMessage, ServerResponse } from 'http'
 import { NextUrlWithParsedQuery } from './request-meta'
-import { shouldUseReactRoot } from './utils'
 import {
   loadRequireHook,
   overrideBuiltInReactPackages,
@@ -152,7 +151,7 @@ export class NextServer {
     if (!this.serverPromise) {
       this.serverPromise = this.loadConfig().then(async (conf) => {
         if (conf.experimental.appDir) {
-          process.env.HAS_APP_DIR = '1'
+          process.env.NEXT_PREBUNDLED_REACT = '1'
           overrideBuiltInReactPackages()
         }
 
@@ -209,10 +208,6 @@ function createServer(options: NextServerOptions): NextServer {
     console.warn(
       "Warning: 'dev' is not a boolean which could introduce unexpected behavior. https://nextjs.org/docs/messages/invalid-server-options"
     )
-  }
-
-  if (shouldUseReactRoot) {
-    ;(process.env as any).__NEXT_REACT_ROOT = 'true'
   }
 
   return new NextServer(options)

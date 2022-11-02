@@ -10,7 +10,7 @@ Codemods are transformations that run on your codebase programmatically. This al
 
 ## Usage
 
-`npx @next/codemod <transform> <path>`
+`npx @next/codemod@latest <transform> <path>`
 
 - `transform` - name of transform, see available transforms below.
 - `path` - files or directory to transform
@@ -88,7 +88,7 @@ Dangerously migrates from `next/legacy/image` to the new `next/image` by adding 
 - Removes `objectPosition` prop and adds `style`
 - Removes `lazyBoundary` prop
 - Removes `lazyRoot` prop
-- TODO: does not migrate the `loader` config. If you need it, you must manually add a `loader` prop.
+- Changes next.config.js `loader` to "custom", removes `path`, and sets `loaderFile` to a new file.
 
 #### Before: intrinsic
 
@@ -254,7 +254,7 @@ cd path-to-your-project/
 Run the codemod:
 
 ```
-npx @next/codemod name-default-component
+npx @next/codemod@latest name-default-component
 ```
 
 ### `withamp-to-config`
@@ -296,7 +296,7 @@ cd path-to-your-project/
 Run the codemod:
 
 ```
-npx @next/codemod withamp-to-config
+npx @next/codemod@latest withamp-to-config
 ```
 
 ## Next.js 6
@@ -345,5 +345,5 @@ cd path-to-your-project/
 Run the codemod:
 
 ```
-npx @next/codemod url-to-withrouter
+npx @next/codemod@latest url-to-withrouter
 ```

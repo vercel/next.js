@@ -26,7 +26,7 @@ import {
   // ParamsContext,
   PathnameContext,
   // LayoutSegmentsContext,
-} from './hooks-client-context'
+} from '../../shared/lib/hooks-client-context'
 import { useReducerWithReduxDevtools } from './use-reducer-with-devtools'
 import { ErrorBoundary, GlobalErrorComponent } from './error-boundary'
 
@@ -37,12 +37,12 @@ function urlToUrlWithoutFlightMarker(url: string): URL {
 }
 
 const HotReloader:
-  | typeof import('./react-dev-overlay/hot-reloader').default
+  | typeof import('./react-dev-overlay/hot-reloader-client').default
   | null =
   process.env.NODE_ENV === 'production'
     ? null
-    : (require('./react-dev-overlay/hot-reloader')
-        .default as typeof import('./react-dev-overlay/hot-reloader').default)
+    : (require('./react-dev-overlay/hot-reloader-client')
+        .default as typeof import('./react-dev-overlay/hot-reloader-client').default)
 
 /**
  * Fetch the flight data for the provided url. Takes in the current router state to decide what to render server-side.
@@ -95,6 +95,7 @@ let initialParallelRoutes: CacheNode['parallelRoutes'] =
 const prefetched = new Set<string>()
 
 type AppRouterProps = {
+  initialHead: ReactNode
   initialTree: FlightRouterState
   initialCanonicalUrl: string
   children: ReactNode
@@ -105,6 +106,7 @@ type AppRouterProps = {
  * The global router that wraps the application components.
  */
 function Router({
+  initialHead,
   initialTree,
   initialCanonicalUrl,
   children,
@@ -361,10 +363,14 @@ function Router({
             >
               {HotReloader ? (
                 <HotReloader assetPrefix={assetPrefix}>
+                  {initialHead}
                   {cache.subTreeData}
                 </HotReloader>
               ) : (
-                cache.subTreeData
+                <>
+                  {initialHead}
+                  {cache.subTreeData}
+                </>
               )}
             </LayoutRouterContext.Provider>
           </AppRouterContext.Provider>

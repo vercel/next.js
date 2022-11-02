@@ -16,9 +16,7 @@ const Page = ({ router: { query } }) => {
   return (
     <div>
       <RustComponent number={number} />
-      <Link href={`/?number=${number + 1}`}>
-        <a>+</a>
-      </Link>
+      <Link href={`/?number=${number + 1}`}>+</Link>
     </div>
   )
 }

@@ -25,14 +25,27 @@ type TEntry = typeof entry
 
 check<IEntry, TEntry>(entry)
 
+type PageParams = Record<string, string>
+interface PageProps {
+  params: any
+  searchParams?: any
+}
+interface LayoutProps {
+  children: React.ReactNode
+  params: any
+}
+
+type PageComponent = (props: PageProps) => React.ReactNode | Promise<React.ReactNode>
+type LayoutComponent = (props: LayoutProps) => React.ReactNode | Promise<React.ReactNode>
+
 interface IEntry {
   ${
     options.type === 'layout'
-      ? `default: (props: { children: React.ReactNode; params?: any }) => React.ReactNode | null`
-      : `default: (props: { params?: any }) => React.ReactNode | null`
+      ? `default: LayoutComponent`
+      : `default: PageComponent`
   }
   config?: {}
-  generateStaticParams?: (params?:any) => Promise<any[]>
+  generateStaticParams?: (params?: PageParams) => Promise<any[]>
   revalidate?: RevalidateRange<TEntry> | false
   dynamic?: 'auto' | 'force-dynamic' | 'error' | 'force-static'
   dynamicParams?: boolean

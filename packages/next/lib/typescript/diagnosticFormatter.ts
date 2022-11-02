@@ -61,12 +61,19 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
                   )
                   if (types) {
                     main += '\n' + ' '.repeat(indent * 2)
-                    main += `Expected "${chalk.bold(
-                      types[2].replace(
-                        '"__invalid_negative_number__"',
-                        'number (>= 0)'
-                      )
-                    )}", got "${chalk.bold(types[1])}".`
+
+                    if (types[2] === 'PageComponent') {
+                      main += `The exported page component isn't correctly typed.`
+                    } else if (types[2] === 'LayoutComponent') {
+                      main += `The exported layout component isn't correctly typed.`
+                    } else {
+                      main += `Expected "${chalk.bold(
+                        types[2].replace(
+                          '"__invalid_negative_number__"',
+                          'number (>= 0)'
+                        )
+                      )}", got "${chalk.bold(types[1])}".`
+                    }
                   }
                   break
                 case 2326:
@@ -78,6 +85,17 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
                   if (invalid) {
                     main += '\n' + ' '.repeat(indent * 2)
                     main += `Type "${chalk.bold(invalid[1])}" isn't allowed.`
+                  }
+                  break
+                case 2741:
+                  const incompatProp = item.messageText.match(
+                    /Property '(.+)' is missing in type 'PageProps'/
+                  )
+                  if (incompatProp) {
+                    main += '\n' + ' '.repeat(indent * 2)
+                    main += `Prop "${chalk.bold(
+                      incompatProp[1]
+                    )}" will never be passed. Remove it from the component's props.`
                   }
                   break
                 default:
@@ -98,9 +116,9 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
         if (filepathAndInvalidExport) {
           const main = `${type} "${chalk.bold(
             relativeSourceFile
-          )}" exports invalid field "${chalk.bold(
+          )}" exports an invalid "${chalk.bold(
             filepathAndInvalidExport[2]
-          )}". Only "default" and other configuration exports are allowed.`
+          )}" field. ${type} should only export a default React component and configuration options. Learn more: https://nextjs.org/docs/messages/invalid-segment-export`
           return main
         }
         break

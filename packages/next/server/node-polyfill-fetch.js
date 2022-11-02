@@ -6,6 +6,17 @@ if (!global.fetch) {
       ? require('next/dist/compiled/undici')
       : require('next/dist/compiled/node-fetch')
   }
+
+  function getRequestImpl() {
+    const OriginRequest = getFetchImpl().Request
+    return class Request extends OriginRequest {
+      constructor(input, init) {
+        super(input, init)
+        this.next = init?.next
+      }
+    }
+  }
+
   // Due to limitation of global configuration, we have to do this resolution at runtime
   global.fetch = (...args) => {
     const fetchImpl = getFetchImpl()
@@ -44,7 +55,7 @@ if (!global.fetch) {
     },
     Request: {
       get() {
-        return getFetchImpl().Request
+        return getRequestImpl()
       },
     },
     Response: {

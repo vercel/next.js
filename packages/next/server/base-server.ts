@@ -205,6 +205,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     serverComponents?: boolean
     crossOrigin?: string
     supportsDynamicHTML?: boolean
+    isBot?: boolean
     serverComponentManifest?: any
     serverCSSManifest?: any
     fontLoaderManifest?: FontLoaderManifest
@@ -526,6 +527,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         typeof req.headers['x-matched-path'] === 'string'
       ) {
         try {
+          if (this.hasAppDir) {
+            // ensure /index path is normalized for prerender
+            // in minimal mode
+            if (req.url.match(/^\/index($|\?)/)) {
+              req.url = req.url.replace(/^\/index/, '/')
+            }
+            parsedUrl.pathname =
+              parsedUrl.pathname === '/index' ? '/' : parsedUrl.pathname
+          }
           // x-matched-path is the source of truth, it tells what page
           // should be rendered because we don't process rewrites in minimalMode
           let matchedPath = normalizeRscPath(
@@ -859,6 +869,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       renderOpts: {
         ...this.renderOpts,
         supportsDynamicHTML: !isBotRequest,
+        isBot: !!isBotRequest,
       },
     } as const
     const payload = await fn(ctx)
@@ -1139,10 +1150,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       const isBotRequest = isBot(req.headers['user-agent'] || '')
       const isSupportedDocument =
         typeof components.Document?.getInitialProps !== 'function' ||
-        // When concurrent features is enabled, the built-in `Document`
-        // component also supports dynamic HTML.
-        (!!process.env.__NEXT_REACT_ROOT &&
-          NEXT_BUILTIN_DOCUMENT in components.Document)
+        // The built-in `Document` component also supports dynamic HTML for concurrent mode.
+        NEXT_BUILTIN_DOCUMENT in components.Document
 
       // Disable dynamic HTML in cases that we know it won't be generated,
       // so that we can continue generating a cache key when possible.
@@ -1151,6 +1160,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       // cache if there are no dynamic data requirements
       opts.supportsDynamicHTML =
         !isSSG && !isBotRequest && !query.amp && isSupportedDocument
+      opts.isBot = isBotRequest
     }
 
     const defaultLocale = isSSG

@@ -5,9 +5,7 @@ export default function Index({ stars }) {
   return (
     <div>
       <p>Next.js has {stars} ⭐️</p>
-      <Link href="/preact">
-        <a>How about preact?</a>
-      </Link>
+      <Link href="/preact">How about preact?</Link>
     </div>
   )
 }
