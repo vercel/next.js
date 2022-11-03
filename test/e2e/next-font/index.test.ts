@@ -335,23 +335,43 @@ describe('@next/font/google', () => {
       expect($('link[rel="preconnect"]').length).toBe(0)
 
       // Preload
-      expect($('link[as="font"]').length).toBe(2)
-      // _app
-      expect($('link[as="font"]').get(0).attribs).toEqual({
-        as: 'font',
-        crossorigin: 'anonymous',
-        href: '/_next/static/media/0812efcfaefec5ea.p.woff2',
-        rel: 'preload',
-        type: 'font/woff2',
-      })
-      // with-local-fonts
-      expect($('link[as="font"]').get(1).attribs).toEqual({
-        as: 'font',
-        crossorigin: 'anonymous',
-        href: '/_next/static/media/ab6fdae82d1a8d92.p.woff2',
-        rel: 'preload',
-        type: 'font/woff2',
-      })
+      expect($('link[as="font"]').length).toBe(5)
+      expect(
+        Array.from($('link[as="font"]'))
+          .map((el) => el.attribs.href)
+          .sort()
+      ).toEqual([
+        '/_next/static/media/02205c9944024f15.p.woff2',
+        '/_next/static/media/0812efcfaefec5ea.p.woff2',
+        '/_next/static/media/1deec1af325840fd.p.woff2',
+        '/_next/static/media/ab6fdae82d1a8d92.p.woff2',
+        '/_next/static/media/d55edb6f37902ebf.p.woff2',
+      ])
+    })
+
+    test('google fonts with multiple weights/styles', async () => {
+      const html = await renderViaHTTP(next.url, '/with-google-fonts')
+      const $ = cheerio.load(html)
+
+      // Preconnect
+      expect($('link[rel="preconnect"]').length).toBe(0)
+
+      // Preload
+      expect($('link[as="font"]').length).toBe(7)
+
+      expect(
+        Array.from($('link[as="font"]'))
+          .map((el) => el.attribs.href)
+          .sort()
+      ).toEqual([
+        '/_next/static/media/0812efcfaefec5ea.p.woff2',
+        '/_next/static/media/4f3dcdf40b3ca86d.p.woff2',
+        '/_next/static/media/560a6db6ac485cb1.p.woff2',
+        '/_next/static/media/686d1702f12625fe.p.woff2',
+        '/_next/static/media/86d92167ff02c708.p.woff2',
+        '/_next/static/media/c9baea324111137d.p.woff2',
+        '/_next/static/media/fb68b4558e2a718e.p.woff2',
+      ])
     })
   })
 
