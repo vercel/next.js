@@ -1593,6 +1593,45 @@ describe('app dir', () => {
       })
     })
 
+    describe('searchParams navigation', () => {
+      describe('client component', () => {
+        it('should update the search params on browser navigation ', async () => {
+          const browser = await webdriver(
+            next.url,
+            '/search-params-navigation?page=1'
+          )
+          const getAttr = () =>
+            browser.elementByCss('nav').getAttribute('data-param-page')
+          expect(await getAttr()).toBe('1')
+          await browser.elementByCss('#link-2').click()
+          expect(await getAttr()).toBe('2')
+          await browser.back()
+          expect(await getAttr()).toBe('1')
+          await browser.forward()
+          expect(await getAttr()).toBe('2')
+          await browser.close()
+        })
+      })
+      describe('server component', () => {
+        it('should update the search params on browser navigation ', async () => {
+          const browser = await webdriver(
+            next.url,
+            '/search-params-navigation/server?page=1'
+          )
+          const getAttr = () =>
+            browser.elementByCss('nav').getAttribute('data-param-page')
+          expect(await getAttr()).toBe('1')
+          await browser.elementByCss('#link-2').click()
+          expect(await getAttr()).toBe('2')
+          await browser.back()
+          expect(await getAttr()).toBe('1')
+          await browser.forward()
+          expect(await getAttr()).toBe('2')
+          await browser.close()
+        })
+      })
+    })
+
     describe('sass support', () => {
       describe('server layouts', () => {
         it('should support global sass/scss inside server layouts', async () => {
