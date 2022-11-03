@@ -40,6 +40,7 @@ portpicker = "0.1.1"
 serde = "1.0.136"
 serde_json = "1.0.85"
 tokio = { version = "1.11.0", features = ["full"] }
+turbo-malloc = { path = "../turbo-malloc" }
 turbo-tasks = { path = "../turbo-tasks" }
 turbo-tasks-fs = { path = "../turbo-tasks-fs" }
 turbo-tasks-memory = { path = "../turbo-tasks-memory" }

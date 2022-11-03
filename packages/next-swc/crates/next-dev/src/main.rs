@@ -5,6 +5,9 @@ use anyhow::Result;
 #[cfg(feature = "cli")]
 use clap::Parser;
 
+#[global_allocator]
+static ALLOC: turbo_malloc::TurboMalloc = turbo_malloc::TurboMalloc;
+
 #[cfg(not(feature = "cli"))]
 fn main() -> Result<()> {
     unimplemented!("Cannot run binary without CLI feature enabled");
