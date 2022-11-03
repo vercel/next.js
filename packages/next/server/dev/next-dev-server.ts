@@ -429,7 +429,7 @@ export default class DevServer extends Server {
             fileName
           )
 
-          if (pageNameSet.has(pageName)) {
+          if (this.appDir && pageNameSet.has(pageName)) {
             conflictingAppPagePaths.add(pageName)
           } else {
             pageNameSet.add(pageName)
