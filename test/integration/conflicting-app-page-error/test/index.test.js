@@ -61,7 +61,7 @@ function runTests({ dev }) {
       const browser = await webdriver(appPort, '/non-conflict-pages')
       expect(await hasRedbox(browser, false)).toBe(false)
       expect(await getRedboxHeader(browser)).toBe(null)
-      expect(await browser.elementByCss('h1').text()).toBe('Hello World')
+      expect(await browser.elementByCss('h1').text()).toBe('Hello World!')
     })
 
     it('should not show error overlay for /non-conflict', async () => {
