@@ -1,10 +1,6 @@
 #![feature(min_specialization)]
 
 mod helpers;
-use helpers::print_changeset;
-
-/// Explicit extern crate to use allocator.
-extern crate turbo_malloc;
 #[cfg(feature = "bench_against_node_nft")]
 use std::time::Instant;
 use std::{
@@ -20,6 +16,7 @@ use std::{
 
 use anyhow::{anyhow, Context, Result};
 use difference::Changeset;
+use helpers::print_changeset;
 use lazy_static::lazy_static;
 use regex::Regex;
 use rstest::*;
@@ -41,6 +38,9 @@ use turbopack_core::{
     environment::{EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
     source_asset::SourceAssetVc,
 };
+
+#[global_allocator]
+static ALLOC: turbo_malloc::TurboMalloc = turbo_malloc::TurboMalloc;
 
 #[template]
 #[rstest]

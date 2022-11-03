@@ -1,13 +1,13 @@
 #![feature(min_specialization)]
 
-/// Explicit extern crate to use allocator.
-extern crate turbo_malloc;
-
 use std::sync::Arc;
 
 use anyhow::Result;
 use clap::Parser;
 use node_file_trace::{start, Args};
+
+#[global_allocator]
+static ALLOC: turbo_malloc::TurboMalloc = turbo_malloc::TurboMalloc;
 
 #[tokio::main]
 async fn main() -> Result<()> {
