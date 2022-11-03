@@ -316,7 +316,6 @@ function AppContainer({
           <PathnameContextProviderAdapter
             router={router}
             isAutoExport={self.__NEXT_DATA__.autoExport ?? false}
-            isFallback={initialData.isFallback ?? false}
           >
             <RouterContext.Provider value={makePublicRouterInstance(router)}>
               <HeadManagerContext.Provider value={headManager}>

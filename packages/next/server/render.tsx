@@ -621,7 +621,6 @@ export async function renderToHTML(
         <PathnameContextProviderAdapter
           router={router}
           isAutoExport={isAutoExport}
-          isFallback={isFallback}
         >
           <RouterContext.Provider value={router}>
             <AmpStateContext.Provider value={ampState}>

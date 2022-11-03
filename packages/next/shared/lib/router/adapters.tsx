@@ -1,5 +1,5 @@
 import type { ParsedUrlQuery } from 'node:querystring'
-import React, { useMemo } from 'react'
+import React, { useMemo, useRef } from 'react'
 import type { AppRouterInstance } from '../app-router-context'
 import { PathnameContext } from '../hooks-client-context'
 import type { NextRouter } from './router'
@@ -77,25 +77,49 @@ export function adaptForSearchParams(
 export function PathnameContextProviderAdapter({
   children,
   router,
-  isAutoExport,
-  isFallback,
+  ...props
 }: React.PropsWithChildren<{
-  router: Pick<NextRouter, 'pathname' | 'asPath'>
+  router: Pick<NextRouter, 'pathname' | 'asPath' | 'isReady' | 'isFallback'>
   isAutoExport: boolean
-  isFallback: boolean
 }>) {
+  const ref = useRef(props.isAutoExport)
   const value = useMemo(() => {
-    // If this is a dynamic route with auto export or fallback is true...
-    if (isDynamicRoute(router.pathname) && (isAutoExport || isFallback)) {
-      // Return null. This will throw an error when accessed via `usePathname`,
-      // but it provides the correct API for folks considering the new router
-      // does not support `isReady`.
-      return null
+    // isAutoExport is only ever `true` on the first render from the server,
+    // so reset it to `false` after we read it for the first time as `true`. If
+    // we don't use the value, then we don't need it.
+    const isAutoExport = ref.current
+    if (isAutoExport) {
+      ref.current = false
     }
 
+    // When the route is a dynamic route, we need to do more processing to
+    // determine if we need to stop showing the pathname.
+    if (isDynamicRoute(router.pathname)) {
+      // When the router is rendering the fallback page, it can't possibly know
+      // the path, so return `null` here. Read more about fallback pages over
+      // at:
+      // https://nextjs.org/docs/api-reference/data-fetching/get-static-paths#fallback-pages
+      if (router.isFallback) {
+        return null
+      }
+
+      // When `isAutoExport` is true, meaning this is a page page has been
+      // automatically statically optimized, and the router is not ready, then
+      // we can't know the pathname yet. Read more about automatic static
+      // optimization at:
+      // https://nextjs.org/docs/advanced-features/automatic-static-optimization
+      if (isAutoExport && !router.isReady) {
+        return null
+      }
+    }
+
+    // The `router.asPath` contains the pathname seen by the browser (including
+    // any query strings), so it should have that stripped. Read more about the
+    // `asPath` option over at:
+    // https://nextjs.org/docs/api-reference/next/router#router-object
     const url = new URL(router.asPath, 'http://f')
     return url.pathname
-  }, [router.pathname, router.asPath, isAutoExport, isFallback])
+  }, [router.asPath, router.isFallback, router.isReady, router.pathname])
 
   return (
     <PathnameContext.Provider value={value}>
