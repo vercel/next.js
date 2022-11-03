@@ -126,25 +126,50 @@ export function validateData(functionName: string, data: any): FontOptions {
 
 export function getUrl(
   fontFamily: string,
-  axes: [string, string][],
+  axes: {
+    wght: string[]
+    ital: string[]
+    variableAxes?: [string, string][]
+  },
   display: string
 ) {
-  // Google api requires the axes to be sorted, starting with lowercase words
-  axes.sort(([a], [b]) => {
-    const aIsLowercase = a.charCodeAt(0) > 96
-    const bIsLowercase = b.charCodeAt(0) > 96
-    if (aIsLowercase && !bIsLowercase) return -1
-    if (bIsLowercase && !aIsLowercase) return 1
+  // Variants are all combinations of weight and style, each variant will result in a separate font file
+  const variants: Array<[string, string][]> = []
+  for (const wgth of axes.wght) {
+    if (axes.ital.length === 0) {
+      variants.push([['wght', wgth], ...(axes.variableAxes ?? [])])
+    } else {
+      for (const ital of axes.ital) {
+        variants.push([
+          ['ital', ital],
+          ['wght', wgth],
+          ...(axes.variableAxes ?? []),
+        ])
+      }
+    }
+  }
 
-    return a > b ? 1 : -1
-  })
+  // Google api requires the axes to be sorted, starting with lowercase words
+  if (axes.variableAxes) {
+    variants.forEach((variant) => {
+      variant.sort(([a], [b]) => {
+        const aIsLowercase = a.charCodeAt(0) > 96
+        const bIsLowercase = b.charCodeAt(0) > 96
+        if (aIsLowercase && !bIsLowercase) return -1
+        if (bIsLowercase && !aIsLowercase) return 1
+
+        return a > b ? 1 : -1
+      })
+    })
+  }
 
   return `https://fonts.googleapis.com/css2?family=${fontFamily.replace(
     / /g,
     '+'
-  )}:${axes.map(([key]) => key).join(',')}@${axes
-    .map(([, val]) => val)
-    .join(',')}&display=${display}`
+  )}:${variants[0].map(([key]) => key).join(',')}@${variants
+    .map((variant) => variant.map(([, val]) => val).join(','))
+    .sort()
+    .join(';')}&display=${display}`
 }
 
 export async function fetchCSSFromGoogleFonts(url: string, fontFamily: string) {
@@ -192,17 +217,23 @@ export async function fetchFontFile(url: string) {
 
 export function getFontAxes(
   fontFamily: string,
-  weight: string,
-  style: string,
+  weights: string[],
+  styles: string[],
   selectedVariableAxes?: string[]
-): [string, string][] {
+): {
+  wght: string[]
+  ital: string[]
+  variableAxes?: [string, string][]
+} {
   const allAxes: Array<{ tag: string; min: number; max: number }> = (
     fontData as any
   )[fontFamily].axes
-  const italicAxis: [string, string][] =
-    style === 'italic' ? [['ital', '1']] : []
+  const hasItalic = styles.includes('italic')
+  const hasNormal = styles.includes('normal')
+  const ital = hasItalic ? [...(hasNormal ? ['0'] : []), '1'] : []
 
-  if (weight === 'variable') {
+  // Weights will always contain one element if it's a variable font
+  if (weights[0] === 'variable') {
     if (selectedVariableAxes) {
       const defineAbleAxes: string[] = allAxes
         .map(({ tag }) => tag)
@@ -228,14 +259,25 @@ export function getFontAxes(
       })
     }
 
-    const variableAxes: [string, string][] = allAxes
-      .filter(
-        ({ tag }) => tag === 'wght' || selectedVariableAxes?.includes(tag)
-      )
-      .map(({ tag, min, max }) => [tag, `${min}..${max}`])
+    let weightAxis: string
+    const variableAxes: [string, string][] = []
+    for (const { tag, min, max } of allAxes) {
+      if (tag === 'wght') {
+        weightAxis = `${min}..${max}`
+      } else if (selectedVariableAxes?.includes(tag)) {
+        variableAxes.push([tag, `${min}..${max}`])
+      }
+    }
 
-    return [...italicAxis, ...variableAxes]
+    return {
+      wght: [weightAxis!],
+      ital,
+      variableAxes,
+    }
   } else {
-    return [...italicAxis, ['wght', weight]]
+    return {
+      ital,
+      wght: weights,
+    }
   }
 }
