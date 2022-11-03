@@ -90,6 +90,8 @@ Although the default behavior of `next/script` allows you load third-party scrip
 
 Refer to the [`next/script`](/docs/api-reference/next/script.md#strategy) API reference documentation to learn more about each strategy and their use cases.
 
+> **Note**: Once a `next/script` component has been loaded by the browser, it will stay in the DOM and client-side navigations won't re-execute the script.
+
 ### Offloading Scripts To A Web Worker (experimental)
 
 > **Note:** The `worker` strategy is not yet stable and does not yet work with the [`app/`](https://beta.nextjs.org/docs/routing/defining-routes) directory. Use with caution.

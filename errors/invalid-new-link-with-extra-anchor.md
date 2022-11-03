@@ -1,4 +1,4 @@
-# Invalid <Link> with <a> child
+# Invalid &lt;Link&gt; with &lt;a&gt; child
 
 #### Why This Error Occurred
 

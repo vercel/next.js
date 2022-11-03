@@ -7,10 +7,8 @@ export default function Home({ pokemons }) {
       {pokemons.map((pokemon) => (
         <li key={pokemon.name}>
           <Link as={`/pokemon/${pokemon.name}`} href="/pokemon/[name]">
-            <a>
-              <h2 style={{ textTransform: 'capitalize' }}>{pokemon.name}</h2>
-              <img src={pokemon.image} alt={`${pokemon.name} picture`} />
-            </a>
+            <h2 style={{ textTransform: 'capitalize' }}>{pokemon.name}</h2>
+            <img src={pokemon.image} alt={`${pokemon.name} picture`} />
           </Link>
         </li>
       ))}

@@ -27,12 +27,11 @@ describe('app dir', () => {
           'react-dom': 'latest',
           sass: 'latest',
         },
-        skipStart: true,
       })
-
-      await next.start()
     })
-    afterAll(() => next.destroy())
+    afterAll(async () => {
+      await next.destroy()
+    })
 
     if (!(global as any).isNextDeploy) {
       it('should not share edge workers', async () => {
@@ -270,6 +269,14 @@ describe('app dir', () => {
         'hello from app/dashboard/deployments/[id]. ID is: 123'
       )
     })
+
+    // TODO-APP: fix to ensure behavior matches on deploy
+    if (!(global as any).isNextDeploy) {
+      it('should serve page as a segment name correctly', async () => {
+        const html = await renderViaHTTP(next.url, '/dashboard/page')
+        expect(html).toContain('hello dashboard/page!')
+      })
+    }
 
     it('should include document html and body', async () => {
       const html = await renderViaHTTP(next.url, '/dashboard')
@@ -1127,6 +1134,42 @@ describe('app dir', () => {
 
     describe('client components', () => {
       describe('hooks', () => {
+        describe('from pages', () => {
+          it.each([
+            { pathname: '/adapter-hooks/static' },
+            { pathname: '/adapter-hooks/1' },
+            { pathname: '/adapter-hooks/2' },
+            { pathname: '/adapter-hooks/1/account' },
+            { pathname: '/adapter-hooks/static', keyValue: 'value' },
+            { pathname: '/adapter-hooks/1', keyValue: 'value' },
+            { pathname: '/adapter-hooks/2', keyValue: 'value' },
+            { pathname: '/adapter-hooks/1/account', keyValue: 'value' },
+          ])(
+            'should have the correct hooks',
+            async ({ pathname, keyValue = '' }) => {
+              const browser = await webdriver(
+                next.url,
+                pathname + (keyValue ? `?key=${keyValue}` : '')
+              )
+
+              try {
+                await browser.waitForElementByCss('#router-ready')
+                expect(await browser.elementById('key-value').text()).toBe(
+                  keyValue
+                )
+                expect(await browser.elementById('pathname').text()).toBe(
+                  pathname
+                )
+
+                await browser.elementByCss('button').click()
+                await browser.waitForElementByCss('#pushed')
+              } finally {
+                await browser.close()
+              }
+            }
+          )
+        })
+
         describe('usePathname', () => {
           it('should have the correct pathname', async () => {
             const html = await renderViaHTTP(next.url, '/hooks/use-pathname')
@@ -1161,17 +1204,20 @@ describe('app dir', () => {
             expect($('#params-not-real').text()).toBe('N/A')
           })
 
-          it('should have the canonical url search params on rewrite', async () => {
-            const html = await renderViaHTTP(
-              next.url,
-              '/rewritten-use-search-params?first=a&second=b&third=c'
-            )
-            const $ = cheerio.load(html)
-            expect($('#params-first').text()).toBe('a')
-            expect($('#params-second').text()).toBe('b')
-            expect($('#params-third').text()).toBe('c')
-            expect($('#params-not-real').text()).toBe('N/A')
-          })
+          // TODO-APP: correct this behavior when deployed
+          if (!(global as any).isNextDeploy) {
+            it('should have the canonical url search params on rewrite', async () => {
+              const html = await renderViaHTTP(
+                next.url,
+                '/rewritten-use-search-params?first=a&second=b&third=c'
+              )
+              const $ = cheerio.load(html)
+              expect($('#params-first').text()).toBe('a')
+              expect($('#params-second').text()).toBe('b')
+              expect($('#params-third').text()).toBe('c')
+              expect($('#params-not-real').text()).toBe('N/A')
+            })
+          }
         })
 
         describe('useRouter', () => {
@@ -1208,7 +1254,7 @@ describe('app dir', () => {
           }
         })
 
-        describe('useSelectedLayoutSegment', () => {
+        describe('useSelectedLayoutSegments', () => {
           it.each`
             path                                                           | outerLayout                                             | innerLayout
             ${'/hooks/use-selected-layout-segment/first'}                  | ${['first']}                                            | ${[]}
@@ -1236,6 +1282,38 @@ describe('app dir', () => {
             const $ = cheerio.load(html)
 
             expect(JSON.parse($('#page-layout-segments').text())).toEqual([])
+          })
+        })
+
+        describe('useSelectedLayoutSegment', () => {
+          it.each`
+            path                                                           | outerLayout | innerLayout
+            ${'/hooks/use-selected-layout-segment/first'}                  | ${'first'}  | ${null}
+            ${'/hooks/use-selected-layout-segment/first/slug1'}            | ${'first'}  | ${'slug1'}
+            ${'/hooks/use-selected-layout-segment/first/slug2/second/a/b'} | ${'first'}  | ${'slug2'}
+          `(
+            'should have the correct layout segment at $path',
+            async ({ path, outerLayout, innerLayout }) => {
+              const html = await renderViaHTTP(next.url, path)
+              const $ = cheerio.load(html)
+
+              expect(JSON.parse($('#outer-layout-segment').text())).toEqual(
+                outerLayout
+              )
+              expect(JSON.parse($('#inner-layout-segment').text())).toEqual(
+                innerLayout
+              )
+            }
+          )
+
+          it('should return null in pages', async () => {
+            const html = await renderViaHTTP(
+              next.url,
+              '/hooks/use-selected-layout-segment/first/slug2/second/a/b'
+            )
+            const $ = cheerio.load(html)
+
+            expect(JSON.parse($('#page-layout-segment').text())).toEqual(null)
           })
         })
       })
@@ -1405,6 +1483,28 @@ describe('app dir', () => {
               `window.getComputedStyle(document.querySelector('b')).color`
             )
           ).toBe('rgb(0, 0, 255)')
+        })
+      })
+
+      describe('client components', () => {
+        it('should support css modules inside client page', async () => {
+          const browser = await webdriver(next.url, '/css/css-client')
+
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('#css-modules')).fontSize`
+            )
+          ).toBe('100px')
+        })
+
+        it('should support css modules inside client components', async () => {
+          const browser = await webdriver(next.url, '/css/css-client/inner')
+
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('#client-component')).fontSize`
+            )
+          ).toBe('100px')
         })
       })
     })
@@ -2184,6 +2284,16 @@ describe('app dir', () => {
         expect(html).not.toContain(
           '<script src="/test4.js" rel="preload" as="script"/>'
         )
+      })
+    })
+
+    describe('data fetch with response over 16KB with chunked encoding', () => {
+      it('should load page when fetching a large amount of data', async () => {
+        const browser = await webdriver(next.url, '/very-large-data-fetch')
+        expect(await (await browser.waitForElementByCss('#done')).text()).toBe(
+          'Hello world'
+        )
+        expect(await browser.elementByCss('p').text()).toBe('item count 128000')
       })
     })
   }

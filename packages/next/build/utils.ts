@@ -52,6 +52,7 @@ import {
   loadRequireHook,
   overrideBuiltInReactPackages,
 } from './webpack/require-hook'
+import { AssetBinding } from './webpack/loaders/get-module-build-info'
 
 loadRequireHook()
 if (process.env.NEXT_PREBUNDLED_REACT) {
@@ -1259,7 +1260,13 @@ export async function isPageStatic({
         const runtime = await getRuntimeContext({
           paths: edgeInfo.files.map((file: string) => path.join(distDir, file)),
           env: edgeInfo.env,
-          edgeFunctionEntry: edgeInfo,
+          edgeFunctionEntry: {
+            ...edgeInfo,
+            wasm: (edgeInfo.wasm ?? []).map((binding: AssetBinding) => ({
+              ...binding,
+              filePath: path.join(distDir, binding.filePath),
+            })),
+          },
           name: edgeInfo.name,
           useCache: true,
           distDir,
@@ -1658,7 +1665,9 @@ export async function copyTracedFiles(
       `${normalizePagePath(page)}.js`
     )
     const pageTraceFile = `${pageFile}.nft.json`
-    await handleTraceFiles(pageTraceFile)
+    await handleTraceFiles(pageTraceFile).catch((err) => {
+      Log.warn(`Failed to copy traced files for ${pageFile}`, err)
+    })
   }
   await handleTraceFiles(path.join(distDir, 'next-server.js.nft.json'))
   const serverOutputPath = path.join(

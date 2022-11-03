@@ -15,6 +15,8 @@ use swc_core::{
     ecma::transforms::base::pass::noop,
 };
 
+pub mod mdx;
+
 fn convert_err(err: Error) -> JsValue {
     format!("{:?}", err).into()
 }

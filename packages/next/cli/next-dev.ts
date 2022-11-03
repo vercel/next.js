@@ -11,6 +11,41 @@ import { getProjectDir } from '../lib/get-project-dir'
 import { CONFIG_FILES } from '../shared/lib/constants'
 import path from 'path'
 import type { NextConfig } from '../types'
+import type { NextConfigComplete } from '../server/config-shared'
+import { traceGlobals } from '../trace/shared'
+
+let isTurboSession = false
+let sessionStopHandled = false
+let sessionStarted = Date.now()
+
+const handleSessionStop = async () => {
+  if (sessionStopHandled) return
+  sessionStopHandled = true
+
+  const { eventCliSession } =
+    require('../telemetry/events/session-stopped') as typeof import('../telemetry/events/session-stopped')
+  const telemetry = traceGlobals.get('telemetry') as InstanceType<
+    typeof import('../telemetry/storage').Telemetry
+  >
+  if (!telemetry) {
+    process.exit(0)
+  }
+
+  telemetry.record(
+    eventCliSession({
+      cliCommand: 'dev',
+      turboFlag: isTurboSession,
+      durationMilliseconds: Date.now() - sessionStarted,
+      pagesDir: !!traceGlobals.get('pagesDir'),
+      appDir: !!traceGlobals.get('appDir'),
+    })
+  )
+  await telemetry.flush()
+  process.exit(0)
+}
+
+process.on('SIGINT', handleSessionStop)
+process.on('SIGTERM', handleSessionStop)
 
 const nextDev: cliCommand = (argv) => {
   const validArgs: arg.Spec = {
@@ -102,6 +137,7 @@ const nextDev: cliCommand = (argv) => {
   }
 
   if (args['--turbo']) {
+    isTurboSession = true
     // check for postcss, babelrc, swc plugins
     return new Promise<void>(async (resolve) => {
       const { findConfigPath } =
@@ -120,6 +156,15 @@ const nextDev: cliCommand = (argv) => {
         require('../shared/lib/constants') as typeof import('../shared/lib/constants')
       const chalk =
         require('next/dist/compiled/chalk') as typeof import('next/dist/compiled/chalk')
+      const { eventCliSession } =
+        require('../telemetry/events/version') as typeof import('../telemetry/events/version')
+      const { findPagesDir } =
+        require('../lib/find-pages-dir') as typeof import('../lib/find-pages-dir')
+      const { interopDefault } =
+        require('../lib/interop-default') as typeof import('../lib/interop-default')
+      const { setGlobal } = require('../trace') as typeof import('../trace')
+      const { Telemetry } =
+        require('../telemetry/storage') as typeof import('../telemetry/storage')
 
       // To regenerate the TURBOPACK gradient require('gradient-string')('blue', 'red')('>>> TURBOPACK')
       const isTTY = process.stdout.isTTY
@@ -137,25 +182,41 @@ const nextDev: cliCommand = (argv) => {
       let babelrc = await getBabelConfigFile(dir)
       if (babelrc) babelrc = path.basename(babelrc)
 
-      const rawNextConfig = (await loadConfig(
-        PHASE_DEVELOPMENT_SERVER,
-        dir,
-        undefined,
-        true
-      )) as NextConfig
+      const rawNextConfig = interopDefault(
+        await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, undefined, true)
+      ) as NextConfig
 
-      const hasNonDefaultConfig = Object.keys(rawNextConfig).some(
-        (configKey) => {
-          if (!(configKey in defaultConfig)) return false
-          if (typeof defaultConfig[configKey] !== 'object') {
-            return defaultConfig[configKey] !== rawNextConfig[configKey]
-          }
-          return (
-            JSON.stringify(rawNextConfig[configKey]) !==
-            JSON.stringify(defaultConfig[configKey])
-          )
+      const checkUnsupportedCustomConfig = (
+        configKey = '',
+        parentUserConfig: any,
+        parentDefaultConfig: any
+      ): boolean => {
+        // these should not error
+        if (
+          configKey === 'serverComponentsExternalPackages' ||
+          configKey === 'appDir' ||
+          configKey === 'transpilePackages' ||
+          configKey === 'reactStrictMode' ||
+          configKey === 'swcMinify' ||
+          configKey === 'configFileName'
+        ) {
+          return false
         }
+        let userValue = parentUserConfig[configKey]
+        let defaultValue = parentDefaultConfig[configKey]
+
+        if (typeof defaultValue !== 'object') {
+          return defaultValue !== userValue
+        }
+        return Object.keys(userValue || {}).some((key: string) => {
+          return checkUnsupportedCustomConfig(key, userValue, defaultValue)
+        })
+      }
+
+      const hasNonDefaultConfig = Object.keys(rawNextConfig).some((key) =>
+        checkUnsupportedCustomConfig(key, rawNextConfig, defaultConfig)
       )
+
       const findUp =
         require('next/dist/compiled/find-up') as typeof import('next/dist/compiled/find-up')
       const packagePath = findUp.sync('package.json', { cwd: dir })
@@ -261,10 +322,34 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
       console.log(feedbackMessage)
 
       return loadBindings()
-        .then((bindings: any) => {
-          // eslint-disable-next-line no-shadow
-          const findUp =
-            require('next/dist/compiled/find-up') as typeof import('next/dist/compiled/find-up')
+        .then(async (bindings: any) => {
+          const distDir = path.join(dir, rawNextConfig.distDir || '.next')
+          const { pagesDir, appDir } = findPagesDir(
+            dir,
+            !!rawNextConfig.experimental?.appDir
+          )
+          const telemetry = new Telemetry({
+            distDir,
+          })
+          setGlobal('appDir', appDir)
+          setGlobal('pagesDir', pagesDir)
+          setGlobal('telemetry', telemetry)
+
+          telemetry.record(
+            eventCliSession(distDir, rawNextConfig as NextConfigComplete, {
+              webpackVersion: 5,
+              cliCommand: 'dev',
+              isSrcDir:
+                (!!pagesDir &&
+                  path.relative(dir, pagesDir).startsWith('src')) ||
+                (!!appDir && path.relative(dir, appDir).startsWith('src')),
+              hasNowJson: !!(await findUp('now.json', { cwd: dir })),
+              isCustomServer: false,
+              turboFlag: true,
+              pagesDir: !!pagesDir,
+              appDir: !!appDir,
+            })
+          )
           const turboJson = findUp.sync('turbo.json', { cwd: dir })
           // eslint-disable-next-line no-shadow
           const packagePath = findUp.sync('package.json', { cwd: dir })
@@ -284,6 +369,8 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
           })
           // Start preflight after server is listening and ignore errors:
           preflight().catch(() => {})
+
+          await telemetry.flush()
           return server
         })
         .then(
