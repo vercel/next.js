@@ -8,7 +8,7 @@
 
 import {
   createNextApp,
-  projectFilesShouldNotExist,
+  projectFilesShouldExist,
   shouldBeJavascriptProject,
   shouldBeTemplateProject,
   shouldBeTypescriptProject,
@@ -39,7 +39,7 @@ describe('create-next-app templates', () => {
           /**
            * Verify it correctly emitted a TS project by looking for tsconfig.
            */
-          projectFilesShouldNotExist({
+          projectFilesShouldExist({
             cwd,
             projectName,
             files: ['tsconfig.json'],
