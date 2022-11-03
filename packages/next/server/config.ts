@@ -61,8 +61,8 @@ export function setHttpClientAndAgentOptions(config: NextConfig) {
   if (isAboveNodejs16) {
     if (
       config.experimental?.enableUndici &&
-      isAboveNodejs18 &&
-      !config.experimental.appDir
+      !config.experimental?.appDir &&
+      isAboveNodejs18
     ) {
       Log.warn(
         `\`enableUndici\` option is unnecessary in Node.js v${NODE_18_VERSION} or greater.`
