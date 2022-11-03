@@ -88,6 +88,7 @@ impl EcmascriptInputTransform {
                     Some(comments.clone()),
                     swc_core::ecma::transforms::react::Options {
                         runtime: Some(swc_core::ecma::transforms::react::Runtime::Automatic),
+                        development: Some(true),
                         refresh: if refresh {
                             Some(swc_core::ecma::transforms::react::RefreshOptions {
                                 ..Default::default()

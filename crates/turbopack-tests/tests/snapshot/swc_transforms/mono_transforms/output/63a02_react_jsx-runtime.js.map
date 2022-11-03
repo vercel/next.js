@@ -1,6 +1,0 @@
-{
-  "version": 3,
-  "sections": [
-    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["/crates/turbopack-tests/tests/node_modules/react/jsx-runtime.js"],"sourcesContent":["\"purposefully empty stub\";\n\"react/jsx-runtime.js\";\n"],"names":[],"mappings":"AAAA;AACA"}},
-    {"offset": {"line": 6, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
-}

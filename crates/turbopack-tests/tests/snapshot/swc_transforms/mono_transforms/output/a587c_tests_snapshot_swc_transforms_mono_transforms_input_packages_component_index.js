@@ -5,13 +5,17 @@
 __turbopack_esm__({
     "default": ()=>MyApp
 });
-var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$swc_transforms$2f$mono_transforms$2f$input$2f$node_modules$2f$react$2f$jsx$2d$runtime$2e$js__ = __turbopack_import__("[project]/crates/turbopack-tests/tests/snapshot/swc_transforms/mono_transforms/input/node_modules/react/jsx-runtime.js (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$node_modules$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__ = __turbopack_import__("[project]/crates/turbopack-tests/tests/node_modules/react/jsx-dev-runtime.js (ecmascript)");
 "__TURBOPACK__ecmascript__hoisting__location__";
 ;
 function MyApp() {
-    return __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$swc_transforms$2f$mono_transforms$2f$input$2f$node_modules$2f$react$2f$jsx$2d$runtime$2e$js__["jsx"]("div", {
+    return __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$node_modules$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__["jsxDEV"]("div", {
         children: "App"
-    });
+    }, void 0, false, {
+        fileName: "<crates/turbopack-tests/tests/snapshot/swc_transforms/mono_transforms/input/packages/component/index.js>",
+        lineNumber: 2,
+        columnNumber: 10
+    }, this);
 }
 
 })()),

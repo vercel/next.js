@@ -204,6 +204,13 @@ pub async fn get_client_runtime_entries(
         ProcessEnvAssetVc::new(project_root, filter_for_client(env)).into(),
     )
     .cell()];
+
+    // It's important that React Refresh come before the regular bootstrap file,
+    // because the bootstrap contains JSX which requires Refresh's global
+    // functions to be available.
+    if let Some(request) = enable_react_refresh {
+        runtime_entries.push(RuntimeEntry::Request(request, project_root.join("_")).cell())
+    };
     if matches!(ty.into_value(), ContextType::Other) {
         runtime_entries.push(
             RuntimeEntry::Request(
@@ -215,9 +222,6 @@ pub async fn get_client_runtime_entries(
             .cell(),
         );
     }
-    if let Some(request) = enable_react_refresh {
-        runtime_entries.push(RuntimeEntry::Request(request, project_root.join("_")).cell())
-    };
 
     Ok(RuntimeEntriesVc::cell(runtime_entries))
 }
