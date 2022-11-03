@@ -22,6 +22,8 @@ export const createNextApp = (args: string[], options?: SpawnOptions) => {
   return spawn('node', [cli].concat(args), {
     ...options,
     env: {
+      ...process.env,
+      ...options.env,
       // unset CI env as this skips the auto-install behavior
       // being tested
       CI: '',
@@ -30,7 +32,6 @@ export const createNextApp = (args: string[], options?: SpawnOptions) => {
       CONTINUOUS_INTEGRATION: '',
       RUN_ID: '',
       BUILD_NUMBER: '',
-      ...options.env,
     },
   })
 }
