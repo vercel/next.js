@@ -44,6 +44,7 @@ use swc_core::{
     common::{sync::Lazy, FilePathMapping, SourceMap},
 };
 
+pub mod mdx;
 pub mod minify;
 pub mod parse;
 pub mod transform;

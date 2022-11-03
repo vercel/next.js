@@ -729,9 +729,13 @@ export default class DevServer extends Server {
         hasNowJson: !!(await findUp('now.json', { cwd: this.dir })),
         isCustomServer: this.isCustomServer,
         turboFlag: false,
+        pagesDir: !!this.pagesDir,
+        appDir: !!this.appDir,
       })
     )
     // This is required by the tracing subsystem.
+    setGlobal('appDir', this.appDir)
+    setGlobal('pagesDir', this.pagesDir)
     setGlobal('telemetry', telemetry)
 
     process.on('unhandledRejection', (reason) => {

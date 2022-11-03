@@ -432,6 +432,9 @@ const configSchema = {
             enum: ['CLS', 'FCP', 'FID', 'INP', 'LCP', 'TTFB'],
           } as any,
         },
+        mdxRs: {
+          type: 'boolean',
+        },
         turbotrace: {
           type: 'object',
           properties: {

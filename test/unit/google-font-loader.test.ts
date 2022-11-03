@@ -110,6 +110,7 @@ describe('@next/font/google loader', () => {
         resolve: jest.fn(),
         fs: {} as any,
         isServer: true,
+        variableName: 'myFont',
       })
       expect(css).toBe('OK')
       expect(fetch).toHaveBeenCalledTimes(1)
@@ -132,6 +133,7 @@ describe('@next/font/google loader', () => {
           resolve: jest.fn(),
           fs: {} as any,
           isServer: true,
+          variableName: 'myFont',
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(`
               "Failed to fetch font  \`Alkalami\`.
@@ -149,6 +151,7 @@ describe('@next/font/google loader', () => {
           resolve: jest.fn(),
           fs: {} as any,
           isServer: true,
+          variableName: 'myFont',
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(
         `"@next/font/google has no default export"`
@@ -165,6 +168,7 @@ describe('@next/font/google loader', () => {
           resolve: jest.fn(),
           fs: {} as any,
           isServer: true,
+          variableName: 'myFont',
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(
         `"Unknown font \`Unknown Font\`"`
@@ -181,6 +185,7 @@ describe('@next/font/google loader', () => {
           resolve: jest.fn(),
           fs: {} as any,
           isServer: true,
+          variableName: 'myFont',
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(`
               "Unknown weight \`123\` for font \`Inter\`.
@@ -198,6 +203,7 @@ describe('@next/font/google loader', () => {
           resolve: jest.fn(),
           fs: {} as any,
           isServer: true,
+          variableName: 'myFont',
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(`
               "Missing weight for font \`Abel\`.
@@ -215,6 +221,7 @@ describe('@next/font/google loader', () => {
           resolve: jest.fn(),
           fs: {} as any,
           isServer: true,
+          variableName: 'myFont',
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(`
               "Unknown style \`normal\` for font \`Molle\`.
@@ -232,6 +239,7 @@ describe('@next/font/google loader', () => {
           resolve: jest.fn(),
           fs: {} as any,
           isServer: true,
+          variableName: 'myFont',
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(`
                       "Invalid display value \`invalid\` for font \`Inter\`.
@@ -249,6 +257,7 @@ describe('@next/font/google loader', () => {
           resolve: jest.fn(),
           fs: {} as any,
           isServer: true,
+          variableName: 'myFont',
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(
         `"Axes can only be defined for variable fonts"`
@@ -265,6 +274,7 @@ describe('@next/font/google loader', () => {
           resolve: jest.fn(),
           fs: {} as any,
           isServer: true,
+          variableName: 'myFont',
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(
         `"Font \`Lora\` has no definable \`axes\`"`
@@ -281,6 +291,7 @@ describe('@next/font/google loader', () => {
           resolve: jest.fn(),
           fs: {} as any,
           isServer: true,
+          variableName: 'myFont',
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(`
               "Invalid axes value for font \`Inter\`, expected an array of axes.
@@ -298,6 +309,7 @@ describe('@next/font/google loader', () => {
           resolve: jest.fn(),
           fs: {} as any,
           isServer: true,
+          variableName: 'myFont',
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(`
               "Invalid axes value \`INVALID\` for font \`Roboto Flex\`.
@@ -315,6 +327,7 @@ describe('@next/font/google loader', () => {
           resolve: jest.fn(),
           fs: {} as any,
           isServer: true,
+          variableName: 'myFont',
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(
         `"Unexpected \`variable\` in weight array for font \`Inter\`. You only need \`variable\`, it includes all available weights."`
