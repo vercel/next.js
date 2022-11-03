@@ -4,11 +4,8 @@ import { NextInstance } from 'test/lib/next-modes/base'
 import {
   check,
   fetchViaHTTP,
-  findPort,
   getRedboxHeader,
   hasRedbox,
-  initNextServerScript,
-  killApp,
   renderViaHTTP,
   waitFor,
 } from 'next-test-utils'
@@ -19,13 +16,9 @@ import webdriver from 'next-webdriver'
 describe('app dir', () => {
   const isDev = (global as any).isNextDev
   let next: NextInstance
-  let apiServerPort: number
-  let apiInstance: any
 
   function runTests() {
     beforeAll(async () => {
-      apiServerPort = await findPort()
-
       next = await createNext({
         files: new FileRef(path.join(__dirname, 'app')),
         dependencies: {
@@ -34,25 +27,10 @@ describe('app dir', () => {
           'react-dom': 'latest',
           sass: 'latest',
         },
-        env: {
-          API_SERVER_PORT: apiServerPort.toString(),
-        },
-        skipStart: true,
       })
-
-      apiInstance = await initNextServerScript(
-        path.join(__dirname, 'app', 'api-server.js'),
-        /Listening on/,
-        { ...process.env, PORT: apiServerPort },
-        undefined,
-        { cwd: next.testDir }
-      )
-
-      await next.start()
     })
-    afterAll(() => {
-      next.destroy()
-      killApp(apiInstance)
+    afterAll(async () => {
+      await next.destroy()
     })
 
     if (!(global as any).isNextDeploy) {
@@ -292,10 +270,13 @@ describe('app dir', () => {
       )
     })
 
-    it('should serve page as a segment name correctly', async () => {
-      const html = await renderViaHTTP(next.url, '/dashboard/page')
-      expect(html).toContain('hello dashboard/page!')
-    })
+    // TODO-APP: fix to ensure behavior matches on deploy
+    if (!(global as any).isNextDeploy) {
+      it('should serve page as a segment name correctly', async () => {
+        const html = await renderViaHTTP(next.url, '/dashboard/page')
+        expect(html).toContain('hello dashboard/page!')
+      })
+    }
 
     it('should include document html and body', async () => {
       const html = await renderViaHTTP(next.url, '/dashboard')
@@ -2297,21 +2278,13 @@ describe('app dir', () => {
     })
 
     describe('data fetch with response over 16KB with chunked encoding', () => {
-      // TODO-APP: increase timeouts for testing against deploy?
-      if (!(global as any).isNextDeploy) {
-        it('should load page when fetching a large amount of data', async () => {
-          const browser = await webdriver(next.url, '/very-large-data-fetch')
-          expect(
-            await (await browser.waitForElementByCss('#done', 5000)).text()
-          ).toBe('Hello world')
-          expect(
-            await (await browser.waitForElementByCss('#index', 2000)).text()
-          ).toBe('0')
-          expect(
-            await (await browser.waitForElementByCss('#random', 2000)).text()
-          ).toBe('5')
-        })
-      }
+      it('should load page when fetching a large amount of data', async () => {
+        const browser = await webdriver(next.url, '/very-large-data-fetch')
+        expect(await (await browser.waitForElementByCss('#done')).text()).toBe(
+          'Hello world'
+        )
+        expect(await browser.elementByCss('p').text()).toBe('item count 128000')
+      })
     })
   }
 

@@ -65,9 +65,7 @@ export function setHttpClientAndAgentOptions(config: NextConfig) {
       )
     } else {
       // When appDir is enabled undici is the default because of Response.clone() issues in node-fetch
-      ;(global as any).__NEXT_USE_UNDICI = config.experimental?.appDir
-        ? true
-        : config.experimental?.enableUndici
+      ;(global as any).__NEXT_USE_UNDICI = config.experimental?.enableUndici
     }
   } else if (config.experimental?.enableUndici) {
     Log.warn(
@@ -258,6 +256,10 @@ function assignDefaults(dir: string, userConfig: { [key: string]: any }) {
     throw new Error(
       `Specified basePath is not a string, found type "${typeof result.basePath}"`
     )
+  }
+
+  if (result.experimental?.appDir) {
+    result.experimental.enableUndici = true
   }
 
   if (result.basePath !== '') {
