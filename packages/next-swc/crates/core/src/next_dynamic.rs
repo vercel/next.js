@@ -286,9 +286,14 @@ impl Fold for NextDynamicPatcher {
                     // Don't strip the `loader` argument if suspense is true
                     // See https://github.com/vercel/next.js/issues/36636 for background.
 
-                    // Also don't strip the `loader` argument for server components (both server/client layers),
-                    // since they're aliased to a React.lazy implementation.
-                    if has_ssr_false && !has_suspense && self.is_server && !self.is_server_components {
+                    // Also don't strip the `loader` argument for server components (both
+                    // server/client layers), since they're aliased to a
+                    // React.lazy implementation.
+                    if has_ssr_false
+                        && !has_suspense
+                        && self.is_server
+                        && !self.is_server_components
+                    {
                         expr.args[0] = Lit::Null(Null { span: DUMMY_SP }).as_arg();
                     }
 
