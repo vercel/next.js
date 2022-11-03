@@ -576,36 +576,42 @@ export default async function build(
           })
         )
 
-      const pageKeys = {
-        pages: Object.keys(mappedPages),
-        app: mappedAppPages
-          ? Object.keys(mappedAppPages).map(
-              (key) => normalizeAppPath(key) || '/'
-            )
-          : undefined,
+      const pagesPageKeys = Object.keys(mappedPages)
+
+      const conflictingAppPagePaths: [pagePath: string, appPath: string][] = []
+      const appPageKeys: string[] = []
+      if (mappedAppPages) {
+        for (const appKey in mappedAppPages) {
+          const normalizedAppPageKey = normalizeAppPath(appKey) || '/'
+          const pagePath = mappedPages[normalizedAppPageKey]
+          if (pagePath) {
+            const appPath = mappedAppPages[appKey]
+            conflictingAppPagePaths.push([
+              pagePath.replace(/^private-next-pages/, 'pages'),
+              appPath.replace(/^private-next-app-dir/, 'app'),
+            ])
+          }
+
+          appPageKeys.push(normalizedAppPageKey)
+        }
       }
 
-      if (pageKeys.app) {
-        const conflictingAppPagePaths = []
+      const pageKeys = {
+        pages: pagesPageKeys,
+        app: appPageKeys.length > 0 ? appPageKeys : undefined,
+      }
 
-        for (const appPath of pageKeys.app) {
-          if (pageKeys.pages.includes(appPath)) {
-            conflictingAppPagePaths.push(appPath)
-          }
+      const numConflictingAppPaths = conflictingAppPagePaths.length
+      if (mappedAppPages && numConflictingAppPaths > 0) {
+        Log.error(
+          `Conflicting app and page file${
+            numConflictingAppPaths === 1 ? ' was' : 's were'
+          } found, please remove the conflicting files to continue:`
+        )
+        for (const [pagePath, appPath] of conflictingAppPagePaths) {
+          Log.error(`  "${pagePath}" - "${appPath}"`)
         }
-        const numConflicting = conflictingAppPagePaths.length
-
-        if (numConflicting > 0) {
-          Log.error(
-            `Conflicting app and page file${
-              numConflicting === 1 ? ' was' : 's were'
-            } found, please remove the conflicting files to continue:`
-          )
-          for (const p of conflictingAppPagePaths) {
-            Log.error(`  "pages${p}" - "app${p}"`)
-          }
-          process.exit(1)
-        }
+        process.exit(1)
       }
 
       const conflictingPublicFiles: string[] = []

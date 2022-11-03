@@ -28,8 +28,9 @@ Import the font you would like to use from `@next/font/google` as a function. We
 
 To use the font in all your pages, add it to [`_app.js` file](https://nextjs.org/docs/advanced-features/custom-app) under `/pages` as shown below:
 
-```js:pages/_app.js
-import { Inter } from '@next/font/google';
+```js
+// pages/_app.js
+import { Inter } from '@next/font/google'
 
 // If loading a variable font, you don't need to specify the font weight
 const inter = Inter()
@@ -45,8 +46,9 @@ export default function MyApp({ Component, pageProps }) {
 
 If you can't use a variable font, you will **need to specify a weight**:
 
-```js:pages/_app.js
-import { Roboto } from '@next/font/google';
+```js
+// pages/_app.js
+import { Roboto } from '@next/font/google'
 
 const roboto = Roboto({
   weight: '400',
@@ -65,10 +67,11 @@ export default function MyApp({ Component, pageProps }) {
 
 You can also use the font without a wrapper and `className` by injecting it inside the `<head>` as follows:
 
-```js:pages/_app.js
-import { Inter } from '@next/font/google';
+```js
+// pages/_app.js
+import { Inter } from '@next/font/google'
 
-const inter = Inter();
+const inter = Inter()
 
 export default function MyApp({ Component, pageProps }) {
   return (
@@ -110,8 +113,9 @@ This can be done in 2 ways:
 
 - On a font per font basis by adding it to the function call
 
-  ```js:pages/_app.js
-  const inter = Inter({ subsets: ["latin"] });
+  ```js
+  // pages/_app.js
+  const inter = Inter({ subsets: ['latin'] })
   ```
 
 - Globally for all your fonts in your `next.config.js`
@@ -135,11 +139,12 @@ View the [Font API Reference](/docs/api-reference/next/font.md#nextfontgoogle) f
 
 Import `@next/font/local` and specify the `src` of your local font file. We recommend using [**variable fonts**](https://fonts.google.com/variablefonts) for the best performance and flexibility.
 
-```js:pages/_app.js
-import localFont from '@next/font/local';
+```js
+// pages/_app.js
+import localFont from '@next/font/local'
 
 // Font files can be colocated inside of `pages`
-const myFont = localFont({ src: './my-font.woff2' });
+const myFont = localFont({ src: './my-font.woff2' })
 
 export default function MyApp({ Component, pageProps }) {
   return (
