@@ -28,6 +28,19 @@ type OverlayState = {
   refreshState: RefreshState
 }
 
+function pushErrorFilterDuplicates(
+  errors: SupportedErrorEvent[],
+  err: SupportedErrorEvent
+): SupportedErrorEvent[] {
+  return [
+    ...errors.filter((e) => {
+      // Filter out duplicate errors
+      return e.event.reason !== err.event.reason
+    }),
+    err,
+  ]
+}
+
 function reducer(state: OverlayState, ev: Bus.BusEvent): OverlayState {
   switch (ev.type) {
     case Bus.TYPE_BUILD_OK: {
@@ -82,6 +95,10 @@ function reducer(state: OverlayState, ev: Bus.BusEvent): OverlayState {
             },
           }
         }
+        default:
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const _: never = state.refreshState
+          return state
       }
     }
     default: {
@@ -90,19 +107,6 @@ function reducer(state: OverlayState, ev: Bus.BusEvent): OverlayState {
       return state
     }
   }
-}
-
-function pushErrorFilterDuplicates(
-  errors: SupportedErrorEvent[],
-  err: SupportedErrorEvent
-): SupportedErrorEvent[] {
-  return [
-    ...errors.filter((e) => {
-      // Filter out duplicate errors
-      return e.event.reason !== err.event.reason
-    }),
-    err,
-  ]
 }
 
 type ErrorType = 'runtime' | 'build'
