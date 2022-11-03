@@ -66,13 +66,17 @@ pub struct DevServerOptions {
     pub log_detail: bool,
 
     // Inherited options from next-dev, need revisit later.
-    // This is not supported by CLI yet.
+    // These are not supported by CLI yet.
+    #[cfg(feature = "serializable")]
     #[cfg_attr(feature = "serializable", serde(default))]
     pub allow_retry: bool,
+    #[cfg(feature = "serializable")]
     #[cfg_attr(feature = "serializable", serde(default))]
     pub dev: bool,
+    #[cfg(feature = "serializable")]
     #[cfg_attr(feature = "serializable", serde(default))]
     pub is_next_dev_command: bool,
+    #[cfg(feature = "serializable")]
     #[cfg_attr(feature = "serializable", serde(default))]
     pub server_components_external_packages: Vec<String>,
 }

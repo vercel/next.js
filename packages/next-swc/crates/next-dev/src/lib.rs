@@ -380,6 +380,7 @@ pub async fn start_server(options: &DevServerOptions) -> Result<()> {
     let tt = TurboTasks::new(MemoryBackend::new());
     let tt_clone = tt.clone();
 
+    #[allow(unused_mut)]
     let mut server = NextDevServerBuilder::new(tt, dir, root_dir)
         .entry_request("src/index".into())
         .eager_compile(options.eager_compile)
@@ -387,15 +388,19 @@ pub async fn start_server(options: &DevServerOptions) -> Result<()> {
         .port(options.port)
         .log_detail(options.log_detail)
         .show_all(options.show_all)
-        .allow_retry(options.allow_retry)
         .log_level(
             options
                 .log_level
                 .map_or_else(|| IssueSeverity::Warning, |l| l.0),
         );
 
-    for package in options.server_components_external_packages.iter() {
-        server = server.server_component_external(package.to_string());
+    #[cfg(feature = "serializable")]
+    {
+        server = server.allow_retry(options.allow_retry);
+
+        for package in options.server_components_external_packages.iter() {
+            server = server.server_component_external(package.to_string());
+        }
     }
 
     let server = server.build().await?;
