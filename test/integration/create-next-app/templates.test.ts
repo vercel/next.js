@@ -33,21 +33,24 @@ describe('create-next-app templates', () => {
       /**
        * Bind the exit listener.
        */
-      childProcess.on('exit', (exitCode) => {
-        expect(exitCode).toBe(0)
-        /**
-         * Verify it correctly emitted a TS project by looking for tsconfig.
-         */
-        projectFilesShouldNotExist({
-          cwd,
-          projectName,
-          files: ['tsconfig.json'],
+      await new Promise<void>((resolve) => {
+        childProcess.on('exit', (exitCode) => {
+          expect(exitCode).toBe(0)
+          /**
+           * Verify it correctly emitted a TS project by looking for tsconfig.
+           */
+          projectFilesShouldNotExist({
+            cwd,
+            projectName,
+            files: ['tsconfig.json'],
+          })
+          resolve()
         })
+        /**
+         * Simulate "Y" for TypeScript.
+         */
+        childProcess.stdin.write('N\n')
       })
-      /**
-       * Simulate "Y" for TypeScript.
-       */
-      childProcess.stdin.write('N\n')
     })
   })
 

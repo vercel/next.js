@@ -19,7 +19,20 @@ const cli = require.resolve('create-next-app/dist/index.js')
  */
 export const createNextApp = (args: string[], options?: SpawnOptions) => {
   console.log(`[TEST] $ ${cli} ${args.join(' ')}`, { options })
-  return spawn('node', [cli].concat(args), options ?? {})
+  return spawn('node', [cli].concat(args), {
+    ...options,
+    env: {
+      // unset CI env as this skips the auto-install behavior
+      // being tested
+      CI: '',
+      CIRCLECI: '',
+      GITHUB_ACTIONS: '',
+      CONTINUOUS_INTEGRATION: '',
+      RUN_ID: '',
+      BUILD_NUMBER: '',
+      ...options.env,
+    },
+  })
 }
 
 /**
