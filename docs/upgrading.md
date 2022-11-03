@@ -34,16 +34,16 @@ You can continue using `pages` with new features that work in both directories, 
 
 ### `<Image/>` Component
 
-Next.js 12 introduced new improvements to the Image Component with a temporary import: `next/future/image`. These improvements included less client-side JavaScript, easier ways to extend and style images, better accessibility, and native browser lazy loading.
+Next.js 12 introduced many improvements to the Image Component with a temporary import: `next/future/image`. These improvements included less client-side JavaScript, easier ways to extend and style images, better accessibility, and native browser lazy loading.
 
-In version 13, this new behavior is now the default for `next/image`.
+Starting in Next.js 13, this new behavior is now the default for `next/image`.
 
 There are two codemods to help you migrate to the new Image Component:
 
-- [**`next-image-to-legacy-image` codemod**](/docs/advanced-features/codemods.md#rename-instances-of-nextimage): Safely and automatically renames `next/image` imports to `next/legacy/image`. Existing components will maintain the same behavior.
-- [**`next-image-experimental` codemod**](/docs/advanced-features/codemods.md#migrate-next-image-experimental-experimental): Dangerously adds inline styles and removes unused props using the experimental. This will change the behavior of existing components to match the new defaults. To use this codemod, you need to run the `next-image-to-legacy-image` codemod first.
+- [next-image-to-legacy-image](/docs/advanced-features/codemods.md#rename-instances-of-nextimage): This codemod will safely and automatically rename `next/image` imports to `next/legacy/image` to maintain the same behavior as Next.js 12. We recommend running this codemod to quickly update to Next.js 13 automatically.
+- [next-image-experimental](/docs/advanced-features/codemods.md#next-image-experimental-experimental): After running the previous codemod, you can optionally run this experimental codemod to upgrade `next/legacy/image` to the new `next/image`, which will remove unused props and add inline styles. Please note this codemod is experimental and only covers static usage (such as `<Image src={img} layout="responsive" />`) but not dynamic usage (such as `<Image {...props} />`).
 
-Alternatively, you can manually update props by following the [`next/future/image` migration guide](/docs/api-reference/next/image.md#migration). This will change the behavior of existing components to match the new defaults.
+Alternatively, you can manually update by following the [migration guide](/docs/advanced-features/codemods.md#next-image-experimental-experimental) and also see the [legacy comparison](/docs/api-reference/next/legacy/image.md#comparison).
 
 ### `<Link>` Component
 
