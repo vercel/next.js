@@ -1860,6 +1860,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "markdown"
+version = "1.0.0-alpha.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9ad4f4705119913653a71784beb4cb7f2ca652aaa3f8f87d069efcbe6231e245"
+dependencies = [
+ "log",
+ "regex",
+ "reqwest",
+ "tokio",
+ "unicode-id",
+]
+
+[[package]]
 name = "match_cfg"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1881,6 +1894,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7da5ac363534dce5fabf69949225e174fbf111a498bf0ff794c8ea1fba9f3dda"
 dependencies = [
  "digest",
+]
+
+[[package]]
+name = "mdxjs"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b0ee4e6ff2cda3f98007dbe11faeda47dac045558aaefa52f1d620b07554c3b5"
+dependencies = [
+ "markdown",
+ "serde",
+ "swc_core",
 ]
 
 [[package]]
@@ -2307,6 +2331,7 @@ dependencies = [
  "backtrace",
  "fxhash",
  "indexmap",
+ "mdxjs",
  "napi",
  "napi-build",
  "napi-derive",
@@ -5898,6 +5923,7 @@ dependencies = [
  "console_error_panic_hook",
  "getrandom",
  "js-sys",
+ "mdxjs",
  "next-swc",
  "once_cell",
  "parking_lot_core 0.8.0",
