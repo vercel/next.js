@@ -1487,6 +1487,16 @@ describe('app dir', () => {
       })
 
       describe('client components', () => {
+        it('should support css modules inside client page', async () => {
+          const browser = await webdriver(next.url, '/css/css-client')
+
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('#css-modules')).fontSize`
+            )
+          ).toBe('100px')
+        })
+
         it('should support css modules inside client components', async () => {
           const browser = await webdriver(next.url, '/css/css-client/inner')
 
