@@ -88,7 +88,6 @@ export function useSearchParams() {
  * Get the current pathname. For example usePathname() on /dashboard?foo=bar would return "/dashboard"
  */
 export function usePathname(): string {
-  staticGenerationBailout('usePathname')
   const pathname = useContext(PathnameContext)
   if (pathname === null) {
     throw new Error('invariant expected pathname to be mounted')
