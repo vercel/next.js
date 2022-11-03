@@ -185,6 +185,10 @@ where
         next_dynamic::next_dynamic(
             opts.is_development,
             opts.is_server,
+            match &opts.server_components {
+                Some(_) => true,
+                None => false,
+            },
             file.name.clone(),
             opts.pages_dir.clone()
         ),
