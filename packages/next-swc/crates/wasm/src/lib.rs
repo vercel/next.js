@@ -8,7 +8,7 @@ use wasm_bindgen_futures::future_to_promise;
 use swc_core::{
     base::{config::JsMinifyOptions, config::ParseOptions, try_with_handler, Compiler},
     common::{
-        comments::{Comments, SingleThreadedComments, SingleThreadedCommentsMapInner},
+        comments::{Comments, SingleThreadedComments},
         errors::ColorConfig,
         FileName, FilePathMapping, SourceMap, GLOBALS,
     },
