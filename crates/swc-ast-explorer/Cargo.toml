@@ -15,7 +15,7 @@ bench = false
 
 [dependencies]
 anyhow = "1.0.47"
-clap = { version = "3.2.15", features = ["derive"] }
+clap = { version = "4.0.18", features = ["derive"] }
 owo-colors = "3"
 regex = "1.6.0"
 swc_core = { workspace = true, features = [

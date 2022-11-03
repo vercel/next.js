@@ -51,8 +51,8 @@ impl clap::ValueEnum for IssueSeverityCliOption {
         &VARIANTS
     }
 
-    fn to_possible_value<'a>(&self) -> Option<clap::PossibleValue<'a>> {
-        Some(clap::PossibleValue::new(self.0.as_str()).help(self.0.as_help_str()))
+    fn to_possible_value<'a>(&self) -> Option<clap::builder::PossibleValue> {
+        Some(clap::builder::PossibleValue::new(self.0.as_str()).help(self.0.as_help_str()))
     }
 }
 

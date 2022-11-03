@@ -24,7 +24,7 @@ tokio_console = [
 node-api = []
 
 [dependencies]
-clap = { version = "3", optional = true, features = ["derive"] }
+clap = { version = "4.0.18", optional = true, features = ["derive"] }
 owo-colors = "3"
 turbo-malloc = { path = "../turbo-malloc", optional = true }
 turbo-tasks = { path = "../turbo-tasks" }

@@ -867,7 +867,6 @@ impl EcmascriptChunkVc {
                 .chunk_items
                 .await?
                 .iter()
-                .map(|chunk| chunk)
                 .try_join()
                 .await?
                 .into_iter()

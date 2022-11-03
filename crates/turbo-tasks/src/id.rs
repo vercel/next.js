@@ -166,7 +166,7 @@ where
         let static_box: Box<dyn IdMapping<TaskId> + 'static> =
             unsafe { std::mem::transmute(dyn_box) };
         let old = std::mem::replace(&mut *cell.borrow_mut(), Some(static_box));
-        let _swap_guard = TemporarySwapGuard(cell, ManuallyDrop::new(old.into()));
+        let _swap_guard = TemporarySwapGuard(cell, ManuallyDrop::new(old));
         func()
     })
 }
@@ -174,7 +174,7 @@ where
 pub fn without_task_id_mapping<T>(func: impl FnOnce() -> T) -> T {
     TASK_ID_MAPPING.with(|cell| {
         let old = std::mem::replace(&mut *cell.borrow_mut(), None);
-        let _swap_guard = TemporarySwapGuard(cell, ManuallyDrop::new(old.into()));
+        let _swap_guard = TemporarySwapGuard(cell, ManuallyDrop::new(old));
         func()
     })
 }

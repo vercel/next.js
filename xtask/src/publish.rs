@@ -234,7 +234,7 @@ pub fn run_bump(names: HashSet<String>, dry_run: bool) {
                 env::current_dir()
                     .unwrap()
                     .join(&workspace.path)
-                    .join("../../package.json"),
+                    .join("package.json"),
             )
             .expect("Read workspace package.json failed");
             let mut pkg_json: PackageJson = serde_json::from_str(&workspace_pkg_json)

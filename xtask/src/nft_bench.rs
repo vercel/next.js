@@ -1,4 +1,4 @@
-use std::fs;
+use std::{borrow::Cow, fs};
 
 use owo_colors::OwoColorize;
 use serde::{Deserialize, Serialize};
@@ -16,12 +16,12 @@ struct BenchSuite {
 impl Tabled for BenchSuite {
     const LENGTH: usize = 4;
 
-    fn fields(&self) -> Vec<String> {
-        fn g(s: &str) -> String {
-            s.green().to_string()
+    fn fields(&self) -> Vec<Cow<str>> {
+        fn g(s: &str) -> Cow<str> {
+            Cow::Owned(s.green().to_string())
         }
-        fn r(s: &str) -> String {
-            s.red().to_string()
+        fn r(s: &str) -> Cow<str> {
+            Cow::Owned(s.red().to_string())
         }
         if self.is_faster {
             [
@@ -42,9 +42,9 @@ impl Tabled for BenchSuite {
         .collect()
     }
 
-    fn headers() -> Vec<String> {
+    fn headers() -> Vec<Cow<'static, str>> {
         ["Suite", "@vercel/nft duration", "Rust duration", "Speedup"]
-            .map(ToOwned::to_owned)
+            .map(Cow::Borrowed)
             .into_iter()
             .collect()
     }
