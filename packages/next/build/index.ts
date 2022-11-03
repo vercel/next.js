@@ -601,11 +601,11 @@ export default async function build(
         app: appPageKeys.length > 0 ? appPageKeys : undefined,
       }
 
-      const numConflicting = conflictingAppPagePaths.length
-      if (mappedAppPages && numConflicting > 0) {
+      const numConflictingAppPaths = conflictingAppPagePaths.length
+      if (mappedAppPages && numConflictingAppPaths > 0) {
         Log.error(
           `Conflicting app and page file${
-            numConflicting === 1 ? ' was' : 's were'
+            numConflictingAppPaths === 1 ? ' was' : 's were'
           } found, please remove the conflicting files to continue:`
         )
         for (const [pagePath, appPath] of conflictingAppPagePaths) {
