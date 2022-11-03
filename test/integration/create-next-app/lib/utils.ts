@@ -66,7 +66,8 @@ export const projectFilesShouldExist = ({
     } catch (err) {
       require('console').error(
         `missing expected file ${file}`,
-        glob.sync('**/*', { cwd, ignore: '**/node_modules/**' })
+        glob.sync('**/*', { cwd, ignore: '**/node_modules/**' }),
+        files
       )
       throw err
     }
@@ -85,7 +86,8 @@ export const projectFilesShouldNotExist = ({
     } catch (err) {
       require('console').error(
         `unexpected file present ${file}`,
-        glob.sync('**/*', { cwd, ignore: '**/node_modules/**' })
+        glob.sync('**/*', { cwd, ignore: '**/node_modules/**' }),
+        files
       )
       throw err
     }
