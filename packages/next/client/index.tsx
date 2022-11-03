@@ -301,16 +301,15 @@ function renderApp(App: AppComponent, appProps: AppProps) {
 function AppContainer({
   children,
 }: React.PropsWithChildren<{}>): React.ReactElement {
-  console.log('hello world 1')
   return (
     <Container
-      fn={(error) => {
+      fn={(error) =>
         // TODO: Fix disabled eslint rule
         // eslint-disable-next-line @typescript-eslint/no-use-before-define
         renderError({ App: CachedApp, err: error }).catch((err) =>
           console.error('Error rendering page: ', err)
         )
-      }}
+      }
     >
       <AppRouterContext.Provider value={adaptForAppRouterInstance(router)}>
         <SearchParamsContext.Provider value={adaptForSearchParams(router)}>
