@@ -17,7 +17,7 @@ if (process.env.NODE_ENV !== "production") {
 var React = require('react');
 var ReactDOM = require('react-dom');
 
-var ReactVersion = '18.3.0-next-d925a8d0b-20221024';
+var ReactVersion = '18.3.0-next-28a574ea8-20221027';
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -2781,7 +2781,11 @@ function resourcesFromLink(props) {
   }
 
   if (props.onLoad || props.onError) {
-    return false;
+    // When a link has these props we can't treat it is a Resource but if we rendered it on the
+    // server it would look like a Resource in the rendered html (the onLoad/onError aren't emitted)
+    // Instead we expect the client to insert them rather than hydrate them which also guarantees
+    // that the onLoad and onError won't fire before the event handlers are attached
+    return true;
   }
 
   var sizes = typeof props.sizes === 'string' ? props.sizes : '';
@@ -3009,57 +3013,61 @@ var HTML_TABLE_ROW_MODE = 6;
 var HTML_COLGROUP_MODE = 7; // We have a greater than HTML_TABLE_MODE check elsewhere. If you add more cases here, make sure it
 // still makes sense
 
-function createFormatContext(insertionMode, selectedValue) {
+function createFormatContext(insertionMode, selectedValue, noscriptTagInScope) {
   return {
     insertionMode: insertionMode,
-    selectedValue: selectedValue
+    selectedValue: selectedValue,
+    noscriptTagInScope: noscriptTagInScope
   };
 }
 
 function createRootFormatContext(namespaceURI) {
   var insertionMode = namespaceURI === 'http://www.w3.org/2000/svg' ? SVG_MODE : namespaceURI === 'http://www.w3.org/1998/Math/MathML' ? MATHML_MODE : ROOT_HTML_MODE;
-  return createFormatContext(insertionMode, null);
+  return createFormatContext(insertionMode, null, false);
 }
 function getChildFormatContext(parentContext, type, props) {
   switch (type) {
+    case 'noscript':
+      return createFormatContext(HTML_MODE, null, true);
+
     case 'select':
-      return createFormatContext(HTML_MODE, props.value != null ? props.value : props.defaultValue);
+      return createFormatContext(HTML_MODE, props.value != null ? props.value : props.defaultValue, parentContext.noscriptTagInScope);
 
     case 'svg':
-      return createFormatContext(SVG_MODE, null);
+      return createFormatContext(SVG_MODE, null, parentContext.noscriptTagInScope);
 
     case 'math':
-      return createFormatContext(MATHML_MODE, null);
+      return createFormatContext(MATHML_MODE, null, parentContext.noscriptTagInScope);
 
     case 'foreignObject':
-      return createFormatContext(HTML_MODE, null);
+      return createFormatContext(HTML_MODE, null, parentContext.noscriptTagInScope);
     // Table parents are special in that their children can only be created at all if they're
     // wrapped in a table parent. So we need to encode that we're entering this mode.
 
     case 'table':
-      return createFormatContext(HTML_TABLE_MODE, null);
+      return createFormatContext(HTML_TABLE_MODE, null, parentContext.noscriptTagInScope);
 
     case 'thead':
     case 'tbody':
     case 'tfoot':
-      return createFormatContext(HTML_TABLE_BODY_MODE, null);
+      return createFormatContext(HTML_TABLE_BODY_MODE, null, parentContext.noscriptTagInScope);
 
     case 'colgroup':
-      return createFormatContext(HTML_COLGROUP_MODE, null);
+      return createFormatContext(HTML_COLGROUP_MODE, null, parentContext.noscriptTagInScope);
 
     case 'tr':
-      return createFormatContext(HTML_TABLE_ROW_MODE, null);
+      return createFormatContext(HTML_TABLE_ROW_MODE, null, parentContext.noscriptTagInScope);
   }
 
   if (parentContext.insertionMode >= HTML_TABLE_MODE) {
     // Whatever tag this was, it wasn't a table parent or other special parent, so we must have
     // entered plain HTML again.
-    return createFormatContext(HTML_MODE, null);
+    return createFormatContext(HTML_MODE, null, parentContext.noscriptTagInScope);
   }
 
   if (parentContext.insertionMode === ROOT_HTML_MODE) {
     // We've emitted the root and is now in plain HTML mode.
-    return createFormatContext(HTML_MODE, null);
+    return createFormatContext(HTML_MODE, null, parentContext.noscriptTagInScope);
   }
 
   return parentContext;
@@ -3739,8 +3747,8 @@ function pushStartTextArea(target, props, responseState) {
   return null;
 }
 
-function pushBase(target, props, responseState, textEmbedded) {
-  if ( resourcesFromElement('base', props)) {
+function pushBase(target, props, responseState, textEmbedded, noscriptTagInScope) {
+  if ( !noscriptTagInScope && resourcesFromElement('base', props)) {
     if (textEmbedded) {
       // This link follows text but we aren't writing a tag. while not as efficient as possible we need
       // to be safe and assume text will follow by inserting a textSeparator
@@ -3755,8 +3763,8 @@ function pushBase(target, props, responseState, textEmbedded) {
   return pushSelfClosing(target, props, 'base', responseState);
 }
 
-function pushMeta(target, props, responseState, textEmbedded) {
-  if ( resourcesFromElement('meta', props)) {
+function pushMeta(target, props, responseState, textEmbedded, noscriptTagInScope) {
+  if ( !noscriptTagInScope && resourcesFromElement('meta', props)) {
     if (textEmbedded) {
       // This link follows text but we aren't writing a tag. while not as efficient as possible we need
       // to be safe and assume text will follow by inserting a textSeparator
@@ -3771,8 +3779,8 @@ function pushMeta(target, props, responseState, textEmbedded) {
   return pushSelfClosing(target, props, 'meta', responseState);
 }
 
-function pushLink(target, props, responseState, textEmbedded) {
-  if ( resourcesFromLink(props)) {
+function pushLink(target, props, responseState, textEmbedded, noscriptTagInScope) {
+  if ( !noscriptTagInScope && resourcesFromLink(props)) {
     if (textEmbedded) {
       // This link follows text but we aren't writing a tag. while not as efficient as possible we need
       // to be safe and assume text will follow by inserting a textSeparator
@@ -3881,7 +3889,7 @@ function pushStartMenuItem(target, props, responseState) {
   return null;
 }
 
-function pushTitle(target, props, responseState) {
+function pushTitle(target, props, responseState, noscriptTagInScope) {
   {
     var children = props.children;
     var childForValidation = Array.isArray(children) && children.length < 2 ? children[0] || null : children;
@@ -3895,7 +3903,7 @@ function pushTitle(target, props, responseState) {
     }
   }
 
-  if ( resourcesFromElement('title', props)) {
+  if ( !noscriptTagInScope && resourcesFromElement('title', props)) {
     // We have converted this link exclusively to a resource and no longer
     // need to emit it
     return null;
@@ -3960,8 +3968,8 @@ function pushStartHtml(target, preamble, props, tag, responseState, formatContex
   return pushStartGenericElement(target, props, tag, responseState);
 }
 
-function pushScript(target, props, responseState, textEmbedded) {
-  if ( resourcesFromScript(props)) {
+function pushScript(target, props, responseState, textEmbedded, noscriptTagInScope) {
+  if ( !noscriptTagInScope && resourcesFromScript(props)) {
     if (textEmbedded) {
       // This link follows text but we aren't writing a tag. while not as efficient as possible we need
       // to be safe and assume text will follow by inserting a textSeparator
@@ -4246,19 +4254,19 @@ function pushStartInstance(target, preamble, type, props, responseState, formatC
       return pushStartMenuItem(target, props, responseState);
 
     case 'title':
-      return  pushTitle(target, props, responseState) ;
+      return  pushTitle(target, props, responseState, formatContext.noscriptTagInScope) ;
 
     case 'link':
-      return pushLink(target, props, responseState, textEmbedded);
+      return pushLink(target, props, responseState, textEmbedded, formatContext.noscriptTagInScope);
 
     case 'script':
-      return  pushScript(target, props, responseState, textEmbedded) ;
+      return  pushScript(target, props, responseState, textEmbedded, formatContext.noscriptTagInScope) ;
 
     case 'meta':
-      return pushMeta(target, props, responseState, textEmbedded);
+      return pushMeta(target, props, responseState, textEmbedded, formatContext.noscriptTagInScope);
 
     case 'base':
-      return pushBase(target, props, responseState, textEmbedded);
+      return pushBase(target, props, responseState, textEmbedded, formatContext.noscriptTagInScope);
     // Newline eating tags
 
     case 'listing':

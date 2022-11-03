@@ -22,7 +22,7 @@ Also, don’t forget to add a `README.md` file with the following format:
 - Omit the `name` and `version` fields from your `package.json`.
 - Ensure all your dependencies are up to date.
 - Ensure you’re using [`next/image`](https://nextjs.org/docs/api-reference/next/image).
-- To add additional installation instructions, please add it where appropriate.
+- To add additional installation instructions, please add them where appropriate.
 - To add additional notes, add `## Notes` section at the end.
 - Remove the `Deploy your own` section if your example can’t be immediately deployed to Vercel.
 

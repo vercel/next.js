@@ -53,7 +53,7 @@ export default function Playback({ playbackId, poster }) {
       <MuxPlayer style={{ width: '100%' }} playbackId={playbackId} />
       <p>
         Go{' '}
-        <Link href="/">
+        <Link href="/" legacyBehavior>
           <a>back home</a>
         </Link>{' '}
         to upload another video.

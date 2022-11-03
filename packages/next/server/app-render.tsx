@@ -23,7 +23,6 @@ import {
   streamToString,
 } from './node-web-streams-helper'
 import { ESCAPE_REGEX, htmlEscapeJsonString } from './htmlescape'
-import { shouldUseReactRoot } from './utils'
 import { matchSegment } from '../client/components/match-segments'
 import {
   FlightCSSManifest,
@@ -33,19 +32,46 @@ import { ServerInsertedHTMLContext } from '../shared/lib/server-inserted-html'
 import { stripInternalQueries } from './internal-utils'
 import type { ComponentsType } from '../build/webpack/loaders/next-app-loader'
 import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
-import { NextCookies } from './web/spec-extension/cookies'
+import { RequestCookies } from './web/spec-extension/cookies'
 import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
 import { NOT_FOUND_ERROR_CODE } from '../client/components/not-found'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import { Writable } from 'stream'
 import stringHash from 'next/dist/compiled/string-hash'
 
+const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
+
+function preloadComponent(Component: any, props: any) {
+  const prev = console.error
+  // Hide invalid hook call warning when calling component
+  console.error = (msg) => {
+    if (msg.startsWith('Invalid hook call..')) {
+      // ignore
+    } else {
+      // @ts-expect-error argument is defined
+      prev.apply(console, arguments)
+    }
+  }
+  try {
+    let result = Component(props)
+    return function () {
+      // We know what this component will render already.
+      return result
+    }
+  } catch (x) {
+    // something suspended or errored, try again later
+  } finally {
+    console.error = prev
+  }
+  return Component
+}
+
 const INTERNAL_HEADERS_INSTANCE = Symbol('internal for headers readonly')
 
 function readonlyHeadersError() {
   return new Error('ReadonlyHeaders cannot be modified')
 }
-class ReadonlyHeaders {
+export class ReadonlyHeaders {
   [INTERNAL_HEADERS_INSTANCE]: Headers
 
   entries: Headers['entries']
@@ -83,20 +109,17 @@ class ReadonlyHeaders {
 }
 
 const INTERNAL_COOKIES_INSTANCE = Symbol('internal for cookies readonly')
-function readonlyCookiesError() {
-  return new Error('ReadonlyCookies cannot be modified')
+class ReadonlyRequestCookiesError extends Error {
+  message =
+    'ReadonlyRequestCookies cannot be modified. Read more: https://nextjs.org/api-reference/cookies'
 }
 
-class ReadonlyNextCookies {
-  [INTERNAL_COOKIES_INSTANCE]: NextCookies
+export class ReadonlyRequestCookies {
+  [INTERNAL_COOKIES_INSTANCE]: RequestCookies
 
-  entries: NextCookies['entries']
-  forEach: NextCookies['forEach']
-  get: NextCookies['get']
-  getWithOptions: NextCookies['getWithOptions']
-  has: NextCookies['has']
-  keys: NextCookies['keys']
-  values: NextCookies['values']
+  get: RequestCookies['get']
+  getAll: RequestCookies['getAll']
+  has: RequestCookies['has']
 
   constructor(request: {
     headers: {
@@ -105,29 +128,26 @@ class ReadonlyNextCookies {
   }) {
     // Since `new Headers` uses `this.append()` to fill the headers object ReadonlyHeaders can't extend from Headers directly as it would throw.
     // Request overridden to not have to provide a fully request object.
-    const cookiesInstance = new NextCookies(request as Request)
+    const cookiesInstance = new RequestCookies(request.headers as Headers)
     this[INTERNAL_COOKIES_INSTANCE] = cookiesInstance
 
-    this.entries = cookiesInstance.entries.bind(cookiesInstance)
-    this.forEach = cookiesInstance.forEach.bind(cookiesInstance)
     this.get = cookiesInstance.get.bind(cookiesInstance)
-    this.getWithOptions = cookiesInstance.getWithOptions.bind(cookiesInstance)
+    this.getAll = cookiesInstance.getAll.bind(cookiesInstance)
     this.has = cookiesInstance.has.bind(cookiesInstance)
-    this.keys = cookiesInstance.keys.bind(cookiesInstance)
-    this.values = cookiesInstance.values.bind(cookiesInstance)
   }
+
   [Symbol.iterator]() {
-    return this[INTERNAL_COOKIES_INSTANCE][Symbol.iterator]()
+    return (this[INTERNAL_COOKIES_INSTANCE] as any)[Symbol.iterator]()
   }
 
   clear() {
-    throw readonlyCookiesError()
+    throw new ReadonlyRequestCookiesError()
   }
   delete() {
-    throw readonlyCookiesError()
+    throw new ReadonlyRequestCookiesError()
   }
   set() {
-    throw readonlyCookiesError()
+    throw new ReadonlyRequestCookiesError()
   }
 }
 
@@ -220,7 +240,12 @@ function patchFetch(ComponentMod: any) {
 
     if (staticGenerationStore && isStaticGeneration) {
       if (init && typeof init === 'object') {
-        if (init.cache === 'no-store') {
+        const cache = init.cache
+        // Delete `cache` property as Cloudflare Workers will throw an error
+        if (isEdgeRuntime) {
+          delete init.cache
+        }
+        if (cache === 'no-store') {
           staticGenerationStore.fetchRevalidate = 0
           // TODO: ensure this error isn't logged to the user
           // seems it's slipping through currently
@@ -278,10 +303,9 @@ function useFlightResponse(
 
   const [renderStream, forwardStream] = readableStreamTee(req)
   const res = createFromReadableStream(renderStream, {
-    moduleMap:
-      process.env.NEXT_RUNTIME === 'edge'
-        ? serverComponentManifest.__edge_ssr_module_mapping__
-        : serverComponentManifest.__ssr_module_mapping__,
+    moduleMap: isEdgeRuntime
+      ? serverComponentManifest.__edge_ssr_module_mapping__
+      : serverComponentManifest.__ssr_module_mapping__,
   })
   flightResponseRef.current = res
 
@@ -677,7 +701,6 @@ function headersWithoutFlight(headers: IncomingHttpHeaders) {
 }
 
 async function renderToString(element: React.ReactElement) {
-  if (!shouldUseReactRoot) return ReactDOMServer.renderToString(element)
   const renderStream = await ReactDOMServer.renderToReadableStream(element)
   await renderStream.allReady
   return streamToString(renderStream)
@@ -1007,7 +1030,7 @@ export async function renderToHTMLOrFlight(
         ? DefaultNotFound
         : undefined
 
-      if (typeof layoutOrPageMod?.revalidate !== 'undefined') {
+      if (typeof layoutOrPageMod?.revalidate === 'number') {
         defaultRevalidate = layoutOrPageMod.revalidate
 
         if (isStaticGeneration && defaultRevalidate === 0) {
@@ -1035,7 +1058,7 @@ export async function renderToHTMLOrFlight(
       /**
        * The React Component to render.
        */
-      const Component = layoutOrPageMod
+      let Component = layoutOrPageMod
         ? interopDefault(layoutOrPageMod)
         : undefined
 
@@ -1189,10 +1212,23 @@ export async function renderToHTMLOrFlight(
         }
       }
 
+      const props = {
+        ...parallelRouteComponents,
+        // TODO-APP: params and query have to be blocked parallel route names. Might have to add a reserved name list.
+        // Params are always the current params that apply to the layout
+        // If you have a `/dashboard/[team]/layout.js` it will provide `team` as a param but not anything further down.
+        params: currentParams,
+        // Query is only provided to page
+        ...(isPage ? { searchParams: query } : {}),
+      }
+
+      // Eagerly execute layout/page component to trigger fetches early.
+      Component = await Promise.resolve().then(() => {
+        return preloadComponent(Component, props)
+      })
+
       return {
         Component: () => {
-          let props = {}
-
           // Add extra cache busting (DEV only) for https://github.com/vercel/next.js/issues/5860
           // See also https://bugs.webkit.org/show_bug.cgi?id=187726
           const cacheBustingUrlSuffix = dev ? `?ts=${Date.now()}` : ''
@@ -1226,16 +1262,7 @@ export async function renderToHTMLOrFlight(
                     />
                   ))
                 : null}
-              <Component
-                {...props}
-                {...parallelRouteComponents}
-                // TODO-APP: params and query have to be blocked parallel route names. Might have to add a reserved name list.
-                // Params are always the current params that apply to the layout
-                // If you have a `/dashboard/[team]/layout.js` it will provide `team` as a param but not anything further down.
-                params={currentParams}
-                // Query is only provided to page
-                {...(isPage ? { searchParams: query } : {})}
-              />
+              <Component {...props} />
               {/* {HeadTags ? <HeadTags /> : null} */}
             </>
           )
@@ -1662,7 +1689,7 @@ export async function renderToHTMLOrFlight(
   )
 
   let cachedHeadersInstance: ReadonlyHeaders | undefined
-  let cachedCookiesInstance: ReadonlyNextCookies | undefined
+  let cachedCookiesInstance: ReadonlyRequestCookies | undefined
 
   const requestStore = {
     get headers() {
@@ -1675,7 +1702,7 @@ export async function renderToHTMLOrFlight(
     },
     get cookies() {
       if (!cachedCookiesInstance) {
-        cachedCookiesInstance = new ReadonlyNextCookies({
+        cachedCookiesInstance = new ReadonlyRequestCookies({
           headers: {
             get: (key) => {
               if (key !== 'cookie') {

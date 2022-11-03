@@ -96,12 +96,12 @@ export class FlightManifestPlugin {
       PLUGIN_NAME,
       (compilation, { normalModuleFactory }) => {
         compilation.dependencyFactories.set(
-          (webpack as any).dependencies.ModuleDependency,
+          webpack.dependencies.ModuleDependency,
           normalModuleFactory
         )
         compilation.dependencyTemplates.set(
-          (webpack as any).dependencies.ModuleDependency,
-          new (webpack as any).dependencies.NullDependency.Template()
+          webpack.dependencies.ModuleDependency,
+          new webpack.dependencies.NullDependency.Template()
         )
       }
     )

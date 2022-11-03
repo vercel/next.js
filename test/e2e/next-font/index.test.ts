@@ -45,7 +45,9 @@ describe('@next/font/google', () => {
         className: expect.stringMatching(/^__className_.{6}$/),
         variable: expect.stringMatching(/^__variable_.{6}$/),
         style: {
-          fontFamily: expect.stringMatching(/^'__Open_Sans_.{6}'$/),
+          fontFamily: expect.stringMatching(
+            /^'__Open_Sans_.{6}', '__Open_Sans_Fallback_.{6}'$/
+          ),
           fontStyle: 'normal',
         },
       })
@@ -55,7 +57,9 @@ describe('@next/font/google', () => {
         className: expect.stringMatching(/^__className_.{6}$/),
         variable: expect.stringMatching(/^__variable_.{6}$/),
         style: {
-          fontFamily: expect.stringMatching(/^'__Open_Sans_.{6}'$/),
+          fontFamily: expect.stringMatching(
+            /^'__Open_Sans_.{6}', '__Open_Sans_Fallback_.{6}'$/
+          ),
           fontStyle: 'normal',
         },
       })
@@ -64,7 +68,9 @@ describe('@next/font/google', () => {
       expect(JSON.parse($('#comp-with-fonts-inter').text())).toEqual({
         className: expect.stringMatching(/^__className_.{6}$/),
         style: {
-          fontFamily: expect.stringMatching(/^'__Inter_.{6}'$/),
+          fontFamily: expect.stringMatching(
+            /^'__Inter_.{6}', '__Inter_Fallback_.{6}'$/
+          ),
           fontWeight: 900,
           fontStyle: 'normal',
         },
@@ -72,7 +78,9 @@ describe('@next/font/google', () => {
       expect(JSON.parse($('#comp-with-fonts-roboto').text())).toEqual({
         className: expect.stringMatching(/^__className_.{6}$/),
         style: {
-          fontFamily: expect.stringMatching(/^'__Roboto_.{6}'$/),
+          fontFamily: expect.stringMatching(
+            /^'__Roboto_.{6}', '__Roboto_Fallback_.{6}'$/
+          ),
           fontStyle: 'italic',
           fontWeight: 100,
         },
@@ -88,7 +96,9 @@ describe('@next/font/google', () => {
         className: expect.stringMatching(/__className_.{6}/),
         variable: expect.stringMatching(/__variable_.{6}/),
         style: {
-          fontFamily: expect.stringMatching(/^'__Open_Sans_.{6}'$/),
+          fontFamily: expect.stringMatching(
+            /^'__Open_Sans_.{6}', '__Open_Sans_Fallback_.{6}'$/
+          ),
           fontStyle: 'normal',
         },
       })
@@ -98,7 +108,7 @@ describe('@next/font/google', () => {
         className: expect.stringMatching(/__className_.{6}/),
         style: {
           fontFamily: expect.stringMatching(
-            /^'__Fraunces_.{6}', system-ui, '__Fraunces_Fallback_.{6}'$/
+            /^'__myFont1_.{6}', system-ui, '__myFont1_Fallback_.{6}'$/
           ),
           fontStyle: 'italic',
           fontWeight: 100,
@@ -109,7 +119,7 @@ describe('@next/font/google', () => {
         variable: expect.stringMatching(/^__variable_.{6}$/),
         style: {
           fontFamily: expect.stringMatching(
-            /^'__Indie_Flower_.{6}', '__Indie_Flower_Fallback_.{6}'$/
+            /^'__myFont2_.{6}', '__myFont2_Fallback_.{6}'$/
           ),
         },
       })
@@ -125,7 +135,7 @@ describe('@next/font/google', () => {
         await browser.eval(
           'getComputedStyle(document.querySelector("#app-open-sans")).fontFamily'
         )
-      ).toMatch(/^__Open_Sans_.{6}$/)
+      ).toMatch(/^__Open_Sans_.{6}, __Open_Sans_Fallback_.{6}$/)
       expect(
         await browser.eval(
           'getComputedStyle(document.querySelector("#app-open-sans")).fontWeight'
@@ -142,7 +152,7 @@ describe('@next/font/google', () => {
         await browser.eval(
           'getComputedStyle(document.querySelector("#with-fonts-open-sans")).fontFamily'
         )
-      ).toMatch(/^__Open_Sans_.{6}$/)
+      ).toMatch(/^__Open_Sans_.{6}, __Open_Sans_Fallback_.{6}$/)
       expect(
         await browser.eval(
           'getComputedStyle(document.querySelector("#with-fonts-open-sans")).fontWeight'
@@ -169,7 +179,7 @@ describe('@next/font/google', () => {
         await browser.eval(
           'getComputedStyle(document.querySelector("#comp-with-fonts-inter")).fontFamily'
         )
-      ).toMatch(/^__Inter_.{6}$/)
+      ).toMatch(/^__Inter_.{6}, __Inter_Fallback_.{6}$/)
       expect(
         await browser.eval(
           'getComputedStyle(document.querySelector("#comp-with-fonts-inter")).fontWeight'
@@ -185,7 +195,7 @@ describe('@next/font/google', () => {
         await browser.eval(
           'getComputedStyle(document.querySelector("#comp-with-fonts-roboto")).fontFamily'
         )
-      ).toMatch(/^__Roboto_.{6}$/)
+      ).toMatch(/^__Roboto_.{6}, __Roboto_Fallback_.{6}$/)
       expect(
         await browser.eval(
           'getComputedStyle(document.querySelector("#comp-with-fonts-roboto")).fontWeight'
@@ -202,7 +212,7 @@ describe('@next/font/google', () => {
       const browser = await webdriver(next.url, '/variables')
 
       // Fira Code Variable
-      const firaCodeRegex = /^__Fira_Code_.{6}$/
+      const firaCodeRegex = /^__Fira_Code_.{6}, __Fira_Code_Fallback_.{6}$/
       expect(
         await browser.eval(
           'getComputedStyle(document.querySelector("#variables-fira-code")).fontFamily'
@@ -215,7 +225,7 @@ describe('@next/font/google', () => {
       ).not.toMatch(firaCodeRegex)
 
       // Roboto 100 Italic
-      const roboto100ItalicRegex = /^__Roboto_.{6}$/
+      const roboto100ItalicRegex = /^__Roboto_.{6}, __Roboto_Fallback_.{6}$/
       expect(
         await browser.eval(
           'getComputedStyle(document.querySelector("#variables-roboto-100-italic")).fontFamily'
@@ -228,7 +238,7 @@ describe('@next/font/google', () => {
       ).not.toMatch(roboto100ItalicRegex)
 
       // Local font
-      const localFontRegex = /^__Fraunces_.{6}, __Fraunces_Fallback_.{6}$/
+      const localFontRegex = /^__myFont_.{6}, __myFont_Fallback_.{6}$/
       expect(
         await browser.eval(
           'getComputedStyle(document.querySelector("#variables-local-font")).fontFamily'
@@ -249,21 +259,27 @@ describe('@next/font/google', () => {
         await browser.eval(
           'getComputedStyle(document.querySelector("#with-fallback-fonts-classname")).fontFamily'
         )
-      ).toMatch(/^__Open_Sans_.{6}, system-ui, Arial$/)
+      ).toMatch(
+        /^__Open_Sans_.{6}, system-ui, Arial, __Open_Sans_Fallback_.{6}$/
+      )
 
       // .style
       expect(
         await browser.eval(
           'getComputedStyle(document.querySelector("#with-fallback-fonts-style")).fontFamily'
         )
-      ).toMatch(/^__Open_Sans_.{6}, system-ui, Arial$/)
+      ).toMatch(
+        /^__Open_Sans_.{6}, system-ui, Arial, __Open_Sans_Fallback_.{6}$/
+      )
 
       // .variable
       expect(
         await browser.eval(
           'getComputedStyle(document.querySelector("#with-fallback-fonts-variable")).fontFamily'
         )
-      ).toMatch(/^__Open_Sans_.{6}, system-ui, Arial$/)
+      ).toMatch(
+        /^__Open_Sans_.{6}, system-ui, Arial, __Open_Sans_Fallback_.{6}$/
+      )
     })
   })
 
@@ -345,22 +361,22 @@ describe('@next/font/google', () => {
         const browser = await webdriver(next.url, '/with-local-fonts')
 
         const ascentOverride = await browser.eval(
-          'Array.from(document.fonts.values()).find(font => font.family.includes("Indie_Flower_Fallback")).ascentOverride'
+          'Array.from(document.fonts.values()).find(font => font.family.includes("myFont2_Fallback")).ascentOverride'
         )
         expect(ascentOverride).toBe('103.26%')
 
         const descentOverride = await browser.eval(
-          'Array.from(document.fonts.values()).find(font => font.family.includes("Indie_Flower_Fallback")).descentOverride'
+          'Array.from(document.fonts.values()).find(font => font.family.includes("myFont2_Fallback")).descentOverride'
         )
         expect(descentOverride).toBe('51.94%')
 
         const lineGapOverride = await browser.eval(
-          'Array.from(document.fonts.values()).find(font => font.family.includes("Indie_Flower_Fallback")).lineGapOverride'
+          'Array.from(document.fonts.values()).find(font => font.family.includes("myFont2_Fallback")).lineGapOverride'
         )
         expect(lineGapOverride).toBe('0%')
 
         const sizeAdjust = await browser.eval(
-          'Array.from(document.fonts.values()).find(font => font.family.includes("Indie_Flower_Fallback")).sizeAdjust'
+          'Array.from(document.fonts.values()).find(font => font.family.includes("myFont2_Fallback")).sizeAdjust'
         )
         expect(sizeAdjust).toBe('94%')
       })
@@ -369,24 +385,96 @@ describe('@next/font/google', () => {
         const browser = await webdriver(next.url, '/with-local-fonts')
 
         const ascentOverride = await browser.eval(
-          'Array.from(document.fonts.values()).find(font => font.family.includes("Fraunces_Fallback")).ascentOverride'
+          'Array.from(document.fonts.values()).find(font => font.family.includes("myFont1_Fallback")).ascentOverride'
         )
         expect(ascentOverride).toBe('84.71%')
 
         const descentOverride = await browser.eval(
-          'Array.from(document.fonts.values()).find(font => font.family.includes("Fraunces_Fallback")).descentOverride'
+          'Array.from(document.fonts.values()).find(font => font.family.includes("myFont1_Fallback")).descentOverride'
         )
         expect(descentOverride).toBe('22.09%')
 
         const lineGapOverride = await browser.eval(
-          'Array.from(document.fonts.values()).find(font => font.family.includes("Fraunces_Fallback")).lineGapOverride'
+          'Array.from(document.fonts.values()).find(font => font.family.includes("myFont1_Fallback")).lineGapOverride'
         )
         expect(lineGapOverride).toBe('0%')
 
         const sizeAdjust = await browser.eval(
-          'Array.from(document.fonts.values()).find(font => font.family.includes("Fraunces_Fallback")).sizeAdjust'
+          'Array.from(document.fonts.values()).find(font => font.family.includes("myFont1_Fallback")).sizeAdjust'
         )
         expect(sizeAdjust).toBe('115.45%')
+      })
+
+      test('Roboto multiple weights and styles', async () => {
+        const browser = await webdriver(next.url, '/with-local-fonts')
+
+        const ascentOverride = await browser.eval(
+          'Array.from(document.fonts.values()).find(font => font.family.includes("roboto_Fallback")).ascentOverride'
+        )
+        expect(ascentOverride).toBe('92.49%')
+
+        const descentOverride = await browser.eval(
+          'Array.from(document.fonts.values()).find(font => font.family.includes("roboto_Fallback")).descentOverride'
+        )
+        expect(descentOverride).toBe('24.34%')
+
+        const lineGapOverride = await browser.eval(
+          'Array.from(document.fonts.values()).find(font => font.family.includes("roboto_Fallback")).lineGapOverride'
+        )
+        expect(lineGapOverride).toBe('0%')
+
+        const sizeAdjust = await browser.eval(
+          'Array.from(document.fonts.values()).find(font => font.family.includes("roboto_Fallback")).sizeAdjust'
+        )
+        expect(sizeAdjust).toBe('100.3%')
+      })
+
+      test('Roboto multiple weights and styles - variable 1', async () => {
+        const browser = await webdriver(next.url, '/with-local-fonts')
+
+        const ascentOverride = await browser.eval(
+          'Array.from(document.fonts.values()).find(font => font.family.includes("robotoVar1_Fallback")).ascentOverride'
+        )
+        expect(ascentOverride).toBe('92.49%')
+
+        const descentOverride = await browser.eval(
+          'Array.from(document.fonts.values()).find(font => font.family.includes("robotoVar1_Fallback")).descentOverride'
+        )
+        expect(descentOverride).toBe('24.34%')
+
+        const lineGapOverride = await browser.eval(
+          'Array.from(document.fonts.values()).find(font => font.family.includes("robotoVar1_Fallback")).lineGapOverride'
+        )
+        expect(lineGapOverride).toBe('0%')
+
+        const sizeAdjust = await browser.eval(
+          'Array.from(document.fonts.values()).find(font => font.family.includes("robotoVar1_Fallback")).sizeAdjust'
+        )
+        expect(sizeAdjust).toBe('100.3%')
+      })
+
+      test('Roboto multiple weights and styles - variable 2', async () => {
+        const browser = await webdriver(next.url, '/with-local-fonts')
+
+        const ascentOverride = await browser.eval(
+          'Array.from(document.fonts.values()).find(font => font.family.includes("robotoVar2_Fallback")).ascentOverride'
+        )
+        expect(ascentOverride).toBe('92.49%')
+
+        const descentOverride = await browser.eval(
+          'Array.from(document.fonts.values()).find(font => font.family.includes("robotoVar2_Fallback")).descentOverride'
+        )
+        expect(descentOverride).toBe('24.34%')
+
+        const lineGapOverride = await browser.eval(
+          'Array.from(document.fonts.values()).find(font => font.family.includes("robotoVar2_Fallback")).lineGapOverride'
+        )
+        expect(lineGapOverride).toBe('0%')
+
+        const sizeAdjust = await browser.eval(
+          'Array.from(document.fonts.values()).find(font => font.family.includes("robotoVar2_Fallback")).sizeAdjust'
+        )
+        expect(sizeAdjust).toBe('100.3%')
       })
     })
 

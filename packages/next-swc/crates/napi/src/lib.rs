@@ -26,7 +26,6 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 */
 
-#![feature(future_join)]
 #![recursion_limit = "2048"]
 //#![deny(clippy::all)]
 

@@ -1,10 +1,12 @@
 /* global location */
 import '../build/polyfills/polyfill-module'
+import type Router from '../shared/lib/router/router'
 import React from 'react'
+// @ts-expect-error upgrade react types to react 18
+import ReactDOM from 'react-dom/client'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import mitt, { MittEmitter } from '../shared/lib/mitt'
 import { RouterContext } from '../shared/lib/router-context'
-import type Router from '../shared/lib/router/router'
 import {
   AppComponent,
   AppProps,
@@ -34,10 +36,16 @@ import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { ImageConfigComplete } from '../shared/lib/image-config'
 import { removeBasePath } from './remove-base-path'
 import { hasBasePath } from './has-base-path'
-
-const ReactDOM = process.env.__NEXT_REACT_ROOT
-  ? require('react-dom/client')
-  : require('react-dom')
+import { AppRouterContext } from '../shared/lib/app-router-context'
+import {
+  adaptForAppRouterInstance,
+  adaptForPathname,
+  adaptForSearchParams,
+} from '../shared/lib/router/adapters'
+import {
+  PathnameContext,
+  SearchParamsContext,
+} from '../shared/lib/hooks-client-context'
 
 /// <reference types="react-dom/experimental" />
 
@@ -306,15 +314,23 @@ function AppContainer({
         )
       }
     >
-      <RouterContext.Provider value={makePublicRouterInstance(router)}>
-        <HeadManagerContext.Provider value={headManager}>
-          <ImageConfigContext.Provider
-            value={process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete}
-          >
-            {children}
-          </ImageConfigContext.Provider>
-        </HeadManagerContext.Provider>
-      </RouterContext.Provider>
+      <AppRouterContext.Provider value={adaptForAppRouterInstance(router)}>
+        <SearchParamsContext.Provider value={adaptForSearchParams(router)}>
+          <PathnameContext.Provider value={adaptForPathname(asPath)}>
+            <RouterContext.Provider value={makePublicRouterInstance(router)}>
+              <HeadManagerContext.Provider value={headManager}>
+                <ImageConfigContext.Provider
+                  value={
+                    process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
+                  }
+                >
+                  {children}
+                </ImageConfigContext.Provider>
+              </HeadManagerContext.Provider>
+            </RouterContext.Provider>
+          </PathnameContext.Provider>
+        </SearchParamsContext.Provider>
+      </AppRouterContext.Provider>
     </Container>
   )
 }
@@ -492,26 +508,16 @@ function renderReactElement(
   }
 
   const reactEl = fn(shouldHydrate ? markHydrateComplete : markRenderComplete)
-  if (process.env.__NEXT_REACT_ROOT) {
-    if (!reactRoot) {
-      // Unlike with createRoot, you don't need a separate root.render() call here
-      reactRoot = ReactDOM.hydrateRoot(domEl, reactEl)
-      // TODO: Remove shouldHydrate variable when React 18 is stable as it can depend on `reactRoot` existing
-      shouldHydrate = false
-    } else {
-      const startTransition = (React as any).startTransition
-      startTransition(() => {
-        reactRoot.render(reactEl)
-      })
-    }
+  if (!reactRoot) {
+    // Unlike with createRoot, you don't need a separate root.render() call here
+    reactRoot = ReactDOM.hydrateRoot(domEl, reactEl)
+    // TODO: Remove shouldHydrate variable when React 18 is stable as it can depend on `reactRoot` existing
+    shouldHydrate = false
   } else {
-    // The check for `.hydrate` is there to support React alternatives like preact
-    if (shouldHydrate) {
-      ReactDOM.hydrate(reactEl, domEl)
-      shouldHydrate = false
-    } else {
-      ReactDOM.render(reactEl, domEl)
-    }
+    const startTransition = (React as any).startTransition
+    startTransition(() => {
+      reactRoot.render(reactEl)
+    })
   }
 }
 
