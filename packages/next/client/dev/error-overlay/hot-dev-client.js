@@ -345,8 +345,9 @@ function tryApplyUpdates(onBeforeHotUpdate, onHotUpdateSuccess) {
 
     if (isUpdateAvailable()) {
       // While we were updating, there was a new update! Do it again.
+      // However, this time, don't trigger a pending refresh state.
       tryApplyUpdates(
-        onBeforeHotUpdate,
+        hasUpdates ? undefined : onBeforeHotUpdate,
         hasUpdates ? onBuildOk : onHotUpdateSuccess
       )
     } else {
@@ -366,8 +367,10 @@ function tryApplyUpdates(onBeforeHotUpdate, onHotUpdateSuccess) {
   module.hot
     .check(/* autoApply */ false)
     .then((updatedModules) => {
-      const hasUpdates = Boolean(updatedModules.length)
-      onBeforeHotUpdate(hasUpdates)
+      if (typeof onBeforeHotUpdate === 'function') {
+        const hasUpdates = Boolean(updatedModules.length)
+        onBeforeHotUpdate(hasUpdates)
+      }
       return module.hot.apply()
     })
     .then(
