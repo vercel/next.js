@@ -1,14 +1,14 @@
 {
-  "name": "@next/swc",
+  "name": "@next/rs",
   "version": "13.0.4-canary.0",
   "private": true,
   "scripts": {
-    "build-native": "napi build --platform -p next-swc-napi --cargo-name next_swc_napi --features plugin --js false native",
-    "build-native-no-plugin": "napi build --platform -p next-swc-napi --cargo-name next_swc_napi --js false native",
+    "build-native": "napi build --platform -p next-rs-napi --cargo-name next_rs_napi --features plugin --js false native",
+    "build-native-no-plugin": "napi build --platform -p next-rs-napi --cargo-name next_rs_napi --js false native",
     "build-wasm": "wasm-pack build crates/wasm --scope=next"
   },
   "napi": {
-    "name": "next-swc",
+    "name": "next-rs",
     "triples": {
       "defaults": true,
       "additional": [

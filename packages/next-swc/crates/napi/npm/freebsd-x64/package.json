@@ -1,5 +1,5 @@
 {
-  "name": "@next/swc-freebsd-x64",
+  "name": "@next/rs-freebsd-x64",
   "version": "0.0.0",
   "os": [
     "freebsd"

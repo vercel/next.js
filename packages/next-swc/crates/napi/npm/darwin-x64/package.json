@@ -1,5 +1,5 @@
 {
-  "name": "@next/swc-darwin-x64",
+  "name": "@next/rs-darwin-x64",
   "version": "0.0.0",
   "os": [
     "darwin"

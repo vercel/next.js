@@ -1,5 +1,5 @@
 {
-  "name": "@next/swc-linux-arm-gnueabihf",
+  "name": "@next/rs-linux-arm-gnueabihf",
   "version": "0.0.0",
   "os": [
     "linux"

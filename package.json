@@ -65,7 +65,7 @@
     "@next/plugin-storybook": "workspace:*",
     "@next/polyfill-module": "workspace:*",
     "@next/polyfill-nomodule": "workspace:*",
-    "@next/swc": "workspace:*",
+    "@next/rs": "workspace:*",
     "@replayio/jest": "27.5.1-alpha.4",
     "@replayio/playwright": "0.2.26",
     "@svgr/webpack": "5.5.0",

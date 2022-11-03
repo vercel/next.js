@@ -1,5 +1,5 @@
 {
-  "name": "@next/swc-android-arm-eabi",
+  "name": "@next/rs-android-arm-eabi",
   "version": "0.0.0",
   "os": [
     "android"
