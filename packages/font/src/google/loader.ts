@@ -49,27 +49,21 @@ const downloadGoogleFonts: FontLoader = async ({
     )
   }
 
-  let fontFaceDeclarations = ''
-  for (const weight of weights) {
-    for (const style of styles) {
-      const fontAxes = getFontAxes(
-        fontFamily,
-        weight,
-        style,
-        selectedVariableAxes
-      )
-      const url = getUrl(fontFamily, fontAxes, display)
+  const fontAxes = getFontAxes(
+    fontFamily,
+    weights,
+    styles,
+    selectedVariableAxes
+  )
+  const url = getUrl(fontFamily, fontAxes, display)
 
-      let cachedCssRequest = cssCache.get(url)
-      const fontFaceDeclaration =
-        cachedCssRequest ?? (await fetchCSSFromGoogleFonts(url, fontFamily))
-      if (!cachedCssRequest) {
-        cssCache.set(url, fontFaceDeclaration)
-      } else {
-        cssCache.delete(url)
-      }
-      fontFaceDeclarations += `${fontFaceDeclaration}\n`
-    }
+  let cachedCssRequest = cssCache.get(url)
+  const fontFaceDeclarations =
+    cachedCssRequest ?? (await fetchCSSFromGoogleFonts(url, fontFamily))
+  if (!cachedCssRequest) {
+    cssCache.set(url, fontFaceDeclarations)
+  } else {
+    cssCache.delete(url)
   }
 
   // Find font files to download
