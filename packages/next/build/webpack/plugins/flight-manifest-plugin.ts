@@ -191,8 +191,8 @@ export class FlightManifestPlugin {
           ssrNamedModuleId = `./${ssrNamedModuleId.replace(/\\/g, '/')}`
 
         if (isCSSModule) {
+          const chunks = [...chunk.files].filter((f) => f.endsWith('.css'))
           if (!manifest[resource]) {
-            const chunks = [...chunk.files].filter((f) => f.endsWith('.css'))
             manifest[resource] = {
               default: {
                 id,
@@ -200,6 +200,13 @@ export class FlightManifestPlugin {
                 chunks,
               },
             }
+          } else {
+            // It is possible that there are mtuliepl modules with the same resouce,
+            // e.g. extracted by mini-css-extract-plugin. In that case we need to
+            // merge the chunks.
+            manifest[resource].default.chunks = [
+              ...new Set([...manifest[resource].default.chunks, ...chunks]),
+            ]
           }
 
           if (chunkGroup.name) {

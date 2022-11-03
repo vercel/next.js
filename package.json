@@ -56,7 +56,7 @@
     "@babel/preset-react": "7.14.5",
     "@edge-runtime/jest-environment": "2.0.0",
     "@fullhuman/postcss-purgecss": "1.3.0",
-    "@mdx-js/loader": "0.18.0",
+    "@mdx-js/loader": "^1.5.1",
     "@next/bundle-analyzer": "workspace:*",
     "@next/env": "workspace:*",
     "@next/eslint-plugin-next": "workspace:*",

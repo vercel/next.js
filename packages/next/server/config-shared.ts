@@ -181,6 +181,7 @@ export interface ExperimentalConfig {
     processCwd?: string
     maxFiles?: number
   }
+  mdxRs?: boolean
 }
 
 export type ExportPathMap = {
