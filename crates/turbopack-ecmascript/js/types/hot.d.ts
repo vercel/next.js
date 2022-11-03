@@ -4,6 +4,8 @@ export const enum HotUpdateStatus {
   idle = "idle",
 }
 
+export type HotUpdateStatusHandler = (status: HotUpdateStatus) => void;
+
 export interface HotData {
   prevExports?: Exports;
 }
@@ -37,8 +39,6 @@ export interface Hot {
   active: boolean;
   data: HotData;
 
-  status: () => keyof typeof HotUpdateStatus;
-
   accept: AcceptFunction;
 
   decline: (module?: string | string[]) => void;
@@ -50,4 +50,8 @@ export interface Hot {
   removeDisposeHandler: (callback: (data: object) => void) => void;
 
   invalidate: () => void;
+
+  status: () => keyof typeof HotUpdateStatus;
+  addStatusHandler: (handler: HotUpdateStatusHandler) => void;
+  removeStatusHandler: (handler: HotUpdateStatusHandler) => void;
 }

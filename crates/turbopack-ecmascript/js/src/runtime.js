@@ -891,6 +891,10 @@
       // implement, but the Next.js React Refresh runtime uses this to decide
       // whether to schedule an update.
       status: () => "idle",
+
+      // NOTE(alexkirsz) Since we always return "idle" for now, these are no-ops.
+      addStatusHandler: (_handler) => {},
+      removeStatusHandler: (_handler) => {},
     };
 
     return { hot, hotState };
