@@ -9,6 +9,9 @@ autobenches = false
 # don't publish this crate
 publish = false
 
+[dependencies]
+turbopack = { path = "../turbopack" }
+
 [dev-dependencies]
 anyhow = "1.0.47"
 once_cell = "1.13.0"
@@ -20,8 +23,8 @@ tokio = "1.11.0"
 turbo-tasks = { path = "../turbo-tasks" }
 turbo-tasks-env = { path = "../turbo-tasks-env" }
 turbo-tasks-fs = { path = "../turbo-tasks-fs" }
+turbo-tasks-hash = { path = "../turbo-tasks-hash" }
 turbo-tasks-memory = { path = "../turbo-tasks-memory" }
-turbopack = { path = "../turbopack" }
 turbopack-core = { path = "../turbopack-core" }
 turbopack-env = { path = "../turbopack-env" }
 

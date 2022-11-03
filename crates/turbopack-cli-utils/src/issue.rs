@@ -15,7 +15,6 @@ use turbo_tasks::{RawVc, TransientValue, TryJoinIterExt, ValueToString};
 use turbo_tasks_fs::{
     attach::AttachedFileSystemVc, to_sys_path, FileLinesContent, FileSystemPathVc,
 };
-use turbo_tasks_hash::Xxh3Hash64Hasher;
 use turbopack_core::issue::{
     IssueProcessingPathItem, IssueSeverity, IssueVc, OptionIssueProcessingPathItemsVc, PlainIssue,
     PlainIssueSource,
@@ -422,34 +421,6 @@ pub struct DisplayIssueState {
     pub has_new_issues: bool,
 }
 
-#[turbo_tasks::value(transparent)]
-pub struct IssueHash(u64);
-
-/// We need deduplicate issues that can come from unique paths, but represent
-/// the same underlying problem. Eg, a parse error for a file that is compiled
-/// in both client and server contexts.
-#[turbo_tasks::function]
-async fn internal_hash(issue: IssueVc) -> Result<IssueHashVc> {
-    let mut hasher = Xxh3Hash64Hasher::new();
-    hasher.write_value(issue.severity().await?);
-    hasher.write_ref(&issue.context().await?.path);
-    hasher.write_value(issue.category().await?);
-    hasher.write_value(issue.title().await?);
-    hasher.write_value(issue.description().await?);
-    hasher.write_value(issue.detail().await?);
-    hasher.write_value(issue.documentation_link().await?);
-
-    let source = issue.source().await?;
-    if let Some(source) = &*source {
-        let source = source.await?;
-        // I'm assuming we don't need to hash the contents. Not 100% correct, but
-        // probably 99%.
-        hasher.write_value(source.start);
-        hasher.write_value(source.end);
-    }
-    Ok(IssueHash(hasher.finish()).cell())
-}
-
 #[turbo_tasks::value_impl]
 impl ConsoleUiVc {
     #[turbo_tasks::function]
@@ -474,28 +445,31 @@ impl ConsoleUiVc {
         let issues = issues
             .iter_with_shortest_path()
             .map(async move |(issue, path)| {
-                let id = internal_hash(issue).await?;
-                Ok((issue, path, *id))
+                // (issue.)
+                let plain_issue = issue.into_plain();
+                let id = plain_issue.internal_hash().await?;
+                Ok((plain_issue.await?, path, issue.context(), *id))
             })
             .try_join()
             .await?;
 
-        let issue_ids = issues.iter().map(|(_, _, id)| *id).collect::<HashSet<_>>();
+        let issue_ids = issues
+            .iter()
+            .map(|(_, _, _, id)| *id)
+            .collect::<HashSet<_>>();
         let mut new_ids = this.seen.lock().unwrap().new_ids(source, issue_ids);
 
         let mut has_fatal = false;
         let has_issues = !issues.is_empty();
         let has_new_issues = !new_ids.is_empty();
 
-        for (issue, path, id) in issues {
+        for (plain_issue, path, context, id) in issues {
             if !new_ids.remove(&id) {
                 continue;
             }
 
-            let plain_issue = issue.into_plain().await?;
-
             let severity = plain_issue.severity;
-            let context_path = make_relative_to_cwd(issue.context(), current_dir).await?;
+            let context_path = make_relative_to_cwd(context, current_dir).await?;
             let category = &plain_issue.category;
             let title = &plain_issue.title;
             has_fatal = severity == IssueSeverity::Fatal;
@@ -524,20 +498,20 @@ impl ConsoleUiVc {
                 format!("{}", title.bold())
             };
 
-            let description = issue.description().await?;
+            let description = &plain_issue.description;
             if !description.is_empty() {
                 writeln!(&mut styled_issue, "\n{description}")?;
             }
 
             if log_detail {
                 styled_issue.push('\n');
-                let detail = issue.detail().await?;
+                let detail = &plain_issue.detail;
                 if !detail.is_empty() {
                     for line in detail.split('\n') {
                         writeln!(&mut styled_issue, "| {line}")?;
                     }
                 }
-                let documentation_link = issue.documentation_link().await?;
+                let documentation_link = &plain_issue.documentation_link;
                 if !documentation_link.is_empty() {
                     writeln!(&mut styled_issue, "\ndocumentation: {documentation_link}")?;
                 }

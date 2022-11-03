@@ -4,20 +4,26 @@ pub mod package_json;
 pub mod resolve;
 pub mod unsupported_module;
 
-use std::{cmp::Ordering, collections::HashSet, fmt::Display, future::IntoFuture, sync::Arc};
+use std::{
+    cmp::Ordering,
+    collections::HashSet,
+    fmt::{Display, Formatter},
+    future::IntoFuture,
+    sync::Arc,
+};
 
 use anyhow::Result;
 use futures::FutureExt;
 use turbo_tasks::{
     emit,
-    primitives::{BoolVc, StringVc},
+    primitives::{BoolVc, StringVc, U64Vc},
     CollectiblesSource, ReadRef, TryJoinIterExt, ValueToString, ValueToStringVc,
 };
 use turbo_tasks_fs::{
     FileContent, FileContentReadRef, FileLine, FileLinesContent, FileSystemPathReadRef,
     FileSystemPathVc,
 };
-use turbo_tasks_hash::DeterministicHash;
+use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher};
 
 use crate::{
     asset::{AssetContent, AssetVc},
@@ -67,7 +73,7 @@ impl IssueSeverity {
 }
 
 impl Display for IssueSeverity {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_str(self.as_str())
     }
 }
@@ -326,6 +332,7 @@ pub struct Issues(Vec<IssueVc>);
 
 /// A list of issues captured with [`IssueVc::peek_issues_with_path`] and
 /// [`IssueVc::take_issues_with_path`].
+#[derive(Debug)]
 #[turbo_tasks::value]
 pub struct CapturedIssues {
     issues: HashSet<IssueVc>,
@@ -433,7 +440,7 @@ impl IssueSourceVc {
 pub struct OptionIssueSource(Option<IssueSourceVc>);
 
 #[turbo_tasks::value(serialization = "none")]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PlainIssue {
     pub severity: IssueSeverity,
     pub context: String,
@@ -446,6 +453,37 @@ pub struct PlainIssue {
 
     pub source: Option<PlainIssueSourceReadRef>,
     pub sub_issues: Vec<PlainIssueReadRef>,
+}
+
+#[turbo_tasks::value_impl]
+impl PlainIssueVc {
+    /// We need deduplicate issues that can come from unique paths, but
+    /// represent the same underlying problem. Eg, a parse error for a file
+    /// that is compiled in both client and server contexts.
+    #[turbo_tasks::function]
+    pub async fn internal_hash(self) -> Result<U64Vc> {
+        let this = self.await?;
+        let mut hasher = Xxh3Hash64Hasher::new();
+        hasher.write_ref(&this.severity);
+        hasher.write_ref(&this.context);
+        hasher.write_ref(&this.category);
+        hasher.write_ref(&this.title);
+        hasher.write_ref(&this.description);
+        hasher.write_ref(&this.detail);
+        hasher.write_ref(&this.documentation_link);
+
+        if let Some(source) = &this.source {
+            hasher.write_value(1_u8);
+            // I'm assuming we don't need to hash the contents. Not 100% correct, but
+            // probably 99%.
+            hasher.write_ref(&source.start);
+            hasher.write_ref(&source.end);
+        } else {
+            hasher.write_value(0_u8);
+        }
+
+        Ok(U64Vc::cell(hasher.finish()))
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -484,7 +522,7 @@ impl IssueVc {
 }
 
 #[turbo_tasks::value(serialization = "none")]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PlainIssueSource {
     pub asset: PlainAssetReadRef,
     pub start: SourcePos,
@@ -506,9 +544,10 @@ impl IssueSourceVc {
 }
 
 #[turbo_tasks::value(serialization = "none")]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PlainAsset {
     pub path: FileSystemPathReadRef,
+    #[turbo_tasks(debug_ignore)]
     pub content: FileContentReadRef,
 }
 

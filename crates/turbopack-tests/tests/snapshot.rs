@@ -11,17 +11,17 @@ use once_cell::sync::Lazy;
 use serde::Deserialize;
 use similar::TextDiff;
 use test_generator::test_resources;
-use turbo_tasks::{NothingVc, TryJoinIterExt, TurboTasks, Value};
+use turbo_tasks::{debug::ValueDebug, NothingVc, TryJoinIterExt, TurboTasks, Value};
 use turbo_tasks_env::DotenvProcessEnvVc;
 use turbo_tasks_fs::{
     util::sys_to_unix, DirectoryContent, DirectoryEntry, DiskFileSystemVc, File, FileContent,
     FileSystem, FileSystemEntryType, FileSystemPathVc, FileSystemVc,
 };
+use turbo_tasks_hash::encode_hex;
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
     ecmascript::{chunk::EcmascriptChunkPlaceablesVc, EcmascriptModuleAssetVc},
     module_options::ModuleOptionsContext,
-    register,
     resolve_options_context::ResolveOptionsContext,
     transition::TransitionsByNameVc,
     ModuleAssetContextVc,
@@ -31,14 +31,32 @@ use turbopack_core::{
     chunk::{dev::DevChunkingContextVc, ChunkableAssetVc},
     context::AssetContextVc,
     environment::{BrowserEnvironment, EnvironmentIntention, EnvironmentVc, ExecutionEnvironment},
+    issue::IssueVc,
     reference::all_referenced_assets,
     source_asset::SourceAssetVc,
 };
 use turbopack_env::ProcessEnvAssetVc;
 
+fn register() {
+    turbopack::register();
+    include!(concat!(env!("OUT_DIR"), "/register_test_snapshot.rs"));
+}
+
 // Updates the existing snapshot outputs with the actual outputs of this run.
 // `UPDATE=1 cargo test -p turbopack -- test_my_pattern`
 static UPDATE: Lazy<bool> = Lazy::new(|| env::var("UPDATE").unwrap_or_default() == "1");
+
+static WORKSPACE_ROOT: Lazy<String> = Lazy::new(|| {
+    let package_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    package_root
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_string()
+});
 
 #[derive(Debug, Deserialize)]
 struct SnapshotOptions {
@@ -78,7 +96,20 @@ fn test(resource: &'static str) {
 async fn run(resource: &'static str) -> Result<()> {
     register();
 
-    let test_path = Path::new(resource)
+    let tt = TurboTasks::new(MemoryBackend::new());
+    let task = tt.spawn_once_task(async move {
+        let out = run_test(resource.to_string());
+        handle_issues(out).await?;
+        Ok(NothingVc::new().into())
+    });
+    tt.wait_task_completion(task, true).await?;
+
+    Ok(())
+}
+
+#[turbo_tasks::function]
+async fn run_test(resource: String) -> Result<FileSystemPathVc> {
+    let test_path = Path::new(&resource)
         // test_resources matches and returns relative paths from the workspace root,
         // but pwd in cargo tests is the crate under test.
         .strip_prefix("crates/turbopack-tests")?;
@@ -95,163 +126,127 @@ async fn run(resource: &'static str) -> Result<()> {
         Err(_) => SnapshotOptions::default(),
         Ok(options_str) => serde_json::from_str(&options_str).unwrap(),
     };
+    let root_fs = DiskFileSystemVc::new("workspace".to_string(), WORKSPACE_ROOT.clone());
+    let project_fs = DiskFileSystemVc::new("project".to_string(), WORKSPACE_ROOT.clone());
+    let project_root = project_fs.root();
 
-    let tt = TurboTasks::new(MemoryBackend::new());
-    let task = tt.spawn_once_task(async move {
-        let package_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        let workspace_root = package_root
-            .parent()
-            .unwrap()
-            .parent()
-            .unwrap()
-            .to_str()
-            .unwrap();
+    let fs_path = Path::new(&resource);
+    let resource = sys_to_unix(&resource);
+    let path = root_fs.root().join(&resource);
+    let project_path = project_root.join(&resource);
 
-        let root_fs = DiskFileSystemVc::new("workspace".to_string(), workspace_root.to_owned());
-        let project_fs = DiskFileSystemVc::new("project".to_string(), workspace_root.to_owned());
-        let project_root = project_fs.root();
+    let entry_asset = project_path.join(&options.entry);
+    let entry_paths = vec![entry_asset];
 
-        let fs_path = Path::new(resource);
-        let resource = sys_to_unix(resource);
-        let path = root_fs.root().join(&resource);
-        let project_path = project_root.join(&resource);
+    let runtime_entries = maybe_load_env(project_fs.into(), fs_path).await?;
 
-        let entry_asset = project_path.join(&options.entry);
-        let entry_paths = vec![entry_asset];
-
-        let runtime_entries = maybe_load_env(project_fs.into(), fs_path).await?;
-
-        let env = EnvironmentVc::new(
-            Value::new(ExecutionEnvironment::Browser(
-                // TODO: load more from options.json
-                BrowserEnvironment {
-                    dom: true,
-                    web_worker: false,
-                    service_worker: false,
-                    browserslist_query: options.browserslist.to_owned(),
-                }
-                .into(),
-            )),
-            Value::new(EnvironmentIntention::Client),
-        );
-
-        let context: AssetContextVc = ModuleAssetContextVc::new(
-            TransitionsByNameVc::cell(HashMap::new()),
-            env,
-            ModuleOptionsContext {
-                enable_emotion: true,
-                enable_styled_components: true,
-                preset_env_versions: Some(env),
-                ..Default::default()
+    let env = EnvironmentVc::new(
+        Value::new(ExecutionEnvironment::Browser(
+            // TODO: load more from options.json
+            BrowserEnvironment {
+                dom: true,
+                web_worker: false,
+                service_worker: false,
+                browserslist_query: options.browserslist.to_owned(),
             }
             .into(),
-            ResolveOptionsContext {
-                enable_typescript: true,
-                enable_react: true,
-                enable_node_modules: true,
-                custom_conditions: vec!["development".to_string()],
-                ..Default::default()
-            }
-            .cell(),
-        )
-        .into();
+        )),
+        Value::new(EnvironmentIntention::Client),
+    );
 
-        let chunk_root_path = path.join("output");
-        let asset_root_path = path.join("static");
-        let chunking_context =
-            DevChunkingContextVc::builder(project_root, path, chunk_root_path, asset_root_path)
-                .build();
-
-        let existing_dir = chunk_root_path.read_dir().await?;
-        let mut expected_paths = HashMap::new();
-        if let DirectoryContent::Entries(entries) = &*existing_dir {
-            for (file, entry) in entries {
-                match entry {
-                    DirectoryEntry::File(file) => {
-                        expected_paths.insert(file.await?.path.clone(), file);
-                    }
-                    _ => panic!(
-                        "expected file at {}, found {:?}",
-                        file,
-                        FileSystemEntryType::from(entry)
-                    ),
-                }
-            }
-        };
-
-        let modules = entry_paths
-            .into_iter()
-            .map(|p| context.process(SourceAssetVc::new(p).into()));
-
-        let chunks = modules
-            .map(|module| async move {
-                if let Some(ecmascript) = EcmascriptModuleAssetVc::resolve_from(module).await? {
-                    // TODO: Load runtime entries from snapshots
-                    Ok(ecmascript.as_evaluated_chunk(chunking_context, runtime_entries))
-                } else if let Some(chunkable) = ChunkableAssetVc::resolve_from(module).await? {
-                    Ok(chunkable.as_chunk(chunking_context))
-                } else {
-                    // TODO convert into a serve-able asset
-                    Err(anyhow!(
-                        "Entry module is not chunkable, so it can't be used to bootstrap the \
-                         application"
-                    ))
-                }
-            })
-            .try_join()
-            .await?;
-
-        let mut seen = HashSet::new();
-        let mut queue = VecDeque::new();
-        for chunk in chunks {
-            queue.push_back(chunk.as_asset());
+    let context: AssetContextVc = ModuleAssetContextVc::new(
+        TransitionsByNameVc::cell(HashMap::new()),
+        env,
+        ModuleOptionsContext {
+            enable_emotion: true,
+            enable_styled_components: true,
+            preset_env_versions: Some(env),
+            ..Default::default()
         }
-
-        while let Some(asset) = queue.pop_front() {
-            walk_asset(asset, &mut seen, &mut queue).await?;
+        .into(),
+        ResolveOptionsContext {
+            enable_typescript: true,
+            enable_react: true,
+            enable_node_modules: true,
+            custom_conditions: vec!["development".to_string()],
+            ..Default::default()
         }
+        .cell(),
+    )
+    .into();
 
-        for path_str in seen {
-            expected_paths.remove(&path_str);
-        }
+    let chunk_root_path = path.join("output");
+    let static_root_path = path.join("static");
+    let chunking_context =
+        DevChunkingContextVc::builder(project_root, path, chunk_root_path, static_root_path)
+            .build();
 
-        for (path, _entry) in expected_paths {
-            if *UPDATE {
-                remove_file(workspace_root, &path)?;
-                println!("removed file {}", path);
+    let expected_paths = expected(chunk_root_path)
+        .await?
+        .union(&expected(static_root_path).await?)
+        .copied()
+        .collect();
+
+    let modules = entry_paths
+        .into_iter()
+        .map(SourceAssetVc::new)
+        .map(|p| context.process(p.into()));
+
+    let chunks = modules
+        .map(|module| async move {
+            if let Some(ecmascript) = EcmascriptModuleAssetVc::resolve_from(module).await? {
+                // TODO: Load runtime entries from snapshots
+                Ok(ecmascript.as_evaluated_chunk(chunking_context, runtime_entries))
+            } else if let Some(chunkable) = ChunkableAssetVc::resolve_from(module).await? {
+                Ok(chunkable.as_chunk(chunking_context))
             } else {
-                panic!("expected file {}, but it was not emitted", path);
+                // TODO convert into a serve-able asset
+                Err(anyhow!(
+                    "Entry module is not chunkable, so it can't be used to bootstrap the \
+                     application"
+                ))
             }
-        }
+        })
+        .try_join()
+        .await?;
 
-        Ok(NothingVc::new().into())
-    });
-    tt.wait_task_completion(task, true).await?;
+    let mut seen = HashSet::new();
+    let mut queue = VecDeque::new();
+    for chunk in chunks {
+        queue.push_back(chunk.as_asset());
+    }
 
-    Ok(())
+    while let Some(asset) = queue.pop_front() {
+        walk_asset(asset, &mut seen, &mut queue).await?;
+    }
+
+    matches_expected(expected_paths, seen).await?;
+
+    Ok(path)
 }
 
-fn remove_file(root: &str, path: &str) -> Result<()> {
-    // TODO: It'd be great if the entry exposed it's full path joined with the root
-    // of its FS. But defining a new Vc is annoying and I want this to be done.
-    let full_path = Path::new(root).join(path);
-    fs::remove_file(&full_path).context(format!("remove file {} error", full_path.display()))?;
+async fn remove_file(path: FileSystemPathVc) -> Result<()> {
+    let fs = DiskFileSystemVc::resolve_from(path.fs())
+        .await?
+        .context(anyhow!("unexpected fs type"))?
+        .await?;
+    let sys_path = fs.to_sys_path(path).await?;
+    fs::remove_file(&sys_path).context(format!("remove file {} error", sys_path.display()))?;
     Ok(())
 }
 
 async fn walk_asset(
     asset: AssetVc,
-    seen: &mut HashSet<String>,
+    seen: &mut HashSet<FileSystemPathVc>,
     queue: &mut VecDeque<AssetVc>,
 ) -> Result<()> {
     let path = asset.path();
-    let path_str = path.await?.path.clone();
 
-    if !seen.insert(path_str.to_string()) {
+    if !seen.insert(path) {
         return Ok(());
     }
 
-    diff(path, asset.content(), path.read().into()).await?;
+    diff(path, asset.content()).await?;
     queue.extend(&*all_referenced_assets(asset).await?);
 
     Ok(())
@@ -270,12 +265,9 @@ async fn get_contents(file: AssetContentVc) -> Result<Option<String>> {
     })
 }
 
-async fn diff(
-    path: FileSystemPathVc,
-    actual: AssetContentVc,
-    expected: AssetContentVc,
-) -> Result<()> {
+async fn diff(path: FileSystemPathVc, actual: AssetContentVc) -> Result<()> {
     let path_str = &path.await?.path;
+    let expected = path.read().into();
 
     let actual = match get_contents(actual).await? {
         Some(s) => s,
@@ -330,4 +322,91 @@ async fn maybe_load_env(
     Ok(Some(EcmascriptChunkPlaceablesVc::cell(vec![
         asset.as_ecmascript_chunk_placeable()
     ])))
+}
+
+async fn expected(dir: FileSystemPathVc) -> Result<HashSet<FileSystemPathVc>> {
+    let mut expected = HashSet::new();
+    let entries = dir.read_dir().await?;
+    if let DirectoryContent::Entries(entries) = &*entries {
+        for (file, entry) in entries {
+            match entry {
+                DirectoryEntry::File(file) => {
+                    expected.insert(*file);
+                }
+                _ => bail!(
+                    "expected file at {}, found {:?}",
+                    file,
+                    FileSystemEntryType::from(entry)
+                ),
+            }
+        }
+    }
+    Ok(expected)
+}
+
+/// Values in left that are not in right.
+/// FileSystemPathVc hashes as a Vc, not as the file path, so we need to get the
+/// path to properly diff.
+async fn diff_paths(
+    left: &HashSet<FileSystemPathVc>,
+    right: &HashSet<FileSystemPathVc>,
+) -> Result<HashSet<FileSystemPathVc>> {
+    let mut map = left
+        .iter()
+        .map(|p| async move { Ok((p.await?.path.clone(), *p)) })
+        .try_join()
+        .await?
+        .iter()
+        .cloned()
+        .collect::<HashMap<_, _>>();
+    for p in right {
+        map.remove(&p.await?.path);
+    }
+    Ok(map.values().copied().collect())
+}
+
+async fn matches_expected(
+    expected: HashSet<FileSystemPathVc>,
+    seen: HashSet<FileSystemPathVc>,
+) -> Result<()> {
+    for path in diff_paths(&expected, &seen).await? {
+        let p = &path.await?.path;
+        if *UPDATE {
+            remove_file(path).await?;
+            println!("removed file {}", p);
+        } else {
+            bail!("expected file {}, but it was not emitted", p);
+        }
+    }
+    Ok(())
+}
+
+async fn handle_issues(source: FileSystemPathVc) -> Result<()> {
+    let issues_path = source.join("issues");
+    let expected_issues = expected(issues_path).await?;
+
+    let mut seen = HashSet::new();
+    let issues = IssueVc::peek_issues_with_path(source)
+        .await?
+        .strongly_consistent()
+        .await?;
+
+    for issue in issues.iter() {
+        let plain_issue = issue.into_plain();
+        let hash = encode_hex(*plain_issue.internal_hash().await?);
+
+        let path = issues_path.join(&format!("{}-{}.txt", plain_issue.await?.title, &hash[0..6]));
+        seen.insert(path);
+
+        // Annoyingly, the PlainIssue.source -> PlainIssueSource.asset ->
+        // PlainAsset.path -> FileSystemPath.fs -> DiskFileSystem.root changes
+        // for everyone.
+        let content =
+            format!("{}", plain_issue.dbg().await?).replace(&*WORKSPACE_ROOT, "WORKSPACE_ROOT");
+        let asset = File::from(content).into();
+
+        diff(path, asset).await?;
+    }
+
+    matches_expected(expected_issues, seen).await
 }

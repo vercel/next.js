@@ -1,9 +1,11 @@
 {
+  "description": "DO NOT NPM INSTALL ANYTHING. This is not a real package.JSON, it's a stub for tests. The node_modules dir are stubs.",
+  "private": true,
   "devDependencies": {
-    "@swc/helpers": "^0.4.11",
-    "styled-components": "^5.3.6",
-    "react": "^18.0.0",
-    "@emotion/react": "11.10.4",
-    "@emotion/styled": "11.10.4"
+    "@swc/helpers": "100000000000",
+    "styled-components": "^100000",
+    "react": "1000000000000000000",
+    "@emotion/react": "1000000000",
+    "@emotion/styled": "100000000"
   }
 }

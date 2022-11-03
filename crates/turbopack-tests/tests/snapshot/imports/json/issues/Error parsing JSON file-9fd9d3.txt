@@ -1,0 +1,11 @@
+PlainIssue {
+    severity: Error,
+    context: "[project]/crates/turbopack-tests/tests/snapshot/imports/json/input/invalid.json",
+    category: "parse",
+    title: "Error parsing JSON file",
+    description: "\"File is not valid JSON\"",
+    detail: "",
+    documentation_link: "",
+    source: None,
+    sub_issues: [],
+}
