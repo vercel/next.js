@@ -87,7 +87,6 @@ export function useSearchParams() {
  * Get the current pathname. For example usePathname() on /dashboard?foo=bar would return "/dashboard"
  */
 export function usePathname(): string | null {
-  staticGenerationBailout('usePathname')
   return useContext(PathnameContext)
 }
 
