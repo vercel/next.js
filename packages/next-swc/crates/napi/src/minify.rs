@@ -33,7 +33,7 @@ use serde::Deserialize;
 use swc_core::{
     base::{config::JsMinifyOptions, try_with_handler, BoolOrDataConfig, TransformOutput},
     common::{errors::ColorConfig, sync::Lrc, FileName, SourceFile, SourceMap, GLOBALS},
-    ecma::minifier::option::terser::{TerserCompressorOptions, TerserInlineOption},
+    ecma::minifier::option::terser::TerserCompressorOptions,
 };
 
 use crate::{get_compiler, util::MapErr};
