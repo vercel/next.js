@@ -14,6 +14,7 @@ import { errorOverlayReducer } from './internal/error-overlay-reducer'
 import {
   ACTION_BUILD_OK,
   ACTION_BUILD_ERROR,
+  ACTION_BEFORE_REFRESH,
   ACTION_REFRESH,
   ACTION_UNHANDLED_ERROR,
   ACTION_UNHANDLED_REJECTION,
@@ -30,6 +31,7 @@ import {
 interface Dispatcher {
   onBuildOk(): void
   onBuildError(message: string): void
+  onBeforeRefresh(): void
   onRefresh(): void
 }
 
@@ -41,6 +43,12 @@ let __nextDevClientId = Math.round(Math.random() * 100 + Date.now())
 let hadRuntimeError = false
 
 // let startLatency = undefined
+
+function onBeforeFastRefresh(dispatcher: Dispatcher, hasUpdates: boolean) {
+  if (hasUpdates) {
+    dispatcher.onBeforeRefresh()
+  }
+}
 
 function onFastRefresh(dispatcher: Dispatcher, hasUpdates: boolean) {
   dispatcher.onBuildOk()
@@ -104,6 +112,7 @@ function performFullReload(err: any, sendMessage: any) {
 
 // Attempt to update code on the fly, fall back to a hard reload.
 function tryApplyUpdates(
+  onBeforeUpdate: (hasUpdates: boolean) => void,
   onHotUpdateSuccess: (hasUpdates: boolean) => void,
   sendMessage: any,
   dispatcher: Dispatcher
@@ -142,6 +151,7 @@ function tryApplyUpdates(
     if (isUpdateAvailable()) {
       // While we were updating, there was a new update! Do it again.
       tryApplyUpdates(
+        hasUpdates ? () => {} : onBeforeUpdate,
         hasUpdates ? () => dispatcher.onBuildOk() : onHotUpdateSuccess,
         sendMessage,
         dispatcher
@@ -161,14 +171,25 @@ function tryApplyUpdates(
 
   // https://webpack.js.org/api/hot-module-replacement/#check
   // @ts-expect-error module.hot exists
-  module.hot.check(/* autoApply */ true).then(
-    (updatedModules: any) => {
-      handleApplyUpdates(null, updatedModules)
-    },
-    (err: any) => {
-      handleApplyUpdates(err, null)
-    }
-  )
+  module.hot
+    .check(/* autoApply */ false)
+    .then((updatedModules: any) => {
+      const hasUpdates = Boolean(updatedModules.length)
+      if (typeof onBeforeUpdate === 'function') {
+        onBeforeUpdate(hasUpdates)
+      }
+      // https://webpack.js.org/api/hot-module-replacement/#apply
+      // @ts-expect-error module.hot exists
+      return module.hot.apply()
+    })
+    .then(
+      (updatedModules: any) => {
+        handleApplyUpdates(null, updatedModules)
+      },
+      (err: any) => {
+        handleApplyUpdates(err, null)
+      }
+    )
 }
 
 function processMessage(
@@ -260,6 +281,9 @@ function processMessage(
         // Attempt to apply hot updates or reload.
         if (isHotUpdate) {
           tryApplyUpdates(
+            function onBeforeHotUpdate(hasUpdates: boolean) {
+              onBeforeFastRefresh(dispatcher, hasUpdates)
+            },
             function onSuccessfulHotUpdate(hasUpdates: any) {
               // Only dismiss it when we're sure it's a hot update.
               // Otherwise it would flicker right before the reload.
@@ -287,6 +311,9 @@ function processMessage(
       // Attempt to apply hot updates or reload.
       if (isHotUpdate) {
         tryApplyUpdates(
+          function onBeforeHotUpdate(hasUpdates: boolean) {
+            onBeforeFastRefresh(dispatcher, hasUpdates)
+          },
           function onSuccessfulHotUpdate(hasUpdates: any) {
             // Only dismiss it when we're sure it's a hot update.
             // Otherwise it would flicker right before the reload.
@@ -361,6 +388,7 @@ export default function HotReload({
     nextId: 1,
     buildError: null,
     errors: [],
+    refreshState: { type: 'idle' },
   })
   const dispatcher = useMemo((): Dispatcher => {
     return {
@@ -369,6 +397,9 @@ export default function HotReload({
       },
       onBuildError(message: string): void {
         dispatch({ type: ACTION_BUILD_ERROR, message })
+      },
+      onBeforeRefresh(): void {
+        dispatch({ type: ACTION_BEFORE_REFRESH })
       },
       onRefresh(): void {
         dispatch({ type: ACTION_REFRESH })
