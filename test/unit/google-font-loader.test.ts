@@ -73,6 +73,30 @@ describe('@next/font/google loader', () => {
         { weight: '400' },
         'https://fonts.googleapis.com/css2?family=Molle:ital,wght@1,400&display=optional',
       ],
+      [
+        'Roboto',
+        { weight: ['500', '300', '400'], style: ['normal', 'italic'] },
+        'https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&display=optional',
+      ],
+      [
+        'Roboto Mono',
+        { style: ['italic', 'normal'] },
+        'https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,100..700;1,100..700&display=optional',
+      ],
+      [
+        'Fraunces',
+        {
+          style: ['normal', 'italic'],
+          axes: ['WONK', 'opsz', 'SOFT'],
+        },
+        'https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,100..900,0..100,0..1;1,9..144,100..900,0..100,0..1&display=optional',
+      ],
+
+      [
+        'Poppins',
+        { weight: ['900', '400', '100'] },
+        'https://fonts.googleapis.com/css2?family=Poppins:wght@100;400;900&display=optional',
+      ],
     ])('%s', async (functionName: string, data: any, url: string) => {
       fetch.mockResolvedValue({
         ok: true,
@@ -88,65 +112,9 @@ describe('@next/font/google loader', () => {
         isServer: true,
         variableName: 'myFont',
       })
-      expect(css).toBe('OK\n')
+      expect(css).toBe('OK')
       expect(fetch).toHaveBeenCalledTimes(1)
       expect(fetch).toHaveBeenCalledWith(url, expect.any(Object))
-    })
-
-    test('Multiple weights and styles', async () => {
-      let i = 1
-      fetch.mockResolvedValue({
-        ok: true,
-        text: async () => `${i++}`,
-      })
-
-      const { css } = await loader({
-        functionName: 'Roboto',
-        data: [
-          {
-            weight: ['300', '400', '500'],
-            style: ['normal', 'italic'],
-          },
-        ],
-        config: { subsets: [] },
-        emitFontFile: jest.fn(),
-        resolve: jest.fn(),
-        fs: {} as any,
-        isServer: true,
-        variableName: 'myFont',
-      })
-      expect(css).toBe('1\n2\n3\n4\n5\n6\n')
-      expect(fetch).toHaveBeenCalledTimes(6)
-      expect(fetch).toHaveBeenNthCalledWith(
-        1,
-        'https://fonts.googleapis.com/css2?family=Roboto:wght@300&display=optional',
-        expect.any(Object)
-      )
-      expect(fetch).toHaveBeenNthCalledWith(
-        2,
-        'https://fonts.googleapis.com/css2?family=Roboto:ital,wght@1,300&display=optional',
-        expect.any(Object)
-      )
-      expect(fetch).toHaveBeenNthCalledWith(
-        3,
-        'https://fonts.googleapis.com/css2?family=Roboto:wght@400&display=optional',
-        expect.any(Object)
-      )
-      expect(fetch).toHaveBeenNthCalledWith(
-        4,
-        'https://fonts.googleapis.com/css2?family=Roboto:ital,wght@1,400&display=optional',
-        expect.any(Object)
-      )
-      expect(fetch).toHaveBeenNthCalledWith(
-        5,
-        'https://fonts.googleapis.com/css2?family=Roboto:wght@500&display=optional',
-        expect.any(Object)
-      )
-      expect(fetch).toHaveBeenNthCalledWith(
-        6,
-        'https://fonts.googleapis.com/css2?family=Roboto:ital,wght@1,500&display=optional',
-        expect.any(Object)
-      )
     })
   })
 

@@ -130,7 +130,7 @@ export default singletonRouter as SingletonRouter
 export { default as withRouter } from './with-router'
 
 export function useRouter(throwOnMissing: true): NextRouter
-export function useRouter(): NextRouter | null
+export function useRouter(): NextRouter
 export function useRouter(throwOnMissing?: boolean) {
   const router = React.useContext(RouterContext)
   if (!router && throwOnMissing) {
