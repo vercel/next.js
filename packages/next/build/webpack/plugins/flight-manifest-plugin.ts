@@ -201,7 +201,7 @@ export class FlightManifestPlugin {
               },
             }
           } else {
-            // It is possible that there are mtuliepl modules with the same resouce,
+            // It is possible that there are multiple modules with the same resource,
             // e.g. extracted by mini-css-extract-plugin. In that case we need to
             // merge the chunks.
             manifest[resource].default.chunks = [
