@@ -357,7 +357,7 @@ describe('@next/font/google', () => {
       expect($('link[rel="preconnect"]').length).toBe(0)
 
       // Preload
-      expect($('link[as="font"]').length).toBe(7)
+      expect($('link[as="font"]').length).toBe(8)
 
       expect(
         Array.from($('link[as="font"]'))
@@ -369,6 +369,7 @@ describe('@next/font/google', () => {
         '/_next/static/media/560a6db6ac485cb1.p.woff2',
         '/_next/static/media/686d1702f12625fe.p.woff2',
         '/_next/static/media/86d92167ff02c708.p.woff2',
+        '/_next/static/media/9ac01b894b856187.p.woff2',
         '/_next/static/media/c9baea324111137d.p.woff2',
         '/_next/static/media/fb68b4558e2a718e.p.woff2',
       ])
