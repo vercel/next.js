@@ -7,6 +7,7 @@
 import { ChildProcess, spawn, SpawnOptions } from 'child_process'
 import { existsSync } from 'fs'
 import { resolve } from 'path'
+import glob from 'glob'
 
 import { getProjectSetting, projectSpecification } from './specification'
 import { CustomTemplateOptions, ProjectDeps, ProjectFiles } from './types'
@@ -18,7 +19,21 @@ const cli = require.resolve('create-next-app/dist/index.js')
  */
 export const createNextApp = (args: string[], options?: SpawnOptions) => {
   console.log(`[TEST] $ ${cli} ${args.join(' ')}`, { options })
-  return spawn('node', [cli].concat(args), options ?? {})
+  return spawn('node', [cli].concat(args), {
+    ...options,
+    env: {
+      ...process.env,
+      ...options.env,
+      // unset CI env as this skips the auto-install behavior
+      // being tested
+      CI: '',
+      CIRCLECI: '',
+      GITHUB_ACTIONS: '',
+      CONTINUOUS_INTEGRATION: '',
+      RUN_ID: '',
+      BUILD_NUMBER: '',
+    },
+  })
 }
 
 /**
@@ -46,7 +61,16 @@ export const projectFilesShouldExist = ({
 }: ProjectFiles) => {
   const projectRoot = resolve(cwd, projectName)
   for (const file of files) {
-    expect(existsSync(resolve(projectRoot, file))).toBe(true)
+    try {
+      expect(existsSync(resolve(projectRoot, file))).toBe(true)
+    } catch (err) {
+      require('console').error(
+        `missing expected file ${file}`,
+        glob.sync('**/*', { cwd, ignore: '**/node_modules/**' }),
+        files
+      )
+      throw err
+    }
   }
 }
 
@@ -57,7 +81,16 @@ export const projectFilesShouldNotExist = ({
 }: ProjectFiles) => {
   const projectRoot = resolve(cwd, projectName)
   for (const file of files) {
-    expect(existsSync(resolve(projectRoot, file))).toBe(false)
+    try {
+      expect(existsSync(resolve(projectRoot, file))).toBe(false)
+    } catch (err) {
+      require('console').error(
+        `unexpected file present ${file}`,
+        glob.sync('**/*', { cwd, ignore: '**/node_modules/**' }),
+        files
+      )
+      throw err
+    }
   }
 }
 

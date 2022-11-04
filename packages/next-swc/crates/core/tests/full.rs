@@ -3,6 +3,7 @@ use serde::de::DeserializeOwned;
 use std::path::{Path, PathBuf};
 use swc_core::{
     base::Compiler,
+    common::comments::SingleThreadedComments,
     ecma::parser::{Syntax, TsConfig},
     ecma::transforms::base::pass::noop,
 };
@@ -71,12 +72,14 @@ fn test(input: &Path, minify: bool) {
 
             let options = options.patch(&fm);
 
+            let comments = SingleThreadedComments::default();
             match c.process_js_with_custom_pass(
                 fm.clone(),
                 None,
                 &handler,
                 &options.swc,
-                |_, comments| {
+                comments.clone(),
+                |_| {
                     custom_before_pass(
                         cm.clone(),
                         fm.clone(),
@@ -85,7 +88,7 @@ fn test(input: &Path, minify: bool) {
                         Default::default(),
                     )
                 },
-                |_, _| noop(),
+                |_| noop(),
             ) {
                 Ok(v) => {
                     NormalizedOutput::from(v.code)
