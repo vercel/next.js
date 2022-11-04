@@ -12,19 +12,14 @@ import {
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
-const nodeArgs = ['-r', join(appDir, '../../lib/react-17-require-hook.js')]
 let appPort
 let app
 
 describe('AMP Fragment Styles', () => {
   beforeAll(async () => {
-    await nextBuild(appDir, [], {
-      nodeArgs,
-    })
+    await nextBuild(appDir, [])
     appPort = await findPort()
-    app = await nextStart(appDir, appPort, {
-      nodeArgs,
-    })
+    app = await nextStart(appDir, appPort)
   })
   afterAll(() => killApp(app))
 

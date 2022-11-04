@@ -1,80 +1,79 @@
 import type { ClientPagesLoaderOptions } from './webpack/loaders/next-client-pages-loader'
 import type { MiddlewareLoaderOptions } from './webpack/loaders/next-middleware-loader'
-import type { MiddlewareSSRLoaderQuery } from './webpack/loaders/next-middleware-ssr-loader'
-import type { NextConfigComplete, NextConfig } from '../server/config-shared'
-import type { PageRuntime } from '../server/config-shared'
-import type { ServerlessLoaderQuery } from './webpack/loaders/next-serverless-loader'
-import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
+import type { EdgeSSRLoaderQuery } from './webpack/loaders/next-edge-ssr-loader'
+import type { NextConfigComplete } from '../server/config-shared'
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
+import type {
+  MiddlewareConfig,
+  MiddlewareMatcher,
+} from './analysis/get-page-static-info'
 import type { LoadedEnvFiles } from '@next/env'
-import fs from 'fs'
 import chalk from 'next/dist/compiled/chalk'
 import { posix, join } from 'path'
 import { stringify } from 'querystring'
 import {
   API_ROUTE,
-  DOT_NEXT_ALIAS,
   PAGES_DIR_ALIAS,
-  ROOT_ALIAS,
   ROOT_DIR_ALIAS,
+  APP_DIR_ALIAS,
+  SERVER_RUNTIME,
+  WEBPACK_LAYERS,
 } from '../lib/constants'
+import { RSC_MODULE_TYPES } from '../shared/lib/constants'
 import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
-  CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT,
+  CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
+  CLIENT_STATIC_FILES_RUNTIME_POLYFILLS,
   CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
+  CompilerNameValues,
+  COMPILER_NAMES,
   EDGE_RUNTIME_WEBPACK,
 } from '../shared/lib/constants'
-import { MIDDLEWARE_ROUTE } from '../lib/constants'
 import { __ApiPreviewProps } from '../server/api-utils'
-import { isTargetLikeServerless } from '../server/utils'
 import { warn } from './output/log'
-import { parse } from '../build/swc'
-import { isServerComponentPage, withoutRSCExtensions } from './utils'
+import {
+  isMiddlewareFile,
+  isMiddlewareFilename,
+  NestedMiddlewareError,
+} from './utils'
+import { getPageStaticInfo } from './analysis/get-page-static-info'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
+import { ServerRuntime } from '../types'
+import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
+import { encodeMatchers } from './webpack/loaders/next-middleware-loader'
+import { EdgeFunctionLoaderOptions } from './webpack/loaders/next-edge-function-loader'
 
 type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never
 
 /**
- * For a given page path removes the provided extensions. `/_app.server` is a
- * special case because it is the only page where we want to preserve the RSC
- * server extension.
+ * For a given page path removes the provided extensions.
  */
-export function getPageFromPath(
-  pagePath: string,
-  pageExtensions: string[],
-  isRoot?: boolean
-) {
-  const extensions = pagePath.includes('/_app.server.')
-    ? withoutRSCExtensions(pageExtensions)
-    : pageExtensions
-
+export function getPageFromPath(pagePath: string, pageExtensions: string[]) {
   let page = normalizePathSep(
-    pagePath.replace(new RegExp(`\\.+(${extensions.join('|')})$`), '')
+    pagePath.replace(new RegExp(`\\.+(${pageExtensions.join('|')})$`), '')
   )
 
-  if (!isRoot) {
-    page = page.replace(/\/index$/, '')
-  }
+  page = page.replace(/\/index$/, '')
 
   return page === '' ? '/' : page
 }
 
 export function createPagesMapping({
-  hasServerComponents,
   isDev,
-  isRoot,
   pageExtensions,
   pagePaths,
+  pagesType,
+  pagesDir,
 }: {
-  hasServerComponents: boolean
   isDev: boolean
-  isRoot?: boolean
   pageExtensions: string[]
   pagePaths: string[]
+  pagesType: 'pages' | 'root' | 'app'
+  pagesDir: string | undefined
 }): { [page: string]: string } {
   const previousPages: { [key: string]: string } = {}
-  const pathAlias = isRoot ? ROOT_DIR_ALIAS : PAGES_DIR_ALIAS
   const pages = pagePaths.reduce<{ [key: string]: string }>(
     (result, pagePath) => {
       // Do not process .d.ts files inside the `pages` folder
@@ -82,14 +81,7 @@ export function createPagesMapping({
         return result
       }
 
-      const pageKey = getPageFromPath(pagePath, pageExtensions, isRoot)
-
-      // Assume that if there's a Client Component, that there is
-      // a matching Server Component that will map to the page.
-      // so we will not process it
-      if (hasServerComponents && /\.client$/.test(pageKey)) {
-        return result
-      }
+      const pageKey = getPageFromPath(pagePath, pageExtensions)
 
       if (pageKey in result) {
         warn(
@@ -103,150 +95,41 @@ export function createPagesMapping({
         previousPages[pageKey] = pagePath
       }
 
-      if (pageKey === 'root') {
-        result['root'] = normalizePathSep(join(ROOT_ALIAS, pagePath))
-      } else {
-        result[pageKey] = normalizePathSep(join(pathAlias, pagePath))
-      }
+      result[pageKey] = normalizePathSep(
+        join(
+          pagesType === 'pages'
+            ? PAGES_DIR_ALIAS
+            : pagesType === 'app'
+            ? APP_DIR_ALIAS
+            : ROOT_DIR_ALIAS,
+          pagePath
+        )
+      )
       return result
     },
     {}
   )
 
-  // In development we always alias these to allow Webpack to fallback to
-  // the correct source file so that HMR can work properly when a file is
-  // added or removed.
-
-  if (isRoot) {
-    if (isDev) {
-      pages['root'] = `${ROOT_ALIAS}/root`
-    } else {
-      pages['root'] = pages['root'] || 'next/dist/pages/root'
-    }
+  if (pagesType !== 'pages') {
     return pages
   }
 
   if (isDev) {
     delete pages['/_app']
-    delete pages['/_app.server']
     delete pages['/_error']
     delete pages['/_document']
   }
 
-  const root = isDev ? PAGES_DIR_ALIAS : 'next/dist/pages'
+  // In development we always alias these to allow Webpack to fallback to
+  // the correct source file so that HMR can work properly when a file is
+  // added or removed.
+  const root = isDev && pagesDir ? PAGES_DIR_ALIAS : 'next/dist/pages'
+
   return {
     '/_app': `${root}/_app`,
     '/_error': `${root}/_error`,
     '/_document': `${root}/_document`,
-    ...(hasServerComponents ? { '/_app.server': `${root}/_app.server` } : {}),
     ...pages,
-  }
-}
-
-const cachedPageRuntimeConfig = new Map<string, [number, PageRuntime]>()
-
-// @TODO: We should limit the maximum concurrency of this function as there
-// could be thousands of pages existing.
-export async function getPageRuntime(
-  pageFilePath: string,
-  nextConfig: Partial<NextConfig>,
-  isDev?: boolean
-): Promise<PageRuntime> {
-  if (!nextConfig.experimental?.reactRoot) return undefined
-
-  const globalRuntime = nextConfig.experimental?.runtime
-  const cached = cachedPageRuntimeConfig.get(pageFilePath)
-  if (cached) {
-    return cached[1]
-  }
-
-  let pageContent: string
-  try {
-    pageContent = await fs.promises.readFile(pageFilePath, {
-      encoding: 'utf8',
-    })
-  } catch (err) {
-    if (!isDev) throw err
-    return undefined
-  }
-
-  // When gSSP or gSP is used, this page requires an execution runtime. If the
-  // page config is not present, we fallback to the global runtime. Related
-  // discussion:
-  // https://github.com/vercel/next.js/discussions/34179
-  let isRuntimeRequired: boolean = false
-  let pageRuntime: PageRuntime = undefined
-
-  // Since these configurations should always be static analyzable, we can
-  // skip these cases that "runtime" and "gSP", "gSSP" are not included in the
-  // source code.
-  if (/runtime|getStaticProps|getServerSideProps/.test(pageContent)) {
-    try {
-      const { body } = await parse(pageContent, {
-        filename: pageFilePath,
-        isModule: 'unknown',
-      })
-
-      for (const node of body) {
-        const { type, declaration } = node
-        if (type === 'ExportDeclaration') {
-          // Match `export const config`
-          const valueNode = declaration?.declarations?.[0]
-          if (valueNode?.id?.value === 'config') {
-            const props = valueNode.init.properties
-            const runtimeKeyValue = props.find(
-              (prop: any) => prop.key.value === 'runtime'
-            )
-            const runtime = runtimeKeyValue?.value?.value
-            pageRuntime =
-              runtime === 'edge' || runtime === 'nodejs' ? runtime : pageRuntime
-          } else if (declaration?.type === 'FunctionDeclaration') {
-            // Match `export function getStaticProps | getServerSideProps`
-            const identifier = declaration.identifier?.value
-            if (
-              identifier === 'getStaticProps' ||
-              identifier === 'getServerSideProps'
-            ) {
-              isRuntimeRequired = true
-            }
-          }
-        } else if (type === 'ExportNamedDeclaration') {
-          // Match `export { getStaticProps | getServerSideProps } <from '../..'>`
-          const { specifiers } = node
-          for (const specifier of specifiers) {
-            const { orig } = specifier
-            const hasDataFetchingExports =
-              specifier.type === 'ExportSpecifier' &&
-              orig?.type === 'Identifier' &&
-              (orig?.value === 'getStaticProps' ||
-                orig?.value === 'getServerSideProps')
-            if (hasDataFetchingExports) {
-              isRuntimeRequired = true
-              break
-            }
-          }
-        }
-      }
-    } catch (err) {}
-  }
-
-  if (!pageRuntime) {
-    if (isRuntimeRequired) {
-      pageRuntime = globalRuntime
-    }
-  }
-
-  cachedPageRuntimeConfig.set(pageFilePath, [Date.now(), pageRuntime])
-  return pageRuntime
-}
-
-export function invalidatePageRuntimeCache(
-  pageFilePath: string,
-  safeTime: number
-) {
-  const cached = cachedPageRuntimeConfig.get(pageFilePath)
-  if (cached && cached[0] < safeTime) {
-    cachedPageRuntimeConfig.delete(pageFilePath)
   }
 }
 
@@ -256,93 +139,92 @@ interface CreateEntrypointsParams {
   envFiles: LoadedEnvFiles
   isDev?: boolean
   pages: { [page: string]: string }
-  pagesDir: string
+  pagesDir?: string
   previewMode: __ApiPreviewProps
-  target: 'server' | 'serverless' | 'experimental-serverless-trace'
-  rootDir?: string
+  rootDir: string
   rootPaths?: Record<string, string>
+  appDir?: string
+  appPaths?: Record<string, string>
+  pageExtensions: string[]
 }
 
 export function getEdgeServerEntry(opts: {
+  rootDir: string
   absolutePagePath: string
   buildId: string
   bundlePath: string
   config: NextConfigComplete
   isDev: boolean
+  isServerComponent: boolean
   page: string
   pages: { [page: string]: string }
-}): ObjectValue<webpack5.EntryObject> {
-  if (opts.page.match(MIDDLEWARE_ROUTE)) {
+  middleware?: Partial<MiddlewareConfig>
+  pagesType: 'app' | 'pages' | 'root'
+  appDirLoader?: string
+}) {
+  if (isMiddlewareFile(opts.page)) {
     const loaderParams: MiddlewareLoaderOptions = {
       absolutePagePath: opts.absolutePagePath,
       page: opts.page,
+      rootDir: opts.rootDir,
+      matchers: opts.middleware?.matchers
+        ? encodeMatchers(opts.middleware.matchers)
+        : '',
     }
 
     return `next-middleware-loader?${stringify(loaderParams)}!`
   }
 
-  const loaderParams: MiddlewareSSRLoaderQuery = {
+  if (opts.page.startsWith('/api/') || opts.page === '/api') {
+    const loaderParams: EdgeFunctionLoaderOptions = {
+      absolutePagePath: opts.absolutePagePath,
+      page: opts.page,
+      rootDir: opts.rootDir,
+    }
+
+    return `next-edge-function-loader?${stringify(loaderParams)}!`
+  }
+
+  const loaderParams: EdgeSSRLoaderQuery = {
     absolute500Path: opts.pages['/500'] || '',
     absoluteAppPath: opts.pages['/_app'],
-    absoluteAppServerPath: opts.pages['/_app.server'],
     absoluteDocumentPath: opts.pages['/_document'],
     absoluteErrorPath: opts.pages['/_error'],
     absolutePagePath: opts.absolutePagePath,
     buildId: opts.buildId,
     dev: opts.isDev,
-    isServerComponent: isServerComponentPage(
-      opts.config,
-      opts.absolutePagePath
-    ),
+    isServerComponent: opts.isServerComponent,
     page: opts.page,
     stringifiedConfig: JSON.stringify(opts.config),
+    pagesType: opts.pagesType,
+    appDirLoader: Buffer.from(opts.appDirLoader || '').toString('base64'),
+    sriEnabled: !opts.isDev && !!opts.config.experimental.sri?.algorithm,
+    hasFontLoaders: !!opts.config.experimental.fontLoaders,
   }
 
-  return `next-middleware-ssr-loader?${stringify(loaderParams)}!`
+  return {
+    import: `next-edge-ssr-loader?${stringify(loaderParams)}!`,
+    // The Edge bundle includes the server in its entrypoint, so it has to
+    // be in the SSR layer — we later convert the page request to the RSC layer
+    // via a webpack rule.
+    layer: WEBPACK_LAYERS.client,
+  }
 }
 
-export function getServerlessEntry(opts: {
-  absolutePagePath: string
-  buildId: string
-  config: NextConfigComplete
-  envFiles: LoadedEnvFiles
-  page: string
-  previewMode: __ApiPreviewProps
-  pages: { [page: string]: string }
-}): ObjectValue<webpack5.EntryObject> {
-  const loaderParams: ServerlessLoaderQuery = {
-    absolute404Path: opts.pages['/404'] || '',
-    absoluteAppPath: opts.pages['/_app'],
-    absoluteAppServerPath: opts.pages['/_app.server'],
-    absoluteDocumentPath: opts.pages['/_document'],
-    absoluteErrorPath: opts.pages['/_error'],
-    absolutePagePath: opts.absolutePagePath,
-    assetPrefix: opts.config.assetPrefix,
-    basePath: opts.config.basePath,
-    buildId: opts.buildId,
-    canonicalBase: opts.config.amp.canonicalBase || '',
-    distDir: DOT_NEXT_ALIAS,
-    generateEtags: opts.config.generateEtags ? 'true' : '',
-    i18n: opts.config.i18n ? JSON.stringify(opts.config.i18n) : '',
-    // base64 encode to make sure contents don't break webpack URL loading
-    loadedEnvFiles: Buffer.from(JSON.stringify(opts.envFiles)).toString(
-      'base64'
-    ),
-    page: opts.page,
-    poweredByHeader: opts.config.poweredByHeader ? 'true' : '',
-    previewProps: JSON.stringify(opts.previewMode),
-    reactRoot: !!opts.config.experimental.reactRoot ? 'true' : '',
-    runtimeConfig:
-      Object.keys(opts.config.publicRuntimeConfig).length > 0 ||
-      Object.keys(opts.config.serverRuntimeConfig).length > 0
-        ? JSON.stringify({
-            publicRuntimeConfig: opts.config.publicRuntimeConfig,
-            serverRuntimeConfig: opts.config.serverRuntimeConfig,
-          })
-        : '',
+export function getAppEntry(opts: {
+  name: string
+  pagePath: string
+  appDir: string
+  appPaths: string[] | null
+  pageExtensions: string[]
+  isDev?: boolean
+  rootDir?: string
+  tsconfigPath?: string
+}) {
+  return {
+    import: `next-app-loader?${stringify(opts)}!`,
+    layer: WEBPACK_LAYERS.server,
   }
-
-  return `next-serverless-loader?${stringify(loaderParams)}!`
 }
 
 export function getClientEntry(opts: {
@@ -364,112 +246,225 @@ export function getClientEntry(opts: {
     : pageLoader
 }
 
-export async function createEntrypoints(params: CreateEntrypointsParams) {
-  const { config, pages, pagesDir, isDev, target, rootDir, rootPaths } = params
-  const edgeServer: webpack5.EntryObject = {}
-  const server: webpack5.EntryObject = {}
-  const client: webpack5.EntryObject = {}
-
-  const getEntryHandler =
-    (mappings: Record<string, string>, isRoot: boolean) =>
-    async (page: string) => {
-      const bundleFile = normalizePagePath(page)
-      const clientBundlePath = posix.join('pages', bundleFile)
-      const serverBundlePath = posix.join(
-        isRoot ? (bundleFile === '/root' ? './' : 'root') : 'pages',
-        bundleFile
-      )
-
-      // Handle paths that have aliases
-      const pageFilePath = (() => {
-        const absolutePagePath = mappings[page]
-        if (absolutePagePath.startsWith(PAGES_DIR_ALIAS)) {
-          return absolutePagePath.replace(PAGES_DIR_ALIAS, pagesDir)
-        }
-
-        if (absolutePagePath.startsWith(ROOT_DIR_ALIAS) && rootDir) {
-          return absolutePagePath.replace(ROOT_DIR_ALIAS, rootDir)
-        }
-
-        if (absolutePagePath.startsWith(ROOT_ALIAS) && rootDir) {
-          return absolutePagePath.replace(ROOT_ALIAS, join(rootDir, '..'))
-        }
-
-        return require.resolve(absolutePagePath)
-      })()
-
-      runDependingOnPageType({
-        page,
-        pageRuntime: await getPageRuntime(pageFilePath, config, isDev),
-        onClient: () => {
-          client[clientBundlePath] = getClientEntry({
-            absolutePagePath: mappings[page],
-            page,
-          })
-        },
-        onServer: () => {
-          if (isTargetLikeServerless(target)) {
-            if (page !== '/_app' && page !== '/_document') {
-              server[serverBundlePath] = getServerlessEntry({
-                ...params,
-                absolutePagePath: mappings[page],
-                page,
-              })
-            }
-          } else {
-            server[serverBundlePath] = [mappings[page]]
-          }
-        },
-        onEdgeServer: () => {
-          edgeServer[serverBundlePath] = getEdgeServerEntry({
-            ...params,
-            absolutePagePath: mappings[page],
-            bundlePath: clientBundlePath,
-            isDev: false,
-            page,
-          })
-        },
-      })
-    }
-
-  if (rootDir && rootPaths) {
-    const entryHandler = getEntryHandler(rootPaths, true)
-    await Promise.all(Object.keys(rootPaths).map(entryHandler))
-  }
-  await Promise.all(Object.keys(pages).map(getEntryHandler(pages, false)))
-
-  return {
-    client,
-    server,
-    edgeServer,
-  }
-}
-
-export function runDependingOnPageType<T>(params: {
+export async function runDependingOnPageType<T>(params: {
   onClient: () => T
   onEdgeServer: () => T
   onServer: () => T
   page: string
-  pageRuntime: PageRuntime
-}) {
-  if (params.page.match(MIDDLEWARE_ROUTE)) {
-    return [params.onEdgeServer()]
-  } else if (params.page.match(API_ROUTE)) {
-    return [params.onServer()]
-  } else if (params.page === '/_document') {
-    return [params.onServer()]
-  } else if (
+  pageRuntime: ServerRuntime
+}): Promise<void> {
+  if (isMiddlewareFile(params.page)) {
+    await params.onEdgeServer()
+    return
+  }
+  if (params.page.match(API_ROUTE)) {
+    if (params.pageRuntime === SERVER_RUNTIME.edge) {
+      await params.onEdgeServer()
+      return
+    }
+
+    await params.onServer()
+    return
+  }
+  if (params.page === '/_document') {
+    await params.onServer()
+    return
+  }
+  if (
     params.page === '/_app' ||
     params.page === '/_error' ||
     params.page === '/404' ||
     params.page === '/500'
   ) {
-    return [params.onClient(), params.onServer()]
-  } else {
-    return [
-      params.onClient(),
-      params.pageRuntime === 'edge' ? params.onEdgeServer() : params.onServer(),
-    ]
+    await Promise.all([params.onClient(), params.onServer()])
+    return
+  }
+  if (params.pageRuntime === SERVER_RUNTIME.edge) {
+    await Promise.all([params.onClient(), params.onEdgeServer()])
+    return
+  }
+
+  await Promise.all([params.onClient(), params.onServer()])
+  return
+}
+
+export async function createEntrypoints(params: CreateEntrypointsParams) {
+  const {
+    config,
+    pages,
+    pagesDir,
+    isDev,
+    rootDir,
+    rootPaths,
+    appDir,
+    appPaths,
+    pageExtensions,
+  } = params
+  const edgeServer: webpack.EntryObject = {}
+  const server: webpack.EntryObject = {}
+  const client: webpack.EntryObject = {}
+  const nestedMiddleware: string[] = []
+  let middlewareMatchers: MiddlewareMatcher[] | undefined = undefined
+
+  let appPathsPerRoute: Record<string, string[]> = {}
+  if (appDir && appPaths) {
+    for (const pathname in appPaths) {
+      const normalizedPath = normalizeAppPath(pathname) || '/'
+      if (!appPathsPerRoute[normalizedPath]) {
+        appPathsPerRoute[normalizedPath] = []
+      }
+      appPathsPerRoute[normalizedPath].push(pathname)
+    }
+
+    // Make sure to sort parallel routes to make the result deterministic.
+    appPathsPerRoute = Object.fromEntries(
+      Object.entries(appPathsPerRoute).map(([k, v]) => [k, v.sort()])
+    )
+  }
+
+  const getEntryHandler =
+    (mappings: Record<string, string>, pagesType: 'app' | 'pages' | 'root') =>
+    async (page: string) => {
+      const bundleFile = normalizePagePath(page)
+      const clientBundlePath = posix.join(pagesType, bundleFile)
+      const serverBundlePath =
+        pagesType === 'pages'
+          ? posix.join('pages', bundleFile)
+          : pagesType === 'app'
+          ? posix.join('app', bundleFile)
+          : bundleFile.slice(1)
+      const absolutePagePath = mappings[page]
+
+      // Handle paths that have aliases
+      const pageFilePath = (() => {
+        if (absolutePagePath.startsWith(PAGES_DIR_ALIAS) && pagesDir) {
+          return absolutePagePath.replace(PAGES_DIR_ALIAS, pagesDir)
+        }
+
+        if (absolutePagePath.startsWith(APP_DIR_ALIAS) && appDir) {
+          return absolutePagePath.replace(APP_DIR_ALIAS, appDir)
+        }
+
+        if (absolutePagePath.startsWith(ROOT_DIR_ALIAS)) {
+          return absolutePagePath.replace(ROOT_DIR_ALIAS, rootDir)
+        }
+
+        return require.resolve(absolutePagePath)
+      })()
+
+      /**
+       * When we find a middleware file that is not in the ROOT_DIR we fail.
+       * There is no need to check on `dev` as this should only happen when
+       * building for production.
+       */
+      if (
+        !absolutePagePath.startsWith(ROOT_DIR_ALIAS) &&
+        /[\\\\/]_middleware$/.test(page)
+      ) {
+        nestedMiddleware.push(page)
+      }
+
+      const isInsideAppDir =
+        !!appDir &&
+        (absolutePagePath.startsWith(APP_DIR_ALIAS) ||
+          absolutePagePath.startsWith(appDir))
+
+      const staticInfo = await getPageStaticInfo({
+        nextConfig: config,
+        pageFilePath,
+        isDev,
+        page,
+        pageType: isInsideAppDir ? 'app' : 'pages',
+      })
+
+      const isServerComponent =
+        isInsideAppDir && staticInfo.rsc !== RSC_MODULE_TYPES.client
+
+      if (isMiddlewareFile(page)) {
+        middlewareMatchers = staticInfo.middleware?.matchers ?? [
+          { regexp: '.*' },
+        ]
+      }
+
+      await runDependingOnPageType({
+        page,
+        pageRuntime: staticInfo.runtime,
+        onClient: () => {
+          if (isServerComponent || isInsideAppDir) {
+            // We skip the initial entries for server component pages and let the
+            // server compiler inject them instead.
+          } else {
+            client[clientBundlePath] = getClientEntry({
+              absolutePagePath: mappings[page],
+              page,
+            })
+          }
+        },
+        onServer: () => {
+          if (pagesType === 'app' && appDir) {
+            const matchedAppPaths =
+              appPathsPerRoute[normalizeAppPath(page) || '/']
+            server[serverBundlePath] = getAppEntry({
+              name: serverBundlePath,
+              pagePath: mappings[page],
+              appDir,
+              appPaths: matchedAppPaths,
+              pageExtensions,
+            })
+          } else {
+            server[serverBundlePath] = [mappings[page]]
+          }
+        },
+        onEdgeServer: () => {
+          let appDirLoader: string = ''
+          if (pagesType === 'app') {
+            const matchedAppPaths =
+              appPathsPerRoute[normalizeAppPath(page) || '/']
+            appDirLoader = getAppEntry({
+              name: serverBundlePath,
+              pagePath: mappings[page],
+              appDir: appDir!,
+              appPaths: matchedAppPaths,
+              pageExtensions,
+            }).import
+          }
+
+          edgeServer[serverBundlePath] = getEdgeServerEntry({
+            ...params,
+            rootDir,
+            absolutePagePath: mappings[page],
+            bundlePath: clientBundlePath,
+            isDev: false,
+            isServerComponent,
+            page,
+            middleware: staticInfo?.middleware,
+            pagesType,
+            appDirLoader,
+          })
+        },
+      })
+    }
+
+  if (appDir && appPaths) {
+    const entryHandler = getEntryHandler(appPaths, 'app')
+    await Promise.all(Object.keys(appPaths).map(entryHandler))
+  }
+  if (rootPaths) {
+    await Promise.all(
+      Object.keys(rootPaths).map(getEntryHandler(rootPaths, 'root'))
+    )
+  }
+  await Promise.all(Object.keys(pages).map(getEntryHandler(pages, 'pages')))
+
+  if (nestedMiddleware.length > 0) {
+    throw new NestedMiddlewareError(nestedMiddleware, rootDir, pagesDir!)
+  }
+
+  return {
+    client,
+    server,
+    edgeServer,
+    middlewareMatchers,
   }
 }
 
@@ -477,29 +472,40 @@ export function finalizeEntrypoint({
   name,
   compilerType,
   value,
+  isServerComponent,
+  hasAppDir,
 }: {
-  compilerType?: 'client' | 'server' | 'edge-server'
+  compilerType?: CompilerNameValues
   name: string
-  value: ObjectValue<webpack5.EntryObject>
-}): ObjectValue<webpack5.EntryObject> {
+  value: ObjectValue<webpack.EntryObject>
+  isServerComponent?: boolean
+  hasAppDir?: boolean
+}): ObjectValue<webpack.EntryObject> {
   const entry =
     typeof value !== 'object' || Array.isArray(value)
       ? { import: value }
       : value
 
-  if (compilerType === 'server') {
-    const isApi = name.startsWith('pages/api/')
+  const isApi = name.startsWith('pages/api/')
+  if (compilerType === COMPILER_NAMES.server) {
     return {
       publicPath: isApi ? '' : undefined,
       runtime: isApi ? 'webpack-api-runtime' : 'webpack-runtime',
-      layer: isApi ? 'api' : undefined,
+      layer: isApi
+        ? WEBPACK_LAYERS.api
+        : isServerComponent
+        ? WEBPACK_LAYERS.server
+        : undefined,
       ...entry,
     }
   }
 
-  if (compilerType === 'edge-server') {
+  if (compilerType === COMPILER_NAMES.edgeServer) {
     return {
-      layer: MIDDLEWARE_ROUTE.test(name) ? 'middleware' : undefined,
+      layer:
+        isMiddlewareFilename(name) || isApi
+          ? WEBPACK_LAYERS.middleware
+          : undefined,
       library: { name: ['_ENTRIES', `middleware_[name]`], type: 'assign' },
       runtime: EDGE_RUNTIME_WEBPACK,
       asyncChunks: false,
@@ -509,17 +515,25 @@ export function finalizeEntrypoint({
 
   if (
     // Client special cases
-    name !== 'polyfills' &&
+    name !== CLIENT_STATIC_FILES_RUNTIME_POLYFILLS &&
     name !== CLIENT_STATIC_FILES_RUNTIME_MAIN &&
-    name !== CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT &&
+    name !== CLIENT_STATIC_FILES_RUNTIME_MAIN_APP &&
     name !== CLIENT_STATIC_FILES_RUNTIME_AMP &&
     name !== CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH
   ) {
+    // TODO-APP: this is a temporary fix. @shuding is going to change the handling of server components
+    if (hasAppDir && entry.import.includes('next-flight-client-entry-loader')) {
+      return {
+        dependOn: CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
+        ...entry,
+      }
+    }
+
     return {
       dependOn:
         name.startsWith('pages/') && name !== 'pages/_app'
           ? 'pages/_app'
-          : 'main',
+          : CLIENT_STATIC_FILES_RUNTIME_MAIN,
       ...entry,
     }
   }

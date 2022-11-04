@@ -2,11 +2,11 @@
 
 This example shows different strategies that can be used for the [`next/script` component](https://nextjs.org/docs/basic-features/script):
 
-- [Loading Polyfills](./pages/polyfill.js)
-- [Lazy loading](./pages/lazy.js)
-- [Executing code after loading](./pages/onload.js)
-- [Inline scripts](./pages/inline.js)
-- [Forwarding attributes](./pages/attributes.js)
+- [Loading Polyfills](./pages/polyfill.tsx)
+- [Lazy loading](./pages/lazy.tsx)
+- [Executing code after loading](./pages/onload.tsx)
+- [Inline scripts](./pages/inline.tsx)
+- [Forwarding attributes](./pages/attributes.tsx)
 
 ## Deploy your own
 
@@ -16,14 +16,18 @@ Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_mediu
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
 
 ```bash
 npx create-next-app --example script-component script-component-app
-# or
+```
+
+```bash
 yarn create next-app --example script-component script-component-app
-# or
-pnpm create next-app -- --example script-component script-component-app
+```
+
+```bash
+pnpm create next-app --example script-component script-component-app
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

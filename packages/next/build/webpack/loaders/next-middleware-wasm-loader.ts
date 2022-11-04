@@ -1,6 +1,10 @@
 import { getModuleBuildInfo } from './get-module-build-info'
 import crypto from 'crypto'
 
+function sha1(source: string | Buffer) {
+  return crypto.createHash('sha1').update(source).digest('hex')
+}
+
 export default function MiddlewareWasmLoader(this: any, source: Buffer) {
   const name = `wasm_${sha1(source)}`
   const filePath = `edge-chunks/${name}.wasm`
@@ -11,7 +15,3 @@ export default function MiddlewareWasmLoader(this: any, source: Buffer) {
 }
 
 export const raw = true
-
-function sha1(source: string | Buffer) {
-  return crypto.createHash('sha1').update(source).digest('hex')
-}

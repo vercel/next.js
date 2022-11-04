@@ -16,7 +16,7 @@ However, because markdown is essentially static content, you can't create _dynam
 
 ## MDX Plugins
 
-Internally MDX uses remark and rehype. Remark is a markdown processor powered by a plugins ecosystem. This plugin ecosystem lets you parse code, transform `HTML` elements, change syntax, extract frontmatter, and more.
+Internally MDX uses remark and rehype. Remark is a markdown processor powered by a plugins ecosystem. This plugin ecosystem lets you parse code, transform `HTML` elements, change syntax, extract frontmatter, and more. Using [remark-gfm to enable GitHub flavored markdown (GFM)](https://mdxjs.com/guides/gfm/) is a popular option.
 
 Rehype is an `HTML` processor, also powered by a plugin ecosystem. Similar to remark, these plugins let you manipulate, sanitize, compile and configure all types of data, elements and content.
 
@@ -33,7 +33,7 @@ The following steps outline how to setup `@next/mdx` in your Next.js project:
 1. Install the required packages:
 
    ```bash
-     npm install @next/mdx @mdx-js/loader
+     npm install @next/mdx @mdx-js/loader @mdx-js/react
    ```
 
 2. Require the package and configure to support top level `.mdx` pages. The following adds the `options` object key allowing you to pass in any plugins:
@@ -44,6 +44,9 @@ The following steps outline how to setup `@next/mdx` in your Next.js project:
    const withMDX = require('@next/mdx')({
      extension: /\.mdx?$/,
      options: {
+       // If you use remark-gfm, you'll need to use next.config.mjs
+       // as the package is ESM only
+       // https://github.com/remarkjs/remark-gfm#install
        remarkPlugins: [],
        rehypePlugins: [],
        // If you use `MDXProvider`, uncomment the following line.
@@ -203,6 +206,19 @@ export default function Post(props) {
 ```
 
 If you use it across the site you may want to add the provider to `_app.js` so all MDX pages pick up the custom element config.
+
+## Using rust based MDX compiler (experimental)
+
+Next.js supports a new MDX compiler written in Rust. This compiler is still experimental and is not recommended for production use. To use the new compiler, you need to configure `next.config.js` when you pass it to `withMDX`:
+
+```js
+// next.config.js
+module.exports = withMDX({
+  experimental: {
+    mdxRs: true,
+  },
+})
+```
 
 ## Helpful Links
 

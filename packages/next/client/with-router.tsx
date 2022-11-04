@@ -1,6 +1,11 @@
 import React from 'react'
-import { NextComponentType, NextPageContext } from '../shared/lib/utils'
-import { NextRouter, useRouter } from './router'
+import type {
+  BaseContext,
+  NextComponentType,
+  NextPageContext,
+} from '../shared/lib/utils'
+import type { NextRouter } from './router'
+import { useRouter } from './router'
 
 export type WithRouterProps = {
   router: NextRouter
@@ -13,7 +18,7 @@ export type ExcludeRouterProps<P> = Pick<
 
 export default function withRouter<
   P extends WithRouterProps,
-  C = NextPageContext
+  C extends BaseContext = NextPageContext
 >(
   ComposedComponent: NextComponentType<C, any, P>
 ): React.ComponentType<ExcludeRouterProps<P>> {

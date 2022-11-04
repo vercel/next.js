@@ -195,7 +195,9 @@ class UrlNode {
   }
 }
 
-export function getSortedRoutes(normalizedPages: string[]): string[] {
+export function getSortedRoutes(
+  normalizedPages: ReadonlyArray<string>
+): string[] {
   // First the UrlNode is created, and every UrlNode can have only 1 dynamic segment
   // Eg you can't have pages/[post]/abc.js and pages/[hello]/something-else.js
   // Only 1 dynamic segment per nesting level

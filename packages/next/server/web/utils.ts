@@ -1,25 +1,5 @@
 import type { NodeHeaders } from './types'
 
-export async function* streamToIterator<T>(
-  readable: ReadableStream<T>
-): AsyncIterableIterator<T> {
-  const reader = readable.getReader()
-  while (true) {
-    const { value, done } = await reader.read()
-    if (done) break
-    if (value) {
-      yield value
-    }
-  }
-  reader.releaseLock()
-}
-
-export function notImplemented(name: string, method: string): any {
-  throw new Error(
-    `Failed to get the '${method}' property on '${name}': the property is not implemented`
-  )
-}
-
 export function fromNodeHeaders(object: NodeHeaders): Headers {
   const headers = new Headers()
   for (let [key, value] of Object.entries(object)) {
@@ -31,19 +11,6 @@ export function fromNodeHeaders(object: NodeHeaders): Headers {
     }
   }
   return headers
-}
-
-export function toNodeHeaders(headers?: Headers): NodeHeaders {
-  const result: NodeHeaders = {}
-  if (headers) {
-    for (const [key, value] of headers.entries()) {
-      result[key] = value
-      if (key.toLowerCase() === 'set-cookie') {
-        result[key] = splitCookiesString(value)
-      }
-    }
-  }
-  return result
 }
 
 /*
@@ -122,6 +89,19 @@ export function splitCookiesString(cookiesString: string) {
   return cookiesStrings
 }
 
+export function toNodeHeaders(headers?: Headers): NodeHeaders {
+  const result: NodeHeaders = {}
+  if (headers) {
+    for (const [key, value] of headers.entries()) {
+      result[key] = value
+      if (key.toLowerCase() === 'set-cookie') {
+        result[key] = splitCookiesString(value)
+      }
+    }
+  }
+  return result
+}
+
 /**
  * Validate the correctness of a user-provided URL.
  */
@@ -130,7 +110,9 @@ export function validateURL(url: string | URL): string {
     return String(new URL(String(url)))
   } catch (error: any) {
     throw new Error(
-      `URLs is malformed. Please use only absolute URLs - https://nextjs.org/docs/messages/middleware-relative-urls`,
+      `URL is malformed "${String(
+        url
+      )}". Please use only absolute URLs - https://nextjs.org/docs/messages/middleware-relative-urls`,
       { cause: error }
     )
   }

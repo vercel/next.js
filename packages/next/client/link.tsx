@@ -1,16 +1,23 @@
+'use client'
+
 import React from 'react'
 import { UrlObject } from 'url'
 import {
-  addBasePath,
-  addLocale,
-  getDomainLocale,
   isLocalURL,
   NextRouter,
-  PrefetchOptions,
+  PrefetchOptions as RouterPrefetchOptions,
   resolveHref,
 } from '../shared/lib/router/router'
-import { useRouter } from './router'
+import { formatUrl } from '../shared/lib/router/utils/format-url'
+import { addLocale } from './add-locale'
+import { RouterContext } from '../shared/lib/router-context'
+import {
+  AppRouterContext,
+  AppRouterInstance,
+} from '../shared/lib/app-router-context'
 import { useIntersection } from './use-intersection'
+import { getDomainLocale } from './get-domain-locale'
+import { addBasePath } from './add-base-path'
 
 type Url = string | UrlObject
 type RequiredKeys<T> = {
@@ -21,60 +28,141 @@ type OptionalKeys<T> = {
 }[keyof T]
 
 type InternalLinkProps = {
+  /**
+   * The path or URL to navigate to. It can also be an object.
+   *
+   * @example https://nextjs.org/docs/api-reference/next/link#with-url-object
+   */
   href: Url
+  /**
+   * Optional decorator for the path that will be shown in the browser URL bar. Before Next.js 9.5.3 this was used for dynamic routes, check our [previous docs](https://nextjs.org/docs/tag/v9.5.2/api-reference/next/link#dynamic-routes) to see how it worked. Note: when this path differs from the one provided in `href` the previous `href`/`as` behavior is used as shown in the [previous docs](https://nextjs.org/docs/tag/v9.5.2/api-reference/next/link#dynamic-routes).
+   */
   as?: Url
+  /**
+   * Replace the current `history` state instead of adding a new url into the stack.
+   *
+   * @defaultValue `false`
+   */
   replace?: boolean
+  /**
+   * Whether to override the default scroll behavior
+   *
+   * @example https://nextjs.org/docs/api-reference/next/link#disable-scrolling-to-the-top-of-the-page
+   *
+   * @defaultValue `true`
+   */
   scroll?: boolean
+  /**
+   * Update the path of the current page without rerunning [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md), [`getServerSideProps`](/docs/basic-features/data-fetching/get-server-side-props.md) or [`getInitialProps`](/docs/api-reference/data-fetching/get-initial-props.md).
+   *
+   * @defaultValue `false`
+   */
   shallow?: boolean
+  /**
+   * Forces `Link` to send the `href` property to its child.
+   *
+   * @defaultValue `false`
+   */
   passHref?: boolean
+  /**
+   * Prefetch the page in the background.
+   * Any `<Link />` that is in the viewport (initially or through scroll) will be preloaded.
+   * Prefetch can be disabled by passing `prefetch={false}`. When `prefetch` is set to `false`, prefetching will still occur on hover. Pages using [Static Generation](/docs/basic-features/data-fetching/get-static-props.md) will preload `JSON` files with the data for faster page transitions. Prefetching is only enabled in production.
+   *
+   * @defaultValue `true`
+   */
   prefetch?: boolean
+  /**
+   * The active locale is automatically prepended. `locale` allows for providing a different locale.
+   * When `false` `href` has to include the locale as the default behavior is disabled.
+   */
   locale?: string | false
+  /**
+   * Enable legacy link behavior.
+   * @defaultValue `false`
+   * @see https://github.com/vercel/next.js/commit/489e65ed98544e69b0afd7e0cfc3f9f6c2b803b7
+   */
   legacyBehavior?: boolean
   // e: any because as it would otherwise overlap with existing types
   /**
-   * requires experimental.newNextLinkBehavior
+   * Optional event handler for when the mouse pointer is moved onto Link
    */
   onMouseEnter?: (e: any) => void
   // e: any because as it would otherwise overlap with existing types
   /**
-   * requires experimental.newNextLinkBehavior
+   * Optional event handler for when Link is touched.
+   */
+  onTouchStart?: (e: any) => void
+  // e: any because as it would otherwise overlap with existing types
+  /**
+   * Optional event handler for when Link is clicked.
    */
   onClick?: (e: any) => void
 }
 
-// TODO: Include the full set of Anchor props
+// TODO-APP: Include the full set of Anchor props
 // adding this to the publicly exported type currently breaks existing apps
 export type LinkProps = InternalLinkProps
 type LinkPropsRequired = RequiredKeys<LinkProps>
 type LinkPropsOptional = OptionalKeys<InternalLinkProps>
 
-const prefetched: { [cacheKey: string]: boolean } = {}
+const prefetched = new Set<string>()
+
+type PrefetchOptions = RouterPrefetchOptions & {
+  /**
+   * bypassPrefetchedCheck will bypass the check to see if the `href` has
+   * already been fetched.
+   */
+  bypassPrefetchedCheck?: boolean
+}
 
 function prefetch(
-  router: NextRouter,
+  router: NextRouter | AppRouterInstance,
   href: string,
   as: string,
-  options?: PrefetchOptions
+  options: PrefetchOptions
 ): void {
-  if (typeof window === 'undefined' || !router) return
-  if (!isLocalURL(href)) return
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  if (!isLocalURL(href)) {
+    return
+  }
+
+  // We should only dedupe requests when experimental.optimisticClientCache is
+  // disabled.
+  if (!options.bypassPrefetchedCheck) {
+    const locale =
+      // Let the link's locale prop override the default router locale.
+      typeof options.locale !== 'undefined'
+        ? options.locale
+        : // Otherwise fallback to the router's locale.
+        'locale' in router
+        ? router.locale
+        : undefined
+
+    const prefetchedKey = href + '%' + as + '%' + locale
+
+    // If we've already fetched the key, then don't prefetch it again!
+    if (prefetched.has(prefetchedKey)) {
+      return
+    }
+
+    // Mark this URL as prefetched.
+    prefetched.add(prefetchedKey)
+  }
+
   // Prefetch the JSON page if asked (only in the client)
   // We need to handle a prefetch error here since we may be
   // loading with priority which can reject but we don't
   // want to force navigation since this is only a prefetch
-  router.prefetch(href, as, options).catch((err) => {
+  Promise.resolve(router.prefetch(href, as, options)).catch((err) => {
     if (process.env.NODE_ENV !== 'production') {
       // rethrow to show invalid URL errors
       throw err
     }
   })
-  const curLocale =
-    options && typeof options.locale !== 'undefined'
-      ? options.locale
-      : router && router.locale
-
-  // Join on an invalid URI character
-  prefetched[href + '%' + as + (curLocale ? '%' + curLocale : '')] = true
 }
 
 function isModifiedEvent(event: React.MouseEvent): boolean {
@@ -91,13 +179,15 @@ function isModifiedEvent(event: React.MouseEvent): boolean {
 
 function linkClicked(
   e: React.MouseEvent,
-  router: NextRouter,
+  router: NextRouter | AppRouterInstance,
   href: string,
   as: string,
   replace?: boolean,
   shallow?: boolean,
   scroll?: boolean,
-  locale?: string | false
+  locale?: string | false,
+  isAppRouter?: boolean,
+  prefetchEnabled?: boolean
 ): void {
   const { nodeName } = e.currentTarget
 
@@ -111,12 +201,27 @@ function linkClicked(
 
   e.preventDefault()
 
-  // replace state instead of push if prop is present
-  router[replace ? 'replace' : 'push'](href, as, {
-    shallow,
-    locale,
-    scroll,
-  })
+  const navigate = () => {
+    // If the router is an NextRouter instance it will have `beforePopState`
+    if ('beforePopState' in router) {
+      router[replace ? 'replace' : 'push'](href, as, {
+        shallow,
+        locale,
+        scroll,
+      })
+    } else {
+      router[replace ? 'replace' : 'push'](as || href, {
+        forceOptimisticNavigation: !prefetchEnabled,
+      })
+    }
+  }
+
+  if (isAppRouter) {
+    // @ts-expect-error startTransition exists.
+    React.startTransition(navigate)
+  } else {
+    navigate()
+  }
 }
 
 type LinkPropsReal = React.PropsWithChildren<
@@ -124,11 +229,19 @@ type LinkPropsReal = React.PropsWithChildren<
     LinkProps
 >
 
+function formatStringOrUrl(urlObjOrString: UrlObject | string): string {
+  if (typeof urlObjOrString === 'string') {
+    return urlObjOrString
+  }
+
+  return formatUrl(urlObjOrString)
+}
+
+/**
+ * React Component that enables client-side transitions between routes.
+ */
 const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
-  (props, forwardedRef) => {
-    const {
-      legacyBehavior = Boolean(process.env.__NEXT_NEW_LINK_BEHAVIOR) !== true,
-    } = props
+  function LinkComponent(props, forwardedRef) {
     if (process.env.NODE_ENV !== 'production') {
       function createPropError(args: {
         key: string
@@ -180,6 +293,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         locale: true,
         onClick: true,
         onMouseEnter: true,
+        onTouchStart: true,
         legacyBehavior: true,
       } as const
       const optionalProps: LinkPropsOptional[] = Object.keys(
@@ -204,7 +318,11 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
               actual: valType,
             })
           }
-        } else if (key === 'onClick' || key === 'onMouseEnter') {
+        } else if (
+          key === 'onClick' ||
+          key === 'onMouseEnter' ||
+          key === 'onTouchStart'
+        ) {
           if (props[key] && valType !== 'function') {
             throw createPropError({
               key,
@@ -258,26 +376,52 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       scroll,
       locale,
       onClick,
-      onMouseEnter,
+      onMouseEnter: onMouseEnterProp,
+      onTouchStart: onTouchStartProp,
+      legacyBehavior = Boolean(process.env.__NEXT_NEW_LINK_BEHAVIOR) !== true,
       ...restProps
     } = props
 
     children = childrenProp
 
-    if (legacyBehavior && typeof children === 'string') {
+    if (
+      legacyBehavior &&
+      (typeof children === 'string' || typeof children === 'number')
+    ) {
       children = <a>{children}</a>
     }
 
-    const p = prefetchProp !== false
-    const router = useRouter()
+    const prefetchEnabled = prefetchProp !== false
+
+    const pagesRouter = React.useContext(RouterContext)
+    const appRouter = React.useContext(AppRouterContext)
+    const router = pagesRouter ?? appRouter
+
+    // We're in the app directory if there is no pages router.
+    const isAppRouter = !pagesRouter
 
     const { href, as } = React.useMemo(() => {
-      const [resolvedHref, resolvedAs] = resolveHref(router, hrefProp, true)
+      if (!pagesRouter) {
+        const resolvedHref = formatStringOrUrl(hrefProp)
+        return {
+          href: resolvedHref,
+          as: asProp ? formatStringOrUrl(asProp) : resolvedHref,
+        }
+      }
+
+      const [resolvedHref, resolvedAs] = resolveHref(
+        pagesRouter,
+        hrefProp,
+        true
+      )
+
       return {
         href: resolvedHref,
-        as: asProp ? resolveHref(router, asProp) : resolvedAs || resolvedHref,
+        as: asProp
+          ? resolveHref(pagesRouter, asProp)
+          : resolvedAs || resolvedHref,
       }
-    }, [router, hrefProp, asProp])
+    }, [pagesRouter, hrefProp, asProp])
 
     const previousHref = React.useRef<string>(href)
     const previousAs = React.useRef<string>(as)
@@ -291,7 +435,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
             `"onClick" was passed to <Link> with \`href\` of \`${hrefProp}\` but "legacyBehavior" was set. The legacy behavior requires onClick be set on the child of next/link`
           )
         }
-        if (onMouseEnter) {
+        if (onMouseEnterProp) {
           console.warn(
             `"onMouseEnter" was passed to <Link> with \`href\` of \`${hrefProp}\` but "legacyBehavior" was set. The legacy behavior requires onMouseEnter be set on the child of next/link`
           )
@@ -313,6 +457,14 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         }
       } else {
         child = React.Children.only(children)
+      }
+    } else {
+      if (process.env.NODE_ENV === 'development') {
+        if ((children as any)?.type === 'a') {
+          throw new Error(
+            'Invalid <Link> with <a> child. Please remove <a> or use <Link legacyBehavior>.\nLearn more: https://nextjs.org/docs/messages/invalid-new-link-with-extra-anchor'
+          )
+        }
       }
     }
 
@@ -343,20 +495,32 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       },
       [as, childRef, href, resetVisible, setIntersectionRef]
     )
+
+    // Prefetch the URL if we haven't already and it's visible.
     React.useEffect(() => {
-      const shouldPrefetch = isVisible && p && isLocalURL(href)
-      const curLocale =
-        typeof locale !== 'undefined' ? locale : router && router.locale
-      const isPrefetched =
-        prefetched[href + '%' + as + (curLocale ? '%' + curLocale : '')]
-      if (shouldPrefetch && !isPrefetched) {
-        prefetch(router, href, as, {
-          locale: curLocale,
-        })
+      if (!router) {
+        return
       }
-    }, [as, href, isVisible, locale, p, router])
+
+      // If we don't need to prefetch the URL, don't do prefetch.
+      if (!isVisible || !prefetchEnabled) {
+        return
+      }
+
+      // Prefetch the URL.
+      prefetch(router, href, as, { locale })
+    }, [
+      as,
+      href,
+      isVisible,
+      locale,
+      prefetchEnabled,
+      pagesRouter?.locale,
+      router,
+    ])
 
     const childProps: {
+      onTouchStart: React.TouchEventHandler
       onMouseEnter: React.MouseEventHandler
       onClick: React.MouseEventHandler
       href?: string
@@ -375,6 +539,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         if (!legacyBehavior && typeof onClick === 'function') {
           onClick(e)
         }
+
         if (
           legacyBehavior &&
           child.props &&
@@ -382,14 +547,33 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         ) {
           child.props.onClick(e)
         }
-        if (!e.defaultPrevented) {
-          linkClicked(e, router, href, as, replace, shallow, scroll, locale)
+
+        if (!router) {
+          return
         }
+
+        if (e.defaultPrevented) {
+          return
+        }
+
+        linkClicked(
+          e,
+          router,
+          href,
+          as,
+          replace,
+          shallow,
+          scroll,
+          locale,
+          isAppRouter,
+          prefetchEnabled
+        )
       },
       onMouseEnter: (e: React.MouseEvent) => {
-        if (!legacyBehavior && typeof onMouseEnter === 'function') {
-          onMouseEnter(e)
+        if (!legacyBehavior && typeof onMouseEnterProp === 'function') {
+          onMouseEnterProp(e)
         }
+
         if (
           legacyBehavior &&
           child.props &&
@@ -397,9 +581,49 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         ) {
           child.props.onMouseEnter(e)
         }
-        if (isLocalURL(href)) {
-          prefetch(router, href, as, { priority: true })
+
+        if (!router) {
+          return
         }
+
+        if (!prefetchEnabled && isAppRouter) {
+          return
+        }
+
+        prefetch(router, href, as, {
+          locale,
+          priority: true,
+          // @see {https://github.com/vercel/next.js/discussions/40268?sort=top#discussioncomment-3572642}
+          bypassPrefetchedCheck: true,
+        })
+      },
+      onTouchStart: (e: React.TouchEvent<HTMLAnchorElement>) => {
+        if (!legacyBehavior && typeof onTouchStartProp === 'function') {
+          onTouchStartProp(e)
+        }
+
+        if (
+          legacyBehavior &&
+          child.props &&
+          typeof child.props.onTouchStart === 'function'
+        ) {
+          child.props.onTouchStart(e)
+        }
+
+        if (!router) {
+          return
+        }
+
+        if (!prefetchEnabled && isAppRouter) {
+          return
+        }
+
+        prefetch(router, href, as, {
+          locale,
+          priority: true,
+          // @see {https://github.com/vercel/next.js/discussions/40268?sort=top#discussioncomment-3572642}
+          bypassPrefetchedCheck: true,
+        })
       },
     }
 
@@ -411,23 +635,22 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       (child.type === 'a' && !('href' in child.props))
     ) {
       const curLocale =
-        typeof locale !== 'undefined' ? locale : router && router.locale
+        typeof locale !== 'undefined' ? locale : pagesRouter?.locale
 
       // we only render domain locales if we are currently on a domain locale
       // so that locale links are still visitable in development/preview envs
       const localeDomain =
-        router &&
-        router.isLocaleDomain &&
+        pagesRouter?.isLocaleDomain &&
         getDomainLocale(
           as,
           curLocale,
-          router && router.locales,
-          router && router.domainLocales
+          pagesRouter?.locales,
+          pagesRouter?.domainLocales
         )
 
       childProps.href =
         localeDomain ||
-        addBasePath(addLocale(as, curLocale, router && router.defaultLocale))
+        addBasePath(addLocale(as, curLocale, pagesRouter?.defaultLocale))
     }
 
     return legacyBehavior ? (

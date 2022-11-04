@@ -45,6 +45,16 @@ type RecordObject = {
   reason?: any
 }
 
+function getStorageDirectory(distDir: string): string | undefined {
+  const isLikelyEphemeral = ciEnvironment.isCI || isDockerFunction()
+
+  if (isLikelyEphemeral) {
+    return path.join(distDir, 'cache')
+  }
+
+  return undefined
+}
+
 export class Telemetry {
   private conf: Conf<any> | null
   private sessionId: string
@@ -243,14 +253,4 @@ export class Telemetry {
       })) as Array<EventBatchShape>,
     })
   }
-}
-
-function getStorageDirectory(distDir: string): string | undefined {
-  const isLikelyEphemeral = ciEnvironment.isCI || isDockerFunction()
-
-  if (isLikelyEphemeral) {
-    return path.join(distDir, 'cache')
-  }
-
-  return undefined
 }

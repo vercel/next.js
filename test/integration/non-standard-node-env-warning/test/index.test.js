@@ -97,7 +97,7 @@ describe('Non-Standard NODE_ENV', () => {
         join(appDir, '.next/static', file),
         'utf8'
       )
-      if (content.match(/cannot find module/i)) {
+      if (content.match(/cannot find module(?! for page)/i)) {
         throw new Error(`${file} contains module not found error`)
       }
     }

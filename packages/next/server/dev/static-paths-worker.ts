@@ -1,33 +1,55 @@
-import type { GetStaticPaths } from 'next/types'
 import type { NextConfigComplete } from '../config-shared'
-import type { UnwrapPromise } from '../../lib/coalesced-function'
 
 import '../node-polyfill-fetch'
-import { buildStaticPaths } from '../../build/utils'
+import {
+  buildAppStaticPaths,
+  buildStaticPaths,
+  collectGenerateParams,
+} from '../../build/utils'
 import { loadComponents } from '../load-components'
-import { setHttpAgentOptions } from '../config'
+import { setHttpClientAndAgentOptions } from '../config'
+import {
+  loadRequireHook,
+  overrideBuiltInReactPackages,
+} from '../../build/webpack/require-hook'
 
 type RuntimeConfig = any
+
+loadRequireHook()
+if (process.env.NEXT_PREBUNDLED_REACT) {
+  overrideBuiltInReactPackages()
+}
 
 let workerWasUsed = false
 
 // we call getStaticPaths in a separate process to ensure
 // side-effects aren't relied on in dev that will break
 // during a production build
-export async function loadStaticPaths(
-  distDir: string,
-  pathname: string,
-  serverless: boolean,
-  config: RuntimeConfig,
-  httpAgentOptions: NextConfigComplete['httpAgentOptions'],
-  locales?: string[],
+export async function loadStaticPaths({
+  distDir,
+  pathname,
+  config,
+  httpAgentOptions,
+  enableUndici,
+  locales,
+  defaultLocale,
+  isAppPath,
+  originalAppPath,
+}: {
+  distDir: string
+  pathname: string
+  config: RuntimeConfig
+  httpAgentOptions: NextConfigComplete['httpAgentOptions']
+  enableUndici: NextConfigComplete['enableUndici']
+  locales?: string[]
   defaultLocale?: string
-): Promise<
-  Omit<UnwrapPromise<ReturnType<GetStaticPaths>>, 'paths'> & {
-    paths: string[]
-    encodedPaths: string[]
-  }
-> {
+  isAppPath?: boolean
+  originalAppPath?: string
+}): Promise<{
+  paths?: string[]
+  encodedPaths?: string[]
+  fallback?: boolean | 'blocking'
+}> {
   // we only want to use each worker once to prevent any invalid
   // caches
   if (workerWasUsed) {
@@ -36,24 +58,43 @@ export async function loadStaticPaths(
 
   // update work memory runtime-config
   require('../../shared/lib/runtime-config').setConfig(config)
-  setHttpAgentOptions(httpAgentOptions)
+  setHttpClientAndAgentOptions({
+    httpAgentOptions,
+    experimental: { enableUndici },
+  })
 
-  const components = await loadComponents(distDir, pathname, serverless)
+  const components = await loadComponents({
+    distDir,
+    pathname: originalAppPath || pathname,
+    hasServerComponents: false,
+    isAppPath: !!isAppPath,
+  })
 
-  if (!components.getStaticPaths) {
+  if (!components.getStaticPaths && !isAppPath) {
     // we shouldn't get to this point since the worker should
     // only be called for SSG pages with getStaticPaths
     throw new Error(
       `Invariant: failed to load page with getStaticPaths for ${pathname}`
     )
   }
-
   workerWasUsed = true
-  return buildStaticPaths(
-    pathname,
-    components.getStaticPaths,
-    config.configFileName,
+
+  if (isAppPath) {
+    const generateParams = await collectGenerateParams(
+      components.ComponentMod.tree
+    )
+    return buildAppStaticPaths({
+      page: pathname,
+      generateParams,
+      configFileName: config.configFileName,
+    })
+  }
+
+  return buildStaticPaths({
+    page: pathname,
+    getStaticPaths: components.getStaticPaths,
+    configFileName: config.configFileName,
     locales,
-    defaultLocale
-  )
+    defaultLocale,
+  })
 }

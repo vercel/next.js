@@ -8,6 +8,7 @@ import {
   BrowserContext,
   Page,
   ElementHandle,
+  devices,
 } from 'playwright-chromium'
 import path from 'path'
 
@@ -26,7 +27,7 @@ export async function quit() {
   browser = undefined
 }
 
-class Playwright extends BrowserInterface {
+export class Playwright extends BrowserInterface {
   private activeTrace?: string
   private eventCallbacks: Record<Event, Set<(...args: any[]) => void>> = {
     request: new Set(),
@@ -49,15 +50,33 @@ class Playwright extends BrowserInterface {
   async setup(browserName: string, locale?: string) {
     if (browser) return
     const headless = !!process.env.HEADLESS
+    let device
 
-    if (browserName === 'safari') {
-      browser = await webkit.launch({ headless })
-    } else if (browserName === 'firefox') {
-      browser = await firefox.launch({ headless })
-    } else {
-      browser = await chromium.launch({ headless, devtools: !headless })
+    if (process.env.DEVICE_NAME) {
+      device = devices[process.env.DEVICE_NAME]
+
+      if (!device) {
+        throw new Error(
+          `Invalid playwright device name ${process.env.DEVICE_NAME}`
+        )
+      }
     }
-    context = await browser.newContext({ locale })
+
+    browser = await this.launchBrowser(browserName, { headless })
+    context = await browser.newContext({ locale, ...device })
+  }
+
+  async launchBrowser(browserName: string, launchOptions: Record<string, any>) {
+    if (browserName === 'safari') {
+      return await webkit.launch(launchOptions)
+    } else if (browserName === 'firefox') {
+      return await firefox.launch(launchOptions)
+    } else {
+      return await chromium.launch({
+        devtools: !launchOptions.headless,
+        ...launchOptions,
+      })
+    }
   }
 
   async get(url: string): Promise<void> {
@@ -284,6 +303,12 @@ class Playwright extends BrowserInterface {
     })
   }
 
+  touchStart() {
+    return this.chain((el: ElementHandle) => {
+      return el.dispatchEvent('touchstart').then(() => el)
+    })
+  }
+
   elementsByCss(sel) {
     return this.chain(() =>
       page.$$(sel).then((els) => {
@@ -367,5 +392,3 @@ class Playwright extends BrowserInterface {
     return this.chain(() => page.evaluate('window.location.href')) as any
   }
 }
-
-export default Playwright

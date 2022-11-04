@@ -1,5 +1,6 @@
 import chalk from 'next/dist/compiled/chalk'
 import path from 'path'
+
 import {
   hasNecessaryDependencies,
   NecessaryDependencies,
@@ -13,11 +14,17 @@ import { getTypeScriptIntent } from './typescript/getTypeScriptIntent'
 import { TypeCheckResult } from './typescript/runTypeCheck'
 import { writeAppTypeDeclarations } from './typescript/writeAppTypeDeclarations'
 import { writeConfigurationDefaults } from './typescript/writeConfigurationDefaults'
+import { installDependencies } from './install-dependencies'
+import { isCI } from '../telemetry/ci-info'
 import { missingDepsError } from './typescript/missingDependencyError'
-import { NextConfigComplete } from '../server/config-shared'
+import { writeVscodeConfigurations } from './typescript/writeVscodeConfigurations'
 
 const requiredPackages = [
-  { file: 'typescript', pkg: 'typescript', exportsRestrict: false },
+  {
+    file: 'typescript/lib/typescript.js',
+    pkg: 'typescript',
+    exportsRestrict: true,
+  },
   {
     file: '@types/react/index.d.ts',
     pkg: '@types/react',
@@ -26,34 +33,73 @@ const requiredPackages = [
   {
     file: '@types/node/index.d.ts',
     pkg: '@types/node',
-    exportsRestrict: false,
+    exportsRestrict: true,
   },
 ]
 
-export async function verifyTypeScriptSetup(
-  dir: string,
-  intentDirs: string[],
-  typeCheckPreflight: boolean,
-  config: NextConfigComplete,
+export async function verifyTypeScriptSetup({
+  dir,
+  cacheDir,
+  intentDirs,
+  tsconfigPath,
+  typeCheckPreflight,
+  disableStaticImages,
+  isAppDirEnabled,
+}: {
+  dir: string
   cacheDir?: string
-): Promise<{ result?: TypeCheckResult; version: string | null }> {
-  const tsConfigPath = path.join(dir, config.typescript.tsconfigPath)
+  tsconfigPath: string
+  intentDirs: string[]
+  typeCheckPreflight: boolean
+  disableStaticImages: boolean
+  isAppDirEnabled: boolean
+}): Promise<{ result?: TypeCheckResult; version: string | null }> {
+  const resolvedTsConfigPath = path.join(dir, tsconfigPath)
 
   try {
     // Check if the project uses TypeScript:
-    const intent = await getTypeScriptIntent(dir, intentDirs, config)
+    const intent = await getTypeScriptIntent(dir, intentDirs, tsconfigPath)
     if (!intent) {
       return { version: null }
     }
 
     // Ensure TypeScript and necessary `@types/*` are installed:
-    const deps: NecessaryDependencies = await hasNecessaryDependencies(
+    let deps: NecessaryDependencies = await hasNecessaryDependencies(
       dir,
       requiredPackages
     )
 
     if (deps.missing?.length > 0) {
-      await missingDepsError(dir, deps.missing)
+      if (isCI) {
+        // we don't attempt auto install in CI to avoid side-effects
+        // and instead log the error for installing needed packages
+        await missingDepsError(dir, deps.missing)
+      }
+      console.log(
+        chalk.bold.yellow(
+          `It looks like you're trying to use TypeScript but do not have the required package(s) installed.`
+        ) +
+          '\n' +
+          'Installing dependencies' +
+          '\n\n' +
+          chalk.bold(
+            'If you are not trying to use TypeScript, please remove the ' +
+              chalk.cyan('tsconfig.json') +
+              ' file from your package root (and any TypeScript files in your pages directory).'
+          ) +
+          '\n'
+      )
+      await installDependencies(dir, deps.missing, true).catch((err) => {
+        if (err && typeof err === 'object' && 'command' in err) {
+          console.error(
+            `Failed to install required TypeScript dependencies, please install them manually to continue:\n` +
+              (err as any).command +
+              '\n'
+          )
+        }
+        throw err
+      })
+      deps = await hasNecessaryDependencies(dir, requiredPackages)
     }
 
     // Load TypeScript after we're sure it exists:
@@ -68,17 +114,32 @@ export async function verifyTypeScriptSetup(
     }
 
     // Reconfigure (or create) the user's `tsconfig.json` for them:
-    await writeConfigurationDefaults(ts, tsConfigPath, intent.firstTimeSetup)
+    await writeConfigurationDefaults(
+      ts,
+      resolvedTsConfigPath,
+      intent.firstTimeSetup,
+      isAppDirEnabled
+    )
     // Write out the necessary `next-env.d.ts` file to correctly register
     // Next.js' types:
-    await writeAppTypeDeclarations(dir, !config.images.disableStaticImages)
+    await writeAppTypeDeclarations(dir, !disableStaticImages)
+
+    if (isAppDirEnabled) {
+      await writeVscodeConfigurations(dir)
+    }
 
     let result
     if (typeCheckPreflight) {
       const { runTypeCheck } = require('./typescript/runTypeCheck')
 
       // Verify the project passes type-checking before we go to webpack phase:
-      result = await runTypeCheck(ts, dir, tsConfigPath, cacheDir)
+      result = await runTypeCheck(
+        ts,
+        dir,
+        resolvedTsConfigPath,
+        cacheDir,
+        isAppDirEnabled
+      )
     }
     return { result, version: ts.version }
   } catch (err) {

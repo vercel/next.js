@@ -21,9 +21,7 @@ export default class DynamicPage extends React.Component {
     return (
       <div id="dynamic-page">
         <div>
-          <Link href="/">
-            <a>Go Back</a>
-          </Link>
+          <Link href="/">Go Back</Link>
         </div>
         <p>{text}</p>
         <div id="hash">Hash: {hash}</div>

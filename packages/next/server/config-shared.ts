@@ -1,13 +1,14 @@
 import os from 'os'
-import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
-import { Header, Redirect, Rewrite } from '../lib/load-custom-routes'
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { Header, Redirect, Rewrite } from '../lib/load-custom-routes'
 import {
   ImageConfig,
   ImageConfigComplete,
   imageConfigDefault,
 } from '../shared/lib/image-config'
-
-export type PageRuntime = 'nodejs' | 'edge' | undefined
+import { ServerRuntime } from 'next/types'
+import { SubresourceIntegrityAlgorithm } from '../build/webpack/plugins/subresource-integrity-plugin'
+import { WEB_VITALS } from '../shared/lib/utils'
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -78,52 +79,47 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  allowMiddlewareResponseBody?: boolean
+  skipMiddlewareUrlNormalize?: boolean
+  skipTrailingSlashRedirect?: boolean
+  optimisticClientCache?: boolean
+  legacyBrowsers?: boolean
+  manualClientBasePath?: boolean
   newNextLinkBehavior?: boolean
+  // custom path to a cache handler to use
+  incrementalCacheHandlerPath?: string
   disablePostcssPresetEnv?: boolean
   swcMinify?: boolean
   swcFileReading?: boolean
   cpus?: number
   sharedPool?: boolean
-  plugins?: boolean
   profiling?: boolean
+  proxyTimeout?: number
   isrFlushToDisk?: boolean
-  reactMode?: 'legacy' | 'concurrent' | 'blocking'
   workerThreads?: boolean
   pageEnv?: boolean
-  optimizeCss?: boolean
+  // optimizeCss can be boolean or critters' option object
+  // Use Record<string, unknown> as critters doesn't export its Option type
+  // https://github.com/GoogleChromeLabs/critters/blob/a590c05f9197b656d2aeaae9369df2483c26b072/packages/critters/src/index.d.ts
+  optimizeCss?: boolean | Record<string, unknown>
   nextScriptWorkers?: boolean
   scrollRestoration?: boolean
   externalDir?: boolean
-  conformance?: boolean
-  rootDir?: boolean
+  appDir?: boolean
   amp?: {
     optimizer?: any
     validator?: string
     skipValidation?: boolean
   }
-  reactRoot?: boolean
   disableOptimizedLoading?: boolean
   gzipSize?: boolean
   craCompat?: boolean
   esmExternals?: boolean | 'loose'
   isrMemoryCacheSize?: number
-  runtime?: Exclude<PageRuntime, undefined>
-  serverComponents?: boolean
+  runtime?: Exclude<ServerRuntime, undefined>
   fullySpecified?: boolean
-  urlImports?: NonNullable<webpack5.Configuration['experiments']>['buildHttp']
+  urlImports?: NonNullable<webpack.Configuration['experiments']>['buildHttp']
   outputFileTracingRoot?: string
-  outputStandalone?: boolean
-  images?: {
-    layoutRaw: boolean
-  }
-  middlewareSourceMaps?: boolean
-  emotion?:
-    | boolean
-    | {
-        sourceMap?: boolean
-        autoLabel?: 'dev-only' | 'always' | 'never'
-        labelFormat?: string
-      }
   modularizeImports?: Record<
     string,
     {
@@ -133,6 +129,63 @@ export interface ExperimentalConfig {
     }
   >
   swcTraceProfiling?: boolean
+  forceSwcTransforms?: boolean
+
+  /**
+   * The option for the minifier of [SWC compiler](https://swc.rs).
+   * This option is only for debugging the SWC minifier, and will be removed once the SWC minifier is stable.
+   *
+   * @see [SWC Minification](https://nextjs.org/docs/advanced-features/compiler#minification)
+   */
+  swcMinifyDebugOptions?: {
+    compress?: object
+    mangle?: object
+  }
+  swcPlugins?: Array<[string, Record<string, unknown>]>
+  largePageDataBytes?: number
+  /**
+   * If set to `false`, webpack won't fall back to polyfill Node.js modules in the browser
+   * Full list of old polyfills is accessible here:
+   * [webpack/webpack#ModuleNotoundError.js#L13-L42](https://github.com/webpack/webpack/blob/2a0536cf510768111a3a6dceeb14cb79b9f59273/lib/ModuleNotFoundError.js#L13-L42)
+   */
+  fallbackNodePolyfills?: false
+  enableUndici?: boolean
+  sri?: {
+    algorithm?: SubresourceIntegrityAlgorithm
+  }
+  adjustFontFallbacks?: boolean
+  adjustFontFallbacksWithSizeAdjust?: boolean
+
+  // A list of packages that should be treated as external in the RSC server build
+  serverComponentsExternalPackages?: string[]
+
+  // A list of packages that should always be transpiled and bundled in the server
+  transpilePackages?: string[]
+
+  fontLoaders?: Array<{ loader: string; options?: any }>
+
+  webVitalsAttribution?: Array<typeof WEB_VITALS[number]>
+  turbotrace?: {
+    logLevel?:
+      | 'bug'
+      | 'fatal'
+      | 'error'
+      | 'warning'
+      | 'hint'
+      | 'note'
+      | 'suggestions'
+      | 'info'
+    logDetail?: boolean
+    logAll?: boolean
+    contextDirectory?: string
+    processCwd?: string
+    maxFiles?: number
+  }
+  mdxRs?: boolean
+}
+
+export type ExportPathMap = {
+  [path: string]: { page: string; query?: Record<string, string | string[]> }
 }
 
 /**
@@ -140,6 +193,17 @@ export interface ExperimentalConfig {
  * @see [configuration documentation](https://nextjs.org/docs/api-reference/next.config.js/introduction)
  */
 export interface NextConfig extends Record<string, any> {
+  exportPathMap?: (
+    defaultMap: ExportPathMap,
+    ctx: {
+      dev: boolean
+      dir: string
+      outDir: string | null
+      distDir: string
+      buildId: string
+    }
+  ) => Promise<ExportPathMap> | ExportPathMap
+
   /**
    * Internationalization configuration
    *
@@ -185,12 +249,6 @@ export interface NextConfig extends Record<string, any> {
    * @see [Redirects configuration documentation](https://nextjs.org/docs/api-reference/next.config.js/redirects)
    */
   redirects?: () => Promise<Redirect[]>
-
-  /**
-   * @deprecated This option has been removed as webpack 5 is now default
-   * @see [Next.js webpack 5 documentation](https://nextjs.org/docs/messages/webpack5) for upgrading guidance.
-   */
-  webpack5?: false
 
   /**
    * @see [Moment.js locales excluded by default](https://nextjs.org/docs/upgrading#momentjs-locales-excluded-by-default)
@@ -259,6 +317,15 @@ export interface NextConfig extends Record<string, any> {
   /** @see [Compression documentation](https://nextjs.org/docs/api-reference/next.config.js/compression) */
   compress?: boolean
 
+  /**
+   * The field should only be used when a Next.js project is not hosted on Vercel while using Vercel Analytics.
+   * Vercel provides zero-configuration analytics for Next.js projects hosted on Vercel.
+   *
+   * @default ''
+   * @see [Next.js Analytics](https://nextjs.org/analytics)
+   */
+  analyticsId?: string
+
   /** @see [Disabling x-powered-by](https://nextjs.org/docs/api-reference/next.config.js/disabling-x-powered-by) */
   poweredByHeader?: boolean
 
@@ -325,7 +392,7 @@ export interface NextConfig extends Record<string, any> {
    *
    * @see [React Strict Mode](https://nextjs.org/docs/api-reference/next.config.js/react-strict-mode)
    */
-  reactStrictMode?: boolean
+  reactStrictMode?: boolean | null
 
   /**
    * Add public (in browser) runtime configuration to your app
@@ -348,13 +415,6 @@ export interface NextConfig extends Record<string, any> {
    * @see [Disabling HTTP Keep-Alive](https://nextjs.org/docs/api-reference/next.config.js/disabling-http-keep-alive)
    */
   httpAgentOptions?: { keepAlive?: boolean }
-
-  future?: {
-    /**
-     * @deprecated This option has been removed as webpack 5 is now default
-     */
-    webpack5?: false
-  }
 
   /**
    * During a build, Next.js will automatically trace each page and its dependencies to determine all of the files
@@ -407,8 +467,34 @@ export interface NextConfig extends Record<string, any> {
       | {
           exclude?: string[]
         }
-    styledComponents?: boolean
+    styledComponents?:
+      | boolean
+      | {
+          /**
+           * Enabled by default in development, disabled in production to reduce file size,
+           * setting this will override the default for all environments.
+           */
+          displayName?: boolean
+          topLevelImportPaths?: string[]
+          ssr?: boolean
+          fileName?: boolean
+          meaninglessFileNames?: string[]
+          minify?: boolean
+          transpileTemplateLiterals?: boolean
+          namespace?: string
+          pure?: boolean
+          cssProp?: boolean
+        }
+    emotion?:
+      | boolean
+      | {
+          sourceMap?: boolean
+          autoLabel?: 'dev-only' | 'always' | 'never'
+          labelFormat?: string
+        }
   }
+
+  output?: 'standalone'
 
   /**
    * Enable experimental features. Note that all experimental features are subject to breaking changes in the future.
@@ -457,51 +543,62 @@ export const defaultConfig: NextConfig = {
   i18n: null,
   productionBrowserSourceMaps: false,
   optimizeFonts: true,
-  webpack5: undefined,
   excludeDefaultMomentLocales: true,
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},
-  reactStrictMode: false,
+  reactStrictMode: null,
   httpAgentOptions: {
     keepAlive: true,
   },
   outputFileTracing: true,
   staticPageGenerationTimeout: 60,
-  swcMinify: false,
+  swcMinify: true,
+  output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   experimental: {
-    // TODO: change default in next major release (current v12.1.5)
-    newNextLinkBehavior: false,
+    optimisticClientCache: true,
+    runtime: undefined,
+    manualClientBasePath: false,
+    legacyBrowsers: false,
+    newNextLinkBehavior: true,
     cpus: Math.max(
       1,
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
         (os.cpus() || { length: 1 }).length) - 1
     ),
     sharedPool: true,
-    plugins: false,
     profiling: false,
     isrFlushToDisk: true,
     workerThreads: false,
     pageEnv: false,
+    proxyTimeout: undefined,
     optimizeCss: false,
     nextScriptWorkers: false,
     scrollRestoration: false,
     externalDir: false,
-    reactRoot: Number(process.env.NEXT_PRIVATE_REACT_ROOT) > 0,
     disableOptimizedLoading: false,
     gzipSize: true,
     swcFileReading: true,
     craCompat: false,
     esmExternals: true,
-    rootDir: false,
+    appDir: false,
     // default to 50MB limit
     isrMemoryCacheSize: 50 * 1024 * 1024,
-    serverComponents: false,
+    incrementalCacheHandlerPath: undefined,
     fullySpecified: false,
     outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
-    outputStandalone: !!process.env.NEXT_PRIVATE_STANDALONE,
-    images: {
-      layoutRaw: false,
-    },
+    swcTraceProfiling: false,
+    forceSwcTransforms: false,
+    swcPlugins: undefined,
+    swcMinifyDebugOptions: undefined,
+    largePageDataBytes: 128 * 1000, // 128KB by default
+    disablePostcssPresetEnv: undefined,
+    amp: undefined,
+    urlImports: undefined,
+    modularizeImports: undefined,
+    enableUndici: false,
+    adjustFontFallbacks: false,
+    adjustFontFallbacksWithSizeAdjust: false,
+    turbotrace: undefined,
   },
 }
 
@@ -511,4 +608,20 @@ export async function normalizeConfig(phase: string, config: any) {
   }
   // Support `new Promise` and `async () =>` as return values of the config export
   return await config
+}
+
+export function isServerRuntime(value?: string): value is ServerRuntime {
+  return (
+    value === undefined || value === 'nodejs' || value === 'experimental-edge'
+  )
+}
+
+export function validateConfig(userConfig: NextConfig): {
+  errors?: Array<any> | null
+} {
+  const configValidator = require('next/dist/next-config-validate.js')
+  configValidator(userConfig)
+  return {
+    errors: configValidator.errors,
+  }
 }

@@ -5,6 +5,7 @@ import next from '../next'
 
 interface StartServerOptions extends NextServerOptions {
   allowRetry?: boolean
+  keepAliveTimeout?: number
 }
 
 export function startServer(opts: StartServerOptions) {
@@ -13,6 +14,10 @@ export function startServer(opts: StartServerOptions) {
   const server = http.createServer((req, res) => {
     return requestHandler(req, res)
   })
+
+  if (opts.keepAliveTimeout) {
+    server.keepAliveTimeout = opts.keepAliveTimeout
+  }
 
   return new Promise<NextServer>((resolve, reject) => {
     let port = opts.port
@@ -34,6 +39,14 @@ export function startServer(opts: StartServerOptions) {
       }
     })
 
+    let upgradeHandler: any
+
+    if (!opts.dev) {
+      server.on('upgrade', (req, socket, upgrade) => {
+        upgradeHandler(req, socket, upgrade)
+      })
+    }
+
     server.on('listening', () => {
       const addr = server.address()
       const hostname =
@@ -50,6 +63,7 @@ export function startServer(opts: StartServerOptions) {
       })
 
       requestHandler = app.getRequestHandler()
+      upgradeHandler = app.getUpgradeHandler()
       resolve(app)
     })
 

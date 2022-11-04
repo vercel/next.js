@@ -16,26 +16,35 @@ export class NextDevInstance extends NextInstance {
     return this._cliOutput || ''
   }
 
-  public async start() {
+  public async start(useDirArg: boolean = false) {
     if (this.childProcess) {
       throw new Error('next already started')
     }
-    let startArgs = ['yarn', 'next']
+
+    const useTurbo = !process.env.TEST_WASM && (this as any).turbo
+
+    let startArgs = [
+      'yarn',
+      'next',
+      useTurbo ? '--turbo' : undefined,
+      useDirArg && this.testDir,
+    ].filter(Boolean) as string[]
 
     if (this.startCommand) {
       startArgs = this.startCommand.split(' ')
     }
 
-    await new Promise<void>((resolve) => {
+    await new Promise<void>((resolve, reject) => {
       this.childProcess = spawn(startArgs[0], startArgs.slice(1), {
-        cwd: this.testDir,
+        cwd: useDirArg ? process.cwd() : this.testDir,
         stdio: ['ignore', 'pipe', 'pipe'],
         shell: false,
         env: {
           ...process.env,
+          ...this.env,
           NODE_ENV: '' as any,
+          PORT: this.forcedPort || '0',
           __NEXT_TEST_MODE: '1',
-          __NEXT_RAND_PORT: '1',
           __NEXT_TEST_WITH_DEVTOOL: '1',
         },
       })
@@ -65,8 +74,21 @@ export class NextDevInstance extends NextInstance {
       })
       const readyCb = (msg) => {
         if (msg.includes('started server on') && msg.includes('url:')) {
-          this._url = msg.split('url: ').pop().trim()
-          this._parsedUrl = new URL(this._url)
+          // turbo devserver emits stdout in rust directly, can contain unexpected chars with color codes
+          // strip out again for the safety
+          this._url = msg
+            .split('url: ')
+            .pop()
+            .trim()
+            .split(require('os').EOL)[0]
+          try {
+            this._parsedUrl = new URL(this._url)
+          } catch (err) {
+            reject({
+              err,
+              msg,
+            })
+          }
           this.off('stdout', readyCb)
           resolve()
         }

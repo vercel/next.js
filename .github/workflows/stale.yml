@@ -11,12 +11,25 @@ jobs:
     if: github.repository_owner == 'vercel'
     steps:
       - uses: actions/stale@v4
-        id: stale
+        id: stale-no-repro
         name: 'Close stale issues with no reproduction'
         with:
           repo-token: ${{ secrets.STALE_TOKEN }}
           only-labels: 'please add a complete reproduction'
-          close-issue-message: 'This issue has been automatically closed because it received no activity for a month and had no reproduction to investigate. If you think this was closed by accident, please leave a comment. If you are running into a similar issue, please open a new issue with a reproduction. Thank you.'
+          close-issue-message: 'This issue has been automatically closed because it received no activity for a month and had no reproduction to investigate. If you think it was closed by accident, please leave a comment. If you are running into a similar issue, please open a new issue with a reproduction. Thank you.'
+          days-before-issue-close: 1
+          days-before-issue-stale: 30
+          days-before-pr-close: -1
+          days-before-pr-stale: -1
+          exempt-issue-labels: 'blocked,must,should,keep'
+          operations-per-run: 300 # 1 operation per 100 issues, the rest is to label/comment/close
+      - uses: actions/stale@v4
+        id: stale-no-canary
+        name: 'Close issues not verified on canary'
+        with:
+          repo-token: ${{ secrets.STALE_TOKEN }}
+          only-labels: 'please verify canary'
+          close-issue-message: "This issue has been automatically closed because it wasn't verified against next@canary. If you think it was closed by accident, please leave a comment. If you are running into a similar issue, please open a new issue with a reproduction. Thank you."
           days-before-issue-close: 1
           days-before-issue-stale: 30
           days-before-pr-close: -1

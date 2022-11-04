@@ -1,111 +1,112 @@
 import type { I18NConfig } from '../../config-shared'
 import { NextURL } from '../next-url'
 import { toNodeHeaders, validateURL } from '../utils'
-import cookie from 'next/dist/compiled/cookie'
-import { CookieSerializeOptions } from '../types'
+
+import { ResponseCookies } from './cookies'
 
 const INTERNALS = Symbol('internal response')
 const REDIRECTS = new Set([301, 302, 303, 307, 308])
 
+function handleMiddlewareField(
+  init: MiddlewareResponseInit | undefined,
+  headers: Headers
+) {
+  if (init?.request?.headers) {
+    if (!(init.request.headers instanceof Headers)) {
+      throw new Error('request.headers must be an instance of Headers')
+    }
+
+    const keys = []
+    for (const [key, value] of init.request.headers) {
+      headers.set('x-middleware-request-' + key, value)
+      keys.push(key)
+    }
+
+    headers.set('x-middleware-override-headers', keys.join(','))
+  }
+}
+
 export class NextResponse extends Response {
   [INTERNALS]: {
-    cookieParser(): { [key: string]: string }
+    cookies: ResponseCookies
     url?: NextURL
   }
 
   constructor(body?: BodyInit | null, init: ResponseInit = {}) {
     super(body, init)
 
-    const cookieParser = () => {
-      const value = this.headers.get('cookie')
-      return value ? cookie.parse(value) : {}
-    }
-
     this[INTERNALS] = {
-      cookieParser,
+      cookies: new ResponseCookies(this.headers),
       url: init.url
         ? new NextURL(init.url, {
-            basePath: init.nextConfig?.basePath,
-            i18n: init.nextConfig?.i18n,
-            trailingSlash: init.nextConfig?.trailingSlash,
             headers: toNodeHeaders(this.headers),
+            nextConfig: init.nextConfig,
           })
         : undefined,
     }
   }
 
+  [Symbol.for('edge-runtime.inspect.custom')]() {
+    return {
+      cookies: this.cookies,
+      url: this.url,
+      // rest of props come from Response
+      body: this.body,
+      bodyUsed: this.bodyUsed,
+      headers: Object.fromEntries(this.headers),
+      ok: this.ok,
+      redirected: this.redirected,
+      status: this.status,
+      statusText: this.statusText,
+      type: this.type,
+    }
+  }
+
   public get cookies() {
-    return this[INTERNALS].cookieParser()
+    return this[INTERNALS].cookies
   }
 
-  public cookie(
-    name: string,
-    value: { [key: string]: any } | string,
-    opts: CookieSerializeOptions = {}
-  ) {
-    const val =
-      typeof value === 'object' ? 'j:' + JSON.stringify(value) : String(value)
-
-    const options = { ...opts }
-    if (options.maxAge) {
-      options.expires = new Date(Date.now() + options.maxAge)
-      options.maxAge /= 1000
-    }
-
-    if (options.path == null) {
-      options.path = '/'
-    }
-
-    this.headers.append(
-      'Set-Cookie',
-      cookie.serialize(name, String(val), options)
-    )
-    return this
+  static json(body: any, init?: ResponseInit): NextResponse {
+    // @ts-expect-error This is not in lib/dom right now, and we can't augment it.
+    const response: Response = Response.json(body, init)
+    return new NextResponse(response.body, response)
   }
 
-  public clearCookie(name: string, opts: CookieSerializeOptions = {}) {
-    return this.cookie(name, '', { expires: new Date(1), path: '/', ...opts })
-  }
-
-  static json(body: any, init?: ResponseInit) {
-    const { headers, ...responseInit } = init || {}
-    return new NextResponse(JSON.stringify(body), {
-      ...responseInit,
-      headers: {
-        ...headers,
-        'content-type': 'application/json',
-      },
-    })
-  }
-
-  static redirect(url: string | NextURL | URL, status = 307) {
+  static redirect(url: string | NextURL | URL, init?: number | ResponseInit) {
+    const status = typeof init === 'number' ? init : init?.status ?? 307
     if (!REDIRECTS.has(status)) {
       throw new RangeError(
         'Failed to execute "redirect" on "response": Invalid status code'
       )
     }
+    const initObj = typeof init === 'object' ? init : {}
+    const headers = new Headers(initObj?.headers)
+    headers.set('Location', validateURL(url))
 
-    const destination = validateURL(url)
-    return new NextResponse(destination, {
-      headers: { Location: destination },
+    return new NextResponse(null, {
+      ...initObj,
+      headers,
       status,
     })
   }
 
-  static rewrite(destination: string | NextURL | URL) {
-    return new NextResponse(null, {
-      headers: {
-        'x-middleware-rewrite': validateURL(destination),
-      },
-    })
+  static rewrite(
+    destination: string | NextURL | URL,
+    init?: MiddlewareResponseInit
+  ) {
+    const headers = new Headers(init?.headers)
+    headers.set('x-middleware-rewrite', validateURL(destination))
+
+    handleMiddlewareField(init, headers)
+    return new NextResponse(null, { ...init, headers })
   }
 
-  static next() {
-    return new NextResponse(null, {
-      headers: {
-        'x-middleware-next': '1',
-      },
-    })
+  static next(init?: MiddlewareResponseInit) {
+    const headers = new Headers(init?.headers)
+    headers.set('x-middleware-next', '1')
+
+    handleMiddlewareField(init, headers)
+    return new NextResponse(null, { ...init, headers })
   }
 }
 
@@ -116,4 +117,18 @@ interface ResponseInit extends globalThis.ResponseInit {
     trailingSlash?: boolean
   }
   url?: string
+}
+
+interface ModifiedRequest {
+  /**
+   * If this is set, the request headers will be overridden with this value.
+   */
+  headers?: Headers
+}
+
+interface MiddlewareResponseInit extends globalThis.ResponseInit {
+  /**
+   * These fields will override the request from clients.
+   */
+  request?: ModifiedRequest
 }

@@ -8,14 +8,18 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
 
 ```bash
 npx create-next-app --example cms-builder-io cms-builder-io-app
-# or
+```
+
+```bash
 yarn create next-app --example cms-builder-io cms-builder-io-app
-# or
-pnpm create next-app -- --example cms-builder-io cms-builder-io-app
+```
+
+```bash
+pnpm create next-app --example cms-builder-io cms-builder-io-app
 ```
 
 ## Configuration
@@ -93,3 +97,5 @@ Alternatively, you can deploy using our template by clicking on the Deploy butto
 - [Kontent](/examples/cms-kontent)
 - [Ghost](/examples/cms-ghost)
 - [Blog Starter](/examples/blog-starter)
+- [DotCMS](/examples/cms-dotcms)
+- [Enterspeed](/examples/cms-enterspeed)

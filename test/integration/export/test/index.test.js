@@ -20,7 +20,7 @@ import { promises } from 'fs'
 import dynamic from './dynamic'
 import apiRoutes from './api-routes'
 
-const { access, mkdir, writeFile } = promises
+const { access, mkdir, writeFile, stat } = promises
 const appDir = join(__dirname, '../')
 const outdir = join(appDir, 'out')
 const outNoTrailSlash = join(appDir, 'outNoTrailSlash')
@@ -28,6 +28,12 @@ const context = {}
 context.appDir = appDir
 const devContext = {}
 const nextConfig = new File(join(appDir, 'next.config.js'))
+
+const fileExist = (path) =>
+  access(path)
+    .then(() => stat(path))
+    .then((stats) => (stats.isFile() ? true : false))
+    .catch(() => false)
 
 describe('Static Export', () => {
   it('should delete existing exported files', async () => {
@@ -87,60 +93,28 @@ describe('Static Export', () => {
   })
 
   it('should honor exportTrailingSlash for 404 page', async () => {
-    expect(
-      await access(join(outdir, '404/index.html'))
-        .then(() => true)
-        .catch(() => false)
-    ).toBe(true)
+    expect(await fileExist(join(outdir, '404/index.html'))).toBe(true)
 
     // we still output 404.html for backwards compat
-    expect(
-      await access(join(outdir, '404.html'))
-        .then(() => true)
-        .catch(() => false)
-    ).toBe(true)
+    expect(await fileExist(join(outdir, '404.html'))).toBe(true)
   })
 
   it('should handle trailing slash in getStaticPaths', async () => {
-    expect(
-      await access(join(outdir, 'gssp/foo/index.html'))
-        .then(() => true)
-        .catch(() => false)
-    ).toBe(true)
+    expect(await fileExist(join(outdir, 'gssp/foo/index.html'))).toBe(true)
 
-    expect(
-      await access(join(outNoTrailSlash, 'gssp/foo.html'))
-        .then(() => true)
-        .catch(() => false)
-    ).toBe(true)
+    expect(await fileExist(join(outNoTrailSlash, 'gssp/foo.html'))).toBe(true)
   })
 
   it('should only output 404.html without exportTrailingSlash', async () => {
-    expect(
-      await access(join(outNoTrailSlash, '404/index.html'))
-        .then(() => true)
-        .catch(() => false)
-    ).toBe(false)
+    expect(await fileExist(join(outNoTrailSlash, '404/index.html'))).toBe(false)
 
-    expect(
-      await access(join(outNoTrailSlash, '404.html'))
-        .then(() => true)
-        .catch(() => false)
-    ).toBe(true)
+    expect(await fileExist(join(outNoTrailSlash, '404.html'))).toBe(true)
   })
 
   it('should not duplicate /index with exportTrailingSlash', async () => {
-    expect(
-      await access(join(outdir, 'index/index.html'))
-        .then(() => true)
-        .catch(() => false)
-    ).toBe(false)
+    expect(await fileExist(join(outdir, 'index/index.html'))).toBe(false)
 
-    expect(
-      await access(join(outdir, 'index.html'))
-        .then(() => true)
-        .catch(() => false)
-    ).toBe(true)
+    expect(await fileExist(join(outdir, 'index.html'))).toBe(true)
   })
 
   ssr(context)

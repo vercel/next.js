@@ -118,57 +118,48 @@ export default function initHeadManager(): {
   mountedInstances: Set<unknown>
   updateHead: (head: JSX.Element[]) => void
 } {
-  let updatePromise: Promise<void> | null = null
-
   return {
     mountedInstances: new Set(),
     updateHead: (head: JSX.Element[]) => {
-      const promise = (updatePromise = Promise.resolve().then(() => {
-        if (promise !== updatePromise) return
+      const tags: Record<string, JSX.Element[]> = {}
 
-        updatePromise = null
-        const tags: Record<string, JSX.Element[]> = {}
-
-        head.forEach((h) => {
+      head.forEach((h) => {
+        if (
+          // If the font tag is loaded only on client navigation
+          // it won't be inlined. In this case revert to the original behavior
+          h.type === 'link' &&
+          h.props['data-optimized-fonts']
+        ) {
           if (
-            // If the font tag is loaded only on client navigation
-            // it won't be inlined. In this case revert to the original behavior
-            h.type === 'link' &&
-            h.props['data-optimized-fonts']
+            document.querySelector(`style[data-href="${h.props['data-href']}"]`)
           ) {
-            if (
-              document.querySelector(
-                `style[data-href="${h.props['data-href']}"]`
-              )
-            ) {
-              return
-            } else {
-              h.props.href = h.props['data-href']
-              h.props['data-href'] = undefined
-            }
+            return
+          } else {
+            h.props.href = h.props['data-href']
+            h.props['data-href'] = undefined
           }
-
-          const components = tags[h.type] || []
-          components.push(h)
-          tags[h.type] = components
-        })
-
-        const titleComponent = tags.title ? tags.title[0] : null
-        let title = ''
-        if (titleComponent) {
-          const { children } = titleComponent.props
-          title =
-            typeof children === 'string'
-              ? children
-              : Array.isArray(children)
-              ? children.join('')
-              : ''
         }
-        if (title !== document.title) document.title = title
-        ;['meta', 'base', 'link', 'style', 'script'].forEach((type) => {
-          updateElements(type, tags[type] || [])
-        })
-      }))
+
+        const components = tags[h.type] || []
+        components.push(h)
+        tags[h.type] = components
+      })
+
+      const titleComponent = tags.title ? tags.title[0] : null
+      let title = ''
+      if (titleComponent) {
+        const { children } = titleComponent.props
+        title =
+          typeof children === 'string'
+            ? children
+            : Array.isArray(children)
+            ? children.join('')
+            : ''
+      }
+      if (title !== document.title) document.title = title
+      ;['meta', 'base', 'link', 'style', 'script'].forEach((type) => {
+        updateElements(type, tags[type] || [])
+      })
     },
   }
 }

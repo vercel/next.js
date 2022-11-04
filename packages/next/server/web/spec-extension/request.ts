@@ -1,47 +1,62 @@
 import type { I18NConfig } from '../../config-shared'
 import type { RequestData } from '../types'
 import { NextURL } from '../next-url'
-import { isBot } from '../../utils'
-import { toNodeHeaders } from '../utils'
-import cookie from 'next/dist/compiled/cookie'
-import parseua from 'next/dist/compiled/ua-parser-js'
+import { toNodeHeaders, validateURL } from '../utils'
+import { RemovedUAError, RemovedPageError } from '../error'
+import { RequestCookies } from './cookies'
 
 export const INTERNALS = Symbol('internal request')
 
 export class NextRequest extends Request {
   [INTERNALS]: {
-    cookieParser(): { [key: string]: string }
+    cookies: RequestCookies
     geo: RequestData['geo']
     ip?: string
-    page?: { name?: string; params?: { [key: string]: string | string[] } }
-    ua?: UserAgent | null
     url: NextURL
   }
 
-  constructor(input: Request | string, init: RequestInit = {}) {
-    super(input, init)
-
-    const cookieParser = () => {
-      const value = this.headers.get('cookie')
-      return value ? cookie.parse(value) : {}
-    }
-
+  constructor(input: URL | RequestInfo, init: RequestInit = {}) {
+    const url =
+      typeof input !== 'string' && 'url' in input ? input.url : String(input)
+    validateURL(url)
+    super(url, init)
     this[INTERNALS] = {
-      cookieParser,
+      cookies: new RequestCookies(this.headers),
       geo: init.geo || {},
       ip: init.ip,
-      page: init.page,
-      url: new NextURL(typeof input === 'string' ? input : input.url, {
-        basePath: init.nextConfig?.basePath,
+      url: new NextURL(url, {
         headers: toNodeHeaders(this.headers),
-        i18n: init.nextConfig?.i18n,
-        trailingSlash: init.nextConfig?.trailingSlash,
+        nextConfig: init.nextConfig,
       }),
     }
   }
 
+  [Symbol.for('edge-runtime.inspect.custom')]() {
+    return {
+      cookies: this.cookies,
+      geo: this.geo,
+      ip: this.ip,
+      nextUrl: this.nextUrl,
+      url: this.url,
+      // rest of props come from Request
+      bodyUsed: this.bodyUsed,
+      cache: this.cache,
+      credentials: this.credentials,
+      destination: this.destination,
+      headers: Object.fromEntries(this.headers),
+      integrity: this.integrity,
+      keepalive: this.keepalive,
+      method: this.method,
+      mode: this.mode,
+      redirect: this.redirect,
+      referrer: this.referrer,
+      referrerPolicy: this.referrerPolicy,
+      signal: this.signal,
+    }
+  }
+
   public get cookies() {
-    return this[INTERNALS].cookieParser()
+    return this[INTERNALS].cookies
   }
 
   public get geo() {
@@ -52,38 +67,26 @@ export class NextRequest extends Request {
     return this[INTERNALS].ip
   }
 
-  public get preflight() {
-    return this.headers.get('x-middleware-preflight')
-  }
-
   public get nextUrl() {
     return this[INTERNALS].url
   }
 
+  /**
+   * @deprecated
+   * `page` has been deprecated in favour of `URLPattern`.
+   * Read more: https://nextjs.org/docs/messages/middleware-request-page
+   */
   public get page() {
-    return {
-      name: this[INTERNALS].page?.name,
-      params: this[INTERNALS].page?.params,
-    }
+    throw new RemovedPageError()
   }
 
+  /**
+   * @deprecated
+   * `ua` has been removed in favour of \`userAgent\` function.
+   * Read more: https://nextjs.org/docs/messages/middleware-parse-user-agent
+   */
   public get ua() {
-    if (typeof this[INTERNALS].ua !== 'undefined') {
-      return this[INTERNALS].ua || undefined
-    }
-
-    const uaString = this.headers.get('user-agent')
-    if (!uaString) {
-      this[INTERNALS].ua = null
-      return this[INTERNALS].ua || undefined
-    }
-
-    this[INTERNALS].ua = {
-      ...parseua(uaString),
-      isBot: isBot(uaString),
-    }
-
-    return this[INTERNALS].ua
+    throw new RemovedUAError()
   }
 
   public get url() {
@@ -102,34 +105,5 @@ export interface RequestInit extends globalThis.RequestInit {
     basePath?: string
     i18n?: I18NConfig | null
     trailingSlash?: boolean
-  }
-  page?: {
-    name?: string
-    params?: { [key: string]: string | string[] }
-  }
-}
-
-interface UserAgent {
-  isBot: boolean
-  ua: string
-  browser: {
-    name?: string
-    version?: string
-  }
-  device: {
-    model?: string
-    type?: string
-    vendor?: string
-  }
-  engine: {
-    name?: string
-    version?: string
-  }
-  os: {
-    name?: string
-    version?: string
-  }
-  cpu: {
-    architecture?: string
   }
 }

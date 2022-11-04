@@ -1,4 +1,3 @@
-import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
 import Chalk from 'next/dist/compiled/chalk'
 import { SimpleWebpackError } from './simpleWebpackError'
 
@@ -24,6 +23,9 @@ export function getScssError(
     let frame: string | undefined
     if (fileContent) {
       try {
+        const {
+          codeFrameColumns,
+        } = require('next/dist/compiled/babel/code-frame')
         frame = codeFrameColumns(
           fileContent,
           { start: { line: lineNumber, column } },

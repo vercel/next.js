@@ -1,7 +1,6 @@
 import path from 'path'
 import assert from 'assert'
-import { NextConfig } from 'next'
-import { InstallCommand, NextInstance, PackageJson } from './next-modes/base'
+import { NextInstance, NextInstanceOpts } from './next-modes/base'
 import { NextDevInstance } from './next-modes/next-dev'
 import { NextStartInstance } from './next-modes/next-start'
 import { NextDeployInstance } from './next-modes/next-deploy'
@@ -46,7 +45,9 @@ if (testModeFromFile === 'e2e') {
   const validE2EModes = ['dev', 'start', 'deploy']
 
   if (!process.env.NEXT_TEST_JOB && !testMode) {
-    console.warn('Warn: no NEXT_TEST_MODE set, using default of start')
+    require('console').warn(
+      'Warn: no NEXT_TEST_MODE set, using default of start'
+    )
     testMode = 'start'
   }
   assert(
@@ -74,7 +75,9 @@ if (!testMode) {
     `No 'NEXT_TEST_MODE' set in environment, this is required for e2e-utils`
   )
 }
-console.log(`Using test mode: ${testMode} in test folder ${testModeFromFile}`)
+require('console').warn(
+  `Using test mode: ${testMode} in test folder ${testModeFromFile}`
+)
 
 /**
  * FileRef is wrapper around a file path that is meant be copied
@@ -106,21 +109,9 @@ if (typeof afterAll === 'function') {
  * test mode. The next instance will be isolated from the monorepo
  * to prevent relying on modules that shouldn't be
  */
-export async function createNext(opts: {
-  files: {
-    [filename: string]: string | FileRef
-  }
-  dependencies?: {
-    [name: string]: string
-  }
-  nextConfig?: NextConfig
-  skipStart?: boolean
-  installCommand?: InstallCommand
-  buildCommand?: string
-  packageJson?: PackageJson
-  startCommand?: string
-  packageLockPath?: string
-}): Promise<NextInstance> {
+export async function createNext(
+  opts: NextInstanceOpts & { skipStart?: boolean }
+): Promise<NextInstance> {
   try {
     if (nextInstance) {
       throw new Error(`createNext called without destroying previous instance`)

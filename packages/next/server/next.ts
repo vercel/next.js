@@ -1,7 +1,6 @@
 import type { Options as DevServerOptions } from './dev/next-dev-server'
 import type { NodeRequestHandler } from './next-server'
 import type { UrlWithParsedQuery } from 'url'
-
 import './node-polyfill-fetch'
 import { default as Server } from './next-server'
 import * as log from '../build/output/log'
@@ -12,12 +11,19 @@ import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
 import { IncomingMessage, ServerResponse } from 'http'
 import { NextUrlWithParsedQuery } from './request-meta'
+import {
+  loadRequireHook,
+  overrideBuiltInReactPackages,
+} from '../build/webpack/require-hook'
+
+loadRequireHook()
 
 let ServerImpl: typeof Server
 
 const getServerImpl = async () => {
-  if (ServerImpl === undefined)
+  if (ServerImpl === undefined) {
     ServerImpl = (await Promise.resolve(require('./next-server'))).default
+  }
   return ServerImpl
 }
 
@@ -58,6 +64,15 @@ export class NextServer {
     ) => {
       const requestHandler = await this.getServerRequestHandler()
       return requestHandler(req, res, parsedUrl)
+    }
+  }
+
+  getUpgradeHandler() {
+    return async (req: IncomingMessage, socket: any, head: any) => {
+      const server = await this.getServer()
+      // @ts-expect-error we mark this as protected so it
+      // causes an error here
+      return server.handleUpgrade.apply(server, [req, socket, head])
     }
   }
 
@@ -125,18 +140,21 @@ export class NextServer {
   }
 
   private async loadConfig() {
-    const phase = this.options.dev
-      ? PHASE_DEVELOPMENT_SERVER
-      : PHASE_PRODUCTION_SERVER
-    const dir = resolve(this.options.dir || '.')
-    const conf = await loadConfig(phase, dir, this.options.conf)
-    return conf
+    return loadConfig(
+      this.options.dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
+      resolve(this.options.dir || '.'),
+      this.options.conf
+    )
   }
 
   private async getServer() {
     if (!this.serverPromise) {
-      setTimeout(getServerImpl, 10)
       this.serverPromise = this.loadConfig().then(async (conf) => {
+        if (conf.experimental.appDir) {
+          process.env.NEXT_PREBUNDLED_REACT = '1'
+          overrideBuiltInReactPackages()
+        }
+
         this.server = await this.createServer({
           ...this.options,
           conf,
@@ -163,6 +181,15 @@ export class NextServer {
 
 // This file is used for when users run `require('next')`
 function createServer(options: NextServerOptions): NextServer {
+  // The package is used as a TypeScript plugin.
+  if (
+    options &&
+    'typescript' in options &&
+    'version' in (options as any).typescript
+  ) {
+    return require('./next-typescript').createTSPlugin(options)
+  }
+
   if (options == null) {
     throw new Error(
       'The server has not been instantiated properly. https://nextjs.org/docs/messages/invalid-server-options'
@@ -181,14 +208,6 @@ function createServer(options: NextServerOptions): NextServer {
     console.warn(
       "Warning: 'dev' is not a boolean which could introduce unexpected behavior. https://nextjs.org/docs/messages/invalid-server-options"
     )
-  }
-
-  // Make sure env of custom server is overridden.
-  // Use dynamic require to make sure it's executed in it's own context.
-  const ReactDOMServer = require('react-dom/server.browser')
-  const shouldUseReactRoot = !!ReactDOMServer.renderToReadableStream
-  if (shouldUseReactRoot) {
-    ;(process.env as any).__NEXT_REACT_ROOT = 'true'
   }
 
   return new NextServer(options)

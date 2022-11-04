@@ -22,15 +22,16 @@ import {
   CLIENT_STATIC_FILES_PATH,
   EXPORT_DETAIL,
   EXPORT_MARKER,
+  FLIGHT_MANIFEST,
+  FLIGHT_SERVER_CSS_MANIFEST,
+  FONT_LOADER_MANIFEST,
   PAGES_MANIFEST,
   PHASE_EXPORT,
   PRERENDER_MANIFEST,
-  SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
 } from '../shared/lib/constants'
 import loadConfig from '../server/config'
-import { isTargetLikeServerless } from '../server/utils'
-import { NextConfigComplete } from '../server/config-shared'
+import { ExportPathMap, NextConfigComplete } from '../server/config-shared'
 import { eventCliSession } from '../telemetry/events'
 import { hasNextSupport } from '../telemetry/ci-info'
 import { Telemetry } from '../telemetry/storage'
@@ -41,6 +42,16 @@ import { PrerenderManifest } from '../build'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import { getPagePath } from '../server/require'
 import { Span } from '../trace'
+import { FontConfig } from '../server/font-utils'
+import {
+  loadRequireHook,
+  overrideBuiltInReactPackages,
+} from '../build/webpack/require-hook'
+
+loadRequireHook()
+if (process.env.NEXT_PREBUNDLED_REACT) {
+  overrideBuiltInReactPackages()
+}
 
 const exists = promisify(existsOrig)
 
@@ -124,10 +135,6 @@ const createProgress = (total: number, label: string) => {
   }
 }
 
-type ExportPathMap = {
-  [page: string]: { page: string; query?: { [key: string]: string } }
-}
-
 interface ExportOptions {
   outdir: string
   silent?: boolean
@@ -137,6 +144,7 @@ interface ExportOptions {
   statusMessage?: string
   exportPageWorker?: typeof import('./worker').default
   endWorker?: () => Promise<void>
+  appPaths?: string[]
 }
 
 export default async function exportApp(
@@ -146,6 +154,7 @@ export default async function exportApp(
   configuration?: NextConfigComplete
 ): Promise<void> {
   const nextExportSpan = span.traceChild('next-export')
+  const hasAppDir = !!options.appPaths
 
   return nextExportSpan.traceAsyncFn(async () => {
     dir = resolve(dir)
@@ -173,12 +182,14 @@ export default async function exportApp(
           isSrcDir: null,
           hasNowJson: !!(await findUp('now.json', { cwd: dir })),
           isCustomServer: null,
+          turboFlag: false,
+          pagesDir: null,
+          appDir: null,
         })
       )
     }
 
     const subFolders = nextConfig.trailingSlash && !options.buildExport
-    const isLikeServerless = nextConfig.target !== 'server'
 
     if (!options.silent && !options.buildExport) {
       Log.info(`using build directory: ${distDir}`)
@@ -213,7 +224,7 @@ export default async function exportApp(
       !options.pages &&
       (require(join(
         distDir,
-        isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
+        SERVER_DIRECTORY,
         PAGES_MANIFEST
       )) as PagesManifest)
 
@@ -237,12 +248,7 @@ export default async function exportApp(
         continue
       }
 
-      if (
-        page === '/_document' ||
-        page === '/_app.server' ||
-        page === '/_app' ||
-        page === '/_error'
-      ) {
+      if (page === '/_document' || page === '/_app' || page === '/_error') {
         continue
       }
 
@@ -323,14 +329,14 @@ export default async function exportApp(
           `No "exportPathMap" found in "${nextConfig.configFile}". Generating map from "./pages"`
         )
       }
-      nextConfig.exportPathMap = async (defaultMap: ExportPathMap) => {
+      nextConfig.exportPathMap = async (defaultMap) => {
         return defaultMap
       }
     }
 
     const {
       i18n,
-      images: { loader = 'default' },
+      images: { loader = 'default', unoptimized },
     } = nextConfig
 
     if (i18n && !options.buildExport) {
@@ -349,14 +355,17 @@ export default async function exportApp(
             .catch(() => ({}))
         )
 
-      if (isNextImageImported && loader === 'default' && !hasNextSupport) {
+      if (
+        isNextImageImported &&
+        loader === 'default' &&
+        !unoptimized &&
+        !hasNextSupport
+      ) {
         throw new Error(
           `Image Optimization using Next.js' default loader is not compatible with \`next export\`.
   Possible solutions:
     - Use \`next start\` to run a server, which includes the Image Optimization API.
-    - Use any provider which supports Image Optimization (like Vercel).
-    - Configure a third-party loader in \`next.config.js\`.
-    - Use the \`loader\` prop for \`next/image\`.
+    - Configure \`images.unoptimized = true\` in \`next.config.js\` to disable the Image Optimization API.
   Read more: https://nextjs.org/docs/messages/export-image-api`
         )
       }
@@ -388,8 +397,12 @@ export default async function exportApp(
       crossOrigin: nextConfig.crossOrigin,
       optimizeCss: nextConfig.experimental.optimizeCss,
       nextScriptWorkers: nextConfig.experimental.nextScriptWorkers,
-      optimizeFonts: nextConfig.optimizeFonts,
-      reactRoot: nextConfig.experimental.reactRoot || false,
+      optimizeFonts: nextConfig.optimizeFonts as FontConfig,
+      largePageDataBytes: nextConfig.experimental.largePageDataBytes,
+      serverComponents: hasAppDir,
+      fontLoaderManifest: nextConfig.experimental.fontLoaders
+        ? require(join(distDir, 'server', `${FONT_LOADER_MANIFEST}.json`))
+        : undefined,
     }
 
     const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -408,23 +421,46 @@ export default async function exportApp(
     }
     const exportPathMap = await nextExportSpan
       .traceChild('run-export-path-map')
-      .traceAsyncFn(() =>
-        nextConfig.exportPathMap(defaultPathMap, {
+      .traceAsyncFn(async () => {
+        const exportMap = await nextConfig.exportPathMap(defaultPathMap, {
           dev: false,
           dir,
           outDir,
           distDir,
           buildId,
         })
-      )
+        return exportMap
+      })
 
-    if (
-      !options.buildExport &&
-      !exportPathMap['/404'] &&
-      !exportPathMap['/404.html']
-    ) {
-      exportPathMap['/404'] = exportPathMap['/404.html'] = {
-        page: '/_error',
+    if (options.buildExport && hasAppDir) {
+      // @ts-expect-error untyped
+      renderOpts.serverComponentManifest = require(join(
+        distDir,
+        SERVER_DIRECTORY,
+        `${FLIGHT_MANIFEST}.json`
+      )) as PagesManifest
+      // @ts-expect-error untyped
+      renderOpts.serverCSSManifest = require(join(
+        distDir,
+        SERVER_DIRECTORY,
+        FLIGHT_SERVER_CSS_MANIFEST + '.json'
+      )) as PagesManifest
+    }
+
+    // only add missing 404 page when `buildExport` is false
+    if (!options.buildExport) {
+      // only add missing /404 if not specified in `exportPathMap`
+      if (!exportPathMap['/404']) {
+        exportPathMap['/404'] = { page: '/_error' }
+      }
+
+      /**
+       * exports 404.html for backwards compat
+       * E.g. GitHub Pages, GitLab Pages, Cloudflare Pages, Netlify
+       */
+      if (!exportPathMap['/404.html']) {
+        // alias /404.html to /404 to be compatible with custom 404 / _error page
+        exportPathMap['/404.html'] = exportPathMap['/404']
       }
     }
 
@@ -581,18 +617,18 @@ export default async function exportApp(
             outDir,
             pagesDataDir,
             renderOpts,
-            rootDir: nextConfig.experimental.rootDir,
             serverRuntimeConfig,
             subFolders,
             buildExport: options.buildExport,
-            serverless: isTargetLikeServerless(nextConfig.target),
-            optimizeFonts: nextConfig.optimizeFonts,
+            optimizeFonts: nextConfig.optimizeFonts as FontConfig,
             optimizeCss: nextConfig.experimental.optimizeCss,
             disableOptimizedLoading:
               nextConfig.experimental.disableOptimizedLoading,
             parentSpanId: pageExportSpan.id,
             httpAgentOptions: nextConfig.httpAgentOptions,
-            serverComponents: nextConfig.experimental.serverComponents,
+            serverComponents: hasAppDir,
+            appPaths: options.appPaths || [],
+            enableUndici: nextConfig.experimental.enableUndici,
           })
 
           for (const validation of result.ampValidations || []) {
@@ -637,15 +673,15 @@ export default async function exportApp(
         Object.keys(prerenderManifest.routes).map(async (route) => {
           const { srcRoute } = prerenderManifest!.routes[route]
           const pageName = srcRoute || route
-          route = normalizePagePath(route)
 
           // returning notFound: true from getStaticProps will not
           // output html/json files during the build
           if (prerenderManifest!.notFoundRoutes.includes(route)) {
             return
           }
+          route = normalizePagePath(route)
 
-          const pagePath = getPagePath(pageName, distDir, isLikeServerless)
+          const pagePath = getPagePath(pageName, distDir)
           const distPagesDir = join(
             pagePath,
             // strip leading / and then recurse number of nested dirs

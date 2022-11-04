@@ -4,12 +4,9 @@ description: Learn how to share components and state between Next.js pages with 
 
 # Layouts
 
-<details open>
-  <summary><b>Examples</b></summary>
-  <ul>
-    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/layout-component">layout-component</a></li>
-  </ul>
-</details>
+> **Note**: Next.js 13 introduces the `app/` directory (beta). This new directory has support for layouts, nested routes, and uses Server Components by default. Inside `app/`, you can fetch data for your entire application inside layouts, including support for more granular nested layouts (with [colocated data fetching](https://beta.nextjs.org/docs/data-fetching/fundamentals)).
+>
+> [Learn more about incrementally adopting `app/`](https://beta.nextjs.org/docs/upgrade-guide).
 
 The React model allows us to deconstruct a [page](/docs/basic-features/pages.md) into a series of components. Many of these components are often reused between pages. For example, you might have the same navigation bar and footer on every page.
 
@@ -126,7 +123,7 @@ import type { ReactElement, ReactNode } from 'react'
 import type { NextPage } from 'next'
 import type { AppProps } from 'next/app'
 
-export type NextPageWithLayout = NextPage & {
+export type NextPageWithLayout<P = {}, IP = P> = NextPage<P, IP> & {
   getLayout?: (page: ReactElement) => ReactNode
 }
 

@@ -5,6 +5,7 @@ import {
 } from 'next/dist/compiled/webpack/webpack'
 import {
   getFontDefinitionFromNetwork,
+  getFontOverrideCss,
   FontManifest,
 } from '../../../server/font-utils'
 import postcss from 'postcss'
@@ -30,18 +31,43 @@ function minifyCss(css: string): Promise<string> {
     .then((res) => res.css)
 }
 
+function isNodeCreatingLinkElement(node: any) {
+  const callee = node.callee as any
+  if (callee.type !== 'Identifier') {
+    return false
+  }
+  const componentNode = node.arguments[0] as any
+  if (componentNode.type !== 'Literal') {
+    return false
+  }
+  // React has pragma: _jsx.
+  // Next has pragma: __jsx.
+  return (
+    (callee.name === '_jsx' || callee.name === '__jsx') &&
+    componentNode.value === 'link'
+  )
+}
+
 export class FontStylesheetGatheringPlugin {
   compiler?: webpack.Compiler
   gatheredStylesheets: Array<string> = []
   manifestContent: FontManifest = []
-  isLikeServerless: boolean
+  adjustFontFallbacks?: boolean
+  adjustFontFallbacksWithSizeAdjust?: boolean
 
-  constructor({ isLikeServerless }: { isLikeServerless: boolean }) {
-    this.isLikeServerless = isLikeServerless
+  constructor({
+    adjustFontFallbacks,
+    adjustFontFallbacksWithSizeAdjust,
+  }: {
+    adjustFontFallbacks?: boolean
+    adjustFontFallbacksWithSizeAdjust?: boolean
+  }) {
+    this.adjustFontFallbacks = adjustFontFallbacks
+    this.adjustFontFallbacksWithSizeAdjust = adjustFontFallbacksWithSizeAdjust
   }
 
   private parserHandler = (
-    factory: webpack.compilation.NormalModuleFactory
+    factory: ReturnType<webpack.Compiler['createNormalModuleFactory']>
   ): void => {
     const JS_TYPES = ['auto', 'esm', 'dynamic']
     // Do an extra walk per module and add interested visitors to the walk.
@@ -154,25 +180,6 @@ export class FontStylesheetGatheringPlugin {
       this.parserHandler
     )
     compiler.hooks.make.tapAsync(this.constructor.name, (compilation, cb) => {
-      if (this.isLikeServerless) {
-        /**
-         * Inline font manifest for serverless case only.
-         * For target: server drive the manifest through physical file and less of webpack magic.
-         */
-        const mainTemplate = compilation.mainTemplate
-        mainTemplate.hooks.requireExtensions.tap(
-          this.constructor.name,
-          (source: string) => {
-            return `${source}
-                // Font manifest declaration
-                __webpack_require__.__NEXT_FONT_MANIFEST__ = ${JSON.stringify(
-                  this.manifestContent
-                )};
-            // Enable feature:
-            process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(true);`
-          }
-        )
-      }
       compilation.hooks.finishModules.tapAsync(
         this.constructor.name,
         async (modules: any, modulesFinished: Function) => {
@@ -195,7 +202,15 @@ export class FontStylesheetGatheringPlugin {
 
           this.manifestContent = []
           for (let promiseIndex in fontDefinitionPromises) {
-            const css = await fontDefinitionPromises[promiseIndex]
+            let css = await fontDefinitionPromises[promiseIndex]
+
+            if (this.adjustFontFallbacks) {
+              css += getFontOverrideCss(
+                fontStylesheets[promiseIndex],
+                css,
+                this.adjustFontFallbacksWithSizeAdjust
+              )
+            }
 
             if (css) {
               try {
@@ -213,6 +228,7 @@ export class FontStylesheetGatheringPlugin {
             }
           }
 
+          // @ts-expect-error invalid assets type
           compilation.assets[FONT_MANIFEST] = new sources.RawSource(
             JSON.stringify(this.manifestContent, null, '  ')
           )
@@ -224,11 +240,9 @@ export class FontStylesheetGatheringPlugin {
     })
 
     compiler.hooks.make.tap(this.constructor.name, (compilation) => {
-      // @ts-ignore TODO: Remove ignore when webpack 5 is stable
       compilation.hooks.processAssets.tap(
         {
           name: this.constructor.name,
-          // @ts-ignore TODO: Remove ignore when webpack 5 is stable
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
         },
         (assets: any) => {
@@ -239,21 +253,4 @@ export class FontStylesheetGatheringPlugin {
       )
     })
   }
-}
-
-function isNodeCreatingLinkElement(node: any) {
-  const callee = node.callee as any
-  if (callee.type !== 'Identifier') {
-    return false
-  }
-  const componentNode = node.arguments[0] as any
-  if (componentNode.type !== 'Literal') {
-    return false
-  }
-  // React has pragma: _jsx.
-  // Next has pragma: __jsx.
-  return (
-    (callee.name === '_jsx' || callee.name === '__jsx') &&
-    componentNode.value === 'link'
-  )
 }

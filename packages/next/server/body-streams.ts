@@ -1,37 +1,20 @@
 import type { IncomingMessage } from 'http'
-import { Readable } from 'stream'
-import { TransformStream } from 'next/dist/compiled/web-streams-polyfill'
+import { PassThrough, Readable } from 'stream'
 
-type BodyStream = ReadableStream<Uint8Array>
-
-/**
- * Creates a ReadableStream from a Node.js HTTP request
- */
-function requestToBodyStream(request: IncomingMessage): BodyStream {
-  const transform = new TransformStream<Uint8Array, Uint8Array>({
+export function requestToBodyStream(
+  context: { ReadableStream: typeof ReadableStream },
+  KUint8Array: typeof Uint8Array,
+  stream: Readable
+) {
+  return new context.ReadableStream({
     start(controller) {
-      request.on('data', (chunk) => controller.enqueue(chunk))
-      request.on('end', () => controller.terminate())
-      request.on('error', (err) => controller.error(err))
+      stream.on('data', (chunk) =>
+        controller.enqueue(new KUint8Array([...new Uint8Array(chunk)]))
+      )
+      stream.on('end', () => controller.close())
+      stream.on('error', (err) => controller.error(err))
     },
   })
-
-  return transform.readable as unknown as ReadableStream<Uint8Array>
-}
-
-function bodyStreamToNodeStream(bodyStream: BodyStream): Readable {
-  const reader = bodyStream.getReader()
-  return Readable.from(
-    (async function* () {
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) {
-          return
-        }
-        yield value
-      }
-    })()
-  )
 }
 
 function replaceRequestBody<T extends IncomingMessage>(
@@ -41,7 +24,7 @@ function replaceRequestBody<T extends IncomingMessage>(
   for (const key in stream) {
     let v = stream[key as keyof Readable] as any
     if (typeof v === 'function') {
-      v = v.bind(stream)
+      v = v.bind(base)
     }
     base[key as keyof T] = v
   }
@@ -49,18 +32,23 @@ function replaceRequestBody<T extends IncomingMessage>(
   return base
 }
 
-/**
- * An interface that encapsulates body stream cloning
- * of an incoming request.
- */
-export function clonableBodyForRequest<T extends IncomingMessage>(
-  incomingMessage: T
-) {
-  let bufferedBodyStream: BodyStream | null = null
+export interface ClonableBody {
+  finalize(): Promise<void>
+  cloneBodyStream(): Readable
+}
 
-  const endPromise = new Promise((resolve, reject) => {
-    incomingMessage.on('end', resolve)
-    incomingMessage.on('error', reject)
+export function getClonableBody<T extends IncomingMessage>(
+  readable: T
+): ClonableBody {
+  let buffered: Readable | null = null
+
+  const endPromise = new Promise<void | { error?: unknown }>(
+    (resolve, reject) => {
+      readable.on('end', resolve)
+      readable.on('error', reject)
+    }
+  ).catch((error) => {
+    return { error }
   })
 
   return {
@@ -70,24 +58,34 @@ export function clonableBodyForRequest<T extends IncomingMessage>(
      * we can't read it again.
      */
     async finalize(): Promise<void> {
-      if (bufferedBodyStream) {
-        await endPromise
-        replaceRequestBody(
-          incomingMessage,
-          bodyStreamToNodeStream(bufferedBodyStream)
-        )
+      if (buffered) {
+        const res = await endPromise
+
+        if (res && typeof res === 'object' && res.error) {
+          throw res.error
+        }
+        replaceRequestBody(readable, buffered)
+        buffered = readable
       }
     },
     /**
      * Clones the body stream
      * to pass into a middleware
      */
-    cloneBodyStream(): BodyStream {
-      const originalStream =
-        bufferedBodyStream ?? requestToBodyStream(incomingMessage)
-      const [stream1, stream2] = originalStream.tee()
-      bufferedBodyStream = stream1
-      return stream2
+    cloneBodyStream() {
+      const input = buffered ?? readable
+      const p1 = new PassThrough()
+      const p2 = new PassThrough()
+      input.on('data', (chunk) => {
+        p1.push(chunk)
+        p2.push(chunk)
+      })
+      input.on('end', () => {
+        p1.push(null)
+        p2.push(null)
+      })
+      buffered = p2
+      return p1
     },
   }
 }

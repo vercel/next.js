@@ -34,15 +34,17 @@ function isLikelyASyntaxError(message) {
   return stripAnsi(message).indexOf(friendlySyntaxErrorLabel) !== -1
 }
 
+let hadMissingSassError = false
+
 // Cleans up webpack error messages.
-function formatMessage(message, verbose) {
+function formatMessage(message, verbose, importTraceNote) {
   // TODO: Replace this once webpack 5 is stable
   if (typeof message === 'object' && message.message) {
     const filteredModuleTrace =
       message.moduleTrace &&
       message.moduleTrace.filter(
         (trace) =>
-          !/next-(middleware|client-pages|flight-(client|server))-loader\.js/.test(
+          !/next-(middleware|client-pages|edge-function)-loader\.js/.test(
             trace.originName
           )
       )
@@ -59,8 +61,8 @@ function formatMessage(message, verbose) {
       body +
       (message.details && verbose ? '\n' + message.details : '') +
       (filteredModuleTrace && filteredModuleTrace.length && verbose
-        ? '\n\nImport trace for requested module:' +
-          filteredModuleTrace.map((trace) => `\n${trace.originName}`).join('')
+        ? (importTraceNote || '\n\nImport trace for requested module:') +
+          filteredModuleTrace.map((trace) => `\n${trace.moduleName}`).join('')
         : '') +
       (message.stack && verbose ? '\n' + message.stack : '')
   }
@@ -121,14 +123,25 @@ function formatMessage(message, verbose) {
   }
 
   // Add helpful message for users trying to use Sass for the first time
-  if (lines[1] && lines[1].match(/Cannot find module.+node-sass/)) {
+  if (lines[1] && lines[1].match(/Cannot find module.+sass/)) {
     // ./file.module.scss (<<loader info>>) => ./file.module.scss
-    lines[0] = lines[0].replace(/(.+) \(.+?(?=\?\?).+?\)/, '$1')
+    const firstLine = lines[0].split('!')
+    lines[0] = firstLine[firstLine.length - 1]
 
     lines[1] =
       "To use Next.js' built-in Sass support, you first need to install `sass`.\n"
     lines[1] += 'Run `npm i sass` or `yarn add sass` inside your workspace.\n'
     lines[1] += '\nLearn more: https://nextjs.org/docs/messages/install-sass'
+
+    // dispose of unhelpful stack trace
+    lines = lines.slice(0, 2)
+    hadMissingSassError = true
+  } else if (
+    hadMissingSassError &&
+    message.match(/(sass-loader|resolve-url-loader: CSS error)/)
+  ) {
+    // dispose of unhelpful stack trace following missing sass module
+    lines = []
   }
 
   if (!verbose) {
@@ -158,7 +171,19 @@ function formatMessage(message, verbose) {
 
 function formatWebpackMessages(json, verbose) {
   const formattedErrors = json.errors.map(function (message) {
-    return formatMessage(message, verbose)
+    let importTraceNote
+
+    if (
+      message &&
+      message.message &&
+      /Font loader error:/.test(message.message)
+    ) {
+      return message.message.slice(
+        message.message.indexOf('Font loader error:')
+      )
+    }
+
+    return formatMessage(message, verbose, importTraceNote)
   })
   const formattedWarnings = json.warnings.map(function (message) {
     return formatMessage(message, verbose)

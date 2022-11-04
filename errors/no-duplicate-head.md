@@ -1,5 +1,7 @@
 # No Duplicate Head
 
+> Prevent duplicate usage of `<Head>` in `pages/_document.js`.
+
 ### Why This Error Occurred
 
 More than a single instance of the `<Head />` component was used in a single custom document. This can cause unexpected behavior in your application.

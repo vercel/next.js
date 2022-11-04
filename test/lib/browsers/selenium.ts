@@ -42,7 +42,7 @@ export async function quit() {
   seleniumServer = undefined
 }
 
-class Selenium extends BrowserInterface {
+export class Selenium extends BrowserInterface {
   private browserName: string
 
   // TODO: support setting locale
@@ -356,5 +356,3 @@ class Selenium extends BrowserInterface {
     return this.chain(() => browser.getCurrentUrl()) as any
   }
 }
-
-export default Selenium

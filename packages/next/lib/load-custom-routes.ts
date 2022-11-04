@@ -1,14 +1,10 @@
 import type { NextConfig } from '../server/config'
+import type { Token } from 'next/dist/compiled/path-to-regexp'
 
 import chalk from './chalk'
-import { parse as parseUrl } from 'url'
-import * as pathToRegexp from 'next/dist/compiled/path-to-regexp'
 import { escapeStringRegexp } from '../shared/lib/escape-regexp'
-import {
-  PERMANENT_REDIRECT_STATUS,
-  TEMPORARY_REDIRECT_STATUS,
-} from '../shared/lib/constants'
-import isError from './is-error'
+import { tryToParsePath } from './try-to-parse-path'
+import { allowedStatusCodes } from './redirect-status'
 
 export type RouteHas =
   | {
@@ -45,43 +41,29 @@ export type Redirect = {
   basePath?: false
   locale?: false
   has?: RouteHas[]
-  statusCode?: number
-  permanent?: boolean
+} & (
+  | {
+      statusCode?: never
+      permanent: boolean
+    }
+  | {
+      statusCode: number
+      permanent?: never
+    }
+)
+
+export type Middleware = {
+  source: string
+  locale?: false
+  has?: RouteHas[]
 }
 
-export const allowedStatusCodes = new Set([301, 302, 303, 307, 308])
 const allowedHasTypes = new Set(['header', 'cookie', 'query', 'host'])
 const namedGroupsRegex = /\(\?<([a-zA-Z][a-zA-Z0-9]*)>/g
-
-export function getRedirectStatus(route: {
-  statusCode?: number
-  permanent?: boolean
-}): number {
-  return (
-    route.statusCode ||
-    (route.permanent ? PERMANENT_REDIRECT_STATUS : TEMPORARY_REDIRECT_STATUS)
-  )
-}
 
 export function normalizeRouteRegex(regex: string) {
   // clean up un-necessary escaping from regex.source which turns / into \\/
   return regex.replace(/\\\//g, '/')
-}
-
-// for redirects we restrict matching /_next and for all routes
-// we add an optional trailing slash at the end for easier
-// configuring between trailingSlash: true/false
-export function modifyRouteRegex(regex: string, restrictedPaths?: string[]) {
-  if (restrictedPaths) {
-    regex = regex.replace(
-      /\^/,
-      `^(?!${restrictedPaths
-        .map((path) => path.replace(/\//g, '\\/'))
-        .join('|')})`
-    )
-  }
-  regex = regex.replace(/\$$/, '(?:\\/)?$')
-  return regex
 }
 
 function checkRedirect(route: Redirect): {
@@ -133,59 +115,11 @@ function checkHeader(route: Header): string[] {
   return invalidParts
 }
 
-type ParseAttemptResult = {
-  error?: boolean
-  tokens?: pathToRegexp.Token[]
-  regexStr?: string
-}
-
-function tryParsePath(route: string, handleUrl?: boolean): ParseAttemptResult {
-  const result: ParseAttemptResult = {}
-  let routePath = route
-
-  try {
-    if (handleUrl) {
-      const parsedDestination = parseUrl(route, true)
-      routePath = `${parsedDestination.pathname!}${
-        parsedDestination.hash || ''
-      }`
-    }
-
-    // Make sure we can parse the source properly
-    result.tokens = pathToRegexp.parse(routePath)
-
-    const regex = pathToRegexp.tokensToRegexp(result.tokens)
-    result.regexStr = regex.source
-  } catch (err) {
-    // If there is an error show our error link but still show original error or a formatted one if we can
-    let errMatches
-
-    if (isError(err) && (errMatches = err.message.match(/at (\d{0,})/))) {
-      const position = parseInt(errMatches[1], 10)
-      console.error(
-        `\nError parsing \`${route}\` ` +
-          `https://nextjs.org/docs/messages/invalid-route-source\n` +
-          `Reason: ${err.message}\n\n` +
-          `  ${routePath}\n` +
-          `  ${new Array(position).fill(' ').join('')}^\n`
-      )
-    } else {
-      console.error(
-        `\nError parsing ${route} https://nextjs.org/docs/messages/invalid-route-source`,
-        err
-      )
-    }
-    result.error = true
-  }
-
-  return result
-}
-
 export type RouteType = 'rewrite' | 'redirect' | 'header'
 
-function checkCustomRoutes(
-  routes: Redirect[] | Header[] | Rewrite[],
-  type: RouteType
+export function checkCustomRoutes(
+  routes: Redirect[] | Header[] | Rewrite[] | Middleware[],
+  type: RouteType | 'middleware'
 ): void {
   if (!Array.isArray(routes)) {
     console.error(
@@ -199,17 +133,20 @@ function checkCustomRoutes(
   let hadInvalidStatus = false
   let hadInvalidHas = false
 
-  const allowedKeys = new Set<string>(['source', 'basePath', 'locale', 'has'])
+  const allowedKeys = new Set<string>(['source', 'locale', 'has'])
 
   if (type === 'rewrite') {
+    allowedKeys.add('basePath')
     allowedKeys.add('destination')
   }
   if (type === 'redirect') {
+    allowedKeys.add('basePath')
     allowedKeys.add('statusCode')
     allowedKeys.add('permanent')
     allowedKeys.add('destination')
   }
   if (type === 'header') {
+    allowedKeys.add('basePath')
     allowedKeys.add('headers')
   }
 
@@ -218,9 +155,11 @@ function checkCustomRoutes(
       console.error(
         `The route ${JSON.stringify(
           route
-        )} is not a valid object with \`source\` and \`${
-          type === 'header' ? 'headers' : 'destination'
-        }\``
+        )} is not a valid object with \`source\`${
+          type !== 'middleware'
+            ? ` and \`${type === 'header' ? 'headers' : 'destination'}\``
+            : ''
+        }`
       )
       numInvalidRoutes++
       continue
@@ -247,7 +186,11 @@ function checkCustomRoutes(
     const invalidKeys = keys.filter((key) => !allowedKeys.has(key))
     const invalidParts: string[] = []
 
-    if (typeof route.basePath !== 'undefined' && route.basePath !== false) {
+    if (
+      'basePath' in route &&
+      typeof route.basePath !== 'undefined' &&
+      route.basePath !== false
+    ) {
       invalidParts.push('`basePath` must be undefined or false')
     }
 
@@ -309,7 +252,7 @@ function checkCustomRoutes(
 
     if (type === 'header') {
       invalidParts.push(...checkHeader(route as Header))
-    } else {
+    } else if (type !== 'middleware') {
       let _route = route as Rewrite | Redirect
       if (!_route.destination) {
         invalidParts.push('`destination` is missing')
@@ -331,12 +274,12 @@ function checkCustomRoutes(
       invalidParts.push(...result.invalidParts)
     }
 
-    let sourceTokens: pathToRegexp.Token[] | undefined
+    let sourceTokens: Token[] | undefined
 
     if (typeof route.source === 'string' && route.source.startsWith('/')) {
       // only show parse error if we didn't already show error
       // for not being a string
-      const { tokens, error, regexStr } = tryParsePath(route.source)
+      const { tokens, error, regexStr } = tryToParsePath(route.source)
 
       if (error) {
         invalidParts.push('`source` parse failed')
@@ -399,7 +342,9 @@ function checkCustomRoutes(
             tokens: destTokens,
             regexStr: destRegexStr,
             error: destinationParseFailed,
-          } = tryParsePath((route as Rewrite).destination, true)
+          } = tryToParsePath((route as Rewrite).destination, {
+            handleUrl: true,
+          })
 
           if (destRegexStr && destRegexStr.length > 4096) {
             invalidParts.push('`destination` exceeds max built length of 4096')
@@ -679,50 +624,52 @@ export default async function loadCustomRoutes(
     )
   }
 
-  if (config.trailingSlash) {
-    redirects.unshift(
-      {
-        source: '/:file((?!\\.well-known(?:/.*)?)(?:[^/]+/)*[^/]+\\.\\w+)/',
-        destination: '/:file',
-        permanent: true,
-        locale: config.i18n ? false : undefined,
-        internal: true,
-      } as Redirect,
-      {
-        source: '/:notfile((?!\\.well-known(?:/.*)?)(?:[^/]+/)*[^/\\.]+)',
-        destination: '/:notfile/',
-        permanent: true,
-        locale: config.i18n ? false : undefined,
-        internal: true,
-      } as Redirect
-    )
-    if (config.basePath) {
+  if (!config.experimental?.skipTrailingSlashRedirect) {
+    if (config.trailingSlash) {
+      redirects.unshift(
+        {
+          source: '/:file((?!\\.well-known(?:/.*)?)(?:[^/]+/)*[^/]+\\.\\w+)/',
+          destination: '/:file',
+          permanent: true,
+          locale: config.i18n ? false : undefined,
+          internal: true,
+        } as Redirect,
+        {
+          source: '/:notfile((?!\\.well-known(?:/.*)?)(?:[^/]+/)*[^/\\.]+)',
+          destination: '/:notfile/',
+          permanent: true,
+          locale: config.i18n ? false : undefined,
+          internal: true,
+        } as Redirect
+      )
+      if (config.basePath) {
+        redirects.unshift({
+          source: config.basePath,
+          destination: config.basePath + '/',
+          permanent: true,
+          basePath: false,
+          locale: config.i18n ? false : undefined,
+          internal: true,
+        } as Redirect)
+      }
+    } else {
       redirects.unshift({
-        source: config.basePath,
-        destination: config.basePath + '/',
+        source: '/:path+/',
+        destination: '/:path+',
         permanent: true,
-        basePath: false,
         locale: config.i18n ? false : undefined,
         internal: true,
       } as Redirect)
-    }
-  } else {
-    redirects.unshift({
-      source: '/:path+/',
-      destination: '/:path+',
-      permanent: true,
-      locale: config.i18n ? false : undefined,
-      internal: true,
-    } as Redirect)
-    if (config.basePath) {
-      redirects.unshift({
-        source: config.basePath + '/',
-        destination: config.basePath,
-        permanent: true,
-        basePath: false,
-        locale: config.i18n ? false : undefined,
-        internal: true,
-      } as Redirect)
+      if (config.basePath) {
+        redirects.unshift({
+          source: config.basePath + '/',
+          destination: config.basePath,
+          permanent: true,
+          basePath: false,
+          locale: config.i18n ? false : undefined,
+          internal: true,
+        } as Redirect)
+      }
     }
   }
 

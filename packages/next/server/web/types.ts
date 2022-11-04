@@ -2,20 +2,10 @@ import type { I18NConfig } from '../config-shared'
 import type { NextRequest } from '../web/spec-extension/request'
 import type { NextFetchEvent } from '../web/spec-extension/fetch-event'
 import type { NextResponse } from './spec-extension/response'
+import type { ClonableBody } from '../body-streams'
 
 export interface NodeHeaders {
   [header: string]: string | string[] | undefined
-}
-
-export interface CookieSerializeOptions {
-  domain?: string
-  encode?(val: string): string
-  expires?: Date
-  httpOnly?: boolean
-  maxAge?: number
-  path?: string
-  sameSite?: boolean | 'lax' | 'strict' | 'none'
-  secure?: boolean
 }
 
 export interface RequestData {
@@ -42,12 +32,21 @@ export interface RequestData {
   body?: ReadableStream<Uint8Array>
 }
 
+export type NodejsRequestData = Omit<RequestData, 'body'> & {
+  body?: ClonableBody
+}
+
 export interface FetchEventResult {
   response: Response
   waitUntil: Promise<any>
 }
 
-export type NextMiddlewareResult = NextResponse | Response | null | undefined
+export type NextMiddlewareResult =
+  | NextResponse
+  | Response
+  | null
+  | undefined
+  | void
 
 export type NextMiddleware = (
   request: NextRequest,

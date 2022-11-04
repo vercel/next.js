@@ -8,14 +8,18 @@
     "serve": "serve .next/analyze"
   },
   "dependencies": {
-    "@next/bundle-analyzer": "^9.1.4",
-    "cross-env": "^6.0.3",
-    "faker": "^4.1.0",
+    "@faker-js/faker": "^7.3.0",
+    "@next/bundle-analyzer": "^12.1.6",
+    "cross-env": "^7.0.3",
     "next": "latest",
-    "react": "^17.0.2",
-    "react-dom": "^17.0.2"
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
   },
   "devDependencies": {
-    "serve": "^11.3.2"
+    "@types/node": "^18.0.0",
+    "@types/react": "^18.0.14",
+    "@types/react-dom": "^18.0.5",
+    "serve": "^13.0.2",
+    "typescript": "^4.7.4"
   }
 }

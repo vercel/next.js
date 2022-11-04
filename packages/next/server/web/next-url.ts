@@ -1,32 +1,43 @@
-import type { PathLocale } from '../../shared/lib/i18n/normalize-locale-path'
 import type { DomainLocale, I18NConfig } from '../config-shared'
-import { getLocaleMetadata } from '../../shared/lib/i18n/get-locale-metadata'
-import cookie from 'next/dist/compiled/cookie'
-import { replaceBasePath } from '../router-utils'
+import { detectDomainLocale } from '../../shared/lib/i18n/detect-domain-locale'
+import { formatNextPathnameInfo } from '../../shared/lib/router/utils/format-next-pathname-info'
+import { getHostname } from '../../shared/lib/get-hostname'
+import { getNextPathnameInfo } from '../../shared/lib/router/utils/get-next-pathname-info'
 
 interface Options {
   base?: string | URL
-  basePath?: string
   headers?: { [key: string]: string | string[] | undefined }
-  i18n?: I18NConfig | null
-  trailingSlash?: boolean
+  forceLocale?: boolean
+  nextConfig?: {
+    basePath?: string
+    i18n?: I18NConfig | null
+    trailingSlash?: boolean
+  }
+}
+
+const REGEX_LOCALHOST_HOSTNAME =
+  /(?!^https?:\/\/)(127(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}|::1|localhost)/
+
+function parseURL(url: string | URL, base?: string | URL) {
+  return new URL(
+    String(url).replace(REGEX_LOCALHOST_HOSTNAME, 'localhost'),
+    base && String(base).replace(REGEX_LOCALHOST_HOSTNAME, 'localhost')
+  )
 }
 
 const Internal = Symbol('NextURLInternal')
 
 export class NextURL {
   [Internal]: {
-    url: URL
-    options: Options
     basePath: string
-    locale?: {
-      defaultLocale: string
-      domain?: DomainLocale
-      locale: string
-      path: PathLocale
-      redirect?: string
-      trailingSlash?: boolean
-    }
+    buildId?: string
+    flightSearchParameters?: Record<string, string>
+    defaultLocale?: string
+    domainLocale?: DomainLocale
+    locale?: string
+    options: Options
+    trailingSlash?: boolean
+    url: URL
   }
 
   constructor(input: string | URL, base?: string | URL, opts?: Options)
@@ -59,90 +70,76 @@ export class NextURL {
   }
 
   private analyzeUrl() {
-    const { headers = {}, basePath, i18n } = this[Internal].options
+    const pathnameInfo = getNextPathnameInfo(this[Internal].url.pathname, {
+      nextConfig: this[Internal].options.nextConfig,
+      parseData: !process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE,
+    })
 
-    if (basePath && this[Internal].url.pathname.startsWith(basePath)) {
-      this[Internal].url.pathname = replaceBasePath(
-        this[Internal].url.pathname,
-        basePath
-      )
-      this[Internal].basePath = basePath
-    } else {
-      this[Internal].basePath = ''
-    }
+    this[Internal].domainLocale = detectDomainLocale(
+      this[Internal].options.nextConfig?.i18n?.domains,
+      getHostname(this[Internal].url, this[Internal].options.headers)
+    )
 
-    if (i18n) {
-      this[Internal].locale = getLocaleMetadata({
-        cookies: () => {
-          const value = headers['cookie']
-          return value
-            ? cookie.parse(Array.isArray(value) ? value.join(';') : value)
-            : {}
-        },
-        headers: headers,
-        nextConfig: {
-          basePath: basePath,
-          i18n: i18n,
-        },
-        url: {
-          hostname: this[Internal].url.hostname || null,
-          pathname: this[Internal].url.pathname,
-        },
-      })
+    const defaultLocale =
+      this[Internal].domainLocale?.defaultLocale ||
+      this[Internal].options.nextConfig?.i18n?.defaultLocale
 
-      if (this[Internal].locale?.path.detectedLocale) {
-        this[Internal].url.pathname = this[Internal].locale!.path.pathname
-      }
-    }
+    this[Internal].url.pathname = pathnameInfo.pathname
+    this[Internal].defaultLocale = defaultLocale
+    this[Internal].basePath = pathnameInfo.basePath ?? ''
+    this[Internal].buildId = pathnameInfo.buildId
+    this[Internal].locale = pathnameInfo.locale ?? defaultLocale
+    this[Internal].trailingSlash = pathnameInfo.trailingSlash
   }
 
   private formatPathname() {
-    const { i18n } = this[Internal].options
-    let pathname = this[Internal].url.pathname
-
-    if (
-      this[Internal].locale?.locale &&
-      i18n?.defaultLocale !== this[Internal].locale?.locale &&
-      !this.hasPathPrefix('/api')
-    ) {
-      pathname = `/${this[Internal].locale?.locale}${pathname}`
-    }
-
-    if (this[Internal].basePath) {
-      pathname = `${this[Internal].basePath}${pathname}`
-    }
-
-    return pathname
+    return formatNextPathnameInfo({
+      basePath: this[Internal].basePath,
+      buildId: this[Internal].buildId,
+      defaultLocale: !this[Internal].options.forceLocale
+        ? this[Internal].defaultLocale
+        : undefined,
+      locale: this[Internal].locale,
+      pathname: this[Internal].url.pathname,
+      trailingSlash: this[Internal].trailingSlash,
+    })
   }
 
-  private hasPathPrefix(prefix: string) {
-    const pathname = this[Internal].url.pathname
-    return pathname === prefix || pathname.startsWith(prefix + '/')
+  private formatSearch() {
+    return this[Internal].url.search
+  }
+
+  public get buildId() {
+    return this[Internal].buildId
+  }
+
+  public set buildId(buildId: string | undefined) {
+    this[Internal].buildId = buildId
   }
 
   public get locale() {
-    return this[Internal].locale?.locale ?? ''
+    return this[Internal].locale ?? ''
   }
 
   public set locale(locale: string) {
     if (
       !this[Internal].locale ||
-      !this[Internal].options.i18n?.locales.includes(locale)
+      !this[Internal].options.nextConfig?.i18n?.locales.includes(locale)
     ) {
       throw new TypeError(
         `The NextURL configuration includes no locale "${locale}"`
       )
     }
 
-    this[Internal].locale!.locale = locale
+    this[Internal].locale = locale
   }
 
   get defaultLocale() {
-    return this[Internal].locale?.defaultLocale
+    return this[Internal].defaultLocale
   }
 
   get domainLocale() {
-    return this[Internal].locale?.domain
+    return this[Internal].domainLocale
   }
 
   get searchParams() {
@@ -183,7 +180,8 @@ export class NextURL {
 
   get href() {
     const pathname = this.formatPathname()
-    return `${this.protocol}//${this.host}${pathname}${this[Internal].url.search}`
+    const search = this.formatSearch()
+    return `${this.protocol}//${this.host}${pathname}${search}${this.hash}`
   }
 
   set href(url: string) {
@@ -271,14 +269,4 @@ export class NextURL {
   clone() {
     return new NextURL(String(this), this[Internal].options)
   }
-}
-
-const REGEX_LOCALHOST_HOSTNAME =
-  /(?!^https?:\/\/)(127(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}|::1|localhost)/
-
-function parseURL(url: string | URL, base?: string | URL) {
-  return new URL(
-    String(url).replace(REGEX_LOCALHOST_HOSTNAME, 'localhost'),
-    base && String(base).replace(REGEX_LOCALHOST_HOSTNAME, 'localhost')
-  )
 }

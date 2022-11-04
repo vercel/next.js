@@ -1,10 +1,8 @@
-// Use CJS format for represent next/dist/compiled/node-polyfill-web-streams.js
-
 const {
-  WritableStreamDefaultWriter,
   ReadableStream,
   TransformStream,
-} = require('next/dist/compiled/web-streams-polyfill')
+  WritableStreamDefaultWriter,
+} = require('next/dist/compiled/@edge-runtime/primitives/streams')
 
 const OriginWritableStreamWrite = WritableStreamDefaultWriter.prototype.write
 

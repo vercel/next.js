@@ -1,10 +1,12 @@
 import { loadEnvConfig } from '@next/env'
 import { resolve, join } from 'path'
 import loadConfig from '../../server/config'
+import type { NextConfigComplete } from '../../server/config-shared'
 import { PHASE_TEST } from '../../shared/lib/constants'
 import loadJsConfig from '../load-jsconfig'
 import * as Log from '../output/log'
 import { findPagesDir } from '../../lib/find-pages-dir'
+import { loadBindings, lockfilePatchPromise } from '../swc'
 
 async function getConfig(dir: string) {
   const conf = await loadConfig(PHASE_TEST, dir)
@@ -23,6 +25,16 @@ function loadClosestPackageJson(dir: string, attempts = 1): any {
     return require(join(dir, mainPath + 'package.json'))
   } catch (e) {
     return loadClosestPackageJson(dir, attempts + 1)
+  }
+}
+
+/** Loads dotenv files and sets environment variables based on next config. */
+function setUpEnv(dir: string, nextConfig: NextConfigComplete) {
+  const dev = false
+  loadEnvConfig(dir, dev, Log)
+
+  if (nextConfig.experimental.newNextLinkBehavior) {
+    process.env.__NEXT_NEW_LINK_BEHAVIOR = 'true'
   }
 }
 
@@ -52,15 +64,19 @@ export default function nextJest(options: { dir?: string } = {}) {
       let resolvedBaseUrl
       let isEsmProject = false
       let pagesDir: string | undefined
+      let hasServerComponents: boolean | undefined
 
       if (options.dir) {
         const resolvedDir = resolve(options.dir)
-        pagesDir = findPagesDir(resolvedDir).pages
         const packageConfig = loadClosestPackageJson(resolvedDir)
         isEsmProject = packageConfig.type === 'module'
 
         nextConfig = await getConfig(resolvedDir)
-        loadEnvConfig(resolvedDir, false, Log)
+        const isAppDirEnabled = !!nextConfig.experimental.appDir
+        const findPagesDirResult = findPagesDir(resolvedDir, isAppDirEnabled)
+        hasServerComponents = !!findPagesDirResult.appDir
+        pagesDir = findPagesDirResult.pagesDir
+        setUpEnv(resolvedDir, nextConfig)
         // TODO: revisit when bug in SWC is fixed that strips `.css`
         const result = await loadJsConfig(resolvedDir, nextConfig)
         jsConfig = result.jsConfig
@@ -72,14 +88,17 @@ export default function nextJest(options: { dir?: string } = {}) {
           ? await customJestConfig()
           : customJestConfig) ?? {}
 
+      // eagerly load swc bindings instead of waiting for transform calls
+      await loadBindings()
+
+      if (lockfilePatchPromise.cur) {
+        await lockfilePatchPromise.cur
+      }
+
       return {
         ...resolvedJestConfig,
 
         moduleNameMapper: {
-          // Custom config will be able to override the default mappings
-          // moduleNameMapper is matched top to bottom hence why this has to be before Next.js internal rules
-          ...(resolvedJestConfig.moduleNameMapper || {}),
-
           // Handle CSS imports (with CSS modules)
           // https://jestjs.io/docs/webpack#mocking-css-modules
           '^.+\\.module\\.(css|sass|scss)$':
@@ -89,9 +108,20 @@ export default function nextJest(options: { dir?: string } = {}) {
           '^.+\\.(css|sass|scss)$': require.resolve('./__mocks__/styleMock.js'),
 
           // Handle image imports
-          '^.+\\.(png|jpg|jpeg|gif|webp|avif|ico|bmp|svg)$': require.resolve(
+          '^.+\\.(png|jpg|jpeg|gif|webp|avif|ico|bmp)$': require.resolve(
             `./__mocks__/fileMock.js`
           ),
+
+          // Keep .svg to it's own rule to make overriding easy
+          '^.+\\.(svg)$': require.resolve(`./__mocks__/fileMock.js`),
+
+          // Handle @next/font
+          '@next/font/(.*)': require.resolve('./__mocks__/nextFontMock.js'),
+
+          // custom config comes last to ensure the above rules are matched,
+          // fixes the case where @pages/(.*) -> src/pages/$! doesn't break
+          // CSS/image mocks
+          ...(resolvedJestConfig.moduleNameMapper || {}),
         },
         testPathIgnorePatterns: [
           // Don't look for tests in node_modules
@@ -111,6 +141,7 @@ export default function nextJest(options: { dir?: string } = {}) {
               nextConfig,
               jsConfig,
               resolvedBaseUrl,
+              hasServerComponents,
               isEsmProject,
               pagesDir,
             },

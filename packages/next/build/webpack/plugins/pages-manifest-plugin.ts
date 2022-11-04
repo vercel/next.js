@@ -1,7 +1,7 @@
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import {
   PAGES_MANIFEST,
-  ROOT_PATHS_MANIFEST,
+  APP_PATHS_MANIFEST,
 } from '../../../shared/lib/constants'
 import getRouteFromEntrypoint from '../../../server/get-route-from-entrypoint'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
@@ -10,42 +10,43 @@ export type PagesManifest = { [page: string]: string }
 
 let edgeServerPages = {}
 let nodeServerPages = {}
-let edgeServerRootPaths = {}
-let nodeServerRootPaths = {}
+let edgeServerAppPaths = {}
+let nodeServerAppPaths = {}
 
 // This plugin creates a pages-manifest.json from page entrypoints.
 // This is used for mapping paths like `/` to `.next/server/static/<buildid>/pages/index.js` when doing SSR
 // It's also used by next export to provide defaultPathMap
-export default class PagesManifestPlugin implements webpack.Plugin {
-  serverless: boolean
+export default class PagesManifestPlugin
+  implements webpack.WebpackPluginInstance
+{
   dev: boolean
   isEdgeRuntime: boolean
-  rootEnabled: boolean
+  appDirEnabled: boolean
 
   constructor({
-    serverless,
     dev,
     isEdgeRuntime,
-    rootEnabled,
+    appDirEnabled,
   }: {
-    serverless: boolean
     dev: boolean
     isEdgeRuntime: boolean
-    rootEnabled: boolean
+    appDirEnabled: boolean
   }) {
-    this.serverless = serverless
     this.dev = dev
     this.isEdgeRuntime = isEdgeRuntime
-    this.rootEnabled = rootEnabled
+    this.appDirEnabled = appDirEnabled
   }
 
   createAssets(compilation: any, assets: any) {
     const entrypoints = compilation.entrypoints
     const pages: PagesManifest = {}
-    const rootPaths: PagesManifest = {}
+    const appPaths: PagesManifest = {}
 
     for (const entrypoint of entrypoints.values()) {
-      const pagePath = getRouteFromEntrypoint(entrypoint.name, this.rootEnabled)
+      const pagePath = getRouteFromEntrypoint(
+        entrypoint.name,
+        this.appDirEnabled
+      )
 
       if (!pagePath) {
         continue
@@ -60,7 +61,7 @@ export default class PagesManifestPlugin implements webpack.Plugin {
             file.endsWith('.js')
         )
 
-      // Skip _app.server entry which is empty
+      // Skip entries which are empty
       if (!files.length) {
         continue
       }
@@ -74,8 +75,8 @@ export default class PagesManifestPlugin implements webpack.Plugin {
       }
       file = normalizePathSep(file)
 
-      if (entrypoint.name.startsWith('root/')) {
-        rootPaths[pagePath] = file
+      if (entrypoint.name.startsWith('app/')) {
+        appPaths[pagePath] = file
       } else {
         pages[pagePath] = file
       }
@@ -85,10 +86,10 @@ export default class PagesManifestPlugin implements webpack.Plugin {
     // we need to merge both pages to generate the full manifest.
     if (this.isEdgeRuntime) {
       edgeServerPages = pages
-      edgeServerRootPaths = rootPaths
+      edgeServerAppPaths = appPaths
     } else {
       nodeServerPages = pages
-      nodeServerRootPaths = rootPaths
+      nodeServerAppPaths = appPaths
     }
 
     assets[
@@ -104,14 +105,14 @@ export default class PagesManifestPlugin implements webpack.Plugin {
       )
     )
 
-    if (this.rootEnabled) {
+    if (this.appDirEnabled) {
       assets[
-        `${!this.dev && !this.isEdgeRuntime ? '../' : ''}` + ROOT_PATHS_MANIFEST
+        `${!this.dev && !this.isEdgeRuntime ? '../' : ''}` + APP_PATHS_MANIFEST
       ] = new sources.RawSource(
         JSON.stringify(
           {
-            ...edgeServerRootPaths,
-            ...nodeServerRootPaths,
+            ...edgeServerAppPaths,
+            ...nodeServerAppPaths,
           },
           null,
           2
@@ -122,11 +123,9 @@ export default class PagesManifestPlugin implements webpack.Plugin {
 
   apply(compiler: webpack.Compiler): void {
     compiler.hooks.make.tap('NextJsPagesManifest', (compilation) => {
-      // @ts-ignore TODO: Remove ignore when webpack 5 is stable
       compilation.hooks.processAssets.tap(
         {
           name: 'NextJsPagesManifest',
-          // @ts-ignore TODO: Remove ignore when webpack 5 is stable
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
         },
         (assets: any) => {

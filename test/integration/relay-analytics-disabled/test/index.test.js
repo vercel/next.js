@@ -30,13 +30,11 @@ describe('Analytics relayer (disabled)', () => {
     const browser = await webdriver(appPort, '/')
     await browser.waitForElementByCss('h1')
     const h1Text = await browser.elementByCss('h1').text()
-    const pText = await browser.elementByCss('p').text()
     const firstContentfulPaint = parseFloat(
       await browser.eval('localStorage.getItem("FCP")')
     )
 
     expect(h1Text).toMatch(/Foo!/)
-    expect(pText).toMatch('buffered metrics: 0')
 
     expect(firstContentfulPaint).not.toBeNaN()
     expect(firstContentfulPaint).toBeGreaterThan(0)

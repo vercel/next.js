@@ -372,9 +372,7 @@ const runTests = (isDev = false, isDeploy = false) => {
       expect(html).toContain('oof')
     } else {
       expect(res.status).toBe(500)
-      expect(html).toContain(
-        isDeploy ? 'FUNCTION_INVOCATION_FAILED' : 'Internal Server Error'
-      )
+      expect(html).toContain('custom pages/500')
       expect(html).not.toContain('This page could not be found')
     }
   })

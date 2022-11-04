@@ -62,6 +62,7 @@ export async function rotate(
 type ResizeOpts = { image: ImageData } & (
   | { width: number; height?: never }
   | { height: number; width?: never }
+  | { height: number; width: number }
 )
 
 export async function resize({ image, width, height }: ResizeOpts) {

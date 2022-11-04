@@ -1,7 +1,7 @@
 import {
   ReadableStream,
   TransformStream,
-} from 'next/dist/compiled/web-streams-polyfill'
+} from 'next/dist/compiled/@edge-runtime/primitives/streams'
 
 // Polyfill Web Streams for the Node.js runtime.
 if (!global.ReadableStream) {

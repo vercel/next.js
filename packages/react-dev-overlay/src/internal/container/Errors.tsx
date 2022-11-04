@@ -15,8 +15,9 @@ import { LeftRightDialogHeader } from '../components/LeftRightDialogHeader'
 import { Overlay } from '../components/Overlay'
 import { Toast } from '../components/Toast'
 import { getErrorByType, ReadyRuntimeError } from '../helpers/getErrorByType'
-import { isNodeError } from '../helpers/nodeStackFrames'
+import { getErrorSource } from '../helpers/nodeStackFrames'
 import { noop as css } from '../helpers/noop-template'
+import { CloseIcon } from '../icons/CloseIcon'
 import { RuntimeError } from './RuntimeError'
 
 export type SupportedErrorEvent = {
@@ -136,7 +137,9 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
     }
   }, [nextError])
 
-  const [isMinimized, setMinimized] = React.useState<boolean>(false)
+  const [displayState, setDisplayState] = React.useState<
+    'minimized' | 'fullscreen' | 'hidden'
+  >('fullscreen')
   const [activeIdx, setActiveIndex] = React.useState<number>(0)
   const previous = React.useCallback((e?: MouseEvent | TouchEvent) => {
     e?.preventDefault()
@@ -162,19 +165,23 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
   React.useEffect(() => {
     if (errors.length < 1) {
       setLookups({})
-      setMinimized(false)
+      setDisplayState('hidden')
       setActiveIndex(0)
     }
   }, [errors.length])
 
   const minimize = React.useCallback((e?: MouseEvent | TouchEvent) => {
     e?.preventDefault()
-    setMinimized(true)
+    setDisplayState('minimized')
   }, [])
-  const reopen = React.useCallback(
+  const hide = React.useCallback((e?: MouseEvent | TouchEvent) => {
+    e?.preventDefault()
+    setDisplayState('hidden')
+  }, [])
+  const fullscreen = React.useCallback(
     (e?: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
       e?.preventDefault()
-      setMinimized(false)
+      setDisplayState('fullscreen')
     },
     []
   )
@@ -190,9 +197,13 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
     return <Overlay />
   }
 
-  if (isMinimized) {
+  if (displayState === 'hidden') {
+    return null
+  }
+
+  if (displayState === 'minimized') {
     return (
-      <Toast className="nextjs-toast-errors-parent" onClick={reopen}>
+      <Toast className="nextjs-toast-errors-parent" onClick={fullscreen}>
         <div className="nextjs-toast-errors">
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -212,12 +223,27 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
           <span>
             {readyErrors.length} error{readyErrors.length > 1 ? 's' : ''}
           </span>
+          <button
+            data-nextjs-toast-errors-hide-button
+            className="nextjs-toast-errors-hide-button"
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              hide()
+            }}
+            aria-label="Hide Errors"
+          >
+            <CloseIcon />
+          </button>
         </div>
       </Toast>
     )
   }
 
-  const isServerError = isNodeError(activeError.error)
+  const isServerError = ['server', 'edge-server'].includes(
+    getErrorSource(activeError.error) || ''
+  )
+
   return (
     <Overlay>
       <Dialog
@@ -319,5 +345,17 @@ export const styles = css`
   }
   .nextjs-toast-errors > svg {
     margin-right: var(--size-gap);
+  }
+  .nextjs-toast-errors-hide-button {
+    margin-left: var(--size-gap-triple);
+    border: none;
+    background: none;
+    color: var(--color-ansi-bright-white);
+    padding: 0;
+    transition: opacity 0.25s ease;
+    opacity: 0.7;
+  }
+  .nextjs-toast-errors-hide-button:hover {
+    opacity: 1;
   }
 `

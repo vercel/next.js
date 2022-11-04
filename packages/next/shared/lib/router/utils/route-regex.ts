@@ -1,11 +1,24 @@
 import { escapeStringRegexp } from '../../escape-regexp'
+import { removeTrailingSlash } from './remove-trailing-slash'
 
-interface Group {
+export interface Group {
   pos: number
   repeat: boolean
   optional: boolean
 }
 
+export interface RouteRegex {
+  groups: { [groupName: string]: Group }
+  re: RegExp
+}
+
+/**
+ * Parses a given parameter from a route to a data structure that can be used
+ * to generate the parametrized route. Examples:
+ *   - `[...slug]` -> `{ name: 'slug', repeat: true, optional: true }`
+ *   - `[foo]` -> `{ name: 'foo', repeat: false, optional: true }`
+ *   - `bar` -> `{ name: 'bar', repeat: false, optional: false }`
+ */
 function parseParameter(param: string) {
   const optional = param.startsWith('[') && param.endsWith(']')
   if (optional) {
@@ -18,48 +31,68 @@ function parseParameter(param: string) {
   return { key: param, repeat, optional }
 }
 
-export function getParametrizedRoute(route: string) {
-  const segments = (route.replace(/\/$/, '') || '/').slice(1).split('/')
-
+function getParametrizedRoute(route: string) {
+  const segments = removeTrailingSlash(route).slice(1).split('/')
   const groups: { [groupName: string]: Group } = {}
   let groupIndex = 1
-  const parameterizedRoute = segments
-    .map((segment) => {
-      if (segment.startsWith('[') && segment.endsWith(']')) {
-        const { key, optional, repeat } = parseParameter(segment.slice(1, -1))
-        groups[key] = { pos: groupIndex++, repeat, optional }
-        return repeat ? (optional ? '(?:/(.+?))?' : '/(.+?)') : '/([^/]+?)'
-      } else {
-        return `/${escapeStringRegexp(segment)}`
-      }
-    })
-    .join('')
-
-  // dead code eliminate for browser since it's only needed
-  // while generating routes-manifest
-  if (typeof window === 'undefined') {
-    let routeKeyCharCode = 97
-    let routeKeyCharLength = 1
-
-    // builds a minimal routeKey using only a-z and minimal number of characters
-    const getSafeRouteKey = () => {
-      let routeKey = ''
-
-      for (let i = 0; i < routeKeyCharLength; i++) {
-        routeKey += String.fromCharCode(routeKeyCharCode)
-        routeKeyCharCode++
-
-        if (routeKeyCharCode > 122) {
-          routeKeyCharLength++
-          routeKeyCharCode = 97
+  return {
+    parameterizedRoute: segments
+      .map((segment) => {
+        if (segment.startsWith('[') && segment.endsWith(']')) {
+          const { key, optional, repeat } = parseParameter(segment.slice(1, -1))
+          groups[key] = { pos: groupIndex++, repeat, optional }
+          return repeat ? (optional ? '(?:/(.+?))?' : '/(.+?)') : '/([^/]+?)'
+        } else {
+          return `/${escapeStringRegexp(segment)}`
         }
+      })
+      .join(''),
+    groups,
+  }
+}
+
+/**
+ * From a normalized route this function generates a regular expression and
+ * a corresponding groups object intended to be used to store matching groups
+ * from the regular expression.
+ */
+export function getRouteRegex(normalizedRoute: string): RouteRegex {
+  const { parameterizedRoute, groups } = getParametrizedRoute(normalizedRoute)
+  return {
+    re: new RegExp(`^${parameterizedRoute}(?:/)?$`),
+    groups: groups,
+  }
+}
+
+/**
+ * Builds a function to generate a minimal routeKey using only a-z and minimal
+ * number of characters.
+ */
+function buildGetSafeRouteKey() {
+  let routeKeyCharCode = 97
+  let routeKeyCharLength = 1
+
+  return () => {
+    let routeKey = ''
+    for (let i = 0; i < routeKeyCharLength; i++) {
+      routeKey += String.fromCharCode(routeKeyCharCode)
+      routeKeyCharCode++
+
+      if (routeKeyCharCode > 122) {
+        routeKeyCharLength++
+        routeKeyCharCode = 97
       }
-      return routeKey
     }
+    return routeKey
+  }
+}
 
-    const routeKeys: { [named: string]: string } = {}
-
-    let namedParameterizedRoute = segments
+function getNamedParametrizedRoute(route: string) {
+  const segments = removeTrailingSlash(route).slice(1).split('/')
+  const getSafeRouteKey = buildGetSafeRouteKey()
+  const routeKeys: { [named: string]: string } = {}
+  return {
+    namedParameterizedRoute: segments
       .map((segment) => {
         if (segment.startsWith('[') && segment.endsWith(']')) {
           const { key, optional, repeat } = parseParameter(segment.slice(1, -1))
@@ -91,42 +124,47 @@ export function getParametrizedRoute(route: string) {
           return `/${escapeStringRegexp(segment)}`
         }
       })
-      .join('')
-
-    return {
-      parameterizedRoute,
-      namedParameterizedRoute,
-      groups,
-      routeKeys,
-    }
-  }
-
-  return {
-    parameterizedRoute,
-    groups,
+      .join(''),
+    routeKeys,
   }
 }
 
-export interface RouteRegex {
-  groups: { [groupName: string]: Group }
-  namedRegex?: string
-  re: RegExp
-  routeKeys?: { [named: string]: string }
+/**
+ * This function extends `getRouteRegex` generating also a named regexp where
+ * each group is named along with a routeKeys object that indexes the assigned
+ * named group with its corresponding key.
+ */
+export function getNamedRouteRegex(normalizedRoute: string) {
+  const result = getNamedParametrizedRoute(normalizedRoute)
+  return {
+    ...getRouteRegex(normalizedRoute),
+    namedRegex: `^${result.namedParameterizedRoute}(?:/)?$`,
+    routeKeys: result.routeKeys,
+  }
 }
 
-export function getRouteRegex(normalizedRoute: string): RouteRegex {
-  const result = getParametrizedRoute(normalizedRoute)
-  if ('routeKeys' in result) {
+/**
+ * Generates a named regexp.
+ * This is intended to be using for build time only.
+ */
+export function getNamedMiddlewareRegex(
+  normalizedRoute: string,
+  options: {
+    catchAll?: boolean
+  }
+) {
+  const { parameterizedRoute } = getParametrizedRoute(normalizedRoute)
+  const { catchAll = true } = options
+  if (parameterizedRoute === '/') {
+    let catchAllRegex = catchAll ? '.*' : ''
     return {
-      re: new RegExp(`^${result.parameterizedRoute}(?:/)?$`),
-      groups: result.groups,
-      routeKeys: result.routeKeys,
-      namedRegex: `^${result.namedParameterizedRoute}(?:/)?$`,
+      namedRegex: `^/${catchAllRegex}$`,
     }
   }
 
+  const { namedParameterizedRoute } = getNamedParametrizedRoute(normalizedRoute)
+  let catchAllGroupedRegex = catchAll ? '(?:(/.*)?)' : ''
   return {
-    re: new RegExp(`^${result.parameterizedRoute}(?:/)?$`),
-    groups: result.groups,
+    namedRegex: `^${namedParameterizedRoute}${catchAllGroupedRegex}$`,
   }
 }

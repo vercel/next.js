@@ -34,7 +34,7 @@ export default function ({ hasProps, preview, previewData, random }) {
       >
         Reload static props
       </button>
-      <p id="router">{JSON.stringify(router)}</p>
+      <p id="router">{JSON.stringify({ isPreview: router.isPreview })}</p>
     </>
   )
 }

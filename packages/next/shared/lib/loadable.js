@@ -21,8 +21,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
 // https://github.com/jamiebuilds/react-loadable/blob/v5.5.0/src/index.js
 // Modified to be compatible with webpack 4 / Next.js
 
-import React from 'react'
-import { useSubscription } from 'next/dist/compiled/use-subscription'
+import React, { useSyncExternalStore } from 'react'
 import { LoadableContext } from './loadable-context'
 
 const ALL_INITIALIZERS = []
@@ -75,6 +74,7 @@ function createLoadableComponent(loadFn, options) {
     opts.lazy = React.lazy(opts.loader)
   }
 
+  /** @type LoadableSubscription */
   let subscription = null
   function init() {
     if (!subscription) {
@@ -90,12 +90,12 @@ function createLoadableComponent(loadFn, options) {
   }
 
   // Server only
-  if (typeof window === 'undefined' && !opts.suspense) {
+  if (typeof window === 'undefined') {
     ALL_INITIALIZERS.push(init)
   }
 
   // Client only
-  if (!initialized && typeof window !== 'undefined' && !opts.suspense) {
+  if (!initialized && typeof window !== 'undefined') {
     // require.resolveWeak check is needed for environments that don't have it available like Jest
     const moduleIds =
       opts.webpack && typeof require.resolveWeak === 'function'
@@ -112,11 +112,26 @@ function createLoadableComponent(loadFn, options) {
     }
   }
 
-  function LoadableImpl(props, ref) {
+  function useLoadableModule() {
     init()
 
     const context = React.useContext(LoadableContext)
-    const state = useSubscription(subscription)
+    if (context && Array.isArray(opts.modules)) {
+      opts.modules.forEach((moduleName) => {
+        context(moduleName)
+      })
+    }
+  }
+
+  function LoadableImpl(props, ref) {
+    useLoadableModule()
+
+    const state = useSyncExternalStore(
+      subscription.subscribe,
+      subscription.getCurrentValue,
+      subscription.getCurrentValue
+    )
+
     React.useImperativeHandle(
       ref,
       () => ({
@@ -124,12 +139,6 @@ function createLoadableComponent(loadFn, options) {
       }),
       []
     )
-
-    if (context && Array.isArray(opts.modules)) {
-      opts.modules.forEach((moduleName) => {
-        context(moduleName)
-      })
-    }
 
     return React.useMemo(() => {
       if (state.loading || state.error) {
@@ -149,11 +158,13 @@ function createLoadableComponent(loadFn, options) {
   }
 
   function LazyImpl(props, ref) {
+    useLoadableModule()
+
     return React.createElement(opts.lazy, { ...props, ref })
   }
 
   const LoadableComponent = opts.suspense ? LazyImpl : LoadableImpl
-  LoadableComponent.preload = () => !opts.suspense && init()
+  LoadableComponent.preload = () => init()
   LoadableComponent.displayName = 'LoadableComponent'
 
   return React.forwardRef(LoadableComponent)

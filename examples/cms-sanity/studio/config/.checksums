@@ -1,0 +1,8 @@
+{
+  "#": "Used by Sanity to keep track of configuration file checksums, do not delete or modify!",
+  "@sanity/default-layout": "bb034f391ba508a6ca8cd971967cbedeb131c4d19b17b28a0895f32db5d568ea",
+  "@sanity/default-login": "e2ed4e51e97331c0699ba7cf9f67cbf76f1c6a5f806d6eabf8259b2bcb5f1002",
+  "@sanity/form-builder": "b38478227ba5e22c91981da4b53436df22e48ff25238a55a973ed620be5068aa",
+  "@sanity/data-aspects": "d199e2c199b3e26cd28b68dc84d7fc01c9186bf5089580f2e2446994d36b3cb6",
+  "@sanity/vision": "da5b6ed712703ecd04bf4df560570c668aa95252c6bc1c41d6df1bda9b8b8f60"
+}

@@ -14,7 +14,6 @@ import fs from 'fs-extra'
 const glob = promisify(globOrigig)
 const appDir = join(__dirname, '../')
 const nextConfig = join(appDir, 'next.config.js')
-const nodeArgs = ['-r', join(appDir, '../../lib/react-17-require-hook.js')]
 let appPort
 let app
 
@@ -68,35 +67,9 @@ describe('CSS optimization for SSR apps', () => {
     if (fs.pathExistsSync(join(appDir, '.next'))) {
       await fs.remove(join(appDir, '.next'))
     }
-    await nextBuild(appDir, undefined, {
-      nodeArgs,
-    })
+    await nextBuild(appDir)
     appPort = await findPort()
-    app = await nextStart(appDir, appPort, {
-      nodeArgs,
-    })
-  })
-  afterAll(async () => {
-    await killApp(app)
-    await fs.remove(nextConfig)
-  })
-  runTests()
-})
-
-describe('Font optimization for emulated serverless apps', () => {
-  beforeAll(async () => {
-    await fs.writeFile(
-      nextConfig,
-      `module.exports = { target: 'experimental-serverless-trace', experimental: {optimizeCss: true} }`,
-      'utf8'
-    )
-    await nextBuild(appDir, undefined, {
-      nodeArgs,
-    })
-    appPort = await findPort()
-    app = await nextStart(appDir, appPort, {
-      nodeArgs,
-    })
+    app = await nextStart(appDir, appPort)
   })
   afterAll(async () => {
     await killApp(app)

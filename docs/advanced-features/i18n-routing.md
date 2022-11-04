@@ -27,6 +27,9 @@ Generally a Locale Identifier is made up of a language, region, and script separ
 - `nl-NL` - Dutch as spoken in the Netherlands
 - `nl` - Dutch, no specific region
 
+If user locale is `nl-BE` and it is not listed in your configuration, they will be redirected to `nl` if available, or to the default locale otherwise.
+If you don't plan to support all regions of a country, it is therefore a good practice to include country locales that will act as fallbacks.
+
 ```js
 // next.config.js
 module.exports = {
@@ -164,25 +167,28 @@ module.exports = {
 Next, we can use [Middleware](/docs/middleware.md) to add custom routing rules:
 
 ```js
-// pages/_middleware.ts
+// middleware.ts
 
 import { NextRequest, NextResponse } from 'next/server'
 
 const PUBLIC_FILE = /\.(.*)$/
 
-export function middleware(request: NextRequest) {
-  const shouldHandleLocale =
-    !PUBLIC_FILE.test(request.nextUrl.pathname) &&
-    !request.nextUrl.pathname.includes('/api/') &&
-    request.nextUrl.locale === 'default'
-
-  if (shouldHandleLocale) {
-    const url = request.nextUrl.clone()
-    url.pathname = `/en${request.nextUrl.pathname}`
-    return NextResponse.redirect(url)
+export async function middleware(req: NextRequest) {
+  if (
+    req.nextUrl.pathname.startsWith('/_next') ||
+    req.nextUrl.pathname.includes('/api/') ||
+    PUBLIC_FILE.test(req.nextUrl.pathname)
+  ) {
+    return
   }
 
-  return undefined
+  if (req.nextUrl.locale === 'default') {
+    const locale = req.cookies.get('NEXT_LOCALE') || 'en'
+
+    return NextResponse.redirect(
+      new URL(`/${locale}${req.nextUrl.pathname}${req.nextUrl.search}`, req.url)
+    )
+  }
 }
 ```
 
@@ -227,7 +233,7 @@ import Link from 'next/link'
 export default function IndexPage(props) {
   return (
     <Link href="/another" locale="fr">
-      <a>To /fr/another</a>
+      To /fr/another
     </Link>
   )
 }
@@ -273,7 +279,7 @@ import Link from 'next/link'
 export default function IndexPage(props) {
   return (
     <Link href="/fr/another" locale={false}>
-      <a>To /fr/another</a>
+      To /fr/another
     </Link>
   )
 }
