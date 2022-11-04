@@ -6,7 +6,7 @@ export type ErrorComponent = React.ComponentType<{
 }>
 interface ErrorBoundaryProps {
   errorComponent: ErrorComponent
-  errorStyles: React.ReactNode | undefined
+  errorStyles?: React.ReactNode | undefined
 }
 
 /**
