@@ -227,7 +227,7 @@ async function postProcessHTML(
       : null,
     inAmpMode || hybridAmp
       ? (html: string) => {
-          return html.replace('&amp;amp=1', '&amp=1')
+          return html.replaceAll('&amp;amp=1', '&amp=1')
         }
       : null,
   ].filter(nonNullable)
