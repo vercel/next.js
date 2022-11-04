@@ -12,4 +12,4 @@ If you want to test out the wasm build locally, you will need to [install wasm-p
 
 If you need to clean the project for any reason, use `pnpm clean`.
 
-If you are building the project on a Windows OS machine, use `rd /s /q dist` in package.json `build scripts` instead `rm -rf` because `rm` command is not recognizable on a Windows OS machine.
+If you are building the project on a Windows OS machine, use `rd /s /q dist` in `build scripts` instead `rm -rf` because `rm` command is not recognizable on a Windows OS machine.
