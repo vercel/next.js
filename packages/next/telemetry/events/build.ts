@@ -149,6 +149,7 @@ export type EventBuildFeatureUsage = {
     | 'swcImportSource'
     | 'swcEmotion'
     | `swc/target/${SWC_TARGET_TRIPLE}`
+    | 'turbotrace'
     | 'build-lint'
   invocationCount: number
 }

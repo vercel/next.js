@@ -91,17 +91,18 @@ export default function MyApp({ Component, pageProps }) {
 
 To use the font on a single page, add it to the specific page as shown below:
 
-```js:pages/index.js
-import { Inter } from '@next/font/google';
+```js
+// pages/index.js
+import { Inter } from '@next/font/google'
 
-const inter = Inter();
+const inter = Inter()
 
 export default function Home() {
   return (
     <div className={inter.className}>
       <p>Hello World</p>
     </div>
-  );
+  )
 }
 ```
 

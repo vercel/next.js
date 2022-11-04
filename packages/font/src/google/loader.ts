@@ -79,7 +79,12 @@ const downloadGoogleFonts: FontLoader = async ({
       currentSubset = newSubset
     } else {
       const googleFontFileUrl = /src: url\((.+?)\)/.exec(line)?.[1]
-      if (googleFontFileUrl) {
+      if (
+        googleFontFileUrl &&
+        !fontFiles.some(
+          (foundFile) => foundFile.googleFontFileUrl === googleFontFileUrl
+        )
+      ) {
         fontFiles.push({
           googleFontFileUrl,
           preloadFontFile:
@@ -119,7 +124,7 @@ const downloadGoogleFonts: FontLoader = async ({
   // Replace @font-face sources with self-hosted files
   let updatedCssResponse = fontFaceDeclarations
   for (const { googleFontFileUrl, selfHostedFileUrl } of downloadedFiles) {
-    updatedCssResponse = updatedCssResponse.replace(
+    updatedCssResponse = updatedCssResponse.replaceAll(
       googleFontFileUrl,
       selfHostedFileUrl
     )
