@@ -99,7 +99,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v3
         with:
-          name: next-swc-dev-binary
+          name: next-rs-dev-binary
           path: packages/next-swc/native/next-rs.linux-x64-gnu.node
 
       - name: Clear the cargo caches
@@ -124,7 +124,7 @@ jobs:
       - uses: actions/download-artifact@v3
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         with:
-          name: next-swc-dev-binary
+          name: next-rs-dev-binary
           path: packages/next-swc/native
 
       - run: cp -r packages/next-swc/native .github/actions/next-stats-action/native
