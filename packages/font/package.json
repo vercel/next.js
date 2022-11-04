@@ -12,7 +12,7 @@
   ],
   "license": "MIT",
   "scripts": {
-    "build": "rimraf dist && pnpm ncc-fontkit && tsc -d -p tsconfig.json",
+    "build": "rm -rf dist && pnpm ncc-fontkit && tsc -d -p tsconfig.json",
     "prepublishOnly": "cd ../../ && turbo run build",
     "dev": "pnpm ncc-fontkit && tsc -d -w -p tsconfig.json",
     "typescript": "tsec --noEmit -p tsconfig.json",
@@ -21,7 +21,6 @@
   "devDependencies": {
     "@types/fontkit": "2.0.0",
     "@vercel/ncc": "0.34.0",
-    "fontkit": "2.0.2",
-    "rimraf": "3.0.2"
+    "fontkit": "2.0.2"
   }
 }
