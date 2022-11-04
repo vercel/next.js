@@ -524,7 +524,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       ref?: any
     } = {
       ref: setRef,
-      onClick: (e) => {
+      onClick(e) {
         if (process.env.NODE_ENV !== 'production') {
           if (!e) {
             throw new Error(
@@ -566,7 +566,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           prefetchEnabled
         )
       },
-      onMouseEnter: (e) => {
+      onMouseEnter(e) {
         if (!legacyBehavior && typeof onMouseEnterProp === 'function') {
           onMouseEnterProp(e)
         }
@@ -594,7 +594,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           bypassPrefetchedCheck: true,
         })
       },
-      onTouchStart: (e) => {
+      onTouchStart(e) {
         if (!legacyBehavior && typeof onTouchStartProp === 'function') {
           onTouchStartProp(e)
         }
