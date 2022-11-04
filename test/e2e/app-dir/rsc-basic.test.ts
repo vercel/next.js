@@ -88,9 +88,6 @@ describe('app dir - rsc basics', () => {
       '__nextLocale',
       '__nextDefaultLocale',
       '__nextIsNotFound',
-      '__rsc__',
-      '__next_router_state_tree__',
-      '__next_router_prefetch__',
     ]
 
     const hasNextInternalQuery = inlineFlightContents.some((content) =>
@@ -108,9 +105,9 @@ describe('app dir - rsc basics', () => {
           requestsCount++
           return request.allHeaders().then((headers) => {
             if (
-              headers.__rsc__ === '1' &&
-              // Prefetches also include `__rsc__`
-              headers.__next_router_prefetch__ !== '1'
+              headers['RSC'.toLowerCase()] === '1' &&
+              // Prefetches also include `RSC`
+              headers['Next-Router-Prefetch'.toLowerCase()] !== '1'
             ) {
               hasFlightRequest = true
             }
@@ -194,8 +191,8 @@ describe('app dir - rsc basics', () => {
         page.on('request', (request) => {
           return request.allHeaders().then((headers) => {
             if (
-              headers.__rsc__ === '1' &&
-              headers.__next_router_prefetch__ !== '1'
+              headers['RSC'.toLowerCase()] === '1' &&
+              headers['Next-Router-Prefetch'.toLowerCase()] !== '1'
             ) {
               hasFlightRequest = true
             }
@@ -381,7 +378,7 @@ describe('app dir - rsc basics', () => {
       {},
       {
         headers: {
-          __rsc__: '1',
+          ['RSC'.toString()]: '1',
         },
       }
     ).then(async (response) => {
