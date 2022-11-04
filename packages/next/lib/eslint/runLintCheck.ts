@@ -302,6 +302,7 @@ export async function runLintCheck(
     // See: https://eslint.org/docs/user-guide/configuring/configuration-files#configuration-file-formats
     const eslintrcFile =
       (await findUp(
+        eslintOptions.overrideConfigFile ??
         [
           '.eslintrc.js',
           '.eslintrc.cjs',
