@@ -57,8 +57,12 @@ const experimentalWarning = execOnce(
   }
 )
 
-// TODO-APP: the type of this is wrong. In worker.ts it's called with only a fraction of the config, not the full config object.
-export function setHttpClientAndAgentOptions(config: NextConfig) {
+export function setHttpClientAndAgentOptions(config: {
+  httpAgentOptions?: NextConfig['httpAgentOptions']
+  experimental?: {
+    enableUndici?: boolean
+  }
+}) {
   if (isAboveNodejs16) {
     // Node.js 18 has undici built-in.
     if (config.experimental?.enableUndici && !isAboveNodejs18) {
