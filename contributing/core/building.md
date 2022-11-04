@@ -12,4 +12,4 @@ If you want to test out the wasm build locally, you will need to [install wasm-p
 
 If you need to clean the project for any reason, use `pnpm clean`.
 
-If you are building the project on a Windows OS machine, use `rimraf dist` in package.json `build scripts` instead `rm -rf` because `rm` command is not recognizable on a Windows OS machine and add the `rimraf` as the `devDependencies` in `package.json` file.
+If you are building the project on a Windows OS machine, use `rimraf dist` instead of `rm -rf` in package.json `build scripts` because `rm` command is not recognizable on a Windows OS machine and add the `rimraf` as the `devDependencies` in `package.json` file.
