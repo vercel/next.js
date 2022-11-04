@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt::Write};
+use std::{collections::HashMap, io::Write};
 
 use anyhow::{anyhow, Context, Result};
 use turbo_tasks::{
@@ -7,8 +7,8 @@ use turbo_tasks::{
 };
 use turbo_tasks_env::ProcessEnvVc;
 use turbo_tasks_fs::{
-    DirectoryContent, DirectoryEntry, File, FileContent, FileContentVc, FileSystemEntryType,
-    FileSystemPathVc,
+    rope::RopeBuilder, DirectoryContent, DirectoryEntry, File, FileContent, FileContentVc,
+    FileSystemEntryType, FileSystemPathVc,
 };
 use turbopack::{
     ecmascript::EcmascriptInputTransform,
@@ -494,15 +494,17 @@ impl NodeEntry for AppRenderer {
             .into_iter()
             .try_join()
             .await?;
-        let mut result =
-            "import IPC, { Ipc } from \"@vercel/turbopack-next/internal/ipc\";\n".to_string();
+        let mut result = RopeBuilder::from(
+            "import IPC, { Ipc } from \"@vercel/turbopack-next/internal/ipc\";\n",
+        );
+
         for (_, import) in segments.iter() {
             if let Some((p, identifier, chunks_identifier)) = import {
+                result += r#"("TURBOPACK {{ transition: next-layout-entry; chunking-type: parallel }}");
+"#;
                 writeln!(
                     result,
-                    r#"("TURBOPACK {{ transition: next-layout-entry; chunking-type: parallel }}");
-import {}, {{ chunks as {} }} from {};
-"#,
+                    "import {}, {{ chunks as {} }} from {};\n",
                     identifier,
                     chunks_identifier,
                     stringify_str(p)
@@ -518,7 +520,8 @@ import BOOTSTRAP from {};
                 stringify_str(&page)
             )?;
         }
-        result.push_str("const LAYOUT_INFO = [");
+
+        result += "const LAYOUT_INFO = [";
         for (segment_str_lit, import) in segments.iter() {
             if let Some((_, identifier, chunks_identifier)) = import {
                 writeln!(
@@ -530,13 +533,15 @@ import BOOTSTRAP from {};
                 writeln!(result, "  {{ segment: {segment_str_lit} }},",)?
             }
         }
-        result.push_str("];\n\n");
+        result += "];\n\n";
+
         let base_code = next_js_file("entry/app-renderer.tsx");
-        let mut file = File::from(result);
         if let FileContent::Content(base_file) = &*base_code.await? {
-            file.push_content(base_file.content());
+            result += base_file.content()
         }
-        let asset = VirtualAssetVc::new(path.join("entry"), FileContent::Content(file).into());
+
+        let file = File::from(result.build());
+        let asset = VirtualAssetVc::new(path.join("entry"), file.into());
         let (context, intermediate_output_path) = if is_rsc {
             (self.context, self.intermediate_output_path.join("__rsc__"))
         } else {
