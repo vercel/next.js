@@ -8,7 +8,7 @@ const swc = async (code) => {
 
 const trim = (s) => s.join('\n').trim().replace(/^\s+/gm, '')
 
-describe('next/swc', () => {
+describe('next/rs', () => {
   describe('hook_optimizer', () => {
     it('should leave alone array destructuring of hooks', async () => {
       const output = await swc(
