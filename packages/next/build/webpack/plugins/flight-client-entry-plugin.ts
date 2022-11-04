@@ -189,7 +189,7 @@ export class FlightClientEntryPlugin {
             dependency: layoutOrPageDependency,
           })
 
-        const isAbsoluteRequest = layoutOrPageRequest[0] === '/'
+        const isAbsoluteRequest = path.isAbsolute(layoutOrPageRequest)
 
         // Next.js internals are put into a separate entry.
         if (!isAbsoluteRequest) {
