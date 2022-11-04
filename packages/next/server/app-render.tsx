@@ -974,14 +974,11 @@ export async function renderToHTMLOrFlight(
 
       const styleElements = styles
         ? styles.map((href, index) => (
+            // Note that we don't add `precedence` here because we want it to be
+            // handled as a normal component.
             <link
               rel="stylesheet"
               href={`${assetPrefix}/_next/${href}${cacheBustingUrlSuffix}`}
-              // `Precedence` is an opt-in signal for React to handle
-              // resource loading and deduplication, etc:
-              // https://github.com/facebook/react/pull/25060
-              // @ts-ignore
-              precedence="high"
               key={index}
             />
           ))
