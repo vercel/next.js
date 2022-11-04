@@ -59,15 +59,8 @@ const experimentalWarning = execOnce(
 
 export function setHttpClientAndAgentOptions(config: NextConfig) {
   if (isAboveNodejs16) {
-    if (
-      config.experimental?.enableUndici &&
-      !config.experimental?.appDir &&
-      isAboveNodejs18
-    ) {
-      Log.warn(
-        `\`enableUndici\` option is unnecessary in Node.js v${NODE_18_VERSION} or greater.`
-      )
-    } else {
+    // Node.js 18 has undici built-in.
+    if (config.experimental?.enableUndici && !isAboveNodejs18) {
       // When appDir is enabled undici is the default because of Response.clone() issues in node-fetch
       ;(global as any).__NEXT_USE_UNDICI = config.experimental?.enableUndici
     }
