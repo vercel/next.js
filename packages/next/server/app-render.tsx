@@ -733,7 +733,7 @@ export async function renderToHTMLOrFlight(
    */
   const isStaticGeneration =
     renderOpts.supportsDynamicHTML !== true && !renderOpts.isBot
-  const isFlight = req.headers[RSC.toString().toLowerCase()] !== undefined
+  const isFlight = req.headers[RSC.toLowerCase()] !== undefined
 
   const capturedErrors: Error[] = []
   const allCapturedErrors: Error[] = []
@@ -791,7 +791,8 @@ export async function renderToHTMLOrFlight(
     // don't modify original query object
     query = Object.assign({}, query)
 
-    const isPrefetch = req.headers[NEXT_ROUTER_PREFETCH] !== undefined
+    const isPrefetch =
+      req.headers[NEXT_ROUTER_PREFETCH.toLowerCase()] !== undefined
 
     // TODO-APP: verify the tree is valid
     // TODO-APP: verify query param is single value (not an array)
