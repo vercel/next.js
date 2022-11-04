@@ -384,8 +384,6 @@ describe('@next/font/google loader', () => {
       variableName: 'myFont',
     })
     expect(fetch).toHaveBeenCalledTimes(2)
-    expect(css).not.toInclude(
-      'https://fonts.gstatic.com/s/fraunces/v24/6NUu8FyLNQOQZAnv9bYEvDiIdE9Ea92uemAk_WBq8U_9v0c2Wa0K7iN7hzFUPJH58nib14c7qv8oRcTn.woff2'
-    )
+    expect(css).not.toInclude('https://fonts.gstatic.com/s/fraunces/v24/')
   })
 })
