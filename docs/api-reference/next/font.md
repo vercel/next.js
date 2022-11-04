@@ -23,7 +23,7 @@ For usage, review [Google Fonts](/docs/basic-features/font-optimization.md#googl
 
 | Key                                         | Example                            | Data type                                                 | Required                                         |
 | ------------------------------------------- | ---------------------------------- | --------------------------------------------------------- | ------------------------------------------------ |
-| [`weight`](#weight)                         | `weight: '600'`                    | String                                                    | Required if font is not variable                 |
+| [`weight`](#weight)                         | `weight: '600'`                    | String \| Array of Strings                                | Required if font is not variable                 |
 | [`style`](#style)                           | `style: 'italic'`                  | String                                                    | Optional                                         |
 | [`subsets`](#subsets)                       | `subsets: ['latin']`               | Array of Strings                                          | Optional                                         |
 | [`axes`](#axes)                             | `axes: ['slnt']`                   | Array of Strings based on the available axes for the font | Optional for variable fonts that have extra axes |
