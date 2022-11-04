@@ -98,7 +98,7 @@ export default function handler(
 }
 ```
 
-> Note: You cannot type the body of `NextApiRequest` by design. You should run the input through a schema validator to generate a typed object for consumption.
+> Note: The body of `NextApiRequest` is `any` because the client may include any payload. You should validate the type/shape of the body at runtime before using it. 
 
 To view more examples using types, check out the [TypeScript documentation](/docs/basic-features/typescript.md#api-routes).
 
