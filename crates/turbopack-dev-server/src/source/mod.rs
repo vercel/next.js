@@ -15,6 +15,7 @@ use std::{
 use anyhow::Result;
 use serde::{Deserialize, Serialize, Serializer};
 use turbo_tasks::{trace::TraceRawVcs, Value};
+use turbo_tasks_fs::rope::Rope;
 use turbopack_core::version::VersionedContentVc;
 
 use self::query::Query;
@@ -27,7 +28,7 @@ pub struct ProxyResult {
     /// Headers arranged as contiguous (name, value) pairs.
     pub headers: Vec<String>,
     /// The body to return.
-    pub body: Vec<u8>,
+    pub body: Rope,
 }
 
 #[turbo_tasks::value(shared)]

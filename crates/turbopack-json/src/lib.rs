@@ -134,7 +134,7 @@ impl EcmascriptChunkItem for JsonChunkItem {
             }
         };
         Ok(EcmascriptChunkItemContent {
-            inner_code,
+            inner_code: inner_code.into(),
             ..Default::default()
         }
         .into())

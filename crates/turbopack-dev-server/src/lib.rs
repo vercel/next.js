@@ -130,12 +130,13 @@ async fn process_request_with_content_source(
                             |m| m.to_string(),
                         );
 
-                        let bytes = content.content().to_vec();
+                        let content = content.content();
+                        let bytes = content.read();
                         return Ok(Response::builder()
                             .status(200)
                             .header("Content-Type", content_type)
-                            .header("Content-Length", bytes.len().to_string())
-                            .body(hyper::Body::from(bytes))?);
+                            .header("Content-Length", content.len().to_string())
+                            .body(hyper::Body::wrap_stream(bytes))?);
                     }
                 }
             }
@@ -152,7 +153,7 @@ async fn process_request_with_content_source(
                     );
                 }
 
-                return Ok(response.body(hyper::Body::from(proxy_result.body.clone()))?);
+                return Ok(response.body(hyper::Body::wrap_stream(proxy_result.body.read()))?);
             }
             ContentSourceResult::NeedData { source, path, vary } => {
                 resolved_source = source.resolve_strongly_consistent().await?;

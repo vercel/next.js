@@ -1,10 +1,10 @@
 use std::{io::Write, ops::Deref, sync::Arc};
 
 use anyhow::Result;
-use async_recursion::async_recursion;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use sourcemap::SourceMap as CrateMap;
-use turbo_tasks::{primitives::BytesVc, TryJoinIterExt};
+use turbo_tasks::TryJoinIterExt;
+use turbo_tasks_fs::rope::{Rope, RopeBuilder, RopeVc};
 
 use crate::source_pos::SourcePos;
 
@@ -82,58 +82,6 @@ impl<'a> From<sourcemap::Token<'a>> for Token {
     }
 }
 
-impl SourceMap {
-    /// Encoding a SourceMap stringifies it into JSON.
-    #[async_recursion]
-    async fn encode<W: Write + Send>(&self, w: &mut W) -> Result<()> {
-        match self {
-            SourceMap::Regular(r) => r.0.to_writer(w)?,
-
-            SourceMap::Sectioned(s) => {
-                // My kingdom for a decent dedent macro with interpolation!
-                write!(
-                    w,
-                    r#"{{
-  "version": 3,
-  "sections": ["#
-                )?;
-
-                let sections = s
-                    .sections
-                    .iter()
-                    .map(async move |s| Ok((s.offset, s.map.await?)))
-                    .try_join()
-                    .await?;
-
-                let mut first_section = true;
-                for (offset, map) in sections {
-                    if !first_section {
-                        write!(w, ",")?;
-                    }
-                    first_section = false;
-
-                    write!(
-                        w,
-                        r#"
-    {{"offset": {{"line": {}, "column": {}}}, "map": "#,
-                        offset.line, offset.column,
-                    )?;
-
-                    map.encode(w).await?;
-                    write!(w, r#"}}"#)?;
-                }
-
-                write!(
-                    w,
-                    r#"]
-}}"#
-                )?;
-            }
-        }
-        Ok(())
-    }
-}
-
 impl SourceMapVc {
     /// Creates a new SourceMap::Regular Vc out of a sourcemap::SourceMap
     /// ("CrateMap") instance.
@@ -152,10 +100,66 @@ impl SourceMapVc {
 impl SourceMapVc {
     /// Stringifies the source map into JSON bytes.
     #[turbo_tasks::function]
-    pub async fn to_bytes(self) -> Result<BytesVc> {
-        let mut bytes = vec![];
-        self.await?.encode(&mut bytes).await?;
-        Ok(BytesVc::cell(bytes))
+    pub async fn to_rope(self) -> Result<RopeVc> {
+        let this = self.await?;
+        let rope = match &*this {
+            SourceMap::Regular(r) => {
+                let mut bytes = vec![];
+                r.0.to_writer(&mut bytes)?;
+                Rope::from(bytes)
+            }
+
+            SourceMap::Sectioned(s) => {
+                if s.sections.len() == 1 {
+                    let s = &s.sections[0];
+                    if s.offset == (0, 0) {
+                        return Ok(s.map.to_rope());
+                    }
+                }
+
+                // My kingdom for a decent dedent macro with interpolation!
+                let mut rope = RopeBuilder::from(
+                    r#"{
+  "version": 3,
+  "sections": ["#,
+                );
+
+                let sections = s
+                    .sections
+                    .iter()
+                    .map(|s| async move { Ok((s.offset, s.map.to_rope().await?)) })
+                    .try_join()
+                    .await?;
+
+                let mut first_section = true;
+                for (offset, section_map) in sections {
+                    if !first_section {
+                        write!(rope, ",")?;
+                    }
+                    first_section = false;
+
+                    write!(
+                        rope,
+                        r#"
+    {{"offset": {{"line": {}, "column": {}}}, "map": "#,
+                        offset.line, offset.column,
+                    )?;
+
+                    rope += &*section_map;
+
+                    write!(rope, r#"}}"#)?;
+                }
+
+                write!(
+                    rope,
+                    r#"]
+}}"#
+                )?;
+
+                rope.build()
+            }
+        };
+        Ok(rope.cell())
     }
 
     /// Traces a generated line/column into an mapping token representing either
@@ -267,7 +271,7 @@ impl Serialize for CrateMapWrapper {
 }
 
 impl<'de> Deserialize<'de> for CrateMapWrapper {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<CrateMapWrapper, D::Error> {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         use serde::de::Error;
         let bytes = <&[u8]>::deserialize(deserializer)?;
         let map = CrateMap::from_slice(bytes).map_err(Error::custom)?;

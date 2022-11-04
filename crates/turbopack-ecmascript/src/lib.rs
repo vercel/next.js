@@ -290,7 +290,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
             let srcmap = ParseResultSourceMap::new(source_map.clone(), srcmap).cell();
 
             Ok(EcmascriptChunkItemContent {
-                inner_code: String::from_utf8(bytes)?,
+                inner_code: bytes.into(),
                 source_map: Some(srcmap),
                 options: if eval_context.is_esm() {
                     EcmascriptChunkItemOptions {
@@ -314,7 +314,8 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                     "const e = new Error(\"Could not parse module '{path}'\");\ne.code = \
                      'MODULE_UNPARSEABLE';\nthrow e;",
                     path = self.module.path().to_string().await?
-                ),
+                )
+                .into(),
                 ..Default::default()
             }
             .into())

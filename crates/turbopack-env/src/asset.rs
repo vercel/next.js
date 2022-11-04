@@ -131,7 +131,7 @@ impl EcmascriptChunkItem for ProcessEnvChunkItem {
         }
 
         Ok(EcmascriptChunkItemContent {
-            inner_code: code,
+            inner_code: code.into(),
             ..Default::default()
         }
         .cell())

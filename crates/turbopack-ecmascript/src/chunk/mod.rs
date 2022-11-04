@@ -2,9 +2,9 @@ pub mod loader;
 pub(crate) mod optimize;
 pub mod source_map;
 
-use std::{fmt::Write as _, slice::Iter};
+use std::{fmt::Write, io::Write as _, slice::Iter};
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, bail, Result};
 use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
@@ -12,7 +12,9 @@ use turbo_tasks::{
     trace::TraceRawVcs,
     TryJoinIterExt, ValueToString, ValueToStringVc,
 };
-use turbo_tasks_fs::{embed_file, File, FileContent, FileSystemPathOptionVc, FileSystemPathVc};
+use turbo_tasks_fs::{
+    embed_file, rope::Rope, File, FileContent, FileSystemPathOptionVc, FileSystemPathVc,
+};
 use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64, Xxh3Hash64Hasher};
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
@@ -23,7 +25,7 @@ use turbopack_core::{
         ChunkReferenceVc, ChunkVc, ChunkableAsset, ChunkableAssetVc, ChunkingContextVc,
         FromChunkableAsset, ModuleId, ModuleIdReadRef, ModuleIdVc, ModuleIdsVc,
     },
-    code_builder::{Code, CodeReadRef, CodeVc},
+    code_builder::{Code, CodeBuilder, CodeReadRef, CodeVc},
     introspect::{
         asset::{children_from_asset_references, content_to_details, IntrospectableAssetVc},
         Introspectable, IntrospectableChildrenVc, IntrospectableVc,
@@ -473,7 +475,7 @@ impl EcmascriptChunkContentEntry {
         &self.code
     }
 
-    fn source_code(&self) -> &str {
+    fn source_code(&self) -> &Rope {
         self.code.source_code()
     }
 }
@@ -486,7 +488,7 @@ impl EcmascriptChunkContentEntryVc {
         let factory = module_factory(content);
         let id = chunk_item.id().await?;
         let code = factory.await?;
-        let hash = hash_xxh3_hash64(code.source_code().as_bytes());
+        let hash = hash_xxh3_hash64(code.source_code());
         Ok(EcmascriptChunkContentEntry {
             chunk_item,
             id,
@@ -519,13 +521,14 @@ async fn module_factory(content: EcmascriptChunkItemContentVc) -> Result<CodeVc>
     if content.options.exports {
         args.push("e: exports");
     }
-    let mut code = Code::new();
+    let mut code = CodeBuilder::default();
     let args = FormatIter(|| args.iter().copied().intersperse(", "));
     if content.options.this {
         write!(code, "(function({{ {} }}) {{ !function() {{\n\n", args,)?;
     } else {
         write!(code, "(({{ {} }}) => (() => {{\n\n", args,)?;
     }
+
     let source_map = content.source_map.map(|sm| sm.as_generate_source_map());
     code.push_source(&content.inner_code, source_map);
     if content.options.this {
@@ -533,7 +536,7 @@ async fn module_factory(content: EcmascriptChunkItemContentVc) -> Result<CodeVc>
     } else {
         code += "\n})())";
     }
-    Ok(code.cell())
+    Ok(code.build().cell())
 }
 
 #[derive(Serialize)]
@@ -563,7 +566,6 @@ impl EcmascriptChunkContentVc {
     #[turbo_tasks::function]
     async fn code(self) -> Result<CodeVc> {
         let this = self.await?;
-        let mut code = Code::new();
         let chunk_path = &*this.chunk_path.await?;
         let chunk_server_path = if let Some(path) = this.output_root.await?.get_path_to(chunk_path)
         {
@@ -575,17 +577,17 @@ impl EcmascriptChunkContentVc {
                 this.output_root.to_string().await?
             );
         };
-        writeln!(
-            code,
-            "(self.TURBOPACK = self.TURBOPACK || []).push([{}, {{",
-            stringify_str(chunk_server_path)
-        )?;
+        let mut code = CodeBuilder::default();
+        code += "(self.TURBOPACK = self.TURBOPACK || []).push([";
+
+        writeln!(code, "{}, {{", stringify_str(chunk_server_path))?;
         for entry in &this.module_factories {
             write!(code, "\n{}: ", &stringify_module_id(entry.id()))?;
             code.push_code(entry.code());
             code += ",";
         }
         code += "\n}";
+
         if let Some(evaluate) = &this.evaluate {
             let evaluate = evaluate.await?;
             let condition = evaluate
@@ -623,13 +625,10 @@ impl EcmascriptChunkContentVc {
         code += "]);\n";
         if this.evaluate.is_some() {
             let runtime_code = embed_file!("js/src/runtime.js").await?;
-            let runtime_code = match &*runtime_code {
+            match &*runtime_code {
                 FileContent::NotFound => return Err(anyhow!("runtime code is not found")),
-                FileContent::Content(file) => String::from_utf8(file.content().to_vec())
-                    .context("runtime code is invalid UTF-8")?,
+                FileContent::Content(file) => code.push_source(file.content(), None),
             };
-            // Add the turbopack runtime to the chunk.
-            code += runtime_code.as_str();
         }
 
         if code.has_source_map() {
@@ -637,13 +636,13 @@ impl EcmascriptChunkContentVc {
             write!(code, "\n\n//# sourceMappingURL={}.map", filename)?;
         }
 
-        Ok(code.cell())
+        Ok(code.build().cell())
     }
 
     #[turbo_tasks::function]
     async fn content(self) -> Result<AssetContentVc> {
-        let code = self.code().source_code().await?;
-        Ok(File::from(code).into())
+        let code = self.code().await?;
+        Ok(File::from(code.source_code().clone()).into())
     }
 }
 
@@ -743,7 +742,7 @@ impl GenerateSourceMap for EcmascriptChunkContent {
 
 #[derive(serde::Serialize)]
 struct HmrUpdateEntry<'a> {
-    code: &'a str,
+    code: &'a Rope,
     map: Option<String>,
 }
 
@@ -1113,7 +1112,7 @@ impl EcmascriptChunkPlaceablesVc {
 #[turbo_tasks::value(shared)]
 #[derive(Default)]
 pub struct EcmascriptChunkItemContent {
-    pub inner_code: String,
+    pub inner_code: Rope,
     pub source_map: Option<ParseResultSourceMapVc>,
     pub options: EcmascriptChunkItemOptions,
     pub placeholder_for_future_extensions: (),

@@ -5,6 +5,7 @@
 use std::{
     collections::BTreeMap,
     env::current_dir,
+    io::Read,
     time::{Duration, Instant},
 };
 
@@ -86,7 +87,13 @@ async fn hash_directory(directory: FileSystemPathVc) -> Result<StringVc> {
             println!("{}: not found", directory.await?.path);
         }
     };
-    let hash = hash_content(hashes.into_values().collect::<Vec<String>>().join(","));
+    let hash = hash_content(
+        &mut hashes
+            .into_values()
+            .collect::<Vec<String>>()
+            .join(",")
+            .as_bytes(),
+    );
     println!("hash_directory({})", dir_path);
     Ok(hash)
 }
@@ -95,7 +102,7 @@ async fn hash_directory(directory: FileSystemPathVc) -> Result<StringVc> {
 async fn hash_file(file_path: FileSystemPathVc) -> Result<StringVc> {
     let content = file_path.read().await?;
     Ok(match &*content {
-        FileContent::Content(file) => hash_content(file),
+        FileContent::Content(file) => hash_content(&mut file.read()),
         FileContent::NotFound => {
             // report error
             StringVc::cell("".to_string())
@@ -103,9 +110,12 @@ async fn hash_file(file_path: FileSystemPathVc) -> Result<StringVc> {
     })
 }
 
-fn hash_content(content: impl AsRef<[u8]>) -> StringVc {
+fn hash_content<R: Read>(content: &mut R) -> StringVc {
     let mut hasher = Sha256::new();
-    hasher.update(content);
+    let mut buf = [0; 1024];
+    while let Ok(size) = content.read(&mut buf) {
+        hasher.update(&buf[0..size]);
+    }
     let result = format!("{:x}", hasher.finalize());
 
     StringVc::cell(result)

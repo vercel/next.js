@@ -193,7 +193,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                 }
                 code += "});\n";
                 EcmascriptChunkItemContent {
-                    inner_code: code,
+                    inner_code: code.into(),
                     // TODO: We generate a minimal map for runtime code so that the filename is
                     // displayed in dev tools.
                     ..Default::default()
@@ -201,7 +201,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
             }
             ParseResult::NotFound | ParseResult::Unparseable => {
                 EcmascriptChunkItemContent {
-                    inner_code: "__turbopack_export_value__({});\n".to_string(),
+                    inner_code: "__turbopack_export_value__({});\n".into(),
                     // TODO: We generate a minimal map for runtime code so that the filename is
                     // displayed in dev tools.
                     ..Default::default()

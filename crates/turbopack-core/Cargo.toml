@@ -11,7 +11,6 @@ bench = false
 
 [dependencies]
 anyhow = "1.0.47"
-async-recursion = "1.0.0"
 async-trait = "0.1.56"
 browserslist-rs = "=0.11.0"                                               # Keep consistent with preset_env_base through swc_core
 futures = "0.3.24"

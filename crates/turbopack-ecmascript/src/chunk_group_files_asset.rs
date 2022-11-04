@@ -130,7 +130,7 @@ impl EcmascriptChunkItem for ChunkGroupFilesChunkItem {
             }
         }
         Ok(EcmascriptChunkItemContent {
-            inner_code: format!("__turbopack_export_value__({:#});\n", Value::Array(data)),
+            inner_code: format!("__turbopack_export_value__({:#});\n", Value::Array(data)).into(),
             ..Default::default()
         }
         .cell())

@@ -129,7 +129,8 @@ const chunks = {};
 ",
                 module_id,
                 Value::Array(client_chunks)
-            ),
+            )
+            .into(),
             ..Default::default()
         }
         .cell())

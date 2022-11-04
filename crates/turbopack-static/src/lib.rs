@@ -196,7 +196,8 @@ impl EcmascriptChunkItem for ModuleChunkItem {
             inner_code: format!(
                 "__turbopack_export_value__({path});",
                 path = stringify_str(&format!("/{}", &*self.static_asset.path().await?))
-            ),
+            )
+            .into(),
             ..Default::default()
         }
         .into())

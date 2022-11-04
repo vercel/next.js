@@ -11,6 +11,7 @@ pub mod glob;
 mod invalidator_map;
 mod read_glob;
 mod retry;
+pub mod rope;
 pub mod util;
 
 use std::{
@@ -38,10 +39,7 @@ use read_glob::read_glob;
 pub use read_glob::{ReadGlobResult, ReadGlobResultVc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tokio::{
-    fs,
-    io::{AsyncReadExt, AsyncWriteExt},
-};
+use tokio::{fs, io::AsyncReadExt};
 use turbo_tasks::{
     primitives::{BoolVc, StringReadRef, StringVc},
     spawn_thread,
@@ -51,9 +49,12 @@ use turbo_tasks::{
 use turbo_tasks_hash::hash_xxh3_hash64;
 use util::{join_path, normalize_path, sys_to_unix, unix_to_sys};
 
-use crate::retry::{retry_blocking, retry_future};
 #[cfg(target_family = "windows")]
 use crate::util::is_windows_raw_path;
+use crate::{
+    retry::{retry_blocking, retry_future},
+    rope::{Rope, RopeReadRef, RopeReader},
+};
 
 #[turbo_tasks::value_trait]
 pub trait FileSystem: ValueToString {
@@ -489,7 +490,7 @@ impl FileSystem for DiskFileSystem {
                     let full_path = full_path_to_write.clone();
                     async move {
                         let mut f = fs::File::create(&full_path).await?;
-                        f.write_all(&file.content).await?;
+                        tokio::io::copy(&mut file.read(), &mut f).await?;
                         #[cfg(target_family = "unix")]
                         f.set_permissions(file.meta.permissions.into()).await?;
                         Ok::<(), io::Error>(())
@@ -1181,7 +1182,7 @@ pub enum LinkContent {
 pub struct File {
     meta: FileMeta,
     #[turbo_tasks(debug_ignore)]
-    content: Vec<u8>,
+    content: Rope,
 }
 
 impl File {
@@ -1195,12 +1196,20 @@ impl File {
 
         Ok(File {
             meta: metadata.into(),
-            content: output,
+            content: Rope::from(output),
         })
     }
 
     /// Creates a [File] from raw bytes.
     fn from_bytes(content: Vec<u8>) -> Self {
+        File {
+            meta: FileMeta::default(),
+            content: Rope::from(content),
+        }
+    }
+
+    /// Creates a [File] from a rope.
+    fn from_rope(content: Rope) -> Self {
         File {
             meta: FileMeta::default(),
             content,
@@ -1215,13 +1224,18 @@ impl File {
         self.meta.content_type = Some(content_type);
         self
     }
+
+    /// Returns a Read/AsyncRead/Stream/Iterator to access the File's contents.
+    pub fn read(&self) -> RopeReader {
+        self.content.read()
+    }
 }
 
 impl Debug for File {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("File")
             .field("meta", &self.meta)
-            .field("content (hash)", &hash_xxh3_hash64(self.content.as_slice()))
+            .field("content (hash)", &hash_xxh3_hash64(&self.content))
             .finish()
     }
 }
@@ -1256,26 +1270,33 @@ impl From<&[u8]> for File {
     }
 }
 
+impl From<RopeReadRef> for File {
+    fn from(rope: RopeReadRef) -> Self {
+        File::from_rope(rope.clone_value())
+    }
+}
+
+impl From<Rope> for File {
+    fn from(rope: Rope) -> Self {
+        File::from_rope(rope)
+    }
+}
+
 impl File {
     pub fn new(meta: FileMeta, content: Vec<u8>) -> Self {
-        Self { meta, content }
+        Self {
+            meta,
+            content: Rope::from(content),
+        }
     }
 
+    /// Returns the associated [FileMeta] of this file.
     pub fn meta(&self) -> &FileMeta {
         &self.meta
     }
 
-    pub fn content(&self) -> &[u8] {
-        &self.content
-    }
-
-    pub fn push_content(&mut self, content: &[u8]) {
-        self.content.extend_from_slice(content);
-    }
-}
-
-impl AsRef<[u8]> for File {
-    fn as_ref(&self) -> &[u8] {
+    /// Returns the immutable contents of this file.
+    pub fn content(&self) -> &Rope {
         &self.content
     }
 }
@@ -1359,11 +1380,8 @@ impl FileContent {
 
     pub fn parse_json(&self) -> FileJsonContent {
         match self {
-            FileContent::Content(file) => match std::str::from_utf8(&file.content) {
-                Ok(string) => match serde_json::from_str(string) {
-                    Ok(data) => FileJsonContent::Content(data),
-                    Err(_) => FileJsonContent::Unparseable,
-                },
+            FileContent::Content(file) => match serde_json::from_reader(file.read()) {
+                Ok(data) => FileJsonContent::Content(data),
                 Err(_) => FileJsonContent::Unparseable,
             },
             FileContent::NotFound => FileJsonContent::NotFound,
@@ -1372,9 +1390,9 @@ impl FileContent {
 
     pub fn parse_json_with_comments(&self) -> FileJsonContent {
         match self {
-            FileContent::Content(file) => match std::str::from_utf8(&file.content) {
+            FileContent::Content(file) => match file.content.to_str() {
                 Ok(string) => match parse_to_serde_value(
-                    string,
+                    &string,
                     &ParseOptions {
                         allow_comments: true,
                         allow_trailing_commas: true,
@@ -1395,7 +1413,7 @@ impl FileContent {
 
     pub fn lines(&self) -> FileLinesContent {
         match self {
-            FileContent::Content(file) => match std::str::from_utf8(&file.content) {
+            FileContent::Content(file) => match file.content.to_str() {
                 Ok(string) => {
                     let mut bytes_offset = 0;
                     FileLinesContent::Lines(

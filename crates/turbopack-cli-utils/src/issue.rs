@@ -444,7 +444,7 @@ impl ConsoleUiVc {
 
         let issues = issues
             .iter_with_shortest_path()
-            .map(async move |(issue, path)| {
+            .map(|(issue, path)| async move {
                 // (issue.)
                 let plain_issue = issue.into_plain();
                 let id = plain_issue.internal_hash().await?;

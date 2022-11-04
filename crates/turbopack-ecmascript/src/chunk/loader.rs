@@ -1,4 +1,4 @@
-use std::fmt::Write as FmtWrite;
+use std::io::Write as _;
 
 use anyhow::{anyhow, bail, Result};
 use indexmap::IndexSet;
@@ -77,7 +77,7 @@ impl EcmascriptChunkItem for ManifestLoaderItem {
 
     #[turbo_tasks::function]
     async fn content(&self) -> Result<EcmascriptChunkItemContentVc> {
-        let mut code = String::new();
+        let mut code = Vec::new();
 
         let manifest = self.manifest.await?;
         let asset = manifest.asset.as_asset();
@@ -126,7 +126,7 @@ __turbopack_export_value__((__turbopack_import__) => {{
         )?;
 
         Ok(EcmascriptChunkItemContent {
-            inner_code: code,
+            inner_code: code.into(),
             ..Default::default()
         }
         .into())
@@ -262,12 +262,11 @@ impl EcmascriptChunkItem for ManifestChunkItem {
             chunk_server_paths.insert(chunk_server_path.to_string());
         }
 
-        let mut code = String::new();
-        code += "const chunks = [\n";
+        let mut code = b"const chunks = [\n".to_vec();
         for pathname in chunk_server_paths {
             writeln!(code, "    {},", stringify_str(&pathname))?;
         }
-        code += "];\n";
+        writeln!(code, "];")?;
 
         // TODO: a dedent macro would be awesome.
         write!(
@@ -277,7 +276,7 @@ __turbopack_export_value__(Promise.all(chunks.map(__turbopack_load__)));"
         )?;
 
         Ok(EcmascriptChunkItemContent {
-            inner_code: code,
+            inner_code: code.into(),
             ..Default::default()
         }
         .into())

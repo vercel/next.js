@@ -569,7 +569,7 @@ async fn run_proxy_operation(
     Ok(ProxyResult {
         status,
         headers,
-        body,
+        body: body.into(),
     })
 }
 
@@ -610,7 +610,7 @@ async fn proxy_error(
             "content-type".to_string(),
             "text/html; charset=utf-8".to_string(),
         ],
-        body: body.into_bytes(),
+        body: body.into(),
     }
     .cell())
 }

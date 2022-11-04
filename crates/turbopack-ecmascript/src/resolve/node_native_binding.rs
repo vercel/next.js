@@ -100,7 +100,7 @@ pub async fn resolve_node_pre_gyp_files(
                 let config_file_path = config_path.path();
                 let config_file_dir = config_file_path.parent();
                 let node_pre_gyp_config: NodePreGypConfigJson =
-                    serde_json::from_slice(config_file.content())?;
+                    serde_json::from_reader(config_file.read())?;
                 let mut assets: IndexSet<AssetVc> = IndexSet::new();
                 for version in node_pre_gyp_config.binary.napi_versions.iter() {
                     let native_binding_path = NAPI_VERSION_TEMPLATE.replace(
@@ -236,7 +236,7 @@ pub async fn resolve_node_gyp_build_files(
         if let AssetContent::File(file) = &*binding_gyp.content().await? {
             if let FileContent::Content(config_file) = &*file.await? {
                 if let Some(captured) =
-                    GYP_BUILD_TARGET_NAME.captures(std::str::from_utf8(config_file.content())?)
+                    GYP_BUILD_TARGET_NAME.captures(&config_file.content().to_str()?)
                 {
                     let mut resolved: IndexSet<AssetVc> = IndexSet::with_capacity(captured.len());
                     for found in captured.iter().skip(1).flatten() {
