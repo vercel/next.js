@@ -11,3 +11,5 @@ By default, the latest canary of the `next-swc` binaries will be installed and u
 If you want to test out the wasm build locally, you will need to [install wasm-pack](https://rustwasm.github.io/wasm-pack/installer/). Run `pnpm --filter=@next/swc build-wasm --target <wasm_target>` to build and `node ./scripts/setup-wasm.mjs` to copy it into your `node_modules`. Run next with `NODE_OPTIONS='--no-addons'` to force it to use the wasm binary.
 
 If you need to clean the project for any reason, use `pnpm clean`.
+
+If you are building the project on a Windows OS machine, use `rimraf dist` in package.json `build scripts` instead of `rm -rf` because `rm` command is not recognizable on a Windows OS machine.

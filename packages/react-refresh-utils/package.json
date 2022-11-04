@@ -27,6 +27,7 @@
   },
   "devDependencies": {
     "react-refresh": "0.12.0",
-    "webpack": "^4 || ^5"
+    "webpack": "^4 || ^5",
+    "rimraf": "3.0.2"
   }
 }
