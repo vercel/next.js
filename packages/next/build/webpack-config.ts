@@ -2120,6 +2120,7 @@ export default async function getBaseWebpackConfig(
               ['swcRemoveConsole', !!config.compiler?.removeConsole],
               ['swcImportSource', !!jsConfig?.compilerOptions?.jsxImportSource],
               ['swcEmotion', !!config.compiler?.emotion],
+              ['turbotrace', !!config.experimental.turbotrace],
               SWCBinaryTarget,
             ].filter<[Feature, boolean]>(Boolean as any)
           )
