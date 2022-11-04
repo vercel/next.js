@@ -7,9 +7,9 @@
   "cpu": [
     "ia32"
   ],
-  "main": "next-swc.win32-ia32-msvc.node",
+  "main": "next-rs.win32-ia32-msvc.node",
   "files": [
-    "next-swc.win32-ia32-msvc.node"
+    "next-rs.win32-ia32-msvc.node"
   ],
   "license": "MIT",
   "engines": {

@@ -1055,7 +1055,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: next-swc-test-binary
-          path: packages/next-swc/native/next-swc.linux-x64-gnu.node
+          path: packages/next-swc/native/next-rs.linux-x64-gnu.node
 
       - name: Clear the cargo caches
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
@@ -1154,7 +1154,7 @@ jobs:
             build: |
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi
               turbo run build-native --cache-dir=".turbo" -- --release
-              strip -x packages/next-swc/native/next-swc.*.node
+              strip -x packages/next-swc/native/next-rs.*.node
           - host: windows-latest
             build: |
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" "pnpm@${PNPM_VERSION}"
@@ -1176,7 +1176,7 @@ jobs:
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi &&
               unset CC_x86_64_unknown_linux_gnu && unset CC &&
               turbo run build-native --cache-dir=".turbo" -- --release --target x86_64-unknown-linux-gnu &&
-              strip packages/next-swc/native/next-swc.*.node
+              strip packages/next-swc/native/next-rs.*.node
           - host: ubuntu-latest
             target: 'x86_64-unknown-linux-musl'
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2022-10-24-alpine
@@ -1188,7 +1188,7 @@ jobs:
               rustup target add x86_64-unknown-linux-musl &&
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi &&
               turbo run build-native --cache-dir=".turbo" -- --release --target x86_64-unknown-linux-musl &&
-              strip packages/next-swc/native/next-swc.*.node
+              strip packages/next-swc/native/next-rs.*.node
           - host: macos-latest
             target: 'aarch64-apple-darwin'
             build: |
@@ -1199,7 +1199,7 @@ jobs:
               export CFLAGS="-isysroot $SYSROOT -isystem $SYSROOT";
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi
               turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-apple-darwin
-              strip -x packages/next-swc/native/next-swc.*.node
+              strip -x packages/next-swc/native/next-rs.*.node
           - host: ubuntu-latest
             target: 'aarch64-unknown-linux-gnu'
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2022-10-24-aarch64
@@ -1212,7 +1212,7 @@ jobs:
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi &&
               export CC_aarch64_unknown_linux_gnu=/usr/aarch64-unknown-linux-gnu/bin/aarch64-unknown-linux-gnu-gcc &&
               turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-unknown-linux-gnu &&
-              llvm-strip -x packages/next-swc/native/next-swc.*.node
+              llvm-strip -x packages/next-swc/native/next-rs.*.node
           - host: ubuntu-latest
             target: 'armv7-unknown-linux-gnueabihf'
             setup: |
@@ -1221,7 +1221,7 @@ jobs:
             build: |
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi
               turbo run build-native-no-plugin --cache-dir=".turbo" -- --release --target armv7-unknown-linux-gnueabihf
-              arm-linux-gnueabihf-strip packages/next-swc/native/next-swc.*.node
+              arm-linux-gnueabihf-strip packages/next-swc/native/next-rs.*.node
           - host: ubuntu-latest
             target: aarch64-linux-android
             build: |
@@ -1236,7 +1236,7 @@ jobs:
               echo "INPUT(-lunwind)" > "${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/lib64/clang/${CLANG_VERSION}/lib/linux/aarch64/libgcc.a"
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi
               turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-linux-android
-              ${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip packages/next-swc/native/next-swc.*.node
+              ${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip packages/next-swc/native/next-rs.*.node
           - host: ubuntu-latest
             target: armv7-linux-androideabi
             build: |
@@ -1251,7 +1251,7 @@ jobs:
               echo "INPUT(-lunwind)" > "${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/lib64/clang/${CLANG_VERSION}/lib/linux/arm/libgcc.a"
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" "pnpm@${PNPM_VERSION}"
               turbo run build-native-no-plugin --cache-dir=".turbo" -- --release --target armv7-linux-androideabi
-              ${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip packages/next-swc/native/next-swc.*.node
+              ${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip packages/next-swc/native/next-rs.*.node
           - host: ubuntu-latest
             target: 'aarch64-unknown-linux-musl'
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2022-10-24-alpine
@@ -1264,7 +1264,7 @@ jobs:
               rustup default "${RUST_TOOLCHAIN}" &&
               rustup target add aarch64-unknown-linux-musl &&
               turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-unknown-linux-musl &&
-              llvm-strip -x packages/next-swc/native/next-swc.*.node
+              llvm-strip -x packages/next-swc/native/next-rs.*.node
           - host: windows-latest
             target: 'aarch64-pc-windows-msvc'
             build: |
@@ -1363,7 +1363,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: next-swc-binaries
-          path: packages/next-swc/native/next-swc.*.node
+          path: packages/next-swc/native/next-rs.*.node
 
   build-native-freebsd:
     if: ${{ needs.build.outputs.isRelease == 'true' }}
@@ -1414,14 +1414,14 @@ jobs:
             whoami
             env
             freebsd-version
-            pnpm --filter=@next/swc run build-native-no-plugin --platform --release --target x86_64-unknown-freebsd
+            pnpm --filter=@next/rs run build-native-no-plugin --platform --release --target x86_64-unknown-freebsd
             rm -rf node_modules
             rm -rf packages/next-swc/target
       - name: Upload artifact
         uses: actions/upload-artifact@v3
         with:
           name: next-swc-binaries
-          path: packages/next-swc/native/next-swc.*.node
+          path: packages/next-swc/native/next-rs.*.node
           if-no-files-found: error
 
   build-wasm:

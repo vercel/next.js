@@ -7,9 +7,9 @@
   "cpu": [
     "x64"
   ],
-  "main": "next-swc.win32-x64-msvc.node",
+  "main": "next-rs.win32-x64-msvc.node",
   "files": [
-    "next-swc.win32-x64-msvc.node"
+    "next-rs.win32-x64-msvc.node"
   ],
   "license": "MIT",
   "engines": {

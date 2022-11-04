@@ -5,7 +5,7 @@ import fs from 'fs-extra'
 ;(async function () {
   if (process.env.NEXT_SKIP_NATIVE_POSTINSTALL) {
     console.log(
-      `Skipping next-swc postinstall due to NEXT_SKIP_NATIVE_POSTINSTALL env`
+      `Skipping next-rs postinstall due to NEXT_SKIP_NATIVE_POSTINSTALL env`
     )
     return
   }
@@ -21,7 +21,7 @@ import fs from 'fs-extra'
       path.join(cwd, 'node_modules', '@next')
     )) {
       if (
-        pkg.startsWith('swc-') &&
+        pkg.startsWith('rs-') &&
         (
           await fs.readJSON(
             path.join(cwd, 'node_modules', '@next', pkg, 'package.json')
@@ -35,24 +35,24 @@ import fs from 'fs-extra'
   } catch (_) {}
 
   try {
-    let tmpdir = path.join(os.tmpdir(), `next-swc-${Date.now()}`)
+    let tmpdir = path.join(os.tmpdir(), `next-rs-${Date.now()}`)
     await fs.ensureDir(tmpdir)
     let pkgJson = {
       name: 'dummy-package',
       version: '1.0.0',
       optionalDependencies: {
-        '@next/swc-android-arm64': 'canary',
-        '@next/swc-android-arm-eabi': 'canary',
-        '@next/swc-darwin-arm64': 'canary',
-        '@next/swc-darwin-x64': 'canary',
-        '@next/swc-linux-arm-gnueabihf': 'canary',
-        '@next/swc-linux-arm64-gnu': 'canary',
-        '@next/swc-linux-arm64-musl': 'canary',
-        '@next/swc-linux-x64-gnu': 'canary',
-        '@next/swc-linux-x64-musl': 'canary',
-        '@next/swc-win32-arm64-msvc': 'canary',
-        '@next/swc-win32-ia32-msvc': 'canary',
-        '@next/swc-win32-x64-msvc': 'canary',
+        '@next/rs-android-arm64': 'canary',
+        '@next/rs-android-arm-eabi': 'canary',
+        '@next/rs-darwin-arm64': 'canary',
+        '@next/rs-darwin-x64': 'canary',
+        '@next/rs-linux-arm-gnueabihf': 'canary',
+        '@next/rs-linux-arm64-gnu': 'canary',
+        '@next/rs-linux-arm64-musl': 'canary',
+        '@next/rs-linux-x64-gnu': 'canary',
+        '@next/rs-linux-x64-musl': 'canary',
+        '@next/rs-win32-arm64-msvc': 'canary',
+        '@next/rs-win32-ia32-msvc': 'canary',
+        '@next/rs-win32-x64-msvc': 'canary',
       },
     }
     await fs.writeFile(
@@ -77,6 +77,6 @@ import fs from 'fs-extra'
     console.log('Installed the following binary packages:', pkgs)
   } catch (e) {
     console.error(e)
-    console.error('Failed to load @next/swc binary packages')
+    console.error('Failed to load @next/rs binary packages')
   }
 })()

@@ -98,13 +98,13 @@ module.exports = (actionInfo) => {
           pkgData.dependencies[pkg] = packedPkgPath
         }
         // make sure native binaries are included in local linking
-        if (pkg === '@next/swc') {
+        if (pkg === '@next/rs') {
           if (!pkgData.files) {
             pkgData.files = []
           }
           pkgData.files.push('native')
           console.log(
-            'using swc binaries: ',
+            'using next/rs binaries: ',
             await exec(`ls ${path.join(path.dirname(pkgDataPath), 'native')}`)
           )
         }
@@ -112,9 +112,9 @@ module.exports = (actionInfo) => {
           if (nextSwcPkg) {
             Object.assign(pkgData.dependencies, nextSwcPkg)
           } else {
-            if (pkgDatas.get('@next/swc')) {
-              pkgData.dependencies['@next/swc'] =
-                pkgDatas.get('@next/swc').packedPkgPath
+            if (pkgDatas.get('@next/rs')) {
+              pkgData.dependencies['@next/rs'] =
+                pkgDatas.get('@next/rs').packedPkgPath
             } else {
               pkgData.files.push('native')
             }

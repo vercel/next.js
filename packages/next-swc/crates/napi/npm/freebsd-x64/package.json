@@ -7,9 +7,9 @@
   "cpu": [
     "x64"
   ],
-  "main": "next-swc.freebsd-x64.node",
+  "main": "next-rs.freebsd-x64.node",
   "files": [
-    "next-swc.freebsd-x64.node"
+    "next-rs.freebsd-x64.node"
   ],
   "license": "MIT",
   "engines": {

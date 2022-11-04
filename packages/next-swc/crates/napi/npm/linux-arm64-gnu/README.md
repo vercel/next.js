@@ -1,3 +1,3 @@
-# `@next/swc-linux-arm64-gnu`
+# `@next/rs-linux-arm64-gnu`
 
-This is the **linux-arm64-gnu** binary for `@next/swc`
+This is the **linux-arm64-gnu** binary for `@next/rs`

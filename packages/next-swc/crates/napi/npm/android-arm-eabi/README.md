@@ -1,3 +1,3 @@
-# `@next/swc-android-arm-eabi`
+# `@next/rs-android-arm-eabi`
 
-This is the **android-arm-eabi** binary for `@next/swc`
+This is the **android-arm-eabi** binary for `@next/rs`

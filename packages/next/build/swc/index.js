@@ -160,7 +160,7 @@ async function loadWasm(importPath = '') {
   }
 
   let attempts = []
-  for (let pkg of ['@next/swc-wasm-nodejs', '@next/swc-wasm-web']) {
+  for (let pkg of ['@next/rs-wasm-nodejs', '@next/rs-wasm-web']) {
     try {
       let pkgPath = pkg
 
@@ -169,7 +169,7 @@ async function loadWasm(importPath = '') {
         pkgPath = path.join(importPath, pkg, 'wasm.js')
       }
       let bindings = await import(pkgPath)
-      if (pkg === '@next/swc-wasm-web') {
+      if (pkg === '@next/rs-wasm-web') {
         bindings = await bindings.default()
       }
       Log.info('Using wasm build of next-swc')
@@ -248,15 +248,15 @@ function loadNative() {
 
   for (const triple of triples) {
     try {
-      bindings = require(`@next/swc/native/next-swc.${triple.platformArchABI}.node`)
-      Log.info('Using locally built binary of @next/swc')
+      bindings = require(`@next/rs/native/next-rs.${triple.platformArchABI}.node`)
+      Log.info('Using locally built binary of @next/rs')
       break
     } catch (e) {}
   }
 
   if (!bindings) {
     for (const triple of triples) {
-      let pkg = `@next/swc-${triple.platformArchABI}`
+      let pkg = `@next/rs-${triple.platformArchABI}`
       try {
         bindings = require(pkg)
         break

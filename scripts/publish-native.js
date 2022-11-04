@@ -22,7 +22,7 @@ const cwd = process.cwd()
 
     for (let platform of platforms) {
       try {
-        let binaryName = `next-swc.${platform}.node`
+        let binaryName = `next-rs.${platform}.node`
         await copy(
           path.join(cwd, 'packages/next-swc/native', binaryName),
           path.join(nativePackagesDir, platform, binaryName)
@@ -74,7 +74,7 @@ const cwd = process.cwd()
       let wasmPkg = JSON.parse(
         await readFile(path.join(wasmDir, `pkg-${wasmTarget}/package.json`))
       )
-      wasmPkg.name = `@next/swc-wasm-${wasmTarget}`
+      wasmPkg.name = `@next/rs-wasm-${wasmTarget}`
       wasmPkg.version = version
 
       await writeFile(
@@ -114,7 +114,7 @@ const cwd = process.cwd()
     )
     for (let platform of platforms) {
       let optionalDependencies = nextPkg.optionalDependencies || {}
-      optionalDependencies['@next/swc-' + platform] = version
+      optionalDependencies['@next/rs-' + platform] = version
       nextPkg.optionalDependencies = optionalDependencies
     }
     await writeFile(

@@ -7,9 +7,9 @@
   "cpu": [
     "arm64"
   ],
-  "main": "next-swc.darwin-arm64.node",
+  "main": "next-rs.darwin-arm64.node",
   "files": [
-    "next-swc.darwin-arm64.node"
+    "next-rs.darwin-arm64.node"
   ],
   "license": "MIT",
   "engines": {

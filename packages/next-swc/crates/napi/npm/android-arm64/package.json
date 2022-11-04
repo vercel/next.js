@@ -7,9 +7,9 @@
   "cpu": [
     "arm64"
   ],
-  "main": "next-swc.android-arm64.node",
+  "main": "next-rs.android-arm64.node",
   "files": [
-    "next-swc.android-arm64.node"
+    "next-rs.android-arm64.node"
   ],
   "license": "MIT",
   "engines": {

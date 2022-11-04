@@ -15,7 +15,7 @@ import { copy, pathExists } from 'fs-extra'
     let wasmPkg = JSON.parse(
       await readFile(path.join(wasmDir, `${folderName}/package.json`))
     )
-    wasmPkg.name = `@next/swc-wasm-${wasmTarget}`
+    wasmPkg.name = `@next/rs-wasm-${wasmTarget}`
 
     await writeFile(
       path.join(wasmDir, `${folderName}/package.json`),
@@ -24,7 +24,7 @@ import { copy, pathExists } from 'fs-extra'
 
     await copy(
       path.join(wasmDir, `${folderName}`),
-      path.join(process.cwd(), `node_modules/@next/swc-wasm-${wasmTarget}`),
+      path.join(process.cwd(), `node_modules/@next/rs-wasm-${wasmTarget}`),
       { overwrite: true }
     )
   } catch (e) {

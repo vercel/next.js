@@ -1,3 +1,3 @@
-# `@next/swc-android-arm64`
+# `@next/rs-android-arm64`
 
-This is the **android-arm64** binary for `@next/swc`
+This is the **android-arm64** binary for `@next/rs`

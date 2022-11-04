@@ -10,7 +10,7 @@ async function getDirSize(dir, ctx = { size: 0 }) {
     subDirs.map(async (curDir) => {
       // we use dev builds so the size isn't helpful to track
       // here as it's not reflective of full releases
-      if (curDir.includes('@next/swc')) return
+      if (curDir.includes('@next/rs')) return
 
       const fileStat = await fs.stat(curDir)
       if (fileStat.isDirectory()) {

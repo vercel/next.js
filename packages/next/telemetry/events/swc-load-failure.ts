@@ -34,7 +34,7 @@ export async function eventSwcLoadFailure(
 
   try {
     const pkgNames = Object.keys(optionalDependencies || {}).filter((pkg) =>
-      pkg.startsWith('@next/swc')
+      pkg.startsWith('@next/rs')
     )
     const installedPkgs = []
 

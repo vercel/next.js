@@ -100,7 +100,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: next-swc-dev-binary
-          path: packages/next-swc/native/next-swc.linux-x64-gnu.node
+          path: packages/next-swc/native/next-rs.linux-x64-gnu.node
 
       - name: Clear the cargo caches
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}

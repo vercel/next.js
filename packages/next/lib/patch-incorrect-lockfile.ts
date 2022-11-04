@@ -178,7 +178,7 @@ export async function patchIncorrectLockfile(dir: string) {
       JSON.stringify(lockfileParsed, null, 2) + endingNewline
     )
     Log.warn(
-      'Lockfile was successfully patched, please run "npm install" to ensure @next/swc dependencies are downloaded'
+      'Lockfile was successfully patched, please run "npm install" to ensure @next/rs dependencies are downloaded'
     )
   } catch (err) {
     Log.error(

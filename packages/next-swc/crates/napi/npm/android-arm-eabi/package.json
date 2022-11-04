@@ -7,9 +7,9 @@
   "cpu": [
     "arm"
   ],
-  "main": "next-swc.android-arm-eabi.node",
+  "main": "next-rs.android-arm-eabi.node",
   "files": [
-    "next-swc.android-arm-eabi.node"
+    "next-rs.android-arm-eabi.node"
   ],
   "license": "MIT",
   "engines": {

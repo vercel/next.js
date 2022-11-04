@@ -1,3 +1,3 @@
-# `@next/swc-wasm`
+# `@next/rs-wasm`
 
-This is the **wasm** binary for `@next/swc`
+This is the **wasm** binary for `@next/rs`
