@@ -25,6 +25,7 @@ export type ComponentsType = {
   readonly [componentKey in ValueOf<typeof FILE_TYPES>]?: ComponentModule
 } & {
   readonly layoutOrPagePath?: string
+  readonly filePath?: string
   readonly page?: ComponentModule
 }
 
@@ -108,7 +109,7 @@ async function createTreeCodeFromPath({
               return `${
                 file === FILE_TYPES.layout
                   ? `layoutOrPagePath: ${JSON.stringify(filePath)},`
-                  : ''
+                  : `filePath: ${JSON.stringify(filePath)},`
               }'${file}': () => require(${JSON.stringify(filePath)}),`
             })
             .join('\n')}

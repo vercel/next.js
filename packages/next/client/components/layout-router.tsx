@@ -375,6 +375,7 @@ export default function OuterLayoutRouter({
   segmentPath,
   childProp,
   error,
+  errorStyles,
   loading,
   hasLoading,
   template,
@@ -385,6 +386,7 @@ export default function OuterLayoutRouter({
   segmentPath: FlightSegmentPath
   childProp: ChildProp
   error: ErrorComponent
+  errorStyles: React.ReactNode | undefined
   template: React.ReactNode
   loading: React.ReactNode | undefined
   hasLoading: boolean
@@ -442,7 +444,7 @@ export default function OuterLayoutRouter({
           <TemplateContext.Provider
             key={preservedSegment}
             value={
-              <ErrorBoundary errorComponent={error}>
+              <ErrorBoundary errorComponent={error} errorStyles={errorStyles}>
                 <LoadingBoundary hasLoading={hasLoading} loading={loading}>
                   <NotFoundBoundary notFound={notFound}>
                     <RedirectBoundary>

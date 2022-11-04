@@ -957,6 +957,51 @@ export async function renderToHTMLOrFlight(
 
     const assetPrefix = renderOpts.assetPrefix || ''
 
+    const createFragmentTypeWithStyles = async (
+      filePath?: string,
+      getter?: () => any,
+      styleOnly?: boolean
+    ): Promise<any> => {
+      if (!filePath || (!getter && !styleOnly)) return
+
+      const styles = getCssInlinedLinkTags(
+        serverComponentManifest,
+        serverCSSManifest,
+        filePath,
+        serverCSSForEntries
+      )
+      const cacheBustingUrlSuffix = dev ? `?ts=${Date.now()}` : ''
+
+      const styleElements = styles
+        ? styles.map((href, index) => (
+            <link
+              rel="stylesheet"
+              href={`${assetPrefix}/_next/${href}${cacheBustingUrlSuffix}`}
+              // `Precedence` is an opt-in signal for React to handle
+              // resource loading and deduplication, etc:
+              // https://github.com/facebook/react/pull/25060
+              // @ts-ignore
+              precedence="high"
+              key={index}
+            />
+          ))
+        : null
+
+      if (styleOnly) {
+        return styleElements
+      }
+
+      if (!getter) return
+      const Comp = await interopDefault(getter())
+
+      return () => (
+        <>
+          {styleElements}
+          <Comp />
+        </>
+      )
+    }
+
     /**
      * Use the provided loader tree to create the React Component tree.
      */
@@ -966,6 +1011,7 @@ export async function renderToHTMLOrFlight(
         segment,
         parallelRoutes,
         {
+          filePath,
           layoutOrPagePath,
           layout,
           template,
@@ -1002,11 +1048,17 @@ export async function renderToHTMLOrFlight(
         serverCSSForEntries,
         layoutOrPagePath
       )
-      const Template = template
-        ? await interopDefault(template())
-        : React.Fragment
+
+      const Template =
+        (await createFragmentTypeWithStyles(filePath, template)) ||
+        React.Fragment
       const ErrorComponent = error ? await interopDefault(error()) : undefined
-      const Loading = loading ? await interopDefault(loading()) : undefined
+      const errorStyles =
+        filePath && error
+          ? await createFragmentTypeWithStyles(filePath, undefined, true)
+          : undefined
+
+      const Loading = await createFragmentTypeWithStyles(filePath, loading)
       const isLayout = typeof layout !== 'undefined'
       const isPage = typeof page !== 'undefined'
       const layoutOrPageMod = isLayout
@@ -1014,6 +1066,7 @@ export async function renderToHTMLOrFlight(
         : isPage
         ? await page()
         : undefined
+
       /**
        * Checks if the current segment is a root layout.
        */
@@ -1025,7 +1078,7 @@ export async function renderToHTMLOrFlight(
         rootLayoutIncluded || rootLayoutAtThisLevel
 
       const NotFound = notFound
-        ? await interopDefault(notFound())
+        ? await createFragmentTypeWithStyles(filePath, notFound)
         : rootLayoutAtThisLevel
         ? DefaultNotFound
         : undefined
@@ -1141,6 +1194,7 @@ export async function renderToHTMLOrFlight(
                   loading={Loading ? <Loading /> : undefined}
                   hasLoading={Boolean(Loading)}
                   error={ErrorComponent}
+                  errorStyles={errorStyles}
                   template={
                     <Template>
                       <RenderFromTemplateContext />
@@ -1179,6 +1233,7 @@ export async function renderToHTMLOrFlight(
                 parallelRouterKey={parallelRouteKey}
                 segmentPath={segmentPath}
                 error={ErrorComponent}
+                errorStyles={errorStyles}
                 loading={Loading ? <Loading /> : undefined}
                 // TODO-APP: Add test for loading returning `undefined`. This currently can't be tested as the `webdriver()` tab will wait for the full page to load before returning.
                 hasLoading={Boolean(Loading)}
