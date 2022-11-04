@@ -155,7 +155,7 @@ export class TerserPlugin {
         if (this.options.swcMinify) {
           return {
             minify: async (options) => {
-              const result = await require('../../../../swc').minify(
+              const result = await require('../../../../rs').minify(
                 options.input,
                 {
                   ...(options.inputSourceMap

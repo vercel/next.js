@@ -26,8 +26,8 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 */
 
-import { isWasm, transform } from '../../swc'
-import { getLoaderSWCOptions } from '../../swc/options'
+import { isWasm, transform } from '../../rs'
+import { getLoaderSWCOptions } from '../../rs/options'
 import path, { isAbsolute } from 'path'
 
 async function loaderTransform(parentTrace, source, inputSourceMap) {

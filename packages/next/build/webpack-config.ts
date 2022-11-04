@@ -57,7 +57,7 @@ import type {
 import type { Span } from '../trace'
 import type { MiddlewareMatcher } from './analysis/get-page-static-info'
 import loadJsConfig from './load-jsconfig'
-import { loadBindings } from './swc'
+import { loadBindings } from './rs'
 import { AppBuildManifestPlugin } from './webpack/plugins/app-build-manifest-plugin'
 import { SubresourceIntegrityPlugin } from './webpack/plugins/subresource-integrity-plugin'
 import { FontLoaderManifestPlugin } from './webpack/plugins/font-loader-manifest-plugin'
@@ -633,7 +633,7 @@ export default async function getBaseWebpackConfig(
   let SWCBinaryTarget: [Feature, boolean] | undefined = undefined
   if (useSWCLoader) {
     // TODO: we do not collect wasm target yet
-    const binaryTarget = require('./swc')?.getBinaryMetadata?.()
+    const binaryTarget = require('./rs')?.getBinaryMetadata?.()
       ?.target as SWC_TARGET_TRIPLE
     SWCBinaryTarget = binaryTarget
       ? [`swc/target/${binaryTarget}` as const, true]
@@ -690,7 +690,7 @@ export default async function getBaseWebpackConfig(
       // Subscriber need to be initialized _before_ any actual swc's call (transform, etcs)
       // to collect correct trace spans when they are called.
       swcTraceProfilingInitialized = true
-      require('./swc')?.initCustomTraceSubscriber?.(
+      require('./rs')?.initCustomTraceSubscriber?.(
         path.join(distDir, `swc-trace-profile-${Date.now()}.json`)
       )
     }

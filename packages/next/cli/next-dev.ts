@@ -143,7 +143,7 @@ const nextDev: cliCommand = (argv) => {
       const { findConfigPath } =
         require('../lib/find-config') as typeof import('../lib/find-config')
       const { loadBindings } =
-        require('../build/swc') as typeof import('../build/swc')
+        require('../build/rs') as typeof import('../build/rs')
       const { getPkgManager } =
         require('../lib/helpers/get-pkg-manager') as typeof import('../lib/helpers/get-pkg-manager')
       const { getBabelConfigFile } =
