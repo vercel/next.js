@@ -34,6 +34,7 @@ export type Feature =
   | 'swcImportSource'
   | 'swcEmotion'
   | `swc/target/${SWC_TARGET_TRIPLE}`
+  | 'turbotrace'
 
 interface FeatureUsage {
   featureName: Feature
@@ -88,6 +89,7 @@ const BUILD_FEATURES: Array<Feature> = [
   'swc/target/x86_64-unknown-linux-musl',
   'swc/target/aarch64-unknown-linux-musl',
   'swc/target/aarch64-pc-windows-msvc',
+  'turbotrace',
 ]
 
 const ELIMINATED_PACKAGES = new Set<string>()
