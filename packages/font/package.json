@@ -21,7 +21,6 @@
   "devDependencies": {
     "@types/fontkit": "2.0.0",
     "@vercel/ncc": "0.34.0",
-    "fontkit": "2.0.2",
-    "rimraf": "3.0.2"
+    "fontkit": "2.0.2"
   }
 }
