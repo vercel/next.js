@@ -99,6 +99,31 @@ const robotoVar2 = localFont({
   ],
 })
 
+const robotoWithPreload = localFont({
+  src: [
+    {
+      path: '../fonts/roboto/roboto-100.woff2',
+      weight: '100',
+      style: 'normal',
+    },
+    {
+      path: '../fonts/roboto/roboto-900-italic.woff2',
+      weight: '900',
+      style: 'italic',
+    },
+    {
+      path: '../fonts/roboto/roboto-100.woff2',
+      weight: '100',
+      style: 'normal',
+    },
+    {
+      path: '../fonts/roboto/roboto-100-italic.woff2',
+      weight: '900',
+      style: 'italic',
+    },
+  ],
+})
+
 export default function WithFonts() {
   return (
     <>
@@ -116,6 +141,12 @@ export default function WithFonts() {
       </div>
       <div id="roboto-local-font-var2" className={robotoVar2.className}>
         {JSON.stringify(robotoVar2)}
+      </div>
+      <div
+        id="roboto-local-font-preload"
+        className={robotoWithPreload.className}
+      >
+        {JSON.stringify(robotoWithPreload)}
       </div>
     </>
   )
