@@ -1,8 +1,8 @@
 # No Stylesheets In Head Component
 
-### Why This Error Occurred
+### Why This Error Occurred?
 
-A `<link rel="stylesheet">` tag was added using the `next/head` component.
+A `<link rel="stylesheet">` tag was added using the `Head` component from `next/head`.
 
 We don't recommend this pattern because it will potentially break when used with Suspense and/or streaming. In these contexts, `next/head` tags aren't:
 
@@ -10,7 +10,7 @@ We don't recommend this pattern because it will potentially break when used with
 
 - loaded in any particular order. The order that the app's Suspense boundaries resolve will determine the loading order of your stylesheets.
 
-### Possible Ways to Fix It
+### Possible Ways to Fix It:
 
 #### Document
 
@@ -35,7 +35,8 @@ export default function Document() {
 }
 ```
 
-Note that the functional syntax for `Document` above is preferred over the `class` syntax, so that it will be compatible with React Server Components down the line.
+You can also use this approach when importing fonts from external resources.
+> Note: The functional syntax for `Document` above is preferred over the `class` syntax, so that it will be compatible with React Server Components down the line.
 
 ### Useful Links
 
