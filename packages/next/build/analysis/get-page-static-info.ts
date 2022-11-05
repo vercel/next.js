@@ -273,8 +273,9 @@ export async function getPageStaticInfo(params: {
   pageFilePath: string
   isDev?: boolean
   page?: string
+  pageType?: 'pages' | 'app'
 }): Promise<PageStaticInfo> {
-  const { isDev, pageFilePath, nextConfig, page } = params
+  const { isDev, pageFilePath, nextConfig, page, pageType } = params
 
   const fileContent = (await tryToReadFile(pageFilePath, !isDev)) || ''
   if (
@@ -322,10 +323,12 @@ export async function getPageStaticInfo(params: {
       }
     }
 
+    const requiresServerRuntime = ssr || ssg || pageType === 'app'
+
     resolvedRuntime =
       SERVER_RUNTIME.edge === resolvedRuntime
         ? SERVER_RUNTIME.edge
-        : ssr || ssg
+        : requiresServerRuntime
         ? resolvedRuntime || nextConfig.experimental?.runtime
         : undefined
 

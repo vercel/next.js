@@ -14,7 +14,7 @@ export default function Index() {
     <ul>
       {data.map((user) => (
         <li key={user.id}>
-          <Link href="/user/[id]" as={`/user/${user.id}`}>
+          <Link href="/user/[id]" as={`/user/${user.id}`} legacyBehavior>
             {`User ${user.id}`}
           </Link>
         </li>

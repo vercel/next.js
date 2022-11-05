@@ -116,9 +116,9 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
         if (filepathAndInvalidExport) {
           const main = `${type} "${chalk.bold(
             relativeSourceFile
-          )}" exports invalid field "${chalk.bold(
+          )}" exports an invalid "${chalk.bold(
             filepathAndInvalidExport[2]
-          )}". Only "default" and other configuration exports are allowed.`
+          )}" field. ${type} should only export a default React component and configuration options. Learn more: https://nextjs.org/docs/messages/invalid-segment-export`
           return main
         }
         break

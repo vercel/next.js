@@ -205,6 +205,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     serverComponents?: boolean
     crossOrigin?: string
     supportsDynamicHTML?: boolean
+    isBot?: boolean
     serverComponentManifest?: any
     serverCSSManifest?: any
     fontLoaderManifest?: FontLoaderManifest
@@ -483,13 +484,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       if (typeof parsedUrl.query === 'string') {
         parsedUrl.query = parseQs(parsedUrl.query)
       }
-      // in minimal mode we detect RSC revalidate if the .rsc path is requested
-      if (
-        this.minimalMode &&
-        (req.url.endsWith('.rsc') ||
-          (typeof req.headers['x-matched-path'] === 'string' &&
-            req.headers['x-matched-path'].endsWith('.rsc')))
-      ) {
+      // in minimal mode we detect RSC revalidate if the .rsc
+      // path is requested
+      if (this.minimalMode && req.url.endsWith('.rsc')) {
         parsedUrl.query.__nextDataReq = '1'
       }
 
@@ -868,6 +865,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       renderOpts: {
         ...this.renderOpts,
         supportsDynamicHTML: !isBotRequest,
+        isBot: !!isBotRequest,
       },
     } as const
     const payload = await fn(ctx)
@@ -1148,10 +1146,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       const isBotRequest = isBot(req.headers['user-agent'] || '')
       const isSupportedDocument =
         typeof components.Document?.getInitialProps !== 'function' ||
-        // When concurrent features is enabled, the built-in `Document`
-        // component also supports dynamic HTML.
-        (!!process.env.__NEXT_REACT_ROOT &&
-          NEXT_BUILTIN_DOCUMENT in components.Document)
+        // The built-in `Document` component also supports dynamic HTML for concurrent mode.
+        NEXT_BUILTIN_DOCUMENT in components.Document
 
       // Disable dynamic HTML in cases that we know it won't be generated,
       // so that we can continue generating a cache key when possible.
@@ -1160,6 +1156,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       // cache if there are no dynamic data requirements
       opts.supportsDynamicHTML =
         !isSSG && !isBotRequest && !query.amp && isSupportedDocument
+      opts.isBot = isBotRequest
     }
 
     const defaultLocale = isSSG

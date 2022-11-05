@@ -59,6 +59,8 @@ import {
   FLIGHT_SERVER_CSS_MANIFEST,
   RSC_MODULE_TYPES,
   FONT_LOADER_MANIFEST,
+  CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
+  APP_CLIENT_INTERNALS,
 } from '../shared/lib/constants'
 import { getSortedRoutes, isDynamicRoute } from '../shared/lib/router/utils'
 import { __ApiPreviewProps } from '../server/api-utils'
@@ -112,6 +114,7 @@ import {
   lockfilePatchPromise,
   teardownTraceSubscriber,
   teardownCrashReporter,
+  loadBindings,
 } from './swc'
 import { injectedClientEntries } from './webpack/plugins/flight-client-entry-plugin'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
@@ -271,8 +274,6 @@ export default async function build(
       setGlobal('phase', PHASE_PRODUCTION_BUILD)
       setGlobal('distDir', distDir)
 
-      const hasReactRoot = !!process.env.__NEXT_REACT_ROOT
-
       const { target } = config
       const buildId: string = await nextBuildSpan
         .traceChild('generate-buildid')
@@ -339,6 +340,9 @@ export default async function build(
             (!!appDir && path.relative(dir, appDir).startsWith('src')),
           hasNowJson: !!(await findUp('now.json', { cwd: dir })),
           isCustomServer: null,
+          turboFlag: false,
+          pagesDir: !!pagesDir,
+          appDir: !!appDir,
         })
       )
 
@@ -572,36 +576,42 @@ export default async function build(
           })
         )
 
-      const pageKeys = {
-        pages: Object.keys(mappedPages),
-        app: mappedAppPages
-          ? Object.keys(mappedAppPages).map(
-              (key) => normalizeAppPath(key) || '/'
-            )
-          : undefined,
+      const pagesPageKeys = Object.keys(mappedPages)
+
+      const conflictingAppPagePaths: [pagePath: string, appPath: string][] = []
+      const appPageKeys: string[] = []
+      if (mappedAppPages) {
+        for (const appKey in mappedAppPages) {
+          const normalizedAppPageKey = normalizeAppPath(appKey) || '/'
+          const pagePath = mappedPages[normalizedAppPageKey]
+          if (pagePath) {
+            const appPath = mappedAppPages[appKey]
+            conflictingAppPagePaths.push([
+              pagePath.replace(/^private-next-pages/, 'pages'),
+              appPath.replace(/^private-next-app-dir/, 'app'),
+            ])
+          }
+
+          appPageKeys.push(normalizedAppPageKey)
+        }
       }
 
-      if (pageKeys.app) {
-        const conflictingAppPagePaths = []
+      const pageKeys = {
+        pages: pagesPageKeys,
+        app: appPageKeys.length > 0 ? appPageKeys : undefined,
+      }
 
-        for (const appPath of pageKeys.app) {
-          if (pageKeys.pages.includes(appPath)) {
-            conflictingAppPagePaths.push(appPath)
-          }
+      const numConflictingAppPaths = conflictingAppPagePaths.length
+      if (mappedAppPages && numConflictingAppPaths > 0) {
+        Log.error(
+          `Conflicting app and page file${
+            numConflictingAppPaths === 1 ? ' was' : 's were'
+          } found, please remove the conflicting files to continue:`
+        )
+        for (const [pagePath, appPath] of conflictingAppPagePaths) {
+          Log.error(`  "${pagePath}" - "${appPath}"`)
         }
-        const numConflicting = conflictingAppPagePaths.length
-
-        if (numConflicting > 0) {
-          Log.error(
-            `Conflicting app and page file${
-              numConflicting === 1 ? ' was' : 's were'
-            } found, please remove the conflicting files to continue:`
-          )
-          for (const p of conflictingAppPagePaths) {
-            Log.error(`  "pages${p}" - "app${p}"`)
-          }
-          process.exit(1)
-        }
+        process.exit(1)
       }
 
       const conflictingPublicFiles: string[] = []
@@ -907,7 +917,6 @@ export default async function build(
         const commonWebpackOptions = {
           buildId,
           config,
-          hasReactRoot,
           pagesDir,
           reactProductionProfiling,
           rewrites,
@@ -974,7 +983,20 @@ export default async function build(
           // Only continue if there were no errors
           if (!serverResult.errors.length && !edgeServerResult?.errors.length) {
             injectedClientEntries.forEach((value, key) => {
-              ;(clientConfig.entry as webpack.EntryObject)[key] = value
+              const clientEntry = clientConfig.entry as webpack.EntryObject
+              if (key === APP_CLIENT_INTERNALS) {
+                clientEntry[CLIENT_STATIC_FILES_RUNTIME_MAIN_APP] = [
+                  // TODO-APP: cast clientEntry[CLIENT_STATIC_FILES_RUNTIME_MAIN_APP] to type EntryDescription once it's available from webpack
+                  // @ts-expect-error clientEntry['main-app'] is type EntryDescription { import: ... }
+                  ...clientEntry[CLIENT_STATIC_FILES_RUNTIME_MAIN_APP].import,
+                  value,
+                ]
+              } else {
+                clientEntry[key] = {
+                  dependOn: [CLIENT_STATIC_FILES_RUNTIME_MAIN_APP],
+                  import: value,
+                }
+              }
             })
 
             clientResult = await runCompiler(clientConfig, {
@@ -1338,6 +1360,7 @@ export default async function build(
                         pagePath
                       ),
                       nextConfig: config,
+                      pageType,
                     })
                   : undefined
 
@@ -1606,8 +1629,18 @@ export default async function build(
       }
 
       if (config.outputFileTracing) {
-        const { nodeFileTrace } =
-          require('next/dist/compiled/@vercel/nft') as typeof import('next/dist/compiled/@vercel/nft')
+        let nodeFileTrace: any
+        if (config.experimental.turbotrace) {
+          let binding = (await loadBindings()) as any
+          if (!binding?.isWasm) {
+            nodeFileTrace = binding.turbo?.startTrace
+          }
+        }
+
+        if (!nodeFileTrace) {
+          nodeFileTrace =
+            require('next/dist/compiled/@vercel/nft').nodeFileTrace
+        }
 
         const includeExcludeSpan = nextBuildSpan.traceChild(
           'apply-include-excludes'
@@ -1740,7 +1773,10 @@ export default async function build(
               } catch (_) {}
             }
 
-            const root = config.experimental.outputFileTracingRoot || dir
+            const root =
+              config.experimental?.turbotrace?.contextDirectory ??
+              config.experimental?.outputFileTracingRoot ??
+              dir
             const toTrace = [require.resolve('next/dist/server/next-server')]
 
             // ensure we trace any dependencies needed for custom
@@ -1751,53 +1787,68 @@ export default async function build(
               )
             }
 
-            const serverResult = await nodeFileTrace(toTrace, {
-              base: root,
-              processCwd: dir,
-              ignore: [
-                '**/next/dist/pages/**/*',
-                '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
-                '**/node_modules/webpack5/**/*',
-                '**/next/dist/server/lib/squoosh/**/*.wasm',
-                ...(ciEnvironment.hasNextSupport
-                  ? [
-                      // only ignore image-optimizer code when
-                      // this is being handled outside of next-server
-                      '**/next/dist/server/image-optimizer.js',
-                      '**/node_modules/sharp/**/*',
-                    ]
-                  : []),
-                ...(!hasSsrAmpPages
-                  ? ['**/next/dist/compiled/@ampproject/toolbox-optimizer/**/*']
-                  : []),
-              ],
-            })
-
-            const tracedFiles = new Set()
-
-            serverResult.fileList.forEach((file) => {
-              tracedFiles.add(
-                path
-                  .relative(distDir, path.join(root, file))
-                  .replace(/\\/g, '/')
-              )
-            })
-
-            await promises.writeFile(
-              nextServerTraceOutput,
-              JSON.stringify({
-                version: 1,
-                cacheKey,
-                files: [...tracedFiles],
-              } as {
-                version: number
-                files: string[]
+            let serverResult: import('next/dist/compiled/@vercel/nft').NodeFileTraceResult
+            if (config.experimental.turbotrace) {
+              // handle the cache in the turbo-tracing side in the future
+              await nodeFileTrace({
+                action: 'annotate',
+                input: toTrace,
+                contextDirectory: root,
+                logLevel: config.experimental.turbotrace.logLevel,
+                processCwd: config.experimental.turbotrace.processCwd,
+                logDetail: config.experimental.turbotrace.logDetail,
+                showAll: config.experimental.turbotrace.logAll,
               })
-            )
-            await promises.unlink(cachedTracePath).catch(() => {})
-            await promises
-              .copyFile(nextServerTraceOutput, cachedTracePath)
-              .catch(() => {})
+            } else {
+              serverResult = await nodeFileTrace(toTrace, {
+                base: root,
+                processCwd: dir,
+                ignore: [
+                  '**/next/dist/pages/**/*',
+                  '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
+                  '**/node_modules/webpack5/**/*',
+                  '**/next/dist/server/lib/squoosh/**/*.wasm',
+                  ...(ciEnvironment.hasNextSupport
+                    ? [
+                        // only ignore image-optimizer code when
+                        // this is being handled outside of next-server
+                        '**/next/dist/server/image-optimizer.js',
+                        '**/node_modules/sharp/**/*',
+                      ]
+                    : []),
+                  ...(!hasSsrAmpPages
+                    ? [
+                        '**/next/dist/compiled/@ampproject/toolbox-optimizer/**/*',
+                      ]
+                    : []),
+                ],
+              })
+              const tracedFiles = new Set()
+
+              serverResult.fileList.forEach((file) => {
+                tracedFiles.add(
+                  path
+                    .relative(distDir, path.join(root, file))
+                    .replace(/\\/g, '/')
+                )
+              })
+
+              await promises.writeFile(
+                nextServerTraceOutput,
+                JSON.stringify({
+                  version: 1,
+                  cacheKey,
+                  files: [...tracedFiles],
+                } as {
+                  version: number
+                  files: string[]
+                })
+              )
+              await promises.unlink(cachedTracePath).catch(() => {})
+              await promises
+                .copyFile(nextServerTraceOutput, cachedTracePath)
+                .catch(() => {})
+            }
           })
       }
 
@@ -2169,6 +2220,15 @@ export default async function build(
                     ? appConfig.revalidate
                     : false
               }
+
+              // ensure revalidate is normalized correctly
+              if (
+                typeof revalidate !== 'number' &&
+                typeof revalidate !== 'boolean'
+              ) {
+                revalidate = false
+              }
+
               if (revalidate !== 0) {
                 const normalizedRoute = normalizePagePath(route)
                 const dataRoute = path.posix.join(`${normalizedRoute}.rsc`)

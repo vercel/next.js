@@ -5,13 +5,13 @@
    :                     ^^
    `----
 
-  x Unexpected value
+  x Font loader values must be explicitly written literals.
    ,-[input.js:7:1]
  7 | const a = ABeeZee({ variant: [i1] })
    :                               ^^
    `----
 
-  x Unexpected value
+  x Font loader values must be explicitly written literals.
     ,-[input.js:10:1]
  10 | const a = ABeeZee({ variant: () => {} })
     :                              ^^^^^^^^

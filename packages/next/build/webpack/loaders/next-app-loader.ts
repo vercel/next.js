@@ -13,8 +13,11 @@ export const FILE_TYPES = {
   template: 'template',
   error: 'error',
   loading: 'loading',
+  head: 'head',
   'not-found': 'not-found',
 } as const
+
+const PAGE_SEGMENT = 'page$'
 
 // TODO-APP: check if this can be narrowed.
 type ComponentModule = () => any
@@ -58,10 +61,8 @@ async function createTreeCodeFromPath({
     }
 
     for (const [parallelKey, parallelSegment] of parallelSegments) {
-      const parallelSegmentPath = segmentPath + '/' + parallelSegment
-
-      if (parallelSegment === 'page') {
-        const matchedPagePath = `${appDirPrefix}${parallelSegmentPath}`
+      if (parallelSegment === PAGE_SEGMENT) {
+        const matchedPagePath = `${appDirPrefix}${segmentPath}/page`
         const resolvedPagePath = await resolve(matchedPagePath)
         if (resolvedPagePath) pages.push(resolvedPagePath)
 
@@ -72,6 +73,7 @@ async function createTreeCodeFromPath({
         continue
       }
 
+      const parallelSegmentPath = segmentPath + '/' + parallelSegment
       const subtree = await createSubtreePropsFromSegmentPath([
         ...segments,
         parallelSegment,
@@ -174,12 +176,18 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
     const matched: Record<string, string> = {}
     for (const path of normalizedAppPaths) {
       if (path.startsWith(pathname + '/')) {
-        const restPath = path.slice(pathname.length + 1)
+        const rest = path.slice(pathname.length + 1).split('/')
 
-        const matchedSegment = restPath.split('/')[0]
+        let matchedSegment = rest[0]
+        // It is the actual page, mark it sepcially.
+        if (rest.length === 1 && matchedSegment === 'page') {
+          matchedSegment = PAGE_SEGMENT
+        }
+
         const matchedKey = matchedSegment.startsWith('@')
           ? matchedSegment.slice(1)
           : 'children'
+
         matched[matchedKey] = matchedSegment
       }
     }
@@ -242,7 +250,7 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
     export const LayoutRouter = require('next/dist/client/components/layout-router.js').default
     export const RenderFromTemplateContext = require('next/dist/client/components/render-from-template-context.js').default
 
-    export const staticGenerationAsyncStorage = require('next/dist/client/components/static-generation-async-storage.js').staticGenerationAsyncStorage
+    export const staticGenerationAsyncStorage = require('next/dist/client/components/static-generation-async-storage').staticGenerationAsyncStorage
     export const requestAsyncStorage = require('next/dist/client/components/request-async-storage.js').requestAsyncStorage
 
     export const serverHooks = require('next/dist/client/components/hooks-server-context.js')

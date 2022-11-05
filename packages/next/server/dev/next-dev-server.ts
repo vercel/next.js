@@ -323,7 +323,9 @@ export default class DevServer extends Server {
         const appPaths: Record<string, string[]> = {}
         const edgeRoutesSet = new Set<string>()
         const pageNameSet = new Set<string>()
-        const conflictingAppPagePaths: string[] = []
+        const conflictingAppPagePaths = new Set<string>()
+        const appPageFilePaths = new Map<string, string>()
+        const pagesPageFilePaths = new Map<string, string>()
 
         let envChange = false
         let tsconfigChange = false
@@ -381,6 +383,7 @@ export default class DevServer extends Server {
             nextConfig: this.nextConfig,
             page: rootFile,
             isDev: true,
+            pageType: isAppPath ? 'app' : 'pages',
           })
 
           if (isMiddlewareFile(rootFile)) {
@@ -421,8 +424,13 @@ export default class DevServer extends Server {
             pageName = pageName.replace(/\/index$/, '') || '/'
           }
 
-          if (pageNameSet.has(pageName)) {
-            conflictingAppPagePaths.push(pageName)
+          ;(isAppPath ? appPageFilePaths : pagesPageFilePaths).set(
+            pageName,
+            fileName
+          )
+
+          if (this.appDir && pageNameSet.has(pageName)) {
+            conflictingAppPagePaths.add(pageName)
           } else {
             pageNameSet.add(pageName)
           }
@@ -450,7 +458,7 @@ export default class DevServer extends Server {
           })
         }
 
-        const numConflicting = conflictingAppPagePaths.length
+        const numConflicting = conflictingAppPagePaths.size
         if (numConflicting > 0) {
           Log.error(
             `Conflicting app and page file${
@@ -458,9 +466,10 @@ export default class DevServer extends Server {
             } found, please remove the conflicting files to continue:`
           )
           for (const p of conflictingAppPagePaths) {
-            Log.error(`  "pages${p}" - "app${p}"`)
+            const appPath = relative(this.dir, appPageFilePaths.get(p)!)
+            const pagesPath = relative(this.dir, pagesPageFilePaths.get(p)!)
+            Log.error(`  "${pagesPath}" - "${appPath}"`)
           }
-          //process.exit(1)
         }
 
         if (!this.usingTypeScript && enabledTypeScript) {
@@ -546,7 +555,6 @@ export default class DevServer extends Server {
                     distDir: this.distDir,
                     isClient,
                     hasRewrites,
-                    hasReactRoot: this.hotReloader?.hasReactRoot,
                     isNodeServer,
                     isEdgeServer,
                   })
@@ -728,9 +736,14 @@ export default class DevServer extends Server {
           (!!this.appDir && relative(this.dir, this.appDir).startsWith('src')),
         hasNowJson: !!(await findUp('now.json', { cwd: this.dir })),
         isCustomServer: this.isCustomServer,
+        turboFlag: false,
+        pagesDir: !!this.pagesDir,
+        appDir: !!this.appDir,
       })
     )
     // This is required by the tracing subsystem.
+    setGlobal('appDir', this.appDir)
+    setGlobal('pagesDir', this.pagesDir)
     setGlobal('telemetry', telemetry)
 
     process.on('unhandledRejection', (reason) => {
