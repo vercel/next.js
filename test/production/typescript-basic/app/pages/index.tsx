@@ -20,10 +20,10 @@ export default function Page() {
       >
         to /another
       </Link>
-      {/** @ts-expect-error - foo does not exist on React.MouseEvent */}
       <Link
         href="/another"
         onClick={(e) => {
+          /** @ts-expect-error - foo does not exist on React.MouseEvent */
           console.log(e.foo)
         }}
       >
