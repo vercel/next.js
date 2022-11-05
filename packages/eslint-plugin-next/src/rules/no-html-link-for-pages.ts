@@ -74,7 +74,18 @@ export = defineRule({
       }
       return fsExistsSyncCache[dir]
     })
-    if (foundPagesDirs.length === 0) {
+
+    const appDirs = rootDirs.map((dir) => [path.join(dir, 'app')]).flat()
+
+    const foundAppDirs = appDirs.filter((dir) => {
+      if (fsExistsSyncCache[dir] === undefined) {
+        fsExistsSyncCache[dir] = fs.existsSync(dir)
+      }
+      return fsExistsSyncCache[dir]
+    })
+
+    // warn if there are no pages and app directories
+    if (foundPagesDirs.length === 0 && foundAppDirs.length === 0) {
       pagesDirWarning(pagesDirs)
       return {}
     }
