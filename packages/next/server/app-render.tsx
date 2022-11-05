@@ -907,7 +907,7 @@ export async function renderToHTMLOrFlight(
       }
 
       if (head) {
-        const Head = await interopDefault(head())
+        const Head = await interopDefault(head[0]())
         return <Head params={currentParams} />
       }
 
@@ -1013,16 +1013,7 @@ export async function renderToHTMLOrFlight(
       loaderTree: [
         segment,
         parallelRoutes,
-        {
-          filePath,
-          layoutOrPagePath,
-          layout,
-          template,
-          error,
-          loading,
-          page,
-          'not-found': notFound,
-        },
+        { layout, template, error, loading, page, 'not-found': notFound },
       ],
       parentParams,
       firstItem,
@@ -1035,48 +1026,54 @@ export async function renderToHTMLOrFlight(
       firstItem?: boolean
     }): Promise<{ Component: React.ComponentType }> => {
       // TODO-APP: enable stylesheet per layout/page
-      const stylesheets: string[] = layoutOrPagePath
+      const stylesheets: string[] = layout
         ? getCssInlinedLinkTags(
             serverComponentManifest,
             serverCSSManifest!,
-            layoutOrPagePath,
+            layout[1],
             serverCSSForEntries
           )
         : []
 
-      const preloadedFontFiles = getPreloadedFontFilesInlineLinkTags(
-        serverComponentManifest,
-        serverCSSManifest!,
-        fontLoaderManifest,
-        serverCSSForEntries,
-        layoutOrPagePath
-      )
+      const preloadedFontFiles = layout
+        ? getPreloadedFontFilesInlineLinkTags(
+            serverComponentManifest,
+            serverCSSManifest!,
+            fontLoaderManifest,
+            serverCSSForEntries,
+            layout[1]
+          )
+        : []
 
-      const Template =
-        (await createFragmentTypeWithStyles({
-          filePath,
-          getComponent: template,
-          shouldPreload: true,
-        })) || React.Fragment
-      const ErrorComponent = error ? await interopDefault(error()) : undefined
-      const errorStyles =
-        filePath && error
-          ? await createFragmentTypeWithStyles({
-              filePath,
-              styleOnly: true,
-            })
-          : undefined
+      const Template = template
+        ? await createFragmentTypeWithStyles({
+            filePath: template[1],
+            getComponent: template[0],
+            shouldPreload: true,
+          })
+        : React.Fragment
+      const ErrorComponent = error
+        ? await interopDefault(error[0]())
+        : undefined
+      const errorStyles = error
+        ? await createFragmentTypeWithStyles({
+            filePath: error[1],
+            styleOnly: true,
+          })
+        : undefined
 
-      const Loading = await createFragmentTypeWithStyles({
-        filePath,
-        getComponent: loading,
-      })
+      const Loading = loading
+        ? await createFragmentTypeWithStyles({
+            filePath: loading[1],
+            getComponent: loading[0],
+          })
+        : undefined
       const isLayout = typeof layout !== 'undefined'
       const isPage = typeof page !== 'undefined'
       const layoutOrPageMod = isLayout
-        ? await layout()
+        ? await layout[0]()
         : isPage
-        ? await page()
+        ? await page[0]()
         : undefined
 
       /**
@@ -1091,8 +1088,8 @@ export async function renderToHTMLOrFlight(
 
       const NotFound = notFound
         ? await createFragmentTypeWithStyles({
-            filePath,
-            getComponent: notFound,
+            filePath: notFound[1],
+            getComponent: notFound[0],
           })
         : rootLayoutAtThisLevel
         ? DefaultNotFound
