@@ -206,13 +206,14 @@ export function createTSPlugin(modules: {
                 isClientEntry = true
               } else {
                 if (throwOnInvalidDirective) {
-                  throw {
+                  const e = {
                     messageText:
                       'The `"use client"` directive must be put at the top of the file.',
                     start: node.expression.getStart(),
                     length:
                       node.expression.getEnd() - node.expression.getStart(),
                   }
+                  throw e
                 }
               }
             }
