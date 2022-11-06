@@ -2,7 +2,11 @@
 
 Most of the time the default Next.js server will be enough but there are times you'll want to run your own server to integrate into an existing application. Next.js provides [a custom server api](https://nextjs.org/docs/advanced-features/custom-server).
 
+The example shows a server that serves the component living in `pages/a.ts` when the route `/b` is requested and `pages/b.ts` when the route `/a` is accessed. This is obviously a non-standard routing strategy. You can see how this custom routing is being made inside `server.ts`.
+
 Because the Next.js server is a Node.js module you can combine it with any other part of the Node.js ecosystem. In this case we are using express.
+
+The example shows how you can use [TypeScript](https://typescriptlang.com) on both the server and the client while using [Nodemon](https://nodemon.io/) to live reload the server code without affecting the Next.js universal code.
 
 ## Deploy your own
 
