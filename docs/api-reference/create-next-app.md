@@ -45,6 +45,18 @@ Options:
 
     Initialize as a JavaScript project.
 
+  --eslint
+
+    Initialize with eslint config.
+
+  --no-eslint
+
+    Initialize without eslint config.
+
+  --experimental-app
+
+    Initialize as a `app/` directory project.
+
   --use-npm
 
     Explicitly tell the CLI to bootstrap the app using npm

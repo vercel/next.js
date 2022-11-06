@@ -36,6 +36,13 @@ import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { ImageConfigComplete } from '../shared/lib/image-config'
 import { removeBasePath } from './remove-base-path'
 import { hasBasePath } from './has-base-path'
+import { AppRouterContext } from '../shared/lib/app-router-context'
+import {
+  adaptForAppRouterInstance,
+  adaptForSearchParams,
+  PathnameContextProviderAdapter,
+} from '../shared/lib/router/adapters'
+import { SearchParamsContext } from '../shared/lib/hooks-client-context'
 
 /// <reference types="react-dom/experimental" />
 
@@ -304,15 +311,26 @@ function AppContainer({
         )
       }
     >
-      <RouterContext.Provider value={makePublicRouterInstance(router)}>
-        <HeadManagerContext.Provider value={headManager}>
-          <ImageConfigContext.Provider
-            value={process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete}
+      <AppRouterContext.Provider value={adaptForAppRouterInstance(router)}>
+        <SearchParamsContext.Provider value={adaptForSearchParams(router)}>
+          <PathnameContextProviderAdapter
+            router={router}
+            isAutoExport={self.__NEXT_DATA__.autoExport ?? false}
           >
-            {children}
-          </ImageConfigContext.Provider>
-        </HeadManagerContext.Provider>
-      </RouterContext.Provider>
+            <RouterContext.Provider value={makePublicRouterInstance(router)}>
+              <HeadManagerContext.Provider value={headManager}>
+                <ImageConfigContext.Provider
+                  value={
+                    process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
+                  }
+                >
+                  {children}
+                </ImageConfigContext.Provider>
+              </HeadManagerContext.Provider>
+            </RouterContext.Provider>
+          </PathnameContextProviderAdapter>
+        </SearchParamsContext.Provider>
+      </AppRouterContext.Provider>
     </Container>
   )
 }

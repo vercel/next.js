@@ -237,7 +237,7 @@ describe('Can hot reload CSS Module without losing state', () => {
   })
 })
 
-describe('Invalid CSS Module Usage in node_modules', () => {
+describe.skip('Invalid CSS Module Usage in node_modules', () => {
   const appDir = join(fixturesDir, 'invalid-module')
 
   beforeAll(async () => {
@@ -258,7 +258,7 @@ describe('Invalid CSS Module Usage in node_modules', () => {
   })
 })
 
-describe('Invalid Global CSS Module Usage in node_modules', () => {
+describe.skip('Invalid Global CSS Module Usage in node_modules', () => {
   const appDir = join(fixturesDir, 'invalid-global-module')
 
   beforeAll(async () => {

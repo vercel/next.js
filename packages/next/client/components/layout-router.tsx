@@ -19,12 +19,12 @@ import {
   LayoutRouterContext,
   GlobalLayoutRouterContext,
   TemplateContext,
-  AppRouterContext,
 } from '../../shared/lib/app-router-context'
 import { fetchServerResponse } from './app-router'
 import { createInfinitePromise } from './infinite-promise'
 import { ErrorBoundary } from './error-boundary'
 import { matchSegment } from './match-segments'
+import { useRouter } from './navigation'
 
 /**
  * Add refetch marker to router state at the point of the current layout segment.
@@ -109,11 +109,13 @@ export function InnerLayoutRouter({
   path: string
   rootLayoutIncluded: boolean
 }) {
-  const {
-    changeByServerResponse,
-    tree: fullTree,
-    focusAndScrollRef,
-  } = useContext(GlobalLayoutRouterContext)
+  const context = useContext(GlobalLayoutRouterContext)
+  if (!context) {
+    throw new Error('invariant global layout router not mounted')
+  }
+
+  const { changeByServerResponse, tree: fullTree, focusAndScrollRef } = context
+
   const focusAndScrollElementRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -275,7 +277,7 @@ interface RedirectBoundaryProps {
 }
 
 function HandleRedirect({ redirect }: { redirect: string }) {
-  const router = useContext(AppRouterContext)
+  const router = useRouter()
 
   useEffect(() => {
     router.replace(redirect, {})
@@ -312,7 +314,7 @@ class RedirectErrorBoundary extends React.Component<
 }
 
 function RedirectBoundary({ children }: { children: React.ReactNode }) {
-  const router = useContext(AppRouterContext)
+  const router = useRouter()
   return (
     <RedirectErrorBoundary router={router}>{children}</RedirectErrorBoundary>
   )
@@ -389,7 +391,12 @@ export default function OuterLayoutRouter({
   notFound: React.ReactNode | undefined
   rootLayoutIncluded: boolean
 }) {
-  const { childNodes, tree, url } = useContext(LayoutRouterContext)
+  const context = useContext(LayoutRouterContext)
+  if (!context) {
+    throw new Error('invariant expected layout router to be mounted')
+  }
+
+  const { childNodes, tree, url } = context
 
   // Get the current parallelRouter cache node
   let childNodesForParallelRouter = childNodes.get(parallelRouterKey)

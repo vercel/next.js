@@ -29,6 +29,7 @@ export const installTemplate = async ({
   isOnline,
   template,
   mode,
+  eslint,
 }: InstallTemplateArgs) => {
   console.log(chalk.bold(`Using ${packageManager}.`))
 
@@ -63,19 +64,22 @@ export const installTemplate = async ({
    */
   const dependencies = ['react', 'react-dom', 'next']
   /**
-   * Default devDependencies.
-   */
-  const devDependencies = ['eslint', 'eslint-config-next']
-  /**
    * TypeScript projects will have type definitions and other devDependencies.
    */
   if (mode === 'ts') {
-    devDependencies.push(
+    dependencies.push(
       'typescript',
       '@types/react',
       '@types/node',
       '@types/react-dom'
     )
+  }
+
+  /**
+   * Default eslint dependencies.
+   */
+  if (eslint) {
+    dependencies.push('eslint', 'eslint-config-next')
   }
   /**
    * Install package.json dependencies if they exist.
@@ -91,23 +95,9 @@ export const installTemplate = async ({
     await install(root, dependencies, installFlags)
   }
   /**
-   * Install package.json devDependencies if they exist.
-   */
-  if (devDependencies.length) {
-    console.log()
-    console.log('Installing devDependencies:')
-    for (const devDependency of devDependencies) {
-      console.log(`- ${chalk.cyan(devDependency)}`)
-    }
-    console.log()
-
-    const devInstallFlags = { devDependencies: true, ...installFlags }
-    await install(root, devDependencies, devInstallFlags)
-  }
-  /**
    * Copy the template files to the target directory.
    */
-  console.log('\nInitializing project with template: ', template, '\n')
+  console.log('\nInitializing project with template:', template, '\n')
   const templatePath = path.join(__dirname, template, mode)
   await cpy('**', root, {
     parents: true,
@@ -129,6 +119,11 @@ export const installTemplate = async ({
       }
     },
   })
+
+  if (!eslint) {
+    // remove un-necessary template file if eslint is not desired
+    await fs.promises.unlink(path.join(root, '.eslintrc.json'))
+  }
 }
 
 export * from './types'

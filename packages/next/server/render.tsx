@@ -82,6 +82,13 @@ import {
 import { ImageConfigContext } from '../shared/lib/image-config-context'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { stripInternalQueries } from './internal-utils'
+import {
+  adaptForAppRouterInstance,
+  adaptForSearchParams,
+  PathnameContextProviderAdapter,
+} from '../shared/lib/router/adapters'
+import { AppRouterContext } from '../shared/lib/app-router-context'
+import { SearchParamsContext } from '../shared/lib/hooks-client-context'
 
 let tryGetPreviewData: typeof import('./api-utils/node').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
@@ -166,6 +173,9 @@ class ServerRouter implements NextRouter {
     noRouter()
   }
   back() {
+    noRouter()
+  }
+  forward(): void {
     noRouter()
   }
   prefetch(): any {
@@ -582,6 +592,8 @@ export async function renderToHTML(
     getRequestMeta(req, '__nextIsLocaleDomain')
   )
 
+  const appRouter = adaptForAppRouterInstance(router)
+
   let scriptLoader: any = {}
   const jsxStyleRegistry = createStyleRegistry()
   const ampState = {
@@ -604,32 +616,41 @@ export async function renderToHTML(
   }
 
   const AppContainer = ({ children }: { children: JSX.Element }) => (
-    <RouterContext.Provider value={router}>
-      <AmpStateContext.Provider value={ampState}>
-        <HeadManagerContext.Provider
-          value={{
-            updateHead: (state) => {
-              head = state
-            },
-            updateScripts: (scripts) => {
-              scriptLoader = scripts
-            },
-            scripts: initialScripts,
-            mountedInstances: new Set(),
-          }}
+    <AppRouterContext.Provider value={appRouter}>
+      <SearchParamsContext.Provider value={adaptForSearchParams(router)}>
+        <PathnameContextProviderAdapter
+          router={router}
+          isAutoExport={isAutoExport}
         >
-          <LoadableContext.Provider
-            value={(moduleName) => reactLoadableModules.push(moduleName)}
-          >
-            <StyleRegistry registry={jsxStyleRegistry}>
-              <ImageConfigContext.Provider value={images}>
-                {children}
-              </ImageConfigContext.Provider>
-            </StyleRegistry>
-          </LoadableContext.Provider>
-        </HeadManagerContext.Provider>
-      </AmpStateContext.Provider>
-    </RouterContext.Provider>
+          <RouterContext.Provider value={router}>
+            <AmpStateContext.Provider value={ampState}>
+              <HeadManagerContext.Provider
+                value={{
+                  updateHead: (state) => {
+                    head = state
+                  },
+                  updateScripts: (scripts) => {
+                    scriptLoader = scripts
+                  },
+                  scripts: initialScripts,
+                  mountedInstances: new Set(),
+                }}
+              >
+                <LoadableContext.Provider
+                  value={(moduleName) => reactLoadableModules.push(moduleName)}
+                >
+                  <StyleRegistry registry={jsxStyleRegistry}>
+                    <ImageConfigContext.Provider value={images}>
+                      {children}
+                    </ImageConfigContext.Provider>
+                  </StyleRegistry>
+                </LoadableContext.Provider>
+              </HeadManagerContext.Provider>
+            </AmpStateContext.Provider>
+          </RouterContext.Provider>
+        </PathnameContextProviderAdapter>
+      </SearchParamsContext.Provider>
+    </AppRouterContext.Provider>
   )
 
   // The `useId` API uses the path indexes to generate an ID for each node.

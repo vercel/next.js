@@ -33,7 +33,6 @@ function getBaseSWCOptions({
   jsConfig,
   swcCacheDir,
   isServerLayer,
-  relativeFilePathFromRoot,
   hasServerComponents,
 }) {
   const parserConfig = getParserOptions({ filename, jsConfig })
@@ -131,15 +130,6 @@ function getBaseSWCOptions({
           isServer: !!isServerLayer,
         }
       : false,
-    fontLoaders:
-      nextConfig?.experimental?.fontLoaders && relativeFilePathFromRoot
-        ? {
-            fontLoaders: nextConfig.experimental.fontLoaders.map(
-              ({ loader }) => loader
-            ),
-            relativeFilePathFromRoot,
-          }
-        : null,
   }
 }
 
@@ -254,6 +244,15 @@ export function getLoaderSWCOptions({
     relativeFilePathFromRoot,
     hasServerComponents,
   })
+
+  if (nextConfig?.experimental?.fontLoaders && relativeFilePathFromRoot) {
+    baseOptions.fontLoaders = {
+      fontLoaders: nextConfig.experimental.fontLoaders.map(
+        ({ loader }) => loader
+      ),
+      relativeFilePathFromRoot,
+    }
+  }
 
   const isNextDist = nextDistPath.test(filename)
 

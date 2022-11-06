@@ -11,7 +11,7 @@ import {
   // ParamsContext,
   PathnameContext,
   // LayoutSegmentsContext,
-} from './hooks-client-context'
+} from '../../shared/lib/hooks-client-context'
 import { staticGenerationBailout } from './static-generation-bailout'
 
 const INTERNAL_URLSEARCHPARAMS_INSTANCE = Symbol(
@@ -72,17 +72,21 @@ class ReadonlyURLSearchParams {
 export function useSearchParams() {
   staticGenerationBailout('useSearchParams')
   const searchParams = useContext(SearchParamsContext)
+  if (!searchParams) {
+    throw new Error('invariant expected search params to be mounted')
+  }
+
   const readonlySearchParams = useMemo(() => {
     return new ReadonlyURLSearchParams(searchParams)
   }, [searchParams])
+
   return readonlySearchParams
 }
 
 /**
  * Get the current pathname. For example usePathname() on /dashboard?foo=bar would return "/dashboard"
  */
-export function usePathname(): string {
-  staticGenerationBailout('usePathname')
+export function usePathname(): string | null {
   return useContext(PathnameContext)
 }
 
@@ -106,7 +110,12 @@ export {
  * Get the router methods. For example router.push('/dashboard')
  */
 export function useRouter(): import('../../shared/lib/app-router-context').AppRouterInstance {
-  return useContext(AppRouterContext)
+  const router = useContext(AppRouterContext)
+  if (router === null) {
+    throw new Error('invariant expected app router to be mounted')
+  }
+
+  return router
 }
 
 // TODO-APP: handle parallel routes
@@ -158,10 +167,10 @@ export function useSelectedLayoutSegments(
  */
 export function useSelectedLayoutSegment(
   parallelRouteKey: string = 'children'
-): string {
+): string | null {
   const selectedLayoutSegments = useSelectedLayoutSegments(parallelRouteKey)
   if (selectedLayoutSegments.length === 0) {
-    throw new Error('No selected layout segment below the current level')
+    return null
   }
 
   return selectedLayoutSegments[0]
