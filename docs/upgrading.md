@@ -65,7 +65,7 @@ import Link from 'next/link'
 </Link>
 ```
 
-To upgrade your links to Next.js 13, you can use the [`next-link` codemod](/docs/advanced-features/codemods.md#remove-a-from-links-next-link).
+To upgrade your links to Next.js 13, you can use the [`new-link` codemod](/docs/advanced-features/codemods.md#new-link).
 
 ### `<Script>` Component
 
