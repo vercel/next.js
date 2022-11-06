@@ -828,6 +828,7 @@ export async function buildStaticPaths({
   configFileName,
   locales,
   defaultLocale,
+  appDir,
 }: {
   page: string
   getStaticPaths?: GetStaticPaths
@@ -835,6 +836,7 @@ export async function buildStaticPaths({
   configFileName: string
   locales?: string[]
   defaultLocale?: string
+  appDir?: boolean
 }): Promise<
   Omit<UnwrapPromise<ReturnType<GetStaticPaths>>, 'paths'> & {
     paths: string[]
@@ -982,7 +984,9 @@ export async function buildStaticPaths({
           throw new Error(
             `A required parameter (${validParamKey}) was not provided as ${
               repeat ? 'an array' : 'a string'
-            } in getStaticPaths for ${page}`
+            } in ${
+              appDir ? 'generateStaticParams' : 'getStaticPaths'
+            } for ${page}`
           )
         }
         let replaced = `[${repeat ? '...' : ''}${validParamKey}]`
@@ -1193,6 +1197,7 @@ export async function buildAppStaticPaths({
       },
       page,
       configFileName,
+      appDir: true,
     })
   }
 }
