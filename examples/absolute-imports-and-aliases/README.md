@@ -1,6 +1,6 @@
 # Absolute Imports and Aliases
 
-This example shows how to configure [Absolute imports and Module path aliases](https://nextjs.org/docs/advanced-features/module-path-aliases) in `tsconfig.json`. These options will allow absolute imports from `.` (the root directory), and create custom import aliases.
+This example shows how to configure [Absolute imports and Module path aliases](https://nextjs.org/docs/advanced-features/module-path-aliases) in `tsconfig.json` (or `jsconfig.json` for JavaScript projects). These options will allow absolute imports from `.` (the root directory), and allow you to create custom import aliases.
 
 If you’re working on a large project, your relative import statements might suffer from `../../../` spaghetti:
 
@@ -14,7 +14,7 @@ In such cases, we might want to setup absolute imports using the `baseUrl` optio
 import Button from 'components/button'
 ```
 
-Furthermore, TypeScript also supports the `paths` option, which allows you to create custom module aliases. You can then use your alias like so:
+Furthermore, TypeScript also supports the `paths` option, which allows you to configure custom module aliases. You can then use your alias like so:
 
 ```tsx
 import Button from '@/components/button'
