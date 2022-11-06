@@ -1774,7 +1774,7 @@ export default class NextNodeServer extends BaseServer {
         page: page,
         body: getRequestMeta(params.request, '__NEXT_CLONABLE_BODY'),
       },
-      useCache: false,
+      useCache: !this.renderOpts.dev,
       onWarning: params.onWarning,
     })
 
@@ -2131,7 +2131,7 @@ export default class NextNodeServer extends BaseServer {
         },
         body: getRequestMeta(params.req, '__NEXT_CLONABLE_BODY'),
       },
-      useCache: false,
+      useCache: !this.renderOpts.dev,
       onWarning: params.onWarning,
     })
 

@@ -344,7 +344,7 @@ export async function getModuleContext(options: ModuleContextOptions): Promise<{
 }> {
   let moduleContext = options.useCache
     ? moduleContexts.get(options.moduleName)
-    : await getModuleContextShared(options)
+    : undefined
 
   if (!moduleContext) {
     moduleContext = await createModuleContext(options)
