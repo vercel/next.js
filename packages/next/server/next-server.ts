@@ -256,11 +256,10 @@ export default class NextNodeServer extends BaseServer {
       }).catch(() => {})
     }
 
-    if (this.nextConfig.experimental.appDir) {
-      // expose AsyncLocalStorage on global for react usage
-      const { AsyncLocalStorage } = require('async_hooks')
-      ;(global as any).AsyncLocalStorage = AsyncLocalStorage
-    }
+    // expose AsyncLocalStorage on global for react usage
+    const { AsyncLocalStorage } = require('async_hooks')
+    ;(global as any).AsyncLocalStorage = AsyncLocalStorage
+
     // ensure options are set when loadConfig isn't called
     setHttpClientAndAgentOptions(this.nextConfig)
   }
