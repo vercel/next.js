@@ -66,9 +66,9 @@ function transformQuery(query: ParsedUrlQuery): URLSearchParams {
  */
 export function adaptForSearchParams(
   router: Pick<NextRouter, 'isReady' | 'query'>
-): URLSearchParams {
+): URLSearchParams | null {
   if (!router.isReady || !router.query) {
-    return new URLSearchParams()
+    return null
   }
 
   return transformQuery(router.query)
