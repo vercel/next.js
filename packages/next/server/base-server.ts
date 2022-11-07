@@ -74,11 +74,7 @@ import { getHostname } from '../shared/lib/get-hostname'
 import { parseUrl as parseUrlUtil } from '../shared/lib/router/utils/parse-url'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
 import { MiddlewareMatcher } from '../build/analysis/get-page-static-info'
-import {
-  NEXT_ROUTER_PREFETCH,
-  NEXT_ROUTER_STATE_TREE,
-  RSC,
-} from '../client/components/app-router-headers'
+import { RSC, RSC_VARY_HEADER } from '../client/components/app-router-headers'
 import { FLIGHT_PARAMETERS } from './app-render'
 
 export type FindComponentsResult = {
@@ -1059,10 +1055,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       (isSSG || hasServerProps)
 
     if (isAppPath) {
-      res.setHeader(
-        'vary',
-        `${RSC}, ${NEXT_ROUTER_STATE_TREE}, ${NEXT_ROUTER_PREFETCH}`
-      )
+      res.setHeader('vary', RSC_VARY_HEADER)
 
       if (isSSG && req.headers[RSC.toLowerCase()]) {
         if (!this.minimalMode) {
