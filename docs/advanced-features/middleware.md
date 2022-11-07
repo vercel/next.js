@@ -228,9 +228,9 @@ To enable middleware responses, update `next.config.js`:
 // next.config.js
 module.exports = {
   experimental: {
-    allowMiddlewareResponseBody: true
+    allowMiddlewareResponseBody: true,
   },
-};
+}
 ```
 
 Once enabled, you can provide a response from middleware using the `Response` or `NextResponse` API:
