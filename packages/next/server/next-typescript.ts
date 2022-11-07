@@ -29,6 +29,13 @@ const DISALLOWED_SERVER_REACT_APIS: string[] = [
 
 const ALLOWED_EXPORTS = ['config', 'generateStaticParams']
 
+const NEXT_TS_ERRORS = {
+  INVALID_SERVER_API: 71001,
+  INVALID_ENTRY_EXPORT: 71002,
+  INVALID_OPTION_VALUE: 71003,
+  MISPLACED_CLIENT_ENTRY: 71004,
+}
+
 const API_DOCS: Record<
   string,
   {
@@ -496,7 +503,7 @@ export function createTSPlugin(modules: {
           prior.push({
             file: source,
             category: ts.DiagnosticCategory.Error,
-            code: 71004,
+            code: NEXT_TS_ERRORS.MISPLACED_CLIENT_ENTRY,
             ...e,
           })
           isClientEntry = false
@@ -519,7 +526,7 @@ export function createTSPlugin(modules: {
                         prior.push({
                           file: source,
                           category: ts.DiagnosticCategory.Error,
-                          code: 71001,
+                          code: NEXT_TS_ERRORS.INVALID_SERVER_API,
                           messageText: `"${name}" is not allowed in Server Components.`,
                           start: element.name.getStart(),
                           length:
@@ -546,7 +553,7 @@ export function createTSPlugin(modules: {
                     prior.push({
                       file: source,
                       category: ts.DiagnosticCategory.Error,
-                      code: 71002,
+                      code: NEXT_TS_ERRORS.INVALID_ENTRY_EXPORT,
                       messageText: `"${name.text}" is not a valid Next.js entry export value.`,
                       start: name.getStart(),
                       length: name.getEnd() - name.getStart(),
@@ -620,7 +627,7 @@ export function createTSPlugin(modules: {
                         prior.push({
                           file: source,
                           category: ts.DiagnosticCategory.Error,
-                          code: 71003,
+                          code: NEXT_TS_ERRORS.INVALID_OPTION_VALUE,
                           messageText:
                             errorMessage ||
                             `"${displayedValue}" is not a valid value for the "${name.text}" option.`,
