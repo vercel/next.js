@@ -279,7 +279,7 @@ describe('app-dir create root layout', () => {
           skipStart: true,
           files: {
             'app/page.js': new FileRef(
-              path.join(__dirname, 'create-root-layout/app/page.js')
+              path.join(__dirname, 'create-root-layout/app/route/page.js')
             ),
             'next.config.js': new FileRef(
               path.join(__dirname, 'create-root-layout/next.config.js')
