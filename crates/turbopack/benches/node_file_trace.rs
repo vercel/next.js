@@ -6,8 +6,9 @@ use turbo_tasks::{NothingVc, TurboTasks, Value};
 use turbo_tasks_fs::{DiskFileSystemVc, FileSystem, NullFileSystem, NullFileSystemVc};
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
-    emit, rebase::RebasedAssetVc, register, resolve_options_context::ResolveOptionsContext,
-    transition::TransitionsByNameVc, ModuleAssetContextVc,
+    emit_with_completion, rebase::RebasedAssetVc, register,
+    resolve_options_context::ResolveOptionsContext, transition::TransitionsByNameVc,
+    ModuleAssetContextVc,
 };
 use turbopack_core::{
     context::AssetContext,
@@ -95,7 +96,7 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
                 let module = context.process(source.into());
                 let rebased = RebasedAssetVc::new(module, input_dir, output_dir);
 
-                emit(rebased.into());
+                emit_with_completion(rebased.into(), output_dir).await?;
 
                 Ok(NothingVc::new().into())
             });

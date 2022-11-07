@@ -19,8 +19,8 @@ use turbo_tasks_memory::{
     MemoryBackend,
 };
 use turbopack::{
-    emit, rebase::RebasedAssetVc, register, resolve_options_context::ResolveOptionsContext,
-    transition::TransitionsByNameVc,
+    emit_with_completion, rebase::RebasedAssetVc, register,
+    resolve_options_context::ResolveOptionsContext, transition::TransitionsByNameVc,
 };
 use turbopack_core::{
     context::AssetContext,
@@ -68,7 +68,7 @@ async fn main() -> Result<()> {
             );
             let module = context.process(source.into());
             let rebased = RebasedAssetVc::new(module, input, output);
-            emit(rebased.into());
+            emit_with_completion(rebased.into(), output).await?;
 
             Ok(NothingVc::new().into())
         })

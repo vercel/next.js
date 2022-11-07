@@ -390,11 +390,6 @@ impl AssetContext for ModuleAssetContext {
 }
 
 #[turbo_tasks::function]
-pub async fn emit(asset: AssetVc) {
-    emit_assets_recursive(asset);
-}
-
-#[turbo_tasks::function]
 pub async fn emit_with_completion(asset: AssetVc, output_dir: FileSystemPathVc) -> CompletionVc {
     emit_assets_aggregated(asset, output_dir)
 }
@@ -419,16 +414,6 @@ async fn emit_aggregated_assets(
             CompletionVc::new()
         }
     })
-}
-
-#[turbo_tasks::function(cycle)]
-async fn emit_assets_recursive(asset: AssetVc) -> Result<()> {
-    let assets_set = all_referenced_assets(asset);
-    emit_asset(asset);
-    for asset in assets_set.await?.iter() {
-        emit_assets_recursive(*asset);
-    }
-    Ok(())
 }
 
 #[turbo_tasks::function]
