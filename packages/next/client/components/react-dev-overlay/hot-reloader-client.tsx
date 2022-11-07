@@ -21,7 +21,10 @@ import {
 } from './internal/error-overlay-reducer'
 import { parseStack } from './internal/helpers/parseStack'
 import ReactDevOverlay from './internal/ReactDevOverlay'
-import { useErrorHandler } from './internal/helpers/use-error-handler'
+import {
+  RuntimeErrorHandler,
+  useErrorHandler,
+} from './internal/helpers/use-error-handler'
 import {
   useSendMessage,
   useWebsocket,
@@ -40,7 +43,6 @@ type PongEvent = any
 
 let mostRecentCompilationHash: any = null
 let __nextDevClientId = Math.round(Math.random() * 100 + Date.now())
-let hadRuntimeError = false
 
 // let startLatency = undefined
 
@@ -123,7 +125,7 @@ function tryApplyUpdates(
   }
 
   function handleApplyUpdates(err: any, updatedModules: any) {
-    if (err || hadRuntimeError || !updatedModules) {
+    if (err || RuntimeErrorHandler.hadRuntimeError || !updatedModules) {
       if (err) {
         console.warn(
           '[Fast Refresh] performing full reload\n\n' +
@@ -133,7 +135,7 @@ function tryApplyUpdates(
             'It is also possible the parent component of the component you edited is a class component, which disables Fast Refresh.\n' +
             'Fast Refresh requires at least one parent function component in your React tree.'
         )
-      } else if (hadRuntimeError) {
+      } else if (RuntimeErrorHandler.hadRuntimeError) {
         console.warn(
           '[Fast Refresh] performing full reload because your application had an unrecoverable error'
         )
@@ -333,7 +335,7 @@ function processMessage(
           clientId: __nextDevClientId,
         })
       )
-      if (hadRuntimeError) {
+      if (RuntimeErrorHandler.hadRuntimeError) {
         return window.location.reload()
       }
       startTransition(() => {
@@ -407,66 +409,20 @@ export default function HotReload({
     }
   }, [dispatch])
 
-  const handleOnUnhandledError = useCallback(
-    (ev: WindowEventMap['error']): void => {
-      if (
-        ev.error &&
-        ev.error.digest &&
-        (ev.error.digest.startsWith('NEXT_REDIRECT') ||
-          ev.error.digest === 'NEXT_NOT_FOUND')
-      ) {
-        ev.preventDefault()
-        return
-      }
-
-      hadRuntimeError = true
-      const error = ev?.error
-      if (
-        !error ||
-        !(error instanceof Error) ||
-        typeof error.stack !== 'string'
-      ) {
-        // A non-error was thrown, we don't have anything to show. :-(
-        return
-      }
-
-      if (
-        error.message.match(/(hydration|content does not match|did not match)/i)
-      ) {
-        error.message += `\n\nSee more info here: https://nextjs.org/docs/messages/react-hydration-error`
-      }
-
-      const e = error
-      dispatch({
-        type: ACTION_UNHANDLED_ERROR,
-        reason: error,
-        frames: parseStack(e.stack!),
-      })
-    },
-    []
-  )
-  const handleOnUnhandledRejection = useCallback(
-    (ev: WindowEventMap['unhandledrejection']): void => {
-      hadRuntimeError = true
-      const reason = ev?.reason
-      if (
-        !reason ||
-        !(reason instanceof Error) ||
-        typeof reason.stack !== 'string'
-      ) {
-        // A non-error was thrown, we don't have anything to show. :-(
-        return
-      }
-
-      const e = reason
-      dispatch({
-        type: ACTION_UNHANDLED_REJECTION,
-        reason: reason,
-        frames: parseStack(e.stack!),
-      })
-    },
-    []
-  )
+  const handleOnUnhandledError = useCallback((error: Error): void => {
+    dispatch({
+      type: ACTION_UNHANDLED_ERROR,
+      reason: error,
+      frames: parseStack(error.stack!),
+    })
+  }, [])
+  const handleOnUnhandledRejection = useCallback((reason: Error): void => {
+    dispatch({
+      type: ACTION_UNHANDLED_REJECTION,
+      reason: reason,
+      frames: parseStack(reason.stack!),
+    })
+  }, [])
   useErrorHandler(handleOnUnhandledError, handleOnUnhandledRejection)
 
   const webSocketRef = useWebsocket(assetPrefix)
