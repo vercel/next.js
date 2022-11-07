@@ -11,7 +11,7 @@
 
 /packages/next/build/   @timneutkens @ijjk @shuding @padmaia @huozhi
 /packages/next/telemetry/ @timneutkens @ijjk @shuding @padmaia
-/packages/next-swc/ @timneutkens @ijjk @shuding @padmaia
+/packages/next-rs/ @timneutkens @ijjk @shuding @padmaia
 
 # Image Component (@styfle)
 

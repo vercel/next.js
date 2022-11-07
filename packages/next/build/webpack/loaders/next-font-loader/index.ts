@@ -53,7 +53,7 @@ export default async function nextFontLoader(this: any) {
       return outputPath
     }
 
-    // next-swc next_font_loaders turns each font loader call into JSON
+    // next-rs next_font_loaders turns each font loader call into JSON
     const {
       path: relativeFilePathFromRoot,
       import: functionName,

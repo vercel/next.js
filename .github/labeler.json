@@ -11,7 +11,7 @@
       "packages/eslint-plugin-next/**",
       "packages/eslint-config-next/**",
       "packages/next-env/**",
-      "packages/next-swc/**"
+      "packages/next-rs/**"
     ],
     "created-by: Chrome Aurora": [
       { "type": "user", "pattern": "spanicker" },

@@ -30,7 +30,7 @@ test/integration/script-loader/**/*
 test/development/basic/legacy-decorators/**/*
 test/production/emit-decorator-metadata/**/*.js
 test-timings.json
-packages/next-swc/crates/**
+packages/next-rs/crates/**
 bench/nested-deps/pages/**
 bench/nested-deps/components/**
 packages/next-bundle-analyzer/index.d.ts

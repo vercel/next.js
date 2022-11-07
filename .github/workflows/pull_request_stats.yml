@@ -78,9 +78,9 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ./packages/next-target
-          key: next-swc-cargo-cache-ubuntu-latest--${{ hashFiles('**/Cargo.lock') }}
+          key: next-rs-cargo-cache-ubuntu-latest--${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            next-swc-cargo-cache-ubuntu-latest
+            next-rs-cargo-cache-ubuntu-latest
 
       # since the repo's dependencies aren't installed we need
       # to install napi globally
@@ -100,7 +100,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: next-rs-dev-binary
-          path: packages/next-swc/native/next-rs.linux-x64-gnu.node
+          path: packages/next-rs/native/next-rs.linux-x64-gnu.node
 
       - name: Clear the cargo caches
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
@@ -125,9 +125,9 @@ jobs:
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         with:
           name: next-rs-dev-binary
-          path: packages/next-swc/native
+          path: packages/next-rs/native
 
-      - run: cp -r packages/next-swc/native .github/actions/next-stats-action/native
+      - run: cp -r packages/next-rs/native .github/actions/next-stats-action/native
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
 
       - uses: ./.github/actions/next-stats-action

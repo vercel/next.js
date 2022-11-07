@@ -107,7 +107,7 @@ pub fn init_crash_reporter() -> External<RefCell<Option<usize>>> {
     External::new(guard_cell)
 }
 
-/// Initialize crash reporter to collect unexpected native next-swc crashes.
+/// Initialize crash reporter to collect unexpected native next-rs crashes.
 #[cfg(all(
     not(all(target_os = "windows", target_arch = "aarch64")),
     feature = "crash-report"

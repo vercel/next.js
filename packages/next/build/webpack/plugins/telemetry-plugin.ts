@@ -1,7 +1,7 @@
 import { NormalModule, webpack } from 'next/dist/compiled/webpack/webpack'
 
 /**
- * List of target triples next-swc native binary supports.
+ * List of target triples next-rs native binary supports.
  */
 export type SWC_TARGET_TRIPLE =
   | 'x86_64-apple-darwin'

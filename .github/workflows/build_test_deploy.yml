@@ -28,7 +28,7 @@ jobs:
     env:
       NEXT_TELEMETRY_DISABLED: 1
       # we build a dev binary for use in CI so skip downloading
-      # canary next-swc binaries in the monorepo
+      # canary next-rs binaries in the monorepo
       NEXT_SKIP_NATIVE_POSTINSTALL: 1
     outputs:
       docsChange: ${{ steps.docs-change.outputs.DOCS_CHANGE }}
@@ -124,7 +124,7 @@ jobs:
           path: ./*
           key: ${{ github.sha }}-${{ github.run_number }}
 
-      - run: echo "::set-output name=SWC_CHANGE::$(node scripts/run-for-change.js --type next-swc --exec echo 'yup')"
+      - run: echo "::set-output name=SWC_CHANGE::$(node scripts/run-for-change.js --type next-rs --exec echo 'yup')"
         id: swc-change
 
       - run: echo ${{ steps.swc-change.outputs.SWC_CHANGE }}
@@ -156,7 +156,7 @@ jobs:
         run: |
           cargo fmt -- --check
           cargo clippy --all -- -D warnings
-        working-directory: packages/next-swc
+        working-directory: packages/next-rs
 
   checkPrecompiled:
     name: Check Pre-compiled
@@ -231,7 +231,7 @@ jobs:
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: next-rs-test-binary
-          path: packages/next-swc/native
+          path: packages/next-rs/native
 
       - run: npm i -g pnpm@${PNPM_VERSION}
         if: ${{needs.build.outputs.docsChange == 'nope'}}
@@ -277,7 +277,7 @@ jobs:
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: next-rs-test-binary
-          path: packages/next-swc/native
+          path: packages/next-rs/native
 
       - run: npm i -g pnpm@${PNPM_VERSION}
         if: ${{needs.build.outputs.docsChange == 'nope'}}
@@ -355,7 +355,7 @@ jobs:
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: next-rs-test-binary
-          path: packages/next-swc/native
+          path: packages/next-rs/native
 
       - run: npm i -g pnpm@${PNPM_VERSION}
         if: ${{needs.build.outputs.docsChange == 'nope'}}
@@ -433,7 +433,7 @@ jobs:
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: next-rs-test-binary
-          path: packages/next-swc/native
+          path: packages/next-rs/native
 
       - run: npm i -g pnpm@${PNPM_VERSION}
         if: ${{needs.build.outputs.docsChange == 'nope'}}
@@ -501,7 +501,7 @@ jobs:
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: next-rs-test-binary
-          path: packages/next-swc/native
+          path: packages/next-rs/native
 
       - run: npm i -g pnpm@${PNPM_VERSION}
         if: ${{needs.build.outputs.docsChange == 'nope'}}
@@ -591,7 +591,7 @@ jobs:
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: next-rs-test-binary
-          path: packages/next-swc/native
+          path: packages/next-rs/native
 
       - run: npm i -g pnpm@${PNPM_VERSION}
         if: ${{needs.build.outputs.docsChange == 'nope'}}
@@ -657,7 +657,7 @@ jobs:
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: next-rs-test-binary
-          path: packages/next-swc/native
+          path: packages/next-rs/native
 
       - run: npm i -g pnpm@${PNPM_VERSION}
         if: ${{needs.build.outputs.docsChange == 'nope'}}
@@ -711,7 +711,7 @@ jobs:
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: next-rs-test-binary
-          path: packages/next-swc/native
+          path: packages/next-rs/native
       - run: npx playwright install-deps && npx playwright install firefox
         if: ${{needs.build.outputs.docsChange == 'nope'}}
       - run: node run-tests.js test/integration/production/test/index.test.js
@@ -752,7 +752,7 @@ jobs:
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: next-rs-test-binary
-          path: packages/next-swc/native
+          path: packages/next-rs/native
 
       - run: npm i -g pnpm@${PNPM_VERSION}
         if: ${{needs.build.outputs.docsChange == 'nope'}}
@@ -802,7 +802,7 @@ jobs:
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: next-rs-test-binary
-          path: packages/next-swc/native
+          path: packages/next-rs/native
 
       - run: npm i -g pnpm@${PNPM_VERSION}
         if: ${{needs.build.outputs.docsChange == 'nope'}}
@@ -838,7 +838,7 @@ jobs:
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: next-rs-test-binary
-          path: packages/next-swc/native
+          path: packages/next-rs/native
       - run: npm i -g pnpm@${PNPM_VERSION}
         if: ${{needs.build.outputs.docsChange == 'nope'}}
       - run: npx playwright install-deps && npx playwright install firefox
@@ -877,13 +877,13 @@ jobs:
 
       - uses: actions/download-artifact@v3
         with:
-          name: next-swc-binaries
-          path: packages/next-swc/native
+          name: next-rs-binaries
+          path: packages/next-rs/native
 
       - uses: actions/download-artifact@v3
         with:
           name: wasm-binaries
-          path: packages/next-swc/crates/wasm
+          path: packages/next-rs/crates/wasm
 
       - run: npm i -g pnpm@${PNPM_VERSION}
       - run: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
@@ -917,7 +917,7 @@ jobs:
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: next-rs-test-binary
-          path: packages/next-swc/native
+          path: packages/next-rs/native
 
       - run: npm i -g pnpm@${PNPM_VERSION}
         name: Install pnpm
@@ -962,9 +962,9 @@ jobs:
       - uses: actions/download-artifact@v3
         with:
           name: next-rs-test-binary
-          path: packages/next-swc/native
+          path: packages/next-rs/native
 
-      - run: cp -r packages/next-swc/native .github/actions/next-stats-action/native
+      - run: cp -r packages/next-rs/native .github/actions/next-stats-action/native
 
       - run: ./scripts/release-stats.sh
       - uses: ./.github/actions/next-stats-action
@@ -1037,10 +1037,10 @@ jobs:
       - name: Cache built files
         uses: actions/cache@v3
         with:
-          path: ./packages/next-swc/target
-          key: next-swc-cargo-cache-dev-ubuntu-latest-${{ hashFiles('**/Cargo.lock') }}
+          path: ./packages/next-rs/target
+          key: next-rs-cargo-cache-dev-ubuntu-latest-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            next-swc-cargo-cache-dev-ubuntu-latest
+            next-rs-cargo-cache-dev-ubuntu-latest
 
       # since the repo's dependencies aren't installed we need
       # to install napi globally
@@ -1055,7 +1055,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: next-rs-test-binary
-          path: packages/next-swc/native/next-rs.linux-x64-gnu.node
+          path: packages/next-rs/native/next-rs.linux-x64-gnu.node
 
       - name: Clear the cargo caches
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
@@ -1072,7 +1072,7 @@ jobs:
         with:
           fetch-depth: 25
 
-      - run: echo "::set-output name=SWC_CHANGE::$(node scripts/run-for-change.js --type next-swc --exec echo 'yup')"
+      - run: echo "::set-output name=SWC_CHANGE::$(node scripts/run-for-change.js --type next-rs --exec echo 'yup')"
         id: swc-change
 
       - run: echo ${{ steps.swc-change.outputs.SWC_CHANGE }}
@@ -1084,7 +1084,7 @@ jobs:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
           profile: minimal
 
-      - run: cd packages/next-swc && cargo test
+      - run: cd packages/next-rs && cargo test
         if: ${{ steps.swc-change.outputs.SWC_CHANGE == 'yup' }}
 
   test-wasm:
@@ -1105,16 +1105,16 @@ jobs:
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: wasm-dev-binary
-          path: packages/next-swc/crates/wasm/pkg-nodejs
+          path: packages/next-rs/crates/wasm/pkg-nodejs
 
-      - run: ls packages/next-swc/crates/wasm
+      - run: ls packages/next-rs/crates/wasm
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
       - uses: actions/download-artifact@v3
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: next-rs-test-binary
-          path: packages/next-swc/native
+          path: packages/next-rs/native
 
       # node version needs to be 16+ to use --no-addons option
       - name: Setup node
@@ -1154,7 +1154,7 @@ jobs:
             build: |
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi
               turbo run build-native --cache-dir=".turbo" -- --release
-              strip -x packages/next-swc/native/next-rs.*.node
+              strip -x packages/next-rs/native/next-rs.*.node
           - host: windows-latest
             build: |
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" "pnpm@${PNPM_VERSION}"
@@ -1176,7 +1176,7 @@ jobs:
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi &&
               unset CC_x86_64_unknown_linux_gnu && unset CC &&
               turbo run build-native --cache-dir=".turbo" -- --release --target x86_64-unknown-linux-gnu &&
-              strip packages/next-swc/native/next-rs.*.node
+              strip packages/next-rs/native/next-rs.*.node
           - host: ubuntu-latest
             target: 'x86_64-unknown-linux-musl'
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2022-10-24-alpine
@@ -1188,7 +1188,7 @@ jobs:
               rustup target add x86_64-unknown-linux-musl &&
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi &&
               turbo run build-native --cache-dir=".turbo" -- --release --target x86_64-unknown-linux-musl &&
-              strip packages/next-swc/native/next-rs.*.node
+              strip packages/next-rs/native/next-rs.*.node
           - host: macos-latest
             target: 'aarch64-apple-darwin'
             build: |
@@ -1199,7 +1199,7 @@ jobs:
               export CFLAGS="-isysroot $SYSROOT -isystem $SYSROOT";
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi
               turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-apple-darwin
-              strip -x packages/next-swc/native/next-rs.*.node
+              strip -x packages/next-rs/native/next-rs.*.node
           - host: ubuntu-latest
             target: 'aarch64-unknown-linux-gnu'
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2022-10-24-aarch64
@@ -1212,7 +1212,7 @@ jobs:
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi &&
               export CC_aarch64_unknown_linux_gnu=/usr/aarch64-unknown-linux-gnu/bin/aarch64-unknown-linux-gnu-gcc &&
               turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-unknown-linux-gnu &&
-              llvm-strip -x packages/next-swc/native/next-rs.*.node
+              llvm-strip -x packages/next-rs/native/next-rs.*.node
           - host: ubuntu-latest
             target: 'armv7-unknown-linux-gnueabihf'
             setup: |
@@ -1221,7 +1221,7 @@ jobs:
             build: |
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi
               turbo run build-native-no-plugin --cache-dir=".turbo" -- --release --target armv7-unknown-linux-gnueabihf
-              arm-linux-gnueabihf-strip packages/next-swc/native/next-rs.*.node
+              arm-linux-gnueabihf-strip packages/next-rs/native/next-rs.*.node
           - host: ubuntu-latest
             target: aarch64-linux-android
             build: |
@@ -1236,7 +1236,7 @@ jobs:
               echo "INPUT(-lunwind)" > "${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/lib64/clang/${CLANG_VERSION}/lib/linux/aarch64/libgcc.a"
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi
               turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-linux-android
-              ${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip packages/next-swc/native/next-rs.*.node
+              ${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip packages/next-rs/native/next-rs.*.node
           - host: ubuntu-latest
             target: armv7-linux-androideabi
             build: |
@@ -1251,7 +1251,7 @@ jobs:
               echo "INPUT(-lunwind)" > "${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/lib64/clang/${CLANG_VERSION}/lib/linux/arm/libgcc.a"
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" "pnpm@${PNPM_VERSION}"
               turbo run build-native-no-plugin --cache-dir=".turbo" -- --release --target armv7-linux-androideabi
-              ${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip packages/next-swc/native/next-rs.*.node
+              ${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip packages/next-rs/native/next-rs.*.node
           - host: ubuntu-latest
             target: 'aarch64-unknown-linux-musl'
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2022-10-24-alpine
@@ -1264,7 +1264,7 @@ jobs:
               rustup default "${RUST_TOOLCHAIN}" &&
               rustup target add aarch64-unknown-linux-musl &&
               turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-unknown-linux-musl &&
-              llvm-strip -x packages/next-swc/native/next-rs.*.node
+              llvm-strip -x packages/next-rs/native/next-rs.*.node
           - host: windows-latest
             target: 'aarch64-pc-windows-msvc'
             build: |
@@ -1298,10 +1298,10 @@ jobs:
       - name: Cache built files
         uses: actions/cache@v3
         with:
-          path: ./packages/next-swc/target
-          key: next-swc-cargo-cache-${{ matrix.settings.target }}--${{ hashFiles('**/Cargo.lock') }}
+          path: ./packages/next-rs/target
+          key: next-rs-cargo-cache-${{ matrix.settings.target }}--${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            next-swc-cargo-cache-${{ matrix.settings.target }}
+            next-rs-cargo-cache-${{ matrix.settings.target }}
       - name: Turbo Cache
         id: turbo-cache
         uses: actions/cache@v3
@@ -1362,8 +1362,8 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v3
         with:
-          name: next-swc-binaries
-          path: packages/next-swc/native/next-rs.*.node
+          name: next-rs-binaries
+          path: packages/next-rs/native/next-rs.*.node
 
   build-native-freebsd:
     if: ${{ needs.build.outputs.isRelease == 'true' }}
@@ -1416,12 +1416,12 @@ jobs:
             freebsd-version
             pnpm --filter=@next/rs run build-native-no-plugin --platform --release --target x86_64-unknown-freebsd
             rm -rf node_modules
-            rm -rf packages/next-swc/target
+            rm -rf packages/next-rs/target
       - name: Upload artifact
         uses: actions/upload-artifact@v3
         with:
-          name: next-swc-binaries
-          path: packages/next-swc/native/next-rs.*.node
+          name: next-rs-binaries
+          path: packages/next-rs/native/next-rs.*.node
           if-no-files-found: error
 
   build-wasm:
@@ -1472,13 +1472,13 @@ jobs:
         run: turbo run build-wasm --cache-dir=".turbo" -- --target ${{ matrix.target }}
 
       - name: Add target to folder name
-        run: '[[ -d "packages/next-swc/crates/wasm/pkg" ]] && mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-${{ matrix.target }} || ls packages/next-swc/crates/wasm'
+        run: '[[ -d "packages/next-rs/crates/wasm/pkg" ]] && mv packages/next-rs/crates/wasm/pkg packages/next-rs/crates/wasm/pkg-${{ matrix.target }} || ls packages/next-rs/crates/wasm'
 
       - name: Upload artifact
         uses: actions/upload-artifact@v3
         with:
           name: wasm-binaries
-          path: packages/next-swc/crates/wasm/pkg-*
+          path: packages/next-rs/crates/wasm/pkg-*
 
   build-wasm-dev:
     needs: build
@@ -1532,14 +1532,14 @@ jobs:
 
       - name: Add target to folder name
         if: ${{needs.build.outputs.docsChange == 'nope'}}
-        run: '[[ -d "packages/next-swc/crates/wasm/pkg" ]] && mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-nodejs || ls packages/next-swc/crates/wasm'
+        run: '[[ -d "packages/next-rs/crates/wasm/pkg" ]] && mv packages/next-rs/crates/wasm/pkg packages/next-rs/crates/wasm/pkg-nodejs || ls packages/next-rs/crates/wasm'
 
       - name: Upload artifact
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         uses: actions/upload-artifact@v3
         with:
           name: wasm-dev-binary
-          path: packages/next-swc/crates/wasm/pkg-nodejs
+          path: packages/next-rs/crates/wasm/pkg-nodejs
 
   check-trace-secrests:
     runs-on: ubuntu-latest
@@ -1586,7 +1586,7 @@ jobs:
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: next-rs-test-binary
-          path: packages/next-swc/native
+          path: packages/next-rs/native
 
       - name: Generate metrics data
         if: ${{needs.build.outputs.docsChange == 'nope'}}

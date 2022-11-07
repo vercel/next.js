@@ -62,7 +62,7 @@ export async function downloadWasmSwc(
           process.exit(0)
         }
       }
-      result = path.join(systemCacheDirectory, 'next-swc')
+      result = path.join(systemCacheDirectory, 'next-rs')
     }
 
     if (!path.isAbsolute(result)) {

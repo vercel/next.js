@@ -15,7 +15,7 @@ const CHANGE_ITEM_GROUPS = {
     'CODE_OF_CONDUCT.md',
     'readme.md',
   ],
-  'next-swc': ['packages/next-swc', '.github/workflows/build_test_deploy.yml'],
+  'next-rs': ['packages/next-rs', '.github/workflows/build_test_deploy.yml'],
 }
 
 async function main() {
