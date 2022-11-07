@@ -67,6 +67,24 @@ describe('create-next-app templates', () => {
     })
   })
 
+  it('should create TS projects with --ts, --typescript with CI=1', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'typescript-test'
+      const childProcess = createNextApp([projectName, '--ts', '--eslint'], {
+        cwd,
+        env: {
+          ...process.env,
+          CI: '1',
+          GITHUB_ACTIONS: '1',
+        },
+      })
+      const exitCode = await spawnExitPromise(childProcess)
+
+      expect(exitCode).toBe(0)
+      shouldBeTypescriptProject({ cwd, projectName, template: 'default' })
+    })
+  })
+
   it('should create JS projects with --js, --javascript', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'javascript-test'
