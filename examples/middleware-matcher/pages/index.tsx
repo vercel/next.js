@@ -1,4 +1,4 @@
-const Home = () => {
+export default function Home() {
   const matching = ['/about', '/about/topic/cats', '/public/disclaimer']
   const notMatching = ['/public', '/public/disclaimer/nested', '/static']
   return (
@@ -26,5 +26,3 @@ const Home = () => {
     </div>
   )
 }
-
-export default Home
