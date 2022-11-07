@@ -6,7 +6,8 @@ import * as CommentJson from 'next/dist/compiled/comment-json'
 
 // Write .vscode settings to enable Next.js typescript plugin.
 export async function writeVscodeConfigurations(
-  baseDir: string
+  baseDir: string,
+  tsPath: string
 ): Promise<void> {
   try {
     const vscodeSettings = path.join(baseDir, '.vscode', 'settings.json')
@@ -24,7 +25,7 @@ export async function writeVscodeConfigurations(
       }
     }
 
-    const libPath = './node_modules/typescript/lib'
+    const libPath = path.relative(baseDir, path.dirname(tsPath))
     if (
       settings['typescript.tsdk'] === libPath &&
       settings['typescript.enablePromptUseWorkspaceTsdk']
