@@ -95,13 +95,27 @@ impl<'a> PreparedApp<'a> {
 
     pub async fn with_page(self, browser: &Browser) -> Result<PageGuard<'a>> {
         let server = self.server.as_ref().context("Server must be started")?;
-        let page = browser.new_page("about:blank").await?;
+        let page = browser
+            .new_page("about:blank")
+            .await
+            .context("Unable to open about:blank")?;
         // Bindings survive page reloads. Set them up as early as possible.
-        add_binding(&page).await?;
+        add_binding(&page)
+            .await
+            .context("Failed to add bindings to the browser tab")?;
 
-        let mut errors = page.event_listener::<EventExceptionThrown>().await?;
-        let binding_events = page.event_listener::<EventBindingCalled>().await?;
-        let mut network_response_events = page.event_listener::<EventResponseReceived>().await?;
+        let mut errors = page
+            .event_listener::<EventExceptionThrown>()
+            .await
+            .context("Unable to listen to exception events")?;
+        let binding_events = page
+            .event_listener::<EventBindingCalled>()
+            .await
+            .context("Unable to listen to binding events")?;
+        let mut network_response_events = page
+            .event_listener::<EventResponseReceived>()
+            .await
+            .context("Unable to listen to response received events")?;
 
         let destination = Url::parse(&server.1)?.join(self.bundler.get_path())?;
         // We can't use page.goto() here since this will wait for the naviation to be
@@ -111,7 +125,8 @@ impl<'a> PreparedApp<'a> {
         // So instead we navigate via JavaScript and wait only for the HTML response to
         // be completed.
         page.evaluate_expression(format!("window.location='{destination}'"))
-            .await?;
+            .await
+            .context("Unable to evaluate javascript to naviagate to target page")?;
 
         // Wait for HTML response completed
         loop {

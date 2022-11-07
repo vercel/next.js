@@ -29,6 +29,10 @@ pub trait Bundler {
     fn has_server_rendered_html(&self) -> bool {
         false
     }
+    /// There is a hydration done event emitted by client side JavaScript
+    fn has_interactivity(&self) -> bool {
+        true
+    }
     fn prepare(&self, _template_dir: &Path) -> Result<()> {
         Ok(())
     }
@@ -55,8 +59,25 @@ pub fn get_bundlers() -> Vec<Box<dyn Bundler>> {
     }
     let mut bundlers: Vec<Box<dyn Bundler>> = Vec::new();
     if turbopack {
-        bundlers.push(Box::new(Turbopack::new("Turbopack CSR", "/", false)));
-        bundlers.push(Box::new(Turbopack::new("Turbopack SSR", "/page", true)));
+        bundlers.push(Box::new(Turbopack::new("Turbopack CSR", "/", false, true)));
+        bundlers.push(Box::new(Turbopack::new(
+            "Turbopack SSR",
+            "/page",
+            true,
+            true,
+        )));
+        bundlers.push(Box::new(Turbopack::new(
+            "Turbopack RSC",
+            "/app",
+            true,
+            false,
+        )));
+        bundlers.push(Box::new(Turbopack::new(
+            "Turbopack RCC",
+            "/client",
+            true,
+            true,
+        )));
     }
 
     if others {

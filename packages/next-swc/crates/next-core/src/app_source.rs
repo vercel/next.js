@@ -500,7 +500,7 @@ impl NodeEntry for AppRenderer {
 
         for (_, import) in segments.iter() {
             if let Some((p, identifier, chunks_identifier)) = import {
-                result += r#"("TURBOPACK {{ transition: next-layout-entry; chunking-type: parallel }}");
+                result += r#"("TURBOPACK { transition: next-layout-entry; chunking-type: parallel }");
 "#;
                 writeln!(
                     result,
