@@ -59,6 +59,10 @@ if (process.env.NEXT_PREBUNDLED_REACT) {
   overrideBuiltInReactPackages()
 }
 
+// expose AsyncLocalStorage on global for react usage
+const { AsyncLocalStorage } = require('async_hooks')
+;(global as any).AsyncLocalStorage = AsyncLocalStorage
+
 export type ROUTER_TYPE = 'pages' | 'app'
 
 const RESERVED_PAGE = /^\/(_app|_error|_document|api(\/|$))/
@@ -828,6 +832,7 @@ export async function buildStaticPaths({
   configFileName,
   locales,
   defaultLocale,
+  appDir,
 }: {
   page: string
   getStaticPaths?: GetStaticPaths
@@ -835,6 +840,7 @@ export async function buildStaticPaths({
   configFileName: string
   locales?: string[]
   defaultLocale?: string
+  appDir?: boolean
 }): Promise<
   Omit<UnwrapPromise<ReturnType<GetStaticPaths>>, 'paths'> & {
     paths: string[]
@@ -982,7 +988,9 @@ export async function buildStaticPaths({
           throw new Error(
             `A required parameter (${validParamKey}) was not provided as ${
               repeat ? 'an array' : 'a string'
-            } in getStaticPaths for ${page}`
+            } in ${
+              appDir ? 'generateStaticParams' : 'getStaticPaths'
+            } for ${page}`
           )
         }
         let replaced = `[${repeat ? '...' : ''}${validParamKey}]`
@@ -1193,6 +1201,7 @@ export async function buildAppStaticPaths({
       },
       page,
       configFileName,
+      appDir: true,
     })
   }
 }
