@@ -660,7 +660,7 @@ export default async function getBaseWebpackConfig(
     loggedIgnoredCompilerOptions = true
   }
 
-  if (babelConfigFile && config.experimental.fontLoaders) {
+  if (!useSWCLoader && babelConfigFile && config.experimental.fontLoaders) {
     Log.error(
       `"experimental.fontLoaders" is enabled which requires SWC although Babel is being used due to custom babel config being present "${path.relative(
         dir,
@@ -2120,6 +2120,7 @@ export default async function getBaseWebpackConfig(
               ['swcRemoveConsole', !!config.compiler?.removeConsole],
               ['swcImportSource', !!jsConfig?.compilerOptions?.jsxImportSource],
               ['swcEmotion', !!config.compiler?.emotion],
+              ['turbotrace', !!config.experimental.turbotrace],
               SWCBinaryTarget,
             ].filter<[Feature, boolean]>(Boolean as any)
           )
