@@ -757,6 +757,10 @@
         {
           "title": "invalid-segment-export",
           "path": "/errors/invalid-segment-export.md"
+        },
+        {
+          "title": "next-router-not-mounted",
+          "path": "/errors/next-router-not-mounted.md"
         }
       ]
     }
