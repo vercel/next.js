@@ -1,6 +1,6 @@
 import { useRouter } from 'next/router'
 
-function hasMiddlewareMatched(slug) {
+function hasMiddlewareMatched(slug?: string[]) {
   const values =
     (typeof document !== 'undefined' ? document.cookie : '')
       .split(';')
@@ -10,10 +10,10 @@ function hasMiddlewareMatched(slug) {
   return values.some((value) => value === slug?.join('/'))
 }
 
-export const ContentPage = (props) => {
-  const {
-    query: { slug }, // slug is an array of path segments
-  } = useRouter()
+export default function ContentPage() {
+  const router = useRouter()
+  const slug = router.query.slug as string[] // slug is an array of path segments
+
   return (
     <>
       <h1>
@@ -25,5 +25,3 @@ export const ContentPage = (props) => {
     </>
   )
 }
-
-export default ContentPage

@@ -100,6 +100,10 @@ interface RenderOpts {
   supportsDynamicHTML?: boolean
 }
 
+// expose AsyncLocalStorage on global for react usage
+const { AsyncLocalStorage } = require('async_hooks')
+;(global as any).AsyncLocalStorage = AsyncLocalStorage
+
 export default async function exportPage({
   parentSpanId,
   path,

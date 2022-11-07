@@ -29,6 +29,13 @@ const DISALLOWED_SERVER_REACT_APIS: string[] = [
 
 const ALLOWED_EXPORTS = ['config', 'generateStaticParams']
 
+const NEXT_TS_ERRORS = {
+  INVALID_SERVER_API: 71001,
+  INVALID_ENTRY_EXPORT: 71002,
+  INVALID_OPTION_VALUE: 71003,
+  MISPLACED_CLIENT_ENTRY: 71004,
+}
+
 const API_DOCS: Record<
   string,
   {
@@ -187,19 +194,34 @@ export function createTSPlugin(modules: {
       )
     }
 
-    function getIsClientEntry(fileName: string) {
+    function getIsClientEntry(
+      fileName: string,
+      throwOnInvalidDirective?: boolean
+    ) {
       const source = info.languageService.getProgram()?.getSourceFile(fileName)
       if (source) {
         let isClientEntry = false
         let isDirective = true
 
         ts.forEachChild(source!, (node) => {
-          if (isClientEntry || !isDirective) return
-
-          if (isDirective && ts.isExpressionStatement(node)) {
-            if (ts.isStringLiteral(node.expression)) {
-              if (node.expression.text === 'use client') {
+          if (
+            ts.isExpressionStatement(node) &&
+            ts.isStringLiteral(node.expression)
+          ) {
+            if (node.expression.text === 'use client') {
+              if (isDirective) {
                 isClientEntry = true
+              } else {
+                if (throwOnInvalidDirective) {
+                  const e = {
+                    messageText:
+                      'The `"use client"` directive must be put at the top of the file.',
+                    start: node.expression.getStart(),
+                    length:
+                      node.expression.getEnd() - node.expression.getStart(),
+                  }
+                  throw e
+                }
               }
             }
           } else {
@@ -473,7 +495,19 @@ export function createTSPlugin(modules: {
 
       const source = info.languageService.getProgram()?.getSourceFile(fileName)
       if (source) {
-        const isClientEntry = getIsClientEntry(fileName)
+        let isClientEntry = false
+
+        try {
+          isClientEntry = getIsClientEntry(fileName, true)
+        } catch (e: any) {
+          prior.push({
+            file: source,
+            category: ts.DiagnosticCategory.Error,
+            code: NEXT_TS_ERRORS.MISPLACED_CLIENT_ENTRY,
+            ...e,
+          })
+          isClientEntry = false
+        }
 
         ts.forEachChild(source!, (node) => {
           if (ts.isImportDeclaration(node)) {
@@ -492,7 +526,7 @@ export function createTSPlugin(modules: {
                         prior.push({
                           file: source,
                           category: ts.DiagnosticCategory.Error,
-                          code: 71001,
+                          code: NEXT_TS_ERRORS.INVALID_SERVER_API,
                           messageText: `"${name}" is not allowed in Server Components.`,
                           start: element.name.getStart(),
                           length:
@@ -519,7 +553,7 @@ export function createTSPlugin(modules: {
                     prior.push({
                       file: source,
                       category: ts.DiagnosticCategory.Error,
-                      code: 71002,
+                      code: NEXT_TS_ERRORS.INVALID_ENTRY_EXPORT,
                       messageText: `"${name.text}" is not a valid Next.js entry export value.`,
                       start: name.getStart(),
                       length: name.getEnd() - name.getStart(),
@@ -593,7 +627,7 @@ export function createTSPlugin(modules: {
                         prior.push({
                           file: source,
                           category: ts.DiagnosticCategory.Error,
-                          code: 71003,
+                          code: NEXT_TS_ERRORS.INVALID_OPTION_VALUE,
                           messageText:
                             errorMessage ||
                             `"${displayedValue}" is not a valid value for the "${name.text}" option.`,
