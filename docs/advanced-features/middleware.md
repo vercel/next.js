@@ -224,7 +224,8 @@ You can respond to middleware directly by returning a `NextResponse` (responding
 
 To enable middleware responses, update `next.config.js`:
 
-```js:next.config.js
+```js
+// next.config.js
 module.exports = {
   experimental: {
     allowMiddlewareResponseBody: true
