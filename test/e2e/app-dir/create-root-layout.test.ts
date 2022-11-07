@@ -2,6 +2,7 @@ import path from 'path'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import webdriver from 'next-webdriver'
+import { check } from 'next-test-utils'
 
 describe('app-dir create root layout', () => {
   const isDev = (global as any).isNextDev
@@ -23,9 +24,7 @@ describe('app-dir create root layout', () => {
         beforeAll(async () => {
           next = await createNext({
             files: {
-              'app/route/page.js': new FileRef(
-                path.join(__dirname, 'create-root-layout/app/route/page.js')
-              ),
+              app: new FileRef(path.join(__dirname, 'create-root-layout/app')),
               'next.config.js': new FileRef(
                 path.join(__dirname, 'create-root-layout/next.config.js')
               ),
@@ -46,7 +45,11 @@ describe('app-dir create root layout', () => {
             'Hello world!'
           )
 
-          expect(next.cliOutput.slice(outputIndex)).toInclude(
+          await check(
+            () => next.cliOutput.slice(outputIndex),
+            /did not have a root layout/
+          )
+          expect(next.cliOutput.slice(outputIndex)).toMatch(
             'Your page app/route/page.js did not have a root layout, we created app/layout.js and app/head.js for you.'
           )
 
@@ -103,6 +106,10 @@ describe('app-dir create root layout', () => {
             'Hello world'
           )
 
+          await check(
+            () => next.cliOutput.slice(outputIndex),
+            /did not have a root layout/
+          )
           expect(next.cliOutput.slice(outputIndex)).toInclude(
             'Your page app/(group)/page.js did not have a root layout, we created app/(group)/layout.js and app/(group)/head.js for you.'
           )
@@ -163,6 +170,10 @@ describe('app-dir create root layout', () => {
             'Hello world'
           )
 
+          await check(
+            () => next.cliOutput.slice(outputIndex),
+            /did not have a root layout/
+          )
           expect(next.cliOutput.slice(outputIndex)).toInclude(
             'Your page app/(group)/route/second/inner/page.js did not have a root layout, we created app/(group)/route/second/layout.js and app/(group)/route/second/head.js for you.'
           )
@@ -224,6 +235,10 @@ describe('app-dir create root layout', () => {
           'Hello world!'
         )
 
+        await check(
+          () => next.cliOutput.slice(outputIndex),
+          /did not have a root layout/
+        )
         expect(next.cliOutput.slice(outputIndex)).toInclude(
           'Your page app/page.tsx did not have a root layout, we created app/layout.tsx and app/head.tsx for you.'
         )

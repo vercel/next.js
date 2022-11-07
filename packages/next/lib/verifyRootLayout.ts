@@ -81,7 +81,7 @@ export async function verifyRootLayout({
     // Place the layout as close to app/ as possible.
     let availableDir: string | undefined
 
-    if (layoutFiles.length !== 0) {
+    if (layoutFiles.length === 0) {
       // If there's no other layout file we can place the layout file in the app dir.
       // However, if the page is within a route group directly under app (e.g. app/(routegroup)/page.js)
       // prefer creating the root layout in that route group.
