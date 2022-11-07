@@ -18,14 +18,21 @@ pub struct Turbopack {
     name: String,
     path: String,
     has_server_rendered_html: bool,
+    has_interactivity: bool,
 }
 
 impl Turbopack {
-    pub fn new(name: &str, path: &str, has_server_rendered_html: bool) -> Self {
+    pub fn new(
+        name: &str,
+        path: &str,
+        has_server_rendered_html: bool,
+        has_interactivity: bool,
+    ) -> Self {
         Turbopack {
             name: name.to_owned(),
             path: path.to_owned(),
             has_server_rendered_html,
+            has_interactivity,
         }
     }
 }
@@ -41,6 +48,10 @@ impl Bundler for Turbopack {
 
     fn has_server_rendered_html(&self) -> bool {
         self.has_server_rendered_html
+    }
+
+    fn has_interactivity(&self) -> bool {
+        self.has_interactivity
     }
 
     fn prepare(&self, install_dir: &Path) -> Result<()> {

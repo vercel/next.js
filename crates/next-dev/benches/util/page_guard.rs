@@ -100,7 +100,8 @@ impl<'a> PageGuard<'a> {
             self.wait_for_binding(TEST_APP_HYDRATION_DONE),
         )
         .await
-        .context("Timeout happened while waiting for hydration")??;
+        .context("Timeout happened while waiting for hydration")?
+        .context("Error happened while waiting for hydration")?;
         Ok(())
     }
 }

@@ -253,6 +253,65 @@ export function getStaticProps() {
             .write_all(bootstrap_static_page.as_bytes())
             .context("writing bootstrap static page")?;
 
+        let app_dir = src.join("app");
+        create_dir_all(app_dir.join("app"))?;
+        create_dir_all(app_dir.join("client"))?;
+
+        // The page is e. g. used by Next.js
+        let bootstrap_app_page = r#"import React from "react";
+import Triangle from "../../triangle.jsx";
+
+export default function Page() {
+    return <svg height="100%" viewBox="-5 -4.33 10 8.66" style={{ backgroundColor: "black" }}>
+        <Triangle style={{ fill: "white" }}/>
+    </svg>
+}
+"#;
+        File::create(app_dir.join("app/page.jsx"))
+            .context("creating bootstrap app page")?
+            .write_all(bootstrap_app_page.as_bytes())
+            .context("writing bootstrap app page")?;
+
+        // The page is e. g. used by Next.js
+        let bootstrap_app_client_page = r#""use client";
+import React from "react";
+import Triangle from "../../triangle.jsx";
+
+export default function Page() {
+    React.useEffect(() => {
+        globalThis.__turbopackBenchBinding && globalThis.__turbopackBenchBinding("Hydration done");
+    })
+    return <svg height="100%" viewBox="-5 -4.33 10 8.66" style={{ backgroundColor: "black" }}>
+        <Triangle style={{ fill: "white" }}/>
+    </svg>
+}
+"#;
+        File::create(app_dir.join("client/page.jsx"))
+            .context("creating bootstrap app client page")?
+            .write_all(bootstrap_app_client_page.as_bytes())
+            .context("writing bootstrap app client page")?;
+
+        // This root layout is e. g. used by Next.js
+        let bootstrap_layout = r#"export default function RootLayout({ children }) {
+    return (
+        <html lang="en">
+            <head>
+                <meta charSet="UTF-8" />
+                <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                <title>Turbopack Test App</title>
+            </head>
+            <body>
+                {children}
+            </body>
+        </html>
+    );
+}
+        "#;
+        File::create(app_dir.join("layout.jsx"))
+            .context("creating bootstrap html in root")?
+            .write_all(bootstrap_layout.as_bytes())
+            .context("writing bootstrap html in root")?;
+
         // This HTML is used e. g. by Vite
         let bootstrap_html = r#"<!DOCTYPE html>
 <html lang="en">
