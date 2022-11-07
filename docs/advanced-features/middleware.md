@@ -9,14 +9,14 @@ description: Learn how to use Middleware to run code before a request is complet
 
 | Version   | Changes                                                                                    |
 | --------- | ------------------------------------------------------------------------------------------ |
-| `v13.0.0` | Support overriding request headers.                                                        |
+| `v13.0.0` | Middleware can modify request headers, response headers, and send responses                |
 | `v12.2.0` | Middleware is stable                                                                       |
 | `v12.0.9` | Enforce absolute URLs in Edge Runtime ([PR](https://github.com/vercel/next.js/pull/33410)) |
 | `v12.0.0` | Middleware (Beta) added                                                                    |
 
 </details>
 
-Middleware allows you to run code before a request is completed, then based on the incoming request, you can modify the response by rewriting, redirecting, adding headers, or setting cookies.
+Middleware allows you to run code before a request is completed, then based on the incoming request, you can modify the response by rewriting, redirecting, modifying the request or response headers, or responding directly.
 
 Middleware runs _before_ cached content, so you can personalize static files and pages. Common examples of Middleware would be authentication, A/B testing, localized pages, bot protection, and more. Regarding localized pages, you can start with [i18n routing](/docs/advanced-features/i18n-routing) and implement Middleware for more advanced use cases.
 
@@ -217,6 +217,45 @@ export function middleware(request: NextRequest) {
 ```
 
 > **Note:** Avoid setting large headers as it might cause [431 Request Header Fields Too Large](https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/431) error depending on your backend web server configuration.
+
+## Producing a Response
+
+You can respond to middleware directly by returning a `NextResponse` (responding from middleware is available since Next.js v13.0.0).
+
+To enable middleware responses, update `next.config.js`:
+
+```js
+// next.config.js
+module.exports = {
+  experimental: {
+    allowMiddlewareResponseBody: true,
+  },
+}
+```
+
+Once enabled, you can provide a response from middleware using the `Response` or `NextResponse` API:
+
+```ts
+// middleware.ts
+import { NextRequest, NextResponse } from 'next/server'
+import { isAuthenticated } from '@lib/auth'
+
+// Limit the middleware to paths starting with `/api/`
+export const config = {
+  matcher: '/api/:function*',
+}
+
+export function middleware(request: NextRequest) {
+  // Call our authentication function to check the request
+  if (!isAuthenticated(request)) {
+    // Respond with JSON indicating an error message
+    return new NextResponse(
+      JSON.stringify({ success: false, message: 'authentication failed' }),
+      { status: 401, headers: { 'content-type': 'application/json' } }
+    )
+  }
+}
+```
 
 ## Related
 
