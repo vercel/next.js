@@ -156,53 +156,59 @@ async function run(): Promise<void> {
    * If the user does not provide the necessary flags, prompt them for whether
    * to use TS or JS.
    */
-  if (!example && !program.typescript && !program.javascript) {
+  if (!example) {
     if (ciInfo.isCI) {
       // default to JavaScript in CI as we can't prompt to
       // prevent breaking setup flows
       program.javascript = true
       program.typescript = false
-      program.eslint = false
+      program.eslint = true
     } else {
-      const styledTypeScript = chalk.hex('#007acc')('TypeScript')
-      const { typescript } = await prompts(
-        {
-          type: 'toggle',
-          name: 'typescript',
-          message: `Would you like to use ${styledTypeScript} with this project?`,
-          initial: true,
-          active: 'Yes',
-          inactive: 'No',
-        },
-        {
-          /**
-           * User inputs Ctrl+C or Ctrl+D to exit the prompt. We should close the
-           * process and not write to the file system.
-           */
-          onCancel: () => {
-            console.error('Exiting.')
-            process.exit(1)
+      if (!program.typescript && !program.javascript) {
+        const styledTypeScript = chalk.hex('#007acc')('TypeScript')
+        const { typescript } = await prompts(
+          {
+            type: 'toggle',
+            name: 'typescript',
+            message: `Would you like to use ${styledTypeScript} with this project?`,
+            initial: true,
+            active: 'Yes',
+            inactive: 'No',
           },
-        }
-      )
+          {
+            /**
+             * User inputs Ctrl+C or Ctrl+D to exit the prompt. We should close the
+             * process and not write to the file system.
+             */
+            onCancel: () => {
+              console.error('Exiting.')
+              process.exit(1)
+            },
+          }
+        )
 
-      if (!program.eslint) {
+        /**
+         * Depending on the prompt response, set the appropriate program flags.
+         */
+        program.typescript = Boolean(typescript)
+        program.javascript = !Boolean(typescript)
+      }
+
+      if (
+        !process.argv.includes('--eslint') &&
+        !process.argv.includes('--no-eslint')
+      ) {
         const styledEslint = chalk.hex('#007acc')('ESLint')
         const { eslint } = await prompts({
           type: 'toggle',
           name: 'eslint',
           message: `Would you like to use ${styledEslint} with this project?`,
-          initial: false,
+          initial: true,
           active: 'Yes',
           inactive: 'No',
         })
         program.eslint = Boolean(eslint)
       }
-      /**
-       * Depending on the prompt response, set the appropriate program flags.
-       */
-      program.typescript = Boolean(typescript)
-      program.javascript = !Boolean(typescript)
     }
   }
 

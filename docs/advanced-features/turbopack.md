@@ -15,7 +15,7 @@ Turbopack can be used in Next.js 13 in both the `pages` and `app` directories:
 1. Create a Next.js 13 project with Turbopack
 
 ```bash
-npx create-next-app --example with-turbopack
+npx create-next-app@latest --example with-turbopack
 ```
 
 2. Start the Next.js development server (with Turbopack)

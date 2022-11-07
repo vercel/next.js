@@ -57,17 +57,17 @@ const experimentalWarning = execOnce(
   }
 )
 
-export function setHttpClientAndAgentOptions(config: NextConfig) {
+export function setHttpClientAndAgentOptions(config: {
+  httpAgentOptions?: NextConfig['httpAgentOptions']
+  experimental?: {
+    enableUndici?: boolean
+  }
+}) {
   if (isAboveNodejs16) {
-    if (config.experimental?.enableUndici && isAboveNodejs18) {
-      Log.warn(
-        `\`enableUndici\` option is unnecessary in Node.js v${NODE_18_VERSION} or greater.`
-      )
-    } else {
+    // Node.js 18 has undici built-in.
+    if (config.experimental?.enableUndici && !isAboveNodejs18) {
       // When appDir is enabled undici is the default because of Response.clone() issues in node-fetch
-      ;(global as any).__NEXT_USE_UNDICI = config.experimental?.appDir
-        ? true
-        : config.experimental?.enableUndici
+      ;(global as any).__NEXT_USE_UNDICI = config.experimental?.enableUndici
     }
   } else if (config.experimental?.enableUndici) {
     Log.warn(
@@ -258,6 +258,10 @@ function assignDefaults(dir: string, userConfig: { [key: string]: any }) {
     throw new Error(
       `Specified basePath is not a string, found type "${typeof result.basePath}"`
     )
+  }
+
+  if (result.experimental?.appDir) {
+    result.experimental.enableUndici = true
   }
 
   if (result.basePath !== '') {

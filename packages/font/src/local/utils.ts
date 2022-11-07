@@ -12,7 +12,6 @@ const extToFormat = {
 }
 
 type FontOptions = {
-  family: string
   src: Array<{
     path: string
     weight?: string
@@ -65,14 +64,10 @@ export function validateData(functionName: string, fontData: any): FontOptions {
     }
   }
 
-  let family: string | undefined
   src = src.map((fontFile: any) => {
     const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(fontFile.path)?.[1]
     if (!ext) {
       throw new Error(`Unexpected file \`${fontFile.path}\``)
-    }
-    if (!family) {
-      family = /(.*\/)?(.+?)\.(woff|woff2|eot|ttf|otf)$/.exec(fontFile.path)![2]
     }
 
     return {
@@ -99,7 +94,6 @@ export function validateData(functionName: string, fontData: any): FontOptions {
   }
 
   return {
-    family: family!,
     src,
     display,
     weight,

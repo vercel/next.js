@@ -53,13 +53,19 @@ export const projectSpecification: ProjectSpecification = {
     js: {
       deps: [],
       devDeps: [],
-      files: ['app/page.jsx', 'app/layout.jsx', 'pages/api/hello.js'],
+      files: [
+        'app/page.jsx',
+        'app/head.jsx',
+        'app/layout.jsx',
+        'pages/api/hello.js',
+      ],
     },
     ts: {
       deps: ['@types/node', '@types/react', '@types/react-dom', 'typescript'],
       devDeps: [],
       files: [
         'app/page.tsx',
+        'app/head.tsx',
         'app/layout.tsx',
         'pages/api/hello.ts',
         'tsconfig.json',

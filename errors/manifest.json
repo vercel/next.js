@@ -753,6 +753,14 @@
         {
           "title": "google-fonts-missing-subsets",
           "path": "/errors/google-fonts-missing-subsets.md"
+        },
+        {
+          "title": "invalid-segment-export",
+          "path": "/errors/invalid-segment-export.md"
+        },
+        {
+          "title": "next-router-not-mounted",
+          "path": "/errors/next-router-not-mounted.md"
         }
       ]
     }

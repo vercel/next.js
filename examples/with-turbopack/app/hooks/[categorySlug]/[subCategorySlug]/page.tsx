@@ -4,7 +4,7 @@ import { SkeletonCard } from '@/ui/SkeletonCard';
 
 export default function Page({ params }: PageProps) {
   const category = use(
-    fetchSubCategory(params.categorySlug, params.subCategory),
+    fetchSubCategory(params.categorySlug, params.subCategorySlug),
   );
   if (!category) return null;
   return (

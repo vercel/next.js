@@ -14,6 +14,9 @@ const customJestConfig = {
   globals: {
     AbortSignal: global.AbortSignal,
   },
+  moduleNameMapper: {
+    '@next/font/(.*)': '@next/font/$1',
+  },
 }
 
 // createJestConfig is exported in this way to ensure that next/jest can load the Next.js config which is async
