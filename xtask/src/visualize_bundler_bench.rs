@@ -89,9 +89,10 @@ fn generate_scaling(
                 .map(|stats| ns_to_ms(stats.point_estimate))
         });
 
-        // TODO: Avoid vector allocation -- not sure why this is necessary for
-        // typechecker
-        let time_range = fitting_range(time_range_iter.collect::<Vec<f64>>().iter());
+        // Ensure the time range starts at 0 instead of the minimum time value.
+        let time_range = 0.0..time_range_iter
+            // f64 does not implement Ord.
+            .fold(0.0, |max, time| if time > max { time } else { max });
 
         let file_name = output_path.join(format!("{}.svg", bench_name));
         let root = SVGBackend::new(&file_name, (960, 720)).into_drawing_area();
