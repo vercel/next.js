@@ -187,19 +187,34 @@ export function createTSPlugin(modules: {
       )
     }
 
-    function getIsClientEntry(fileName: string) {
+    function getIsClientEntry(
+      fileName: string,
+      throwOnInvalidDirective?: boolean
+    ) {
       const source = info.languageService.getProgram()?.getSourceFile(fileName)
       if (source) {
         let isClientEntry = false
         let isDirective = true
 
         ts.forEachChild(source!, (node) => {
-          if (isClientEntry || !isDirective) return
-
-          if (isDirective && ts.isExpressionStatement(node)) {
-            if (ts.isStringLiteral(node.expression)) {
-              if (node.expression.text === 'use client') {
+          if (
+            ts.isExpressionStatement(node) &&
+            ts.isStringLiteral(node.expression)
+          ) {
+            if (node.expression.text === 'use client') {
+              if (isDirective) {
                 isClientEntry = true
+              } else {
+                if (throwOnInvalidDirective) {
+                  const e = {
+                    messageText:
+                      'The `"use client"` directive must be put at the top of the file.',
+                    start: node.expression.getStart(),
+                    length:
+                      node.expression.getEnd() - node.expression.getStart(),
+                  }
+                  throw e
+                }
               }
             }
           } else {
@@ -473,7 +488,19 @@ export function createTSPlugin(modules: {
 
       const source = info.languageService.getProgram()?.getSourceFile(fileName)
       if (source) {
-        const isClientEntry = getIsClientEntry(fileName)
+        let isClientEntry = false
+
+        try {
+          isClientEntry = getIsClientEntry(fileName, true)
+        } catch (e: any) {
+          prior.push({
+            file: source,
+            category: ts.DiagnosticCategory.Error,
+            code: 71004,
+            ...e,
+          })
+          isClientEntry = false
+        }
 
         ts.forEachChild(source!, (node) => {
           if (ts.isImportDeclaration(node)) {
