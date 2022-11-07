@@ -69,7 +69,7 @@ async function createTreeCodeFromPath({
         // Use '' for segment as it's the page. There can't be a segment called '' so this is the safest way to add it.
         props[parallelKey] = `['', {}, {layoutOrPagePath: ${JSON.stringify(
           resolvedPagePath
-        )}, page: () => [require(${JSON.stringify(
+        )}, page: [() => require(${JSON.stringify(
           resolvedPagePath
         )}), ${JSON.stringify(resolvedPagePath)}]}]`
         continue
