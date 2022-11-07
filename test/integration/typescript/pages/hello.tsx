@@ -31,7 +31,7 @@ class Test2 extends Test {
 new Test2().show()
 
 export default function HelloPage(): JSX.Element {
-  const router = useRouter(true)
+  const router = useRouter()
   console.log(process.browser)
   console.log(router.pathname)
   console.log(router.isReady)
