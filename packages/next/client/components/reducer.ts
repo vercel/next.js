@@ -1112,6 +1112,7 @@ function clientReducer(
         tree: tree,
       }
     }
+    // TODO-APP: Add test for not scrolling to nearest layout when calling refresh.
     case ACTION_REFRESH: {
       const { cache, mutable } = action
       const href = state.canonicalUrl
@@ -1151,7 +1152,7 @@ function clientReducer(
           pushRef: state.pushRef,
           // Apply focus and scroll.
           // TODO-APP: might need to disable this for Fast Refresh.
-          focusAndScrollRef: { apply: true },
+          focusAndScrollRef: { apply: false },
           cache: cache,
           prefetchCache: state.prefetchCache,
           tree: mutable.patchedTree,
