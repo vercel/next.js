@@ -67,8 +67,8 @@ const FEATURE_MODULE_MAP: ReadonlyMap<Feature, string> = new Map([
   ['next/dynamic', '/next/dynamic.js'],
 ])
 const FEATURE_MODULE_REGEXP_MAP: ReadonlyMap<Feature, RegExp> = new Map([
-  ['@next/font/google', /\/font\/google\/target.css?.+$/],
-  ['@next/font/local', /\/font\/local\/target.css?.+$/],
+  ['@next/font/google', /\/@next\/font\/google\/target.css?.+$/],
+  ['@next/font/local', /\/@next\/font\/local\/target.css?.+$/],
 ])
 
 // List of build features used in webpack configuration
