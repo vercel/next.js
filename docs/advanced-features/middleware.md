@@ -232,7 +232,7 @@ module.exports = {
 };
 ```
 
-Once enabled, you can provide a response from middleware using the `NextResponse` API:
+Once enabled, you can provide a response from middleware using the `Response` or `NextResponse` API:
 
 ```ts
 // middleware.ts
