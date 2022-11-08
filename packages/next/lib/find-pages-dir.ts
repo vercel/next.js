@@ -57,6 +57,7 @@ export function findPagesDir(
   }
 
   return {
+    pages: pagesDir,
     pagesDir,
     appDir: isAppDirEnabled ? appDir : undefined,
   }
