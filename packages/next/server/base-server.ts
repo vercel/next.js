@@ -74,6 +74,8 @@ import { getHostname } from '../shared/lib/get-hostname'
 import { parseUrl as parseUrlUtil } from '../shared/lib/router/utils/parse-url'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
 import { MiddlewareMatcher } from '../build/analysis/get-page-static-info'
+import { RSC, RSC_VARY_HEADER } from '../client/components/app-router-headers'
+import { FLIGHT_PARAMETERS } from './app-render'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -1053,12 +1055,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       (isSSG || hasServerProps)
 
     if (isAppPath) {
-      res.setHeader(
-        'vary',
-        '__rsc__, __next_router_state_tree__, __next_router_prefetch__'
-      )
+      res.setHeader('vary', RSC_VARY_HEADER)
 
-      if (isSSG && req.headers['__rsc__']) {
+      if (isSSG && req.headers[RSC.toLowerCase()]) {
         if (!this.minimalMode) {
           isDataReq = true
         }
@@ -1067,9 +1066,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           opts.runtime !== 'experimental-edge' ||
           (this.serverOptions as any).webServerConfig
         ) {
-          delete req.headers['__rsc__']
-          delete req.headers['__next_router_state_tree__']
-          delete req.headers['__next_router_prefetch__']
+          for (const param of FLIGHT_PARAMETERS) {
+            delete req.headers[param.toString().toLowerCase()]
+          }
         }
       }
     }
@@ -1096,9 +1095,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       )
     }
 
-    // Don't delete query.__rsc__ yet, it still needs to be used in renderToHTML later
+    // Don't delete headers[RSC] yet, it still needs to be used in renderToHTML later
     const isFlightRequest = Boolean(
-      this.serverComponentManifest && req.headers.__rsc__
+      this.serverComponentManifest && req.headers[RSC.toLowerCase()]
     )
 
     // we need to ensure the status code if /404 is visited directly
