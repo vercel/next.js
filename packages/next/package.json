@@ -20,6 +20,7 @@
     "config.js",
     "config.d.ts",
     "constants.js",
+    "compat",
     "constants.d.ts",
     "document.js",
     "document.d.ts",
