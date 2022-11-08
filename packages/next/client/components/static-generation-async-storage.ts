@@ -12,8 +12,8 @@ export let staticGenerationAsyncStorage:
   | AsyncLocalStorage<StaticGenerationStore>
   | StaticGenerationStore = {}
 
-// @ts-expect-error we provide this on global in
+// @ts-expect-error we provide this on globalThis in
 // the edge and node runtime
-if (global.AsyncLocalStorage) {
-  staticGenerationAsyncStorage = new (global as any).AsyncLocalStorage()
+if (globalThis.AsyncLocalStorage) {
+  staticGenerationAsyncStorage = new (globalThis as any).AsyncLocalStorage()
 }
