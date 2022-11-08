@@ -123,6 +123,7 @@ import { RemotePattern } from '../shared/lib/image-config'
 import { eventSwcPlugins } from '../telemetry/events/swc-plugins'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { AppBuildManifest } from './webpack/plugins/app-build-manifest-plugin'
+import { RSC, RSC_VARY_HEADER } from '../client/components/app-router-headers'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -755,6 +756,10 @@ export default async function build(
           defaultLocale: string
           localeDetection?: false
         }
+        rsc: {
+          header: typeof RSC
+          varyHeader: typeof RSC_VARY_HEADER
+        }
       } = nextBuildSpan.traceChild('generate-routes-manifest').traceFn(() => {
         const sortedRoutes = getSortedRoutes([
           ...pageKeys.pages,
@@ -781,6 +786,10 @@ export default async function build(
           staticRoutes,
           dataRoutes: [],
           i18n: config.i18n || undefined,
+          rsc: {
+            header: RSC,
+            varyHeader: RSC_VARY_HEADER,
+          },
         }
       })
 

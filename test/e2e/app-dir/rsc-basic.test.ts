@@ -88,9 +88,6 @@ describe('app dir - rsc basics', () => {
       '__nextLocale',
       '__nextDefaultLocale',
       '__nextIsNotFound',
-      '__rsc__',
-      '__next_router_state_tree__',
-      '__next_router_prefetch__',
     ]
 
     const hasNextInternalQuery = inlineFlightContents.some((content) =>
@@ -108,9 +105,9 @@ describe('app dir - rsc basics', () => {
           requestsCount++
           return request.allHeaders().then((headers) => {
             if (
-              headers.__rsc__ === '1' &&
-              // Prefetches also include `__rsc__`
-              headers.__next_router_prefetch__ !== '1'
+              headers['RSC'.toLowerCase()] === '1' &&
+              // Prefetches also include `RSC`
+              headers['Next-Router-Prefetch'.toLowerCase()] !== '1'
             ) {
               hasFlightRequest = true
             }
@@ -185,41 +182,18 @@ describe('app dir - rsc basics', () => {
     }
   })
 
-  it('should refresh correctly with next/link', async () => {
+  it('should link correctly with next/link without mpa navigation to the page', async () => {
     // Select the button which is not hidden but rendered
     const selector = '#goto-next-link'
-    let hasFlightRequest = false
-    const browser = await webdriver(next.url, '/root', {
-      beforePageLoad(page) {
-        page.on('request', (request) => {
-          return request.allHeaders().then((headers) => {
-            if (
-              headers.__rsc__ === '1' &&
-              headers.__next_router_prefetch__ !== '1'
-            ) {
-              hasFlightRequest = true
-            }
-          })
-        })
-      },
-    })
+    const browser = await webdriver(next.url, '/root', {})
 
-    // wait for hydration
-    await new Promise((res) => setTimeout(res, 1000))
-    if (isNextDev) {
-      expect(hasFlightRequest).toBe(false)
-    }
-    await browser.elementByCss(selector).click()
+    await browser.eval('window.didNotReloadPage = true')
+    await browser.elementByCss(selector).click().waitForElementByCss('#query')
 
-    // wait for re-hydration
-    if (isNextDev) {
-      await check(
-        () => (hasFlightRequest ? 'success' : hasFlightRequest),
-        'success'
-      )
-    }
-    const refreshText = await browser.elementByCss(selector).text()
-    expect(refreshText).toBe('next link')
+    expect(await browser.eval('window.didNotReloadPage')).toBe(true)
+
+    const text = await browser.elementByCss('#query').text()
+    expect(text).toBe('query:0')
   })
 
   it('should escape streaming data correctly', async () => {
@@ -381,7 +355,7 @@ describe('app dir - rsc basics', () => {
       {},
       {
         headers: {
-          __rsc__: '1',
+          ['RSC'.toString()]: '1',
         },
       }
     ).then(async (response) => {
