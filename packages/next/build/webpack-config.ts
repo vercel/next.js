@@ -579,7 +579,7 @@ export default async function getBaseWebpackConfig(
     target = COMPILER_NAMES.server,
     appDir,
     middlewareMatchers,
-    minifyOverride = false,
+    noMangling = false,
   }: {
     buildId: string
     config: NextConfigComplete
@@ -594,7 +594,7 @@ export default async function getBaseWebpackConfig(
     target?: string
     appDir?: string
     middlewareMatchers?: MiddlewareMatcher[]
-    minifyOverride?: boolean
+    noMangling?: boolean
   }
 ): Promise<webpack.Configuration> {
   const isClient = compilerType === COMPILER_NAMES.client
@@ -983,7 +983,7 @@ export default async function getBaseWebpackConfig(
     },
     mangle: {
       safari10: true,
-      ...(process.env.__NEXT_MANGLING_DEBUG || minifyOverride
+      ...(process.env.__NEXT_MANGLING_DEBUG || noMangling
         ? {
             toplevel: true,
             module: true,
