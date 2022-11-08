@@ -9,6 +9,12 @@ import { relativizeURL } from '../../shared/lib/router/utils/relativize-url'
 import { waitUntilSymbol } from './spec-extension/fetch-event'
 import { NextURL } from './next-url'
 import { stripInternalSearchParams } from '../internal-utils'
+import { normalizeRscPath } from '../../shared/lib/router/utils/app-paths'
+import {
+  NEXT_ROUTER_PREFETCH,
+  NEXT_ROUTER_STATE_TREE,
+  RSC,
+} from '../../client/components/app-router-headers'
 
 class NextRequestHint extends NextRequest {
   sourcePage: string
@@ -36,9 +42,9 @@ class NextRequestHint extends NextRequest {
 }
 
 const FLIGHT_PARAMETERS = [
-  '__rsc__',
-  '__next_router_state_tree__',
-  '__next_router_prefetch__',
+  [RSC],
+  [NEXT_ROUTER_STATE_TREE],
+  [NEXT_ROUTER_PREFETCH],
 ] as const
 
 export async function adapter(params: {
@@ -48,6 +54,8 @@ export async function adapter(params: {
 }): Promise<FetchEventResult> {
   // TODO-APP: use explicit marker for this
   const isEdgeRendering = typeof self.__BUILD_MANIFEST !== 'undefined'
+
+  params.request.url = normalizeRscPath(params.request.url, true)
 
   const requestUrl = new NextURL(params.request.url, {
     headers: params.request.headers,
@@ -68,7 +76,7 @@ export async function adapter(params: {
   // Parameters should only be stripped for middleware
   if (!isEdgeRendering) {
     for (const param of FLIGHT_PARAMETERS) {
-      requestHeaders.delete(param)
+      requestHeaders.delete(param.toString().toLowerCase())
     }
   }
 
@@ -102,6 +110,11 @@ export async function adapter(params: {
 
   const event = new NextFetchEvent({ request, page: params.page })
   let response = await params.handler(request, event)
+
+  // check if response is a Response object
+  if (response && !(response instanceof Response)) {
+    throw new TypeError('Expected an instance of Response to be returned')
+  }
 
   /**
    * For rewrites we must always include the locale in the final pathname
@@ -186,6 +199,10 @@ export async function adapter(params: {
 export function blockUnallowedResponse(
   promise: Promise<FetchEventResult>
 ): Promise<FetchEventResult> {
+  if (process.env.__NEXT_ALLOW_MIDDLEWARE_RESPONSE_BODY) {
+    return promise
+  }
+
   return promise.then((result) => {
     if (result.response?.body) {
       console.error(

@@ -21,6 +21,7 @@ export type SWC_TARGET_TRIPLE =
 export type Feature =
   | 'next/image'
   | 'next/future/image'
+  | 'next/legacy/image'
   | 'next/script'
   | 'next/dynamic'
   | 'swcLoader'
@@ -33,6 +34,7 @@ export type Feature =
   | 'swcImportSource'
   | 'swcEmotion'
   | `swc/target/${SWC_TARGET_TRIPLE}`
+  | 'turbotrace'
 
 interface FeatureUsage {
   featureName: Feature
@@ -58,6 +60,7 @@ interface Connection {
 const FEATURE_MODULE_MAP: ReadonlyMap<Feature, string> = new Map([
   ['next/image', '/next/image.js'],
   ['next/future/image', '/next/future/image.js'],
+  ['next/legacy/image', '/next/legacy/image.js'],
   ['next/script', '/next/script.js'],
   ['next/dynamic', '/next/dynamic.js'],
 ])
@@ -86,6 +89,7 @@ const BUILD_FEATURES: Array<Feature> = [
   'swc/target/x86_64-unknown-linux-musl',
   'swc/target/aarch64-unknown-linux-musl',
   'swc/target/aarch64-pc-windows-msvc',
+  'turbotrace',
 ]
 
 const ELIMINATED_PACKAGES = new Set<string>()

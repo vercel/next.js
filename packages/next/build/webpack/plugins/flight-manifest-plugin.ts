@@ -8,12 +8,14 @@
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import { FLIGHT_MANIFEST } from '../../../shared/lib/constants'
 import { relative } from 'path'
-import { isClientComponentModule } from '../loaders/utils'
+import { isClientComponentModule, regexCSS } from '../loaders/utils'
 
 import {
   edgeServerModuleIds,
   serverModuleIds,
 } from './flight-client-entry-plugin'
+
+import { traverseModules } from '../utils'
 
 // This is the module that will be used to anchor all client references to.
 // I.e. it will have all the client files as async deps from this point on.
@@ -24,7 +26,6 @@ import {
 
 interface Options {
   dev: boolean
-  fontLoaderTargets?: string[]
 }
 
 /**
@@ -70,6 +71,10 @@ export type FlightManifest = {
 
 export type FlightCSSManifest = {
   [modulePath: string]: string[]
+} & {
+  __entry_css__?: {
+    [entry: string]: string[]
+  }
 }
 
 const PLUGIN_NAME = 'FlightManifestPlugin'
@@ -79,39 +84,11 @@ const PLUGIN_NAME = 'FlightManifestPlugin'
 // So that react could unwrap the async module from promise and render module itself.
 export const ASYNC_CLIENT_MODULES = new Set<string>()
 
-export function traverseModules(
-  compilation: webpack.Compilation,
-  callback: (
-    mod: any,
-    chunk: webpack.Chunk,
-    chunkGroup: typeof compilation.chunkGroups[0]
-  ) => any
-) {
-  compilation.chunkGroups.forEach((chunkGroup) => {
-    chunkGroup.chunks.forEach((chunk: webpack.Chunk) => {
-      const chunkModules = compilation.chunkGraph.getChunkModulesIterable(
-        chunk
-        // TODO: Update type so that it doesn't have to be cast.
-      ) as Iterable<webpack.NormalModule>
-      for (const mod of chunkModules) {
-        callback(mod, chunk, chunkGroup)
-        const anyModule = mod as any
-        if (anyModule.modules) {
-          for (const subMod of anyModule.modules)
-            callback(subMod, chunk, chunkGroup)
-        }
-      }
-    })
-  })
-}
-
 export class FlightManifestPlugin {
   dev: Options['dev'] = false
-  fontLoaderTargets?: Options['fontLoaderTargets']
 
   constructor(options: Options) {
     this.dev = options.dev
-    this.fontLoaderTargets = options.fontLoaderTargets
   }
 
   apply(compiler: webpack.Compiler) {
@@ -119,12 +96,12 @@ export class FlightManifestPlugin {
       PLUGIN_NAME,
       (compilation, { normalModuleFactory }) => {
         compilation.dependencyFactories.set(
-          (webpack as any).dependencies.ModuleDependency,
+          webpack.dependencies.ModuleDependency,
           normalModuleFactory
         )
         compilation.dependencyTemplates.set(
-          (webpack as any).dependencies.ModuleDependency,
-          new (webpack as any).dependencies.NullDependency.Template()
+          webpack.dependencies.ModuleDependency,
+          new webpack.dependencies.NullDependency.Template()
         )
       }
     )
@@ -152,7 +129,6 @@ export class FlightManifestPlugin {
       __edge_ssr_module_mapping__: {},
     }
     const dev = this.dev
-    const fontLoaderTargets = this.fontLoaderTargets
 
     const clientRequestsSet = new Set()
 
@@ -177,12 +153,8 @@ export class FlightManifestPlugin {
         id: ModuleId,
         mod: webpack.NormalModule
       ) {
-        const isFontLoader = fontLoaderTargets?.some((fontLoaderTarget) =>
-          mod.resource?.startsWith(`${fontLoaderTarget}?`)
-        )
         const isCSSModule =
-          isFontLoader ||
-          mod.resource?.endsWith('.css') ||
+          regexCSS.test(mod.resource) ||
           mod.type === 'css/mini-extract' ||
           (!!mod.loaders &&
             (dev
@@ -214,13 +186,13 @@ export class FlightManifestPlugin {
           context,
           mod.resourceResolveData?.path || resource
         )
+
         if (!ssrNamedModuleId.startsWith('.'))
-          // TODO use getModuleId instead
           ssrNamedModuleId = `./${ssrNamedModuleId.replace(/\\/g, '/')}`
 
         if (isCSSModule) {
+          const chunks = [...chunk.files].filter((f) => f.endsWith('.css'))
           if (!manifest[resource]) {
-            const chunks = [...chunk.files].filter((f) => f.endsWith('.css'))
             manifest[resource] = {
               default: {
                 id,
@@ -228,6 +200,13 @@ export class FlightManifestPlugin {
                 chunks,
               },
             }
+          } else {
+            // It is possible that there are multiple modules with the same resource,
+            // e.g. extracted by mini-css-extract-plugin. In that case we need to
+            // merge the chunks.
+            manifest[resource].default.chunks = [
+              ...new Set([...manifest[resource].default.chunks, ...chunks]),
+            ]
           }
 
           if (chunkGroup.name) {
@@ -345,7 +324,7 @@ export class FlightManifestPlugin {
           // TODO: Update type so that it doesn't have to be cast.
         ) as Iterable<webpack.NormalModule>
         for (const mod of chunkModules) {
-          const modId = compilation.chunkGraph.getModuleId(mod)
+          const modId: string = compilation.chunkGraph.getModuleId(mod) + ''
 
           recordModule(chunk, modId, mod)
 

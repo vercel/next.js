@@ -207,6 +207,18 @@ async function loadWasm(importPath = '') {
         getTargetTriple() {
           return undefined
         },
+        turbo: {
+          startDev: () => {
+            Log.error('Wasm binding does not support --turbo yet')
+          },
+          startTrace: () => {
+            Log.error('Wasm binding does not support trace yet')
+          },
+        },
+        mdx: {
+          compile: (src, options) => bindings.mdxCompile(src, options),
+          compileSync: (src, options) => bindings.mdxCompileSync(src, options),
+        },
       }
       return wasmBindings
     } catch (e) {
@@ -325,10 +337,6 @@ function loadNative() {
         return bindings.minifySync(toBuffer(src), toBuffer(options ?? {}))
       },
 
-      bundle(options) {
-        return bindings.bundle(toBuffer(options))
-      },
-
       parse(src, options) {
         return bindings.parse(src, toBuffer(options ?? {}))
       },
@@ -337,6 +345,23 @@ function loadNative() {
       initCustomTraceSubscriber: bindings.initCustomTraceSubscriber,
       teardownTraceSubscriber: bindings.teardownTraceSubscriber,
       teardownCrashReporter: bindings.teardownCrashReporter,
+      turbo: {
+        startDev: (options) => {
+          const devOptions = {
+            ...options,
+            noOpen: options.noOpen ?? true,
+          }
+          bindings.startTurboDev(toBuffer(devOptions))
+        },
+        startTrace: (options = {}) =>
+          bindings.runTurboTracing(toBuffer({ exact: true, ...options })),
+      },
+      mdx: {
+        compile: (src, options) =>
+          bindings.mdxCompile(src, toBuffer(options ?? {})),
+        compileSync: (src, options) =>
+          bindings.mdxCompileSync(src, toBuffer(options ?? {})),
+      },
     }
     return nativeBindings
   }
@@ -371,11 +396,6 @@ export async function minify(src, options) {
 export function minifySync(src, options) {
   let bindings = loadBindingsSync()
   return bindings.minifySync(src, options)
-}
-
-export async function bundle(options) {
-  let bindings = loadBindingsSync()
-  return bindings.bundle(toBuffer(options))
 }
 
 export async function parse(src, options) {

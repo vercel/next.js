@@ -340,12 +340,14 @@ function getCodeAnalyzer(params: {
   dev: boolean
   compiler: webpack.Compiler
   compilation: webpack.Compilation
+  allowMiddlewareResponseBody: boolean
 }) {
   return (parser: webpack.javascript.JavascriptParser) => {
     const {
       dev,
       compiler: { webpack: wp },
       compilation,
+      allowMiddlewareResponseBody,
     } = params
     const { hooks } = parser
 
@@ -560,8 +562,11 @@ Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime`,
         .for(`${prefix}WebAssembly.instantiate`)
         .tap(NAME, handleWrapWasmInstantiateExpression)
     }
-    hooks.new.for('Response').tap(NAME, handleNewResponseExpression)
-    hooks.new.for('NextResponse').tap(NAME, handleNewResponseExpression)
+
+    if (!allowMiddlewareResponseBody) {
+      hooks.new.for('Response').tap(NAME, handleNewResponseExpression)
+      hooks.new.for('NextResponse').tap(NAME, handleNewResponseExpression)
+    }
     hooks.callMemberChain.for('process').tap(NAME, handleCallMemberChain)
     hooks.expressionMemberChain.for('process').tap(NAME, handleCallMemberChain)
     hooks.importCall.tap(NAME, handleImport)
@@ -801,19 +806,23 @@ export default class MiddlewarePlugin {
   private readonly dev: boolean
   private readonly sriEnabled: boolean
   private readonly hasFontLoaders: boolean
+  private readonly allowMiddlewareResponseBody: boolean
 
   constructor({
     dev,
     sriEnabled,
     hasFontLoaders,
+    allowMiddlewareResponseBody,
   }: {
     dev: boolean
     sriEnabled: boolean
     hasFontLoaders: boolean
+    allowMiddlewareResponseBody: boolean
   }) {
     this.dev = dev
     this.sriEnabled = sriEnabled
     this.hasFontLoaders = hasFontLoaders
+    this.allowMiddlewareResponseBody = allowMiddlewareResponseBody
   }
 
   public apply(compiler: webpack.Compiler) {
@@ -826,6 +835,7 @@ export default class MiddlewarePlugin {
         dev: this.dev,
         compiler,
         compilation,
+        allowMiddlewareResponseBody: this.allowMiddlewareResponseBody,
       })
       hooks.parser.for('javascript/auto').tap(NAME, codeAnalyzer)
       hooks.parser.for('javascript/dynamic').tap(NAME, codeAnalyzer)
@@ -851,7 +861,7 @@ export default class MiddlewarePlugin {
       compilation.hooks.processAssets.tap(
         {
           name: 'NextJsMiddlewareManifest',
-          stage: (webpack as any).Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
+          stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
         },
         getCreateAssets({
           compilation,

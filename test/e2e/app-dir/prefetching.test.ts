@@ -11,10 +11,6 @@ describe('app dir prefetching', () => {
     return
   }
 
-  if (process.env.NEXT_TEST_REACT_VERSION === '^17') {
-    it('should skip for react v17', () => {})
-    return
-  }
   let next: NextInstance
 
   beforeAll(async () => {
@@ -54,5 +50,14 @@ describe('app dir prefetching', () => {
     expect(await browser.waitForElementByCss('#dashboard-page').text()).toBe(
       'Welcome to the dashboard'
     )
+  })
+
+  it('should not have prefetch error for static path', async () => {
+    const browser = await webdriver(next.url, '/')
+    await browser.eval('window.nd.router.prefetch("/dashboard/123")')
+    await waitFor(3000)
+    await browser.eval('window.nd.router.push("/dashboard/123")')
+    expect(next.cliOutput).not.toContain('ReferenceError')
+    expect(next.cliOutput).not.toContain('is not defined')
   })
 })

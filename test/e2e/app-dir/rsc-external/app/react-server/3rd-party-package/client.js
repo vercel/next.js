@@ -1,4 +1,4 @@
-'client'
+'use client'
 
 import v from 'conditional-exports'
 import v1 from 'conditional-exports/subpath'

@@ -4,7 +4,7 @@ export default function PrefetchFalsePage() {
   return (
     <div>
       <Link href="/about" prefetch={false}>
-        <a>Prefetch set to false</a>
+        Prefetch set to false
       </Link>
     </div>
   )

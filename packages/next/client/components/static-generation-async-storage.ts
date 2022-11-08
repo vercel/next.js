@@ -12,7 +12,8 @@ export let staticGenerationAsyncStorage:
   | AsyncLocalStorage<StaticGenerationStore>
   | StaticGenerationStore = {}
 
-if (process.env.NEXT_RUNTIME !== 'edge' && typeof window === 'undefined') {
-  staticGenerationAsyncStorage =
-    new (require('async_hooks').AsyncLocalStorage)()
+// @ts-expect-error we provide this on global in
+// the edge and node runtime
+if (global.AsyncLocalStorage) {
+  staticGenerationAsyncStorage = new (global as any).AsyncLocalStorage()
 }

@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'async_hooks'
 import type { AssetBinding } from '../../../build/webpack/loaders/get-module-build-info'
 import {
   decorateServerError,
@@ -13,6 +14,7 @@ import { validateURL } from '../utils'
 import { pick } from '../../../lib/pick'
 import { fetchInlineAsset } from './fetch-inline-assets'
 import type { EdgeFunctionDefinition } from '../../../build/webpack/plugins/middleware-plugin'
+import { UnwrapPromise } from '../../../lib/coalesced-function'
 
 const WEBPACK_HASH_REGEX =
   /__webpack_require__\.h = function\(\) \{ return "[0-9a-f]+"; \}/g
@@ -264,6 +266,7 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
 
       const __Request = context.Request
       context.Request = class extends __Request {
+        next?: NextFetchRequestConfig | undefined
         constructor(input: URL | RequestInfo, init?: RequestInit | undefined) {
           const url =
             typeof input !== 'string' && 'url' in input
@@ -271,6 +274,7 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
               : String(input)
           validateURL(url)
           super(url, init)
+          this.next = init?.next
         }
       }
 
@@ -285,6 +289,8 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
       }
 
       Object.assign(context, wasm)
+
+      context.AsyncLocalStorage = AsyncLocalStorage
 
       return context
     },
@@ -337,9 +343,15 @@ export async function getModuleContext(options: ModuleContextOptions): Promise<{
   paths: Map<string, string>
   warnedEvals: Set<string>
 }> {
-  let moduleContext = options.useCache
-    ? moduleContexts.get(options.moduleName)
-    : await getModuleContextShared(options)
+  let moduleContext:
+    | UnwrapPromise<ReturnType<typeof getModuleContextShared>>
+    | undefined
+
+  if (options.useCache) {
+    moduleContext =
+      moduleContexts.get(options.moduleName) ||
+      (await getModuleContextShared(options))
+  }
 
   if (!moduleContext) {
     moduleContext = await createModuleContext(options)

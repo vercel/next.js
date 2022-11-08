@@ -28,11 +28,9 @@ import {
   PAGES_MANIFEST,
   PHASE_EXPORT,
   PRERENDER_MANIFEST,
-  SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
 } from '../shared/lib/constants'
 import loadConfig from '../server/config'
-import { isTargetLikeServerless } from '../server/utils'
 import { ExportPathMap, NextConfigComplete } from '../server/config-shared'
 import { eventCliSession } from '../telemetry/events'
 import { hasNextSupport } from '../telemetry/ci-info'
@@ -45,6 +43,15 @@ import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import { getPagePath } from '../server/require'
 import { Span } from '../trace'
 import { FontConfig } from '../server/font-utils'
+import {
+  loadRequireHook,
+  overrideBuiltInReactPackages,
+} from '../build/webpack/require-hook'
+
+loadRequireHook()
+if (process.env.NEXT_PREBUNDLED_REACT) {
+  overrideBuiltInReactPackages()
+}
 
 const exists = promisify(existsOrig)
 
@@ -175,12 +182,14 @@ export default async function exportApp(
           isSrcDir: null,
           hasNowJson: !!(await findUp('now.json', { cwd: dir })),
           isCustomServer: null,
+          turboFlag: false,
+          pagesDir: null,
+          appDir: null,
         })
       )
     }
 
     const subFolders = nextConfig.trailingSlash && !options.buildExport
-    const isLikeServerless = nextConfig.target !== 'server'
 
     if (!options.silent && !options.buildExport) {
       Log.info(`using build directory: ${distDir}`)
@@ -215,7 +224,7 @@ export default async function exportApp(
       !options.pages &&
       (require(join(
         distDir,
-        isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
+        SERVER_DIRECTORY,
         PAGES_MANIFEST
       )) as PagesManifest)
 
@@ -611,7 +620,6 @@ export default async function exportApp(
             serverRuntimeConfig,
             subFolders,
             buildExport: options.buildExport,
-            serverless: isTargetLikeServerless(nextConfig.target),
             optimizeFonts: nextConfig.optimizeFonts as FontConfig,
             optimizeCss: nextConfig.experimental.optimizeCss,
             disableOptimizedLoading:
@@ -673,7 +681,7 @@ export default async function exportApp(
           }
           route = normalizePagePath(route)
 
-          const pagePath = getPagePath(pageName, distDir, isLikeServerless)
+          const pagePath = getPagePath(pageName, distDir)
           const distPagesDir = join(
             pagePath,
             // strip leading / and then recurse number of nested dirs

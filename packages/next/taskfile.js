@@ -7,8 +7,6 @@ const glob = require('glob')
 // eslint-disable-next-line import/no-extraneous-dependencies
 const fs = require('fs-extra')
 // eslint-disable-next-line import/no-extraneous-dependencies
-const escapeRegex = require('escape-string-regexp')
-// eslint-disable-next-line import/no-extraneous-dependencies
 const resolveFrom = require('resolve-from')
 
 export async function next__polyfill_nomodule(task, opts) {
@@ -98,26 +96,6 @@ export async function ncc_node_html_parser(task, opts) {
     )
     .ncc({ packageName: 'node-html-parser', externals, target: 'es5' })
     .target('compiled/node-html-parser')
-
-  const filePath = join(__dirname, 'compiled/node-html-parser/index.js')
-  const content = fs.readFileSync(filePath, 'utf8')
-  // remove AMD define branch as this forces the module to not
-  // be treated as commonjs in serverless mode
-  // TODO: this can be removed after serverless target is removed
-  fs.writeFileSync(
-    filePath,
-    content.replace(
-      new RegExp(
-        escapeRegex(
-          'if(typeof define=="function"&&typeof define.amd=="object"&&define.amd){define((function(){return '
-        ) +
-          '\\w' +
-          escapeRegex('}))}else '),
-        'g'
-      ),
-      ''
-    )
-  )
 }
 
 // eslint-disable-next-line camelcase
@@ -167,6 +145,76 @@ export async function ncc_node_fetch(task, opts) {
     .source(opts.src || relative(__dirname, require.resolve('node-fetch')))
     .ncc({ packageName: 'node-fetch', externals })
     .target('compiled/node-fetch')
+}
+
+externals['anser'] = 'next/dist/compiled/anser'
+export async function ncc_node_anser(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('anser')))
+    .ncc({ packageName: 'anser', externals })
+    .target('compiled/anser')
+}
+
+externals['stacktrace-parser'] = 'next/dist/compiled/stacktrace-parser'
+export async function ncc_node_stacktrace_parser(task, opts) {
+  await task
+    .source(
+      opts.src || relative(__dirname, require.resolve('stacktrace-parser'))
+    )
+    .ncc({ packageName: 'stacktrace-parser', externals })
+    .target('compiled/stacktrace-parser')
+}
+
+externals['data-uri-to-buffer'] = 'next/dist/compiled/data-uri-to-buffer'
+export async function ncc_node_data_uri_to_buffer(task, opts) {
+  await task
+    .source(
+      opts.src || relative(__dirname, require.resolve('data-uri-to-buffer'))
+    )
+    .ncc({ packageName: 'data-uri-to-buffer', externals })
+    .target('compiled/data-uri-to-buffer')
+}
+
+externals['css.escape'] = 'next/dist/compiled/css.escape'
+export async function ncc_node_cssescape(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('css.escape')))
+    .ncc({ packageName: 'css.escape', externals })
+    .target('compiled/css.escape')
+}
+
+externals['shell-quote'] = 'next/dist/compiled/shell-quote'
+export async function ncc_node_shell_quote(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('shell-quote')))
+    .ncc({ packageName: 'shell-quote', externals })
+    .target('compiled/shell-quote')
+}
+
+externals['platform'] = 'next/dist/compiled/platform'
+export async function ncc_node_platform(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('platform')))
+    .ncc({ packageName: 'platform', externals })
+    .target('compiled/platform')
+
+  const clientFile = join(__dirname, 'compiled/platform/platform.js')
+  const content = fs.readFileSync(clientFile, 'utf8')
+  // remove AMD define branch as this forces the module to not
+  // be treated as commonjs in serverless/client mode
+  fs.writeFileSync(
+    clientFile,
+    content.replace(
+      new RegExp(
+        'if(typeof define=="function"&&typeof define.amd=="object"&&define.amd){r.platform=d;define((function(){return d}))}else '.replace(
+          /[|\\{}()[\]^$+*?.-]/g,
+          '\\$&'
+        ),
+        'g'
+      ),
+      ''
+    )
+  )
 }
 
 externals['undici'] = 'next/dist/compiled/undici'
@@ -1445,8 +1493,63 @@ export async function ncc_icss_utils(task, opts) {
     })
     .target('compiled/icss-utils')
 }
+
+externals['scheduler'] = 'next/dist/compiled/scheduler'
+export async function ncc_react(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('scheduler')))
+    .ncc({ packageName: 'scheduler', externals })
+    .target('compiled/scheduler')
+
+  const reactDir = dirname(
+    relative(__dirname, require.resolve(`react-builtin/package.json`))
+  )
+  const reactDomDir = dirname(
+    relative(__dirname, require.resolve(`react-dom-builtin/package.json`))
+  )
+
+  // TODO-APP: remove unused fields from package.json and unused files
+  await task.source(join(reactDir, '*.{json,js}')).target(`compiled/react`)
+  await task.source(join(reactDir, 'LICENSE')).target(`compiled/react`)
+  await task.source(join(reactDir, 'cjs/**/*.js')).target(`compiled/react/cjs`)
+
+  await task
+    .source(join(reactDomDir, '*.{json,js}'))
+    .target(`compiled/react-dom`)
+  await task.source(join(reactDomDir, 'LICENSE')).target(`compiled/react-dom`)
+  await task
+    .source(join(reactDomDir, 'cjs/**/*.js'))
+    // eslint-disable-next-line require-yield
+    .run({ every: true }, function* (file) {
+      const source = file.data.toString()
+      // We replace the module/chunk loading code with our own implementaion in Next.js.
+      file.data = source.replace(
+        /require\(["']scheduler["']\)/g,
+        'require("next/dist/compiled/scheduler")'
+      )
+    })
+    .target(`compiled/react-dom/cjs`)
+
+  // Remove unused files
+  const reactDomCompiledDir = join(__dirname, 'compiled/react-dom')
+  await fs.remove(join(reactDomCompiledDir, 'static.js'))
+  await fs.remove(join(reactDomCompiledDir, 'static.node.js'))
+  await fs.remove(join(reactDomCompiledDir, 'static.browser.js'))
+  await fs.remove(join(reactDomCompiledDir, 'unstable_testing.js'))
+  await fs.remove(join(reactDomCompiledDir, 'test-utils.js'))
+  await fs.remove(join(reactDomCompiledDir, 'profiling.js'))
+  await fs.remove(
+    join(reactDomCompiledDir, 'unstable_server-external-runtime.js')
+  )
+}
+
 // eslint-disable-next-line camelcase
-export async function copy_react_server_dom_webpack(task, opts) {
+export async function ncc_react_server_dom_webpack(task, opts) {
+  // Use installed versions instead of bundled version
+  const peerDeps = {
+    react: 'react',
+    'react-dom': 'react-dom',
+  }
   await fs.mkdir(join(__dirname, 'compiled/react-server-dom-webpack'), {
     recursive: true,
   })
@@ -1455,47 +1558,52 @@ export async function copy_react_server_dom_webpack(task, opts) {
     JSON.stringify({ name: 'react-server-dom-webpack', main: './index.js' })
   )
   await task
-    .source(require.resolve('react-server-dom-webpack'))
+    .source(require.resolve('react-server-dom-webpack/client'))
+    .target('compiled/react-server-dom-webpack')
+  await task
+    .source(require.resolve('react-server-dom-webpack/server.browser'))
     .target('compiled/react-server-dom-webpack')
 
+  // Replace webpack internal apis before bundling
   await task
     .source(
       join(
-        dirname(require.resolve('react-server-dom-webpack')),
-        'cjs/react-server-dom-webpack.*'
+        dirname(require.resolve('react-server-dom-webpack/package.json')),
+        'cjs/react-server-dom-webpack-*'
       )
     )
     // eslint-disable-next-line require-yield
     .run({ every: true }, function* (file) {
       const source = file.data.toString()
-      // We replace the module/chunk loading code with our own implementaion in Next.js.
+      // We replace the module/chunk loading code with our own implementation in Next.js.
       file.data = source
         .replace(/__webpack_chunk_load__/g, 'globalThis.__next_chunk_load__')
         .replace(/__webpack_require__/g, 'globalThis.__next_require__')
     })
     .target('compiled/react-server-dom-webpack/cjs')
 
+  // Compile entries
   await task
-    .source(
-      join(
-        dirname(require.resolve('react-server-dom-webpack')),
-        'cjs/react-server-dom-webpack-writer.browser.*'
-      )
-    )
-    .target('compiled/react-server-dom-webpack/cjs')
+    .source('compiled/react-server-dom-webpack/server.browser.js')
+    .ncc({
+      minify: false,
+      externals: peerDeps,
+    })
+    .target('compiled/react-server-dom-webpack')
 
   await task
-    .source(
-      join(
-        dirname(require.resolve('react-server-dom-webpack')),
-        'writer.browser.server.js'
-      )
-    )
+    .source('compiled/react-server-dom-webpack/client.js')
+    .ncc({
+      minify: false,
+      externals: peerDeps,
+    })
     .target('compiled/react-server-dom-webpack')
+
+  await fs.remove(join(__dirname, 'compiled/react-server-dom-webpack/cjs'))
 }
 
-// eslint-disable-next-line camelcase
 externals['sass-loader'] = 'next/dist/compiled/sass-loader'
+// eslint-disable-next-line camelcase
 export async function ncc_sass_loader(task, opts) {
   const sassLoaderPath = require.resolve('sass-loader')
   const utilsPath = join(dirname(sassLoaderPath), 'utils.js')
@@ -1850,6 +1958,12 @@ export async function ncc(task, opts) {
         'ncc_get_orientation',
         'ncc_hapi_accept',
         'ncc_node_fetch',
+        'ncc_node_anser',
+        'ncc_node_stacktrace_parser',
+        'ncc_node_data_uri_to_buffer',
+        'ncc_node_cssescape',
+        'ncc_node_platform',
+        'ncc_node_shell_quote',
         'ncc_undici',
         'ncc_acorn',
         'ncc_amphtml_validator',
@@ -1952,7 +2066,8 @@ export async function ncc(task, opts) {
       'copy_regenerator_runtime',
       'copy_babel_runtime',
       'copy_constants_browserify',
-      'copy_react_server_dom_webpack',
+      'ncc_react',
+      'ncc_react_server_dom_webpack',
       'copy_react_is',
       'ncc_sass_loader',
       'ncc_jest_worker',

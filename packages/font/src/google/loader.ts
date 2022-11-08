@@ -1,42 +1,82 @@
 import type { AdjustFontFallback, FontLoader } from 'next/font'
 // @ts-ignore
-import fetch from 'next/dist/compiled/node-fetch'
+import { calculateSizeAdjustValues } from 'next/dist/server/font-utils'
 // @ts-ignore
-import { calculateOverrideValues } from 'next/dist/server/font-utils'
+import * as Log from 'next/dist/build/output/log'
+// @ts-ignore
+import chalk from 'next/dist/compiled/chalk'
+// @ts-ignore
 import {
   fetchCSSFromGoogleFonts,
+  fetchFontFile,
   getFontAxes,
   getUrl,
   validateData,
 } from './utils'
+
+const cssCache = new Map<string, Promise<string>>()
+const fontCache = new Map<string, any>()
+
+// regexp is based on https://github.com/sindresorhus/escape-string-regexp
+const reHasRegExp = /[|\\{}()[\]^$+*?.-]/
+const reReplaceRegExp = /[|\\{}()[\]^$+*?.-]/g
+
+function escapeStringRegexp(str: string) {
+  // see also: https://github.com/lodash/lodash/blob/2da024c3b4f9947a48517639de7560457cd4ec6c/escapeRegExp.js#L23
+  if (reHasRegExp.test(str)) {
+    return str.replace(reReplaceRegExp, '\\$&')
+  }
+  return str
+}
 
 const downloadGoogleFonts: FontLoader = async ({
   functionName,
   data,
   config,
   emitFontFile,
+  isServer,
 }) => {
-  if (!config?.subsets) {
-    throw new Error(
-      'Please specify subsets for `@next/font/google` in your `next.config.js`'
-    )
-  }
+  const subsets = config?.subsets || []
 
   const {
     fontFamily,
-    weight,
-    style,
+    weights,
+    styles,
     display,
     preload,
     selectedVariableAxes,
     fallback,
     adjustFontFallback,
     variable,
+    subsets: callSubsets,
   } = validateData(functionName, data)
-  const fontAxes = getFontAxes(fontFamily, weight, style, selectedVariableAxes)
+
+  if (isServer && preload && !callSubsets && !config?.subsets) {
+    Log.warn(
+      `The ${chalk.bold('@next/font/google')} font ${chalk.bold(
+        fontFamily
+      )} has no selected subsets. Please specify subsets in the function call or in your ${chalk.bold(
+        'next.config.js'
+      )}, otherwise no fonts will be preloaded. Read more: https://nextjs.org/docs/messages/google-fonts-missing-subsets`
+    )
+  }
+
+  const fontAxes = getFontAxes(
+    fontFamily,
+    weights,
+    styles,
+    selectedVariableAxes
+  )
   const url = getUrl(fontFamily, fontAxes, display)
 
-  const fontFaceDeclarations = await fetchCSSFromGoogleFonts(url, fontFamily)
+  let cachedCssRequest = cssCache.get(url)
+  const fontFaceDeclarations =
+    cachedCssRequest ?? (await fetchCSSFromGoogleFonts(url, fontFamily))
+  if (!cachedCssRequest) {
+    cssCache.set(url, fontFaceDeclarations)
+  } else {
+    cssCache.delete(url)
+  }
 
   // Find font files to download
   const fontFiles: Array<{
@@ -51,10 +91,16 @@ const downloadGoogleFonts: FontLoader = async ({
       currentSubset = newSubset
     } else {
       const googleFontFileUrl = /src: url\((.+?)\)/.exec(line)?.[1]
-      if (googleFontFileUrl) {
+      if (
+        googleFontFileUrl &&
+        !fontFiles.some(
+          (foundFile) => foundFile.googleFontFileUrl === googleFontFileUrl
+        )
+      ) {
         fontFiles.push({
           googleFontFileUrl,
-          preloadFontFile: !!preload && config.subsets.includes(currentSubset),
+          preloadFontFile:
+            !!preload && (callSubsets ?? subsets).includes(currentSubset),
         })
       }
     }
@@ -63,14 +109,13 @@ const downloadGoogleFonts: FontLoader = async ({
   // Download font files
   const downloadedFiles = await Promise.all(
     fontFiles.map(async ({ googleFontFileUrl, preloadFontFile }) => {
-      let fontFileBuffer: Buffer
-      if (process.env.NEXT_FONT_GOOGLE_MOCKED_RESPONSES) {
-        fontFileBuffer = Buffer.from(googleFontFileUrl)
+      let cachedFontRequest = fontCache.get(googleFontFileUrl)
+      const fontFileBuffer =
+        cachedFontRequest ?? (await fetchFontFile(googleFontFileUrl))
+      if (!cachedFontRequest) {
+        fontCache.set(googleFontFileUrl, fontFileBuffer)
       } else {
-        const arrayBuffer = await fetch(googleFontFileUrl).then((r: any) =>
-          r.arrayBuffer()
-        )
-        fontFileBuffer = Buffer.from(arrayBuffer)
+        fontCache.delete(googleFontFileUrl)
       }
 
       const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(googleFontFileUrl)![1]
@@ -92,7 +137,7 @@ const downloadGoogleFonts: FontLoader = async ({
   let updatedCssResponse = fontFaceDeclarations
   for (const { googleFontFileUrl, selfHostedFileUrl } of downloadedFiles) {
     updatedCssResponse = updatedCssResponse.replace(
-      googleFontFileUrl,
+      new RegExp(escapeStringRegexp(googleFontFileUrl), 'g'),
       selfHostedFileUrl
     )
   }
@@ -101,19 +146,19 @@ const downloadGoogleFonts: FontLoader = async ({
   let adjustFontFallbackMetrics: AdjustFontFallback | undefined
   if (adjustFontFallback) {
     try {
-      const { ascent, descent, lineGap, fallbackFont } =
-        calculateOverrideValues(
-          fontFamily,
-          require('next/dist/server/google-font-metrics.json')
+      const { ascent, descent, lineGap, fallbackFont, sizeAdjust } =
+        calculateSizeAdjustValues(
+          require('next/dist/server/google-font-metrics.json')[fontFamily]
         )
       adjustFontFallbackMetrics = {
         fallbackFont,
-        ascentOverride: ascent,
-        descentOverride: descent,
-        lineGapOverride: lineGap,
+        ascentOverride: `${ascent}%`,
+        descentOverride: `${descent}%`,
+        lineGapOverride: `${lineGap}%`,
+        sizeAdjust: `${sizeAdjust}%`,
       }
     } catch {
-      console.error(
+      Log.error(
         `Failed to find font override values for font \`${fontFamily}\``
       )
     }
@@ -122,8 +167,11 @@ const downloadGoogleFonts: FontLoader = async ({
   return {
     css: updatedCssResponse,
     fallbackFonts: fallback,
-    weight: weight === 'variable' ? undefined : Number(weight),
-    style,
+    weight:
+      weights.length === 1 && weights[0] !== 'variable'
+        ? weights[0]
+        : undefined,
+    style: styles.length === 1 ? styles[0] : undefined,
     variable,
     adjustFontFallback: adjustFontFallbackMetrics,
   }

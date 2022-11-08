@@ -1,0 +1,7 @@
+{
+  "name": "next-minimal-server",
+  "description": "Minimal server for Next.js for benchmarking/perf analysis purposes.",
+  "scripts": {
+    "start": "node start.js"
+  }
+}

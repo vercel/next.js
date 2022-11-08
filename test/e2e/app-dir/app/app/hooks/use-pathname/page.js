@@ -1,6 +1,6 @@
-'client'
+'use client'
 
-import { usePathname } from 'next/dist/client/components/hooks-client'
+import { usePathname } from 'next/navigation'
 
 export default function Page() {
   const pathname = usePathname()
@@ -8,7 +8,7 @@ export default function Page() {
   return (
     <>
       <h1 id="pathname" data-pathname={pathname}>
-        hello from /hooks/use-pathname
+        hello from {pathname}
       </h1>
     </>
   )

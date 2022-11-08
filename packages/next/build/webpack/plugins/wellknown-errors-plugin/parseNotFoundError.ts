@@ -85,7 +85,7 @@ export async function getNotFoundError(
         .filter(
           (name) =>
             name &&
-            !/next-(middleware|client-pages|flight-(client|server))-loader\.js/.test(
+            !/next-(middleware|client-pages|flight-(client|server|client-entry))-loader\.js/.test(
               name
             )
         )
@@ -117,4 +117,36 @@ export async function getNotFoundError(
     // Don't fail on failure to resolve sourcemaps
     return input
   }
+}
+
+export async function getImageError(
+  compilation: any,
+  input: any,
+  err: Error
+): Promise<SimpleWebpackError | false> {
+  if (err.name !== 'InvalidImageFormatError') {
+    return false
+  }
+
+  const moduleTrace = getModuleTrace(input, compilation)
+  const { origin, module } = moduleTrace[0] || {}
+  if (!origin || !module) {
+    return false
+  }
+  const page = origin.rawRequest.replace(/^private-next-pages/, './pages')
+  const importedFile = module.rawRequest
+  const source = origin.originalSource().buffer().toString('utf8') as string
+  let lineNumber = -1
+  source.split('\n').some((line) => {
+    lineNumber++
+    return line.includes(importedFile)
+  })
+  return new SimpleWebpackError(
+    `${chalk.cyan(page)}:${chalk.yellow(lineNumber.toString())}`,
+    chalk.red
+      .bold('Error')
+      .concat(
+        `: Image import "${importedFile}" is not a valid image file. The image may be corrupted or an unsupported format.`
+      )
+  )
 }

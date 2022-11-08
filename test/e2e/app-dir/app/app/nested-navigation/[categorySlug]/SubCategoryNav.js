@@ -1,10 +1,10 @@
-'client'
+'use client'
 
 import { TabNavItem } from '../TabNavItem'
-import { useSelectedLayoutSegment } from 'next/dist/client/components/hooks-client'
+import { useSelectedLayoutSegments } from 'next/navigation'
 
 const SubCategoryNav = ({ category }) => {
-  const selectedLayoutSegment = useSelectedLayoutSegment()
+  const selectedLayoutSegment = useSelectedLayoutSegments()
 
   return (
     <div style={{ display: 'flex' }}>

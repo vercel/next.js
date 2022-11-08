@@ -1,7 +1,7 @@
 import { loadEnvConfig } from '@next/env'
 import { resolve, join } from 'path'
 import loadConfig from '../../server/config'
-import { NextConfigComplete } from '../../server/config-shared'
+import type { NextConfigComplete } from '../../server/config-shared'
 import { PHASE_TEST } from '../../shared/lib/constants'
 import loadJsConfig from '../load-jsconfig'
 import * as Log from '../output/log'
@@ -114,6 +114,9 @@ export default function nextJest(options: { dir?: string } = {}) {
 
           // Keep .svg to it's own rule to make overriding easy
           '^.+\\.(svg)$': require.resolve(`./__mocks__/fileMock.js`),
+
+          // Handle @next/font
+          '@next/font/(.*)': require.resolve('./__mocks__/nextFontMock.js'),
 
           // custom config comes last to ensure the above rules are matched,
           // fixes the case where @pages/(.*) -> src/pages/$! doesn't break

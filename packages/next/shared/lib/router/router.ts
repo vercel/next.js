@@ -122,11 +122,11 @@ function stripOrigin(url: string) {
   return url.startsWith(origin) ? url.substring(origin.length) : url
 }
 
-function omit<T extends { [key: string]: any }, K extends keyof T>(
+function omit<T extends { [key: string]: unknown }, K extends keyof T>(
   object: T,
   keys: K[]
 ): Omit<T, K> {
-  const omitted: { [key: string]: any } = {}
+  const omitted: { [key: string]: unknown } = {}
   Object.keys(object).forEach((key) => {
     if (!keys.includes(key as K)) {
       omitted[key] = object[key]
@@ -259,6 +259,7 @@ export function resolveHref(
     // fallback to / for invalid asPath values e.g. //
     base = new URL('/', 'http://n')
   }
+
   try {
     const finalUrl = new URL(urlAsString, base)
     finalUrl.pathname = normalizePathTrailingSlash(finalUrl.pathname)
@@ -542,6 +543,7 @@ export type NextRouter = BaseRouter &
     | 'replace'
     | 'reload'
     | 'back'
+    | 'forward'
     | 'prefetch'
     | 'beforePopState'
     | 'events'
@@ -1138,6 +1140,13 @@ export default class Router implements BaseRouter {
   }
 
   /**
+   * Go forward in history
+   */
+  forward() {
+    window.history.forward()
+  }
+
+  /**
    * Performs a `pushState` with arguments
    * @param url of the route
    * @param as masks `url` for the browser
@@ -1187,7 +1196,7 @@ export default class Router implements BaseRouter {
     // hydration. Your app should _never_ use this property. It may change at
     // any time without notice.
     const isQueryUpdating = (options as any)._h
-    const shouldResolveHref =
+    let shouldResolveHref =
       isQueryUpdating ||
       (options as any)._shouldResolveHref ||
       parsePath(url).pathname === parsePath(as).pathname
@@ -1418,6 +1427,10 @@ export default class Router implements BaseRouter {
       pathname = this.pathname
     }
 
+    if (isQueryUpdating && isMiddlewareMatch) {
+      shouldResolveHref = false
+    }
+
     if (shouldResolveHref && pathname !== '/_error') {
       ;(options as any)._shouldResolveHref = true
 
@@ -1598,7 +1611,9 @@ export default class Router implements BaseRouter {
             rewriteAs = localeResult.pathname
           }
           const routeRegex = getRouteRegex(pathname)
-          const curRouteMatch = getRouteMatcher(routeRegex)(rewriteAs)
+          const curRouteMatch = getRouteMatcher(routeRegex)(
+            new URL(rewriteAs, location.href).pathname
+          )
 
           if (curRouteMatch) {
             Object.assign(query, curRouteMatch)
@@ -1955,12 +1970,14 @@ export default class Router implements BaseRouter {
         isBackground: isQueryUpdating,
       }
 
-      const data = await withMiddlewareEffects({
-        fetchData: () => fetchNextData(fetchNextDataParams),
-        asPath: resolvedAs,
-        locale: locale,
-        router: this,
-      })
+      const data = isQueryUpdating
+        ? ({} as any)
+        : await withMiddlewareEffects({
+            fetchData: () => fetchNextData(fetchNextDataParams),
+            asPath: resolvedAs,
+            locale: locale,
+            router: this,
+          })
 
       if (isQueryUpdating && data) {
         data.json = self.__NEXT_DATA__.props
@@ -2079,7 +2096,8 @@ export default class Router implements BaseRouter {
       if (
         !this.isPreview &&
         routeInfo.__N_SSG &&
-        process.env.NODE_ENV !== 'development'
+        process.env.NODE_ENV !== 'development' &&
+        !isQueryUpdating
       ) {
         fetchNextData(
           Object.assign({}, fetchNextDataParams, {

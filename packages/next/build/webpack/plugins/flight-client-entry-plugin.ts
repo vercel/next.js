@@ -1,31 +1,33 @@
-import { stringify } from 'querystring'
-import path from 'path'
-import { relative } from 'path'
-import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
-import {
-  getInvalidator,
-  entries,
-  EntryTypes,
-} from '../../../server/dev/on-demand-entry-handler'
 import type {
   CssImports,
   ClientComponentImports,
   NextFlightClientEntryLoaderOptions,
 } from '../loaders/next-flight-client-entry-loader'
+import { webpack } from 'next/dist/compiled/webpack/webpack'
+import { stringify } from 'querystring'
+import path from 'path'
+import { sources } from 'next/dist/compiled/webpack/webpack'
+import {
+  getInvalidator,
+  entries,
+  EntryTypes,
+} from '../../../server/dev/on-demand-entry-handler'
 import { APP_DIR_ALIAS, WEBPACK_LAYERS } from '../../../lib/constants'
 import {
+  APP_CLIENT_INTERNALS,
   COMPILER_NAMES,
   EDGE_RUNTIME_WEBPACK,
   FLIGHT_SERVER_CSS_MANIFEST,
 } from '../../../shared/lib/constants'
-import { FlightCSSManifest, traverseModules } from './flight-manifest-plugin'
+import { FlightCSSManifest } from './flight-manifest-plugin'
 import { ASYNC_CLIENT_MODULES } from './flight-manifest-plugin'
-import { isClientComponentModule } from '../loaders/utils'
+import { isClientComponentModule, regexCSS } from '../loaders/utils'
+import { traverseModules } from '../utils'
 
 interface Options {
   dev: boolean
+  appDir: string
   isEdgeServer: boolean
-  fontLoaderTargets?: string[]
 }
 
 const PLUGIN_NAME = 'ClientEntryPlugin'
@@ -35,21 +37,18 @@ export const injectedClientEntries = new Map()
 export const serverModuleIds = new Map<string, string | number>()
 export const edgeServerModuleIds = new Map<string, string | number>()
 
-// TODO-APP: ensure .scss / .sass also works.
-const regexCSS = /\.css$/
-
 // TODO-APP: move CSS manifest generation to the flight manifest plugin.
 const flightCSSManifest: FlightCSSManifest = {}
 
 export class FlightClientEntryPlugin {
   dev: boolean
+  appDir: string
   isEdgeServer: boolean
-  fontLoaderTargets?: string[]
 
   constructor(options: Options) {
     this.dev = options.dev
+    this.appDir = options.appDir
     this.isEdgeServer = options.isEdgeServer
-    this.fontLoaderTargets = options.fontLoaderTargets
   }
 
   apply(compiler: webpack.Compiler) {
@@ -57,12 +56,12 @@ export class FlightClientEntryPlugin {
       PLUGIN_NAME,
       (compilation, { normalModuleFactory }) => {
         compilation.dependencyFactories.set(
-          (webpack as any).dependencies.ModuleDependency,
+          webpack.dependencies.ModuleDependency,
           normalModuleFactory
         )
         compilation.dependencyTemplates.set(
-          (webpack as any).dependencies.ModuleDependency,
-          new (webpack as any).dependencies.NullDependency.Template()
+          webpack.dependencies.ModuleDependency,
+          new webpack.dependencies.NullDependency.Template()
         )
       }
     )
@@ -73,6 +72,7 @@ export class FlightClientEntryPlugin {
 
     compiler.hooks.afterCompile.tap(PLUGIN_NAME, (compilation) => {
       traverseModules(compilation, (mod) => {
+        // const modId = compilation.chunkGraph.getModuleId(mod) + ''
         // The module must has request, and resource so it's not a new entry created with loader.
         // Using the client layer module, which doesn't have `rsc` tag in buildInfo.
         if (mod.request && mod.resource && !mod.buildInfo.rsc) {
@@ -82,21 +82,21 @@ export class FlightClientEntryPlugin {
         }
       })
 
-      const recordModule = (id: number | string, mod: any) => {
+      const recordModule = (modId: string, mod: any) => {
         const modResource = mod.resourceResolveData?.path || mod.resource
 
         if (
-          mod.resourceResolveData?.context?.issuerLayer ===
-          WEBPACK_LAYERS.server
+          mod.resourceResolveData?.context?.issuerLayer !==
+          WEBPACK_LAYERS.client
         ) {
           return
         }
 
-        if (typeof id !== 'undefined' && modResource) {
+        if (typeof modId !== 'undefined' && modResource) {
           // Note that this isn't that reliable as webpack is still possible to assign
           // additional queries to make sure there's no conflict even using the `named`
           // module ID strategy.
-          let ssrNamedModuleId = relative(compiler.context, modResource)
+          let ssrNamedModuleId = path.relative(compiler.context, modResource)
           if (!ssrNamedModuleId.startsWith('.')) {
             // TODO use getModuleId instead
             ssrNamedModuleId = `./${ssrNamedModuleId.replace(/\\/g, '/')}`
@@ -105,35 +105,16 @@ export class FlightClientEntryPlugin {
           if (this.isEdgeServer) {
             edgeServerModuleIds.set(
               ssrNamedModuleId.replace(/\/next\/dist\/esm\//, '/next/dist/'),
-              id
+              modId
             )
           } else {
-            serverModuleIds.set(ssrNamedModuleId, id)
+            serverModuleIds.set(ssrNamedModuleId, modId)
           }
         }
       }
 
-      compilation.chunkGroups.forEach((chunkGroup) => {
-        chunkGroup.chunks.forEach((chunk: webpack.Chunk) => {
-          const chunkModules = compilation.chunkGraph.getChunkModulesIterable(
-            chunk
-          ) as Iterable<webpack.NormalModule>
-
-          for (const mod of chunkModules) {
-            const modId = compilation.chunkGraph.getModuleId(mod)
-
-            recordModule(modId, mod)
-
-            // If this is a concatenation, register each child to the parent ID.
-            // TODO: remove any
-            const anyModule = mod as any
-            if (anyModule.modules) {
-              anyModule.modules.forEach((concatenatedMod: any) => {
-                recordModule(modId, concatenatedMod)
-              })
-            }
-          }
-        })
+      traverseModules(compilation, (mod, _chunk, _chunkGroup, modId) => {
+        recordModule(modId + '', mod)
       })
     })
   }
@@ -208,7 +189,7 @@ export class FlightClientEntryPlugin {
             dependency: layoutOrPageDependency,
           })
 
-        const isAbsoluteRequest = layoutOrPageRequest[0] === '/'
+        const isAbsoluteRequest = path.isAbsolute(layoutOrPageRequest)
 
         // Next.js internals are put into a separate entry.
         if (!isAbsoluteRequest) {
@@ -243,14 +224,87 @@ export class FlightClientEntryPlugin {
           compilation,
           entryName: name,
           clientComponentImports: [...internalClientComponentEntryImports],
-          bundlePath: 'app-internals',
+          bundlePath: APP_CLIENT_INTERNALS,
         })
       )
     })
 
-    // After optimizing all the modules, we collect the CSS that are still used.
+    // After optimizing all the modules, we collect the CSS that are still used
+    // by the certain chunk.
     compilation.hooks.afterOptimizeModules.tap(PLUGIN_NAME, () => {
-      forEachEntryModule(({ entryModule }) => {
+      const cssImportsForChunk: Record<string, string[]> = {}
+
+      function collectModule(entryName: string, mod: any) {
+        const resource = mod.resource
+        const modId = resource
+        if (modId) {
+          if (regexCSS.test(modId)) {
+            cssImportsForChunk[entryName].push(modId)
+          }
+        }
+      }
+
+      compilation.chunkGroups.forEach((chunkGroup: any) => {
+        chunkGroup.chunks.forEach((chunk: webpack.Chunk) => {
+          // Here we only track page chunks.
+          if (!chunk.name) return
+          if (!chunk.name.endsWith('/page')) return
+
+          const entryName = path.join(this.appDir, '..', chunk.name)
+
+          if (!cssImportsForChunk[entryName]) {
+            cssImportsForChunk[entryName] = []
+          }
+
+          const chunkModules = compilation.chunkGraph.getChunkModulesIterable(
+            chunk
+          ) as Iterable<webpack.NormalModule>
+          for (const mod of chunkModules) {
+            collectModule(entryName, mod)
+
+            const anyModule = mod as any
+            if (anyModule.modules) {
+              anyModule.modules.forEach((concatenatedMod: any) => {
+                collectModule(entryName, concatenatedMod)
+              })
+            }
+          }
+
+          const entryCSSInfo: Record<string, string[]> =
+            flightCSSManifest.__entry_css__ || {}
+          entryCSSInfo[entryName] = cssImportsForChunk[entryName]
+
+          Object.assign(flightCSSManifest, {
+            __entry_css__: entryCSSInfo,
+          })
+        })
+      })
+
+      forEachEntryModule(({ name, entryModule }) => {
+        // To collect all CSS imports for a specific entry including the ones
+        // that are in the client graph, we need to store a map for client boundary
+        // dependencies.
+        const clientEntryDependencyMap: Record<string, any> = {}
+        const entry = compilation.entries.get(name)
+        entry.includeDependencies.forEach((dep: any) => {
+          if (
+            dep.request &&
+            dep.request.startsWith('next-flight-client-entry-loader?')
+          ) {
+            const mod: webpack.NormalModule =
+              compilation.moduleGraph.getResolvedModule(dep)
+
+            compilation.moduleGraph
+              .getOutgoingConnections(mod)
+              .forEach((connection: any) => {
+                if (connection.dependency) {
+                  clientEntryDependencyMap[connection.dependency.request] =
+                    connection.dependency
+                }
+              })
+          }
+        })
+
         for (const connection of compilation.moduleGraph.getOutgoingConnections(
           entryModule
         )) {
@@ -262,6 +316,7 @@ export class FlightClientEntryPlugin {
               layoutOrPageRequest,
               compilation,
               dependency: layoutOrPageDependency,
+              clientEntryDependencyMap,
             })
 
           Object.assign(flightCSSManifest, cssImports)
@@ -301,10 +356,12 @@ export class FlightClientEntryPlugin {
     layoutOrPageRequest,
     compilation,
     dependency,
+    clientEntryDependencyMap,
   }: {
     layoutOrPageRequest: string
     compilation: any
     dependency: any /* Dependency */
+    clientEntryDependencyMap?: Record<string, any>
   }): [ClientComponentImports, CssImports] {
     /**
      * Keep track of checked modules to avoid infinite loops with recursive imports.
@@ -325,36 +382,31 @@ export class FlightClientEntryPlugin {
       // native or installed js module: -> raw request, e.g. next/head
       // client js or css: -> user request
       const rawRequest = mod.rawRequest
-
       // Request could be undefined or ''
       if (!rawRequest) return
 
-      const isFontLoader = this.fontLoaderTargets?.some((fontLoaderTarget) =>
-        mod.userRequest.startsWith(`${fontLoaderTarget}?`)
-      )
-      const modRequest: string | undefined =
-        !rawRequest.endsWith('.css') &&
+      const isCSS = regexCSS.test(rawRequest)
+      const isLocal =
+        !isCSS &&
         !rawRequest.startsWith('.') &&
         !rawRequest.startsWith('/') &&
         !rawRequest.startsWith(APP_DIR_ALIAS)
-          ? isFontLoader
-            ? mod.userRequest
-            : rawRequest
-          : mod.resourceResolveData?.path
+
+      const modRequest: string | undefined = isLocal
+        ? rawRequest
+        : mod.resourceResolveData?.path + mod.resourceResolveData?.query
 
       // Ensure module is not walked again if it's already been visited
       if (!visitedBySegment[layoutOrPageRequest]) {
         visitedBySegment[layoutOrPageRequest] = new Set()
       }
-      if (
-        !modRequest ||
-        visitedBySegment[layoutOrPageRequest].has(modRequest)
-      ) {
+      const storeKey =
+        (inClientComponentBoundary ? '0' : '1') + ':' + modRequest
+      if (!modRequest || visitedBySegment[layoutOrPageRequest].has(storeKey)) {
         return
       }
-      visitedBySegment[layoutOrPageRequest].add(modRequest)
+      visitedBySegment[layoutOrPageRequest].add(storeKey)
 
-      const isCSS = isFontLoader || regexCSS.test(modRequest)
       const isClientComponent = isClientComponentModule(mod)
 
       if (isCSS) {
@@ -382,6 +434,14 @@ export class FlightClientEntryPlugin {
       if ((!inClientComponentBoundary && isClientComponent) || isCSS) {
         clientComponentImports.push(modRequest)
 
+        // Here we are entering a client boundary, and we need to collect dependencies
+        // in the client graph too.
+        if (isClientComponent && clientEntryDependencyMap) {
+          if (clientEntryDependencyMap[modRequest]) {
+            filterClientComponents(clientEntryDependencyMap[modRequest], true)
+          }
+        }
+
         return
       }
 
@@ -408,8 +468,8 @@ export class FlightClientEntryPlugin {
     clientComponentImports,
     bundlePath,
   }: {
-    compiler: any
-    compilation: any
+    compiler: webpack.Compiler
+    compilation: webpack.Compilation
     entryName: string
     clientComponentImports: ClientComponentImports
     bundlePath: string
@@ -468,11 +528,12 @@ export class FlightClientEntryPlugin {
     }
 
     // Inject the entry to the server compiler (__sc_client__).
-    const clientComponentEntryDep = (
-      webpack as any
-    ).EntryPlugin.createDependency(clientSSRLoader, {
-      name: bundlePath,
-    })
+    const clientComponentEntryDep = webpack.EntryPlugin.createDependency(
+      clientSSRLoader,
+      {
+        name: bundlePath,
+      }
+    )
 
     // Add the dependency to the server compiler.
     await this.addEntry(
@@ -483,9 +544,9 @@ export class FlightClientEntryPlugin {
       {
         // By using the same entry name
         name: entryName,
-        // Layer should be undefined for the SSR modules
-        // This ensures the client components are
-        layer: undefined,
+        // Layer should be client for the SSR modules
+        // This ensures the client components are bundled on client layer
+        layer: WEBPACK_LAYERS.client,
       }
     )
 
@@ -496,28 +557,26 @@ export class FlightClientEntryPlugin {
   addEntry(
     compilation: any,
     context: string,
-    entry: any /* Dependency */,
-    options: {
-      name: string
-      layer: string | undefined
-    } /* EntryOptions */
+    dependency: webpack.Dependency,
+    options: webpack.EntryOptions
   ): Promise<any> /* Promise<module> */ {
     return new Promise((resolve, reject) => {
-      compilation.entries.get(options.name).includeDependencies.push(entry)
+      const entry = compilation.entries.get(options.name)
+      entry.includeDependencies.push(dependency)
       compilation.hooks.addEntry.call(entry, options)
       compilation.addModuleTree(
         {
           context,
-          dependency: entry,
+          dependency,
           contextInfo: { issuerLayer: options.layer },
         },
         (err: Error | undefined, module: any) => {
           if (err) {
-            compilation.hooks.failedEntry.call(entry, options, err)
+            compilation.hooks.failedEntry.call(dependency, options, err)
             return reject(err)
           }
 
-          compilation.hooks.succeedEntry.call(entry, options, module)
+          compilation.hooks.succeedEntry.call(dependency, options, module)
           return resolve(module)
         }
       )

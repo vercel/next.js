@@ -1,6 +1,5 @@
 import Comp from './Comp'
-import font1 from '../fonts/font1'
-import font2 from '../fonts/font2'
+import { font1, font2 } from '../fonts'
 
 export default function HomePage() {
   return (
@@ -14,4 +13,4 @@ export default function HomePage() {
   )
 }
 
-export const config = { runtime: 'experimental-edge' }
+export const runtime = 'experimental-edge'
