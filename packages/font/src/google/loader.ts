@@ -219,7 +219,6 @@ const downloadGoogleFonts: FontLoader = async ({
             : undefined,
         style: styles.length === 1 ? styles[0] : undefined,
         variable,
-        adjustFontFallback: adjustFontFallbackMetrics,
       }
     } else {
       throw err
