@@ -57,7 +57,9 @@ const nextBuild: cliCommand = (argv) => {
     Log.warn('Linting is disabled')
   }
   if (args['--no-mangling']) {
-    Log.warn('Mangling is disabled')
+    Log.warn(
+      'Mangling is disabled. Note: This may affect performance and should only be used for debugging purposes'
+    )
   }
   const dir = getProjectDir(args._[0])
 
