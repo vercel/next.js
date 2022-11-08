@@ -40,19 +40,20 @@ import fs from 'fs-extra'
     let pkgJson = {
       name: 'dummy-package',
       version: '1.0.0',
+      // TODO: replace to `@next/rs` once new binary is published
       optionalDependencies: {
-        '@next/rs-android-arm64': 'canary',
-        '@next/rs-android-arm-eabi': 'canary',
-        '@next/rs-darwin-arm64': 'canary',
-        '@next/rs-darwin-x64': 'canary',
-        '@next/rs-linux-arm-gnueabihf': 'canary',
-        '@next/rs-linux-arm64-gnu': 'canary',
-        '@next/rs-linux-arm64-musl': 'canary',
-        '@next/rs-linux-x64-gnu': 'canary',
-        '@next/rs-linux-x64-musl': 'canary',
-        '@next/rs-win32-arm64-msvc': 'canary',
-        '@next/rs-win32-ia32-msvc': 'canary',
-        '@next/rs-win32-x64-msvc': 'canary',
+        '@next/swc-android-arm64': 'canary',
+        '@next/swc-android-arm-eabi': 'canary',
+        '@next/swc-darwin-arm64': 'canary',
+        '@next/swc-darwin-x64': 'canary',
+        '@next/swc-linux-arm-gnueabihf': 'canary',
+        '@next/swc-linux-arm64-gnu': 'canary',
+        '@next/swc-linux-arm64-musl': 'canary',
+        '@next/swc-linux-x64-gnu': 'canary',
+        '@next/swc-linux-x64-musl': 'canary',
+        '@next/swc-win32-arm64-msvc': 'canary',
+        '@next/swc-win32-ia32-msvc': 'canary',
+        '@next/swc-win32-x64-msvc': 'canary',
       },
     }
     await fs.writeFile(
