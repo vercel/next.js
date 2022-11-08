@@ -1800,28 +1800,30 @@ export default async function build(
                 showAll: config.experimental.turbotrace.logAll,
               })
             } else {
+              const ignores = [
+                '**/next/dist/pages/**/*',
+                '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
+                '**/node_modules/webpack5/**/*',
+                '**/next/dist/server/lib/squoosh/**/*.wasm',
+                ...(ciEnvironment.hasNextSupport
+                  ? [
+                      // only ignore image-optimizer code when
+                      // this is being handled outside of next-server
+                      '**/next/dist/server/image-optimizer.js',
+                      '**/node_modules/sharp/**/*',
+                    ]
+                  : []),
+                ...(!hasSsrAmpPages
+                  ? ['**/next/dist/compiled/@ampproject/toolbox-optimizer/**/*']
+                  : []),
+              ]
+              const ignoreFn = (path: string) => {
+                return isMatch(path, ignores, { contains: true, dot: true })
+              }
               serverResult = await nodeFileTrace(toTrace, {
                 base: root,
                 processCwd: dir,
-                ignore: [
-                  '**/next/dist/pages/**/*',
-                  '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
-                  '**/node_modules/webpack5/**/*',
-                  '**/next/dist/server/lib/squoosh/**/*.wasm',
-                  ...(ciEnvironment.hasNextSupport
-                    ? [
-                        // only ignore image-optimizer code when
-                        // this is being handled outside of next-server
-                        '**/next/dist/server/image-optimizer.js',
-                        '**/node_modules/sharp/**/*',
-                      ]
-                    : []),
-                  ...(!hasSsrAmpPages
-                    ? [
-                        '**/next/dist/compiled/@ampproject/toolbox-optimizer/**/*',
-                      ]
-                    : []),
-                ],
+                ignore: ignoreFn,
               })
               const tracedFiles = new Set()
 
