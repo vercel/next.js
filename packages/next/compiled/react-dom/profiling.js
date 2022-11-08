@@ -1,0 +1,1 @@
+module.exports = require('./cjs/react-dom.profiling.min.js');
