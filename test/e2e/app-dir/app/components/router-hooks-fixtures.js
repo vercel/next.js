@@ -3,7 +3,7 @@ import {
   usePathname,
   useRouter as useAppRouter,
   useSearchParams,
-} from 'next/navigation'
+} from 'next/compat/navigation'
 import { useState, useEffect } from 'react'
 
 export const RouterHooksFixtures = () => {
