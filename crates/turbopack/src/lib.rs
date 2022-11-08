@@ -65,8 +65,7 @@ use self::{
 lazy_static! {
     static ref UNSUPPORTED_PACKAGES: HashSet<String> =
         ["@vercel/og".to_owned(), "@next/font".to_owned()].into();
-    static ref UNSUPPORTED_PACKAGE_PATHS: HashSet<(String, String)> =
-        [("next".to_owned(), "/head".to_owned())].into();
+    static ref UNSUPPORTED_PACKAGE_PATHS: HashSet<(String, String)> = [].into();
 }
 
 #[turbo_tasks::value]
