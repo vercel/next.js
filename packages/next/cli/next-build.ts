@@ -15,6 +15,7 @@ const nextBuild: cliCommand = (argv) => {
     '--profile': Boolean,
     '--debug': Boolean,
     '--no-lint': Boolean,
+    '--no-minify': Boolean,
     // Aliases
     '-h': '--help',
     '-d': '--debug',
@@ -54,6 +55,9 @@ const nextBuild: cliCommand = (argv) => {
   if (args['--no-lint']) {
     Log.warn('Linting is disabled')
   }
+  if (args['--no-minify']) {
+    Log.warn('Minification is disabled')
+  }
   const dir = getProjectDir(args._[0])
 
   // Check if the provided directory exists
@@ -66,7 +70,8 @@ const nextBuild: cliCommand = (argv) => {
     null,
     args['--profile'],
     args['--debug'],
-    !args['--no-lint']
+    !args['--no-lint'],
+    !args['--no-minify']
   ).catch((err) => {
     console.error('')
     if (
