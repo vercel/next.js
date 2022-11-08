@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { Suspense } from 'react'
 import Loadable from './loadable'
 
 const isServerSide = typeof window === 'undefined'
@@ -9,7 +9,7 @@ export type LoaderComponent<P = {}> = Promise<
 
 export type Loader<P = {}> = (() => LoaderComponent<P>) | LoaderComponent<P>
 
-export type LoaderMap = { [mdule: string]: () => Loader<any> }
+export type LoaderMap = { [module: string]: () => Loader<any> }
 
 export type LoadableGeneratedOptions = {
   webpack?(): any
@@ -44,22 +44,32 @@ export type LoadableFn<P = {}> = (
 export type LoadableComponent<P = {}> = React.ComponentType<P>
 
 export function noSSR<P = {}>(
-  LoadableInitializer: LoadableFn<P>,
+  _LoadableInitializer: LoadableFn<P>,
   loadableOptions: DynamicOptions<P>
 ): React.ComponentType<P> {
   // Removing webpack and modules means react-loadable won't try preloading
   delete loadableOptions.webpack
   delete loadableOptions.modules
 
-  // This check is necessary to prevent react-loadable from initializing on the server
-  if (!isServerSide) {
-    return LoadableInitializer(loadableOptions)
-  }
+  const NoSSRComponent = React.lazy(
+    (isServerSide
+      ? async () => ({ default: () => null })
+      : loadableOptions.loader) as () => Promise<{
+      default: React.ComponentType<P>
+    }>
+  )
 
   const Loading = loadableOptions.loading!
-  // This will only be rendered on the server side
+
   return () => (
-    <Loading error={null} isLoading pastDelay={false} timedOut={false} />
+    <Suspense
+      fallback={
+        <Loading error={null} isLoading pastDelay={false} timedOut={false} />
+      }
+    >
+      {/* @ts-ignore */}
+      <NoSSRComponent />
+    </Suspense>
   )
 }
 

@@ -61,14 +61,11 @@ function createLoadableComponent(loadFn, options) {
       timeout: null,
       webpack: null,
       modules: null,
-      // suspense: false,
     },
     options
   )
 
   opts.lazy = React.lazy(opts.loader)
-
-  console.log('opts', opts)
 
   /** @type LoadableSubscription */
   let subscription = null
@@ -118,8 +115,7 @@ function createLoadableComponent(loadFn, options) {
       })
     }
   }
-
-  function LoadableComponent(props, ref) {
+  function LoadableComponent(props) {
     useLoadableModule()
 
     const fallbackElement = React.createElement(opts.loading, {
@@ -133,14 +129,14 @@ function createLoadableComponent(loadFn, options) {
       {
         fallback: fallbackElement,
       },
-      React.createElement(opts.lazy, { ...props, ref })
+      React.createElement(opts.lazy, props)
     )
   }
 
   LoadableComponent.preload = () => init()
   LoadableComponent.displayName = 'LoadableComponent'
 
-  return React.forwardRef(LoadableComponent)
+  return LoadableComponent
 }
 
 class LoadableSubscription {

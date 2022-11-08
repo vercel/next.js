@@ -1,8 +1,11 @@
 import dynamic from 'next/dynamic'
 
-const BrowserLoaded = dynamic(async () => () => <div>Browser hydrated</div>, {
-  ssr: false,
-})
+const BrowserLoaded = dynamic(
+  async () => ({ default: () => <div>Browser hydrated</div> }),
+  {
+    ssr: false,
+  }
+)
 
 export default () => (
   <div>
