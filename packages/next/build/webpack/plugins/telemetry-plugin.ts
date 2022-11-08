@@ -1,7 +1,7 @@
 import { NormalModule, webpack } from 'next/dist/compiled/webpack/webpack'
 
 /**
- * List of target triples next-rs native binary supports.
+ * List of target triples next-rs native binary supports. *
  */
 export type SWC_TARGET_TRIPLE =
   | 'x86_64-apple-darwin'
@@ -18,6 +18,7 @@ export type SWC_TARGET_TRIPLE =
   | 'aarch64-unknown-linux-musl'
   | 'aarch64-pc-windows-msvc'
 
+// Note: do not rename swc-* as these are telemetry values can break schemas
 export type Feature =
   | 'next/image'
   | 'next/future/image'

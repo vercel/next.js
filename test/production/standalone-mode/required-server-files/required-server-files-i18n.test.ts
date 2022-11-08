@@ -25,6 +25,7 @@ describe('should set-up next', () => {
   beforeAll(async () => {
     let wasmPkgIsAvailable = false
 
+    // TODO: We'll need to update once new next/rs is published & available
     const res = await nodeFetch(
       `https://registry.npmjs.com/@next/swc-wasm-nodejs/-/swc-wasm-nodejs-${
         require('next/package.json').version
