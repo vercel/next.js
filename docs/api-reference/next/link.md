@@ -221,11 +221,12 @@ The default behavior of `Link` is to scroll to the top of the page. When there i
 
 ## With Next.js 13 Middleware
 
-It's common to use [Middleware](/docs/advanced-features/middleware) for authentication or other purposes that involve redirecting the user to a different page. In versions prior to Next.js 13, the redirect is handled on the client instead of the server. So, in order for the `<Link />` component to properly prefetch links with redirects via Middleware, you need to tell Next.js both the URL to display and the URL to prefetch.
+It's common to use [Middleware](/docs/advanced-features/middleware) for authentication or other purposes that involve rewriting the user to a different page. In order for the `<Link />` component to properly prefetch links with rewrites via Middleware, you need to tell Next.js both the URL to display and the URL to prefetch. This is required to avoid un-necessary fetches to middleware to know the correct route to prefetch. 
 
 For example, if you have want to serve a `/dashboard` route that has authenticated and visitor views, you may add something similar to the following in your Middleware to redirect the user to the correct page:
 
-```js:middleware.js
+```js
+// middleware.js
 export function middleware(req) {
   const nextUrl = req.nextUrl;
   if (nextUrl.pathname === '/dashboard') {
@@ -240,7 +241,8 @@ export function middleware(req) {
 
 In this case, you would want to use the following code in your `<Link />` component (inside `pages/`):
 
-```js:pages/index.js
+```js
+// pages/index.js
 import Link from 'next/link';
 import useIsAuthed from './hooks/useIsAuthed';
 
