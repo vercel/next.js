@@ -16,6 +16,7 @@
     "babel.d.ts",
     "client.js",
     "client.d.ts",
+    "compat",
     "config.js",
     "config.d.ts",
     "constants.js",
