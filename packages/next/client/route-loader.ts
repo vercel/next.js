@@ -80,6 +80,16 @@ export interface RouteLoader {
   prefetch(route: string): Promise<void>
 }
 
+const ASSET_LOAD_ERROR = Symbol('ASSET_LOAD_ERROR')
+// TODO: unexport
+export function markAssetError(err: Error): Error {
+  return Object.defineProperty(err, ASSET_LOAD_ERROR, {})
+}
+
+export function isAssetError(err?: Error): boolean | undefined {
+  return err && ASSET_LOAD_ERROR in err
+}
+
 function hasPrefetch(link?: HTMLLinkElement): boolean {
   try {
     link = document.createElement('link')
@@ -125,16 +135,6 @@ function prefetchViaDom(
 
     document.head.appendChild(link)
   })
-}
-
-const ASSET_LOAD_ERROR = Symbol('ASSET_LOAD_ERROR')
-// TODO: unexport
-export function markAssetError(err: Error): Error {
-  return Object.defineProperty(err, ASSET_LOAD_ERROR, {})
-}
-
-export function isAssetError(err?: Error): boolean | undefined {
-  return err && ASSET_LOAD_ERROR in err
 }
 
 function appendScript(
