@@ -394,7 +394,7 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
     let server = bindings.turbo.startDev({
       ...devServerOptions,
       showAll: args['--show-all'] ?? false,
-      rootDir:
+      root:
         args['--root'] ??
         (turboJson
           ? path.dirname(turboJson)
