@@ -59,6 +59,7 @@ export function getFontLoader(
   loaders.push({
     loader: 'next-font-loader',
     options: {
+      isDev: ctx.isDevelopment,
       isServer: ctx.isServer,
       assetPrefix: ctx.assetPrefix,
       fontLoaderOptions,

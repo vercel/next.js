@@ -9,11 +9,14 @@ describe('@next/font/local', () => {
         config: {},
         emitFontFile: () => '/_next/static/media/my-font.woff2',
         resolve: jest.fn(),
+        isDev: false,
         isServer: true,
         variableName: 'myFont',
-        fs: {
-          readFile: (_, cb) => cb(null, 'fontdata'),
-        },
+        loaderContext: {
+          fs: {
+            readFile: (_, cb) => cb(null, 'fontdata'),
+          },
+        } as any,
       })
 
       expect(css).toMatchInlineSnapshot(`
@@ -33,11 +36,14 @@ describe('@next/font/local', () => {
         config: {},
         emitFontFile: () => '/_next/static/media/my-font.woff2',
         resolve: jest.fn(),
+        isDev: false,
         isServer: true,
         variableName: 'myFont',
-        fs: {
-          readFile: (_, cb) => cb(null, 'fontdata'),
-        },
+        loaderContext: {
+          fs: {
+            readFile: (_, cb) => cb(null, 'fontdata'),
+          },
+        } as any,
       })
 
       expect(css).toMatchInlineSnapshot(`
@@ -67,11 +73,14 @@ describe('@next/font/local', () => {
         config: {},
         emitFontFile: () => '/_next/static/media/my-font.woff2',
         resolve: jest.fn(),
+        isDev: false,
         isServer: true,
         variableName: 'myFont',
-        fs: {
-          readFile: (_, cb) => cb(null, 'fontdata'),
-        },
+        loaderContext: {
+          fs: {
+            readFile: (_, cb) => cb(null, 'fontdata'),
+          },
+        } as any,
       })
 
       expect(css).toMatchInlineSnapshot(`
@@ -117,11 +126,14 @@ describe('@next/font/local', () => {
         config: {},
         emitFontFile: (buffer) => `/_next/static/media/my-font.woff2`,
         resolve: jest.fn(),
+        isDev: false,
         isServer: true,
         variableName: 'myFont',
-        fs: {
-          readFile: (path, cb) => cb(null, path),
-        },
+        loaderContext: {
+          fs: {
+            readFile: (path, cb) => cb(null, path),
+          },
+        } as any,
       })
 
       expect(css).toMatchInlineSnapshot(`
@@ -186,11 +198,14 @@ describe('@next/font/local', () => {
         config: {},
         emitFontFile: (buffer) => `/_next/static/media/my-font.woff2`,
         resolve: jest.fn(),
+        isDev: false,
         isServer: true,
         variableName: 'myFont',
-        fs: {
-          readFile: (path, cb) => cb(null, path),
-        },
+        loaderContext: {
+          fs: {
+            readFile: (path, cb) => cb(null, path),
+          },
+        } as any,
       })
 
       expect(css).toMatchInlineSnapshot(`
@@ -230,9 +245,10 @@ describe('@next/font/local', () => {
           config: {},
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
+          isDev: false,
           isServer: true,
           variableName: 'myFont',
-          fs: {},
+          loaderContext: {} as any,
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(
         `"@next/font/local has no named exports"`
@@ -247,9 +263,10 @@ describe('@next/font/local', () => {
           config: {},
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
+          isDev: false,
           isServer: true,
           variableName: 'myFont',
-          fs: {},
+          loaderContext: {} as any,
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(
         `"Missing required \`src\` property"`
@@ -264,9 +281,10 @@ describe('@next/font/local', () => {
           config: {},
           emitFontFile: jest.fn(),
           resolve: jest.fn().mockResolvedValue(''),
+          isDev: false,
           isServer: true,
           variableName: 'myFont',
-          fs: {},
+          loaderContext: {} as any,
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(
         `"Unexpected file \`./font/font-file.abc\`"`
@@ -281,9 +299,10 @@ describe('@next/font/local', () => {
           config: {},
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
+          isDev: false,
           isServer: true,
           variableName: 'myFont',
-          fs: {},
+          loaderContext: {} as any,
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(`
               "Invalid display value \`invalid\`.
@@ -305,9 +324,10 @@ describe('@next/font/local', () => {
           config: {},
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
+          isDev: false,
           isServer: true,
           variableName: 'myFont',
-          fs: {},
+          loaderContext: {} as any,
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(
         `"Invalid declaration prop: \`src\`"`
@@ -322,9 +342,10 @@ describe('@next/font/local', () => {
           config: {},
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
+          isDev: false,
           isServer: true,
           variableName: 'myFont',
-          fs: {},
+          loaderContext: {} as any,
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(
         `"Unexpected empty \`src\` array."`
@@ -349,10 +370,13 @@ describe('@next/font/local', () => {
           config: {},
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
+          isDev: false,
           isServer: true,
           variableName: 'myFont',
-          fs: { readFile: (path, cb) => cb(null, path) },
-        })
+          loaderContext: {
+            fs: { readFile: (path, cb) => cb(null, path) },
+          } as any,
+        } as any)
       ).rejects.toThrowErrorMatchingInlineSnapshot(`
               "Invalid weight value in src array: \`abc\`.
               Expected \`normal\`, \`bold\` or a number."
@@ -377,9 +401,12 @@ describe('@next/font/local', () => {
           config: {},
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
+          isDev: false,
           isServer: true,
           variableName: 'myFont',
-          fs: { readFile: (path, cb) => cb(null, path) },
+          loaderContext: {
+            fs: { readFile: (path, cb) => cb(null, path) },
+          } as any,
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(`
               "Invalid weight value in src array: \`100 abc\`.
