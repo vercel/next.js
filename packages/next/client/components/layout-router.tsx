@@ -147,7 +147,9 @@ export function InnerLayoutRouter({
     childProp.current !== null
   ) {
     if (childNode && childNode.status === CacheStates.LAZYINITIALIZED) {
+      // @ts-expect-error TODO-APP: handle changing of the type
       childNode.status = CacheStates.READY
+      // @ts-expect-error TODO-APP: handle changing of the type
       childNode.subTreeData = childProp.current
       // Mutates the prop in order to clean up the memory associated with the subTreeData as it is now part of the cache.
       childProp.current = null
