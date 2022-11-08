@@ -1095,7 +1095,9 @@ export const collectGenerateParams = async (
 ): Promise<GenerateParams> => {
   if (!Array.isArray(segment)) return generateParams
   const isLayout = !!segment[2]?.layout
-  const mod = await (isLayout ? segment[2]?.layout?.() : segment[2]?.page?.())
+  const mod = await (isLayout
+    ? segment[2]?.layout?.[0]?.()
+    : segment[2]?.page?.[0]?.())
   const config = collectAppConfig(mod)
 
   const result = {
