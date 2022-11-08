@@ -120,7 +120,7 @@ describe('Switchable runtime', () => {
           beforePageLoad(page) {
             page.on('request', (request) => {
               return request.allHeaders().then((headers) => {
-                if (headers.__rsc__ === '1') {
+                if (headers['RSC'.toLowerCase()] === '1') {
                   flightRequest = request.url()
                 }
               })
@@ -680,7 +680,7 @@ describe('Switchable runtime', () => {
           beforePageLoad(page) {
             page.on('request', (request) => {
               request.allHeaders().then((headers) => {
-                if (headers.__rsc__ === '1') {
+                if (headers['RSC'.toLowerCase()] === '1') {
                   flightRequest = request.url()
                 }
               })
