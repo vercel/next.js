@@ -17,6 +17,18 @@ import {
 const cssCache = new Map<string, Promise<string>>()
 const fontCache = new Map<string, any>()
 
+// regexp is based on https://github.com/sindresorhus/escape-string-regexp
+const reHasRegExp = /[|\\{}()[\]^$+*?.-]/
+const reReplaceRegExp = /[|\\{}()[\]^$+*?.-]/g
+
+function escapeStringRegexp(str: string) {
+  // see also: https://github.com/lodash/lodash/blob/2da024c3b4f9947a48517639de7560457cd4ec6c/escapeRegExp.js#L23
+  if (reHasRegExp.test(str)) {
+    return str.replace(reReplaceRegExp, '\\$&')
+  }
+  return str
+}
+
 const downloadGoogleFonts: FontLoader = async ({
   functionName,
   data,
@@ -49,27 +61,21 @@ const downloadGoogleFonts: FontLoader = async ({
     )
   }
 
-  let fontFaceDeclarations = ''
-  for (const weight of weights) {
-    for (const style of styles) {
-      const fontAxes = getFontAxes(
-        fontFamily,
-        weight,
-        style,
-        selectedVariableAxes
-      )
-      const url = getUrl(fontFamily, fontAxes, display)
+  const fontAxes = getFontAxes(
+    fontFamily,
+    weights,
+    styles,
+    selectedVariableAxes
+  )
+  const url = getUrl(fontFamily, fontAxes, display)
 
-      let cachedCssRequest = cssCache.get(url)
-      const fontFaceDeclaration =
-        cachedCssRequest ?? (await fetchCSSFromGoogleFonts(url, fontFamily))
-      if (!cachedCssRequest) {
-        cssCache.set(url, fontFaceDeclaration)
-      } else {
-        cssCache.delete(url)
-      }
-      fontFaceDeclarations += `${fontFaceDeclaration}\n`
-    }
+  let cachedCssRequest = cssCache.get(url)
+  const fontFaceDeclarations =
+    cachedCssRequest ?? (await fetchCSSFromGoogleFonts(url, fontFamily))
+  if (!cachedCssRequest) {
+    cssCache.set(url, fontFaceDeclarations)
+  } else {
+    cssCache.delete(url)
   }
 
   // Find font files to download
@@ -85,7 +91,12 @@ const downloadGoogleFonts: FontLoader = async ({
       currentSubset = newSubset
     } else {
       const googleFontFileUrl = /src: url\((.+?)\)/.exec(line)?.[1]
-      if (googleFontFileUrl) {
+      if (
+        googleFontFileUrl &&
+        !fontFiles.some(
+          (foundFile) => foundFile.googleFontFileUrl === googleFontFileUrl
+        )
+      ) {
         fontFiles.push({
           googleFontFileUrl,
           preloadFontFile:
@@ -126,7 +137,7 @@ const downloadGoogleFonts: FontLoader = async ({
   let updatedCssResponse = fontFaceDeclarations
   for (const { googleFontFileUrl, selfHostedFileUrl } of downloadedFiles) {
     updatedCssResponse = updatedCssResponse.replace(
-      googleFontFileUrl,
+      new RegExp(escapeStringRegexp(googleFontFileUrl), 'g'),
       selfHostedFileUrl
     )
   }

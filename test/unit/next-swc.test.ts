@@ -82,7 +82,7 @@ var ref = _slicedToArray(useState(0), 2), count = ref[0], setCount = ref[1];
       expect(output).toMatchInlineSnapshot(`
 "function _arrayLikeToArray(arr, len) {
     if (len == null || len > arr.length) len = arr.length;
-    for(var i1 = 0, arr2 = new Array(len); i1 < len; i1++)arr2[i1] = arr[i1];
+    for(var i = 0, arr2 = new Array(len); i < len; i++)arr2[i] = arr[i];
     return arr2;
 }
 function _arrayWithHoles(arr) {
@@ -95,7 +95,7 @@ function _nonIterableRest() {
     throw new TypeError(\\"Invalid attempt to destructure non-iterable instance.\\\\\\\\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.\\");
 }
 function _toArray(arr) {
-    return _arrayWithHoles(arr) || _iterableToArray(arr) || _unsupportedIterableToArray(arr, i) || _nonIterableRest();
+    return _arrayWithHoles(arr) || _iterableToArray(arr) || _unsupportedIterableToArray(arr) || _nonIterableRest();
 }
 function _unsupportedIterableToArray(o, minLen) {
     if (!o) return;
