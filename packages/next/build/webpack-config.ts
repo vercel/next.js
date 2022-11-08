@@ -970,7 +970,6 @@ export default async function getBaseWebpackConfig(
     plugins: [],
   }
 
-  console.log(noMangling)
   const terserOptions: any = {
     parse: {
       ecma: 8,
