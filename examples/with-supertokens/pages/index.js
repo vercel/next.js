@@ -20,10 +20,11 @@ export async function getServerSideProps(context) {
   } catch (err) {
     if (err.type === Session.Error.TRY_REFRESH_TOKEN) {
       return { props: { fromSupertokens: 'needs-refresh' } }
-    } else if (
-      err.type === Session.Error.UNAUTHORISED ||
-      err.type === Session.Error.INVALID_CLAIMS
-    ) {
+    } else if (err.type === Session.Error.UNAUTHORISED) {
+      // this will force the frontend to try and refresh which will fail
+      // clearing all cookies and redirecting the user to the login screen.
+      return { props: { fromSupertokens: 'needs-refresh' } }
+    } else if (err.type === Session.Error.INVALID_CLAIMS) {
       return { props: {} }
     } else {
       throw err
