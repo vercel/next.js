@@ -53,7 +53,7 @@ module.exports = (actionInfo) => {
         }
       }
     },
-    async linkPackages(repoDir = '', nextSwcPkg) {
+    async linkPackages(repoDir = '', nextRsPkg) {
       const pkgPaths = new Map()
       const pkgDatas = new Map()
       let pkgs
@@ -109,8 +109,8 @@ module.exports = (actionInfo) => {
           )
         }
         if (pkg === 'next') {
-          if (nextSwcPkg) {
-            Object.assign(pkgData.dependencies, nextSwcPkg)
+          if (nextRsPkg) {
+            Object.assign(pkgData.dependencies, nextRsPkg)
           } else {
             if (pkgDatas.get('@next/rs')) {
               pkgData.dependencies['@next/rs'] =

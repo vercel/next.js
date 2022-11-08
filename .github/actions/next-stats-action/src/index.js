@@ -72,13 +72,13 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
     }
     /* eslint-disable-next-line */
     actionInfo.commitId = await getCommitId(diffRepoDir)
-    let mainNextSwcVersion
+    let mainNextRsVersion
 
     if (!actionInfo.skipClone) {
       if (actionInfo.isRelease) {
         logger('Release detected, resetting mainRepo to last stable tag')
         const lastStableTag = await getLastStable(mainRepoDir, actionInfo.prRef)
-        mainNextSwcVersion = {
+        mainNextRsVersion = {
           '@next/rs-linux-x64-gnu': lastStableTag,
         }
         if (!lastStableTag) throw new Error('failed to get last stable tag')
@@ -137,7 +137,7 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
       const isMainRepo = dir === mainRepoDir
       const pkgPaths = await linkPackages(
         dir,
-        isMainRepo ? mainNextSwcVersion : undefined
+        isMainRepo ? mainNextRsVersion : undefined
       )
 
       if (isMainRepo) mainRepoPkgPaths = pkgPaths

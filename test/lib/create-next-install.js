@@ -30,7 +30,7 @@ async function createNextInstall(
   for (const folder of await fs.readdir(
     path.join(origRepoDir, 'node_modules/@next')
   )) {
-    if (folder.startsWith('swc-')) {
+    if (folder.startsWith('rs-')) {
       const swcPkgPath = path.join(origRepoDir, 'node_modules/@next', folder)
       const outputPath = path.join(origRepoDir, 'packages/next-rs/native')
       await fs.copy(swcPkgPath, outputPath, {
@@ -52,7 +52,7 @@ async function createNextInstall(
           !item.includes('node_modules') &&
           !item.includes('.DS_Store') &&
           // Exclude Rust compilation files
-          !/next[\\/]build[\\/]swc[\\/]target/.test(item) &&
+          !/next[\\/]build[\\/]rs[\\/]target/.test(item) &&
           !/next-rs[\\/]target/.test(item)
         )
       },
