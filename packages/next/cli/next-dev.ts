@@ -137,7 +137,7 @@ const nextDev: cliCommand = async (argv) => {
   }
 
   // check for postcss, babelrc, swc plugins
-  async function validateNextConfig() {
+  async function validateNextConfig(isCustomTurbopack: boolean) {
     const { findConfigPath } =
       require('../lib/find-config') as typeof import('../lib/find-config')
     const { getPkgManager } =
@@ -323,7 +323,16 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
         `
       )
       console.warn(feedbackMessage)
-      process.exit(1)
+
+      if (!isCustomTurbopack) {
+        process.exit(1)
+      } else {
+        console.warn(
+          `\n${chalk.bold.yellow(
+            'Warning:'
+          )} Unsupported config foung; but continuing with custom Turbopack binary.\n`
+        )
+      }
     }
     console.log(feedbackMessage)
 
@@ -333,7 +342,7 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
   if (args['--turbo']) {
     isTurboSession = true
 
-    const { loadBindings } =
+    const { loadBindings, __isCustomTurbopackBinary } =
       require('../build/swc') as typeof import('../build/swc')
     const { eventCliSession } =
       require('../telemetry/events/version') as typeof import('../telemetry/events/version')
@@ -345,7 +354,8 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
     const findUp =
       require('next/dist/compiled/find-up') as typeof import('next/dist/compiled/find-up')
 
-    const rawNextConfig = await validateNextConfig()
+    const isCustomTurbopack = await __isCustomTurbopackBinary()
+    const rawNextConfig = await validateNextConfig(isCustomTurbopack)
 
     const distDir = path.join(dir, rawNextConfig.distDir || '.next')
     const { pagesDir, appDir } = findPagesDir(
@@ -359,20 +369,23 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
     setGlobal('pagesDir', pagesDir)
     setGlobal('telemetry', telemetry)
 
-    telemetry.record(
-      eventCliSession(distDir, rawNextConfig as NextConfigComplete, {
-        webpackVersion: 5,
-        cliCommand: 'dev',
-        isSrcDir:
-          (!!pagesDir && path.relative(dir, pagesDir).startsWith('src')) ||
-          (!!appDir && path.relative(dir, appDir).startsWith('src')),
-        hasNowJson: !!(await findUp('now.json', { cwd: dir })),
-        isCustomServer: false,
-        turboFlag: true,
-        pagesDir: !!pagesDir,
-        appDir: !!appDir,
-      })
-    )
+    if (!isCustomTurbopack) {
+      telemetry.record(
+        eventCliSession(distDir, rawNextConfig as NextConfigComplete, {
+          webpackVersion: 5,
+          cliCommand: 'dev',
+          isSrcDir:
+            (!!pagesDir && path.relative(dir, pagesDir).startsWith('src')) ||
+            (!!appDir && path.relative(dir, appDir).startsWith('src')),
+          hasNowJson: !!(await findUp('now.json', { cwd: dir })),
+          isCustomServer: false,
+          turboFlag: true,
+          pagesDir: !!pagesDir,
+          appDir: !!appDir,
+        })
+      )
+    }
+
     const turboJson = findUp.sync('turbo.json', { cwd: dir })
     // eslint-disable-next-line no-shadow
     const packagePath = findUp.sync('package.json', { cwd: dir })
