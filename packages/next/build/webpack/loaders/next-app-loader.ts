@@ -21,11 +21,11 @@ const PAGE_SEGMENT = 'page$'
 
 // TODO-APP: check if this can be narrowed.
 type ComponentModule = () => any
+type ModuleReference = [componentModule: ComponentModule, filePath: string]
 export type ComponentsType = {
-  readonly [componentKey in ValueOf<typeof FILE_TYPES>]?: ComponentModule
+  readonly [componentKey in ValueOf<typeof FILE_TYPES>]?: ModuleReference
 } & {
-  readonly layoutOrPagePath?: string
-  readonly page?: ComponentModule
+  readonly page?: ModuleReference
 }
 
 async function createTreeCodeFromPath({
@@ -67,9 +67,10 @@ async function createTreeCodeFromPath({
         if (resolvedPagePath) pages.push(resolvedPagePath)
 
         // Use '' for segment as it's the page. There can't be a segment called '' so this is the safest way to add it.
-        props[parallelKey] = `['', {}, {layoutOrPagePath: ${JSON.stringify(
-          resolvedPagePath
-        )}, page: () => require(${JSON.stringify(resolvedPagePath)})}]`
+        props[parallelKey] = `['', {}, {
+          page: [() => require(${JSON.stringify(
+            resolvedPagePath
+          )}), ${JSON.stringify(resolvedPagePath)}]}]`
         continue
       }
 
@@ -105,11 +106,9 @@ async function createTreeCodeFromPath({
               if (filePath === undefined) {
                 return ''
               }
-              return `${
-                file === FILE_TYPES.layout
-                  ? `layoutOrPagePath: ${JSON.stringify(filePath)},`
-                  : ''
-              }'${file}': () => require(${JSON.stringify(filePath)}),`
+              return `'${file}': [() => require(${JSON.stringify(
+                filePath
+              )}), ${JSON.stringify(filePath)}],`
             })
             .join('\n')}
         }

@@ -852,3 +852,18 @@ export function runDevSuite(suiteName, appDir, options) {
 export function runProdSuite(suiteName, appDir, options) {
   return runSuite(suiteName, { appDir, env: 'prod' }, options)
 }
+
+/**
+ * Parse the output and return all entries that match the provided `eventName`
+ * @param {string} output output of the console
+ * @param {string} eventName
+ * @returns {Array<{}>}
+ */
+export function findAllTelemetryEvents(output, eventName) {
+  const regex = /\[telemetry\] ({.+?^})/gms
+  // Pop the last element of each entry to retrieve contents of the capturing group
+  const events = [...output.matchAll(regex)].map((entry) =>
+    JSON.parse(entry.pop())
+  )
+  return events.filter((e) => e.eventName === eventName).map((e) => e.payload)
+}

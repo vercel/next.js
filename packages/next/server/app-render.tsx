@@ -915,7 +915,7 @@ export async function renderToHTMLOrFlight(
       }
 
       if (head) {
-        const Head = await interopDefault(head())
+        const Head = await interopDefault(head[0]())
         return <Head params={currentParams} />
       }
 
@@ -965,6 +965,39 @@ export async function renderToHTMLOrFlight(
 
     const assetPrefix = renderOpts.assetPrefix || ''
 
+    const createComponentAndStyles = async ({
+      filePath,
+      getComponent,
+      shouldPreload,
+    }: {
+      filePath: string
+      getComponent: () => any
+      shouldPreload?: boolean
+    }): Promise<any> => {
+      const cssHrefs = getCssInlinedLinkTags(
+        serverComponentManifest,
+        serverCSSManifest,
+        filePath,
+        serverCSSForEntries
+      )
+      const cacheBustingUrlSuffix = dev ? `?ts=${Date.now()}` : ''
+
+      const styles = cssHrefs
+        ? cssHrefs.map((href, index) => (
+            <link
+              rel="stylesheet"
+              href={`${assetPrefix}/_next/${href}${cacheBustingUrlSuffix}`}
+              // @ts-ignore
+              precedence={shouldPreload ? 'high' : undefined}
+              key={index}
+            />
+          ))
+        : null
+      const Comp = await interopDefault(getComponent())
+
+      return [Comp, styles]
+    }
+
     /**
      * Use the provided loader tree to create the React Component tree.
      */
@@ -973,15 +1006,7 @@ export async function renderToHTMLOrFlight(
       loaderTree: [
         segment,
         parallelRoutes,
-        {
-          layoutOrPagePath,
-          layout,
-          template,
-          error,
-          loading,
-          page,
-          'not-found': notFound,
-        },
+        { layout, template, error, loading, page, 'not-found': notFound },
       ],
       parentParams,
       firstItem,
@@ -993,7 +1018,7 @@ export async function renderToHTMLOrFlight(
       rootLayoutIncluded?: boolean
       firstItem?: boolean
     }): Promise<{ Component: React.ComponentType }> => {
-      // TODO-APP: enable stylesheet per layout/page
+      const layoutOrPagePath = layout?.[1] || page?.[1]
       const stylesheets: string[] = layoutOrPagePath
         ? getCssInlinedLinkTags(
             serverComponentManifest,
@@ -1003,25 +1028,46 @@ export async function renderToHTMLOrFlight(
           )
         : []
 
-      const preloadedFontFiles = getPreloadedFontFilesInlineLinkTags(
-        serverComponentManifest,
-        serverCSSManifest!,
-        fontLoaderManifest,
-        serverCSSForEntries,
-        layoutOrPagePath
-      )
-      const Template = template
-        ? await interopDefault(template())
-        : React.Fragment
-      const ErrorComponent = error ? await interopDefault(error()) : undefined
-      const Loading = loading ? await interopDefault(loading()) : undefined
+      const preloadedFontFiles = layoutOrPagePath
+        ? getPreloadedFontFilesInlineLinkTags(
+            serverComponentManifest,
+            serverCSSManifest!,
+            fontLoaderManifest,
+            serverCSSForEntries,
+            layoutOrPagePath
+          )
+        : []
+
+      const [Template, templateStyles] = template
+        ? await createComponentAndStyles({
+            filePath: template[1],
+            getComponent: template[0],
+            shouldPreload: true,
+          })
+        : [React.Fragment]
+
+      const [ErrorComponent, errorStyles] = error
+        ? await createComponentAndStyles({
+            filePath: error[1],
+            getComponent: error[0],
+          })
+        : []
+
+      const [Loading, loadingStyles] = loading
+        ? await createComponentAndStyles({
+            filePath: loading[1],
+            getComponent: loading[0],
+          })
+        : []
+
       const isLayout = typeof layout !== 'undefined'
       const isPage = typeof page !== 'undefined'
       const layoutOrPageMod = isLayout
-        ? await layout()
+        ? await layout[0]()
         : isPage
-        ? await page()
+        ? await page[0]()
         : undefined
+
       /**
        * Checks if the current segment is a root layout.
        */
@@ -1032,11 +1078,14 @@ export async function renderToHTMLOrFlight(
       const rootLayoutIncludedAtThisLevelOrAbove =
         rootLayoutIncluded || rootLayoutAtThisLevel
 
-      const NotFound = notFound
-        ? await interopDefault(notFound())
+      const [NotFound, notFoundStyles] = notFound
+        ? await createComponentAndStyles({
+            filePath: notFound[1],
+            getComponent: notFound[0],
+          })
         : rootLayoutAtThisLevel
-        ? DefaultNotFound
-        : undefined
+        ? [DefaultNotFound]
+        : []
 
       if (typeof layoutOrPageMod?.revalidate === 'number') {
         defaultRevalidate = layoutOrPageMod.revalidate
@@ -1147,14 +1196,18 @@ export async function renderToHTMLOrFlight(
                   parallelRouterKey={parallelRouteKey}
                   segmentPath={createSegmentPath(currentSegmentPath)}
                   loading={Loading ? <Loading /> : undefined}
+                  loadingStyles={loadingStyles}
                   hasLoading={Boolean(Loading)}
                   error={ErrorComponent}
+                  errorStyles={errorStyles}
                   template={
                     <Template>
                       <RenderFromTemplateContext />
                     </Template>
                   }
+                  templateStyles={templateStyles}
                   notFound={NotFound ? <NotFound /> : undefined}
+                  notFoundStyles={notFoundStyles}
                   childProp={childProp}
                   rootLayoutIncluded={rootLayoutIncludedAtThisLevelOrAbove}
                 />,
@@ -1187,7 +1240,9 @@ export async function renderToHTMLOrFlight(
                 parallelRouterKey={parallelRouteKey}
                 segmentPath={segmentPath}
                 error={ErrorComponent}
+                errorStyles={errorStyles}
                 loading={Loading ? <Loading /> : undefined}
+                loadingStyles={loadingStyles}
                 // TODO-APP: Add test for loading returning `undefined`. This currently can't be tested as the `webdriver()` tab will wait for the full page to load before returning.
                 hasLoading={Boolean(Loading)}
                 template={
@@ -1195,7 +1250,9 @@ export async function renderToHTMLOrFlight(
                     <RenderFromTemplateContext />
                   </Template>
                 }
+                templateStyles={templateStyles}
                 notFound={NotFound ? <NotFound /> : undefined}
+                notFoundStyles={notFoundStyles}
                 childProp={childProp}
                 rootLayoutIncluded={rootLayoutIncludedAtThisLevelOrAbove}
               />,
