@@ -579,6 +579,7 @@ export default async function getBaseWebpackConfig(
     target = COMPILER_NAMES.server,
     appDir,
     middlewareMatchers,
+    noMangling = false,
   }: {
     buildId: string
     config: NextConfigComplete
@@ -593,6 +594,7 @@ export default async function getBaseWebpackConfig(
     target?: string
     appDir?: string
     middlewareMatchers?: MiddlewareMatcher[]
+    noMangling?: boolean
   }
 ): Promise<webpack.Configuration> {
   const isClient = compilerType === COMPILER_NAMES.client
@@ -981,7 +983,7 @@ export default async function getBaseWebpackConfig(
     },
     mangle: {
       safari10: true,
-      ...(process.env.__NEXT_MANGLING_DEBUG
+      ...(process.env.__NEXT_MANGLING_DEBUG || noMangling
         ? {
             toplevel: true,
             module: true,
@@ -996,7 +998,7 @@ export default async function getBaseWebpackConfig(
       comments: false,
       // Fixes usage of Emoji and certain Regex
       ascii_only: true,
-      ...(process.env.__NEXT_MANGLING_DEBUG
+      ...(process.env.__NEXT_MANGLING_DEBUG || noMangling
         ? {
             beautify: true,
           }
@@ -1753,7 +1755,9 @@ export default async function getBaseWebpackConfig(
                     resolve: {
                       alias: {
                         react: 'next/dist/compiled/react',
-                        'react-dom$': 'next/dist/compiled/react-dom',
+                        'react-dom$': reactProductionProfiling
+                          ? 'next/dist/compiled/react-dom/cjs/react-dom.profiling.min'
+                          : 'next/dist/compiled/react-dom',
                         'react-dom/client$':
                           'next/dist/compiled/react-dom/client',
                       },

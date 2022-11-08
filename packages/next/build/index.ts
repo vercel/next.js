@@ -254,7 +254,8 @@ export default async function build(
   conf = null,
   reactProductionProfiling = false,
   debugOutput = false,
-  runLint = true
+  runLint = true,
+  noMangling = false
 ): Promise<void> {
   try {
     const nextBuildSpan = trace('next-build', undefined, {
@@ -760,6 +761,7 @@ export default async function build(
           header: typeof RSC
           varyHeader: typeof RSC_VARY_HEADER
         }
+        skipMiddlewareUrlNormalize?: boolean
       } = nextBuildSpan.traceChild('generate-routes-manifest').traceFn(() => {
         const sortedRoutes = getSortedRoutes([
           ...pageKeys.pages,
@@ -790,6 +792,8 @@ export default async function build(
             header: RSC,
             varyHeader: RSC_VARY_HEADER,
           },
+          skipMiddlewareUrlNormalize:
+            config.experimental.skipMiddlewareUrlNormalize,
         }
       })
 
@@ -932,6 +936,7 @@ export default async function build(
           runWebpackSpan,
           target,
           appDir,
+          noMangling,
           middlewareMatchers: entrypoints.middlewareMatchers,
         }
 

@@ -136,6 +136,8 @@ export type EventBuildFeatureUsage = {
     | 'next/future/image'
     | 'next/script'
     | 'next/dynamic'
+    | '@next/font/google'
+    | '@next/font/local'
     | 'experimental/optimizeCss'
     | 'experimental/nextScriptWorkers'
     | 'optimizeFonts'

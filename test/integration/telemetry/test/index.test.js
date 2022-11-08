@@ -11,6 +11,7 @@ import {
   nextBuild,
   nextLint,
   check,
+  findAllTelemetryEvents,
 } from 'next-test-utils'
 
 const appDir = path.join(__dirname, '..')
@@ -672,7 +673,10 @@ describe('Telemetry CLI', () => {
     expect(event1).toMatch(`"nextRulesEnabled": {`)
     expect(event1).toMatch(/"@next\/next\/.+?": "(off|warn|error)"/)
 
-    const featureUsageEvents = findAllEvents(stderr, 'NEXT_BUILD_FEATURE_USAGE')
+    const featureUsageEvents = findAllTelemetryEvents(
+      stderr,
+      'NEXT_BUILD_FEATURE_USAGE'
+    )
     expect(featureUsageEvents).toContainEqual({
       featureName: 'build-lint',
       invocationCount: 1,
@@ -684,7 +688,7 @@ describe('Telemetry CLI', () => {
       stderr: true,
       env: { NEXT_TELEMETRY_DEBUG: 1 },
     })
-    const events = findAllEvents(stderr, 'NEXT_BUILD_FEATURE_USAGE')
+    const events = findAllTelemetryEvents(stderr, 'NEXT_BUILD_FEATURE_USAGE')
     expect(events).toContainEqual({
       featureName: 'build-lint',
       invocationCount: 0,
@@ -703,7 +707,7 @@ describe('Telemetry CLI', () => {
     })
     await fs.remove(nextConfig)
 
-    const events = findAllEvents(stderr, 'NEXT_BUILD_FEATURE_USAGE')
+    const events = findAllTelemetryEvents(stderr, 'NEXT_BUILD_FEATURE_USAGE')
     expect(events).toContainEqual({
       featureName: 'build-lint',
       invocationCount: 0,
@@ -742,7 +746,10 @@ describe('Telemetry CLI', () => {
       stderr: true,
       env: { NEXT_TELEMETRY_DEBUG: 1 },
     })
-    const featureUsageEvents = findAllEvents(stderr, 'NEXT_BUILD_FEATURE_USAGE')
+    const featureUsageEvents = findAllTelemetryEvents(
+      stderr,
+      'NEXT_BUILD_FEATURE_USAGE'
+    )
     expect(featureUsageEvents).toEqual(
       expect.arrayContaining([
         {
@@ -782,7 +789,10 @@ describe('Telemetry CLI', () => {
     })
     await fs.remove(path.join(appDir, 'next.config.js'))
     await fs.remove(path.join(appDir, 'jsconfig.json'))
-    const featureUsageEvents = findAllEvents(stderr, 'NEXT_BUILD_FEATURE_USAGE')
+    const featureUsageEvents = findAllTelemetryEvents(
+      stderr,
+      'NEXT_BUILD_FEATURE_USAGE'
+    )
     expect(featureUsageEvents).toEqual(
       expect.arrayContaining([
         {
@@ -837,7 +847,7 @@ describe('Telemetry CLI', () => {
       path.join(appDir, 'next.config.optimize-css')
     )
 
-    const events = findAllEvents(stderr, 'NEXT_BUILD_FEATURE_USAGE')
+    const events = findAllTelemetryEvents(stderr, 'NEXT_BUILD_FEATURE_USAGE')
     expect(events).toContainEqual({
       featureName: 'experimental/optimizeCss',
       invocationCount: 1,
@@ -860,7 +870,10 @@ describe('Telemetry CLI', () => {
       path.join(appDir, 'next.config.next-script-workers')
     )
 
-    const featureUsageEvents = findAllEvents(stderr, 'NEXT_BUILD_FEATURE_USAGE')
+    const featureUsageEvents = findAllTelemetryEvents(
+      stderr,
+      'NEXT_BUILD_FEATURE_USAGE'
+    )
     expect(featureUsageEvents).toContainEqual({
       featureName: 'experimental/nextScriptWorkers',
       invocationCount: 1,
@@ -880,7 +893,10 @@ describe('Telemetry CLI', () => {
 
     await fs.remove(path.join(appDir, 'middleware.js'))
 
-    const buildOptimizedEvents = findAllEvents(stderr, 'NEXT_BUILD_OPTIMIZED')
+    const buildOptimizedEvents = findAllTelemetryEvents(
+      stderr,
+      'NEXT_BUILD_OPTIMIZED'
+    )
     expect(buildOptimizedEvents).toContainEqual(
       expect.objectContaining({
         middlewareCount: 1,
@@ -917,7 +933,7 @@ describe('Telemetry CLI', () => {
       path.join(appDir, 'package.swc-plugins')
     )
 
-    const pluginDetectedEvents = findAllEvents(
+    const pluginDetectedEvents = findAllTelemetryEvents(
       stderr,
       'NEXT_SWC_PLUGIN_DETECTED'
     )
@@ -941,7 +957,10 @@ describe('Telemetry CLI', () => {
       stderr: true,
       env: { NEXT_TELEMETRY_DEBUG: 1 },
     })
-    const featureUsageEvents = findAllEvents(stderr, 'NEXT_BUILD_FEATURE_USAGE')
+    const featureUsageEvents = findAllTelemetryEvents(
+      stderr,
+      'NEXT_BUILD_FEATURE_USAGE'
+    )
     expect(featureUsageEvents).toContainEqual({
       featureName: 'next/legacy/image',
       invocationCount: 1,
@@ -952,18 +971,3 @@ describe('Telemetry CLI', () => {
     })
   })
 })
-
-/**
- * Parse the output and return all entries that match the provided `eventName`
- * @param {string} output output of the console
- * @param {string} eventName
- * @returns {Array<{}>}
- */
-function findAllEvents(output, eventName) {
-  const regex = /\[telemetry\] ({.+?^})/gms
-  // Pop the last element of each entry to retrieve contents of the capturing group
-  const events = [...output.matchAll(regex)].map((entry) =>
-    JSON.parse(entry.pop())
-  )
-  return events.filter((e) => e.eventName === eventName).map((e) => e.payload)
-}
