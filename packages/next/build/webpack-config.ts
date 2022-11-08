@@ -1756,7 +1756,7 @@ export default async function getBaseWebpackConfig(
                       alias: {
                         react: 'next/dist/compiled/react',
                         'react-dom$': reactProductionProfiling
-                          ? 'next/dist/compiled/react-dom/profiling'
+                          ? 'next/dist/compiled/react-dom/cjs/react-dom.profiling.min'
                           : 'next/dist/compiled/react-dom',
                         'react-dom/client$':
                           'next/dist/compiled/react-dom/client',
