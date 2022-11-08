@@ -38,6 +38,11 @@ import { NOT_FOUND_ERROR_CODE } from '../client/components/not-found'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import { Writable } from 'stream'
 import stringHash from 'next/dist/compiled/string-hash'
+import {
+  NEXT_ROUTER_PREFETCH,
+  NEXT_ROUTER_STATE_TREE,
+  RSC,
+} from '../client/components/app-router-headers'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -686,16 +691,16 @@ function getScriptNonceFromHeader(cspHeaderValue: string): string | undefined {
   return nonce
 }
 
-const FLIGHT_PARAMETERS = [
-  '__rsc__',
-  '__next_router_state_tree__',
-  '__next_router_prefetch__',
+export const FLIGHT_PARAMETERS = [
+  [RSC],
+  [NEXT_ROUTER_STATE_TREE],
+  [NEXT_ROUTER_PREFETCH],
 ] as const
 
 function headersWithoutFlight(headers: IncomingHttpHeaders) {
   const newHeaders = { ...headers }
   for (const param of FLIGHT_PARAMETERS) {
-    delete newHeaders[param]
+    delete newHeaders[param.toString().toLowerCase()]
   }
   return newHeaders
 }
@@ -728,7 +733,7 @@ export async function renderToHTMLOrFlight(
    */
   const isStaticGeneration =
     renderOpts.supportsDynamicHTML !== true && !renderOpts.isBot
-  const isFlight = req.headers.__rsc__ !== undefined
+  const isFlight = req.headers[RSC.toLowerCase()] !== undefined
 
   const capturedErrors: Error[] = []
   const allCapturedErrors: Error[] = []
@@ -786,7 +791,8 @@ export async function renderToHTMLOrFlight(
     // don't modify original query object
     query = Object.assign({}, query)
 
-    const isPrefetch = req.headers.__next_router_prefetch__ !== undefined
+    const isPrefetch =
+      req.headers[NEXT_ROUTER_PREFETCH.toLowerCase()] !== undefined
 
     // TODO-APP: verify the tree is valid
     // TODO-APP: verify query param is single value (not an array)
@@ -795,8 +801,10 @@ export async function renderToHTMLOrFlight(
      * Router state provided from the client-side router. Used to handle rendering from the common layout down.
      */
     let providedFlightRouterState: FlightRouterState = isFlight
-      ? req.headers.__next_router_state_tree__
-        ? JSON.parse(req.headers.__next_router_state_tree__ as string)
+      ? req.headers[NEXT_ROUTER_STATE_TREE.toLowerCase()]
+        ? JSON.parse(
+            req.headers[NEXT_ROUTER_STATE_TREE.toLowerCase()] as string
+          )
         : undefined
       : undefined
 

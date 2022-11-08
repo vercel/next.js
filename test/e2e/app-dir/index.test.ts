@@ -84,7 +84,7 @@ describe('app dir', () => {
         {},
         {
           headers: {
-            __rsc__: '1',
+            ['RSC'.toString()]: '1',
           },
         }
       )
@@ -98,7 +98,7 @@ describe('app dir', () => {
         {},
         {
           headers: {
-            __rsc__: '1',
+            ['RSC'.toString()]: '1',
           },
         }
       )
