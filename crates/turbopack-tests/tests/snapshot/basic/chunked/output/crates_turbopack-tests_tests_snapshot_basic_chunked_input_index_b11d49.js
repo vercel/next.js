@@ -162,10 +162,8 @@ __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$
   function interopEsm(raw, ns, allowExportDefault) {
     /** @type {Object.<string, () => any>} */
     const getters = { __proto__: null };
-    if (typeof raw === "object" || typeof raw === "function") {
-      for (const key in raw) {
-        getters[key] = createGetter(raw, key);
-      }
+    for (const key in raw) {
+      getters[key] = createGetter(raw, key);
     }
     if (!(allowExportDefault && "default" in getters)) {
       getters["default"] = () => raw;
