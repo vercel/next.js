@@ -116,20 +116,17 @@ impl<C: Comments> ReactServerComponents<C> {
                                 // an exception because they are not valid directives.
                                 Expr::Paren(ParenExpr { expr, .. }) => {
                                     finished_directives = true;
-                                    match &**expr {
-                                        Expr::Lit(Lit::Str(Str { value, .. })) => {
-                                            if &**value == "use client" {
-                                                HANDLER.with(|handler| {
-                                                    handler
-                                                        .struct_span_err(
-                                                            expr_stmt.span,
-                                                            "NEXT_RSC_ERR_CLIENT_DIRECTIVE_PAREN",
-                                                        )
-                                                        .emit()
-                                                })
-                                            }
+                                    if let Expr::Lit(Lit::Str(Str { value, .. })) = &**expr {
+                                        if &**value == "use client" {
+                                            HANDLER.with(|handler| {
+                                                handler
+                                                    .struct_span_err(
+                                                        expr_stmt.span,
+                                                        "NEXT_RSC_ERR_CLIENT_DIRECTIVE_PAREN",
+                                                    )
+                                                    .emit()
+                                            })
                                         }
-                                        _ => {}
                                     }
                                 }
                                 _ => {
