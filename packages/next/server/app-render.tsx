@@ -1025,23 +1025,23 @@ export async function renderToHTMLOrFlight(
       rootLayoutIncluded?: boolean
       firstItem?: boolean
     }): Promise<{ Component: React.ComponentType }> => {
-      // TODO-APP: enable stylesheet per layout/page
-      const stylesheets: string[] = layout
+      const layoutOrPagePath = layout?.[1] || page?.[1]
+      const stylesheets: string[] = layoutOrPagePath
         ? getCssInlinedLinkTags(
             serverComponentManifest,
             serverCSSManifest!,
-            layout[1],
+            layoutOrPagePath,
             serverCSSForEntries
           )
         : []
 
-      const preloadedFontFiles = layout
+      const preloadedFontFiles = layoutOrPagePath
         ? getPreloadedFontFilesInlineLinkTags(
             serverComponentManifest,
             serverCSSManifest!,
             fontLoaderManifest,
             serverCSSForEntries,
-            layout[1]
+            layoutOrPagePath
           )
         : []
 
