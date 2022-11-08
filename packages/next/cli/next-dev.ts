@@ -47,7 +47,7 @@ const handleSessionStop = async () => {
 process.on('SIGINT', handleSessionStop)
 process.on('SIGTERM', handleSessionStop)
 
-const nextDev: cliCommand = (argv) => {
+const nextDev: cliCommand = async (argv) => {
   const validArgs: arg.Spec = {
     // Types
     '--help': Boolean,
@@ -136,193 +136,181 @@ const nextDev: cliCommand = (argv) => {
     port,
   }
 
-  if (args['--turbo']) {
-    isTurboSession = true
-    // check for postcss, babelrc, swc plugins
-    return new Promise<void>(async (resolve) => {
-      const { findConfigPath } =
-        require('../lib/find-config') as typeof import('../lib/find-config')
-      const { loadBindings } =
-        require('../build/swc') as typeof import('../build/swc')
-      const { getPkgManager } =
-        require('../lib/helpers/get-pkg-manager') as typeof import('../lib/helpers/get-pkg-manager')
-      const { getBabelConfigFile } =
-        require('../build/webpack-config') as typeof import('../build/webpack-config')
-      const { defaultConfig } =
-        require('../server/config-shared') as typeof import('../server/config-shared')
-      const { default: loadConfig } =
-        require('../server/config') as typeof import('../server/config')
-      const { PHASE_DEVELOPMENT_SERVER } =
-        require('../shared/lib/constants') as typeof import('../shared/lib/constants')
-      const chalk =
-        require('next/dist/compiled/chalk') as typeof import('next/dist/compiled/chalk')
-      const { eventCliSession } =
-        require('../telemetry/events/version') as typeof import('../telemetry/events/version')
-      const { findPagesDir } =
-        require('../lib/find-pages-dir') as typeof import('../lib/find-pages-dir')
-      const { interopDefault } =
-        require('../lib/interop-default') as typeof import('../lib/interop-default')
-      const { setGlobal } = require('../trace') as typeof import('../trace')
-      const { Telemetry } =
-        require('../telemetry/storage') as typeof import('../telemetry/storage')
-      const findUp =
-        require('next/dist/compiled/find-up') as typeof import('next/dist/compiled/find-up')
+  // check for postcss, babelrc, swc plugins
+  async function validateNextConfig() {
+    const { findConfigPath } =
+      require('../lib/find-config') as typeof import('../lib/find-config')
+    const { getPkgManager } =
+      require('../lib/helpers/get-pkg-manager') as typeof import('../lib/helpers/get-pkg-manager')
+    const { getBabelConfigFile } =
+      require('../build/webpack-config') as typeof import('../build/webpack-config')
+    const { defaultConfig } =
+      require('../server/config-shared') as typeof import('../server/config-shared')
+    const { default: loadConfig } =
+      require('../server/config') as typeof import('../server/config')
+    const { PHASE_DEVELOPMENT_SERVER } =
+      require('../shared/lib/constants') as typeof import('../shared/lib/constants')
+    const chalk =
+      require('next/dist/compiled/chalk') as typeof import('next/dist/compiled/chalk')
+    const { interopDefault } =
+      require('../lib/interop-default') as typeof import('../lib/interop-default')
+    const findUp =
+      require('next/dist/compiled/find-up') as typeof import('next/dist/compiled/find-up')
 
-      // To regenerate the TURBOPACK gradient require('gradient-string')('blue', 'red')('>>> TURBOPACK')
-      const isTTY = process.stdout.isTTY
+    // To regenerate the TURBOPACK gradient require('gradient-string')('blue', 'red')('>>> TURBOPACK')
+    const isTTY = process.stdout.isTTY
 
-      const turbopackGradient = `${chalk.bold(
-        isTTY
-          ? '\x1B[38;2;0;0;255m>\x1B[39m\x1B[38;2;23;0;232m>\x1B[39m\x1B[38;2;46;0;209m>\x1B[39m \x1B[38;2;70;0;185mT\x1B[39m\x1B[38;2;93;0;162mU\x1B[39m\x1B[38;2;116;0;139mR\x1B[39m\x1B[38;2;139;0;116mB\x1B[39m\x1B[38;2;162;0;93mO\x1B[39m\x1B[38;2;185;0;70mP\x1B[39m\x1B[38;2;209;0;46mA\x1B[39m\x1B[38;2;232;0;23mC\x1B[39m\x1B[38;2;255;0;0mK\x1B[39m'
-          : '>>> TURBOPACK'
-      )} ${chalk.dim('(alpha)')}\n\n`
+    const turbopackGradient = `${chalk.bold(
+      isTTY
+        ? '\x1B[38;2;0;0;255m>\x1B[39m\x1B[38;2;23;0;232m>\x1B[39m\x1B[38;2;46;0;209m>\x1B[39m \x1B[38;2;70;0;185mT\x1B[39m\x1B[38;2;93;0;162mU\x1B[39m\x1B[38;2;116;0;139mR\x1B[39m\x1B[38;2;139;0;116mB\x1B[39m\x1B[38;2;162;0;93mO\x1B[39m\x1B[38;2;185;0;70mP\x1B[39m\x1B[38;2;209;0;46mA\x1B[39m\x1B[38;2;232;0;23mC\x1B[39m\x1B[38;2;255;0;0mK\x1B[39m'
+        : '>>> TURBOPACK'
+    )} ${chalk.dim('(alpha)')}\n\n`
 
-      let thankYouMsg = `Thank you for trying Next.js v13 with Turbopack! As a reminder,\nTurbopack is currently in alpha and not yet ready for production.\nWe appreciate your ongoing support as we work to make it ready\nfor everyone.\n`
+    let thankYouMsg = `Thank you for trying Next.js v13 with Turbopack! As a reminder,\nTurbopack is currently in alpha and not yet ready for production.\nWe appreciate your ongoing support as we work to make it ready\nfor everyone.\n`
 
-      let unsupportedParts = ''
-      // TODO: warning for postcss mentioning sidecar
-      let babelrc = await getBabelConfigFile(dir)
-      if (babelrc) babelrc = path.basename(babelrc)
+    let unsupportedParts = ''
+    // TODO: warning for postcss mentioning sidecar
+    let babelrc = await getBabelConfigFile(dir)
+    if (babelrc) babelrc = path.basename(babelrc)
 
-      let hasNonDefaultConfig
-      let postcssFile
-      let tailwindFile
-      let rawNextConfig: NextConfig
+    let hasNonDefaultConfig
+    let postcssFile
+    let tailwindFile
+    let rawNextConfig: NextConfig = {}
 
-      try {
-        rawNextConfig = interopDefault(
-          await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, undefined, true)
-        ) as NextConfig
+    try {
+      rawNextConfig = interopDefault(
+        await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, undefined, true)
+      ) as NextConfig
 
-        const checkUnsupportedCustomConfig = (
-          configKey = '',
-          parentUserConfig: any,
-          parentDefaultConfig: any
-        ): boolean => {
-          try {
-            // these should not error
-            if (
-              configKey === 'serverComponentsExternalPackages' ||
-              configKey === 'appDir' ||
-              configKey === 'transpilePackages' ||
-              configKey === 'reactStrictMode' ||
-              configKey === 'swcMinify' ||
-              configKey === 'configFileName'
-            ) {
-              return false
-            }
-            let userValue = parentUserConfig?.[configKey]
-            let defaultValue = parentDefaultConfig?.[configKey]
-
-            if (typeof defaultValue !== 'object') {
-              return defaultValue !== userValue
-            }
-            return Object.keys(userValue || {}).some((key: string) => {
-              return checkUnsupportedCustomConfig(key, userValue, defaultValue)
-            })
-          } catch (e) {
-            console.error(
-              `Unexpected error occurred while checking ${configKey}`,
-              e
-            )
+      const checkUnsupportedCustomConfig = (
+        configKey = '',
+        parentUserConfig: any,
+        parentDefaultConfig: any
+      ): boolean => {
+        try {
+          // these should not error
+          if (
+            configKey === 'serverComponentsExternalPackages' ||
+            configKey === 'appDir' ||
+            configKey === 'transpilePackages' ||
+            configKey === 'reactStrictMode' ||
+            configKey === 'swcMinify' ||
+            configKey === 'configFileName'
+          ) {
             return false
           }
-        }
+          let userValue = parentUserConfig?.[configKey]
+          let defaultValue = parentDefaultConfig?.[configKey]
 
-        hasNonDefaultConfig = Object.keys(rawNextConfig).some((key) =>
-          checkUnsupportedCustomConfig(key, rawNextConfig, defaultConfig)
-        )
-
-        const packagePath = findUp.sync('package.json', { cwd: dir })
-        let hasSideCar = false
-
-        if (packagePath) {
-          const pkgData = require(packagePath)
-          hasSideCar = Object.values(
-            (pkgData.scripts || {}) as Record<string, string>
-          ).some(
-            (script) =>
-              script.includes('tailwind') || script.includes('postcss')
+          if (typeof defaultValue !== 'object') {
+            return defaultValue !== userValue
+          }
+          return Object.keys(userValue || {}).some((key: string) => {
+            return checkUnsupportedCustomConfig(key, userValue, defaultValue)
+          })
+        } catch (e) {
+          console.error(
+            `Unexpected error occurred while checking ${configKey}`,
+            e
           )
+          return false
         }
-        postcssFile = !hasSideCar && (await findConfigPath(dir, 'postcss'))
-        tailwindFile = !hasSideCar && (await findConfigPath(dir, 'tailwind'))
-
-        if (postcssFile) postcssFile = path.basename(postcssFile)
-        if (tailwindFile) tailwindFile = path.basename(tailwindFile)
-      } catch (e) {
-        console.error('Unexpected error occurred while checking config', e)
       }
 
-      const hasWarningOrError =
-        tailwindFile || postcssFile || babelrc || hasNonDefaultConfig
-      if (!hasWarningOrError) {
-        thankYouMsg = chalk.dim(thankYouMsg)
-      }
-      console.log(turbopackGradient + thankYouMsg)
+      hasNonDefaultConfig = Object.keys(rawNextConfig).some((key) =>
+        checkUnsupportedCustomConfig(key, rawNextConfig, defaultConfig)
+      )
 
-      let feedbackMessage = `Learn more about Next.js v13 and Turbopack: ${chalk.underline(
-        'https://nextjs.link/with-turbopack'
-      )}\nPlease direct feedback to: ${chalk.underline(
-        'https://nextjs.link/turbopack-feedback'
-      )}\n`
+      const packagePath = findUp.sync('package.json', { cwd: dir })
+      let hasSideCar = false
 
-      if (!hasWarningOrError) {
-        feedbackMessage = chalk.dim(feedbackMessage)
-      }
-
-      if (babelrc) {
-        unsupportedParts += `\n- Babel detected (${chalk.cyan(
-          babelrc
-        )})\n  ${chalk.dim(
-          `Babel is not yet supported. To use Turbopack at the moment,\n  you'll need to remove your usage of Babel.`
-        )}`
-      }
-      if (hasNonDefaultConfig) {
-        unsupportedParts += `\n\n- Unsupported Next.js configuration option(s) (${chalk.cyan(
-          'next.config.js'
-        )})\n  ${chalk.dim(
-          `The only configurations options supported are:\n    - ${chalk.cyan(
-            'experimental.serverComponentsExternalPackages'
-          )}\n    - ${chalk.cyan(
-            'experimental.transpilePackages'
-          )}\n  To use Turbopack, remove other configuration options.`
-        )}   `
-      }
-
-      if (postcssFile || tailwindFile) {
-        console.warn(
-          `${chalk.bold.yellow(
-            'Warning:'
-          )} You are using configuration that may require additional\nsetup with Turbopack. If you already made these changes please\nignore this warning.\n`
+      if (packagePath) {
+        const pkgData = require(packagePath)
+        hasSideCar = Object.values(
+          (pkgData.scripts || {}) as Record<string, string>
+        ).some(
+          (script) => script.includes('tailwind') || script.includes('postcss')
         )
       }
+      postcssFile = !hasSideCar && (await findConfigPath(dir, 'postcss'))
+      tailwindFile = !hasSideCar && (await findConfigPath(dir, 'tailwind'))
 
-      if (postcssFile) {
-        console.warn(
-          `- PostCSS detected (${chalk.cyan(postcssFile)})\n` +
-            `  ${chalk.dim(
-              'PostCSS is not yet supported by Next.js v13 with Turbopack.\n  To use with Turbopack, see: https://nextjs.link/turbopack-postcss'
-            )}\n`
-        )
-      }
+      if (postcssFile) postcssFile = path.basename(postcssFile)
+      if (tailwindFile) tailwindFile = path.basename(tailwindFile)
+    } catch (e) {
+      console.error('Unexpected error occurred while checking config', e)
+    }
 
-      if (tailwindFile) {
-        console.warn(
-          `- Tailwind detected (${chalk.cyan(tailwindFile)})\n` +
-            `  ${chalk.dim(
-              'Tailwind is not yet supported by Next.js v13 with Turbopack.\n  To use with Turbopack, see: https://nextjs.link/turbopack-tailwind'
-            )}\n`
-        )
-      }
+    const hasWarningOrError =
+      tailwindFile || postcssFile || babelrc || hasNonDefaultConfig
+    if (!hasWarningOrError) {
+      thankYouMsg = chalk.dim(thankYouMsg)
+    }
+    console.log(turbopackGradient + thankYouMsg)
 
-      if (unsupportedParts) {
-        const pkgManager = getPkgManager(dir)
+    let feedbackMessage = `Learn more about Next.js v13 and Turbopack: ${chalk.underline(
+      'https://nextjs.link/with-turbopack'
+    )}\nPlease direct feedback to: ${chalk.underline(
+      'https://nextjs.link/turbopack-feedback'
+    )}\n`
 
-        console.error(
-          `${chalk.bold.red(
-            'Error:'
-          )} You are using configuration and/or tools that are not yet\nsupported by Next.js v13 with Turbopack:\n${unsupportedParts}\n
+    if (!hasWarningOrError) {
+      feedbackMessage = chalk.dim(feedbackMessage)
+    }
+
+    if (babelrc) {
+      unsupportedParts += `\n- Babel detected (${chalk.cyan(
+        babelrc
+      )})\n  ${chalk.dim(
+        `Babel is not yet supported. To use Turbopack at the moment,\n  you'll need to remove your usage of Babel.`
+      )}`
+    }
+    if (hasNonDefaultConfig) {
+      unsupportedParts += `\n\n- Unsupported Next.js configuration option(s) (${chalk.cyan(
+        'next.config.js'
+      )})\n  ${chalk.dim(
+        `The only configurations options supported are:\n    - ${chalk.cyan(
+          'experimental.serverComponentsExternalPackages'
+        )}\n    - ${chalk.cyan(
+          'experimental.transpilePackages'
+        )}\n  To use Turbopack, remove other configuration options.`
+      )}   `
+    }
+
+    if (postcssFile || tailwindFile) {
+      console.warn(
+        `${chalk.bold.yellow(
+          'Warning:'
+        )} You are using configuration that may require additional\nsetup with Turbopack. If you already made these changes please\nignore this warning.\n`
+      )
+    }
+
+    if (postcssFile) {
+      console.warn(
+        `- PostCSS detected (${chalk.cyan(postcssFile)})\n` +
+          `  ${chalk.dim(
+            'PostCSS is not yet supported by Next.js v13 with Turbopack.\n  To use with Turbopack, see: https://nextjs.link/turbopack-postcss'
+          )}\n`
+      )
+    }
+
+    if (tailwindFile) {
+      console.warn(
+        `- Tailwind detected (${chalk.cyan(tailwindFile)})\n` +
+          `  ${chalk.dim(
+            'Tailwind is not yet supported by Next.js v13 with Turbopack.\n  To use with Turbopack, see: https://nextjs.link/turbopack-tailwind'
+          )}\n`
+      )
+    }
+
+    if (unsupportedParts) {
+      const pkgManager = getPkgManager(dir)
+
+      console.error(
+        `${chalk.bold.red(
+          'Error:'
+        )} You are using configuration and/or tools that are not yet\nsupported by Next.js v13 with Turbopack:\n${unsupportedParts}\n
 If you cannot make the changes above, but still want to try out\nNext.js v13 with Turbopack, create the Next.js v13 playground app\nby running the following commands:
 
   ${chalk.bold.cyan(
@@ -333,75 +321,81 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
     } --example with-turbopack with-turbopack-app`
   )}\n  cd with-turbopack-app\n  ${pkgManager} run dev
         `
-        )
-        console.warn(feedbackMessage)
-        process.exit(1)
-      }
-      console.log(feedbackMessage)
+      )
+      console.warn(feedbackMessage)
+      process.exit(1)
+    }
+    console.log(feedbackMessage)
 
-      return loadBindings()
-        .then(async (bindings: any) => {
-          const distDir = path.join(dir, rawNextConfig.distDir || '.next')
-          const { pagesDir, appDir } = findPagesDir(
-            dir,
-            !!rawNextConfig.experimental?.appDir
-          )
-          const telemetry = new Telemetry({
-            distDir,
-          })
-          setGlobal('appDir', appDir)
-          setGlobal('pagesDir', pagesDir)
-          setGlobal('telemetry', telemetry)
+    return rawNextConfig
+  }
 
-          telemetry.record(
-            eventCliSession(distDir, rawNextConfig as NextConfigComplete, {
-              webpackVersion: 5,
-              cliCommand: 'dev',
-              isSrcDir:
-                (!!pagesDir &&
-                  path.relative(dir, pagesDir).startsWith('src')) ||
-                (!!appDir && path.relative(dir, appDir).startsWith('src')),
-              hasNowJson: !!(await findUp('now.json', { cwd: dir })),
-              isCustomServer: false,
-              turboFlag: true,
-              pagesDir: !!pagesDir,
-              appDir: !!appDir,
-            })
-          )
-          const turboJson = findUp.sync('turbo.json', { cwd: dir })
-          // eslint-disable-next-line no-shadow
-          const packagePath = findUp.sync('package.json', { cwd: dir })
+  if (args['--turbo']) {
+    isTurboSession = true
 
-          let server = bindings.turbo.startDev({
-            ...devServerOptions,
-            showAll: args['--show-all'] ?? false,
-            rootDir:
-              args['--root'] ??
-              (turboJson
-                ? path.dirname(turboJson)
-                : packagePath
-                ? path.dirname(packagePath)
-                : undefined),
-            serverComponentsExternalPackages:
-              rawNextConfig.experimental?.serverComponentsExternalPackages,
-          })
-          // Start preflight after server is listening and ignore errors:
-          preflight().catch(() => {})
+    const { loadBindings } =
+      require('../build/swc') as typeof import('../build/swc')
+    const { eventCliSession } =
+      require('../telemetry/events/version') as typeof import('../telemetry/events/version')
+    const { findPagesDir } =
+      require('../lib/find-pages-dir') as typeof import('../lib/find-pages-dir')
+    const { setGlobal } = require('../trace') as typeof import('../trace')
+    const { Telemetry } =
+      require('../telemetry/storage') as typeof import('../telemetry/storage')
+    const findUp =
+      require('next/dist/compiled/find-up') as typeof import('next/dist/compiled/find-up')
 
-          await telemetry.flush()
-          return server
-        })
-        .then(
-          () => {
-            resolve()
-          },
-          (err: Error) => {
-            console.error(err)
-          }
-        )
-    }).catch((err) => {
-      console.error(err)
+    const rawNextConfig = await validateNextConfig()
+
+    const distDir = path.join(dir, rawNextConfig.distDir || '.next')
+    const { pagesDir, appDir } = findPagesDir(
+      dir,
+      !!rawNextConfig.experimental?.appDir
+    )
+    const telemetry = new Telemetry({
+      distDir,
     })
+    setGlobal('appDir', appDir)
+    setGlobal('pagesDir', pagesDir)
+    setGlobal('telemetry', telemetry)
+
+    telemetry.record(
+      eventCliSession(distDir, rawNextConfig as NextConfigComplete, {
+        webpackVersion: 5,
+        cliCommand: 'dev',
+        isSrcDir:
+          (!!pagesDir && path.relative(dir, pagesDir).startsWith('src')) ||
+          (!!appDir && path.relative(dir, appDir).startsWith('src')),
+        hasNowJson: !!(await findUp('now.json', { cwd: dir })),
+        isCustomServer: false,
+        turboFlag: true,
+        pagesDir: !!pagesDir,
+        appDir: !!appDir,
+      })
+    )
+    const turboJson = findUp.sync('turbo.json', { cwd: dir })
+    // eslint-disable-next-line no-shadow
+    const packagePath = findUp.sync('package.json', { cwd: dir })
+
+    let bindings: any = await loadBindings()
+    let server = bindings.turbo.startDev({
+      ...devServerOptions,
+      showAll: args['--show-all'] ?? false,
+      rootDir:
+        args['--root'] ??
+        (turboJson
+          ? path.dirname(turboJson)
+          : packagePath
+          ? path.dirname(packagePath)
+          : undefined),
+      serverComponentsExternalPackages:
+        rawNextConfig.experimental?.serverComponentsExternalPackages,
+    })
+    // Start preflight after server is listening and ignore errors:
+    preflight().catch(() => {})
+
+    await telemetry.flush()
+    return server
   } else {
     startServer(devServerOptions)
       .then(async (app) => {
