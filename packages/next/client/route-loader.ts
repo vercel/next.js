@@ -101,13 +101,13 @@ function prefetchViaDom(
   as: string,
   link?: HTMLLinkElement
 ): Promise<any> {
-  return new Promise<void>((res, rej) => {
+  return new Promise<void>((resolve, reject) => {
     const selector = `
       link[rel="prefetch"][href^="${href}"],
       link[rel="preload"][href^="${href}"],
       script[src^="${href}"]`
     if (document.querySelector(selector)) {
-      return res()
+      return resolve()
     }
 
     link = document.createElement('link')
@@ -116,8 +116,9 @@ function prefetchViaDom(
     if (as) link!.as = as
     link!.rel = `prefetch`
     link!.crossOrigin = process.env.__NEXT_CROSS_ORIGIN!
-    link!.onload = res as any
-    link!.onerror = rej
+    link!.onload = resolve as any
+    link!.onerror = () =>
+      reject(markAssetError(new Error(`Failed to prefetch: ${href}`)))
 
     // `href` should always be last:
     link!.href = href
