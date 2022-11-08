@@ -121,7 +121,7 @@ module.exports = function (task) {
           '"use client";\n' +
           output.code
             .split('\n')
-            .map((l) => (/^['"]use client['"];$/.test(l) ? '' : l))
+            .map((l) => (/^['"]use client['"]/.test(l) ? '' : l))
             .join('\n')
       }
 
