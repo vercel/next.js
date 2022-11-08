@@ -61,7 +61,7 @@ if (process.env.NEXT_PREBUNDLED_REACT) {
 
 // expose AsyncLocalStorage on global for react usage
 const { AsyncLocalStorage } = require('async_hooks')
-;(global as any).AsyncLocalStorage = AsyncLocalStorage
+;(globalThis as any).AsyncLocalStorage = AsyncLocalStorage
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -1095,7 +1095,9 @@ export const collectGenerateParams = async (
 ): Promise<GenerateParams> => {
   if (!Array.isArray(segment)) return generateParams
   const isLayout = !!segment[2]?.layout
-  const mod = await (isLayout ? segment[2]?.layout?.() : segment[2]?.page?.())
+  const mod = await (isLayout
+    ? segment[2]?.layout?.[0]?.()
+    : segment[2]?.page?.[0]?.())
   const config = collectAppConfig(mod)
 
   const result = {
@@ -1448,7 +1450,7 @@ export async function isPageStatic({
         }))
       }
 
-      const isNextImageImported = (global as any).__NEXT_IMAGE_IMPORTED
+      const isNextImageImported = (globalThis as any).__NEXT_IMAGE_IMPORTED
       const config: PageConfig = componentsResult.pageConfig
       return {
         isStatic: !hasStaticProps && !hasGetInitialProps && !hasServerProps,
