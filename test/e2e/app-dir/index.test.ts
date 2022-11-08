@@ -1513,7 +1513,7 @@ describe('app dir', () => {
           const html = await renderViaHTTP(next.url, '/loading-bug/hi')
           // The link tag should be included together with loading
           expect(html).toMatch(
-            /<link rel="stylesheet" href="(.+)\.css"\/><h2>Loading...<\/h2>/
+            /<link rel="stylesheet" href="(.+)\.css(\?ts=\d+)?"\/><h2>Loading...<\/h2>/
           )
         })
 
