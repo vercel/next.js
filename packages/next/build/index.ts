@@ -1817,8 +1817,8 @@ export default async function build(
                   ? ['**/next/dist/compiled/@ampproject/toolbox-optimizer/**/*']
                   : []),
               ]
-              const ignoreFn = (path: string) => {
-                return isMatch(path, ignores, { contains: true, dot: true })
+              const ignoreFn = (pathname: string) => {
+                return isMatch(pathname, ignores, { contains: true, dot: true })
               }
               serverResult = await nodeFileTrace(toTrace, {
                 base: root,
