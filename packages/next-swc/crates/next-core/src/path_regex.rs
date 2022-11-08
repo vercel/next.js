@@ -28,6 +28,9 @@ impl PathRegex {
                 .iter()
                 .enumerate()
                 .filter_map(|(idx, name)| {
+                    if name.is_empty() {
+                        return None;
+                    }
                     let value = capture.get(idx + 1)?;
                     Some((name.to_string(), value.as_str().to_string()))
                 })

@@ -16,8 +16,9 @@ use turbopack_dev_server::{
         asset_graph::AssetGraphContentSourceVc,
         conditional::ConditionalContentSourceVc,
         lazy_instatiated::{GetContentSource, GetContentSourceVc, LazyInstantiatedContentSource},
-        ContentSource, ContentSourceData, ContentSourceDataFilter, ContentSourceDataVary,
-        ContentSourceResult, ContentSourceResultVc, ContentSourceVc,
+        specificity::SpecificityVc,
+        ContentSource, ContentSourceContent, ContentSourceData, ContentSourceDataFilter,
+        ContentSourceDataVary, ContentSourceResult, ContentSourceResultVc, ContentSourceVc,
     },
 };
 use turbopack_ecmascript::chunk::EcmascriptChunkPlaceablesVc;
@@ -35,6 +36,7 @@ use crate::path_regex::PathRegexVc;
 /// to this directory.
 #[turbo_tasks::function]
 pub fn create_node_rendered_source(
+    specificity: SpecificityVc,
     server_root: FileSystemPathVc,
     path_regex: PathRegexVc,
     entry: NodeEntryVc,
@@ -42,6 +44,7 @@ pub fn create_node_rendered_source(
     fallback_page: DevHtmlAssetVc,
 ) -> ContentSourceVc {
     let source = NodeRenderContentSource {
+        specificity,
         server_root,
         path_regex,
         entry,
@@ -63,6 +66,7 @@ pub fn create_node_rendered_source(
 /// see [create_node_rendered_source]
 #[turbo_tasks::value]
 struct NodeRenderContentSource {
+    specificity: SpecificityVc,
     server_root: FileSystemPathVc,
     path_regex: PathRegexVc,
     entry: NodeEntryVc,
@@ -141,73 +145,64 @@ impl ContentSource for NodeRenderContentSource {
         let this = self_vc.await?;
         if this.is_matching_path(path).await? {
             if let Some(params) = this.get_matches(path).await? {
-                if let Some(headers) = &data.headers {
-                    if headers
-                        .get("accept")
-                        .map(|value| value.contains("html"))
-                        .unwrap_or_default()
-                        || headers.contains_key("__rsc__")
-                    {
-                        if data.method.is_some() && data.url.is_some() {
-                            if let Some(query) = &data.query {
-                                let entry = this.entry.entry(data.clone()).await?;
-                                return Ok(ContentSourceResult::Static(
-                                    render_static(
-                                        this.server_root.join(path),
-                                        entry.module,
-                                        this.runtime_entries,
-                                        this.fallback_page,
-                                        entry.chunking_context,
-                                        entry.intermediate_output_path,
-                                        RenderData {
-                                            params,
-                                            method: data.method.clone().ok_or_else(|| {
-                                                anyhow!("method needs to be provided")
-                                            })?,
-                                            url: data.url.clone().ok_or_else(|| {
-                                                anyhow!("url needs to be provided")
-                                            })?,
-                                            query: query.clone(),
-                                            headers: headers.clone(),
-                                            path: format!("/{path}"),
-                                        }
-                                        .cell(),
-                                    )
-                                    .into(),
-                                )
-                                .cell());
-                            }
+                let content = if data.method.is_some()
+                    && data.url.is_some()
+                    && data.headers.is_some()
+                    && data.query.is_some()
+                {
+                    let entry = this.entry.entry(data.clone()).await?;
+                    let asset = render_static(
+                        this.server_root.join(path),
+                        entry.module,
+                        this.runtime_entries,
+                        this.fallback_page,
+                        entry.chunking_context,
+                        entry.intermediate_output_path,
+                        RenderData {
+                            params,
+                            method: data
+                                .method
+                                .clone()
+                                .ok_or_else(|| anyhow!("method needs to be provided"))?,
+                            url: data
+                                .url
+                                .clone()
+                                .ok_or_else(|| anyhow!("url needs to be provided"))?,
+                            query: data
+                                .query
+                                .clone()
+                                .ok_or_else(|| anyhow!("query needs to be provided"))?,
+                            headers: data
+                                .headers
+                                .clone()
+                                .ok_or_else(|| anyhow!("headers needs to be provided"))?,
+                            path: format!("/{path}"),
                         }
-                        return Ok(ContentSourceResult::NeedData {
-                            source: self_vc.into(),
-                            path: path.to_string(),
-                            vary: ContentSourceDataVary {
-                                method: true,
-                                url: true,
-                                headers: Some(ContentSourceDataFilter::All),
-                                query: Some(ContentSourceDataFilter::All),
-                                ..Default::default()
-                            },
-                        }
-                        .cell());
-                    }
+                        .cell(),
+                    );
+                    ContentSourceContent::Static(asset.into()).cell()
                 } else {
-                    return Ok(ContentSourceResult::NeedData {
+                    ContentSourceContent::NeedData {
                         source: self_vc.into(),
                         path: path.to_string(),
                         vary: ContentSourceDataVary {
-                            headers: Some(ContentSourceDataFilter::Subset(HashSet::from([
-                                "accept".to_string(),
-                                "__rsc__".to_string(),
-                            ]))),
+                            method: true,
+                            url: true,
+                            headers: Some(ContentSourceDataFilter::All),
+                            query: Some(ContentSourceDataFilter::All),
                             ..Default::default()
                         },
                     }
-                    .cell());
+                    .cell()
+                };
+                return Ok(ContentSourceResult {
+                    specificity: this.specificity,
+                    content,
                 }
+                .cell());
             }
         }
-        Ok(ContentSourceResult::NotFound.cell())
+        Ok(ContentSourceResultVc::not_found())
     }
 }
 
@@ -226,6 +221,14 @@ impl Introspectable for NodeRenderContentSource {
     #[turbo_tasks::function]
     fn title(&self) -> StringVc {
         self.path_regex.to_string()
+    }
+
+    #[turbo_tasks::function]
+    async fn details(&self) -> Result<StringVc> {
+        Ok(StringVc::cell(format!(
+            "Specificity: {}",
+            self.specificity.await?
+        )))
     }
 
     #[turbo_tasks::function]
