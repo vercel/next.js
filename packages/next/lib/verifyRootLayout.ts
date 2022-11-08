@@ -26,6 +26,7 @@ function getRootLayout(isTs: boolean) {
 }) {
   return (
     <html>
+      <head />
       <body>{children}</body>
     </html>
   )
@@ -36,6 +37,7 @@ function getRootLayout(isTs: boolean) {
   return `export default function RootLayout({ children }) {
   return (
     <html>
+      <head />
       <body>{children}</body>
     </html>
   )

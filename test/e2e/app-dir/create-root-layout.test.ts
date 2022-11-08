@@ -57,6 +57,7 @@ describe('app-dir create root layout', () => {
                     "export default function RootLayout({ children }) {
                       return (
                         <html>
+                          <head />
                           <body>{children}</body>
                         </html>
                       )
@@ -119,6 +120,7 @@ describe('app-dir create root layout', () => {
                     "export default function RootLayout({ children }) {
                       return (
                         <html>
+                          <head />
                           <body>{children}</body>
                         </html>
                       )
@@ -126,13 +128,15 @@ describe('app-dir create root layout', () => {
                     "
                 `)
 
-          expect(await next.readFile('app/(group)/layout.js'))
+          expect(await next.readFile('app/(group)/head.js'))
             .toMatchInlineSnapshot(`
-            "export default function RootLayout({ children }) {
+            "export default function Head() {
               return (
-                <html>
-                  <body>{children}</body>
-                </html>
+                <>
+                  <title></title>
+                  <meta content=\\"width=device-width, initial-scale=1\\" name=\\"viewport\\" />
+                  <link rel=\\"icon\\" href=\\"/favicon.ico\\" />
+                </>
               )
             }
             "
@@ -183,6 +187,7 @@ describe('app-dir create root layout', () => {
                     "export default function RootLayout({ children }) {
                       return (
                         <html>
+                          <head />
                           <body>{children}</body>
                         </html>
                       )
@@ -190,13 +195,15 @@ describe('app-dir create root layout', () => {
                     "
                 `)
 
-          expect(await next.readFile('app/(group)/route/second/layout.js'))
+          expect(await next.readFile('app/(group)/route/second/head.js'))
             .toMatchInlineSnapshot(`
-            "export default function RootLayout({ children }) {
+            "export default function Head() {
               return (
-                <html>
-                  <body>{children}</body>
-                </html>
+                <>
+                  <title></title>
+                  <meta content=\\"width=device-width, initial-scale=1\\" name=\\"viewport\\" />
+                  <link rel=\\"icon\\" href=\\"/favicon.ico\\" />
+                </>
               )
             }
             "
@@ -251,6 +258,7 @@ describe('app-dir create root layout', () => {
                   }) {
                     return (
                       <html>
+                        <head />
                         <body>{children}</body>
                       </html>
                     )
