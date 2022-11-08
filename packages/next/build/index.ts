@@ -761,6 +761,7 @@ export default async function build(
           header: typeof RSC
           varyHeader: typeof RSC_VARY_HEADER
         }
+        skipMiddlewareUrlNormalize?: boolean
       } = nextBuildSpan.traceChild('generate-routes-manifest').traceFn(() => {
         const sortedRoutes = getSortedRoutes([
           ...pageKeys.pages,
@@ -791,6 +792,8 @@ export default async function build(
             header: RSC,
             varyHeader: RSC_VARY_HEADER,
           },
+          skipMiddlewareUrlNormalize:
+            config.experimental.skipMiddlewareUrlNormalize,
         }
       })
 
