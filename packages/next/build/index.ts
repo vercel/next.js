@@ -254,7 +254,8 @@ export default async function build(
   conf = null,
   reactProductionProfiling = false,
   debugOutput = false,
-  runLint = true
+  runLint = true,
+  noMangling = false
 ): Promise<void> {
   try {
     const nextBuildSpan = trace('next-build', undefined, {
@@ -932,6 +933,7 @@ export default async function build(
           runWebpackSpan,
           target,
           appDir,
+          noMangling,
           middlewareMatchers: entrypoints.middlewareMatchers,
         }
 
