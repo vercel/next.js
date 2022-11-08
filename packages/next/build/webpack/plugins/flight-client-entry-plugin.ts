@@ -179,17 +179,18 @@ export class FlightClientEntryPlugin {
       for (const connection of compilation.moduleGraph.getOutgoingConnections(
         entryModule
       )) {
-        const layoutOrPageDependency = connection.dependency
-        const layoutOrPageRequest = connection.dependency.request
+        // Entry can be any user defined entry files such as layout, page, error, loading, etc.
+        const entryDependency = connection.dependency
+        const entryRequest = connection.dependency.request
 
         const [clientComponentImports] =
           this.collectClientComponentsAndCSSForDependency({
-            layoutOrPageRequest,
+            entryRequest,
             compilation,
-            dependency: layoutOrPageDependency,
+            dependency: entryDependency,
           })
 
-        const isAbsoluteRequest = path.isAbsolute(layoutOrPageRequest)
+        const isAbsoluteRequest = path.isAbsolute(entryRequest)
 
         // Next.js internals are put into a separate entry.
         if (!isAbsoluteRequest) {
@@ -200,8 +201,8 @@ export class FlightClientEntryPlugin {
         }
 
         const relativeRequest = isAbsoluteRequest
-          ? path.relative(compilation.options.context, layoutOrPageRequest)
-          : layoutOrPageRequest
+          ? path.relative(compilation.options.context, entryRequest)
+          : entryRequest
 
         // Replace file suffix as `.js` will be added.
         const bundlePath = relativeRequest.replace(/\.(js|ts)x?$/, '')
@@ -308,14 +309,14 @@ export class FlightClientEntryPlugin {
         for (const connection of compilation.moduleGraph.getOutgoingConnections(
           entryModule
         )) {
-          const layoutOrPageDependency = connection.dependency
-          const layoutOrPageRequest = connection.dependency.request
+          const entryDependency = connection.dependency
+          const entryRequest = connection.dependency.request
 
           const [, cssImports] =
             this.collectClientComponentsAndCSSForDependency({
-              layoutOrPageRequest,
+              entryRequest,
               compilation,
-              dependency: layoutOrPageDependency,
+              dependency: entryDependency,
               clientEntryDependencyMap,
             })
 
@@ -353,12 +354,12 @@ export class FlightClientEntryPlugin {
   }
 
   collectClientComponentsAndCSSForDependency({
-    layoutOrPageRequest,
+    entryRequest,
     compilation,
     dependency,
     clientEntryDependencyMap,
   }: {
-    layoutOrPageRequest: string
+    entryRequest: string
     compilation: any
     dependency: any /* Dependency */
     clientEntryDependencyMap?: Record<string, any>
@@ -397,15 +398,15 @@ export class FlightClientEntryPlugin {
         : mod.resourceResolveData?.path + mod.resourceResolveData?.query
 
       // Ensure module is not walked again if it's already been visited
-      if (!visitedBySegment[layoutOrPageRequest]) {
-        visitedBySegment[layoutOrPageRequest] = new Set()
+      if (!visitedBySegment[entryRequest]) {
+        visitedBySegment[entryRequest] = new Set()
       }
       const storeKey =
         (inClientComponentBoundary ? '0' : '1') + ':' + modRequest
-      if (!modRequest || visitedBySegment[layoutOrPageRequest].has(storeKey)) {
+      if (!modRequest || visitedBySegment[entryRequest].has(storeKey)) {
         return
       }
-      visitedBySegment[layoutOrPageRequest].add(storeKey)
+      visitedBySegment[entryRequest].add(storeKey)
 
       const isClientComponent = isClientComponentModule(mod)
 
@@ -425,9 +426,8 @@ export class FlightClientEntryPlugin {
           }
         }
 
-        serverCSSImports[layoutOrPageRequest] =
-          serverCSSImports[layoutOrPageRequest] || []
-        serverCSSImports[layoutOrPageRequest].push(modRequest)
+        serverCSSImports[entryRequest] = serverCSSImports[entryRequest] || []
+        serverCSSImports[entryRequest].push(modRequest)
       }
 
       // Check if request is for css file.
