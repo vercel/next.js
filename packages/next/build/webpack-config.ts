@@ -155,6 +155,12 @@ export function getDefineEnv({
     'process.env.__NEXT_OPTIMISTIC_CLIENT_CACHE': JSON.stringify(
       config.experimental.optimisticClientCache
     ),
+    'process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE': JSON.stringify(
+      config.experimental.skipMiddlewareUrlNormalize
+    ),
+    'process.env.__NEXT_ALLOW_MIDDLEWARE_RESPONSE_BODY': JSON.stringify(
+      config.experimental.allowMiddlewareResponseBody
+    ),
     'process.env.__NEXT_CROSS_ORIGIN': JSON.stringify(config.crossOrigin),
     'process.browser': JSON.stringify(isClient),
     'process.env.__NEXT_TEST_MODE': JSON.stringify(
@@ -1779,6 +1785,8 @@ export default async function getBaseWebpackConfig(
         new MiddlewarePlugin({
           dev,
           sriEnabled: !dev && !!config.experimental.sri?.algorithm,
+          allowMiddlewareResponseBody:
+            !!config.experimental.allowMiddlewareResponseBody,
         }),
       isClient &&
         new BuildManifestPlugin({

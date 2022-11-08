@@ -22,6 +22,8 @@ export interface RequestMeta {
   _nextHadBasePath?: boolean
   _nextRewroteUrl?: string
   _protocol?: string
+  _nextMiddlewareCookie?: string[]
+  _nextDataNormalizing?: boolean
 }
 
 export function getRequestMeta(
