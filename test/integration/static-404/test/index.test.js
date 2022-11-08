@@ -10,7 +10,6 @@ import {
   killApp,
 } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '..')
 const nextConfig = join(appDir, 'next.config.js')
 const appPage = join(appDir, 'pages/_app.js')
@@ -28,23 +27,6 @@ describe('Static 404 page', () => {
 
   describe('With config enabled', () => {
     it('should export 404 page without custom _error', async () => {
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-      const html = await renderViaHTTP(appPort, '/non-existent')
-      await killApp(app)
-      expect(html).toContain('This page could not be found')
-    })
-
-    it('should export 404 page without custom _error (serverless)', async () => {
-      await fs.writeFile(
-        nextConfig,
-        `
-        module.exports = {
-          target: 'experimental-serverless-trace'
-        }
-      `
-      )
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)

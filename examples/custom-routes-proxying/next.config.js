@@ -1,4 +1,9 @@
-module.exports = {
+// @ts-check
+
+/**
+ * @type {import('next').NextConfig}
+ **/
+const nextConfig = {
   async rewrites() {
     return {
       fallback: [
@@ -10,3 +15,5 @@ module.exports = {
     }
   },
 }
+
+module.exports = nextConfig

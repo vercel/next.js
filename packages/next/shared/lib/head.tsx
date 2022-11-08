@@ -1,8 +1,11 @@
+'use client'
+
 import React, { useContext } from 'react'
 import Effect from './side-effect'
 import { AmpStateContext } from './amp-context'
 import { HeadManagerContext } from './head-manager-context'
-import { isInAmpMode } from './amp'
+import { isInAmpMode } from './amp-mode'
+import { warnOnce } from './utils/warn-once'
 
 type WithInAmpMode = {
   inAmpMode?: boolean
@@ -115,25 +118,17 @@ function unique() {
 
 /**
  *
- * @param headElements List of multiple <Head> instances
+ * @param headChildrenElements List of children of <Head>
  */
-function reduceComponents(
-  headElements: Array<React.ReactElement<any>>,
-  props: WithInAmpMode
+function reduceComponents<T extends {} & WithInAmpMode>(
+  headChildrenElements: Array<React.ReactElement<any>>,
+  props: T
 ) {
-  return headElements
-    .reduce(
-      (list: React.ReactChild[], headElement: React.ReactElement<any>) => {
-        const headElementChildren = React.Children.toArray(
-          headElement.props.children
-        )
-        return list.concat(headElementChildren)
-      },
-      []
-    )
+  const { inAmpMode } = props
+  return headChildrenElements
     .reduce(onlyReactElement, [])
     .reverse()
-    .concat(defaultHead(props.inAmpMode))
+    .concat(defaultHead(inAmpMode).reverse())
     .filter(unique())
     .reverse()
     .map((c: React.ReactElement<any>, i: number) => {
@@ -141,16 +136,15 @@ function reduceComponents(
       if (
         process.env.NODE_ENV !== 'development' &&
         process.env.__NEXT_OPTIMIZE_FONTS &&
-        !props.inAmpMode
+        !inAmpMode
       ) {
         if (
           c.type === 'link' &&
           c.props['href'] &&
           // TODO(prateekbh@): Replace this with const from `constants` when the tree shaking works.
-          [
-            'https://fonts.googleapis.com/css',
-            'https://use.typekit.net/',
-          ].some((url) => c.props['href'].startsWith(url))
+          ['https://fonts.googleapis.com/css', 'https://use.typekit.net/'].some(
+            (url) => c.props['href'].startsWith(url)
+          )
         ) {
           const newProps = { ...(c.props || {}) }
           newProps['data-href'] = newProps['href']
@@ -160,6 +154,21 @@ function reduceComponents(
           newProps['data-optimized-fonts'] = true
 
           return React.cloneElement(c, newProps)
+        }
+      }
+      if (process.env.NODE_ENV === 'development') {
+        // omit JSON-LD structured data snippets from the warning
+        if (c.type === 'script' && c.props['type'] !== 'application/ld+json') {
+          const srcMessage = c.props['src']
+            ? `<script> tag with src="${c.props['src']}"`
+            : `inline <script>`
+          warnOnce(
+            `Do not add <script> tags using next/head (see ${srcMessage}). Use next/script instead. \nSee more info here: https://nextjs.org/docs/messages/no-script-tags-in-head-component`
+          )
+        } else if (c.type === 'link' && c.props['rel'] === 'stylesheet') {
+          warnOnce(
+            `Do not add stylesheets using next/head (see <link rel="stylesheet"> tag with href="${c.props['href']}"). Use Document instead. \nSee more info here: https://nextjs.org/docs/messages/no-stylesheets-in-head-component`
+          )
         }
       }
       return React.cloneElement(c, { key })

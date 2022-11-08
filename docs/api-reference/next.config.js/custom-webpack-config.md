@@ -4,6 +4,8 @@ description: Extend the default webpack config added by Next.js.
 
 # Custom Webpack Config
 
+> Note: changes to webpack config are not covered by semver so proceed at your own risk
+
 Before continuing to add custom webpack configuration to your application make sure Next.js doesn't already support your use-case:
 
 - [CSS imports](/docs/basic-features/built-in-css-support.md#adding-a-global-stylesheet)
@@ -22,7 +24,10 @@ In order to extend our usage of `webpack`, you can define a function that extend
 
 ```js
 module.exports = {
-  webpack: (config, { buildId, dev, isServer, defaultLoaders, webpack }) => {
+  webpack: (
+    config,
+    { buildId, dev, isServer, defaultLoaders, nextRuntime, webpack }
+  ) => {
     // Important: return the modified config
     return config
   },
@@ -36,6 +41,7 @@ The second argument to the `webpack` function is an object with the following pr
 - `buildId`: `String` - The build id, used as a unique identifier between builds
 - `dev`: `Boolean` - Indicates if the compilation will be done in development
 - `isServer`: `Boolean` - It's `true` for server-side compilation, and `false` for client-side compilation
+- `nextRuntime`: `String | undefined` - The target runtime for server-side compilation; either `"edge"` or `"nodejs"`, it's `undefined` for client-side compilation.
 - `defaultLoaders`: `Object` - Default loaders used internally by Next.js:
   - `babel`: `Object` - Default `babel-loader` configuration
 
@@ -62,6 +68,10 @@ module.exports = {
   },
 }
 ```
+
+#### `nextRuntime`
+
+Notice that `isServer` is `true` when `nextRuntime` is `"edge"` or `"nodejs"`, nextRuntime "`edge`" is currently for middleware and server components in edge runtime only.
 
 ## Related
 

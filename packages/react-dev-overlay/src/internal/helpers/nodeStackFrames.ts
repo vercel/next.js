@@ -19,23 +19,34 @@ export function getFilesystemFrame(frame: StackFrame): StackFrame {
   return f
 }
 
-const symbolNodeError = Symbol('NextjsNodeError')
+const symbolError = Symbol('NextjsError')
 
-export function isNodeError(error: Error): boolean {
-  return symbolNodeError in error
+export function getErrorSource(error: Error): 'server' | 'edge-server' | null {
+  return (error as any)[symbolError] || null
 }
 
-export function getNodeError(error: Error): Error {
+type ErrorType = 'edge-server' | 'server'
+
+export function decorateServerError(error: Error, type: ErrorType) {
+  Object.defineProperty(error, symbolError, {
+    writable: false,
+    enumerable: false,
+    configurable: false,
+    value: type,
+  })
+}
+
+export function getServerError(error: Error, type: ErrorType): Error {
   let n: Error
   try {
     throw new Error(error.message)
   } catch (e) {
-    n = e
+    n = e as Error
   }
 
   n.name = error.name
   try {
-    n.stack = parse(error.stack!)
+    n.stack = `${n.toString()}\n${parse(error.stack!)
       .map(getFilesystemFrame)
       .map((f) => {
         let str = `    at ${f.methodName}`
@@ -51,15 +62,11 @@ export function getNodeError(error: Error): Error {
         }
         return str
       })
-      .join('\n')
+      .join('\n')}`
   } catch {
     n.stack = error.stack
   }
 
-  Object.defineProperty(n, symbolNodeError, {
-    writable: false,
-    enumerable: false,
-    configurable: false,
-  })
+  decorateServerError(n, type)
   return n
 }

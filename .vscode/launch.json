@@ -5,47 +5,76 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "Launch app-dir development",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["debug", "dev", "test/e2e/app-dir/app"],
+      "skipFiles": ["<node_internals>/**"],
+      "env": {
+        "NEXT_PRIVATE_LOCAL_WEBPACK": "1"
+      }
+    },
+    {
       "name": "Launch app development",
       "type": "node",
       "request": "launch",
       "cwd": "${workspaceFolder}",
-      "runtimeExecutable": "yarn",
-      "runtimeArgs": ["run", "debug", "dev", "test/integration/basic"],
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["debug", "dev", "examples/hello-world"],
       "skipFiles": ["<node_internals>/**"],
-      "outFiles": ["${workspaceFolder}/packages/next/dist/**/*"],
-      "port": 9229
+      "env": {
+        "NEXT_PRIVATE_LOCAL_WEBPACK": "1"
+      }
     },
     {
       "name": "Launch app build",
       "type": "node",
       "request": "launch",
       "cwd": "${workspaceFolder}",
-      "runtimeExecutable": "yarn",
-      "runtimeArgs": ["run", "debug", "build", "test/integration/basic"],
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["debug", "build", "examples/hello-world"],
       "skipFiles": ["<node_internals>/**"],
-      "port": 9229,
-      "outFiles": ["${workspaceFolder}/packages/next/dist/**/*"]
-    },
-    {
-      "name": "Launch app build trace",
-      "type": "node",
-      "request": "launch",
-      "cwd": "${workspaceFolder}",
-      "runtimeExecutable": "yarn",
-      "runtimeArgs": ["run", "trace-debug", "build", "test/integration/basic"],
-      "skipFiles": ["<node_internals>/**"],
-      "port": 9229,
-      "outFiles": ["${workspaceFolder}/packages/next/dist/**/*"]
+      "env": {
+        "NEXT_PRIVATE_LOCAL_WEBPACK": "1"
+      }
     },
     {
       "name": "Launch app production",
       "type": "node",
       "request": "launch",
       "cwd": "${workspaceFolder}",
-      "runtimeExecutable": "yarn",
-      "runtimeArgs": ["run", "debug", "start", "test/integration/basic"],
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["debug", "start", "examples/hello-world"],
       "skipFiles": ["<node_internals>/**"],
-      "port": 9229
+      "env": {
+        "NEXT_PRIVATE_LOCAL_WEBPACK": "1"
+      }
+    },
+    {
+      "name": "Launch current directory in development",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["debug", "dev", "${fileDirname}"],
+      "skipFiles": ["<node_internals>/**"],
+      "env": {
+        "NEXT_PRIVATE_LOCAL_WEBPACK": "1"
+      }
+    },
+    {
+      "name": "Launch app build trace jaeger",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["clean-trace-jaeger"],
+      "skipFiles": ["<node_internals>/**"],
+      "env": {
+        "NEXT_PRIVATE_LOCAL_WEBPACK": "1"
+      }
     },
     {
       "type": "node",
@@ -53,17 +82,9 @@
       "name": "Attach to existing debugger",
       "port": 9229,
       "skipFiles": ["<node_internals>/**"],
-      "outFiles": ["${workspaceFolder}/packages/next/dist/**/*"]
-    },
-    {
-      "name": "Launch this example",
-      "type": "node",
-      "request": "launch",
-      "cwd": "${workspaceFolder}",
-      "runtimeExecutable": "yarn",
-      "runtimeArgs": ["run", "debug", "dev", "${fileDirname}"],
-      "skipFiles": ["<node_internals>/**"],
-      "port": 9229
+      "env": {
+        "NEXT_PRIVATE_LOCAL_WEBPACK": "1"
+      }
     }
   ]
 }

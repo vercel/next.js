@@ -4,17 +4,78 @@ description: Extend the default document markup added by Next.js.
 
 # Custom `Document`
 
-A custom `Document` is commonly used to augment your application's `<html>` and `<body>` tags. This is necessary because Next.js pages skip the definition of the surrounding document's markup.
+> **Note**: Next.js 13 introduces the `app/` directory (beta). This new directory has support for layouts, nested routes, and uses Server Components by default. Inside `app/`, you can modify the initial `html` and `body` tags using a root layout.
+>
+> [Learn more about incrementally adopting `app/`](https://beta.nextjs.org/docs/upgrade-guide).
 
-To override the default `Document`, create the file `./pages/_document.js` and extend the `Document` class as shown below:
+A custom `Document` can update the `<html>` and `<body>` tags used to render a [Page](/docs/basic-features/pages.md). This file is only rendered on the server, so event handlers like `onClick` cannot be used in `_document`.
+
+To override the default `Document`, create the file `pages/_document.js` as shown below:
+
+```jsx
+import { Html, Head, Main, NextScript } from 'next/document'
+
+export default function Document() {
+  return (
+    <Html>
+      <Head />
+      <body>
+        <Main />
+        <NextScript />
+      </body>
+    </Html>
+  )
+}
+```
+
+The code above is the default `Document` added by Next.js. Custom attributes are allowed as props. For example, we might want to add `lang="en"` to the `<html>` tag:
+
+```jsx
+<Html lang="en">
+```
+
+Or add a `className` to the `body` tag:
+
+```jsx
+<body className="bg-white">
+```
+
+`<Html>`, `<Head />`, `<Main />` and `<NextScript />` are required for the page to be properly rendered.
+
+## Caveats
+
+- The `<Head />` component used in `_document` is not the same as [`next/head`](/docs/api-reference/next/head.md). The `<Head />` component used here should only be used for any `<head>` code that is common for all pages. For all other cases, such as `<title>` tags, we recommend using [`next/head`](/docs/api-reference/next/head.md) in your pages or components.
+- React components outside of `<Main />` will not be initialized by the browser. Do _not_ add application logic here or custom CSS (like `styled-jsx`). If you need shared components in all your pages (like a menu or a toolbar), read [Layouts](/docs/basic-features/layouts.md) instead.
+- `Document` currently does not support Next.js [Data Fetching methods](/docs/basic-features/data-fetching/overview.md) like [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md) or [`getServerSideProps`](/docs/basic-features/data-fetching/get-server-side-props.md).
+
+## Customizing `renderPage`
+
+> **Note:** This is advanced and only needed for libraries like CSS-in-JS to support server-side rendering. This is not needed for built-in `styled-jsx` support.
+
+For [React 18](/docs/advanced-features/react-18.md) support, we recommend avoiding customizing `getInitialProps` and `renderPage`, if possible.
+
+The `ctx` object shown below is equivalent to the one received in [`getInitialProps`](/docs/api-reference/data-fetching/get-initial-props.md#context-object), with the addition of `renderPage`.
 
 ```jsx
 import Document, { Html, Head, Main, NextScript } from 'next/document'
 
 class MyDocument extends Document {
   static async getInitialProps(ctx) {
+    const originalRenderPage = ctx.renderPage
+
+    // Run the React rendering logic synchronously
+    ctx.renderPage = () =>
+      originalRenderPage({
+        // Useful for wrapping the whole react tree
+        enhanceApp: (App) => App,
+        // Useful for wrapping in a per-page basis
+        enhanceComponent: (Component) => Component,
+      })
+
+    // Run the parent `getInitialProps`, it now includes the custom `renderPage`
     const initialProps = await Document.getInitialProps(ctx)
-    return { ...initialProps }
+
+    return initialProps
   }
 
   render() {
@@ -33,69 +94,19 @@ class MyDocument extends Document {
 export default MyDocument
 ```
 
-> The code above is the default `Document` added by Next.js. Feel free to remove the `getInitialProps` or `render` function from `MyDocument` if you don't need to change them.
-
-`<Html>`, `<Head />`, `<Main />` and `<NextScript />` are required for the page to be properly rendered.
-
-Custom attributes are allowed as props, like `lang`:
-
-```jsx
-<Html lang="en">
-```
-
-The `<Head />` component used here is not the same one from [`next/head`](/docs/api-reference/next/head.md). The `<Head />` component used here should only be used for any `<head>` code that is common for all pages. For all other cases, such as `<title>` tags, we recommend using [`next/head`](/docs/api-reference/next/head.md) in your pages or components.
-
-The `ctx` object is equivalent to the one received in [`getInitialProps`](/docs/api-reference/data-fetching/getInitialProps.md#context-object), with one addition:
-
-- `renderPage`: `Function` - a callback that runs the actual React rendering logic (synchronously). It's useful to decorate this function in order to support server-rendering wrappers like Aphrodite's [`renderStatic`](https://github.com/Khan/aphrodite#server-side-rendering)
-
-## Caveats
-
-- `Document` is only rendered in the server, event handlers like `onClick` won't work.
-- React components outside of `<Main />` will not be initialized by the browser. Do _not_ add application logic here or custom CSS (like `styled-jsx`). If you need shared components in all your pages (like a menu or a toolbar), take a look at the [`App`](/docs/advanced-features/custom-app.md) component instead.
-- `Document`'s `getInitialProps` function is not called during client-side transitions, nor when a page is [statically optimized](/docs/advanced-features/automatic-static-optimization.md).
-- `Document` currently does not support Next.js [Data Fetching methods](/docs/basic-features/data-fetching.md) like [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation) or [`getServerSideProps`](/docs/basic-features/data-fetching.md#getserversideprops-server-side-rendering).
-
-## Customizing `renderPage`
-
-> It should be noted that the only reason you should be customizing `renderPage` is for usage with **css-in-js** libraries that need to wrap the application to properly work with server-side rendering.
-
-It takes as argument an options object for further customization:
-
-```jsx
-import Document from 'next/document'
-
-class MyDocument extends Document {
-  static async getInitialProps(ctx) {
-    const originalRenderPage = ctx.renderPage
-
-    ctx.renderPage = () =>
-      originalRenderPage({
-        // useful for wrapping the whole react tree
-        enhanceApp: (App) => App,
-        // useful for wrapping in a per-page basis
-        enhanceComponent: (Component) => Component,
-      })
-
-    // Run the parent `getInitialProps`, it now includes the custom `renderPage`
-    const initialProps = await Document.getInitialProps(ctx)
-
-    return initialProps
-  }
-}
-
-export default MyDocument
-```
+> **Note**: `getInitialProps` in `_document` is not called during client-side transitions.
 
 ## TypeScript
 
 You can use the built-in `DocumentContext` type and change the file name to `./pages/_document.tsx` like so:
 
 ```tsx
-import Document, { DocumentContext } from 'next/document'
+import Document, { DocumentContext, DocumentInitialProps } from 'next/document'
 
 class MyDocument extends Document {
-  static async getInitialProps(ctx: DocumentContext) {
+  static async getInitialProps(
+    ctx: DocumentContext
+  ): Promise<DocumentInitialProps> {
     const initialProps = await Document.getInitialProps(ctx)
 
     return initialProps

@@ -1,5 +1,7 @@
 # Google Font Preconnect
 
+> Ensure `preconnect` is used with Google Fonts.
+
 ### Why This Error Occurred
 
 A preconnect resource hint was not used with a request to the Google Fonts domain. Adding `preconnect` is recommended to initiate an early connection to the origin.
@@ -12,6 +14,9 @@ Add `rel="preconnect"` to the Google Font domain `<link>` tag:
 <link rel="preconnect" href="https://fonts.gstatic.com" />
 ```
 
+Note: a **separate** link with `dns-prefetch` can be used as a fallback for browsers that don't support `preconnect` although this is not required.
+
 ### Useful Links
 
 - [Preconnect to required origins](https://web.dev/uses-rel-preconnect/)
+- [Preconnect and dns-prefetch](https://web.dev/preconnect-and-dns-prefetch/#resolve-domain-name-early-with-reldns-prefetch)

@@ -1,45 +1,52 @@
-import {
-  BUILD_MANIFEST,
-  REACT_LOADABLE_MANIFEST,
-} from '../shared/lib/constants'
-import { join } from 'path'
-import { requirePage } from './require'
-import { BuildManifest } from './get-page-files'
-import { AppType, DocumentType } from '../shared/lib/utils'
-import {
+import type {
+  AppType,
+  DocumentType,
+  NextComponentType,
+} from '../shared/lib/utils'
+import type {
   PageConfig,
   GetStaticPaths,
   GetServerSideProps,
   GetStaticProps,
 } from 'next/types'
-
-export function interopDefault(mod: any) {
-  return mod.default || mod
-}
+import {
+  BUILD_MANIFEST,
+  REACT_LOADABLE_MANIFEST,
+  FLIGHT_MANIFEST,
+} from '../shared/lib/constants'
+import { join } from 'path'
+import { requirePage } from './require'
+import { BuildManifest } from './get-page-files'
+import { interopDefault } from '../lib/interop-default'
 
 export type ManifestItem = {
   id: number | string
   files: string[]
 }
 
-type ReactLoadableManifest = { [moduleId: string]: ManifestItem }
+export type ReactLoadableManifest = { [moduleId: string]: ManifestItem }
 
 export type LoadComponentsReturnType = {
-  Component: React.ComponentType
-  pageConfig?: PageConfig
+  Component: NextComponentType
+  pageConfig: PageConfig
   buildManifest: BuildManifest
+  subresourceIntegrityManifest?: Record<string, string>
   reactLoadableManifest: ReactLoadableManifest
+  serverComponentManifest?: any
   Document: DocumentType
   App: AppType
   getStaticProps?: GetStaticProps
   getStaticPaths?: GetStaticPaths
   getServerSideProps?: GetServerSideProps
   ComponentMod: any
+  isAppPath?: boolean
+  pathname: string
 }
 
 export async function loadDefaultErrorComponents(distDir: string) {
   const Document = interopDefault(require('next/dist/pages/_document'))
-  const App = interopDefault(require('next/dist/pages/_app'))
+  const AppMod = require('next/dist/pages/_app')
+  const App = interopDefault(AppMod)
   const ComponentMod = require('next/dist/pages/_error')
   const Component = interopDefault(ComponentMod)
 
@@ -47,53 +54,49 @@ export async function loadDefaultErrorComponents(distDir: string) {
     App,
     Document,
     Component,
+    pageConfig: {},
     buildManifest: require(join(distDir, `fallback-${BUILD_MANIFEST}`)),
     reactLoadableManifest: {},
     ComponentMod,
+    pathname: '/_error',
   }
 }
 
-export async function loadComponents(
-  distDir: string,
-  pathname: string,
-  serverless: boolean
-): Promise<LoadComponentsReturnType> {
-  if (serverless) {
-    const Component = await requirePage(pathname, distDir, serverless)
-    let { getStaticProps, getStaticPaths, getServerSideProps } = Component
-
-    getStaticProps = await getStaticProps
-    getStaticPaths = await getStaticPaths
-    getServerSideProps = await getServerSideProps
-    const pageConfig = (await Component.config) || {}
-
-    return {
-      Component,
-      pageConfig,
-      getStaticProps,
-      getStaticPaths,
-      getServerSideProps,
-      ComponentMod: Component,
-    } as LoadComponentsReturnType
+export async function loadComponents({
+  distDir,
+  pathname,
+  hasServerComponents,
+  isAppPath,
+}: {
+  distDir: string
+  pathname: string
+  hasServerComponents: boolean
+  isAppPath: boolean
+}): Promise<LoadComponentsReturnType> {
+  let DocumentMod = {}
+  let AppMod = {}
+  if (!isAppPath) {
+    ;[DocumentMod, AppMod] = await Promise.all([
+      Promise.resolve().then(() => requirePage('/_document', distDir, false)),
+      Promise.resolve().then(() => requirePage('/_app', distDir, false)),
+    ])
   }
+  const ComponentMod = await Promise.resolve().then(() =>
+    requirePage(pathname, distDir, isAppPath)
+  )
 
-  const DocumentMod = await requirePage('/_document', distDir, serverless)
-  const AppMod = await requirePage('/_app', distDir, serverless)
-  const ComponentMod = await requirePage(pathname, distDir, serverless)
+  const [buildManifest, reactLoadableManifest, serverComponentManifest] =
+    await Promise.all([
+      require(join(distDir, BUILD_MANIFEST)),
+      require(join(distDir, REACT_LOADABLE_MANIFEST)),
+      hasServerComponents
+        ? require(join(distDir, 'server', FLIGHT_MANIFEST + '.json'))
+        : null,
+    ])
 
-  const [
-    buildManifest,
-    reactLoadableManifest,
-    Component,
-    Document,
-    App,
-  ] = await Promise.all([
-    require(join(distDir, BUILD_MANIFEST)),
-    require(join(distDir, REACT_LOADABLE_MANIFEST)),
-    interopDefault(ComponentMod),
-    interopDefault(DocumentMod),
-    interopDefault(AppMod),
-  ])
+  const Component = interopDefault(ComponentMod)
+  const Document = interopDefault(DocumentMod)
+  const App = interopDefault(AppMod)
 
   const { getServerSideProps, getStaticProps, getStaticPaths } = ComponentMod
 
@@ -108,5 +111,8 @@ export async function loadComponents(
     getServerSideProps,
     getStaticProps,
     getStaticPaths,
+    serverComponentManifest,
+    isAppPath,
+    pathname,
   }
 }

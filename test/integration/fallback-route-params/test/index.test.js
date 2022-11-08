@@ -11,13 +11,9 @@ import {
   nextStart,
   renderViaHTTP,
   launchApp,
-  File,
 } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 2)
-
 const appDir = join(__dirname, '../')
-const nextConfig = new File(join(appDir, 'next.config.js'))
 let appPort
 let app
 
@@ -32,7 +28,7 @@ const runTests = () => {
   it('should have correct fallback query (hydration)', async () => {
     const browser = await webdriver(appPort, '/second')
     const initialSlug = await browser.eval(() => window.initialSlug)
-    expect(initialSlug).toBe(null)
+    expect(initialSlug).toBeFalsy()
 
     await browser.waitForElementByCss('#query')
 
@@ -63,26 +59,6 @@ describe('Fallback Dynamic Route Params', () => {
       app = await nextStart(appDir, appPort)
     })
     afterAll(() => killApp(app))
-
-    runTests()
-  })
-
-  describe('serverless mode', () => {
-    beforeAll(async () => {
-      nextConfig.write(`
-        module.exports = {
-          target: 'experimental-serverless-trace'
-        }
-      `)
-      await fs.remove(join(appDir, '.next'))
-      await nextBuild(appDir, [], { stdout: true })
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-      nextConfig.delete()
-    })
 
     runTests()
   })

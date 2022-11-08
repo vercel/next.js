@@ -5,7 +5,6 @@ import { join } from 'path'
 import cheerio from 'cheerio'
 import { nextBuild, nextExport, File } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 5)
 const appDir = join(__dirname, '../')
 const outdir = join(appDir, 'out')
 const nextConfig = new File(join(appDir, 'next.config.js'))
@@ -74,11 +73,105 @@ describe('Export with custom loader next/image component', () => {
   it('should contain img element with same src in html output', async () => {
     const html = await fs.readFile(join(outdir, 'index.html'))
     const $ = cheerio.load(html)
-    expect($('img[alt="icon"]').attr('src')).toBe('/custom/i.png')
+    expect($('img[src="/custom/o.png"]')).toBeDefined()
   })
 
   afterAll(async () => {
     await nextConfig.restore()
     await pagesIndexJs.restore()
+  })
+})
+
+describe('Export with custom loader config but no loader prop on next/image', () => {
+  beforeAll(async () => {
+    await nextConfig.replace(
+      '{ /* replaceme */ }',
+      JSON.stringify({
+        images: {
+          loader: 'custom',
+        },
+      })
+    )
+  })
+  it('should fail build', async () => {
+    await fs.remove(join(appDir, '.next'))
+    const { code, stderr } = await nextBuild(appDir, [], { stderr: true })
+    expect(code).toBe(1)
+    expect(stderr).toContain(
+      'Error: Image with src "/i.png" is missing "loader" prop'
+    )
+  })
+
+  afterAll(async () => {
+    await nextConfig.restore()
+    await pagesIndexJs.restore()
+  })
+})
+
+describe('Export with loaderFile config next/image component', () => {
+  beforeAll(async () => {
+    await nextConfig.replace(
+      '{ /* replaceme */ }',
+      JSON.stringify({
+        images: {
+          loader: 'custom',
+          loaderFile: './dummy-loader.js',
+        },
+      })
+    )
+  })
+  it('should build successfully', async () => {
+    await fs.remove(join(appDir, '.next'))
+    const { code } = await nextBuild(appDir)
+    if (code !== 0) throw new Error(`build failed with status ${code}`)
+  })
+
+  it('should export successfully', async () => {
+    const { code } = await nextExport(appDir, { outdir })
+    if (code !== 0) throw new Error(`export failed with status ${code}`)
+  })
+
+  it('should contain img element with same src in html output', async () => {
+    const html = await fs.readFile(join(outdir, 'index.html'))
+    const $ = cheerio.load(html)
+    expect($('img[src="/i.png#w:32,q:50"]')).toBeDefined()
+  })
+
+  afterAll(async () => {
+    await nextConfig.restore()
+    await pagesIndexJs.restore()
+  })
+})
+
+describe('Export with unoptimized next/image component', () => {
+  beforeAll(async () => {
+    await nextConfig.replace(
+      '{ /* replaceme */ }',
+      JSON.stringify({
+        images: {
+          unoptimized: true,
+        },
+      })
+    )
+  })
+  it('should build successfully', async () => {
+    await fs.remove(join(appDir, '.next'))
+    const { code } = await nextBuild(appDir)
+    if (code !== 0) throw new Error(`build failed with status ${code}`)
+  })
+
+  it('should export successfully', async () => {
+    const { code } = await nextExport(appDir, { outdir })
+    if (code !== 0) throw new Error(`export failed with status ${code}`)
+  })
+
+  it('should contain img element with same src in html output', async () => {
+    const html = await fs.readFile(join(outdir, 'index.html'))
+    const $ = cheerio.load(html)
+    expect($('img[src="/o.png"]')).toBeDefined()
+  })
+
+  afterAll(async () => {
+    await nextConfig.restore()
   })
 })

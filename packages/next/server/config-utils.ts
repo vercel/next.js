@@ -1,70 +1,148 @@
-import path from 'path'
-import { Worker } from 'jest-worker'
-import * as Log from '../build/output/log'
-import { CheckReasons, CheckResult } from './config-utils-worker'
-import { install, shouldLoadWithWebpack5 } from './config-utils-worker'
-import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
+import { init as initWebpack } from 'next/dist/compiled/webpack/webpack'
 
-export { install, shouldLoadWithWebpack5 }
+let installed: boolean = false
 
-function reasonMessage(reason: CheckReasons) {
-  switch (reason) {
-    case 'default':
-      return 'Enabled by default'
-    case 'flag-disabled':
-      return 'webpack5 flag is set to false in next.config.js'
-    case 'test-mode':
-      return 'internal test mode'
-    default:
-      return ''
+export function loadWebpackHook() {
+  if (installed) {
+    return
   }
-}
+  installed = true
 
-export async function loadWebpackHook(phase: string, dir: string) {
-  let useWebpack5 = true
-  let usesRemovedFlag = false
-  const worker = new Worker(
-    path.resolve(__dirname, './config-utils-worker.js'),
-    {
-      enableWorkerThreads: false,
-      numWorkers: 1,
-      forkOptions: {
-        env: {
-          ...process.env,
-          NODE_OPTIONS: '',
-        },
-      },
-    }
-  ) as Worker & {
-    shouldLoadWithWebpack5: typeof import('./config-utils-worker').shouldLoadWithWebpack5
-  }
-  try {
-    const result: CheckResult = await worker.shouldLoadWithWebpack5(phase, dir)
-    if (result.reason === 'future-flag') {
-      usesRemovedFlag = true
-    } else {
-      if (phase !== PHASE_PRODUCTION_SERVER) {
-        Log.info(
-          `Using webpack ${result.enabled ? '5' : '4'}. Reason: ${reasonMessage(
-            result.reason
-          )} https://nextjs.org/docs/messages/webpack5`
-        )
-      }
-    }
+  initWebpack()
 
-    useWebpack5 = Boolean(result.enabled)
-  } catch {
-    // If this errors, it likely will do so again upon boot, so we just swallow
-    // it here.
-  } finally {
-    worker.end()
-  }
-
-  if (usesRemovedFlag) {
-    throw new Error(
-      '`future.webpack5` in `next.config.js` has moved to the top level `webpack5` flag https://nextjs.org/docs/messages/future-webpack5-moved-to-webpack5'
+  // hook the Node.js require so that webpack requires are
+  // routed to the bundled and now initialized webpack version
+  require('../build/webpack/require-hook').loadRequireHook(
+    [
+      ['webpack', 'next/dist/compiled/webpack/webpack-lib'],
+      ['webpack/package', 'next/dist/compiled/webpack/package'],
+      ['webpack/package.json', 'next/dist/compiled/webpack/package'],
+      ['webpack/lib/webpack', 'next/dist/compiled/webpack/webpack-lib'],
+      ['webpack/lib/webpack.js', 'next/dist/compiled/webpack/webpack-lib'],
+      [
+        'webpack/lib/node/NodeEnvironmentPlugin',
+        'next/dist/compiled/webpack/NodeEnvironmentPlugin',
+      ],
+      [
+        'webpack/lib/node/NodeEnvironmentPlugin.js',
+        'next/dist/compiled/webpack/NodeEnvironmentPlugin',
+      ],
+      [
+        'webpack/lib/BasicEvaluatedExpression',
+        'next/dist/compiled/webpack/BasicEvaluatedExpression',
+      ],
+      [
+        'webpack/lib/BasicEvaluatedExpression.js',
+        'next/dist/compiled/webpack/BasicEvaluatedExpression',
+      ],
+      [
+        'webpack/lib/node/NodeTargetPlugin',
+        'next/dist/compiled/webpack/NodeTargetPlugin',
+      ],
+      [
+        'webpack/lib/node/NodeTargetPlugin.js',
+        'next/dist/compiled/webpack/NodeTargetPlugin',
+      ],
+      [
+        'webpack/lib/node/NodeTemplatePlugin',
+        'next/dist/compiled/webpack/NodeTemplatePlugin',
+      ],
+      [
+        'webpack/lib/node/NodeTemplatePlugin.js',
+        'next/dist/compiled/webpack/NodeTemplatePlugin',
+      ],
+      [
+        'webpack/lib/LibraryTemplatePlugin',
+        'next/dist/compiled/webpack/LibraryTemplatePlugin',
+      ],
+      [
+        'webpack/lib/LibraryTemplatePlugin.js',
+        'next/dist/compiled/webpack/LibraryTemplatePlugin',
+      ],
+      [
+        'webpack/lib/SingleEntryPlugin',
+        'next/dist/compiled/webpack/SingleEntryPlugin',
+      ],
+      [
+        'webpack/lib/SingleEntryPlugin.js',
+        'next/dist/compiled/webpack/SingleEntryPlugin',
+      ],
+      [
+        'webpack/lib/optimize/LimitChunkCountPlugin',
+        'next/dist/compiled/webpack/LimitChunkCountPlugin',
+      ],
+      [
+        'webpack/lib/optimize/LimitChunkCountPlugin.js',
+        'next/dist/compiled/webpack/LimitChunkCountPlugin',
+      ],
+      [
+        'webpack/lib/webworker/WebWorkerTemplatePlugin',
+        'next/dist/compiled/webpack/WebWorkerTemplatePlugin',
+      ],
+      [
+        'webpack/lib/webworker/WebWorkerTemplatePlugin.js',
+        'next/dist/compiled/webpack/WebWorkerTemplatePlugin',
+      ],
+      [
+        'webpack/lib/ExternalsPlugin',
+        'next/dist/compiled/webpack/ExternalsPlugin',
+      ],
+      [
+        'webpack/lib/ExternalsPlugin.js',
+        'next/dist/compiled/webpack/ExternalsPlugin',
+      ],
+      [
+        'webpack/lib/web/FetchCompileWasmTemplatePlugin',
+        'next/dist/compiled/webpack/FetchCompileWasmTemplatePlugin',
+      ],
+      [
+        'webpack/lib/web/FetchCompileWasmTemplatePlugin.js',
+        'next/dist/compiled/webpack/FetchCompileWasmTemplatePlugin',
+      ],
+      [
+        'webpack/lib/web/FetchCompileWasmPlugin',
+        'next/dist/compiled/webpack/FetchCompileWasmPlugin',
+      ],
+      [
+        'webpack/lib/web/FetchCompileWasmPlugin.js',
+        'next/dist/compiled/webpack/FetchCompileWasmPlugin',
+      ],
+      [
+        'webpack/lib/web/FetchCompileAsyncWasmPlugin',
+        'next/dist/compiled/webpack/FetchCompileAsyncWasmPlugin',
+      ],
+      [
+        'webpack/lib/web/FetchCompileAsyncWasmPlugin.js',
+        'next/dist/compiled/webpack/FetchCompileAsyncWasmPlugin',
+      ],
+      [
+        'webpack/lib/ModuleFilenameHelpers',
+        'next/dist/compiled/webpack/ModuleFilenameHelpers',
+      ],
+      [
+        'webpack/lib/ModuleFilenameHelpers.js',
+        'next/dist/compiled/webpack/ModuleFilenameHelpers',
+      ],
+      ['webpack/lib/GraphHelpers', 'next/dist/compiled/webpack/GraphHelpers'],
+      [
+        'webpack/lib/GraphHelpers.js',
+        'next/dist/compiled/webpack/GraphHelpers',
+      ],
+      ['webpack/lib/NormalModule', 'next/dist/compiled/webpack/NormalModule'],
+      ['webpack-sources', 'next/dist/compiled/webpack/sources'],
+      ['webpack-sources/lib', 'next/dist/compiled/webpack/sources'],
+      ['webpack-sources/lib/index', 'next/dist/compiled/webpack/sources'],
+      ['webpack-sources/lib/index.js', 'next/dist/compiled/webpack/sources'],
+      ['@babel/runtime', 'next/dist/compiled/@babel/runtime/package.json'],
+      [
+        '@babel/runtime/package.json',
+        'next/dist/compiled/@babel/runtime/package.json',
+      ],
+      ['node-fetch', 'next/dist/compiled/node-fetch'],
+      ['undici', 'next/dist/compiled/undici'],
+    ].map(
+      // Use dynamic require.resolve to avoid statically analyzable since they're only for build time
+      ([request, replacement]) => [request, require.resolve(replacement)]
     )
-  }
-
-  install(useWebpack5)
+  )
 }

@@ -3,7 +3,7 @@ import algoliasearch from 'algoliasearch/lite'
 
 const indexName = 'instant_search'
 
-// Keys are supplied from Algolio's instant search example
+// Keys are supplied from Algolia's instant search example
 // https://github.com/algolia/react-instantsearch
 const searchClient = algoliasearch(
   'latency',

@@ -75,7 +75,7 @@ export default function Home() {
                   color="primary"
                   size="sm"
                   className="text-capitalize"
-                  href="https://github.com/vercel/next.js/tree/master/examples"
+                  href="https://github.com/vercel/next.js/tree/canary/examples"
                 >
                   More &rarr;
                 </MDBBtn>

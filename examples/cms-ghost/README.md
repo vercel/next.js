@@ -25,16 +25,26 @@ Once you have access to [the environment variables you'll need](#step-2-set-up-e
 - [Storyblok](/examples/cms-storyblok)
 - [GraphCMS](/examples/cms-graphcms)
 - [Kontent](/examples/cms-kontent)
+- [Umbraco Heartcore](/examples/cms-umbraco-heartcore)
 - [Blog Starter](/examples/blog-starter)
+- [Builder.io](/examples/cms-builder-io)
+- [DotCMS](/examples/cms-dotcms)
+- [Enterspeed](/examples/cms-enterspeed)
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
 
 ```bash
 npx create-next-app --example cms-ghost cms-ghost-app
-# or
+```
+
+```bash
 yarn create next-app --example cms-ghost cms-ghost-app
+```
+
+```bash
+pnpm create next-app --example cms-ghost cms-ghost-app
 ```
 
 ### Setp 1. Run Next.js in development mode

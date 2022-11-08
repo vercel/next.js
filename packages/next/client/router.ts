@@ -1,11 +1,9 @@
 /* global window */
 import React from 'react'
-import Router, { NextRouter } from '../shared/lib/router/router'
+import Router from '../shared/lib/router/router'
+import type { NextRouter } from '../shared/lib/router/router'
 import { RouterContext } from '../shared/lib/router-context'
-
-type ClassArguments<T> = T extends new (...args: infer U) => any ? U : any
-
-type RouterArgs = ClassArguments<typeof Router>
+import isError from '../lib/is-error'
 
 type SingletonRouterBase = {
   router: Router | null
@@ -13,7 +11,9 @@ type SingletonRouterBase = {
   ready(cb: () => any): void
 }
 
-export { Router, NextRouter }
+export { Router }
+
+export type { NextRouter }
 
 export type SingletonRouter = SingletonRouterBase & NextRouter
 
@@ -71,6 +71,16 @@ Object.defineProperty(singletonRouter, 'events', {
   },
 })
 
+function getRouter(): Router {
+  if (!singletonRouter.router) {
+    const message =
+      'No router instance found.\n' +
+      'You should only use "next/router" on the client side of your app.\n'
+    throw new Error(message)
+  }
+  return singletonRouter.router
+}
+
 urlPropertyFields.forEach((field: string) => {
   // Here we need to use Object.defineProperty because we need to return
   // the property assigned to the actual router
@@ -104,22 +114,14 @@ routerEvents.forEach((event) => {
           _singletonRouter[eventField](...args)
         } catch (err) {
           console.error(`Error when running the Router event: ${eventField}`)
-          console.error(`${err.message}\n${err.stack}`)
+          console.error(
+            isError(err) ? `${err.message}\n${err.stack}` : err + ''
+          )
         }
       }
     })
   })
 })
-
-function getRouter(): Router {
-  if (!singletonRouter.router) {
-    const message =
-      'No router instance found.\n' +
-      'You should only use "next/router" on the client side of your app.\n'
-    throw new Error(message)
-  }
-  return singletonRouter.router
-}
 
 // Export the singletonRouter and this is the public API.
 export default singletonRouter as SingletonRouter
@@ -128,17 +130,29 @@ export default singletonRouter as SingletonRouter
 export { default as withRouter } from './with-router'
 
 export function useRouter(): NextRouter {
-  return React.useContext(RouterContext)
+  const router = React.useContext(RouterContext)
+  if (!router) {
+    throw new Error(
+      'Error: NextRouter was not mounted. https://nextjs.org/docs/messages/next-router-not-mounted'
+    )
+  }
+
+  return router
 }
 
 // INTERNAL APIS
 // -------------
 // (do not use following exports inside the app)
 
-// Create a router and assign it as the singleton instance.
-// This is used in client side when we are initilizing the app.
-// This should **not** be used inside the server.
-export const createRouter = (...args: RouterArgs): Router => {
+/**
+ * Create a router and assign it as the singleton instance.
+ * This is used in client side when we are initializing the app.
+ * This should **not** be used inside the server.
+ * @internal
+ */
+export function createRouter(
+  ...args: ConstructorParameters<typeof Router>
+): Router {
   singletonRouter.router = new Router(...args)
   singletonRouter.readyCallbacks.forEach((cb) => cb())
   singletonRouter.readyCallbacks = []
@@ -146,21 +160,24 @@ export const createRouter = (...args: RouterArgs): Router => {
   return singletonRouter.router
 }
 
-// This function is used to create the `withRouter` router instance
+/**
+ * This function is used to create the `withRouter` router instance
+ * @internal
+ */
 export function makePublicRouterInstance(router: Router): NextRouter {
-  const _router = router as any
+  const scopedRouter = router as any
   const instance = {} as any
 
   for (const property of urlPropertyFields) {
-    if (typeof _router[property] === 'object') {
+    if (typeof scopedRouter[property] === 'object') {
       instance[property] = Object.assign(
-        Array.isArray(_router[property]) ? [] : {},
-        _router[property]
+        Array.isArray(scopedRouter[property]) ? [] : {},
+        scopedRouter[property]
       ) // makes sure query is not stateful
       continue
     }
 
-    instance[property] = _router[property]
+    instance[property] = scopedRouter[property]
   }
 
   // Events is a static property on the router, the router doesn't have to be initialized to use it
@@ -168,7 +185,7 @@ export function makePublicRouterInstance(router: Router): NextRouter {
 
   coreMethodFields.forEach((field) => {
     instance[field] = (...args: any[]) => {
-      return _router[field](...args)
+      return scopedRouter[field](...args)
     }
   })
 

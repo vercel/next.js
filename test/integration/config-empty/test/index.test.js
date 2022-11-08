@@ -9,8 +9,6 @@ import {
   waitFor,
 } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 2)
-
 const appDir = join(__dirname, '..')
 
 describe('Empty configuration', () => {

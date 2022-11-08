@@ -1,32 +1,41 @@
-import * as React from 'react';
-import {FormattedMessage, FormattedNumber, useIntl} from 'react-intl';
-import Head from 'next/head';
-import Layout from '../components/Layout';
+import type { GetStaticPropsContext } from 'next'
+import { FormattedMessage, FormattedNumber, useIntl } from 'react-intl'
+import loadIntlMessages from '../helper/loadIntlMessages'
+import Layout from '../components/Layout'
 
-export default function Home() {
-  const intl = useIntl();
+export async function getStaticProps({
+  defaultLocale,
+  locale,
+}: GetStaticPropsContext) {
+  return {
+    props: {
+      intlMessages: await loadIntlMessages(locale as string, defaultLocale),
+    },
+  }
+}
 
+export default function IndexPage() {
+  const intl = useIntl()
   return (
     <Layout
       title={intl.formatMessage({
         defaultMessage: 'Home',
+        description: 'Index Page: document title',
+      })}
+      description={intl.formatMessage({
+        defaultMessage: 'An example app integrating React Intl with Next.js',
+        description: 'Index Page: Meta Description',
       })}
     >
-      <Head>
-        <meta
-          name="description"
-          content={intl.formatMessage({
-            defaultMessage:
-              'An example app integrating React Intl with Next.js',
-          })}
-        />
-      </Head>
       <p>
-        <FormattedMessage defaultMessage="Hello, World!" />
+        <FormattedMessage
+          defaultMessage="Hello, World!"
+          description="Index Page: Content"
+        />
       </p>
       <p>
         <FormattedNumber value={1000} />
       </p>
     </Layout>
-  );
+  )
 }

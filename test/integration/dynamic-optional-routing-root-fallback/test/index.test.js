@@ -12,8 +12,6 @@ import {
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
-jest.setTimeout(1000 * 60 * 2)
-
 let app
 let appPort
 const appDir = join(__dirname, '../')
@@ -80,31 +78,6 @@ describe('Dynamic Optional Routing Root Fallback', () => {
       app = await nextStart(appDir, appPort)
     })
     afterAll(() => killApp(app))
-
-    runTests()
-  })
-
-  describe('serverless mode', () => {
-    let origNextConfig
-
-    beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
-
-      origNextConfig = await fs.readFile(nextConfig, 'utf8')
-      await fs.writeFile(
-        nextConfig,
-        `module.exports = { target: 'serverless' }`
-      )
-
-      await nextBuild(appDir)
-
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      await fs.writeFile(nextConfig, origNextConfig)
-      await killApp(app)
-    })
 
     runTests()
   })

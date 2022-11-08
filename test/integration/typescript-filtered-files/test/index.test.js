@@ -3,8 +3,6 @@
 import { nextBuild } from 'next-test-utils'
 import { join } from 'path'
 
-jest.setTimeout(1000 * 60 * 2)
-
 const appDir = join(__dirname, '..')
 describe('TypeScript filtered files', () => {
   it('should fail to build the app with a file named con*test*.js', async () => {

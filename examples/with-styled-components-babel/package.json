@@ -1,0 +1,22 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-is": "^18.2.0",
+    "styled-components": "^5.3.5"
+  },
+  "devDependencies": {
+    "@types/node": "18.7.14",
+    "@types/react": "^18.0.18",
+    "@types/styled-components": "5.1.26",
+    "babel-plugin-styled-components": "^2.0.7",
+    "typescript": "4.8.2"
+  }
+}

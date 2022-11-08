@@ -1,7 +1,7 @@
 import React from 'react'
-import { NextRouter } from './router/router'
+import type { NextRouter } from './router/router'
 
-export const RouterContext = React.createContext<NextRouter>(null as any)
+export const RouterContext = React.createContext<NextRouter | null>(null)
 
 if (process.env.NODE_ENV !== 'production') {
   RouterContext.displayName = 'RouterContext'

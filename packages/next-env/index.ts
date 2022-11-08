@@ -2,16 +2,18 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import * as dotenv from 'dotenv'
-import dotenvExpand from 'dotenv-expand'
+import { expand as dotenvExpand } from 'dotenv-expand'
 
-export type Env = { [key: string]: string }
+export type Env = { [key: string]: string | undefined }
 export type LoadedEnvFiles = Array<{
   path: string
   contents: string
 }>
 
+let initialEnv: Env | undefined = undefined
 let combinedEnv: Env | undefined = undefined
 let cachedLoadedEnvFiles: LoadedEnvFiles = []
+let previousLoadedEnvFiles: LoadedEnvFiles = []
 
 type Log = {
   info: (...args: any[]) => void
@@ -21,18 +23,24 @@ type Log = {
 export function processEnv(
   loadedEnvFiles: LoadedEnvFiles,
   dir?: string,
-  log: Log = console
+  log: Log = console,
+  forceReload = false
 ) {
-  // don't reload env if we already have since this breaks escaped
-  // environment values e.g. \$ENV_FILE_KEY
-  if (process.env.__NEXT_PROCESSED_ENV || loadedEnvFiles.length === 0) {
+  if (!initialEnv) {
+    initialEnv = Object.assign({}, process.env)
+  }
+  // only reload env when forceReload is specified
+  if (
+    !forceReload &&
+    (process.env.__NEXT_PROCESSED_ENV || loadedEnvFiles.length === 0)
+  ) {
     return process.env as Env
   }
   // flag that we processed the environment values in case a serverless
   // function is re-used or we are running in `next start` mode
   process.env.__NEXT_PROCESSED_ENV = 'true'
 
-  const origEnv = Object.assign({}, process.env)
+  const origEnv = Object.assign({}, initialEnv)
   const parsed: dotenv.DotenvParseOutput = {}
 
   for (const envFile of loadedEnvFiles) {
@@ -42,7 +50,13 @@ export function processEnv(
 
       result = dotenvExpand(result)
 
-      if (result.parsed) {
+      if (
+        result.parsed &&
+        !previousLoadedEnvFiles.some(
+          (item) =>
+            item.contents === envFile.contents && item.path === envFile.path
+        )
+      ) {
         log.info(`Loaded env from ${path.join(dir || '', envFile.path)}`)
       }
 
@@ -61,21 +75,28 @@ export function processEnv(
       )
     }
   }
-
   return Object.assign(process.env, parsed)
 }
 
 export function loadEnvConfig(
   dir: string,
   dev?: boolean,
-  log: Log = console
+  log: Log = console,
+  forceReload = false
 ): {
   combinedEnv: Env
   loadedEnvFiles: LoadedEnvFiles
 } {
-  // don't reload env if we already have since this breaks escaped
-  // environment values e.g. \$ENV_FILE_KEY
-  if (combinedEnv) return { combinedEnv, loadedEnvFiles: cachedLoadedEnvFiles }
+  if (!initialEnv) {
+    initialEnv = Object.assign({}, process.env)
+  }
+  // only reload env when forceReload is specified
+  if (combinedEnv && !forceReload) {
+    return { combinedEnv, loadedEnvFiles: cachedLoadedEnvFiles }
+  }
+  process.env = Object.assign({}, initialEnv)
+  previousLoadedEnvFiles = cachedLoadedEnvFiles
+  cachedLoadedEnvFiles = []
 
   const isTest = process.env.NODE_ENV === 'test'
   const mode = isTest ? 'test' : dev ? 'development' : 'production'
@@ -106,12 +127,12 @@ export function loadEnvConfig(
         path: envFile,
         contents,
       })
-    } catch (err) {
+    } catch (err: any) {
       if (err.code !== 'ENOENT') {
         log.error(`Failed to load env from ${envFile}`, err)
       }
     }
   }
-  combinedEnv = processEnv(cachedLoadedEnvFiles, dir, log)
+  combinedEnv = processEnv(cachedLoadedEnvFiles, dir, log, forceReload)
   return { combinedEnv, loadedEnvFiles: cachedLoadedEnvFiles }
 }

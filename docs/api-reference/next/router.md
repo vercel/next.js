@@ -41,19 +41,21 @@ export default ActiveLink
 
 The following is the definition of the `router` object returned by both [`useRouter`](#useRouter) and [`withRouter`](#withRouter):
 
-- `pathname`: `String` - Current route. That is the path of the page in `/pages`, the configured `basePath` or `locale` is not included.
-- `query`: `Object` - The query string parsed to an object. It will be an empty object during prerendering if the page doesn't have [data fetching requirements](/docs/basic-features/data-fetching.md). Defaults to `{}`
-- `asPath`: `String` - The path (including the query) shown in the browser without the configured `basePath` or `locale`.
-- `isFallback`: `boolean` - Whether the current page is in [fallback mode](/docs/basic-features/data-fetching.md#fallback-pages).
+- `pathname`: `String` - The path for current route file that comes after `/pages`. Therefore, `basePath`, `locale` and trailing slash (`trailingSlash: true`) are not included.
+- `query`: `Object` - The query string parsed to an object, including [dynamic route](/docs/routing/dynamic-routes.md) parameters. It will be an empty object during prerendering if the page doesn't use [Server-side Rendering](/docs/basic-features/data-fetching/get-server-side-props.md). Defaults to `{}`
+- `asPath`: `String` - The path as shown in the browser including the search params and respecting the `trailingSlash` configuration. `basePath` and `locale` are not included.
+- `isFallback`: `boolean` - Whether the current page is in [fallback mode](/docs/api-reference/data-fetching/get-static-paths.md#fallback-pages).
 - `basePath`: `String` - The active [basePath](/docs/api-reference/next.config.js/basepath.md) (if enabled).
 - `locale`: `String` - The active locale (if enabled).
 - `locales`: `String[]` - All supported locales (if enabled).
 - `defaultLocale`: `String` - The current default locale (if enabled).
 - `domainLocales`: `Array<{domain, defaultLocale, locales}>` - Any configured domain locales.
-- `isReady`: `boolean` - Whether the router fields are updated client-side and ready for use. Should only be used inside of `useEffect` methods and not for conditionally rendering on the server.
+- `isReady`: `boolean` - Whether the router fields are updated client-side and ready for use. Should only be used inside of `useEffect` methods and not for conditionally rendering on the server. See related docs for use case with [automatically statically optimized pages](/docs/advanced-features/automatic-static-optimization.md)
 - `isPreview`: `boolean` - Whether the application is currently in [preview mode](/docs/advanced-features/preview-mode.md).
 
-Additionally, the following methods are also included inside `router`:
+> Using the `asPath` field may lead to a mismatch between client and server if the page is rendered using server-side rendering or [automatic static optimization](/docs/advanced-features/automatic-static-optimization.md). Avoid using `asPath` until the `isReady` field is `true`.
+
+The following methods are included inside `router`:
 
 ### router.push
 
@@ -70,11 +72,11 @@ Handles client-side transitions, this method is useful for cases where [`next/li
 router.push(url, as, options)
 ```
 
-- `url` - The URL to navigate to
-- `as` - Optional decorator for the URL that will be shown in the browser. Before Next.js 9.5.3 this was used for dynamic routes, check our [previous docs](https://nextjs.org/docs/tag/v9.5.2/api-reference/next/link#dynamic-routes) to see how it worked
+- `url`: `UrlObject | String` - The URL to navigate to (see [Node.JS URL module documentation](https://nodejs.org/api/url.html#legacy-urlobject) for `UrlObject` properties).
+- `as`: `UrlObject | String` - Optional decorator for the path that will be shown in the browser URL bar. Before Next.js 9.5.3 this was used for dynamic routes, check our [previous docs](https://nextjs.org/docs/tag/v9.5.2/api-reference/next/link#dynamic-routes) to see how it worked. Note: when this path differs from the one provided in `href` the previous `href`/`as` behavior is used as shown in the [previous docs](https://nextjs.org/docs/tag/v9.5.2/api-reference/next/link#dynamic-routes)
 - `options` - Optional object with the following configuration options:
   - `scroll` - Optional boolean, controls scrolling to the top of the page after navigation. Defaults to `true`
-  - [`shallow`](/docs/routing/shallow-routing.md): Update the path of the current page without rerunning [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation), [`getServerSideProps`](/docs/basic-features/data-fetching.md#getserversideprops-server-side-rendering) or [`getInitialProps`](/docs/api-reference/data-fetching/getInitialProps.md). Defaults to `false`
+  - [`shallow`](/docs/routing/shallow-routing.md): Update the path of the current page without rerunning [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md), [`getServerSideProps`](/docs/basic-features/data-fetching/get-server-side-props.md) or [`getInitialProps`](/docs/api-reference/data-fetching/get-initial-props.md). Defaults to `false`
   - `locale` - Optional string, indicates locale of the new page
 
 > You don't need to use `router.push` for external URLs. [window.location](https://developer.mozilla.org/en-US/docs/Web/API/Window/location) is better suited for those cases.
@@ -113,8 +115,6 @@ export default function Page() {
 }
 ```
 
-> **Note:** When navigating to the same page in Next.js, the page's state **will not** be reset by default, as the top-level React component is the same. You can manually ensure the state is updated using `useEffect`.
-
 Redirecting the user to `pages/login.js`, useful for pages behind [authentication](/docs/authentication):
 
 ```jsx
@@ -135,6 +135,54 @@ export default function Page() {
   }, [user, loading])
 
   return <p>Redirecting...</p>
+}
+```
+
+#### Resetting state after navigation
+
+When navigating to the same page in Next.js, the page's state **will not** be reset by default as react does not unmount unless the parent component has changed.
+
+```jsx
+// pages/[slug].js
+import Link from 'next/link'
+import { useState } from 'react'
+import { useRouter } from 'next/router'
+
+export default function Page(props) {
+  const router = useRouter()
+  const [count, setCount] = useState(0)
+  return (
+    <div>
+      <h1>Page: {router.query.slug}</h1>
+      <p>Count: {count}</p>
+      <button onClick={() => setCount(count + 1)}>Increase count</button>
+      <Link href="/one">one</Link> <Link href="/two">two</Link>
+    </div>
+  )
+}
+```
+
+In the above example, navigating between `/one` and `/two` **will not** reset the count . The `useState` is maintained between renders because the top-level React component, `Page`, is the same.
+
+If you do not want this behavior, you have a couple of options:
+
+1. Manually ensure each state is updated using `useEffect`. In the above example, that could look like:
+
+```jsx
+useEffect(() => {
+  setCount(0)
+}, [router.query.slug])
+```
+
+2. Use a React `key` to [tell React to remount the component](https://reactjs.org/docs/lists-and-keys.html#keys). To do this for all pages, you can use a custom app:
+
+```jsx
+// pages/_app.js
+import { useRouter } from 'next/router'
+
+export default function MyApp({ Component, pageProps }) {
+  const router = useRouter()
+  return <Component key={router.asPath} {...pageProps} />
 }
 ```
 
@@ -196,14 +244,16 @@ export default function Page() {
 
 Prefetch pages for faster client-side transitions. This method is only useful for navigations without [`next/link`](/docs/api-reference/next/link.md), as `next/link` takes care of prefetching pages automatically.
 
-> This is a production only feature. Next.js doesn't prefetch pages on development.
+> This is a production only feature. Next.js doesn't prefetch pages in development.
 
 ```jsx
-router.prefetch(url, as)
+router.prefetch(url, as, options)
 ```
 
-- `url` - The URL to prefetch, that is, a path with a matching page
+- `url` - The URL to prefetch, including explicit routes (e.g. `/dashboard`) and dynamic routes (e.g. `/product/[id]`)
 - `as` - Optional decorator for `url`. Before Next.js 9.5.3 this was used to prefetch dynamic routes, check our [previous docs](https://nextjs.org/docs/tag/v9.5.2/api-reference/next/link#dynamic-routes) to see how it worked
+- `options` - Optional object with the following allowed fields:
+  - `locale` - allows providing a different locale from the active one. If `false`, `url` has to include the locale as the active locale won't be used.
 
 #### Usage
 
@@ -411,6 +461,53 @@ export default function MyApp({ Component, pageProps }) {
   }, [])
 
   return <Component {...pageProps} />
+}
+```
+
+## Potential ESLint errors
+
+Certain methods accessible on the `router` object return a Promise. If you have the ESLint rule, [no-floating-promises](https://typescript-eslint.io/rules/no-floating-promises) enabled, consider disabling it either globally, or for the affected line.
+
+If your application needs this rule, you should either `void` the promise – or use an `async` function, `await` the Promise, then void the function call. **This is not applicable when the method is called from inside an `onClick` handler**.
+
+The affected methods are:
+
+- `router.push`
+- `router.replace`
+- `router.prefetch`
+
+### Potential solutions
+
+```jsx
+import { useEffect } from 'react'
+import { useRouter } from 'next/router'
+
+// Here you would fetch and return the user
+const useUser = () => ({ user: null, loading: false })
+
+export default function Page() {
+  const { user, loading } = useUser()
+  const router = useRouter()
+
+  useEffect(() => {
+    // disable the linting on the next line - This is the cleanest solution
+    // eslint-disable-next-line no-floating-promises
+    router.push('/login')
+
+    // void the Promise returned by router.push
+    if (!(user || loading)) {
+      void router.push('/login')
+    }
+    // or use an async function, await the Promise, then void the function call
+    async function handleRouteChange() {
+      if (!(user || loading)) {
+        await router.push('/login')
+      }
+    }
+    void handleRouteChange()
+  }, [user, loading])
+
+  return <p>Redirecting...</p>
 }
 ```
 

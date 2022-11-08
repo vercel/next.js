@@ -6,8 +6,8 @@ description: Learn how to transition an existing Create React App project to Nex
 
 This guide will help you understand how to transition from an existing non-ejected Create React App project to Next.js. Migrating to Next.js will allow you to:
 
-- Choose which [data fetching](/docs/basic-features/data-fetching.md) strategy you want on a per-page basis.
-- Use [Incremental Static Regeneration](/docs/basic-features/data-fetching.md#incremental-static-regeneration) to update _existing_ pages by re-rendering them in the background as traffic comes in.
+- Choose which [data fetching](/docs/basic-features/data-fetching/overview.md) strategy you want on a per-page basis.
+- Use [Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md) to update _existing_ pages by re-rendering them in the background as traffic comes in.
 - Use [API Routes](/docs/api-routes/introduction.md).
 
 And more! Let’s walk through a series of steps to complete the migration.
@@ -39,7 +39,7 @@ Here's an example `package.json`:
 
 ## Static Assets and Compiled Output
 
-Create React App uses the `public` directory for the [entry HTML file](https://create-react-app.dev/docs/using-the-public-folder), whereas Next.js uses it for static assets. It's possible to add static assets here, but Create React App recommends importing them directly from JavaScript files.
+Create React App uses the `public` directory for the [entry HTML file](https://create-react-app.dev/docs/using-the-public-folder) as well as static assets, but Next.js only uses it for static assets. When migrating from Create React App, the location of the `public` directory remains the same.
 
 - Move any images, fonts, or other static assets to `public`.
 - Convert `index.html` (the entry point of your application) to Next.js. Any `<head>` code should be moved to a [custom `_document.js`](/docs/advanced-features/custom-document.md). Any shared layout between all pages should be moved to a [custom `_app.js`](/docs/advanced-features/custom-app.md).
@@ -50,8 +50,10 @@ Create React App uses the `public` directory for the [entry HTML file](https://c
 
 With Create React App, you're likely using React Router. Instead of using a third-party library, Next.js includes its own [file-system based routing](/docs/routing/introduction.md).
 
-- Convert all `Route` components to new files in the `pages` directory.
-- For routes that require dynamic content (e.g. `/blog/:slug`), you can use [Dynamic Routes](/docs/routing/dynamic-routes.md) with Next.js (e.g. `pages/blog/[slug].js`). The value of `slug` is accessible through a [query parameter](/docs/routing/dynamic-routes.md). For example, the route `/blog/first-post` would forward the query object `{ 'slug': 'first-post' }` to `pages/blog/[slug].js` ([learn more here](/docs/basic-features/data-fetching.md#getstaticpaths-static-generation)).
+- Create a [`pages`](/docs/basic-features/pages.md) directory at the root of your project.
+- Then, move the `src/App.js` file to `pages/index.js`. This file is the [index page](https://nextjs.org/docs/routing/introduction#index-routes) of your Next.js application. Populate this file with code that is used to display the index route in your Create React App.
+- Convert all other `Route` components to new files in the `pages` directory.
+- For routes that require dynamic content (e.g. `/blog/:slug`), you can use [Dynamic Routes](/docs/routing/dynamic-routes.md) with Next.js (e.g. `pages/blog/[slug].js`). The value of `slug` is accessible through a [query parameter](/docs/routing/dynamic-routes.md). For example, the route `/blog/first-post` would forward the query object `{ 'slug': 'first-post' }` to `pages/blog/[slug].js` ([learn more here](/docs/basic-features/data-fetching/get-static-paths.md)).
 
 For more information, see [Migrating from React Router](/docs/migrating/from-react-router.md).
 
@@ -59,7 +61,7 @@ For more information, see [Migrating from React Router](/docs/migrating/from-rea
 
 Next.js has built-in support for [CSS](/docs/basic-features/built-in-css-support.md), [Sass](/docs/basic-features/built-in-css-support.md#sass-support) and [CSS-in-JS](/docs/basic-features/built-in-css-support.md#css-in-js).
 
-With Create React App, you can import `.css` files directly inside React components. Next.js allows you to do the same, but requires these files to be [CSS Modules](/docs/basic-features/built-in-css-support.md). For global styles, you'll need a [custom `_app.js`](/docs/advanced-features/custom-app.md) to add a [global stylesheet](docs/basic-features/built-in-css-support.md#adding-a-global-stylesheet).
+With Create React App, you can import `.css` files directly inside React components. Next.js allows you to do the same, but requires these files to be [CSS Modules](/docs/basic-features/built-in-css-support.md). For global styles, you'll need a [custom `_app.js`](/docs/advanced-features/custom-app.md) to add a [global stylesheet](/docs/basic-features/built-in-css-support.md#adding-a-global-stylesheet).
 
 ## Safely Accessing Web APIs
 
@@ -114,7 +116,7 @@ export default function Home() {
 
 ## Environment Variables
 
-Next.js has support for `.env` [Environment Variables](/docs/basic-features/environment-variables.md) similar to Create React App. The main different is the prefix used to expose environment variables on the client-side.
+Next.js has support for `.env` [Environment Variables](/docs/basic-features/environment-variables.md) similar to Create React App. The main difference is the prefix used to expose environment variables on the client-side.
 
 - Change all environment variables with the `REACT_APP_` prefix to `NEXT_PUBLIC_`.
 - Server-side environment variables will be available at build-time and in [API Routes](/docs/api-routes/introduction.md).

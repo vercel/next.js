@@ -1,4 +1,5 @@
 {
+  "extends": "../../tsconfig-tsec.json",
   "compilerOptions": {
     "sourceMap": true,
     "strict": true,
@@ -7,7 +8,7 @@
     "lib": ["dom"],
     "downlevelIteration": true,
     "preserveWatchOutput": true,
-    "outDir": "lib",
+    "outDir": "dist",
     "jsx": "react",
     "noFallthroughCasesInSwitch": true,
     "skipLibCheck": true

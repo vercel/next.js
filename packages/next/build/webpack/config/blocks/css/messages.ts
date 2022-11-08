@@ -1,12 +1,12 @@
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 
-export function getGlobalImportError(file: string | null) {
+export function getGlobalImportError() {
   return `Global CSS ${chalk.bold(
     'cannot'
   )} be imported from files other than your ${chalk.bold(
     'Custom <App>'
-  )}. Please move all global CSS imports to ${chalk.cyan(
-    file ? file : 'pages/_app.js'
+  )}. Due to the Global nature of stylesheets, and to avoid conflicts, Please move all first-party global CSS imports to ${chalk.cyan(
+    'pages/_app.js'
   )}. Or convert the import to Component-Level CSS (CSS Modules).\nRead more: https://nextjs.org/docs/messages/css-global`
 }
 
@@ -30,4 +30,16 @@ export function getCustomDocumentError() {
   return `CSS ${chalk.bold('cannot')} be imported within ${chalk.cyan(
     'pages/_document.js'
   )}. Please move global styles to ${chalk.cyan('pages/_app.js')}.`
+}
+
+export function getFontLoaderDocumentImportError() {
+  return `Font loader error:\nFont loaders ${chalk.bold(
+    'cannot'
+  )} be used within ${chalk.cyan('pages/_document.js')}.`
+}
+
+export function getFontLoaderImportError() {
+  return `Font loader error:\nFont loaders ${chalk.bold(
+    'cannot'
+  )} be used from within ${chalk.bold('node_modules')}.`
 }

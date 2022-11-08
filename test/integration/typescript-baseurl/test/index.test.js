@@ -4,8 +4,6 @@ import { join } from 'path'
 import cheerio from 'cheerio'
 import { renderViaHTTP, findPort, launchApp, killApp } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 2)
-
 const appDir = join(__dirname, '..')
 let appPort
 let app

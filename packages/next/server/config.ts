@@ -1,51 +1,147 @@
-import chalk from 'chalk'
+import { existsSync } from 'fs'
+import { basename, extname, join, relative, isAbsolute, resolve } from 'path'
+import { pathToFileURL } from 'url'
+import { Agent as HttpAgent } from 'http'
+import { Agent as HttpsAgent } from 'https'
 import findUp from 'next/dist/compiled/find-up'
-import { basename, extname } from 'path'
+import chalk from '../lib/chalk'
 import * as Log from '../build/output/log'
-import { hasNextSupport } from '../telemetry/ci-info'
-import { CONFIG_FILE, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
+import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import { execOnce } from '../shared/lib/utils'
-import { defaultConfig, normalizeConfig } from './config-shared'
+import {
+  defaultConfig,
+  normalizeConfig,
+  ExperimentalConfig,
+  NextConfigComplete,
+  validateConfig,
+  NextConfig,
+} from './config-shared'
 import { loadWebpackHook } from './config-utils'
-import { ImageConfig, imageConfigDefault, VALID_LOADERS } from './image-config'
+import {
+  ImageConfig,
+  imageConfigDefault,
+  VALID_LOADERS,
+} from '../shared/lib/image-config'
 import { loadEnvConfig } from '@next/env'
+import { gte as semverGte } from 'next/dist/compiled/semver'
+import { getDependencies } from '../lib/get-package-version'
 
-export { DomainLocales, NextConfig, normalizeConfig } from './config-shared'
+export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
 
-const targets = ['server', 'serverless', 'experimental-serverless-trace']
+const NODE_16_VERSION = '16.8.0'
+const NODE_18_VERSION = '18.0.0'
+const isAboveNodejs16 = semverGte(process.version, NODE_16_VERSION)
+const isAboveNodejs18 = semverGte(process.version, NODE_18_VERSION)
 
-const experimentalWarning = execOnce(() => {
-  Log.warn(chalk.bold('You have enabled experimental feature(s).'))
-  Log.warn(
-    `Experimental features are not covered by semver, and may cause unexpected or broken application behavior. ` +
-      `Use them at your own risk.`
+const experimentalWarning = execOnce(
+  (configFileName: string, features: string[]) => {
+    const s = features.length > 1 ? 's' : ''
+    Log.warn(
+      chalk.bold(
+        `You have enabled experimental feature${s} (${features.join(
+          ', '
+        )}) in ${configFileName}.`
+      )
+    )
+    Log.warn(
+      `Experimental features are not covered by semver, and may cause unexpected or broken application behavior. ` +
+        `Use at your own risk.`
+    )
+    if (features.includes('appDir')) {
+      Log.info(
+        `Thank you for testing \`appDir\` please leave your feedback at https://nextjs.link/app-feedback`
+      )
+    }
+
+    console.warn()
+  }
+)
+
+export function setHttpClientAndAgentOptions(config: {
+  httpAgentOptions?: NextConfig['httpAgentOptions']
+  experimental?: {
+    enableUndici?: boolean
+  }
+}) {
+  if (isAboveNodejs16) {
+    // Node.js 18 has undici built-in.
+    if (config.experimental?.enableUndici && !isAboveNodejs18) {
+      // When appDir is enabled undici is the default because of Response.clone() issues in node-fetch
+      ;(globalThis as any).__NEXT_USE_UNDICI = config.experimental?.enableUndici
+    }
+  } else if (config.experimental?.enableUndici) {
+    Log.warn(
+      `\`enableUndici\` option requires Node.js v${NODE_16_VERSION} or greater. Falling back to \`node-fetch\``
+    )
+  }
+  if ((globalThis as any).__NEXT_HTTP_AGENT) {
+    // We only need to assign once because we want
+    // to reuse the same agent for all requests.
+    return
+  }
+
+  if (!config) {
+    throw new Error('Expected config.httpAgentOptions to be an object')
+  }
+
+  ;(globalThis as any).__NEXT_HTTP_AGENT_OPTIONS = config.httpAgentOptions
+  ;(globalThis as any).__NEXT_HTTP_AGENT = new HttpAgent(
+    config.httpAgentOptions
   )
-  console.warn()
-})
+  ;(globalThis as any).__NEXT_HTTPS_AGENT = new HttpsAgent(
+    config.httpAgentOptions
+  )
+}
 
-function assignDefaults(userConfig: { [key: string]: any }) {
+async function setFontLoaderDefaults(config: NextConfigComplete, dir: string) {
+  // Add @next/font loaders by default if they're installed
+  const hasNextFontDependency = (
+    await getDependencies({
+      cwd: dir,
+    })
+  ).dependencies['@next/font']
+
+  if (hasNextFontDependency) {
+    const googleFontLoader = {
+      loader: '@next/font/google',
+    }
+    const localFontLoader = {
+      loader: '@next/font/local',
+    }
+    if (!config.experimental) {
+      config.experimental = {}
+    }
+    if (!config.experimental.fontLoaders) {
+      config.experimental.fontLoaders = []
+    }
+    if (
+      !config.experimental.fontLoaders.find(
+        ({ loader }: any) => loader === googleFontLoader.loader
+      )
+    ) {
+      config.experimental.fontLoaders.push(googleFontLoader)
+    }
+    if (
+      !config.experimental.fontLoaders.find(
+        ({ loader }: any) => loader === localFontLoader.loader
+      )
+    ) {
+      config.experimental.fontLoaders.push(localFontLoader)
+    }
+  }
+}
+
+function assignDefaults(dir: string, userConfig: { [key: string]: any }) {
+  const configFileName = userConfig.configFileName
   if (typeof userConfig.exportTrailingSlash !== 'undefined') {
     console.warn(
       chalk.yellow.bold('Warning: ') +
-        'The "exportTrailingSlash" option has been renamed to "trailingSlash". Please update your next.config.js.'
+        `The "exportTrailingSlash" option has been renamed to "trailingSlash". Please update your ${configFileName}.`
     )
     if (typeof userConfig.trailingSlash === 'undefined') {
       userConfig.trailingSlash = userConfig.exportTrailingSlash
     }
     delete userConfig.exportTrailingSlash
-  }
-
-  if (typeof userConfig.experimental?.reactMode !== 'undefined') {
-    console.warn(
-      chalk.yellow.bold('Warning: ') +
-        'The experimental "reactMode" option has been replaced with "reactRoot". Please update your next.config.js.'
-    )
-    if (typeof userConfig.experimental?.reactRoot === 'undefined') {
-      userConfig.experimental.reactRoot = ['concurrent', 'blocking'].includes(
-        userConfig.experimental.reactMode
-      )
-    }
-    delete userConfig.experimental.reactMode
   }
 
   const config = Object.keys(userConfig).reduce<{ [key: string]: any }>(
@@ -56,12 +152,36 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         return currentConfig
       }
 
-      if (
-        key === 'experimental' &&
-        value !== undefined &&
-        value !== defaultConfig[key]
-      ) {
-        experimentalWarning()
+      if (key === 'experimental' && typeof value === 'object') {
+        const enabledExperiments: (keyof ExperimentalConfig)[] = []
+
+        // defaultConfig.experimental is predefined and will never be undefined
+        // This is only a type guard for the typescript
+        if (defaultConfig.experimental) {
+          for (const featureName of Object.keys(
+            value
+          ) as (keyof ExperimentalConfig)[]) {
+            const featureValue = value[featureName]
+            if (
+              featureName === 'appDir' &&
+              featureValue === true &&
+              !isAboveNodejs16
+            ) {
+              throw new Error(
+                `experimental.appDir requires Node v${NODE_16_VERSION} or later.`
+              )
+            }
+            if (
+              value[featureName] !== defaultConfig.experimental[featureName]
+            ) {
+              enabledExperiments.push(featureName)
+            }
+          }
+        }
+
+        if (enabledExperiments.length > 0) {
+          experimentalWarning(configFileName, enabledExperiments)
+        }
       }
 
       if (key === 'distDir') {
@@ -144,6 +264,10 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     )
   }
 
+  if (result.experimental?.appDir) {
+    result.experimental.enableUndici = true
+  }
+
   if (result.basePath !== '') {
     if (result.basePath === '/') {
       throw new Error(
@@ -168,14 +292,14 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         result.assetPrefix = result.basePath
       }
 
-      if (result.amp.canonicalBase === '') {
+      if (result.amp?.canonicalBase === '') {
         result.amp.canonicalBase = result.basePath
       }
     }
   }
 
   if (result?.images) {
-    const images: Partial<ImageConfig> = result.images
+    const images: ImageConfig = result.images
 
     if (typeof images !== 'object') {
       throw new Error(
@@ -188,6 +312,13 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         throw new Error(
           `Specified images.domains should be an Array received ${typeof images.domains}.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
         )
+      }
+
+      // static images are automatically prefixed with assetPrefix
+      // so we need to ensure _next/image allows downloading from
+      // this resource
+      if (config.assetPrefix?.startsWith('http')) {
+        images.domains.push(new URL(config.assetPrefix).hostname)
       }
 
       if (images.domains.length > 50) {
@@ -207,6 +338,43 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         )
       }
     }
+
+    const remotePatterns = result?.images?.remotePatterns
+    if (remotePatterns) {
+      if (!Array.isArray(remotePatterns)) {
+        throw new Error(
+          `Specified images.remotePatterns should be an Array received ${typeof remotePatterns}.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+        )
+      }
+
+      if (remotePatterns.length > 50) {
+        throw new Error(
+          `Specified images.remotePatterns exceeds length of 50, received length (${remotePatterns.length}), please reduce the length of the array to continue.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+        )
+      }
+
+      const validProps = new Set(['protocol', 'hostname', 'pathname', 'port'])
+      const requiredProps = ['hostname']
+      const invalidPatterns = remotePatterns.filter(
+        (d: unknown) =>
+          !d ||
+          typeof d !== 'object' ||
+          Object.entries(d).some(
+            ([k, v]) => !validProps.has(k) || typeof v !== 'string'
+          ) ||
+          requiredProps.some((k) => !(k in d))
+      )
+      if (invalidPatterns.length > 0) {
+        throw new Error(
+          `Invalid images.remotePatterns values:\n${invalidPatterns
+            .map((item) => JSON.stringify(item))
+            .join(
+              '\n'
+            )}\n\nremotePatterns value must follow format { protocol: 'https', hostname: 'example.com', port: '', pathname: '/imgs/**' }.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+        )
+      }
+    }
+
     if (images.deviceSizes) {
       const { deviceSizes } = images
       if (!Array.isArray(deviceSizes)) {
@@ -274,11 +442,22 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       )
     }
 
-    // Append trailing slash for non-default loaders
+    if (
+      images.loader !== 'default' &&
+      images.loader !== 'custom' &&
+      images.path === imageConfigDefault.path
+    ) {
+      throw new Error(
+        `Specified images.loader property (${images.loader}) also requires images.path property to be assigned to a URL prefix.\nSee more info here: https://nextjs.org/docs/api-reference/next/legacy/image#loader-configuration`
+      )
+    }
+
+    // Append trailing slash for non-default loaders and when trailingSlash is set
     if (images.path) {
       if (
-        images.loader !== 'default' &&
-        images.path[images.path.length - 1] !== '/'
+        (images.loader !== 'default' &&
+          images.path[images.path.length - 1] !== '/') ||
+        result.trailingSlash
       ) {
         images.path += '/'
       }
@@ -287,7 +466,170 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     if (images.path === imageConfigDefault.path && result.basePath) {
       images.path = `${result.basePath}${images.path}`
     }
+
+    if (images.loaderFile) {
+      if (images.loader !== 'default' && images.loader !== 'custom') {
+        throw new Error(
+          `Specified images.loader property (${images.loader}) cannot be used with images.loaderFile property. Please set images.loader to "custom".`
+        )
+      }
+      const absolutePath = join(dir, images.loaderFile)
+      if (!existsSync(absolutePath)) {
+        throw new Error(
+          `Specified images.loaderFile does not exist at "${absolutePath}".`
+        )
+      }
+      images.loader = 'custom'
+      images.loaderFile = absolutePath
+    }
+
+    if (
+      images.minimumCacheTTL &&
+      (!Number.isInteger(images.minimumCacheTTL) || images.minimumCacheTTL < 0)
+    ) {
+      throw new Error(
+        `Specified images.minimumCacheTTL should be an integer 0 or more received (${images.minimumCacheTTL}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+      )
+    }
+
+    if (images.formats) {
+      const { formats } = images
+      if (!Array.isArray(formats)) {
+        throw new Error(
+          `Specified images.formats should be an Array received ${typeof formats}.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+        )
+      }
+      if (formats.length < 1 || formats.length > 2) {
+        throw new Error(
+          `Specified images.formats must be length 1 or 2, received length (${formats.length}), please reduce the length of the array to continue.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+        )
+      }
+
+      const invalid = formats.filter((f) => {
+        return f !== 'image/avif' && f !== 'image/webp'
+      })
+
+      if (invalid.length > 0) {
+        throw new Error(
+          `Specified images.formats should be an Array of mime type strings, received invalid values (${invalid.join(
+            ', '
+          )}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+        )
+      }
+    }
+
+    if (
+      typeof images.dangerouslyAllowSVG !== 'undefined' &&
+      typeof images.dangerouslyAllowSVG !== 'boolean'
+    ) {
+      throw new Error(
+        `Specified images.dangerouslyAllowSVG should be a boolean received (${images.dangerouslyAllowSVG}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+      )
+    }
+
+    if (
+      typeof images.contentSecurityPolicy !== 'undefined' &&
+      typeof images.contentSecurityPolicy !== 'string'
+    ) {
+      throw new Error(
+        `Specified images.contentSecurityPolicy should be a string received (${images.contentSecurityPolicy}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+      )
+    }
+
+    const unoptimized = result?.images?.unoptimized
+    if (
+      typeof unoptimized !== 'undefined' &&
+      typeof unoptimized !== 'boolean'
+    ) {
+      throw new Error(
+        `Specified images.unoptimized should be a boolean, received (${unoptimized}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+      )
+    }
   }
+
+  if (result.experimental && 'relay' in (result.experimental as any)) {
+    Log.warn(
+      `\`relay\` has been moved out of \`experimental\` and into \`compiler\`. Please update your ${configFileName} file accordingly.`
+    )
+    result.compiler = result.compiler || {}
+    result.compiler.relay = (result.experimental as any).relay
+  }
+
+  if (
+    result.experimental &&
+    'styledComponents' in (result.experimental as any)
+  ) {
+    Log.warn(
+      `\`styledComponents\` has been moved out of \`experimental\` and into \`compiler\`. Please update your ${configFileName} file accordingly.`
+    )
+    result.compiler = result.compiler || {}
+    result.compiler.styledComponents = (
+      result.experimental as any
+    ).styledComponents
+  }
+
+  if (result.experimental && 'emotion' in (result.experimental as any)) {
+    Log.warn(
+      `\`emotion\` has been moved out of \`experimental\` and into \`compiler\`. Please update your ${configFileName} file accordingly.`
+    )
+    result.compiler = result.compiler || {}
+    result.compiler.emotion = (result.experimental as any).emotion
+  }
+
+  if (
+    result.experimental &&
+    'reactRemoveProperties' in (result.experimental as any)
+  ) {
+    Log.warn(
+      `\`reactRemoveProperties\` has been moved out of \`experimental\` and into \`compiler\`. Please update your ${configFileName} file accordingly.`
+    )
+    result.compiler = result.compiler || {}
+    result.compiler.reactRemoveProperties = (
+      result.experimental as any
+    ).reactRemoveProperties
+  }
+
+  if (result.experimental && 'removeConsole' in (result.experimental as any)) {
+    Log.warn(
+      `\`removeConsole\` has been moved out of \`experimental\` and into \`compiler\`. Please update your ${configFileName} file accordingly.`
+    )
+    result.compiler = result.compiler || {}
+    result.compiler.removeConsole = (result.experimental as any).removeConsole
+  }
+
+  if (result.experimental?.swcMinifyDebugOptions) {
+    Log.warn(
+      'SWC minify debug option specified. This option is for debugging minifier issues and will be removed once SWC minifier is stable.'
+    )
+  }
+
+  if ((result.experimental as any).outputStandalone) {
+    Log.warn(
+      `experimental.outputStandalone has been renamed to "output: 'standalone'", please move the config.`
+    )
+    result.output = 'standalone'
+  }
+
+  if (
+    result.experimental?.outputFileTracingRoot &&
+    !isAbsolute(result.experimental.outputFileTracingRoot)
+  ) {
+    result.experimental.outputFileTracingRoot = resolve(
+      result.experimental.outputFileTracingRoot
+    )
+    Log.warn(
+      `experimental.outputFileTracingRoot should be absolute, using: ${result.experimental.outputFileTracingRoot}`
+    )
+  }
+
+  if (result.output === 'standalone' && !result.outputFileTracing) {
+    Log.warn(
+      `"output: 'standalone'" requires outputFileTracing not be disabled please enable it to leverage the standalone build`
+    )
+    result.output = undefined
+  }
+
+  setHttpClientAndAgentOptions(result || defaultConfig)
 
   if (result.i18n) {
     const { i18n } = result
@@ -302,6 +644,12 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     if (!Array.isArray(i18n.locales)) {
       throw new Error(
         `Specified i18n.locales should be an Array received ${typeof i18n.locales}.\nSee more info here: https://nextjs.org/docs/messages/invalid-i18n-config`
+      )
+    }
+
+    if (i18n.locales.length > 100) {
+      Log.warn(
+        `Received ${i18n.locales.length} i18n.locales items which exceeds the recommended max of 100.\nSee more info here: https://nextjs.org/docs/advanced-features/i18n-routing#how-does-this-work-with-static-generation`
       )
     }
 
@@ -324,6 +672,19 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         if (!item || typeof item !== 'object') return true
         if (!item.defaultLocale) return true
         if (!item.domain || typeof item.domain !== 'string') return true
+
+        const defaultLocaleDuplicate = i18n.domains?.find(
+          (altItem) =>
+            altItem.defaultLocale === item.defaultLocale &&
+            altItem.domain !== item.domain
+        )
+
+        if (defaultLocaleDuplicate) {
+          console.warn(
+            `Both ${item.domain} and ${defaultLocaleDuplicate.domain} configured the defaultLocale ${item.defaultLocale} but only one can. Change one item's default locale to continue`
+          )
+          return true
+        }
 
         let hasInvalidLocale = false
 
@@ -385,6 +746,26 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       )
     }
 
+    const normalizedLocales = new Set()
+    const duplicateLocales = new Set()
+
+    i18n.locales.forEach((locale) => {
+      const localeLower = locale.toLowerCase()
+      if (normalizedLocales.has(localeLower)) {
+        duplicateLocales.add(locale)
+      }
+      normalizedLocales.add(localeLower)
+    })
+
+    if (duplicateLocales.size > 0) {
+      throw new Error(
+        `Specified i18n.locales contains the following duplicate locales:\n` +
+          `${[...duplicateLocales].join(', ')}\n` +
+          `Each locale should be listed only once.\n` +
+          `See more info here: https://nextjs.org/docs/messages/invalid-i18n-config`
+      )
+    }
+
     // make sure default Locale is at the front
     i18n.locales = [
       i18n.defaultLocale,
@@ -403,42 +784,110 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     }
   }
 
+  if (result.devIndicators?.buildActivityPosition) {
+    const { buildActivityPosition } = result.devIndicators
+    const allowedValues = [
+      'top-left',
+      'top-right',
+      'bottom-left',
+      'bottom-right',
+    ]
+
+    if (!allowedValues.includes(buildActivityPosition)) {
+      throw new Error(
+        `Invalid "devIndicator.buildActivityPosition" provided, expected one of ${allowedValues.join(
+          ', '
+        )}, received ${buildActivityPosition}`
+      )
+    }
+  }
+
   return result
 }
 
 export default async function loadConfig(
   phase: string,
   dir: string,
-  customConfig?: object | null
-) {
+  customConfig?: object | null,
+  rawConfig?: boolean
+): Promise<NextConfigComplete> {
   await loadEnvConfig(dir, phase === PHASE_DEVELOPMENT_SERVER, Log)
-  await loadWebpackHook(phase, dir)
+  loadWebpackHook()
+
+  let configFileName = 'next.config.js'
 
   if (customConfig) {
-    return assignDefaults({ configOrigin: 'server', ...customConfig })
+    return assignDefaults(dir, {
+      configOrigin: 'server',
+      configFileName,
+      ...customConfig,
+    }) as NextConfigComplete
   }
 
-  const path = await findUp(CONFIG_FILE, { cwd: dir })
+  const path = await findUp(CONFIG_FILES, { cwd: dir })
 
   // If config file was found
   if (path?.length) {
-    const userConfigModule = require(path)
-    const userConfig = normalizeConfig(
+    configFileName = basename(path)
+    let userConfigModule: any
+
+    try {
+      // `import()` expects url-encoded strings, so the path must be properly
+      // escaped and (especially on Windows) absolute paths must pe prefixed
+      // with the `file://` protocol
+      if (process.env.__NEXT_TEST_MODE === 'jest') {
+        // dynamic import does not currently work inside of vm which
+        // jest relies on so we fall back to require for this case
+        // https://github.com/nodejs/node/issues/35889
+        userConfigModule = require(path)
+      } else {
+        userConfigModule = await import(pathToFileURL(path).href)
+      }
+
+      if (rawConfig) {
+        return userConfigModule
+      }
+    } catch (err) {
+      Log.error(
+        `Failed to load ${configFileName}, see more info here https://nextjs.org/docs/messages/next-config-error`
+      )
+      throw err
+    }
+    const userConfig = await normalizeConfig(
       phase,
       userConfigModule.default || userConfigModule
     )
 
-    if (Object.keys(userConfig).length === 0) {
-      Log.warn(
-        'Detected next.config.js, no exported configuration found. https://nextjs.org/docs/messages/empty-configuration'
+    const validateResult = validateConfig(userConfig)
+
+    if (validateResult.errors) {
+      Log.warn(`Invalid next.config.js options detected: `)
+
+      // Only load @segment/ajv-human-errors when invalid config is detected
+      const { AggregateAjvError } =
+        require('next/dist/compiled/@segment/ajv-human-errors') as typeof import('next/dist/compiled/@segment/ajv-human-errors')
+      const aggregatedAjvErrors = new AggregateAjvError(validateResult.errors, {
+        fieldLabels: 'js',
+      })
+      for (const error of aggregatedAjvErrors) {
+        console.error(`  - ${error.message}`)
+      }
+
+      console.error(
+        '\nSee more info here: https://nextjs.org/docs/messages/invalid-next-config'
       )
     }
 
-    if (userConfig.target && !targets.includes(userConfig.target)) {
+    if (Object.keys(userConfig).length === 0) {
+      Log.warn(
+        `Detected ${configFileName}, no exported configuration found. https://nextjs.org/docs/messages/empty-configuration`
+      )
+    }
+
+    if (userConfig.target && userConfig.target !== 'server') {
       throw new Error(
-        `Specified target is invalid. Provided: "${
-          userConfig.target
-        }" should be one of ${targets.join(', ')}`
+        `The "target" property is no longer supported in ${configFileName}.\n` +
+          'See more info here https://nextjs.org/docs/messages/deprecated-target-config'
       )
     }
 
@@ -451,17 +900,16 @@ export default async function loadConfig(
           : canonicalBase) || ''
     }
 
-    if (hasNextSupport) {
-      userConfig.target = process.env.NEXT_PRIVATE_TARGET || 'server'
-    }
-
-    return assignDefaults({
-      configOrigin: CONFIG_FILE,
+    const completeConfig = assignDefaults(dir, {
+      configOrigin: relative(dir, path),
       configFile: path,
+      configFileName,
       ...userConfig,
-    })
+    }) as NextConfigComplete
+    await setFontLoaderDefaults(completeConfig, dir)
+    return completeConfig
   } else {
-    const configBaseName = basename(CONFIG_FILE, extname(CONFIG_FILE))
+    const configBaseName = basename(CONFIG_FILES[0], extname(CONFIG_FILES[0]))
     const nonJsPath = findUp.sync(
       [
         `${configBaseName}.jsx`,
@@ -475,16 +923,19 @@ export default async function loadConfig(
       throw new Error(
         `Configuring Next.js via '${basename(
           nonJsPath
-        )}' is not supported. Please replace the file with 'next.config.js'.`
+        )}' is not supported. Please replace the file with 'next.config.js' or 'next.config.mjs'.`
       )
     }
   }
 
-  return defaultConfig
-}
-
-export function isTargetLikeServerless(target: string) {
-  const isServerless = target === 'serverless'
-  const isServerlessTrace = target === 'experimental-serverless-trace'
-  return isServerless || isServerlessTrace
+  // always call assignDefaults to ensure settings like
+  // reactRoot can be updated correctly even with no next.config.js
+  const completeConfig = assignDefaults(
+    dir,
+    defaultConfig
+  ) as NextConfigComplete
+  completeConfig.configFileName = configFileName
+  setHttpClientAndAgentOptions(completeConfig)
+  await setFontLoaderDefaults(completeConfig, dir)
+  return completeConfig
 }

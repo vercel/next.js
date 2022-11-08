@@ -9,7 +9,7 @@ const initialState = {
   placeholderData: null,
 }
 
-function reducer(state, action) {
+function reducer(state = initialState, action) {
   switch (action.type) {
     case HYDRATE: {
       return { ...state, ...action.payload }

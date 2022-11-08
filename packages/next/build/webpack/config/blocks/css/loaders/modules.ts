@@ -1,4 +1,3 @@
-import { AcceptedPlugin } from 'postcss'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { ConfigurationContext } from '../../../utils'
 import { getClientStyleLoader } from './client'
@@ -7,7 +6,7 @@ import { getCssModuleLocalIdent } from './getCssModuleLocalIdent'
 
 export function getCssModuleLoader(
   ctx: ConfigurationContext,
-  postCssPlugins: readonly AcceptedPlugin[],
+  postcss: any,
   preProcessors: readonly webpack.RuleSetUseItem[] = []
 ): webpack.RuleSetUseItem[] {
   const loaders: webpack.RuleSetUseItem[] = []
@@ -17,6 +16,7 @@ export function getCssModuleLoader(
     // loader
     loaders.push(
       getClientStyleLoader({
+        hasAppDir: ctx.hasAppDir,
         isDevelopment: ctx.isDevelopment,
         assetPrefix: ctx.assetPrefix,
       })
@@ -25,15 +25,16 @@ export function getCssModuleLoader(
 
   // Resolve CSS `@import`s and `url()`s
   loaders.push({
-    loader: require.resolve('next/dist/compiled/css-loader'),
+    loader: require.resolve('../../../../loaders/css-loader/src'),
     options: {
+      postcss,
       importLoaders: 1 + preProcessors.length,
-      sourceMap: true,
       // Use CJS mode for backwards compatibility:
       esModule: false,
-      url: cssFileResolve,
+      url: (url: string, resourcePath: string) =>
+        cssFileResolve(url, resourcePath, ctx.experimental.urlImports),
       import: (url: string, _: any, resourcePath: string) =>
-        cssFileResolve(url, resourcePath),
+        cssFileResolve(url, resourcePath, ctx.experimental.urlImports),
       modules: {
         // Do not transform class names (CJS mode backwards compatibility):
         exportLocalsConvention: 'asIs',
@@ -54,10 +55,9 @@ export function getCssModuleLoader(
 
   // Compile CSS
   loaders.push({
-    loader: require.resolve('next/dist/compiled/postcss-loader'),
+    loader: require.resolve('../../../../loaders/postcss-loader/src'),
     options: {
-      postcssOptions: { plugins: postCssPlugins, config: false },
-      sourceMap: true,
+      postcss,
     },
   })
 

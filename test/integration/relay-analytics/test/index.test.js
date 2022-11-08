@@ -5,25 +5,35 @@ import webdriver from 'next-webdriver'
 import { killApp, findPort, nextBuild, nextStart, check } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
+
 let appPort
 let server
+let stdout
 jest.setTimeout(1000 * 60 * 2)
 
-describe('Analytics relayer', () => {
-  let stdout
-  beforeAll(async () => {
-    appPort = await findPort()
-    ;({ stdout } = await nextBuild(appDir, [], {
-      env: { VERCEL_ANALYTICS_ID: 'test' },
-      stdout: true,
-    }))
-    server = await nextStart(appDir, appPort)
-  })
-  afterAll(() => killApp(server))
+async function buildApp() {
+  appPort = await findPort()
+  ;({ stdout } = await nextBuild(appDir, [], {
+    env: { VERCEL_ANALYTICS_ID: 'test' },
+    stdout: true,
+  }))
+  server = await nextStart(appDir, appPort)
+}
+async function killServer() {
+  await killApp(server)
+}
 
+describe('Analytics relayer with exported method', () => {
+  beforeAll(async () => await buildApp())
+  afterAll(async () => await killServer())
+  runTest()
+})
+
+function runTest() {
   it('Relays the data to user code', async () => {
     const browser = await webdriver(appPort, '/')
     await browser.waitForElementByCss('h1')
+
     const h1Text = await browser.elementByCss('h1').text()
     const data = parseFloat(
       await browser.eval('localStorage.getItem("Next.js-hydration")')
@@ -47,6 +57,12 @@ describe('Analytics relayer', () => {
     expect(firstContentfulPaint).toBeGreaterThan(0)
     expect(largestContentfulPaint).toBeNull()
     expect(cls).toBeNull()
+
+    const beaconsCountBeforeCLS = await browser.eval('window.__BEACONS_COUNT')
+    expect(
+      Object.values(beaconsCountBeforeCLS).every((value) => value === 1)
+    ).toBe(true)
+
     // Create an artificial layout shift
     await browser.eval('document.querySelector("h1").style.display = "none"')
     await browser.refresh()
@@ -70,6 +86,11 @@ describe('Analytics relayer', () => {
       Object.fromEntries(new URLSearchParams(value))
     )
 
+    const beaconsCountAfterCLS = await browser.eval('window.__BEACONS_COUNT')
+    expect(
+      Object.values(beaconsCountAfterCLS).every((value) => value === 2)
+    ).toBe(true)
+
     expect(beacons.length).toBe(2)
 
     for (const beacon of beacons) {
@@ -87,4 +108,41 @@ describe('Analytics relayer', () => {
     expect(stdout).toMatch('Next.js Analytics')
     await browser.close()
   })
-})
+
+  it('reports INP metric', async () => {
+    const browser = await webdriver(appPort, '/')
+    await browser.elementByCss('button').click()
+    await browser.waitForCondition(
+      'document.querySelector("button").textContent === "Press"'
+    )
+    // INP metric is only reported on pagehide or visibilitychange event, so refresh the page
+    await browser.refresh()
+    await check(async () => {
+      const INP = parseInt(
+        await browser.eval('localStorage.getItem("INP")'),
+        10
+      )
+      // We introduced a delay of 100ms, so INP duration should be >= 100
+      expect(INP).toBeGreaterThanOrEqual(100)
+      return 'success'
+    }, 'success')
+    await browser.close()
+  })
+
+  it('reports attribution', async () => {
+    const browser = await webdriver(appPort, '/')
+    // trigger paint
+    await browser.elementByCss('button').click()
+    await browser.waitForCondition(
+      `window.__metricsWithAttribution?.length > 0`
+    )
+    const str = await browser.eval(
+      `JSON.stringify(window.__metricsWithAttribution)`
+    )
+    const metrics = JSON.parse(str)
+    const LCP = metrics.find((m) => m.name === 'LCP')
+    expect(LCP).toBeDefined()
+    expect(LCP.attribution).toBeDefined()
+    expect(LCP.attribution.element).toBe('#__next>div>h1')
+  })
+}

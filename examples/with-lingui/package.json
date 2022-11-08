@@ -1,7 +1,5 @@
 {
-  "name": "with-lingui",
-  "version": "1.0.0",
-  "license": "MIT",
+  "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -12,8 +10,8 @@
   "dependencies": {
     "@lingui/react": "^3.10.2",
     "next": "latest",
-    "react": "^17.0.2",
-    "react-dom": "^17.0.2"
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
   },
   "devDependencies": {
     "@babel/core": "7.14.5",

@@ -1,44 +1,30 @@
-import React, { useState } from 'react'
+import React, { useState, FC } from 'react'
 
 import CustomDonationInput from '../components/CustomDonationInput'
 import StripeTestCards from '../components/StripeTestCards'
 import PrintObject from '../components/PrintObject'
 
 import { fetchPostJSON } from '../utils/api-helpers'
-import { formatAmountForDisplay } from '../utils/stripe-helpers'
+import {
+  formatAmountForDisplay,
+  formatAmountFromStripe,
+} from '../utils/stripe-helpers'
 import * as config from '../config'
 
-import { CardElement, useStripe, useElements } from '@stripe/react-stripe-js'
+import { useStripe, useElements, PaymentElement } from '@stripe/react-stripe-js'
+import { PaymentIntent } from '@stripe/stripe-js'
 
-const CARD_OPTIONS = {
-  iconStyle: 'solid' as const,
-  style: {
-    base: {
-      iconColor: '#6772e5',
-      color: '#6772e5',
-      fontWeight: '500',
-      fontFamily: 'Roboto, Open Sans, Segoe UI, sans-serif',
-      fontSize: '16px',
-      fontSmoothing: 'antialiased',
-      ':-webkit-autofill': {
-        color: '#fce883',
-      },
-      '::placeholder': {
-        color: '#6772e5',
-      },
-    },
-    invalid: {
-      iconColor: '#ef2961',
-      color: '#ef2961',
-    },
-  },
-}
-
-const ElementsForm = () => {
+const ElementsForm: FC<{
+  paymentIntent?: PaymentIntent | null
+}> = ({ paymentIntent = null }) => {
+  const defaultAmout = paymentIntent
+    ? formatAmountFromStripe(paymentIntent.amount, paymentIntent.currency)
+    : Math.round(config.MAX_AMOUNT / config.AMOUNT_STEP)
   const [input, setInput] = useState({
-    customDonation: Math.round(config.MAX_AMOUNT / config.AMOUNT_STEP),
+    customDonation: defaultAmout,
     cardholderName: '',
   })
+  const [paymentType, setPaymentType] = useState('')
   const [payment, setPayment] = useState({ status: 'initial' })
   const [errorMessage, setErrorMessage] = useState('')
   const stripe = useStripe()
@@ -80,11 +66,13 @@ const ElementsForm = () => {
     e.preventDefault()
     // Abort if form isn't valid
     if (!e.currentTarget.reportValidity()) return
+    if (!elements) return
     setPayment({ status: 'processing' })
 
     // Create a PaymentIntent with the specified amount.
     const response = await fetchPostJSON('/api/payment_intents', {
       amount: input.customDonation,
+      payment_intent_id: paymentIntent?.id,
     })
     setPayment(response)
 
@@ -94,21 +82,18 @@ const ElementsForm = () => {
       return
     }
 
-    // Get a reference to a mounted CardElement. Elements knows how
-    // to find your CardElement because there can only ever be one of
-    // each type of element.
-    const cardElement = elements!.getElement(CardElement)
-
     // Use your card Element with other Stripe.js APIs
-    const { error, paymentIntent } = await stripe!.confirmCardPayment(
-      response.client_secret,
-      {
-        payment_method: {
-          card: cardElement!,
-          billing_details: { name: input.cardholderName },
+    const { error } = await stripe!.confirmPayment({
+      elements,
+      confirmParams: {
+        return_url: 'http://localhost:3000/donate-with-elements',
+        payment_method_data: {
+          billing_details: {
+            name: input.cardholderName,
+          },
         },
-      }
-    )
+      },
+    })
 
     if (error) {
       setPayment({ status: 'error' })
@@ -134,24 +119,20 @@ const ElementsForm = () => {
         <StripeTestCards />
         <fieldset className="elements-style">
           <legend>Your payment details:</legend>
-          <input
-            placeholder="Cardholder name"
-            className="elements-style"
-            type="Text"
-            name="cardholderName"
-            onChange={handleInputChange}
-            required
-          />
+          {paymentType === 'card' ? (
+            <input
+              placeholder="Cardholder name"
+              className="elements-style"
+              type="Text"
+              name="cardholderName"
+              onChange={handleInputChange}
+              required
+            />
+          ) : null}
           <div className="FormRow elements-style">
-            <CardElement
-              options={CARD_OPTIONS}
+            <PaymentElement
               onChange={(e) => {
-                if (e.error) {
-                  setPayment({ status: 'error' })
-                  setErrorMessage(
-                    e.error.message ?? 'An unknown error occurred'
-                  )
-                }
+                setPaymentType(e.value.type)
               }}
             />
           </div>

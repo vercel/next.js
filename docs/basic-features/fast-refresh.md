@@ -74,9 +74,9 @@ local state being reset on every edit to a file:
   and Hooks preserve state).
 - The file you're editing might have _other_ exports in addition to a React
   component.
-- Sometimes, a file would export the result of calling higher-order component
+- Sometimes, a file would export the result of calling a higher-order component
   like `HOC(WrappedComponent)`. If the returned component is a
-  class, state will be reset.
+  class, its state will be reset.
 - Anonymous arrow functions like `export default () => <div />;` cause Fast Refresh to not preserve local component state. For large codebases you can use our [`name-default-component` codemod](/docs/advanced-features/codemods.md#name-default-component).
 
 As more of your codebase moves to function components and Hooks, you can expect

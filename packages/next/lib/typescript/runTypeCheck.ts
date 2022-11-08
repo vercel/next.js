@@ -7,6 +7,7 @@ import { getTypeScriptConfiguration } from './getTypeScriptConfiguration'
 import { getRequiredConfiguration } from './writeConfigurationDefaults'
 
 import { CompileError } from '../compile-error'
+import { warn } from '../../build/output/log'
 
 export interface TypeCheckResult {
   hasWarnings: boolean
@@ -20,7 +21,8 @@ export async function runTypeCheck(
   ts: typeof import('typescript'),
   baseDir: string,
   tsConfigPath: string,
-  cacheDir?: string
+  cacheDir?: string,
+  isAppDirEnabled?: boolean
 ): Promise<TypeCheckResult> {
   const effectiveConfiguration = await getTypeScriptConfiguration(
     ts,
@@ -40,6 +42,8 @@ export async function runTypeCheck(
   const options = {
     ...effectiveConfiguration.options,
     ...requiredConfig,
+    declarationMap: false,
+    emitDeclarationOnly: false,
     noEmit: true,
   }
 
@@ -47,12 +51,18 @@ export async function runTypeCheck(
     | import('typescript').Program
     | import('typescript').BuilderProgram
   let incremental = false
-  if (options.incremental && cacheDir) {
+  if ((options.incremental || options.composite) && cacheDir) {
+    if (options.composite) {
+      warn(
+        'TypeScript project references are not fully supported. Attempting to build in incremental mode.'
+      )
+    }
     incremental = true
     program = ts.createIncrementalProgram({
       rootNames: effectiveConfiguration.fileNames,
       options: {
         ...options,
+        composite: false,
         incremental: true,
         tsBuildInfoFile: path.join(cacheDir, '.tsbuildinfo'),
       },
@@ -60,6 +70,7 @@ export async function runTypeCheck(
   } else {
     program = ts.createProgram(effectiveConfiguration.fileNames, options)
   }
+
   const result = program.emit()
 
   // Intended to match:
@@ -72,7 +83,8 @@ export async function runTypeCheck(
   // - pages/other.js
   // - pages/test/a.js
   //
-  const regexIgnoredFile = /[\\/]__(?:tests|mocks)__[\\/]|(?<=[\\/.])(?:spec|test)\.[^\\/]+$/
+  const regexIgnoredFile =
+    /[\\/]__(?:tests|mocks)__[\\/]|(?<=[\\/.])(?:spec|test)\.[^\\/]+$/
   const allDiagnostics = ts
     .getPreEmitDiagnostics(program as import('typescript').Program)
     .concat(result.diagnostics)
@@ -85,14 +97,14 @@ export async function runTypeCheck(
 
   if (firstError) {
     throw new CompileError(
-      await getFormattedDiagnostic(ts, baseDir, firstError)
+      await getFormattedDiagnostic(ts, baseDir, firstError, isAppDirEnabled)
     )
   }
 
   const warnings = await Promise.all(
     allDiagnostics
       .filter((d) => d.category === DiagnosticCategory.Warning)
-      .map((d) => getFormattedDiagnostic(ts, baseDir, d))
+      .map((d) => getFormattedDiagnostic(ts, baseDir, d, isAppDirEnabled))
   )
   return {
     hasWarnings: true,

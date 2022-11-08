@@ -1,5 +1,4 @@
 module.exports = {
-  // target: 'experimental-serverless-trace',
   // basePath: '/docs',
   // trailingSlash: true,
   i18n: {
@@ -54,6 +53,11 @@ module.exports = {
       {
         source: '/redirect-4',
         destination: '/',
+        permanent: false,
+      },
+      {
+        source: '/redirect-5',
+        destination: 'https://jobs.example.com',
         permanent: false,
       },
     ]

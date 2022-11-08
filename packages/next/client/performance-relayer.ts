@@ -1,16 +1,13 @@
-import {
-  getCLS,
-  getFCP,
-  getFID,
-  getLCP,
-  getTTFB,
-  Metric,
-  ReportHandler,
-} from 'next/dist/compiled/web-vitals'
+/* global location */
+import type { Metric, ReportCallback } from 'next/dist/compiled/web-vitals'
+
+// copied to prevent pulling in un-necessary utils
+const WEB_VITALS = ['CLS', 'FCP', 'FID', 'INP', 'LCP', 'TTFB']
 
 const initialHref = location.href
 let isRegistered = false
-let userReportHandler: ReportHandler | undefined
+let userReportHandler: ReportCallback | undefined
+type Attribution = typeof WEB_VITALS[number]
 
 function onReport(metric: Metric): void {
   if (userReportHandler) {
@@ -30,7 +27,7 @@ function onReport(metric: Metric): void {
     const body: Record<string, string> = {
       dsn: process.env.__NEXT_ANALYTICS_ID,
       id: metric.id,
-      page: window.__NEXT_DATA__.page,
+      page: window.__NEXT_DATA__?.page,
       href: initialHref,
       event_name: metric.name,
       value: metric.value.toString(),
@@ -47,17 +44,30 @@ function onReport(metric: Metric): void {
       type: 'application/x-www-form-urlencoded',
     })
     const vitalsUrl = 'https://vitals.vercel-insights.com/v1/vitals'
-    ;(navigator.sendBeacon && navigator.sendBeacon(vitalsUrl, blob)) ||
+    // Navigator has to be bound to ensure it does not error in some browsers
+    // https://xgwang.me/posts/you-may-not-know-beacon/#it-may-throw-error%2C-be-sure-to-catch
+    const send = navigator.sendBeacon && navigator.sendBeacon.bind(navigator)
+
+    function fallbackSend() {
       fetch(vitalsUrl, {
         body: blob,
         method: 'POST',
         credentials: 'omit',
         keepalive: true,
-      })
+        // console.error is used here as when the fetch fails it does not affect functioning of the app
+      }).catch(console.error)
+    }
+
+    try {
+      // If send is undefined it'll throw as well. This reduces output code size.
+      send!(vitalsUrl, blob) || fallbackSend()
+    } catch (err) {
+      fallbackSend()
+    }
   }
 }
 
-export default (onPerfEntry?: ReportHandler): void => {
+export default (onPerfEntry?: ReportCallback): void => {
   // Update function if it changes:
   userReportHandler = onPerfEntry
 
@@ -67,9 +77,25 @@ export default (onPerfEntry?: ReportHandler): void => {
   }
   isRegistered = true
 
-  getCLS(onReport)
-  getFID(onReport)
-  getFCP(onReport)
-  getLCP(onReport)
-  getTTFB(onReport)
+  const attributions: Attribution[] | undefined = process.env
+    .__NEXT_WEB_VITALS_ATTRIBUTION as any
+
+  for (const webVital of WEB_VITALS) {
+    try {
+      let mod: any
+
+      if (process.env.__NEXT_HAS_WEB_VITALS_ATTRIBUTION) {
+        if (attributions?.includes(webVital)) {
+          mod = require('next/dist/compiled/web-vitals-attribution')
+        }
+      }
+      if (!mod) {
+        mod = require('next/dist/compiled/web-vitals')
+      }
+      mod[`on${webVital}`](onReport)
+    } catch (err) {
+      // Do nothing if the module fails to load
+      console.warn(`Failed to track ${webVital} web-vital`, err)
+    }
+  }
 }

@@ -3,10 +3,8 @@ import fs from 'fs-extra'
 import { join } from 'path'
 import { nextBuild, findPort, launchApp, killApp } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 2)
-
 const appDir = join(__dirname, '../app')
-const tsFile = join(appDir, 'node_modules/typescript/index.js')
+const tsFile = join(appDir, 'node_modules/typescript/lib/typescript.js')
 
 describe('Minimum TypeScript Warning', () => {
   it('should show warning during next build with old version', async () => {

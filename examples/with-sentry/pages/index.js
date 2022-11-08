@@ -9,6 +9,27 @@ const Index = () => (
       kinds of unhandled exceptions.
     </p>
     <p>
+      It also demonstrates the performance monitoring the SDK is able to do:
+      <ol>
+        <li>
+          A front-end transaction is recorded for each pageload or navigation.
+        </li>
+        <li>
+          A backend transaction is recorded for each API or page route. (Note
+          that currently only API routes are traced on Vercel.)
+        </li>
+        <li>
+          Errors which occur during transactions are linked to those
+          transactions in Sentry and can be found in the [trace
+          navigator](https://docs.sentry.io/product/sentry-basics/tracing/trace-view/).
+        </li>
+        <li>
+          Manual performance instrumentation is demonstrated in the final
+          example below (throwing an error from an event handler).
+        </li>
+      </ol>
+    </p>
+    <p>
       <strong>Important:</strong> exceptions in development mode take a
       different path than in production. These tests should be run on a
       production build (i.e. 'next build').{' '}
@@ -17,10 +38,8 @@ const Index = () => (
       </a>
     </p>
     <ol>
-      <li>
-        API route exceptions (note that 1-3 are not expected to work if deployed
-        to Vercel yet)
-      </li>
+      <li>API route exceptions/transactions</li>
+      Note that 1 and 2 are not expected to work if deployed to Vercel yet.
       <ol>
         <li>
           API has a top-of-module Promise that rejects, but its result is not
@@ -51,7 +70,11 @@ const Index = () => (
           </a>
         </li>
       </ol>
-      <li>SSR exceptions</li>
+      <li>SSR exceptions/transactions</li>
+      Note that there are currently two known bugs with respect to SSR
+      transactions: they don't get recorded on Vercel, and ones that are
+      recorded and have an error are grouped in the Sentry UI by the error page
+      name rather than the requested page name.
       <ol>
         <li>
           getServerSideProps throws an Error. This should cause _error.js to
@@ -59,10 +82,7 @@ const Index = () => (
           <a href="/ssr/test1" target="_blank">
             Open in a new tab
           </a>{' '}
-          or{' '}
-          <Link href="/ssr/test1">
-            <a>Perform client side navigation</a>
-          </Link>
+          or <Link href="/ssr/test1">Perform client side navigation</Link>
         </li>
         <li>
           getServerSideProps returns a Promise that rejects. This should cause
@@ -89,16 +109,12 @@ const Index = () => (
           </a>
         </li>
       </ol>
-
       <li>Client exceptions</li>
       <ol>
         <li>
           There is a top-of-module Promise that rejects, but its result is not
           awaited. Sentry should record Error('Client Test 1').{' '}
-          <Link href="/client/test1">
-            <a>Perform client side navigation</a>
-          </Link>{' '}
-          or{' '}
+          <Link href="/client/test1">Perform client side navigation</Link> or{' '}
           <a href="/client/test1" target="_blank">
             Open in a new tab
           </a>
@@ -106,10 +122,7 @@ const Index = () => (
         <li>
           There is a top-of-module exception. _error.js should render and record
           ReferenceError('process is not defined') in Sentry.{' '}
-          <Link href="/client/test2">
-            <a>Perform client side navigation</a>
-          </Link>{' '}
-          or{' '}
+          <Link href="/client/test2">Perform client side navigation</Link> or{' '}
           <a href="/client/test2" target="_blank">
             Open in a new tab
           </a>
@@ -119,10 +132,7 @@ const Index = () => (
           Next.js's React Error Boundary. In this case, when the component
           mounts. This should cause _error.js to render and record Error('Client
           Test 3') in Sentry.{' '}
-          <Link href="/client/test3">
-            <a>Perform client side navigation</a>
-          </Link>{' '}
-          or{' '}
+          <Link href="/client/test3">Perform client side navigation</Link> or{' '}
           <a href="/client/test3" target="_blank">
             Open in a new tab
           </a>
@@ -131,21 +141,16 @@ const Index = () => (
           There is an unhandled Promise rejection during React lifecycle. In
           this case, when the component mounts. Sentry should record
           Error('Client Test 4').{' '}
-          <Link href="/client/test4">
-            <a>Perform client side navigation</a>
-          </Link>{' '}
-          or{' '}
+          <Link href="/client/test4">Perform client side navigation</Link> or{' '}
           <a href="/client/test4" target="_blank">
             Open in a new tab
           </a>
         </li>
         <li>
           An Error is thrown from an event handler. Sentry should record
-          Error('Client Test 5').{' '}
-          <Link href="/client/test5">
-            <a>Perform client side navigation</a>
-          </Link>{' '}
-          or{' '}
+          Error('Client Test 5'). (This page also demonstrates how to manually
+          instrument your code for performance monitoring.){' '}
+          <Link href="/client/test5">Perform client side navigation</Link> or{' '}
           <a href="/client/test5" target="_blank">
             Open in a new tab
           </a>

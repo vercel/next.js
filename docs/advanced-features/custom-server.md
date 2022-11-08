@@ -7,19 +7,16 @@ description: Start a Next.js app programmatically using a custom server.
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/custom-server">Basic custom server</a></li>
-    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/custom-server-express">Express integration</a></li>
-    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/custom-server-hapi">Hapi integration</a></li>
-    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/custom-server-koa">Koa integration</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/custom-server">Custom Server</a></li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/ssr-caching">SSR Caching</a></li>
   </ul>
 </details>
 
 By default, Next.js includes its own server with `next start`. If you have an existing backend, you can still use it with Next.js (this is not a custom server). A custom Next.js server allows you to start a server 100% programmatically in order to use custom server patterns. Most of the time, you will not need this – but it's available for complete customization.
 
-> A custom server **can not** be deployed on [Vercel](https://vercel.com/solutions/nextjs), the platform Next.js was made for.
+> **Note:** A custom server **cannot** be deployed on [Vercel](https://vercel.com/solutions/nextjs).
 
-> Before deciding to use a custom server please keep in mind that it should only be used when the integrated router of Next.js can't meet your app requirements. A custom server will remove important performance optimizations, like **serverless functions** and **[Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md).**
+> Before deciding to use a custom server, please keep in mind that it should only be used when the integrated router of Next.js can't meet your app requirements. A custom server will remove important performance optimizations, like **serverless functions** and **[Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md).**
 
 Take a look at the following example of a custom server:
 
@@ -30,33 +27,42 @@ const { parse } = require('url')
 const next = require('next')
 
 const dev = process.env.NODE_ENV !== 'production'
-const app = next({ dev })
+const hostname = 'localhost'
+const port = 3000
+// when using middleware `hostname` and `port` must be provided below
+const app = next({ dev, hostname, port })
 const handle = app.getRequestHandler()
 
 app.prepare().then(() => {
-  createServer((req, res) => {
-    // Be sure to pass `true` as the second argument to `url.parse`.
-    // This tells it to parse the query portion of the URL.
-    const parsedUrl = parse(req.url, true)
-    const { pathname, query } = parsedUrl
+  createServer(async (req, res) => {
+    try {
+      // Be sure to pass `true` as the second argument to `url.parse`.
+      // This tells it to parse the query portion of the URL.
+      const parsedUrl = parse(req.url, true)
+      const { pathname, query } = parsedUrl
 
-    if (pathname === '/a') {
-      app.render(req, res, '/a', query)
-    } else if (pathname === '/b') {
-      app.render(req, res, '/b', query)
-    } else {
-      handle(req, res, parsedUrl)
+      if (pathname === '/a') {
+        await app.render(req, res, '/a', query)
+      } else if (pathname === '/b') {
+        await app.render(req, res, '/b', query)
+      } else {
+        await handle(req, res, parsedUrl)
+      }
+    } catch (err) {
+      console.error('Error occurred handling', req.url, err)
+      res.statusCode = 500
+      res.end('internal server error')
     }
-  }).listen(3000, (err) => {
+  }).listen(port, (err) => {
     if (err) throw err
-    console.log('> Ready on http://localhost:3000')
+    console.log(`> Ready on http://${hostname}:${port}`)
   })
 })
 ```
 
 > `server.js` doesn't go through babel or webpack. Make sure the syntax and sources this file requires are compatible with the current node version you are running.
 
-Then, to run the custom server you'll need to update the `scripts` in `package.json`, like so:
+To run the custom server you'll need to update the `scripts` in `package.json` like so:
 
 ```json
 "scripts": {

@@ -2,6 +2,7 @@
 import * as log from '../build/output/log'
 import arg from 'next/dist/compiled/arg/index.js'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
+import { commands } from '../lib/commands'
 ;['react', 'react-dom'].forEach((dependency) => {
   try {
     // When 'npm link' is used it checks the clone location. Not the project.
@@ -14,16 +15,6 @@ import { NON_STANDARD_NODE_ENV } from '../lib/constants'
 })
 
 const defaultCommand = 'dev'
-export type cliCommand = (argv?: string[]) => void
-const commands: { [command: string]: () => Promise<cliCommand> } = {
-  build: () => import('../cli/next-build').then((i) => i.nextBuild),
-  start: () => import('../cli/next-start').then((i) => i.nextStart),
-  export: () => import('../cli/next-export').then((i) => i.nextExport),
-  dev: () => import('../cli/next-dev').then((i) => i.nextDev),
-  lint: () => import('../cli/next-lint').then((i) => i.nextLint),
-  telemetry: () => import('../cli/next-telemetry').then((i) => i.nextTelemetry),
-}
-
 const args = arg(
   {
     // Types
@@ -87,25 +78,45 @@ const defaultEnv = command === 'dev' ? 'development' : 'production'
 
 const standardEnv = ['production', 'development', 'test']
 
-if (process.env.NODE_ENV && !standardEnv.includes(process.env.NODE_ENV)) {
-  log.warn(NON_STANDARD_NODE_ENV)
+if (process.env.NODE_ENV) {
+  const isNotStandard = !standardEnv.includes(process.env.NODE_ENV)
+  const shouldWarnCommands =
+    process.env.NODE_ENV === 'development'
+      ? ['start', 'build']
+      : process.env.NODE_ENV === 'production'
+      ? ['dev']
+      : []
+
+  if (isNotStandard || shouldWarnCommands.includes(command)) {
+    log.warn(NON_STANDARD_NODE_ENV)
+  }
 }
 
 ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
+;(process.env as any).NEXT_RUNTIME = 'nodejs'
 
-// this needs to come after we set the correct NODE_ENV or
-// else it might cause SSR to break
-const React = require('react')
+// x-ref: https://github.com/vercel/next.js/pull/34688#issuecomment-1047994505
+if (process.versions.pnp === '3') {
+  const nodeVersionParts = process.versions.node
+    .split('.')
+    .map((v) => Number(v))
 
-if (typeof React.Suspense === 'undefined') {
-  throw new Error(
-    `The version of React you are using is lower than the minimum required version needed for Next.js. Please upgrade "react" and "react-dom": "npm install react react-dom" https://nextjs.org/docs/messages/invalid-react-version`
-  )
+  if (
+    nodeVersionParts[0] < 16 ||
+    (nodeVersionParts[0] === 16 && nodeVersionParts[1] < 14)
+  ) {
+    log.warn(
+      'Node.js 16.14+ is required for Yarn PnP 3.20+. More info: https://github.com/vercel/next.js/pull/34688#issuecomment-1047994505'
+    )
+  }
 }
 
 // Make sure commands gracefully respect termination signals (e.g. from Docker)
-process.on('SIGTERM', () => process.exit(0))
-process.on('SIGINT', () => process.exit(0))
+// Allow the graceful termination to be manually configurable
+if (!process.env.NEXT_MANUAL_SIG_HANDLE && command !== 'dev') {
+  process.on('SIGTERM', () => process.exit(0))
+  process.on('SIGINT', () => process.exit(0))
+}
 
 commands[command]()
   .then((exec) => exec(forwardedArgs))
@@ -116,15 +127,3 @@ commands[command]()
       process.exit(0)
     }
   })
-
-if (command === 'dev') {
-  const { CONFIG_FILE } = require('../shared/lib/constants')
-  const { watchFile } = require('fs')
-  watchFile(`${process.cwd()}/${CONFIG_FILE}`, (cur: any, prev: any) => {
-    if (cur.size > 0 || prev.size > 0) {
-      console.log(
-        `\n> Found a change in ${CONFIG_FILE}. Restart the server to see the changes in effect.`
-      )
-    }
-  })
-}

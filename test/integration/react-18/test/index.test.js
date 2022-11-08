@@ -1,96 +1,102 @@
 /* eslint-env jest */
 
 import { join } from 'path'
-import fs from 'fs-extra'
-import webdriver from 'next-webdriver'
+
 import {
+  File,
   findPort,
   killApp,
   launchApp,
-  runNextCommand,
-  nextBuild,
-  nextStart,
+  renderViaHTTP,
+  hasRedbox,
+  getRedboxHeader,
+  runDevSuite,
+  runProdSuite,
 } from 'next-test-utils'
+import concurrent from './concurrent'
+import basics from './basics'
+import strictMode from './strict-mode'
+import webdriver from 'next-webdriver'
 
-jest.setTimeout(1000 * 60 * 5)
+const appDir = join(__dirname, '../app')
+const nextConfig = new File(join(appDir, 'next.config.js'))
+const invalidPage = new File(join(appDir, 'pages/invalid.js'))
+const indexPage = new File(join(appDir, 'pages/index.js'))
 
-const dirSupported = join(__dirname, '../supported')
-const dirPrerelease = join(__dirname, '../prerelease')
-
-const UNSUPPORTED_PRERELEASE =
-  "You are using an unsupported prerelease of 'react-dom'"
-const USING_CREATE_ROOT = 'Using the createRoot API for React'
-
-async function getBuildOutput(dir) {
-  const { stdout, stderr } = await runNextCommand(['build', dir], {
-    stdout: true,
-    stderr: true,
-  })
-  return stdout + stderr
-}
-
-async function getDevOutput(dir) {
-  const port = await findPort()
-
-  let stdout = ''
-  let stderr = ''
-  let instance = await launchApp(dir, port, {
-    stdout: true,
-    stderr: true,
-    onStdout(msg) {
-      stdout += msg
-    },
-    onStderr(msg) {
-      stderr += msg
-    },
-  })
-  await killApp(instance)
-  return stdout + stderr
-}
-
-describe('React 18 Support', () => {
-  describe('build', () => {
-    test('supported version of React', async () => {
-      const output = await getBuildOutput(dirSupported)
-      expect(output).not.toMatch(USING_CREATE_ROOT)
-      expect(output).not.toMatch(UNSUPPORTED_PRERELEASE)
-    })
-
-    test('prerelease version of React', async () => {
-      const output = await getBuildOutput(dirPrerelease)
-      expect(output).toMatch(USING_CREATE_ROOT)
-      expect(output).toMatch(UNSUPPORTED_PRERELEASE)
-    })
-  })
-
-  describe('dev', () => {
-    test('supported version of React', async () => {
-      let output = await getDevOutput(dirSupported)
-      expect(output).not.toMatch(USING_CREATE_ROOT)
-      expect(output).not.toMatch(UNSUPPORTED_PRERELEASE)
-    })
-
-    test('prerelease version of React', async () => {
-      let output = await getDevOutput(dirPrerelease)
-      expect(output).toMatch(USING_CREATE_ROOT)
-      expect(output).toMatch(UNSUPPORTED_PRERELEASE)
-    })
-  })
-
-  describe('hydration', () => {
-    const appDir = join(__dirname, '../prerelease')
-    let app
-    let appPort
-    beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
-      await nextBuild(appDir, [dirPrerelease])
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => await killApp(app))
-    it('hydrates correctly for normal page', async () => {
-      const browser = await webdriver(appPort, '/')
-      expect(await browser.eval('window.didHydrate')).toBe(true)
-    })
-  })
+describe('Basics', () => {
+  runTests('default setting with react 18', basics)
 })
+
+// React 18 with Strict Mode enabled might cause double invocation of lifecycle methods.
+describe('Strict mode - dev', () => {
+  const context = { appDir }
+
+  beforeAll(async () => {
+    nextConfig.replace('// reactStrictMode: true,', 'reactStrictMode: true,')
+    context.appPort = await findPort()
+    context.server = await launchApp(context.appDir, context.appPort)
+  })
+
+  afterAll(() => {
+    nextConfig.restore()
+    killApp(context.server)
+  })
+
+  strictMode(context)
+})
+
+function runTestsAgainstRuntime(runtime) {
+  runTests(
+    `Concurrent mode in the ${runtime} runtime`,
+    (context, env) => {
+      concurrent(context, (p, q) => renderViaHTTP(context.appPort, p, q))
+
+      if (env === 'dev') {
+        it('should recover after undefined exported as default', async () => {
+          const browser = await webdriver(context.appPort, '/invalid')
+
+          expect(await hasRedbox(browser)).toBe(true)
+          expect(await getRedboxHeader(browser)).toMatch(
+            `Error: The default export is not a React Component in page: "/invalid"`
+          )
+        })
+      }
+
+      it('should not have invalid config warning', async () => {
+        await renderViaHTTP(context.appPort, '/')
+        expect(context.stderr).not.toContain('not exist in this version')
+      })
+    },
+    {
+      beforeAll: (env) => {
+        if (env === 'dev') {
+          invalidPage.write(`export const value = 1`)
+        }
+        nextConfig.replace(
+          "// runtime: 'experimental-edge'",
+          `runtime: '${runtime}'`
+        )
+        indexPage.replace(
+          "// runtime: 'experimental-edge'",
+          `runtime: '${runtime}'`
+        )
+      },
+      afterAll: (env) => {
+        if (env === 'dev') {
+          invalidPage.delete()
+        }
+        nextConfig.restore()
+        indexPage.restore()
+      },
+    }
+  )
+}
+
+runTestsAgainstRuntime('experimental-edge')
+runTestsAgainstRuntime('nodejs')
+
+function runTests(name, fn, opts) {
+  const suiteOptions = { ...opts, runTests: fn }
+  runDevSuite(name, appDir, suiteOptions)
+  runProdSuite(name, appDir, suiteOptions)
+}

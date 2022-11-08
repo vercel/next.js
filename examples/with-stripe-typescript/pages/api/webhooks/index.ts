@@ -5,7 +5,7 @@ import { NextApiRequest, NextApiResponse } from 'next'
 import Stripe from 'stripe'
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   // https://github.com/stripe/stripe-node#configuration
-  apiVersion: '2020-03-02',
+  apiVersion: '2020-08-27',
 })
 
 const webhookSecret: string = process.env.STRIPE_WEBHOOK_SECRET!
@@ -31,9 +31,11 @@ const webhookHandler = async (req: NextApiRequest, res: NextApiResponse) => {
     try {
       event = stripe.webhooks.constructEvent(buf.toString(), sig, webhookSecret)
     } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error'
       // On error, log and return the error message.
-      console.log(`❌ Error message: ${err.message}`)
-      res.status(400).send(`Webhook Error: ${err.message}`)
+      if (err! instanceof Error) console.log(err)
+      console.log(`❌ Error message: ${errorMessage}`)
+      res.status(400).send(`Webhook Error: ${errorMessage}`)
       return
     }
 

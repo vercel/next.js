@@ -1,13 +1,11 @@
-import { ParsedUrlQuery } from 'querystring'
-import pathMatch from './path-match'
-import prepareDestination, { matchHas } from './prepare-destination'
-import { Rewrite } from '../../../../lib/load-custom-routes'
-import { removePathTrailingSlash } from '../../../../client/normalize-trailing-slash'
+import type { ParsedUrlQuery } from 'querystring'
+import type { Rewrite } from '../../../../lib/load-custom-routes'
+import { getPathMatch } from './path-match'
+import { matchHas, prepareDestination } from './prepare-destination'
+import { removeTrailingSlash } from './remove-trailing-slash'
 import { normalizeLocalePath } from '../../i18n/normalize-locale-path'
+import { removeBasePath } from '../../../../client/remove-base-path'
 import { parseRelativeUrl } from './parse-relative-url'
-import { delBasePath } from '../router'
-
-const customRouteMatcher = pathMatch(true)
 
 export default function resolveRewrites(
   asPath: string,
@@ -25,16 +23,25 @@ export default function resolveRewrites(
   parsedAs: ReturnType<typeof parseRelativeUrl>
   asPath: string
   resolvedHref?: string
+  externalDest?: boolean
 } {
   let matchedPage = false
+  let externalDest = false
   let parsedAs = parseRelativeUrl(asPath)
-  let fsPathname = removePathTrailingSlash(
-    normalizeLocalePath(delBasePath(parsedAs.pathname), locales).pathname
+  let fsPathname = removeTrailingSlash(
+    normalizeLocalePath(removeBasePath(parsedAs.pathname), locales).pathname
   )
   let resolvedHref
 
   const handleRewrite = (rewrite: Rewrite) => {
-    const matcher = customRouteMatcher(rewrite.source)
+    const matcher = getPathMatch(
+      rewrite.source + (process.env.__NEXT_TRAILING_SLASH ? '(/)?' : ''),
+      {
+        removeUnnamedParams: true,
+        strict: true,
+      }
+    )
+
     let params = matcher(parsedAs.pathname)
 
     if (rewrite.has && params) {
@@ -65,20 +72,21 @@ export default function resolveRewrites(
     if (params) {
       if (!rewrite.destination) {
         // this is a proxied rewrite which isn't handled on the client
+        externalDest = true
         return true
       }
-      const destRes = prepareDestination(
-        rewrite.destination,
-        params,
-        query,
-        true
-      )
+      const destRes = prepareDestination({
+        appendParamsToQuery: true,
+        destination: rewrite.destination,
+        params: params,
+        query: query,
+      })
       parsedAs = destRes.parsedDestination
       asPath = destRes.newUrl
       Object.assign(query, destRes.parsedDestination.query)
 
-      fsPathname = removePathTrailingSlash(
-        normalizeLocalePath(delBasePath(asPath), locales).pathname
+      fsPathname = removeTrailingSlash(
+        normalizeLocalePath(removeBasePath(asPath), locales).pathname
       )
 
       if (pages.includes(fsPathname)) {
@@ -139,5 +147,6 @@ export default function resolveRewrites(
     parsedAs,
     matchedPage,
     resolvedHref,
+    externalDest,
   }
 }

@@ -28,15 +28,24 @@ Once you have access to [the environment variables you'll need](#step-5-set-up-e
 - [Kontent](/examples/cms-kontent)
 - [Ghost](/examples/cms-ghost)
 - [Blog Starter](/examples/blog-starter)
+- [Builder.io](/examples/cms-builder-io)
+- [DotCMS](/examples/cms-dotcms)
+- [Enterspeed](/examples/cms-enterspeed)
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
 
 ```bash
 npx create-next-app --example cms-takeshape cms-takeshape-app
-# or
+```
+
+```bash
 yarn create next-app --example cms-takeshape cms-takeshape-app
+```
+
+```bash
+pnpm create next-app --example cms-takeshape cms-takeshape-app
 ```
 
 ## Configuration

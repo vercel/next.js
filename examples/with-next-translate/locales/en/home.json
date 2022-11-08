@@ -1,10 +1,7 @@
 {
   "arabic": "Arabic",
   "catalan": "Catalan",
-  "change-arabic": "Change language to Arabic",
-  "change-catalan": "Change language to Catalan",
-  "change-english": "Change language to English",
-  "change-hebrew": "Change language to Hebrew",
+  "change-to": "Change language to",
   "description": "Get started by editing",
   "english": "English",
   "hebrew": "Hebrew",

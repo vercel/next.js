@@ -16,12 +16,18 @@ Deploy the example using [Vercel](https://vercel.com/home):
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-mux-video with-mux-video-app
-# or
+```
+
+```bash
 yarn create next-app --example with-mux-video with-mux-video-app
+```
+
+```bash
+pnpm create next-app --example with-mux-video with-mux-video-app
 ```
 
 ## Note
@@ -32,7 +38,7 @@ This example uses:
 
 - [SWR](https://swr.vercel.app/) — dynamically changing the `refreshInterval` depending on if the client should be polling for updates or not
 - [`/pages/api`](pages/api) routes — a couple endpoints for making authenticated requests to the Mux API.
-- Dynamic routes using [`getStaticPaths` and `fallback: true`](https://nextjs.org/docs/basic-features/data-fetching#getstaticpaths-static-generation), as well as dynamic API routes.
+- Dynamic routes using [`getStaticPaths` and `fallback: true`](https://nextjs.org/docs/basic-features/data-fetching/get-static-paths), as well as dynamic API routes.
 
 ## Configuration
 

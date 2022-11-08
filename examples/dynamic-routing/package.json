@@ -1,15 +1,18 @@
 {
-  "name": "dynamic-routing",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
     "start": "next start"
   },
-  "license": "MIT",
   "dependencies": {
-    "next": "latest",
-    "react": "^17.0.2",
-    "react-dom": "^17.0.2"
+    "next": "12.2.5",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "18.7.9",
+    "@types/react": "18.0.17",
+    "typescript": "4.7.4"
   }
 }

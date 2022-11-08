@@ -1,0 +1,9 @@
+# ignored-compiler-options
+
+#### Why This Error Occurred
+
+Options under the `compiler` key in `next.config.js` only apply to the new Rust based compiler and will be ignored if Babel is used instead. This message will appear if Next.js detects a Babel configuration file while `compiler` options are configured in `next.config.js`
+
+### Useful Links
+
+- [Next.js Compiler](https://nextjs.org/docs/advanced-features/compiler)

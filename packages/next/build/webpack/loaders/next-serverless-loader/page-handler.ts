@@ -1,16 +1,18 @@
 import { IncomingMessage, ServerResponse } from 'http'
 import { parse as parseUrl, format as formatUrl, UrlWithParsedQuery } from 'url'
 import { DecodeError, isResSent } from '../../../../shared/lib/utils'
-import { sendPayload } from '../../../../server/send-payload'
+import { sendRenderResult } from '../../../../server/send-payload'
 import { getUtils, vercelHeader, ServerlessHandlerCtx } from './utils'
 
 import { renderToHTML } from '../../../../server/render'
-import { tryGetPreviewData } from '../../../../server/api-utils'
-import { denormalizePagePath } from '../../../../server/denormalize-page-path'
+import { tryGetPreviewData } from '../../../../server/api-utils/node'
+import { denormalizePagePath } from '../../../../shared/lib/page-path/denormalize-page-path'
 import { setLazyProp, getCookieParser } from '../../../../server/api-utils'
-import { getRedirectStatus } from '../../../../lib/load-custom-routes'
+import { getRedirectStatus } from '../../../../lib/redirect-status'
 import getRouteNoAssetPath from '../../../../shared/lib/router/utils/get-route-from-asset-path'
 import { PERMANENT_REDIRECT_STATUS } from '../../../../shared/lib/constants'
+import RenderResult from '../../../../server/render-result'
+import isError from '../../../../lib/is-error'
 
 export function getPageHandler(ctx: ServerlessHandlerCtx) {
   const {
@@ -98,11 +100,12 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
 
     let hasValidParams = true
 
-    setLazyProp({ req: req as any }, 'cookies', getCookieParser(req))
+    setLazyProp({ req: req as any }, 'cookies', getCookieParser(req.headers))
 
     const options = {
       App,
       Document,
+      ComponentMod: { default: Component },
       buildManifest,
       getStaticProps,
       getServerSideProps,
@@ -115,6 +118,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
       previewProps: encodedPreviewProps,
       env: process.env,
       basePath,
+      supportsDynamicHTML: false, // Serverless target doesn't support streaming
       ..._renderOpts,
     }
     let _nextData = false
@@ -135,7 +139,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
       }
       const origQuery = Object.assign({}, parsedUrl.query)
 
-      parsedUrl = handleRewrites(req, parsedUrl)
+      handleRewrites(req, parsedUrl)
       handleBasePath(req, parsedUrl)
 
       // remove ?amp=1 from request URL if rendering for export
@@ -188,6 +192,9 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
           locale: detectedLocale,
           defaultLocale,
           domainLocales: i18n?.domains,
+          optimizeCss: process.env.__NEXT_OPTIMIZE_CSS,
+          nextScriptWorkers: process.env.__NEXT_SCRIPT_WORKERS,
+          crossOrigin: process.env.__NEXT_CROSS_ORIGIN,
         },
         options
       )
@@ -246,7 +253,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
       if (!fromExport && (getStaticProps || getServerSideProps)) {
         // don't include dynamic route params in query while normalizing
         // asPath
-        if (pageIsDynamic && trustQuery && defaultRouteRegex) {
+        if (pageIsDynamic && defaultRouteRegex) {
           delete (parsedUrl as any).search
 
           for (const param of Object.keys(defaultRouteRegex.groups)) {
@@ -277,7 +284,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
       const isPreviewMode = previewData !== false
 
       if (process.env.__NEXT_OPTIMIZE_FONTS) {
-        renderOpts.optimizeFonts = true
+        renderOpts.optimizeFonts = process.env.__NEXT_OPTIMIZE_FONTS
         /**
          * __webpack_require__.__NEXT_FONT_MANIFEST__ is added by
          * font-stylesheet-gathering-plugin
@@ -333,22 +340,19 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
                 defaultLocale: i18n?.defaultLocale,
               })
             )
-
-            sendPayload(
+            sendRenderResult({
               req,
               res,
-              result2,
-              'html',
-              {
-                generateEtags,
-                poweredByHeader,
-              },
-              {
+              result: result2 ?? RenderResult.empty,
+              type: 'html',
+              generateEtags,
+              poweredByHeader,
+              options: {
                 private: isPreviewMode || page === '/404',
                 stateful: !!getServerSideProps,
                 revalidate: renderOpts.revalidate,
-              }
-            )
+              },
+            })
             return null
           } else if (renderOpts.isRedirect && !_nextData) {
             const redirect = {
@@ -372,24 +376,24 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
 
             res.statusCode = statusCode
             res.setHeader('Location', redirect.destination)
-            res.end()
+            res.end(redirect.destination)
             return null
           } else {
-            sendPayload(
+            sendRenderResult({
               req,
               res,
-              _nextData ? JSON.stringify(renderOpts.pageData) : result,
-              _nextData ? 'json' : 'html',
-              {
-                generateEtags,
-                poweredByHeader,
-              },
-              {
+              result: _nextData
+                ? RenderResult.fromStatic(JSON.stringify(renderOpts.pageData))
+                : result ?? RenderResult.empty,
+              type: _nextData ? 'json' : 'html',
+              generateEtags,
+              poweredByHeader,
+              options: {
                 private: isPreviewMode || renderOpts.is404Page,
                 stateful: !!getServerSideProps,
                 revalidate: renderOpts.revalidate,
-              }
-            )
+              },
+            })
             return null
           }
         }
@@ -401,13 +405,13 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
       }
 
       if (renderMode) return { html: result, renderOpts }
-      return result
+      return result ? result.toUnchunkedString() : null
     } catch (err) {
       if (!parsedUrl!) {
         parsedUrl = parseUrl(req.url!, true)
       }
 
-      if (err.code === 'ENOENT') {
+      if (isError(err) && err.code === 'ENOENT') {
         res.statusCode = 404
       } else if (err instanceof DecodeError) {
         res.statusCode = 400
@@ -463,7 +467,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
           err: res.statusCode === 404 ? undefined : err,
         })
       )
-      return result2
+      return result2 ? result2.toUnchunkedString() : null
     }
   }
 
@@ -473,7 +477,11 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
       try {
         const html = await renderReqToHTML(req, res)
         if (html) {
-          sendPayload(req, res, html, 'html', {
+          sendRenderResult({
+            req,
+            res,
+            result: RenderResult.fromStatic(html as any),
+            type: 'html',
             generateEtags,
             poweredByHeader,
           })

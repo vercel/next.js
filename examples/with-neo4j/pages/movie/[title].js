@@ -33,13 +33,21 @@ export default function Movie() {
             </div>
             <div>
               <strong>Released: </strong>
-              {data.movie.released.low}
+              {data.movie.released}
             </div>
           </div>
           <div className="actors">
             <h2>Actors</h2>
             {data.movie.actors.map((actor) => (
-              <div key={actor}>{actor}</div>
+              <div key={actor}>
+                <Link
+                  key={actor}
+                  href={`/actor/${encodeURIComponent(actor)}`}
+                  legacyBehavior
+                >
+                  <a className="link">{actor}</a>
+                </Link>
+              </div>
             ))}
           </div>
           <div className="directors">
@@ -51,7 +59,7 @@ export default function Movie() {
         </div>
 
         <div className="back">
-          <Link href="/">
+          <Link href="/" legacyBehavior>
             <a>🔙 Go Back</a>
           </Link>
         </div>
@@ -80,6 +88,9 @@ export default function Movie() {
           }
           .movie {
             margin-bottom: 2rem;
+          }
+          .movie a {
+            text-decoration: underline;
           }
           .back {
             padding: 1rem 0;
