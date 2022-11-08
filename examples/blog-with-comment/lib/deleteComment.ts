@@ -1,37 +1,40 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import type { User, Comment } from '../interfaces'
+import { Session } from '../types'
 import redis from './redis'
-import getUser from './getUser'
+import { unstable_getServerSession } from 'next-auth/next'
+import { authOptions } from '../pages/api/auth/[...nextauth]'
+import { NextAuthOptions } from 'next-auth'
+import clearUrl from './clearUrl'
 
 export default async function deleteComments(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const { url, comment }: { url: string; comment: Comment } = req.body
-  const { authorization } = req.headers
+  const session = (await unstable_getServerSession(
+    req,
+    res,
+    authOptions as NextAuthOptions
+  )) as Session
 
-  if (!url || !comment || !authorization) {
+  if (!session) {
+    return res.status(401).json({ error: 'Unauthorized' })
+  }
+
+  const url = clearUrl(req.headers.referer)
+  const { comment } = req.body
+
+  if (!comment) {
     return res.status(400).json({ message: 'Missing parameter.' })
   }
 
-  if (!redis) {
-    return res.status(500).json({ message: 'Failed to connect to redis.' })
-  }
-
   try {
-    // verify user token
-    const user: User = await getUser(authorization)
-    if (!user) return res.status(400).json({ message: 'Invalid token.' })
-    comment.user.email = user.email
-
-    const isAdmin = process.env.NEXT_PUBLIC_AUTH0_ADMIN_EMAIL === user.email
-    const isAuthor = user.sub === comment.user.sub
+    const isAdmin = session.user.role === 'admin'
+    const isAuthor = session.user.id === comment.user.id
 
     if (!isAdmin && !isAuthor) {
-      return res.status(400).json({ message: 'Need authorization.' })
+      return res.status(400).json({ message: 'Unauthorized.' })
     }
 
-    // delete
     await redis.lrem(url, 0, JSON.stringify(comment))
 
     return res.status(200).end()

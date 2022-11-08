@@ -1,8 +1,18 @@
 export type User = {
   name: string
-  picture: string
-  sub: string
-  email?: string
+  image: string
+  id: string
+}
+
+export type Session = {
+  user: {
+    name: string
+    email: string
+    image: string
+    id: string
+    role: 'admin' | 'user'
+  }
+  expires: string
 }
 
 export type Comment = {
@@ -20,5 +30,4 @@ export type Post = {
   date?: Date
   content?: string
   excerpt?: string
-  [key: string]: any
 }
