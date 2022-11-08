@@ -8,10 +8,14 @@ use wasm_bindgen_futures::future_to_promise;
 use swc_core::{
     base::{config::JsMinifyOptions, config::ParseOptions, try_with_handler, Compiler},
     common::{
-        comments::Comments, errors::ColorConfig, FileName, FilePathMapping, SourceMap, GLOBALS,
+        comments::{Comments, SingleThreadedComments},
+        errors::ColorConfig,
+        FileName, FilePathMapping, SourceMap, GLOBALS,
     },
     ecma::transforms::base::pass::noop,
 };
+
+pub mod mdx;
 
 fn convert_err(err: Error) -> JsValue {
     format!("{:?}", err).into()
@@ -82,12 +86,14 @@ pub fn transform_sync(s: JsValue, opts: JsValue) -> Result<JsValue, JsValue> {
                         );
                         let cm = c.cm.clone();
                         let file = fm.clone();
+                        let comments = SingleThreadedComments::default();
                         c.process_js_with_custom_pass(
                             fm,
                             None,
                             handler,
                             &opts.swc,
-                            |_, comments| {
+                            comments.clone(),
+                            |_| {
                                 custom_before_pass(
                                     cm,
                                     file,
@@ -96,7 +102,7 @@ pub fn transform_sync(s: JsValue, opts: JsValue) -> Result<JsValue, JsValue> {
                                     Default::default(),
                                 )
                             },
-                            |_, _| noop(),
+                            |_| noop(),
                         )
                         .context("failed to process js file")?
                     }

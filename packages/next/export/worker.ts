@@ -37,7 +37,7 @@ loadRequireHook()
 
 const envConfig = require('../shared/lib/runtime-config')
 
-;(global as any).__NEXT_DATA__ = {
+;(globalThis as any).__NEXT_DATA__ = {
   nextExport: true,
 }
 
@@ -99,6 +99,10 @@ interface RenderOpts {
   trailingSlash?: boolean
   supportsDynamicHTML?: boolean
 }
+
+// expose AsyncLocalStorage on globalThis for react usage
+const { AsyncLocalStorage } = require('async_hooks')
+;(globalThis as any).AsyncLocalStorage = AsyncLocalStorage
 
 export default async function exportPage({
   parentSpanId,

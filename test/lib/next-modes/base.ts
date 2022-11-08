@@ -27,6 +27,7 @@ export interface NextInstanceOpts {
   startCommand?: string
   env?: Record<string, string>
   dirSuffix?: string
+  turbo?: boolean
 }
 
 export class NextInstance {

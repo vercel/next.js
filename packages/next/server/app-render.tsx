@@ -23,7 +23,6 @@ import {
   streamToString,
 } from './node-web-streams-helper'
 import { ESCAPE_REGEX, htmlEscapeJsonString } from './htmlescape'
-import { shouldUseReactRoot } from './utils'
 import { matchSegment } from '../client/components/match-segments'
 import {
   FlightCSSManifest,
@@ -33,19 +32,51 @@ import { ServerInsertedHTMLContext } from '../shared/lib/server-inserted-html'
 import { stripInternalQueries } from './internal-utils'
 import type { ComponentsType } from '../build/webpack/loaders/next-app-loader'
 import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
-import { NextCookies } from './web/spec-extension/cookies'
+import { RequestCookies } from './web/spec-extension/cookies'
 import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
 import { NOT_FOUND_ERROR_CODE } from '../client/components/not-found'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import { Writable } from 'stream'
 import stringHash from 'next/dist/compiled/string-hash'
+import {
+  NEXT_ROUTER_PREFETCH,
+  NEXT_ROUTER_STATE_TREE,
+  RSC,
+} from '../client/components/app-router-headers'
+
+const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
+
+function preloadComponent(Component: any, props: any) {
+  const prev = console.error
+  // Hide invalid hook call warning when calling component
+  console.error = (msg) => {
+    if (msg.startsWith('Invalid hook call..')) {
+      // ignore
+    } else {
+      // @ts-expect-error argument is defined
+      prev.apply(console, arguments)
+    }
+  }
+  try {
+    let result = Component(props)
+    return function () {
+      // We know what this component will render already.
+      return result
+    }
+  } catch (x) {
+    // something suspended or errored, try again later
+  } finally {
+    console.error = prev
+  }
+  return Component
+}
 
 const INTERNAL_HEADERS_INSTANCE = Symbol('internal for headers readonly')
 
 function readonlyHeadersError() {
   return new Error('ReadonlyHeaders cannot be modified')
 }
-class ReadonlyHeaders {
+export class ReadonlyHeaders {
   [INTERNAL_HEADERS_INSTANCE]: Headers
 
   entries: Headers['entries']
@@ -83,20 +114,17 @@ class ReadonlyHeaders {
 }
 
 const INTERNAL_COOKIES_INSTANCE = Symbol('internal for cookies readonly')
-function readonlyCookiesError() {
-  return new Error('ReadonlyCookies cannot be modified')
+class ReadonlyRequestCookiesError extends Error {
+  message =
+    'ReadonlyRequestCookies cannot be modified. Read more: https://nextjs.org/api-reference/cookies'
 }
 
-class ReadonlyNextCookies {
-  [INTERNAL_COOKIES_INSTANCE]: NextCookies
+export class ReadonlyRequestCookies {
+  [INTERNAL_COOKIES_INSTANCE]: RequestCookies
 
-  entries: NextCookies['entries']
-  forEach: NextCookies['forEach']
-  get: NextCookies['get']
-  getWithOptions: NextCookies['getWithOptions']
-  has: NextCookies['has']
-  keys: NextCookies['keys']
-  values: NextCookies['values']
+  get: RequestCookies['get']
+  getAll: RequestCookies['getAll']
+  has: RequestCookies['has']
 
   constructor(request: {
     headers: {
@@ -105,29 +133,26 @@ class ReadonlyNextCookies {
   }) {
     // Since `new Headers` uses `this.append()` to fill the headers object ReadonlyHeaders can't extend from Headers directly as it would throw.
     // Request overridden to not have to provide a fully request object.
-    const cookiesInstance = new NextCookies(request as Request)
+    const cookiesInstance = new RequestCookies(request.headers as Headers)
     this[INTERNAL_COOKIES_INSTANCE] = cookiesInstance
 
-    this.entries = cookiesInstance.entries.bind(cookiesInstance)
-    this.forEach = cookiesInstance.forEach.bind(cookiesInstance)
     this.get = cookiesInstance.get.bind(cookiesInstance)
-    this.getWithOptions = cookiesInstance.getWithOptions.bind(cookiesInstance)
+    this.getAll = cookiesInstance.getAll.bind(cookiesInstance)
     this.has = cookiesInstance.has.bind(cookiesInstance)
-    this.keys = cookiesInstance.keys.bind(cookiesInstance)
-    this.values = cookiesInstance.values.bind(cookiesInstance)
   }
+
   [Symbol.iterator]() {
-    return this[INTERNAL_COOKIES_INSTANCE][Symbol.iterator]()
+    return (this[INTERNAL_COOKIES_INSTANCE] as any)[Symbol.iterator]()
   }
 
   clear() {
-    throw readonlyCookiesError()
+    throw new ReadonlyRequestCookiesError()
   }
   delete() {
-    throw readonlyCookiesError()
+    throw new ReadonlyRequestCookiesError()
   }
   set() {
-    throw readonlyCookiesError()
+    throw new ReadonlyRequestCookiesError()
   }
 }
 
@@ -220,7 +245,12 @@ function patchFetch(ComponentMod: any) {
 
     if (staticGenerationStore && isStaticGeneration) {
       if (init && typeof init === 'object') {
-        if (init.cache === 'no-store') {
+        const cache = init.cache
+        // Delete `cache` property as Cloudflare Workers will throw an error
+        if (isEdgeRuntime) {
+          delete init.cache
+        }
+        if (cache === 'no-store') {
           staticGenerationStore.fetchRevalidate = 0
           // TODO: ensure this error isn't logged to the user
           // seems it's slipping through currently
@@ -278,10 +308,9 @@ function useFlightResponse(
 
   const [renderStream, forwardStream] = readableStreamTee(req)
   const res = createFromReadableStream(renderStream, {
-    moduleMap:
-      process.env.NEXT_RUNTIME === 'edge'
-        ? serverComponentManifest.__edge_ssr_module_mapping__
-        : serverComponentManifest.__ssr_module_mapping__,
+    moduleMap: isEdgeRuntime
+      ? serverComponentManifest.__edge_ssr_module_mapping__
+      : serverComponentManifest.__ssr_module_mapping__,
   })
   flightResponseRef.current = res
 
@@ -662,22 +691,21 @@ function getScriptNonceFromHeader(cspHeaderValue: string): string | undefined {
   return nonce
 }
 
-const FLIGHT_PARAMETERS = [
-  '__rsc__',
-  '__next_router_state_tree__',
-  '__next_router_prefetch__',
+export const FLIGHT_PARAMETERS = [
+  [RSC],
+  [NEXT_ROUTER_STATE_TREE],
+  [NEXT_ROUTER_PREFETCH],
 ] as const
 
 function headersWithoutFlight(headers: IncomingHttpHeaders) {
   const newHeaders = { ...headers }
   for (const param of FLIGHT_PARAMETERS) {
-    delete newHeaders[param]
+    delete newHeaders[param.toString().toLowerCase()]
   }
   return newHeaders
 }
 
 async function renderToString(element: React.ReactElement) {
-  if (!shouldUseReactRoot) return ReactDOMServer.renderToString(element)
   const renderStream = await ReactDOMServer.renderToReadableStream(element)
   await renderStream.allReady
   return streamToString(renderStream)
@@ -705,7 +733,7 @@ export async function renderToHTMLOrFlight(
    */
   const isStaticGeneration =
     renderOpts.supportsDynamicHTML !== true && !renderOpts.isBot
-  const isFlight = req.headers.__rsc__ !== undefined
+  const isFlight = req.headers[RSC.toLowerCase()] !== undefined
 
   const capturedErrors: Error[] = []
   const allCapturedErrors: Error[] = []
@@ -763,7 +791,8 @@ export async function renderToHTMLOrFlight(
     // don't modify original query object
     query = Object.assign({}, query)
 
-    const isPrefetch = req.headers.__next_router_prefetch__ !== undefined
+    const isPrefetch =
+      req.headers[NEXT_ROUTER_PREFETCH.toLowerCase()] !== undefined
 
     // TODO-APP: verify the tree is valid
     // TODO-APP: verify query param is single value (not an array)
@@ -772,8 +801,10 @@ export async function renderToHTMLOrFlight(
      * Router state provided from the client-side router. Used to handle rendering from the common layout down.
      */
     let providedFlightRouterState: FlightRouterState = isFlight
-      ? req.headers.__next_router_state_tree__
-        ? JSON.parse(req.headers.__next_router_state_tree__ as string)
+      ? req.headers[NEXT_ROUTER_STATE_TREE.toLowerCase()]
+        ? JSON.parse(
+            req.headers[NEXT_ROUTER_STATE_TREE.toLowerCase()] as string
+          )
         : undefined
       : undefined
 
@@ -884,7 +915,7 @@ export async function renderToHTMLOrFlight(
       }
 
       if (head) {
-        const Head = await interopDefault(head())
+        const Head = await interopDefault(head[0]())
         return <Head params={currentParams} />
       }
 
@@ -934,6 +965,39 @@ export async function renderToHTMLOrFlight(
 
     const assetPrefix = renderOpts.assetPrefix || ''
 
+    const createComponentAndStyles = async ({
+      filePath,
+      getComponent,
+      shouldPreload,
+    }: {
+      filePath: string
+      getComponent: () => any
+      shouldPreload?: boolean
+    }): Promise<any> => {
+      const cssHrefs = getCssInlinedLinkTags(
+        serverComponentManifest,
+        serverCSSManifest,
+        filePath,
+        serverCSSForEntries
+      )
+      const cacheBustingUrlSuffix = dev ? `?ts=${Date.now()}` : ''
+
+      const styles = cssHrefs
+        ? cssHrefs.map((href, index) => (
+            <link
+              rel="stylesheet"
+              href={`${assetPrefix}/_next/${href}${cacheBustingUrlSuffix}`}
+              // @ts-ignore
+              precedence={shouldPreload ? 'high' : undefined}
+              key={index}
+            />
+          ))
+        : null
+      const Comp = await interopDefault(getComponent())
+
+      return [Comp, styles]
+    }
+
     /**
      * Use the provided loader tree to create the React Component tree.
      */
@@ -942,15 +1006,7 @@ export async function renderToHTMLOrFlight(
       loaderTree: [
         segment,
         parallelRoutes,
-        {
-          layoutOrPagePath,
-          layout,
-          template,
-          error,
-          loading,
-          page,
-          'not-found': notFound,
-        },
+        { layout, template, error, loading, page, 'not-found': notFound },
       ],
       parentParams,
       firstItem,
@@ -962,7 +1018,7 @@ export async function renderToHTMLOrFlight(
       rootLayoutIncluded?: boolean
       firstItem?: boolean
     }): Promise<{ Component: React.ComponentType }> => {
-      // TODO-APP: enable stylesheet per layout/page
+      const layoutOrPagePath = layout?.[1] || page?.[1]
       const stylesheets: string[] = layoutOrPagePath
         ? getCssInlinedLinkTags(
             serverComponentManifest,
@@ -972,25 +1028,46 @@ export async function renderToHTMLOrFlight(
           )
         : []
 
-      const preloadedFontFiles = getPreloadedFontFilesInlineLinkTags(
-        serverComponentManifest,
-        serverCSSManifest!,
-        fontLoaderManifest,
-        serverCSSForEntries,
-        layoutOrPagePath
-      )
-      const Template = template
-        ? await interopDefault(template())
-        : React.Fragment
-      const ErrorComponent = error ? await interopDefault(error()) : undefined
-      const Loading = loading ? await interopDefault(loading()) : undefined
+      const preloadedFontFiles = layoutOrPagePath
+        ? getPreloadedFontFilesInlineLinkTags(
+            serverComponentManifest,
+            serverCSSManifest!,
+            fontLoaderManifest,
+            serverCSSForEntries,
+            layoutOrPagePath
+          )
+        : []
+
+      const [Template, templateStyles] = template
+        ? await createComponentAndStyles({
+            filePath: template[1],
+            getComponent: template[0],
+            shouldPreload: true,
+          })
+        : [React.Fragment]
+
+      const [ErrorComponent, errorStyles] = error
+        ? await createComponentAndStyles({
+            filePath: error[1],
+            getComponent: error[0],
+          })
+        : []
+
+      const [Loading, loadingStyles] = loading
+        ? await createComponentAndStyles({
+            filePath: loading[1],
+            getComponent: loading[0],
+          })
+        : []
+
       const isLayout = typeof layout !== 'undefined'
       const isPage = typeof page !== 'undefined'
       const layoutOrPageMod = isLayout
-        ? await layout()
+        ? await layout[0]()
         : isPage
-        ? await page()
+        ? await page[0]()
         : undefined
+
       /**
        * Checks if the current segment is a root layout.
        */
@@ -1001,13 +1078,16 @@ export async function renderToHTMLOrFlight(
       const rootLayoutIncludedAtThisLevelOrAbove =
         rootLayoutIncluded || rootLayoutAtThisLevel
 
-      const NotFound = notFound
-        ? await interopDefault(notFound())
+      const [NotFound, notFoundStyles] = notFound
+        ? await createComponentAndStyles({
+            filePath: notFound[1],
+            getComponent: notFound[0],
+          })
         : rootLayoutAtThisLevel
-        ? DefaultNotFound
-        : undefined
+        ? [DefaultNotFound]
+        : []
 
-      if (typeof layoutOrPageMod?.revalidate !== 'undefined') {
+      if (typeof layoutOrPageMod?.revalidate === 'number') {
         defaultRevalidate = layoutOrPageMod.revalidate
 
         if (isStaticGeneration && defaultRevalidate === 0) {
@@ -1035,7 +1115,7 @@ export async function renderToHTMLOrFlight(
       /**
        * The React Component to render.
        */
-      const Component = layoutOrPageMod
+      let Component = layoutOrPageMod
         ? interopDefault(layoutOrPageMod)
         : undefined
 
@@ -1116,14 +1196,18 @@ export async function renderToHTMLOrFlight(
                   parallelRouterKey={parallelRouteKey}
                   segmentPath={createSegmentPath(currentSegmentPath)}
                   loading={Loading ? <Loading /> : undefined}
+                  loadingStyles={loadingStyles}
                   hasLoading={Boolean(Loading)}
                   error={ErrorComponent}
+                  errorStyles={errorStyles}
                   template={
                     <Template>
                       <RenderFromTemplateContext />
                     </Template>
                   }
+                  templateStyles={templateStyles}
                   notFound={NotFound ? <NotFound /> : undefined}
+                  notFoundStyles={notFoundStyles}
                   childProp={childProp}
                   rootLayoutIncluded={rootLayoutIncludedAtThisLevelOrAbove}
                 />,
@@ -1156,7 +1240,9 @@ export async function renderToHTMLOrFlight(
                 parallelRouterKey={parallelRouteKey}
                 segmentPath={segmentPath}
                 error={ErrorComponent}
+                errorStyles={errorStyles}
                 loading={Loading ? <Loading /> : undefined}
+                loadingStyles={loadingStyles}
                 // TODO-APP: Add test for loading returning `undefined`. This currently can't be tested as the `webdriver()` tab will wait for the full page to load before returning.
                 hasLoading={Boolean(Loading)}
                 template={
@@ -1164,7 +1250,9 @@ export async function renderToHTMLOrFlight(
                     <RenderFromTemplateContext />
                   </Template>
                 }
+                templateStyles={templateStyles}
                 notFound={NotFound ? <NotFound /> : undefined}
+                notFoundStyles={notFoundStyles}
                 childProp={childProp}
                 rootLayoutIncluded={rootLayoutIncludedAtThisLevelOrAbove}
               />,
@@ -1189,10 +1277,23 @@ export async function renderToHTMLOrFlight(
         }
       }
 
+      const props = {
+        ...parallelRouteComponents,
+        // TODO-APP: params and query have to be blocked parallel route names. Might have to add a reserved name list.
+        // Params are always the current params that apply to the layout
+        // If you have a `/dashboard/[team]/layout.js` it will provide `team` as a param but not anything further down.
+        params: currentParams,
+        // Query is only provided to page
+        ...(isPage ? { searchParams: query } : {}),
+      }
+
+      // Eagerly execute layout/page component to trigger fetches early.
+      Component = await Promise.resolve().then(() => {
+        return preloadComponent(Component, props)
+      })
+
       return {
         Component: () => {
-          let props = {}
-
           // Add extra cache busting (DEV only) for https://github.com/vercel/next.js/issues/5860
           // See also https://bugs.webkit.org/show_bug.cgi?id=187726
           const cacheBustingUrlSuffix = dev ? `?ts=${Date.now()}` : ''
@@ -1226,16 +1327,7 @@ export async function renderToHTMLOrFlight(
                     />
                   ))
                 : null}
-              <Component
-                {...props}
-                {...parallelRouteComponents}
-                // TODO-APP: params and query have to be blocked parallel route names. Might have to add a reserved name list.
-                // Params are always the current params that apply to the layout
-                // If you have a `/dashboard/[team]/layout.js` it will provide `team` as a param but not anything further down.
-                params={currentParams}
-                // Query is only provided to page
-                {...(isPage ? { searchParams: query } : {})}
-              />
+              <Component {...props} />
               {/* {HeadTags ? <HeadTags /> : null} */}
             </>
           )
@@ -1662,7 +1754,7 @@ export async function renderToHTMLOrFlight(
   )
 
   let cachedHeadersInstance: ReadonlyHeaders | undefined
-  let cachedCookiesInstance: ReadonlyNextCookies | undefined
+  let cachedCookiesInstance: ReadonlyRequestCookies | undefined
 
   const requestStore = {
     get headers() {
@@ -1675,7 +1767,7 @@ export async function renderToHTMLOrFlight(
     },
     get cookies() {
       if (!cachedCookiesInstance) {
-        cachedCookiesInstance = new ReadonlyNextCookies({
+        cachedCookiesInstance = new ReadonlyRequestCookies({
           headers: {
             get: (key) => {
               if (key !== 'cookie') {

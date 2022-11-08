@@ -16,12 +16,15 @@ import {
 } from '../../webpack-config'
 import { NextConfigComplete } from '../../../server/config-shared'
 import { loadBindings } from '../../swc'
+import { isMatch } from 'next/dist/compiled/micromatch'
 
 const PLUGIN_NAME = 'TraceEntryPointsPlugin'
 const TRACE_IGNORES = [
   '**/*/next/dist/server/next.js',
   '**/*/next/dist/bin/next',
 ]
+
+const TURBO_TRACE_DEFAULT_MAX_FILES = 128
 
 function getModuleFromDependency(
   compilation: any,
@@ -171,7 +174,11 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
           return
         }
       }
+      const ignores = [...TRACE_IGNORES, ...this.excludeFiles]
 
+      const ignoreFn = (path: string) => {
+        return isMatch(path, ignores, { contains: true, dot: true })
+      }
       const result = await nodeFileTrace([...chunksToTrace], {
         base: this.tracingRoot,
         processCwd: this.appDir,
@@ -202,7 +209,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
         },
         readlink,
         stat,
-        ignore: [...TRACE_IGNORES, ...this.excludeFiles],
+        ignore: ignoreFn,
         mixedModules: true,
       })
       const reasons = result.reasons
@@ -390,13 +397,33 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
                   .traceAsyncFn(async () => {
                     const contextDirectory =
                       this.turbotrace?.contextDirectory ?? this.tracingRoot
-                    const filesTracedInEntries: string[] =
-                      await binding.turbo.startTrace({
-                        action: 'print',
-                        input: entriesToTrace,
-                        contextDirectory,
-                        processCwd: this.turbotrace?.processCwd ?? this.appDir,
-                      })
+                    const maxFiles =
+                      this.turbotrace?.maxFiles ?? TURBO_TRACE_DEFAULT_MAX_FILES
+                    let chunks = [...entriesToTrace]
+                    let restChunks =
+                      chunks.length > maxFiles ? chunks.splice(maxFiles) : []
+                    let filesTracedInEntries: string[] = []
+                    while (chunks.length) {
+                      filesTracedInEntries = filesTracedInEntries.concat(
+                        await binding.turbo.startTrace({
+                          action: 'print',
+                          input: chunks,
+                          contextDirectory,
+                          processCwd:
+                            this.turbotrace?.processCwd ?? this.appDir,
+                          logLevel: this.turbotrace?.logLevel,
+                          showAll: this.turbotrace?.logAll,
+                        })
+                      )
+                      chunks = restChunks
+                      if (restChunks.length) {
+                        restChunks =
+                          chunks.length > maxFiles
+                            ? chunks.splice(maxFiles)
+                            : []
+                      }
+                    }
+
                     // only trace the assets under the appDir
                     // exclude files from node_modules, entries and processed by webpack
                     const filesTracedFromEntries = filesTracedInEntries
@@ -434,6 +461,15 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
             }
             let fileList: Set<string>
             let reasons: NodeFileTraceReasons
+            const ignores = [
+              ...TRACE_IGNORES,
+              ...this.excludeFiles,
+              '**/node_modules/**',
+            ]
+            const ignoreFn = (path: string) => {
+              return isMatch(path, ignores, { contains: true, dot: true })
+            }
+
             await finishModulesSpan
               .traceChild('node-file-trace', {
                 traceEntryCount: entriesToTrace.length + '',
@@ -450,11 +486,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
                         return doResolve(id, parent, job, !isCjs)
                       }
                     : undefined,
-                  ignore: [
-                    ...TRACE_IGNORES,
-                    ...this.excludeFiles,
-                    '**/node_modules/**',
-                  ],
+                  ignore: ignoreFn,
                   mixedModules: true,
                 })
                 // @ts-ignore
@@ -763,13 +795,27 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
             !binding?.isWasm &&
             typeof binding.turbo.startTrace === 'function'
           ) {
-            await binding.turbo.startTrace({
-              action: 'annotate',
-              input: this.chunksToTrace,
-              contextDirectory:
-                this.turbotrace?.contextDirectory ?? this.tracingRoot,
-              processCwd: this.turbotrace?.processCwd ?? this.appDir,
-            })
+            const maxFiles =
+              this.turbotrace?.maxFiles ?? TURBO_TRACE_DEFAULT_MAX_FILES
+            let chunks = [...this.chunksToTrace]
+            let restChunks =
+              chunks.length > maxFiles ? chunks.splice(maxFiles) : []
+            while (chunks.length) {
+              await binding.turbo.startTrace({
+                action: 'annotate',
+                input: chunks,
+                contextDirectory:
+                  this.turbotrace?.contextDirectory ?? this.tracingRoot,
+                processCwd: this.turbotrace?.processCwd ?? this.appDir,
+                showAll: this.turbotrace?.logAll,
+                logLevel: this.turbotrace?.logLevel,
+              })
+              chunks = restChunks
+              if (restChunks.length) {
+                restChunks =
+                  chunks.length > maxFiles ? chunks.splice(maxFiles) : []
+              }
+            }
             if (this.turbotraceOutputPath && this.turbotraceFiles) {
               const existedNftFile = await nodeFs.promises
                 .readFile(this.turbotraceOutputPath, 'utf8')

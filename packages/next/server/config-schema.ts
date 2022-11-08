@@ -432,6 +432,9 @@ const configSchema = {
             enum: ['CLS', 'FCP', 'FID', 'INP', 'LCP', 'TTFB'],
           } as any,
         },
+        mdxRs: {
+          type: 'boolean',
+        },
         turbotrace: {
           type: 'object',
           properties: {
@@ -448,6 +451,9 @@ const configSchema = {
                 'info',
               ],
             } as any,
+            logAll: {
+              type: 'boolean',
+            },
             logDetail: {
               type: 'boolean',
             },
@@ -456,6 +462,9 @@ const configSchema = {
             },
             processCwd: {
               type: 'string',
+            },
+            maxFiles: {
+              type: 'integer',
             },
           },
         },

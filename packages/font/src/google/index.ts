@@ -5,8 +5,8 @@ import type { FontModule } from 'next/font'
 type Display = 'auto' | 'block' | 'swap' | 'fallback' | 'optional'
 type CssVariable = `--${string}`
 export declare function ABeeZee(options: {
-  weight: '400'
-  style?: 'normal' | 'italic'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15,8 +15,8 @@ export declare function ABeeZee(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Abel(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -25,8 +25,14 @@ export declare function Abel(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Abhaya_Libre(options: {
-  weight: '400' | '500' | '600' | '700' | '800'
-  style?: 'normal'
+  weight:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | Array<'400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -35,8 +41,8 @@ export declare function Abhaya_Libre(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'sinhala'>
 }): FontModule
 export declare function Aboreto(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -45,8 +51,8 @@ export declare function Aboreto(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Abril_Fatface(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -55,8 +61,8 @@ export declare function Abril_Fatface(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Abyssinica_SIL(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -65,8 +71,8 @@ export declare function Abyssinica_SIL(options: {
   subsets?: Array<'ethiopic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Aclonica(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -75,8 +81,8 @@ export declare function Aclonica(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Acme(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -85,8 +91,8 @@ export declare function Acme(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Actor(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -95,8 +101,8 @@ export declare function Actor(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Adamina(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -105,8 +111,16 @@ export declare function Adamina(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Advent_Pro(options: {
-  weight: '100' | '200' | '300' | '400' | '500' | '600' | '700'
-  style?: 'normal'
+  weight:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | Array<'100' | '200' | '300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -115,8 +129,8 @@ export declare function Advent_Pro(options: {
   subsets?: Array<'greek' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Aguafina_Script(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -125,8 +139,8 @@ export declare function Aguafina_Script(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Akaya_Kanadaka(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -135,8 +149,8 @@ export declare function Akaya_Kanadaka(options: {
   subsets?: Array<'kannada' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Akaya_Telivigala(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -145,8 +159,8 @@ export declare function Akaya_Telivigala(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'telugu'>
 }): FontModule
 export declare function Akronim(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -155,8 +169,15 @@ export declare function Akronim(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Akshar(options?: {
-  weight?: '300' | '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -165,8 +186,8 @@ export declare function Akshar(options?: {
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Aladin(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -175,8 +196,8 @@ export declare function Aladin(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Alata(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -185,8 +206,8 @@ export declare function Alata(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Alatsi(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -206,7 +227,10 @@ export declare function Albert_Sans(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal' | 'italic'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -215,8 +239,8 @@ export declare function Albert_Sans(options?: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Aldrich(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -225,8 +249,8 @@ export declare function Aldrich(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Alef(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -235,8 +259,16 @@ export declare function Alef(options: {
   subsets?: Array<'hebrew' | 'latin'>
 }): FontModule
 export declare function Alegreya(options?: {
-  weight?: '400' | '500' | '600' | '700' | '800' | '900' | 'variable'
-  style?: 'normal' | 'italic'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700' | '800' | '900'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -253,8 +285,14 @@ export declare function Alegreya(options?: {
   >
 }): FontModule
 export declare function Alegreya_SC(options: {
-  weight: '400' | '500' | '700' | '800' | '900'
-  style?: 'normal' | 'italic'
+  weight:
+    | '400'
+    | '500'
+    | '700'
+    | '800'
+    | '900'
+    | Array<'400' | '500' | '700' | '800' | '900'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -271,8 +309,16 @@ export declare function Alegreya_SC(options: {
   >
 }): FontModule
 export declare function Alegreya_Sans(options: {
-  weight: '100' | '300' | '400' | '500' | '700' | '800' | '900'
-  style?: 'normal' | 'italic'
+  weight:
+    | '100'
+    | '300'
+    | '400'
+    | '500'
+    | '700'
+    | '800'
+    | '900'
+    | Array<'100' | '300' | '400' | '500' | '700' | '800' | '900'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -289,8 +335,16 @@ export declare function Alegreya_Sans(options: {
   >
 }): FontModule
 export declare function Alegreya_Sans_SC(options: {
-  weight: '100' | '300' | '400' | '500' | '700' | '800' | '900'
-  style?: 'normal' | 'italic'
+  weight:
+    | '100'
+    | '300'
+    | '400'
+    | '500'
+    | '700'
+    | '800'
+    | '900'
+    | Array<'100' | '300' | '400' | '500' | '700' | '800' | '900'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -307,8 +361,8 @@ export declare function Alegreya_Sans_SC(options: {
   >
 }): FontModule
 export declare function Aleo(options: {
-  weight: '300' | '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '300' | '400' | '700' | Array<'300' | '400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -317,8 +371,8 @@ export declare function Aleo(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Alex_Brush(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -327,8 +381,8 @@ export declare function Alex_Brush(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Alfa_Slab_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -337,8 +391,8 @@ export declare function Alfa_Slab_One(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Alice(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -347,8 +401,8 @@ export declare function Alice(options: {
   subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Alike(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -357,8 +411,8 @@ export declare function Alike(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Alike_Angular(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -367,8 +421,8 @@ export declare function Alike_Angular(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Alkalami(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -377,8 +431,8 @@ export declare function Alkalami(options: {
   subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Allan(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -387,8 +441,8 @@ export declare function Allan(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Allerta(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -397,8 +451,8 @@ export declare function Allerta(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Allerta_Stencil(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -407,8 +461,8 @@ export declare function Allerta_Stencil(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Allison(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -417,8 +471,8 @@ export declare function Allison(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Allura(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -427,8 +481,8 @@ export declare function Allura(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Almarai(options: {
-  weight: '300' | '400' | '700' | '800'
-  style?: 'normal'
+  weight: '300' | '400' | '700' | '800' | Array<'300' | '400' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -437,8 +491,8 @@ export declare function Almarai(options: {
   subsets?: Array<'arabic'>
 }): FontModule
 export declare function Almendra(options: {
-  weight: '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -447,8 +501,8 @@ export declare function Almendra(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Almendra_Display(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -457,8 +511,8 @@ export declare function Almendra_Display(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Almendra_SC(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -478,7 +532,10 @@ export declare function Alumni_Sans(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal' | 'italic'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -489,8 +546,8 @@ export declare function Alumni_Sans(options?: {
   >
 }): FontModule
 export declare function Alumni_Sans_Collegiate_One(options: {
-  weight: '400'
-  style?: 'normal' | 'italic'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -499,8 +556,8 @@ export declare function Alumni_Sans_Collegiate_One(options: {
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Alumni_Sans_Inline_One(options: {
-  weight: '400'
-  style?: 'normal' | 'italic'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -509,8 +566,8 @@ export declare function Alumni_Sans_Inline_One(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Alumni_Sans_Pinstripe(options: {
-  weight: '400'
-  style?: 'normal' | 'italic'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -521,8 +578,8 @@ export declare function Alumni_Sans_Pinstripe(options: {
   >
 }): FontModule
 export declare function Amarante(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -531,8 +588,8 @@ export declare function Amarante(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Amaranth(options: {
-  weight: '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -541,8 +598,8 @@ export declare function Amaranth(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Amatic_SC(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -551,8 +608,8 @@ export declare function Amatic_SC(options: {
   subsets?: Array<'cyrillic' | 'hebrew' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Amethysta(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -561,8 +618,8 @@ export declare function Amethysta(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Amiko(options: {
-  weight: '400' | '600' | '700'
-  style?: 'normal'
+  weight: '400' | '600' | '700' | Array<'400' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -571,8 +628,8 @@ export declare function Amiko(options: {
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Amiri(options: {
-  weight: '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -581,8 +638,8 @@ export declare function Amiri(options: {
   subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Amiri_Quran(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -591,8 +648,8 @@ export declare function Amiri_Quran(options: {
   subsets?: Array<'arabic' | 'latin'>
 }): FontModule
 export declare function Amita(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -601,8 +658,8 @@ export declare function Amita(options: {
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Anaheim(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -611,8 +668,15 @@ export declare function Anaheim(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Andada_Pro(options?: {
-  weight?: '400' | '500' | '600' | '700' | '800' | 'variable'
-  style?: 'normal' | 'italic'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -621,8 +685,8 @@ export declare function Andada_Pro(options?: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Andika(options: {
-  weight: '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -643,7 +707,8 @@ export declare function Anek_Bangla(options?: {
     | '700'
     | '800'
     | 'variable'
-  style?: 'normal'
+    | Array<'100' | '200' | '300' | '400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -663,7 +728,8 @@ export declare function Anek_Devanagari(options?: {
     | '700'
     | '800'
     | 'variable'
-  style?: 'normal'
+    | Array<'100' | '200' | '300' | '400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -683,7 +749,8 @@ export declare function Anek_Gujarati(options?: {
     | '700'
     | '800'
     | 'variable'
-  style?: 'normal'
+    | Array<'100' | '200' | '300' | '400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -703,7 +770,8 @@ export declare function Anek_Gurmukhi(options?: {
     | '700'
     | '800'
     | 'variable'
-  style?: 'normal'
+    | Array<'100' | '200' | '300' | '400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -723,7 +791,8 @@ export declare function Anek_Kannada(options?: {
     | '700'
     | '800'
     | 'variable'
-  style?: 'normal'
+    | Array<'100' | '200' | '300' | '400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -743,7 +812,8 @@ export declare function Anek_Latin(options?: {
     | '700'
     | '800'
     | 'variable'
-  style?: 'normal'
+    | Array<'100' | '200' | '300' | '400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -763,7 +833,8 @@ export declare function Anek_Malayalam(options?: {
     | '700'
     | '800'
     | 'variable'
-  style?: 'normal'
+    | Array<'100' | '200' | '300' | '400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -783,7 +854,8 @@ export declare function Anek_Odia(options?: {
     | '700'
     | '800'
     | 'variable'
-  style?: 'normal'
+    | Array<'100' | '200' | '300' | '400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -803,7 +875,8 @@ export declare function Anek_Tamil(options?: {
     | '700'
     | '800'
     | 'variable'
-  style?: 'normal'
+    | Array<'100' | '200' | '300' | '400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -823,7 +896,8 @@ export declare function Anek_Telugu(options?: {
     | '700'
     | '800'
     | 'variable'
-  style?: 'normal'
+    | Array<'100' | '200' | '300' | '400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -833,8 +907,8 @@ export declare function Anek_Telugu(options?: {
   axes?: 'wdth'[]
 }): FontModule
 export declare function Angkor(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -843,8 +917,8 @@ export declare function Angkor(options: {
   subsets?: Array<'khmer' | 'latin'>
 }): FontModule
 export declare function Annie_Use_Your_Telescope(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -853,8 +927,8 @@ export declare function Annie_Use_Your_Telescope(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Anonymous_Pro(options: {
-  weight: '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -863,8 +937,8 @@ export declare function Anonymous_Pro(options: {
   subsets?: Array<'cyrillic' | 'greek' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Antic(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -873,8 +947,8 @@ export declare function Antic(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Antic_Didone(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -883,8 +957,8 @@ export declare function Antic_Didone(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Antic_Slab(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -893,8 +967,8 @@ export declare function Antic_Slab(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Anton(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -903,8 +977,17 @@ export declare function Anton(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Antonio(options?: {
-  weight?: '100' | '200' | '300' | '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'100' | '200' | '300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -924,7 +1007,10 @@ export declare function Anybody(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal' | 'italic'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -934,8 +1020,8 @@ export declare function Anybody(options?: {
   axes?: 'wdth'[]
 }): FontModule
 export declare function Arapey(options: {
-  weight: '400'
-  style?: 'normal' | 'italic'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -944,8 +1030,8 @@ export declare function Arapey(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Arbutus(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -954,8 +1040,8 @@ export declare function Arbutus(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Arbutus_Slab(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -964,8 +1050,8 @@ export declare function Arbutus_Slab(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Architects_Daughter(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -985,7 +1071,10 @@ export declare function Archivo(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal' | 'italic'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -995,8 +1084,8 @@ export declare function Archivo(options?: {
   axes?: 'wdth'[]
 }): FontModule
 export declare function Archivo_Black(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1005,8 +1094,14 @@ export declare function Archivo_Black(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Archivo_Narrow(options?: {
-  weight?: '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal' | 'italic'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1015,8 +1110,8 @@ export declare function Archivo_Narrow(options?: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Are_You_Serious(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1025,8 +1120,8 @@ export declare function Are_You_Serious(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Aref_Ruqaa(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1035,8 +1130,8 @@ export declare function Aref_Ruqaa(options: {
   subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Aref_Ruqaa_Ink(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1045,8 +1140,17 @@ export declare function Aref_Ruqaa_Ink(options: {
   subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Arima(options?: {
-  weight?: '100' | '200' | '300' | '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'100' | '200' | '300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1063,8 +1167,17 @@ export declare function Arima(options?: {
   >
 }): FontModule
 export declare function Arima_Madurai(options: {
-  weight: '100' | '200' | '300' | '400' | '500' | '700' | '800' | '900'
-  style?: 'normal'
+  weight:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '700'
+    | '800'
+    | '900'
+    | Array<'100' | '200' | '300' | '400' | '500' | '700' | '800' | '900'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1073,8 +1186,14 @@ export declare function Arima_Madurai(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'tamil' | 'vietnamese'>
 }): FontModule
 export declare function Arimo(options?: {
-  weight?: '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal' | 'italic'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1092,8 +1211,8 @@ export declare function Arimo(options?: {
   >
 }): FontModule
 export declare function Arizonia(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1102,8 +1221,8 @@ export declare function Arizonia(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Armata(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1112,8 +1231,8 @@ export declare function Armata(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Arsenal(options: {
-  weight: '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1124,8 +1243,8 @@ export declare function Arsenal(options: {
   >
 }): FontModule
 export declare function Artifika(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1134,8 +1253,8 @@ export declare function Artifika(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Arvo(options: {
-  weight: '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1144,8 +1263,8 @@ export declare function Arvo(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Arya(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1154,8 +1273,14 @@ export declare function Arya(options: {
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Asap(options?: {
-  weight?: '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal' | 'italic'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1164,8 +1289,8 @@ export declare function Asap(options?: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Asap_Condensed(options: {
-  weight: '400' | '500' | '600' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '500' | '600' | '700' | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1174,8 +1299,8 @@ export declare function Asap_Condensed(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Asar(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1184,8 +1309,8 @@ export declare function Asar(options: {
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Asset(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1194,8 +1319,17 @@ export declare function Asset(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Assistant(options?: {
-  weight?: '200' | '300' | '400' | '500' | '600' | '700' | '800' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | 'variable'
+    | Array<'200' | '300' | '400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1204,8 +1338,8 @@ export declare function Assistant(options?: {
   subsets?: Array<'hebrew' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Astloch(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1214,8 +1348,8 @@ export declare function Astloch(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Asul(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1224,8 +1358,15 @@ export declare function Asul(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Athiti(options: {
-  weight: '200' | '300' | '400' | '500' | '600' | '700'
-  style?: 'normal'
+  weight:
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | Array<'200' | '300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1234,8 +1375,8 @@ export declare function Athiti(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): FontModule
 export declare function Atkinson_Hyperlegible(options: {
-  weight: '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1244,8 +1385,14 @@ export declare function Atkinson_Hyperlegible(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Atma(options: {
-  weight: '300' | '400' | '500' | '600' | '700'
-  style?: 'normal'
+  weight:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | Array<'300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1254,8 +1401,8 @@ export declare function Atma(options: {
   subsets?: Array<'bengali' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Atomic_Age(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1264,8 +1411,8 @@ export declare function Atomic_Age(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Aubrey(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1274,8 +1421,8 @@ export declare function Aubrey(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Audiowide(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1284,8 +1431,8 @@ export declare function Audiowide(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Autour_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1294,8 +1441,8 @@ export declare function Autour_One(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Average(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1304,8 +1451,8 @@ export declare function Average(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Average_Sans(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1314,8 +1461,8 @@ export declare function Average_Sans(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Averia_Gruesa_Libre(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1324,8 +1471,8 @@ export declare function Averia_Gruesa_Libre(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Averia_Libre(options: {
-  weight: '300' | '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '300' | '400' | '700' | Array<'300' | '400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1334,8 +1481,8 @@ export declare function Averia_Libre(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Averia_Sans_Libre(options: {
-  weight: '300' | '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '300' | '400' | '700' | Array<'300' | '400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1344,8 +1491,8 @@ export declare function Averia_Sans_Libre(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Averia_Serif_Libre(options: {
-  weight: '300' | '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '300' | '400' | '700' | Array<'300' | '400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1365,7 +1512,10 @@ export declare function Azeret_Mono(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal' | 'italic'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1374,8 +1524,8 @@ export declare function Azeret_Mono(options?: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function B612(options: {
-  weight: '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1384,8 +1534,8 @@ export declare function B612(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function B612_Mono(options: {
-  weight: '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1394,8 +1544,8 @@ export declare function B612_Mono(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function BIZ_UDGothic(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1404,8 +1554,8 @@ export declare function BIZ_UDGothic(options: {
   subsets?: Array<'cyrillic' | 'greek-ext' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function BIZ_UDMincho(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1414,8 +1564,8 @@ export declare function BIZ_UDMincho(options: {
   subsets?: Array<'cyrillic' | 'greek-ext' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function BIZ_UDPGothic(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1424,8 +1574,8 @@ export declare function BIZ_UDPGothic(options: {
   subsets?: Array<'cyrillic' | 'greek-ext' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function BIZ_UDPMincho(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1434,8 +1584,8 @@ export declare function BIZ_UDPMincho(options: {
   subsets?: Array<'cyrillic' | 'greek-ext' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Babylonica(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1444,8 +1594,8 @@ export declare function Babylonica(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Bad_Script(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1454,8 +1604,8 @@ export declare function Bad_Script(options: {
   subsets?: Array<'cyrillic' | 'latin'>
 }): FontModule
 export declare function Bahiana(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1464,8 +1614,8 @@ export declare function Bahiana(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Bahianita(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1474,8 +1624,15 @@ export declare function Bahianita(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Bai_Jamjuree(options: {
-  weight: '200' | '300' | '400' | '500' | '600' | '700'
-  style?: 'normal' | 'italic'
+  weight:
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | Array<'200' | '300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1484,8 +1641,8 @@ export declare function Bai_Jamjuree(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): FontModule
 export declare function Bakbak_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1494,8 +1651,8 @@ export declare function Bakbak_One(options: {
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Ballet(options?: {
-  weight?: '400' | 'variable'
-  style?: 'normal'
+  weight?: '400' | 'variable' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1505,8 +1662,15 @@ export declare function Ballet(options?: {
   axes?: 'opsz'[]
 }): FontModule
 export declare function Baloo_2(options?: {
-  weight?: '400' | '500' | '600' | '700' | '800' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1515,8 +1679,15 @@ export declare function Baloo_2(options?: {
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Baloo_Bhai_2(options?: {
-  weight?: '400' | '500' | '600' | '700' | '800' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1525,8 +1696,15 @@ export declare function Baloo_Bhai_2(options?: {
   subsets?: Array<'gujarati' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Baloo_Bhaijaan_2(options?: {
-  weight?: '400' | '500' | '600' | '700' | '800' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1535,8 +1713,15 @@ export declare function Baloo_Bhaijaan_2(options?: {
   subsets?: Array<'arabic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Baloo_Bhaina_2(options?: {
-  weight?: '400' | '500' | '600' | '700' | '800' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1545,8 +1730,15 @@ export declare function Baloo_Bhaina_2(options?: {
   subsets?: Array<'latin' | 'latin-ext' | 'oriya' | 'vietnamese'>
 }): FontModule
 export declare function Baloo_Chettan_2(options?: {
-  weight?: '400' | '500' | '600' | '700' | '800' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1555,8 +1747,15 @@ export declare function Baloo_Chettan_2(options?: {
   subsets?: Array<'latin' | 'latin-ext' | 'malayalam' | 'vietnamese'>
 }): FontModule
 export declare function Baloo_Da_2(options?: {
-  weight?: '400' | '500' | '600' | '700' | '800' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1565,8 +1764,15 @@ export declare function Baloo_Da_2(options?: {
   subsets?: Array<'bengali' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Baloo_Paaji_2(options?: {
-  weight?: '400' | '500' | '600' | '700' | '800' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1575,8 +1781,15 @@ export declare function Baloo_Paaji_2(options?: {
   subsets?: Array<'gurmukhi' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Baloo_Tamma_2(options?: {
-  weight?: '400' | '500' | '600' | '700' | '800' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1585,8 +1798,15 @@ export declare function Baloo_Tamma_2(options?: {
   subsets?: Array<'kannada' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Baloo_Tammudu_2(options?: {
-  weight?: '400' | '500' | '600' | '700' | '800' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1595,8 +1815,15 @@ export declare function Baloo_Tammudu_2(options?: {
   subsets?: Array<'latin' | 'latin-ext' | 'telugu' | 'vietnamese'>
 }): FontModule
 export declare function Baloo_Thambi_2(options?: {
-  weight?: '400' | '500' | '600' | '700' | '800' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1605,8 +1832,8 @@ export declare function Baloo_Thambi_2(options?: {
   subsets?: Array<'latin' | 'latin-ext' | 'tamil' | 'vietnamese'>
 }): FontModule
 export declare function Balsamiq_Sans(options: {
-  weight: '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1615,8 +1842,8 @@ export declare function Balsamiq_Sans(options: {
   subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Balthazar(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1625,8 +1852,8 @@ export declare function Balthazar(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Bangers(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1635,8 +1862,20 @@ export declare function Bangers(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Barlow(options: {
-  weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
-  style?: 'normal' | 'italic'
+  weight:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1645,8 +1884,20 @@ export declare function Barlow(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Barlow_Condensed(options: {
-  weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
-  style?: 'normal' | 'italic'
+  weight:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1655,8 +1906,20 @@ export declare function Barlow_Condensed(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Barlow_Semi_Condensed(options: {
-  weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
-  style?: 'normal' | 'italic'
+  weight:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1665,8 +1928,8 @@ export declare function Barlow_Semi_Condensed(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Barriecito(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1675,8 +1938,8 @@ export declare function Barriecito(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Barrio(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1685,8 +1948,8 @@ export declare function Barrio(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Basic(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1695,8 +1958,8 @@ export declare function Basic(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Baskervville(options: {
-  weight: '400'
-  style?: 'normal' | 'italic'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1705,8 +1968,14 @@ export declare function Baskervville(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Battambang(options: {
-  weight: '100' | '300' | '400' | '700' | '900'
-  style?: 'normal'
+  weight:
+    | '100'
+    | '300'
+    | '400'
+    | '700'
+    | '900'
+    | Array<'100' | '300' | '400' | '700' | '900'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1715,8 +1984,8 @@ export declare function Battambang(options: {
   subsets?: Array<'khmer' | 'latin'>
 }): FontModule
 export declare function Baumans(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1725,8 +1994,8 @@ export declare function Baumans(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Bayon(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1735,8 +2004,20 @@ export declare function Bayon(options: {
   subsets?: Array<'khmer' | 'latin'>
 }): FontModule
 export declare function Be_Vietnam_Pro(options: {
-  weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
-  style?: 'normal' | 'italic'
+  weight:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1745,8 +2026,8 @@ export declare function Be_Vietnam_Pro(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Beau_Rivage(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1755,8 +2036,8 @@ export declare function Beau_Rivage(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Bebas_Neue(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1765,8 +2046,8 @@ export declare function Bebas_Neue(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Belgrano(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1775,8 +2056,8 @@ export declare function Belgrano(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Bellefair(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1785,8 +2066,8 @@ export declare function Bellefair(options: {
   subsets?: Array<'hebrew' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Belleza(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1795,8 +2076,8 @@ export declare function Belleza(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Bellota(options: {
-  weight: '300' | '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '300' | '400' | '700' | Array<'300' | '400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1805,8 +2086,8 @@ export declare function Bellota(options: {
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Bellota_Text(options: {
-  weight: '300' | '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '300' | '400' | '700' | Array<'300' | '400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1815,8 +2096,8 @@ export declare function Bellota_Text(options: {
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function BenchNine(options: {
-  weight: '300' | '400' | '700'
-  style?: 'normal'
+  weight: '300' | '400' | '700' | Array<'300' | '400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1825,8 +2106,8 @@ export declare function BenchNine(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Benne(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1835,8 +2116,8 @@ export declare function Benne(options: {
   subsets?: Array<'kannada' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Bentham(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1845,8 +2126,8 @@ export declare function Bentham(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Berkshire_Swash(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1855,8 +2136,16 @@ export declare function Berkshire_Swash(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Besley(options?: {
-  weight?: '400' | '500' | '600' | '700' | '800' | '900' | 'variable'
-  style?: 'normal' | 'italic'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700' | '800' | '900'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1865,8 +2154,8 @@ export declare function Besley(options?: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Beth_Ellen(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1875,8 +2164,8 @@ export declare function Beth_Ellen(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Bevan(options: {
-  weight: '400'
-  style?: 'normal' | 'italic'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1885,8 +2174,8 @@ export declare function Bevan(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function BhuTuka_Expanded_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1906,7 +2195,10 @@ export declare function Big_Shoulders_Display(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1926,7 +2218,10 @@ export declare function Big_Shoulders_Inline_Display(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1946,7 +2241,10 @@ export declare function Big_Shoulders_Inline_Text(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1966,7 +2264,10 @@ export declare function Big_Shoulders_Stencil_Display(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -1986,7 +2287,10 @@ export declare function Big_Shoulders_Stencil_Text(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2006,7 +2310,10 @@ export declare function Big_Shoulders_Text(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2015,8 +2322,8 @@ export declare function Big_Shoulders_Text(options?: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Bigelow_Rules(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2025,8 +2332,8 @@ export declare function Bigelow_Rules(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Bigshot_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2035,8 +2342,8 @@ export declare function Bigshot_One(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Bilbo(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2045,8 +2352,8 @@ export declare function Bilbo(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Bilbo_Swash_Caps(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2055,8 +2362,14 @@ export declare function Bilbo_Swash_Caps(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function BioRhyme(options: {
-  weight: '200' | '300' | '400' | '700' | '800'
-  style?: 'normal'
+  weight:
+    | '200'
+    | '300'
+    | '400'
+    | '700'
+    | '800'
+    | Array<'200' | '300' | '400' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2065,8 +2378,14 @@ export declare function BioRhyme(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function BioRhyme_Expanded(options: {
-  weight: '200' | '300' | '400' | '700' | '800'
-  style?: 'normal'
+  weight:
+    | '200'
+    | '300'
+    | '400'
+    | '700'
+    | '800'
+    | Array<'200' | '300' | '400' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2075,8 +2394,8 @@ export declare function BioRhyme_Expanded(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Birthstone(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2085,8 +2404,8 @@ export declare function Birthstone(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Birthstone_Bounce(options: {
-  weight: '400' | '500'
-  style?: 'normal'
+  weight: '400' | '500' | Array<'400' | '500'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2095,8 +2414,16 @@ export declare function Birthstone_Bounce(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Biryani(options: {
-  weight: '200' | '300' | '400' | '600' | '700' | '800' | '900'
-  style?: 'normal'
+  weight:
+    | '200'
+    | '300'
+    | '400'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | Array<'200' | '300' | '400' | '600' | '700' | '800' | '900'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2116,7 +2443,10 @@ export declare function Bitter(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal' | 'italic'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2127,8 +2457,8 @@ export declare function Bitter(options?: {
   >
 }): FontModule
 export declare function Black_And_White_Picture(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2137,8 +2467,8 @@ export declare function Black_And_White_Picture(options: {
   subsets?: Array<'korean' | 'latin'>
 }): FontModule
 export declare function Black_Han_Sans(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2147,8 +2477,8 @@ export declare function Black_Han_Sans(options: {
   subsets?: Array<'korean' | 'latin'>
 }): FontModule
 export declare function Black_Ops_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2157,8 +2487,8 @@ export declare function Black_Ops_One(options: {
   subsets?: Array<'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Blaka(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2167,8 +2497,8 @@ export declare function Blaka(options: {
   subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Blaka_Hollow(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2177,8 +2507,8 @@ export declare function Blaka_Hollow(options: {
   subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Blaka_Ink(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2187,8 +2517,17 @@ export declare function Blaka_Ink(options: {
   subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Blinker(options: {
-  weight: '100' | '200' | '300' | '400' | '600' | '700' | '800' | '900'
-  style?: 'normal'
+  weight:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | Array<'100' | '200' | '300' | '400' | '600' | '700' | '800' | '900'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2197,8 +2536,16 @@ export declare function Blinker(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Bodoni_Moda(options?: {
-  weight?: '400' | '500' | '600' | '700' | '800' | '900' | 'variable'
-  style?: 'normal' | 'italic'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700' | '800' | '900'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2208,8 +2555,8 @@ export declare function Bodoni_Moda(options?: {
   axes?: 'opsz'[]
 }): FontModule
 export declare function Bokor(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2218,8 +2565,8 @@ export declare function Bokor(options: {
   subsets?: Array<'khmer' | 'latin'>
 }): FontModule
 export declare function Bona_Nova(options: {
-  weight: '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2236,8 +2583,8 @@ export declare function Bona_Nova(options: {
   >
 }): FontModule
 export declare function Bonbon(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2246,8 +2593,8 @@ export declare function Bonbon(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Bonheur_Royale(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2256,8 +2603,8 @@ export declare function Bonheur_Royale(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Boogaloo(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2266,8 +2613,8 @@ export declare function Boogaloo(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Bowlby_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2276,8 +2623,8 @@ export declare function Bowlby_One(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Bowlby_One_SC(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2286,8 +2633,8 @@ export declare function Bowlby_One_SC(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Brawler(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2296,8 +2643,8 @@ export declare function Brawler(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Bree_Serif(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2306,8 +2653,14 @@ export declare function Bree_Serif(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Brygada_1918(options?: {
-  weight?: '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal' | 'italic'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2318,8 +2671,8 @@ export declare function Brygada_1918(options?: {
   >
 }): FontModule
 export declare function Bubblegum_Sans(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2328,8 +2681,8 @@ export declare function Bubblegum_Sans(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Bubbler_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2338,8 +2691,8 @@ export declare function Bubbler_One(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Buda(options: {
-  weight: '300'
-  style?: 'normal'
+  weight: '300' | Array<'300'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2348,8 +2701,8 @@ export declare function Buda(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Buenard(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2358,8 +2711,8 @@ export declare function Buenard(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Bungee(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2368,8 +2721,8 @@ export declare function Bungee(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Bungee_Hairline(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2378,8 +2731,8 @@ export declare function Bungee_Hairline(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Bungee_Inline(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2388,8 +2741,8 @@ export declare function Bungee_Inline(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Bungee_Outline(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2398,8 +2751,8 @@ export declare function Bungee_Outline(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Bungee_Shade(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2408,8 +2761,8 @@ export declare function Bungee_Shade(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Bungee_Spice(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2418,8 +2771,8 @@ export declare function Bungee_Spice(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Butcherman(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2428,8 +2781,8 @@ export declare function Butcherman(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Butterfly_Kids(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2438,8 +2791,14 @@ export declare function Butterfly_Kids(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Cabin(options?: {
-  weight?: '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal' | 'italic'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2449,8 +2808,8 @@ export declare function Cabin(options?: {
   axes?: 'wdth'[]
 }): FontModule
 export declare function Cabin_Condensed(options: {
-  weight: '400' | '500' | '600' | '700'
-  style?: 'normal'
+  weight: '400' | '500' | '600' | '700' | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2459,8 +2818,8 @@ export declare function Cabin_Condensed(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Cabin_Sketch(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2469,8 +2828,8 @@ export declare function Cabin_Sketch(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Caesar_Dressing(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2479,8 +2838,8 @@ export declare function Caesar_Dressing(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Cagliostro(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2500,7 +2859,10 @@ export declare function Cairo(options?: {
     | '900'
     | '1000'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900' | '1000'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2520,7 +2882,10 @@ export declare function Cairo_Play(options?: {
     | '900'
     | '1000'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900' | '1000'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2530,8 +2895,8 @@ export declare function Cairo_Play(options?: {
   axes?: 'slnt'[]
 }): FontModule
 export declare function Caladea(options: {
-  weight: '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2540,8 +2905,8 @@ export declare function Caladea(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Calistoga(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2550,8 +2915,8 @@ export declare function Calistoga(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Calligraffitti(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2560,8 +2925,8 @@ export declare function Calligraffitti(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Cambay(options: {
-  weight: '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2570,8 +2935,8 @@ export declare function Cambay(options: {
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Cambo(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2580,8 +2945,8 @@ export declare function Cambo(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Candal(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2590,8 +2955,8 @@ export declare function Candal(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Cantarell(options: {
-  weight: '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2600,8 +2965,8 @@ export declare function Cantarell(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Cantata_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2610,8 +2975,8 @@ export declare function Cantata_One(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Cantora_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2620,8 +2985,8 @@ export declare function Cantora_One(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Capriola(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2630,8 +2995,8 @@ export declare function Capriola(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Caramel(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2640,8 +3005,8 @@ export declare function Caramel(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Carattere(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2650,8 +3015,8 @@ export declare function Carattere(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Cardo(options: {
-  weight: '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2660,8 +3025,8 @@ export declare function Cardo(options: {
   subsets?: Array<'greek' | 'greek-ext' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Carme(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2670,8 +3035,8 @@ export declare function Carme(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Carrois_Gothic(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2680,8 +3045,8 @@ export declare function Carrois_Gothic(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Carrois_Gothic_SC(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2690,8 +3055,8 @@ export declare function Carrois_Gothic_SC(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Carter_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2700,8 +3065,8 @@ export declare function Carter_One(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Castoro(options: {
-  weight: '400'
-  style?: 'normal' | 'italic'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2721,7 +3086,10 @@ export declare function Catamaran(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2730,8 +3098,8 @@ export declare function Catamaran(options?: {
   subsets?: Array<'latin' | 'latin-ext' | 'tamil'>
 }): FontModule
 export declare function Caudex(options: {
-  weight: '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2740,8 +3108,14 @@ export declare function Caudex(options: {
   subsets?: Array<'greek' | 'greek-ext' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Caveat(options?: {
-  weight?: '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2750,8 +3124,8 @@ export declare function Caveat(options?: {
   subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Caveat_Brush(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2760,8 +3134,8 @@ export declare function Caveat_Brush(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Cedarville_Cursive(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2770,8 +3144,8 @@ export declare function Cedarville_Cursive(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Ceviche_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2780,8 +3154,14 @@ export declare function Ceviche_One(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Chakra_Petch(options: {
-  weight: '300' | '400' | '500' | '600' | '700'
-  style?: 'normal' | 'italic'
+  weight:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | Array<'300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2790,8 +3170,17 @@ export declare function Chakra_Petch(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): FontModule
 export declare function Changa(options?: {
-  weight?: '200' | '300' | '400' | '500' | '600' | '700' | '800' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | 'variable'
+    | Array<'200' | '300' | '400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2800,8 +3189,8 @@ export declare function Changa(options?: {
   subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Changa_One(options: {
-  weight: '400'
-  style?: 'normal' | 'italic'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2810,8 +3199,8 @@ export declare function Changa_One(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Chango(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2820,8 +3209,8 @@ export declare function Chango(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Charis_SIL(options: {
-  weight: '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2832,8 +3221,8 @@ export declare function Charis_SIL(options: {
   >
 }): FontModule
 export declare function Charm(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2842,8 +3231,8 @@ export declare function Charm(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): FontModule
 export declare function Charmonman(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2852,8 +3241,14 @@ export declare function Charmonman(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): FontModule
 export declare function Chathura(options: {
-  weight: '100' | '300' | '400' | '700' | '800'
-  style?: 'normal'
+  weight:
+    | '100'
+    | '300'
+    | '400'
+    | '700'
+    | '800'
+    | Array<'100' | '300' | '400' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2862,8 +3257,8 @@ export declare function Chathura(options: {
   subsets?: Array<'latin' | 'telugu'>
 }): FontModule
 export declare function Chau_Philomene_One(options: {
-  weight: '400'
-  style?: 'normal' | 'italic'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2872,8 +3267,8 @@ export declare function Chau_Philomene_One(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Chela_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2882,8 +3277,8 @@ export declare function Chela_One(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Chelsea_Market(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2892,8 +3287,8 @@ export declare function Chelsea_Market(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Chenla(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2902,8 +3297,8 @@ export declare function Chenla(options: {
   subsets?: Array<'khmer'>
 }): FontModule
 export declare function Cherish(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2912,8 +3307,8 @@ export declare function Cherish(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Cherry_Cream_Soda(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2922,8 +3317,8 @@ export declare function Cherry_Cream_Soda(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Cherry_Swash(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2932,8 +3327,8 @@ export declare function Cherry_Swash(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Chewy(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2942,8 +3337,8 @@ export declare function Chewy(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Chicle(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2952,8 +3347,8 @@ export declare function Chicle(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Chilanka(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2962,8 +3357,8 @@ export declare function Chilanka(options: {
   subsets?: Array<'latin' | 'malayalam'>
 }): FontModule
 export declare function Chivo(options: {
-  weight: '300' | '400' | '700' | '900'
-  style?: 'normal' | 'italic'
+  weight: '300' | '400' | '700' | '900' | Array<'300' | '400' | '700' | '900'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2972,8 +3367,8 @@ export declare function Chivo(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Chonburi(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2982,8 +3377,16 @@ export declare function Chonburi(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): FontModule
 export declare function Cinzel(options?: {
-  weight?: '400' | '500' | '600' | '700' | '800' | '900' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700' | '800' | '900'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -2992,8 +3395,8 @@ export declare function Cinzel(options?: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Cinzel_Decorative(options: {
-  weight: '400' | '700' | '900'
-  style?: 'normal'
+  weight: '400' | '700' | '900' | Array<'400' | '700' | '900'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3002,8 +3405,8 @@ export declare function Cinzel_Decorative(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Clicker_Script(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3012,8 +3415,8 @@ export declare function Clicker_Script(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Coda(options: {
-  weight: '400' | '800'
-  style?: 'normal'
+  weight: '400' | '800' | Array<'400' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3022,8 +3425,8 @@ export declare function Coda(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Coda_Caption(options: {
-  weight: '800'
-  style?: 'normal'
+  weight: '800' | Array<'800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3032,8 +3435,8 @@ export declare function Coda_Caption(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Codystar(options: {
-  weight: '300' | '400'
-  style?: 'normal'
+  weight: '300' | '400' | Array<'300' | '400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3042,8 +3445,8 @@ export declare function Codystar(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Coiny(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3052,8 +3455,8 @@ export declare function Coiny(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'tamil' | 'vietnamese'>
 }): FontModule
 export declare function Combo(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3062,8 +3465,15 @@ export declare function Combo(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Comfortaa(options?: {
-  weight?: '300' | '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3074,8 +3484,8 @@ export declare function Comfortaa(options?: {
   >
 }): FontModule
 export declare function Comforter(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3084,8 +3494,8 @@ export declare function Comforter(options: {
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Comforter_Brush(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3094,8 +3504,8 @@ export declare function Comforter_Brush(options: {
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Comic_Neue(options: {
-  weight: '300' | '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '300' | '400' | '700' | Array<'300' | '400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3104,8 +3514,8 @@ export declare function Comic_Neue(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Coming_Soon(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3125,7 +3535,10 @@ export declare function Commissioner(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3136,8 +3549,8 @@ export declare function Commissioner(options?: {
   >
 }): FontModule
 export declare function Concert_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3146,8 +3559,8 @@ export declare function Concert_One(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Condiment(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3156,8 +3569,8 @@ export declare function Condiment(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Content(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3166,8 +3579,8 @@ export declare function Content(options: {
   subsets?: Array<'khmer'>
 }): FontModule
 export declare function Contrail_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3176,8 +3589,8 @@ export declare function Contrail_One(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Convergence(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3186,8 +3599,8 @@ export declare function Convergence(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Cookie(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3196,8 +3609,8 @@ export declare function Cookie(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Copse(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3206,8 +3619,8 @@ export declare function Copse(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Corben(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3216,8 +3629,8 @@ export declare function Corben(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Corinthia(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3226,8 +3639,15 @@ export declare function Corinthia(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Cormorant(options?: {
-  weight?: '300' | '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal' | 'italic'
+  weight?:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3238,8 +3658,14 @@ export declare function Cormorant(options?: {
   >
 }): FontModule
 export declare function Cormorant_Garamond(options: {
-  weight: '300' | '400' | '500' | '600' | '700'
-  style?: 'normal' | 'italic'
+  weight:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | Array<'300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3250,8 +3676,14 @@ export declare function Cormorant_Garamond(options: {
   >
 }): FontModule
 export declare function Cormorant_Infant(options: {
-  weight: '300' | '400' | '500' | '600' | '700'
-  style?: 'normal' | 'italic'
+  weight:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | Array<'300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3262,8 +3694,14 @@ export declare function Cormorant_Infant(options: {
   >
 }): FontModule
 export declare function Cormorant_SC(options: {
-  weight: '300' | '400' | '500' | '600' | '700'
-  style?: 'normal'
+  weight:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | Array<'300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3274,8 +3712,14 @@ export declare function Cormorant_SC(options: {
   >
 }): FontModule
 export declare function Cormorant_Unicase(options: {
-  weight: '300' | '400' | '500' | '600' | '700'
-  style?: 'normal'
+  weight:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | Array<'300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3286,8 +3730,14 @@ export declare function Cormorant_Unicase(options: {
   >
 }): FontModule
 export declare function Cormorant_Upright(options: {
-  weight: '300' | '400' | '500' | '600' | '700'
-  style?: 'normal'
+  weight:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | Array<'300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3296,8 +3746,8 @@ export declare function Cormorant_Upright(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Courgette(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3306,8 +3756,8 @@ export declare function Courgette(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Courier_Prime(options: {
-  weight: '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3316,8 +3766,8 @@ export declare function Courier_Prime(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Cousine(options: {
-  weight: '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3335,8 +3785,8 @@ export declare function Cousine(options: {
   >
 }): FontModule
 export declare function Coustard(options: {
-  weight: '400' | '900'
-  style?: 'normal'
+  weight: '400' | '900' | Array<'400' | '900'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3345,8 +3795,8 @@ export declare function Coustard(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Covered_By_Your_Grace(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3355,8 +3805,8 @@ export declare function Covered_By_Your_Grace(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Crafty_Girls(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3365,8 +3815,8 @@ export declare function Crafty_Girls(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Creepster(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3375,8 +3825,8 @@ export declare function Creepster(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Crete_Round(options: {
-  weight: '400'
-  style?: 'normal' | 'italic'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3395,7 +3845,8 @@ export declare function Crimson_Pro(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal' | 'italic'
+    | Array<'200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3404,8 +3855,8 @@ export declare function Crimson_Pro(options?: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Crimson_Text(options: {
-  weight: '400' | '600' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '600' | '700' | Array<'400' | '600' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3414,8 +3865,8 @@ export declare function Crimson_Text(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Croissant_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3424,8 +3875,8 @@ export declare function Croissant_One(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Crushed(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3434,8 +3885,14 @@ export declare function Crushed(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Cuprum(options?: {
-  weight?: '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal' | 'italic'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3446,8 +3903,8 @@ export declare function Cuprum(options?: {
   >
 }): FontModule
 export declare function Cute_Font(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3456,8 +3913,8 @@ export declare function Cute_Font(options: {
   subsets?: Array<'korean' | 'latin'>
 }): FontModule
 export declare function Cutive(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3466,8 +3923,8 @@ export declare function Cutive(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Cutive_Mono(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3476,8 +3933,8 @@ export declare function Cutive_Mono(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function DM_Mono(options: {
-  weight: '300' | '400' | '500'
-  style?: 'normal' | 'italic'
+  weight: '300' | '400' | '500' | Array<'300' | '400' | '500'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3486,8 +3943,8 @@ export declare function DM_Mono(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function DM_Sans(options: {
-  weight: '400' | '500' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '500' | '700' | Array<'400' | '500' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3496,8 +3953,8 @@ export declare function DM_Sans(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function DM_Serif_Display(options: {
-  weight: '400'
-  style?: 'normal' | 'italic'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3506,8 +3963,8 @@ export declare function DM_Serif_Display(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function DM_Serif_Text(options: {
-  weight: '400'
-  style?: 'normal' | 'italic'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3516,8 +3973,8 @@ export declare function DM_Serif_Text(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Damion(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3526,8 +3983,14 @@ export declare function Damion(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Dancing_Script(options?: {
-  weight?: '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3536,8 +3999,8 @@ export declare function Dancing_Script(options?: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Dangrek(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3546,8 +4009,16 @@ export declare function Dangrek(options: {
   subsets?: Array<'khmer' | 'latin'>
 }): FontModule
 export declare function Darker_Grotesque(options: {
-  weight: '300' | '400' | '500' | '600' | '700' | '800' | '900'
-  style?: 'normal'
+  weight:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | Array<'300' | '400' | '500' | '600' | '700' | '800' | '900'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3556,8 +4027,8 @@ export declare function Darker_Grotesque(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function David_Libre(options: {
-  weight: '400' | '500' | '700'
-  style?: 'normal'
+  weight: '400' | '500' | '700' | Array<'400' | '500' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3566,8 +4037,8 @@ export declare function David_Libre(options: {
   subsets?: Array<'hebrew' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Dawning_of_a_New_Day(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3576,8 +4047,8 @@ export declare function Dawning_of_a_New_Day(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Days_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3586,8 +4057,8 @@ export declare function Days_One(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Dekko(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3596,8 +4067,8 @@ export declare function Dekko(options: {
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Dela_Gothic_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3608,8 +4079,8 @@ export declare function Dela_Gothic_One(options: {
   >
 }): FontModule
 export declare function Delius(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3618,8 +4089,8 @@ export declare function Delius(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Delius_Swash_Caps(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3628,8 +4099,8 @@ export declare function Delius_Swash_Caps(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Delius_Unicase(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3638,8 +4109,8 @@ export declare function Delius_Unicase(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Della_Respira(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3648,8 +4119,8 @@ export declare function Della_Respira(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Denk_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3658,8 +4129,8 @@ export declare function Denk_One(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Devonshire(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3668,8 +4139,8 @@ export declare function Devonshire(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Dhurjati(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3678,8 +4149,8 @@ export declare function Dhurjati(options: {
   subsets?: Array<'latin' | 'telugu'>
 }): FontModule
 export declare function Didact_Gothic(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3690,8 +4161,8 @@ export declare function Didact_Gothic(options: {
   >
 }): FontModule
 export declare function Diplomata(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3700,8 +4171,8 @@ export declare function Diplomata(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Diplomata_SC(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3710,8 +4181,8 @@ export declare function Diplomata_SC(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Do_Hyeon(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3720,8 +4191,8 @@ export declare function Do_Hyeon(options: {
   subsets?: Array<'korean' | 'latin'>
 }): FontModule
 export declare function Dokdo(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3730,8 +4201,14 @@ export declare function Dokdo(options: {
   subsets?: Array<'korean' | 'latin'>
 }): FontModule
 export declare function Domine(options?: {
-  weight?: '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3740,8 +4217,8 @@ export declare function Domine(options?: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Donegal_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3750,8 +4227,8 @@ export declare function Donegal_One(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Dongle(options: {
-  weight: '300' | '400' | '700'
-  style?: 'normal'
+  weight: '300' | '400' | '700' | Array<'300' | '400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3760,8 +4237,8 @@ export declare function Dongle(options: {
   subsets?: Array<'korean' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Doppio_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3770,8 +4247,8 @@ export declare function Doppio_One(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Dorsa(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3780,8 +4257,17 @@ export declare function Dorsa(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Dosis(options?: {
-  weight?: '200' | '300' | '400' | '500' | '600' | '700' | '800' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | 'variable'
+    | Array<'200' | '300' | '400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3790,8 +4276,8 @@ export declare function Dosis(options?: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function DotGothic16(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3800,8 +4286,8 @@ export declare function DotGothic16(options: {
   subsets?: Array<'cyrillic' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Dr_Sugiyama(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3810,8 +4296,8 @@ export declare function Dr_Sugiyama(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Duru_Sans(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3820,8 +4306,14 @@ export declare function Duru_Sans(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function DynaPuff(options?: {
-  weight?: '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3831,8 +4323,8 @@ export declare function DynaPuff(options?: {
   axes?: 'wdth'[]
 }): FontModule
 export declare function Dynalight(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3841,8 +4333,15 @@ export declare function Dynalight(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function EB_Garamond(options?: {
-  weight?: '400' | '500' | '600' | '700' | '800' | 'variable'
-  style?: 'normal' | 'italic'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3859,8 +4358,8 @@ export declare function EB_Garamond(options?: {
   >
 }): FontModule
 export declare function Eagle_Lake(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3869,8 +4368,8 @@ export declare function Eagle_Lake(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function East_Sea_Dokdo(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3879,8 +4378,8 @@ export declare function East_Sea_Dokdo(options: {
   subsets?: Array<'korean' | 'latin'>
 }): FontModule
 export declare function Eater(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3889,8 +4388,8 @@ export declare function Eater(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Economica(options: {
-  weight: '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3899,8 +4398,15 @@ export declare function Economica(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Eczar(options?: {
-  weight?: '400' | '500' | '600' | '700' | '800' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3909,8 +4415,14 @@ export declare function Eczar(options?: {
   subsets?: Array<'devanagari' | 'greek' | 'greek-ext' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Edu_NSW_ACT_Foundation(options?: {
-  weight?: '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3919,8 +4431,14 @@ export declare function Edu_NSW_ACT_Foundation(options?: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Edu_QLD_Beginner(options?: {
-  weight?: '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3929,8 +4447,14 @@ export declare function Edu_QLD_Beginner(options?: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Edu_SA_Beginner(options?: {
-  weight?: '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3939,8 +4463,14 @@ export declare function Edu_SA_Beginner(options?: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Edu_TAS_Beginner(options?: {
-  weight?: '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3949,8 +4479,14 @@ export declare function Edu_TAS_Beginner(options?: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Edu_VIC_WA_NT_Beginner(options?: {
-  weight?: '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3959,8 +4495,14 @@ export declare function Edu_VIC_WA_NT_Beginner(options?: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function El_Messiri(options?: {
-  weight?: '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3969,8 +4511,8 @@ export declare function El_Messiri(options?: {
   subsets?: Array<'arabic' | 'cyrillic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Electrolize(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3979,8 +4521,8 @@ export declare function Electrolize(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Elsie(options: {
-  weight: '400' | '900'
-  style?: 'normal'
+  weight: '400' | '900' | Array<'400' | '900'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3989,8 +4531,8 @@ export declare function Elsie(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Elsie_Swash_Caps(options: {
-  weight: '400' | '900'
-  style?: 'normal'
+  weight: '400' | '900' | Array<'400' | '900'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -3999,8 +4541,8 @@ export declare function Elsie_Swash_Caps(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Emblema_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4009,8 +4551,8 @@ export declare function Emblema_One(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Emilys_Candy(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4030,7 +4572,10 @@ export declare function Encode_Sans(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4040,8 +4585,20 @@ export declare function Encode_Sans(options?: {
   axes?: 'wdth'[]
 }): FontModule
 export declare function Encode_Sans_Condensed(options: {
-  weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
-  style?: 'normal'
+  weight:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4050,8 +4607,20 @@ export declare function Encode_Sans_Condensed(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Encode_Sans_Expanded(options: {
-  weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
-  style?: 'normal'
+  weight:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4071,7 +4640,10 @@ export declare function Encode_Sans_SC(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4081,8 +4653,20 @@ export declare function Encode_Sans_SC(options?: {
   axes?: 'wdth'[]
 }): FontModule
 export declare function Encode_Sans_Semi_Condensed(options: {
-  weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
-  style?: 'normal'
+  weight:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4091,8 +4675,20 @@ export declare function Encode_Sans_Semi_Condensed(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Encode_Sans_Semi_Expanded(options: {
-  weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
-  style?: 'normal'
+  weight:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4101,8 +4697,8 @@ export declare function Encode_Sans_Semi_Expanded(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Engagement(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4111,8 +4707,8 @@ export declare function Engagement(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Englebert(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4121,8 +4717,8 @@ export declare function Englebert(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Enriqueta(options: {
-  weight: '400' | '500' | '600' | '700'
-  style?: 'normal'
+  weight: '400' | '500' | '600' | '700' | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4131,8 +4727,8 @@ export declare function Enriqueta(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Ephesis(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4152,7 +4748,10 @@ export declare function Epilogue(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal' | 'italic'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4161,8 +4760,8 @@ export declare function Epilogue(options?: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Erica_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4171,8 +4770,8 @@ export declare function Erica_One(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Esteban(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4181,8 +4780,8 @@ export declare function Esteban(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Estonia(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4191,8 +4790,8 @@ export declare function Estonia(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Euphoria_Script(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4201,8 +4800,8 @@ export declare function Euphoria_Script(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Ewert(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4222,7 +4821,10 @@ export declare function Exo(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal' | 'italic'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4242,7 +4844,10 @@ export declare function Exo_2(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal' | 'italic'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4253,8 +4858,14 @@ export declare function Exo_2(options?: {
   >
 }): FontModule
 export declare function Expletus_Sans(options?: {
-  weight?: '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal' | 'italic'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4263,8 +4874,8 @@ export declare function Expletus_Sans(options?: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Explora(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4273,8 +4884,15 @@ export declare function Explora(options: {
   subsets?: Array<'cherokee' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Fahkwang(options: {
-  weight: '200' | '300' | '400' | '500' | '600' | '700'
-  style?: 'normal' | 'italic'
+  weight:
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | Array<'200' | '300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4283,8 +4901,14 @@ export declare function Fahkwang(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): FontModule
 export declare function Familjen_Grotesk(options?: {
-  weight?: '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal' | 'italic'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4293,8 +4917,8 @@ export declare function Familjen_Grotesk(options?: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Fanwood_Text(options: {
-  weight: '400'
-  style?: 'normal' | 'italic'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4303,8 +4927,8 @@ export declare function Fanwood_Text(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Farro(options: {
-  weight: '300' | '400' | '500' | '700'
-  style?: 'normal'
+  weight: '300' | '400' | '500' | '700' | Array<'300' | '400' | '500' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4313,8 +4937,8 @@ export declare function Farro(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Farsan(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4323,8 +4947,8 @@ export declare function Farsan(options: {
   subsets?: Array<'gujarati' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Fascinate(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4333,8 +4957,8 @@ export declare function Fascinate(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Fascinate_Inline(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4343,8 +4967,8 @@ export declare function Fascinate_Inline(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Faster_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4353,8 +4977,8 @@ export declare function Faster_One(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Fasthand(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4363,8 +4987,8 @@ export declare function Fasthand(options: {
   subsets?: Array<'khmer' | 'latin'>
 }): FontModule
 export declare function Fauna_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4373,8 +4997,16 @@ export declare function Fauna_One(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Faustina(options?: {
-  weight?: '300' | '400' | '500' | '600' | '700' | '800' | 'variable'
-  style?: 'normal' | 'italic'
+  weight?:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | 'variable'
+    | Array<'300' | '400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4383,8 +5015,8 @@ export declare function Faustina(options?: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Federant(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4393,8 +5025,8 @@ export declare function Federant(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Federo(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4403,8 +5035,8 @@ export declare function Federo(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Felipa(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4413,8 +5045,8 @@ export declare function Felipa(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Fenix(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4423,8 +5055,8 @@ export declare function Fenix(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Festive(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4433,8 +5065,17 @@ export declare function Festive(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Figtree(options?: {
-  weight?: '300' | '400' | '500' | '600' | '700' | '800' | '900' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | 'variable'
+    | Array<'300' | '400' | '500' | '600' | '700' | '800' | '900'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4443,8 +5084,8 @@ export declare function Figtree(options?: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Finger_Paint(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4453,8 +5094,14 @@ export declare function Finger_Paint(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Finlandica(options?: {
-  weight?: '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal' | 'italic'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4463,8 +5110,15 @@ export declare function Finlandica(options?: {
   subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Fira_Code(options?: {
-  weight?: '300' | '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4475,8 +5129,8 @@ export declare function Fira_Code(options?: {
   >
 }): FontModule
 export declare function Fira_Mono(options: {
-  weight: '400' | '500' | '700'
-  style?: 'normal'
+  weight: '400' | '500' | '700' | Array<'400' | '500' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4487,8 +5141,20 @@ export declare function Fira_Mono(options: {
   >
 }): FontModule
 export declare function Fira_Sans(options: {
-  weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
-  style?: 'normal' | 'italic'
+  weight:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4505,8 +5171,20 @@ export declare function Fira_Sans(options: {
   >
 }): FontModule
 export declare function Fira_Sans_Condensed(options: {
-  weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
-  style?: 'normal' | 'italic'
+  weight:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4523,8 +5201,20 @@ export declare function Fira_Sans_Condensed(options: {
   >
 }): FontModule
 export declare function Fira_Sans_Extra_Condensed(options: {
-  weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
-  style?: 'normal' | 'italic'
+  weight:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4541,8 +5231,8 @@ export declare function Fira_Sans_Extra_Condensed(options: {
   >
 }): FontModule
 export declare function Fjalla_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4551,8 +5241,8 @@ export declare function Fjalla_One(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Fjord_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4561,8 +5251,8 @@ export declare function Fjord_One(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Flamenco(options: {
-  weight: '300' | '400'
-  style?: 'normal'
+  weight: '300' | '400' | Array<'300' | '400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4571,8 +5261,8 @@ export declare function Flamenco(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Flavors(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4581,8 +5271,8 @@ export declare function Flavors(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Fleur_De_Leah(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4591,8 +5281,8 @@ export declare function Fleur_De_Leah(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Flow_Block(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4603,8 +5293,8 @@ export declare function Flow_Block(options: {
   >
 }): FontModule
 export declare function Flow_Circular(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4615,8 +5305,8 @@ export declare function Flow_Circular(options: {
   >
 }): FontModule
 export declare function Flow_Rounded(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4627,8 +5317,8 @@ export declare function Flow_Rounded(options: {
   >
 }): FontModule
 export declare function Fondamento(options: {
-  weight: '400'
-  style?: 'normal' | 'italic'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4637,8 +5327,8 @@ export declare function Fondamento(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Fontdiner_Swanky(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4647,8 +5337,8 @@ export declare function Fontdiner_Swanky(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Forum(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4657,8 +5347,8 @@ export declare function Forum(options: {
   subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Francois_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4667,8 +5357,14 @@ export declare function Francois_One(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Frank_Ruhl_Libre(options: {
-  weight: '300' | '400' | '500' | '700' | '900'
-  style?: 'normal'
+  weight:
+    | '300'
+    | '400'
+    | '500'
+    | '700'
+    | '900'
+    | Array<'300' | '400' | '500' | '700' | '900'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4688,7 +5384,10 @@ export declare function Fraunces(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal' | 'italic'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4698,8 +5397,8 @@ export declare function Fraunces(options?: {
   axes?: ('SOFT' | 'WONK' | 'opsz')[]
 }): FontModule
 export declare function Freckle_Face(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4708,8 +5407,8 @@ export declare function Freckle_Face(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Fredericka_the_Great(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4718,8 +5417,15 @@ export declare function Fredericka_the_Great(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Fredoka(options?: {
-  weight?: '300' | '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4729,8 +5435,8 @@ export declare function Fredoka(options?: {
   axes?: 'wdth'[]
 }): FontModule
 export declare function Fredoka_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4739,8 +5445,8 @@ export declare function Fredoka_One(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Freehand(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4749,8 +5455,8 @@ export declare function Freehand(options: {
   subsets?: Array<'khmer' | 'latin'>
 }): FontModule
 export declare function Fresca(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4759,8 +5465,8 @@ export declare function Fresca(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Frijole(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4769,8 +5475,8 @@ export declare function Frijole(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Fruktur(options: {
-  weight: '400'
-  style?: 'normal' | 'italic'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4779,8 +5485,8 @@ export declare function Fruktur(options: {
   subsets?: Array<'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Fugaz_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4789,8 +5495,8 @@ export declare function Fugaz_One(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Fuggles(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4799,8 +5505,8 @@ export declare function Fuggles(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Fuzzy_Bubbles(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4809,8 +5515,8 @@ export declare function Fuzzy_Bubbles(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function GFS_Didot(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4819,8 +5525,8 @@ export declare function GFS_Didot(options: {
   subsets?: Array<'greek'>
 }): FontModule
 export declare function GFS_Neohellenic(options: {
-  weight: '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4829,8 +5535,8 @@ export declare function GFS_Neohellenic(options: {
   subsets?: Array<'greek'>
 }): FontModule
 export declare function Gabriela(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4839,8 +5545,8 @@ export declare function Gabriela(options: {
   subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin'>
 }): FontModule
 export declare function Gaegu(options: {
-  weight: '300' | '400' | '700'
-  style?: 'normal'
+  weight: '300' | '400' | '700' | Array<'300' | '400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4849,8 +5555,8 @@ export declare function Gaegu(options: {
   subsets?: Array<'korean' | 'latin'>
 }): FontModule
 export declare function Gafata(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4859,8 +5565,8 @@ export declare function Gafata(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Galada(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4869,8 +5575,8 @@ export declare function Galada(options: {
   subsets?: Array<'bengali' | 'latin'>
 }): FontModule
 export declare function Galdeano(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4879,8 +5585,8 @@ export declare function Galdeano(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Galindo(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4889,8 +5595,8 @@ export declare function Galindo(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Gamja_Flower(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4910,7 +5616,10 @@ export declare function Gantari(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal' | 'italic'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4919,8 +5628,8 @@ export declare function Gantari(options?: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Gayathri(options: {
-  weight: '100' | '400' | '700'
-  style?: 'normal'
+  weight: '100' | '400' | '700' | Array<'100' | '400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4929,8 +5638,8 @@ export declare function Gayathri(options: {
   subsets?: Array<'latin' | 'malayalam'>
 }): FontModule
 export declare function Gelasio(options: {
-  weight: '400' | '500' | '600' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '500' | '600' | '700' | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4939,8 +5648,17 @@ export declare function Gelasio(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Gemunu_Libre(options?: {
-  weight?: '200' | '300' | '400' | '500' | '600' | '700' | '800' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | 'variable'
+    | Array<'200' | '300' | '400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4960,7 +5678,10 @@ export declare function Genos(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal' | 'italic'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4969,8 +5690,8 @@ export declare function Genos(options?: {
   subsets?: Array<'cherokee' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Gentium_Book_Basic(options: {
-  weight: '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4979,8 +5700,8 @@ export declare function Gentium_Book_Basic(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Gentium_Book_Plus(options: {
-  weight: '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -4997,8 +5718,8 @@ export declare function Gentium_Book_Plus(options: {
   >
 }): FontModule
 export declare function Gentium_Plus(options: {
-  weight: '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5015,8 +5736,8 @@ export declare function Gentium_Plus(options: {
   >
 }): FontModule
 export declare function Geo(options: {
-  weight: '400'
-  style?: 'normal' | 'italic'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5036,7 +5757,10 @@ export declare function Georama(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal' | 'italic'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5046,8 +5770,8 @@ export declare function Georama(options?: {
   axes?: 'wdth'[]
 }): FontModule
 export declare function Geostar(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5056,8 +5780,8 @@ export declare function Geostar(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Geostar_Fill(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5066,8 +5790,8 @@ export declare function Geostar_Fill(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Germania_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5076,8 +5800,8 @@ export declare function Germania_One(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Gideon_Roman(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5086,8 +5810,8 @@ export declare function Gideon_Roman(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Gidugu(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5096,8 +5820,8 @@ export declare function Gidugu(options: {
   subsets?: Array<'latin' | 'telugu'>
 }): FontModule
 export declare function Gilda_Display(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5106,8 +5830,8 @@ export declare function Gilda_Display(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Girassol(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5116,8 +5840,8 @@ export declare function Girassol(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Give_You_Glory(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5126,8 +5850,8 @@ export declare function Give_You_Glory(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Glass_Antiqua(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5136,8 +5860,8 @@ export declare function Glass_Antiqua(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Glegoo(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5146,8 +5870,8 @@ export declare function Glegoo(options: {
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Gloria_Hallelujah(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5166,7 +5890,8 @@ export declare function Glory(options?: {
     | '700'
     | '800'
     | 'variable'
-  style?: 'normal' | 'italic'
+    | Array<'100' | '200' | '300' | '400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5186,7 +5911,10 @@ export declare function Gluten(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5196,8 +5924,8 @@ export declare function Gluten(options?: {
   axes?: 'slnt'[]
 }): FontModule
 export declare function Goblin_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5206,8 +5934,8 @@ export declare function Goblin_One(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Gochi_Hand(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5216,8 +5944,8 @@ export declare function Gochi_Hand(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Goldman(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5226,8 +5954,8 @@ export declare function Goldman(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Gorditas(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5236,8 +5964,20 @@ export declare function Gorditas(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Gothic_A1(options: {
-  weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
-  style?: 'normal'
+  weight:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5246,8 +5986,8 @@ export declare function Gothic_A1(options: {
   subsets?: Array<'korean' | 'latin'>
 }): FontModule
 export declare function Gotu(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5256,8 +5996,8 @@ export declare function Gotu(options: {
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Goudy_Bookletter_1911(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5266,8 +6006,8 @@ export declare function Goudy_Bookletter_1911(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Gowun_Batang(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5276,8 +6016,8 @@ export declare function Gowun_Batang(options: {
   subsets?: Array<'korean' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Gowun_Dodum(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5286,8 +6026,8 @@ export declare function Gowun_Dodum(options: {
   subsets?: Array<'korean' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Graduate(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5296,8 +6036,8 @@ export declare function Graduate(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Grand_Hotel(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5317,7 +6057,10 @@ export declare function Grandstander(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal' | 'italic'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5326,8 +6069,8 @@ export declare function Grandstander(options?: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Grape_Nuts(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5336,8 +6079,8 @@ export declare function Grape_Nuts(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Gravitas_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5346,8 +6089,8 @@ export declare function Gravitas_One(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Great_Vibes(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5356,8 +6099,8 @@ export declare function Great_Vibes(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Grechen_Fuemen(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5366,8 +6109,20 @@ export declare function Grechen_Fuemen(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Grenze(options: {
-  weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
-  style?: 'normal' | 'italic'
+  weight:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5387,7 +6142,10 @@ export declare function Grenze_Gotisch(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5396,8 +6154,8 @@ export declare function Grenze_Gotisch(options?: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Grey_Qo(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5406,8 +6164,8 @@ export declare function Grey_Qo(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Griffy(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5416,8 +6174,8 @@ export declare function Griffy(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Gruppo(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5426,8 +6184,8 @@ export declare function Gruppo(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Gudea(options: {
-  weight: '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5436,8 +6194,8 @@ export declare function Gudea(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Gugi(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5446,8 +6204,8 @@ export declare function Gugi(options: {
   subsets?: Array<'korean' | 'latin'>
 }): FontModule
 export declare function Gulzar(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5456,8 +6214,8 @@ export declare function Gulzar(options: {
   subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Gupter(options: {
-  weight: '400' | '500' | '700'
-  style?: 'normal'
+  weight: '400' | '500' | '700' | Array<'400' | '500' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5466,8 +6224,8 @@ export declare function Gupter(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Gurajada(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5476,8 +6234,8 @@ export declare function Gurajada(options: {
   subsets?: Array<'latin' | 'telugu'>
 }): FontModule
 export declare function Gwendolyn(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5486,8 +6244,8 @@ export declare function Gwendolyn(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Habibi(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5496,8 +6254,8 @@ export declare function Habibi(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Hachi_Maru_Pop(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5517,7 +6275,10 @@ export declare function Hahmlet(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5526,8 +6287,14 @@ export declare function Hahmlet(options?: {
   subsets?: Array<'korean' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Halant(options: {
-  weight: '300' | '400' | '500' | '600' | '700'
-  style?: 'normal'
+  weight:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | Array<'300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5536,8 +6303,8 @@ export declare function Halant(options: {
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Hammersmith_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5546,8 +6313,8 @@ export declare function Hammersmith_One(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Hanalei(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5556,8 +6323,8 @@ export declare function Hanalei(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Hanalei_Fill(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5566,8 +6333,8 @@ export declare function Hanalei_Fill(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Handlee(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5576,8 +6343,14 @@ export declare function Handlee(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Hanuman(options: {
-  weight: '100' | '300' | '400' | '700' | '900'
-  style?: 'normal'
+  weight:
+    | '100'
+    | '300'
+    | '400'
+    | '700'
+    | '900'
+    | Array<'100' | '300' | '400' | '700' | '900'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5586,8 +6359,8 @@ export declare function Hanuman(options: {
   subsets?: Array<'khmer' | 'latin'>
 }): FontModule
 export declare function Happy_Monkey(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5596,8 +6369,8 @@ export declare function Happy_Monkey(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Harmattan(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5606,8 +6379,8 @@ export declare function Harmattan(options: {
   subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Headland_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5627,7 +6400,10 @@ export declare function Heebo(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5636,8 +6412,8 @@ export declare function Heebo(options?: {
   subsets?: Array<'hebrew' | 'latin'>
 }): FontModule
 export declare function Henny_Penny(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5658,7 +6434,19 @@ export declare function Hepta_Slab(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        | '1'
+        | '100'
+        | '200'
+        | '300'
+        | '400'
+        | '500'
+        | '600'
+        | '700'
+        | '800'
+        | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5667,8 +6455,8 @@ export declare function Hepta_Slab(options?: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Herr_Von_Muellerhoff(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5677,8 +6465,8 @@ export declare function Herr_Von_Muellerhoff(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Hi_Melody(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5687,8 +6475,8 @@ export declare function Hi_Melody(options: {
   subsets?: Array<'korean' | 'latin'>
 }): FontModule
 export declare function Hina_Mincho(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5699,8 +6487,14 @@ export declare function Hina_Mincho(options: {
   >
 }): FontModule
 export declare function Hind(options: {
-  weight: '300' | '400' | '500' | '600' | '700'
-  style?: 'normal'
+  weight:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | Array<'300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5709,8 +6503,14 @@ export declare function Hind(options: {
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Hind_Guntur(options: {
-  weight: '300' | '400' | '500' | '600' | '700'
-  style?: 'normal'
+  weight:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | Array<'300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5719,8 +6519,14 @@ export declare function Hind_Guntur(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'telugu'>
 }): FontModule
 export declare function Hind_Madurai(options: {
-  weight: '300' | '400' | '500' | '600' | '700'
-  style?: 'normal'
+  weight:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | Array<'300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5729,8 +6535,14 @@ export declare function Hind_Madurai(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'tamil'>
 }): FontModule
 export declare function Hind_Siliguri(options: {
-  weight: '300' | '400' | '500' | '600' | '700'
-  style?: 'normal'
+  weight:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | Array<'300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5739,8 +6551,14 @@ export declare function Hind_Siliguri(options: {
   subsets?: Array<'bengali' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Hind_Vadodara(options: {
-  weight: '300' | '400' | '500' | '600' | '700'
-  style?: 'normal'
+  weight:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | Array<'300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5749,8 +6567,8 @@ export declare function Hind_Vadodara(options: {
   subsets?: Array<'gujarati' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Holtwood_One_SC(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5759,8 +6577,8 @@ export declare function Holtwood_One_SC(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Homemade_Apple(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5769,8 +6587,8 @@ export declare function Homemade_Apple(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Homenaje(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5779,8 +6597,8 @@ export declare function Homenaje(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Hubballi(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5789,8 +6607,8 @@ export declare function Hubballi(options: {
   subsets?: Array<'kannada' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Hurricane(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5799,8 +6617,16 @@ export declare function Hurricane(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function IBM_Plex_Mono(options: {
-  weight: '100' | '200' | '300' | '400' | '500' | '600' | '700'
-  style?: 'normal' | 'italic'
+  weight:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | Array<'100' | '200' | '300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5811,8 +6637,16 @@ export declare function IBM_Plex_Mono(options: {
   >
 }): FontModule
 export declare function IBM_Plex_Sans(options: {
-  weight: '100' | '200' | '300' | '400' | '500' | '600' | '700'
-  style?: 'normal' | 'italic'
+  weight:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | Array<'100' | '200' | '300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5823,8 +6657,16 @@ export declare function IBM_Plex_Sans(options: {
   >
 }): FontModule
 export declare function IBM_Plex_Sans_Arabic(options: {
-  weight: '100' | '200' | '300' | '400' | '500' | '600' | '700'
-  style?: 'normal'
+  weight:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | Array<'100' | '200' | '300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5833,8 +6675,16 @@ export declare function IBM_Plex_Sans_Arabic(options: {
   subsets?: Array<'arabic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function IBM_Plex_Sans_Condensed(options: {
-  weight: '100' | '200' | '300' | '400' | '500' | '600' | '700'
-  style?: 'normal' | 'italic'
+  weight:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | Array<'100' | '200' | '300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5843,8 +6693,16 @@ export declare function IBM_Plex_Sans_Condensed(options: {
   subsets?: Array<'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function IBM_Plex_Sans_Devanagari(options: {
-  weight: '100' | '200' | '300' | '400' | '500' | '600' | '700'
-  style?: 'normal'
+  weight:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | Array<'100' | '200' | '300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5853,8 +6711,16 @@ export declare function IBM_Plex_Sans_Devanagari(options: {
   subsets?: Array<'cyrillic-ext' | 'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function IBM_Plex_Sans_Hebrew(options: {
-  weight: '100' | '200' | '300' | '400' | '500' | '600' | '700'
-  style?: 'normal'
+  weight:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | Array<'100' | '200' | '300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5863,8 +6729,16 @@ export declare function IBM_Plex_Sans_Hebrew(options: {
   subsets?: Array<'cyrillic-ext' | 'hebrew' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function IBM_Plex_Sans_KR(options: {
-  weight: '100' | '200' | '300' | '400' | '500' | '600' | '700'
-  style?: 'normal'
+  weight:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | Array<'100' | '200' | '300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5873,8 +6747,16 @@ export declare function IBM_Plex_Sans_KR(options: {
   subsets?: Array<'korean' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function IBM_Plex_Sans_Thai(options: {
-  weight: '100' | '200' | '300' | '400' | '500' | '600' | '700'
-  style?: 'normal'
+  weight:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | Array<'100' | '200' | '300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5883,8 +6765,16 @@ export declare function IBM_Plex_Sans_Thai(options: {
   subsets?: Array<'cyrillic-ext' | 'latin' | 'latin-ext' | 'thai'>
 }): FontModule
 export declare function IBM_Plex_Sans_Thai_Looped(options: {
-  weight: '100' | '200' | '300' | '400' | '500' | '600' | '700'
-  style?: 'normal'
+  weight:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | Array<'100' | '200' | '300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5893,8 +6783,16 @@ export declare function IBM_Plex_Sans_Thai_Looped(options: {
   subsets?: Array<'cyrillic-ext' | 'latin' | 'latin-ext' | 'thai'>
 }): FontModule
 export declare function IBM_Plex_Serif(options: {
-  weight: '100' | '200' | '300' | '400' | '500' | '600' | '700'
-  style?: 'normal' | 'italic'
+  weight:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | Array<'100' | '200' | '300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5905,8 +6803,8 @@ export declare function IBM_Plex_Serif(options: {
   >
 }): FontModule
 export declare function IM_Fell_DW_Pica(options: {
-  weight: '400'
-  style?: 'normal' | 'italic'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5915,8 +6813,8 @@ export declare function IM_Fell_DW_Pica(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function IM_Fell_DW_Pica_SC(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5925,8 +6823,8 @@ export declare function IM_Fell_DW_Pica_SC(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function IM_Fell_Double_Pica(options: {
-  weight: '400'
-  style?: 'normal' | 'italic'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5935,8 +6833,8 @@ export declare function IM_Fell_Double_Pica(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function IM_Fell_Double_Pica_SC(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5945,8 +6843,8 @@ export declare function IM_Fell_Double_Pica_SC(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function IM_Fell_English(options: {
-  weight: '400'
-  style?: 'normal' | 'italic'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5955,8 +6853,8 @@ export declare function IM_Fell_English(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function IM_Fell_English_SC(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5965,8 +6863,8 @@ export declare function IM_Fell_English_SC(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function IM_Fell_French_Canon(options: {
-  weight: '400'
-  style?: 'normal' | 'italic'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5975,8 +6873,8 @@ export declare function IM_Fell_French_Canon(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function IM_Fell_French_Canon_SC(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5985,8 +6883,8 @@ export declare function IM_Fell_French_Canon_SC(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function IM_Fell_Great_Primer(options: {
-  weight: '400'
-  style?: 'normal' | 'italic'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -5995,8 +6893,8 @@ export declare function IM_Fell_Great_Primer(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function IM_Fell_Great_Primer_SC(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6005,8 +6903,14 @@ export declare function IM_Fell_Great_Primer_SC(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Ibarra_Real_Nova(options?: {
-  weight?: '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal' | 'italic'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6015,8 +6919,8 @@ export declare function Ibarra_Real_Nova(options?: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Iceberg(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6025,8 +6929,8 @@ export declare function Iceberg(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Iceland(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6046,7 +6950,10 @@ export declare function Imbue(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6056,8 +6963,8 @@ export declare function Imbue(options?: {
   axes?: 'opsz'[]
 }): FontModule
 export declare function Imperial_Script(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6066,8 +6973,8 @@ export declare function Imperial_Script(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Imprima(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6086,7 +6993,8 @@ export declare function Inconsolata(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<'200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6096,8 +7004,8 @@ export declare function Inconsolata(options?: {
   axes?: 'wdth'[]
 }): FontModule
 export declare function Inder(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6106,8 +7014,8 @@ export declare function Inder(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Indie_Flower(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6116,8 +7024,8 @@ export declare function Indie_Flower(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Ingrid_Darling(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6126,8 +7034,8 @@ export declare function Ingrid_Darling(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Inika(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6136,8 +7044,16 @@ export declare function Inika(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Inknut_Antiqua(options: {
-  weight: '300' | '400' | '500' | '600' | '700' | '800' | '900'
-  style?: 'normal'
+  weight:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | Array<'300' | '400' | '500' | '600' | '700' | '800' | '900'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6146,8 +7062,8 @@ export declare function Inknut_Antiqua(options: {
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Inria_Sans(options: {
-  weight: '300' | '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '300' | '400' | '700' | Array<'300' | '400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6156,8 +7072,8 @@ export declare function Inria_Sans(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Inria_Serif(options: {
-  weight: '300' | '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '300' | '400' | '700' | Array<'300' | '400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6166,8 +7082,8 @@ export declare function Inria_Serif(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Inspiration(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6187,7 +7103,10 @@ export declare function Inter(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6216,7 +7135,10 @@ export declare function Inter_Tight(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal' | 'italic'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6233,8 +7155,8 @@ export declare function Inter_Tight(options?: {
   >
 }): FontModule
 export declare function Irish_Grover(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6243,8 +7165,8 @@ export declare function Irish_Grover(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Island_Moments(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6253,8 +7175,8 @@ export declare function Island_Moments(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Istok_Web(options: {
-  weight: '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6263,8 +7185,8 @@ export declare function Istok_Web(options: {
   subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Italiana(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6273,8 +7195,8 @@ export declare function Italiana(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Italianno(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6283,8 +7205,8 @@ export declare function Italianno(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Itim(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6293,8 +7215,8 @@ export declare function Itim(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): FontModule
 export declare function Jacques_Francois(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6303,8 +7225,8 @@ export declare function Jacques_Francois(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Jacques_Francois_Shadow(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6313,8 +7235,8 @@ export declare function Jacques_Francois_Shadow(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Jaldi(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6333,7 +7255,8 @@ export declare function JetBrains_Mono(options?: {
     | '700'
     | '800'
     | 'variable'
-  style?: 'normal' | 'italic'
+    | Array<'100' | '200' | '300' | '400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6344,8 +7267,8 @@ export declare function JetBrains_Mono(options?: {
   >
 }): FontModule
 export declare function Jim_Nightshade(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6354,8 +7277,8 @@ export declare function Jim_Nightshade(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Joan(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6364,8 +7287,8 @@ export declare function Joan(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Jockey_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6374,8 +7297,8 @@ export declare function Jockey_One(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Jolly_Lodger(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6384,8 +7307,8 @@ export declare function Jolly_Lodger(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Jomhuria(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6394,8 +7317,8 @@ export declare function Jomhuria(options: {
   subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Jomolhari(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6404,8 +7327,17 @@ export declare function Jomolhari(options: {
   subsets?: Array<'latin' | 'tibetan'>
 }): FontModule
 export declare function Josefin_Sans(options?: {
-  weight?: '100' | '200' | '300' | '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal' | 'italic'
+  weight?:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'100' | '200' | '300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6414,8 +7346,17 @@ export declare function Josefin_Sans(options?: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Josefin_Slab(options?: {
-  weight?: '100' | '200' | '300' | '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal' | 'italic'
+  weight?:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'100' | '200' | '300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6435,7 +7376,10 @@ export declare function Jost(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal' | 'italic'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6444,8 +7388,8 @@ export declare function Jost(options?: {
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Joti_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6454,8 +7398,8 @@ export declare function Joti_One(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Jua(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6464,8 +7408,8 @@ export declare function Jua(options: {
   subsets?: Array<'korean' | 'latin'>
 }): FontModule
 export declare function Judson(options: {
-  weight: '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6474,8 +7418,8 @@ export declare function Judson(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Julee(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6484,8 +7428,8 @@ export declare function Julee(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Julius_Sans_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6494,8 +7438,8 @@ export declare function Julius_Sans_One(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Junge(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6504,8 +7448,15 @@ export declare function Junge(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Jura(options?: {
-  weight?: '300' | '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6523,8 +7474,8 @@ export declare function Jura(options?: {
   >
 }): FontModule
 export declare function Just_Another_Hand(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6533,8 +7484,8 @@ export declare function Just_Another_Hand(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Just_Me_Again_Down_Here(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6543,8 +7494,17 @@ export declare function Just_Me_Again_Down_Here(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function K2D(options: {
-  weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800'
-  style?: 'normal' | 'italic'
+  weight:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | Array<'100' | '200' | '300' | '400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6553,8 +7513,8 @@ export declare function K2D(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): FontModule
 export declare function Kadwa(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6563,8 +7523,8 @@ export declare function Kadwa(options: {
   subsets?: Array<'devanagari' | 'latin'>
 }): FontModule
 export declare function Kaisei_Decol(options: {
-  weight: '400' | '500' | '700'
-  style?: 'normal'
+  weight: '400' | '500' | '700' | Array<'400' | '500' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6573,8 +7533,8 @@ export declare function Kaisei_Decol(options: {
   subsets?: Array<'cyrillic' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Kaisei_HarunoUmi(options: {
-  weight: '400' | '500' | '700'
-  style?: 'normal'
+  weight: '400' | '500' | '700' | Array<'400' | '500' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6583,8 +7543,8 @@ export declare function Kaisei_HarunoUmi(options: {
   subsets?: Array<'cyrillic' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Kaisei_Opti(options: {
-  weight: '400' | '500' | '700'
-  style?: 'normal'
+  weight: '400' | '500' | '700' | Array<'400' | '500' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6593,8 +7553,8 @@ export declare function Kaisei_Opti(options: {
   subsets?: Array<'cyrillic' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Kaisei_Tokumin(options: {
-  weight: '400' | '500' | '700' | '800'
-  style?: 'normal'
+  weight: '400' | '500' | '700' | '800' | Array<'400' | '500' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6603,8 +7563,8 @@ export declare function Kaisei_Tokumin(options: {
   subsets?: Array<'cyrillic' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Kalam(options: {
-  weight: '300' | '400' | '700'
-  style?: 'normal'
+  weight: '300' | '400' | '700' | Array<'300' | '400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6613,8 +7573,8 @@ export declare function Kalam(options: {
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Kameron(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6623,8 +7583,20 @@ export declare function Kameron(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Kanit(options: {
-  weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
-  style?: 'normal' | 'italic'
+  weight:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6633,8 +7605,8 @@ export declare function Kanit(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): FontModule
 export declare function Kantumruy(options: {
-  weight: '300' | '400' | '700'
-  style?: 'normal'
+  weight: '300' | '400' | '700' | Array<'300' | '400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6643,8 +7615,17 @@ export declare function Kantumruy(options: {
   subsets?: Array<'khmer'>
 }): FontModule
 export declare function Kantumruy_Pro(options?: {
-  weight?: '100' | '200' | '300' | '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal' | 'italic'
+  weight?:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'100' | '200' | '300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6653,8 +7634,8 @@ export declare function Kantumruy_Pro(options?: {
   subsets?: Array<'khmer' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Karantina(options: {
-  weight: '300' | '400' | '700'
-  style?: 'normal'
+  weight: '300' | '400' | '700' | Array<'300' | '400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6663,8 +7644,17 @@ export declare function Karantina(options: {
   subsets?: Array<'hebrew' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Karla(options?: {
-  weight?: '200' | '300' | '400' | '500' | '600' | '700' | '800' | 'variable'
-  style?: 'normal' | 'italic'
+  weight?:
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | 'variable'
+    | Array<'200' | '300' | '400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6673,8 +7663,14 @@ export declare function Karla(options?: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Karma(options: {
-  weight: '300' | '400' | '500' | '600' | '700'
-  style?: 'normal'
+  weight:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | Array<'300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6683,8 +7679,8 @@ export declare function Karma(options: {
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Katibeh(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6693,8 +7689,8 @@ export declare function Katibeh(options: {
   subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Kaushan_Script(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6703,8 +7699,8 @@ export declare function Kaushan_Script(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Kavivanar(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6713,8 +7709,8 @@ export declare function Kavivanar(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'tamil'>
 }): FontModule
 export declare function Kavoon(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6723,8 +7719,8 @@ export declare function Kavoon(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Kdam_Thmor_Pro(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6733,8 +7729,8 @@ export declare function Kdam_Thmor_Pro(options: {
   subsets?: Array<'khmer' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Keania_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6743,8 +7739,8 @@ export declare function Keania_One(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Kelly_Slab(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6753,8 +7749,8 @@ export declare function Kelly_Slab(options: {
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Kenia(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6763,8 +7759,14 @@ export declare function Kenia(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Khand(options: {
-  weight: '300' | '400' | '500' | '600' | '700'
-  style?: 'normal'
+  weight:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | Array<'300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6773,8 +7775,8 @@ export declare function Khand(options: {
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Khmer(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6783,8 +7785,14 @@ export declare function Khmer(options: {
   subsets?: Array<'khmer'>
 }): FontModule
 export declare function Khula(options: {
-  weight: '300' | '400' | '600' | '700' | '800'
-  style?: 'normal'
+  weight:
+    | '300'
+    | '400'
+    | '600'
+    | '700'
+    | '800'
+    | Array<'300' | '400' | '600' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6793,8 +7801,8 @@ export declare function Khula(options: {
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Kings(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6803,8 +7811,8 @@ export declare function Kings(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Kirang_Haerang(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6813,8 +7821,8 @@ export declare function Kirang_Haerang(options: {
   subsets?: Array<'korean' | 'latin'>
 }): FontModule
 export declare function Kite_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6823,8 +7831,8 @@ export declare function Kite_One(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Kiwi_Maru(options: {
-  weight: '300' | '400' | '500'
-  style?: 'normal'
+  weight: '300' | '400' | '500' | Array<'300' | '400' | '500'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6833,8 +7841,8 @@ export declare function Kiwi_Maru(options: {
   subsets?: Array<'cyrillic' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Klee_One(options: {
-  weight: '400' | '600'
-  style?: 'normal'
+  weight: '400' | '600' | Array<'400' | '600'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6843,8 +7851,8 @@ export declare function Klee_One(options: {
   subsets?: Array<'cyrillic' | 'greek-ext' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Knewave(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6853,8 +7861,15 @@ export declare function Knewave(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function KoHo(options: {
-  weight: '200' | '300' | '400' | '500' | '600' | '700'
-  style?: 'normal' | 'italic'
+  weight:
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | Array<'200' | '300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6863,8 +7878,15 @@ export declare function KoHo(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): FontModule
 export declare function Kodchasan(options: {
-  weight: '200' | '300' | '400' | '500' | '600' | '700'
-  style?: 'normal' | 'italic'
+  weight:
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | Array<'200' | '300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6873,8 +7895,14 @@ export declare function Kodchasan(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): FontModule
 export declare function Koh_Santepheap(options: {
-  weight: '100' | '300' | '400' | '700' | '900'
-  style?: 'normal'
+  weight:
+    | '100'
+    | '300'
+    | '400'
+    | '700'
+    | '900'
+    | Array<'100' | '300' | '400' | '700' | '900'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6883,8 +7911,8 @@ export declare function Koh_Santepheap(options: {
   subsets?: Array<'khmer' | 'latin'>
 }): FontModule
 export declare function Kolker_Brush(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6893,8 +7921,8 @@ export declare function Kolker_Brush(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Kosugi(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6903,8 +7931,8 @@ export declare function Kosugi(options: {
   subsets?: Array<'cyrillic' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Kosugi_Maru(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6913,8 +7941,8 @@ export declare function Kosugi_Maru(options: {
   subsets?: Array<'cyrillic' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Kotta_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6923,8 +7951,8 @@ export declare function Kotta_One(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Koulen(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6933,8 +7961,8 @@ export declare function Koulen(options: {
   subsets?: Array<'khmer' | 'latin'>
 }): FontModule
 export declare function Kranky(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6943,8 +7971,15 @@ export declare function Kranky(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Kreon(options?: {
-  weight?: '300' | '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6953,8 +7988,8 @@ export declare function Kreon(options?: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Kristi(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6963,8 +7998,8 @@ export declare function Kristi(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Krona_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6973,8 +8008,15 @@ export declare function Krona_One(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Krub(options: {
-  weight: '200' | '300' | '400' | '500' | '600' | '700'
-  style?: 'normal' | 'italic'
+  weight:
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | Array<'200' | '300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6983,8 +8025,16 @@ export declare function Krub(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): FontModule
 export declare function Kufam(options?: {
-  weight?: '400' | '500' | '600' | '700' | '800' | '900' | 'variable'
-  style?: 'normal' | 'italic'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700' | '800' | '900'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -6993,8 +8043,14 @@ export declare function Kufam(options?: {
   subsets?: Array<'arabic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Kulim_Park(options: {
-  weight: '200' | '300' | '400' | '600' | '700'
-  style?: 'normal' | 'italic'
+  weight:
+    | '200'
+    | '300'
+    | '400'
+    | '600'
+    | '700'
+    | Array<'200' | '300' | '400' | '600' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7003,8 +8059,8 @@ export declare function Kulim_Park(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Kumar_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7013,8 +8069,8 @@ export declare function Kumar_One(options: {
   subsets?: Array<'gujarati' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Kumar_One_Outline(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7034,7 +8090,10 @@ export declare function Kumbh_Sans(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7043,8 +8102,8 @@ export declare function Kumbh_Sans(options?: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Kurale(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7055,8 +8114,8 @@ export declare function Kurale(options: {
   >
 }): FontModule
 export declare function La_Belle_Aurore(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7065,8 +8124,8 @@ export declare function La_Belle_Aurore(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Lacquer(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7075,8 +8134,14 @@ export declare function Lacquer(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Laila(options: {
-  weight: '300' | '400' | '500' | '600' | '700'
-  style?: 'normal'
+  weight:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | Array<'300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7085,8 +8150,8 @@ export declare function Laila(options: {
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Lakki_Reddy(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7095,8 +8160,8 @@ export declare function Lakki_Reddy(options: {
   subsets?: Array<'latin' | 'telugu'>
 }): FontModule
 export declare function Lalezar(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7105,8 +8170,8 @@ export declare function Lalezar(options: {
   subsets?: Array<'arabic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Lancelot(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7115,8 +8180,8 @@ export declare function Lancelot(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Langar(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7125,8 +8190,16 @@ export declare function Langar(options: {
   subsets?: Array<'gurmukhi' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Lateef(options: {
-  weight: '200' | '300' | '400' | '500' | '600' | '700' | '800'
-  style?: 'normal'
+  weight:
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | Array<'200' | '300' | '400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7135,8 +8208,14 @@ export declare function Lateef(options: {
   subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Lato(options: {
-  weight: '100' | '300' | '400' | '700' | '900'
-  style?: 'normal' | 'italic'
+  weight:
+    | '100'
+    | '300'
+    | '400'
+    | '700'
+    | '900'
+    | Array<'100' | '300' | '400' | '700' | '900'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7145,8 +8224,8 @@ export declare function Lato(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Lavishly_Yours(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7155,8 +8234,8 @@ export declare function Lavishly_Yours(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function League_Gothic(options?: {
-  weight?: '400' | 'variable'
-  style?: 'normal'
+  weight?: '400' | 'variable' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7166,8 +8245,8 @@ export declare function League_Gothic(options?: {
   axes?: 'wdth'[]
 }): FontModule
 export declare function League_Script(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7187,7 +8266,10 @@ export declare function League_Spartan(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7196,8 +8278,8 @@ export declare function League_Spartan(options?: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Leckerli_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7206,8 +8288,8 @@ export declare function Leckerli_One(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Ledger(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7216,8 +8298,8 @@ export declare function Ledger(options: {
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Lekton(options: {
-  weight: '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7226,8 +8308,8 @@ export declare function Lekton(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Lemon(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7236,8 +8318,15 @@ export declare function Lemon(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Lemonada(options?: {
-  weight?: '300' | '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7257,7 +8346,10 @@ export declare function Lexend(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7277,7 +8369,10 @@ export declare function Lexend_Deca(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7297,7 +8392,10 @@ export declare function Lexend_Exa(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7317,7 +8415,10 @@ export declare function Lexend_Giga(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7337,7 +8438,10 @@ export declare function Lexend_Mega(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7357,7 +8461,10 @@ export declare function Lexend_Peta(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7377,7 +8484,10 @@ export declare function Lexend_Tera(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7397,7 +8507,10 @@ export declare function Lexend_Zetta(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7406,8 +8519,8 @@ export declare function Lexend_Zetta(options?: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Libre_Barcode_128(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7416,8 +8529,8 @@ export declare function Libre_Barcode_128(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Libre_Barcode_128_Text(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7426,8 +8539,8 @@ export declare function Libre_Barcode_128_Text(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Libre_Barcode_39(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7436,8 +8549,8 @@ export declare function Libre_Barcode_39(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Libre_Barcode_39_Extended(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7446,8 +8559,8 @@ export declare function Libre_Barcode_39_Extended(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Libre_Barcode_39_Extended_Text(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7456,8 +8569,8 @@ export declare function Libre_Barcode_39_Extended_Text(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Libre_Barcode_39_Text(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7466,8 +8579,8 @@ export declare function Libre_Barcode_39_Text(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Libre_Barcode_EAN13_Text(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7476,8 +8589,8 @@ export declare function Libre_Barcode_EAN13_Text(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Libre_Baskerville(options: {
-  weight: '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7486,8 +8599,14 @@ export declare function Libre_Baskerville(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Libre_Bodoni(options?: {
-  weight?: '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal' | 'italic'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7496,8 +8615,8 @@ export declare function Libre_Bodoni(options?: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Libre_Caslon_Display(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7506,8 +8625,8 @@ export declare function Libre_Caslon_Display(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Libre_Caslon_Text(options: {
-  weight: '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7527,7 +8646,10 @@ export declare function Libre_Franklin(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal' | 'italic'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7536,8 +8658,8 @@ export declare function Libre_Franklin(options?: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Licorice(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7546,8 +8668,8 @@ export declare function Licorice(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Life_Savers(options: {
-  weight: '400' | '700' | '800'
-  style?: 'normal'
+  weight: '400' | '700' | '800' | Array<'400' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7556,8 +8678,8 @@ export declare function Life_Savers(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Lilita_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7566,8 +8688,8 @@ export declare function Lilita_One(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Lily_Script_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7576,8 +8698,8 @@ export declare function Lily_Script_One(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Limelight(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7586,8 +8708,8 @@ export declare function Limelight(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Linden_Hill(options: {
-  weight: '400'
-  style?: 'normal' | 'italic'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7606,7 +8728,8 @@ export declare function Literata(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal' | 'italic'
+    | Array<'200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7624,8 +8747,8 @@ export declare function Literata(options?: {
   axes?: 'opsz'[]
 }): FontModule
 export declare function Liu_Jian_Mao_Cao(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7634,8 +8757,17 @@ export declare function Liu_Jian_Mao_Cao(options: {
   subsets?: Array<'chinese-simplified' | 'latin'>
 }): FontModule
 export declare function Livvic(options: {
-  weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '900'
-  style?: 'normal' | 'italic'
+  weight:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '900'
+    | Array<'100' | '200' | '300' | '400' | '500' | '600' | '700' | '900'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7644,8 +8776,8 @@ export declare function Livvic(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Lobster(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7656,8 +8788,8 @@ export declare function Lobster(options: {
   >
 }): FontModule
 export declare function Lobster_Two(options: {
-  weight: '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7666,8 +8798,8 @@ export declare function Lobster_Two(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Londrina_Outline(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7676,8 +8808,8 @@ export declare function Londrina_Outline(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Londrina_Shadow(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7686,8 +8818,8 @@ export declare function Londrina_Shadow(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Londrina_Sketch(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7696,8 +8828,8 @@ export declare function Londrina_Sketch(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Londrina_Solid(options: {
-  weight: '100' | '300' | '400' | '900'
-  style?: 'normal'
+  weight: '100' | '300' | '400' | '900' | Array<'100' | '300' | '400' | '900'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7706,8 +8838,8 @@ export declare function Londrina_Solid(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Long_Cang(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7716,8 +8848,14 @@ export declare function Long_Cang(options: {
   subsets?: Array<'chinese-simplified' | 'latin'>
 }): FontModule
 export declare function Lora(options?: {
-  weight?: '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal' | 'italic'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7728,8 +8866,8 @@ export declare function Lora(options?: {
   >
 }): FontModule
 export declare function Love_Light(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7738,8 +8876,8 @@ export declare function Love_Light(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Love_Ya_Like_A_Sister(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7748,8 +8886,8 @@ export declare function Love_Ya_Like_A_Sister(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Loved_by_the_King(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7758,8 +8896,8 @@ export declare function Loved_by_the_King(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Lovers_Quarrel(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7768,8 +8906,8 @@ export declare function Lovers_Quarrel(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Luckiest_Guy(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7778,8 +8916,8 @@ export declare function Luckiest_Guy(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Lusitana(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7788,8 +8926,8 @@ export declare function Lusitana(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Lustria(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7798,8 +8936,8 @@ export declare function Lustria(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Luxurious_Roman(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7808,8 +8946,8 @@ export declare function Luxurious_Roman(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Luxurious_Script(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7829,7 +8967,10 @@ export declare function M_PLUS_1(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7838,8 +8979,17 @@ export declare function M_PLUS_1(options?: {
   subsets?: Array<'japanese' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function M_PLUS_1_Code(options?: {
-  weight?: '100' | '200' | '300' | '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'100' | '200' | '300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7848,8 +8998,16 @@ export declare function M_PLUS_1_Code(options?: {
   subsets?: Array<'japanese' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function M_PLUS_1p(options: {
-  weight: '100' | '300' | '400' | '500' | '700' | '800' | '900'
-  style?: 'normal'
+  weight:
+    | '100'
+    | '300'
+    | '400'
+    | '500'
+    | '700'
+    | '800'
+    | '900'
+    | Array<'100' | '300' | '400' | '500' | '700' | '800' | '900'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7879,7 +9037,10 @@ export declare function M_PLUS_2(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7888,8 +9049,17 @@ export declare function M_PLUS_2(options?: {
   subsets?: Array<'japanese' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function M_PLUS_Code_Latin(options?: {
-  weight?: '100' | '200' | '300' | '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'100' | '200' | '300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7899,8 +9069,16 @@ export declare function M_PLUS_Code_Latin(options?: {
   axes?: 'wdth'[]
 }): FontModule
 export declare function M_PLUS_Rounded_1c(options: {
-  weight: '100' | '300' | '400' | '500' | '700' | '800' | '900'
-  style?: 'normal'
+  weight:
+    | '100'
+    | '300'
+    | '400'
+    | '500'
+    | '700'
+    | '800'
+    | '900'
+    | Array<'100' | '300' | '400' | '500' | '700' | '800' | '900'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7919,8 +9097,8 @@ export declare function M_PLUS_Rounded_1c(options: {
   >
 }): FontModule
 export declare function Ma_Shan_Zheng(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7929,8 +9107,8 @@ export declare function Ma_Shan_Zheng(options: {
   subsets?: Array<'chinese-simplified' | 'latin'>
 }): FontModule
 export declare function Macondo(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7939,8 +9117,8 @@ export declare function Macondo(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Macondo_Swash_Caps(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7949,8 +9127,16 @@ export declare function Macondo_Swash_Caps(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Mada(options: {
-  weight: '200' | '300' | '400' | '500' | '600' | '700' | '900'
-  style?: 'normal'
+  weight:
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '900'
+    | Array<'200' | '300' | '400' | '500' | '600' | '700' | '900'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7959,8 +9145,8 @@ export declare function Mada(options: {
   subsets?: Array<'arabic' | 'latin'>
 }): FontModule
 export declare function Magra(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7969,8 +9155,8 @@ export declare function Magra(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Maiden_Orange(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7979,8 +9165,15 @@ export declare function Maiden_Orange(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Maitree(options: {
-  weight: '200' | '300' | '400' | '500' | '600' | '700'
-  style?: 'normal'
+  weight:
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | Array<'200' | '300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7989,8 +9182,8 @@ export declare function Maitree(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): FontModule
 export declare function Major_Mono_Display(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -7999,8 +9192,8 @@ export declare function Major_Mono_Display(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Mako(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8009,8 +9202,15 @@ export declare function Mako(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Mali(options: {
-  weight: '200' | '300' | '400' | '500' | '600' | '700'
-  style?: 'normal' | 'italic'
+  weight:
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | Array<'200' | '300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8019,8 +9219,8 @@ export declare function Mali(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): FontModule
 export declare function Mallanna(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8029,8 +9229,8 @@ export declare function Mallanna(options: {
   subsets?: Array<'latin' | 'telugu'>
 }): FontModule
 export declare function Mandali(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8039,8 +9239,8 @@ export declare function Mandali(options: {
   subsets?: Array<'latin' | 'telugu'>
 }): FontModule
 export declare function Manjari(options: {
-  weight: '100' | '400' | '700'
-  style?: 'normal'
+  weight: '100' | '400' | '700' | Array<'100' | '400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8049,8 +9249,17 @@ export declare function Manjari(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'malayalam'>
 }): FontModule
 export declare function Manrope(options?: {
-  weight?: '200' | '300' | '400' | '500' | '600' | '700' | '800' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | 'variable'
+    | Array<'200' | '300' | '400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8061,8 +9270,8 @@ export declare function Manrope(options?: {
   >
 }): FontModule
 export declare function Mansalva(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8071,8 +9280,16 @@ export declare function Mansalva(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Manuale(options?: {
-  weight?: '300' | '400' | '500' | '600' | '700' | '800' | 'variable'
-  style?: 'normal' | 'italic'
+  weight?:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | 'variable'
+    | Array<'300' | '400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8081,8 +9298,8 @@ export declare function Manuale(options?: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Marcellus(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8091,8 +9308,8 @@ export declare function Marcellus(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Marcellus_SC(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8101,8 +9318,8 @@ export declare function Marcellus_SC(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Marck_Script(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8111,8 +9328,8 @@ export declare function Marck_Script(options: {
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Margarine(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8121,8 +9338,14 @@ export declare function Margarine(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Markazi_Text(options?: {
-  weight?: '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8131,8 +9354,8 @@ export declare function Markazi_Text(options?: {
   subsets?: Array<'arabic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Marko_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8141,8 +9364,8 @@ export declare function Marko_One(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Marmelad(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8151,8 +9374,16 @@ export declare function Marmelad(options: {
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Martel(options: {
-  weight: '200' | '300' | '400' | '600' | '700' | '800' | '900'
-  style?: 'normal'
+  weight:
+    | '200'
+    | '300'
+    | '400'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | Array<'200' | '300' | '400' | '600' | '700' | '800' | '900'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8161,8 +9392,16 @@ export declare function Martel(options: {
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Martel_Sans(options: {
-  weight: '200' | '300' | '400' | '600' | '700' | '800' | '900'
-  style?: 'normal'
+  weight:
+    | '200'
+    | '300'
+    | '400'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | Array<'200' | '300' | '400' | '600' | '700' | '800' | '900'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8171,8 +9410,8 @@ export declare function Martel_Sans(options: {
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Marvel(options: {
-  weight: '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8181,8 +9420,8 @@ export declare function Marvel(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Mate(options: {
-  weight: '400'
-  style?: 'normal' | 'italic'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8191,8 +9430,8 @@ export declare function Mate(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Mate_SC(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8201,8 +9440,16 @@ export declare function Mate_SC(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Maven_Pro(options?: {
-  weight?: '400' | '500' | '600' | '700' | '800' | '900' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700' | '800' | '900'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8211,8 +9458,8 @@ export declare function Maven_Pro(options?: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function McLaren(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8221,8 +9468,8 @@ export declare function McLaren(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Mea_Culpa(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8231,8 +9478,8 @@ export declare function Mea_Culpa(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Meddon(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8241,8 +9488,8 @@ export declare function Meddon(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function MedievalSharp(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8251,8 +9498,8 @@ export declare function MedievalSharp(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Medula_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8261,8 +9508,8 @@ export declare function Medula_One(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Meera_Inimai(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8271,8 +9518,8 @@ export declare function Meera_Inimai(options: {
   subsets?: Array<'latin' | 'tamil'>
 }): FontModule
 export declare function Megrim(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8281,8 +9528,8 @@ export declare function Megrim(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Meie_Script(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8291,8 +9538,8 @@ export declare function Meie_Script(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Meow_Script(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8301,8 +9548,8 @@ export declare function Meow_Script(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Merienda(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8311,8 +9558,8 @@ export declare function Merienda(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Merienda_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8321,8 +9568,8 @@ export declare function Merienda_One(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Merriweather(options: {
-  weight: '300' | '400' | '700' | '900'
-  style?: 'normal' | 'italic'
+  weight: '300' | '400' | '700' | '900' | Array<'300' | '400' | '700' | '900'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8333,8 +9580,16 @@ export declare function Merriweather(options: {
   >
 }): FontModule
 export declare function Merriweather_Sans(options?: {
-  weight?: '300' | '400' | '500' | '600' | '700' | '800' | 'variable'
-  style?: 'normal' | 'italic'
+  weight?:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | 'variable'
+    | Array<'300' | '400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8343,8 +9598,8 @@ export declare function Merriweather_Sans(options?: {
   subsets?: Array<'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Metal(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8353,8 +9608,8 @@ export declare function Metal(options: {
   subsets?: Array<'khmer' | 'latin'>
 }): FontModule
 export declare function Metal_Mania(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8363,8 +9618,8 @@ export declare function Metal_Mania(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Metamorphous(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8373,8 +9628,8 @@ export declare function Metamorphous(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Metrophobic(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8383,8 +9638,8 @@ export declare function Metrophobic(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Michroma(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8393,8 +9648,8 @@ export declare function Michroma(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Milonga(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8403,8 +9658,8 @@ export declare function Milonga(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Miltonian(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8413,8 +9668,8 @@ export declare function Miltonian(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Miltonian_Tattoo(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8423,8 +9678,8 @@ export declare function Miltonian_Tattoo(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Mina(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8433,8 +9688,8 @@ export declare function Mina(options: {
   subsets?: Array<'bengali' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Mingzat(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8443,8 +9698,8 @@ export declare function Mingzat(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'lepcha'>
 }): FontModule
 export declare function Miniver(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8453,8 +9708,8 @@ export declare function Miniver(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Miriam_Libre(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8463,8 +9718,8 @@ export declare function Miriam_Libre(options: {
   subsets?: Array<'hebrew' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Mirza(options: {
-  weight: '400' | '500' | '600' | '700'
-  style?: 'normal'
+  weight: '400' | '500' | '600' | '700' | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8473,8 +9728,8 @@ export declare function Mirza(options: {
   subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Miss_Fajardose(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8483,8 +9738,15 @@ export declare function Miss_Fajardose(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Mitr(options: {
-  weight: '200' | '300' | '400' | '500' | '600' | '700'
-  style?: 'normal'
+  weight:
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | Array<'200' | '300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8493,8 +9755,8 @@ export declare function Mitr(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): FontModule
 export declare function Mochiy_Pop_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8503,8 +9765,8 @@ export declare function Mochiy_Pop_One(options: {
   subsets?: Array<'japanese' | 'latin'>
 }): FontModule
 export declare function Mochiy_Pop_P_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8513,8 +9775,8 @@ export declare function Mochiy_Pop_P_One(options: {
   subsets?: Array<'japanese' | 'latin'>
 }): FontModule
 export declare function Modak(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8523,8 +9785,8 @@ export declare function Modak(options: {
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Modern_Antiqua(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8533,8 +9795,8 @@ export declare function Modern_Antiqua(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Mogra(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8543,8 +9805,15 @@ export declare function Mogra(options: {
   subsets?: Array<'gujarati' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Mohave(options?: {
-  weight?: '300' | '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal' | 'italic'
+  weight?:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8553,8 +9822,8 @@ export declare function Mohave(options?: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Molengo(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8563,8 +9832,8 @@ export declare function Molengo(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Molle(options: {
-  weight: '400'
-  style?: 'italic'
+  weight: '400' | Array<'400'>
+  style?: 'italic' | Array<'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8573,8 +9842,8 @@ export declare function Molle(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Monda(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8583,8 +9852,8 @@ export declare function Monda(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Monofett(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8593,8 +9862,8 @@ export declare function Monofett(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Monoton(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8603,8 +9872,8 @@ export declare function Monoton(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Monsieur_La_Doulaise(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8613,8 +9882,8 @@ export declare function Monsieur_La_Doulaise(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Montaga(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8623,8 +9892,17 @@ export declare function Montaga(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Montagu_Slab(options?: {
-  weight?: '100' | '200' | '300' | '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'100' | '200' | '300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8634,8 +9912,8 @@ export declare function Montagu_Slab(options?: {
   axes?: 'opsz'[]
 }): FontModule
 export declare function MonteCarlo(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8644,8 +9922,8 @@ export declare function MonteCarlo(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Montez(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8665,7 +9943,10 @@ export declare function Montserrat(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal' | 'italic'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8676,8 +9957,20 @@ export declare function Montserrat(options?: {
   >
 }): FontModule
 export declare function Montserrat_Alternates(options: {
-  weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
-  style?: 'normal' | 'italic'
+  weight:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8688,8 +9981,8 @@ export declare function Montserrat_Alternates(options: {
   >
 }): FontModule
 export declare function Montserrat_Subrayada(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8698,8 +9991,8 @@ export declare function Montserrat_Subrayada(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Moo_Lah_Lah(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8708,8 +10001,8 @@ export declare function Moo_Lah_Lah(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Moon_Dance(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8718,8 +10011,8 @@ export declare function Moon_Dance(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Moul(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8728,8 +10021,8 @@ export declare function Moul(options: {
   subsets?: Array<'khmer' | 'latin'>
 }): FontModule
 export declare function Moulpali(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8738,8 +10031,8 @@ export declare function Moulpali(options: {
   subsets?: Array<'khmer' | 'latin'>
 }): FontModule
 export declare function Mountains_of_Christmas(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8748,8 +10041,8 @@ export declare function Mountains_of_Christmas(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Mouse_Memoirs(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8758,8 +10051,8 @@ export declare function Mouse_Memoirs(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Mr_Bedfort(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8768,8 +10061,8 @@ export declare function Mr_Bedfort(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Mr_Dafoe(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8778,8 +10071,8 @@ export declare function Mr_Dafoe(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Mr_De_Haviland(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8788,8 +10081,8 @@ export declare function Mr_De_Haviland(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Mrs_Saint_Delafield(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8798,8 +10091,8 @@ export declare function Mrs_Saint_Delafield(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Mrs_Sheppards(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8808,8 +10101,8 @@ export declare function Mrs_Sheppards(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Ms_Madi(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8818,8 +10111,16 @@ export declare function Ms_Madi(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Mukta(options: {
-  weight: '200' | '300' | '400' | '500' | '600' | '700' | '800'
-  style?: 'normal'
+  weight:
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | Array<'200' | '300' | '400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8828,8 +10129,16 @@ export declare function Mukta(options: {
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Mukta_Mahee(options: {
-  weight: '200' | '300' | '400' | '500' | '600' | '700' | '800'
-  style?: 'normal'
+  weight:
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | Array<'200' | '300' | '400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8838,8 +10147,16 @@ export declare function Mukta_Mahee(options: {
   subsets?: Array<'gurmukhi' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Mukta_Malar(options: {
-  weight: '200' | '300' | '400' | '500' | '600' | '700' | '800'
-  style?: 'normal'
+  weight:
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | Array<'200' | '300' | '400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8848,8 +10165,16 @@ export declare function Mukta_Malar(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'tamil'>
 }): FontModule
 export declare function Mukta_Vaani(options: {
-  weight: '200' | '300' | '400' | '500' | '600' | '700' | '800'
-  style?: 'normal'
+  weight:
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | Array<'200' | '300' | '400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8869,7 +10194,10 @@ export declare function Mulish(options?: {
     | '900'
     | '1000'
     | 'variable'
-  style?: 'normal' | 'italic'
+    | Array<
+        '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900' | '1000'
+      >
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8891,7 +10219,10 @@ export declare function Murecho(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8913,7 +10244,10 @@ export declare function MuseoModerno(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal' | 'italic'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8922,8 +10256,8 @@ export declare function MuseoModerno(options?: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function My_Soul(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8932,8 +10266,8 @@ export declare function My_Soul(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Mystery_Quest(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8942,8 +10276,8 @@ export declare function Mystery_Quest(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function NTR(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8952,8 +10286,8 @@ export declare function NTR(options: {
   subsets?: Array<'latin' | 'telugu'>
 }): FontModule
 export declare function Nabla(options?: {
-  weight?: '400' | 'variable'
-  style?: 'normal'
+  weight?: '400' | 'variable' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8965,8 +10299,8 @@ export declare function Nabla(options?: {
   axes?: ('EDPT' | 'EHLT')[]
 }): FontModule
 export declare function Nanum_Brush_Script(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8975,8 +10309,8 @@ export declare function Nanum_Brush_Script(options: {
   subsets?: Array<'korean' | 'latin'>
 }): FontModule
 export declare function Nanum_Gothic(options: {
-  weight: '400' | '700' | '800'
-  style?: 'normal'
+  weight: '400' | '700' | '800' | Array<'400' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8985,8 +10319,8 @@ export declare function Nanum_Gothic(options: {
   subsets?: Array<'korean' | 'latin'>
 }): FontModule
 export declare function Nanum_Gothic_Coding(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -8995,8 +10329,8 @@ export declare function Nanum_Gothic_Coding(options: {
   subsets?: Array<'korean' | 'latin'>
 }): FontModule
 export declare function Nanum_Myeongjo(options: {
-  weight: '400' | '700' | '800'
-  style?: 'normal'
+  weight: '400' | '700' | '800' | Array<'400' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9005,8 +10339,8 @@ export declare function Nanum_Myeongjo(options: {
   subsets?: Array<'korean' | 'latin'>
 }): FontModule
 export declare function Nanum_Pen_Script(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9015,8 +10349,8 @@ export declare function Nanum_Pen_Script(options: {
   subsets?: Array<'korean' | 'latin'>
 }): FontModule
 export declare function Neonderthaw(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9025,8 +10359,8 @@ export declare function Neonderthaw(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Nerko_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9035,8 +10369,8 @@ export declare function Nerko_One(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Neucha(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9045,8 +10379,14 @@ export declare function Neucha(options: {
   subsets?: Array<'cyrillic' | 'latin'>
 }): FontModule
 export declare function Neuton(options: {
-  weight: '200' | '300' | '400' | '700' | '800'
-  style?: 'normal' | 'italic'
+  weight:
+    | '200'
+    | '300'
+    | '400'
+    | '700'
+    | '800'
+    | Array<'200' | '300' | '400' | '700' | '800'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9055,8 +10395,8 @@ export declare function Neuton(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function New_Rocker(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9065,8 +10405,8 @@ export declare function New_Rocker(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function New_Tegomin(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9075,8 +10415,8 @@ export declare function New_Tegomin(options: {
   subsets?: Array<'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function News_Cycle(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9085,8 +10425,17 @@ export declare function News_Cycle(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Newsreader(options?: {
-  weight?: '200' | '300' | '400' | '500' | '600' | '700' | '800' | 'variable'
-  style?: 'normal' | 'italic'
+  weight?:
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | 'variable'
+    | Array<'200' | '300' | '400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9096,8 +10445,8 @@ export declare function Newsreader(options?: {
   axes?: 'opsz'[]
 }): FontModule
 export declare function Niconne(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9106,8 +10455,15 @@ export declare function Niconne(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Niramit(options: {
-  weight: '200' | '300' | '400' | '500' | '600' | '700'
-  style?: 'normal' | 'italic'
+  weight:
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | Array<'200' | '300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9116,8 +10472,8 @@ export declare function Niramit(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): FontModule
 export declare function Nixie_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9126,8 +10482,8 @@ export declare function Nixie_One(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Nobile(options: {
-  weight: '400' | '500' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '500' | '700' | Array<'400' | '500' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9136,8 +10492,14 @@ export declare function Nobile(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Nokora(options: {
-  weight: '100' | '300' | '400' | '700' | '900'
-  style?: 'normal'
+  weight:
+    | '100'
+    | '300'
+    | '400'
+    | '700'
+    | '900'
+    | Array<'100' | '300' | '400' | '700' | '900'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9146,8 +10508,8 @@ export declare function Nokora(options: {
   subsets?: Array<'khmer' | 'latin'>
 }): FontModule
 export declare function Norican(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9156,8 +10518,8 @@ export declare function Norican(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Nosifer(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9166,8 +10528,8 @@ export declare function Nosifer(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Notable(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9176,8 +10538,8 @@ export declare function Notable(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Nothing_You_Could_Do(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9186,8 +10548,8 @@ export declare function Nothing_You_Could_Do(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Noticia_Text(options: {
-  weight: '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9196,8 +10558,8 @@ export declare function Noticia_Text(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Noto_Color_Emoji(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9206,8 +10568,15 @@ export declare function Noto_Color_Emoji(options: {
   subsets?: Array<'emoji'>
 }): FontModule
 export declare function Noto_Emoji(options?: {
-  weight?: '300' | '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9227,7 +10596,10 @@ export declare function Noto_Kufi_Arabic(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9236,8 +10608,8 @@ export declare function Noto_Kufi_Arabic(options?: {
   subsets?: Array<'arabic'>
 }): FontModule
 export declare function Noto_Music(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9246,8 +10618,14 @@ export declare function Noto_Music(options: {
   subsets?: Array<'music'>
 }): FontModule
 export declare function Noto_Naskh_Arabic(options?: {
-  weight?: '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9256,8 +10634,14 @@ export declare function Noto_Naskh_Arabic(options?: {
   subsets?: Array<'arabic'>
 }): FontModule
 export declare function Noto_Nastaliq_Urdu(options?: {
-  weight?: '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9277,7 +10661,10 @@ export declare function Noto_Rashi_Hebrew(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9286,8 +10673,20 @@ export declare function Noto_Rashi_Hebrew(options?: {
   subsets?: Array<'hebrew' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Noto_Sans(options: {
-  weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
-  style?: 'normal' | 'italic'
+  weight:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9305,8 +10704,14 @@ export declare function Noto_Sans(options: {
   >
 }): FontModule
 export declare function Noto_Sans_Adlam(options?: {
-  weight?: '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9315,8 +10720,14 @@ export declare function Noto_Sans_Adlam(options?: {
   subsets?: Array<'adlam' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Noto_Sans_Adlam_Unjoined(options?: {
-  weight?: '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9325,8 +10736,8 @@ export declare function Noto_Sans_Adlam_Unjoined(options?: {
   subsets?: Array<'adlam' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Noto_Sans_Anatolian_Hieroglyphs(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9346,7 +10757,10 @@ export declare function Noto_Sans_Arabic(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9367,7 +10781,10 @@ export declare function Noto_Sans_Armenian(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9377,8 +10794,8 @@ export declare function Noto_Sans_Armenian(options?: {
   axes?: 'wdth'[]
 }): FontModule
 export declare function Noto_Sans_Avestan(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9387,8 +10804,14 @@ export declare function Noto_Sans_Avestan(options: {
   subsets?: Array<'avestan' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Noto_Sans_Balinese(options?: {
-  weight?: '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9397,8 +10820,14 @@ export declare function Noto_Sans_Balinese(options?: {
   subsets?: Array<'balinese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Noto_Sans_Bamum(options?: {
-  weight?: '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9407,8 +10836,8 @@ export declare function Noto_Sans_Bamum(options?: {
   subsets?: Array<'bamum'>
 }): FontModule
 export declare function Noto_Sans_Bassa_Vah(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9417,8 +10846,8 @@ export declare function Noto_Sans_Bassa_Vah(options: {
   subsets?: Array<'bassa-vah'>
 }): FontModule
 export declare function Noto_Sans_Batak(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9438,7 +10867,10 @@ export declare function Noto_Sans_Bengali(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9448,8 +10880,8 @@ export declare function Noto_Sans_Bengali(options?: {
   axes?: 'wdth'[]
 }): FontModule
 export declare function Noto_Sans_Bhaiksuki(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9458,8 +10890,8 @@ export declare function Noto_Sans_Bhaiksuki(options: {
   subsets?: Array<'bhaiksuki'>
 }): FontModule
 export declare function Noto_Sans_Brahmi(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9468,8 +10900,8 @@ export declare function Noto_Sans_Brahmi(options: {
   subsets?: Array<'brahmi'>
 }): FontModule
 export declare function Noto_Sans_Buginese(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9478,8 +10910,8 @@ export declare function Noto_Sans_Buginese(options: {
   subsets?: Array<'buginese'>
 }): FontModule
 export declare function Noto_Sans_Buhid(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9499,7 +10931,10 @@ export declare function Noto_Sans_Canadian_Aboriginal(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9508,8 +10943,8 @@ export declare function Noto_Sans_Canadian_Aboriginal(options?: {
   subsets?: Array<'canadian-aboriginal' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Noto_Sans_Carian(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9518,8 +10953,8 @@ export declare function Noto_Sans_Carian(options: {
   subsets?: Array<'carian'>
 }): FontModule
 export declare function Noto_Sans_Caucasian_Albanian(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9528,8 +10963,8 @@ export declare function Noto_Sans_Caucasian_Albanian(options: {
   subsets?: Array<'caucasian-albanian'>
 }): FontModule
 export declare function Noto_Sans_Chakma(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9549,7 +10984,10 @@ export declare function Noto_Sans_Cham(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9569,7 +11007,10 @@ export declare function Noto_Sans_Cherokee(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9578,8 +11019,8 @@ export declare function Noto_Sans_Cherokee(options?: {
   subsets?: Array<'cherokee' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Noto_Sans_Coptic(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9588,8 +11029,8 @@ export declare function Noto_Sans_Coptic(options: {
   subsets?: Array<'coptic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Noto_Sans_Cuneiform(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9598,8 +11039,8 @@ export declare function Noto_Sans_Cuneiform(options: {
   subsets?: Array<'cuneiform'>
 }): FontModule
 export declare function Noto_Sans_Cypriot(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9608,8 +11049,8 @@ export declare function Noto_Sans_Cypriot(options: {
   subsets?: Array<'cypriot'>
 }): FontModule
 export declare function Noto_Sans_Deseret(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9629,7 +11070,10 @@ export declare function Noto_Sans_Devanagari(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9650,7 +11094,10 @@ export declare function Noto_Sans_Display(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal' | 'italic'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9668,8 +11115,8 @@ export declare function Noto_Sans_Display(options?: {
   axes?: 'wdth'[]
 }): FontModule
 export declare function Noto_Sans_Duployan(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9678,8 +11125,8 @@ export declare function Noto_Sans_Duployan(options: {
   subsets?: Array<'duployan'>
 }): FontModule
 export declare function Noto_Sans_Egyptian_Hieroglyphs(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9688,8 +11135,8 @@ export declare function Noto_Sans_Egyptian_Hieroglyphs(options: {
   subsets?: Array<'egyptian-hieroglyphs'>
 }): FontModule
 export declare function Noto_Sans_Elbasan(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9698,8 +11145,8 @@ export declare function Noto_Sans_Elbasan(options: {
   subsets?: Array<'elbasan'>
 }): FontModule
 export declare function Noto_Sans_Elymaic(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9719,7 +11166,10 @@ export declare function Noto_Sans_Ethiopic(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9740,7 +11190,10 @@ export declare function Noto_Sans_Georgian(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9750,8 +11203,8 @@ export declare function Noto_Sans_Georgian(options?: {
   axes?: 'wdth'[]
 }): FontModule
 export declare function Noto_Sans_Glagolitic(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9760,8 +11213,8 @@ export declare function Noto_Sans_Glagolitic(options: {
   subsets?: Array<'glagolitic'>
 }): FontModule
 export declare function Noto_Sans_Gothic(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9770,8 +11223,8 @@ export declare function Noto_Sans_Gothic(options: {
   subsets?: Array<'gothic'>
 }): FontModule
 export declare function Noto_Sans_Grantha(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9791,7 +11244,10 @@ export declare function Noto_Sans_Gujarati(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9801,8 +11257,8 @@ export declare function Noto_Sans_Gujarati(options?: {
   axes?: 'wdth'[]
 }): FontModule
 export declare function Noto_Sans_Gunjala_Gondi(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9822,7 +11278,10 @@ export declare function Noto_Sans_Gurmukhi(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9832,8 +11291,15 @@ export declare function Noto_Sans_Gurmukhi(options?: {
   axes?: 'wdth'[]
 }): FontModule
 export declare function Noto_Sans_HK(options: {
-  weight: '100' | '300' | '400' | '500' | '700' | '900'
-  style?: 'normal'
+  weight:
+    | '100'
+    | '300'
+    | '400'
+    | '500'
+    | '700'
+    | '900'
+    | Array<'100' | '300' | '400' | '500' | '700' | '900'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9842,8 +11308,14 @@ export declare function Noto_Sans_HK(options: {
   subsets?: Array<'chinese-hongkong' | 'latin'>
 }): FontModule
 export declare function Noto_Sans_Hanifi_Rohingya(options?: {
-  weight?: '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9852,8 +11324,8 @@ export declare function Noto_Sans_Hanifi_Rohingya(options?: {
   subsets?: Array<'hanifi-rohingya'>
 }): FontModule
 export declare function Noto_Sans_Hanunoo(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9862,8 +11334,8 @@ export declare function Noto_Sans_Hanunoo(options: {
   subsets?: Array<'hanunoo'>
 }): FontModule
 export declare function Noto_Sans_Hatran(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9883,7 +11355,10 @@ export declare function Noto_Sans_Hebrew(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9893,8 +11368,8 @@ export declare function Noto_Sans_Hebrew(options?: {
   axes?: 'wdth'[]
 }): FontModule
 export declare function Noto_Sans_Imperial_Aramaic(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9903,8 +11378,8 @@ export declare function Noto_Sans_Imperial_Aramaic(options: {
   subsets?: Array<'imperial-aramaic'>
 }): FontModule
 export declare function Noto_Sans_Indic_Siyaq_Numbers(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9913,8 +11388,8 @@ export declare function Noto_Sans_Indic_Siyaq_Numbers(options: {
   subsets?: Array<'indic-siyaq-numbers'>
 }): FontModule
 export declare function Noto_Sans_Inscriptional_Pahlavi(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9923,8 +11398,8 @@ export declare function Noto_Sans_Inscriptional_Pahlavi(options: {
   subsets?: Array<'inscriptional-pahlavi'>
 }): FontModule
 export declare function Noto_Sans_Inscriptional_Parthian(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9933,8 +11408,15 @@ export declare function Noto_Sans_Inscriptional_Parthian(options: {
   subsets?: Array<'inscriptional-parthian'>
 }): FontModule
 export declare function Noto_Sans_JP(options: {
-  weight: '100' | '300' | '400' | '500' | '700' | '900'
-  style?: 'normal'
+  weight:
+    | '100'
+    | '300'
+    | '400'
+    | '500'
+    | '700'
+    | '900'
+    | Array<'100' | '300' | '400' | '500' | '700' | '900'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9943,8 +11425,14 @@ export declare function Noto_Sans_JP(options: {
   subsets?: Array<'japanese' | 'latin'>
 }): FontModule
 export declare function Noto_Sans_Javanese(options?: {
-  weight?: '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9953,8 +11441,15 @@ export declare function Noto_Sans_Javanese(options?: {
   subsets?: Array<'javanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Noto_Sans_KR(options: {
-  weight: '100' | '300' | '400' | '500' | '700' | '900'
-  style?: 'normal'
+  weight:
+    | '100'
+    | '300'
+    | '400'
+    | '500'
+    | '700'
+    | '900'
+    | Array<'100' | '300' | '400' | '500' | '700' | '900'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9963,8 +11458,8 @@ export declare function Noto_Sans_KR(options: {
   subsets?: Array<'korean' | 'latin'>
 }): FontModule
 export declare function Noto_Sans_Kaithi(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9984,7 +11479,10 @@ export declare function Noto_Sans_Kannada(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -9994,8 +11492,14 @@ export declare function Noto_Sans_Kannada(options?: {
   axes?: 'wdth'[]
 }): FontModule
 export declare function Noto_Sans_Kayah_Li(options?: {
-  weight?: '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10004,8 +11508,8 @@ export declare function Noto_Sans_Kayah_Li(options?: {
   subsets?: Array<'kayah-li'>
 }): FontModule
 export declare function Noto_Sans_Kharoshthi(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10025,7 +11529,10 @@ export declare function Noto_Sans_Khmer(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10035,8 +11542,8 @@ export declare function Noto_Sans_Khmer(options?: {
   axes?: 'wdth'[]
 }): FontModule
 export declare function Noto_Sans_Khojki(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10045,8 +11552,8 @@ export declare function Noto_Sans_Khojki(options: {
   subsets?: Array<'khojki'>
 }): FontModule
 export declare function Noto_Sans_Khudawadi(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10066,7 +11573,10 @@ export declare function Noto_Sans_Lao(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10076,8 +11586,8 @@ export declare function Noto_Sans_Lao(options?: {
   axes?: 'wdth'[]
 }): FontModule
 export declare function Noto_Sans_Lepcha(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10086,8 +11596,8 @@ export declare function Noto_Sans_Lepcha(options: {
   subsets?: Array<'lepcha'>
 }): FontModule
 export declare function Noto_Sans_Limbu(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10096,8 +11606,8 @@ export declare function Noto_Sans_Limbu(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'limbu'>
 }): FontModule
 export declare function Noto_Sans_Linear_A(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10106,8 +11616,8 @@ export declare function Noto_Sans_Linear_A(options: {
   subsets?: Array<'linear-a'>
 }): FontModule
 export declare function Noto_Sans_Linear_B(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10116,8 +11626,14 @@ export declare function Noto_Sans_Linear_B(options: {
   subsets?: Array<'linear-b'>
 }): FontModule
 export declare function Noto_Sans_Lisu(options?: {
-  weight?: '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10126,8 +11642,8 @@ export declare function Noto_Sans_Lisu(options?: {
   subsets?: Array<'latin' | 'latin-ext' | 'lisu'>
 }): FontModule
 export declare function Noto_Sans_Lycian(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10136,8 +11652,8 @@ export declare function Noto_Sans_Lycian(options: {
   subsets?: Array<'lycian'>
 }): FontModule
 export declare function Noto_Sans_Lydian(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10146,8 +11662,8 @@ export declare function Noto_Sans_Lydian(options: {
   subsets?: Array<'lydian'>
 }): FontModule
 export declare function Noto_Sans_Mahajani(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10167,7 +11683,10 @@ export declare function Noto_Sans_Malayalam(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10177,8 +11696,8 @@ export declare function Noto_Sans_Malayalam(options?: {
   axes?: 'wdth'[]
 }): FontModule
 export declare function Noto_Sans_Mandaic(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10187,8 +11706,8 @@ export declare function Noto_Sans_Mandaic(options: {
   subsets?: Array<'mandaic'>
 }): FontModule
 export declare function Noto_Sans_Manichaean(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10197,8 +11716,8 @@ export declare function Noto_Sans_Manichaean(options: {
   subsets?: Array<'manichaean'>
 }): FontModule
 export declare function Noto_Sans_Marchen(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10207,8 +11726,8 @@ export declare function Noto_Sans_Marchen(options: {
   subsets?: Array<'marchen'>
 }): FontModule
 export declare function Noto_Sans_Masaram_Gondi(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10217,8 +11736,8 @@ export declare function Noto_Sans_Masaram_Gondi(options: {
   subsets?: Array<'masaram-gondi'>
 }): FontModule
 export declare function Noto_Sans_Math(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10227,8 +11746,8 @@ export declare function Noto_Sans_Math(options: {
   subsets?: Array<'math'>
 }): FontModule
 export declare function Noto_Sans_Mayan_Numerals(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10237,8 +11756,14 @@ export declare function Noto_Sans_Mayan_Numerals(options: {
   subsets?: Array<'mayan-numerals'>
 }): FontModule
 export declare function Noto_Sans_Medefaidrin(options?: {
-  weight?: '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10258,7 +11783,10 @@ export declare function Noto_Sans_Meetei_Mayek(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10267,8 +11795,8 @@ export declare function Noto_Sans_Meetei_Mayek(options?: {
   subsets?: Array<'latin' | 'latin-ext' | 'meetei-mayek'>
 }): FontModule
 export declare function Noto_Sans_Meroitic(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10277,8 +11805,8 @@ export declare function Noto_Sans_Meroitic(options: {
   subsets?: Array<'meroitic'>
 }): FontModule
 export declare function Noto_Sans_Miao(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10287,8 +11815,8 @@ export declare function Noto_Sans_Miao(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'miao'>
 }): FontModule
 export declare function Noto_Sans_Modi(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10297,8 +11825,8 @@ export declare function Noto_Sans_Modi(options: {
   subsets?: Array<'modi'>
 }): FontModule
 export declare function Noto_Sans_Mongolian(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10318,7 +11846,10 @@ export declare function Noto_Sans_Mono(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10336,8 +11867,8 @@ export declare function Noto_Sans_Mono(options?: {
   axes?: 'wdth'[]
 }): FontModule
 export declare function Noto_Sans_Mro(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10346,8 +11877,8 @@ export declare function Noto_Sans_Mro(options: {
   subsets?: Array<'mro'>
 }): FontModule
 export declare function Noto_Sans_Multani(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10356,8 +11887,20 @@ export declare function Noto_Sans_Multani(options: {
   subsets?: Array<'multani'>
 }): FontModule
 export declare function Noto_Sans_Myanmar(options: {
-  weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
-  style?: 'normal'
+  weight:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10366,8 +11909,8 @@ export declare function Noto_Sans_Myanmar(options: {
   subsets?: Array<'myanmar'>
 }): FontModule
 export declare function Noto_Sans_N_Ko(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10376,8 +11919,8 @@ export declare function Noto_Sans_N_Ko(options: {
   subsets?: Array<'nko'>
 }): FontModule
 export declare function Noto_Sans_Nabataean(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10386,8 +11929,8 @@ export declare function Noto_Sans_Nabataean(options: {
   subsets?: Array<'nabataean'>
 }): FontModule
 export declare function Noto_Sans_New_Tai_Lue(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10396,8 +11939,8 @@ export declare function Noto_Sans_New_Tai_Lue(options: {
   subsets?: Array<'new-tai-lue'>
 }): FontModule
 export declare function Noto_Sans_Newa(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10406,8 +11949,8 @@ export declare function Noto_Sans_Newa(options: {
   subsets?: Array<'newa'>
 }): FontModule
 export declare function Noto_Sans_Nushu(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10416,8 +11959,8 @@ export declare function Noto_Sans_Nushu(options: {
   subsets?: Array<'nushu'>
 }): FontModule
 export declare function Noto_Sans_Ogham(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10426,8 +11969,14 @@ export declare function Noto_Sans_Ogham(options: {
   subsets?: Array<'ogham'>
 }): FontModule
 export declare function Noto_Sans_Ol_Chiki(options?: {
-  weight?: '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10436,8 +11985,8 @@ export declare function Noto_Sans_Ol_Chiki(options?: {
   subsets?: Array<'ol-chiki'>
 }): FontModule
 export declare function Noto_Sans_Old_Hungarian(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10446,8 +11995,8 @@ export declare function Noto_Sans_Old_Hungarian(options: {
   subsets?: Array<'old-hungarian'>
 }): FontModule
 export declare function Noto_Sans_Old_Italic(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10456,8 +12005,8 @@ export declare function Noto_Sans_Old_Italic(options: {
   subsets?: Array<'old-italic'>
 }): FontModule
 export declare function Noto_Sans_Old_North_Arabian(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10466,8 +12015,8 @@ export declare function Noto_Sans_Old_North_Arabian(options: {
   subsets?: Array<'old-north-arabian'>
 }): FontModule
 export declare function Noto_Sans_Old_Permic(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10476,8 +12025,8 @@ export declare function Noto_Sans_Old_Permic(options: {
   subsets?: Array<'old-permic'>
 }): FontModule
 export declare function Noto_Sans_Old_Persian(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10486,8 +12035,8 @@ export declare function Noto_Sans_Old_Persian(options: {
   subsets?: Array<'old-persian'>
 }): FontModule
 export declare function Noto_Sans_Old_Sogdian(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10496,8 +12045,8 @@ export declare function Noto_Sans_Old_Sogdian(options: {
   subsets?: Array<'old-sogdian'>
 }): FontModule
 export declare function Noto_Sans_Old_South_Arabian(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10506,8 +12055,8 @@ export declare function Noto_Sans_Old_South_Arabian(options: {
   subsets?: Array<'old-south-arabian'>
 }): FontModule
 export declare function Noto_Sans_Old_Turkic(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10527,7 +12076,10 @@ export declare function Noto_Sans_Oriya(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10537,8 +12089,8 @@ export declare function Noto_Sans_Oriya(options?: {
   axes?: 'wdth'[]
 }): FontModule
 export declare function Noto_Sans_Osage(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10547,8 +12099,8 @@ export declare function Noto_Sans_Osage(options: {
   subsets?: Array<'osage'>
 }): FontModule
 export declare function Noto_Sans_Osmanya(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10557,8 +12109,8 @@ export declare function Noto_Sans_Osmanya(options: {
   subsets?: Array<'osmanya'>
 }): FontModule
 export declare function Noto_Sans_Pahawh_Hmong(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10567,8 +12119,8 @@ export declare function Noto_Sans_Pahawh_Hmong(options: {
   subsets?: Array<'pahawh-hmong'>
 }): FontModule
 export declare function Noto_Sans_Palmyrene(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10577,8 +12129,8 @@ export declare function Noto_Sans_Palmyrene(options: {
   subsets?: Array<'palmyrene'>
 }): FontModule
 export declare function Noto_Sans_Pau_Cin_Hau(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10587,8 +12139,8 @@ export declare function Noto_Sans_Pau_Cin_Hau(options: {
   subsets?: Array<'pau-cin-hau'>
 }): FontModule
 export declare function Noto_Sans_Phags_Pa(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10597,8 +12149,8 @@ export declare function Noto_Sans_Phags_Pa(options: {
   subsets?: Array<'phags-pa'>
 }): FontModule
 export declare function Noto_Sans_Phoenician(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10607,8 +12159,8 @@ export declare function Noto_Sans_Phoenician(options: {
   subsets?: Array<'phoenician'>
 }): FontModule
 export declare function Noto_Sans_Psalter_Pahlavi(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10617,8 +12169,8 @@ export declare function Noto_Sans_Psalter_Pahlavi(options: {
   subsets?: Array<'psalter-pahlavi'>
 }): FontModule
 export declare function Noto_Sans_Rejang(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10627,8 +12179,8 @@ export declare function Noto_Sans_Rejang(options: {
   subsets?: Array<'rejang'>
 }): FontModule
 export declare function Noto_Sans_Runic(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10637,8 +12189,15 @@ export declare function Noto_Sans_Runic(options: {
   subsets?: Array<'runic'>
 }): FontModule
 export declare function Noto_Sans_SC(options: {
-  weight: '100' | '300' | '400' | '500' | '700' | '900'
-  style?: 'normal'
+  weight:
+    | '100'
+    | '300'
+    | '400'
+    | '500'
+    | '700'
+    | '900'
+    | Array<'100' | '300' | '400' | '500' | '700' | '900'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10647,8 +12206,8 @@ export declare function Noto_Sans_SC(options: {
   subsets?: Array<'chinese-simplified' | 'latin'>
 }): FontModule
 export declare function Noto_Sans_Samaritan(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10657,8 +12216,8 @@ export declare function Noto_Sans_Samaritan(options: {
   subsets?: Array<'samaritan'>
 }): FontModule
 export declare function Noto_Sans_Saurashtra(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10667,8 +12226,8 @@ export declare function Noto_Sans_Saurashtra(options: {
   subsets?: Array<'saurashtra'>
 }): FontModule
 export declare function Noto_Sans_Sharada(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10677,8 +12236,8 @@ export declare function Noto_Sans_Sharada(options: {
   subsets?: Array<'sharada'>
 }): FontModule
 export declare function Noto_Sans_Shavian(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10687,8 +12246,8 @@ export declare function Noto_Sans_Shavian(options: {
   subsets?: Array<'shavian'>
 }): FontModule
 export declare function Noto_Sans_Siddham(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10708,7 +12267,10 @@ export declare function Noto_Sans_Sinhala(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10718,8 +12280,8 @@ export declare function Noto_Sans_Sinhala(options?: {
   axes?: 'wdth'[]
 }): FontModule
 export declare function Noto_Sans_Sogdian(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10728,8 +12290,14 @@ export declare function Noto_Sans_Sogdian(options: {
   subsets?: Array<'sogdian'>
 }): FontModule
 export declare function Noto_Sans_Sora_Sompeng(options?: {
-  weight?: '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10738,8 +12306,8 @@ export declare function Noto_Sans_Sora_Sompeng(options?: {
   subsets?: Array<'sora-sompeng'>
 }): FontModule
 export declare function Noto_Sans_Soyombo(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10748,8 +12316,14 @@ export declare function Noto_Sans_Soyombo(options: {
   subsets?: Array<'soyombo'>
 }): FontModule
 export declare function Noto_Sans_Sundanese(options?: {
-  weight?: '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10758,8 +12332,8 @@ export declare function Noto_Sans_Sundanese(options?: {
   subsets?: Array<'sundanese'>
 }): FontModule
 export declare function Noto_Sans_Syloti_Nagri(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10779,7 +12353,10 @@ export declare function Noto_Sans_Symbols(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10788,8 +12365,8 @@ export declare function Noto_Sans_Symbols(options?: {
   subsets?: Array<'latin' | 'latin-ext' | 'symbols'>
 }): FontModule
 export declare function Noto_Sans_Symbols_2(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10798,8 +12375,8 @@ export declare function Noto_Sans_Symbols_2(options: {
   subsets?: Array<'symbols'>
 }): FontModule
 export declare function Noto_Sans_Syriac(options: {
-  weight: '100' | '400' | '900'
-  style?: 'normal'
+  weight: '100' | '400' | '900' | Array<'100' | '400' | '900'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10808,8 +12385,15 @@ export declare function Noto_Sans_Syriac(options: {
   subsets?: Array<'syriac'>
 }): FontModule
 export declare function Noto_Sans_TC(options: {
-  weight: '100' | '300' | '400' | '500' | '700' | '900'
-  style?: 'normal'
+  weight:
+    | '100'
+    | '300'
+    | '400'
+    | '500'
+    | '700'
+    | '900'
+    | Array<'100' | '300' | '400' | '500' | '700' | '900'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10818,8 +12402,8 @@ export declare function Noto_Sans_TC(options: {
   subsets?: Array<'chinese-traditional' | 'latin'>
 }): FontModule
 export declare function Noto_Sans_Tagalog(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10828,8 +12412,8 @@ export declare function Noto_Sans_Tagalog(options: {
   subsets?: Array<'tagalog'>
 }): FontModule
 export declare function Noto_Sans_Tagbanwa(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10838,8 +12422,8 @@ export declare function Noto_Sans_Tagbanwa(options: {
   subsets?: Array<'tagbanwa'>
 }): FontModule
 export declare function Noto_Sans_Tai_Le(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10848,8 +12432,14 @@ export declare function Noto_Sans_Tai_Le(options: {
   subsets?: Array<'tai-le'>
 }): FontModule
 export declare function Noto_Sans_Tai_Tham(options?: {
-  weight?: '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10858,8 +12448,8 @@ export declare function Noto_Sans_Tai_Tham(options?: {
   subsets?: Array<'tai-tham'>
 }): FontModule
 export declare function Noto_Sans_Tai_Viet(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10868,8 +12458,8 @@ export declare function Noto_Sans_Tai_Viet(options: {
   subsets?: Array<'tai-viet'>
 }): FontModule
 export declare function Noto_Sans_Takri(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10889,7 +12479,10 @@ export declare function Noto_Sans_Tamil(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10899,8 +12492,8 @@ export declare function Noto_Sans_Tamil(options?: {
   axes?: 'wdth'[]
 }): FontModule
 export declare function Noto_Sans_Tamil_Supplement(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10920,7 +12513,10 @@ export declare function Noto_Sans_Telugu(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10941,7 +12537,10 @@ export declare function Noto_Sans_Thaana(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10961,7 +12560,10 @@ export declare function Noto_Sans_Thai(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10971,8 +12573,20 @@ export declare function Noto_Sans_Thai(options?: {
   axes?: 'wdth'[]
 }): FontModule
 export declare function Noto_Sans_Thai_Looped(options: {
-  weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
-  style?: 'normal'
+  weight:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10981,8 +12595,8 @@ export declare function Noto_Sans_Thai_Looped(options: {
   subsets?: Array<'thai'>
 }): FontModule
 export declare function Noto_Sans_Tifinagh(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -10991,8 +12605,8 @@ export declare function Noto_Sans_Tifinagh(options: {
   subsets?: Array<'tifinagh'>
 }): FontModule
 export declare function Noto_Sans_Tirhuta(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11001,8 +12615,8 @@ export declare function Noto_Sans_Tirhuta(options: {
   subsets?: Array<'tirhuta'>
 }): FontModule
 export declare function Noto_Sans_Ugaritic(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11011,8 +12625,8 @@ export declare function Noto_Sans_Ugaritic(options: {
   subsets?: Array<'ugaritic'>
 }): FontModule
 export declare function Noto_Sans_Vai(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11021,8 +12635,8 @@ export declare function Noto_Sans_Vai(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vai'>
 }): FontModule
 export declare function Noto_Sans_Wancho(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11031,8 +12645,8 @@ export declare function Noto_Sans_Wancho(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'wancho'>
 }): FontModule
 export declare function Noto_Sans_Warang_Citi(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11041,8 +12655,8 @@ export declare function Noto_Sans_Warang_Citi(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'warang-citi'>
 }): FontModule
 export declare function Noto_Sans_Yi(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11051,8 +12665,8 @@ export declare function Noto_Sans_Yi(options: {
   subsets?: Array<'yi'>
 }): FontModule
 export declare function Noto_Sans_Zanabazar_Square(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11061,8 +12675,8 @@ export declare function Noto_Sans_Zanabazar_Square(options: {
   subsets?: Array<'zanabazar-square'>
 }): FontModule
 export declare function Noto_Serif(options: {
-  weight: '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11079,8 +12693,8 @@ export declare function Noto_Serif(options: {
   >
 }): FontModule
 export declare function Noto_Serif_Ahom(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11100,7 +12714,10 @@ export declare function Noto_Serif_Armenian(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11110,8 +12727,8 @@ export declare function Noto_Serif_Armenian(options?: {
   axes?: 'wdth'[]
 }): FontModule
 export declare function Noto_Serif_Balinese(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11131,7 +12748,10 @@ export declare function Noto_Serif_Bengali(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11152,7 +12772,10 @@ export declare function Noto_Serif_Devanagari(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11173,7 +12796,10 @@ export declare function Noto_Serif_Display(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal' | 'italic'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11191,8 +12817,8 @@ export declare function Noto_Serif_Display(options?: {
   axes?: 'wdth'[]
 }): FontModule
 export declare function Noto_Serif_Dogra(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11212,7 +12838,10 @@ export declare function Noto_Serif_Ethiopic(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11233,7 +12862,10 @@ export declare function Noto_Serif_Georgian(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11243,8 +12875,8 @@ export declare function Noto_Serif_Georgian(options?: {
   axes?: 'wdth'[]
 }): FontModule
 export declare function Noto_Serif_Grantha(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11264,7 +12896,10 @@ export declare function Noto_Serif_Gujarati(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11284,7 +12919,10 @@ export declare function Noto_Serif_Gurmukhi(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11303,7 +12941,8 @@ export declare function Noto_Serif_HK(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<'200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11325,7 +12964,10 @@ export declare function Noto_Serif_Hebrew(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11335,8 +12977,16 @@ export declare function Noto_Serif_Hebrew(options?: {
   axes?: 'wdth'[]
 }): FontModule
 export declare function Noto_Serif_JP(options: {
-  weight: '200' | '300' | '400' | '500' | '600' | '700' | '900'
-  style?: 'normal'
+  weight:
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '900'
+    | Array<'200' | '300' | '400' | '500' | '600' | '700' | '900'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11345,8 +12995,16 @@ export declare function Noto_Serif_JP(options: {
   subsets?: Array<'japanese' | 'latin'>
 }): FontModule
 export declare function Noto_Serif_KR(options: {
-  weight: '200' | '300' | '400' | '500' | '600' | '700' | '900'
-  style?: 'normal'
+  weight:
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '900'
+    | Array<'200' | '300' | '400' | '500' | '600' | '700' | '900'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11366,7 +13024,10 @@ export declare function Noto_Serif_Kannada(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11386,7 +13047,10 @@ export declare function Noto_Serif_Khmer(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11407,7 +13071,10 @@ export declare function Noto_Serif_Lao(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11428,7 +13095,10 @@ export declare function Noto_Serif_Malayalam(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11437,8 +13107,20 @@ export declare function Noto_Serif_Malayalam(options?: {
   subsets?: Array<'latin' | 'latin-ext' | 'malayalam'>
 }): FontModule
 export declare function Noto_Serif_Myanmar(options: {
-  weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
-  style?: 'normal'
+  weight:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11447,8 +13129,14 @@ export declare function Noto_Serif_Myanmar(options: {
   subsets?: Array<'myanmar'>
 }): FontModule
 export declare function Noto_Serif_Nyiakeng_Puachue_Hmong(options?: {
-  weight?: '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11457,8 +13145,16 @@ export declare function Noto_Serif_Nyiakeng_Puachue_Hmong(options?: {
   subsets?: Array<'nyiakeng-puachue-hmong'>
 }): FontModule
 export declare function Noto_Serif_SC(options: {
-  weight: '200' | '300' | '400' | '500' | '600' | '700' | '900'
-  style?: 'normal'
+  weight:
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '900'
+    | Array<'200' | '300' | '400' | '500' | '600' | '700' | '900'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11478,7 +13174,10 @@ export declare function Noto_Serif_Sinhala(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11488,8 +13187,16 @@ export declare function Noto_Serif_Sinhala(options?: {
   axes?: 'wdth'[]
 }): FontModule
 export declare function Noto_Serif_TC(options: {
-  weight: '200' | '300' | '400' | '500' | '600' | '700' | '900'
-  style?: 'normal'
+  weight:
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '900'
+    | Array<'200' | '300' | '400' | '500' | '600' | '700' | '900'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11509,7 +13216,10 @@ export declare function Noto_Serif_Tamil(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal' | 'italic'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11519,8 +13229,8 @@ export declare function Noto_Serif_Tamil(options?: {
   axes?: 'wdth'[]
 }): FontModule
 export declare function Noto_Serif_Tangut(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11540,7 +13250,10 @@ export declare function Noto_Serif_Telugu(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11560,7 +13273,10 @@ export declare function Noto_Serif_Thai(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11581,7 +13297,10 @@ export declare function Noto_Serif_Tibetan(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11590,8 +13309,14 @@ export declare function Noto_Serif_Tibetan(options?: {
   subsets?: Array<'tibetan'>
 }): FontModule
 export declare function Noto_Serif_Yezidi(options?: {
-  weight?: '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11600,8 +13325,8 @@ export declare function Noto_Serif_Yezidi(options?: {
   subsets?: Array<'yezidi'>
 }): FontModule
 export declare function Noto_Traditional_Nushu(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11610,8 +13335,8 @@ export declare function Noto_Traditional_Nushu(options: {
   subsets?: Array<'nushu'>
 }): FontModule
 export declare function Nova_Cut(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11620,8 +13345,8 @@ export declare function Nova_Cut(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Nova_Flat(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11630,8 +13355,8 @@ export declare function Nova_Flat(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Nova_Mono(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11640,8 +13365,8 @@ export declare function Nova_Mono(options: {
   subsets?: Array<'greek' | 'latin'>
 }): FontModule
 export declare function Nova_Oval(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11650,8 +13375,8 @@ export declare function Nova_Oval(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Nova_Round(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11660,8 +13385,8 @@ export declare function Nova_Round(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Nova_Script(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11670,8 +13395,8 @@ export declare function Nova_Script(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Nova_Slim(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11680,8 +13405,8 @@ export declare function Nova_Slim(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Nova_Square(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11690,8 +13415,8 @@ export declare function Nova_Square(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Numans(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11711,7 +13436,10 @@ export declare function Nunito(options?: {
     | '900'
     | '1000'
     | 'variable'
-  style?: 'normal' | 'italic'
+    | Array<
+        '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900' | '1000'
+      >
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11722,8 +13450,16 @@ export declare function Nunito(options?: {
   >
 }): FontModule
 export declare function Nunito_Sans(options: {
-  weight: '200' | '300' | '400' | '600' | '700' | '800' | '900'
-  style?: 'normal' | 'italic'
+  weight:
+    | '200'
+    | '300'
+    | '400'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | Array<'200' | '300' | '400' | '600' | '700' | '800' | '900'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11734,8 +13470,8 @@ export declare function Nunito_Sans(options: {
   >
 }): FontModule
 export declare function Nuosu_SIL(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11744,8 +13480,8 @@ export declare function Nuosu_SIL(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'yi'>
 }): FontModule
 export declare function Odibee_Sans(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11754,8 +13490,8 @@ export declare function Odibee_Sans(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Odor_Mean_Chey(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11764,8 +13500,8 @@ export declare function Odor_Mean_Chey(options: {
   subsets?: Array<'khmer' | 'latin'>
 }): FontModule
 export declare function Offside(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11774,8 +13510,8 @@ export declare function Offside(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Oi(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11792,8 +13528,8 @@ export declare function Oi(options: {
   >
 }): FontModule
 export declare function Old_Standard_TT(options: {
-  weight: '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11804,8 +13540,8 @@ export declare function Old_Standard_TT(options: {
   >
 }): FontModule
 export declare function Oldenburg(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11814,8 +13550,8 @@ export declare function Oldenburg(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Ole(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11824,8 +13560,8 @@ export declare function Ole(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Oleo_Script(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11834,8 +13570,8 @@ export declare function Oleo_Script(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Oleo_Script_Swash_Caps(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11844,8 +13580,8 @@ export declare function Oleo_Script_Swash_Caps(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Oooh_Baby(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11854,8 +13590,16 @@ export declare function Oooh_Baby(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Open_Sans(options?: {
-  weight?: '300' | '400' | '500' | '600' | '700' | '800' | 'variable'
-  style?: 'normal' | 'italic'
+  weight?:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | 'variable'
+    | Array<'300' | '400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11874,8 +13618,8 @@ export declare function Open_Sans(options?: {
   axes?: 'wdth'[]
 }): FontModule
 export declare function Oranienbaum(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11884,8 +13628,16 @@ export declare function Oranienbaum(options: {
   subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Orbitron(options?: {
-  weight?: '400' | '500' | '600' | '700' | '800' | '900' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700' | '800' | '900'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11894,8 +13646,8 @@ export declare function Orbitron(options?: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Oregano(options: {
-  weight: '400'
-  style?: 'normal' | 'italic'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11904,8 +13656,8 @@ export declare function Oregano(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Orelega_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11914,8 +13666,8 @@ export declare function Orelega_One(options: {
   subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Orienta(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11924,8 +13676,8 @@ export declare function Orienta(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Original_Surfer(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11934,8 +13686,16 @@ export declare function Original_Surfer(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Oswald(options?: {
-  weight?: '200' | '300' | '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'200' | '300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11957,7 +13717,10 @@ export declare function Outfit(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11966,8 +13729,8 @@ export declare function Outfit(options?: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Over_the_Rainbow(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11976,8 +13739,8 @@ export declare function Over_the_Rainbow(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Overlock(options: {
-  weight: '400' | '700' | '900'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | '900' | Array<'400' | '700' | '900'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -11986,8 +13749,8 @@ export declare function Overlock(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Overlock_SC(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12007,7 +13770,10 @@ export declare function Overpass(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal' | 'italic'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12018,8 +13784,15 @@ export declare function Overpass(options?: {
   >
 }): FontModule
 export declare function Overpass_Mono(options?: {
-  weight?: '300' | '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12030,8 +13803,8 @@ export declare function Overpass_Mono(options?: {
   >
 }): FontModule
 export declare function Ovo(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12040,8 +13813,17 @@ export declare function Ovo(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Oxanium(options?: {
-  weight?: '200' | '300' | '400' | '500' | '600' | '700' | '800' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | 'variable'
+    | Array<'200' | '300' | '400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12050,8 +13832,8 @@ export declare function Oxanium(options?: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Oxygen(options: {
-  weight: '300' | '400' | '700'
-  style?: 'normal'
+  weight: '300' | '400' | '700' | Array<'300' | '400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12060,8 +13842,8 @@ export declare function Oxygen(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Oxygen_Mono(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12070,8 +13852,8 @@ export declare function Oxygen_Mono(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function PT_Mono(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12080,8 +13862,8 @@ export declare function PT_Mono(options: {
   subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function PT_Sans(options: {
-  weight: '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12090,8 +13872,8 @@ export declare function PT_Sans(options: {
   subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function PT_Sans_Caption(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12100,8 +13882,8 @@ export declare function PT_Sans_Caption(options: {
   subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function PT_Sans_Narrow(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12110,8 +13892,8 @@ export declare function PT_Sans_Narrow(options: {
   subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function PT_Serif(options: {
-  weight: '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12120,8 +13902,8 @@ export declare function PT_Serif(options: {
   subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function PT_Serif_Caption(options: {
-  weight: '400'
-  style?: 'normal' | 'italic'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12130,8 +13912,8 @@ export declare function PT_Serif_Caption(options: {
   subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Pacifico(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12142,8 +13924,8 @@ export declare function Pacifico(options: {
   >
 }): FontModule
 export declare function Padauk(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12152,8 +13934,16 @@ export declare function Padauk(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'myanmar'>
 }): FontModule
 export declare function Palanquin(options: {
-  weight: '100' | '200' | '300' | '400' | '500' | '600' | '700'
-  style?: 'normal'
+  weight:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | Array<'100' | '200' | '300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12162,8 +13952,8 @@ export declare function Palanquin(options: {
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Palanquin_Dark(options: {
-  weight: '400' | '500' | '600' | '700'
-  style?: 'normal'
+  weight: '400' | '500' | '600' | '700' | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12172,8 +13962,8 @@ export declare function Palanquin_Dark(options: {
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Pangolin(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12184,8 +13974,8 @@ export declare function Pangolin(options: {
   >
 }): FontModule
 export declare function Paprika(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12194,8 +13984,8 @@ export declare function Paprika(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Parisienne(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12204,8 +13994,8 @@ export declare function Parisienne(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Passero_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12214,8 +14004,8 @@ export declare function Passero_One(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Passion_One(options: {
-  weight: '400' | '700' | '900'
-  style?: 'normal'
+  weight: '400' | '700' | '900' | Array<'400' | '700' | '900'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12224,8 +14014,8 @@ export declare function Passion_One(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Passions_Conflict(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12234,8 +14024,8 @@ export declare function Passions_Conflict(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Pathway_Gothic_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12244,8 +14034,8 @@ export declare function Pathway_Gothic_One(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Patrick_Hand(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12254,8 +14044,8 @@ export declare function Patrick_Hand(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Patrick_Hand_SC(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12264,8 +14054,8 @@ export declare function Patrick_Hand_SC(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Pattaya(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12274,8 +14064,8 @@ export declare function Pattaya(options: {
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): FontModule
 export declare function Patua_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12284,8 +14074,8 @@ export declare function Patua_One(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Pavanam(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12294,8 +14084,8 @@ export declare function Pavanam(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'tamil'>
 }): FontModule
 export declare function Paytone_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12304,8 +14094,8 @@ export declare function Paytone_One(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Peddana(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12314,8 +14104,8 @@ export declare function Peddana(options: {
   subsets?: Array<'latin' | 'telugu'>
 }): FontModule
 export declare function Peralta(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12324,8 +14114,8 @@ export declare function Peralta(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Permanent_Marker(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12334,8 +14124,8 @@ export declare function Permanent_Marker(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Petemoss(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12344,8 +14134,8 @@ export declare function Petemoss(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Petit_Formal_Script(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12365,7 +14155,10 @@ export declare function Petrona(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal' | 'italic'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12374,8 +14167,8 @@ export declare function Petrona(options?: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Philosopher(options: {
-  weight: '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12395,7 +14188,10 @@ export declare function Piazzolla(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal' | 'italic'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12413,8 +14209,8 @@ export declare function Piazzolla(options?: {
   axes?: 'opsz'[]
 }): FontModule
 export declare function Piedra(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12423,8 +14219,8 @@ export declare function Piedra(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Pinyon_Script(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12433,8 +14229,8 @@ export declare function Pinyon_Script(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Pirata_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12443,8 +14239,8 @@ export declare function Pirata_One(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Plaster(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12453,8 +14249,8 @@ export declare function Plaster(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Play(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12465,8 +14261,8 @@ export declare function Play(options: {
   >
 }): FontModule
 export declare function Playball(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12475,8 +14271,16 @@ export declare function Playball(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Playfair_Display(options?: {
-  weight?: '400' | '500' | '600' | '700' | '800' | '900' | 'variable'
-  style?: 'normal' | 'italic'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700' | '800' | '900'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12485,8 +14289,8 @@ export declare function Playfair_Display(options?: {
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Playfair_Display_SC(options: {
-  weight: '400' | '700' | '900'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | '900' | Array<'400' | '700' | '900'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12495,8 +14299,17 @@ export declare function Playfair_Display_SC(options: {
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Plus_Jakarta_Sans(options?: {
-  weight?: '200' | '300' | '400' | '500' | '600' | '700' | '800' | 'variable'
-  style?: 'normal' | 'italic'
+  weight?:
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | 'variable'
+    | Array<'200' | '300' | '400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12505,8 +14318,15 @@ export declare function Plus_Jakarta_Sans(options?: {
   subsets?: Array<'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Podkova(options?: {
-  weight?: '400' | '500' | '600' | '700' | '800' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12517,8 +14337,8 @@ export declare function Podkova(options?: {
   >
 }): FontModule
 export declare function Poiret_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12527,8 +14347,8 @@ export declare function Poiret_One(options: {
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Poller_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12537,8 +14357,8 @@ export declare function Poller_One(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Poly(options: {
-  weight: '400'
-  style?: 'normal' | 'italic'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12547,8 +14367,8 @@ export declare function Poly(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Pompiere(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12557,8 +14377,8 @@ export declare function Pompiere(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Pontano_Sans(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12567,8 +14387,8 @@ export declare function Pontano_Sans(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Poor_Story(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12577,8 +14397,20 @@ export declare function Poor_Story(options: {
   subsets?: Array<'korean' | 'latin'>
 }): FontModule
 export declare function Poppins(options: {
-  weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
-  style?: 'normal' | 'italic'
+  weight:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12587,8 +14419,8 @@ export declare function Poppins(options: {
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Port_Lligat_Sans(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12597,8 +14429,8 @@ export declare function Port_Lligat_Sans(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Port_Lligat_Slab(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12607,8 +14439,8 @@ export declare function Port_Lligat_Slab(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Potta_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12617,8 +14449,8 @@ export declare function Potta_One(options: {
   subsets?: Array<'japanese' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Pragati_Narrow(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12627,8 +14459,8 @@ export declare function Pragati_Narrow(options: {
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Praise(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12637,8 +14469,8 @@ export declare function Praise(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Prata(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12647,8 +14479,8 @@ export declare function Prata(options: {
   subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'vietnamese'>
 }): FontModule
 export declare function Preahvihear(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12657,8 +14489,8 @@ export declare function Preahvihear(options: {
   subsets?: Array<'khmer' | 'latin'>
 }): FontModule
 export declare function Press_Start_2P(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12667,8 +14499,15 @@ export declare function Press_Start_2P(options: {
   subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'greek' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Pridi(options: {
-  weight: '200' | '300' | '400' | '500' | '600' | '700'
-  style?: 'normal'
+  weight:
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | Array<'200' | '300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12677,8 +14516,8 @@ export declare function Pridi(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): FontModule
 export declare function Princess_Sofia(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12687,8 +14526,8 @@ export declare function Princess_Sofia(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Prociono(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12697,8 +14536,20 @@ export declare function Prociono(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Prompt(options: {
-  weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
-  style?: 'normal' | 'italic'
+  weight:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12707,8 +14558,8 @@ export declare function Prompt(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): FontModule
 export declare function Prosto_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12717,8 +14568,14 @@ export declare function Prosto_One(options: {
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Proza_Libre(options: {
-  weight: '400' | '500' | '600' | '700' | '800'
-  style?: 'normal' | 'italic'
+  weight:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | Array<'400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12738,7 +14595,10 @@ export declare function Public_Sans(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal' | 'italic'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12747,8 +14607,8 @@ export declare function Public_Sans(options?: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Puppies_Play(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12757,8 +14617,8 @@ export declare function Puppies_Play(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Puritan(options: {
-  weight: '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12767,8 +14627,8 @@ export declare function Puritan(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Purple_Purse(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12777,8 +14637,8 @@ export declare function Purple_Purse(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Qahiri(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12787,8 +14647,8 @@ export declare function Qahiri(options: {
   subsets?: Array<'arabic' | 'latin'>
 }): FontModule
 export declare function Quando(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12797,8 +14657,8 @@ export declare function Quando(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Quantico(options: {
-  weight: '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12807,8 +14667,8 @@ export declare function Quantico(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Quattrocento(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12817,8 +14677,8 @@ export declare function Quattrocento(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Quattrocento_Sans(options: {
-  weight: '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12827,8 +14687,8 @@ export declare function Quattrocento_Sans(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Questrial(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12837,8 +14697,15 @@ export declare function Questrial(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Quicksand(options?: {
-  weight?: '300' | '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12847,8 +14714,8 @@ export declare function Quicksand(options?: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Quintessential(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12857,8 +14724,8 @@ export declare function Quintessential(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Qwigley(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12867,8 +14734,8 @@ export declare function Qwigley(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Qwitcher_Grypen(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12877,8 +14744,8 @@ export declare function Qwitcher_Grypen(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Racing_Sans_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12887,8 +14754,15 @@ export declare function Racing_Sans_One(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Radio_Canada(options?: {
-  weight?: '300' | '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal' | 'italic'
+  weight?:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12898,8 +14772,8 @@ export declare function Radio_Canada(options?: {
   axes?: 'wdth'[]
 }): FontModule
 export declare function Radley(options: {
-  weight: '400'
-  style?: 'normal' | 'italic'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12908,8 +14782,14 @@ export declare function Radley(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Rajdhani(options: {
-  weight: '300' | '400' | '500' | '600' | '700'
-  style?: 'normal'
+  weight:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | Array<'300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12918,8 +14798,8 @@ export declare function Rajdhani(options: {
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Rakkas(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12939,7 +14819,10 @@ export declare function Raleway(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal' | 'italic'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12950,8 +14833,8 @@ export declare function Raleway(options?: {
   >
 }): FontModule
 export declare function Raleway_Dots(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12960,8 +14843,8 @@ export declare function Raleway_Dots(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Ramabhadra(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12970,8 +14853,8 @@ export declare function Ramabhadra(options: {
   subsets?: Array<'latin' | 'telugu'>
 }): FontModule
 export declare function Ramaraja(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12980,8 +14863,8 @@ export declare function Ramaraja(options: {
   subsets?: Array<'latin' | 'telugu'>
 }): FontModule
 export declare function Rambla(options: {
-  weight: '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -12990,8 +14873,8 @@ export declare function Rambla(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Rammetto_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13000,8 +14883,8 @@ export declare function Rammetto_One(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Rampart_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13010,8 +14893,8 @@ export declare function Rampart_One(options: {
   subsets?: Array<'cyrillic' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Ranchers(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13020,8 +14903,8 @@ export declare function Ranchers(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Rancho(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13030,8 +14913,8 @@ export declare function Rancho(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Ranga(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13040,8 +14923,15 @@ export declare function Ranga(options: {
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Rasa(options?: {
-  weight?: '300' | '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal' | 'italic'
+  weight?:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13050,8 +14940,8 @@ export declare function Rasa(options?: {
   subsets?: Array<'gujarati' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Rationale(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13060,8 +14950,8 @@ export declare function Rationale(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Ravi_Prakash(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13070,8 +14960,16 @@ export declare function Ravi_Prakash(options: {
   subsets?: Array<'latin' | 'telugu'>
 }): FontModule
 export declare function Readex_Pro(options?: {
-  weight?: '200' | '300' | '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'200' | '300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13090,7 +14988,8 @@ export declare function Recursive(options?: {
     | '900'
     | '1000'
     | 'variable'
-  style?: 'normal'
+    | Array<'300' | '400' | '500' | '600' | '700' | '800' | '900' | '1000'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13100,8 +14999,17 @@ export declare function Recursive(options?: {
   axes?: ('CASL' | 'CRSV' | 'MONO' | 'slnt')[]
 }): FontModule
 export declare function Red_Hat_Display(options?: {
-  weight?: '300' | '400' | '500' | '600' | '700' | '800' | '900' | 'variable'
-  style?: 'normal' | 'italic'
+  weight?:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | 'variable'
+    | Array<'300' | '400' | '500' | '600' | '700' | '800' | '900'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13110,8 +15018,15 @@ export declare function Red_Hat_Display(options?: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Red_Hat_Mono(options?: {
-  weight?: '300' | '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal' | 'italic'
+  weight?:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13120,8 +15035,15 @@ export declare function Red_Hat_Mono(options?: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Red_Hat_Text(options?: {
-  weight?: '300' | '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal' | 'italic'
+  weight?:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13130,8 +15052,15 @@ export declare function Red_Hat_Text(options?: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Red_Rose(options?: {
-  weight?: '300' | '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13140,8 +15069,8 @@ export declare function Red_Rose(options?: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Redacted(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13150,8 +15079,8 @@ export declare function Redacted(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Redacted_Script(options: {
-  weight: '300' | '400' | '700'
-  style?: 'normal'
+  weight: '300' | '400' | '700' | Array<'300' | '400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13160,8 +15089,8 @@ export declare function Redacted_Script(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Redressed(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13170,8 +15099,14 @@ export declare function Redressed(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Reem_Kufi(options?: {
-  weight?: '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13180,8 +15115,14 @@ export declare function Reem_Kufi(options?: {
   subsets?: Array<'arabic' | 'latin'>
 }): FontModule
 export declare function Reem_Kufi_Fun(options?: {
-  weight?: '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13190,8 +15131,8 @@ export declare function Reem_Kufi_Fun(options?: {
   subsets?: Array<'arabic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Reem_Kufi_Ink(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13200,8 +15141,8 @@ export declare function Reem_Kufi_Ink(options: {
   subsets?: Array<'arabic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Reenie_Beanie(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13210,8 +15151,8 @@ export declare function Reenie_Beanie(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Reggae_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13220,8 +15161,8 @@ export declare function Reggae_One(options: {
   subsets?: Array<'cyrillic' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Revalia(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13230,8 +15171,8 @@ export declare function Revalia(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Rhodium_Libre(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13240,8 +15181,8 @@ export declare function Rhodium_Libre(options: {
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Ribeye(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13250,8 +15191,8 @@ export declare function Ribeye(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Ribeye_Marrow(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13260,8 +15201,8 @@ export declare function Ribeye_Marrow(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Righteous(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13270,8 +15211,8 @@ export declare function Righteous(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Risque(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13280,8 +15221,8 @@ export declare function Risque(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Road_Rage(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13290,8 +15231,15 @@ export declare function Road_Rage(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Roboto(options: {
-  weight: '100' | '300' | '400' | '500' | '700' | '900'
-  style?: 'normal' | 'italic'
+  weight:
+    | '100'
+    | '300'
+    | '400'
+    | '500'
+    | '700'
+    | '900'
+    | Array<'100' | '300' | '400' | '500' | '700' | '900'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13308,8 +15256,8 @@ export declare function Roboto(options: {
   >
 }): FontModule
 export declare function Roboto_Condensed(options: {
-  weight: '300' | '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '300' | '400' | '700' | Array<'300' | '400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13338,7 +15286,19 @@ export declare function Roboto_Flex(options?: {
     | '900'
     | '1000'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        | '100'
+        | '200'
+        | '300'
+        | '400'
+        | '500'
+        | '600'
+        | '700'
+        | '800'
+        | '900'
+        | '1000'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13362,8 +15322,17 @@ export declare function Roboto_Flex(options?: {
   )[]
 }): FontModule
 export declare function Roboto_Mono(options?: {
-  weight?: '100' | '200' | '300' | '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal' | 'italic'
+  weight?:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'100' | '200' | '300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13385,7 +15354,10 @@ export declare function Roboto_Serif(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal' | 'italic'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13406,7 +15378,10 @@ export declare function Roboto_Slab(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13423,8 +15398,8 @@ export declare function Roboto_Slab(options?: {
   >
 }): FontModule
 export declare function Rochester(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13433,8 +15408,8 @@ export declare function Rochester(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Rock_Salt(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13443,8 +15418,8 @@ export declare function Rock_Salt(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function RocknRoll_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13464,7 +15439,10 @@ export declare function Rokkitt(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13473,8 +15451,8 @@ export declare function Rokkitt(options?: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Romanesco(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13483,8 +15461,8 @@ export declare function Romanesco(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Ropa_Sans(options: {
-  weight: '400'
-  style?: 'normal' | 'italic'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13493,8 +15471,15 @@ export declare function Ropa_Sans(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Rosario(options?: {
-  weight?: '300' | '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal' | 'italic'
+  weight?:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13503,8 +15488,8 @@ export declare function Rosario(options?: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Rosarivo(options: {
-  weight: '400'
-  style?: 'normal' | 'italic'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13513,8 +15498,8 @@ export declare function Rosarivo(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Rouge_Script(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13523,8 +15508,8 @@ export declare function Rouge_Script(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Rowdies(options: {
-  weight: '300' | '400' | '700'
-  style?: 'normal'
+  weight: '300' | '400' | '700' | Array<'300' | '400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13533,8 +15518,8 @@ export declare function Rowdies(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Rozha_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13543,8 +15528,17 @@ export declare function Rozha_One(options: {
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Rubik(options?: {
-  weight?: '300' | '400' | '500' | '600' | '700' | '800' | '900' | 'variable'
-  style?: 'normal' | 'italic'
+  weight?:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | 'variable'
+    | Array<'300' | '400' | '500' | '600' | '700' | '800' | '900'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13555,8 +15549,8 @@ export declare function Rubik(options?: {
   >
 }): FontModule
 export declare function Rubik_Beastly(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13567,8 +15561,8 @@ export declare function Rubik_Beastly(options: {
   >
 }): FontModule
 export declare function Rubik_Bubbles(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13579,8 +15573,8 @@ export declare function Rubik_Bubbles(options: {
   >
 }): FontModule
 export declare function Rubik_Burned(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13591,8 +15585,8 @@ export declare function Rubik_Burned(options: {
   >
 }): FontModule
 export declare function Rubik_Dirt(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13603,8 +15597,8 @@ export declare function Rubik_Dirt(options: {
   >
 }): FontModule
 export declare function Rubik_Distressed(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13615,8 +15609,8 @@ export declare function Rubik_Distressed(options: {
   >
 }): FontModule
 export declare function Rubik_Glitch(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13627,8 +15621,8 @@ export declare function Rubik_Glitch(options: {
   >
 }): FontModule
 export declare function Rubik_Iso(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13639,8 +15633,8 @@ export declare function Rubik_Iso(options: {
   >
 }): FontModule
 export declare function Rubik_Marker_Hatch(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13651,8 +15645,8 @@ export declare function Rubik_Marker_Hatch(options: {
   >
 }): FontModule
 export declare function Rubik_Maze(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13663,8 +15657,8 @@ export declare function Rubik_Maze(options: {
   >
 }): FontModule
 export declare function Rubik_Microbe(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13675,8 +15669,8 @@ export declare function Rubik_Microbe(options: {
   >
 }): FontModule
 export declare function Rubik_Mono_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13685,8 +15679,8 @@ export declare function Rubik_Mono_One(options: {
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Rubik_Moonrocks(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13697,8 +15691,8 @@ export declare function Rubik_Moonrocks(options: {
   >
 }): FontModule
 export declare function Rubik_Puddles(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13709,8 +15703,8 @@ export declare function Rubik_Puddles(options: {
   >
 }): FontModule
 export declare function Rubik_Wet_Paint(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13721,8 +15715,16 @@ export declare function Rubik_Wet_Paint(options: {
   >
 }): FontModule
 export declare function Ruda(options?: {
-  weight?: '400' | '500' | '600' | '700' | '800' | '900' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700' | '800' | '900'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13731,8 +15733,8 @@ export declare function Ruda(options?: {
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Rufina(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13741,8 +15743,8 @@ export declare function Rufina(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Ruge_Boogie(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13751,8 +15753,8 @@ export declare function Ruge_Boogie(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Ruluko(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13761,8 +15763,8 @@ export declare function Ruluko(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Rum_Raisin(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13771,8 +15773,8 @@ export declare function Rum_Raisin(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Ruslan_Display(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13781,8 +15783,8 @@ export declare function Ruslan_Display(options: {
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Russo_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13791,8 +15793,8 @@ export declare function Russo_One(options: {
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Ruthie(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13801,8 +15803,8 @@ export declare function Ruthie(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Rye(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13811,8 +15813,14 @@ export declare function Rye(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function STIX_Two_Text(options?: {
-  weight?: '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal' | 'italic'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13823,8 +15831,8 @@ export declare function STIX_Two_Text(options?: {
   >
 }): FontModule
 export declare function Sacramento(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13833,8 +15841,8 @@ export declare function Sacramento(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Sahitya(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13843,8 +15851,8 @@ export declare function Sahitya(options: {
   subsets?: Array<'devanagari' | 'latin'>
 }): FontModule
 export declare function Sail(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13864,7 +15872,10 @@ export declare function Saira(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal' | 'italic'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13874,8 +15885,20 @@ export declare function Saira(options?: {
   axes?: 'wdth'[]
 }): FontModule
 export declare function Saira_Condensed(options: {
-  weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
-  style?: 'normal'
+  weight:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13884,8 +15907,20 @@ export declare function Saira_Condensed(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Saira_Extra_Condensed(options: {
-  weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
-  style?: 'normal'
+  weight:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13894,8 +15929,20 @@ export declare function Saira_Extra_Condensed(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Saira_Semi_Condensed(options: {
-  weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
-  style?: 'normal'
+  weight:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13904,8 +15951,8 @@ export declare function Saira_Semi_Condensed(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Saira_Stencil_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13914,8 +15961,8 @@ export declare function Saira_Stencil_One(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Salsa(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13924,8 +15971,8 @@ export declare function Salsa(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Sanchez(options: {
-  weight: '400'
-  style?: 'normal' | 'italic'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13934,8 +15981,8 @@ export declare function Sanchez(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Sancreek(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13944,8 +15991,8 @@ export declare function Sancreek(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Sansita(options: {
-  weight: '400' | '700' | '800' | '900'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | '800' | '900' | Array<'400' | '700' | '800' | '900'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13954,8 +16001,17 @@ export declare function Sansita(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Sansita_Swashed(options?: {
-  weight?: '300' | '400' | '500' | '600' | '700' | '800' | '900' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | 'variable'
+    | Array<'300' | '400' | '500' | '600' | '700' | '800' | '900'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13964,8 +16020,17 @@ export declare function Sansita_Swashed(options?: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Sarabun(options: {
-  weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800'
-  style?: 'normal' | 'italic'
+  weight:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | Array<'100' | '200' | '300' | '400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13974,8 +16039,8 @@ export declare function Sarabun(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): FontModule
 export declare function Sarala(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13984,8 +16049,8 @@ export declare function Sarala(options: {
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Sarina(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -13994,8 +16059,15 @@ export declare function Sarina(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Sarpanch(options: {
-  weight: '400' | '500' | '600' | '700' | '800' | '900'
-  style?: 'normal'
+  weight:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | Array<'400' | '500' | '600' | '700' | '800' | '900'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14004,8 +16076,8 @@ export declare function Sarpanch(options: {
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Sassy_Frass(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14014,8 +16086,8 @@ export declare function Sassy_Frass(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Satisfy(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14024,8 +16096,8 @@ export declare function Satisfy(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Sawarabi_Gothic(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14036,8 +16108,8 @@ export declare function Sawarabi_Gothic(options: {
   >
 }): FontModule
 export declare function Sawarabi_Mincho(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14046,8 +16118,8 @@ export declare function Sawarabi_Mincho(options: {
   subsets?: Array<'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Scada(options: {
-  weight: '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14056,8 +16128,8 @@ export declare function Scada(options: {
   subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Scheherazade_New(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14066,8 +16138,8 @@ export declare function Scheherazade_New(options: {
   subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Schoolbell(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14076,8 +16148,8 @@ export declare function Schoolbell(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Scope_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14086,8 +16158,8 @@ export declare function Scope_One(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Seaweed_Script(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14096,8 +16168,8 @@ export declare function Seaweed_Script(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Secular_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14106,8 +16178,8 @@ export declare function Secular_One(options: {
   subsets?: Array<'hebrew' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Sedgwick_Ave(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14116,8 +16188,8 @@ export declare function Sedgwick_Ave(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Sedgwick_Ave_Display(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14126,8 +16198,8 @@ export declare function Sedgwick_Ave_Display(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Sen(options: {
-  weight: '400' | '700' | '800'
-  style?: 'normal'
+  weight: '400' | '700' | '800' | Array<'400' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14136,8 +16208,8 @@ export declare function Sen(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Send_Flowers(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14146,8 +16218,8 @@ export declare function Send_Flowers(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Sevillana(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14156,8 +16228,8 @@ export declare function Sevillana(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Seymour_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14166,8 +16238,8 @@ export declare function Seymour_One(options: {
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Shadows_Into_Light(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14176,8 +16248,8 @@ export declare function Shadows_Into_Light(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Shadows_Into_Light_Two(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14186,8 +16258,8 @@ export declare function Shadows_Into_Light_Two(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Shalimar(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14196,8 +16268,8 @@ export declare function Shalimar(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Shanti(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14206,8 +16278,8 @@ export declare function Shanti(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Share(options: {
-  weight: '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14216,8 +16288,8 @@ export declare function Share(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Share_Tech(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14226,8 +16298,8 @@ export declare function Share_Tech(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Share_Tech_Mono(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14236,8 +16308,8 @@ export declare function Share_Tech_Mono(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Shippori_Antique(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14246,8 +16318,8 @@ export declare function Shippori_Antique(options: {
   subsets?: Array<'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Shippori_Antique_B1(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14256,8 +16328,14 @@ export declare function Shippori_Antique_B1(options: {
   subsets?: Array<'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Shippori_Mincho(options: {
-  weight: '400' | '500' | '600' | '700' | '800'
-  style?: 'normal'
+  weight:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | Array<'400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14266,8 +16344,14 @@ export declare function Shippori_Mincho(options: {
   subsets?: Array<'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Shippori_Mincho_B1(options: {
-  weight: '400' | '500' | '600' | '700' | '800'
-  style?: 'normal'
+  weight:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | Array<'400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14276,8 +16360,8 @@ export declare function Shippori_Mincho_B1(options: {
   subsets?: Array<'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Shojumaru(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14286,8 +16370,8 @@ export declare function Shojumaru(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Short_Stack(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14296,8 +16380,8 @@ export declare function Short_Stack(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Shrikhand(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14306,8 +16390,8 @@ export declare function Shrikhand(options: {
   subsets?: Array<'gujarati' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Siemreap(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14316,8 +16400,8 @@ export declare function Siemreap(options: {
   subsets?: Array<'khmer'>
 }): FontModule
 export declare function Sigmar_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14326,8 +16410,15 @@ export declare function Sigmar_One(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Signika(options?: {
-  weight?: '300' | '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14336,8 +16427,15 @@ export declare function Signika(options?: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Signika_Negative(options?: {
-  weight?: '300' | '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14346,8 +16444,8 @@ export declare function Signika_Negative(options?: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Silkscreen(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14356,8 +16454,8 @@ export declare function Silkscreen(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Simonetta(options: {
-  weight: '400' | '900'
-  style?: 'normal' | 'italic'
+  weight: '400' | '900' | Array<'400' | '900'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14366,8 +16464,8 @@ export declare function Simonetta(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Single_Day(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14376,8 +16474,8 @@ export declare function Single_Day(options: {
   subsets?: Array<'korean'>
 }): FontModule
 export declare function Sintony(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14386,8 +16484,8 @@ export declare function Sintony(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Sirin_Stencil(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14396,8 +16494,8 @@ export declare function Sirin_Stencil(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Six_Caps(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14406,8 +16504,8 @@ export declare function Six_Caps(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Skranji(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14416,8 +16514,8 @@ export declare function Skranji(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Slabo_13px(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14426,8 +16524,8 @@ export declare function Slabo_13px(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Slabo_27px(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14436,8 +16534,8 @@ export declare function Slabo_27px(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Slackey(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14446,8 +16544,8 @@ export declare function Slackey(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Smokum(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14456,8 +16554,8 @@ export declare function Smokum(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Smooch(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14477,7 +16575,10 @@ export declare function Smooch_Sans(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14486,8 +16587,8 @@ export declare function Smooch_Sans(options?: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Smythe(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14496,8 +16597,8 @@ export declare function Smythe(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Sniglet(options: {
-  weight: '400' | '800'
-  style?: 'normal'
+  weight: '400' | '800' | Array<'400' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14506,8 +16607,8 @@ export declare function Sniglet(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Snippet(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14516,8 +16617,8 @@ export declare function Snippet(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Snowburst_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14526,8 +16627,8 @@ export declare function Snowburst_One(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Sofadi_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14536,8 +16637,8 @@ export declare function Sofadi_One(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Sofia(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14546,8 +16647,14 @@ export declare function Sofia(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Solway(options: {
-  weight: '300' | '400' | '500' | '700' | '800'
-  style?: 'normal'
+  weight:
+    | '300'
+    | '400'
+    | '500'
+    | '700'
+    | '800'
+    | Array<'300' | '400' | '500' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14556,8 +16663,8 @@ export declare function Solway(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Song_Myung(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14566,8 +16673,8 @@ export declare function Song_Myung(options: {
   subsets?: Array<'korean' | 'latin'>
 }): FontModule
 export declare function Sonsie_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14586,7 +16693,8 @@ export declare function Sora(options?: {
     | '700'
     | '800'
     | 'variable'
-  style?: 'normal'
+    | Array<'100' | '200' | '300' | '400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14595,8 +16703,8 @@ export declare function Sora(options?: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Sorts_Mill_Goudy(options: {
-  weight: '400'
-  style?: 'normal' | 'italic'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14615,7 +16723,8 @@ export declare function Source_Code_Pro(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal' | 'italic'
+    | Array<'200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14642,7 +16751,8 @@ export declare function Source_Sans_3(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal' | 'italic'
+    | Array<'200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14659,8 +16769,15 @@ export declare function Source_Sans_3(options?: {
   >
 }): FontModule
 export declare function Source_Sans_Pro(options: {
-  weight: '200' | '300' | '400' | '600' | '700' | '900'
-  style?: 'normal' | 'italic'
+  weight:
+    | '200'
+    | '300'
+    | '400'
+    | '600'
+    | '700'
+    | '900'
+    | Array<'200' | '300' | '400' | '600' | '700' | '900'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14687,7 +16804,8 @@ export declare function Source_Serif_4(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal' | 'italic'
+    | Array<'200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14699,8 +16817,15 @@ export declare function Source_Serif_4(options?: {
   axes?: 'opsz'[]
 }): FontModule
 export declare function Source_Serif_Pro(options: {
-  weight: '200' | '300' | '400' | '600' | '700' | '900'
-  style?: 'normal' | 'italic'
+  weight:
+    | '200'
+    | '300'
+    | '400'
+    | '600'
+    | '700'
+    | '900'
+    | Array<'200' | '300' | '400' | '600' | '700' | '900'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14711,8 +16836,15 @@ export declare function Source_Serif_Pro(options: {
   >
 }): FontModule
 export declare function Space_Grotesk(options?: {
-  weight?: '300' | '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14721,8 +16853,8 @@ export declare function Space_Grotesk(options?: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Space_Mono(options: {
-  weight: '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14731,8 +16863,8 @@ export declare function Space_Mono(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Special_Elite(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14741,8 +16873,16 @@ export declare function Special_Elite(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Spectral(options: {
-  weight: '200' | '300' | '400' | '500' | '600' | '700' | '800'
-  style?: 'normal' | 'italic'
+  weight:
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | Array<'200' | '300' | '400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14751,8 +16891,16 @@ export declare function Spectral(options: {
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Spectral_SC(options: {
-  weight: '200' | '300' | '400' | '500' | '600' | '700' | '800'
-  style?: 'normal' | 'italic'
+  weight:
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | Array<'200' | '300' | '400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14761,8 +16909,8 @@ export declare function Spectral_SC(options: {
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Spicy_Rice(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14771,8 +16919,8 @@ export declare function Spicy_Rice(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Spinnaker(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14781,8 +16929,8 @@ export declare function Spinnaker(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Spirax(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14791,8 +16939,8 @@ export declare function Spirax(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Splash(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14801,8 +16949,15 @@ export declare function Splash(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Spline_Sans(options?: {
-  weight?: '300' | '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14811,8 +16966,15 @@ export declare function Spline_Sans(options?: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Spline_Sans_Mono(options?: {
-  weight?: '300' | '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal' | 'italic'
+  weight?:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14821,8 +16983,8 @@ export declare function Spline_Sans_Mono(options?: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Squada_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14831,8 +16993,8 @@ export declare function Squada_One(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Square_Peg(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14841,8 +17003,8 @@ export declare function Square_Peg(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Sree_Krushnadevaraya(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14851,8 +17013,8 @@ export declare function Sree_Krushnadevaraya(options: {
   subsets?: Array<'latin' | 'telugu'>
 }): FontModule
 export declare function Sriracha(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14861,8 +17023,8 @@ export declare function Sriracha(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): FontModule
 export declare function Srisakdi(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14871,8 +17033,8 @@ export declare function Srisakdi(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): FontModule
 export declare function Staatliches(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14881,8 +17043,8 @@ export declare function Staatliches(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Stalemate(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14891,8 +17053,8 @@ export declare function Stalemate(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Stalinist_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14901,8 +17063,8 @@ export declare function Stalinist_One(options: {
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Stardos_Stencil(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14911,8 +17073,8 @@ export declare function Stardos_Stencil(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Stick(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14921,8 +17083,17 @@ export declare function Stick(options: {
   subsets?: Array<'cyrillic' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Stick_No_Bills(options?: {
-  weight?: '200' | '300' | '400' | '500' | '600' | '700' | '800' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | 'variable'
+    | Array<'200' | '300' | '400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14931,8 +17102,8 @@ export declare function Stick_No_Bills(options?: {
   subsets?: Array<'latin' | 'latin-ext' | 'sinhala'>
 }): FontModule
 export declare function Stint_Ultra_Condensed(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14941,8 +17112,8 @@ export declare function Stint_Ultra_Condensed(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Stint_Ultra_Expanded(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14951,8 +17122,8 @@ export declare function Stint_Ultra_Expanded(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Stoke(options: {
-  weight: '300' | '400'
-  style?: 'normal'
+  weight: '300' | '400' | Array<'300' | '400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14961,8 +17132,8 @@ export declare function Stoke(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Strait(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14971,8 +17142,8 @@ export declare function Strait(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Style_Script(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14981,8 +17152,8 @@ export declare function Style_Script(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Stylish(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -14991,8 +17162,8 @@ export declare function Stylish(options: {
   subsets?: Array<'korean' | 'latin'>
 }): FontModule
 export declare function Sue_Ellen_Francisco(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15001,8 +17172,8 @@ export declare function Sue_Ellen_Francisco(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Suez_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15011,8 +17182,8 @@ export declare function Suez_One(options: {
   subsets?: Array<'hebrew' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Sulphur_Point(options: {
-  weight: '300' | '400' | '700'
-  style?: 'normal'
+  weight: '300' | '400' | '700' | Array<'300' | '400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15021,8 +17192,8 @@ export declare function Sulphur_Point(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Sumana(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15031,8 +17202,8 @@ export declare function Sumana(options: {
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Sunflower(options: {
-  weight: '300' | '500' | '700'
-  style?: 'normal'
+  weight: '300' | '500' | '700' | Array<'300' | '500' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15041,8 +17212,8 @@ export declare function Sunflower(options: {
   subsets?: Array<'korean' | 'latin'>
 }): FontModule
 export declare function Sunshiney(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15051,8 +17222,8 @@ export declare function Sunshiney(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Supermercado_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15061,8 +17232,8 @@ export declare function Supermercado_One(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Sura(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15071,8 +17242,8 @@ export declare function Sura(options: {
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Suranna(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15081,8 +17252,8 @@ export declare function Suranna(options: {
   subsets?: Array<'latin' | 'telugu'>
 }): FontModule
 export declare function Suravaram(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15091,8 +17262,14 @@ export declare function Suravaram(options: {
   subsets?: Array<'latin' | 'telugu'>
 }): FontModule
 export declare function Suwannaphum(options: {
-  weight: '100' | '300' | '400' | '700' | '900'
-  style?: 'normal'
+  weight:
+    | '100'
+    | '300'
+    | '400'
+    | '700'
+    | '900'
+    | Array<'100' | '300' | '400' | '700' | '900'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15101,8 +17278,8 @@ export declare function Suwannaphum(options: {
   subsets?: Array<'khmer' | 'latin'>
 }): FontModule
 export declare function Swanky_and_Moo_Moo(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15111,8 +17288,8 @@ export declare function Swanky_and_Moo_Moo(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Syncopate(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15121,8 +17298,15 @@ export declare function Syncopate(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Syne(options?: {
-  weight?: '400' | '500' | '600' | '700' | '800' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15131,8 +17315,8 @@ export declare function Syne(options?: {
   subsets?: Array<'greek' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Syne_Mono(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15141,8 +17325,8 @@ export declare function Syne_Mono(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Syne_Tactile(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15151,8 +17335,8 @@ export declare function Syne_Tactile(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Tai_Heritage_Pro(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15161,8 +17345,16 @@ export declare function Tai_Heritage_Pro(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'tai-viet' | 'vietnamese'>
 }): FontModule
 export declare function Tajawal(options: {
-  weight: '200' | '300' | '400' | '500' | '700' | '800' | '900'
-  style?: 'normal'
+  weight:
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '700'
+    | '800'
+    | '900'
+    | Array<'200' | '300' | '400' | '500' | '700' | '800' | '900'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15171,8 +17363,8 @@ export declare function Tajawal(options: {
   subsets?: Array<'arabic' | 'latin'>
 }): FontModule
 export declare function Tangerine(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15181,8 +17373,8 @@ export declare function Tangerine(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Tapestry(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15191,8 +17383,8 @@ export declare function Tapestry(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Taprom(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15201,8 +17393,8 @@ export declare function Taprom(options: {
   subsets?: Array<'khmer' | 'latin'>
 }): FontModule
 export declare function Tauri(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15211,8 +17403,20 @@ export declare function Tauri(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Taviraj(options: {
-  weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
-  style?: 'normal' | 'italic'
+  weight:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15221,8 +17425,14 @@ export declare function Taviraj(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): FontModule
 export declare function Teko(options: {
-  weight: '300' | '400' | '500' | '600' | '700'
-  style?: 'normal'
+  weight:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | Array<'300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15231,8 +17441,8 @@ export declare function Teko(options: {
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Telex(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15241,8 +17451,8 @@ export declare function Telex(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Tenali_Ramakrishna(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15251,8 +17461,8 @@ export declare function Tenali_Ramakrishna(options: {
   subsets?: Array<'latin' | 'telugu'>
 }): FontModule
 export declare function Tenor_Sans(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15261,8 +17471,8 @@ export declare function Tenor_Sans(options: {
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Text_Me_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15282,7 +17492,10 @@ export declare function Texturina(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal' | 'italic'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15292,8 +17505,8 @@ export declare function Texturina(options?: {
   axes?: 'opsz'[]
 }): FontModule
 export declare function Thasadith(options: {
-  weight: '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15302,8 +17515,8 @@ export declare function Thasadith(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): FontModule
 export declare function The_Girl_Next_Door(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15312,8 +17525,8 @@ export declare function The_Girl_Next_Door(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function The_Nautigal(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15322,8 +17535,8 @@ export declare function The_Nautigal(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Tienne(options: {
-  weight: '400' | '700' | '900'
-  style?: 'normal'
+  weight: '400' | '700' | '900' | Array<'400' | '700' | '900'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15332,8 +17545,14 @@ export declare function Tienne(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Tillana(options: {
-  weight: '400' | '500' | '600' | '700' | '800'
-  style?: 'normal'
+  weight:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | Array<'400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15342,8 +17561,8 @@ export declare function Tillana(options: {
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Timmana(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15352,8 +17571,8 @@ export declare function Timmana(options: {
   subsets?: Array<'latin' | 'telugu'>
 }): FontModule
 export declare function Tinos(options: {
-  weight: '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15371,8 +17590,8 @@ export declare function Tinos(options: {
   >
 }): FontModule
 export declare function Tiro_Bangla(options: {
-  weight: '400'
-  style?: 'normal' | 'italic'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15381,8 +17600,8 @@ export declare function Tiro_Bangla(options: {
   subsets?: Array<'bengali' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Tiro_Devanagari_Hindi(options: {
-  weight: '400'
-  style?: 'normal' | 'italic'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15391,8 +17610,8 @@ export declare function Tiro_Devanagari_Hindi(options: {
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Tiro_Devanagari_Marathi(options: {
-  weight: '400'
-  style?: 'normal' | 'italic'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15401,8 +17620,8 @@ export declare function Tiro_Devanagari_Marathi(options: {
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Tiro_Devanagari_Sanskrit(options: {
-  weight: '400'
-  style?: 'normal' | 'italic'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15411,8 +17630,8 @@ export declare function Tiro_Devanagari_Sanskrit(options: {
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Tiro_Gurmukhi(options: {
-  weight: '400'
-  style?: 'normal' | 'italic'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15421,8 +17640,8 @@ export declare function Tiro_Gurmukhi(options: {
   subsets?: Array<'gurmukhi' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Tiro_Kannada(options: {
-  weight: '400'
-  style?: 'normal' | 'italic'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15431,8 +17650,8 @@ export declare function Tiro_Kannada(options: {
   subsets?: Array<'kannada' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Tiro_Tamil(options: {
-  weight: '400'
-  style?: 'normal' | 'italic'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15441,8 +17660,8 @@ export declare function Tiro_Tamil(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'tamil'>
 }): FontModule
 export declare function Tiro_Telugu(options: {
-  weight: '400'
-  style?: 'normal' | 'italic'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15451,8 +17670,8 @@ export declare function Tiro_Telugu(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'telugu'>
 }): FontModule
 export declare function Titan_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15461,8 +17680,15 @@ export declare function Titan_One(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Titillium_Web(options: {
-  weight: '200' | '300' | '400' | '600' | '700' | '900'
-  style?: 'normal' | 'italic'
+  weight:
+    | '200'
+    | '300'
+    | '400'
+    | '600'
+    | '700'
+    | '900'
+    | Array<'200' | '300' | '400' | '600' | '700' | '900'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15471,8 +17697,20 @@ export declare function Titillium_Web(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Tomorrow(options: {
-  weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
-  style?: 'normal' | 'italic'
+  weight:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15492,7 +17730,10 @@ export declare function Tourney(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal' | 'italic'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15502,8 +17743,8 @@ export declare function Tourney(options?: {
   axes?: 'wdth'[]
 }): FontModule
 export declare function Trade_Winds(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15512,8 +17753,8 @@ export declare function Trade_Winds(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Train_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15522,8 +17763,20 @@ export declare function Train_One(options: {
   subsets?: Array<'cyrillic' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Trirong(options: {
-  weight: '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
-  style?: 'normal' | 'italic'
+  weight:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15542,7 +17795,8 @@ export declare function Trispace(options?: {
     | '700'
     | '800'
     | 'variable'
-  style?: 'normal'
+    | Array<'100' | '200' | '300' | '400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15552,8 +17806,8 @@ export declare function Trispace(options?: {
   axes?: 'wdth'[]
 }): FontModule
 export declare function Trocchi(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15562,8 +17816,8 @@ export declare function Trocchi(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Trochut(options: {
-  weight: '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15583,7 +17837,10 @@ export declare function Truculenta(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15593,8 +17850,8 @@ export declare function Truculenta(options?: {
   axes?: ('opsz' | 'wdth')[]
 }): FontModule
 export declare function Trykker(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15603,8 +17860,8 @@ export declare function Trykker(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Tulpen_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15613,8 +17870,15 @@ export declare function Tulpen_One(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Turret_Road(options: {
-  weight: '200' | '300' | '400' | '500' | '700' | '800'
-  style?: 'normal'
+  weight:
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '700'
+    | '800'
+    | Array<'200' | '300' | '400' | '500' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15623,8 +17887,8 @@ export declare function Turret_Road(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Twinkle_Star(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15633,8 +17897,8 @@ export declare function Twinkle_Star(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Ubuntu(options: {
-  weight: '300' | '400' | '500' | '700'
-  style?: 'normal' | 'italic'
+  weight: '300' | '400' | '500' | '700' | Array<'300' | '400' | '500' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15645,8 +17909,8 @@ export declare function Ubuntu(options: {
   >
 }): FontModule
 export declare function Ubuntu_Condensed(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15657,8 +17921,8 @@ export declare function Ubuntu_Condensed(options: {
   >
 }): FontModule
 export declare function Ubuntu_Mono(options: {
-  weight: '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15669,8 +17933,8 @@ export declare function Ubuntu_Mono(options: {
   >
 }): FontModule
 export declare function Uchen(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15679,8 +17943,8 @@ export declare function Uchen(options: {
   subsets?: Array<'latin' | 'tibetan'>
 }): FontModule
 export declare function Ultra(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15689,8 +17953,8 @@ export declare function Ultra(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Uncial_Antiqua(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15699,8 +17963,8 @@ export declare function Uncial_Antiqua(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Underdog(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15709,8 +17973,8 @@ export declare function Underdog(options: {
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Unica_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15719,8 +17983,8 @@ export declare function Unica_One(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function UnifrakturCook(options: {
-  weight: '700'
-  style?: 'normal'
+  weight: '700' | Array<'700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15729,8 +17993,8 @@ export declare function UnifrakturCook(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function UnifrakturMaguntia(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15739,8 +18003,8 @@ export declare function UnifrakturMaguntia(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Unkempt(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15749,8 +18013,8 @@ export declare function Unkempt(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Unlock(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15759,8 +18023,8 @@ export declare function Unlock(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Unna(options: {
-  weight: '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15769,8 +18033,8 @@ export declare function Unna(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Updock(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15790,7 +18054,10 @@ export declare function Urbanist(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal' | 'italic'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15799,8 +18066,8 @@ export declare function Urbanist(options?: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function VT323(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15809,8 +18076,8 @@ export declare function VT323(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Vampiro_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15819,8 +18086,8 @@ export declare function Vampiro_One(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Varela(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15829,8 +18096,8 @@ export declare function Varela(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Varela_Round(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15839,8 +18106,15 @@ export declare function Varela_Round(options: {
   subsets?: Array<'hebrew' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Varta(options?: {
-  weight?: '300' | '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15849,8 +18123,8 @@ export declare function Varta(options?: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Vast_Shadow(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15870,7 +18144,10 @@ export declare function Vazirmatn(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15879,8 +18156,8 @@ export declare function Vazirmatn(options?: {
   subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Vesper_Libre(options: {
-  weight: '400' | '500' | '700' | '900'
-  style?: 'normal'
+  weight: '400' | '500' | '700' | '900' | Array<'400' | '500' | '700' | '900'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15889,8 +18166,8 @@ export declare function Vesper_Libre(options: {
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Viaoda_Libre(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15901,8 +18178,8 @@ export declare function Viaoda_Libre(options: {
   >
 }): FontModule
 export declare function Vibes(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15911,8 +18188,8 @@ export declare function Vibes(options: {
   subsets?: Array<'arabic' | 'latin'>
 }): FontModule
 export declare function Vibur(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15921,8 +18198,8 @@ export declare function Vibur(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Vidaloka(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15931,8 +18208,8 @@ export declare function Vidaloka(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Viga(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15941,8 +18218,8 @@ export declare function Viga(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Voces(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15951,8 +18228,8 @@ export declare function Voces(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Volkhov(options: {
-  weight: '400' | '700'
-  style?: 'normal' | 'italic'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15961,8 +18238,16 @@ export declare function Volkhov(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Vollkorn(options?: {
-  weight?: '400' | '500' | '600' | '700' | '800' | '900' | 'variable'
-  style?: 'normal' | 'italic'
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700' | '800' | '900'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15973,8 +18258,8 @@ export declare function Vollkorn(options?: {
   >
 }): FontModule
 export declare function Vollkorn_SC(options: {
-  weight: '400' | '600' | '700' | '900'
-  style?: 'normal'
+  weight: '400' | '600' | '700' | '900' | Array<'400' | '600' | '700' | '900'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15985,8 +18270,8 @@ export declare function Vollkorn_SC(options: {
   >
 }): FontModule
 export declare function Voltaire(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -15995,8 +18280,8 @@ export declare function Voltaire(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Vujahday_Script(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -16005,8 +18290,8 @@ export declare function Vujahday_Script(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Waiting_for_the_Sunrise(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -16015,8 +18300,8 @@ export declare function Waiting_for_the_Sunrise(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Wallpoet(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -16025,8 +18310,8 @@ export declare function Wallpoet(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Walter_Turncoat(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -16035,8 +18320,8 @@ export declare function Walter_Turncoat(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Warnes(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -16045,8 +18330,8 @@ export declare function Warnes(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Water_Brush(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -16055,8 +18340,8 @@ export declare function Water_Brush(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Waterfall(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -16065,8 +18350,8 @@ export declare function Waterfall(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Wellfleet(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -16075,8 +18360,8 @@ export declare function Wellfleet(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Wendy_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -16085,8 +18370,8 @@ export declare function Wendy_One(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Whisper(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -16095,8 +18380,8 @@ export declare function Whisper(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function WindSong(options: {
-  weight: '400' | '500'
-  style?: 'normal'
+  weight: '400' | '500' | Array<'400' | '500'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -16105,8 +18390,8 @@ export declare function WindSong(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Wire_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -16126,7 +18411,10 @@ export declare function Work_Sans(options?: {
     | '800'
     | '900'
     | 'variable'
-  style?: 'normal' | 'italic'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -16135,8 +18423,8 @@ export declare function Work_Sans(options?: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Xanh_Mono(options: {
-  weight: '400'
-  style?: 'normal' | 'italic'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -16145,8 +18433,16 @@ export declare function Xanh_Mono(options: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Yaldevi(options?: {
-  weight?: '200' | '300' | '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'200' | '300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -16155,8 +18451,16 @@ export declare function Yaldevi(options?: {
   subsets?: Array<'latin' | 'latin-ext' | 'sinhala'>
 }): FontModule
 export declare function Yanone_Kaffeesatz(options?: {
-  weight?: '200' | '300' | '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal'
+  weight?:
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'200' | '300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -16165,8 +18469,15 @@ export declare function Yanone_Kaffeesatz(options?: {
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Yantramanav(options: {
-  weight: '100' | '300' | '400' | '500' | '700' | '900'
-  style?: 'normal'
+  weight:
+    | '100'
+    | '300'
+    | '400'
+    | '500'
+    | '700'
+    | '900'
+    | Array<'100' | '300' | '400' | '500' | '700' | '900'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -16175,8 +18486,8 @@ export declare function Yantramanav(options: {
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Yatra_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -16185,8 +18496,8 @@ export declare function Yatra_One(options: {
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Yellowtail(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -16195,8 +18506,8 @@ export declare function Yellowtail(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Yeon_Sung(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -16205,8 +18516,8 @@ export declare function Yeon_Sung(options: {
   subsets?: Array<'korean' | 'latin'>
 }): FontModule
 export declare function Yeseva_One(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -16217,8 +18528,8 @@ export declare function Yeseva_One(options: {
   >
 }): FontModule
 export declare function Yesteryear(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -16227,8 +18538,8 @@ export declare function Yesteryear(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Yomogi(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -16239,8 +18550,15 @@ export declare function Yomogi(options: {
   >
 }): FontModule
 export declare function Yrsa(options?: {
-  weight?: '300' | '400' | '500' | '600' | '700' | 'variable'
-  style?: 'normal' | 'italic'
+  weight?:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -16249,8 +18567,8 @@ export declare function Yrsa(options?: {
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): FontModule
 export declare function Yuji_Boku(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -16259,8 +18577,8 @@ export declare function Yuji_Boku(options: {
   subsets?: Array<'cyrillic' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Yuji_Mai(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -16269,8 +18587,8 @@ export declare function Yuji_Mai(options: {
   subsets?: Array<'cyrillic' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Yuji_Syuku(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -16279,8 +18597,8 @@ export declare function Yuji_Syuku(options: {
   subsets?: Array<'cyrillic' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Yusei_Magic(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -16289,8 +18607,8 @@ export declare function Yusei_Magic(options: {
   subsets?: Array<'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function ZCOOL_KuaiLe(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -16299,8 +18617,8 @@ export declare function ZCOOL_KuaiLe(options: {
   subsets?: Array<'chinese-simplified' | 'latin'>
 }): FontModule
 export declare function ZCOOL_QingKe_HuangYou(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -16309,8 +18627,8 @@ export declare function ZCOOL_QingKe_HuangYou(options: {
   subsets?: Array<'chinese-simplified' | 'latin'>
 }): FontModule
 export declare function ZCOOL_XiaoWei(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -16319,8 +18637,8 @@ export declare function ZCOOL_XiaoWei(options: {
   subsets?: Array<'chinese-simplified' | 'latin'>
 }): FontModule
 export declare function Zen_Antique(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -16329,8 +18647,8 @@ export declare function Zen_Antique(options: {
   subsets?: Array<'cyrillic' | 'greek' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Zen_Antique_Soft(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -16339,8 +18657,8 @@ export declare function Zen_Antique_Soft(options: {
   subsets?: Array<'cyrillic' | 'greek' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Zen_Dots(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -16349,8 +18667,14 @@ export declare function Zen_Dots(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Zen_Kaku_Gothic_Antique(options: {
-  weight: '300' | '400' | '500' | '700' | '900'
-  style?: 'normal'
+  weight:
+    | '300'
+    | '400'
+    | '500'
+    | '700'
+    | '900'
+    | Array<'300' | '400' | '500' | '700' | '900'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -16359,8 +18683,14 @@ export declare function Zen_Kaku_Gothic_Antique(options: {
   subsets?: Array<'cyrillic' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Zen_Kaku_Gothic_New(options: {
-  weight: '300' | '400' | '500' | '700' | '900'
-  style?: 'normal'
+  weight:
+    | '300'
+    | '400'
+    | '500'
+    | '700'
+    | '900'
+    | Array<'300' | '400' | '500' | '700' | '900'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -16369,8 +18699,8 @@ export declare function Zen_Kaku_Gothic_New(options: {
   subsets?: Array<'cyrillic' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Zen_Kurenaido(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -16379,8 +18709,8 @@ export declare function Zen_Kurenaido(options: {
   subsets?: Array<'cyrillic' | 'greek' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Zen_Loop(options: {
-  weight: '400'
-  style?: 'normal' | 'italic'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -16389,8 +18719,14 @@ export declare function Zen_Loop(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Zen_Maru_Gothic(options: {
-  weight: '300' | '400' | '500' | '700' | '900'
-  style?: 'normal'
+  weight:
+    | '300'
+    | '400'
+    | '500'
+    | '700'
+    | '900'
+    | Array<'300' | '400' | '500' | '700' | '900'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -16399,8 +18735,8 @@ export declare function Zen_Maru_Gothic(options: {
   subsets?: Array<'cyrillic' | 'greek' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Zen_Old_Mincho(options: {
-  weight: '400' | '700' | '900'
-  style?: 'normal'
+  weight: '400' | '700' | '900' | Array<'400' | '700' | '900'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -16409,8 +18745,8 @@ export declare function Zen_Old_Mincho(options: {
   subsets?: Array<'cyrillic' | 'greek' | 'japanese' | 'latin' | 'latin-ext'>
 }): FontModule
 export declare function Zen_Tokyo_Zoo(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -16419,8 +18755,8 @@ export declare function Zen_Tokyo_Zoo(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Zeyada(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -16429,8 +18765,8 @@ export declare function Zeyada(options: {
   subsets?: Array<'latin'>
 }): FontModule
 export declare function Zhi_Mang_Xing(options: {
-  weight: '400'
-  style?: 'normal'
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -16439,8 +18775,14 @@ export declare function Zhi_Mang_Xing(options: {
   subsets?: Array<'chinese-simplified' | 'latin'>
 }): FontModule
 export declare function Zilla_Slab(options: {
-  weight: '300' | '400' | '500' | '600' | '700'
-  style?: 'normal' | 'italic'
+  weight:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | Array<'300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: CssVariable
   preload?: boolean
@@ -16449,8 +18791,8 @@ export declare function Zilla_Slab(options: {
   subsets?: Array<'latin' | 'latin-ext'>
 }): FontModule
 export declare function Zilla_Slab_Highlight(options: {
-  weight: '400' | '700'
-  style?: 'normal'
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: CssVariable
   preload?: boolean

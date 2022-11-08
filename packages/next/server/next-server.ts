@@ -94,16 +94,12 @@ import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
 import { getClonableBody } from './body-streams'
 import { checkIsManualRevalidate } from './api-utils'
-import { shouldUseReactRoot } from './utils'
 import ResponseCache from './response-cache'
 import { IncrementalCache } from './lib/incremental-cache'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 
-if (shouldUseReactRoot) {
-  ;(process.env as any).__NEXT_REACT_ROOT = 'true'
-}
-
 import { renderToHTMLOrFlight as appRenderToHTMLOrFlight } from './app-render'
+import { setHttpClientAndAgentOptions } from './config'
 
 export * from './base-server'
 
@@ -260,11 +256,12 @@ export default class NextNodeServer extends BaseServer {
       }).catch(() => {})
     }
 
-    if (this.nextConfig.experimental.appDir) {
-      // expose AsyncLocalStorage on global for react usage
-      const { AsyncLocalStorage } = require('async_hooks')
-      ;(global as any).AsyncLocalStorage = AsyncLocalStorage
-    }
+    // expose AsyncLocalStorage on global for react usage
+    const { AsyncLocalStorage } = require('async_hooks')
+    ;(globalThis as any).AsyncLocalStorage = AsyncLocalStorage
+
+    // ensure options are set when loadConfig isn't called
+    setHttpClientAndAgentOptions(this.nextConfig)
   }
 
   private compression = this.nextConfig.compress
@@ -1777,7 +1774,7 @@ export default class NextNodeServer extends BaseServer {
         page: page,
         body: getRequestMeta(params.request, '__NEXT_CLONABLE_BODY'),
       },
-      useCache: false,
+      useCache: !this.renderOpts.dev,
       onWarning: params.onWarning,
     })
 
@@ -2134,7 +2131,7 @@ export default class NextNodeServer extends BaseServer {
         },
         body: getRequestMeta(params.req, '__NEXT_CLONABLE_BODY'),
       },
-      useCache: false,
+      useCache: !this.renderOpts.dev,
       onWarning: params.onWarning,
     })
 

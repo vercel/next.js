@@ -1537,7 +1537,6 @@ export async function ncc_react(task, opts) {
   await fs.remove(join(reactDomCompiledDir, 'static.browser.js'))
   await fs.remove(join(reactDomCompiledDir, 'unstable_testing.js'))
   await fs.remove(join(reactDomCompiledDir, 'test-utils.js'))
-  await fs.remove(join(reactDomCompiledDir, 'server.node.js'))
   await fs.remove(join(reactDomCompiledDir, 'profiling.js'))
   await fs.remove(
     join(reactDomCompiledDir, 'unstable_server-external-runtime.js')
@@ -2109,11 +2108,7 @@ export async function compile(task, opts) {
     ],
     opts
   )
-  await task.serial([
-    'ncc_react_refresh_utils',
-    'ncc_next__react_dev_overlay',
-    'copy_package_json',
-  ])
+  await task.serial(['ncc_react_refresh_utils', 'ncc_next__react_dev_overlay'])
 }
 
 export async function bin(task, opts) {
@@ -2198,29 +2193,6 @@ export async function nextbuildjest(task, opts) {
     .swc('server', { dev: opts.dev, interopClientDefaultExport: true })
     .target('dist/build/jest')
   notify('Compiled build/jest files')
-}
-
-export async function copy_package_json(task, opts) {
-  await fs.copy(
-    join(
-      __dirname,
-      'client/components/static-generation-async-storage/package.json'
-    ),
-    join(
-      __dirname,
-      'dist/client/components/static-generation-async-storage/package.json'
-    )
-  )
-  await fs.copy(
-    join(
-      __dirname,
-      'client/components/static-generation-async-storage/package.json'
-    ),
-    join(
-      __dirname,
-      'dist/esm/client/components/static-generation-async-storage/package.json'
-    )
-  )
 }
 
 export async function client(task, opts) {

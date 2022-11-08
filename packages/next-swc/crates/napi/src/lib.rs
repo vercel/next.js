@@ -26,7 +26,6 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 */
 
-#![feature(future_join)]
 #![recursion_limit = "2048"]
 //#![deny(clippy::all)]
 
@@ -45,11 +44,12 @@ use swc_core::{
     common::{sync::Lazy, FilePathMapping, SourceMap},
 };
 
+pub mod mdx;
 pub mod minify;
 pub mod parse;
 pub mod transform;
-pub mod turbo_tracing;
 pub mod turbopack;
+pub mod turbotrace;
 pub mod util;
 
 static COMPILER: Lazy<Arc<Compiler>> = Lazy::new(|| {

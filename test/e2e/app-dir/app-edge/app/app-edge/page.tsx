@@ -1,4 +1,8 @@
 export default function Page() {
-  return <p>app-edge-ssr</p>
+  if ('EdgeRuntime' in globalThis) {
+    return <p>Edge!</p>
+  }
+  return <p>Node!</p>
 }
+
 export const runtime = 'experimental-edge'

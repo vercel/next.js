@@ -17,13 +17,15 @@ export const FILE_TYPES = {
   'not-found': 'not-found',
 } as const
 
+const PAGE_SEGMENT = 'page$'
+
 // TODO-APP: check if this can be narrowed.
 type ComponentModule = () => any
+type ModuleReference = [componentModule: ComponentModule, filePath: string]
 export type ComponentsType = {
-  readonly [componentKey in ValueOf<typeof FILE_TYPES>]?: ComponentModule
+  readonly [componentKey in ValueOf<typeof FILE_TYPES>]?: ModuleReference
 } & {
-  readonly layoutOrPagePath?: string
-  readonly page?: ComponentModule
+  readonly page?: ModuleReference
 }
 
 async function createTreeCodeFromPath({
@@ -59,20 +61,20 @@ async function createTreeCodeFromPath({
     }
 
     for (const [parallelKey, parallelSegment] of parallelSegments) {
-      const parallelSegmentPath = segmentPath + '/' + parallelSegment
-
-      if (parallelSegment === 'page') {
-        const matchedPagePath = `${appDirPrefix}${parallelSegmentPath}`
+      if (parallelSegment === PAGE_SEGMENT) {
+        const matchedPagePath = `${appDirPrefix}${segmentPath}/page`
         const resolvedPagePath = await resolve(matchedPagePath)
         if (resolvedPagePath) pages.push(resolvedPagePath)
 
         // Use '' for segment as it's the page. There can't be a segment called '' so this is the safest way to add it.
-        props[parallelKey] = `['', {}, {layoutOrPagePath: ${JSON.stringify(
-          resolvedPagePath
-        )}, page: () => require(${JSON.stringify(resolvedPagePath)})}]`
+        props[parallelKey] = `['', {}, {
+          page: [() => require(${JSON.stringify(
+            resolvedPagePath
+          )}), ${JSON.stringify(resolvedPagePath)}]}]`
         continue
       }
 
+      const parallelSegmentPath = segmentPath + '/' + parallelSegment
       const subtree = await createSubtreePropsFromSegmentPath([
         ...segments,
         parallelSegment,
@@ -104,11 +106,9 @@ async function createTreeCodeFromPath({
               if (filePath === undefined) {
                 return ''
               }
-              return `${
-                file === FILE_TYPES.layout
-                  ? `layoutOrPagePath: ${JSON.stringify(filePath)},`
-                  : ''
-              }'${file}': () => require(${JSON.stringify(filePath)}),`
+              return `'${file}': [() => require(${JSON.stringify(
+                filePath
+              )}), ${JSON.stringify(filePath)}],`
             })
             .join('\n')}
         }
@@ -175,12 +175,18 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
     const matched: Record<string, string> = {}
     for (const path of normalizedAppPaths) {
       if (path.startsWith(pathname + '/')) {
-        const restPath = path.slice(pathname.length + 1)
+        const rest = path.slice(pathname.length + 1).split('/')
 
-        const matchedSegment = restPath.split('/')[0]
+        let matchedSegment = rest[0]
+        // It is the actual page, mark it sepcially.
+        if (rest.length === 1 && matchedSegment === 'page') {
+          matchedSegment = PAGE_SEGMENT
+        }
+
         const matchedKey = matchedSegment.startsWith('@')
           ? matchedSegment.slice(1)
           : 'children'
+
         matched[matchedKey] = matchedSegment
       }
     }

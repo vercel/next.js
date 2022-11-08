@@ -5,9 +5,7 @@ export default function Preact({ stars }) {
   return (
     <div>
       <p>Preact has {stars} ⭐</p>
-      <Link href="/">
-        <a>I bet Next.js has more stars (?)</a>
-      </Link>
+      <Link href="/">I bet Next.js has more stars (?)</Link>
     </div>
   )
 }

@@ -28,6 +28,11 @@ import { getDependencies } from '../lib/get-package-version'
 
 export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
 
+const NODE_16_VERSION = '16.8.0'
+const NODE_18_VERSION = '18.0.0'
+const isAboveNodejs16 = semverGte(process.version, NODE_16_VERSION)
+const isAboveNodejs18 = semverGte(process.version, NODE_18_VERSION)
+
 const experimentalWarning = execOnce(
   (configFileName: string, features: string[]) => {
     const s = features.length > 1 ? 's' : ''
@@ -52,41 +57,43 @@ const experimentalWarning = execOnce(
   }
 )
 
-export function setHttpClientAndAgentOptions(options: NextConfig) {
-  if (semverGte(process.version, '16.8.0')) {
-    if (
-      options.experimental?.enableUndici &&
-      semverGte(process.version, '18.0.0')
-    ) {
-      Log.warn(
-        '`enableUndici` option is unnecessary in Node.js v18.0.0 or greater.'
-      )
-    } else {
-      ;(global as any).__NEXT_USE_UNDICI = options.experimental?.enableUndici
+export function setHttpClientAndAgentOptions(config: {
+  httpAgentOptions?: NextConfig['httpAgentOptions']
+  experimental?: {
+    enableUndici?: boolean
+  }
+}) {
+  if (isAboveNodejs16) {
+    // Node.js 18 has undici built-in.
+    if (config.experimental?.enableUndici && !isAboveNodejs18) {
+      // When appDir is enabled undici is the default because of Response.clone() issues in node-fetch
+      ;(globalThis as any).__NEXT_USE_UNDICI = config.experimental?.enableUndici
     }
-  } else if (options.experimental?.enableUndici) {
+  } else if (config.experimental?.enableUndici) {
     Log.warn(
-      '`enableUndici` option requires Node.js v16.8.0 or greater. Falling back to `node-fetch`'
+      `\`enableUndici\` option requires Node.js v${NODE_16_VERSION} or greater. Falling back to \`node-fetch\``
     )
   }
-  if ((global as any).__NEXT_HTTP_AGENT) {
+  if ((globalThis as any).__NEXT_HTTP_AGENT) {
     // We only need to assign once because we want
     // to reuse the same agent for all requests.
     return
   }
 
-  if (!options) {
+  if (!config) {
     throw new Error('Expected config.httpAgentOptions to be an object')
   }
 
-  ;(global as any).__NEXT_HTTP_AGENT_OPTIONS = options.httpAgentOptions
-  ;(global as any).__NEXT_HTTP_AGENT = new HttpAgent(options.httpAgentOptions)
-  ;(global as any).__NEXT_HTTPS_AGENT = new HttpsAgent(options.httpAgentOptions)
+  ;(globalThis as any).__NEXT_HTTP_AGENT_OPTIONS = config.httpAgentOptions
+  ;(globalThis as any).__NEXT_HTTP_AGENT = new HttpAgent(
+    config.httpAgentOptions
+  )
+  ;(globalThis as any).__NEXT_HTTPS_AGENT = new HttpsAgent(
+    config.httpAgentOptions
+  )
 }
 
 async function setFontLoaderDefaults(config: NextConfigComplete, dir: string) {
-  if (config.experimental?.fontLoaders) return
-
   // Add @next/font loaders by default if they're installed
   const hasNextFontDependency = (
     await getDependencies({
@@ -109,14 +116,14 @@ async function setFontLoaderDefaults(config: NextConfigComplete, dir: string) {
     }
     if (
       !config.experimental.fontLoaders.find(
-        ({ loader }: any) => loader === '@next/font/goggle'
+        ({ loader }: any) => loader === googleFontLoader.loader
       )
     ) {
       config.experimental.fontLoaders.push(googleFontLoader)
     }
     if (
       !config.experimental.fontLoaders.find(
-        ({ loader }: any) => loader === '@next/font/local'
+        ({ loader }: any) => loader === localFontLoader.loader
       )
     ) {
       config.experimental.fontLoaders.push(localFontLoader)
@@ -154,6 +161,16 @@ function assignDefaults(dir: string, userConfig: { [key: string]: any }) {
           for (const featureName of Object.keys(
             value
           ) as (keyof ExperimentalConfig)[]) {
+            const featureValue = value[featureName]
+            if (
+              featureName === 'appDir' &&
+              featureValue === true &&
+              !isAboveNodejs16
+            ) {
+              throw new Error(
+                `experimental.appDir requires Node v${NODE_16_VERSION} or later.`
+              )
+            }
             if (
               value[featureName] !== defaultConfig.experimental[featureName]
             ) {
@@ -245,6 +262,10 @@ function assignDefaults(dir: string, userConfig: { [key: string]: any }) {
     throw new Error(
       `Specified basePath is not a string, found type "${typeof result.basePath}"`
     )
+  }
+
+  if (result.experimental?.appDir) {
+    result.experimental.enableUndici = true
   }
 
   if (result.basePath !== '') {
@@ -608,8 +629,6 @@ function assignDefaults(dir: string, userConfig: { [key: string]: any }) {
     result.output = undefined
   }
 
-  // TODO: Change defaultConfig type to NextConfigComplete
-  // so we don't need "!" here.
   setHttpClientAndAgentOptions(result || defaultConfig)
 
   if (result.i18n) {

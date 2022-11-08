@@ -5,7 +5,6 @@ import ReactDOMClient from 'react-dom/client'
 import React, { use } from 'react'
 import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack/client'
 
-import measureWebVitals from './performance-relayer'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import { GlobalLayoutRouterContext } from '../shared/lib/app-router-context'
 
@@ -149,9 +148,15 @@ function ServerRoot({ cacheKey }: { cacheKey: string }): JSX.Element {
   return root
 }
 
+const StrictModeIfEnabled = process.env.__NEXT_STRICT_MODE_APP
+  ? React.StrictMode
+  : React.Fragment
+
 function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
   React.useEffect(() => {
-    measureWebVitals()
+    if (process.env.__NEXT_ANALYTICS_ID) {
+      require('./performance-relayer-app')()
+    }
   }, [])
 
   if (process.env.__NEXT_TEST_MODE) {
@@ -213,7 +218,7 @@ export function hydrate() {
   }
 
   const reactEl = (
-    <React.StrictMode>
+    <StrictModeIfEnabled>
       <HeadManagerContext.Provider
         value={{
           appDir: true,
@@ -223,7 +228,7 @@ export function hydrate() {
           <RSCComponent />
         </Root>
       </HeadManagerContext.Provider>
-    </React.StrictMode>
+    </StrictModeIfEnabled>
   )
 
   const isError = document.documentElement.id === '__next_error__'

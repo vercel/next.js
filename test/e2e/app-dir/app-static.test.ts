@@ -12,11 +12,6 @@ const glob = promisify(globOrig)
 describe('app-dir static/dynamic handling', () => {
   const isDev = (global as any).isNextDev
 
-  if ((global as any).isNextDeploy) {
-    it('should skip next deploy for now', () => {})
-    return
-  }
-
   let next: NextInstance
 
   beforeAll(async () => {
@@ -59,6 +54,8 @@ describe('app-dir static/dynamic handling', () => {
         'dynamic-no-gen-params-ssr/[slug]/page.js',
         'dynamic-no-gen-params/[slug]/page.js',
         'hooks/use-pathname/[slug]/page.js',
+        'hooks/use-pathname/slug.html',
+        'hooks/use-pathname/slug.rsc',
         'hooks/use-search-params/[slug]/page.js',
         'ssr-auto/cache-no-store/page.js',
         'ssr-auto/fetch-revalidate-zero/page.js',
@@ -119,6 +116,11 @@ describe('app-dir static/dynamic handling', () => {
           srcRoute: '/blog/[author]/[slug]',
           dataRoute: '/blog/styfle/second-post.rsc',
         },
+        '/hooks/use-pathname/slug': {
+          dataRoute: '/hooks/use-pathname/slug.rsc',
+          initialRevalidateSeconds: false,
+          srcRoute: '/hooks/use-pathname/[slug]',
+        },
       })
       expect(manifest.dynamicRoutes).toEqual({
         '/blog/[author]/[slug]': {
@@ -132,6 +134,12 @@ describe('app-dir static/dynamic handling', () => {
           dataRouteRegex: normalizeRegEx('^\\/blog\\/([^\\/]+?)\\.rsc$'),
           fallback: false,
           routeRegex: normalizeRegEx('^\\/blog\\/([^\\/]+?)(?:\\/)?$'),
+        },
+        '/hooks/use-pathname/[slug]': {
+          dataRoute: '/hooks/use-pathname/[slug].rsc',
+          dataRouteRegex: '^\\/hooks\\/use\\-pathname\\/([^\\/]+?)\\.rsc$',
+          fallback: null,
+          routeRegex: '^\\/hooks\\/use\\-pathname\\/([^\\/]+?)(?:\\/)?$',
         },
       })
     })
@@ -392,22 +400,26 @@ describe('app-dir static/dynamic handling', () => {
         )
       })
 
-      it('should have values from canonical url on rewrite', async () => {
-        const browser = await webdriver(
-          next.url,
-          '/rewritten-use-search-params?first=a&second=b&third=c'
-        )
+      // TODO-APP: re-enable after investigating rewrite params
+      if (!(global as any).isNextDeploy) {
+        it('should have values from canonical url on rewrite', async () => {
+          const browser = await webdriver(
+            next.url,
+            '/rewritten-use-search-params?first=a&second=b&third=c'
+          )
 
-        expect(await browser.elementByCss('#params-first').text()).toBe('a')
-        expect(await browser.elementByCss('#params-second').text()).toBe('b')
-        expect(await browser.elementByCss('#params-third').text()).toBe('c')
-        expect(await browser.elementByCss('#params-not-real').text()).toBe(
-          'N/A'
-        )
-      })
+          expect(await browser.elementByCss('#params-first').text()).toBe('a')
+          expect(await browser.elementByCss('#params-second').text()).toBe('b')
+          expect(await browser.elementByCss('#params-third').text()).toBe('c')
+          expect(await browser.elementByCss('#params-not-real').text()).toBe(
+            'N/A'
+          )
+        })
+      }
     })
 
-    describe('usePathname', () => {
+    // TODO: needs updating as usePathname should not bail
+    describe.skip('usePathname', () => {
       if (isDev) {
         it('should bail out to client rendering during SSG', async () => {
           const res = await fetchViaHTTP(next.url, '/hooks/use-pathname/slug')
@@ -432,10 +444,13 @@ describe('app-dir static/dynamic handling', () => {
         )
       })
     })
-    it('should show a message to leave feedback for `appDir`', async () => {
-      expect(next.cliOutput).toContain(
-        `Thank you for testing \`appDir\` please leave your feedback at https://nextjs.link/app-feedback`
-      )
-    })
+
+    if (!(global as any).isNextDeploy) {
+      it('should show a message to leave feedback for `appDir`', async () => {
+        expect(next.cliOutput).toContain(
+          `Thank you for testing \`appDir\` please leave your feedback at https://nextjs.link/app-feedback`
+        )
+      })
+    }
   })
 })

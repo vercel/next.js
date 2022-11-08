@@ -215,6 +215,10 @@ async function loadWasm(importPath = '') {
             Log.error('Wasm binding does not support trace yet')
           },
         },
+        mdx: {
+          compile: (src, options) => bindings.mdxCompile(src, options),
+          compileSync: (src, options) => bindings.mdxCompileSync(src, options),
+        },
       }
       return wasmBindings
     } catch (e) {
@@ -342,9 +346,21 @@ function loadNative() {
       teardownTraceSubscriber: bindings.teardownTraceSubscriber,
       teardownCrashReporter: bindings.teardownCrashReporter,
       turbo: {
-        startDev: (options) => bindings.startTurboDev(toBuffer(options)),
+        startDev: (options) => {
+          const devOptions = {
+            ...options,
+            noOpen: options.noOpen ?? true,
+          }
+          bindings.startTurboDev(toBuffer(devOptions))
+        },
         startTrace: (options = {}) =>
           bindings.runTurboTracing(toBuffer({ exact: true, ...options })),
+      },
+      mdx: {
+        compile: (src, options) =>
+          bindings.mdxCompile(src, toBuffer(options ?? {})),
+        compileSync: (src, options) =>
+          bindings.mdxCompileSync(src, toBuffer(options ?? {})),
       },
     }
     return nativeBindings

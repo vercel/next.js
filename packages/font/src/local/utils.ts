@@ -12,10 +12,13 @@ const extToFormat = {
 }
 
 type FontOptions = {
-  family: string
-  src: string
-  ext: string
-  format: string
+  src: Array<{
+    path: string
+    weight?: string
+    style?: string
+    ext: string
+    format: string
+  }>
   display: string
   weight?: string
   style?: string
@@ -25,7 +28,7 @@ type FontOptions = {
   adjustFontFallback?: string | false
   declarations?: Array<{ prop: string; value: string }>
 }
-export function validateData(functionName: string, data: any): FontOptions {
+export function validateData(functionName: string, fontData: any): FontOptions {
   if (functionName) {
     throw new Error(`@next/font/local has no named exports`)
   }
@@ -39,7 +42,7 @@ export function validateData(functionName: string, data: any): FontOptions {
     variable,
     adjustFontFallback,
     declarations,
-  } = data[0] || ({} as any)
+  } = fontData || ({} as any)
 
   if (!allowedDisplayValues.includes(display)) {
     throw new Error(
@@ -53,12 +56,26 @@ export function validateData(functionName: string, data: any): FontOptions {
     throw new Error('Missing required `src` property')
   }
 
-  const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(src)?.[1]
-  if (!ext) {
-    throw new Error(`Unexpected file \`${src}\``)
+  if (!Array.isArray(src)) {
+    src = [{ path: src, weight, style }]
+  } else {
+    if (src.length === 0) {
+      throw new Error('Unexpected empty `src` array.')
+    }
   }
 
-  const family = /(.*\/)?(.+?)\.(woff|woff2|eot|ttf|otf)$/.exec(src)![2]
+  src = src.map((fontFile: any) => {
+    const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(fontFile.path)?.[1]
+    if (!ext) {
+      throw new Error(`Unexpected file \`${fontFile.path}\``)
+    }
+
+    return {
+      ...fontFile,
+      ext,
+      format: extToFormat[ext as 'woff' | 'woff2' | 'eot' | 'ttf' | 'otf'],
+    }
+  })
 
   if (Array.isArray(declarations)) {
     declarations.forEach((declaration) => {
@@ -77,10 +94,7 @@ export function validateData(functionName: string, data: any): FontOptions {
   }
 
   return {
-    family,
     src,
-    ext,
-    format: extToFormat[ext as 'woff' | 'woff2' | 'eot' | 'ttf' | 'otf'],
     display,
     weight,
     style,

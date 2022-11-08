@@ -17,7 +17,7 @@ import {
   ImageLoaderPropsWithConfig,
 } from '../shared/lib/image-config'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
-import { warnOnce } from '../shared/lib/utils'
+import { warnOnce } from '../shared/lib/utils/warn-once'
 // @ts-ignore - This is replaced by webpack alias
 import defaultLoader from 'next/dist/shared/lib/image-loader'
 
@@ -29,7 +29,7 @@ const allImgs = new Map<
 let perfObserver: PerformanceObserver | undefined
 
 if (typeof window === 'undefined') {
-  ;(global as any).__NEXT_IMAGE_IMPORTED = true
+  ;(globalThis as any).__NEXT_IMAGE_IMPORTED = true
 }
 
 const VALID_LOADING_VALUES = ['lazy', 'eager', undefined] as const
@@ -108,6 +108,27 @@ export type ImageProps = Omit<
   blurDataURL?: string
   unoptimized?: boolean
   onLoadingComplete?: OnLoadingComplete
+  /**
+   * @deprecated Use `fill` prop instead of `layout="fill"` or change import to `next/legacy/image`.
+   * @see https://nextjs.org/docs/api-reference/next/legacy/image
+   */
+  layout?: string
+  /**
+   * @deprecated Use `style` prop instead.
+   */
+  objectFit?: string
+  /**
+   * @deprecated Use `style` prop instead.
+   */
+  objectPosition?: string
+  /**
+   * @deprecated This prop does not do anything.
+   */
+  lazyBoundary?: string
+  /**
+   * @deprecated This prop does not do anything.
+   */
+  lazyRoot?: string
 }
 
 type ImageElementProps = Omit<ImageProps, 'src' | 'alt' | 'loader'> & {
@@ -245,7 +266,8 @@ function handleLoading(
   placeholder: PlaceholderValue,
   onLoadRef: React.MutableRefObject<OnLoad | undefined>,
   onLoadingCompleteRef: React.MutableRefObject<OnLoadingComplete | undefined>,
-  setBlurComplete: (b: boolean) => void
+  setBlurComplete: (b: boolean) => void,
+  unoptimized: boolean
 ) {
   if (!img || img['data-loaded-src'] === src) {
     return
@@ -296,8 +318,8 @@ function handleLoading(
     if (process.env.NODE_ENV !== 'production') {
       if (img.getAttribute('data-nimg') === 'fill') {
         if (
-          !img.getAttribute('sizes') ||
-          img.getAttribute('sizes') === '100vw'
+          !unoptimized &&
+          (!img.getAttribute('sizes') || img.getAttribute('sizes') === '100vw')
         ) {
           let widthViewportRatio =
             img.getBoundingClientRect().width / window.innerWidth
@@ -394,24 +416,6 @@ const ImageElement = ({
               if (!srcString) {
                 console.error(`Image is missing required "src" property:`, img)
               }
-              if (
-                img.getAttribute('objectFit') ||
-                img.getAttribute('objectfit')
-              ) {
-                console.error(
-                  `Image has unknown prop "objectFit". Did you mean to use the "style" prop instead?`,
-                  img
-                )
-              }
-              if (
-                img.getAttribute('objectPosition') ||
-                img.getAttribute('objectposition')
-              ) {
-                console.error(
-                  `Image has unknown prop "objectPosition". Did you mean to use the "style" prop instead?`,
-                  img
-                )
-              }
               if (img.getAttribute('alt') === null) {
                 console.error(
                   `Image is missing required "alt" property. Please add Alternative Text to describe the image for screen readers and search engines.`
@@ -425,7 +429,8 @@ const ImageElement = ({
                 placeholder,
                 onLoadRef,
                 onLoadingCompleteRef,
-                setBlurComplete
+                setBlurComplete,
+                unoptimized
               )
             }
           },
@@ -436,6 +441,7 @@ const ImageElement = ({
             onLoadingCompleteRef,
             setBlurComplete,
             onError,
+            unoptimized,
           ]
         )}
         onLoad={(event) => {
@@ -446,7 +452,8 @@ const ImageElement = ({
             placeholder,
             onLoadRef,
             onLoadingCompleteRef,
-            setBlurComplete
+            setBlurComplete,
+            unoptimized
           )
         }}
         onError={(event) => {
@@ -481,6 +488,11 @@ export default function Image({
   onLoadingComplete,
   placeholder = 'empty',
   blurDataURL,
+  layout,
+  objectFit,
+  objectPosition,
+  lazyBoundary,
+  lazyRoot,
   ...all
 }: ImageProps) {
   const configContext = useContext(ImageConfigContext)
@@ -493,7 +505,6 @@ export default function Image({
 
   let rest: Partial<ImageProps> = all
   let loader: ImageLoaderWithConfig = rest.loader || defaultLoader
-
   // Remove property so it's not spread on <img> element
   delete rest.loader
 
@@ -514,6 +525,28 @@ export default function Image({
     loader = (obj) => {
       const { config: _, ...opts } = obj
       return customImageLoader(opts)
+    }
+  }
+
+  if (layout) {
+    if (layout === 'fill') {
+      fill = true
+    }
+    const layoutToStyle: Record<string, Record<string, string> | undefined> = {
+      intrinsic: { maxWidth: '100%', height: 'auto' },
+      responsive: { width: '100%', height: 'auto' },
+    }
+    const layoutToSizes: Record<string, string | undefined> = {
+      responsive: '100vw',
+      fill: '100vw',
+    }
+    const layoutStyle = layoutToStyle[layout]
+    if (layoutStyle) {
+      style = { ...style, ...layoutStyle }
+    }
+    const layoutSizes = layoutToSizes[layout]
+    if (layoutSizes && !sizes) {
+      sizes = layoutSizes
     }
   }
 
@@ -690,6 +723,21 @@ export default function Image({
       }
     }
 
+    for (const [legacyKey, legacyValue] of Object.entries({
+      layout,
+      objectFit,
+      objectPosition,
+      lazyBoundary,
+      lazyRoot,
+    })) {
+      if (legacyValue) {
+        warnOnce(
+          `Image with src "${src}" has legacy prop "${legacyKey}". Did you forget to run the codemod?` +
+            `\nRead more: https://nextjs.org/docs/messages/next-image-upgrade-to-13`
+        )
+      }
+    }
+
     if (
       typeof window !== 'undefined' &&
       !perfObserver &&
@@ -736,6 +784,8 @@ export default function Image({
           top: 0,
           right: 0,
           bottom: 0,
+          objectFit,
+          objectPosition,
         }
       : {},
     showAltText ? {} : { color: 'transparent' },
@@ -793,19 +843,13 @@ export default function Image({
     }
   }
 
-  let imageSrcSetPropName = 'imagesrcset'
-  let imageSizesPropName = 'imagesizes'
-  if (process.env.__NEXT_REACT_ROOT) {
-    imageSrcSetPropName = 'imageSrcSet'
-    imageSizesPropName = 'imageSizes'
-  }
   const linkProps: React.DetailedHTMLProps<
     React.LinkHTMLAttributes<HTMLLinkElement>,
     HTMLLinkElement
   > = {
-    // Note: imagesrcset and imagesizes are not in the link element type with react 17.
-    [imageSrcSetPropName]: imgAttributes.srcSet,
-    [imageSizesPropName]: imgAttributes.sizes,
+    // @ts-expect-error upgrade react types to react 18
+    imageSrcSet: imgAttributes.srcSet,
+    imageSizes: imgAttributes.sizes,
     crossOrigin: rest.crossOrigin,
   }
 

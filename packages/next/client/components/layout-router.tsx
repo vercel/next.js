@@ -19,12 +19,12 @@ import {
   LayoutRouterContext,
   GlobalLayoutRouterContext,
   TemplateContext,
-  AppRouterContext,
 } from '../../shared/lib/app-router-context'
 import { fetchServerResponse } from './app-router'
 import { createInfinitePromise } from './infinite-promise'
 import { ErrorBoundary } from './error-boundary'
 import { matchSegment } from './match-segments'
+import { useRouter } from './navigation'
 
 /**
  * Add refetch marker to router state at the point of the current layout segment.
@@ -109,11 +109,13 @@ export function InnerLayoutRouter({
   path: string
   rootLayoutIncluded: boolean
 }) {
-  const {
-    changeByServerResponse,
-    tree: fullTree,
-    focusAndScrollRef,
-  } = useContext(GlobalLayoutRouterContext)
+  const context = useContext(GlobalLayoutRouterContext)
+  if (!context) {
+    throw new Error('invariant global layout router not mounted')
+  }
+
+  const { changeByServerResponse, tree: fullTree, focusAndScrollRef } = context
+
   const focusAndScrollElementRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -240,7 +242,9 @@ export function InnerLayoutRouter({
 
   // Ensure root layout is not wrapped in a div as the root layout renders `<html>`
   return rootLayoutIncluded ? (
-    <div ref={focusAndScrollElementRef}>{subtree}</div>
+    <div ref={focusAndScrollElementRef} data-nextjs-scroll-focus-boundary={''}>
+      {subtree}
+    </div>
   ) : (
     subtree
   )
@@ -253,15 +257,27 @@ export function InnerLayoutRouter({
 function LoadingBoundary({
   children,
   loading,
+  loadingStyles,
   hasLoading,
 }: {
   children: React.ReactNode
   loading?: React.ReactNode
+  loadingStyles?: React.ReactNode
   hasLoading: boolean
 }): JSX.Element {
   if (hasLoading) {
-    // @ts-expect-error TODO-APP: React.Suspense fallback type is wrong
-    return <React.Suspense fallback={loading}>{children}</React.Suspense>
+    return (
+      <React.Suspense
+        fallback={
+          <>
+            {loadingStyles}
+            {loading}
+          </>
+        }
+      >
+        {children}
+      </React.Suspense>
+    )
   }
 
   return <>{children}</>
@@ -273,7 +289,7 @@ interface RedirectBoundaryProps {
 }
 
 function HandleRedirect({ redirect }: { redirect: string }) {
-  const router = useContext(AppRouterContext)
+  const router = useRouter()
 
   useEffect(() => {
     router.replace(redirect, {})
@@ -310,7 +326,7 @@ class RedirectErrorBoundary extends React.Component<
 }
 
 function RedirectBoundary({ children }: { children: React.ReactNode }) {
-  const router = useContext(AppRouterContext)
+  const router = useRouter()
   return (
     <RedirectErrorBoundary router={router}>{children}</RedirectErrorBoundary>
   )
@@ -318,6 +334,7 @@ function RedirectBoundary({ children }: { children: React.ReactNode }) {
 
 interface NotFoundBoundaryProps {
   notFound?: React.ReactNode
+  notFoundStyles?: React.ReactNode
   children: React.ReactNode
 }
 
@@ -343,6 +360,7 @@ class NotFoundErrorBoundary extends React.Component<
       return (
         <>
           <meta name="robots" content="noindex" />
+          {this.props.notFoundStyles}
           {this.props.notFound}
         </>
       )
@@ -352,9 +370,13 @@ class NotFoundErrorBoundary extends React.Component<
   }
 }
 
-function NotFoundBoundary({ notFound, children }: NotFoundBoundaryProps) {
+function NotFoundBoundary({
+  notFound,
+  notFoundStyles,
+  children,
+}: NotFoundBoundaryProps) {
   return notFound ? (
-    <NotFoundErrorBoundary notFound={notFound}>
+    <NotFoundErrorBoundary notFound={notFound} notFoundStyles={notFoundStyles}>
       {children}
     </NotFoundErrorBoundary>
   ) : (
@@ -371,23 +393,36 @@ export default function OuterLayoutRouter({
   segmentPath,
   childProp,
   error,
+  errorStyles,
+  templateStyles,
   loading,
+  loadingStyles,
   hasLoading,
   template,
   notFound,
+  notFoundStyles,
   rootLayoutIncluded,
 }: {
   parallelRouterKey: string
   segmentPath: FlightSegmentPath
   childProp: ChildProp
   error: ErrorComponent
+  errorStyles: React.ReactNode | undefined
+  templateStyles: React.ReactNode | undefined
   template: React.ReactNode
   loading: React.ReactNode | undefined
+  loadingStyles: React.ReactNode | undefined
   hasLoading: boolean
   notFound: React.ReactNode | undefined
+  notFoundStyles: React.ReactNode | undefined
   rootLayoutIncluded: boolean
 }) {
-  const { childNodes, tree, url } = useContext(LayoutRouterContext)
+  const context = useContext(LayoutRouterContext)
+  if (!context) {
+    throw new Error('invariant expected layout router to be mounted')
+  }
+
+  const { childNodes, tree, url } = context
 
   // Get the current parallelRouter cache node
   let childNodesForParallelRouter = childNodes.get(parallelRouterKey)
@@ -433,9 +468,16 @@ export default function OuterLayoutRouter({
           <TemplateContext.Provider
             key={preservedSegment}
             value={
-              <ErrorBoundary errorComponent={error}>
-                <LoadingBoundary hasLoading={hasLoading} loading={loading}>
-                  <NotFoundBoundary notFound={notFound}>
+              <ErrorBoundary errorComponent={error} errorStyles={errorStyles}>
+                <LoadingBoundary
+                  hasLoading={hasLoading}
+                  loading={loading}
+                  loadingStyles={loadingStyles}
+                >
+                  <NotFoundBoundary
+                    notFound={notFound}
+                    notFoundStyles={notFoundStyles}
+                  >
                     <RedirectBoundary>
                       <InnerLayoutRouter
                         parallelRouterKey={parallelRouterKey}
@@ -458,7 +500,10 @@ export default function OuterLayoutRouter({
               </ErrorBoundary>
             }
           >
-            {template}
+            <>
+              {templateStyles}
+              {template}
+            </>
           </TemplateContext.Provider>
         )
       })}

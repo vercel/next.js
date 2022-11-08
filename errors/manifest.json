@@ -347,6 +347,10 @@
           "path": "/errors/next-image-unconfigured-host.md"
         },
         {
+          "title": "next-image-upgrade-to-13",
+          "path": "/errors/next-image-upgrade-to-13.md"
+        },
+        {
           "title": "next-script-for-ga",
           "path": "/errors/next-script-for-ga.md"
         },
@@ -745,6 +749,18 @@
         {
           "title": "babel-font-loader-conflict",
           "path": "/errors/babel-font-loader-conflict.md"
+        },
+        {
+          "title": "google-fonts-missing-subsets",
+          "path": "/errors/google-fonts-missing-subsets.md"
+        },
+        {
+          "title": "invalid-segment-export",
+          "path": "/errors/invalid-segment-export.md"
+        },
+        {
+          "title": "next-router-not-mounted",
+          "path": "/errors/next-router-not-mounted.md"
         }
       ]
     }
