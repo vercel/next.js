@@ -67,14 +67,14 @@ export function setHttpClientAndAgentOptions(config: {
     // Node.js 18 has undici built-in.
     if (config.experimental?.enableUndici && !isAboveNodejs18) {
       // When appDir is enabled undici is the default because of Response.clone() issues in node-fetch
-      ;(global as any).__NEXT_USE_UNDICI = config.experimental?.enableUndici
+      ;(globalThis as any).__NEXT_USE_UNDICI = config.experimental?.enableUndici
     }
   } else if (config.experimental?.enableUndici) {
     Log.warn(
       `\`enableUndici\` option requires Node.js v${NODE_16_VERSION} or greater. Falling back to \`node-fetch\``
     )
   }
-  if ((global as any).__NEXT_HTTP_AGENT) {
+  if ((globalThis as any).__NEXT_HTTP_AGENT) {
     // We only need to assign once because we want
     // to reuse the same agent for all requests.
     return
@@ -84,9 +84,13 @@ export function setHttpClientAndAgentOptions(config: {
     throw new Error('Expected config.httpAgentOptions to be an object')
   }
 
-  ;(global as any).__NEXT_HTTP_AGENT_OPTIONS = config.httpAgentOptions
-  ;(global as any).__NEXT_HTTP_AGENT = new HttpAgent(config.httpAgentOptions)
-  ;(global as any).__NEXT_HTTPS_AGENT = new HttpsAgent(config.httpAgentOptions)
+  ;(globalThis as any).__NEXT_HTTP_AGENT_OPTIONS = config.httpAgentOptions
+  ;(globalThis as any).__NEXT_HTTP_AGENT = new HttpAgent(
+    config.httpAgentOptions
+  )
+  ;(globalThis as any).__NEXT_HTTPS_AGENT = new HttpsAgent(
+    config.httpAgentOptions
+  )
 }
 
 async function setFontLoaderDefaults(config: NextConfigComplete, dir: string) {
