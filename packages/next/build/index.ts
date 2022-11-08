@@ -695,6 +695,7 @@ export default async function build(
           defaultLocale: string
           localeDetection?: false
         }
+        skipMiddlewareUrlNormalize?: boolean
       } = nextBuildSpan.traceChild('generate-routes-manifest').traceFn(() => {
         const sortedRoutes = getSortedRoutes([
           ...pageKeys.pages,
@@ -721,6 +722,8 @@ export default async function build(
           staticRoutes,
           dataRoutes: [],
           i18n: config.i18n || undefined,
+          skipMiddlewareUrlNormalize:
+            config.experimental.skipMiddlewareUrlNormalize,
         }
       })
 
