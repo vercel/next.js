@@ -257,15 +257,27 @@ export function InnerLayoutRouter({
 function LoadingBoundary({
   children,
   loading,
+  loadingStyles,
   hasLoading,
 }: {
   children: React.ReactNode
   loading?: React.ReactNode
+  loadingStyles?: React.ReactNode
   hasLoading: boolean
 }): JSX.Element {
   if (hasLoading) {
-    // @ts-expect-error TODO-APP: React.Suspense fallback type is wrong
-    return <React.Suspense fallback={loading}>{children}</React.Suspense>
+    return (
+      <React.Suspense
+        fallback={
+          <>
+            {loadingStyles}
+            {loading}
+          </>
+        }
+      >
+        {children}
+      </React.Suspense>
+    )
   }
 
   return <>{children}</>
@@ -322,6 +334,7 @@ function RedirectBoundary({ children }: { children: React.ReactNode }) {
 
 interface NotFoundBoundaryProps {
   notFound?: React.ReactNode
+  notFoundStyles?: React.ReactNode
   children: React.ReactNode
 }
 
@@ -347,6 +360,7 @@ class NotFoundErrorBoundary extends React.Component<
       return (
         <>
           <meta name="robots" content="noindex" />
+          {this.props.notFoundStyles}
           {this.props.notFound}
         </>
       )
@@ -356,9 +370,13 @@ class NotFoundErrorBoundary extends React.Component<
   }
 }
 
-function NotFoundBoundary({ notFound, children }: NotFoundBoundaryProps) {
+function NotFoundBoundary({
+  notFound,
+  notFoundStyles,
+  children,
+}: NotFoundBoundaryProps) {
   return notFound ? (
-    <NotFoundErrorBoundary notFound={notFound}>
+    <NotFoundErrorBoundary notFound={notFound} notFoundStyles={notFoundStyles}>
       {children}
     </NotFoundErrorBoundary>
   ) : (
@@ -376,10 +394,13 @@ export default function OuterLayoutRouter({
   childProp,
   error,
   errorStyles,
+  templateStyles,
   loading,
+  loadingStyles,
   hasLoading,
   template,
   notFound,
+  notFoundStyles,
   rootLayoutIncluded,
 }: {
   parallelRouterKey: string
@@ -387,10 +408,13 @@ export default function OuterLayoutRouter({
   childProp: ChildProp
   error: ErrorComponent
   errorStyles: React.ReactNode | undefined
+  templateStyles: React.ReactNode | undefined
   template: React.ReactNode
   loading: React.ReactNode | undefined
+  loadingStyles: React.ReactNode | undefined
   hasLoading: boolean
   notFound: React.ReactNode | undefined
+  notFoundStyles: React.ReactNode | undefined
   rootLayoutIncluded: boolean
 }) {
   const context = useContext(LayoutRouterContext)
@@ -445,8 +469,15 @@ export default function OuterLayoutRouter({
             key={preservedSegment}
             value={
               <ErrorBoundary errorComponent={error} errorStyles={errorStyles}>
-                <LoadingBoundary hasLoading={hasLoading} loading={loading}>
-                  <NotFoundBoundary notFound={notFound}>
+                <LoadingBoundary
+                  hasLoading={hasLoading}
+                  loading={loading}
+                  loadingStyles={loadingStyles}
+                >
+                  <NotFoundBoundary
+                    notFound={notFound}
+                    notFoundStyles={notFoundStyles}
+                  >
                     <RedirectBoundary>
                       <InnerLayoutRouter
                         parallelRouterKey={parallelRouterKey}
@@ -469,7 +500,10 @@ export default function OuterLayoutRouter({
               </ErrorBoundary>
             }
           >
-            {template}
+            <>
+              {templateStyles}
+              {template}
+            </>
           </TemplateContext.Provider>
         )
       })}
