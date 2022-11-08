@@ -4,6 +4,7 @@ import {
   SearchParamsContext,
 } from '../../shared/lib/hooks-client-context'
 import { ReadonlyURLSearchParams } from '../components/readonly-url-search-params'
+import { staticGenerationBailout } from '../components/static-generation-bailout'
 
 /**
  * useRouter here is already fully backwards compatible in both `pages/` and in
@@ -39,6 +40,9 @@ export function usePathname(): string | null {
  * @returns the search params if available
  */
 export function useSearchParams(): URLSearchParams | null {
+  // When ran, ensure we don't build the page for static.
+  staticGenerationBailout('useSearchParams')
+
   const searchParams = useContext(SearchParamsContext)
 
   return useMemo(() => {
