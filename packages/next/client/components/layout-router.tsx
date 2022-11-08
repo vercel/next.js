@@ -16,6 +16,7 @@ import type {
 } from '../../server/app-render'
 import type { ErrorComponent } from './error-boundary'
 import {
+  CacheStates,
   LayoutRouterContext,
   GlobalLayoutRouterContext,
   TemplateContext,
@@ -143,21 +144,29 @@ export function InnerLayoutRouter({
   if (
     childProp &&
     // TODO-APP: verify if this can be null based on user code
-    childProp.current !== null &&
-    !childNode /*&&
-    !childProp.partial*/
+    childProp.current !== null
   ) {
-    // Add the segment's subTreeData to the cache.
-    // This writes to the cache when there is no item in the cache yet. It never *overwrites* existing cache items which is why it's safe in concurrent mode.
-    childNodes.set(path, {
-      data: null,
-      subTreeData: childProp.current,
-      parallelRoutes: new Map(),
-    })
-    // Mutates the prop in order to clean up the memory associated with the subTreeData as it is now part of the cache.
-    childProp.current = null
-    // In the above case childNode was set on childNodes, so we have to get it from the cacheNodes again.
-    childNode = childNodes.get(path)
+    if (childNode && childNode.status === CacheStates.LAZYINITIALIZED) {
+      // @ts-expect-error TODO-APP: handle changing of the type
+      childNode.status = CacheStates.READY
+      // @ts-expect-error TODO-APP: handle changing of the type
+      childNode.subTreeData = childProp.current
+      // Mutates the prop in order to clean up the memory associated with the subTreeData as it is now part of the cache.
+      childProp.current = null
+    } else {
+      // Add the segment's subTreeData to the cache.
+      // This writes to the cache when there is no item in the cache yet. It never *overwrites* existing cache items which is why it's safe in concurrent mode.
+      childNodes.set(path, {
+        status: CacheStates.READY,
+        data: null,
+        subTreeData: childProp.current,
+        parallelRoutes: new Map(),
+      })
+      // Mutates the prop in order to clean up the memory associated with the subTreeData as it is now part of the cache.
+      childProp.current = null
+      // In the above case childNode was set on childNodes, so we have to get it from the cacheNodes again.
+      childNode = childNodes.get(path)
+    }
   }
 
   // When childNode is not available during rendering client-side we need to fetch it from the server.
@@ -172,6 +181,7 @@ export function InnerLayoutRouter({
      * Flight data fetch kicked off during render and put into the cache.
      */
     childNodes.set(path, {
+      status: CacheStates.DATAFETCH,
       data: fetchServerResponse(new URL(url, location.origin), refetchTree),
       subTreeData: null,
       parallelRoutes: new Map(),

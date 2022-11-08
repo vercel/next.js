@@ -7,6 +7,7 @@ import {
   AppRouterContext,
   LayoutRouterContext,
   GlobalLayoutRouterContext,
+  CacheStates,
 } from '../../shared/lib/app-router-context'
 import type {
   CacheNode,
@@ -121,11 +122,12 @@ function Router({
     return {
       tree: initialTree,
       cache: {
+        status: CacheStates.READY,
         data: null,
         subTreeData: children,
         parallelRoutes:
           typeof window === 'undefined' ? new Map() : initialParallelRoutes,
-      },
+      } as CacheNode,
       prefetchCache: new Map(),
       pushRef: { pendingPush: false, mpaNavigation: false },
       focusAndScrollRef: { apply: false },
@@ -176,6 +178,7 @@ function Router({
         previousTree,
         overrideCanonicalUrl,
         cache: {
+          status: CacheStates.LAZYINITIALIZED,
           data: null,
           subTreeData: null,
           parallelRoutes: new Map(),
@@ -201,6 +204,7 @@ function Router({
         forceOptimisticNavigation,
         navigateType,
         cache: {
+          status: CacheStates.LAZYINITIALIZED,
           data: null,
           subTreeData: null,
           parallelRoutes: new Map(),
@@ -262,6 +266,7 @@ function Router({
 
             // TODO-APP: revisit if this needs to be passed.
             cache: {
+              status: CacheStates.LAZYINITIALIZED,
               data: null,
               subTreeData: null,
               parallelRoutes: new Map(),
