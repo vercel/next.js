@@ -8,8 +8,9 @@ use turbopack_core::introspect::{
     asset::IntrospectableAssetVc, Introspectable, IntrospectableChildrenVc, IntrospectableVc,
 };
 use turbopack_dev_server::source::{
-    ContentSource, ContentSourceData, ContentSourceDataFilter, ContentSourceDataVary,
-    ContentSourceResult, ContentSourceResultVc, ContentSourceVc,
+    specificity::SpecificityVc, ContentSource, ContentSourceContent, ContentSourceData,
+    ContentSourceDataFilter, ContentSourceDataVary, ContentSourceResult, ContentSourceResultVc,
+    ContentSourceVc,
 };
 use turbopack_ecmascript::chunk::EcmascriptChunkPlaceablesVc;
 
@@ -19,12 +20,14 @@ use crate::path_regex::PathRegexVc;
 /// Creates a [NodeApiContentSource].
 #[turbo_tasks::function]
 pub fn create_node_api_source(
+    specificity: SpecificityVc,
     server_root: FileSystemPathVc,
     path_regex: PathRegexVc,
     entry: NodeEntryVc,
     runtime_entries: EcmascriptChunkPlaceablesVc,
 ) -> ContentSourceVc {
     NodeApiContentSource {
+        specificity,
         server_root,
         path_regex,
         entry,
@@ -42,6 +45,7 @@ pub fn create_node_api_source(
 /// to this directory.
 #[turbo_tasks::value]
 struct NodeApiContentSource {
+    specificity: SpecificityVc,
     server_root: FileSystemPathVc,
     path_regex: PathRegexVc,
     entry: NodeEntryVc,
@@ -72,7 +76,7 @@ impl ContentSource for NodeApiContentSource {
         let this = self_vc.await?;
         if this.is_matching_path(path).await? {
             if let Some(params) = this.get_matches(path).await? {
-                if let ContentSourceData {
+                let content = if let ContentSourceData {
                     headers: Some(headers),
                     method: Some(method),
                     url: Some(url),
@@ -82,7 +86,7 @@ impl ContentSource for NodeApiContentSource {
                 } = &*data
                 {
                     let entry = this.entry.entry(data.clone()).await?;
-                    return Ok(ContentSourceResult::HttpProxy(render_proxy(
+                    ContentSourceContent::HttpProxy(render_proxy(
                         this.server_root.join(path),
                         entry.module,
                         this.runtime_entries,
@@ -99,9 +103,9 @@ impl ContentSource for NodeApiContentSource {
                         .cell(),
                         *body,
                     ))
-                    .cell());
+                    .cell()
                 } else {
-                    return Ok(ContentSourceResult::NeedData {
+                    ContentSourceContent::NeedData {
                         source: self_vc.into(),
                         path: path.to_string(),
                         vary: ContentSourceDataVary {
@@ -114,11 +118,16 @@ impl ContentSource for NodeApiContentSource {
                             ..Default::default()
                         },
                     }
-                    .cell());
+                    .cell()
+                };
+                return Ok(ContentSourceResult {
+                    specificity: this.specificity,
+                    content,
                 }
+                .cell());
             }
         }
-        Ok(ContentSourceResult::NotFound.cell())
+        Ok(ContentSourceResultVc::not_found())
     }
 }
 
@@ -137,6 +146,14 @@ impl Introspectable for NodeApiContentSource {
     #[turbo_tasks::function]
     fn title(&self) -> StringVc {
         self.path_regex.to_string()
+    }
+
+    #[turbo_tasks::function]
+    async fn details(&self) -> Result<StringVc> {
+        Ok(StringVc::cell(format!(
+            "Specificity: {}",
+            self.specificity.await?
+        )))
     }
 
     #[turbo_tasks::function]

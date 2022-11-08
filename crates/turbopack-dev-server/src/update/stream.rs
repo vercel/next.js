@@ -16,7 +16,7 @@ use turbopack_core::{
 use super::protocol::ResourceIdentifier;
 use crate::{
     resource_to_data,
-    source::{ContentSourceResult, ContentSourceResultVc},
+    source::{ContentSourceContent, ContentSourceResultVc},
 };
 
 type GetContentFn = Box<dyn Fn() -> ContentSourceResultVc + Send + Sync>;
@@ -43,7 +43,9 @@ async fn get_content_wrapper(
     get_content: TransientInstance<GetContentFn>,
 ) -> Result<ContentSourceResultVc> {
     let mut content = get_content();
-    while let ContentSourceResult::NeedData { source, path, vary } = &*content.await? {
+    while let ContentSourceContent::NeedData { source, path, vary } =
+        &*content.await?.content.await?
+    {
         content = source.get(
             path,
             Value::new(resource_to_data(resource.clone().into_value(), vary)),
@@ -55,13 +57,13 @@ async fn get_content_wrapper(
 async fn resolve_static_content(
     content_source_result: ContentSourceResultVc,
 ) -> Result<Option<VersionedContentVc>> {
-    Ok(match *content_source_result.await? {
-        ContentSourceResult::NotFound => None,
-        ContentSourceResult::HttpProxy(_) => {
+    Ok(match *content_source_result.await?.content.await? {
+        ContentSourceContent::NotFound => None,
+        ContentSourceContent::HttpProxy(_) => {
             panic!("HTTP proxying is not supported in UpdateStream")
         }
-        ContentSourceResult::Static(content) => Some(content),
-        ContentSourceResult::NeedData { .. } => {
+        ContentSourceContent::Static(content) => Some(content),
+        ContentSourceContent::NeedData { .. } => {
             bail!("this might only happen temporary as get_content_wrapper resolves the data")
         }
     })

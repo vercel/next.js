@@ -33,15 +33,18 @@ use source::{Body, Bytes};
 use turbo_tasks::{
     run_once, trace::TraceRawVcs, util::FormatDuration, RawVc, TransientValue, TurboTasksApi, Value,
 };
-use turbo_tasks_fs::FileContent;
+use turbo_tasks_fs::{FileContent, FileContentReadRef};
 use turbopack_cli_utils::issue::{ConsoleUi, ConsoleUiVc};
 use turbopack_core::asset::AssetContent;
 
 use self::{
-    source::{query::Query, ContentSourceDataVary, ContentSourceResultVc, ContentSourceVc},
+    source::{
+        query::Query, ContentSourceContent, ContentSourceDataVary, ContentSourceResultVc,
+        ContentSourceVc, ProxyResultReadRef,
+    },
     update::{protocol::ResourceIdentifier, UpdateServer},
 };
-use crate::source::{ContentSourceData, ContentSourceResult, HeaderValue};
+use crate::source::{ContentSourceData, HeaderValue};
 
 pub trait SourceProvider: Send + Clone + 'static {
     /// must call a turbo-tasks function internally
@@ -86,6 +89,44 @@ async fn handle_issues<T: Into<RawVc>>(
     Ok(())
 }
 
+#[turbo_tasks::value(serialization = "none")]
+enum GetFromSourceResult {
+    Static(FileContentReadRef),
+    HttpProxy(ProxyResultReadRef),
+    NeedData {
+        source: ContentSourceVc,
+        path: String,
+        vary: ContentSourceDataVary,
+    },
+    NotFound,
+}
+
+#[turbo_tasks::function]
+async fn get_from_source(
+    source: ContentSourceVc,
+    path: &str,
+    data: Value<ContentSourceData>,
+) -> Result<GetFromSourceResultVc> {
+    let content = source.get(path, data).await?.content.await?;
+    Ok(match &*content {
+        ContentSourceContent::Static(content_vc) => {
+            if let AssetContent::File(file) = &*content_vc.content().await? {
+                GetFromSourceResult::Static(file.await?)
+            } else {
+                GetFromSourceResult::NotFound
+            }
+        }
+        ContentSourceContent::HttpProxy(proxy) => GetFromSourceResult::HttpProxy(proxy.await?),
+        ContentSourceContent::NeedData { source, path, vary } => GetFromSourceResult::NeedData {
+            source: source.resolve().await?,
+            path: path.clone(),
+            vary: vary.clone(),
+        },
+        ContentSourceContent::NotFound => GetFromSourceResult::NotFound,
+    }
+    .cell())
+}
+
 async fn process_request_with_content_source(
     path: &str,
     mut resolved_source: ContentSourceVc,
@@ -95,7 +136,7 @@ async fn process_request_with_content_source(
 ) -> Result<Response<hyper::Body>> {
     let mut data = ContentSourceData::default();
     loop {
-        let content_source_result = resolved_source.get(&asset_path, Value::new(data));
+        let content_source_result = get_from_source(resolved_source, &asset_path, Value::new(data));
         handle_issues(
             content_source_result,
             path,
@@ -104,45 +145,38 @@ async fn process_request_with_content_source(
         )
         .await?;
         match &*content_source_result.strongly_consistent().await? {
-            ContentSourceResult::Static(v_content) => {
-                let resolved_v_content = v_content.resolve_strongly_consistent().await?;
-                let content_vc = resolved_v_content.content();
-                handle_issues(content_vc, path, "content", console_ui).await?;
-                if let AssetContent::File(file) = &*content_vc.strongly_consistent().await? {
-                    if let FileContent::Content(content) = &*file.await? {
-                        let content_type = content.content_type().map_or_else(
-                            || {
-                                let guess = mime_guess::from_path(asset_path.as_ref())
-                                    .first_or_octet_stream();
-                                // If a text type, application/javascript, or application/json was
-                                // guessed, use a utf-8 charset as  we most likely generated it as
-                                // such.
-                                if (guess.type_() == mime::TEXT
-                                    || guess.subtype() == mime::JAVASCRIPT
-                                    || guess.subtype() == mime::JSON)
-                                    && guess.get_param("charset").is_none()
-                                {
-                                    guess.to_string() + "; charset=utf-8"
-                                } else {
-                                    guess.to_string()
-                                }
-                            },
-                            |m| m.to_string(),
-                        );
+            GetFromSourceResult::Static(file) => {
+                if let FileContent::Content(content) = &**file {
+                    let content_type = content.content_type().map_or_else(
+                        || {
+                            let guess =
+                                mime_guess::from_path(asset_path.as_ref()).first_or_octet_stream();
+                            // If a text type, application/javascript, or application/json was
+                            // guessed, use a utf-8 charset as  we most likely generated it as
+                            // such.
+                            if (guess.type_() == mime::TEXT
+                                || guess.subtype() == mime::JAVASCRIPT
+                                || guess.subtype() == mime::JSON)
+                                && guess.get_param("charset").is_none()
+                            {
+                                guess.to_string() + "; charset=utf-8"
+                            } else {
+                                guess.to_string()
+                            }
+                        },
+                        |m| m.to_string(),
+                    );
 
-                        let content = content.content();
-                        let bytes = content.read();
-                        return Ok(Response::builder()
-                            .status(200)
-                            .header("Content-Type", content_type)
-                            .header("Content-Length", content.len().to_string())
-                            .body(hyper::Body::wrap_stream(bytes))?);
-                    }
+                    let content = content.content();
+                    let bytes = content.read();
+                    return Ok(Response::builder()
+                        .status(200)
+                        .header("Content-Type", content_type)
+                        .header("Content-Length", content.len().to_string())
+                        .body(hyper::Body::wrap_stream(bytes))?);
                 }
             }
-            ContentSourceResult::HttpProxy(proxy_result_vc) => {
-                let proxy_result = proxy_result_vc.await?;
-
+            GetFromSourceResult::HttpProxy(proxy_result) => {
                 let mut response = Response::builder().status(proxy_result.status);
                 let headers = response.headers_mut().expect("headers must be defined");
 
@@ -155,13 +189,13 @@ async fn process_request_with_content_source(
 
                 return Ok(response.body(hyper::Body::wrap_stream(proxy_result.body.read()))?);
             }
-            ContentSourceResult::NeedData { source, path, vary } => {
-                resolved_source = source.resolve_strongly_consistent().await?;
+            GetFromSourceResult::NeedData { source, path, vary } => {
+                resolved_source = *source;
                 asset_path = Cow::Owned(path.to_string());
                 data = request_to_data(&mut request, vary).await?;
                 continue;
             }
-            ContentSourceResult::NotFound => {}
+            GetFromSourceResult::NotFound => {}
         }
         return Ok(Response::builder().status(404).body(hyper::Body::empty())?);
     }

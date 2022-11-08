@@ -3,7 +3,8 @@ use turbo_tasks::{primitives::StringVc, TryJoinIterExt, Value};
 use turbopack_core::introspect::{Introspectable, IntrospectableChildrenVc, IntrospectableVc};
 
 use super::{
-    ContentSource, ContentSourceData, ContentSourceResult, ContentSourceResultVc, ContentSourceVc,
+    specificity::SpecificityReadRef, ContentSource, ContentSourceData, ContentSourceResultVc,
+    ContentSourceVc,
 };
 
 /// Combines multiple [ContentSource]s by trying all content sources in order.
@@ -22,13 +23,26 @@ impl ContentSource for CombinedContentSource {
         path: &str,
         data: Value<ContentSourceData>,
     ) -> Result<ContentSourceResultVc> {
+        let mut max: Option<(SpecificityReadRef, ContentSourceResultVc)> = None;
         for source in self.sources.iter() {
             let result = source.get(path, data.clone());
-            if !matches!(&*result.await?, ContentSourceResult::NotFound) {
+            let specificity = result.await?.specificity.await?;
+            if specificity.is_exact() {
                 return Ok(result);
             }
+            if let Some((max, _)) = max.as_ref() {
+                if *max >= specificity {
+                    // we can keep the current max
+                    continue;
+                }
+            }
+            max = Some((specificity, result));
         }
-        Ok(ContentSourceResult::NotFound.cell())
+        if let Some((_, result)) = max {
+            Ok(result)
+        } else {
+            Ok(ContentSourceResultVc::not_found())
+        }
     }
 }
 

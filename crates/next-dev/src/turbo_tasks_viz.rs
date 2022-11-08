@@ -10,8 +10,8 @@ use turbo_tasks_memory::{
 };
 use turbopack_core::asset::AssetContentVc;
 use turbopack_dev_server::source::{
-    ContentSource, ContentSourceData, ContentSourceDataFilter, ContentSourceDataVary,
-    ContentSourceResult, ContentSourceResultVc, ContentSourceVc,
+    ContentSource, ContentSourceContent, ContentSourceData, ContentSourceDataFilter,
+    ContentSourceDataVary, ContentSourceResultVc, ContentSourceVc,
 };
 
 #[turbo_tasks::value(serialization = "none", eq = "manual", cell = "new", into = "new")]
@@ -80,17 +80,19 @@ impl ContentSource for TurboTasksSource {
                     let table = viz::table::create_table(tree);
                     viz::table::wrap_html(&table)
                 } else {
-                    return Ok(ContentSourceResult::NeedData {
-                        source: self_vc.into(),
-                        path: path.to_string(),
-                        vary: ContentSourceDataVary {
-                            query: Some(ContentSourceDataFilter::Subset(
-                                ["active".to_string()].into(),
-                            )),
-                            ..Default::default()
-                        },
-                    }
-                    .cell());
+                    return Ok(ContentSourceResultVc::exact(
+                        ContentSourceContent::NeedData {
+                            source: self_vc.into(),
+                            path: path.to_string(),
+                            vary: ContentSourceDataVary {
+                                query: Some(ContentSourceDataFilter::Subset(
+                                    ["active".to_string()].into(),
+                                )),
+                                ..Default::default()
+                            },
+                        }
+                        .cell(),
+                    ));
                 }
             }
             "reset" => {
@@ -100,12 +102,16 @@ impl ContentSource for TurboTasksSource {
                 });
                 "Done".to_string()
             }
-            _ => return Ok(ContentSourceResult::NotFound.cell()),
+            _ => return Ok(ContentSourceResultVc::not_found()),
         };
-        Ok(ContentSourceResult::Static(
-            AssetContentVc::from(File::from(html).with_content_type(Mime::from_str("text/html")?))
+        Ok(ContentSourceResultVc::exact(
+            ContentSourceContent::Static(
+                AssetContentVc::from(
+                    File::from(html).with_content_type(Mime::from_str("text/html")?),
+                )
                 .into(),
-        )
-        .cell())
+            )
+            .cell(),
+        ))
     }
 }

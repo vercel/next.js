@@ -25,6 +25,7 @@ use turbopack_dev_server::{
     html::DevHtmlAssetVc,
     source::{
         combined::{CombinedContentSource, CombinedContentSourceVc},
+        specificity::SpecificityVc,
         ContentSourceData, ContentSourceVc, NoContentSourceVc,
     },
 };
@@ -257,6 +258,8 @@ pub async fn create_app_source(
         context_ssr,
         context,
         project_root,
+        SpecificityVc::exact(),
+        0,
         app_dir,
         server_root,
         EcmascriptChunkPlaceablesVc::cell(server_runtime_entries),
@@ -273,6 +276,8 @@ async fn create_app_source_for_directory(
     context_ssr: AssetContextVc,
     context: AssetContextVc,
     project_root: FileSystemPathVc,
+    specificity: SpecificityVc,
+    position: u32,
     input_dir: FileSystemPathVc,
     server_root: FileSystemPathVc,
     runtime_entries: EcmascriptChunkPlaceablesVc,
@@ -359,6 +364,7 @@ async fn create_app_source_for_directory(
         layouts = LayoutSegmentsVc::cell(list);
         if let Some(page_path) = page.copied() {
             sources.push(create_node_rendered_source(
+                specificity,
                 server_root,
                 regular_expression_for_path(server_root, target, false),
                 AppRenderer {
@@ -380,18 +386,27 @@ async fn create_app_source_for_directory(
         for (name, entry) in entries.iter() {
             if let DirectoryEntry::Directory(dir) = entry {
                 let intermediate_output_path = intermediate_output_path.join(name);
-                let new_target = if name.starts_with('(') && name.ends_with(')') {
+                let specificity = if name.starts_with("[[") || name.starts_with("[...") {
+                    specificity.with_catch_all(position)
+                } else if name.starts_with('[') {
+                    specificity.with_dynamic_segment(position)
+                } else {
+                    specificity
+                };
+                let (new_target, position) = if name.starts_with('(') && name.ends_with(')') {
                     // This doesn't affect the url
-                    target
+                    (target, position)
                 } else {
                     // This adds to the url
-                    target.join(name)
+                    (target.join(name), position + 1)
                 };
                 sources.push(
                     create_app_source_for_directory(
                         context_ssr,
                         context,
                         project_root,
+                        specificity,
+                        position,
                         *dir,
                         server_root,
                         runtime_entries,

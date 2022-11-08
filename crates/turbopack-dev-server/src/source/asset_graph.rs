@@ -16,7 +16,7 @@ use turbopack_core::{
 };
 
 use super::{
-    ContentSource, ContentSourceData, ContentSourceResult, ContentSourceResultVc, ContentSourceVc,
+    ContentSource, ContentSourceContent, ContentSourceData, ContentSourceResultVc, ContentSourceVc,
 };
 
 struct State {
@@ -170,9 +170,11 @@ impl ContentSource for AssetGraphContentSource {
                     }
                 }
             }
-            return Ok(ContentSourceResult::Static(asset.versioned_content()).cell());
+            return Ok(ContentSourceResultVc::exact(
+                ContentSourceContent::Static(asset.versioned_content()).cell(),
+            ));
         }
-        Ok(ContentSourceResult::NotFound.cell())
+        Ok(ContentSourceResultVc::not_found())
     }
 }
 

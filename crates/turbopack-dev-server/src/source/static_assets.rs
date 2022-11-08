@@ -11,7 +11,7 @@ use turbopack_core::{
 };
 
 use super::{
-    ContentSource, ContentSourceData, ContentSourceResult, ContentSourceResultVc, ContentSourceVc,
+    ContentSource, ContentSourceContent, ContentSourceData, ContentSourceResultVc, ContentSourceVc,
 };
 
 #[turbo_tasks::value(shared)]
@@ -49,11 +49,13 @@ impl ContentSource for StaticAssetsContentSource {
                     FileSystemEntryType::File | FileSystemEntryType::Symlink
                 ) {
                     let content = SourceAssetVc::new(path).as_asset().content();
-                    return Ok(ContentSourceResult::Static(content.into()).cell());
+                    return Ok(ContentSourceResultVc::exact(
+                        ContentSourceContent::Static(content.into()).cell(),
+                    ));
                 }
             }
         }
-        Ok(ContentSourceResult::NotFound.cell())
+        Ok(ContentSourceResultVc::not_found())
     }
 }
 

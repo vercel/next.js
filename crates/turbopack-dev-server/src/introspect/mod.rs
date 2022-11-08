@@ -10,7 +10,7 @@ use turbopack_core::{
 use turbopack_ecmascript::utils::FormatIter;
 
 use crate::source::{
-    ContentSource, ContentSourceData, ContentSourceResult, ContentSourceResultVc, ContentSourceVc,
+    ContentSource, ContentSourceContent, ContentSourceData, ContentSourceResultVc, ContentSourceVc,
 };
 
 #[turbo_tasks::value(shared)]
@@ -139,14 +139,16 @@ impl ContentSource for IntrospectionSource {
             ty = HtmlEscaped(ty),
             children = FormatIter(|| children.iter())
         );
-        Ok(ContentSourceResult::Static(
-            AssetContent::File(
-                FileContent::Content(File::from(html).with_content_type(mime::TEXT_HTML_UTF_8))
-                    .cell(),
+        Ok(ContentSourceResultVc::exact(
+            ContentSourceContent::Static(
+                AssetContent::File(
+                    FileContent::Content(File::from(html).with_content_type(mime::TEXT_HTML_UTF_8))
+                        .cell(),
+                )
+                .cell()
+                .into(),
             )
-            .cell()
-            .into(),
-        )
-        .cell())
+            .cell(),
+        ))
     }
 }
