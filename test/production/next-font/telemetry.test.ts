@@ -8,20 +8,14 @@ const mockedGoogleFontResponses = require.resolve(
 )
 
 describe('@next/font used telemetry', () => {
-  const isNextStart = (global as any).isNextStart
   let next: NextInstance
-
-  if (!isNextStart) {
-    it('should only run when isNextStart', () => {})
-    return
-  }
 
   beforeAll(async () => {
     next = await createNext({
       files: {
         pages: new FileRef(join(__dirname, 'telemetry/pages')),
         'next.config.js': new FileRef(
-          join(__dirname, 'basepath/next.config.js')
+          join(__dirname, 'telemetry/next.config.js')
         ),
       },
       dependencies: {
@@ -52,20 +46,14 @@ describe('@next/font used telemetry', () => {
 })
 
 describe('@next/font unused telemetry', () => {
-  const isNextStart = (global as any).isNextStart
   let next: NextInstance
-
-  if (!isNextStart) {
-    it('should only run when isNextStart', () => {})
-    return
-  }
 
   beforeAll(async () => {
     next = await createNext({
       files: {
         pages: new FileRef(join(__dirname, 'telemetry/pages-unused')),
         'next.config.js': new FileRef(
-          join(__dirname, 'basepath/next.config.js')
+          join(__dirname, 'telemetry/next.config.js')
         ),
       },
       dependencies: {
