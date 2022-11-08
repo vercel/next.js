@@ -219,7 +219,14 @@ describe('no-html-link-for-pages', function () {
     })
     const rootDirectory = path.join(__dirname, 'without-pages-dir')
     expect(consoleSpy).toHaveBeenCalledWith(
-      `Pages directory cannot be found at ${rootDirectory}/pages or ${rootDirectory}/src/pages. If using a custom path, please configure with the \`no-html-link-for-pages\` rule in your eslint config file.`
+      `Pages directory cannot be found at ${path.join(
+        rootDirectory,
+        'pages'
+      )} or ${path.join(
+        rootDirectory,
+        'src',
+        'pages'
+      )}. If using a custom path, please configure with the \`no-html-link-for-pages\` rule in your eslint config file.`
     )
 
     consoleSpy.mockRestore()
