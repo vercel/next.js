@@ -74,6 +74,8 @@ import { getHostname } from '../shared/lib/get-hostname'
 import { parseUrl as parseUrlUtil } from '../shared/lib/router/utils/parse-url'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
 import { MiddlewareMatcher } from '../build/analysis/get-page-static-info'
+import { RSC, RSC_VARY_HEADER } from '../client/components/app-router-headers'
+import { FLIGHT_PARAMETERS } from './app-render'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -205,6 +207,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     serverComponents?: boolean
     crossOrigin?: string
     supportsDynamicHTML?: boolean
+    isBot?: boolean
     serverComponentManifest?: any
     serverCSSManifest?: any
     fontLoaderManifest?: FontLoaderManifest
@@ -483,6 +486,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       if (typeof parsedUrl.query === 'string') {
         parsedUrl.query = parseQs(parsedUrl.query)
       }
+      // in minimal mode we detect RSC revalidate if the .rsc
+      // path is requested
+      if (this.minimalMode && req.url.endsWith('.rsc')) {
+        parsedUrl.query.__nextDataReq = '1'
+      }
+
       req.url = normalizeRscPath(req.url, this.hasAppDir)
       parsedUrl.pathname = normalizeRscPath(
         parsedUrl.pathname || '',
@@ -516,6 +525,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         typeof req.headers['x-matched-path'] === 'string'
       ) {
         try {
+          if (this.hasAppDir) {
+            // ensure /index path is normalized for prerender
+            // in minimal mode
+            if (req.url.match(/^\/index($|\?)/)) {
+              req.url = req.url.replace(/^\/index/, '/')
+            }
+            parsedUrl.pathname =
+              parsedUrl.pathname === '/index' ? '/' : parsedUrl.pathname
+          }
           // x-matched-path is the source of truth, it tells what page
           // should be rendered because we don't process rewrites in minimalMode
           let matchedPath = normalizeRscPath(
@@ -849,6 +867,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       renderOpts: {
         ...this.renderOpts,
         supportsDynamicHTML: !isBotRequest,
+        isBot: !!isBotRequest,
       },
     } as const
     const payload = await fn(ctx)
@@ -1036,21 +1055,20 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       (isSSG || hasServerProps)
 
     if (isAppPath) {
-      res.setHeader(
-        'vary',
-        '__rsc__, __next_router_state_tree__, __next_router_prefetch__'
-      )
+      res.setHeader('vary', RSC_VARY_HEADER)
 
-      if (isSSG && req.headers['__rsc__']) {
-        isDataReq = true
+      if (isSSG && req.headers[RSC.toLowerCase()]) {
+        if (!this.minimalMode) {
+          isDataReq = true
+        }
         // strip header so we generate HTML still
         if (
           opts.runtime !== 'experimental-edge' ||
           (this.serverOptions as any).webServerConfig
         ) {
-          delete req.headers['__rsc__']
-          delete req.headers['__next_router_state_tree__']
-          delete req.headers['__next_router_prefetch__']
+          for (const param of FLIGHT_PARAMETERS) {
+            delete req.headers[param.toString().toLowerCase()]
+          }
         }
       }
     }
@@ -1077,9 +1095,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       )
     }
 
-    // Don't delete query.__rsc__ yet, it still needs to be used in renderToHTML later
+    // Don't delete headers[RSC] yet, it still needs to be used in renderToHTML later
     const isFlightRequest = Boolean(
-      this.serverComponentManifest && req.headers.__rsc__
+      this.serverComponentManifest && req.headers[RSC.toLowerCase()]
     )
 
     // we need to ensure the status code if /404 is visited directly
@@ -1127,10 +1145,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       const isBotRequest = isBot(req.headers['user-agent'] || '')
       const isSupportedDocument =
         typeof components.Document?.getInitialProps !== 'function' ||
-        // When concurrent features is enabled, the built-in `Document`
-        // component also supports dynamic HTML.
-        (!!process.env.__NEXT_REACT_ROOT &&
-          NEXT_BUILTIN_DOCUMENT in components.Document)
+        // The built-in `Document` component also supports dynamic HTML for concurrent mode.
+        NEXT_BUILTIN_DOCUMENT in components.Document
 
       // Disable dynamic HTML in cases that we know it won't be generated,
       // so that we can continue generating a cache key when possible.
@@ -1139,6 +1155,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       // cache if there are no dynamic data requirements
       opts.supportsDynamicHTML =
         !isSSG && !isBotRequest && !query.amp && isSupportedDocument
+      opts.isBot = isBotRequest
     }
 
     const defaultLocale = isSSG

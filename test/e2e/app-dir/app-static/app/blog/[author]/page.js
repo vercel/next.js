@@ -1,10 +1,11 @@
 import Link from 'next/link'
 
-export const config = {
-  dynamicParams: false,
-}
+export const dynamicParams = false
 
-export default function Page({ params }) {
+export default async function Page({ params }) {
+  await fetch('https://example.vercel.sh', {
+    next: { revalidate: 10 },
+  })
   return (
     <>
       <p id="page">/blog/[author]</p>

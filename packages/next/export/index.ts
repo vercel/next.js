@@ -49,7 +49,7 @@ import {
 } from '../build/webpack/require-hook'
 
 loadRequireHook()
-if (process.env.HAS_APP_DIR) {
+if (process.env.NEXT_PREBUNDLED_REACT) {
   overrideBuiltInReactPackages()
 }
 
@@ -182,6 +182,9 @@ export default async function exportApp(
           isSrcDir: null,
           hasNowJson: !!(await findUp('now.json', { cwd: dir })),
           isCustomServer: null,
+          turboFlag: false,
+          pagesDir: null,
+          appDir: null,
         })
       )
     }

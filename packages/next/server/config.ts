@@ -1,4 +1,5 @@
-import { basename, extname, relative, isAbsolute, resolve } from 'path'
+import { existsSync } from 'fs'
+import { basename, extname, join, relative, isAbsolute, resolve } from 'path'
 import { pathToFileURL } from 'url'
 import { Agent as HttpAgent } from 'http'
 import { Agent as HttpsAgent } from 'https'
@@ -23,8 +24,14 @@ import {
 } from '../shared/lib/image-config'
 import { loadEnvConfig } from '@next/env'
 import { gte as semverGte } from 'next/dist/compiled/semver'
+import { getDependencies } from '../lib/get-package-version'
 
 export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
+
+const NODE_16_VERSION = '16.8.0'
+const NODE_18_VERSION = '18.0.0'
+const isAboveNodejs16 = semverGte(process.version, NODE_16_VERSION)
+const isAboveNodejs18 = semverGte(process.version, NODE_18_VERSION)
 
 const experimentalWarning = execOnce(
   (configFileName: string, features: string[]) => {
@@ -40,25 +47,31 @@ const experimentalWarning = execOnce(
       `Experimental features are not covered by semver, and may cause unexpected or broken application behavior. ` +
         `Use at your own risk.`
     )
+    if (features.includes('appDir')) {
+      Log.info(
+        `Thank you for testing \`appDir\` please leave your feedback at https://nextjs.link/app-feedback`
+      )
+    }
+
     console.warn()
   }
 )
 
-export function setHttpClientAndAgentOptions(options: NextConfig) {
-  if (semverGte(process.version, '16.8.0')) {
-    if (
-      options.experimental?.enableUndici &&
-      semverGte(process.version, '18.0.0')
-    ) {
-      Log.warn(
-        '`enableUndici` option is unnecessary in Node.js v18.0.0 or greater.'
-      )
-    } else {
-      ;(global as any).__NEXT_USE_UNDICI = options.experimental?.enableUndici
+export function setHttpClientAndAgentOptions(config: {
+  httpAgentOptions?: NextConfig['httpAgentOptions']
+  experimental?: {
+    enableUndici?: boolean
+  }
+}) {
+  if (isAboveNodejs16) {
+    // Node.js 18 has undici built-in.
+    if (config.experimental?.enableUndici && !isAboveNodejs18) {
+      // When appDir is enabled undici is the default because of Response.clone() issues in node-fetch
+      ;(global as any).__NEXT_USE_UNDICI = config.experimental?.enableUndici
     }
-  } else if (options.experimental?.enableUndici) {
+  } else if (config.experimental?.enableUndici) {
     Log.warn(
-      '`enableUndici` option requires Node.js v16.8.0 or greater. Falling back to `node-fetch`'
+      `\`enableUndici\` option requires Node.js v${NODE_16_VERSION} or greater. Falling back to \`node-fetch\``
     )
   }
   if ((global as any).__NEXT_HTTP_AGENT) {
@@ -67,16 +80,54 @@ export function setHttpClientAndAgentOptions(options: NextConfig) {
     return
   }
 
-  if (!options) {
+  if (!config) {
     throw new Error('Expected config.httpAgentOptions to be an object')
   }
 
-  ;(global as any).__NEXT_HTTP_AGENT_OPTIONS = options.httpAgentOptions
-  ;(global as any).__NEXT_HTTP_AGENT = new HttpAgent(options.httpAgentOptions)
-  ;(global as any).__NEXT_HTTPS_AGENT = new HttpsAgent(options.httpAgentOptions)
+  ;(global as any).__NEXT_HTTP_AGENT_OPTIONS = config.httpAgentOptions
+  ;(global as any).__NEXT_HTTP_AGENT = new HttpAgent(config.httpAgentOptions)
+  ;(global as any).__NEXT_HTTPS_AGENT = new HttpsAgent(config.httpAgentOptions)
 }
 
-function assignDefaults(userConfig: { [key: string]: any }) {
+async function setFontLoaderDefaults(config: NextConfigComplete, dir: string) {
+  // Add @next/font loaders by default if they're installed
+  const hasNextFontDependency = (
+    await getDependencies({
+      cwd: dir,
+    })
+  ).dependencies['@next/font']
+
+  if (hasNextFontDependency) {
+    const googleFontLoader = {
+      loader: '@next/font/google',
+    }
+    const localFontLoader = {
+      loader: '@next/font/local',
+    }
+    if (!config.experimental) {
+      config.experimental = {}
+    }
+    if (!config.experimental.fontLoaders) {
+      config.experimental.fontLoaders = []
+    }
+    if (
+      !config.experimental.fontLoaders.find(
+        ({ loader }: any) => loader === googleFontLoader.loader
+      )
+    ) {
+      config.experimental.fontLoaders.push(googleFontLoader)
+    }
+    if (
+      !config.experimental.fontLoaders.find(
+        ({ loader }: any) => loader === localFontLoader.loader
+      )
+    ) {
+      config.experimental.fontLoaders.push(localFontLoader)
+    }
+  }
+}
+
+function assignDefaults(dir: string, userConfig: { [key: string]: any }) {
   const configFileName = userConfig.configFileName
   if (typeof userConfig.exportTrailingSlash !== 'undefined') {
     console.warn(
@@ -106,6 +157,16 @@ function assignDefaults(userConfig: { [key: string]: any }) {
           for (const featureName of Object.keys(
             value
           ) as (keyof ExperimentalConfig)[]) {
+            const featureValue = value[featureName]
+            if (
+              featureName === 'appDir' &&
+              featureValue === true &&
+              !isAboveNodejs16
+            ) {
+              throw new Error(
+                `experimental.appDir requires Node v${NODE_16_VERSION} or later.`
+              )
+            }
             if (
               value[featureName] !== defaultConfig.experimental[featureName]
             ) {
@@ -197,6 +258,10 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     throw new Error(
       `Specified basePath is not a string, found type "${typeof result.basePath}"`
     )
+  }
+
+  if (result.experimental?.appDir) {
+    result.experimental.enableUndici = true
   }
 
   if (result.basePath !== '') {
@@ -379,7 +444,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       images.path === imageConfigDefault.path
     ) {
       throw new Error(
-        `Specified images.loader property (${images.loader}) also requires images.path property to be assigned to a URL prefix.\nSee more info here: https://nextjs.org/docs/api-reference/next/image#loader-configuration`
+        `Specified images.loader property (${images.loader}) also requires images.path property to be assigned to a URL prefix.\nSee more info here: https://nextjs.org/docs/api-reference/next/legacy/image#loader-configuration`
       )
     }
 
@@ -396,6 +461,22 @@ function assignDefaults(userConfig: { [key: string]: any }) {
 
     if (images.path === imageConfigDefault.path && result.basePath) {
       images.path = `${result.basePath}${images.path}`
+    }
+
+    if (images.loaderFile) {
+      if (images.loader !== 'default' && images.loader !== 'custom') {
+        throw new Error(
+          `Specified images.loader property (${images.loader}) cannot be used with images.loaderFile property. Please set images.loader to "custom".`
+        )
+      }
+      const absolutePath = join(dir, images.loaderFile)
+      if (!existsSync(absolutePath)) {
+        throw new Error(
+          `Specified images.loaderFile does not exist at "${absolutePath}".`
+        )
+      }
+      images.loader = 'custom'
+      images.loaderFile = absolutePath
     }
 
     if (
@@ -460,12 +541,6 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         `Specified images.unoptimized should be a boolean, received (${unoptimized}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
       )
     }
-  }
-
-  if (result.webpack5 === false) {
-    throw new Error(
-      `Webpack 4 is no longer supported in Next.js. Please upgrade to webpack 5 by removing "webpack5: false" from ${configFileName}. https://nextjs.org/docs/messages/webpack5`
-    )
   }
 
   if (result.experimental && 'relay' in (result.experimental as any)) {
@@ -550,8 +625,6 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     result.output = undefined
   }
 
-  // TODO: Change defaultConfig type to NextConfigComplete
-  // so we don't need "!" here.
   setHttpClientAndAgentOptions(result || defaultConfig)
 
   if (result.i18n) {
@@ -731,7 +804,8 @@ function assignDefaults(userConfig: { [key: string]: any }) {
 export default async function loadConfig(
   phase: string,
   dir: string,
-  customConfig?: object | null
+  customConfig?: object | null,
+  rawConfig?: boolean
 ): Promise<NextConfigComplete> {
   await loadEnvConfig(dir, phase === PHASE_DEVELOPMENT_SERVER, Log)
   loadWebpackHook()
@@ -739,7 +813,7 @@ export default async function loadConfig(
   let configFileName = 'next.config.js'
 
   if (customConfig) {
-    return assignDefaults({
+    return assignDefaults(dir, {
       configOrigin: 'server',
       configFileName,
       ...customConfig,
@@ -764,6 +838,10 @@ export default async function loadConfig(
         userConfigModule = require(path)
       } else {
         userConfigModule = await import(pathToFileURL(path).href)
+      }
+
+      if (rawConfig) {
+        return userConfigModule
       }
     } catch (err) {
       Log.error(
@@ -818,12 +896,14 @@ export default async function loadConfig(
           : canonicalBase) || ''
     }
 
-    return assignDefaults({
+    const completeConfig = assignDefaults(dir, {
       configOrigin: relative(dir, path),
       configFile: path,
       configFileName,
       ...userConfig,
     }) as NextConfigComplete
+    await setFontLoaderDefaults(completeConfig, dir)
+    return completeConfig
   } else {
     const configBaseName = basename(CONFIG_FILES[0], extname(CONFIG_FILES[0]))
     const nonJsPath = findUp.sync(
@@ -846,8 +926,12 @@ export default async function loadConfig(
 
   // always call assignDefaults to ensure settings like
   // reactRoot can be updated correctly even with no next.config.js
-  const completeConfig = assignDefaults(defaultConfig) as NextConfigComplete
+  const completeConfig = assignDefaults(
+    dir,
+    defaultConfig
+  ) as NextConfigComplete
   completeConfig.configFileName = configFileName
   setHttpClientAndAgentOptions(completeConfig)
+  await setFontLoaderDefaults(completeConfig, dir)
   return completeConfig
 }

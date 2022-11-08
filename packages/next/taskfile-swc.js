@@ -66,7 +66,7 @@ module.exports = function (task) {
         env: {
           targets: {
             // follow the version defined in packages/next/package.json#engine
-            node: '14.0.0',
+            node: '14.6.0',
           },
         },
         jsc: {
@@ -156,8 +156,17 @@ if ((typeof exports.default === 'function' || (typeof exports.default === 'objec
 }
 
 function setNextVersion(code) {
-  return code.replace(
-    /process\.env\.__NEXT_VERSION/g,
-    `"${require('./package.json').version}"`
-  )
+  return code
+    .replace(
+      /process\.env\.__NEXT_VERSION/g,
+      `"${require('./package.json').version}"`
+    )
+    .replace(
+      /process\.env\.REQUIRED_APP_REACT_VERSION/,
+      `"${
+        require('../../package.json').devDependencies[
+          'react-server-dom-webpack'
+        ]
+      }"`
+    )
 }

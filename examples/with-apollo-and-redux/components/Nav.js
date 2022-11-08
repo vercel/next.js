@@ -6,13 +6,13 @@ export default function Nav() {
 
   return (
     <header>
-      <Link href="/">
+      <Link href="/" legacyBehavior>
         <a className={pathname === '/' ? 'is-active' : ''}>Home</a>
       </Link>
-      <Link href="/apollo">
+      <Link href="/apollo" legacyBehavior>
         <a className={pathname === '/apollo' ? 'is-active' : ''}>Apollo</a>
       </Link>
-      <Link href="/redux">
+      <Link href="/redux" legacyBehavior>
         <a className={pathname === '/redux' ? 'is-active' : ''}>Redux</a>
       </Link>
       <style jsx>{`

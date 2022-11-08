@@ -1,13 +1,14 @@
-import { cache, use } from '../../../lib/utils'
+import { cache, use } from 'react'
 
 export default function Page() {
-  const getData = () =>
+  const getData = cache(() =>
     fetch('https://example.vercel.sh', {
       next: { revalidate: 0 },
     })
       .then((res) => res.text())
       .then((text) => new Promise((res) => setTimeout(() => res(text), 1000)))
-  const dataPromise = cache(getData)
+  )
+  const dataPromise = getData()
   const data = use(dataPromise)
 
   return (
@@ -20,6 +21,4 @@ export default function Page() {
 }
 
 // TODO-APP: remove revalidate config once next.revalidate is supported
-export const config = {
-  revalidate: 0,
-}
+export const revalidate = 0

@@ -8,7 +8,9 @@ export let frontendConfig = () => {
   return {
     appInfo,
     recipeList: [
-      EmailVerificationReact.init(),
+      EmailVerificationReact.init({
+        mode: 'REQUIRED',
+      }),
       ThirdPartyEmailPasswordReact.init({
         signInAndUpFeature: {
           providers: [

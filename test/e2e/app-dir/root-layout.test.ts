@@ -4,7 +4,7 @@ import { NextInstance } from 'test/lib/next-modes/base'
 import webdriver from 'next-webdriver'
 import { getRedboxSource, hasRedbox } from 'next-test-utils'
 
-describe.skip('app-dir root layout', () => {
+describe('app-dir root layout', () => {
   const isDev = (global as any).isNextDev
 
   if ((global as any).isNextDeploy) {
@@ -12,10 +12,6 @@ describe.skip('app-dir root layout', () => {
     return
   }
 
-  if (process.env.NEXT_TEST_REACT_VERSION === '^17') {
-    it('should skip for react v17', () => {})
-    return
-  }
   let next: NextInstance
 
   beforeAll(async () => {
@@ -35,7 +31,8 @@ describe.skip('app-dir root layout', () => {
   afterAll(() => next.destroy())
 
   if (isDev) {
-    describe('Missing required tags', () => {
+    // TODO-APP: re-enable after reworking the error overlay.
+    describe.skip('Missing required tags', () => {
       it('should error on page load', async () => {
         const browser = await webdriver(next.url, '/missing-tags', {
           waitHydration: false,
@@ -43,9 +40,9 @@ describe.skip('app-dir root layout', () => {
 
         expect(await hasRedbox(browser, true)).toBe(true)
         expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
-          "Please make sure to include the following tags in your root layout: <html>, <head>, <body>.
+          "Please make sure to include the following tags in your root layout: <html>, <body>.
 
-          Missing required root layout tags: html, head, body"
+          Missing required root layout tags: html, body"
         `)
       })
 
@@ -57,9 +54,9 @@ describe.skip('app-dir root layout', () => {
 
         expect(await hasRedbox(browser, true)).toBe(true)
         expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
-          "Please make sure to include the following tags in your root layout: <html>, <head>, <body>.
+          "Please make sure to include the following tags in your root layout: <html>, <body>.
 
-          Missing required root layout tags: html, head, body"
+          Missing required root layout tags: html, body"
         `)
       })
 
@@ -70,9 +67,9 @@ describe.skip('app-dir root layout', () => {
 
         expect(await hasRedbox(browser, true)).toBe(true)
         expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
-          "Please make sure to include the following tags in your root layout: <html>, <head>, <body>.
+          "Please make sure to include the following tags in your root layout: <html>, <body>.
 
-          Missing required root layout tags: html, head, body"
+          Missing required root layout tags: html, body"
         `)
       })
     })
@@ -151,18 +148,18 @@ describe.skip('app-dir root layout', () => {
     })
 
     it('should work with dynamic routes', async () => {
-      const browser = await webdriver(next.url, '/dynamic/first/route')
+      const browser = await webdriver(next.url, '/dynamic/first')
 
-      expect(await browser.elementById('dynamic-route').text()).toBe(
-        'dynamic route'
+      expect(await browser.elementById('dynamic-first').text()).toBe(
+        'dynamic first'
       )
       await browser.eval('window.__TEST_NO_RELOAD = true')
 
       // Navigate to page with same root layout
       await browser.elementByCss('a').click()
       expect(
-        await browser.waitForElementByCss('#dynamic-second-hello').text()
-      ).toBe('dynamic hello')
+        await browser.waitForElementByCss('#dynamic-first-second').text()
+      ).toBe('dynamic first second')
       expect(await browser.eval('window.__TEST_NO_RELOAD')).toBeTrue()
 
       // Navigate to page with different root layout
@@ -170,6 +167,52 @@ describe.skip('app-dir root layout', () => {
       expect(
         await browser.waitForElementByCss('#inner-basic-route').text()
       ).toBe('Inner basic route')
+      expect(await browser.eval('window.__TEST_NO_RELOAD')).toBeUndefined()
+    })
+
+    it('should work with dynamic catchall routes', async () => {
+      const browser = await webdriver(next.url, '/dynamic-catchall/slug')
+
+      expect(await browser.elementById('catchall-slug').text()).toBe(
+        'catchall slug'
+      )
+      await browser.eval('window.__TEST_NO_RELOAD = true')
+
+      // Navigate to page with same root layout
+      await browser.elementById('to-next-url').click()
+      expect(
+        await browser.waitForElementByCss('#catchall-slug-slug').text()
+      ).toBe('catchall slug slug')
+      expect(await browser.eval('window.__TEST_NO_RELOAD')).toBeTrue()
+
+      // Navigate to page with different root layout
+      await browser.elementById('to-dynamic-first').click()
+      expect(await browser.elementById('dynamic-first').text()).toBe(
+        'dynamic first'
+      )
+      expect(await browser.eval('window.__TEST_NO_RELOAD')).toBeUndefined()
+    })
+
+    it('should work with static routes', async () => {
+      const browser = await webdriver(next.url, '/static-mpa-navigation/slug1')
+
+      expect(await browser.elementById('static-slug1').text()).toBe(
+        'static slug1'
+      )
+      await browser.eval('window.__TEST_NO_RELOAD = true')
+
+      // Navigate to page with same root layout
+      await browser.elementByCss('a').click()
+      expect(await browser.waitForElementByCss('#static-slug2').text()).toBe(
+        'static slug2'
+      )
+      expect(await browser.eval('window.__TEST_NO_RELOAD')).toBeTrue()
+
+      // Navigate to page with different root layout
+      await browser.elementByCss('a').click()
+      expect(await browser.elementById('basic-route').text()).toBe(
+        'Basic route'
+      )
       expect(await browser.eval('window.__TEST_NO_RELOAD')).toBeUndefined()
     })
   })

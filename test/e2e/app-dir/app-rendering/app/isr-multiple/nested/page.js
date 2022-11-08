@@ -1,8 +1,6 @@
-import { experimental_use as use } from 'react'
+import { use } from 'react'
 
-export const config = {
-  revalidate: 1,
-}
+export const revalidate = 1
 
 async function getData() {
   return {

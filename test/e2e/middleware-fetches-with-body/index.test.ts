@@ -64,7 +64,10 @@ describe('Middleware fetches with body', () => {
       )
 
       expect(res.status).toBe(413)
-      expect(res.statusText).toBe('Body exceeded 1mb limit')
+
+      if (!(global as any).isNextDeploy) {
+        expect(res.statusText).toBe('Body exceeded 1mb limit')
+      }
     })
 
     it('should be able to send and return body size equal to 1mb', async () => {
@@ -129,7 +132,10 @@ describe('Middleware fetches with body', () => {
       )
 
       expect(res.status).toBe(413)
-      expect(res.statusText).toBe('Body exceeded 5kb limit')
+
+      if (!(global as any).isNextDeploy) {
+        expect(res.statusText).toBe('Body exceeded 5kb limit')
+      }
     })
 
     it('should be able to send and return body size equal to 5kb', async () => {
@@ -171,7 +177,10 @@ describe('Middleware fetches with body', () => {
       )
 
       expect(res.status).toBe(413)
-      expect(res.statusText).toBe('Body exceeded 5mb limit')
+
+      if (!(global as any).isNextDeploy) {
+        expect(res.statusText).toBe('Body exceeded 5mb limit')
+      }
     })
 
     it('should return 413 for body greater than 5mb', async () => {
@@ -189,30 +198,35 @@ describe('Middleware fetches with body', () => {
       )
 
       expect(res.status).toBe(413)
-      expect(res.statusText).toBe('Body exceeded 5mb limit')
+
+      if (!(global as any).isNextDeploy) {
+        expect(res.statusText).toBe('Body exceeded 5mb limit')
+      }
     })
 
-    it('should be able to send and return body size equal to 5mb', async () => {
-      const bodySize = 5 * 1024 * 1024
-      const body = 'FGHI1J2K3L4M5N6O7P8Q9R0SaTbUcVdW'.repeat(bodySize / 32)
+    if (!(global as any).isNextDeploy) {
+      it('should be able to send and return body size equal to 5mb', async () => {
+        const bodySize = 5 * 1024 * 1024
+        const body = 'FGHI1J2K3L4M5N6O7P8Q9R0SaTbUcVdW'.repeat(bodySize / 32)
 
-      const res = await fetchViaHTTP(
-        next.url,
-        '/api/size_limit_5mb',
-        {},
-        {
-          body,
-          method: 'POST',
-        }
-      )
-      const data = await res.json()
+        const res = await fetchViaHTTP(
+          next.url,
+          '/api/size_limit_5mb',
+          {},
+          {
+            body,
+            method: 'POST',
+          }
+        )
+        const data = await res.json()
 
-      expect(res.status).toBe(200)
-      expect(data.body.length).toBe(bodySize)
-      expect(data.body.split('FGHI1J2K3L4M5N6O7P8Q9R0SaTbUcVdW').length).toBe(
-        bodySize / 32 + 1
-      )
-    })
+        expect(res.status).toBe(200)
+        expect(data.body.length).toBe(bodySize)
+        expect(data.body.split('FGHI1J2K3L4M5N6O7P8Q9R0SaTbUcVdW').length).toBe(
+          bodySize / 32 + 1
+        )
+      })
+    }
   })
 
   describe('with bodyParser = false', () => {

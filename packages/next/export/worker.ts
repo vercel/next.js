@@ -3,9 +3,9 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import type { DomainLocale, NextConfigComplete } from '../server/config-shared'
 import type { NextParsedUrlQuery } from '../server/request-meta'
 
-// `HAS_APP_DIR` env var is inherited from parent process,
+// `NEXT_PREBUNDLED_REACT` env var is inherited from parent process,
 // then override react packages here for export worker.
-if (process.env.HAS_APP_DIR) {
+if (process.env.NEXT_PREBUNDLED_REACT) {
   require('../build/webpack/require-hook').overrideBuiltInReactPackages()
 }
 import '../server/node-polyfill-fetch'
@@ -100,6 +100,10 @@ interface RenderOpts {
   supportsDynamicHTML?: boolean
 }
 
+// expose AsyncLocalStorage on global for react usage
+const { AsyncLocalStorage } = require('async_hooks')
+;(global as any).AsyncLocalStorage = AsyncLocalStorage
+
 export default async function exportPage({
   parentSpanId,
   path,
@@ -134,6 +138,7 @@ export default async function exportPage({
       const { query: originalQuery = {} } = pathMap
       const { page } = pathMap
       const isAppDir = (pathMap as any)._isAppDir
+      const isDynamicError = (pathMap as any)._isDynamicError
       const filePath = normalizePagePath(path)
       const isDynamic = isDynamicRoute(page)
       const ampPath = `${filePath}.amp`
@@ -323,8 +328,14 @@ export default async function exportPage({
           const revalidate = (curRenderOpts as any).revalidate
           results.fromBuildExportRevalidate = revalidate
 
+          if (isDynamicError) {
+            throw new Error(
+              `Page with dynamic = "error" encountered dynamic data method ${path}.`
+            )
+          }
+
           if (revalidate !== 0) {
-            await promises.writeFile(htmlFilepath, html, 'utf8')
+            await promises.writeFile(htmlFilepath, html ?? '', 'utf8')
             await promises.writeFile(
               htmlFilepath.replace(/\.html$/, '.rsc'),
               flightData

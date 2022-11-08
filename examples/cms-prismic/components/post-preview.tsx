@@ -33,10 +33,8 @@ export default function PostPreview({
         <CoverImage title={asText(title)} href={href} image={coverImage} />
       </div>
       <h3 className="text-3xl mb-3 leading-snug">
-        <Link href={href}>
-          <a className="hover:underline">
-            <PrismicText field={title} />
-          </a>
+        <Link href={href} className="hover:underline">
+          <PrismicText field={title} />
         </Link>
       </h3>
       <div className="text-lg mb-4">

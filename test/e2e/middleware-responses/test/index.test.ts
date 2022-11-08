@@ -33,9 +33,7 @@ describe('Middleware Responses', () => {
       const res = await fetchViaHTTP(next.url, `${locale}/stream-a-response`)
       expect(res.status).toBe(500)
 
-      if ((global as any).isNextDeploy) {
-        expect(await res.text()).toContain('EDGE_FUNCTION_INVOCATION_FAILED')
-      } else {
+      if (!(global as any).isNextDeploy) {
         expect(await res.text()).toEqual('Internal Server Error')
         expect(next.cliOutput).toContain(
           `A middleware can not alter response's body. Learn more: https://nextjs.org/docs/messages/returning-response-body-in-middleware`
@@ -47,9 +45,7 @@ describe('Middleware Responses', () => {
       const res = await fetchViaHTTP(next.url, `${locale}/send-response`)
       expect(res.status).toBe(500)
 
-      if ((global as any).isNextDeploy) {
-        expect(await res.text()).toContain('EDGE_FUNCTION_INVOCATION_FAILED')
-      } else {
+      if (!(global as any).isNextDeploy) {
         expect(await res.text()).toEqual('Internal Server Error')
         expect(next.cliOutput).toContain(
           `A middleware can not alter response's body. Learn more: https://nextjs.org/docs/messages/returning-response-body-in-middleware`

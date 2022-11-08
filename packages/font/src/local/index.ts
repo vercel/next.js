@@ -3,9 +3,15 @@ import type { FontModule } from 'next/font'
 type Display = 'auto' | 'block' | 'swap' | 'fallback' | 'optional'
 type CssVariable = `--${string}`
 type LocalFont = {
-  src: string
+  src:
+    | string
+    | Array<{
+        path: string
+        weight?: string
+        style?: string
+      }>
   display?: Display
-  weight?: number
+  weight?: string
   style?: string
   adjustFontFallback?: 'Arial' | 'Times New Roman' | false
   fallback?: string[]

@@ -6,9 +6,7 @@ export default function Post({ title, body, id }: PostData) {
     <article>
       <h2>{title}</h2>
       <p>{body}</p>
-      <Link href={`/post/${id}`}>
-        <a>Read more...</a>
-      </Link>
+      <Link href={`/post/${id}`}>Read more...</Link>
     </article>
   )
 }

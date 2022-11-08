@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react'
 import React, { useEffect, useMemo, useCallback } from 'react'
-import { createFromFetch } from 'next/dist/compiled/react-server-dom-webpack'
+import { createFromFetch } from 'next/dist/compiled/react-server-dom-webpack/client'
 import {
   AppRouterContext,
   LayoutRouterContext,
@@ -26,9 +26,14 @@ import {
   // ParamsContext,
   PathnameContext,
   // LayoutSegmentsContext,
-} from './hooks-client-context'
+} from '../../shared/lib/hooks-client-context'
 import { useReducerWithReduxDevtools } from './use-reducer-with-devtools'
 import { ErrorBoundary, GlobalErrorComponent } from './error-boundary'
+import {
+  NEXT_ROUTER_PREFETCH,
+  NEXT_ROUTER_STATE_TREE,
+  RSC,
+} from './app-router-headers'
 
 function urlToUrlWithoutFlightMarker(url: string): URL {
   const urlWithoutFlightParameters = new URL(url, location.origin)
@@ -37,12 +42,12 @@ function urlToUrlWithoutFlightMarker(url: string): URL {
 }
 
 const HotReloader:
-  | typeof import('./react-dev-overlay/hot-reloader').default
+  | typeof import('./react-dev-overlay/hot-reloader-client').default
   | null =
   process.env.NODE_ENV === 'production'
     ? null
-    : (require('./react-dev-overlay/hot-reloader')
-        .default as typeof import('./react-dev-overlay/hot-reloader').default)
+    : (require('./react-dev-overlay/hot-reloader-client')
+        .default as typeof import('./react-dev-overlay/hot-reloader-client').default)
 
 /**
  * Fetch the flight data for the provided url. Takes in the current router state to decide what to render server-side.
@@ -53,18 +58,18 @@ export async function fetchServerResponse(
   prefetch?: true
 ): Promise<[FlightData: FlightData, canonicalUrlOverride: URL | undefined]> {
   const headers: {
-    __rsc__: '1'
-    __next_router_state_tree__: string
-    __next_router_prefetch__?: '1'
+    [RSC]: '1'
+    [NEXT_ROUTER_STATE_TREE]: string
+    [NEXT_ROUTER_PREFETCH]?: '1'
   } = {
     // Enable flight response
-    __rsc__: '1',
+    [RSC]: '1',
     // Provide the current router state
-    __next_router_state_tree__: JSON.stringify(flightRouterState),
+    [NEXT_ROUTER_STATE_TREE]: JSON.stringify(flightRouterState),
   }
   if (prefetch) {
     // Enable prefetch response
-    headers.__next_router_prefetch__ = '1'
+    headers[NEXT_ROUTER_PREFETCH] = '1'
   }
 
   const res = await fetch(url.toString(), {
@@ -95,6 +100,7 @@ let initialParallelRoutes: CacheNode['parallelRoutes'] =
 const prefetched = new Set<string>()
 
 type AppRouterProps = {
+  initialHead: ReactNode
   initialTree: FlightRouterState
   initialCanonicalUrl: string
   children: ReactNode
@@ -105,6 +111,7 @@ type AppRouterProps = {
  * The global router that wraps the application components.
  */
 function Router({
+  initialHead,
   initialTree,
   initialCanonicalUrl,
   children,
@@ -203,6 +210,8 @@ function Router({
     }
 
     const routerInstance: AppRouterInstance = {
+      back: () => window.history.back(),
+      forward: () => window.history.forward(),
       // TODO-APP: implement prefetching of flight
       prefetch: async (href) => {
         // If prefetch has already been triggered, don't trigger it again.
@@ -359,10 +368,14 @@ function Router({
             >
               {HotReloader ? (
                 <HotReloader assetPrefix={assetPrefix}>
+                  {initialHead}
                   {cache.subTreeData}
                 </HotReloader>
               ) : (
-                cache.subTreeData
+                <>
+                  {initialHead}
+                  {cache.subTreeData}
+                </>
               )}
             </LayoutRouterContext.Provider>
           </AppRouterContext.Provider>
