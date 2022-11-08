@@ -72,7 +72,7 @@ const nextBuild: cliCommand = (argv) => {
     args['--profile'],
     args['--debug'],
     !args['--no-lint'],
-    !args['--no-mangling']
+    args['--no-mangling']
   ).catch((err) => {
     console.error('')
     if (

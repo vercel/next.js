@@ -970,6 +970,7 @@ export default async function getBaseWebpackConfig(
     plugins: [],
   }
 
+  console.log(noMangling)
   const terserOptions: any = {
     parse: {
       ecma: 8,
@@ -998,7 +999,7 @@ export default async function getBaseWebpackConfig(
       comments: false,
       // Fixes usage of Emoji and certain Regex
       ascii_only: true,
-      ...(process.env.__NEXT_MANGLING_DEBUG
+      ...(process.env.__NEXT_MANGLING_DEBUG || noMangling
         ? {
             beautify: true,
           }
