@@ -13,6 +13,30 @@ const ArchName = arch()
 const PlatformName = platform()
 const triples = platformArchTriples[PlatformName][ArchName] || []
 
+// Allow to specify an absolute path to the custom turbopack binary to load.
+// If one of env variables is set, `loadNative` will try to use any turbo-* interfaces from specified
+// binary instead. This will not affect existing swc's transform, or other interfaces. This is thin,
+// naive interface - `loadBindings` will not validate neither path nor the binary.
+//
+// Note these are internal flag: there's no stability, feature gaurentee.
+const __INTERNAL_CUSTOM_TURBOPACK_BINARY =
+  process.env.__INTERNAL_CUSTOM_TURBOPACK_BINARY
+const __INTERNAL_CUSTOM_TURBOPACK_BINDINGS =
+  process.env.__INTERNAL_CUSTOM_TURBOPACK_BINDINGS
+export const __isCustomTurbopackBinary = async () => {
+  if (
+    !!__INTERNAL_CUSTOM_TURBOPACK_BINARY &&
+    !!__INTERNAL_CUSTOM_TURBOPACK_BINDINGS
+  ) {
+    throw new Error('Cannot use TURBOPACK_BINARY and TURBOPACK_BINDINGS both')
+  }
+
+  return (
+    !!__INTERNAL_CUSTOM_TURBOPACK_BINARY ||
+    !!__INTERNAL_CUSTOM_TURBOPACK_BINDINGS
+  )
+}
+
 // These are the platforms we'll try to load wasm bindings first,
 // only try to load native bindings if loading wasm binding somehow fails.
 // Fallback to native binding is for migration period only,
