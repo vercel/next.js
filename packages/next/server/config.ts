@@ -24,7 +24,6 @@ import {
 } from '../shared/lib/image-config'
 import { loadEnvConfig } from '@next/env'
 import { gte as semverGte } from 'next/dist/compiled/semver'
-import { getDependencies } from '../lib/get-package-version'
 
 export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
 
@@ -93,15 +92,17 @@ export function setHttpClientAndAgentOptions(config: {
   )
 }
 
-async function setFontLoaderDefaults(config: NextConfigComplete, dir: string) {
-  // Add @next/font loaders by default if they're installed
-  const hasNextFontDependency = (
-    await getDependencies({
-      cwd: dir,
-    })
-  ).dependencies['@next/font']
+function setFontLoaderDefaults(config: NextConfigComplete) {
+  try {
+    // eslint-disable-next-line import/no-extraneous-dependencies
+    const nextFontVersion = require('@next/font/package.json').version
+    const nextVersion = require('next/package.json').version
+    if (nextFontVersion !== nextVersion) {
+      Log.warn(
+        `Different versions of @next/font (${nextFontVersion}) and next (${nextVersion}) detected. This may lead to unexpected behavior.`
+      )
+    }
 
-  if (hasNextFontDependency) {
     const googleFontLoader = {
       loader: '@next/font/google',
     }
@@ -128,7 +129,7 @@ async function setFontLoaderDefaults(config: NextConfigComplete, dir: string) {
     ) {
       config.experimental.fontLoaders.push(localFontLoader)
     }
-  }
+  } catch {}
 }
 
 function assignDefaults(dir: string, userConfig: { [key: string]: any }) {
@@ -906,7 +907,7 @@ export default async function loadConfig(
       configFileName,
       ...userConfig,
     }) as NextConfigComplete
-    await setFontLoaderDefaults(completeConfig, dir)
+    setFontLoaderDefaults(completeConfig)
     return completeConfig
   } else {
     const configBaseName = basename(CONFIG_FILES[0], extname(CONFIG_FILES[0]))
@@ -936,6 +937,6 @@ export default async function loadConfig(
   ) as NextConfigComplete
   completeConfig.configFileName = configFileName
   setHttpClientAndAgentOptions(completeConfig)
-  await setFontLoaderDefaults(completeConfig, dir)
+  setFontLoaderDefaults(completeConfig)
   return completeConfig
 }
