@@ -2,19 +2,13 @@ import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { join } from 'path'
 
-describe('@next/font/google babel', () => {
-  const isNextStart = (global as any).isNextStart
+describe('@next/fon babel unsupported', () => {
   let next: NextInstance
-
-  if (!isNextStart) {
-    it('should only run on next start', () => {})
-    return
-  }
 
   beforeAll(async () => {
     next = await createNext({
       skipStart: true,
-      files: new FileRef(join(__dirname, 'babel')),
+      files: new FileRef(join(__dirname, 'babel-unsupported')),
       dependencies: {
         '@next/font': 'canary',
       },
@@ -27,7 +21,7 @@ describe('@next/font/google babel', () => {
       'next build failed with code/signal 1'
     )
     expect(next.cliOutput).toMatch(
-      /"experimental.fontLoaders" is enabled which requires SWC although Babel is being used due to custom babel config being present ".babelrc"./
+      /"@next\/font" requires SWC although Babel is being used due to a custom babel config being present./
     )
   })
 })
