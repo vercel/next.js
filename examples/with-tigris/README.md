@@ -19,7 +19,7 @@ and follow instructions to deploy app to your Vercel account
 or do a [code walkthrough](#code-walkthrough) next :tada:
 
 > [Tigris integration](https://vercel.com/integrations/tigris) with Vercel will automatically fetch
-> access keys to populate [Environment Variables](.env.example) when deploying app.
+> access keys to populate [Environment Variables](.env.local.example) when deploying app.
 
 <details>
 <summary>2. Running Next.js server & Tigris dev environment on your local computer</summary>
