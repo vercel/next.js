@@ -9,63 +9,24 @@ describe('@next/font/local', () => {
         config: {},
         emitFontFile: () => '/_next/static/media/my-font.woff2',
         resolve: jest.fn(),
-        fs: {
-          readFile: (_, cb) => cb(null, 'fontdata'),
-        },
+        isDev: false,
+        isServer: true,
+        variableName: 'myFont',
+        loaderContext: {
+          fs: {
+            readFile: (_, cb) => cb(null, 'fontdata'),
+          },
+        } as any,
       })
 
       expect(css).toMatchInlineSnapshot(`
-"@font-face {
-font-family: 'my-font';
-src: url(/_next/static/media/my-font.woff2) format('woff2');
-font-display: optional;
-}"
-`)
-    })
-
-    test('Default CSS - src array with unicodeRange', async () => {
-      const { css } = await loader({
-        functionName: '',
-        data: [
-          { src: [{ file: './my-font.woff2', unicodeRange: 'unicode-range' }] },
-        ],
-        config: {},
-        emitFontFile: () => '/_next/static/media/my-font.woff2',
-        resolve: jest.fn(),
-        fs: {
-          readFile: (_, cb) => cb(null, 'fontdata'),
-        },
-      })
-
-      expect(css).toMatchInlineSnapshot(`
-"@font-face {
-font-family: 'my-font';
-src: url(/_next/static/media/my-font.woff2) format('woff2');
-font-display: optional;
-unicode-range: unicode-range;
-}"
-`)
-    })
-
-    test('Default CSS - src array without unicodeRange', async () => {
-      const { css } = await loader({
-        functionName: '',
-        data: [{ src: [{ file: './my-font.woff2' }] }],
-        config: {},
-        emitFontFile: () => '/_next/static/media/my-font.woff2',
-        resolve: jest.fn(),
-        fs: {
-          readFile: (_, cb) => cb(null, 'fontdata'),
-        },
-      })
-
-      expect(css).toMatchInlineSnapshot(`
-"@font-face {
-font-family: 'my-font';
-src: url(/_next/static/media/my-font.woff2) format('woff2');
-font-display: optional;
-}"
-`)
+        "@font-face {
+        font-family: myFont;
+        src: url(/_next/static/media/my-font.woff2) format('woff2');
+        font-display: optional;
+        }
+        "
+      `)
     })
 
     test('Weight and style', async () => {
@@ -75,20 +36,26 @@ font-display: optional;
         config: {},
         emitFontFile: () => '/_next/static/media/my-font.woff2',
         resolve: jest.fn(),
-        fs: {
-          readFile: (_, cb) => cb(null, 'fontdata'),
-        },
+        isDev: false,
+        isServer: true,
+        variableName: 'myFont',
+        loaderContext: {
+          fs: {
+            readFile: (_, cb) => cb(null, 'fontdata'),
+          },
+        } as any,
       })
 
       expect(css).toMatchInlineSnapshot(`
-"@font-face {
-font-family: 'my-font';
-src: url(/_next/static/media/my-font.woff2) format('woff2');
-font-display: optional;
-font-weight: 100 900;
-font-style: italic;
-}"
-`)
+        "@font-face {
+        font-family: myFont;
+        src: url(/_next/static/media/my-font.woff2) format('woff2');
+        font-display: optional;
+        font-weight: 100 900;
+        font-style: italic;
+        }
+        "
+      `)
     })
 
     test('Other properties', async () => {
@@ -97,95 +64,175 @@ font-style: italic;
         data: [
           {
             src: './my-font.woff2',
-            weight: '100 900',
-            style: 'italic',
-            ascentOverride: 'ascentOverride',
-            descentOverride: 'descentOverride',
-            lineGapOverride: 'lineGapOverride',
-            fontStretch: 'fontStretch',
-            fontFeatureSettings: 'fontFeatureSettings',
-            sizeAdjust: 'sizeAdjust',
+            declarations: [
+              { prop: 'font-feature-settings', value: '"smcp" on' },
+              { prop: 'ascent-override', value: '90%' },
+            ],
           },
         ],
         config: {},
         emitFontFile: () => '/_next/static/media/my-font.woff2',
         resolve: jest.fn(),
-        fs: {
-          readFile: (_, cb) => cb(null, 'fontdata'),
-        },
+        isDev: false,
+        isServer: true,
+        variableName: 'myFont',
+        loaderContext: {
+          fs: {
+            readFile: (_, cb) => cb(null, 'fontdata'),
+          },
+        } as any,
       })
 
       expect(css).toMatchInlineSnapshot(`
-"@font-face {
-font-family: 'my-font';
-src: url(/_next/static/media/my-font.woff2) format('woff2');
-font-display: optional;
-font-weight: 100 900;
-font-style: italic;
-ascent-override: ascentOverride;
-descent-override: descentOverride;
-line-gap-override: lineGapOverride;
-font-stretch: fontStretch;
-font-feature-settings: fontFeatureSettings;
-size-adjust: sizeAdjust;
-}"
-`)
+        "@font-face {
+        font-feature-settings: \\"smcp\\" on;
+        ascent-override: 90%;
+        font-family: myFont;
+        src: url(/_next/static/media/my-font.woff2) format('woff2');
+        font-display: optional;
+        }
+        "
+      `)
     })
 
-    test('Multiple files', async () => {
+    test('Multiple weights default style', async () => {
       const { css } = await loader({
         functionName: '',
         data: [
           {
+            style: 'italic',
             src: [
-              { file: './my-font1.woff', unicodeRange: '1' },
-              { file: './my-font2.woff2', unicodeRange: '2' },
-              { file: './my-font3.eot', unicodeRange: '3' },
-              { file: './my-font4.ttf', unicodeRange: '4' },
-              { file: './my-font5.otf', unicodeRange: '5' },
+              {
+                path: './fonts/font1.woff2',
+                weight: '100',
+              },
+              {
+                path: './fonts/font2.woff2',
+                weight: '400',
+              },
+              {
+                path: './fonts/font3.woff2',
+                weight: '700',
+              },
+              {
+                path: './fonts/font2.woff2',
+                weight: '400',
+                style: 'normal',
+              },
             ],
+            adjustFontFallback: false,
           },
         ],
         config: {},
-        emitFontFile: () => `/_next/static/media/font-file`,
+        emitFontFile: (buffer) => `/_next/static/media/my-font.woff2`,
         resolve: jest.fn(),
-        fs: {
-          readFile: (_, cb) => cb(null, 'fontdata'),
-        },
+        isDev: false,
+        isServer: true,
+        variableName: 'myFont',
+        loaderContext: {
+          fs: {
+            readFile: (path, cb) => cb(null, path),
+          },
+        } as any,
       })
 
       expect(css).toMatchInlineSnapshot(`
-"@font-face {
-font-family: 'my-font1';
-src: url(/_next/static/media/font-file) format('woff');
-font-display: optional;
-unicode-range: 1;
-}
-@font-face {
-font-family: 'my-font1';
-src: url(/_next/static/media/font-file) format('woff2');
-font-display: optional;
-unicode-range: 2;
-}
-@font-face {
-font-family: 'my-font1';
-src: url(/_next/static/media/font-file) format('embedded-opentype');
-font-display: optional;
-unicode-range: 3;
-}
-@font-face {
-font-family: 'my-font1';
-src: url(/_next/static/media/font-file) format('truetype');
-font-display: optional;
-unicode-range: 4;
-}
-@font-face {
-font-family: 'my-font1';
-src: url(/_next/static/media/font-file) format('opentype');
-font-display: optional;
-unicode-range: 5;
-}"
-`)
+        "@font-face {
+        font-family: myFont;
+        src: url(/_next/static/media/my-font.woff2) format('woff2');
+        font-display: optional;
+        font-weight: 100;
+        font-style: italic;
+        }
+
+        @font-face {
+        font-family: myFont;
+        src: url(/_next/static/media/my-font.woff2) format('woff2');
+        font-display: optional;
+        font-weight: 400;
+        font-style: italic;
+        }
+
+        @font-face {
+        font-family: myFont;
+        src: url(/_next/static/media/my-font.woff2) format('woff2');
+        font-display: optional;
+        font-weight: 700;
+        font-style: italic;
+        }
+
+        @font-face {
+        font-family: myFont;
+        src: url(/_next/static/media/my-font.woff2) format('woff2');
+        font-display: optional;
+        font-weight: 400;
+        font-style: normal;
+        }
+        "
+      `)
+    })
+
+    test('Multiple styles default weight', async () => {
+      const { css } = await loader({
+        functionName: '',
+        data: [
+          {
+            weight: '400',
+            src: [
+              {
+                path: './fonts/font1.woff2',
+                style: 'normal',
+              },
+              {
+                path: './fonts/font3.woff2',
+                style: 'italic',
+              },
+              {
+                path: './fonts/font2.woff2',
+                weight: '700',
+              },
+            ],
+            adjustFontFallback: false,
+          },
+        ],
+        config: {},
+        emitFontFile: (buffer) => `/_next/static/media/my-font.woff2`,
+        resolve: jest.fn(),
+        isDev: false,
+        isServer: true,
+        variableName: 'myFont',
+        loaderContext: {
+          fs: {
+            readFile: (path, cb) => cb(null, path),
+          },
+        } as any,
+      })
+
+      expect(css).toMatchInlineSnapshot(`
+        "@font-face {
+        font-family: myFont;
+        src: url(/_next/static/media/my-font.woff2) format('woff2');
+        font-display: optional;
+        font-weight: 400;
+        font-style: normal;
+        }
+
+        @font-face {
+        font-family: myFont;
+        src: url(/_next/static/media/my-font.woff2) format('woff2');
+        font-display: optional;
+        font-weight: 400;
+        font-style: italic;
+        }
+
+        @font-face {
+        font-family: myFont;
+        src: url(/_next/static/media/my-font.woff2) format('woff2');
+        font-display: optional;
+        font-weight: 700;
+        }
+        "
+      `)
     })
   })
 
@@ -198,10 +245,31 @@ unicode-range: 5;
           config: {},
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
-          fs: {},
+          isDev: false,
+          isServer: true,
+          variableName: 'myFont',
+          loaderContext: {} as any,
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(
         `"@next/font/local has no named exports"`
+      )
+    })
+
+    test('Missing src', async () => {
+      await expect(
+        loader({
+          functionName: '',
+          data: [],
+          config: {},
+          emitFontFile: jest.fn(),
+          resolve: jest.fn(),
+          isDev: false,
+          isServer: true,
+          variableName: 'myFont',
+          loaderContext: {} as any,
+        })
+      ).rejects.toThrowErrorMatchingInlineSnapshot(
+        `"Missing required \`src\` property"`
       )
     })
 
@@ -213,7 +281,10 @@ unicode-range: 5;
           config: {},
           emitFontFile: jest.fn(),
           resolve: jest.fn().mockResolvedValue(''),
-          fs: {},
+          isDev: false,
+          isServer: true,
+          variableName: 'myFont',
+          loaderContext: {} as any,
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(
         `"Unexpected file \`./font/font-file.abc\`"`
@@ -228,12 +299,39 @@ unicode-range: 5;
           config: {},
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
-          fs: {},
+          isDev: false,
+          isServer: true,
+          variableName: 'myFont',
+          loaderContext: {} as any,
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(`
               "Invalid display value \`invalid\`.
               Available display values: \`auto\`, \`block\`, \`swap\`, \`fallback\`, \`optional\`"
             `)
+    })
+
+    test('Invalid declaration', async () => {
+      await expect(
+        loader({
+          functionName: '',
+          data: [
+            {
+              src: './font-file.woff2',
+              declarations: [{ prop: 'src', value: '/hello.woff2' }],
+            },
+          ],
+
+          config: {},
+          emitFontFile: jest.fn(),
+          resolve: jest.fn(),
+          isDev: false,
+          isServer: true,
+          variableName: 'myFont',
+          loaderContext: {} as any,
+        })
+      ).rejects.toThrowErrorMatchingInlineSnapshot(
+        `"Invalid declaration prop: \`src\`"`
+      )
     })
 
     test('Empty src array', async () => {
@@ -244,37 +342,27 @@ unicode-range: 5;
           config: {},
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
-          fs: {},
+          isDev: false,
+          isServer: true,
+          variableName: 'myFont',
+          loaderContext: {} as any,
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(
-        `"Src must contain one or more files"`
+        `"Unexpected empty \`src\` array."`
       )
     })
 
-    test('Src array must have one or more elements', async () => {
-      await expect(
-        loader({
-          functionName: '',
-          data: [{ src: [] }],
-          config: {},
-          emitFontFile: jest.fn(),
-          resolve: jest.fn(),
-          fs: {},
-        })
-      ).rejects.toThrowErrorMatchingInlineSnapshot(
-        `"Src must contain one or more files"`
-      )
-    })
-
-    test('Src array elements must have file property', async () => {
+    test('Invalid weight in array', async () => {
       await expect(
         loader({
           functionName: '',
           data: [
             {
               src: [
-                { file: './my-font1.woff2', unicodeRange: '1' },
-                { unicodeRange: '2' },
+                { path: './font1.woff2', weight: 'normal' },
+                { path: './font2.woff2', weight: 'normal' },
+                { path: './font3.woff2', weight: '400' },
+                { path: './font3.woff2', weight: 'abc' },
               ],
             },
           ],
@@ -282,22 +370,30 @@ unicode-range: 5;
           config: {},
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
-          fs: {},
-        })
-      ).rejects.toThrowErrorMatchingInlineSnapshot(
-        `"Src array objects must have a \`file\` property"`
-      )
+          isDev: false,
+          isServer: true,
+          variableName: 'myFont',
+          loaderContext: {
+            fs: { readFile: (path, cb) => cb(null, path) },
+          } as any,
+        } as any)
+      ).rejects.toThrowErrorMatchingInlineSnapshot(`
+              "Invalid weight value in src array: \`abc\`.
+              Expected \`normal\`, \`bold\` or a number."
+            `)
     })
 
-    test("Src array files must have unicodeRange if there's many files", async () => {
+    test('Invalid variable weight in array', async () => {
       await expect(
         loader({
           functionName: '',
           data: [
             {
               src: [
-                { file: './my-font1.woff2', unicodeRange: '1' },
-                { file: './my-font2.woff2' },
+                { path: './font1.woff2', weight: 'normal bold' },
+                { path: './font2.woff2', weight: '400 bold' },
+                { path: './font3.woff2', weight: 'normal 700' },
+                { path: './font4.woff2', weight: '100 abc' },
               ],
             },
           ],
@@ -305,11 +401,17 @@ unicode-range: 5;
           config: {},
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
-          fs: {},
+          isDev: false,
+          isServer: true,
+          variableName: 'myFont',
+          loaderContext: {
+            fs: { readFile: (path, cb) => cb(null, path) },
+          } as any,
         })
-      ).rejects.toThrowErrorMatchingInlineSnapshot(
-        `"Files must have a unicode-range if there's more than one"`
-      )
+      ).rejects.toThrowErrorMatchingInlineSnapshot(`
+              "Invalid weight value in src array: \`100 abc\`.
+              Expected \`normal\`, \`bold\` or a number."
+            `)
     })
   })
 })

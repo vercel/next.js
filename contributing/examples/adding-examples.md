@@ -7,7 +7,7 @@ When you add an example to the [examples](examples) directory, please follow the
 - If API routes aren't used in an example, they should be omitted
 - If an example exists for a certain library and you would like to showcase a specific feature of that library, the existing example should be updated (instead of adding a new example)
 - Package manager specific config should not be added (e.g. `resolutions` in `package.json`)
-- In `package.json` the version of `next` (and `eslint-config-next`) should be `latest`
+- In `package.json` the version of `next` should be `latest`
 - In `package.json` the dependency versions should be up-to-date
 - Use `export default function` for page components and API Routes instead of `const`/`let` (The exception is if the page has `getInitialProps`, in which case [`NextPage`](https://nextjs.org/docs/api-reference/data-fetching/get-initial-props#typescript) could be useful)
 - CMS example directories should be prefixed with `cms-`
@@ -22,7 +22,7 @@ Also, don’t forget to add a `README.md` file with the following format:
 - Omit the `name` and `version` fields from your `package.json`.
 - Ensure all your dependencies are up to date.
 - Ensure you’re using [`next/image`](https://nextjs.org/docs/api-reference/next/image).
-- To add additional installation instructions, please add it where appropriate.
+- To add additional installation instructions, please add them where appropriate.
 - To add additional notes, add `## Notes` section at the end.
 - Remove the `Deploy your own` section if your example can’t be immediately deployed to Vercel.
 

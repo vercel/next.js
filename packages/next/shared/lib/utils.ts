@@ -41,14 +41,16 @@ export type AppTreeType = ComponentType<
  * Web vitals provided to _app.reportWebVitals by Core Web Vitals plugin developed by Google Chrome team.
  * https://nextjs.org/blog/next-9-4#integrated-web-vitals-reporting
  */
+export const WEB_VITALS = ['CLS', 'FCP', 'FID', 'INP', 'LCP', 'TTFB'] as const
 export type NextWebVitalsMetric = {
   id: string
   startTime: number
   value: number
+  attribution?: { [key: string]: unknown }
 } & (
   | {
       label: 'web-vital'
-      name: 'FCP' | 'LCP' | 'CLS' | 'FID' | 'TTFB' | 'INP'
+      name: typeof WEB_VITALS[number]
     }
   | {
       label: 'custom'
@@ -397,19 +399,6 @@ export async function loadGetInitialProps<
 
   return props
 }
-
-let warnOnce = (_: string) => {}
-if (process.env.NODE_ENV !== 'production') {
-  const warnings = new Set<string>()
-  warnOnce = (msg: string) => {
-    if (!warnings.has(msg)) {
-      console.warn(msg)
-    }
-    warnings.add(msg)
-  }
-}
-
-export { warnOnce }
 
 export const SP = typeof performance !== 'undefined'
 export const ST =

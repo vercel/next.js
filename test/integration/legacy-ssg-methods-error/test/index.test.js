@@ -8,24 +8,7 @@ const appDir = join(__dirname, '..')
 const indexPage = join(appDir, 'pages/index.js')
 let origIndexPage = ''
 
-const runTests = (serverless = false) => {
-  if (serverless) {
-    const nextConfig = join(appDir, 'next.config.js')
-
-    beforeEach(() =>
-      fs.writeFile(
-        nextConfig,
-        `
-      module.exports = {
-        target: 'experimental-serverless-trace'
-      }
-    `
-      )
-    )
-
-    afterAll(() => fs.remove(nextConfig))
-  }
-
+const runTests = () => {
   it('should error when legacy unstable_getStaticProps', async () => {
     const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
     expect(code).toBe(1)
@@ -71,9 +54,5 @@ describe('Mixed getStaticProps and getServerSideProps error', () => {
 
   describe('server mode', () => {
     runTests(false)
-  })
-
-  describe('serverless mode', () => {
-    runTests(true)
   })
 })

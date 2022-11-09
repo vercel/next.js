@@ -1,4 +1,8 @@
+import type { FlightRouterState } from './app-render'
 import { nonNullable } from '../lib/non-nullable'
+
+const queueTask =
+  process.env.NEXT_RUNTIME === 'edge' ? globalThis.setTimeout : setImmediate
 
 export type ReactReadableStream = ReadableStream<Uint8Array> & {
   allReady?: Promise<void> | undefined
@@ -123,14 +127,14 @@ export function createBufferedTransformStream(
   })
 }
 
-export function createFlushEffectStream(
-  handleFlushEffect: () => string
+export function createInsertedHTMLStream(
+  getServerInsertedHTML: () => Promise<string>
 ): TransformStream<Uint8Array, Uint8Array> {
   return new TransformStream({
-    transform(chunk, controller) {
-      const flushedChunk = encodeText(handleFlushEffect())
+    async transform(chunk, controller) {
+      const insertedHTMLChunk = encodeText(await getServerInsertedHTML())
 
-      controller.enqueue(flushedChunk)
+      controller.enqueue(insertedHTMLChunk)
       controller.enqueue(chunk)
     },
   })
@@ -148,21 +152,43 @@ export function renderToInitialStream({
   return ReactDOMServer.renderToReadableStream(element, streamOptions)
 }
 
-export function createHeadInjectionTransformStream(
-  inject: () => string
+function createHeadInsertionTransformStream(
+  insert: () => Promise<string>
 ): TransformStream<Uint8Array, Uint8Array> {
-  let injected = false
+  let inserted = false
+  let freezing = false
+
   return new TransformStream({
-    transform(chunk, controller) {
-      const content = decodeText(chunk)
-      let index
-      if (!injected && (index = content.indexOf('</head')) !== -1) {
-        injected = true
-        const injectedContent =
-          content.slice(0, index) + inject() + content.slice(index)
-        controller.enqueue(encodeText(injectedContent))
-      } else {
+    async transform(chunk, controller) {
+      // While react is flushing chunks, we don't apply insertions
+      if (freezing) {
         controller.enqueue(chunk)
+        return
+      }
+
+      const insertion = await insert()
+      if (inserted) {
+        controller.enqueue(encodeText(insertion))
+        controller.enqueue(chunk)
+        freezing = true
+      } else {
+        const content = decodeText(chunk)
+        const index = content.indexOf('</head>')
+        if (index !== -1) {
+          const insertedHeadContent =
+            content.slice(0, index) + insertion + content.slice(index)
+          controller.enqueue(encodeText(insertedHeadContent))
+          freezing = true
+          inserted = true
+        }
+      }
+
+      if (!inserted) {
+        controller.enqueue(chunk)
+      } else {
+        queueTask(() => {
+          freezing = false
+        })
       }
     },
   })
@@ -257,20 +283,64 @@ export function createSuffixStream(
   })
 }
 
+export function createRootLayoutValidatorStream(
+  assetPrefix = '',
+  getTree: () => FlightRouterState
+): TransformStream<Uint8Array, Uint8Array> {
+  let foundHtml = false
+  let foundBody = false
+
+  return new TransformStream({
+    async transform(chunk, controller) {
+      if (!foundHtml || !foundBody) {
+        const content = decodeText(chunk)
+        if (!foundHtml && content.includes('<html')) {
+          foundHtml = true
+        }
+        if (!foundBody && content.includes('<body')) {
+          foundBody = true
+        }
+      }
+      controller.enqueue(chunk)
+    },
+    flush(controller) {
+      const missingTags = [
+        foundHtml ? null : 'html',
+        foundBody ? null : 'body',
+      ].filter(nonNullable)
+
+      if (missingTags.length > 0) {
+        controller.enqueue(
+          encodeText(
+            `<script>self.__next_root_layout_missing_tags_error=${JSON.stringify(
+              { missingTags, assetPrefix: assetPrefix ?? '', tree: getTree() }
+            )}</script>`
+          )
+        )
+      }
+    },
+  })
+}
+
 export async function continueFromInitialStream(
   renderStream: ReactReadableStream,
   {
     suffix,
     dataStream,
     generateStaticHTML,
-    flushEffectHandler,
-    flushEffectsToHead,
+    getServerInsertedHTML,
+    serverInsertedHTMLToHead,
+    validateRootLayout,
   }: {
     suffix?: string
     dataStream?: ReadableStream<Uint8Array>
     generateStaticHTML: boolean
-    flushEffectHandler?: () => string
-    flushEffectsToHead: boolean
+    getServerInsertedHTML?: () => Promise<string>
+    serverInsertedHTMLToHead: boolean
+    validateRootLayout?: {
+      assetPrefix?: string
+      getTree: () => FlightRouterState
+    }
   }
 ): Promise<ReadableStream<Uint8Array>> {
   const closeTag = '</body></html>'
@@ -282,19 +352,27 @@ export async function continueFromInitialStream(
 
   const transforms: Array<TransformStream<Uint8Array, Uint8Array>> = [
     createBufferedTransformStream(),
-    flushEffectHandler && !flushEffectsToHead
-      ? createFlushEffectStream(flushEffectHandler)
+    getServerInsertedHTML && !serverInsertedHTMLToHead
+      ? createInsertedHTMLStream(getServerInsertedHTML)
       : null,
     suffixUnclosed != null ? createDeferredSuffixStream(suffixUnclosed) : null,
     dataStream ? createInlineDataStream(dataStream) : null,
     suffixUnclosed != null ? createSuffixStream(closeTag) : null,
-    createHeadInjectionTransformStream(() => {
-      // TODO-APP: Inject flush effects to end of head in app layout rendering, to avoid
+    createHeadInsertionTransformStream(async () => {
+      // TODO-APP: Insert server side html to end of head in app layout rendering, to avoid
       // hydration errors. Remove this once it's ready to be handled by react itself.
-      const flushEffectsContent =
-        flushEffectHandler && flushEffectsToHead ? flushEffectHandler() : ''
-      return flushEffectsContent
+      const serverInsertedHTML =
+        getServerInsertedHTML && serverInsertedHTMLToHead
+          ? await getServerInsertedHTML()
+          : ''
+      return serverInsertedHTML
     }),
+    validateRootLayout
+      ? createRootLayoutValidatorStream(
+          validateRootLayout.assetPrefix,
+          validateRootLayout.getTree
+        )
+      : null,
   ].filter(nonNullable)
 
   return transforms.reduce(

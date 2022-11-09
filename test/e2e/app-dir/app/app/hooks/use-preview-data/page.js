@@ -1,4 +1,4 @@
-import { previewData } from 'next/dist/client/components/hooks-server'
+import { previewData } from 'next/headers'
 
 export default function Page() {
   const data = previewData()

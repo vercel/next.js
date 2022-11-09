@@ -1,6 +1,5 @@
-'client'
 // TODO-APP: enable once test is not skipped.
-// import { useSelectedLayoutSegment } from 'next/dist/client/components/hooks-client'
+// import { useSelectedLayoutSegment } from 'next/navigation'
 
 export default function Page() {
   // This should throw an error.

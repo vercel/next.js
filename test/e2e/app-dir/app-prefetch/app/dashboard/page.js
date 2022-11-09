@@ -1,4 +1,6 @@
-import { experimental_use as use } from 'react'
+import { use } from 'react'
+
+export const revalidate = 0
 
 async function getData() {
   await new Promise((resolve) => setTimeout(resolve, 3000))

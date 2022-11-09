@@ -8,6 +8,16 @@ export const VALID_LOADERS = [
 
 export type LoaderValue = typeof VALID_LOADERS[number]
 
+export type ImageLoaderProps = {
+  src: string
+  width: number
+  quality?: number
+}
+
+export type ImageLoaderPropsWithConfig = ImageLoaderProps & {
+  config: Readonly<ImageConfig>
+}
+
 export type RemotePattern = {
   /**
    * Must be `http` or `https`.
@@ -49,11 +59,14 @@ export type ImageConfigComplete = {
   /** @see [Image sizing documentation](https://nextjs.org/docs/basic-features/image-optimization#image-sizing) */
   imageSizes: number[]
 
-  /** @see [Image loaders configuration](https://nextjs.org/docs/basic-features/image-optimization#loaders) */
+  /** @see [Image loaders configuration](https://nextjs.org/docs/api-reference/next/legacy/image#loader) */
   loader: LoaderValue
 
-  /** @see [Image loader configuration](https://nextjs.org/docs/api-reference/next/image#loader-configuration) */
+  /** @see [Image loader configuration](https://nextjs.org/docs/api-reference/next/legacy/image#loader-configuration) */
   path: string
+
+  /** @see [Image loader configuration](https://nextjs.org/docs/api-reference/next/image#loader-configuration) */
+  loaderFile: string
 
   /**
    * @see [Image domains configuration](https://nextjs.org/docs/api-reference/next/image#domains)
@@ -89,6 +102,7 @@ export const imageConfigDefault: ImageConfigComplete = {
   imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   path: '/_next/image',
   loader: 'default',
+  loaderFile: '',
   domains: [],
   disableStaticImages: false,
   minimumCacheTTL: 60,

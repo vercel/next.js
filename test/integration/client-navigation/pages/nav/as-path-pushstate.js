@@ -9,26 +9,32 @@ export default withRouter(({ router: { asPath, query } }) => {
         <Link
           href="/nav/as-path-pushstate?something=hello"
           as="/something/hello"
+          id="hello"
         >
-          <a id="hello">hello</a>
+          hello
         </Link>
       </div>
       <div>
-        <Link href="/nav/as-path-pushstate" as="/something/else">
-          <a id="else">else</a>
+        <Link href="/nav/as-path-pushstate" as="/something/else" id="else">
+          else
         </Link>
       </div>
       <div>
-        <Link href="/nav/as-path-pushstate" as="/nav/as-path-pushstate">
-          <a id="hello2">normal hello</a>
+        <Link
+          href="/nav/as-path-pushstate"
+          as="/nav/as-path-pushstate"
+          id="hello2"
+        >
+          normal hello
         </Link>
       </div>
       {query.something === 'hello' && (
         <Link
           href="/nav/as-path-pushstate?something=hello"
           as="/something/same-query"
+          id="same-query"
         >
-          <a id="same-query">same query</a>
+          same query
         </Link>
       )}
     </div>

@@ -1,5 +1,3 @@
-import { AdjustFontFallback } from 'next/font'
-
 const allowedDisplayValues = ['auto', 'block', 'swap', 'fallback', 'optional']
 
 const formatValues = (values: string[]) =>
@@ -14,12 +12,12 @@ const extToFormat = {
 }
 
 type FontOptions = {
-  family: string
-  files: Array<{
-    file: string
+  src: Array<{
+    path: string
+    weight?: string
+    style?: string
     ext: string
     format: string
-    unicodeRange?: string
   }>
   display: string
   weight?: string
@@ -27,17 +25,10 @@ type FontOptions = {
   fallback?: string[]
   preload: boolean
   variable?: string
-  ascentOverride?: string
-  descentOverride?: string
-  fontStretch?: string
-  fontVariant?: string
-  fontFeatureSettings?: string
-  fontVariationSettings?: string
-  lineGapOverride?: string
-  sizeAdjust?: string
-  adjustFontFallback?: AdjustFontFallback
+  adjustFontFallback?: string | false
+  declarations?: Array<{ prop: string; value: string }>
 }
-export function validateData(functionName: string, data: any): FontOptions {
+export function validateData(functionName: string, fontData: any): FontOptions {
   if (functionName) {
     throw new Error(`@next/font/local has no named exports`)
   }
@@ -49,16 +40,9 @@ export function validateData(functionName: string, data: any): FontOptions {
     fallback,
     preload = true,
     variable,
-    ascentOverride,
-    descentOverride,
-    fontStretch,
-    fontVariant,
-    fontFeatureSettings,
-    fontVariationSettings,
-    lineGapOverride,
-    sizeAdjust,
     adjustFontFallback,
-  } = data[0] || ({} as any)
+    declarations,
+  } = fontData || ({} as any)
 
   if (!allowedDisplayValues.includes(display)) {
     throw new Error(
@@ -68,53 +52,56 @@ export function validateData(functionName: string, data: any): FontOptions {
     )
   }
 
-  const srcArray = Array.isArray(src) ? src : [{ file: src }]
-
-  if (srcArray.length === 0) {
-    throw new Error('Src must contain one or more files')
+  if (!src) {
+    throw new Error('Missing required `src` property')
   }
 
-  const files = srcArray.map(({ file, unicodeRange }) => {
-    if (!file) {
-      throw new Error('Src array objects must have a `file` property')
+  if (!Array.isArray(src)) {
+    src = [{ path: src, weight, style }]
+  } else {
+    if (src.length === 0) {
+      throw new Error('Unexpected empty `src` array.')
     }
-    if (srcArray.length > 1 && !unicodeRange) {
-      throw new Error(
-        "Files must have a unicode-range if there's more than one"
-      )
+  }
+
+  src = src.map((fontFile: any) => {
+    const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(fontFile.path)?.[1]
+    if (!ext) {
+      throw new Error(`Unexpected file \`${fontFile.path}\``)
     }
 
-    const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(file)?.[1]
-    if (!ext) {
-      throw new Error(`Unexpected file \`${file}\``)
-    }
     return {
-      file,
-      unicodeRange,
+      ...fontFile,
       ext,
       format: extToFormat[ext as 'woff' | 'woff2' | 'eot' | 'ttf' | 'otf'],
     }
   })
 
-  const family = /.+\/(.+?)\./.exec(files[0].file)![1]
+  if (Array.isArray(declarations)) {
+    declarations.forEach((declaration) => {
+      if (
+        [
+          'font-family',
+          'src',
+          'font-display',
+          'font-weight',
+          'font-style',
+        ].includes(declaration?.prop)
+      ) {
+        throw new Error(`Invalid declaration prop: \`${declaration.prop}\``)
+      }
+    })
+  }
 
   return {
-    family,
-    files,
+    src,
     display,
     weight,
     style,
     fallback,
     preload,
     variable,
-    ascentOverride,
-    descentOverride,
-    fontStretch,
-    fontVariant,
-    fontFeatureSettings,
-    fontVariationSettings,
-    lineGapOverride,
-    sizeAdjust,
     adjustFontFallback,
+    declarations,
   }
 }

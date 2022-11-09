@@ -15,7 +15,7 @@ export function getFontLoader(
     // loader
     loaders.push(
       getClientStyleLoader({
-        isAppDir: !!ctx.experimental.appDir,
+        hasAppDir: ctx.hasAppDir,
         isDevelopment: ctx.isDevelopment,
         assetPrefix: ctx.assetPrefix,
       })
@@ -59,6 +59,7 @@ export function getFontLoader(
   loaders.push({
     loader: 'next-font-loader',
     options: {
+      isDev: ctx.isDevelopment,
       isServer: ctx.isServer,
       assetPrefix: ctx.assetPrefix,
       fontLoaderOptions,

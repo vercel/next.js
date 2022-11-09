@@ -11,7 +11,6 @@ import {
   launchApp,
   nextBuild,
   nextStart,
-  File,
   check,
 } from 'next-test-utils'
 import { join } from 'path'
@@ -19,7 +18,6 @@ import { join } from 'path'
 let app
 let appPort
 const appDir = join(__dirname, '../')
-const nextConfig = new File(join(appDir, 'next.config.js'))
 
 function runTests(dev = false) {
   it('ssr async page modules', async () => {
@@ -125,21 +123,6 @@ describe('Async modules', () => {
       app = await nextStart(appDir, appPort)
     })
     afterAll(async () => {
-      await killApp(app)
-    })
-
-    runTests()
-  })
-
-  describe('serverless mode', () => {
-    beforeAll(async () => {
-      nextConfig.replace('// target:', 'target:')
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      await nextConfig.restore()
       await killApp(app)
     })
 

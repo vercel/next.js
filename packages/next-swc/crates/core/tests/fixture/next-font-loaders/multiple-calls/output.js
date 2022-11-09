@@ -1,3 +1,3 @@
-import inter from '@next/font/google/target.css?pages/test.tsx;Inter;{"display":"swap","variant":"900"}';
-import inter from '@next/font/google/target.css?pages/test.tsx;Inter;{"display":"swap","variant":"900"}';
+import inter from '@next/font/google/target.css?{"path":"pages/test.tsx","import":"Inter","arguments":[{"variant":"900","display":"swap"}],"variableName":"inter"}';
+import inter from '@next/font/google/target.css?{"path":"pages/test.tsx","import":"Inter","arguments":[{"variant":"900","display":"swap"}],"variableName":"inter"}';
 import React from 'react';

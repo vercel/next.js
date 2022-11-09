@@ -4,21 +4,6 @@ import type { HTMLElement } from 'next/dist/compiled/node-html-parser'
 import { OPTIMIZED_FONT_PROVIDERS } from '../shared/lib/constants'
 import { nonNullable } from '../lib/non-nullable'
 
-let optimizeAmp: typeof import('./optimize-amp').default | undefined
-let getFontDefinitionFromManifest:
-  | typeof import('./font-utils').getFontDefinitionFromManifest
-  | undefined
-let parse: typeof import('next/dist/compiled/node-html-parser').parse
-
-if (process.env.NEXT_RUNTIME !== 'edge') {
-  optimizeAmp = require('./optimize-amp').default
-  getFontDefinitionFromManifest =
-    require('./font-utils').getFontDefinitionFromManifest
-  parse = (
-    require('next/dist/compiled/node-html-parser') as typeof import('next/dist/compiled/node-html-parser')
-  ).parse
-}
-
 type postProcessOptions = {
   optimizeFonts: any
 }
@@ -36,6 +21,10 @@ type middlewareSignature = {
   middleware: PostProcessMiddleware
   condition: ((options: postProcessOptions) => boolean) | null
 }
+
+type PostProcessorFunction =
+  | ((html: string) => Promise<string>)
+  | ((html: string) => string)
 
 const middlewareRegistry: Array<middlewareSignature> = []
 
@@ -56,6 +45,9 @@ async function processHTML(
   if (!middlewareRegistry[0]) {
     return html
   }
+
+  const { parse } =
+    require('next/dist/compiled/node-html-parser') as typeof import('next/dist/compiled/node-html-parser')
   const root: HTMLElement = parse(html)
   let document = html
 
@@ -187,9 +179,11 @@ async function postProcessHTML(
   renderOpts: RenderOpts,
   { inAmpMode, hybridAmp }: { inAmpMode: boolean; hybridAmp: boolean }
 ) {
-  const postProcessors: Array<(html: string) => Promise<string>> = [
+  const postProcessors: Array<PostProcessorFunction> = [
     process.env.NEXT_RUNTIME !== 'edge' && inAmpMode
       ? async (html: string) => {
+          const optimizeAmp = require('./optimize-amp')
+            .default as typeof import('./optimize-amp').default
           html = await optimizeAmp!(html, renderOpts.ampOptimizerConfig)
           if (!renderOpts.ampSkipValidation && renderOpts.ampValidator) {
             await renderOpts.ampValidator(html, pathname)
@@ -201,6 +195,8 @@ async function postProcessHTML(
       ? async (html: string) => {
           const getFontDefinition = (url: string): string => {
             if (renderOpts.fontManifest) {
+              const { getFontDefinitionFromManifest } =
+                require('./font-utils') as typeof import('./font-utils')
               return getFontDefinitionFromManifest!(
                 url,
                 renderOpts.fontManifest
@@ -234,8 +230,8 @@ async function postProcessHTML(
         }
       : null,
     inAmpMode || hybridAmp
-      ? async (html: string) => {
-          return html.replace(/&amp;amp=1/g, '&amp=1')
+      ? (html: string) => {
+          return html.replaceAll('&amp;amp=1', '&amp=1')
         }
       : null,
   ].filter(nonNullable)

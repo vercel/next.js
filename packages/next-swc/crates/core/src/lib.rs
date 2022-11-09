@@ -50,7 +50,6 @@ use swc_core::{
 pub mod amp_attributes;
 mod auto_cjs;
 pub mod disallow_re_export_all_in_page;
-pub mod hook_optimizer;
 pub mod next_dynamic;
 pub mod next_font_loaders;
 pub mod next_ssg;
@@ -91,6 +90,9 @@ pub struct TransformOptions {
     pub server_components: Option<react_server_components::Config>,
 
     #[serde(default)]
+    pub styled_jsx: bool,
+
+    #[serde(default)]
     pub styled_components: Option<styled_components::Config>,
 
     #[serde(default)]
@@ -102,6 +104,12 @@ pub struct TransformOptions {
     #[serde(default)]
     #[cfg(not(target_arch = "wasm32"))]
     pub relay: Option<relay::Config>,
+
+    #[allow(unused)]
+    #[serde(default)]
+    #[cfg(target_arch = "wasm32")]
+    /// Accept any value
+    pub relay: Option<serde_json::Value>,
 
     #[serde(default)]
     pub shake_exports: Option<shake_exports::Config>,
@@ -153,8 +161,14 @@ where
                 )),
             _ => Either::Right(noop()),
         },
-        styled_jsx::styled_jsx(cm.clone(), file.name.clone()),
-        hook_optimizer::hook_optimizer(),
+        if opts.styled_jsx {
+            Either::Left(styled_jsx::visitor::styled_jsx(
+                cm.clone(),
+                file.name.clone(),
+            ))
+        } else {
+            Either::Right(noop())
+        },
         match &opts.styled_components {
             Some(config) => Either::Left(styled_components::styled_components(
                 file.name.clone(),
@@ -171,6 +185,7 @@ where
         next_dynamic::next_dynamic(
             opts.is_development,
             opts.is_server,
+            opts.server_components.is_some(),
             file.name.clone(),
             opts.pages_dir.clone()
         ),

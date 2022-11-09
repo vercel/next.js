@@ -9,31 +9,33 @@ const HashChanges = ({ count }) => {
 
   return (
     <div id="hash-changes-page">
-      <Link href="#via-link">
-        <a id="via-link">Via Link</a>
+      <Link href="#via-link" id="via-link">
+        Via Link
       </Link>
       <a href="#via-a" id="via-a">
         Via A
       </a>
-      <Link href="/nav/hash-changes">
-        <a id="page-url">Page URL</a>
+      <Link href="/nav/hash-changes" id="page-url">
+        Page URL
       </Link>
-      <Link href="#">
-        <a id="via-empty-hash">Via Empty Hash</a>
+      <Link href="#" id="via-empty-hash">
+        Via Empty Hash
       </Link>
-      <Link href="#item-400">
-        <a id="scroll-to-item-400">Go to item 400</a>
+      <Link href="#item-400" id="scroll-to-item-400">
+        Go to item 400
       </Link>
-      <Link href="#name-item-400">
-        <a id="scroll-to-name-item-400">Go to name item 400</a>
+      <Link href="#name-item-400" id="scroll-to-name-item-400">
+        Go to name item 400
       </Link>
-      <Link href="#name-item-400" scroll={false}>
-        <a id="scroll-to-name-item-400-no-scroll">
-          Go to name item 400 (no scroll)
-        </a>
+      <Link
+        href="#name-item-400"
+        scroll={false}
+        id="scroll-to-name-item-400-no-scroll"
+      >
+        Go to name item 400 (no scroll)
       </Link>
-      <Link href="#中文">
-        <a id="scroll-to-cjk-anchor">Go to CJK anchor</a>
+      <Link href="#中文" id="scroll-to-cjk-anchor">
+        Go to CJK anchor
       </Link>
       <p>COUNT: {count}</p>
       {Array.from({ length: 500 }, (x, i) => i + 1).map((i) => {
@@ -50,8 +52,8 @@ const HashChanges = ({ count }) => {
           </div>
         )
       })}
-      <Link href="#top">
-        <a id="via-top-hash">Via Top Hash</a>
+      <Link href="#top" id="via-top-hash">
+        Via Top Hash
       </Link>
       <div id="asPath">ASPATH: {router.asPath}</div>
       <div id="pathname">PATHNAME: {router.pathname}</div>

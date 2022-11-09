@@ -1,6 +1,5 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
 import { join } from 'path'
 import {
   renderViaHTTP,
@@ -12,7 +11,6 @@ import {
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
-const nextConfig = join(appDir, 'next.config.js')
 let appPort
 let app
 
@@ -43,30 +41,11 @@ describe('Optional chaining and nullish coalescing support', () => {
 
   describe('server mode', () => {
     beforeAll(async () => {
-      await fs.remove(nextConfig)
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })
     afterAll(() => killApp(app))
-
-    runTests()
-  })
-
-  describe('serverless mode', () => {
-    beforeAll(async () => {
-      await fs.writeFile(
-        nextConfig,
-        `module.exports = { target: 'serverless' }`
-      )
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-      await fs.remove(nextConfig)
-    })
 
     runTests()
   })

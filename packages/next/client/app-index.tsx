@@ -2,11 +2,11 @@
 import '../build/polyfills/polyfill-module'
 // @ts-ignore react-dom/client exists when using React 18
 import ReactDOMClient from 'react-dom/client'
-// TODO-APP: change to React.use once it becomes stable
-import React, { experimental_use as use } from 'react'
-import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
+import React, { use } from 'react'
+import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack/client'
 
-import measureWebVitals from './performance-relayer'
+import { HeadManagerContext } from '../shared/lib/head-manager-context'
+import { GlobalLayoutRouterContext } from '../shared/lib/app-router-context'
 
 /// <reference types="react-dom/experimental" />
 
@@ -41,8 +41,6 @@ self.__next_require__ = __webpack_require__
   // eslint-disable-next-line no-undef
   return __webpack_chunk_load__(chunkId)
 }
-
-export const version = process.env.__NEXT_VERSION
 
 const appElement: HTMLElement | Document | null = document
 
@@ -115,8 +113,8 @@ if (document.readyState === 'loading') {
   DOMContentLoaded()
 }
 
-const nextServerDataLoadingGlobal = ((self as any).__next_s =
-  (self as any).__next_s || [])
+const nextServerDataLoadingGlobal = ((self as any).__next_f =
+  (self as any).__next_f || [])
 nextServerDataLoadingGlobal.forEach(nextServerDataCallback)
 nextServerDataLoadingGlobal.push = nextServerDataCallback
 
@@ -150,9 +148,15 @@ function ServerRoot({ cacheKey }: { cacheKey: string }): JSX.Element {
   return root
 }
 
+const StrictModeIfEnabled = process.env.__NEXT_STRICT_MODE_APP
+  ? React.StrictMode
+  : React.Fragment
+
 function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
   React.useEffect(() => {
-    measureWebVitals()
+    if (process.env.__NEXT_ANALYTICS_ID) {
+      require('./performance-relayer-app')()
+    }
   }, [])
 
   if (process.env.__NEXT_TEST_MODE) {
@@ -175,12 +179,56 @@ function RSCComponent(props: any): JSX.Element {
 }
 
 export function hydrate() {
+  if (process.env.NODE_ENV !== 'production') {
+    const rootLayoutMissingTagsError = (self as any)
+      .__next_root_layout_missing_tags_error
+    const HotReload: typeof import('./components/react-dev-overlay/hot-reloader-client').default =
+      require('./components/react-dev-overlay/hot-reloader-client')
+        .default as typeof import('./components/react-dev-overlay/hot-reloader-client').default
+
+    // Don't try to hydrate if root layout is missing required tags, render error instead
+    if (rootLayoutMissingTagsError) {
+      const reactRootElement = document.createElement('div')
+      document.body.appendChild(reactRootElement)
+      const reactRoot = (ReactDOMClient as any).createRoot(reactRootElement)
+
+      reactRoot.render(
+        <GlobalLayoutRouterContext.Provider
+          value={{
+            tree: rootLayoutMissingTagsError.tree,
+            changeByServerResponse: () => {},
+            focusAndScrollRef: {
+              apply: false,
+            },
+          }}
+        >
+          <HotReload
+            assetPrefix={rootLayoutMissingTagsError.assetPrefix}
+            // initialState={{
+            //   rootLayoutMissingTagsError: {
+            //     missingTags: rootLayoutMissingTagsError.missingTags,
+            //   },
+            // }}
+          />
+        </GlobalLayoutRouterContext.Provider>
+      )
+
+      return
+    }
+  }
+
   const reactEl = (
-    <React.StrictMode>
-      <Root>
-        <RSCComponent />
-      </Root>
-    </React.StrictMode>
+    <StrictModeIfEnabled>
+      <HeadManagerContext.Provider
+        value={{
+          appDir: true,
+        }}
+      >
+        <Root>
+          <RSCComponent />
+        </Root>
+      </HeadManagerContext.Provider>
+    </StrictModeIfEnabled>
   )
 
   const isError = document.documentElement.id === '__next_error__'

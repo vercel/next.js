@@ -1,5 +1,4 @@
 /* eslint-env jest */
-import http from 'http'
 import url from 'url'
 import fs from 'fs-extra'
 import webdriver from 'next-webdriver'
@@ -12,11 +11,9 @@ import {
   nextStart,
   fetchViaHTTP,
   check,
-  File,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
-const nextConfig = new File(join(appDir, 'next.config.js'))
 
 let app
 let appPort
@@ -501,132 +498,6 @@ describe('GS(S)P Redirect Support', () => {
       app = await nextStart(appDir, appPort)
     })
     afterAll(() => killApp(app))
-
-    runTests()
-  })
-
-  describe('serverless mode', () => {
-    let server
-
-    beforeAll(async () => {
-      nextConfig.write(
-        `module.exports = {
-          basePath: "${basePath}",
-        target: 'experimental-serverless-trace'
-      }`
-      )
-      await fs.remove(join(appDir, '.next'))
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      nextConfig.restore()
-      await killApp(app)
-
-      try {
-        server.close()
-      } catch (err) {
-        console.error('failed to close server', err)
-      }
-    })
-
-    it('should handle redirect in raw serverless mode correctly', async () => {
-      server = http.createServer(async (req, res) => {
-        try {
-          console.log(req.url)
-          if (req.url.includes('/gsp-blog')) {
-            await require(join(
-              appDir,
-              '.next/serverless/pages/gsp-blog/[post].js'
-            )).render(req, res)
-          } else {
-            await require(join(
-              appDir,
-              './.next/serverless/pages/gssp-blog/[post].js'
-            )).render(req, res)
-          }
-        } catch (err) {
-          console.error('failed to render', err)
-          res.statusCode = 500
-          res.end('error')
-        }
-      })
-      const port = await findPort()
-
-      await new Promise((resolve, reject) => {
-        server.listen(port, (err) => (err ? reject(err) : resolve()))
-      })
-      console.log(`Raw serverless server listening at port ${port}`)
-
-      const res1 = await fetchViaHTTP(
-        port,
-        '/gsp-blog/redirect-dest-_gsp-blog_first',
-        undefined,
-        {
-          redirect: 'manual',
-        }
-      )
-      expect(res1.status).toBe(307)
-      const text1 = await res1.text()
-      expect(text1).toEqual(`${basePath}/gsp-blog/first`)
-      const parsed = url.parse(res1.headers.get('location'), true)
-      expect(parsed.pathname).toBe(`${basePath}/gsp-blog/first`)
-      expect(parsed.query).toEqual({})
-      expect(res1.headers.get('refresh')).toBe(null)
-
-      const res2 = await fetchViaHTTP(
-        port,
-        '/gsp-blog/redirect-permanent-dest-_gsp-blog_first',
-        undefined,
-        {
-          redirect: 'manual',
-        }
-      )
-      expect(res2.status).toBe(308)
-      const text2 = await res2.text()
-      expect(text2).toEqual(`${basePath}/gsp-blog/first`)
-      expect(res2.headers.get('refresh')).toContain(
-        `url=${basePath}/gsp-blog/first`
-      )
-      const parsed2 = url.parse(res2.headers.get('location'), true)
-      expect(parsed2.pathname).toBe(`${basePath}/gsp-blog/first`)
-      expect(parsed2.query).toEqual({})
-
-      const res3 = await fetchViaHTTP(
-        port,
-        '/gssp-blog/redirect-dest-_gssp-blog_first',
-        undefined,
-        {
-          redirect: 'manual',
-        }
-      )
-      expect(res3.status).toBe(307)
-      const text3 = await res3.text()
-      expect(text3).toEqual(`${basePath}/gssp-blog/first`)
-      expect(res3.headers.get('refresh')).toBe(null)
-      const parsed3 = url.parse(res3.headers.get('location'), true)
-      expect(parsed3.pathname).toBe(`${basePath}/gssp-blog/first`)
-      expect(parsed3.query).toEqual({})
-
-      const res4 = await fetchViaHTTP(
-        port,
-        '/gssp-blog/redirect-permanent-dest-_gssp-blog_first',
-        undefined,
-        {
-          redirect: 'manual',
-        }
-      )
-      expect(res4.status).toBe(308)
-      const text4 = await res4.text()
-      expect(text4).toEqual(`${basePath}/gssp-blog/first`)
-      expect(res4.headers.get('refresh')).toContain(
-        `url=${basePath}/gssp-blog/first`
-      )
-      const parsed4 = url.parse(res4.headers.get('location'), true)
-      expect(parsed4.pathname).toBe(`${basePath}/gssp-blog/first`)
-      expect(parsed4.query).toEqual({})
-    })
 
     runTests()
   })

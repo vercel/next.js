@@ -11,13 +11,13 @@ import type { UrlWithParsedQuery } from 'url'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 import type { MiddlewareRoutingItem, RoutingItem } from '../base-server'
 import type { MiddlewareMatcher } from '../../build/analysis/get-page-static-info'
+import type { FunctionComponent } from 'react'
 
 import crypto from 'crypto'
 import fs from 'fs'
 import { Worker } from 'next/dist/compiled/jest-worker'
 import findUp from 'next/dist/compiled/find-up'
 import { join as pathJoin, relative, resolve as pathResolve, sep } from 'path'
-import React from 'react'
 import Watchpack from 'next/dist/compiled/watchpack'
 import { ampValidation } from '../../build/output'
 import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../../lib/constants'
@@ -78,7 +78,7 @@ import { getDefineEnv } from '../../build/webpack-config'
 import loadJsConfig from '../../build/load-jsconfig'
 
 // Load ReactDevOverlay only when needed
-let ReactDevOverlayImpl: React.FunctionComponent
+let ReactDevOverlayImpl: FunctionComponent
 const ReactDevOverlay = (props: any) => {
   if (ReactDevOverlayImpl === undefined) {
     ReactDevOverlayImpl =
@@ -178,7 +178,7 @@ export default class DevServer extends Server {
       })
     }
     if (fs.existsSync(pathJoin(this.dir, 'static'))) {
-      console.warn(
+      Log.warn(
         `The static directory has been deprecated in favor of the public directory. https://nextjs.org/docs/messages/static-dir-deprecated`
       )
     }
@@ -190,10 +190,10 @@ export default class DevServer extends Server {
     }
 
     this.isCustomServer = !options.isNextDevCommand
-    // TODO: hot-reload root/pages dirs?
-    const { pages: pagesDir, appDir } = findPagesDir(
+
+    const { pagesDir, appDir } = findPagesDir(
       this.dir,
-      this.nextConfig.experimental.appDir
+      !!this.nextConfig.experimental.appDir
     )
     this.pagesDir = pagesDir
     this.appDir = appDir
@@ -207,7 +207,7 @@ export default class DevServer extends Server {
     // Makes `next export` exportPathMap work in development mode.
     // So that the user doesn't have to define a custom server reading the exportPathMap
     if (this.nextConfig.exportPathMap) {
-      console.log('Defining routes from exportPathMap')
+      Log.info('Defining routes from exportPathMap')
       const exportPathMap = await this.nextConfig.exportPathMap(
         {},
         {
@@ -231,7 +231,7 @@ export default class DevServer extends Server {
             Object.keys(urlQuery)
               .filter((key) => query[key] === undefined)
               .forEach((key) =>
-                console.warn(
+                Log.warn(
                   `Url '${path}' defines a query parameter '${key}' that is missing in exportPathMap`
                 )
               )
@@ -305,7 +305,9 @@ export default class DevServer extends Server {
         ignored: (pathname: string) => {
           return (
             !files.some((file) => file.startsWith(pathname)) &&
-            !directories.some((dir) => pathname.startsWith(dir))
+            !directories.some(
+              (dir) => pathname.startsWith(dir) || dir.startsWith(pathname)
+            )
           )
         },
       }))
@@ -320,6 +322,10 @@ export default class DevServer extends Server {
         const knownFiles = wp.getTimeInfoEntries()
         const appPaths: Record<string, string[]> = {}
         const edgeRoutesSet = new Set<string>()
+        const pageNameSet = new Set<string>()
+        const conflictingAppPagePaths = new Set<string>()
+        const appPageFilePaths = new Map<string, string>()
+        const pagesPageFilePaths = new Map<string, string>()
 
         let envChange = false
         let tsconfigChange = false
@@ -377,6 +383,7 @@ export default class DevServer extends Server {
             nextConfig: this.nextConfig,
             page: rootFile,
             isDev: true,
+            pageType: isAppPath ? 'app' : 'pages',
           })
 
           if (isMiddlewareFile(rootFile)) {
@@ -417,6 +424,17 @@ export default class DevServer extends Server {
             pageName = pageName.replace(/\/index$/, '') || '/'
           }
 
+          ;(isAppPath ? appPageFilePaths : pagesPageFilePaths).set(
+            pageName,
+            fileName
+          )
+
+          if (this.appDir && pageNameSet.has(pageName)) {
+            conflictingAppPagePaths.add(pageName)
+          } else {
+            pageNameSet.add(pageName)
+          }
+
           /**
            * If there is a middleware that is not declared in the root we will
            * warn without adding it so it doesn't make its way into the system.
@@ -438,6 +456,20 @@ export default class DevServer extends Server {
               edgeRoutesSet.add(pageName)
             },
           })
+        }
+
+        const numConflicting = conflictingAppPagePaths.size
+        if (numConflicting > 0) {
+          Log.error(
+            `Conflicting app and page file${
+              numConflicting === 1 ? ' was' : 's were'
+            } found, please remove the conflicting files to continue:`
+          )
+          for (const p of conflictingAppPagePaths) {
+            const appPath = relative(this.dir, appPageFilePaths.get(p)!)
+            const pagesPath = relative(this.dir, pagesPageFilePaths.get(p)!)
+            Log.error(`  "${pagesPath}" - "${appPath}"`)
+          }
         }
 
         if (!this.usingTypeScript && enabledTypeScript) {
@@ -523,7 +555,6 @@ export default class DevServer extends Server {
                     distDir: this.distDir,
                     isClient,
                     hasRewrites,
-                    hasReactRoot: this.hotReloader?.hasReactRoot,
                     isNodeServer,
                     isEdgeServer,
                   })
@@ -613,7 +644,7 @@ export default class DevServer extends Server {
             reject(e)
             resolved = true
           } else {
-            console.warn('Failed to reload dynamic routes:', e)
+            Log.warn('Failed to reload dynamic routes:', e)
           }
         }
       })
@@ -641,6 +672,7 @@ export default class DevServer extends Server {
         typeCheckPreflight: false,
         tsconfigPath: this.nextConfig.typescript.tsconfigPath,
         disableStaticImages: this.nextConfig.images.disableStaticImages,
+        isAppDirEnabled: !!this.appDir,
       })
 
       if (verifyResult.version) {
@@ -704,9 +736,14 @@ export default class DevServer extends Server {
           (!!this.appDir && relative(this.dir, this.appDir).startsWith('src')),
         hasNowJson: !!(await findUp('now.json', { cwd: this.dir })),
         isCustomServer: this.isCustomServer,
+        turboFlag: false,
+        pagesDir: !!this.pagesDir,
+        appDir: !!this.appDir,
       })
     )
     // This is required by the tracing subsystem.
+    setGlobal('appDir', this.appDir)
+    setGlobal('pagesDir', this.pagesDir)
     setGlobal('telemetry', telemetry)
 
     process.on('unhandledRejection', (reason) => {
@@ -748,27 +785,33 @@ export default class DevServer extends Server {
       ).then(Boolean)
     }
 
-    // check appDir first if enabled
+    let appFile: string | null = null
+    let pagesFile: string | null = null
+
     if (this.appDir) {
-      const pageFile = await findPageFile(
+      appFile = await findPageFile(
         this.appDir,
-        normalizedPath,
+        normalizedPath + '/page',
         this.nextConfig.pageExtensions,
         true
       )
-      if (pageFile) return true
     }
 
     if (this.pagesDir) {
-      const pageFile = await findPageFile(
+      pagesFile = await findPageFile(
         this.pagesDir,
         normalizedPath,
         this.nextConfig.pageExtensions,
         false
       )
-      return !!pageFile
     }
-    return false
+    if (appFile && pagesFile) {
+      throw new Error(
+        `Conflicting app and page file found: "app${appFile}" and "pages${pagesFile}". Please remove one to continue.`
+      )
+    }
+
+    return Boolean(appFile || pagesFile)
   }
 
   protected async _beforeCatchAllRender(
@@ -981,16 +1024,18 @@ export default class DevServer extends Server {
     try {
       return await super.run(req, res, parsedUrl)
     } catch (error) {
-      res.statusCode = 500
       const err = getProperError(error)
-      try {
-        this.logErrorWithOriginalStack(err).catch(() => {})
-        return await this.renderError(err, req, res, pathname!, {
-          __NEXT_PAGE: (isError(err) && err.page) || pathname || '',
-        })
-      } catch (internalErr) {
-        console.error(internalErr)
-        res.body('Internal Server Error').send()
+      this.logErrorWithOriginalStack(err).catch(() => {})
+      if (!res.sent) {
+        res.statusCode = 500
+        try {
+          return await this.renderError(err, req, res, pathname!, {
+            __NEXT_PAGE: (isError(err) && err.page) || pathname || '',
+          })
+        } catch (internalErr) {
+          console.error(internalErr)
+          res.body('Internal Server Error').send()
+        }
       }
     }
   }
@@ -1293,7 +1338,6 @@ export default class DevServer extends Server {
       const pathsResult = await this.getStaticPathsWorker().loadStaticPaths({
         distDir: this.distDir,
         pathname,
-        serverless: !this.renderOpts.dev && this._isLikeServerless,
         config: {
           configFileName,
           publicRuntimeConfig,
@@ -1355,7 +1399,7 @@ export default class DevServer extends Server {
 
       // When the new page is compiled, we need to reload the server component
       // manifest.
-      if (this.nextConfig.experimental.appDir) {
+      if (!!this.appDir) {
         this.serverComponentManifest = super.getServerComponentManifest()
         this.serverCSSManifest = super.getServerCSSManifest()
       }

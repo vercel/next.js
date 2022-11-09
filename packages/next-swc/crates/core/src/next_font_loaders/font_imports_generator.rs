@@ -11,7 +11,11 @@ pub struct FontImportsGenerator<'a> {
 }
 
 impl<'a> FontImportsGenerator<'a> {
-    fn check_call_expr(&mut self, call_expr: &CallExpr) -> Option<ImportDecl> {
+    fn check_call_expr(
+        &mut self,
+        call_expr: &CallExpr,
+        variable_name: &Result<Ident, &Pat>,
+    ) -> Option<ImportDecl> {
         if let Callee::Expr(callee_expr) = &call_expr.callee {
             if let Expr::Ident(ident) = &**callee_expr {
                 if let Some(font_function) = self.state.font_functions.get(&ident.to_id()) {
@@ -36,21 +40,32 @@ impl<'a> FontImportsGenerator<'a> {
                         .collect();
 
                     if let Ok(json) = json {
-                        let mut json_values: Vec<String> =
-                            json.iter().map(|value| value.to_string()).collect();
                         let function_name = match &font_function.function_name {
                             Some(function) => String::from(&**function),
                             None => String::new(),
                         };
-                        let mut values = vec![self.relative_path.to_string(), function_name];
-                        values.append(&mut json_values);
+                        let mut query_json_values = serde_json::Map::new();
+                        query_json_values.insert(
+                            String::from("path"),
+                            Value::String(self.relative_path.to_string()),
+                        );
+                        query_json_values
+                            .insert(String::from("import"), Value::String(function_name));
+                        query_json_values.insert(String::from("arguments"), Value::Array(json));
+                        if let Ok(ident) = variable_name {
+                            query_json_values.insert(
+                                String::from("variableName"),
+                                Value::String(ident.sym.to_string()),
+                            );
+                        }
+
+                        let query_json = Value::Object(query_json_values);
 
                         return Some(ImportDecl {
                             src: Box::new(Str {
                                 value: JsWord::from(format!(
                                     "{}/target.css?{}",
-                                    font_function.loader,
-                                    values.join(";")
+                                    font_function.loader, query_json
                                 )),
                                 raw: None,
                                 span: DUMMY_SP,
@@ -76,7 +91,7 @@ impl<'a> FontImportsGenerator<'a> {
             };
             if let Some(expr) = &decl.init {
                 if let Expr::Call(call_expr) = &**expr {
-                    let import_decl = self.check_call_expr(call_expr);
+                    let import_decl = self.check_call_expr(call_expr, &ident);
 
                     if let Some(mut import_decl) = import_decl {
                         match var_decl.kind {
@@ -243,7 +258,10 @@ fn expr_to_json(expr: &Expr) -> Result<Value, ()> {
         }
         lit => HANDLER.with(|handler| {
             handler
-                .struct_span_err(lit.span(), "Unexpected value")
+                .struct_span_err(
+                    lit.span(),
+                    "Font loader values must be explicitly written literals.",
+                )
                 .emit();
             Err(())
         }),

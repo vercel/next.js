@@ -1,4 +1,5 @@
 import nodePath from 'path'
+import nodeFs from 'fs'
 import { Span } from '../../../trace'
 import { spans } from './profiling-plugin'
 import isError from '../../../lib/is-error'
@@ -14,6 +15,8 @@ import {
   resolveExternal,
 } from '../../webpack-config'
 import { NextConfigComplete } from '../../../server/config-shared'
+import { loadBindings } from '../../swc'
+import { isMatch } from 'next/dist/compiled/micromatch'
 
 const PLUGIN_NAME = 'TraceEntryPointsPlugin'
 const TRACE_IGNORES = [
@@ -21,10 +24,12 @@ const TRACE_IGNORES = [
   '**/*/next/dist/bin/next',
 ]
 
+const TURBO_TRACE_DEFAULT_MAX_FILES = 128
+
 function getModuleFromDependency(
   compilation: any,
   dep: any
-): webpack.Module & { resource?: string } {
+): webpack.Module & { resource?: string; request?: string } {
   return compilation.moduleGraph.getModule(dep)
 }
 
@@ -84,31 +89,38 @@ function getFilesMapFromReasons(
 
 export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
   private appDir: string
+  private appDirEnabled?: boolean
   private tracingRoot: string
   private entryTraces: Map<string, Set<string>>
   private excludeFiles: string[]
   private esmExternals?: NextConfigComplete['experimental']['esmExternals']
-  private staticImageImports?: boolean
+  private turbotrace?: NextConfigComplete['experimental']['turbotrace']
+  private chunksToTrace: string[] = []
+  private turbotraceOutputPath?: string
+  private turbotraceFiles?: string[]
 
   constructor({
     appDir,
+    appDirEnabled,
     excludeFiles,
     esmExternals,
-    staticImageImports,
     outputFileTracingRoot,
+    turbotrace,
   }: {
     appDir: string
+    appDirEnabled?: boolean
     excludeFiles?: string[]
-    staticImageImports: boolean
     outputFileTracingRoot?: string
     esmExternals?: NextConfigComplete['experimental']['esmExternals']
+    turbotrace?: NextConfigComplete['experimental']['turbotrace']
   }) {
     this.appDir = appDir
     this.entryTraces = new Map()
     this.esmExternals = esmExternals
+    this.appDirEnabled = appDirEnabled
     this.excludeFiles = excludeFiles || []
-    this.staticImageImports = staticImageImports
     this.tracingRoot = outputFileTracingRoot || appDir
+    this.turbotrace = turbotrace
   }
 
   // Here we output all traced assets and webpack chunks to a
@@ -151,6 +163,22 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
         entryFilesMap.set(entrypoint, entryFiles)
       }
 
+      // startTrace existed and callable
+      if (this.turbotrace) {
+        let binding = (await loadBindings()) as any
+        if (
+          !binding?.isWasm &&
+          typeof binding.turbo.startTrace === 'function'
+        ) {
+          this.chunksToTrace = [...chunksToTrace]
+          return
+        }
+      }
+      const ignores = [...TRACE_IGNORES, ...this.excludeFiles]
+
+      const ignoreFn = (path: string) => {
+        return isMatch(path, ignores, { contains: true, dot: true })
+      }
       const result = await nodeFileTrace([...chunksToTrace], {
         base: this.tracingRoot,
         processCwd: this.appDir,
@@ -181,7 +209,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
         },
         readlink,
         stat,
-        ignore: [...TRACE_IGNORES, ...this.excludeFiles],
+        ignore: ignoreFn,
         mixedModules: true,
       })
       const reasons = result.reasons
@@ -257,15 +285,44 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
 
             finishModulesSpan.traceChild('get-entries').traceFn(() => {
               compilation.entries.forEach((entry, name) => {
-                if (name?.replace(/\\/g, '/').startsWith('pages/')) {
+                const normalizedName = name?.replace(/\\/g, '/')
+
+                const isPage = normalizedName.startsWith('pages/')
+                const isApp =
+                  this.appDirEnabled && normalizedName.startsWith('app/')
+
+                if (isApp || isPage) {
                   for (const dep of entry.dependencies) {
                     if (!dep) continue
                     const entryMod = getModuleFromDependency(compilation, dep)
 
+                    // since app entries are wrapped in next-app-loader
+                    // we need to pull the original pagePath for
+                    // referencing during tracing
+                    if (isApp && entryMod.request) {
+                      const loaderQueryIdx = entryMod.request.indexOf('?')
+
+                      const loaderQuery = new URLSearchParams(
+                        entryMod.request.substring(loaderQueryIdx)
+                      )
+                      const resource =
+                        loaderQuery
+                          .get('pagePath')
+                          ?.replace(
+                            'private-next-app-dir',
+                            nodePath.join(this.appDir, 'app')
+                          ) || ''
+
+                      entryModMap.set(resource, entryMod)
+                      entryNameMap.set(resource, name)
+                    }
+
                     if (entryMod && entryMod.resource) {
-                      if (
-                        entryMod.resource.replace(/\\/g, '/').includes('pages/')
-                      ) {
+                      const normalizedResource = entryMod.resource.replace(
+                        /\\/g,
+                        '/'
+                      )
+                      if (normalizedResource.includes('pages/')) {
                         entryNameMap.set(entryMod.resource, name)
                         entryModMap.set(entryMod.resource, entryMod)
                       } else {
@@ -326,8 +383,93 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
                 entriesToTrace.push(...curExtraEntries.keys())
               }
             })
+            // startTrace existed and callable
+            if (this.turbotrace) {
+              let binding = (await loadBindings()) as any
+              if (
+                !binding?.isWasm &&
+                typeof binding.turbo.startTrace === 'function'
+              ) {
+                await finishModulesSpan
+                  .traceChild('turbo-trace', {
+                    traceEntryCount: entriesToTrace.length + '',
+                  })
+                  .traceAsyncFn(async () => {
+                    const contextDirectory =
+                      this.turbotrace?.contextDirectory ?? this.tracingRoot
+                    const maxFiles =
+                      this.turbotrace?.maxFiles ?? TURBO_TRACE_DEFAULT_MAX_FILES
+                    let chunks = [...entriesToTrace]
+                    let restChunks =
+                      chunks.length > maxFiles ? chunks.splice(maxFiles) : []
+                    let filesTracedInEntries: string[] = []
+                    while (chunks.length) {
+                      filesTracedInEntries = filesTracedInEntries.concat(
+                        await binding.turbo.startTrace({
+                          action: 'print',
+                          input: chunks,
+                          contextDirectory,
+                          processCwd:
+                            this.turbotrace?.processCwd ?? this.appDir,
+                          logLevel: this.turbotrace?.logLevel,
+                          showAll: this.turbotrace?.logAll,
+                        })
+                      )
+                      chunks = restChunks
+                      if (restChunks.length) {
+                        restChunks =
+                          chunks.length > maxFiles
+                            ? chunks.splice(maxFiles)
+                            : []
+                      }
+                    }
+
+                    // only trace the assets under the appDir
+                    // exclude files from node_modules, entries and processed by webpack
+                    const filesTracedFromEntries = filesTracedInEntries
+                      .map((f) => nodePath.join(contextDirectory, f))
+                      .filter(
+                        (f) =>
+                          !f.includes('/node_modules/') &&
+                          f.startsWith(this.appDir) &&
+                          !entriesToTrace.includes(f) &&
+                          !depModMap.has(f)
+                      )
+                    if (!filesTracedFromEntries.length) {
+                      return
+                    }
+
+                    // The turbo trace doesn't provide the traced file type and reason at present
+                    // let's write the traced files into the first [entry].nft.json
+                    const [[, entryName]] = Array.from(
+                      entryNameMap.entries()
+                    ).filter(([k]) => k.startsWith(this.appDir))
+                    const outputPath = compilation.outputOptions.path!
+                    const traceOutputPath = nodePath.join(
+                      outputPath,
+                      `../${entryName}.js.nft.json`
+                    )
+                    const traceOutputDir = nodePath.dirname(traceOutputPath)
+
+                    this.turbotraceOutputPath = traceOutputPath
+                    this.turbotraceFiles = filesTracedFromEntries.map((file) =>
+                      nodePath.relative(traceOutputDir, file)
+                    )
+                  })
+                return
+              }
+            }
             let fileList: Set<string>
             let reasons: NodeFileTraceReasons
+            const ignores = [
+              ...TRACE_IGNORES,
+              ...this.excludeFiles,
+              '**/node_modules/**',
+            ]
+            const ignoreFn = (path: string) => {
+              return isMatch(path, ignores, { contains: true, dot: true })
+            }
+
             await finishModulesSpan
               .traceChild('node-file-trace', {
                 traceEntryCount: entriesToTrace.length + '',
@@ -344,11 +486,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
                         return doResolve(id, parent, job, !isCjs)
                       }
                     : undefined,
-                  ignore: [
-                    ...TRACE_IGNORES,
-                    ...this.excludeFiles,
-                    '**/node_modules/**',
-                  ],
+                  ignore: ignoreFn,
                   mixedModules: true,
                 })
                 // @ts-ignore
@@ -614,6 +752,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
             context,
             request,
             isEsmRequested,
+            !!this.appDirEnabled,
             (options) => (_: string, resRequest: string) => {
               return getResolve(options)(parent, resRequest, job)
             },
@@ -640,5 +779,63 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
         )
       })
     })
+
+    if (this.turbotrace) {
+      compiler.hooks.afterEmit.tapPromise(PLUGIN_NAME, async (compilation) => {
+        const compilationSpan = spans.get(compilation) || spans.get(compiler)!
+        const traceEntrypointsPluginSpan = compilationSpan.traceChild(
+          'next-trace-entrypoint-plugin'
+        )
+        const turbotraceAfterEmitSpan = traceEntrypointsPluginSpan.traceChild(
+          'after-emit-turbo-trace'
+        )
+        await turbotraceAfterEmitSpan.traceAsyncFn(async () => {
+          let binding = (await loadBindings()) as any
+          if (
+            !binding?.isWasm &&
+            typeof binding.turbo.startTrace === 'function'
+          ) {
+            const maxFiles =
+              this.turbotrace?.maxFiles ?? TURBO_TRACE_DEFAULT_MAX_FILES
+            let chunks = [...this.chunksToTrace]
+            let restChunks =
+              chunks.length > maxFiles ? chunks.splice(maxFiles) : []
+            while (chunks.length) {
+              await binding.turbo.startTrace({
+                action: 'annotate',
+                input: chunks,
+                contextDirectory:
+                  this.turbotrace?.contextDirectory ?? this.tracingRoot,
+                processCwd: this.turbotrace?.processCwd ?? this.appDir,
+                showAll: this.turbotrace?.logAll,
+                logLevel: this.turbotrace?.logLevel,
+              })
+              chunks = restChunks
+              if (restChunks.length) {
+                restChunks =
+                  chunks.length > maxFiles ? chunks.splice(maxFiles) : []
+              }
+            }
+            if (this.turbotraceOutputPath && this.turbotraceFiles) {
+              const existedNftFile = await nodeFs.promises
+                .readFile(this.turbotraceOutputPath, 'utf8')
+                .then((content) => JSON.parse(content))
+                .catch(() => ({
+                  version: TRACE_OUTPUT_VERSION,
+                  files: [],
+                }))
+              console.log(this.turbotraceOutputPath, this.turbotraceFiles)
+              existedNftFile.files.push(...this.turbotraceFiles)
+              const filesSet = new Set(existedNftFile.files)
+              existedNftFile.files = [...filesSet]
+              nodeFs.promises.writeFile(
+                this.turbotraceOutputPath,
+                JSON.stringify(existedNftFile)
+              )
+            }
+          }
+        })
+      })
+    }
   }
 }

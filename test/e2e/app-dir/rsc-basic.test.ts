@@ -25,7 +25,7 @@ async function resolveStreamResponse(response: any, onData?: any) {
   return result
 }
 
-describe('app dir - react server components', () => {
+describe('app dir - rsc basics', () => {
   let next: NextInstance
   let distDir: string
 
@@ -38,15 +38,14 @@ describe('app dir - react server components', () => {
     next = await createNext({
       files: new FileRef(path.join(__dirname, './rsc-basic')),
       dependencies: {
-        'styled-components': '6.0.0-alpha.5',
-        react: 'experimental',
-        'react-dom': 'experimental',
+        'styled-components': '6.0.0-beta.5',
+        react: 'latest',
+        'react-dom': 'latest',
       },
       packageJson: {
         scripts: {
-          setup: `cp -r ./node_modules_bak/* ./node_modules`,
-          build: 'yarn setup && next build',
-          dev: 'yarn setup && next dev',
+          build: 'next build',
+          dev: 'next dev',
           start: 'next start',
         },
       },
@@ -76,12 +75,10 @@ describe('app dir - react server components', () => {
     expect(homeHTML).toMatch(/^<!DOCTYPE html><html/)
     expect(homeHTML).toContain('component:index.server')
     expect(homeHTML).toContain('header:test-util')
-    // support esm module on server side
-    expect(homeHTML).toContain('random-module-instance')
 
     const inlineFlightContents = []
     const $ = cheerio.load(homeHTML)
-    $('script').each((index, tag) => {
+    $('script').each((_index, tag) => {
       const content = $(tag).text()
       if (content) inlineFlightContents.push(content)
     })
@@ -91,9 +88,6 @@ describe('app dir - react server components', () => {
       '__nextLocale',
       '__nextDefaultLocale',
       '__nextIsNotFound',
-      '__rsc__',
-      '__next_router_state_tree__',
-      '__next_router_prefetch__',
     ]
 
     const hasNextInternalQuery = inlineFlightContents.some((content) =>
@@ -111,9 +105,9 @@ describe('app dir - react server components', () => {
           requestsCount++
           return request.allHeaders().then((headers) => {
             if (
-              headers.__rsc__ === '1' &&
-              // Prefetches also include `__rsc__`
-              headers.__next_router_prefetch__ !== '1'
+              headers['RSC'.toLowerCase()] === '1' &&
+              // Prefetches also include `RSC`
+              headers['Next-Router-Prefetch'.toLowerCase()] !== '1'
             ) {
               hasFlightRequest = true
             }
@@ -188,41 +182,18 @@ describe('app dir - react server components', () => {
     }
   })
 
-  it('should refresh correctly with next/link', async () => {
+  it('should link correctly with next/link without mpa navigation to the page', async () => {
     // Select the button which is not hidden but rendered
     const selector = '#goto-next-link'
-    let hasFlightRequest = false
-    const browser = await webdriver(next.url, '/root', {
-      beforePageLoad(page) {
-        page.on('request', (request) => {
-          return request.allHeaders().then((headers) => {
-            if (
-              headers.__rsc__ === '1' &&
-              headers.__next_router_prefetch__ !== '1'
-            ) {
-              hasFlightRequest = true
-            }
-          })
-        })
-      },
-    })
+    const browser = await webdriver(next.url, '/root', {})
 
-    // wait for hydration
-    await new Promise((res) => setTimeout(res, 1000))
-    if (isNextDev) {
-      expect(hasFlightRequest).toBe(false)
-    }
-    await browser.elementByCss(selector).click()
+    await browser.eval('window.didNotReloadPage = true')
+    await browser.elementByCss(selector).click().waitForElementByCss('#query')
 
-    // wait for re-hydration
-    if (isNextDev) {
-      await check(
-        () => (hasFlightRequest ? 'success' : hasFlightRequest),
-        'success'
-      )
-    }
-    const refreshText = await browser.elementByCss(selector).text()
-    expect(refreshText).toBe('next link')
+    expect(await browser.eval('window.didNotReloadPage')).toBe(true)
+
+    const text = await browser.elementByCss('#query').text()
+    expect(text).toBe('query:0')
   })
 
   it('should escape streaming data correctly', async () => {
@@ -239,20 +210,18 @@ describe('app dir - react server components', () => {
     expect(html).toContain('This page could not be found')
   })
 
-  it('should suspense next/image in server components', async () => {
-    const imageHTML = await renderViaHTTP(next.url, '/next-api/image')
+  it('should suspense next/legacy/image in server components', async () => {
+    const imageHTML = await renderViaHTTP(next.url, '/next-api/image-legacy')
     const imageTag = getNodeBySelector(imageHTML, '#myimg')
 
     expect(imageTag.attr('src')).toContain('data:image')
   })
 
-  it('should handle external async module libraries correctly', async () => {
-    const html = await renderViaHTTP(next.url, '/external-imports')
-    expect(html).toContain('module type:esm-export')
-    expect(html).toContain('export named:named')
-    expect(html).toContain('export value:123')
-    expect(html).toContain('export array:4,5,6')
-    expect(html).toContain('export object:{x:1}')
+  it('should suspense next/image in server components', async () => {
+    const imageHTML = await renderViaHTTP(next.url, '/next-api/image-new')
+    const imageTag = getNodeBySelector(imageHTML, '#myimg')
+
+    expect(imageTag.attr('src')).toMatch(/test.+jpg/)
   })
 
   it('should handle various kinds of exports correctly', async () => {
@@ -316,6 +285,55 @@ describe('app dir - react server components', () => {
     expect(head).toMatch(/{color:(\s*)blue;?}/)
   })
 
+  it('should render css-in-js suspense boundary correctly', async () => {
+    await fetchViaHTTP(next.url, '/css-in-js/suspense', null, {}).then(
+      async (response) => {
+        const results = []
+
+        await resolveStreamResponse(response, (chunk: string) => {
+          // check if rsc refresh script for suspense show up, the test content could change with react version
+          const hasRCScript = /\$RC=function/.test(chunk)
+          if (hasRCScript) results.push('refresh-script')
+
+          const isSuspenseyDataResolved =
+            /<style[^<>]*>(\s)*.+{padding:2px;(\s)*color:orange;}/.test(chunk)
+          if (isSuspenseyDataResolved) results.push('data')
+
+          const isFallbackResolved = chunk.includes('fallback')
+          if (isFallbackResolved) results.push('fallback')
+        })
+
+        expect(results).toEqual(['fallback', 'data', 'refresh-script'])
+      }
+    )
+    // // TODO-APP: fix streaming/suspense within browser for test suite
+    // const browser = await webdriver(next.url, '/css-in-js', { waitHydration: false })
+    // const footer = await browser.elementByCss('#footer')
+    // expect(await footer.text()).toBe('wait for fallback')
+    // expect(
+    //   await browser.eval(
+    //     `window.getComputedStyle(document.querySelector('#footer')).borderColor`
+    //   )
+    // ).toBe('rgb(255, 165, 0)')
+    // // Suspense is not rendered yet
+    // expect(
+    //   await browser.eval(
+    //     `document.querySelector('#footer-inner')`
+    //   )
+    // ).toBe('null')
+
+    // // Wait for suspense boundary
+    // await check(
+    //   () => browser.elementByCss('#footer').text(),
+    //   'wait for footer'
+    // )
+    // expect(
+    //   await browser.eval(
+    //     `window.getComputedStyle(document.querySelector('#footer-inner')).color`
+    //   )
+    // ).toBe('rgb(255, 165, 0)')
+  })
+
   it('should stick to the url without trailing /page suffix', async () => {
     const browser = await webdriver(next.url, '/edge/dynamic')
     const indexUrl = await browser.url()
@@ -337,7 +355,7 @@ describe('app dir - react server components', () => {
       {},
       {
         headers: {
-          __rsc__: '1',
+          ['RSC'.toString()]: '1',
         },
       }
     ).then(async (response) => {
@@ -354,7 +372,7 @@ describe('app dir - react server components', () => {
         let gotInlinedData = false
 
         await resolveStreamResponse(response, (_, result) => {
-          gotInlinedData = result.includes('self.__next_s=')
+          gotInlinedData = result.includes('self.__next_f=')
           gotData = result.includes('next_streaming_data')
           if (!gotFallback) {
             gotFallback = result.includes('next_streaming_fallback')
@@ -388,45 +406,6 @@ describe('app dir - react server components', () => {
     )
     expect(await browser.eval(`window.partial_hydration_counter_result`)).toBe(
       'count: 1'
-    )
-  })
-
-  it('should resolve the subset react in server components based on the react-server condition', async () => {
-    await fetchViaHTTP(next.url, '/react-server').then(async (response) => {
-      const result = await resolveStreamResponse(response)
-      expect(result).toContain('Server: <!-- -->subset')
-      expect(result).toContain('Client: <!-- -->full')
-    })
-  })
-
-  it('should resolve 3rd party package exports based on the react-server condition', async () => {
-    await fetchViaHTTP(next.url, '/react-server/3rd-party-package').then(
-      async (response) => {
-        const result = await resolveStreamResponse(response)
-
-        // Package should be resolved based on the react-server condition,
-        // as well as package's internal & external dependencies.
-        expect(result).toContain(
-          'Server: index.react-server:react.subset:dep.server'
-        )
-        expect(result).toContain('Client: index.default:react.full:dep.default')
-
-        // Subpath exports should be resolved based on the condition too.
-        expect(result).toContain('Server subpath: subpath.react-server')
-        expect(result).toContain('Client subpath: subpath.default')
-      }
-    )
-  })
-
-  it('should be able to opt-out 3rd party packages being bundled in server components', async () => {
-    await fetchViaHTTP(next.url, '/react-server/optout').then(
-      async (response) => {
-        const result = await resolveStreamResponse(response)
-        expect(result).toContain('Server: index.default')
-        expect(result).toContain('Server subpath: subpath.default')
-        expect(result).toContain('Client: index.default')
-        expect(result).toContain('Client subpath: subpath.default')
-      }
     )
   })
 

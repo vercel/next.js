@@ -1,21 +1,42 @@
 import type { FontLoader } from '../../../../font'
 
+import { promises as fs } from 'fs'
 import path from 'path'
 import loaderUtils from 'next/dist/compiled/loader-utils3'
 import postcssFontLoaderPlugn from './postcss-font-loader'
 import { promisify } from 'util'
 import chalk from 'next/dist/compiled/chalk'
+import { CONFIG_FILES } from '../../../../shared/lib/constants'
 
 export default async function nextFontLoader(this: any) {
   const fontLoaderSpan = this.currentTraceSpan.traceChild('next-font-loader')
   return fontLoaderSpan.traceAsyncFn(async () => {
     const callback = this.async()
     const {
+      isDev,
       isServer,
       assetPrefix,
       fontLoaderOptions,
       postcss: getPostcss,
     } = this.getOptions()
+
+    const nextConfigPaths = CONFIG_FILES.map((config) =>
+      path.join(this.rootContext, config)
+    )
+    // Add next.config.js as a dependency, loaders must rerun in case options changed
+    await Promise.all(
+      nextConfigPaths.map(async (configPath) => {
+        const hasConfig = await fs.access(configPath).then(
+          () => true,
+          () => false
+        )
+        if (hasConfig) {
+          this.addDependency(configPath)
+        } else {
+          this.addMissingDependency(configPath)
+        }
+      })
+    )
 
     const emitFontFile = (content: Buffer, ext: string, preload: boolean) => {
       const opts = { context: this.rootContext, content }
@@ -32,11 +53,13 @@ export default async function nextFontLoader(this: any) {
       return outputPath
     }
 
-    // next-swc next_font_loaders turns each function call argument into JSON seperated by semicolons
-    let [relativeFilePathFromRoot, functionName, ...data] = this.resourceQuery
-      .slice(1)
-      .split(';')
-    data = data.map((value: string) => JSON.parse(value))
+    // next-swc next_font_loaders turns each font loader call into JSON
+    const {
+      path: relativeFilePathFromRoot,
+      import: functionName,
+      arguments: data,
+      variableName,
+    } = JSON.parse(this.resourceQuery.slice(1))
 
     try {
       const fontLoader: FontLoader = require(path.join(
@@ -46,6 +69,7 @@ export default async function nextFontLoader(this: any) {
       let { css, fallbackFonts, adjustFontFallback, weight, style, variable } =
         await fontLoader({
           functionName,
+          variableName,
           data,
           config: fontLoaderOptions,
           emitFontFile,
@@ -54,9 +78,11 @@ export default async function nextFontLoader(this: any) {
               path.dirname(
                 path.join(this.rootContext, relativeFilePathFromRoot)
               ),
-              src
+              src.startsWith('.') ? src : `./${src}`
             ),
-          fs: this.fs,
+          isDev,
+          isServer,
+          loaderContext: this,
         })
 
       const { postcss } = await getPostcss()

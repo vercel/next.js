@@ -1,7 +1,5 @@
 /* eslint-env jest */
 import assert from 'assert'
-import http from 'http'
-import qs from 'querystring'
 import fs from 'fs-extra'
 import cheerio from 'cheerio'
 import { join } from 'path'
@@ -13,13 +11,10 @@ import {
   launchApp,
   nextBuild,
   nextStart,
-  File,
   check,
-  getPageFileFromPagesManifest,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
-const nextConfig = new File(join(appDir, 'next.config.js'))
 let app
 let appPort
 let buildPagesDir
@@ -246,131 +241,6 @@ describe('i18n Support Root Catch-all', () => {
       buildPagesDir = join(appDir, '.next/server')
     })
     afterAll(() => killApp(app))
-
-    runTests()
-  })
-
-  describe('serverless mode', () => {
-    beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
-      nextConfig.replace('// target', 'target')
-
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-      buildPagesDir = join(appDir, '.next/serverless')
-    })
-    afterAll(async () => {
-      nextConfig.restore()
-      await killApp(app)
-    })
-
-    it('should normalize locale items in route-matches', async () => {
-      const server = http.createServer(async (req, res) => {
-        try {
-          await require(join(
-            appDir,
-            '.next/serverless',
-            getPageFileFromPagesManifest(appDir, '/[[...slug]]')
-          )).render(req, res)
-        } catch (err) {
-          console.error(err)
-          res.statusCode = 500
-          res.end('internal server error')
-        }
-      })
-      const port = await findPort()
-      await new Promise((resolve, reject) => {
-        server.listen(port, (err) => (err ? reject(err) : resolve()))
-      })
-      console.log(`Listening at ::${port}`)
-
-      const res = await fetchViaHTTP(port, '/[[...slug]]', undefined, {
-        headers: {
-          'x-vercel-id': 'hi',
-          'x-now-route-matches': qs.stringify({
-            1: 'nl-NL',
-          }),
-        },
-        redirect: 'manual',
-      })
-      const res2 = await fetchViaHTTP(port, '/[[...slug]]', undefined, {
-        headers: {
-          'x-vercel-id': 'hi',
-          'x-now-route-matches': qs.stringify({
-            slug: 'eN',
-          }),
-        },
-        redirect: 'manual',
-      })
-      const res3 = await fetchViaHTTP(port, '/fr/[[...slug]]', undefined, {
-        headers: {
-          'x-vercel-id': 'hi',
-          'x-now-route-matches': qs.stringify({
-            slug: 'hello',
-          }),
-        },
-        redirect: 'manual',
-      })
-
-      const res4 = await fetchViaHTTP(port, '/fr', undefined, {
-        redirect: 'manual',
-      })
-
-      server.close()
-
-      expect(res.status).toBe(200)
-      expect(res2.status).toBe(200)
-      expect(res3.status).toBe(200)
-      expect(res4.status).toBe(200)
-
-      const $ = cheerio.load(await res.text())
-      const $2 = cheerio.load(await res2.text())
-      const $3 = cheerio.load(await res3.text())
-
-      expect($('#router-locale').text()).toBe('nl-NL')
-      expect($('#router-pathname').text()).toBe('/[[...slug]]')
-      expect($('#router-as-path').text()).toBe('/')
-      expect($('#router-default-locale').text()).toBe('en-US')
-      expect(JSON.parse($('#router-query').text())).toEqual({})
-      expect(JSON.parse($('#router-locales').text())).toEqual(locales)
-      expect(JSON.parse($('#props').text())).toEqual({
-        locale: 'nl-NL',
-        defaultLocale: 'en-US',
-        locales,
-        params: {},
-      })
-
-      expect($2('#router-locale').text()).toBe('en')
-      expect($2('#router-pathname').text()).toBe('/[[...slug]]')
-      expect($2('#router-as-path').text()).toBe('/')
-      expect($2('#router-default-locale').text()).toBe('en-US')
-      expect(JSON.parse($2('#router-query').text())).toEqual({})
-      expect(JSON.parse($2('#router-locales').text())).toEqual(locales)
-      expect(JSON.parse($2('#props').text())).toEqual({
-        locale: 'en',
-        defaultLocale: 'en-US',
-        locales,
-        params: {},
-      })
-
-      expect($3('#router-locale').text()).toBe('fr')
-      expect($3('#router-pathname').text()).toBe('/[[...slug]]')
-      expect($3('#router-as-path').text()).toBe('/hello')
-      expect($3('#router-default-locale').text()).toBe('en-US')
-      expect(JSON.parse($3('#router-query').text())).toEqual({
-        slug: ['hello'],
-      })
-      expect(JSON.parse($3('#router-locales').text())).toEqual(locales)
-      expect(JSON.parse($3('#props').text())).toEqual({
-        locale: 'fr',
-        defaultLocale: 'en-US',
-        locales,
-        params: {
-          slug: ['hello'],
-        },
-      })
-    })
 
     runTests()
   })

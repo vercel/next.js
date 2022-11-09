@@ -1,56 +1,101 @@
+'use client'
+
 import React from 'react'
 import type { FocusAndScrollRef } from '../../client/components/reducer'
 import type { FlightRouterState, FlightData } from '../../server/app-render'
 
 export type ChildSegmentMap = Map<string, CacheNode>
 
+// eslint-disable-next-line no-shadow
+export enum CacheStates {
+  LAZYINITIALIZED = 'LAZYINITIALIZED',
+  DATAFETCH = 'DATAFETCH',
+  READY = 'READY',
+}
+
 /**
  * Cache node used in app-router / layout-router.
  */
-export type CacheNode = {
-  /**
-   * In-flight request for this node.
-   */
-  data: ReturnType<
-    typeof import('../../client/components/app-router.client').fetchServerResponse
-  > | null
-  /**
-   * React Component for this node.
-   */
-  subTreeData: React.ReactNode | null
-  /**
-   * Child parallel routes.
-   */
-  parallelRoutes: Map<string, ChildSegmentMap>
-}
-
+export type CacheNode =
+  | {
+      status: CacheStates.DATAFETCH
+      /**
+       * In-flight request for this node.
+       */
+      data: ReturnType<
+        typeof import('../../client/components/app-router').fetchServerResponse
+      > | null
+      head?: React.ReactNode
+      /**
+       * React Component for this node.
+       */
+      subTreeData: null
+      /**
+       * Child parallel routes.
+       */
+      parallelRoutes: Map<string, ChildSegmentMap>
+    }
+  | {
+      status: CacheStates.READY
+      /**
+       * In-flight request for this node.
+       */
+      data: null
+      head?: React.ReactNode
+      /**
+       * React Component for this node.
+       */
+      subTreeData: React.ReactNode
+      /**
+       * Child parallel routes.
+       */
+      parallelRoutes: Map<string, ChildSegmentMap>
+    }
+  | {
+      status: CacheStates.LAZYINITIALIZED
+      data: null
+      head?: React.ReactNode
+      subTreeData: null
+      /**
+       * Child parallel routes.
+       */
+      parallelRoutes: Map<string, ChildSegmentMap>
+    }
 interface NavigateOptions {
   forceOptimisticNavigation?: boolean
 }
 
 export interface AppRouterInstance {
   /**
-   * Reload the current page. Fetches new data from the server.
+   * Navigate to the previous history entry.
    */
-  reload(): void
+  back(): void
   /**
-   * Hard navigate to the provided href. Fetches new data from the server.
+   * Navigate to the next history entry.
+   */
+  forward(): void
+  /**
+   * Refresh the current page.
+   */
+  refresh(): void
+  /**
+   * Navigate to the provided href.
    * Pushes a new history entry.
    */
   push(href: string, options?: NavigateOptions): void
   /**
-   * Hard navigate to the provided href. Does not fetch data from the server if it was already fetched.
+   * Navigate to the provided href.
    * Replaces the current history entry.
    */
   replace(href: string, options?: NavigateOptions): void
   /**
-   * Soft prefetch the provided href. Does not fetch data from the server if it was already fetched.
+   * Prefetch the provided href.
    */
   prefetch(href: string): void
 }
 
-export const AppRouterContext = React.createContext<AppRouterInstance>(
-  null as any
+export const AppRouterContext = React.createContext<AppRouterInstance | null>(
+  null
 )
 export const LayoutRouterContext = React.createContext<{
   childNodes: CacheNode['parallelRoutes']

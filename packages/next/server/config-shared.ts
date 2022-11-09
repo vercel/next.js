@@ -8,6 +8,7 @@ import {
 } from '../shared/lib/image-config'
 import { ServerRuntime } from 'next/types'
 import { SubresourceIntegrityAlgorithm } from '../build/webpack/plugins/subresource-integrity-plugin'
+import { WEB_VITALS } from '../shared/lib/utils'
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -78,9 +79,11 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  allowMiddlewareResponseBody?: boolean
+  skipMiddlewareUrlNormalize?: boolean
+  skipTrailingSlashRedirect?: boolean
   optimisticClientCache?: boolean
   legacyBrowsers?: boolean
-  browsersListForSwc?: boolean
   manualClientBasePath?: boolean
   newNextLinkBehavior?: boolean
   // custom path to a cache handler to use
@@ -151,11 +154,34 @@ export interface ExperimentalConfig {
     algorithm?: SubresourceIntegrityAlgorithm
   }
   adjustFontFallbacks?: boolean
+  adjustFontFallbacksWithSizeAdjust?: boolean
 
   // A list of packages that should be treated as external in the RSC server build
-  optoutServerComponentsBundle?: string[]
+  serverComponentsExternalPackages?: string[]
 
-  fontLoaders?: { [fontLoader: string]: any }
+  // A list of packages that should always be transpiled and bundled in the server
+  transpilePackages?: string[]
+
+  fontLoaders?: Array<{ loader: string; options?: any }>
+
+  webVitalsAttribution?: Array<typeof WEB_VITALS[number]>
+  turbotrace?: {
+    logLevel?:
+      | 'bug'
+      | 'fatal'
+      | 'error'
+      | 'warning'
+      | 'hint'
+      | 'note'
+      | 'suggestions'
+      | 'info'
+    logDetail?: boolean
+    logAll?: boolean
+    contextDirectory?: string
+    processCwd?: string
+    maxFiles?: number
+  }
+  mdxRs?: boolean
 }
 
 export type ExportPathMap = {
@@ -223,12 +249,6 @@ export interface NextConfig extends Record<string, any> {
    * @see [Redirects configuration documentation](https://nextjs.org/docs/api-reference/next.config.js/redirects)
    */
   redirects?: () => Promise<Redirect[]>
-
-  /**
-   * @deprecated This option has been removed as webpack 5 is now default
-   * @see [Next.js webpack 5 documentation](https://nextjs.org/docs/messages/webpack5) for upgrading guidance.
-   */
-  webpack5?: false
 
   /**
    * @see [Moment.js locales excluded by default](https://nextjs.org/docs/upgrading#momentjs-locales-excluded-by-default)
@@ -372,7 +392,7 @@ export interface NextConfig extends Record<string, any> {
    *
    * @see [React Strict Mode](https://nextjs.org/docs/api-reference/next.config.js/react-strict-mode)
    */
-  reactStrictMode?: boolean
+  reactStrictMode?: boolean | null
 
   /**
    * Add public (in browser) runtime configuration to your app
@@ -395,13 +415,6 @@ export interface NextConfig extends Record<string, any> {
    * @see [Disabling HTTP Keep-Alive](https://nextjs.org/docs/api-reference/next.config.js/disabling-http-keep-alive)
    */
   httpAgentOptions?: { keepAlive?: boolean }
-
-  future?: {
-    /**
-     * @deprecated This option has been removed as webpack 5 is now default
-     */
-    webpack5?: false
-  }
 
   /**
    * During a build, Next.js will automatically trace each page and its dependencies to determine all of the files
@@ -530,27 +543,23 @@ export const defaultConfig: NextConfig = {
   i18n: null,
   productionBrowserSourceMaps: false,
   optimizeFonts: true,
-  webpack5: undefined,
   excludeDefaultMomentLocales: true,
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},
-  reactStrictMode: false,
+  reactStrictMode: null,
   httpAgentOptions: {
     keepAlive: true,
   },
   outputFileTracing: true,
   staticPageGenerationTimeout: 60,
-  swcMinify: false,
+  swcMinify: true,
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   experimental: {
     optimisticClientCache: true,
     runtime: undefined,
     manualClientBasePath: false,
-    // TODO: change default in next major release (current v12.1.5)
-    legacyBrowsers: true,
-    browsersListForSwc: false,
-    // TODO: change default in next major release (current v12.1.5)
-    newNextLinkBehavior: false,
+    legacyBrowsers: false,
+    newNextLinkBehavior: true,
     cpus: Math.max(
       1,
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
@@ -588,6 +597,8 @@ export const defaultConfig: NextConfig = {
     modularizeImports: undefined,
     enableUndici: false,
     adjustFontFallbacks: false,
+    adjustFontFallbacksWithSizeAdjust: false,
+    turbotrace: undefined,
   },
 }
 

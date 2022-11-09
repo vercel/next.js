@@ -1,3 +1,3 @@
-import firaCode from '@next/font/google/target.css?pages/test.tsx;Fira_Code;{"fallback":["system-ui"],"variant":"400"}';
-import inter from '@next/font/google/target.css?pages/test.tsx;Inter;{"display":"swap","variant":"900"}';
+import firaCode from '@next/font/google/target.css?{"path":"pages/test.tsx","import":"Fira_Code","arguments":[{"variant":"400","fallback":["system-ui"]}],"variableName":"firaCode"}';
+import inter from '@next/font/google/target.css?{"path":"pages/test.tsx","import":"Inter","arguments":[{"variant":"900","display":"swap"}],"variableName":"inter"}';
 import React from 'react';

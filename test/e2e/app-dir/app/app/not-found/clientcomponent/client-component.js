@@ -1,5 +1,5 @@
-'client'
-import { notFound } from 'next/dist/client/components/not-found'
+'use client'
+import { notFound } from 'next/navigation'
 
 export default function ClientComp() {
   notFound()

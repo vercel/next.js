@@ -10,6 +10,8 @@ import {
   waitFor,
   nextBuild,
   nextLint,
+  check,
+  findAllTelemetryEvents,
 } from 'next-test-utils'
 
 const appDir = path.join(__dirname, '..')
@@ -284,32 +286,6 @@ describe('Telemetry CLI', () => {
     expect(event).toMatch(/"hasBabelConfig": true/)
   })
 
-  it('cli session: next config with target', async () => {
-    await fs.rename(
-      path.join(appDir, 'next.config.target'),
-      path.join(appDir, 'next.config.js')
-    )
-    const { stderr } = await runNextCommand(['build', appDir], {
-      stderr: true,
-      env: {
-        NEXT_TELEMETRY_DEBUG: 1,
-      },
-    })
-    await fs.rename(
-      path.join(appDir, 'next.config.js'),
-      path.join(appDir, 'next.config.target')
-    )
-
-    const event = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
-      .exec(stderr)
-      .pop()
-
-    expect(event).toMatch(/"hasNextConfig": true/)
-    expect(event).toMatch(/"buildTarget": "experimental-serverless-trace"/)
-    expect(event).toMatch(/"hasWebpackConfig": false/)
-    expect(event).toMatch(/"hasBabelConfig": false/)
-  })
-
   it('cli session: next config with webpack', async () => {
     await fs.rename(
       path.join(appDir, 'next.config.webpack'),
@@ -392,6 +368,126 @@ describe('Telemetry CLI', () => {
     await fs.move(path.join(appDir, 'src/pages'), path.join(appDir, 'pages'))
 
     expect(stderr).toMatch(/isSrcDir.*?true/)
+  })
+
+  const setupAppDir = async () => {
+    await fs.writeFile(
+      path.join(__dirname, '../next.config.js'),
+      'module.exports = { experimental: { appDir: true } }'
+    )
+    await fs.mkdir(path.join(__dirname, '../app'))
+    await fs.writeFile(
+      path.join(__dirname, '../app/page.js'),
+      'export default function Page() { return "hello world" }'
+    )
+
+    return async function teardownAppDir() {
+      await fs.remove(path.join(__dirname, '../app'))
+      await fs.remove(path.join(__dirname, '../next.config.js'))
+    }
+  }
+
+  it('detects --turbo correctly for `next dev`', async () => {
+    let port = await findPort()
+    let stderr = ''
+
+    const teardown = await setupAppDir()
+
+    try {
+      const handleStderr = (msg) => {
+        stderr += msg
+      }
+      let app = await launchApp(appDir, port, {
+        onStderr: handleStderr,
+        env: {
+          NEXT_TELEMETRY_DEBUG: 1,
+        },
+        turbo: true,
+      })
+      await waitFor(1000)
+
+      if (app) {
+        await killApp(app)
+      }
+      const event1 = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
+        .exec(stderr)
+        .pop()
+
+      expect(event1).toMatch(/"pagesDir": true/)
+      expect(event1).toMatch(/"turboFlag": true/)
+    } finally {
+      await teardown()
+    }
+  })
+
+  it('detects --turbo correctly for `next dev` stopped', async () => {
+    let port = await findPort()
+    let stderr = ''
+
+    const teardown = await setupAppDir()
+
+    try {
+      const handleStderr = (msg) => {
+        stderr += msg
+      }
+      let app = await launchApp(appDir, port, {
+        onStderr: handleStderr,
+        env: {
+          NEXT_TELEMETRY_DEBUG: 1,
+        },
+        turbo: true,
+      })
+
+      if (app) {
+        await killApp(app)
+      }
+      await check(() => stderr, /NEXT_CLI_SESSION_STOPPED/)
+
+      const event1 = /NEXT_CLI_SESSION_STOPPED[\s\S]+?{([\s\S]+?)}/
+        .exec(stderr)
+        .pop()
+
+      expect(event1).toMatch(/"pagesDir": true/)
+      expect(event1).toMatch(/"turboFlag": true/)
+    } finally {
+      await teardown()
+    }
+  })
+
+  it('detects correctly for `next dev` stopped (no turbo)', async () => {
+    let port = await findPort()
+    let stderr = ''
+
+    const teardown = await setupAppDir()
+
+    try {
+      const handleStderr = (msg) => {
+        stderr += msg
+      }
+      let app = await launchApp(appDir, port, {
+        onStderr: handleStderr,
+        env: {
+          NEXT_TELEMETRY_DEBUG: 1,
+        },
+      })
+
+      await check(() => stderr, /NEXT_CLI_SESSION_STARTED/)
+
+      if (app) {
+        await killApp(app)
+      }
+      await check(() => stderr, /NEXT_CLI_SESSION_STOPPED/)
+
+      const event1 = /NEXT_CLI_SESSION_STOPPED[\s\S]+?{([\s\S]+?)}/
+        .exec(stderr)
+        .pop()
+
+      expect(event1).toMatch(/"turboFlag": false/)
+      expect(event1).toMatch(/"pagesDir": true/)
+      expect(event1).toMatch(/"appDir": true/)
+    } finally {
+      await teardown()
+    }
   })
 
   it('detect reportWebVitals correctly for `next build`', async () => {
@@ -510,6 +606,9 @@ describe('Telemetry CLI', () => {
     expect(event1).toMatch(/"imageFormats": "image\/avif,image\/webp"/)
     expect(event1).toMatch(/"trailingSlashEnabled": false/)
     expect(event1).toMatch(/"reactStrictMode": false/)
+    expect(event1).toMatch(/"turboFlag": false/)
+    expect(event1).toMatch(/"pagesDir": true/)
+    expect(event1).toMatch(/"appDir": false/)
 
     await fs.rename(
       path.join(appDir, 'next.config.i18n-images'),
@@ -574,7 +673,10 @@ describe('Telemetry CLI', () => {
     expect(event1).toMatch(`"nextRulesEnabled": {`)
     expect(event1).toMatch(/"@next\/next\/.+?": "(off|warn|error)"/)
 
-    const featureUsageEvents = findAllEvents(stderr, 'NEXT_BUILD_FEATURE_USAGE')
+    const featureUsageEvents = findAllTelemetryEvents(
+      stderr,
+      'NEXT_BUILD_FEATURE_USAGE'
+    )
     expect(featureUsageEvents).toContainEqual({
       featureName: 'build-lint',
       invocationCount: 1,
@@ -586,7 +688,7 @@ describe('Telemetry CLI', () => {
       stderr: true,
       env: { NEXT_TELEMETRY_DEBUG: 1 },
     })
-    const events = findAllEvents(stderr, 'NEXT_BUILD_FEATURE_USAGE')
+    const events = findAllTelemetryEvents(stderr, 'NEXT_BUILD_FEATURE_USAGE')
     expect(events).toContainEqual({
       featureName: 'build-lint',
       invocationCount: 0,
@@ -605,7 +707,7 @@ describe('Telemetry CLI', () => {
     })
     await fs.remove(nextConfig)
 
-    const events = findAllEvents(stderr, 'NEXT_BUILD_FEATURE_USAGE')
+    const events = findAllTelemetryEvents(stderr, 'NEXT_BUILD_FEATURE_USAGE')
     expect(events).toContainEqual({
       featureName: 'build-lint',
       invocationCount: 0,
@@ -644,7 +746,10 @@ describe('Telemetry CLI', () => {
       stderr: true,
       env: { NEXT_TELEMETRY_DEBUG: 1 },
     })
-    const featureUsageEvents = findAllEvents(stderr, 'NEXT_BUILD_FEATURE_USAGE')
+    const featureUsageEvents = findAllTelemetryEvents(
+      stderr,
+      'NEXT_BUILD_FEATURE_USAGE'
+    )
     expect(featureUsageEvents).toEqual(
       expect.arrayContaining([
         {
@@ -684,7 +789,10 @@ describe('Telemetry CLI', () => {
     })
     await fs.remove(path.join(appDir, 'next.config.js'))
     await fs.remove(path.join(appDir, 'jsconfig.json'))
-    const featureUsageEvents = findAllEvents(stderr, 'NEXT_BUILD_FEATURE_USAGE')
+    const featureUsageEvents = findAllTelemetryEvents(
+      stderr,
+      'NEXT_BUILD_FEATURE_USAGE'
+    )
     expect(featureUsageEvents).toEqual(
       expect.arrayContaining([
         {
@@ -739,7 +847,7 @@ describe('Telemetry CLI', () => {
       path.join(appDir, 'next.config.optimize-css')
     )
 
-    const events = findAllEvents(stderr, 'NEXT_BUILD_FEATURE_USAGE')
+    const events = findAllTelemetryEvents(stderr, 'NEXT_BUILD_FEATURE_USAGE')
     expect(events).toContainEqual({
       featureName: 'experimental/optimizeCss',
       invocationCount: 1,
@@ -762,7 +870,10 @@ describe('Telemetry CLI', () => {
       path.join(appDir, 'next.config.next-script-workers')
     )
 
-    const featureUsageEvents = findAllEvents(stderr, 'NEXT_BUILD_FEATURE_USAGE')
+    const featureUsageEvents = findAllTelemetryEvents(
+      stderr,
+      'NEXT_BUILD_FEATURE_USAGE'
+    )
     expect(featureUsageEvents).toContainEqual({
       featureName: 'experimental/nextScriptWorkers',
       invocationCount: 1,
@@ -782,7 +893,10 @@ describe('Telemetry CLI', () => {
 
     await fs.remove(path.join(appDir, 'middleware.js'))
 
-    const buildOptimizedEvents = findAllEvents(stderr, 'NEXT_BUILD_OPTIMIZED')
+    const buildOptimizedEvents = findAllTelemetryEvents(
+      stderr,
+      'NEXT_BUILD_OPTIMIZED'
+    )
     expect(buildOptimizedEvents).toContainEqual(
       expect.objectContaining({
         middlewareCount: 1,
@@ -819,7 +933,7 @@ describe('Telemetry CLI', () => {
       path.join(appDir, 'package.swc-plugins')
     )
 
-    const pluginDetectedEvents = findAllEvents(
+    const pluginDetectedEvents = findAllTelemetryEvents(
       stderr,
       'NEXT_SWC_PLUGIN_DETECTED'
     )
@@ -838,30 +952,22 @@ describe('Telemetry CLI', () => {
     ])
   })
 
-  it('emits telemetry for usage of next/future/image', async () => {
+  it('emits telemetry for usage of next/legacy/image', async () => {
     const { stderr } = await nextBuild(appDir, [], {
       stderr: true,
       env: { NEXT_TELEMETRY_DEBUG: 1 },
     })
-    const featureUsageEvents = findAllEvents(stderr, 'NEXT_BUILD_FEATURE_USAGE')
+    const featureUsageEvents = findAllTelemetryEvents(
+      stderr,
+      'NEXT_BUILD_FEATURE_USAGE'
+    )
     expect(featureUsageEvents).toContainEqual({
-      featureName: 'next/future/image',
+      featureName: 'next/legacy/image',
+      invocationCount: 1,
+    })
+    expect(featureUsageEvents).toContainEqual({
+      featureName: 'next/image',
       invocationCount: 1,
     })
   })
 })
-
-/**
- * Parse the output and return all entries that match the provided `eventName`
- * @param {string} output output of the console
- * @param {string} eventName
- * @returns {Array<{}>}
- */
-function findAllEvents(output, eventName) {
-  const regex = /\[telemetry\] ({.+?^})/gms
-  // Pop the last element of each entry to retrieve contents of the capturing group
-  const events = [...output.matchAll(regex)].map((entry) =>
-    JSON.parse(entry.pop())
-  )
-  return events.filter((e) => e.eventName === eventName).map((e) => e.payload)
-}

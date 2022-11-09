@@ -18,7 +18,16 @@ import { getProjectDir } from '../lib/get-project-dir'
 
 const eslintOptions = (args: arg.Spec, defaultCacheLocation: string) => ({
   overrideConfigFile: args['--config'] || null,
-  extensions: args['--ext'] ?? ['.js', '.jsx', '.ts', '.tsx'],
+  extensions: args['--ext'] ?? [
+    '.js',
+    '.mjs',
+    '.cjs',
+    '.jsx',
+    '.ts',
+    '.mts',
+    '.cts',
+    '.tsx',
+  ],
   resolvePluginsRelativeTo: args['--resolve-plugins-relative-to'] || null,
   rulePaths: args['--rulesdir'] ?? [],
   fix: args['--fix'] ?? false,
@@ -107,7 +116,7 @@ const nextLint: cliCommand = async (argv) => {
           -d, --dir Array                Include directory, or directories, to run ESLint - default: 'pages', 'components', and 'lib'
           --file Array                   Include file, or files, to run ESLint
           -c, --config path::String      Use this configuration file, overriding all other config options
-          --ext [String]                 Specify JavaScript file extensions - default: .js, .jsx, .ts, .tsx
+          --ext [String]                 Specify JavaScript file extensions - default: .js, .mjs, .cjs, .jsx, .ts, .mts, .cts, .tsx
           --resolve-plugins-relative-to path::String  A folder where plugins should be resolved from, CWD by default
 
         Initial setup:
@@ -178,8 +187,9 @@ const nextLint: cliCommand = async (argv) => {
 
   const distDir = join(baseDir, nextConfig.distDir)
   const defaultCacheLocation = join(distDir, 'cache', 'eslint/')
+  const hasAppDir = !!nextConfig.experimental.appDir
 
-  runLintCheck(baseDir, pathsToLint, {
+  runLintCheck(baseDir, pathsToLint, hasAppDir, {
     lintDuringBuild: false,
     eslintOptions: eslintOptions(args, defaultCacheLocation),
     reportErrorsOnly: reportErrorsOnly,
@@ -187,7 +197,6 @@ const nextLint: cliCommand = async (argv) => {
     formatter,
     outputFile,
     strict,
-    hasAppDir: !!nextConfig.experimental.appDir,
   })
     .then(async (lintResults) => {
       const lintOutput =

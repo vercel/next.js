@@ -1,5 +1,6 @@
 import chalk from 'next/dist/compiled/chalk'
 import path from 'path'
+
 import {
   hasNecessaryDependencies,
   NecessaryDependencies,
@@ -16,6 +17,7 @@ import { writeConfigurationDefaults } from './typescript/writeConfigurationDefau
 import { installDependencies } from './install-dependencies'
 import { isCI } from '../telemetry/ci-info'
 import { missingDepsError } from './typescript/missingDependencyError'
+import { writeVscodeConfigurations } from './typescript/writeVscodeConfigurations'
 
 const requiredPackages = [
   {
@@ -42,6 +44,7 @@ export async function verifyTypeScriptSetup({
   tsconfigPath,
   typeCheckPreflight,
   disableStaticImages,
+  isAppDirEnabled,
 }: {
   dir: string
   cacheDir?: string
@@ -49,6 +52,7 @@ export async function verifyTypeScriptSetup({
   intentDirs: string[]
   typeCheckPreflight: boolean
   disableStaticImages: boolean
+  isAppDirEnabled: boolean
 }): Promise<{ result?: TypeCheckResult; version: string | null }> {
   const resolvedTsConfigPath = path.join(dir, tsconfigPath)
 
@@ -99,8 +103,9 @@ export async function verifyTypeScriptSetup({
     }
 
     // Load TypeScript after we're sure it exists:
+    const tsPath = deps.resolved.get('typescript')!
     const ts = (await Promise.resolve(
-      require(deps.resolved.get('typescript')!)
+      require(tsPath)
     )) as typeof import('typescript')
 
     if (semver.lt(ts.version, '4.3.2')) {
@@ -113,18 +118,29 @@ export async function verifyTypeScriptSetup({
     await writeConfigurationDefaults(
       ts,
       resolvedTsConfigPath,
-      intent.firstTimeSetup
+      intent.firstTimeSetup,
+      isAppDirEnabled
     )
     // Write out the necessary `next-env.d.ts` file to correctly register
     // Next.js' types:
     await writeAppTypeDeclarations(dir, !disableStaticImages)
+
+    if (isAppDirEnabled) {
+      await writeVscodeConfigurations(dir, tsPath)
+    }
 
     let result
     if (typeCheckPreflight) {
       const { runTypeCheck } = require('./typescript/runTypeCheck')
 
       // Verify the project passes type-checking before we go to webpack phase:
-      result = await runTypeCheck(ts, dir, resolvedTsConfigPath, cacheDir)
+      result = await runTypeCheck(
+        ts,
+        dir,
+        resolvedTsConfigPath,
+        cacheDir,
+        isAppDirEnabled
+      )
     }
     return { result, version: ts.version }
   } catch (err) {

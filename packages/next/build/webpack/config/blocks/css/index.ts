@@ -24,8 +24,6 @@ const regexCssModules = /\.module\.css$/
 // RegExps for Syntactically Awesome Style Sheets
 const regexSassGlobal = /(?<!\.module)\.(scss|sass)$/
 const regexSassModules = /\.module\.(scss|sass)$/
-// Also match the virtual client entry which doesn't have file path
-const regexClientEntry = /^$/
 
 /**
  * Mark a rule as removable if built-in CSS support is disabled
@@ -183,12 +181,10 @@ export const css = curry(async function css(
 
   // Resolve the configured font loaders, the resolved files are noop files that next-font-loader will match
   let fontLoaders: [string, string][] | undefined = ctx.experimental.fontLoaders
-    ? Object.entries(ctx.experimental.fontLoaders).map(
-        ([fontLoader, fontLoaderOptions]: any) => [
-          path.join(require.resolve(fontLoader), '../target.css'),
-          fontLoaderOptions,
-        ]
-      )
+    ? ctx.experimental.fontLoaders.map(({ loader: fontLoader, options }) => [
+        path.join(require.resolve(fontLoader), '../target.css'),
+        options,
+      ])
     : undefined
 
   // Font loaders cannot be imported in _document.
@@ -219,14 +215,6 @@ export const css = curry(async function css(
           markRemovable({
             sideEffects: false,
             test: fontLoaderPath,
-            issuer: {
-              and: [
-                {
-                  or: [ctx.rootDirectory, regexClientEntry],
-                },
-              ],
-              not: [/node_modules/],
-            },
             use: getFontLoader(ctx, lazyPostCSSInitializer, fontLoaderOptions),
           }),
         ],
@@ -257,7 +245,8 @@ export const css = curry(async function css(
 
   // CSS Modules support must be enabled on the server and client so the class
   // names are available for SSR or Prerendering.
-  if (ctx.experimental.appDir && !ctx.isProduction) {
+  if (ctx.hasAppDir && !ctx.isProduction) {
+    // CSS modules
     fns.push(
       loader({
         oneOf: [
@@ -269,16 +258,6 @@ export const css = curry(async function css(
             sideEffects: false,
             // CSS Modules are activated via this specific extension.
             test: regexCssModules,
-            // CSS Modules are only supported in the user's application. We're
-            // not yet allowing CSS imports _within_ `node_modules`.
-            issuer: {
-              and: [
-                {
-                  or: [ctx.rootDirectory, regexClientEntry],
-                },
-              ],
-              not: [/node_modules/],
-            },
             use: [
               require.resolve('../../../loaders/next-flight-css-dev-loader'),
               ...getCssModuleLoader(ctx, lazyPostCSSInitializer),
@@ -287,10 +266,12 @@ export const css = curry(async function css(
         ],
       })
     )
+
+    // Opt-in support for Sass (using .scss or .sass extensions).
     fns.push(
       loader({
         oneOf: [
-          // Opt-in support for Sass (using .scss or .sass extensions).
+          // For app dir, we match both server and client layers.
           markRemovable({
             // Sass Modules should never have side effects. This setting will
             // allow unused Sass to be removed from the production build.
@@ -299,12 +280,6 @@ export const css = curry(async function css(
             sideEffects: false,
             // Sass Modules are activated via this specific extension.
             test: regexSassModules,
-            // Sass Modules are only supported in the user's application. We're
-            // not yet allowing Sass imports _within_ `node_modules`.
-            issuer: {
-              and: [ctx.rootDirectory],
-              not: [/node_modules/],
-            },
             use: [
               require.resolve('../../../loaders/next-flight-css-dev-loader'),
               ...getCssModuleLoader(
@@ -329,16 +304,6 @@ export const css = curry(async function css(
             sideEffects: false,
             // CSS Modules are activated via this specific extension.
             test: regexCssModules,
-            // CSS Modules are only supported in the user's application. We're
-            // not yet allowing CSS imports _within_ `node_modules`.
-            issuer: {
-              and: [
-                {
-                  or: [ctx.rootDirectory, regexClientEntry],
-                },
-              ],
-              not: [/node_modules/],
-            },
             use: getCssModuleLoader(ctx, lazyPostCSSInitializer),
           }),
         ],
@@ -356,12 +321,6 @@ export const css = curry(async function css(
             sideEffects: false,
             // Sass Modules are activated via this specific extension.
             test: regexSassModules,
-            // Sass Modules are only supported in the user's application. We're
-            // not yet allowing Sass imports _within_ `node_modules`.
-            issuer: {
-              and: [ctx.rootDirectory],
-              not: [/node_modules/],
-            },
             use: getCssModuleLoader(
               ctx,
               lazyPostCSSInitializer,
@@ -373,7 +332,7 @@ export const css = curry(async function css(
     )
   }
 
-  if (!ctx.experimental.appDir) {
+  if (!ctx.hasAppDir) {
     // Throw an error for CSS Modules used outside their supported scope
     fns.push(
       loader({
@@ -393,7 +352,7 @@ export const css = curry(async function css(
   }
 
   if (ctx.isServer) {
-    if (ctx.experimental.appDir && !ctx.isProduction) {
+    if (ctx.hasAppDir && !ctx.isProduction) {
       fns.push(
         loader({
           oneOf: [
@@ -412,6 +371,8 @@ export const css = curry(async function css(
         loader({
           oneOf: [
             markRemovable({
+              // CSS imports have side effects, even on the server side.
+              sideEffects: true,
               test: [regexCssGlobal, regexSassGlobal],
               use: require.resolve('next/dist/compiled/ignore-loader'),
             }),
@@ -420,7 +381,7 @@ export const css = curry(async function css(
       )
     }
   } else {
-    if (ctx.experimental.appDir) {
+    if (ctx.hasAppDir) {
       fns.push(
         loader({
           oneOf: [
@@ -443,11 +404,51 @@ export const css = curry(async function css(
         loader({
           oneOf: [
             markRemovable({
+              // A global SASS import always has side effects. Webpack will tree
+              // shake the CSS without this option if the issuer claims to have
+              // no side-effects.
+              // See https://github.com/webpack/webpack/issues/6571
+              sideEffects: true,
+              test: regexSassGlobal,
+              use: [
+                require.resolve('../../../loaders/next-flight-css-dev-loader'),
+                ...getGlobalCssLoader(
+                  ctx,
+                  lazyPostCSSInitializer,
+                  sassPreprocessors
+                ),
+              ],
+            }),
+          ],
+        })
+      )
+      fns.push(
+        loader({
+          oneOf: [
+            markRemovable({
               sideEffects: false,
               test: regexCssModules,
               use: [
                 require.resolve('../../../loaders/next-flight-css-dev-loader'),
                 ...getCssModuleLoader(ctx, lazyPostCSSInitializer),
+              ],
+            }),
+          ],
+        })
+      )
+      fns.push(
+        loader({
+          oneOf: [
+            markRemovable({
+              sideEffects: false,
+              test: regexSassModules,
+              use: [
+                require.resolve('../../../loaders/next-flight-css-dev-loader'),
+                ...getCssModuleLoader(
+                  ctx,
+                  lazyPostCSSInitializer,
+                  sassPreprocessors
+                ),
               ],
             }),
           ],
@@ -552,7 +553,7 @@ export const css = curry(async function css(
       oneOf: [
         markRemovable({
           test: [regexCssGlobal, regexSassGlobal],
-          issuer: ctx.experimental.appDir
+          issuer: ctx.hasAppDir
             ? {
                 // If it's inside the app dir, but not importing from a layout file,
                 // throw an error.
@@ -597,7 +598,7 @@ export const css = curry(async function css(
   }
 
   // Enable full mini-css-extract-plugin hmr for prod mode pages or app dir
-  if (ctx.isClient && (ctx.isProduction || ctx.experimental.appDir)) {
+  if (ctx.isClient && (ctx.isProduction || ctx.hasAppDir)) {
     // Extract CSS as CSS file(s) in the client-side production bundle.
     const MiniCssExtractPlugin =
       require('../../../plugins/mini-css-extract-plugin').default
