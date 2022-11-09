@@ -93,15 +93,10 @@ export function setHttpClientAndAgentOptions(config: {
   )
 }
 
-async function setFontLoaderDefaults(config: NextConfigComplete, dir: string) {
-  // Add @next/font loaders by default if they're installed
-  const hasNextFontDependency = (
-    await getDependencies({
-      cwd: dir,
-    })
-  ).dependencies['@next/font']
+function setFontLoaderDefaults(config: NextConfigComplete) {
+  try {
+    require.resolve('@next/font/google')
 
-  if (hasNextFontDependency) {
     const googleFontLoader = {
       loader: '@next/font/google',
     }
@@ -128,7 +123,7 @@ async function setFontLoaderDefaults(config: NextConfigComplete, dir: string) {
     ) {
       config.experimental.fontLoaders.push(localFontLoader)
     }
-  }
+  } catch {}
 }
 
 function assignDefaults(dir: string, userConfig: { [key: string]: any }) {
@@ -906,7 +901,7 @@ export default async function loadConfig(
       configFileName,
       ...userConfig,
     }) as NextConfigComplete
-    await setFontLoaderDefaults(completeConfig, dir)
+    setFontLoaderDefaults(completeConfig)
     return completeConfig
   } else {
     const configBaseName = basename(CONFIG_FILES[0], extname(CONFIG_FILES[0]))
@@ -936,6 +931,6 @@ export default async function loadConfig(
   ) as NextConfigComplete
   completeConfig.configFileName = configFileName
   setHttpClientAndAgentOptions(completeConfig)
-  await setFontLoaderDefaults(completeConfig, dir)
+  setFontLoaderDefaults(completeConfig)
   return completeConfig
 }
