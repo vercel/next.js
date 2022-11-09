@@ -460,7 +460,7 @@ impl<B: Backend> TurboTasks<B> {
         if self
             .currently_scheduled_foreground_jobs
             .load(Ordering::Acquire)
-            != 0
+            == 0
         {
             return;
         }
@@ -789,7 +789,7 @@ impl<B: Backend> TurboTasksBackendApi for TurboTasks<B> {
         if self
             .currently_scheduled_foreground_jobs
             .load(Ordering::Acquire)
-            != 0
+            == 0
         {
             return Ok(());
         }
