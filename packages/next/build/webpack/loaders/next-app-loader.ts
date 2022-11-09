@@ -68,7 +68,7 @@ async function createTreeCodeFromPath({
 
         // Use '' for segment as it's the page. There can't be a segment called '' so this is the safest way to add it.
         props[parallelKey] = `['', {}, {
-          page: [() => import(${JSON.stringify(
+          page: [() => import(/* webpackMode: "eager" */ ${JSON.stringify(
             resolvedPagePath
           )}), ${JSON.stringify(resolvedPagePath)}]}]`
         continue
@@ -106,7 +106,7 @@ async function createTreeCodeFromPath({
               if (filePath === undefined) {
                 return ''
               }
-              return `'${file}': [() => import(${JSON.stringify(
+              return `'${file}': [() => import(/* webpackMode: "eager" */ ${JSON.stringify(
                 filePath
               )}), ${JSON.stringify(filePath)}],`
             })
