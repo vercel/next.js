@@ -14,7 +14,7 @@ export default function HotReload({ assetPrefix, children }): any {
       {
         path,
         headers: {
-          __rsc__: "1",
+          rsc: "1",
         },
       },
       (update) => {
