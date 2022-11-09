@@ -1,4 +1,4 @@
-import { useAuth0 } from '@auth0/auth0-react'
+import {useAuth0} from '@auth0/auth0-react'
 
 type CommentFormProps = {
   text: string
@@ -7,11 +7,11 @@ type CommentFormProps = {
 }
 
 export default function CommentForm({
-  text,
-  setText,
-  onSubmit,
-}: CommentFormProps) {
-  const { isAuthenticated, logout, loginWithPopup } = useAuth0()
+                                      text,
+                                      setText,
+                                      onSubmit,
+                                    }: CommentFormProps) {
+  const {isAuthenticated, logout, loginWithPopup} = useAuth0()
 
   return (
     <form onSubmit={onSubmit}>
@@ -31,11 +31,13 @@ export default function CommentForm({
       <div className="flex items-center mt-4">
         {isAuthenticated ? (
           <div className="flex items-center space-x-6">
-            <button className="py-2 px-4 rounded bg-blue-600 text-white disabled:opacity-40 hover:bg-blue-700">
+            <button
+              className="py-2 px-4 rounded bg-blue-600 text-white disabled:opacity-40 hover:bg-blue-700">
               Send
             </button>
-            <button className="text-gray-500" onClick={() => logout()}>
-              Log out
+            <button className="text-gray-500"
+                    onClick={() => logout({returnTo: window.location.origin})}>
+              Log Out
             </button>
           </div>
         ) : (
