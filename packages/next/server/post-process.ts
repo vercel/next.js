@@ -22,6 +22,10 @@ type middlewareSignature = {
   condition: ((options: postProcessOptions) => boolean) | null
 }
 
+type PostProcessorFunction =
+  | ((html: string) => Promise<string>)
+  | ((html: string) => string)
+
 const middlewareRegistry: Array<middlewareSignature> = []
 
 function registerPostProcessor(
@@ -175,7 +179,7 @@ async function postProcessHTML(
   renderOpts: RenderOpts,
   { inAmpMode, hybridAmp }: { inAmpMode: boolean; hybridAmp: boolean }
 ) {
-  const postProcessors: Array<(html: string) => Promise<string>> = [
+  const postProcessors: Array<PostProcessorFunction> = [
     process.env.NEXT_RUNTIME !== 'edge' && inAmpMode
       ? async (html: string) => {
           const optimizeAmp = require('./optimize-amp')
@@ -226,8 +230,8 @@ async function postProcessHTML(
         }
       : null,
     inAmpMode || hybridAmp
-      ? async (html: string) => {
-          return html.replace(/&amp;amp=1/g, '&amp=1')
+      ? (html: string) => {
+          return html.replaceAll('&amp;amp=1', '&amp=1')
         }
       : null,
   ].filter(nonNullable)
