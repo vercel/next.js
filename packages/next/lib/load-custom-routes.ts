@@ -203,18 +203,21 @@ export function checkCustomRoutes(
       invalidParts.push('`locale` must be undefined or false')
     }
 
-    const validateHasMissing = (item: any, fieldName: 'has' | 'missing') => {
+    const checkInvalidHasMissing = (
+      items: any,
+      fieldName: 'has' | 'missing'
+    ) => {
       let hadInvalidItem = false
 
-      if (typeof item !== 'undefined' && !Array.isArray(item)) {
+      if (typeof items !== 'undefined' && !Array.isArray(items)) {
         invalidParts.push(
           `\`${fieldName}\` must be undefined or valid has object`
         )
         hadInvalidItem = true
-      } else if (item) {
+      } else if (items) {
         const invalidHasItems = []
 
-        for (const hasItem of item) {
+        for (const hasItem of items) {
           let invalidHasParts = []
 
           if (!allowedHasTypes.has(hasItem.type)) {
@@ -254,8 +257,12 @@ export function checkCustomRoutes(
       }
       return hadInvalidItem
     }
-    hadInvalidHas = validateHasMissing(route.has, 'has')
-    hadInvalidMissing = validateHasMissing(route.missing, 'missing')
+    if (checkInvalidHasMissing(route.has, 'has')) {
+      hadInvalidHas = true
+    }
+    if (checkInvalidHasMissing(route.missing, 'missing')) {
+      hadInvalidMissing = true
+    }
 
     if (!route.source) {
       invalidParts.push('`source` is missing')
