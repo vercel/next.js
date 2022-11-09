@@ -44,7 +44,7 @@ export default function resolveRewrites(
 
     let params = matcher(parsedAs.pathname)
 
-    if (rewrite.has && params) {
+    if ((rewrite.has || rewrite.missing) && params) {
       const hasParams = matchHas(
         {
           headers: {
@@ -58,8 +58,9 @@ export default function resolveRewrites(
               return acc
             }, {}),
         } as any,
+        parsedAs.query,
         rewrite.has,
-        parsedAs.query
+        rewrite.missing
       )
 
       if (hasParams) {
