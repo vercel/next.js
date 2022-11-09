@@ -35,6 +35,21 @@ describe('skip-trailing-slash-redirect', () => {
     }
   })
 
+  it('should provide original _next/data URL with skipMiddlewareUrlNormalize', async () => {
+    const res = await fetchViaHTTP(
+      next.url,
+      `/_next/data/${next.buildId}/valid.json`,
+      undefined,
+      {
+        headers: {
+          'x-nextjs-data': '1',
+        },
+      }
+    )
+    expect(res.status).toBe(200)
+    expect(await res.text()).toContain('Example Domain')
+  })
+
   it('should allow response body from middleware with flag', async () => {
     const res = await fetchViaHTTP(next.url, '/middleware-response-body')
     expect(res.status).toBe(200)
@@ -88,7 +103,7 @@ describe('skip-trailing-slash-redirect', () => {
   it('should correct skip URL normalizing in middleware', async () => {
     let res = await fetchViaHTTP(
       next.url,
-      '/middleware-rewrite-with-slash',
+      `/_next/data/${next.buildId}/middleware-rewrite-with-slash.json`,
       undefined,
       { redirect: 'manual', headers: { 'x-nextjs-data': '1' } }
     )
@@ -96,7 +111,7 @@ describe('skip-trailing-slash-redirect', () => {
 
     res = await fetchViaHTTP(
       next.url,
-      '/middleware-rewrite-without-slash',
+      `/_next/data/${next.buildId}/middleware-rewrite-without-slash.json`,
       undefined,
       { redirect: 'manual', headers: { 'x-nextjs-data': '1' } }
     )
