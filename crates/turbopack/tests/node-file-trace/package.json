@@ -120,5 +120,19 @@
   },
   "optionalDependencies": {
     "oracledb": "^4.2.0"
+  },
+  "pnpm": {
+    "packageExtensions": {
+      "@tensorflow/tfjs": {
+        "peerDependencies": {
+          "long": "^5.2.0"
+        }
+      },
+      "@tensorflow/tfjs-node": {
+        "peerDependencies": {
+          "@tensorflow/tfjs-core": "^3.20.0"
+        }
+      }
+    }
   }
 }
