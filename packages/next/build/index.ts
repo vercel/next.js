@@ -123,6 +123,7 @@ import { RemotePattern } from '../shared/lib/image-config'
 import { eventSwcPlugins } from '../telemetry/events/swc-plugins'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { AppBuildManifest } from './webpack/plugins/app-build-manifest-plugin'
+import { RSC, RSC_VARY_HEADER } from '../client/components/app-router-headers'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -253,7 +254,8 @@ export default async function build(
   conf = null,
   reactProductionProfiling = false,
   debugOutput = false,
-  runLint = true
+  runLint = true,
+  noMangling = false
 ): Promise<void> {
   try {
     const nextBuildSpan = trace('next-build', undefined, {
@@ -755,6 +757,11 @@ export default async function build(
           defaultLocale: string
           localeDetection?: false
         }
+        rsc: {
+          header: typeof RSC
+          varyHeader: typeof RSC_VARY_HEADER
+        }
+        skipMiddlewareUrlNormalize?: boolean
       } = nextBuildSpan.traceChild('generate-routes-manifest').traceFn(() => {
         const sortedRoutes = getSortedRoutes([
           ...pageKeys.pages,
@@ -781,6 +788,12 @@ export default async function build(
           staticRoutes,
           dataRoutes: [],
           i18n: config.i18n || undefined,
+          rsc: {
+            header: RSC,
+            varyHeader: RSC_VARY_HEADER,
+          },
+          skipMiddlewareUrlNormalize:
+            config.experimental.skipMiddlewareUrlNormalize,
         }
       })
 
@@ -923,6 +936,7 @@ export default async function build(
           runWebpackSpan,
           target,
           appDir,
+          noMangling,
           middlewareMatchers: entrypoints.middlewareMatchers,
         }
 
@@ -1800,28 +1814,30 @@ export default async function build(
                 showAll: config.experimental.turbotrace.logAll,
               })
             } else {
+              const ignores = [
+                '**/next/dist/pages/**/*',
+                '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
+                '**/node_modules/webpack5/**/*',
+                '**/next/dist/server/lib/squoosh/**/*.wasm',
+                ...(ciEnvironment.hasNextSupport
+                  ? [
+                      // only ignore image-optimizer code when
+                      // this is being handled outside of next-server
+                      '**/next/dist/server/image-optimizer.js',
+                      '**/node_modules/sharp/**/*',
+                    ]
+                  : []),
+                ...(!hasSsrAmpPages
+                  ? ['**/next/dist/compiled/@ampproject/toolbox-optimizer/**/*']
+                  : []),
+              ]
+              const ignoreFn = (pathname: string) => {
+                return isMatch(pathname, ignores, { contains: true, dot: true })
+              }
               serverResult = await nodeFileTrace(toTrace, {
                 base: root,
                 processCwd: dir,
-                ignore: [
-                  '**/next/dist/pages/**/*',
-                  '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
-                  '**/node_modules/webpack5/**/*',
-                  '**/next/dist/server/lib/squoosh/**/*.wasm',
-                  ...(ciEnvironment.hasNextSupport
-                    ? [
-                        // only ignore image-optimizer code when
-                        // this is being handled outside of next-server
-                        '**/next/dist/server/image-optimizer.js',
-                        '**/node_modules/sharp/**/*',
-                      ]
-                    : []),
-                  ...(!hasSsrAmpPages
-                    ? [
-                        '**/next/dist/compiled/@ampproject/toolbox-optimizer/**/*',
-                      ]
-                    : []),
-                ],
+                ignore: ignoreFn,
               })
               const tracedFiles = new Set()
 

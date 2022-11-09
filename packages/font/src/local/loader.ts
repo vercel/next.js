@@ -57,7 +57,7 @@ const fetchFonts: FontLoader = async ({
   data,
   emitFontFile,
   resolve,
-  fs,
+  loaderContext,
 }) => {
   const {
     src,
@@ -74,7 +74,7 @@ const fetchFonts: FontLoader = async ({
   const fontFiles = await Promise.all(
     src.map(async ({ path, style, weight, ext, format }) => {
       const resolved = await resolve(path)
-      const fileBuffer = await promisify(fs.readFile)(resolved)
+      const fileBuffer = await promisify(loaderContext.fs.readFile)(resolved)
       const fontUrl = emitFontFile(fileBuffer, ext, preload)
 
       let fontMetadata: any

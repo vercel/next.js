@@ -13,6 +13,7 @@ export default async function nextFontLoader(this: any) {
   return fontLoaderSpan.traceAsyncFn(async () => {
     const callback = this.async()
     const {
+      isDev,
       isServer,
       assetPrefix,
       fontLoaderOptions,
@@ -79,8 +80,9 @@ export default async function nextFontLoader(this: any) {
               ),
               src.startsWith('.') ? src : `./${src}`
             ),
-          fs: this.fs,
+          isDev,
           isServer,
+          loaderContext: this,
         })
 
       const { postcss } = await getPostcss()

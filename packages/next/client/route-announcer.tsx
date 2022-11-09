@@ -17,7 +17,7 @@ const nextjsRouteAnnouncerStyles: React.CSSProperties = {
 }
 
 export const RouteAnnouncer = () => {
-  const { asPath } = useRouter(true)
+  const { asPath } = useRouter()
   const [routeAnnouncement, setRouteAnnouncement] = React.useState('')
 
   // Only announce the path change, but not for the first load because screen
