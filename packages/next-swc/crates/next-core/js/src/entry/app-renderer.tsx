@@ -1,9 +1,21 @@
 import type { Ipc } from "@vercel/turbopack-next/internal/ipc";
 
 // Provided by the rust generate code
+type FileType =
+  | "layout"
+  | "template"
+  | "error"
+  | "loading"
+  | "not-found"
+  | "head";
 declare global {
   // an array of all layouts and the page
-  const LAYOUT_INFO: { segment: string; module: any; chunks: string[] }[];
+  const LAYOUT_INFO: ({
+    segment: string;
+    page?: { module: any; chunks: string[] };
+  } & {
+    [componentKey in FileType]?: { module: any; chunks: string[] };
+  })[];
   // array of chunks for the bootstrap script
   const BOOTSTRAP: string[];
   const IPC: Ipc<unknown, unknown>;
@@ -21,7 +33,6 @@ import "next/dist/server/node-polyfill-web-streams";
 import { RenderOpts, renderToHTMLOrFlight } from "next/dist/server/app-render";
 import { PassThrough } from "stream";
 import { ServerResponseShim } from "@vercel/turbopack-next/internal/http";
-import { structuredError } from "@vercel/turbopack-next/internal/error";
 import { ParsedUrlQuery } from "node:querystring";
 
 globalThis.__next_require__ = (data) => {
@@ -77,16 +88,11 @@ type IpcOutgoingMessage = {
 
 // TODO expose these types in next.js
 type ComponentModule = () => any;
+type ModuleReference = [componentModule: ComponentModule, filePath: string];
 export type ComponentsType = {
-  readonly [componentKey in
-    | "layout"
-    | "template"
-    | "error"
-    | "loading"
-    | "not-found"]?: ComponentModule;
+  [componentKey in FileType]?: ModuleReference;
 } & {
-  readonly layoutOrPagePath?: string;
-  readonly page?: ComponentModule;
+  page?: ModuleReference;
 };
 type LoaderTree = [
   segment: string,
@@ -102,31 +108,24 @@ type ServerComponentsManifestModule = {
 };
 
 async function runOperation(renderData: RenderData) {
+  const layoutInfoChunks: Record<string, string[]> = {};
   const pageItem = LAYOUT_INFO[LAYOUT_INFO.length - 1];
-  const pageModule = pageItem.module;
+  const pageModule = pageItem.page!.module;
   const Page = pageModule.default;
-  let tree: LoaderTree = [
-    "",
-    {},
-    { page: () => Page, layoutOrPagePath: "page.js" },
-  ];
+  let tree: LoaderTree = ["", {}, { page: [() => Page, "page.js"] }];
+  layoutInfoChunks["page.js"] = pageItem.page!.chunks;
   for (let i = LAYOUT_INFO.length - 2; i >= 0; i--) {
     const info = LAYOUT_INFO[i];
-    const mod = info.module;
-    if (mod) {
-      const Layout = mod.default;
-      tree = [
-        info.segment,
-        { children: tree },
-        { layout: () => Layout, layoutOrPagePath: `layout${i}.js` },
-      ];
-    } else {
-      tree = [
-        info.segment,
-        { children: tree },
-        { layoutOrPagePath: `layout${i}.js` },
-      ];
+    const components: ComponentsType = {};
+    for (const key of Object.keys(info)) {
+      if (key === "segment") {
+        continue;
+      }
+      const k = key as FileType;
+      components[k] = [() => info[k]!.module.default, `${k}${i}.js`];
+      layoutInfoChunks[`${k}${i}.js`] = info[k]!.chunks;
     }
+    tree = [info.segment, { children: tree }, components];
   }
 
   const proxyMethodsForModule = (
@@ -157,19 +156,15 @@ async function runOperation(renderData: RenderData) {
   const manifest: FlightManifest = new Proxy({} as any, proxyMethods(false));
   const serverCSSManifest: FlightCSSManifest = {};
   serverCSSManifest.__entry_css__ = {};
-  for (let i = 0; i < LAYOUT_INFO.length - 1; i++) {
-    const { chunks } = LAYOUT_INFO[i];
-    const cssChunks = (chunks || []).filter((path) => path.endsWith(".css"));
-    serverCSSManifest[`layout${i}.js`] = cssChunks.map((chunk) =>
+  for (const [key, chunks] of Object.entries(layoutInfoChunks)) {
+    const cssChunks = chunks.filter((path) => path.endsWith(".css"));
+    serverCSSManifest[key] = cssChunks.map((chunk) =>
       JSON.stringify([chunk, [chunk]])
     );
   }
   serverCSSManifest.__entry_css__ = {
-    page: pageItem.chunks
-      .filter((path) => path.endsWith(".css"))
-      .map((chunk) => JSON.stringify([chunk, [chunk]])),
+    page: serverCSSManifest["page.js"],
   };
-  serverCSSManifest["page.js"] = serverCSSManifest.__entry_css__.page;
   const req: IncomingMessage = {
     url: renderData.url,
     method: renderData.method,
@@ -185,7 +180,8 @@ async function runOperation(renderData: RenderData) {
     dev: true,
     buildManifest: {
       polyfillFiles: [],
-      rootMainFiles: LAYOUT_INFO.flatMap(({ chunks }) => chunks || [])
+      rootMainFiles: Object.values(layoutInfoChunks)
+        .flat()
         .concat(BOOTSTRAP)
         .filter((path) => !path.endsWith(".css")),
       devFiles: [],
