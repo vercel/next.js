@@ -11,7 +11,6 @@ import {
   getGlobalModuleImportError,
   getLocalModuleImportError,
   getFontLoaderDocumentImportError,
-  getFontLoaderImportError,
 } from './messages'
 import { getPostCssPlugins } from './plugins'
 
@@ -25,8 +24,6 @@ const regexCssModules = /\.module\.css$/
 // RegExps for Syntactically Awesome Style Sheets
 const regexSassGlobal = /(?<!\.module)\.(scss|sass)$/
 const regexSassModules = /\.module\.(scss|sass)$/
-// Also match the virtual client entry which doesn't have file path
-const regexClientEntry = /^$/
 
 /**
  * Mark a rule as removable if built-in CSS support is disabled
@@ -218,31 +215,7 @@ export const css = curry(async function css(
           markRemovable({
             sideEffects: false,
             test: fontLoaderPath,
-            issuer: {
-              and: [
-                {
-                  or: [ctx.rootDirectory, regexClientEntry],
-                },
-              ],
-              not: [/node_modules/],
-            },
             use: getFontLoader(ctx, lazyPostCSSInitializer, fontLoaderOptions),
-          }),
-        ],
-      })
-    )
-
-    fns.push(
-      loader({
-        oneOf: [
-          markRemovable({
-            test: fontLoaderPath,
-            use: {
-              loader: 'error-loader',
-              options: {
-                reason: getFontLoaderImportError(),
-              },
-            },
           }),
         ],
       })
