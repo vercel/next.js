@@ -2,7 +2,7 @@
 
 #### Why This Error Occurred
 
-A component used `useRouter` outside a Next.js application, or was rendered outside a Next.js application. This can happen when doing unit testing on components that use the `useRouter` hook as they are not configured with Next.js' contexts.
+A component used `useRouter` outside a Next.js application, or was rendered outside one. This can happen when doing unit testing on components that use the `useRouter` hook as they are not configured with Next.js' contexts.
 
 #### Possible Ways to Fix It
 

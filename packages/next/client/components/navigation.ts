@@ -32,7 +32,9 @@ export function useSearchParams() {
   }
 
   if (!searchParams) {
-    throw new Error('invariant expected search params context to be mounted')
+    throw new Error(
+      'Search Parameters Context was not mounted. See more info here https://nextjs.org/docs/messages/navigation-context-missing'
+    )
   }
 
   return readonlySearchParams
@@ -44,7 +46,9 @@ export function useSearchParams() {
 export function usePathname(): string {
   const pathname = useContext(PathnameContext)
   if (pathname === null) {
-    throw new Error('invariant expected pathname context to be mounted')
+    throw new Error(
+      'Pathname Context was not mounted. See more info here https://nextjs.org/docs/messages/navigation-context-missing'
+    )
   }
 
   return pathname
@@ -71,7 +75,9 @@ export {
 export function useRouter(): import('../../shared/lib/app-router-context').AppRouterInstance {
   const router = useContext(AppRouterContext)
   if (router === null) {
-    throw new Error('invariant expected app router to be mounted')
+    throw new Error(
+      'App Router Context was not mounted. See more info here https://nextjs.org/docs/messages/navigation-context-missing'
+    )
   }
 
   return router
