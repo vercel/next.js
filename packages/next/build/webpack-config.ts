@@ -887,6 +887,15 @@ export default async function getBaseWebpackConfig(
             'next/dist/client': 'next/dist/esm/client',
             'next/dist/shared': 'next/dist/esm/shared',
             'next/dist/pages': 'next/dist/esm/pages',
+            'next/dist/lib': 'next/dist/esm/lib',
+
+            // Alias the usage of next public APIs
+            [require.resolve('next/link')]: 'next/dist/esm/client/link',
+            [require.resolve('next/image')]: 'next/dist/esm/client/image',
+            [require.resolve('next/router')]: 'next/dist/esm/client/router',
+            [require.resolve('next/script')]: 'next/dist/esm/client/script',
+            [require.resolve('next/dynamic')]: 'next/dist/shared/lib/dynamic',
+            [require.resolve('next/head')]: 'next/dist/shared/lib/head',
           }
         : undefined),
 
@@ -1107,7 +1116,7 @@ export default async function getBaseWebpackConfig(
       }
 
       const notExternalModules =
-        /^(?:private-next-pages\/|next\/(?:dist\/pages\/|(?:app|document|link|image|legacy\/image|constants|dynamic|script|navigation|headers)$)|string-hash|private-next-rsc-mod-ref-proxy$)/
+        /^(?:private-next-pages\/|next\/(?:dist\/pages\/|(?:app|document|link|image|router|legacy\/image|constants|dynamic|script|navigation|headers)$)|string-hash|private-next-rsc-mod-ref-proxy$)/
       if (notExternalModules.test(request)) {
         return
       }
@@ -1132,7 +1141,7 @@ export default async function getBaseWebpackConfig(
         // Treat next internals as non-external for server layer
         layer === WEBPACK_LAYERS.server
           ? false
-          : /next[/\\]dist[/\\](shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic))/.test(
+          : /next[/\\]dist[/\\](esm[\\/])?(shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic))/.test(
               localRes
             )
 
@@ -1198,7 +1207,9 @@ export default async function getBaseWebpackConfig(
     const externalType = isEsm ? 'module' : 'commonjs'
 
     if (
-      /next[/\\]dist[/\\]shared[/\\](?!lib[/\\]router[/\\]router)/.test(res) ||
+      /next[/\\]dist[/\\](esm[\\/])?shared[/\\](?!lib[/\\]router[/\\]router)/.test(
+        res
+      ) ||
       /next[/\\]dist[/\\]compiled[/\\].*\.[mc]?js$/.test(res)
     ) {
       return `${externalType} ${request}`
