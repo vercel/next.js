@@ -153,6 +153,7 @@ export type EventBuildFeatureUsage = {
     | `swc/target/${SWC_TARGET_TRIPLE}`
     | 'turbotrace'
     | 'build-lint'
+    | 'vercelImageGeneration'
   invocationCount: number
 }
 export function eventBuildFeatureUsage(
