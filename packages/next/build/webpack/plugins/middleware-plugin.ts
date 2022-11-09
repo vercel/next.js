@@ -687,6 +687,24 @@ function getExtractMetadata(params: {
         const buildInfo = getModuleBuildInfo(module)
 
         /**
+         * Check if it uses the image generation feature.
+         */
+        if (!dev) {
+          const resource = module.resource
+          if (
+            resource &&
+            /[\\/]node_modules[\\/]@vercel[\\/]og[\\/]dist[\\/]index.js$/.test(
+              resource
+            )
+          ) {
+            telemetry.record({
+              eventName: 'NEXT_EDGE_IMAGE_GENERATION_USED',
+              payload: {},
+            })
+          }
+        }
+
+        /**
          * When building for production checks if the module is using `eval`
          * and in such case produces a compilation error. The module has to
          * be in use.
