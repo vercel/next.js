@@ -22,9 +22,15 @@ describe('should set-up next', () => {
   let stderr = ''
   let requiredFilesManifest
 
-  beforeAll(async () => {
+  const setupNext = async ({
+    nextEnv,
+    minimalMode,
+  }: {
+    nextEnv?: boolean
+    minimalMode?: boolean
+  }) => {
     // test build against environment with next support
-    process.env.NOW_BUILDER = '1'
+    process.env.NOW_BUILDER = nextEnv ? '1' : ''
 
     next = await createNext({
       files: {
@@ -103,7 +109,7 @@ describe('should set-up next', () => {
       testServer,
       (await fs.readFile(testServer, 'utf8'))
         .replace('console.error(err)', `console.error('top-level', err)`)
-        .replace('conf:', 'minimalMode: true,conf:')
+        .replace('conf:', `minimalMode: ${minimalMode},conf:`)
     )
     appPort = await findPort()
     server = await initNextServerScript(
@@ -124,6 +130,10 @@ describe('should set-up next', () => {
         },
       }
     )
+  }
+
+  beforeAll(async () => {
+    await setupNext({ nextEnv: true, minimalMode: true })
   })
   afterAll(async () => {
     await next.destroy()
@@ -1243,7 +1253,10 @@ describe('should set-up next', () => {
   })
 
   it('should run middleware correctly without minimalMode', async () => {
+    await next.destroy()
     await killApp(server)
+    await setupNext({ nextEnv: false, minimalMode: false })
+
     const testServer = join(next.testDir, 'standalone/server.js')
     await fs.writeFile(
       testServer,
