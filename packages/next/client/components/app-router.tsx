@@ -20,6 +20,7 @@ import {
   ACTION_REFRESH,
   ACTION_RESTORE,
   ACTION_SERVER_PATCH,
+  createHrefFromUrl,
   reducer,
 } from './reducer'
 import {
@@ -132,10 +133,11 @@ function Router({
       pushRef: { pendingPush: false, mpaNavigation: false },
       focusAndScrollRef: { apply: false },
       canonicalUrl:
-        initialCanonicalUrl +
-        // Hash is read as the initial value for canonicalUrl in the browser
-        // This is safe to do as canonicalUrl can't be rendered, it's only used to control the history updates the useEffect further down.
-        (typeof window !== 'undefined' ? window.location.hash : ''),
+        // location.href is read as the initial value for canonicalUrl in the browser
+        // This is safe to do as canonicalUrl can't be rendered, it's only used to control the history updates in the useEffect further down in this file.
+        typeof window !== 'undefined'
+          ? createHrefFromUrl(new URL(window.location.href))
+          : initialCanonicalUrl,
     }
   }, [children, initialCanonicalUrl, initialTree])
   const [
