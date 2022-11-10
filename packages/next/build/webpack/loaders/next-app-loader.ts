@@ -8,7 +8,7 @@ import { verifyRootLayout } from '../../../lib/verifyRootLayout'
 import * as Log from '../../../build/output/log'
 import { APP_DIR_ALIAS } from '../../../lib/constants'
 
-export const FILE_TYPES = {
+const FILE_TYPES = {
   layout: 'layout',
   template: 'template',
   error: 'error',
