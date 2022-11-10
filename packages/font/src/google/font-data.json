@@ -1575,6 +1575,12 @@
     "styles": ["normal"],
     "axes": [
       {
+        "tag": "slnt",
+        "min": -11,
+        "max": 11,
+        "defaultValue": 0
+      },
+      {
         "tag": "wght",
         "min": 200,
         "max": 1000,
@@ -2760,6 +2766,10 @@
     "weights": ["400"],
     "styles": ["normal"]
   },
+  "Fragment Mono": {
+    "weights": ["400"],
+    "styles": ["normal", "italic"]
+  },
   "Francois One": {
     "weights": ["400"],
     "styles": ["normal"]
@@ -3446,6 +3456,10 @@
     "styles": ["normal"]
   },
   "IBM Plex Sans Hebrew": {
+    "weights": ["100", "200", "300", "400", "500", "600", "700"],
+    "styles": ["normal"]
+  },
+  "IBM Plex Sans JP": {
     "weights": ["100", "200", "300", "400", "500", "600", "700"],
     "styles": ["normal"]
   },
@@ -4780,6 +4794,18 @@
     "weights": ["400"],
     "styles": ["normal"]
   },
+  "Marhey": {
+    "weights": ["300", "400", "500", "600", "700", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 300,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
   "Markazi Text": {
     "weights": ["400", "500", "600", "700", "variable"],
     "styles": ["normal"],
@@ -4869,8 +4895,16 @@
     "styles": ["normal"]
   },
   "Merienda": {
-    "weights": ["400", "700"],
-    "styles": ["normal"]
+    "weights": ["300", "400", "500", "600", "700", "800", "900", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 300,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
   },
   "Merienda One": {
     "weights": ["400"],
@@ -5547,8 +5581,16 @@
     ]
   },
   "Noto Sans Bassa Vah": {
-    "weights": ["400"],
-    "styles": ["normal"]
+    "weights": ["400", "500", "600", "700", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
   },
   "Noto Sans Batak": {
     "weights": ["400"],
@@ -6106,6 +6148,35 @@
       }
     ]
   },
+  "Noto Sans Lao Looped": {
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 62.5,
+        "max": 100,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
   "Noto Sans Lepcha": {
     "weights": ["400"],
     "styles": ["normal"]
@@ -6234,6 +6305,10 @@
       }
     ]
   },
+  "Noto Sans Mende Kikakui": {
+    "weights": ["400"],
+    "styles": ["normal"]
+  },
   "Noto Sans Meroitic": {
     "weights": ["400"],
     "styles": ["normal"]
@@ -6300,8 +6375,16 @@
     "styles": ["normal"]
   },
   "Noto Sans New Tai Lue": {
-    "weights": ["400"],
-    "styles": ["normal"]
+    "weights": ["400", "500", "600", "700", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
   },
   "Noto Sans Newa": {
     "weights": ["400"],
@@ -7142,6 +7225,18 @@
     "styles": ["normal"]
   },
   "Noto Serif Nyiakeng Puachue Hmong": {
+    "weights": ["400", "500", "600", "700", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Serif Oriya": {
     "weights": ["400", "500", "600", "700", "variable"],
     "styles": ["normal"],
     "axes": [
@@ -8996,6 +9091,24 @@
     "weights": ["400"],
     "styles": ["normal"]
   },
+  "Sono": {
+    "weights": ["200", "300", "400", "500", "600", "700", "800", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "MONO",
+        "min": 0,
+        "max": 1,
+        "defaultValue": 1
+      },
+      {
+        "tag": "wght",
+        "min": 200,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ]
+  },
   "Sonsie One": {
     "weights": ["400"],
     "styles": ["normal"]
@@ -9985,7 +10098,7 @@
     "styles": ["normal"]
   },
   "Zen Old Mincho": {
-    "weights": ["400", "700", "900"],
+    "weights": ["400", "500", "600", "700", "900"],
     "styles": ["normal"]
   },
   "Zen Tokyo Zoo": {
