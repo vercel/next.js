@@ -2234,6 +2234,7 @@ export default async function getBaseWebpackConfig(
   }
 
   const configVars = JSON.stringify({
+    appDir: config.experimental.appDir,
     crossOrigin: config.crossOrigin,
     pageExtensions: pageExtensions,
     trailingSlash: config.trailingSlash,
