@@ -8,7 +8,7 @@
 
 import {
   createNextApp,
-  projectFilesShouldNotExist,
+  projectFilesShouldExist,
   shouldBeJavascriptProject,
   shouldBeTemplateProject,
   shouldBeTypescriptProject,
@@ -33,21 +33,24 @@ describe('create-next-app templates', () => {
       /**
        * Bind the exit listener.
        */
-      childProcess.on('exit', (exitCode) => {
-        expect(exitCode).toBe(0)
-        /**
-         * Verify it correctly emitted a TS project by looking for tsconfig.
-         */
-        projectFilesShouldNotExist({
-          cwd,
-          projectName,
-          files: ['tsconfig.json'],
+      await new Promise<void>((resolve) => {
+        childProcess.on('exit', (exitCode) => {
+          expect(exitCode).toBe(0)
+          /**
+           * Verify it correctly emitted a TS project by looking for tsconfig.
+           */
+          projectFilesShouldExist({
+            cwd,
+            projectName,
+            files: ['tsconfig.json'],
+          })
+          resolve()
         })
+        /**
+         * Simulate "Y" for TypeScript.
+         */
+        childProcess.stdin.write('N\n')
       })
-      /**
-       * Simulate "Y" for TypeScript.
-       */
-      childProcess.stdin.write('N\n')
     })
   })
 
@@ -56,6 +59,24 @@ describe('create-next-app templates', () => {
       const projectName = 'typescript-test'
       const childProcess = createNextApp([projectName, '--ts', '--eslint'], {
         cwd,
+      })
+      const exitCode = await spawnExitPromise(childProcess)
+
+      expect(exitCode).toBe(0)
+      shouldBeTypescriptProject({ cwd, projectName, template: 'default' })
+    })
+  })
+
+  it('should create TS projects with --ts, --typescript with CI=1', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'typescript-test'
+      const childProcess = createNextApp([projectName, '--ts', '--eslint'], {
+        cwd,
+        env: {
+          ...process.env,
+          CI: '1',
+          GITHUB_ACTIONS: '1',
+        },
       })
       const exitCode = await spawnExitPromise(childProcess)
 

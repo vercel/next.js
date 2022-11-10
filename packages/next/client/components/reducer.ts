@@ -1,4 +1,4 @@
-import type { CacheNode } from '../../shared/lib/app-router-context'
+import { CacheNode, CacheStates } from '../../shared/lib/app-router-context'
 import type {
   FlightRouterState,
   FlightData,
@@ -55,7 +55,7 @@ function invalidateCacheByRouterState(
   newCache: CacheNode,
   existingCache: CacheNode,
   routerState: FlightRouterState
-) {
+): void {
   // Remove segment that we got data for so that it is filled in during rendering of subTreeData.
   for (const key in routerState[1]) {
     const segmentForParallelRoute = routerState[1][key][0]
@@ -69,6 +69,65 @@ function invalidateCacheByRouterState(
       parallelRouteCacheNode.delete(cacheKey)
       newCache.parallelRoutes.set(key, parallelRouteCacheNode)
     }
+  }
+}
+
+function fillLazyItemsTillLeafWithHead(
+  newCache: CacheNode,
+  existingCache: CacheNode | undefined,
+  routerState: FlightRouterState,
+  head: React.ReactNode
+): void {
+  const isLastSegment = Object.keys(routerState[1]).length === 0
+  if (isLastSegment) {
+    newCache.head = head
+    return
+  }
+  // Remove segment that we got data for so that it is filled in during rendering of subTreeData.
+  for (const key in routerState[1]) {
+    const parallelRouteState = routerState[1][key]
+    const segmentForParallelRoute = parallelRouteState[0]
+    const cacheKey = Array.isArray(segmentForParallelRoute)
+      ? segmentForParallelRoute[1]
+      : segmentForParallelRoute
+    if (existingCache) {
+      const existingParallelRoutesCacheNode =
+        existingCache.parallelRoutes.get(key)
+      if (existingParallelRoutesCacheNode) {
+        let parallelRouteCacheNode = new Map(existingParallelRoutesCacheNode)
+        parallelRouteCacheNode.delete(cacheKey)
+        const newCacheNode: CacheNode = {
+          status: CacheStates.LAZYINITIALIZED,
+          data: null,
+          subTreeData: null,
+          parallelRoutes: new Map(),
+        }
+        parallelRouteCacheNode.set(cacheKey, newCacheNode)
+        fillLazyItemsTillLeafWithHead(
+          newCacheNode,
+          undefined,
+          parallelRouteState,
+          head
+        )
+
+        newCache.parallelRoutes.set(key, parallelRouteCacheNode)
+        continue
+      }
+    }
+
+    const newCacheNode: CacheNode = {
+      status: CacheStates.LAZYINITIALIZED,
+      data: null,
+      subTreeData: null,
+      parallelRoutes: new Map(),
+    }
+    newCache.parallelRoutes.set(key, new Map([[cacheKey, newCacheNode]]))
+    fillLazyItemsTillLeafWithHead(
+      newCacheNode,
+      undefined,
+      parallelRouteState,
+      head
+    )
   }
 }
 
@@ -111,6 +170,7 @@ function fillCacheWithNewSubTreeData(
       childCacheNode === existingChildCacheNode
     ) {
       childCacheNode = {
+        status: CacheStates.READY,
         data: null,
         subTreeData: flightDataPath[3],
         // Ensure segments other than the one we got data for are preserved.
@@ -127,6 +187,13 @@ function fillCacheWithNewSubTreeData(
         )
       }
 
+      fillLazyItemsTillLeafWithHead(
+        childCacheNode,
+        existingChildCacheNode,
+        flightDataPath[2],
+        /* flightDataPath[4] */ undefined
+      )
+
       childSegmentMap.set(segmentForCache, childCacheNode)
     }
     return
@@ -140,10 +207,11 @@ function fillCacheWithNewSubTreeData(
 
   if (childCacheNode === existingChildCacheNode) {
     childCacheNode = {
+      status: childCacheNode.status,
       data: childCacheNode.data,
       subTreeData: childCacheNode.subTreeData,
       parallelRoutes: new Map(childCacheNode.parallelRoutes),
-    }
+    } as CacheNode
     childSegmentMap.set(segmentForCache, childCacheNode)
   }
 
@@ -199,10 +267,11 @@ function invalidateCacheBelowFlightSegmentPath(
 
   if (childCacheNode === existingChildCacheNode) {
     childCacheNode = {
+      status: childCacheNode.status,
       data: childCacheNode.data,
       subTreeData: childCacheNode.subTreeData,
       parallelRoutes: new Map(childCacheNode.parallelRoutes),
-    }
+    } as CacheNode
     childSegmentMap.set(segmentForCache, childCacheNode)
   }
 
@@ -239,6 +308,7 @@ function fillCacheWithPrefetchedSubTreeData(
   if (isLastEntry) {
     if (!existingChildCacheNode) {
       existingChildSegmentMap.set(segmentForCache, {
+        status: CacheStates.READY,
         data: null,
         subTreeData: flightDataPath[3],
         parallelRoutes: new Map(),
@@ -300,6 +370,7 @@ function fillCacheWithDataProperty(
       childCacheNode === existingChildCacheNode
     ) {
       childSegmentMap.set(segment, {
+        status: CacheStates.DATAFETCH,
         data: fetchResponse(),
         subTreeData: null,
         parallelRoutes: new Map(),
@@ -312,6 +383,7 @@ function fillCacheWithDataProperty(
     // Start fetch in the place where the existing cache doesn't have the data yet.
     if (!childCacheNode) {
       childSegmentMap.set(segment, {
+        status: CacheStates.DATAFETCH,
         data: fetchResponse(),
         subTreeData: null,
         parallelRoutes: new Map(),
@@ -322,10 +394,11 @@ function fillCacheWithDataProperty(
 
   if (childCacheNode === existingChildCacheNode) {
     childCacheNode = {
+      status: childCacheNode.status,
       data: childCacheNode.data,
       subTreeData: childCacheNode.subTreeData,
       parallelRoutes: new Map(childCacheNode.parallelRoutes),
-    }
+    } as CacheNode
     childSegmentMap.set(segment, childCacheNode)
   }
 
@@ -1112,6 +1185,8 @@ function clientReducer(
         tree: tree,
       }
     }
+    // TODO-APP: Add test for not scrolling to nearest layout when calling refresh.
+    // TODO-APP: Add test for startTransition(() => {router.push('/'); router.refresh();}), that case should scroll.
     case ACTION_REFRESH: {
       const { cache, mutable } = action
       const href = state.canonicalUrl
@@ -1151,7 +1226,7 @@ function clientReducer(
           pushRef: state.pushRef,
           // Apply focus and scroll.
           // TODO-APP: might need to disable this for Fast Refresh.
-          focusAndScrollRef: { apply: true },
+          focusAndScrollRef: { apply: false },
           cache: cache,
           prefetchCache: state.prefetchCache,
           tree: mutable.patchedTree,

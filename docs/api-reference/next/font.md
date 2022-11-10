@@ -91,7 +91,7 @@ A string value to define the CSS variable name to be used if the style is applie
 
 ### Font function arguments
 
-For usage, review [Local Fonts](/docs/optimizing/fonts#local-fonts).
+For usage, review [Local Fonts](/docs/basic-features/font-optimization.md#local-fonts).
 
 | Key                                         | Example                                                     | Data type                              | Required |
 | ------------------------------------------- | ----------------------------------------------------------- | -------------------------------------- | -------- |
@@ -295,7 +295,7 @@ import { greatVibes, sourceCodePro400 } from '@/fonts';
 
 <div class="card">
   <a href="/docs/basic-features/font-optimization.md">
-    <b>Font Optmization</b>
+    <b>Font Optimization</b>
     <small>Learn how to optimize fonts with the Font module.</small>
   </a>
 </div>

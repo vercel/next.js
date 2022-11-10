@@ -183,6 +183,8 @@ export default async function exportApp(
           hasNowJson: !!(await findUp('now.json', { cwd: dir })),
           isCustomServer: null,
           turboFlag: false,
+          pagesDir: null,
+          appDir: null,
         })
       )
     }
@@ -410,7 +412,7 @@ export default async function exportApp(
     }
 
     // We need this for server rendering the Link component.
-    ;(global as any).__NEXT_DATA__ = {
+    ;(globalThis as any).__NEXT_DATA__ = {
       nextExport: true,
     }
 

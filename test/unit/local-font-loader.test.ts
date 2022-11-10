@@ -9,15 +9,19 @@ describe('@next/font/local', () => {
         config: {},
         emitFontFile: () => '/_next/static/media/my-font.woff2',
         resolve: jest.fn(),
+        isDev: false,
         isServer: true,
-        fs: {
-          readFile: (_, cb) => cb(null, 'fontdata'),
-        },
+        variableName: 'myFont',
+        loaderContext: {
+          fs: {
+            readFile: (_, cb) => cb(null, 'fontdata'),
+          },
+        } as any,
       })
 
       expect(css).toMatchInlineSnapshot(`
         "@font-face {
-        font-family: 'my-font';
+        font-family: myFont;
         src: url(/_next/static/media/my-font.woff2) format('woff2');
         font-display: optional;
         }
@@ -32,15 +36,19 @@ describe('@next/font/local', () => {
         config: {},
         emitFontFile: () => '/_next/static/media/my-font.woff2',
         resolve: jest.fn(),
+        isDev: false,
         isServer: true,
-        fs: {
-          readFile: (_, cb) => cb(null, 'fontdata'),
-        },
+        variableName: 'myFont',
+        loaderContext: {
+          fs: {
+            readFile: (_, cb) => cb(null, 'fontdata'),
+          },
+        } as any,
       })
 
       expect(css).toMatchInlineSnapshot(`
         "@font-face {
-        font-family: 'my-font';
+        font-family: myFont;
         src: url(/_next/static/media/my-font.woff2) format('woff2');
         font-display: optional;
         font-weight: 100 900;
@@ -65,17 +73,21 @@ describe('@next/font/local', () => {
         config: {},
         emitFontFile: () => '/_next/static/media/my-font.woff2',
         resolve: jest.fn(),
+        isDev: false,
         isServer: true,
-        fs: {
-          readFile: (_, cb) => cb(null, 'fontdata'),
-        },
+        variableName: 'myFont',
+        loaderContext: {
+          fs: {
+            readFile: (_, cb) => cb(null, 'fontdata'),
+          },
+        } as any,
       })
 
       expect(css).toMatchInlineSnapshot(`
         "@font-face {
         font-feature-settings: \\"smcp\\" on;
         ascent-override: 90%;
-        font-family: 'my-font';
+        font-family: myFont;
         src: url(/_next/static/media/my-font.woff2) format('woff2');
         font-display: optional;
         }
@@ -114,15 +126,19 @@ describe('@next/font/local', () => {
         config: {},
         emitFontFile: (buffer) => `/_next/static/media/my-font.woff2`,
         resolve: jest.fn(),
+        isDev: false,
         isServer: true,
-        fs: {
-          readFile: (path, cb) => cb(null, path),
-        },
+        variableName: 'myFont',
+        loaderContext: {
+          fs: {
+            readFile: (path, cb) => cb(null, path),
+          },
+        } as any,
       })
 
       expect(css).toMatchInlineSnapshot(`
         "@font-face {
-        font-family: 'font1';
+        font-family: myFont;
         src: url(/_next/static/media/my-font.woff2) format('woff2');
         font-display: optional;
         font-weight: 100;
@@ -130,7 +146,7 @@ describe('@next/font/local', () => {
         }
 
         @font-face {
-        font-family: 'font1';
+        font-family: myFont;
         src: url(/_next/static/media/my-font.woff2) format('woff2');
         font-display: optional;
         font-weight: 400;
@@ -138,7 +154,7 @@ describe('@next/font/local', () => {
         }
 
         @font-face {
-        font-family: 'font1';
+        font-family: myFont;
         src: url(/_next/static/media/my-font.woff2) format('woff2');
         font-display: optional;
         font-weight: 700;
@@ -146,7 +162,7 @@ describe('@next/font/local', () => {
         }
 
         @font-face {
-        font-family: 'font1';
+        font-family: myFont;
         src: url(/_next/static/media/my-font.woff2) format('woff2');
         font-display: optional;
         font-weight: 400;
@@ -182,15 +198,19 @@ describe('@next/font/local', () => {
         config: {},
         emitFontFile: (buffer) => `/_next/static/media/my-font.woff2`,
         resolve: jest.fn(),
+        isDev: false,
         isServer: true,
-        fs: {
-          readFile: (path, cb) => cb(null, path),
-        },
+        variableName: 'myFont',
+        loaderContext: {
+          fs: {
+            readFile: (path, cb) => cb(null, path),
+          },
+        } as any,
       })
 
       expect(css).toMatchInlineSnapshot(`
         "@font-face {
-        font-family: 'font1';
+        font-family: myFont;
         src: url(/_next/static/media/my-font.woff2) format('woff2');
         font-display: optional;
         font-weight: 400;
@@ -198,7 +218,7 @@ describe('@next/font/local', () => {
         }
 
         @font-face {
-        font-family: 'font1';
+        font-family: myFont;
         src: url(/_next/static/media/my-font.woff2) format('woff2');
         font-display: optional;
         font-weight: 400;
@@ -206,7 +226,7 @@ describe('@next/font/local', () => {
         }
 
         @font-face {
-        font-family: 'font1';
+        font-family: myFont;
         src: url(/_next/static/media/my-font.woff2) format('woff2');
         font-display: optional;
         font-weight: 700;
@@ -225,8 +245,10 @@ describe('@next/font/local', () => {
           config: {},
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
+          isDev: false,
           isServer: true,
-          fs: {},
+          variableName: 'myFont',
+          loaderContext: {} as any,
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(
         `"@next/font/local has no named exports"`
@@ -241,8 +263,10 @@ describe('@next/font/local', () => {
           config: {},
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
+          isDev: false,
           isServer: true,
-          fs: {},
+          variableName: 'myFont',
+          loaderContext: {} as any,
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(
         `"Missing required \`src\` property"`
@@ -257,8 +281,10 @@ describe('@next/font/local', () => {
           config: {},
           emitFontFile: jest.fn(),
           resolve: jest.fn().mockResolvedValue(''),
+          isDev: false,
           isServer: true,
-          fs: {},
+          variableName: 'myFont',
+          loaderContext: {} as any,
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(
         `"Unexpected file \`./font/font-file.abc\`"`
@@ -273,8 +299,10 @@ describe('@next/font/local', () => {
           config: {},
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
+          isDev: false,
           isServer: true,
-          fs: {},
+          variableName: 'myFont',
+          loaderContext: {} as any,
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(`
               "Invalid display value \`invalid\`.
@@ -296,8 +324,10 @@ describe('@next/font/local', () => {
           config: {},
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
+          isDev: false,
           isServer: true,
-          fs: {},
+          variableName: 'myFont',
+          loaderContext: {} as any,
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(
         `"Invalid declaration prop: \`src\`"`
@@ -312,8 +342,10 @@ describe('@next/font/local', () => {
           config: {},
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
+          isDev: false,
           isServer: true,
-          fs: {},
+          variableName: 'myFont',
+          loaderContext: {} as any,
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(
         `"Unexpected empty \`src\` array."`
@@ -338,9 +370,13 @@ describe('@next/font/local', () => {
           config: {},
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
+          isDev: false,
           isServer: true,
-          fs: { readFile: (path, cb) => cb(null, path) },
-        })
+          variableName: 'myFont',
+          loaderContext: {
+            fs: { readFile: (path, cb) => cb(null, path) },
+          } as any,
+        } as any)
       ).rejects.toThrowErrorMatchingInlineSnapshot(`
               "Invalid weight value in src array: \`abc\`.
               Expected \`normal\`, \`bold\` or a number."
@@ -365,8 +401,12 @@ describe('@next/font/local', () => {
           config: {},
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
+          isDev: false,
           isServer: true,
-          fs: { readFile: (path, cb) => cb(null, path) },
+          variableName: 'myFont',
+          loaderContext: {
+            fs: { readFile: (path, cb) => cb(null, path) },
+          } as any,
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(`
               "Invalid weight value in src array: \`100 abc\`.

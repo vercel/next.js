@@ -53,13 +53,13 @@ function getDistanceFromNormalWeight(weight?: string) {
 
 const fetchFonts: FontLoader = async ({
   functionName,
+  variableName,
   data,
   emitFontFile,
   resolve,
-  fs,
+  loaderContext,
 }) => {
   const {
-    family,
     src,
     display,
     fallback,
@@ -74,7 +74,7 @@ const fetchFonts: FontLoader = async ({
   const fontFiles = await Promise.all(
     src.map(async ({ path, style, weight, ext, format }) => {
       const resolved = await resolve(path)
-      const fileBuffer = await promisify(fs.readFile)(resolved)
+      const fileBuffer = await promisify(loaderContext.fs.readFile)(resolved)
       const fontUrl = emitFontFile(fileBuffer, ext, preload)
 
       let fontMetadata: any
@@ -88,7 +88,7 @@ const fetchFonts: FontLoader = async ({
         ...(declarations
           ? declarations.map(({ prop, value }) => [prop, value])
           : []),
-        ['font-family', `'${fontMetadata?.familyName ?? family}'`],
+        ['font-family', variableName],
         ['src', `url(${fontUrl}) format('${format}')`],
         ['font-display', display],
         ...(weight ?? defaultWeight

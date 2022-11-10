@@ -25,6 +25,7 @@ export interface MiddlewareMatcher {
   regexp: string
   locale?: false
   has?: RouteHas[]
+  missing?: RouteHas[]
 }
 
 export interface PageStaticInfo {

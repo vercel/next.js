@@ -76,7 +76,6 @@ export function useSearchParams() {
     throw new Error('invariant expected search params to be mounted')
   }
 
-  // eslint-disable-next-line react-hooks/rules-of-hooks
   const readonlySearchParams = useMemo(() => {
     return new ReadonlyURLSearchParams(searchParams)
   }, [searchParams])
@@ -87,14 +86,8 @@ export function useSearchParams() {
 /**
  * Get the current pathname. For example usePathname() on /dashboard?foo=bar would return "/dashboard"
  */
-export function usePathname(): string {
-  staticGenerationBailout('usePathname')
-  const pathname = useContext(PathnameContext)
-  if (pathname === null) {
-    throw new Error('invariant expected pathname to be mounted')
-  }
-
-  return pathname
+export function usePathname(): string | null {
+  return useContext(PathnameContext)
 }
 
 // TODO-APP: getting all params when client-side navigating is non-trivial as it does not have route matchers so this might have to be a server context instead.
@@ -174,10 +167,10 @@ export function useSelectedLayoutSegments(
  */
 export function useSelectedLayoutSegment(
   parallelRouteKey: string = 'children'
-): string {
+): string | null {
   const selectedLayoutSegments = useSelectedLayoutSegments(parallelRouteKey)
   if (selectedLayoutSegments.length === 0) {
-    throw new Error('No selected layout segment below the current level')
+    return null
   }
 
   return selectedLayoutSegments[0]

@@ -4,11 +4,8 @@ import { NextInstance } from 'test/lib/next-modes/base'
 import {
   check,
   fetchViaHTTP,
-  findPort,
   getRedboxHeader,
   hasRedbox,
-  initNextServerScript,
-  killApp,
   renderViaHTTP,
   waitFor,
 } from 'next-test-utils'
@@ -19,13 +16,9 @@ import webdriver from 'next-webdriver'
 describe('app dir', () => {
   const isDev = (global as any).isNextDev
   let next: NextInstance
-  let apiServerPort: number
-  let apiInstance: any
 
   function runTests() {
     beforeAll(async () => {
-      apiServerPort = await findPort()
-
       next = await createNext({
         files: new FileRef(path.join(__dirname, 'app')),
         dependencies: {
@@ -34,25 +27,10 @@ describe('app dir', () => {
           'react-dom': 'latest',
           sass: 'latest',
         },
-        env: {
-          API_SERVER_PORT: apiServerPort.toString(),
-        },
-        skipStart: true,
       })
-
-      apiInstance = await initNextServerScript(
-        path.join(__dirname, 'app', 'api-server.js'),
-        /Listening on/,
-        { ...process.env, PORT: apiServerPort },
-        undefined,
-        { cwd: next.testDir }
-      )
-
-      await next.start()
     })
-    afterAll(() => {
-      next.destroy()
-      killApp(apiInstance)
+    afterAll(async () => {
+      await next.destroy()
     })
 
     if (!(global as any).isNextDeploy) {
@@ -106,7 +84,7 @@ describe('app dir', () => {
         {},
         {
           headers: {
-            __rsc__: '1',
+            ['RSC'.toString()]: '1',
           },
         }
       )
@@ -120,7 +98,7 @@ describe('app dir', () => {
         {},
         {
           headers: {
-            __rsc__: '1',
+            ['RSC'.toString()]: '1',
           },
         }
       )
@@ -291,6 +269,14 @@ describe('app dir', () => {
         'hello from app/dashboard/deployments/[id]. ID is: 123'
       )
     })
+
+    // TODO-APP: fix to ensure behavior matches on deploy
+    if (!(global as any).isNextDeploy) {
+      it('should serve page as a segment name correctly', async () => {
+        const html = await renderViaHTTP(next.url, '/dashboard/page')
+        expect(html).toContain('hello dashboard/page!')
+      })
+    }
 
     it('should include document html and body', async () => {
       const html = await renderViaHTTP(next.url, '/dashboard')
@@ -1268,7 +1254,7 @@ describe('app dir', () => {
           }
         })
 
-        describe('useSelectedLayoutSegment', () => {
+        describe('useSelectedLayoutSegments', () => {
           it.each`
             path                                                           | outerLayout                                             | innerLayout
             ${'/hooks/use-selected-layout-segment/first'}                  | ${['first']}                                            | ${[]}
@@ -1296,6 +1282,38 @@ describe('app dir', () => {
             const $ = cheerio.load(html)
 
             expect(JSON.parse($('#page-layout-segments').text())).toEqual([])
+          })
+        })
+
+        describe('useSelectedLayoutSegment', () => {
+          it.each`
+            path                                                           | outerLayout | innerLayout
+            ${'/hooks/use-selected-layout-segment/first'}                  | ${'first'}  | ${null}
+            ${'/hooks/use-selected-layout-segment/first/slug1'}            | ${'first'}  | ${'slug1'}
+            ${'/hooks/use-selected-layout-segment/first/slug2/second/a/b'} | ${'first'}  | ${'slug2'}
+          `(
+            'should have the correct layout segment at $path',
+            async ({ path, outerLayout, innerLayout }) => {
+              const html = await renderViaHTTP(next.url, path)
+              const $ = cheerio.load(html)
+
+              expect(JSON.parse($('#outer-layout-segment').text())).toEqual(
+                outerLayout
+              )
+              expect(JSON.parse($('#inner-layout-segment').text())).toEqual(
+                innerLayout
+              )
+            }
+          )
+
+          it('should return null in pages', async () => {
+            const html = await renderViaHTTP(
+              next.url,
+              '/hooks/use-selected-layout-segment/first/slug2/second/a/b'
+            )
+            const $ = cheerio.load(html)
+
+            expect(JSON.parse($('#page-layout-segment').text())).toEqual(null)
           })
         })
       })
@@ -1469,6 +1487,16 @@ describe('app dir', () => {
       })
 
       describe('client components', () => {
+        it('should support css modules inside client page', async () => {
+          const browser = await webdriver(next.url, '/css/css-client')
+
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('#css-modules')).fontSize`
+            )
+          ).toBe('100px')
+        })
+
         it('should support css modules inside client components', async () => {
           const browser = await webdriver(next.url, '/css/css-client/inner')
 
@@ -1477,6 +1505,72 @@ describe('app dir', () => {
               `window.getComputedStyle(document.querySelector('#client-component')).fontSize`
             )
           ).toBe('100px')
+        })
+      })
+
+      describe('special entries', () => {
+        it('should include css imported in loading.js', async () => {
+          const html = await renderViaHTTP(next.url, '/loading-bug/hi')
+          // The link tag should be included together with loading
+          expect(html).toMatch(
+            /<link rel="stylesheet" href="(.+)\.css(\?ts=\d+)?"\/><h2>Loading...<\/h2>/
+          )
+        })
+
+        it('should include css imported in client template.js', async () => {
+          const browser = await webdriver(next.url, '/template/clientcomponent')
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('button')).fontSize`
+            )
+          ).toBe('100px')
+        })
+
+        it('should include css imported in server template.js', async () => {
+          const browser = await webdriver(next.url, '/template/servercomponent')
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('h1')).color`
+            )
+          ).toBe('rgb(255, 0, 0)')
+        })
+
+        it('should include css imported in client not-found.js', async () => {
+          const browser = await webdriver(
+            next.url,
+            '/not-found/clientcomponent'
+          )
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('h1')).color`
+            )
+          ).toBe('rgb(255, 0, 0)')
+        })
+
+        it('should include css imported in server not-found.js', async () => {
+          const browser = await webdriver(
+            next.url,
+            '/not-found/servercomponent'
+          )
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('h1')).color`
+            )
+          ).toBe('rgb(255, 0, 0)')
+        })
+
+        it('should include css imported in error.js', async () => {
+          const browser = await webdriver(next.url, '/error/client-component')
+          await browser.elementByCss('button').click()
+
+          // Wait for error page to render and CSS to be loaded
+          await new Promise((resolve) => setTimeout(resolve, 2000))
+
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('button')).fontSize`
+            )
+          ).toBe('50px')
         })
       })
     })
@@ -2260,21 +2354,13 @@ describe('app dir', () => {
     })
 
     describe('data fetch with response over 16KB with chunked encoding', () => {
-      // TODO-APP: increase timeouts for testing against deploy?
-      if (!(global as any).isNextDeploy) {
-        it('should load page when fetching a large amount of data', async () => {
-          const browser = await webdriver(next.url, '/very-large-data-fetch')
-          expect(
-            await (await browser.waitForElementByCss('#done', 5000)).text()
-          ).toBe('Hello world')
-          expect(
-            await (await browser.waitForElementByCss('#index', 2000)).text()
-          ).toBe('0')
-          expect(
-            await (await browser.waitForElementByCss('#random', 2000)).text()
-          ).toBe('5')
-        })
-      }
+      it('should load page when fetching a large amount of data', async () => {
+        const browser = await webdriver(next.url, '/very-large-data-fetch')
+        expect(await (await browser.waitForElementByCss('#done')).text()).toBe(
+          'Hello world'
+        )
+        expect(await browser.elementByCss('p').text()).toBe('item count 128000')
+      })
     })
   }
 

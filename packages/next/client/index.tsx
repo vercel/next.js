@@ -39,13 +39,10 @@ import { hasBasePath } from './has-base-path'
 import { AppRouterContext } from '../shared/lib/app-router-context'
 import {
   adaptForAppRouterInstance,
-  adaptForPathname,
   adaptForSearchParams,
+  PathnameContextProviderAdapter,
 } from '../shared/lib/router/adapters'
-import {
-  PathnameContext,
-  SearchParamsContext,
-} from '../shared/lib/hooks-client-context'
+import { SearchParamsContext } from '../shared/lib/hooks-client-context'
 
 /// <reference types="react-dom/experimental" />
 
@@ -316,7 +313,10 @@ function AppContainer({
     >
       <AppRouterContext.Provider value={adaptForAppRouterInstance(router)}>
         <SearchParamsContext.Provider value={adaptForSearchParams(router)}>
-          <PathnameContext.Provider value={adaptForPathname(asPath)}>
+          <PathnameContextProviderAdapter
+            router={router}
+            isAutoExport={self.__NEXT_DATA__.autoExport ?? false}
+          >
             <RouterContext.Provider value={makePublicRouterInstance(router)}>
               <HeadManagerContext.Provider value={headManager}>
                 <ImageConfigContext.Provider
@@ -328,7 +328,7 @@ function AppContainer({
                 </ImageConfigContext.Provider>
               </HeadManagerContext.Provider>
             </RouterContext.Provider>
-          </PathnameContext.Provider>
+          </PathnameContextProviderAdapter>
         </SearchParamsContext.Provider>
       </AppRouterContext.Provider>
     </Container>

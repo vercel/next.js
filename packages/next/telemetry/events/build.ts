@@ -136,6 +136,8 @@ export type EventBuildFeatureUsage = {
     | 'next/future/image'
     | 'next/script'
     | 'next/dynamic'
+    | '@next/font/google'
+    | '@next/font/local'
     | 'experimental/optimizeCss'
     | 'experimental/nextScriptWorkers'
     | 'optimizeFonts'
@@ -149,6 +151,7 @@ export type EventBuildFeatureUsage = {
     | 'swcImportSource'
     | 'swcEmotion'
     | `swc/target/${SWC_TARGET_TRIPLE}`
+    | 'turbotrace'
     | 'build-lint'
   invocationCount: number
 }

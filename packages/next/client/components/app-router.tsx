@@ -7,6 +7,7 @@ import {
   AppRouterContext,
   LayoutRouterContext,
   GlobalLayoutRouterContext,
+  CacheStates,
 } from '../../shared/lib/app-router-context'
 import type {
   CacheNode,
@@ -29,6 +30,11 @@ import {
 } from '../../shared/lib/hooks-client-context'
 import { useReducerWithReduxDevtools } from './use-reducer-with-devtools'
 import { ErrorBoundary, GlobalErrorComponent } from './error-boundary'
+import {
+  NEXT_ROUTER_PREFETCH,
+  NEXT_ROUTER_STATE_TREE,
+  RSC,
+} from './app-router-headers'
 
 function urlToUrlWithoutFlightMarker(url: string): URL {
   const urlWithoutFlightParameters = new URL(url, location.origin)
@@ -53,18 +59,18 @@ export async function fetchServerResponse(
   prefetch?: true
 ): Promise<[FlightData: FlightData, canonicalUrlOverride: URL | undefined]> {
   const headers: {
-    __rsc__: '1'
-    __next_router_state_tree__: string
-    __next_router_prefetch__?: '1'
+    [RSC]: '1'
+    [NEXT_ROUTER_STATE_TREE]: string
+    [NEXT_ROUTER_PREFETCH]?: '1'
   } = {
     // Enable flight response
-    __rsc__: '1',
+    [RSC]: '1',
     // Provide the current router state
-    __next_router_state_tree__: JSON.stringify(flightRouterState),
+    [NEXT_ROUTER_STATE_TREE]: JSON.stringify(flightRouterState),
   }
   if (prefetch) {
     // Enable prefetch response
-    headers.__next_router_prefetch__ = '1'
+    headers[NEXT_ROUTER_PREFETCH] = '1'
   }
 
   const res = await fetch(url.toString(), {
@@ -116,11 +122,12 @@ function Router({
     return {
       tree: initialTree,
       cache: {
+        status: CacheStates.READY,
         data: null,
         subTreeData: children,
         parallelRoutes:
           typeof window === 'undefined' ? new Map() : initialParallelRoutes,
-      },
+      } as CacheNode,
       prefetchCache: new Map(),
       pushRef: { pendingPush: false, mpaNavigation: false },
       focusAndScrollRef: { apply: false },
@@ -171,6 +178,7 @@ function Router({
         previousTree,
         overrideCanonicalUrl,
         cache: {
+          status: CacheStates.LAZYINITIALIZED,
           data: null,
           subTreeData: null,
           parallelRoutes: new Map(),
@@ -196,6 +204,7 @@ function Router({
         forceOptimisticNavigation,
         navigateType,
         cache: {
+          status: CacheStates.LAZYINITIALIZED,
           data: null,
           subTreeData: null,
           parallelRoutes: new Map(),
@@ -257,6 +266,7 @@ function Router({
 
             // TODO-APP: revisit if this needs to be passed.
             cache: {
+              status: CacheStates.LAZYINITIALIZED,
               data: null,
               subTreeData: null,
               parallelRoutes: new Map(),

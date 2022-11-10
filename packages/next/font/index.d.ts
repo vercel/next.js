@@ -14,12 +14,14 @@ export type AdjustFontFallback = {
 
 export type FontLoader = (options: {
   functionName: string
+  variableName: string
   data: any[]
   config: any
   emitFontFile: (content: Buffer, ext: string, preload: boolean) => string
   resolve: (src: string) => string
-  fs: any
+  isDev: boolean
   isServer: boolean
+  loaderContext: any
 }) => Promise<{
   css: string
   fallbackFonts?: string[]
