@@ -24,7 +24,6 @@ import {
 } from '../shared/lib/image-config'
 import { loadEnvConfig } from '@next/env'
 import { gte as semverGte } from 'next/dist/compiled/semver'
-import { getDependencies } from '../lib/get-package-version'
 
 export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
 
@@ -67,14 +66,14 @@ export function setHttpClientAndAgentOptions(config: {
     // Node.js 18 has undici built-in.
     if (config.experimental?.enableUndici && !isAboveNodejs18) {
       // When appDir is enabled undici is the default because of Response.clone() issues in node-fetch
-      ;(global as any).__NEXT_USE_UNDICI = config.experimental?.enableUndici
+      ;(globalThis as any).__NEXT_USE_UNDICI = config.experimental?.enableUndici
     }
   } else if (config.experimental?.enableUndici) {
     Log.warn(
       `\`enableUndici\` option requires Node.js v${NODE_16_VERSION} or greater. Falling back to \`node-fetch\``
     )
   }
-  if ((global as any).__NEXT_HTTP_AGENT) {
+  if ((globalThis as any).__NEXT_HTTP_AGENT) {
     // We only need to assign once because we want
     // to reuse the same agent for all requests.
     return
@@ -84,20 +83,26 @@ export function setHttpClientAndAgentOptions(config: {
     throw new Error('Expected config.httpAgentOptions to be an object')
   }
 
-  ;(global as any).__NEXT_HTTP_AGENT_OPTIONS = config.httpAgentOptions
-  ;(global as any).__NEXT_HTTP_AGENT = new HttpAgent(config.httpAgentOptions)
-  ;(global as any).__NEXT_HTTPS_AGENT = new HttpsAgent(config.httpAgentOptions)
+  ;(globalThis as any).__NEXT_HTTP_AGENT_OPTIONS = config.httpAgentOptions
+  ;(globalThis as any).__NEXT_HTTP_AGENT = new HttpAgent(
+    config.httpAgentOptions
+  )
+  ;(globalThis as any).__NEXT_HTTPS_AGENT = new HttpsAgent(
+    config.httpAgentOptions
+  )
 }
 
-async function setFontLoaderDefaults(config: NextConfigComplete, dir: string) {
-  // Add @next/font loaders by default if they're installed
-  const hasNextFontDependency = (
-    await getDependencies({
-      cwd: dir,
-    })
-  ).dependencies['@next/font']
+function setFontLoaderDefaults(config: NextConfigComplete) {
+  try {
+    // eslint-disable-next-line import/no-extraneous-dependencies
+    const nextFontVersion = require('@next/font/package.json').version
+    const nextVersion = require('next/package.json').version
+    if (nextFontVersion !== nextVersion) {
+      Log.warn(
+        `Different versions of @next/font (${nextFontVersion}) and next (${nextVersion}) detected. This may lead to unexpected behavior.`
+      )
+    }
 
-  if (hasNextFontDependency) {
     const googleFontLoader = {
       loader: '@next/font/google',
     }
@@ -124,7 +129,7 @@ async function setFontLoaderDefaults(config: NextConfigComplete, dir: string) {
     ) {
       config.experimental.fontLoaders.push(localFontLoader)
     }
-  }
+  } catch {}
 }
 
 function assignDefaults(dir: string, userConfig: { [key: string]: any }) {
@@ -902,7 +907,7 @@ export default async function loadConfig(
       configFileName,
       ...userConfig,
     }) as NextConfigComplete
-    await setFontLoaderDefaults(completeConfig, dir)
+    setFontLoaderDefaults(completeConfig)
     return completeConfig
   } else {
     const configBaseName = basename(CONFIG_FILES[0], extname(CONFIG_FILES[0]))
@@ -932,6 +937,6 @@ export default async function loadConfig(
   ) as NextConfigComplete
   completeConfig.configFileName = configFileName
   setHttpClientAndAgentOptions(completeConfig)
-  await setFontLoaderDefaults(completeConfig, dir)
+  setFontLoaderDefaults(completeConfig)
   return completeConfig
 }

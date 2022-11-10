@@ -34,7 +34,9 @@ const downloadGoogleFonts: FontLoader = async ({
   data,
   config,
   emitFontFile,
+  isDev,
   isServer,
+  loaderContext,
 }) => {
   const subsets = config?.subsets || []
 
@@ -69,80 +71,7 @@ const downloadGoogleFonts: FontLoader = async ({
   )
   const url = getUrl(fontFamily, fontAxes, display)
 
-  let cachedCssRequest = cssCache.get(url)
-  const fontFaceDeclarations =
-    cachedCssRequest ?? (await fetchCSSFromGoogleFonts(url, fontFamily))
-  if (!cachedCssRequest) {
-    cssCache.set(url, fontFaceDeclarations)
-  } else {
-    cssCache.delete(url)
-  }
-
-  // Find font files to download
-  const fontFiles: Array<{
-    googleFontFileUrl: string
-    preloadFontFile: boolean
-  }> = []
-  let currentSubset = ''
-  for (const line of fontFaceDeclarations.split('\n')) {
-    // Each @font-face has the subset above it in a comment
-    const newSubset = /\/\* (.+?) \*\//.exec(line)?.[1]
-    if (newSubset) {
-      currentSubset = newSubset
-    } else {
-      const googleFontFileUrl = /src: url\((.+?)\)/.exec(line)?.[1]
-      if (
-        googleFontFileUrl &&
-        !fontFiles.some(
-          (foundFile) => foundFile.googleFontFileUrl === googleFontFileUrl
-        )
-      ) {
-        fontFiles.push({
-          googleFontFileUrl,
-          preloadFontFile:
-            !!preload && (callSubsets ?? subsets).includes(currentSubset),
-        })
-      }
-    }
-  }
-
-  // Download font files
-  const downloadedFiles = await Promise.all(
-    fontFiles.map(async ({ googleFontFileUrl, preloadFontFile }) => {
-      let cachedFontRequest = fontCache.get(googleFontFileUrl)
-      const fontFileBuffer =
-        cachedFontRequest ?? (await fetchFontFile(googleFontFileUrl))
-      if (!cachedFontRequest) {
-        fontCache.set(googleFontFileUrl, fontFileBuffer)
-      } else {
-        fontCache.delete(googleFontFileUrl)
-      }
-
-      const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(googleFontFileUrl)![1]
-      // Emit font file to .next/static/fonts
-      const selfHostedFileUrl = emitFontFile(
-        fontFileBuffer,
-        ext,
-        preloadFontFile
-      )
-
-      return {
-        googleFontFileUrl,
-        selfHostedFileUrl,
-      }
-    })
-  )
-
-  // Replace @font-face sources with self-hosted files
-  let updatedCssResponse = fontFaceDeclarations
-  for (const { googleFontFileUrl, selfHostedFileUrl } of downloadedFiles) {
-    updatedCssResponse = updatedCssResponse.replace(
-      new RegExp(escapeStringRegexp(googleFontFileUrl), 'g'),
-      selfHostedFileUrl
-    )
-  }
-
-  // Add fallback font
+  // Find fallback font metrics
   let adjustFontFallbackMetrics: AdjustFontFallback | undefined
   if (adjustFontFallback) {
     try {
@@ -164,16 +93,136 @@ const downloadGoogleFonts: FontLoader = async ({
     }
   }
 
-  return {
-    css: updatedCssResponse,
-    fallbackFonts: fallback,
-    weight:
-      weights.length === 1 && weights[0] !== 'variable'
-        ? weights[0]
-        : undefined,
-    style: styles.length === 1 ? styles[0] : undefined,
-    variable,
-    adjustFontFallback: adjustFontFallbackMetrics,
+  try {
+    const hasCachedCSS = cssCache.has(url)
+    const fontFaceDeclarations = hasCachedCSS
+      ? cssCache.get(url)
+      : await fetchCSSFromGoogleFonts(url, fontFamily).catch(() => null)
+    if (!hasCachedCSS) {
+      cssCache.set(url, fontFaceDeclarations)
+    } else {
+      cssCache.delete(url)
+    }
+    if (fontFaceDeclarations === null) {
+      throw new Error(`Failed to fetch \`${fontFamily}\` from Google Fonts.`)
+    }
+
+    // Find font files to download
+    const fontFiles: Array<{
+      googleFontFileUrl: string
+      preloadFontFile: boolean
+    }> = []
+    let currentSubset = ''
+    for (const line of fontFaceDeclarations.split('\n')) {
+      // Each @font-face has the subset above it in a comment
+      const newSubset = /\/\* (.+?) \*\//.exec(line)?.[1]
+      if (newSubset) {
+        currentSubset = newSubset
+      } else {
+        const googleFontFileUrl = /src: url\((.+?)\)/.exec(line)?.[1]
+        if (
+          googleFontFileUrl &&
+          !fontFiles.some(
+            (foundFile) => foundFile.googleFontFileUrl === googleFontFileUrl
+          )
+        ) {
+          fontFiles.push({
+            googleFontFileUrl,
+            preloadFontFile:
+              !!preload && (callSubsets ?? subsets).includes(currentSubset),
+          })
+        }
+      }
+    }
+
+    // Download font files
+    const downloadedFiles = await Promise.all(
+      fontFiles.map(async ({ googleFontFileUrl, preloadFontFile }) => {
+        const hasCachedFont = fontCache.has(googleFontFileUrl)
+        const fontFileBuffer = hasCachedFont
+          ? fontCache.get(googleFontFileUrl)
+          : await fetchFontFile(googleFontFileUrl).catch(() => null)
+        if (!hasCachedFont) {
+          fontCache.set(googleFontFileUrl, fontFileBuffer)
+        } else {
+          fontCache.delete(googleFontFileUrl)
+        }
+        if (fontFileBuffer === null) {
+          throw new Error(
+            `Failed to fetch \`${fontFamily}\` from Google Fonts.`
+          )
+        }
+
+        const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(googleFontFileUrl)![1]
+        // Emit font file to .next/static/fonts
+        const selfHostedFileUrl = emitFontFile(
+          fontFileBuffer,
+          ext,
+          preloadFontFile
+        )
+
+        return {
+          googleFontFileUrl,
+          selfHostedFileUrl,
+        }
+      })
+    )
+
+    // Replace @font-face sources with self-hosted files
+    let updatedCssResponse = fontFaceDeclarations
+    for (const { googleFontFileUrl, selfHostedFileUrl } of downloadedFiles) {
+      updatedCssResponse = updatedCssResponse.replace(
+        new RegExp(escapeStringRegexp(googleFontFileUrl), 'g'),
+        selfHostedFileUrl
+      )
+    }
+
+    return {
+      css: updatedCssResponse,
+      fallbackFonts: fallback,
+      weight:
+        weights.length === 1 && weights[0] !== 'variable'
+          ? weights[0]
+          : undefined,
+      style: styles.length === 1 ? styles[0] : undefined,
+      variable,
+      adjustFontFallback: adjustFontFallbackMetrics,
+    }
+  } catch (err) {
+    loaderContext.cacheable(false)
+    if (isDev) {
+      if (isServer) {
+        Log.error(
+          `Failed to download \`${fontFamily}\` from Google Fonts. Using fallback font instead.`
+        )
+      }
+
+      // In dev we should return the fallback font instead of throwing an error
+      let css = `@font-face {
+  font-family: '${fontFamily} Fallback';
+  src: local("${adjustFontFallbackMetrics?.fallbackFont ?? 'Arial'}");`
+      if (adjustFontFallbackMetrics) {
+        css += `
+  ascent-override:${adjustFontFallbackMetrics.ascentOverride};
+  descent-override:${adjustFontFallbackMetrics.descentOverride};
+  line-gap-override:${adjustFontFallbackMetrics.lineGapOverride};
+  size-adjust:${adjustFontFallbackMetrics.sizeAdjust};`
+      }
+      css += '\n}'
+
+      return {
+        css,
+        fallbackFonts: fallback,
+        weight:
+          weights.length === 1 && weights[0] !== 'variable'
+            ? weights[0]
+            : undefined,
+        style: styles.length === 1 ? styles[0] : undefined,
+        variable,
+      }
+    } else {
+      throw err
+    }
   }
 }
 

@@ -579,6 +579,7 @@ export default async function getBaseWebpackConfig(
     target = COMPILER_NAMES.server,
     appDir,
     middlewareMatchers,
+    noMangling = false,
   }: {
     buildId: string
     config: NextConfigComplete
@@ -593,6 +594,7 @@ export default async function getBaseWebpackConfig(
     target?: string
     appDir?: string
     middlewareMatchers?: MiddlewareMatcher[]
+    noMangling?: boolean
   }
 ): Promise<webpack.Configuration> {
   const isClient = compilerType === COMPILER_NAMES.client
@@ -658,16 +660,6 @@ export default async function getBaseWebpackConfig(
       '`compiler` options in `next.config.js` will be ignored while using Babel https://nextjs.org/docs/messages/ignored-compiler-options'
     )
     loggedIgnoredCompilerOptions = true
-  }
-
-  if (!useSWCLoader && babelConfigFile && config.experimental.fontLoaders) {
-    Log.error(
-      `"experimental.fontLoaders" is enabled which requires SWC although Babel is being used due to custom babel config being present "${path.relative(
-        dir,
-        babelConfigFile
-      )}".\nSee more info here: https://nextjs.org/docs/messages/babel-font-loader-conflict`
-    )
-    process.exit(1)
   }
 
   const getBabelLoader = () => {
@@ -929,11 +921,7 @@ export default async function getBaseWebpackConfig(
       ...customRootAliases,
 
       ...(pagesDir ? { [PAGES_DIR_ALIAS]: pagesDir } : {}),
-      ...(appDir
-        ? {
-            [APP_DIR_ALIAS]: appDir,
-          }
-        : {}),
+      ...(appDir ? { [APP_DIR_ALIAS]: appDir } : {}),
       [ROOT_DIR_ALIAS]: dir,
       [DOT_NEXT_ALIAS]: distDir,
       ...(isClient || isEdgeServer ? getOptimizedAliases() : {}),
@@ -981,7 +969,7 @@ export default async function getBaseWebpackConfig(
     },
     mangle: {
       safari10: true,
-      ...(process.env.__NEXT_MANGLING_DEBUG
+      ...(process.env.__NEXT_MANGLING_DEBUG || noMangling
         ? {
             toplevel: true,
             module: true,
@@ -996,7 +984,7 @@ export default async function getBaseWebpackConfig(
       comments: false,
       // Fixes usage of Emoji and certain Regex
       ascii_only: true,
-      ...(process.env.__NEXT_MANGLING_DEBUG
+      ...(process.env.__NEXT_MANGLING_DEBUG || noMangling
         ? {
             beautify: true,
           }
@@ -1753,7 +1741,9 @@ export default async function getBaseWebpackConfig(
                     resolve: {
                       alias: {
                         react: 'next/dist/compiled/react',
-                        'react-dom$': 'next/dist/compiled/react-dom',
+                        'react-dom$': reactProductionProfiling
+                          ? 'next/dist/compiled/react-dom/cjs/react-dom.profiling.min'
+                          : 'next/dist/compiled/react-dom',
                         'react-dom/client$':
                           'next/dist/compiled/react-dom/client',
                       },
@@ -2240,6 +2230,7 @@ export default async function getBaseWebpackConfig(
   }
 
   const configVars = JSON.stringify({
+    appDir: config.experimental.appDir,
     crossOrigin: config.crossOrigin,
     pageExtensions: pageExtensions,
     trailingSlash: config.trailingSlash,

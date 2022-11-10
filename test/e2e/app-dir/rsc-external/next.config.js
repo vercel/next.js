@@ -3,6 +3,6 @@ module.exports = {
   experimental: {
     appDir: true,
     serverComponentsExternalPackages: ['conditional-exports-optout'],
-    transpilePackages: ['untranspiled-module', 'css'],
+    transpilePackages: ['untranspiled-module', 'css', 'font'],
   },
 }

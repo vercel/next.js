@@ -51,7 +51,7 @@ const postcssFontLoaderPlugn = ({
       }
 
       if (!fontFamily) {
-        throw new Error('Font loaders must have exactly one font family')
+        throw new Error("Font loaders must return one or more @font-face's")
       }
 
       // Add fallback font with override values

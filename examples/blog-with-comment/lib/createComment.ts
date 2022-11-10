@@ -3,15 +3,17 @@ import type { Comment } from '../interfaces'
 import redis from './redis'
 import { nanoid } from 'nanoid'
 import getUser from './getUser'
+import clearUrl from './clearUrl'
 
 export default async function createComments(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const { url, text } = req.body
+  const url = clearUrl(req.headers.referer)
+  const { text } = req.body
   const { authorization } = req.headers
 
-  if (!url || !text || !authorization) {
+  if (!text || !authorization) {
     return res.status(400).json({ message: 'Missing parameter.' })
   }
 
