@@ -42,9 +42,9 @@ swc_core = { features = [
   "ecma_parser_typescript",
   "cached",
   "base"
-], version = "0.40.40" }
+], version = "0.41.3" }
 
 [dev-dependencies]
-swc_core = { features = ["testing_transform"], version = "0.40.40" }
+swc_core = { features = ["testing_transform"], version = "0.41.3" }
 testing = "0.31.13"
 walkdir = "2.3.2"

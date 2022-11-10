@@ -46,7 +46,7 @@ swc_core = { features = [
   "ecma_parser_typescript",
   "ecma_utils",
   "ecma_visit"
-], version = "0.40.40" }
+], version = "0.41.3" }
 
 
 # Workaround a bug
