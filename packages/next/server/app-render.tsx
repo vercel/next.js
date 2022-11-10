@@ -915,7 +915,7 @@ export async function renderToHTMLOrFlight(
       }
 
       if (head) {
-        const Head = await interopDefault(head[0]())
+        const Head = await interopDefault(await head[0]())
         return <Head params={currentParams} />
       }
 
@@ -993,7 +993,7 @@ export async function renderToHTMLOrFlight(
             />
           ))
         : null
-      const Comp = await interopDefault(getComponent())
+      const Comp = await interopDefault(await getComponent())
 
       return [Comp, styles]
     }
