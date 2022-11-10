@@ -293,7 +293,10 @@ function Router({
     // __NA is used to identify if the history entry can be handled by the app-router.
     // __N is used to identify if the history entry can be handled by the old router.
     const historyState = { __NA: true, tree }
-    if (pushRef.pendingPush) {
+    if (
+      pushRef.pendingPush &&
+      createHrefFromUrl(new URL(window.location.href)) !== canonicalUrl
+    ) {
       // This intentionally mutates React state, pushRef is overwritten to ensure additional push/replace calls do not trigger an additional history entry.
       pushRef.pendingPush = false
 
