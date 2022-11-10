@@ -18,7 +18,7 @@ async function resolveStreamResponse(response: any, onData?: any) {
   return result
 }
 
-describe('app dir - rsc external dependency', () => {
+describe('app dir - external dependency', () => {
   let next: NextInstance
 
   if ((global as any).isNextDeploy) {
@@ -28,7 +28,7 @@ describe('app dir - rsc external dependency', () => {
 
   beforeAll(async () => {
     next = await createNext({
-      files: new FileRef(path.join(__dirname, './rsc-external')),
+      files: new FileRef(path.join(__dirname, './app-external')),
       dependencies: {
         '@next/font': 'canary',
         react: 'latest',
@@ -165,5 +165,31 @@ describe('app dir - rsc external dependency', () => {
         `window.getComputedStyle(document.querySelector('p')).fontFamily`
       )
     ).toMatch(/^__myFont_.{6}, __myFont_Fallback_.{6}$/)
+  })
+
+  describe('react in external esm packages', () => {
+    it('should use the same react in client app', async () => {
+      const html = await renderViaHTTP(next.url, '/esm/client')
+
+      const v1 = html.match(/App React Version: ([^<]+)</)[1]
+      const v2 = html.match(/External React Version: ([^<]+)</)[1]
+      expect(v1).toBe(v2)
+    })
+
+    it('should use the same react in server app', async () => {
+      const html = await renderViaHTTP(next.url, '/esm/server')
+
+      const v1 = html.match(/App React Version: ([^<]+)</)[1]
+      const v2 = html.match(/External React Version: ([^<]+)</)[1]
+      expect(v1).toBe(v2)
+    })
+
+    it('should use the same react in pages', async () => {
+      const html = await renderViaHTTP(next.url, '/test-pages-esm')
+
+      const v1 = html.match(/App React Version: ([^<]+)</)[1]
+      const v2 = html.match(/External React Version: ([^<]+)</)[1]
+      expect(v1).toBe(v2)
+    })
   })
 })
