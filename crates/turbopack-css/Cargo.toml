@@ -32,10 +32,10 @@ swc_core = { workspace = true, features = [
   "css_visit",
   "css_visit_path",
   "css_compat",
+  "css_modules",
   "common",
   "common_concurrent",
 ] }
-swc_css_modules = "=0.10.18"
 
 [build-dependencies]
 turbo-tasks-build = { path = "../turbo-tasks-build" }

@@ -1,7 +1,7 @@
 use std::fmt::Write;
 
 use anyhow::Result;
-use swc_css_modules::CssClassName;
+use swc_core::css::modules::CssClassName;
 use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{

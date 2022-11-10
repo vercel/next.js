@@ -6,11 +6,11 @@ use swc_core::{
     common::{errors::Handler, FileName, SourceMap},
     css::{
         ast::Stylesheet,
+        modules::{CssClassName, TransformConfig},
         parser::{parse_file, parser::ParserConfig},
     },
     ecma::atoms::JsWord,
 };
-use swc_css_modules::{CssClassName, TransformConfig};
 use turbo_tasks::{Value, ValueToString};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::asset::{AssetContent, AssetVc};
@@ -137,8 +137,8 @@ async fn parse_content(
     let (imports, exports) = match ty {
         CssModuleAssetType::Global => Default::default(),
         CssModuleAssetType::Module => {
-            let imports = swc_css_modules::imports::analyze_imports(&parsed_stylesheet);
-            let result = swc_css_modules::compile(
+            let imports = swc_core::css::modules::imports::analyze_imports(&parsed_stylesheet);
+            let result = swc_core::css::modules::compile(
                 &mut parsed_stylesheet,
                 // TODO swc_css_modules should take `impl TransformConfig + '_`
                 ModuleTransformConfig {
