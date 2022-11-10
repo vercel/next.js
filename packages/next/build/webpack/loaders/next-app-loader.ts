@@ -245,16 +245,16 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
     export ${treeCode}
     export const pages = ${JSON.stringify(pages)}
 
-    export const AppRouter = require('next/dist/client/components/app-router.js').default
-    export const LayoutRouter = require('next/dist/client/components/layout-router.js').default
-    export const RenderFromTemplateContext = require('next/dist/client/components/render-from-template-context.js').default
+    export { default as AppRouter } from 'next/dist/client/components/app-router'
+    export { default as LayoutRouter } from 'next/dist/client/components/layout-router'
+    export { default as RenderFromTemplateContext } from 'next/dist/client/components/render-from-template-context'
 
-    export const staticGenerationAsyncStorage = require('next/dist/client/components/static-generation-async-storage').staticGenerationAsyncStorage
-    export const requestAsyncStorage = require('next/dist/client/components/request-async-storage.js').requestAsyncStorage
+    export { staticGenerationAsyncStorage } from 'next/dist/client/components/static-generation-async-storage'
+    export { requestAsyncStorage } from 'next/dist/client/components/request-async-storage'
 
-    export const serverHooks = require('next/dist/client/components/hooks-server-context.js')
+    export * as serverHooks from 'next/dist/client/components/hooks-server-context'
 
-    export const renderToReadableStream = require('next/dist/compiled/react-server-dom-webpack/server.browser').renderToReadableStream
+    export { renderToReadableStream } from 'next/dist/compiled/react-server-dom-webpack/server.browser'
     export const __next_app_webpack_require__ = __webpack_require__
   `
 

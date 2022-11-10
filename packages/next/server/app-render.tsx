@@ -993,7 +993,7 @@ export async function renderToHTMLOrFlight(
             />
           ))
         : null
-      const Comp = await interopDefault(getComponent())
+      const Comp = await interopDefault(await getComponent())
 
       return [Comp, styles]
     }
