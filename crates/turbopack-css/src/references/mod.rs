@@ -5,7 +5,7 @@ use swc_core::{
         Globals, GLOBALS,
     },
     css::{
-        ast::{ImportPrelude, ImportPreludeHref, Url, UrlValue},
+        ast::{ImportHref, ImportPrelude, Url, UrlValue},
         visit::{AstNodePath, AstParentKind, VisitAstPath, VisitWithPath},
     },
 };
@@ -105,9 +105,9 @@ impl<'a> VisitAstPath for AssetReferencesVisitor<'a> {
         ast_path: &mut AstNodePath<'r>,
     ) {
         let src = match &i.href {
-            box ImportPreludeHref::Str(s) => s.value.as_ref(),
+            box ImportHref::Str(s) => s.value.as_ref(),
             // covered by `visit_url` below
-            box ImportPreludeHref::Url(ref u) => url_string(u),
+            box ImportHref::Url(ref u) => url_string(u),
         };
 
         self.references.push(
