@@ -331,9 +331,9 @@ describe('Telemetry CLI', () => {
     const event1 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/.exec(stderr).pop()
     expect(event1).toMatch(/"staticPropsPageCount": 2/)
     expect(event1).toMatch(/"serverPropsPageCount": 2/)
-    expect(event1).toMatch(/"ssrPageCount": 1/)
+    expect(event1).toMatch(/"ssrPageCount": 2/)
     expect(event1).toMatch(/"staticPageCount": 4/)
-    expect(event1).toMatch(/"totalPageCount": 9/)
+    expect(event1).toMatch(/"totalPageCount": 10/)
   })
 
   it('detects isSrcDir dir correctly for `next dev`', async () => {
@@ -967,6 +967,21 @@ describe('Telemetry CLI', () => {
     })
     expect(featureUsageEvents).toContainEqual({
       featureName: 'next/image',
+      invocationCount: 1,
+    })
+  })
+
+  it('emits telemetry for usage of @vercel/og', async () => {
+    const { stderr } = await nextBuild(appDir, [], {
+      stderr: true,
+      env: { NEXT_TELEMETRY_DEBUG: 1 },
+    })
+    const featureUsageEvents = findAllTelemetryEvents(
+      stderr,
+      'NEXT_BUILD_FEATURE_USAGE'
+    )
+    expect(featureUsageEvents).toContainEqual({
+      featureName: 'vercelImageGeneration',
       invocationCount: 1,
     })
   })
