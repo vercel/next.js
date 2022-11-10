@@ -936,11 +936,7 @@ export default async function getBaseWebpackConfig(
       ...customRootAliases,
 
       ...(pagesDir ? { [PAGES_DIR_ALIAS]: pagesDir } : {}),
-      ...(appDir
-        ? {
-            [APP_DIR_ALIAS]: appDir,
-          }
-        : {}),
+      ...(appDir ? { [APP_DIR_ALIAS]: appDir } : {}),
       [ROOT_DIR_ALIAS]: dir,
       [DOT_NEXT_ALIAS]: distDir,
       ...(isClient || isEdgeServer ? getOptimizedAliases() : {}),
@@ -2251,6 +2247,7 @@ export default async function getBaseWebpackConfig(
   }
 
   const configVars = JSON.stringify({
+    appDir: config.experimental.appDir,
     crossOrigin: config.crossOrigin,
     pageExtensions: pageExtensions,
     trailingSlash: config.trailingSlash,
