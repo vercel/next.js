@@ -33,12 +33,16 @@ describe('Middleware fetches with any HTTP method', () => {
             return res
           }
 
+          const sharedInit = { method: 'GET', headers: { 'x-kind': 'shared-init' } }
+
           const handlers = {
             'new-request': ({url, method}) =>
               fetch(new Request(url, { method, headers: { 'x-kind': 'new-request' } })),
 
             'normal-fetch': ({url, method}) =>
-              fetch(url, { method, headers: { 'x-kind': 'normal-fetch' } })
+              fetch(url, { method, headers: { 'x-kind': 'normal-fetch' } }),
+
+            'shared-init': async ({url}) => fetch(url, sharedInit)
           }
         `,
       },
@@ -87,5 +91,31 @@ describe('Middleware fetches with any HTTP method', () => {
         'x-kind': 'new-request',
       },
     })
+  })
+
+  it('does not mutate the RequestInit fetch parameter', async () => {
+    async function runTest() {
+      const response = await fetchViaHTTP(
+        next.url,
+        '/api/ping',
+        { kind: 'shared-init' },
+        { method: 'GET' }
+      )
+      const json = await response.json()
+      expect(json).toMatchObject({
+        method: 'GET',
+      })
+
+      const headerJson = JSON.parse(response.headers.get('x-resolved'))
+      expect(headerJson).toMatchObject({
+        method: 'GET',
+        headers: {
+          'x-kind': 'shared-init',
+          'x-middleware-subrequest': 'middleware',
+        },
+      })
+    }
+    await runTest()
+    await runTest()
   })
 })
