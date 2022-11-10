@@ -1,10 +1,8 @@
 [workspace]
 
-members = [
-  "crates/core",
-  "crates/napi",
-  "crates/wasm"
-]
+members = ["crates/core", "crates/napi"]
+
+exclude = ["crates/wasm"]
 
 [profile.dev.package.swc_css_prefixer]
 opt-level = 2
