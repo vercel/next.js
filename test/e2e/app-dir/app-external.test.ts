@@ -171,24 +171,24 @@ describe('app dir - external dependency', () => {
     it('should use the same react in client app', async () => {
       const html = await renderViaHTTP(next.url, '/esm/client')
 
-      const v1 = html.match(/App React Version: (.+)</)[1]
-      const v2 = html.match(/External React Version: (.+)</)[1]
+      const v1 = html.match(/App React Version: ([^<]+)</)[1]
+      const v2 = html.match(/External React Version: ([^<]+)</)[1]
       expect(v1).toBe(v2)
     })
 
     it('should use the same react in server app', async () => {
       const html = await renderViaHTTP(next.url, '/esm/server')
 
-      const v1 = html.match(/App React Version: (.+)</)[1]
-      const v2 = html.match(/External React Version: (.+)</)[1]
+      const v1 = html.match(/App React Version: ([^<]+)</)[1]
+      const v2 = html.match(/External React Version: ([^<]+)</)[1]
       expect(v1).toBe(v2)
     })
 
     it('should use the same react in pages', async () => {
       const html = await renderViaHTTP(next.url, '/test-pages-esm')
 
-      const v1 = html.match(/App React Version: (.+)</)[1]
-      const v2 = html.match(/External React Version: (.+)</)[1]
+      const v1 = html.match(/App React Version: ([^<]+)</)[1]
+      const v2 = html.match(/External React Version: ([^<]+)</)[1]
       expect(v1).toBe(v2)
     })
   })
