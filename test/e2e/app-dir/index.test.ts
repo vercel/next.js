@@ -84,7 +84,7 @@ describe('app dir', () => {
         {},
         {
           headers: {
-            __rsc__: '1',
+            ['RSC'.toString()]: '1',
           },
         }
       )
@@ -98,7 +98,7 @@ describe('app dir', () => {
         {},
         {
           headers: {
-            __rsc__: '1',
+            ['RSC'.toString()]: '1',
           },
         }
       )
@@ -1505,6 +1505,72 @@ describe('app dir', () => {
               `window.getComputedStyle(document.querySelector('#client-component')).fontSize`
             )
           ).toBe('100px')
+        })
+      })
+
+      describe('special entries', () => {
+        it('should include css imported in loading.js', async () => {
+          const html = await renderViaHTTP(next.url, '/loading-bug/hi')
+          // The link tag should be included together with loading
+          expect(html).toMatch(
+            /<link rel="stylesheet" href="(.+)\.css(\?ts=\d+)?"\/><h2>Loading...<\/h2>/
+          )
+        })
+
+        it('should include css imported in client template.js', async () => {
+          const browser = await webdriver(next.url, '/template/clientcomponent')
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('button')).fontSize`
+            )
+          ).toBe('100px')
+        })
+
+        it('should include css imported in server template.js', async () => {
+          const browser = await webdriver(next.url, '/template/servercomponent')
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('h1')).color`
+            )
+          ).toBe('rgb(255, 0, 0)')
+        })
+
+        it('should include css imported in client not-found.js', async () => {
+          const browser = await webdriver(
+            next.url,
+            '/not-found/clientcomponent'
+          )
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('h1')).color`
+            )
+          ).toBe('rgb(255, 0, 0)')
+        })
+
+        it('should include css imported in server not-found.js', async () => {
+          const browser = await webdriver(
+            next.url,
+            '/not-found/servercomponent'
+          )
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('h1')).color`
+            )
+          ).toBe('rgb(255, 0, 0)')
+        })
+
+        it('should include css imported in error.js', async () => {
+          const browser = await webdriver(next.url, '/error/client-component')
+          await browser.elementByCss('button').click()
+
+          // Wait for error page to render and CSS to be loaded
+          await new Promise((resolve) => setTimeout(resolve, 2000))
+
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('button')).fontSize`
+            )
+          ).toBe('50px')
         })
       })
     })

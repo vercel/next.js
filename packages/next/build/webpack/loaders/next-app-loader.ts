@@ -8,7 +8,7 @@ import { verifyRootLayout } from '../../../lib/verifyRootLayout'
 import * as Log from '../../../build/output/log'
 import { APP_DIR_ALIAS } from '../../../lib/constants'
 
-export const FILE_TYPES = {
+const FILE_TYPES = {
   layout: 'layout',
   template: 'template',
   error: 'error',
@@ -21,11 +21,11 @@ const PAGE_SEGMENT = 'page$'
 
 // TODO-APP: check if this can be narrowed.
 type ComponentModule = () => any
+type ModuleReference = [componentModule: ComponentModule, filePath: string]
 export type ComponentsType = {
-  readonly [componentKey in ValueOf<typeof FILE_TYPES>]?: ComponentModule
+  readonly [componentKey in ValueOf<typeof FILE_TYPES>]?: ModuleReference
 } & {
-  readonly layoutOrPagePath?: string
-  readonly page?: ComponentModule
+  readonly page?: ModuleReference
 }
 
 async function createTreeCodeFromPath({
@@ -67,9 +67,10 @@ async function createTreeCodeFromPath({
         if (resolvedPagePath) pages.push(resolvedPagePath)
 
         // Use '' for segment as it's the page. There can't be a segment called '' so this is the safest way to add it.
-        props[parallelKey] = `['', {}, {layoutOrPagePath: ${JSON.stringify(
-          resolvedPagePath
-        )}, page: () => require(${JSON.stringify(resolvedPagePath)})}]`
+        props[parallelKey] = `['', {}, {
+          page: [() => import(/* webpackMode: "eager" */ ${JSON.stringify(
+            resolvedPagePath
+          )}), ${JSON.stringify(resolvedPagePath)}]}]`
         continue
       }
 
@@ -105,11 +106,9 @@ async function createTreeCodeFromPath({
               if (filePath === undefined) {
                 return ''
               }
-              return `${
-                file === FILE_TYPES.layout
-                  ? `layoutOrPagePath: ${JSON.stringify(filePath)},`
-                  : ''
-              }'${file}': () => require(${JSON.stringify(filePath)}),`
+              return `'${file}': [() => import(/* webpackMode: "eager" */ ${JSON.stringify(
+                filePath
+              )}), ${JSON.stringify(filePath)}],`
             })
             .join('\n')}
         }
@@ -246,16 +245,16 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
     export ${treeCode}
     export const pages = ${JSON.stringify(pages)}
 
-    export const AppRouter = require('next/dist/client/components/app-router.js').default
-    export const LayoutRouter = require('next/dist/client/components/layout-router.js').default
-    export const RenderFromTemplateContext = require('next/dist/client/components/render-from-template-context.js').default
+    export { default as AppRouter } from 'next/dist/client/components/app-router'
+    export { default as LayoutRouter } from 'next/dist/client/components/layout-router'
+    export { default as RenderFromTemplateContext } from 'next/dist/client/components/render-from-template-context'
 
-    export const staticGenerationAsyncStorage = require('next/dist/client/components/static-generation-async-storage').staticGenerationAsyncStorage
-    export const requestAsyncStorage = require('next/dist/client/components/request-async-storage.js').requestAsyncStorage
+    export { staticGenerationAsyncStorage } from 'next/dist/client/components/static-generation-async-storage'
+    export { requestAsyncStorage } from 'next/dist/client/components/request-async-storage'
 
-    export const serverHooks = require('next/dist/client/components/hooks-server-context.js')
+    export * as serverHooks from 'next/dist/client/components/hooks-server-context'
 
-    export const renderToReadableStream = require('next/dist/compiled/react-server-dom-webpack/server.browser').renderToReadableStream
+    export { renderToReadableStream } from 'next/dist/compiled/react-server-dom-webpack/server.browser'
     export const __next_app_webpack_require__ = __webpack_require__
   `
 

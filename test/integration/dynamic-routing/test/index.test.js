@@ -1426,6 +1426,10 @@ function runTests({ dev }) {
             },
           },
         ],
+        rsc: {
+          header: 'RSC',
+          varyHeader: 'RSC, Next-Router-State-Tree, Next-Router-Prefetch',
+        },
       })
     })
 

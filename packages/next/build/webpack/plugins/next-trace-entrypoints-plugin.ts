@@ -16,6 +16,7 @@ import {
 } from '../../webpack-config'
 import { NextConfigComplete } from '../../../server/config-shared'
 import { loadBindings } from '../../swc'
+import { isMatch } from 'next/dist/compiled/micromatch'
 
 const PLUGIN_NAME = 'TraceEntryPointsPlugin'
 const TRACE_IGNORES = [
@@ -173,7 +174,11 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
           return
         }
       }
+      const ignores = [...TRACE_IGNORES, ...this.excludeFiles]
 
+      const ignoreFn = (path: string) => {
+        return isMatch(path, ignores, { contains: true, dot: true })
+      }
       const result = await nodeFileTrace([...chunksToTrace], {
         base: this.tracingRoot,
         processCwd: this.appDir,
@@ -204,7 +209,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
         },
         readlink,
         stat,
-        ignore: [...TRACE_IGNORES, ...this.excludeFiles],
+        ignore: ignoreFn,
         mixedModules: true,
       })
       const reasons = result.reasons
@@ -456,6 +461,15 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
             }
             let fileList: Set<string>
             let reasons: NodeFileTraceReasons
+            const ignores = [
+              ...TRACE_IGNORES,
+              ...this.excludeFiles,
+              '**/node_modules/**',
+            ]
+            const ignoreFn = (path: string) => {
+              return isMatch(path, ignores, { contains: true, dot: true })
+            }
+
             await finishModulesSpan
               .traceChild('node-file-trace', {
                 traceEntryCount: entriesToTrace.length + '',
@@ -472,11 +486,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
                         return doResolve(id, parent, job, !isCjs)
                       }
                     : undefined,
-                  ignore: [
-                    ...TRACE_IGNORES,
-                    ...this.excludeFiles,
-                    '**/node_modules/**',
-                  ],
+                  ignore: ignoreFn,
                   mixedModules: true,
                 })
                 // @ts-ignore

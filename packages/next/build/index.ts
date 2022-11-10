@@ -123,6 +123,7 @@ import { RemotePattern } from '../shared/lib/image-config'
 import { eventSwcPlugins } from '../telemetry/events/swc-plugins'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { AppBuildManifest } from './webpack/plugins/app-build-manifest-plugin'
+import { RSC, RSC_VARY_HEADER } from '../client/components/app-router-headers'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -253,7 +254,8 @@ export default async function build(
   conf = null,
   reactProductionProfiling = false,
   debugOutput = false,
-  runLint = true
+  runLint = true,
+  noMangling = false
 ): Promise<void> {
   try {
     const nextBuildSpan = trace('next-build', undefined, {
@@ -576,36 +578,42 @@ export default async function build(
           })
         )
 
-      const pageKeys = {
-        pages: Object.keys(mappedPages),
-        app: mappedAppPages
-          ? Object.keys(mappedAppPages).map(
-              (key) => normalizeAppPath(key) || '/'
-            )
-          : undefined,
+      const pagesPageKeys = Object.keys(mappedPages)
+
+      const conflictingAppPagePaths: [pagePath: string, appPath: string][] = []
+      const appPageKeys: string[] = []
+      if (mappedAppPages) {
+        for (const appKey in mappedAppPages) {
+          const normalizedAppPageKey = normalizeAppPath(appKey) || '/'
+          const pagePath = mappedPages[normalizedAppPageKey]
+          if (pagePath) {
+            const appPath = mappedAppPages[appKey]
+            conflictingAppPagePaths.push([
+              pagePath.replace(/^private-next-pages/, 'pages'),
+              appPath.replace(/^private-next-app-dir/, 'app'),
+            ])
+          }
+
+          appPageKeys.push(normalizedAppPageKey)
+        }
       }
 
-      if (pageKeys.app) {
-        const conflictingAppPagePaths = []
+      const pageKeys = {
+        pages: pagesPageKeys,
+        app: appPageKeys.length > 0 ? appPageKeys : undefined,
+      }
 
-        for (const appPath of pageKeys.app) {
-          if (pageKeys.pages.includes(appPath)) {
-            conflictingAppPagePaths.push(appPath)
-          }
+      const numConflictingAppPaths = conflictingAppPagePaths.length
+      if (mappedAppPages && numConflictingAppPaths > 0) {
+        Log.error(
+          `Conflicting app and page file${
+            numConflictingAppPaths === 1 ? ' was' : 's were'
+          } found, please remove the conflicting files to continue:`
+        )
+        for (const [pagePath, appPath] of conflictingAppPagePaths) {
+          Log.error(`  "${pagePath}" - "${appPath}"`)
         }
-        const numConflicting = conflictingAppPagePaths.length
-
-        if (numConflicting > 0) {
-          Log.error(
-            `Conflicting app and page file${
-              numConflicting === 1 ? ' was' : 's were'
-            } found, please remove the conflicting files to continue:`
-          )
-          for (const p of conflictingAppPagePaths) {
-            Log.error(`  "pages${p}" - "app${p}"`)
-          }
-          process.exit(1)
-        }
+        process.exit(1)
       }
 
       const conflictingPublicFiles: string[] = []
@@ -749,6 +757,11 @@ export default async function build(
           defaultLocale: string
           localeDetection?: false
         }
+        rsc: {
+          header: typeof RSC
+          varyHeader: typeof RSC_VARY_HEADER
+        }
+        skipMiddlewareUrlNormalize?: boolean
       } = nextBuildSpan.traceChild('generate-routes-manifest').traceFn(() => {
         const sortedRoutes = getSortedRoutes([
           ...pageKeys.pages,
@@ -775,6 +788,12 @@ export default async function build(
           staticRoutes,
           dataRoutes: [],
           i18n: config.i18n || undefined,
+          rsc: {
+            header: RSC,
+            varyHeader: RSC_VARY_HEADER,
+          },
+          skipMiddlewareUrlNormalize:
+            config.experimental.skipMiddlewareUrlNormalize,
         }
       })
 
@@ -917,6 +936,7 @@ export default async function build(
           runWebpackSpan,
           target,
           appDir,
+          noMangling,
           middlewareMatchers: entrypoints.middlewareMatchers,
         }
 
@@ -1794,28 +1814,30 @@ export default async function build(
                 showAll: config.experimental.turbotrace.logAll,
               })
             } else {
+              const ignores = [
+                '**/next/dist/pages/**/*',
+                '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
+                '**/node_modules/webpack5/**/*',
+                '**/next/dist/server/lib/squoosh/**/*.wasm',
+                ...(ciEnvironment.hasNextSupport
+                  ? [
+                      // only ignore image-optimizer code when
+                      // this is being handled outside of next-server
+                      '**/next/dist/server/image-optimizer.js',
+                      '**/node_modules/sharp/**/*',
+                    ]
+                  : []),
+                ...(!hasSsrAmpPages
+                  ? ['**/next/dist/compiled/@ampproject/toolbox-optimizer/**/*']
+                  : []),
+              ]
+              const ignoreFn = (pathname: string) => {
+                return isMatch(pathname, ignores, { contains: true, dot: true })
+              }
               serverResult = await nodeFileTrace(toTrace, {
                 base: root,
                 processCwd: dir,
-                ignore: [
-                  '**/next/dist/pages/**/*',
-                  '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
-                  '**/node_modules/webpack5/**/*',
-                  '**/next/dist/server/lib/squoosh/**/*.wasm',
-                  ...(ciEnvironment.hasNextSupport
-                    ? [
-                        // only ignore image-optimizer code when
-                        // this is being handled outside of next-server
-                        '**/next/dist/server/image-optimizer.js',
-                        '**/node_modules/sharp/**/*',
-                      ]
-                    : []),
-                  ...(!hasSsrAmpPages
-                    ? [
-                        '**/next/dist/compiled/@ampproject/toolbox-optimizer/**/*',
-                      ]
-                    : []),
-                ],
+                ignore: ignoreFn,
               })
               const tracedFiles = new Set()
 

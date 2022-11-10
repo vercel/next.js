@@ -38,6 +38,11 @@ import { NOT_FOUND_ERROR_CODE } from '../client/components/not-found'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import { Writable } from 'stream'
 import stringHash from 'next/dist/compiled/string-hash'
+import {
+  NEXT_ROUTER_PREFETCH,
+  NEXT_ROUTER_STATE_TREE,
+  RSC,
+} from '../client/components/app-router-headers'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -686,16 +691,16 @@ function getScriptNonceFromHeader(cspHeaderValue: string): string | undefined {
   return nonce
 }
 
-const FLIGHT_PARAMETERS = [
-  '__rsc__',
-  '__next_router_state_tree__',
-  '__next_router_prefetch__',
+export const FLIGHT_PARAMETERS = [
+  [RSC],
+  [NEXT_ROUTER_STATE_TREE],
+  [NEXT_ROUTER_PREFETCH],
 ] as const
 
 function headersWithoutFlight(headers: IncomingHttpHeaders) {
   const newHeaders = { ...headers }
   for (const param of FLIGHT_PARAMETERS) {
-    delete newHeaders[param]
+    delete newHeaders[param.toString().toLowerCase()]
   }
   return newHeaders
 }
@@ -728,7 +733,7 @@ export async function renderToHTMLOrFlight(
    */
   const isStaticGeneration =
     renderOpts.supportsDynamicHTML !== true && !renderOpts.isBot
-  const isFlight = req.headers.__rsc__ !== undefined
+  const isFlight = req.headers[RSC.toLowerCase()] !== undefined
 
   const capturedErrors: Error[] = []
   const allCapturedErrors: Error[] = []
@@ -786,7 +791,8 @@ export async function renderToHTMLOrFlight(
     // don't modify original query object
     query = Object.assign({}, query)
 
-    const isPrefetch = req.headers.__next_router_prefetch__ !== undefined
+    const isPrefetch =
+      req.headers[NEXT_ROUTER_PREFETCH.toLowerCase()] !== undefined
 
     // TODO-APP: verify the tree is valid
     // TODO-APP: verify query param is single value (not an array)
@@ -795,8 +801,10 @@ export async function renderToHTMLOrFlight(
      * Router state provided from the client-side router. Used to handle rendering from the common layout down.
      */
     let providedFlightRouterState: FlightRouterState = isFlight
-      ? req.headers.__next_router_state_tree__
-        ? JSON.parse(req.headers.__next_router_state_tree__ as string)
+      ? req.headers[NEXT_ROUTER_STATE_TREE.toLowerCase()]
+        ? JSON.parse(
+            req.headers[NEXT_ROUTER_STATE_TREE.toLowerCase()] as string
+          )
         : undefined
       : undefined
 
@@ -907,7 +915,7 @@ export async function renderToHTMLOrFlight(
       }
 
       if (head) {
-        const Head = await interopDefault(head())
+        const Head = await interopDefault(await head[0]())
         return <Head params={currentParams} />
       }
 
@@ -957,6 +965,39 @@ export async function renderToHTMLOrFlight(
 
     const assetPrefix = renderOpts.assetPrefix || ''
 
+    const createComponentAndStyles = async ({
+      filePath,
+      getComponent,
+      shouldPreload,
+    }: {
+      filePath: string
+      getComponent: () => any
+      shouldPreload?: boolean
+    }): Promise<any> => {
+      const cssHrefs = getCssInlinedLinkTags(
+        serverComponentManifest,
+        serverCSSManifest,
+        filePath,
+        serverCSSForEntries
+      )
+      const cacheBustingUrlSuffix = dev ? `?ts=${Date.now()}` : ''
+
+      const styles = cssHrefs
+        ? cssHrefs.map((href, index) => (
+            <link
+              rel="stylesheet"
+              href={`${assetPrefix}/_next/${href}${cacheBustingUrlSuffix}`}
+              // @ts-ignore
+              precedence={shouldPreload ? 'high' : undefined}
+              key={index}
+            />
+          ))
+        : null
+      const Comp = await interopDefault(await getComponent())
+
+      return [Comp, styles]
+    }
+
     /**
      * Use the provided loader tree to create the React Component tree.
      */
@@ -965,15 +1006,7 @@ export async function renderToHTMLOrFlight(
       loaderTree: [
         segment,
         parallelRoutes,
-        {
-          layoutOrPagePath,
-          layout,
-          template,
-          error,
-          loading,
-          page,
-          'not-found': notFound,
-        },
+        { layout, template, error, loading, page, 'not-found': notFound },
       ],
       parentParams,
       firstItem,
@@ -985,7 +1018,7 @@ export async function renderToHTMLOrFlight(
       rootLayoutIncluded?: boolean
       firstItem?: boolean
     }): Promise<{ Component: React.ComponentType }> => {
-      // TODO-APP: enable stylesheet per layout/page
+      const layoutOrPagePath = layout?.[1] || page?.[1]
       const stylesheets: string[] = layoutOrPagePath
         ? getCssInlinedLinkTags(
             serverComponentManifest,
@@ -995,25 +1028,46 @@ export async function renderToHTMLOrFlight(
           )
         : []
 
-      const preloadedFontFiles = getPreloadedFontFilesInlineLinkTags(
-        serverComponentManifest,
-        serverCSSManifest!,
-        fontLoaderManifest,
-        serverCSSForEntries,
-        layoutOrPagePath
-      )
-      const Template = template
-        ? await interopDefault(template())
-        : React.Fragment
-      const ErrorComponent = error ? await interopDefault(error()) : undefined
-      const Loading = loading ? await interopDefault(loading()) : undefined
+      const preloadedFontFiles = layoutOrPagePath
+        ? getPreloadedFontFilesInlineLinkTags(
+            serverComponentManifest,
+            serverCSSManifest!,
+            fontLoaderManifest,
+            serverCSSForEntries,
+            layoutOrPagePath
+          )
+        : []
+
+      const [Template, templateStyles] = template
+        ? await createComponentAndStyles({
+            filePath: template[1],
+            getComponent: template[0],
+            shouldPreload: true,
+          })
+        : [React.Fragment]
+
+      const [ErrorComponent, errorStyles] = error
+        ? await createComponentAndStyles({
+            filePath: error[1],
+            getComponent: error[0],
+          })
+        : []
+
+      const [Loading, loadingStyles] = loading
+        ? await createComponentAndStyles({
+            filePath: loading[1],
+            getComponent: loading[0],
+          })
+        : []
+
       const isLayout = typeof layout !== 'undefined'
       const isPage = typeof page !== 'undefined'
       const layoutOrPageMod = isLayout
-        ? await layout()
+        ? await layout[0]()
         : isPage
-        ? await page()
+        ? await page[0]()
         : undefined
+
       /**
        * Checks if the current segment is a root layout.
        */
@@ -1024,11 +1078,14 @@ export async function renderToHTMLOrFlight(
       const rootLayoutIncludedAtThisLevelOrAbove =
         rootLayoutIncluded || rootLayoutAtThisLevel
 
-      const NotFound = notFound
-        ? await interopDefault(notFound())
+      const [NotFound, notFoundStyles] = notFound
+        ? await createComponentAndStyles({
+            filePath: notFound[1],
+            getComponent: notFound[0],
+          })
         : rootLayoutAtThisLevel
-        ? DefaultNotFound
-        : undefined
+        ? [DefaultNotFound]
+        : []
 
       if (typeof layoutOrPageMod?.revalidate === 'number') {
         defaultRevalidate = layoutOrPageMod.revalidate
@@ -1139,14 +1196,18 @@ export async function renderToHTMLOrFlight(
                   parallelRouterKey={parallelRouteKey}
                   segmentPath={createSegmentPath(currentSegmentPath)}
                   loading={Loading ? <Loading /> : undefined}
+                  loadingStyles={loadingStyles}
                   hasLoading={Boolean(Loading)}
                   error={ErrorComponent}
+                  errorStyles={errorStyles}
                   template={
                     <Template>
                       <RenderFromTemplateContext />
                     </Template>
                   }
+                  templateStyles={templateStyles}
                   notFound={NotFound ? <NotFound /> : undefined}
+                  notFoundStyles={notFoundStyles}
                   childProp={childProp}
                   rootLayoutIncluded={rootLayoutIncludedAtThisLevelOrAbove}
                 />,
@@ -1179,7 +1240,9 @@ export async function renderToHTMLOrFlight(
                 parallelRouterKey={parallelRouteKey}
                 segmentPath={segmentPath}
                 error={ErrorComponent}
+                errorStyles={errorStyles}
                 loading={Loading ? <Loading /> : undefined}
+                loadingStyles={loadingStyles}
                 // TODO-APP: Add test for loading returning `undefined`. This currently can't be tested as the `webdriver()` tab will wait for the full page to load before returning.
                 hasLoading={Boolean(Loading)}
                 template={
@@ -1187,7 +1250,9 @@ export async function renderToHTMLOrFlight(
                     <RenderFromTemplateContext />
                   </Template>
                 }
+                templateStyles={templateStyles}
                 notFound={NotFound ? <NotFound /> : undefined}
+                notFoundStyles={notFoundStyles}
                 childProp={childProp}
                 rootLayoutIncluded={rootLayoutIncludedAtThisLevelOrAbove}
               />,

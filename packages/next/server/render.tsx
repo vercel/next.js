@@ -84,14 +84,11 @@ import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { stripInternalQueries } from './internal-utils'
 import {
   adaptForAppRouterInstance,
-  adaptForPathname,
   adaptForSearchParams,
+  PathnameContextProviderAdapter,
 } from '../shared/lib/router/adapters'
 import { AppRouterContext } from '../shared/lib/app-router-context'
-import {
-  PathnameContext,
-  SearchParamsContext,
-} from '../shared/lib/hooks-client-context'
+import { SearchParamsContext } from '../shared/lib/hooks-client-context'
 
 let tryGetPreviewData: typeof import('./api-utils/node').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
@@ -621,7 +618,10 @@ export async function renderToHTML(
   const AppContainer = ({ children }: { children: JSX.Element }) => (
     <AppRouterContext.Provider value={appRouter}>
       <SearchParamsContext.Provider value={adaptForSearchParams(router)}>
-        <PathnameContext.Provider value={adaptForPathname(asPath)}>
+        <PathnameContextProviderAdapter
+          router={router}
+          isAutoExport={isAutoExport}
+        >
           <RouterContext.Provider value={router}>
             <AmpStateContext.Provider value={ampState}>
               <HeadManagerContext.Provider
@@ -648,7 +648,7 @@ export async function renderToHTML(
               </HeadManagerContext.Provider>
             </AmpStateContext.Provider>
           </RouterContext.Provider>
-        </PathnameContext.Provider>
+        </PathnameContextProviderAdapter>
       </SearchParamsContext.Provider>
     </AppRouterContext.Provider>
   )

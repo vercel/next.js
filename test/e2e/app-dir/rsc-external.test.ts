@@ -30,6 +30,7 @@ describe('app dir - rsc external dependency', () => {
     next = await createNext({
       files: new FileRef(path.join(__dirname, './rsc-external')),
       dependencies: {
+        '@next/font': 'canary',
         react: 'latest',
         'react-dom': 'latest',
         swr: '2.0.0-rc.0',
@@ -154,5 +155,15 @@ describe('app dir - rsc external dependency', () => {
         `window.getComputedStyle(document.querySelector('h1')).color`
       )
     ).toBe('rgb(255, 0, 0)')
+  })
+
+  it('should handle external @next/font', async () => {
+    const browser = await webdriver(next.url, '/font')
+
+    expect(
+      await browser.eval(
+        `window.getComputedStyle(document.querySelector('p')).fontFamily`
+      )
+    ).toMatch(/^__myFont_.{6}, __myFont_Fallback_.{6}$/)
   })
 })
