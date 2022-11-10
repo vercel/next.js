@@ -970,4 +970,19 @@ describe('Telemetry CLI', () => {
       invocationCount: 1,
     })
   })
+
+  it('emits telemetry for usage of @vercel/og', async () => {
+    const { stderr } = await nextBuild(appDir, [], {
+      stderr: true,
+      env: { NEXT_TELEMETRY_DEBUG: 1 },
+    })
+    const featureUsageEvents = findAllTelemetryEvents(
+      stderr,
+      'NEXT_BUILD_FEATURE_USAGE'
+    )
+    expect(featureUsageEvents).toContainEqual({
+      featureName: 'vercelImageGeneration',
+      invocationCount: 1,
+    })
+  })
 })
