@@ -162,7 +162,7 @@ View the [Font API Reference](/docs/api-reference/next/font.md#nextfontlocal) fo
 
 `@next/font` can be used with Tailwind CSS through a [CSS variable](/docs/api-reference/next/font#css-variables).
 
-Use the `variable` option when loading your font (either with Google or Local Fonts) to define your CSS variable name. Then, use `inter.variable` to add the CSS variable to your HTML document.
+In the example below, we use the font `Inter` from `@next/font/google` (You can use any font with Google or Local Fonts). Use the `variable` option when loading your font to define your CSS variable name. Then, use `inter.variable` to add the CSS variable to your HTML document.
 
 ```js
 // pages/_app.js
