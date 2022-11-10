@@ -454,7 +454,7 @@ impl NodeEntry for AppRenderer {
             ))
             .try_join()
             .await?;
-        let segments: Vec<(String, BTreeMap<String, (String, String, String)>)> = layout_and_page
+        let segments: Vec<_> = layout_and_page
             .into_iter()
             .fold(
                 (self.server_root, Vec::new()),
