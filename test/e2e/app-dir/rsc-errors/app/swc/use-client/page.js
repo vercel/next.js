@@ -1,4 +1,4 @@
-import 'react'
+import React from 'react'
 
 // 'use client'
 
