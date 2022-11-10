@@ -887,6 +887,21 @@ export default async function getBaseWebpackConfig(
             'next/dist/client': 'next/dist/esm/client',
             'next/dist/shared': 'next/dist/esm/shared',
             'next/dist/pages': 'next/dist/esm/pages',
+            'next/dist/lib': 'next/dist/esm/lib',
+
+            // Alias the usage of next public APIs
+            [require.resolve('next/dist/client/link')]:
+              'next/dist/esm/client/link',
+            [require.resolve('next/dist/client/image')]:
+              'next/dist/esm/client/image',
+            [require.resolve('next/dist/client/script')]:
+              'next/dist/esm/client/script',
+            [require.resolve('next/dist/client/router')]:
+              'next/dist/esm/client/router',
+            [require.resolve('next/dist/shared/lib/head')]:
+              'next/dist/esm/shared/lib/head',
+            [require.resolve('next/dist/shared/lib/dynamic')]:
+              'next/dist/esm/shared/lib/dynamic',
           }
         : undefined),
 
@@ -1128,7 +1143,7 @@ export default async function getBaseWebpackConfig(
         // Treat next internals as non-external for server layer
         layer === WEBPACK_LAYERS.server
           ? false
-          : /next[/\\]dist[/\\](shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic))/.test(
+          : /next[/\\]dist[/\\](esm[\\/])?(shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic))/.test(
               localRes
             )
 
@@ -1194,7 +1209,9 @@ export default async function getBaseWebpackConfig(
     const externalType = isEsm ? 'module' : 'commonjs'
 
     if (
-      /next[/\\]dist[/\\]shared[/\\](?!lib[/\\]router[/\\]router)/.test(res) ||
+      /next[/\\]dist[/\\](esm[\\/])?shared[/\\](?!lib[/\\]router[/\\]router)/.test(
+        res
+      ) ||
       /next[/\\]dist[/\\]compiled[/\\].*\.[mc]?js$/.test(res)
     ) {
       return `${externalType} ${request}`
