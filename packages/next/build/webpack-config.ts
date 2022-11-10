@@ -1256,11 +1256,16 @@ export default async function getBaseWebpackConfig(
       }
     }
 
-    const shouldBeBundled = isResourceInPackages(
-      res,
-      config.experimental.transpilePackages,
-      resolvedExternalPackageDirs
-    )
+    // If a package is included in `transpilePackages`, we don't want to make it external.
+    // And also, if that resource is an ES module, we bundle it too because we can't
+    // rely on the require hook to alias `react` to our precompiled version.
+    const shouldBeBundled =
+      isResourceInPackages(
+        res,
+        config.experimental.transpilePackages,
+        resolvedExternalPackageDirs
+      ) ||
+      (isEsm && config.experimental.appDir)
 
     if (/node_modules[/\\].*\.[mc]?js$/.test(res)) {
       if (layer === WEBPACK_LAYERS.server) {
