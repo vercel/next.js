@@ -42,7 +42,7 @@ impl Ord for SpecificityElement {
 /// The specificity of a URL. Implements Ord to allow to compare two
 /// specificities. A match with higher specificity should be preferred.
 #[turbo_tasks::value(shared)]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct Specificity {
     #[turbo_tasks(trace_ignore)]
     elements: Vec<SpecificityElement>,
@@ -76,9 +76,7 @@ impl Ord for Specificity {
 impl Specificity {
     /// Create a new specificity.
     pub fn new() -> Self {
-        Self {
-            elements: Vec::new(),
-        }
+        Self::default()
     }
 
     /// Add a new element to the specificity.

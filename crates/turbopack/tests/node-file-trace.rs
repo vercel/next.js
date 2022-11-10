@@ -356,7 +356,7 @@ fn node_file_trace<B: Backend + 'static>(
         tests_output_root.push("tests_output");
         let package_root = package_root.to_string_lossy().to_string();
         let input = format!("node-file-trace/{input_path}");
-        let directory_path = tests_output_root.join(&format!("{mode}_{input}"));
+        let directory_path = tests_output_root.join(format!("{mode}_{input}"));
         let directory = directory_path.to_string_lossy().to_string();
 
         remove_dir_all(&directory)

@@ -98,8 +98,7 @@ impl GenerateSourceMap for ParseResultSourceMap {
     #[turbo_tasks::function]
     fn generate_source_map(&self) -> SourceMapVc {
         let map = self.source_map.build_source_map_with_config(
-            // SWC expects a mutable vec, but it never modifies. Seems like an oversight.
-            &mut self.mappings.clone(),
+            &self.mappings,
             None,
             InlineSourcesContentConfig {},
         );

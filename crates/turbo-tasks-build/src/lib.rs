@@ -149,7 +149,7 @@ pub fn generate_register() {
         }
 
         let code = format!("{{\n{register_code}{values_code}}}\n");
-        std::fs::write(&out_file, &code).unwrap();
+        std::fs::write(out_file, code).unwrap();
 
         // println!("cargo:warning={}", out_file.display());
         // for line in code.lines() {

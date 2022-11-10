@@ -48,10 +48,11 @@ impl ImportAttributes {
             .as_ref()
             .map(|c| {
                 let supports = if let Some(supports) = &c.supports {
-                    let v = supports.value.iter().find(|v| match v {
-                        ComponentValue::SupportsCondition(..) => true,
-                        ComponentValue::Declaration(..) => true,
-                        _ => false,
+                    let v = supports.value.iter().find(|v| {
+                        matches!(
+                            v,
+                            ComponentValue::SupportsCondition(..) | ComponentValue::Declaration(..)
+                        )
                     });
 
                     if let Some(supports) = v {

@@ -172,10 +172,10 @@ pub fn run_publish(name: &str) {
             .map(|name| (name, version.clone()))
             .collect::<HashMap<String, String>>();
         let pkg_json_content =
-            fs::read(&package_dir.join("../../package.json")).expect("Unable to read package.json");
+            fs::read(package_dir.join("../../package.json")).expect("Unable to read package.json");
         let mut pkg_json: Value = serde_json::from_slice(&pkg_json_content).unwrap();
         pkg_json["optionalDependencies"] =
-            serde_json::to_value(&optional_dependencies_with_version).unwrap();
+            serde_json::to_value(optional_dependencies_with_version).unwrap();
         fs::write(
             target_pkg_dir.join("../../package.json"),
             serde_json::to_string_pretty(&pkg_json).unwrap(),
