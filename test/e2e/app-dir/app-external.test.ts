@@ -167,7 +167,7 @@ describe('app dir - external dependency', () => {
     ).toMatch(/^__myFont_.{6}, __myFont_Fallback_.{6}$/)
   })
 
-  describe.only('react in external esm packages', () => {
+  describe('react in external esm packages', () => {
     it('should use the same react in client app', async () => {
       const html = await renderViaHTTP(next.url, '/esm/client')
 
