@@ -13,6 +13,8 @@ export interface RequestStore {
 export let requestAsyncStorage: AsyncLocalStorage<RequestStore> | RequestStore =
   {} as any
 
-if (process.env.NEXT_RUNTIME !== 'edge' && typeof window === 'undefined') {
-  requestAsyncStorage = new (require('async_hooks').AsyncLocalStorage)()
+// @ts-expect-error we provide this on globalThis in
+// the edge and node runtime
+if (globalThis.AsyncLocalStorage) {
+  requestAsyncStorage = new (globalThis as any).AsyncLocalStorage()
 }

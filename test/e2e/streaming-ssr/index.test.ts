@@ -65,6 +65,11 @@ describe('react 18 streaming SSR with custom next configs', () => {
     expect(html).toContain('home')
   })
 
+  it('should render next/router correctly in edge runtime', async () => {
+    const html = await renderViaHTTP(next.url, '/router')
+    expect(html).toContain('link')
+  })
+
   it('should render multi-byte characters correctly in streaming', async () => {
     const html = await renderViaHTTP(next.url, '/multi-byte')
     expect(html).toContain('マルチバイト'.repeat(28))

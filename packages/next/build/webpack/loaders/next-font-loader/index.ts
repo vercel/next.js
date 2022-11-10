@@ -13,6 +13,7 @@ export default async function nextFontLoader(this: any) {
   return fontLoaderSpan.traceAsyncFn(async () => {
     const callback = this.async()
     const {
+      isDev,
       isServer,
       assetPrefix,
       fontLoaderOptions,
@@ -57,6 +58,7 @@ export default async function nextFontLoader(this: any) {
       path: relativeFilePathFromRoot,
       import: functionName,
       arguments: data,
+      variableName,
     } = JSON.parse(this.resourceQuery.slice(1))
 
     try {
@@ -67,6 +69,7 @@ export default async function nextFontLoader(this: any) {
       let { css, fallbackFonts, adjustFontFallback, weight, style, variable } =
         await fontLoader({
           functionName,
+          variableName,
           data,
           config: fontLoaderOptions,
           emitFontFile,
@@ -77,8 +80,9 @@ export default async function nextFontLoader(this: any) {
               ),
               src.startsWith('.') ? src : `./${src}`
             ),
-          fs: this.fs,
+          isDev,
           isServer,
+          loaderContext: this,
         })
 
       const { postcss } = await getPostcss()

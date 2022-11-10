@@ -30,6 +30,8 @@ type EventCliSessionStarted = {
   reactStrictMode: boolean
   webpackVersion: number | null
   turboFlag: boolean
+  appDir: boolean | null
+  pagesDir: boolean | null
 }
 
 function hasBabelConfig(dir: string): boolean {
@@ -113,6 +115,8 @@ export function eventCliSession(
     reactStrictMode: !!nextConfig?.reactStrictMode,
     webpackVersion: event.webpackVersion || null,
     turboFlag: event.turboFlag || false,
+    appDir: event.appDir,
+    pagesDir: event.pagesDir,
   }
   return [{ eventName: EVENT_VERSION, payload }]
 }
