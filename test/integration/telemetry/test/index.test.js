@@ -333,7 +333,7 @@ describe('Telemetry CLI', () => {
     expect(event1).toMatch(/"serverPropsPageCount": 2/)
     expect(event1).toMatch(/"ssrPageCount": 2/)
     expect(event1).toMatch(/"staticPageCount": 4/)
-    expect(event1).toMatch(/"totalPageCount": 9/)
+    expect(event1).toMatch(/"totalPageCount": 10/)
   })
 
   it('detects isSrcDir dir correctly for `next dev`', async () => {
