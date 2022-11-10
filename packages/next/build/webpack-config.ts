@@ -1264,7 +1264,8 @@ export default async function getBaseWebpackConfig(
         res,
         config.experimental.transpilePackages,
         resolvedExternalPackageDirs
-      ) || isEsm
+      ) ||
+      (isEsm && config.experimental.appDir)
 
     if (/node_modules[/\\].*\.[mc]?js$/.test(res)) {
       if (layer === WEBPACK_LAYERS.server) {
