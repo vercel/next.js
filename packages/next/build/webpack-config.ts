@@ -1983,9 +1983,7 @@ export default async function getBaseWebpackConfig(
         new ReactLoadablePlugin({
           filename: REACT_LOADABLE_MANIFEST,
           pagesDir,
-          runtimeAsset: true
-            ? `server/${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`
-            : undefined,
+          runtimeAsset: `server/${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`,
           dev,
         }),
       (isClient || isEdgeServer) && new DropClientPage(),
