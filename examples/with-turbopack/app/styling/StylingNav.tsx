@@ -5,10 +5,6 @@ import { useSelectedLayoutSegments } from 'next/navigation';
 
 const items = [
   {
-    name: 'Home',
-    slug: '',
-  },
-  {
     name: 'Global CSS',
     slug: 'global-css',
   },
@@ -35,6 +31,11 @@ const StylingNav = () => {
 
   return (
     <div className="flex items-center space-x-4">
+
+      <TabNavItem href="/styling" isActive={!selectedLayoutSegments}>
+        Home
+      </TabNavItem>
+
       {items.map((item) => (
         <TabNavItem
           key={item.slug}
