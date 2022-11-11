@@ -2457,12 +2457,7 @@ export default async function getBaseWebpackConfig(
       (rule) =>
         rule && typeof rule === 'object' && rule.loader === 'next-image-loader'
     )
-    if (
-      hasCustomSvg &&
-      nextImageRule &&
-      nextImageRule &&
-      typeof nextImageRule === 'object'
-    ) {
+    if (hasCustomSvg && nextImageRule && typeof nextImageRule === 'object') {
       // Exclude svg if the user already defined it in custom
       // webpack config such as `@svgr/webpack` plugin or
       // the `babel-plugin-inline-react-svg` plugin.
@@ -2636,7 +2631,6 @@ export default async function getBaseWebpackConfig(
       )
     }
   }
-
   // Patch `@zeit/next-sass`, `@zeit/next-less`, `@zeit/next-stylus` for compatibility
   if (webpackConfig.module && Array.isArray(webpackConfig.module.rules)) {
     ;[].forEach.call(
