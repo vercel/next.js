@@ -2072,6 +2072,9 @@ describe('Prerender', () => {
           const { version, files } = JSON.parse(contents)
           expect(version).toBe(1)
 
+          console.log(
+            check.tests.map((item) => files.some((file) => item.test(file)))
+          )
           expect(
             check.tests.every((item) => files.some((file) => item.test(file)))
           ).toBe(true)

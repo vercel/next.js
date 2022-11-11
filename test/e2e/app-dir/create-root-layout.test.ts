@@ -50,7 +50,7 @@ describe('app-dir create root layout', () => {
             /did not have a root layout/
           )
           expect(next.cliOutput.slice(outputIndex)).toMatch(
-            'Your page app/route/page.js did not have a root layout, we created app/layout.js and app/head.js for you.'
+            'Your page app/route/page.js did not have a root layout. We created app/layout.js and app/head.js for you.'
           )
 
           expect(await next.readFile('app/layout.js')).toMatchInlineSnapshot(`
@@ -112,7 +112,7 @@ describe('app-dir create root layout', () => {
             /did not have a root layout/
           )
           expect(next.cliOutput.slice(outputIndex)).toInclude(
-            'Your page app/(group)/page.js did not have a root layout, we created app/(group)/layout.js and app/(group)/head.js for you.'
+            'Your page app/(group)/page.js did not have a root layout. We created app/(group)/layout.js and app/(group)/head.js for you.'
           )
 
           expect(await next.readFile('app/(group)/layout.js'))
@@ -179,7 +179,7 @@ describe('app-dir create root layout', () => {
             /did not have a root layout/
           )
           expect(next.cliOutput.slice(outputIndex)).toInclude(
-            'Your page app/(group)/route/second/inner/page.js did not have a root layout, we created app/(group)/route/second/layout.js and app/(group)/route/second/head.js for you.'
+            'Your page app/(group)/route/second/inner/page.js did not have a root layout. We created app/(group)/route/second/layout.js and app/(group)/route/second/head.js for you.'
           )
 
           expect(await next.readFile('app/(group)/route/second/layout.js'))
@@ -247,7 +247,7 @@ describe('app-dir create root layout', () => {
           /did not have a root layout/
         )
         expect(next.cliOutput.slice(outputIndex)).toInclude(
-          'Your page app/page.tsx did not have a root layout, we created app/layout.tsx and app/head.tsx for you.'
+          'Your page app/page.tsx did not have a root layout. We created app/layout.tsx and app/head.tsx for you.'
         )
 
         expect(await next.readFile('app/layout.tsx')).toMatchInlineSnapshot(`

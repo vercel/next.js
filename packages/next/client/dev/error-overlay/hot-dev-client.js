@@ -119,7 +119,7 @@ function handleWarnings(warnings) {
     })
 
     if (typeof console !== 'undefined' && typeof console.warn === 'function') {
-      for (let i = 0; i < formatted.warnings.length; i++) {
+      for (let i = 0; i < formatted.warnings?.length; i++) {
         if (i === 5) {
           console.warn(
             'There were more warnings in other files.\n' +

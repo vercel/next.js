@@ -662,16 +662,6 @@ export default async function getBaseWebpackConfig(
     loggedIgnoredCompilerOptions = true
   }
 
-  if (!useSWCLoader && babelConfigFile && config.experimental.fontLoaders) {
-    Log.error(
-      `"experimental.fontLoaders" is enabled which requires SWC although Babel is being used due to custom babel config being present "${path.relative(
-        dir,
-        babelConfigFile
-      )}".\nSee more info here: https://nextjs.org/docs/messages/babel-font-loader-conflict`
-    )
-    process.exit(1)
-  }
-
   const getBabelLoader = () => {
     return {
       loader: require.resolve('./babel/loader/index'),
@@ -897,6 +887,21 @@ export default async function getBaseWebpackConfig(
             'next/dist/client': 'next/dist/esm/client',
             'next/dist/shared': 'next/dist/esm/shared',
             'next/dist/pages': 'next/dist/esm/pages',
+            'next/dist/lib': 'next/dist/esm/lib',
+
+            // Alias the usage of next public APIs
+            [require.resolve('next/dist/client/link')]:
+              'next/dist/esm/client/link',
+            [require.resolve('next/dist/client/image')]:
+              'next/dist/esm/client/image',
+            [require.resolve('next/dist/client/script')]:
+              'next/dist/esm/client/script',
+            [require.resolve('next/dist/client/router')]:
+              'next/dist/esm/client/router',
+            [require.resolve('next/dist/shared/lib/head')]:
+              'next/dist/esm/shared/lib/head',
+            [require.resolve('next/dist/shared/lib/dynamic')]:
+              'next/dist/esm/shared/lib/dynamic',
           }
         : undefined),
 
@@ -931,11 +936,7 @@ export default async function getBaseWebpackConfig(
       ...customRootAliases,
 
       ...(pagesDir ? { [PAGES_DIR_ALIAS]: pagesDir } : {}),
-      ...(appDir
-        ? {
-            [APP_DIR_ALIAS]: appDir,
-          }
-        : {}),
+      ...(appDir ? { [APP_DIR_ALIAS]: appDir } : {}),
       [ROOT_DIR_ALIAS]: dir,
       [DOT_NEXT_ALIAS]: distDir,
       ...(isClient || isEdgeServer ? getOptimizedAliases() : {}),
@@ -1142,7 +1143,7 @@ export default async function getBaseWebpackConfig(
         // Treat next internals as non-external for server layer
         layer === WEBPACK_LAYERS.server
           ? false
-          : /next[/\\]dist[/\\](shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic))/.test(
+          : /next[/\\]dist[/\\](esm[\\/])?(shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic))/.test(
               localRes
             )
 
@@ -1208,7 +1209,9 @@ export default async function getBaseWebpackConfig(
     const externalType = isEsm ? 'module' : 'commonjs'
 
     if (
-      /next[/\\]dist[/\\]shared[/\\](?!lib[/\\]router[/\\]router)/.test(res) ||
+      /next[/\\]dist[/\\](esm[\\/])?shared[/\\](?!lib[/\\]router[/\\]router)/.test(
+        res
+      ) ||
       /next[/\\]dist[/\\]compiled[/\\].*\.[mc]?js$/.test(res)
     ) {
       return `${externalType} ${request}`
@@ -1253,11 +1256,16 @@ export default async function getBaseWebpackConfig(
       }
     }
 
-    const shouldBeBundled = isResourceInPackages(
-      res,
-      config.experimental.transpilePackages,
-      resolvedExternalPackageDirs
-    )
+    // If a package is included in `transpilePackages`, we don't want to make it external.
+    // And also, if that resource is an ES module, we bundle it too because we can't
+    // rely on the require hook to alias `react` to our precompiled version.
+    const shouldBeBundled =
+      isResourceInPackages(
+        res,
+        config.experimental.transpilePackages,
+        resolvedExternalPackageDirs
+      ) ||
+      (isEsm && config.experimental.appDir)
 
     if (/node_modules[/\\].*\.[mc]?js$/.test(res)) {
       if (layer === WEBPACK_LAYERS.server) {
@@ -1633,7 +1641,7 @@ export default async function getBaseWebpackConfig(
                   return true
                 },
                 resolve: {
-                  conditionNames: ['react-server', 'node', 'require'],
+                  conditionNames: ['react-server', 'node', 'import', 'require'],
                   alias: {
                     // If missing the alias override here, the default alias will be used which aliases
                     // react to the direct file path, not the package name. In that case the condition
@@ -1975,9 +1983,7 @@ export default async function getBaseWebpackConfig(
         new ReactLoadablePlugin({
           filename: REACT_LOADABLE_MANIFEST,
           pagesDir,
-          runtimeAsset: true
-            ? `server/${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`
-            : undefined,
+          runtimeAsset: `server/${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`,
           dev,
         }),
       (isClient || isEdgeServer) && new DropClientPage(),
@@ -2244,6 +2250,7 @@ export default async function getBaseWebpackConfig(
   }
 
   const configVars = JSON.stringify({
+    appDir: config.experimental.appDir,
     crossOrigin: config.crossOrigin,
     pageExtensions: pageExtensions,
     trailingSlash: config.trailingSlash,
