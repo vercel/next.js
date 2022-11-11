@@ -1422,13 +1422,16 @@ export default class Router implements BaseRouter {
       locale: nextState.locale,
       router: this,
     })
+    let route = removeTrailingSlash(pathname)
+    let routeMatch: { [paramName: string]: string | string[] } | false = false
+    const parsedAs = parseRelativeUrl(resolvedAs)
 
     if (options.shallow && isMiddlewareMatch) {
       pathname = this.pathname
     }
 
     if (isQueryUpdating && isMiddlewareMatch) {
-      shouldResolveHref = false
+      shouldResolveHref = !pages.includes(route) || route !== parsedAs.pathname
     }
 
     if (shouldResolveHref && pathname !== '/_error') {
@@ -1489,11 +1492,7 @@ export default class Router implements BaseRouter {
 
     resolvedAs = removeLocale(removeBasePath(resolvedAs), nextState.locale)
 
-    let route = removeTrailingSlash(pathname)
-    let routeMatch: { [paramName: string]: string | string[] } | false = false
-
     if (isDynamicRoute(route)) {
-      const parsedAs = parseRelativeUrl(resolvedAs)
       const asPathname = parsedAs.pathname
 
       const routeRegex = getRouteRegex(route)
@@ -1553,6 +1552,10 @@ export default class Router implements BaseRouter {
     }
 
     try {
+      const isMiddlewareRewrite =
+        isDynamicRoute(route) &&
+        !getRouteMatcher(getRouteRegex(route))(resolvedAs)
+
       let routeInfo = await this.getRouteInfo({
         route,
         pathname,
@@ -1564,7 +1567,8 @@ export default class Router implements BaseRouter {
         isPreview: nextState.isPreview,
         hasMiddleware: isMiddlewareMatch,
         unstable_skipClientCache: options.unstable_skipClientCache,
-        isQueryUpdating: isQueryUpdating && !this.isFallback,
+        isQueryUpdating:
+          isQueryUpdating && !this.isFallback && !isMiddlewareRewrite,
       })
 
       if ('route' in routeInfo && isMiddlewareMatch) {
