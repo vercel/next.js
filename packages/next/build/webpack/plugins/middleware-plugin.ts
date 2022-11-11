@@ -683,6 +683,7 @@ function getExtractMetadata(params: {
         wasmBindings: new Map(),
         assetBindings: new Map(),
       }
+      let ogImageGenerationCount = 0
 
       for (const module of modules) {
         const buildInfo = getModuleBuildInfo(module)
@@ -697,13 +698,10 @@ function getExtractMetadata(params: {
             /[\\/]node_modules[\\/]@vercel[\\/]og[\\/]dist[\\/]index.js$/.test(
               resource
             )
-          telemetry.record({
-            eventName: EVENT_BUILD_FEATURE_USAGE,
-            payload: {
-              featureName: 'vercelImageGeneration',
-              invocationCount: hasOGImageGeneration ? 1 : 0,
-            },
-          })
+
+          if (hasOGImageGeneration) {
+            ogImageGenerationCount++
+          }
         }
 
         /**
@@ -818,6 +816,13 @@ function getExtractMetadata(params: {
         }
       }
 
+      telemetry.record({
+        eventName: EVENT_BUILD_FEATURE_USAGE,
+        payload: {
+          featureName: 'vercelImageGeneration',
+          invocationCount: ogImageGenerationCount,
+        },
+      })
       metadataByEntry.set(entryName, entryMetadata)
     }
   }

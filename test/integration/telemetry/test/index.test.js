@@ -331,9 +331,14 @@ describe('Telemetry CLI', () => {
     const event1 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/.exec(stderr).pop()
     expect(event1).toMatch(/"staticPropsPageCount": 2/)
     expect(event1).toMatch(/"serverPropsPageCount": 2/)
-    expect(event1).toMatch(/"ssrPageCount": 2/)
+    expect(event1).toMatch(/"ssrPageCount": 3/)
     expect(event1).toMatch(/"staticPageCount": 4/)
-    expect(event1).toMatch(/"totalPageCount": 10/)
+    expect(event1).toMatch(/"totalPageCount": 11/)
+    expect(event1).toMatch(/"totalAppPagesCount": 0/)
+    expect(event1).toMatch(/"staticAppPagesCount": 0/)
+    expect(event1).toMatch(/"serverAppPagesCount": 0/)
+    expect(event1).toMatch(/"edgeRuntimeAppCount": 0/)
+    expect(event1).toMatch(/"edgeRuntimePagesCount": 2/)
   })
 
   it('detects isSrcDir dir correctly for `next dev`', async () => {
@@ -377,7 +382,19 @@ describe('Telemetry CLI', () => {
     )
     await fs.mkdir(path.join(__dirname, '../app'))
     await fs.writeFile(
-      path.join(__dirname, '../app/page.js'),
+      path.join(__dirname, '../app/layout.js'),
+      `
+      export default function RootLayout({ children }) {
+        return <html>
+          <head/>
+          <body>{children}</body>
+        </html>
+      }
+    `
+    )
+    await fs.ensureFile(path.join(__dirname, '../app/hello/page.js'))
+    await fs.writeFile(
+      path.join(__dirname, '../app/hello/page.js'),
       'export default function Page() { return "hello world" }'
     )
 
@@ -485,6 +502,73 @@ describe('Telemetry CLI', () => {
       expect(event1).toMatch(/"turboFlag": false/)
       expect(event1).toMatch(/"pagesDir": true/)
       expect(event1).toMatch(/"appDir": true/)
+    } finally {
+      await teardown()
+    }
+  })
+
+  it('should detect app page counts', async () => {
+    const teardown = await setupAppDir()
+
+    try {
+      await fs.ensureFile(path.join(__dirname, '../app/ssr/page.js'))
+      await fs.writeFile(
+        path.join(__dirname, '../app/ssr/page.js'),
+        `
+        export const revalidate = 0
+        export default function Page() {
+          return <p>ssr page</p>
+        }
+      `
+      )
+      await fs.ensureFile(path.join(__dirname, '../app/edge-ssr/page.js'))
+      await fs.writeFile(
+        path.join(__dirname, '../app/edge-ssr/page.js'),
+        `
+        export const runtime = 'experimental-edge'
+        export default function Page() {
+          return <p>edge-ssr page</p>
+        }
+      `
+      )
+      await fs.ensureFile(path.join(__dirname, '../app/app-ssg/[slug]/page.js'))
+      await fs.writeFile(
+        path.join(__dirname, '../app/app-ssg/[slug]/page.js'),
+        `
+        export function generateStaticParams() {
+          return [
+            { slug: 'post-1' },
+            { slug: 'post-2' },
+          ]
+        }
+        export default function Page() {
+          return <p>ssg page</p>
+        }
+      `
+      )
+      const { stderr } = await nextBuild(appDir, [], {
+        stderr: true,
+        env: { NEXT_TELEMETRY_DEBUG: 1 },
+      })
+
+      const event1 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/
+        .exec(stderr)
+        .pop()
+      expect(event1).toMatch(/"staticPropsPageCount": 2/)
+      expect(event1).toMatch(/"serverPropsPageCount": 2/)
+      expect(event1).toMatch(/"ssrPageCount": 3/)
+      expect(event1).toMatch(/"staticPageCount": 4/)
+      expect(event1).toMatch(/"totalPageCount": 11/)
+      expect(event1).toMatch(/"totalAppPagesCount": 4/)
+      expect(event1).toMatch(/"serverAppPagesCount": 2/)
+      expect(event1).toMatch(/"edgeRuntimeAppCount": 1/)
+      expect(event1).toMatch(/"edgeRuntimePagesCount": 2/)
+
+      const event2 = /NEXT_BUILD_COMPLETED[\s\S]+?{([\s\S]+?)}/
+        .exec(stderr)
+        .pop()
+
+      expect(event2).toMatch(/"totalAppPagesCount": 4/)
     } finally {
       await teardown()
     }
@@ -750,6 +834,7 @@ describe('Telemetry CLI', () => {
       stderr,
       'NEXT_BUILD_FEATURE_USAGE'
     )
+
     expect(featureUsageEvents).toEqual(
       expect.arrayContaining([
         {
@@ -758,7 +843,7 @@ describe('Telemetry CLI', () => {
         },
         {
           featureName: 'next/image',
-          invocationCount: 1,
+          invocationCount: 2,
         },
         {
           featureName: 'next/script',
@@ -787,8 +872,14 @@ describe('Telemetry CLI', () => {
       stderr: true,
       env: { NEXT_TELEMETRY_DEBUG: 1 },
     })
-    await fs.remove(path.join(appDir, 'next.config.js'))
-    await fs.remove(path.join(appDir, 'jsconfig.json'))
+    await fs.rename(
+      path.join(appDir, 'next.config.js'),
+      path.join(appDir, 'next.config.swc')
+    )
+    await fs.rename(
+      path.join(appDir, 'jsconfig.json'),
+      path.join(appDir, 'jsconfig.swc')
+    )
     const featureUsageEvents = findAllTelemetryEvents(
       stderr,
       'NEXT_BUILD_FEATURE_USAGE'
@@ -963,11 +1054,11 @@ describe('Telemetry CLI', () => {
     )
     expect(featureUsageEvents).toContainEqual({
       featureName: 'next/legacy/image',
-      invocationCount: 1,
+      invocationCount: 2,
     })
     expect(featureUsageEvents).toContainEqual({
       featureName: 'next/image',
-      invocationCount: 1,
+      invocationCount: 2,
     })
   })
 
