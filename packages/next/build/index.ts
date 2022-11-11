@@ -597,6 +597,7 @@ export default async function build(
           appPageKeys.push(normalizedAppPageKey)
         }
       }
+      const totalAppPagesCount = appPageKeys.length
 
       const pageKeys = {
         pages: pagesPageKeys,
@@ -1097,6 +1098,7 @@ export default async function build(
         telemetry.record(
           eventBuildCompleted(pagesPaths, {
             durationInSeconds: webpackBuildEnd[0],
+            totalAppPagesCount,
           })
         )
 
@@ -1121,6 +1123,10 @@ export default async function build(
       const buildManifestPath = path.join(distDir, BUILD_MANIFEST)
       const appBuildManifestPath = path.join(distDir, APP_BUILD_MANIFEST)
 
+      let staticAppPagesCount = 0
+      let serverAppPagesCount = 0
+      let edgeRuntimeAppCount = 0
+      let edgeRuntimePagesCount = 0
       const ssgPages = new Set<string>()
       const ssgStaticFallbackPages = new Set<string>()
       const ssgBlockingFallbackPages = new Set<string>()
@@ -1300,6 +1306,18 @@ export default async function build(
           config.experimental.gzipSize
         )
 
+        const middlewareManifest: MiddlewareManifest = require(join(
+          distDir,
+          SERVER_DIRECTORY,
+          MIDDLEWARE_MANIFEST
+        ))
+
+        for (const key of Object.keys(middlewareManifest?.functions)) {
+          if (key.startsWith('/api')) {
+            edgeRuntimePagesCount++
+          }
+        }
+
         await Promise.all(
           Object.entries(pageKeys)
             .reduce<Array<{ pageType: keyof typeof pageKeys; page: string }>>(
@@ -1388,15 +1406,16 @@ export default async function build(
                     let edgeInfo: any
 
                     if (pageRuntime === SERVER_RUNTIME.edge) {
-                      const manifest = require(join(
-                        distDir,
-                        SERVER_DIRECTORY,
-                        MIDDLEWARE_MANIFEST
-                      ))
+                      if (pageType === 'app') {
+                        edgeRuntimeAppCount++
+                      } else {
+                        edgeRuntimePagesCount++
+                      }
+
                       const manifestKey =
                         pageType === 'pages' ? page : originalAppPath || ''
 
-                      edgeInfo = manifest.functions[manifestKey]
+                      edgeInfo = middlewareManifest.functions[manifestKey]
                     }
 
                     let isPageStaticSpan =
@@ -1578,6 +1597,14 @@ export default async function build(
                     )
                       throw err
                     invalidPages.add(page)
+                  }
+                }
+
+                if (pageType === 'app') {
+                  if (isSsg || isStatic) {
+                    staticAppPagesCount++
+                  } else {
+                    serverAppPagesCount++
                   }
                 }
 
@@ -2589,6 +2616,11 @@ export default async function build(
             .length,
           redirectsWithHasCount: redirects.filter((r: any) => !!r.has).length,
           middlewareCount: Object.keys(rootPaths).length > 0 ? 1 : 0,
+          totalAppPagesCount,
+          staticAppPagesCount,
+          serverAppPagesCount,
+          edgeRuntimeAppCount,
+          edgeRuntimePagesCount,
         })
       )
 

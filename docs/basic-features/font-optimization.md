@@ -158,6 +158,51 @@ export default function MyApp({ Component, pageProps }) {
 
 View the [Font API Reference](/docs/api-reference/next/font.md#nextfontlocal) for more information.
 
+## With Tailwind CSS
+
+`@next/font` can be used with Tailwind CSS through a [CSS variable](/docs/api-reference/next/font#css-variables).
+
+In the example below, we use the font `Inter` from `@next/font/google` (You can use any font from Google or Local Fonts). Load your font with the `variable` option to define your CSS variable name and assign it to `inter`. Then, use `inter.variable` to add the CSS variable to your HTML document.
+
+```js
+// pages/_app.js
+import { Inter } from '@next/font/google'
+
+const inter = Inter({
+  variable: '--font-inter',
+})
+
+export default function MyApp({ Component, pageProps }) {
+  return (
+    <main className={inter.variable}>
+      <Component {...pageProps} />
+    </main>
+  )
+}
+```
+
+Finally, add the CSS variable to your [Tailwind CSS config](https://github.com/vercel/next.js/tree/canary/examples/with-tailwindcss):
+
+```js
+// tailwind.config.js
+const { fontFamily } = require('tailwindcss/defaultTheme')
+
+/** @type {import('tailwindcss').Config} \*/
+module.exports = {
+  content: ['./app/**/*.{js,ts,jsx,tsx}'],
+  theme: {
+    extend: {
+      fontFamily: {
+        sans: ['var(--font-inter)', ...fontFamily.sans],
+      },
+    },
+  },
+  plugins: [],
+}
+```
+
+You can now use the `font-sans` utility class to apply the font to your elements.
+
 ## Preloading
 
 When a font function is called on a page of your site, it is not globally available and preloaded on all routes. Rather, the font is only preloaded on the related route/s based on the type of file where it is used:
