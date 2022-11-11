@@ -1425,7 +1425,9 @@ export async function renderToHTMLOrFlight(
                     )
                   ).Component
                 ),
-            undefined, // TODO: change this to head tags.
+            isPrefetch && !Boolean(loaderTreeToFilter[2].loading) ? null : (
+              <>{null}</> // TODO: change this to head tags.
+            ),
           ]
         }
 
