@@ -48,12 +48,10 @@ describe('app dir next-image', () => {
       )
 
       const pageSvg = $('#app-page-svg')
-      expect(pageSvg.attr('src')).toBe(
-        '/_next/static/media/vercel.server.1be6ab75.svg'
-      )
+      expect(pageSvg.attr('src')).toBe('/_next/static/media/test.1be6ab75.svg')
 
       expect(pageSvg.attr('srcset')).toBe(
-        '/_next/static/media/vercel.server.1be6ab75.svg 1x, /_next/static/media/vercel.server.1be6ab75.svg 2x'
+        '/_next/static/media/test.1be6ab75.svg 1x, /_next/static/media/test.1be6ab75.svg 2x'
       )
 
       const comp = $('#app-comp')
