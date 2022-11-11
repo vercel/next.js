@@ -1256,11 +1256,16 @@ export default async function getBaseWebpackConfig(
       }
     }
 
-    const shouldBeBundled = isResourceInPackages(
-      res,
-      config.experimental.transpilePackages,
-      resolvedExternalPackageDirs
-    )
+    // If a package is included in `transpilePackages`, we don't want to make it external.
+    // And also, if that resource is an ES module, we bundle it too because we can't
+    // rely on the require hook to alias `react` to our precompiled version.
+    const shouldBeBundled =
+      isResourceInPackages(
+        res,
+        config.experimental.transpilePackages,
+        resolvedExternalPackageDirs
+      ) ||
+      (isEsm && config.experimental.appDir)
 
     if (/node_modules[/\\].*\.[mc]?js$/.test(res)) {
       if (layer === WEBPACK_LAYERS.server) {
@@ -1636,7 +1641,7 @@ export default async function getBaseWebpackConfig(
                   return true
                 },
                 resolve: {
-                  conditionNames: ['react-server', 'node', 'require'],
+                  conditionNames: ['react-server', 'node', 'import', 'require'],
                   alias: {
                     // If missing the alias override here, the default alias will be used which aliases
                     // react to the direct file path, not the package name. In that case the condition
@@ -1978,9 +1983,7 @@ export default async function getBaseWebpackConfig(
         new ReactLoadablePlugin({
           filename: REACT_LOADABLE_MANIFEST,
           pagesDir,
-          runtimeAsset: true
-            ? `server/${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`
-            : undefined,
+          runtimeAsset: `server/${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`,
           dev,
         }),
       (isClient || isEdgeServer) && new DropClientPage(),

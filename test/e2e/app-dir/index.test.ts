@@ -2135,6 +2135,29 @@ describe('app dir', () => {
             .text()
         ).toBe(`About page`)
       })
+      it('should not do additional pushState when already on the page', async () => {
+        const browser = await webdriver(next.url, '/linking/about')
+        const goToLinkingPage = async () => {
+          expect(
+            await browser
+              .elementByCss('a[href="/linking"]')
+              .click()
+              .waitForElementByCss('#home-page')
+              .text()
+          ).toBe(`Home page`)
+        }
+
+        await goToLinkingPage()
+        await waitFor(1000)
+        await goToLinkingPage()
+        await waitFor(1000)
+        await goToLinkingPage()
+        await waitFor(1000)
+
+        expect(
+          await browser.back().waitForElementByCss('#about-page', 2000).text()
+        ).toBe(`About page`)
+      })
     })
 
     describe('not-found', () => {
