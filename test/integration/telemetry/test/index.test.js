@@ -834,6 +834,7 @@ describe('Telemetry CLI', () => {
       stderr,
       'NEXT_BUILD_FEATURE_USAGE'
     )
+
     expect(featureUsageEvents).toEqual(
       expect.arrayContaining([
         {
@@ -842,7 +843,7 @@ describe('Telemetry CLI', () => {
         },
         {
           featureName: 'next/image',
-          invocationCount: 1,
+          invocationCount: 2,
         },
         {
           featureName: 'next/script',
@@ -871,8 +872,14 @@ describe('Telemetry CLI', () => {
       stderr: true,
       env: { NEXT_TELEMETRY_DEBUG: 1 },
     })
-    await fs.remove(path.join(appDir, 'next.config.js'))
-    await fs.remove(path.join(appDir, 'jsconfig.json'))
+    await fs.rename(
+      path.join(appDir, 'next.config.js'),
+      path.join(appDir, 'next.config.swc')
+    )
+    await fs.rename(
+      path.join(appDir, 'jsconfig.json'),
+      path.join(appDir, 'jsconfig.swc')
+    )
     const featureUsageEvents = findAllTelemetryEvents(
       stderr,
       'NEXT_BUILD_FEATURE_USAGE'
@@ -1047,11 +1054,11 @@ describe('Telemetry CLI', () => {
     )
     expect(featureUsageEvents).toContainEqual({
       featureName: 'next/legacy/image',
-      invocationCount: 1,
+      invocationCount: 2,
     })
     expect(featureUsageEvents).toContainEqual({
       featureName: 'next/image',
-      invocationCount: 1,
+      invocationCount: 2,
     })
   })
 
