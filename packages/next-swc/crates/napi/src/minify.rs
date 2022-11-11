@@ -92,15 +92,7 @@ impl Task for MinifyTask {
                     self.c.minify(
                         fm,
                         handler,
-                        &JsMinifyOptions {
-                            compress: TerserCompressorOptions {
-                                // inline: TerserInlineOption::Num(0).into(),
-                                ..Default::default()
-                            }
-                            .into(),
-                            mangle: BoolOrDataConfig::from_bool(false),
-                            ..self.opts.clone()
-                        },
+                        &self.opts,
                     )
                 })
             },
