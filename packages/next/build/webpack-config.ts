@@ -1641,7 +1641,7 @@ export default async function getBaseWebpackConfig(
                   return true
                 },
                 resolve: {
-                  conditionNames: ['react-server', 'node', 'require'],
+                  conditionNames: ['react-server', 'node', 'import', 'require'],
                   alias: {
                     // If missing the alias override here, the default alias will be used which aliases
                     // react to the direct file path, not the package name. In that case the condition
@@ -1983,9 +1983,7 @@ export default async function getBaseWebpackConfig(
         new ReactLoadablePlugin({
           filename: REACT_LOADABLE_MANIFEST,
           pagesDir,
-          runtimeAsset: true
-            ? `server/${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`
-            : undefined,
+          runtimeAsset: `server/${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`,
           dev,
         }),
       (isClient || isEdgeServer) && new DropClientPage(),

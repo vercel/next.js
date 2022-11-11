@@ -90,9 +90,9 @@ describe('app dir - external dependency', () => {
     containClientContent(browserClientText)
 
     // support esm module imports on server side, and indirect imports from shared components
-    expect(serverHtml).toContain('random-module-instance')
+    expect(serverHtml).toContain('pure-esm-module')
     expect(sharedHtml).toContain(
-      'node_modules instance from client module random-module-instance'
+      'node_modules instance from client module pure-esm-module'
     )
   })
 
