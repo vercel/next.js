@@ -89,11 +89,7 @@ impl Task for MinifyTask {
                 GLOBALS.set(&Default::default(), || {
                     let fm = self.code.to_file(self.c.cm.clone());
 
-                    self.c.minify(
-                        fm,
-                        handler,
-                        &self.opts,
-                    )
+                    self.c.minify(fm, handler, &self.opts)
                 })
             },
         )
