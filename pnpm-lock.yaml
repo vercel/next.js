@@ -410,7 +410,7 @@ importers:
 
   packages/eslint-config-next:
     specifiers:
-      '@next/eslint-plugin-next': 13.0.3-canary.3
+      '@next/eslint-plugin-next': 13.0.3-canary.4
       '@rushstack/eslint-patch': ^1.1.3
       '@typescript-eslint/parser': ^5.42.0
       eslint-import-resolver-node: ^0.3.6
@@ -478,12 +478,12 @@ importers:
       '@hapi/accept': 5.0.2
       '@napi-rs/cli': 2.12.0
       '@napi-rs/triples': 1.1.0
-      '@next/env': 13.0.3-canary.3
-      '@next/polyfill-module': 13.0.3-canary.3
-      '@next/polyfill-nomodule': 13.0.3-canary.3
-      '@next/react-dev-overlay': 13.0.3-canary.3
-      '@next/react-refresh-utils': 13.0.3-canary.3
-      '@next/swc': 13.0.3-canary.3
+      '@next/env': 13.0.3-canary.4
+      '@next/polyfill-module': 13.0.3-canary.4
+      '@next/polyfill-nomodule': 13.0.3-canary.4
+      '@next/react-dev-overlay': 13.0.3-canary.4
+      '@next/react-refresh-utils': 13.0.3-canary.4
+      '@next/swc': 13.0.3-canary.4
       '@segment/ajv-human-errors': 2.1.2
       '@swc/helpers': 0.4.11
       '@taskr/clear': 1.1.0
@@ -623,8 +623,8 @@ importers:
       stacktrace-parser: 0.1.10
       stream-browserify: 3.0.0
       stream-http: 3.1.1
-      string-hash: 1.1.3
       string_decoder: 1.3.0
+      string-hash: 1.1.3
       strip-ansi: 6.0.0
       styled-jsx: 5.1.0
       tar: 6.1.11
@@ -820,8 +820,8 @@ importers:
       stacktrace-parser: 0.1.10
       stream-browserify: 3.0.0
       stream-http: 3.1.1
-      string-hash: 1.1.3
       string_decoder: 1.3.0
+      string-hash: 1.1.3
       strip-ansi: 6.0.0
       tar: 6.1.11
       taskr: 1.1.0
@@ -9989,8 +9989,8 @@ packages:
     engines: {node: '>=10'}
     hasBin: true
     dependencies:
-      JSONStream: 1.3.5
       is-text-path: 1.0.1
+      JSONStream: 1.3.5
       lodash: 4.17.21
       meow: 8.1.2
       split2: 2.2.0
