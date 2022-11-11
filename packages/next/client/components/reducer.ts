@@ -35,8 +35,10 @@ function createRecordFromThenable(thenable: any) {
 /**
  * Read record value or throw Promise if it's not resolved yet.
  */
-function readRecordValue(thenable: any) {
+function readRecordValue<T>(thenable: Promise<T>): T {
+  // @ts-expect-error TODO: fix type
   if (thenable.status === 'fulfilled') {
+    // @ts-expect-error TODO: fix type
     return thenable.value
   } else {
     throw thenable
@@ -972,7 +974,7 @@ function clientReducer(
       }
 
       // Unwrap cache data with `use` to suspend here (in the reducer) until the fetch resolves.
-      const [flightData, canonicalUrlOverride] = readRecordValue(cache.data)
+      const [flightData, canonicalUrlOverride] = readRecordValue(cache.data!)
 
       // Handle case when navigating to page in `pages` from `app`
       if (typeof flightData === 'string') {
@@ -1244,7 +1246,7 @@ function clientReducer(
           ])
         )
       }
-      const [flightData, canonicalUrlOverride] = readRecordValue(cache.data)
+      const [flightData, canonicalUrlOverride] = readRecordValue(cache.data!)
 
       // Handle case when navigating to page in `pages` from `app`
       if (typeof flightData === 'string') {
