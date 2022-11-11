@@ -47,6 +47,15 @@ describe('app dir next-image', () => {
         '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=640&q=90 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=828&q=90 2x'
       )
 
+      const pageSvg = $('#app-page-svg')
+      expect(pageSvg.attr('src')).toBe(
+        '/_next/static/media/vercel.server.1be6ab75.svg'
+      )
+
+      expect(pageSvg.attr('srcset')).toBe(
+        '/_next/static/media/vercel.server.1be6ab75.svg 1x, /_next/static/media/vercel.server.1be6ab75.svg 2x'
+      )
+
       const comp = $('#app-comp')
       expect(comp.attr('src')).toBe(
         '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=828&q=80'
@@ -249,6 +258,10 @@ describe('app dir next-image', () => {
       const res3 = await fetchViaHTTP(next.url, $('#app-comp').attr('src'))
       expect(res3.status).toBe(200)
       expect(res3.headers.get('content-type')).toBe('image/png')
+
+      const res4 = await fetchViaHTTP(next.url, $('#app-page-svg').attr('src'))
+      expect(res4.status).toBe(200)
+      expect(res4.headers.get('content-type')).toBe('image/svg+xml')
     })
 
     it('should render images on /client route', async () => {
