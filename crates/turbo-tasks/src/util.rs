@@ -2,9 +2,7 @@ use std::{fmt::Display, sync::Arc, time::Duration};
 
 use anyhow::Error;
 
-pub use super::{
-    id_factory::IdFactory, infinite_vec::InfiniteVec, no_move_vec::NoMoveVec, once_map::*,
-};
+pub use super::{id_factory::IdFactory, no_move_vec::NoMoveVec, once_map::*};
 
 /// A error struct that is backed by an Arc to allow cloning errors
 #[derive(Debug, Clone)]

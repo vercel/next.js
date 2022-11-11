@@ -11,12 +11,12 @@ use std::{
 };
 
 use anyhow::{anyhow, Result};
-use event_listener::EventListener;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::{
     backend::CellContent,
+    event::EventListener,
     manager::{
         find_cell_by_key, find_cell_by_type, read_task_cell, read_task_cell_untracked,
         read_task_output, read_task_output_untracked, CurrentCellRef, TurboTasksApi,
@@ -455,9 +455,11 @@ impl<T: Any + Send + Sync, U: Any + Send + Sync> Future for ReadRawVcFuture<T, U
 
     fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
         self.turbo_tasks.notify_scheduled_tasks();
-        let this = self.get_mut();
+        // SAFETY: we are not moving this
+        let this = unsafe { self.get_unchecked_mut() };
         'outer: loop {
             if let Some(listener) = &mut this.listener {
+                // SAFETY: listener is from previous pinned this
                 let listener = unsafe { Pin::new_unchecked(listener) };
                 if listener.poll(cx).is_pending() {
                     return Poll::Pending;
@@ -488,7 +490,8 @@ impl<T: Any + Send + Sync, U: Any + Send + Sync> Future for ReadRawVcFuture<T, U
                     }
                 }
             };
-            match Pin::new(&mut listener).poll(cx) {
+            // SAFETY: listener is from previous pinned this
+            match unsafe { Pin::new_unchecked(&mut listener) }.poll(cx) {
                 Poll::Ready(_) => continue,
                 Poll::Pending => {
                     this.listener = Some(listener);
@@ -516,8 +519,10 @@ impl<T: ValueTraitVc> Future for CollectiblesFuture<T> {
     type Output = Result<HashSet<T>>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
+        // SAFETY: we are not moving `this`
         let this = unsafe { self.get_unchecked_mut() };
-        let inner_pin = Pin::new(&mut this.inner);
+        // SAFETY: `this` was pinned before
+        let inner_pin = unsafe { Pin::new_unchecked(&mut this.inner) };
         match inner_pin.poll(cx) {
             Poll::Ready(r) => Poll::Ready(match r {
                 Ok(set) => {

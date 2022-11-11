@@ -9,16 +9,18 @@ edition = "2021"
 bench = false
 
 [features]
+default = []
 assert_task_state = []
 tokio_tracing = ["tokio/tracing"]
 log_function_stats = []
+hanging_detection = []
 
 [dependencies]
 any_key = "0.1.1"
 anyhow = "1.0.47"
 bitflags = "1.3.2"
 erased-serde = "0.3.20"
-event-listener = "2.5.2"
+event-listener = "2.5.3"
 flurry = "0.4.0"
 futures = "0.3.21"
 indexmap = { workspace = true, features = ["serde"] }

@@ -49,7 +49,7 @@ fn task_type_to_bytes(ty: &PersistentTaskType) -> Result<Vec<u8>, bincode::Error
 }
 
 #[derive(Default)]
-pub struct CountsByFunction(pub InfiniteVec<AtomicUsize>);
+pub struct CountsByFunction(pub NoMoveVec<AtomicUsize>);
 
 impl Debug for CountsByFunction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -230,7 +230,7 @@ impl PersistedGraph for RocksDbPersistedGraph {
                             self.stats
                                 .reads_by_function
                                 .0
-                                .get(*f)
+                                .get_init_default(*f)
                                 .fetch_add(1, Ordering::Relaxed);
                         }
                         _ => {}
@@ -427,7 +427,7 @@ impl PersistedGraph for RocksDbPersistedGraph {
                     self.stats
                         .persists_by_function
                         .0
-                        .get(*f)
+                        .get_init_default(*f)
                         .fetch_add(1, Ordering::Relaxed);
                 }
                 _ => {}

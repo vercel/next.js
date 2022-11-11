@@ -17,13 +17,13 @@ use std::{
 };
 
 use anyhow::{anyhow, Result};
-use event_listener::{Event, EventListener};
 use futures::FutureExt;
 use serde::{de::Visitor, Deserialize, Serialize};
 use tokio::{runtime::Handle, select, task_local};
 
 use crate::{
     backend::{Backend, CellContent, CellMappings, PersistentTaskType, TransientTaskType},
+    event::{Event, EventListener},
     id::{BackendJobId, FunctionId, TraitTypeId},
     id_factory::IdFactory,
     raw_vc::RawVc,
@@ -219,9 +219,9 @@ impl<B: Backend> TurboTasks<B> {
             scheduled_tasks: AtomicUsize::new(0),
             start: Default::default(),
             aggregated_update: Default::default(),
-            event: Event::new(),
-            event_foreground: Event::new(),
-            event_background: Event::new(),
+            event: Event::new(|| "TurboTasks::event".to_string()),
+            event_foreground: Event::new(|| "TurboTasks::event_foreground".to_string()),
+            event_background: Event::new(|| "TurboTasks::event_background".to_string()),
         });
         this.backend.startup(&*this);
         this
@@ -546,7 +546,7 @@ impl<B: Backend> TurboTasks<B> {
         self.currently_scheduled_background_jobs
             .fetch_add(1, Ordering::AcqRel);
         tokio::spawn(TURBO_TASKS.scope(this.clone(), async move {
-            if this.currently_scheduled_tasks.load(Ordering::Acquire) != 0 {
+            while this.currently_scheduled_tasks.load(Ordering::Acquire) != 0 {
                 let listener = this.event.listen();
                 if this.currently_scheduled_tasks.load(Ordering::Acquire) != 0 {
                     listener.await;

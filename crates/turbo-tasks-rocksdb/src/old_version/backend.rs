@@ -12,14 +12,14 @@ use std::{
 
 use anyhow::Result;
 use bincode::{DefaultOptions, Options};
-use event_listener::{Event, EventListener};
 use flurry::{HashMap, HashMapRef};
 use serde::Serialize;
 use turbo_tasks::{
     backend::{
-        Backend, BackgroundJobId, PersistentTaskType, CellContent, CellMappings, TaskExecutionSpec,
+        Backend, BackgroundJobId, CellContent, CellMappings, PersistentTaskType, TaskExecutionSpec,
         TransientTaskType,
     },
+    event::{Event, EventListener},
     with_task_id_mapping, IdMapping, RawVc, SharedReference, TaskId, TaskIdProvider,
     TurboTasksBackendApi,
 };
@@ -200,7 +200,11 @@ impl RocksDbBackend {
     }
 
     fn listen_to_task(&self, task: TaskId) -> EventListener {
-        match self.task_events.pin().try_insert(task, Event::new()) {
+        match self
+            .task_events
+            .pin()
+            .try_insert(task, Event::new(|| "TODO".to_string()))
+        {
             Ok(e) => e.listen(),
             Err(e) => e.current.listen(),
         }
@@ -220,10 +224,11 @@ impl RocksDbBackend {
         let task_type = Arc::new(task_type);
         // Sync with parallel ongoing creates
         let guard = &self.ongoing_create.guard();
-        let id = match self
-            .ongoing_create
-            .try_insert(task_type.clone(), Event::new(), guard)
-        {
+        let id = match self.ongoing_create.try_insert(
+            task_type.clone(),
+            Event::new(|| "TODO".to_string()),
+            guard,
+        ) {
             Err(e) => {
                 let listener = e.current.listen();
                 if let Some(id) = db.task_cache.get_value(&task_type)? {
@@ -776,7 +781,7 @@ impl Backend for RocksDbBackend {
         task: TaskId,
         reader: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi,
-    ) -> Result<Result<RawVc, event_listener::EventListener>> {
+    ) -> Result<Result<RawVc, turbo_tasks::event::EventListener>> {
         #[cfg(feature = "log_backend")]
         println!(
             "RB try_read_task_output(task: {}, reader: {})",
@@ -798,7 +803,7 @@ impl Backend for RocksDbBackend {
         &self,
         task: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi,
-    ) -> Result<Result<RawVc, event_listener::EventListener>> {
+    ) -> Result<Result<RawVc, turbo_tasks::event::EventListener>> {
         #[cfg(feature = "log_backend")]
         println!("RB try_read_task_output_untracked({})", task);
         fn output_to_result(output: TaskOutput) -> Result<RawVc> {

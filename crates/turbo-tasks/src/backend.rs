@@ -10,11 +10,11 @@ use std::{
 };
 
 use anyhow::{anyhow, Result};
-use event_listener::EventListener;
 use serde::{Deserialize, Serialize};
 
 pub use crate::id::BackendJobId;
 use crate::{
+    event::EventListener,
     manager::TurboTasksBackendApi,
     registry,
     task_input::{SharedReference, SharedValue},

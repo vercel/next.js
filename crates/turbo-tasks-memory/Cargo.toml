@@ -13,7 +13,6 @@ bench = false
 anyhow = "1.0.47"
 concurrent-queue = "1.2.2"
 dashmap = "5.4.0"
-event-listener = "2.5.2"
 flurry = "0.4.0"
 lazy_static = "1.4.0"
 nohash-hasher = "0.2.0"
