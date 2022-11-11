@@ -60,7 +60,8 @@ tigris dev start
 npm run dev
 ```
 
-> Note: This step will also initialize Tigris database and collection for app.
+> Note: This step uses a custom dev & build script to initialize Tigris database and collection for
+> the app and requires [ts-node](https://www.npmjs.com/package/ts-node#installation) to be installed.
 
 :tada: All done. You should be able to use app on `localhost:3000` in browser. Feel free to play
 around or do a [code walk-through](#code-walkthrough) next :tada:
