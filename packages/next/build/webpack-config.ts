@@ -1641,7 +1641,7 @@ export default async function getBaseWebpackConfig(
                   return true
                 },
                 resolve: {
-                  conditionNames: ['react-server', 'node', 'require'],
+                  conditionNames: ['react-server', 'node', 'import', 'require'],
                   alias: {
                     // If missing the alias override here, the default alias will be used which aliases
                     // react to the direct file path, not the package name. In that case the condition
