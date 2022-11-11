@@ -138,7 +138,7 @@ export async function verifyRootLayout({
         chalk.green(
           `\nYour page ${chalk.bold(
             `app/${normalizedPagePath}`
-          )} did not have a root layout, we created ${chalk.bold(
+          )} did not have a root layout. We created ${chalk.bold(
             `app${rootLayoutPath.replace(appDir, '')}`
           )}${
             !hasHead

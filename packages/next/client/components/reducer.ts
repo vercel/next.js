@@ -43,7 +43,7 @@ function readRecordValue(thenable: any) {
   }
 }
 
-function createHrefFromUrl(url: URL): string {
+export function createHrefFromUrl(url: URL): string {
   return url.pathname + url.search + url.hash
 }
 

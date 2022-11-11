@@ -52,6 +52,9 @@ const configSchema = {
                   type: 'string',
                   minLength: 1,
                 },
+                importMap: {
+                  type: 'object',
+                },
               },
             },
           ] as any,

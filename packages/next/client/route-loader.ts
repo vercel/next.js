@@ -80,6 +80,16 @@ export interface RouteLoader {
   prefetch(route: string): Promise<void>
 }
 
+const ASSET_LOAD_ERROR = Symbol('ASSET_LOAD_ERROR')
+// TODO: unexport
+export function markAssetError(err: Error): Error {
+  return Object.defineProperty(err, ASSET_LOAD_ERROR, {})
+}
+
+export function isAssetError(err?: Error): boolean | undefined {
+  return err && ASSET_LOAD_ERROR in err
+}
+
 function hasPrefetch(link?: HTMLLinkElement): boolean {
   try {
     link = document.createElement('link')
@@ -101,13 +111,13 @@ function prefetchViaDom(
   as: string,
   link?: HTMLLinkElement
 ): Promise<any> {
-  return new Promise<void>((res, rej) => {
+  return new Promise<void>((resolve, reject) => {
     const selector = `
       link[rel="prefetch"][href^="${href}"],
       link[rel="preload"][href^="${href}"],
       script[src^="${href}"]`
     if (document.querySelector(selector)) {
-      return res()
+      return resolve()
     }
 
     link = document.createElement('link')
@@ -116,24 +126,15 @@ function prefetchViaDom(
     if (as) link!.as = as
     link!.rel = `prefetch`
     link!.crossOrigin = process.env.__NEXT_CROSS_ORIGIN!
-    link!.onload = res as any
-    link!.onerror = rej
+    link!.onload = resolve as any
+    link!.onerror = () =>
+      reject(markAssetError(new Error(`Failed to prefetch: ${href}`)))
 
     // `href` should always be last:
     link!.href = href
 
     document.head.appendChild(link)
   })
-}
-
-const ASSET_LOAD_ERROR = Symbol('ASSET_LOAD_ERROR')
-// TODO: unexport
-export function markAssetError(err: Error): Error {
-  return Object.defineProperty(err, ASSET_LOAD_ERROR, {})
-}
-
-export function isAssetError(err?: Error): boolean | undefined {
-  return err && ASSET_LOAD_ERROR in err
 }
 
 function appendScript(
