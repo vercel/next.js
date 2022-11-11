@@ -2631,6 +2631,7 @@ export default async function getBaseWebpackConfig(
       )
     }
   }
+
   // Patch `@zeit/next-sass`, `@zeit/next-less`, `@zeit/next-stylus` for compatibility
   if (webpackConfig.module && Array.isArray(webpackConfig.module.rules)) {
     ;[].forEach.call(
