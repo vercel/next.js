@@ -141,7 +141,7 @@ function fillCacheWithNewSubTreeData(
   existingCache: CacheNode,
   flightDataPath: FlightDataPath
 ): void {
-  const isLastEntry = flightDataPath.length <= 4
+  const isLastEntry = flightDataPath.length <= 5
   const [parallelRouteKey, segment] = flightDataPath
 
   const segmentForCache = Array.isArray(segment) ? segment[1] : segment
@@ -997,10 +997,10 @@ function clientReducer(
       const flightDataPath = flightData[0]
 
       // The one before last item is the router state tree patch
-      const [treePatch, subTreeData] = flightDataPath.slice(-2)
+      const [treePatch, subTreeData, head] = flightDataPath.slice(-3)
 
       // Path without the last segment, router state, and the subTreeData
-      const flightSegmentPath = flightDataPath.slice(0, -3)
+      const flightSegmentPath = flightDataPath.slice(0, -4)
 
       // Create new tree based on the flightSegmentPath and router state patch
       const newTree = applyRouterStatePatchToTree(
@@ -1024,7 +1024,7 @@ function clientReducer(
       mutable.patchedTree = newTree
       mutable.mpaNavigation = isNavigatingToNewRootLayout(state.tree, newTree)
 
-      if (flightDataPath.length === 2) {
+      if (flightDataPath.length === 3) {
         cache.subTreeData = subTreeData
       } else {
         // Copy subTreeData for the root node of the cache.
@@ -1121,13 +1121,13 @@ function clientReducer(
       // TODO-APP: Currently the Flight data can only have one item but in the future it can have multiple paths.
       const flightDataPath = flightData[0]
 
-      // Slices off the last segment (which is at -3) as it doesn't exist in the tree yet
-      const treePath = flightDataPath.slice(0, -3)
-      const [treePatch, subTreeData] = flightDataPath.slice(-2)
+      // Slices off the last segment (which is at -4) as it doesn't exist in the tree yet
+      const flightSegmentPath = flightDataPath.slice(0, -4)
+      const [treePatch, subTreeData, head] = flightDataPath.slice(-3)
 
       const newTree = applyRouterStatePatchToTree(
         // TODO-APP: remove ''
-        ['', ...treePath],
+        ['', ...flightSegmentPath],
         state.tree,
         treePatch
       )
@@ -1148,7 +1148,7 @@ function clientReducer(
       mutable.mpaNavigation = isNavigatingToNewRootLayout(state.tree, newTree)
 
       // Root refresh
-      if (flightDataPath.length === 2) {
+      if (flightDataPath.length === 3) {
         cache.subTreeData = subTreeData
       } else {
         // Copy subTreeData for the root node of the cache.

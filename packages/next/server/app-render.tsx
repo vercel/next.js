@@ -1425,6 +1425,7 @@ export async function renderToHTMLOrFlight(
                     )
                   ).Component
                 ),
+            undefined, // TODO: change this to head tags.
           ]
         }
 
