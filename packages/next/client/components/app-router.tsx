@@ -180,7 +180,7 @@ function Router({
         previousTree,
         overrideCanonicalUrl,
         cache: {
-          status: CacheStates.LAZYINITIALIZED,
+          status: CacheStates.LAZY_INITIALIZED,
           data: null,
           subTreeData: null,
           parallelRoutes: new Map(),
@@ -206,7 +206,7 @@ function Router({
         forceOptimisticNavigation,
         navigateType,
         cache: {
-          status: CacheStates.LAZYINITIALIZED,
+          status: CacheStates.LAZY_INITIALIZED,
           data: null,
           subTreeData: null,
           parallelRoutes: new Map(),
@@ -268,7 +268,7 @@ function Router({
 
             // TODO-APP: revisit if this needs to be passed.
             cache: {
-              status: CacheStates.LAZYINITIALIZED,
+              status: CacheStates.LAZY_INITIALIZED,
               data: null,
               subTreeData: null,
               parallelRoutes: new Map(),
