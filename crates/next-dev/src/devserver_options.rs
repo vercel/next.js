@@ -66,18 +66,23 @@ pub struct DevServerOptions {
     pub log_detail: bool,
 
     // Inherited options from next-dev, need revisit later.
-    // These are not supported by CLI yet.
-    #[cfg(feature = "serializable")]
+    #[cfg_attr(feature = "cli", clap(long))]
     #[cfg_attr(feature = "serializable", serde(default))]
+    /// If port is not explicitly specified, use different port if it's already
+    /// in use.
     pub allow_retry: bool,
-    #[cfg(feature = "serializable")]
+    #[cfg_attr(feature = "cli", clap(long))]
     #[cfg_attr(feature = "serializable", serde(default))]
+    /// Internal for next.js, no specific usage yet.
     pub dev: bool,
-    #[cfg(feature = "serializable")]
+    #[cfg_attr(feature = "cli", clap(long))]
     #[cfg_attr(feature = "serializable", serde(default))]
+    /// Internal for next.js, no specific usage yet.
     pub is_next_dev_command: bool,
-    #[cfg(feature = "serializable")]
+    #[cfg_attr(feature = "cli", clap(long))]
     #[cfg_attr(feature = "serializable", serde(default))]
+    /// Specify server component external packages explicitly. This is an
+    /// experimental flag.
     pub server_components_external_packages: Vec<String>,
 }
 
