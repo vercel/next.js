@@ -37,9 +37,3 @@ export function getFontLoaderDocumentImportError() {
     'cannot'
   )} be used within ${chalk.cyan('pages/_document.js')}.`
 }
-
-export function getFontLoaderImportError() {
-  return `Font loader error:\nFont loaders ${chalk.bold(
-    'cannot'
-  )} be used from within ${chalk.bold('node_modules')}.`
-}

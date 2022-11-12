@@ -123,6 +123,7 @@ import { RemotePattern } from '../shared/lib/image-config'
 import { eventSwcPlugins } from '../telemetry/events/swc-plugins'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { AppBuildManifest } from './webpack/plugins/app-build-manifest-plugin'
+import { RSC, RSC_VARY_HEADER } from '../client/components/app-router-headers'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -253,7 +254,8 @@ export default async function build(
   conf = null,
   reactProductionProfiling = false,
   debugOutput = false,
-  runLint = true
+  runLint = true,
+  noMangling = false
 ): Promise<void> {
   try {
     const nextBuildSpan = trace('next-build', undefined, {
@@ -595,6 +597,7 @@ export default async function build(
           appPageKeys.push(normalizedAppPageKey)
         }
       }
+      const totalAppPagesCount = appPageKeys.length
 
       const pageKeys = {
         pages: pagesPageKeys,
@@ -755,6 +758,11 @@ export default async function build(
           defaultLocale: string
           localeDetection?: false
         }
+        rsc: {
+          header: typeof RSC
+          varyHeader: typeof RSC_VARY_HEADER
+        }
+        skipMiddlewareUrlNormalize?: boolean
       } = nextBuildSpan.traceChild('generate-routes-manifest').traceFn(() => {
         const sortedRoutes = getSortedRoutes([
           ...pageKeys.pages,
@@ -781,6 +789,12 @@ export default async function build(
           staticRoutes,
           dataRoutes: [],
           i18n: config.i18n || undefined,
+          rsc: {
+            header: RSC,
+            varyHeader: RSC_VARY_HEADER,
+          },
+          skipMiddlewareUrlNormalize:
+            config.experimental.skipMiddlewareUrlNormalize,
         }
       })
 
@@ -923,6 +937,7 @@ export default async function build(
           runWebpackSpan,
           target,
           appDir,
+          noMangling,
           middlewareMatchers: entrypoints.middlewareMatchers,
         }
 
@@ -1083,6 +1098,7 @@ export default async function build(
         telemetry.record(
           eventBuildCompleted(pagesPaths, {
             durationInSeconds: webpackBuildEnd[0],
+            totalAppPagesCount,
           })
         )
 
@@ -1107,6 +1123,10 @@ export default async function build(
       const buildManifestPath = path.join(distDir, BUILD_MANIFEST)
       const appBuildManifestPath = path.join(distDir, APP_BUILD_MANIFEST)
 
+      let staticAppPagesCount = 0
+      let serverAppPagesCount = 0
+      let edgeRuntimeAppCount = 0
+      let edgeRuntimePagesCount = 0
       const ssgPages = new Set<string>()
       const ssgStaticFallbackPages = new Set<string>()
       const ssgBlockingFallbackPages = new Set<string>()
@@ -1286,6 +1306,18 @@ export default async function build(
           config.experimental.gzipSize
         )
 
+        const middlewareManifest: MiddlewareManifest = require(join(
+          distDir,
+          SERVER_DIRECTORY,
+          MIDDLEWARE_MANIFEST
+        ))
+
+        for (const key of Object.keys(middlewareManifest?.functions)) {
+          if (key.startsWith('/api')) {
+            edgeRuntimePagesCount++
+          }
+        }
+
         await Promise.all(
           Object.entries(pageKeys)
             .reduce<Array<{ pageType: keyof typeof pageKeys; page: string }>>(
@@ -1374,15 +1406,16 @@ export default async function build(
                     let edgeInfo: any
 
                     if (pageRuntime === SERVER_RUNTIME.edge) {
-                      const manifest = require(join(
-                        distDir,
-                        SERVER_DIRECTORY,
-                        MIDDLEWARE_MANIFEST
-                      ))
+                      if (pageType === 'app') {
+                        edgeRuntimeAppCount++
+                      } else {
+                        edgeRuntimePagesCount++
+                      }
+
                       const manifestKey =
                         pageType === 'pages' ? page : originalAppPath || ''
 
-                      edgeInfo = manifest.functions[manifestKey]
+                      edgeInfo = middlewareManifest.functions[manifestKey]
                     }
 
                     let isPageStaticSpan =
@@ -1564,6 +1597,14 @@ export default async function build(
                     )
                       throw err
                     invalidPages.add(page)
+                  }
+                }
+
+                if (pageType === 'app') {
+                  if (isSsg || isStatic) {
+                    staticAppPagesCount++
+                  } else {
+                    serverAppPagesCount++
                   }
                 }
 
@@ -1800,28 +1841,30 @@ export default async function build(
                 showAll: config.experimental.turbotrace.logAll,
               })
             } else {
+              const ignores = [
+                '**/next/dist/pages/**/*',
+                '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
+                '**/node_modules/webpack5/**/*',
+                '**/next/dist/server/lib/squoosh/**/*.wasm',
+                ...(ciEnvironment.hasNextSupport
+                  ? [
+                      // only ignore image-optimizer code when
+                      // this is being handled outside of next-server
+                      '**/next/dist/server/image-optimizer.js',
+                      '**/node_modules/sharp/**/*',
+                    ]
+                  : []),
+                ...(!hasSsrAmpPages
+                  ? ['**/next/dist/compiled/@ampproject/toolbox-optimizer/**/*']
+                  : []),
+              ]
+              const ignoreFn = (pathname: string) => {
+                return isMatch(pathname, ignores, { contains: true, dot: true })
+              }
               serverResult = await nodeFileTrace(toTrace, {
                 base: root,
                 processCwd: dir,
-                ignore: [
-                  '**/next/dist/pages/**/*',
-                  '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
-                  '**/node_modules/webpack5/**/*',
-                  '**/next/dist/server/lib/squoosh/**/*.wasm',
-                  ...(ciEnvironment.hasNextSupport
-                    ? [
-                        // only ignore image-optimizer code when
-                        // this is being handled outside of next-server
-                        '**/next/dist/server/image-optimizer.js',
-                        '**/node_modules/sharp/**/*',
-                      ]
-                    : []),
-                  ...(!hasSsrAmpPages
-                    ? [
-                        '**/next/dist/compiled/@ampproject/toolbox-optimizer/**/*',
-                      ]
-                    : []),
-                ],
+                ignore: ignoreFn,
               })
               const tracedFiles = new Set()
 
@@ -2573,6 +2616,11 @@ export default async function build(
             .length,
           redirectsWithHasCount: redirects.filter((r: any) => !!r.has).length,
           middlewareCount: Object.keys(rootPaths).length > 0 ? 1 : 0,
+          totalAppPagesCount,
+          staticAppPagesCount,
+          serverAppPagesCount,
+          edgeRuntimeAppCount,
+          edgeRuntimePagesCount,
         })
       )
 

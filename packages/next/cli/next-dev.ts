@@ -165,6 +165,8 @@ const nextDev: cliCommand = (argv) => {
       const { setGlobal } = require('../trace') as typeof import('../trace')
       const { Telemetry } =
         require('../telemetry/storage') as typeof import('../telemetry/storage')
+      const findUp =
+        require('next/dist/compiled/find-up') as typeof import('next/dist/compiled/find-up')
 
       // To regenerate the TURBOPACK gradient require('gradient-string')('blue', 'red')('>>> TURBOPACK')
       const isTTY = process.stdout.isTTY
@@ -182,59 +184,75 @@ const nextDev: cliCommand = (argv) => {
       let babelrc = await getBabelConfigFile(dir)
       if (babelrc) babelrc = path.basename(babelrc)
 
-      const rawNextConfig = interopDefault(
-        await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, undefined, true)
-      ) as NextConfig
+      let hasNonDefaultConfig
+      let postcssFile
+      let tailwindFile
+      let rawNextConfig: NextConfig
 
-      const checkUnsupportedCustomConfig = (
-        configKey = '',
-        parentUserConfig: any,
-        parentDefaultConfig: any
-      ): boolean => {
-        // these should not error
-        if (
-          configKey === 'serverComponentsExternalPackages' ||
-          configKey === 'appDir' ||
-          configKey === 'transpilePackages' ||
-          configKey === 'reactStrictMode' ||
-          configKey === 'swcMinify' ||
-          configKey === 'configFileName'
-        ) {
-          return false
+      try {
+        rawNextConfig = interopDefault(
+          await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, undefined, true)
+        ) as NextConfig
+
+        const checkUnsupportedCustomConfig = (
+          configKey = '',
+          parentUserConfig: any,
+          parentDefaultConfig: any
+        ): boolean => {
+          try {
+            // these should not error
+            if (
+              configKey === 'serverComponentsExternalPackages' ||
+              configKey === 'appDir' ||
+              configKey === 'transpilePackages' ||
+              configKey === 'reactStrictMode' ||
+              configKey === 'swcMinify' ||
+              configKey === 'configFileName'
+            ) {
+              return false
+            }
+            let userValue = parentUserConfig?.[configKey]
+            let defaultValue = parentDefaultConfig?.[configKey]
+
+            if (typeof defaultValue !== 'object') {
+              return defaultValue !== userValue
+            }
+            return Object.keys(userValue || {}).some((key: string) => {
+              return checkUnsupportedCustomConfig(key, userValue, defaultValue)
+            })
+          } catch (e) {
+            console.error(
+              `Unexpected error occurred while checking ${configKey}`,
+              e
+            )
+            return false
+          }
         }
-        let userValue = parentUserConfig[configKey]
-        let defaultValue = parentDefaultConfig[configKey]
 
-        if (typeof defaultValue !== 'object') {
-          return defaultValue !== userValue
-        }
-        return Object.keys(userValue || {}).some((key: string) => {
-          return checkUnsupportedCustomConfig(key, userValue, defaultValue)
-        })
-      }
-
-      const hasNonDefaultConfig = Object.keys(rawNextConfig).some((key) =>
-        checkUnsupportedCustomConfig(key, rawNextConfig, defaultConfig)
-      )
-
-      const findUp =
-        require('next/dist/compiled/find-up') as typeof import('next/dist/compiled/find-up')
-      const packagePath = findUp.sync('package.json', { cwd: dir })
-      let hasSideCar = false
-
-      if (packagePath) {
-        const pkgData = require(packagePath)
-        hasSideCar = Object.values(
-          (pkgData.scripts || {}) as Record<string, string>
-        ).some(
-          (script) => script.includes('tailwind') || script.includes('postcss')
+        hasNonDefaultConfig = Object.keys(rawNextConfig).some((key) =>
+          checkUnsupportedCustomConfig(key, rawNextConfig, defaultConfig)
         )
-      }
-      let postcssFile = !hasSideCar && (await findConfigPath(dir, 'postcss'))
-      let tailwindFile = !hasSideCar && (await findConfigPath(dir, 'tailwind'))
 
-      if (postcssFile) postcssFile = path.basename(postcssFile)
-      if (tailwindFile) tailwindFile = path.basename(tailwindFile)
+        const packagePath = findUp.sync('package.json', { cwd: dir })
+        let hasSideCar = false
+
+        if (packagePath) {
+          const pkgData = require(packagePath)
+          hasSideCar = Object.values(
+            (pkgData.scripts || {}) as Record<string, string>
+          ).some(
+            (script) =>
+              script.includes('tailwind') || script.includes('postcss')
+          )
+        }
+        postcssFile = !hasSideCar && (await findConfigPath(dir, 'postcss'))
+        tailwindFile = !hasSideCar && (await findConfigPath(dir, 'tailwind'))
+
+        if (postcssFile) postcssFile = path.basename(postcssFile)
+        if (tailwindFile) tailwindFile = path.basename(tailwindFile)
+      } catch (e) {
+        console.error('Unexpected error occurred while checking config', e)
+      }
 
       const hasWarningOrError =
         tailwindFile || postcssFile || babelrc || hasNonDefaultConfig
@@ -381,6 +399,8 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
             console.error(err)
           }
         )
+    }).catch((err) => {
+      console.error(err)
     })
   } else {
     startServer(devServerOptions)

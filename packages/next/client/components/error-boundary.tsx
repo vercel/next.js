@@ -6,6 +6,7 @@ export type ErrorComponent = React.ComponentType<{
 }>
 interface ErrorBoundaryProps {
   errorComponent: ErrorComponent
+  errorStyles?: React.ReactNode | undefined
 }
 
 /**
@@ -32,10 +33,13 @@ class ErrorBoundaryHandler extends React.Component<
   render() {
     if (this.state.error) {
       return (
-        <this.props.errorComponent
-          error={this.state.error}
-          reset={this.reset}
-        />
+        <>
+          {this.props.errorStyles}
+          <this.props.errorComponent
+            error={this.state.error}
+            reset={this.reset}
+          />
+        </>
       )
     }
 
@@ -49,11 +53,15 @@ class ErrorBoundaryHandler extends React.Component<
  */
 export function ErrorBoundary({
   errorComponent,
+  errorStyles,
   children,
 }: ErrorBoundaryProps & { children: React.ReactNode }): JSX.Element {
   if (errorComponent) {
     return (
-      <ErrorBoundaryHandler errorComponent={errorComponent}>
+      <ErrorBoundaryHandler
+        errorComponent={errorComponent}
+        errorStyles={errorStyles}
+      >
         {children}
       </ErrorBoundaryHandler>
     )
