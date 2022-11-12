@@ -165,7 +165,7 @@ export function middleware(request: NextRequest) {
   const cookie = request.cookies.get('nextjs')?.value
   console.log(cookie) // => 'fast'
   const allCookies = request.cookies.getAll()
-  console.log(allCookies) // => [{ name: 'vercel', value: 'fast' }]
+  console.log(allCookies) // => [{ name: 'nextjs', value: 'fast' }]
 
   request.cookies.has('nextjs') // => true
   request.cookies.delete('nextjs')

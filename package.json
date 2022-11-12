@@ -208,7 +208,7 @@
     "typescript": "4.8.2",
     "wait-port": "0.2.2",
     "webpack": "5.74.0",
-    "webpack-bundle-analyzer": "4.3.0"
+    "webpack-bundle-analyzer": "4.7.0"
   },
   "resolutions": {
     "browserslist": "4.20.2",
