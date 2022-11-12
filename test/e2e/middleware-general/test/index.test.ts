@@ -303,6 +303,10 @@ describe('Middleware Runtime', () => {
 
     it('should have correct route params for chained rewrite from middleware to config rewrite', async () => {
       const browser = await webdriver(next.url, '/')
+      await check(
+        () => browser.eval('next.router.isReady ? "yes" : "no"'),
+        'yes'
+      )
       await browser.eval('window.beforeNav = 1')
       await browser.eval(
         'window.next.router.push("/rewrite-to-config-rewrite")'
