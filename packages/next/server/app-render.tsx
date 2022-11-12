@@ -855,7 +855,13 @@ export async function renderToHTMLOrFlight(
       }
 
       const key = segmentParam.param
-      const value = pathParams[key]
+      let value = pathParams[key]
+
+      if (Array.isArray(value)) {
+        value = value.map((i) => encodeURIComponent(i))
+      } else if (typeof value === 'string') {
+        value = encodeURIComponent(value)
+      }
 
       if (!value) {
         // Handle case where optional catchall does not have a value, e.g. `/dashboard/[...slug]` when requesting `/dashboard`
