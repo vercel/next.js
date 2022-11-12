@@ -1416,8 +1416,10 @@ export default class Router implements BaseRouter {
       : pathname
 
     let route = removeTrailingSlash(pathname)
-    const parsedAsPathname = parseRelativeUrl(as).pathname
+    const parsedAsPathname = as.startsWith('/') && parseRelativeUrl(as).pathname
+
     const isMiddlewareRewrite =
+      parsedAsPathname &&
       route !== parsedAsPathname &&
       (!isDynamicRoute(route) ||
         !getRouteMatcher(getRouteRegex(route))(parsedAsPathname))
