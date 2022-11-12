@@ -280,6 +280,10 @@ describe('Middleware Runtime', () => {
 
     it('should have correct dynamic route params for middleware rewrite to dynamic route', async () => {
       const browser = await webdriver(next.url, '/')
+      await check(
+        () => browser.eval('next.router.isReady ? "yes" : "no"'),
+        'yes'
+      )
       await browser.eval('window.beforeNav = 1')
       await browser.eval('window.next.router.push("/rewrite-to-dynamic")')
       await browser.waitForElementByCss('#blog')
