@@ -1,18 +1,18 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import React, { useEffect, useMemo, useCallback } from 'react'
+import React, { useCallback, useEffect, useMemo } from 'react'
 import { createFromFetch } from 'next/dist/compiled/react-server-dom-webpack/client'
+import type {
+  AppRouterInstance,
+  CacheNode,
+} from '../../shared/lib/app-router-context'
 import {
   AppRouterContext,
-  LayoutRouterContext,
   GlobalLayoutRouterContext,
+  LayoutRouterContext,
 } from '../../shared/lib/app-router-context'
-import type {
-  CacheNode,
-  AppRouterInstance,
-} from '../../shared/lib/app-router-context'
-import type { FlightRouterState, FlightData } from '../../server/app-render'
+import type { FlightData, FlightRouterState } from '../../server/app-render'
 import {
   ACTION_NAVIGATE,
   ACTION_PREFETCH,
@@ -22,14 +22,13 @@ import {
   reducer,
 } from './reducer'
 import {
-  SearchParamsContext,
-  // ParamsContext,
   PathnameContext,
-  // LayoutSegmentsContext,
+  SearchParamsContext,
 } from '../../shared/lib/hooks-client-context'
 import { useReducerWithReduxDevtools } from './use-reducer-with-devtools'
 import { ErrorBoundary, GlobalErrorComponent } from './error-boundary'
 import {
+  escapeFlightRouterState,
   NEXT_ROUTER_PREFETCH,
   NEXT_ROUTER_STATE_TREE,
   RSC,
@@ -65,7 +64,9 @@ export async function fetchServerResponse(
     // Enable flight response
     [RSC]: '1',
     // Provide the current router state
-    [NEXT_ROUTER_STATE_TREE]: JSON.stringify(flightRouterState),
+    [NEXT_ROUTER_STATE_TREE]: JSON.stringify(
+      escapeFlightRouterState(flightRouterState)
+    ),
   }
   if (prefetch) {
     // Enable prefetch response
