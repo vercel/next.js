@@ -120,6 +120,7 @@ describe('Middleware Runtime trailing slash', () => {
       await check(() => browser.elementByCss('body').text(), /\/to-ssg/)
 
       expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+        from: 'middleware',
         slug: 'hello',
       })
       expect(
