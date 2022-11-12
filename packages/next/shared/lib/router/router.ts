@@ -1195,7 +1195,7 @@ export default class Router implements BaseRouter {
     // WARNING: `_h` is an internal option for handing Next.js client-side
     // hydration. Your app should _never_ use this property. It may change at
     // any time without notice.
-    const isQueryUpdating = (options as any)._h
+    let isQueryUpdating = (options as any)._h
     let shouldResolveHref =
       isQueryUpdating ||
       (options as any)._shouldResolveHref ||
@@ -1415,6 +1415,17 @@ export default class Router implements BaseRouter {
       ? removeTrailingSlash(removeBasePath(pathname))
       : pathname
 
+    let route = removeTrailingSlash(pathname)
+    const parsedAsPathname = parseRelativeUrl(as).pathname
+    const isMiddlewareRewrite =
+      route !== parsedAsPathname &&
+      (!isDynamicRoute(route) ||
+        !getRouteMatcher(getRouteRegex(route))(parsedAsPathname))
+
+    if (isMiddlewareRewrite) {
+      isQueryUpdating = false
+    }
+
     // we don't attempt resolve asPath when we need to execute
     // middleware as the resolving will occur server-side
     const isMiddlewareMatch = await matchesMiddleware({
@@ -1489,7 +1500,7 @@ export default class Router implements BaseRouter {
 
     resolvedAs = removeLocale(removeBasePath(resolvedAs), nextState.locale)
 
-    let route = removeTrailingSlash(pathname)
+    route = removeTrailingSlash(pathname)
     let routeMatch: { [paramName: string]: string | string[] } | false = false
 
     if (isDynamicRoute(route)) {
@@ -1553,12 +1564,6 @@ export default class Router implements BaseRouter {
     }
 
     try {
-      const parsedAsPathname = parseRelativeUrl(resolvedAs).pathname
-      const isMiddlewareRewrite =
-        route !== parsedAsPathname &&
-        (!isDynamicRoute(route) ||
-          !getRouteMatcher(getRouteRegex(route))(parsedAsPathname))
-
       let routeInfo = await this.getRouteInfo({
         route,
         pathname,
@@ -1570,8 +1575,7 @@ export default class Router implements BaseRouter {
         isPreview: nextState.isPreview,
         hasMiddleware: isMiddlewareMatch,
         unstable_skipClientCache: options.unstable_skipClientCache,
-        isQueryUpdating:
-          isQueryUpdating && !this.isFallback && !isMiddlewareRewrite,
+        isQueryUpdating: isQueryUpdating && !this.isFallback,
       })
 
       if ('route' in routeInfo && isMiddlewareMatch) {
