@@ -10,12 +10,12 @@ import React, {
 } from 'react'
 import Head from '../shared/lib/head'
 import { getImageBlurSvg } from '../shared/lib/image-blur-svg'
-import {
+import type {
   ImageConfigComplete,
-  imageConfigDefault,
   ImageLoaderProps,
   ImageLoaderPropsWithConfig,
 } from '../shared/lib/image-config'
+import { imageConfigDefault } from '../shared/lib/image-config'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { warnOnce } from '../shared/lib/utils/warn-once'
 // @ts-ignore - This is replaced by webpack alias
@@ -29,14 +29,14 @@ const allImgs = new Map<
 let perfObserver: PerformanceObserver | undefined
 
 if (typeof window === 'undefined') {
-  ;(global as any).__NEXT_IMAGE_IMPORTED = true
+  ;(globalThis as any).__NEXT_IMAGE_IMPORTED = true
 }
 
 const VALID_LOADING_VALUES = ['lazy', 'eager', undefined] as const
 type LoadingValue = typeof VALID_LOADING_VALUES[number]
 type ImageConfig = ImageConfigComplete & { allSizes: number[] }
 
-export { ImageLoaderProps }
+export type { ImageLoaderProps }
 export type ImageLoader = (p: ImageLoaderProps) => string
 
 // Do not export - this is an internal type only

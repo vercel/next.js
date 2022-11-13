@@ -7,6 +7,7 @@ import {
   AppRouterContext,
   LayoutRouterContext,
   GlobalLayoutRouterContext,
+  CacheStates,
 } from '../../shared/lib/app-router-context'
 import type {
   CacheNode,
@@ -19,6 +20,7 @@ import {
   ACTION_REFRESH,
   ACTION_RESTORE,
   ACTION_SERVER_PATCH,
+  createHrefFromUrl,
   reducer,
 } from './reducer'
 import {
@@ -29,6 +31,11 @@ import {
 } from '../../shared/lib/hooks-client-context'
 import { useReducerWithReduxDevtools } from './use-reducer-with-devtools'
 import { ErrorBoundary, GlobalErrorComponent } from './error-boundary'
+import {
+  NEXT_ROUTER_PREFETCH,
+  NEXT_ROUTER_STATE_TREE,
+  RSC,
+} from './app-router-headers'
 
 function urlToUrlWithoutFlightMarker(url: string): URL {
   const urlWithoutFlightParameters = new URL(url, location.origin)
@@ -53,18 +60,18 @@ export async function fetchServerResponse(
   prefetch?: true
 ): Promise<[FlightData: FlightData, canonicalUrlOverride: URL | undefined]> {
   const headers: {
-    __rsc__: '1'
-    __next_router_state_tree__: string
-    __next_router_prefetch__?: '1'
+    [RSC]: '1'
+    [NEXT_ROUTER_STATE_TREE]: string
+    [NEXT_ROUTER_PREFETCH]?: '1'
   } = {
     // Enable flight response
-    __rsc__: '1',
+    [RSC]: '1',
     // Provide the current router state
-    __next_router_state_tree__: JSON.stringify(flightRouterState),
+    [NEXT_ROUTER_STATE_TREE]: JSON.stringify(flightRouterState),
   }
   if (prefetch) {
     // Enable prefetch response
-    headers.__next_router_prefetch__ = '1'
+    headers[NEXT_ROUTER_PREFETCH] = '1'
   }
 
   const res = await fetch(url.toString(), {
@@ -116,19 +123,21 @@ function Router({
     return {
       tree: initialTree,
       cache: {
+        status: CacheStates.READY,
         data: null,
         subTreeData: children,
         parallelRoutes:
           typeof window === 'undefined' ? new Map() : initialParallelRoutes,
-      },
+      } as CacheNode,
       prefetchCache: new Map(),
       pushRef: { pendingPush: false, mpaNavigation: false },
       focusAndScrollRef: { apply: false },
       canonicalUrl:
-        initialCanonicalUrl +
-        // Hash is read as the initial value for canonicalUrl in the browser
-        // This is safe to do as canonicalUrl can't be rendered, it's only used to control the history updates the useEffect further down.
-        (typeof window !== 'undefined' ? window.location.hash : ''),
+        // location.href is read as the initial value for canonicalUrl in the browser
+        // This is safe to do as canonicalUrl can't be rendered, it's only used to control the history updates in the useEffect further down in this file.
+        typeof window !== 'undefined'
+          ? createHrefFromUrl(new URL(window.location.href))
+          : initialCanonicalUrl,
     }
   }, [children, initialCanonicalUrl, initialTree])
   const [
@@ -171,6 +180,7 @@ function Router({
         previousTree,
         overrideCanonicalUrl,
         cache: {
+          status: CacheStates.LAZYINITIALIZED,
           data: null,
           subTreeData: null,
           parallelRoutes: new Map(),
@@ -196,6 +206,7 @@ function Router({
         forceOptimisticNavigation,
         navigateType,
         cache: {
+          status: CacheStates.LAZYINITIALIZED,
           data: null,
           subTreeData: null,
           parallelRoutes: new Map(),
@@ -257,6 +268,7 @@ function Router({
 
             // TODO-APP: revisit if this needs to be passed.
             cache: {
+              status: CacheStates.LAZYINITIALIZED,
               data: null,
               subTreeData: null,
               parallelRoutes: new Map(),
@@ -281,7 +293,10 @@ function Router({
     // __NA is used to identify if the history entry can be handled by the app-router.
     // __N is used to identify if the history entry can be handled by the old router.
     const historyState = { __NA: true, tree }
-    if (pushRef.pendingPush) {
+    if (
+      pushRef.pendingPush &&
+      createHrefFromUrl(new URL(window.location.href)) !== canonicalUrl
+    ) {
       // This intentionally mutates React state, pushRef is overwritten to ensure additional push/replace calls do not trigger an additional history entry.
       pushRef.pendingPush = false
 

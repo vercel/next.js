@@ -121,6 +121,10 @@ function getPlugins(
         { type: 'plugin' }
       )
     : null
+  const nextFontUnsupported = createConfigItem(
+    [require('../plugins/next-font-unsupported')],
+    { type: 'plugin' }
+  )
 
   return [
     reactRefreshItem,
@@ -130,6 +134,7 @@ function getPlugins(
     transformDefineItem,
     nextSsgItem,
     commonJsItem,
+    nextFontUnsupported,
   ].filter(Boolean)
 }
 

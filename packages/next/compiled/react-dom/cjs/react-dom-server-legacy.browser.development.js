@@ -17,7 +17,7 @@ if (process.env.NODE_ENV !== "production") {
 var React = require('react');
 var ReactDOM = require('react-dom');
 
-var ReactVersion = '18.3.0-next-28a574ea8-20221027';
+var ReactVersion = '18.3.0-next-4bd245e9e-20221104';
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -3813,7 +3813,7 @@ function pushStartMenuItem(target, props, responseState) {
   return null;
 }
 
-function pushTitle(target, props, responseState, noscriptTagInScope) {
+function pushTitle(target, props, responseState, insertionMode, noscriptTagInScope) {
   {
     var children = props.children;
     var childForValidation = Array.isArray(children) && children.length < 2 ? children[0] || null : children;
@@ -3827,7 +3827,8 @@ function pushTitle(target, props, responseState, noscriptTagInScope) {
     }
   }
 
-  if ( !noscriptTagInScope && resourcesFromElement('title', props)) {
+  if ( // title is valid in SVG so we avoid resour
+  insertionMode !== SVG_MODE && !noscriptTagInScope && resourcesFromElement('title', props)) {
     // We have converted this link exclusively to a resource and no longer
     // need to emit it
     return null;
@@ -4178,7 +4179,7 @@ function pushStartInstance(target, preamble, type, props, responseState, formatC
       return pushStartMenuItem(target, props, responseState);
 
     case 'title':
-      return  pushTitle(target, props, responseState, formatContext.noscriptTagInScope) ;
+      return  pushTitle(target, props, responseState, formatContext.insertionMode, formatContext.noscriptTagInScope) ;
 
     case 'link':
       return pushLink(target, props, responseState, textEmbedded, formatContext.noscriptTagInScope);
@@ -6603,6 +6604,9 @@ function clz32Fallback(x) {
 // changes to one module should be reflected in the others.
 // TODO: Rename this module and the corresponding Fiber one to "Thenable"
 // instead of "Wakeable". Or some other more appropriate name.
+// An error that is thrown (e.g. by `use`) to trigger Suspense. If we
+// detect this is caught by userspace, we'll log a warning in development.
+var SuspenseException = new Error("Suspense Exception: This is not a real error! It's an implementation " + 'detail of `use` to interrupt the current render. You must either ' + 'rethrow it immediately, or move the `use` call outside of the ' + '`try/catch` block. Capturing without rethrowing will lead to ' + 'unexpected behavior.\n\n' + 'To handle async errors, wrap your component in an error boundary, or ' + "call the promise's `.catch` method and pass the result to `use`");
 function createThenableState() {
   // The ThenableState is created the first time a component suspends. If it
   // suspends again, we'll reuse the same state.
@@ -6663,19 +6667,51 @@ function trackUsedThenable(thenableState, thenable, index) {
               rejectedThenable.status = 'rejected';
               rejectedThenable.reason = error;
             }
-          });
+          }); // Check one more time in case the thenable resolved synchronously
+
+          switch (thenable.status) {
+            case 'fulfilled':
+              {
+                var fulfilledThenable = thenable;
+                return fulfilledThenable.value;
+              }
+
+            case 'rejected':
+              {
+                var rejectedThenable = thenable;
+                throw rejectedThenable.reason;
+              }
+          }
         } // Suspend.
-        // TODO: Throwing here is an implementation detail that allows us to
-        // unwind the call stack. But we shouldn't allow it to leak into
-        // userspace. Throw an opaque placeholder value instead of the
-        // actual thenable. If it doesn't get captured by the work loop, log
-        // a warning, because that means something in userspace must have
-        // caught it.
+        //
+        // Throwing here is an implementation detail that allows us to unwind the
+        // call stack. But we shouldn't allow it to leak into userspace. Throw an
+        // opaque placeholder value instead of the actual thenable. If it doesn't
+        // get captured by the work loop, log a warning, because that means
+        // something in userspace must have caught it.
 
 
-        throw thenable;
+        suspendedThenable = thenable;
+        throw SuspenseException;
       }
   }
+} // This is used to track the actual thenable that suspended so it can be
+// passed to the rest of the Suspense implementation — which, for historical
+// reasons, expects to receive a thenable.
+
+var suspendedThenable = null;
+function getSuspendedThenable() {
+  // This is called right after `use` suspends by throwing an exception. `use`
+  // throws an opaque value instead of the thenable itself so that it can't be
+  // caught in userspace. Then the work loop accesses the actual thenable using
+  // this function.
+  if (suspendedThenable === null) {
+    throw new Error('Expected a suspended thenable. This is a bug in React. Please file ' + 'an issue.');
+  }
+
+  var thenable = suspendedThenable;
+  suspendedThenable = null;
+  return thenable;
 }
 
 /**
@@ -8248,12 +8284,19 @@ function renderNode(request, task, node) {
 
   try {
     return renderNodeDestructive(request, task, null, node);
-  } catch (x) {
+  } catch (thrownValue) {
     resetHooksState();
+    var x = thrownValue === SuspenseException ? // This is a special type of exception used for Suspense. For historical
+    // reasons, the rest of the Suspense implementation expects the thrown
+    // value to be a thenable, because before `use` existed that was the
+    // (unstable) API for suspending. This implementation detail can change
+    // later, once we deprecate the old API in favor of `use`.
+    getSuspendedThenable() : thrownValue; // $FlowFixMe[method-unbinding]
 
     if (typeof x === 'object' && x !== null && typeof x.then === 'function') {
+      var wakeable = x;
       var thenableState = getThenableStateAfterSuspending();
-      spawnNewSuspendedTask(request, task, thenableState, x); // Restore the context. We assume that this will be restored by the inner
+      spawnNewSuspendedTask(request, task, thenableState, wakeable); // Restore the context. We assume that this will be restored by the inner
       // functions in case nothing throws so we don't use "finally" here.
 
       task.blockedSegment.formatContext = previousFormatContext;
@@ -8531,8 +8574,14 @@ function retryTask(request, task) {
     task.abortSet.delete(task);
     segment.status = COMPLETED;
     finishedTask(request, task.blockedBoundary, segment);
-  } catch (x) {
+  } catch (thrownValue) {
     resetHooksState();
+    var x = thrownValue === SuspenseException ? // This is a special type of exception used for Suspense. For historical
+    // reasons, the rest of the Suspense implementation expects the thrown
+    // value to be a thenable, because before `use` existed that was the
+    // (unstable) API for suspending. This implementation detail can change
+    // later, once we deprecate the old API in favor of `use`.
+    getSuspendedThenable() : thrownValue; // $FlowFixMe[method-unbinding]
 
     if (typeof x === 'object' && x !== null && typeof x.then === 'function') {
       // Something suspended again, let's pick it back up later.

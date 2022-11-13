@@ -13,8 +13,8 @@ export interface RequestStore {
 export let requestAsyncStorage: AsyncLocalStorage<RequestStore> | RequestStore =
   {} as any
 
-// @ts-expect-error we provide this on global in
+// @ts-expect-error we provide this on globalThis in
 // the edge and node runtime
-if (global.AsyncLocalStorage) {
-  requestAsyncStorage = new (global as any).AsyncLocalStorage()
+if (globalThis.AsyncLocalStorage) {
+  requestAsyncStorage = new (globalThis as any).AsyncLocalStorage()
 }

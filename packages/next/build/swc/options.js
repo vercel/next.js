@@ -165,6 +165,7 @@ function getEmotionOptions(nextConfig, development) {
   return {
     enabled: true,
     autoLabel,
+    importMap: nextConfig?.compiler?.emotion?.importMap,
     labelFormat: nextConfig?.compiler?.emotion?.labelFormat,
     sourcemap: development
       ? nextConfig?.compiler?.emotion?.sourceMap ?? true
