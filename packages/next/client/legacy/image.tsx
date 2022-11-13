@@ -17,7 +17,7 @@ import {
 } from '../../shared/lib/image-config'
 import { useIntersection } from '../use-intersection'
 import { ImageConfigContext } from '../../shared/lib/image-config-context'
-import { warnOnce } from '../../shared/lib/utils'
+import { warnOnce } from '../../shared/lib/utils/warn-once'
 import { normalizePathTrailingSlash } from '../normalize-trailing-slash'
 
 function normalizeSrc(src: string): string {
@@ -35,7 +35,7 @@ const emptyDataURL =
   'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
 
 if (typeof window === 'undefined') {
-  ;(global as any).__NEXT_IMAGE_IMPORTED = true
+  ;(globalThis as any).__NEXT_IMAGE_IMPORTED = true
 }
 
 const VALID_LOADING_VALUES = ['lazy', 'eager', undefined] as const
@@ -864,7 +864,7 @@ export default function Image({
               // https://web.dev/lcp/#measure-lcp-in-javascript
               warnOnce(
                 `Image with src "${lcpImage.src}" was detected as the Largest Contentful Paint (LCP). Please add the "priority" property if this image is above the fold.` +
-                  `\nRead more: https://nextjs.org/docs/api-reference/next/image#priority`
+                  `\nRead more: https://nextjs.org/docs/api-reference/next/legacy/image#priority`
               )
             }
           }
@@ -969,19 +969,13 @@ export default function Image({
     }
   }
 
-  let imageSrcSetPropName = 'imagesrcset'
-  let imageSizesPropName = 'imagesizes'
-  if (process.env.__NEXT_REACT_ROOT) {
-    imageSrcSetPropName = 'imageSrcSet'
-    imageSizesPropName = 'imageSizes'
-  }
   const linkProps: React.DetailedHTMLProps<
     React.LinkHTMLAttributes<HTMLLinkElement>,
     HTMLLinkElement
   > = {
-    // Note: imagesrcset and imagesizes are not in the link element type with react 17.
-    [imageSrcSetPropName]: imgAttributes.srcSet,
-    [imageSizesPropName]: imgAttributes.sizes,
+    // @ts-expect-error upgrade react types to react 18
+    imageSrcSet: imgAttributes.srcSet,
+    imageSizes: imgAttributes.sizes,
     crossOrigin: rest.crossOrigin,
   }
 

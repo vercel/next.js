@@ -108,19 +108,19 @@ export function interpolateDynamicPath(
 
     if (paramIdx > -1) {
       let paramValue: string
+      const value = params[param]
 
-      if (Array.isArray(params[param])) {
-        paramValue = (params[param] as string[])
-          .map((v) => v && encodeURIComponent(v))
-          .join('/')
+      if (Array.isArray(value)) {
+        paramValue = value.map((v) => v && encodeURIComponent(v)).join('/')
+      } else if (value) {
+        paramValue = encodeURIComponent(value)
       } else {
-        paramValue =
-          params[param] && encodeURIComponent(params[param] as string)
+        paramValue = ''
       }
 
       pathname =
         pathname.slice(0, paramIdx) +
-        (paramValue || '') +
+        paramValue +
         pathname.slice(paramIdx + builtParam.length)
     }
   }
@@ -178,8 +178,13 @@ export function getUtils({
       )
       let params = matcher(parsedUrl.pathname)
 
-      if (rewrite.has && params) {
-        const hasParams = matchHas(req, rewrite.has, parsedUrl.query)
+      if ((rewrite.has || rewrite.missing) && params) {
+        const hasParams = matchHas(
+          req,
+          parsedUrl.query,
+          rewrite.has,
+          rewrite.missing
+        )
 
         if (hasParams) {
           Object.assign(params, hasParams)
@@ -293,7 +298,7 @@ export function getUtils({
 
               // favor named matches if available
               const routeKeyNames = Object.keys(routeKeys || {})
-              const filterLocaleItem = (val: string | string[]) => {
+              const filterLocaleItem = (val: string | string[] | undefined) => {
                 if (i18n) {
                   // locale items can be included in route-matches
                   // for fallback SSG pages so ensure they are
@@ -604,7 +609,7 @@ export function getUtils({
       ),
     interpolateDynamicPath: (
       pathname: string,
-      params: Record<string, string | string[]>
+      params: Record<string, undefined | string | string[]>
     ) => interpolateDynamicPath(pathname, params, defaultRouteRegex),
   }
 }

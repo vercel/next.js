@@ -13,71 +13,73 @@ export type InstallCommand =
   | ((ctx: { dependencies: { [key: string]: string } }) => string)
 
 export type PackageJson = {
+  dependencies?: { [key: string]: string }
   [key: string]: unknown
 }
+export interface NextInstanceOpts {
+  files: FileRef | { [filename: string]: string | FileRef }
+  dependencies?: { [name: string]: string }
+  packageJson?: PackageJson
+  packageLockPath?: string
+  nextConfig?: NextConfig
+  installCommand?: InstallCommand
+  buildCommand?: string
+  startCommand?: string
+  env?: Record<string, string>
+  dirSuffix?: string
+  turbo?: boolean
+}
+
 export class NextInstance {
-  protected files:
-    | FileRef
-    | {
-        [filename: string]: string | FileRef
-      }
+  protected files: FileRef | { [filename: string]: string | FileRef }
   protected nextConfig?: NextConfig
   protected installCommand?: InstallCommand
   protected buildCommand?: string
   protected startCommand?: string
-  protected dependencies?: { [name: string]: string }
-  protected events: { [eventName: string]: Set<any> }
+  protected dependencies?: PackageJson['dependencies'] = {}
+  protected events: { [eventName: string]: Set<any> } = {}
   public testDir: string
-  protected isStopping: boolean
-  protected isDestroyed: boolean
+  protected isStopping: boolean = false
+  protected isDestroyed: boolean = false
   protected childProcess: ChildProcess
   protected _url: string
   protected _parsedUrl: URL
-  protected packageJson: PackageJson
+  protected packageJson?: PackageJson = {}
   protected packageLockPath?: string
   protected basePath?: string
   protected env?: Record<string, string>
   public forcedPort?: string
+  public dirSuffix: string = ''
 
-  constructor({
-    files,
-    dependencies,
-    nextConfig,
-    installCommand,
-    buildCommand,
-    startCommand,
-    packageJson = {},
-    packageLockPath,
-    env,
-  }: {
-    files:
-      | FileRef
-      | {
-          [filename: string]: string | FileRef
+  constructor(opts: NextInstanceOpts) {
+    Object.assign(this, opts)
+  }
+
+  protected async writeInitialFiles() {
+    if (this.files instanceof FileRef) {
+      // if a FileRef is passed directly to `files` we copy the
+      // entire folder to the test directory
+      const stats = await fs.stat(this.files.fsPath)
+
+      if (!stats.isDirectory()) {
+        throw new Error(
+          `FileRef passed to "files" in "createNext" is not a directory ${this.files.fsPath}`
+        )
+      }
+      await fs.copy(this.files.fsPath, this.testDir)
+    } else {
+      for (const filename of Object.keys(this.files)) {
+        const item = this.files[filename]
+        const outputFilename = path.join(this.testDir, filename)
+
+        if (typeof item === 'string') {
+          await fs.ensureDir(path.dirname(outputFilename))
+          await fs.writeFile(outputFilename, item)
+        } else {
+          await fs.copy(item.fsPath, outputFilename)
         }
-    dependencies?: {
-      [name: string]: string
+      }
     }
-    packageJson?: PackageJson
-    packageLockPath?: string
-    nextConfig?: NextConfig
-    installCommand?: InstallCommand
-    buildCommand?: string
-    startCommand?: string
-    env?: Record<string, string>
-  }) {
-    this.files = files
-    this.dependencies = dependencies
-    this.nextConfig = nextConfig
-    this.installCommand = installCommand
-    this.buildCommand = buildCommand
-    this.startCommand = startCommand
-    this.packageJson = packageJson
-    this.packageLockPath = packageLockPath
-    this.events = {}
-    this.isDestroyed = false
-    this.isStopping = false
-    this.env = env
   }
 
   protected async createTestDir({
@@ -94,7 +96,7 @@ export class NextInstance {
       : process.env.NEXT_TEST_DIR || (await fs.realpath(os.tmpdir()))
     this.testDir = path.join(
       tmpDir,
-      `next-test-${Date.now()}-${(Math.random() * 1000) | 0}`
+      `next-test-${Date.now()}-${(Math.random() * 1000) | 0}${this.dirSuffix}`
     )
 
     const reactVersion = process.env.NEXT_TEST_REACT_VERSION || 'latest'
@@ -102,7 +104,7 @@ export class NextInstance {
       react: reactVersion,
       'react-dom': reactVersion,
       ...this.dependencies,
-      ...((this.packageJson.dependencies as object | undefined) || {}),
+      ...this.packageJson?.dependencies,
     }
 
     if (skipInstall) {
@@ -147,36 +149,14 @@ export class NextInstance {
           finalDependencies,
           this.installCommand,
           this.packageJson,
-          this.packageLockPath
+          this.packageLockPath,
+          this.dirSuffix
         )
       }
       require('console').log('created next.js install, writing test files')
     }
 
-    if (this.files instanceof FileRef) {
-      // if a FileRef is passed directly to `files` we copy the
-      // entire folder to the test directory
-      const stats = await fs.stat(this.files.fsPath)
-
-      if (!stats.isDirectory()) {
-        throw new Error(
-          `FileRef passed to "files" in "createNext" is not a directory ${this.files.fsPath}`
-        )
-      }
-      await fs.copy(this.files.fsPath, this.testDir)
-    } else {
-      for (const filename of Object.keys(this.files)) {
-        const item = this.files[filename]
-        const outputFilename = path.join(this.testDir, filename)
-
-        if (typeof item === 'string') {
-          await fs.ensureDir(path.dirname(outputFilename))
-          await fs.writeFile(outputFilename, item)
-        } else {
-          await fs.copy(item.fsPath, outputFilename)
-        }
-      }
-    }
+    await this.writeInitialFiles()
 
     let nextConfigFile = Object.keys(this.files).find((file) =>
       file.startsWith('next.config.')
@@ -259,6 +239,7 @@ export class NextInstance {
         await fs.remove(path.join(this.testDir, file))
       }
     }
+    await this.writeInitialFiles()
   }
 
   public async export(): Promise<{ exitCode?: number; cliOutput?: string }> {

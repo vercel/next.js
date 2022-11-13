@@ -88,8 +88,8 @@ const ClientSide = () => {
         width={300}
         height={300}
       />
-      <Link href="/errors">
-        <a id="errorslink">Errors</a>
+      <Link href="/errors" id="errorslink">
+        Errors
       </Link>
     </div>
   )

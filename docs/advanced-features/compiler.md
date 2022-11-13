@@ -9,6 +9,7 @@ description: Learn about the Next.js Compiler, written in Rust, which transforms
 
 | Version   | Changes                                                                                                                            |
 | --------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `v13.0.0` | SWC Minifier enabled by default.                                                                                                   |
 | `v12.3.0` | SWC Minifier [stable](https://nextjs.org/blog/next-12-3#swc-minifier-stable).                                                      |
 | `v12.2.0` | [SWC Plugins](#swc-plugins-Experimental) experimental support added.                                                               |
 | `v12.1.0` | Added support for Styled Components, Jest, Relay, Remove React Properties, Legacy Decorators, Remove Console, and jsxImportSource. |
@@ -197,14 +198,14 @@ First, update to the latest version of Next.js: `npm install next@latest`. Then,
 
 ### importSource
 
-Next.js will automatically detect `jsxImportSource` in `jsconfig.json` or `tsconfig.json` and apply that. This is commonly used with libraries like Theme UI.
+Next.js will automatically detect `jsxImportSource` in `jsconfig.json` or `tsconfig.json` and apply that. This is commonly used with libraries like [Theme UI](https://theme-ui.com).
 
 First, update to the latest version of Next.js: `npm install next@latest`. Then, update your `jsconfig.json` or `tsconfig.json` file:
 
 ```js
 {
   "compilerOptions": {
-    "jsxImportSource": 'preact'
+    "jsxImportSource": "theme-ui"
   }
 }
 ```
@@ -232,26 +233,36 @@ module.exports = {
       // The format is defined via string where variable parts are enclosed in square brackets [].
       // For example labelFormat: "my-classname--[local]", where [local] will be replaced with the name of the variable the result is assigned to.
       labelFormat?: string,
+      // default is undefined.
+      // This option allows you to tell the compiler what imports it should
+      // look at to determine what it should transform so if you re-export
+      // Emotion's exports, you can still use transforms.
+      importMap?: {
+        [packageName: string]: {
+          [exportName: string]: {
+            canonicalImport?: [string, string],
+            styledBaseImport?: [string, string],
+          }
+        }
+      },
     },
   },
 }
 ```
 
-Only `importMap` in `@emotion/babel-plugin` is not supported for now.
-
 ### Minification
 
-You can opt-in to using the Next.js compiler for minification. This is 7x faster than Terser.
+Next.js' swc compiler is used for minification by default since v13. This is 7x faster than Terser.
+
+If Terser is still needed for any reason this can be configured.
 
 ```js
 // next.config.js
 
 module.exports = {
-  swcMinify: true,
+  swcMinify: false,
 }
 ```
-
-If you have feedback about `swcMinify`, please share it on the [feedback discussion](https://github.com/vercel/next.js/discussions/30237).
 
 ## Experimental Features
 
@@ -271,7 +282,6 @@ module.exports = {
       },
     },
   },
-  swcMinify: true,
 }
 ```
 

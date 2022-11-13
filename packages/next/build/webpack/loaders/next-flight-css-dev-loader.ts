@@ -5,7 +5,7 @@
  */
 
 export function pitch(this: any) {
-  const content = this.fs.readFileSync(this.resource)
+  const content = this.fs.readFileSync(this.resourcePath)
   this.data.__checksum = (
     typeof content === 'string' ? Buffer.from(content) : content
   ).toString('hex')
@@ -14,7 +14,7 @@ export function pitch(this: any) {
 const NextServerCSSLoader = function (this: any, content: string) {
   this.cacheable && this.cacheable()
 
-  const isCSSModule = this.resource.match(/\.module\.css$/)
+  const isCSSModule = this.resourcePath.match(/\.module\.(css|sass|scss)$/)
   if (isCSSModule) {
     return (
       content +

@@ -163,7 +163,6 @@ export default class HotReloader {
   private webpackHotMiddleware?: WebpackHotMiddleware
   private config: NextConfigComplete
   public hasServerComponents: boolean
-  public hasReactRoot: boolean
   public clientStats: webpack.Stats | null
   public serverStats: webpack.Stats | null
   public edgeServerStats: webpack.Stats | null
@@ -216,8 +215,7 @@ export default class HotReloader {
     this.serverPrevDocumentHash = null
 
     this.config = config
-    this.hasReactRoot = !!process.env.__NEXT_REACT_ROOT
-    this.hasServerComponents = this.hasReactRoot && !!this.appDir
+    this.hasServerComponents = !!this.appDir
     this.previewProps = previewProps
     this.rewrites = rewrites
     this.hotReloaderSpan = trace('hot-reloader', undefined, {
@@ -448,7 +446,6 @@ export default class HotReloader {
             pagesDir: this.pagesDir,
             previewMode: this.previewProps,
             rootDir: this.dir,
-            target: 'server',
             pageExtensions: this.config.pageExtensions,
           })
         )
@@ -457,7 +454,6 @@ export default class HotReloader {
         dev: true,
         buildId: this.buildId,
         config: this.config,
-        hasReactRoot: this.hasReactRoot,
         pagesDir: this.pagesDir,
         rewrites: this.rewrites,
         runWebpackSpan: this.hotReloaderSpan,
@@ -519,11 +515,9 @@ export default class HotReloader {
           pagesDir: this.pagesDir,
           previewMode: this.previewProps,
           rootDir: this.dir,
-          target: 'server',
           pageExtensions: this.config.pageExtensions,
         })
       ).client,
-      hasReactRoot: this.hasReactRoot,
     })
     const fallbackCompiler = webpack(fallbackConfig)
 
@@ -602,6 +596,7 @@ export default class HotReloader {
                   pageFilePath: entryData.absolutePagePath,
                   nextConfig: this.config,
                   isDev: true,
+                  pageType: isAppPath ? 'app' : 'pages',
                 })
               : {}
             const isServerComponent =
@@ -626,6 +621,9 @@ export default class HotReloader {
                       ),
                       appDir: this.appDir!,
                       pageExtensions: this.config.pageExtensions,
+                      rootDir: this.dir,
+                      isDev: true,
+                      tsconfigPath: this.config.typescript.tsconfigPath,
                     }).import
                   : undefined
 
@@ -704,6 +702,9 @@ export default class HotReloader {
                         ),
                         appDir: this.appDir!,
                         pageExtensions: this.config.pageExtensions,
+                        rootDir: this.dir,
+                        isDev: true,
+                        tsconfigPath: this.config.typescript.tsconfigPath,
                       })
                     : relativeRequest,
                   hasAppDir,

@@ -25,7 +25,7 @@ export default async function transformSource(this: any): Promise<string> {
     // Filter out css files on the server
     .filter((request) => (isServer ? !regexCSS.test(request) : true))
     .map((request) =>
-      request.endsWith('.css')
+      regexCSS.test(request)
         ? `(() => import(/* webpackMode: "lazy" */ ${JSON.stringify(request)}))`
         : `import(/* webpackMode: "eager" */ ${JSON.stringify(request)})`
     )

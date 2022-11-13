@@ -6,22 +6,22 @@ const Header = (props) => (
     <nav>
       <ul>
         <li>
-          <Link href="/">
+          <Link href="/" legacyBehavior>
             <a>Home</a>
           </Link>
         </li>
         <li>
-          <Link href="/login">
+          <Link href="/login" legacyBehavior>
             <a>Login</a>
           </Link>
         </li>
         <li>
-          <Link href="/signup">
+          <Link href="/signup" legacyBehavior>
             <a>Signup</a>
           </Link>
         </li>
         <li>
-          <Link href="/profile">
+          <Link href="/profile" legacyBehavior>
             <a>Profile</a>
           </Link>
         </li>

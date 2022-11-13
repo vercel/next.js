@@ -9,9 +9,7 @@ const Page = ({ title, linkTo, tick }) => (
     <Clock lastUpdate={tick.lastUpdate} light={tick.light} />
     <AddCount />
     <nav>
-      <Link href={linkTo}>
-        <a>Navigate</a>
-      </Link>
+      <Link href={linkTo}>Navigate</Link>
     </nav>
   </div>
 )

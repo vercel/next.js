@@ -30,9 +30,7 @@ export default function Page(props) {
       <p id="index">index page</p>
       <p id="router">{JSON.stringify(router)}</p>
       <p id="props">{JSON.stringify(props)}</p>
-      <Link href="gsp">
-        <a>to /gsp</a>
-      </Link>
+      <Link href="gsp">to /gsp</Link>
     </>
   )
 }
