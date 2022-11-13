@@ -4,10 +4,11 @@ import ProductCard from '../components/ProductCard'
 import getProducts from '../sfcc.js'
 
 export default function Gallery({ data }) {
-  let coffeeRef = useRef()
+  let coffeeRef = useRef<HTMLParagraphElement>()
 
   const scrollHandler = (e) => {
     e.preventDefault()
+    // @ts-ignore
     coffeeRef.scrollIntoView({
       behavior: 'smooth',
       block: 'start',
@@ -22,7 +23,7 @@ export default function Gallery({ data }) {
           <div className="text-center">
             <p
               className="mt-1 text-4xl font-bold uppercase text-gray-900 sm:text-5xl sm:tracking-tight lg:text-5xl"
-              ref={(element) => (coffeeRef = element)}
+              ref={coffeeRef}
             >
               Crafted by us, for you
             </p>
