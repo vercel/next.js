@@ -64,22 +64,26 @@ export const installTemplate = async ({
    */
   const dependencies = ['react', 'react-dom', 'next']
   /**
+   * Default devDependencies.
+   */
+  const devDependencies = []
+  /**
    * TypeScript projects will have type definitions and other devDependencies.
    */
   if (mode === 'ts') {
-    dependencies.push(
-      'typescript',
-      '@types/react',
+    devDependencies.push(
       '@types/node',
-      '@types/react-dom'
+      '@types/react-dom',
+      '@types/react',
+      'typescript'
     )
   }
 
   /**
-   * Default eslint dependencies.
+   * Default eslint devDependencies.
    */
   if (eslint) {
-    dependencies.push('eslint', 'eslint-config-next')
+    devDependencies.push('eslint', 'eslint-config-next')
   }
   /**
    * Install package.json dependencies if they exist.
@@ -93,6 +97,22 @@ export const installTemplate = async ({
     console.log()
 
     await install(root, dependencies, installFlags)
+  }
+  /**
+   * Install package.json devDependencies if they exist.
+   */
+  if (devDependencies.length) {
+    console.log()
+    console.log('Installing devDependencies:')
+    for (const devDependency of devDependencies) {
+      console.log(`- ${chalk.cyan(devDependency)}`)
+    }
+    console.log()
+
+    await install(root, devDependencies, {
+      ...installFlags,
+      devDependencies: true,
+    })
   }
   /**
    * Copy the template files to the target directory.
