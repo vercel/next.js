@@ -22,6 +22,7 @@ pub use prepared_app::PreparedApp;
 use regex::Regex;
 use tungstenite::{error::ProtocolError::ResetWithoutClosingHandshake, Error::Protocol};
 use turbo_tasks::util::FormatDuration;
+use turbo_tasks_testing::retry::{retry, retry_async};
 use turbopack_create_test_app::test_app_builder::{PackageJsonConfig, TestApp, TestAppBuilder};
 
 use crate::bundlers::Bundler;
@@ -32,64 +33,18 @@ mod prepared_app;
 
 pub const BINDING_NAME: &str = "__turbopackBenchBinding";
 
-fn retry<A, F, R>(mut args: A, f: F, max_retries: usize, mut timeout: Duration) -> Result<R>
+fn retry_default<A, F, R, E>(args: A, f: F) -> Result<R, E>
 where
-    F: Fn(&mut A) -> Result<R>,
-{
-    let mut retries = 0usize;
-    loop {
-        match f(&mut args) {
-            Ok(value) => return Ok(value),
-            Err(e) => {
-                if retries >= max_retries {
-                    return Err(e);
-                }
-                retries += 1;
-                std::thread::sleep(timeout);
-                timeout += timeout;
-            }
-        }
-    }
-}
-
-fn retry_default<A, F, R>(args: A, f: F) -> Result<R>
-where
-    F: Fn(&mut A) -> Result<R>,
+    F: Fn(&mut A) -> Result<R, E>,
 {
     // waits 5, 10, 20, 40 seconds = 75 seconds total
     retry(args, f, 3, Duration::from_secs(5))
 }
 
-async fn retry_async<A, F, Fut, R>(
-    mut args: A,
-    f: F,
-    max_retries: usize,
-    mut timeout: Duration,
-) -> Result<R>
+async fn retry_async_default<A, F, Fut, R, E>(args: A, f: F) -> Result<R, E>
 where
     F: Fn(&mut A) -> Fut,
-    Fut: Future<Output = Result<R>>,
-{
-    let mut retries = 0usize;
-    loop {
-        match f(&mut args).await {
-            Ok(value) => return Ok(value),
-            Err(e) => {
-                if retries >= max_retries {
-                    return Err(e);
-                }
-                retries += 1;
-                tokio::time::sleep(timeout).await;
-                timeout += timeout;
-            }
-        }
-    }
-}
-
-async fn retry_async_default<A, F, Fut, R>(args: A, f: F) -> Result<R>
-where
-    F: Fn(&mut A) -> Fut,
-    Fut: Future<Output = Result<R>>,
+    Fut: Future<Output = Result<R, E>>,
 {
     // waits 5, 10, 20, 40 seconds = 75 seconds total
     retry_async(args, f, 3, Duration::from_secs(5)).await
@@ -144,7 +99,7 @@ pub async fn create_browser() -> Browser {
         builder.build().unwrap(),
         |c| {
             let c = c.clone();
-            async { Ok(Browser::launch(c).await?) }
+            Browser::launch(c)
         },
         3,
         Duration::from_millis(100),

@@ -3,6 +3,7 @@
 #![feature(box_syntax)]
 
 mod macros;
+pub mod retry;
 
 use std::{
     borrow::Cow,

@@ -5,8 +5,10 @@ use std::{
     env,
     net::SocketAddr,
     path::{Path, PathBuf},
+    time::Duration,
 };
 
+use anyhow::Context;
 use chromiumoxide::{
     browser::{Browser, BrowserConfig},
     error::CdpError::Ws,
@@ -22,6 +24,7 @@ use tungstenite::{error::ProtocolError::ResetWithoutClosingHandshake, Error::Pro
 use turbo_tasks::TurboTasks;
 use turbo_tasks_fs::util::sys_to_unix;
 use turbo_tasks_memory::MemoryBackend;
+use turbo_tasks_testing::retry::retry_async;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -164,7 +167,17 @@ async fn create_browser(
             .args(vec!["--auto-open-devtools-for-tabs"]);
     }
 
-    let (browser, mut handler) = Browser::launch(config_builder.build()?).await?;
+    let (browser, mut handler) = retry_async(
+        config_builder.build()?,
+        |c| {
+            let c = c.clone();
+            Browser::launch(c)
+        },
+        3,
+        Duration::from_millis(100),
+    )
+    .await
+    .context("Launching browser failed")?;
     // See https://crates.io/crates/chromiumoxide
     let thread_handle = tokio::task::spawn(async move {
         loop {
