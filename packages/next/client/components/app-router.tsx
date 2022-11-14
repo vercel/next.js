@@ -109,6 +109,37 @@ type AppRouterProps = {
   assetPrefix: string
 }
 
+function findHeadInCache(
+  cache: CacheNode,
+  parallelRoutes: FlightRouterState[1]
+): React.ReactNode {
+  const isLastItem = Object.keys(parallelRoutes).length === 0
+  if (isLastItem) {
+    return cache.head
+  }
+  for (const key in parallelRoutes) {
+    const [segment, childParallelRoutes] = parallelRoutes[key]
+    const childSegmentMap = cache.parallelRoutes.get(key)
+    if (!childSegmentMap) {
+      continue
+    }
+
+    const cacheKey = Array.isArray(segment) ? segment[1] : segment
+
+    const cacheNode = childSegmentMap.get(cacheKey)
+    if (!cacheNode) {
+      continue
+    }
+
+    const item = findHeadInCache(cacheNode, childParallelRoutes)
+    if (item) {
+      return item
+    }
+  }
+
+  return undefined
+}
+
 /**
  * The global router that wraps the application components.
  */
@@ -145,6 +176,10 @@ function Router({
     dispatch,
     sync,
   ] = useReducerWithReduxDevtools(reducer, initialState)
+
+  const head = useMemo(() => {
+    return findHeadInCache(cache, tree[1])
+  }, [cache, tree])
 
   useEffect(() => {
     // Ensure initialParallelRoutes is cleaned up from memory once it's used.
@@ -378,7 +413,7 @@ function Router({
             >
               {HotReloader ? (
                 <HotReloader assetPrefix={assetPrefix}>
-                  {initialHead}
+                  {head || initialHead}
                   {cache.subTreeData}
                 </HotReloader>
               ) : (

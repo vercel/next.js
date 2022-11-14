@@ -164,7 +164,6 @@ function fillCacheWithNewSubTreeData(
   const existingChildCacheNode = existingChildSegmentMap.get(segmentForCache)
   let childCacheNode = childSegmentMap.get(segmentForCache)
 
-  // In case of last segment start the fetch at this level and don't copy further down.
   if (isLastEntry) {
     if (
       !childCacheNode ||
@@ -193,7 +192,7 @@ function fillCacheWithNewSubTreeData(
         childCacheNode,
         existingChildCacheNode,
         flightDataPath[2],
-        /* flightDataPath[4] */ undefined
+        flightDataPath[4]
       )
 
       childSegmentMap.set(segmentForCache, childCacheNode)
@@ -309,12 +308,20 @@ function fillCacheWithPrefetchedSubTreeData(
 
   if (isLastEntry) {
     if (!existingChildCacheNode) {
-      existingChildSegmentMap.set(segmentForCache, {
+      const childCacheNode: CacheNode = {
         status: CacheStates.READY,
         data: null,
         subTreeData: flightDataPath[3],
         parallelRoutes: new Map(),
-      })
+      }
+
+      fillLazyItemsTillLeafWithHead(
+        childCacheNode,
+        existingChildCacheNode,
+        flightDataPath[2],
+        flightDataPath[4]
+      )
+      existingChildSegmentMap.set(segmentForCache, childCacheNode)
     }
 
     return
