@@ -27,6 +27,7 @@ tokio_console = [
   "tokio/tracing",
   "turbo-tasks/tokio_tracing",
 ]
+profile = []
 
 [dependencies]
 anyhow = "1.0.47"

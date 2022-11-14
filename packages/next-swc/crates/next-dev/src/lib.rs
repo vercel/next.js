@@ -7,7 +7,7 @@ mod turbo_tasks_viz;
 use std::{
     collections::HashSet,
     env::current_dir,
-    future::join,
+    future::{join, Future},
     net::{IpAddr, SocketAddr},
     path::MAIN_SEPARATOR,
     sync::Arc,
@@ -431,9 +431,12 @@ pub async fn start_server(options: &DevServerOptions) -> Result<()> {
         );
 
         loop {
-            let (elapsed, _count) = tt_clone
-                .get_or_wait_update_info(Duration::from_millis(100))
-                .await;
+            let update_future = profile_timeout(
+                tt_clone.as_ref(),
+                tt_clone.get_or_wait_update_info(Duration::from_millis(100)),
+            );
+
+            let (elapsed, _count) = update_future.await;
             println!(
                 "{event_type} - updated in {elapsed}",
                 event_type = "event".purple(),
@@ -445,4 +448,33 @@ pub async fn start_server(options: &DevServerOptions) -> Result<()> {
     join!(stats_future, async { server.future.await.unwrap() }).await;
 
     Ok(())
+}
+
+#[cfg(feature = "profile")]
+// When profiling, exits the process when no new updates have been received for
+// a given timeout and there are no more tasks in progress.
+async fn profile_timeout<T>(tt: &TurboTasks<MemoryBackend>, future: impl Future<Output = T>) -> T {
+    /// How long to wait in between updates before force-exiting the process
+    /// during profiling.
+    const PROFILE_EXIT_TIMEOUT: Duration = Duration::from_secs(5);
+
+    futures::pin_mut!(future);
+    loop {
+        match tokio::time::timeout(PROFILE_EXIT_TIMEOUT, &mut future).await {
+            Ok(res) => return res,
+            Err(_) => {
+                if tt.get_in_progress_count() == 0 {
+                    std::process::exit(0)
+                }
+            }
+        }
+    }
+}
+
+#[cfg(not(feature = "profile"))]
+fn profile_timeout<T>(
+    _tt: &TurboTasks<MemoryBackend>,
+    future: impl Future<Output = T>,
+) -> impl Future<Output = T> {
+    future
 }
