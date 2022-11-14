@@ -97,27 +97,28 @@ export default async function edgeSSRLoader(this: any) {
     ${
       isAppDir
         ? `
+      import { renderToHTMLOrFlight as appRenderToHTML } from 'next/dist/esm/server/app-render'
+      import * as pageMod from ${JSON.stringify(pageModPath)}
       const Document = null
-      const appRenderToHTML = require('next/dist/esm/server/app-render').renderToHTMLOrFlight
       const pagesRenderToHTML = null
-      const pageMod = require(${JSON.stringify(pageModPath)})
       const appMod = null
       const errorMod = null
       const error500Mod = null
     `
         : `
-      const Document = require(${stringifiedDocumentPath}).default
-      const appRenderToHTML = null
-      const pagesRenderToHTML = require('next/dist/esm/server/render').renderToHTML
-      const pageMod = require(${stringifiedPagePath})
-      const appMod = require(${stringifiedAppPath})
-      const errorMod = require(${stringifiedErrorPath})
-      const error500Mod = ${
-        stringified500Path ? `require(${stringified500Path})` : 'null'
+      import Document from ${stringifiedDocumentPath}
+      import { renderToHTML as pagesRenderToHTML } from 'next/dist/esm/server/render'
+      import * as pageMod from ${stringifiedPagePath}
+      import * as appMod from ${stringifiedAppPath}
+      import * as errorMod from ${stringifiedErrorPath}
+      ${
+        stringified500Path
+          ? `import * as error500Mod from ${stringified500Path}`
+          : `const error500Mod = null`
       }
+      const appRenderToHTML = null
     `
     }
-
 
     const buildManifest = self.__BUILD_MANIFEST
     const reactLoadableManifest = self.__REACT_LOADABLE_MANIFEST
