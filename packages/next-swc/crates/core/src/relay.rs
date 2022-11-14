@@ -15,6 +15,7 @@ use swc_core::{
 #[serde(rename_all = "lowercase")]
 pub enum RelayLanguageConfig {
     TypeScript,
+    JavaScript,
     Flow,
 }
 
