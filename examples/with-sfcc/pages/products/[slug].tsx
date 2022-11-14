@@ -33,9 +33,8 @@ export default function Product({ product }) {
 
 export async function getStaticProps({ params }) {
   const searchResults = await getProducts(params.slug)
-  console.log('search Results are: ', searchResults)
-
   const coffeeProduct = searchResults[0]
+
   return {
     props: {
       product: coffeeProduct,
@@ -44,11 +43,9 @@ export async function getStaticProps({ params }) {
 }
 
 export async function getStaticPaths() {
-  const searchResults = await getProducts('coffee')
-
-  let coffeeProducts = searchResults
-
+  const coffeeProducts = await getProducts('coffee')
   let fullPaths = []
+
   for (let product of coffeeProducts) {
     fullPaths.push({ params: { slug: product.id } })
   }

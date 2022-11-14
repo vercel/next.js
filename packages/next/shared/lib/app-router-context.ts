@@ -8,8 +8,8 @@ export type ChildSegmentMap = Map<string, CacheNode>
 
 // eslint-disable-next-line no-shadow
 export enum CacheStates {
-  LAZYINITIALIZED = 'LAZYINITIALIZED',
-  DATAFETCH = 'DATAFETCH',
+  LAZY_INITIALIZED = 'LAZYINITIALIZED',
+  DATA_FETCH = 'DATAFETCH',
   READY = 'READY',
 }
 
@@ -18,7 +18,7 @@ export enum CacheStates {
  */
 export type CacheNode =
   | {
-      status: CacheStates.DATAFETCH
+      status: CacheStates.DATA_FETCH
       /**
        * In-flight request for this node.
        */
@@ -52,7 +52,7 @@ export type CacheNode =
       parallelRoutes: Map<string, ChildSegmentMap>
     }
   | {
-      status: CacheStates.LAZYINITIALIZED
+      status: CacheStates.LAZY_INITIALIZED
       data: null
       head?: React.ReactNode
       subTreeData: null
