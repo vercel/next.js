@@ -460,7 +460,7 @@ export interface NextConfig extends Record<string, any> {
     relay?: {
       src: string
       artifactDirectory?: string
-      language?: 'typescript' | 'flow'
+      language?: 'typescript' | 'javascript' | 'flow'
     }
     removeConsole?:
       | boolean
