@@ -174,7 +174,7 @@ impl TaskScope {
                     #[cfg(feature = "print_scope_updates")]
                     return format!("TaskScope({id})::event");
                     #[cfg(not(feature = "print_scope_updates"))]
-                    return format!("TaskScope::event");
+                    return "TaskScope::event".to_owned();
                 }),
                 has_unfinished_tasks: false,
                 parents: CountHashSet::new(),
@@ -201,7 +201,7 @@ impl TaskScope {
                     #[cfg(feature = "print_scope_updates")]
                     return format!("TaskScope({id})::event");
                     #[cfg(not(feature = "print_scope_updates"))]
-                    return format!("TaskScope::event");
+                    return "TaskScope::event".to_owned();
                 }),
                 has_unfinished_tasks: false,
                 parents: CountHashSet::new(),
