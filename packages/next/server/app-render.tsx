@@ -59,6 +59,24 @@ function preloadComponent(Component: any, props: any) {
   }
   try {
     let result = Component(props)
+    if (result && result.then) {
+      result = result
+        .then((res: any) => {
+          return { success: res }
+        })
+        .catch((err: Error) => {
+          return { error: err }
+        })
+      return async () => {
+        const res = await result
+        if (res.error) {
+          throw res.error
+        }
+        if (res.success) {
+          return res.success
+        }
+      }
+    }
     return function () {
       // We know what this component will render already.
       return result
