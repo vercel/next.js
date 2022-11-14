@@ -9,7 +9,7 @@ export default function Document() {
           content="The premiere coffee delivery service."
         />
       </Head>
-      <body className="font-sans">
+      <body>
         <Main />
         <NextScript />
       </body>
