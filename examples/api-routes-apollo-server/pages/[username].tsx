@@ -29,13 +29,14 @@ export async function getStaticProps(context) {
 }
 
 export async function getStaticPaths() {
-  const { users } = await queryGraphql(`
+  const { users } = (await queryGraphql(`
     query {
       users {
         username
       }
     }
-  `)
+  `)) as { users: { username: string }[] }
+
   return {
     paths: users.map(({ username }) => ({
       params: { username },
