@@ -1,11 +1,11 @@
-import { AuthenticationError, UserInputError } from 'apollo-server-micro'
 import { createUser, findUser, validatePassword } from '../lib/user'
 import { setLoginSession, getLoginSession } from '../lib/auth'
 import { removeTokenCookie } from '../lib/auth-cookies'
+import { GraphQLError } from 'graphql'
 
 export const resolvers = {
   Query: {
-    async viewer(_parent, _args, context, _info) {
+    async viewer(_root, _args, context, _info) {
       try {
         const session = await getLoginSession(context.req)
 
@@ -13,8 +13,13 @@ export const resolvers = {
           return findUser({ email: session.email })
         }
       } catch (error) {
-        throw new AuthenticationError(
-          'Authentication token is invalid, please log in'
+        throw new GraphQLError(
+          'Authentication token is invalid, please log in',
+          {
+            extensions: {
+              code: 'UNAUTHENTICATED',
+            },
+          }
         )
       }
     },
@@ -38,7 +43,7 @@ export const resolvers = {
         return { user }
       }
 
-      throw new UserInputError('Invalid email and password combination')
+      throw new GraphQLError('Invalid email and password combination')
     },
     async signOut(_parent, _args, context, _info) {
       removeTokenCookie(context.res)

@@ -1,5 +1,5 @@
-.ais-InstantSearch__root {
-  align-items: center;
+html {
+  font-family: sans-serif;
 }
 
 header {
@@ -8,11 +8,12 @@ header {
   align-items: center;
 }
 
-content {
+main {
   display: flex;
+  margin: 25px 0;
 }
 
-menu {
+.menu {
   flex: 2;
 }
 
@@ -20,8 +21,12 @@ footer {
   text-align: center;
 }
 
-results {
-  flex: 10;
+.ais-Pagination {
+  margin-bottom: 25px;
+}
+
+.results {
+  flex: 9;
 }
 
 .hit {
