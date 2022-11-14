@@ -100,6 +100,9 @@ impl<'a> Relay<'a> {
             RelayLanguageConfig::TypeScript => {
                 format!("{}.graphql.ts", definition_name)
             }
+            RelayLanguageConfig::JavaScript => {
+                format!("{}.graphql.js", definition_name)
+            }
         };
 
         if let Some(artifact_directory) = &self.config.artifact_directory {
