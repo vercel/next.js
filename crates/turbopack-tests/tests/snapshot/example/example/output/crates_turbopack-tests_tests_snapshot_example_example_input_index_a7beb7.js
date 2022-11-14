@@ -1,6 +1,6 @@
 (self.TURBOPACK = self.TURBOPACK || []).push(["output/crates_turbopack-tests_tests_snapshot_example_example_input_index_a7beb7.js", {
 
-"[project]/crates/turbopack-tests/tests/snapshot/example/example/input/index.js (ecmascript)": (function({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, __dirname, m: module, e: exports }) { !function() {
+"[project]/crates/turbopack-tests/tests/snapshot/example/example/input/index.js (ecmascript)": (function({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, g: global, __dirname, m: module, e: exports }) { !function() {
 
 console.log("hello world");
 
@@ -377,6 +377,7 @@ console.log("hello world");
         c: moduleCache,
         l: loadChunk,
         p: _process,
+        g: globalThis,
         __dirname: module.id.replace(/(^|\/)[\/]+$/, ""),
       });
     });

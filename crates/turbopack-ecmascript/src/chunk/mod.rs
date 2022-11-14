@@ -512,6 +512,7 @@ async fn module_factory(content: EcmascriptChunkItemContentVc) -> Result<CodeVc>
         "c: __turbopack_cache__",
         "l: __turbopack_load__",
         "p: process",
+        "g: global",
         // HACK
         "__dirname",
     ];
