@@ -1,4 +1,5 @@
 import Image from 'next/image'
+import img from '../public/hero.jpg'
 
 export default function Header({ scrollHandler }) {
   return (
@@ -11,7 +12,8 @@ export default function Header({ scrollHandler }) {
               priority
               fill
               className="h-full w-full object-cover"
-              src="/hero.jpg"
+              src={img}
+              placeholder="blur"
               alt="Coffee grinder"
             />
             <div className="absolute inset-0 bg-orange-100 mix-blend-multiply" />
