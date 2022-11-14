@@ -10,7 +10,7 @@ pub fn wrap_html(graph: &str) -> String {
 <title>turbo-tasks graph</title>
 </head>
 <body>
-  <script src="https://cdn.jsdelivr.net/npm/@hpcc-js/wasm/dist/index.min.js"></script><script src="https://cdn.jsdelivr.net/npm/viz.js@2.1.2/full.render.js"></script><script>
+  <script src="https://cdn.jsdelivr.net/npm/@hpcc-js/wasm@1.20.1/dist/index.min.js"></script><script src="https://cdn.jsdelivr.net/npm/viz.js@2.1.2/full.render.js"></script><script>
       var wasmBinaryFile = "https://cdn.jsdelivr.net/npm/@hpcc-js/wasm/dist/graphvizlib.wasm";
       var hpccWasm = window["@hpcc-js/wasm"];
       const dot = `{}`;
