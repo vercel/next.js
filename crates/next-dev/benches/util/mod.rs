@@ -140,7 +140,17 @@ pub async fn create_browser() -> Browser {
     if with_devtools {
         builder = builder.arg("--auto-open-devtools-for-tabs");
     }
-    let (browser, mut handler) = Browser::launch(builder.build().unwrap()).await.unwrap();
+    let (browser, mut handler) = retry_async(
+        builder.build().unwrap(),
+        |c| {
+            let c = c.clone();
+            async { Ok(Browser::launch(c).await?) }
+        },
+        3,
+        Duration::from_millis(100),
+    )
+    .await
+    .expect("Launching the browser failed");
 
     // See https://crates.io/crates/chromiumoxide
     tokio::task::spawn(async move {
