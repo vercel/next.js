@@ -1218,7 +1218,7 @@ export default class Router implements BaseRouter {
 
     // if a route transition is already in progress before
     // the query updating is triggered ignore query updating
-    if (isQueryUpdating && this.clc) {
+    if (isQueryUpdating && (this.clc || !isSsr)) {
       return false
     }
 
@@ -1424,10 +1424,6 @@ export default class Router implements BaseRouter {
       (!isDynamicRoute(route) ||
         !getRouteMatcher(getRouteRegex(route))(parsedAsPathname))
 
-    if (isMiddlewareRewrite) {
-      isQueryUpdating = false
-    }
-
     // we don't attempt resolve asPath when we need to execute
     // middleware as the resolving will occur server-side
     const isMiddlewareMatch = await matchesMiddleware({
@@ -1577,7 +1573,8 @@ export default class Router implements BaseRouter {
         isPreview: nextState.isPreview,
         hasMiddleware: isMiddlewareMatch,
         unstable_skipClientCache: options.unstable_skipClientCache,
-        isQueryUpdating: isQueryUpdating && !this.isFallback,
+        isQueryUpdating:
+          isQueryUpdating && !this.isFallback && !isMiddlewareRewrite,
       })
 
       if ('route' in routeInfo && isMiddlewareMatch) {
