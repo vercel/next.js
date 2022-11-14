@@ -22,6 +22,9 @@ describe('app-dir alias handling', () => {
         '@types/react': 'latest',
         '@types/node': 'latest',
       },
+      packageJson: {
+        type: 'module',
+      },
     })
   })
   afterAll(() => next.destroy())

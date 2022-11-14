@@ -1505,7 +1505,7 @@ export default class Router implements BaseRouter {
 
       if (!routeMatch || (shouldInterpolate && !interpolatedAs.result)) {
         const missingParams = Object.keys(routeRegex.groups).filter(
-          (param) => !query[param]
+          (param) => !query[param] && !routeRegex.groups[param].optional
         )
 
         if (missingParams.length > 0 && !isMiddlewareMatch) {
