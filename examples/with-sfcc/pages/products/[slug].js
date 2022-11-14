@@ -1,4 +1,4 @@
-import Image from 'next/future/image'
+import Image from 'next/image'
 import getProducts from '../../sfcc.js'
 
 export default function Product({ product }) {
