@@ -30,7 +30,7 @@ importers:
       '@next/plugin-storybook': workspace:*
       '@next/polyfill-module': workspace:*
       '@next/polyfill-nomodule': workspace:*
-      '@next/swc': workspace:*
+      '@next/rs': workspace:*
       '@replayio/jest': 27.5.1-alpha.4
       '@replayio/playwright': 0.2.26
       '@svgr/webpack': 5.5.0
@@ -193,7 +193,7 @@ importers:
       '@next/plugin-storybook': link:packages/next-plugin-storybook
       '@next/polyfill-module': link:packages/next-polyfill-module
       '@next/polyfill-nomodule': link:packages/next-polyfill-nomodule
-      '@next/swc': link:packages/next-swc
+      '@next/rs': link:packages/next-rs
       '@replayio/jest': 27.5.1-alpha.4
       '@replayio/playwright': 0.2.26_@playwright+test@1.19.2
       '@svgr/webpack': 5.5.0
@@ -483,7 +483,7 @@ importers:
       '@next/polyfill-nomodule': 13.0.4-canary.0
       '@next/react-dev-overlay': 13.0.4-canary.0
       '@next/react-refresh-utils': 13.0.4-canary.0
-      '@next/swc': 13.0.4-canary.0
+      '@next/rs': 13.0.4-canary.0
       '@segment/ajv-human-errors': 2.1.2
       '@swc/helpers': 0.4.11
       '@taskr/clear': 1.1.0
@@ -683,7 +683,7 @@ importers:
       '@next/polyfill-nomodule': link:../next-polyfill-nomodule
       '@next/react-dev-overlay': link:../react-dev-overlay
       '@next/react-refresh-utils': link:../react-refresh-utils
-      '@next/swc': link:../next-swc
+      '@next/rs': link:../next-rs
       '@segment/ajv-human-errors': 2.1.2_ajv@8.11.0
       '@taskr/clear': 1.1.0
       '@taskr/esnext': 1.1.0
@@ -910,7 +910,7 @@ importers:
       object-assign: 4.1.1
       whatwg-fetch: 3.0.0
 
-  packages/next-swc:
+  packages/next-rs:
     specifiers:
       '@napi-rs/cli': 2.12.0
     devDependencies:
