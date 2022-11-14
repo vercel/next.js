@@ -1218,7 +1218,7 @@ export default class Router implements BaseRouter {
 
     // if a route transition is already in progress before
     // the query updating is triggered ignore query updating
-    if (isQueryUpdating && (this.clc || !isSsr)) {
+    if (isQueryUpdating && this.clc) {
       return false
     }
 
