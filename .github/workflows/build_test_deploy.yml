@@ -1390,7 +1390,7 @@ jobs:
       # attempt pulling existing turbo cache, this must be done
       # outside of the freeBSD vm as there isn't a turbo build
       # for freeBSD currently
-      - run: node ./script/pull-freebsd-cache.js
+      - run: node ./scripts/pull-freebsd-cache.js
 
       - name: check build exists
         run: if [ -f packages/next-swc/native/next-swc.freebsd-x64.node ]; then echo "::set-output name=BUILD_EXISTS::yes"; else echo "::set-output name=BUILD_EXISTS::no"; fi
