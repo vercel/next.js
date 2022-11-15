@@ -8,19 +8,19 @@ const config: CodegenConfig = {
     {
       [url]: {
         headers: {
-          'x-api-key': xApiKey
-        }
-      }
-    }
+          'x-api-key': xApiKey,
+        },
+      },
+    },
   ],
   documents: ['app/**/*.tsx', 'app/**/*.ts'],
   ignoreNoDocuments: true,
   generates: {
     './gql/': {
       preset: 'client',
-      plugins: []
-    }
-  }
+      plugins: [],
+    },
+  },
 }
 
 export default config

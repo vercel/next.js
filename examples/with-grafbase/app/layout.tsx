@@ -21,7 +21,7 @@ const GetAllPostsDocument = graphql(/* GraphQL */ `
 
 const RootLayout = async ({ children }: { children: React.ReactNode }) => {
   const { postCollection } = await grafbase.request(GetAllPostsDocument, {
-    first: 50
+    first: 50,
   })
 
   return (

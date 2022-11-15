@@ -15,7 +15,7 @@ const GetPostBySlugDocument = graphql(/* GraphQL */ `
 
 const Page = async ({ params }: { params: { slug: string } }) => {
   const { post } = await grafbase.request(GetPostBySlugDocument, {
-    slug: params.slug
+    slug: params.slug,
   })
 
   if (!post) {
