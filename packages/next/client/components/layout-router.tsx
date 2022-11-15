@@ -170,7 +170,7 @@ export function InnerLayoutRouter({
   }
 
   // When childNode is not available during rendering client-side we need to fetch it from the server.
-  if (!childNode) {
+  if (!childNode || childNode.status === CacheStates.LAZY_INITIALIZED) {
     /**
      * Router state with refetch marker added
      */
