@@ -76,9 +76,7 @@ const downloadGoogleFonts: FontLoader = async ({
   if (adjustFontFallback) {
     try {
       const { ascent, descent, lineGap, fallbackFont, sizeAdjust } =
-        calculateSizeAdjustValues(
-          require('next/dist/server/google-font-metrics.json')[fontFamily]
-        )
+        calculateSizeAdjustValues(fontFamily)
       adjustFontFallbackMetrics = {
         fallbackFont,
         ascentOverride: `${ascent}%`,
