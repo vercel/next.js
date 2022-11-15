@@ -1525,6 +1525,9 @@ jobs:
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
+      - name: normalize versions
+        run: node scripts/normalize-version-bump.js
+
       - name: Build
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         run: turbo run build-wasm --cache-dir=".turbo" -- --target nodejs --dev
