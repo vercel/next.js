@@ -1384,7 +1384,6 @@ jobs:
           rm -rf docs
           rm -rf errors
           rm -rf examples
-          rm -rf scripts
           rm -rf test
       - name: Build
         id: build
