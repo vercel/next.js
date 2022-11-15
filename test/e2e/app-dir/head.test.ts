@@ -2,7 +2,7 @@ import path from 'path'
 import cheerio from 'cheerio'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
-import { renderViaHTTP, waitFor } from 'next-test-utils'
+import { renderViaHTTP } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 
 describe('app dir head', () => {
@@ -103,7 +103,7 @@ describe('app dir head', () => {
         .elementByCss('#to-blog')
         .click()
         .waitForElementByCss('#layout', 2000)
-      await waitFor(10000)
+
       expect(await getTitle()).toBe('hello from blog layout')
       await browser.back().waitForElementByCss('#to-blog', 2000)
       expect(await getTitle()).toBe('hello from index')
