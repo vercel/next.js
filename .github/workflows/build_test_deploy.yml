@@ -1402,7 +1402,7 @@ jobs:
           prepare: |
             pkg install -y curl node16
             curl -qL https://www.npmjs.com/install.sh | sh
-            npm i -g pnpm@${PNPM_VERSION} "@napi-rs/cli@${NAPI_CLI_VERSION}"
+            npm i -g pnpm@${PNPM_VERSION} "@napi-rs/cli@${NAPI_CLI_VERSION}" turbo@${TURBO_VERSION}
             curl https://sh.rustup.rs -sSf --output rustup.sh
             sh rustup.sh -y --profile minimal --default-toolchain stable
             export PATH="/usr/local/cargo/bin:$PATH"
@@ -1418,7 +1418,7 @@ jobs:
             env
             freebsd-version
             node scripts/normalize-version-bump.js
-            pnpm --filter=@next/swc run build-native-no-plugin --platform --release --target x86_64-unknown-freebsd
+            turbo run build-native-no-plugin -- --platform --release --target x86_64-unknown-freebsd
             rm -rf node_modules
             rm -rf packages/next-swc/target
       - name: Upload artifact
