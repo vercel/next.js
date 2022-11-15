@@ -1195,7 +1195,7 @@ export default class Router implements BaseRouter {
     // WARNING: `_h` is an internal option for handing Next.js client-side
     // hydration. Your app should _never_ use this property. It may change at
     // any time without notice.
-    let isQueryUpdating = (options as any)._h
+    const isQueryUpdating = (options as any)._h
     let shouldResolveHref =
       isQueryUpdating ||
       (options as any)._shouldResolveHref ||
