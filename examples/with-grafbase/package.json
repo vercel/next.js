@@ -7,18 +7,15 @@
     "backend": "npx grafbase@latest dev & yarn codegen",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
     "codegen": "graphql-codegen --watch -r dotenv/config"
   },
   "dependencies": {
     "@types/node": "18.11.9",
     "@types/react": "18.0.25",
     "@types/react-dom": "18.0.8",
-    "eslint": "8.27.0",
-    "eslint-config-next": "13.0.3",
     "graphql": "16.6.0",
     "graphql-request": "5.0.0",
-    "next": "13.0.3",
+    "next": "latest",
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "typescript": "4.8.4"

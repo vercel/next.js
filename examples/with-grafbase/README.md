@@ -8,11 +8,13 @@ You can see a demo of this online at [https://nextjs-with-grafbase.vercel.app](h
 
 ## Deploy
 
-Deploy this example using [Vercel](https://vercel.com):
+First deploy this to Grafbase to get your backend API URL and Key:
 
-![Deploy to Vercel]()
+[![Deploy to Grafbase](https://grafbase.com/button)](https://grafbase.com/new/configure?template=Next Example&source=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-grafbase)
 
-You will need to [create an account](https://grafbase.com/sign-up) with Grafbase and connect this example repo via GitHub. You can use the **API URL** and **API Key** provided by Grafbase to populate the environment variables with Vercel on deployment.
+Then deploy this example using [Vercel](https://vercel.com):
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-grafbase&env=GRAFBASE_API_URL,GRAFBASE_API_KEY)
 
 ## How to use
 
@@ -32,7 +34,7 @@ pnpm create next-app --example with-grafbase with-grafbase-app
 
 To run the example locally you need to:
 
-1. Copy the `.env.example` to `.env` and provide your API URL and API Key. In development the defaults are fine.
+1. Copy the `.env.local.example` to `.env.local` and provide your API URL and API Key: `cp .env.local.example .env.local` &mdash; the defaults will be fine for development mode.
 
 2. Run the [Grafbase CLI](https://grafbase.com/cli) using `npx grafbase@latest dev`
 
