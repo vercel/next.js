@@ -761,7 +761,9 @@ function fetchNextData({
         if (!unstable_skipClientCache) {
           delete inflightCache[cacheKey]
         }
-        err = markAssetError(err)
+        if (err.message === 'Failed to fetch') {
+          markAssetError(err)
+        }
         throw err
       })
 
