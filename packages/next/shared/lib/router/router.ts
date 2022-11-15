@@ -2095,11 +2095,13 @@ export default class Router implements BaseRouter {
             data?.json && !wasBailedPrefetch
               ? data
               : await fetchNextData({
-                  dataHref: this.pageLoader.getDataHref({
-                    href: formatWithValidation({ pathname, query }),
-                    asPath: resolvedAs,
-                    locale,
-                  }),
+                  dataHref:
+                    data?.dataHref ||
+                    this.pageLoader.getDataHref({
+                      href: formatWithValidation({ pathname, query }),
+                      asPath: resolvedAs,
+                      locale,
+                    }),
                   isServerRender: this.isSsr,
                   parseJSON: true,
                   inflightCache: wasBailedPrefetch ? {} : this.sdc,
