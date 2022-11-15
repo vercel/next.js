@@ -3,7 +3,7 @@ import { NextInstance } from 'test/lib/next-modes/base'
 import webdriver from 'next-webdriver'
 import path from 'path'
 
-describe('app-dir alias handling', () => {
+describe('async-component-preload', () => {
   if ((global as any).isNextDeploy) {
     it('should skip next deploy for now', () => {})
     return
@@ -13,7 +13,7 @@ describe('app-dir alias handling', () => {
 
   beforeAll(async () => {
     next = await createNext({
-      files: new FileRef(path.join(__dirname, 'async-page-redirect')),
+      files: new FileRef(path.join(__dirname, 'async-component-preload')),
       dependencies: {
         react: 'latest',
         'react-dom': 'latest',
