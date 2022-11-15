@@ -16,7 +16,7 @@ export default async function handler(
       return res.status(updated.length > 0 ? 200 : 404).json(updated)
     case 'DELETE':
       const removed = await todos.remove(req.body)
-      return res.status(removed.length > 0 ? 204 : 404).json(removed)
+      return res.status(removed.length > 0 ? 204 : 404).end()
     default:
       return res.status(405).send('Method Not Allowed')
   }
