@@ -26,14 +26,6 @@ pnpm create next-app --example with-postgres with-postgres-app
 
 ## Configuration
 
-### Install dependencies
-
-```bash
-npm install
-# or
-yarn
-```
-
 ### Set up a Postgres database
 
 Set up a Postgres database locally or use your favorite provider.

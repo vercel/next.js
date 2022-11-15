@@ -1,19 +1,8 @@
-require('dotenv').config({ path: '.env.local' })
+const dotenv = require('dotenv')
 const { parse } = require('pg-connection-string')
 
-const options = {}
+dotenv.config({ path: '.env.local' })
 
-if (process.env.DATABASE_URL) {
-  const { host, database, user, password, ssl } = parse(
-    process.env.DATABASE_URL
-  )
-
-  process.env.PGHOST = host
-  process.env.PGDATABASE = database
-  process.env.PGUSERNAME = user
-  process.env.PGPASSWORD = password
-
-  options.ssl = ssl
-}
+const options = parse(process.env.DATABASE_URL || '')
 
 module.exports = options
