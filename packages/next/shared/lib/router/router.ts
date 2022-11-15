@@ -1418,11 +1418,12 @@ export default class Router implements BaseRouter {
     let route = removeTrailingSlash(pathname)
     const parsedAsPathname = as.startsWith('/') && parseRelativeUrl(as).pathname
 
-    const isMiddlewareRewrite =
+    const isMiddlewareRewrite = !!(
       parsedAsPathname &&
       route !== parsedAsPathname &&
       (!isDynamicRoute(route) ||
         !getRouteMatcher(getRouteRegex(route))(parsedAsPathname))
+    )
 
     // we don't attempt resolve asPath when we need to execute
     // middleware as the resolving will occur server-side
@@ -1573,8 +1574,8 @@ export default class Router implements BaseRouter {
         isPreview: nextState.isPreview,
         hasMiddleware: isMiddlewareMatch,
         unstable_skipClientCache: options.unstable_skipClientCache,
-        isQueryUpdating:
-          isQueryUpdating && !this.isFallback && !isMiddlewareRewrite,
+        isQueryUpdating: isQueryUpdating && !this.isFallback,
+        isMiddlewareRewrite,
       })
 
       if ('route' in routeInfo && isMiddlewareMatch) {
@@ -1923,6 +1924,7 @@ export default class Router implements BaseRouter {
     isPreview,
     unstable_skipClientCache,
     isQueryUpdating,
+    isMiddlewareRewrite,
   }: {
     route: string
     pathname: string
@@ -1935,6 +1937,7 @@ export default class Router implements BaseRouter {
     isPreview: boolean
     unstable_skipClientCache?: boolean
     isQueryUpdating?: boolean
+    isMiddlewareRewrite?: boolean
   }) {
     /**
      * This `route` binding can change if there's a rewrite
@@ -1980,16 +1983,26 @@ export default class Router implements BaseRouter {
         isBackground: isQueryUpdating,
       }
 
-      const data = isQueryUpdating
-        ? ({} as any)
-        : await withMiddlewareEffects({
-            fetchData: () => fetchNextData(fetchNextDataParams),
-            asPath: resolvedAs,
-            locale: locale,
-            router: this,
-          })
+      const data =
+        isQueryUpdating && !isMiddlewareRewrite
+          ? ({} as any)
+          : await withMiddlewareEffects({
+              fetchData: () => fetchNextData(fetchNextDataParams),
+              asPath: resolvedAs,
+              locale: locale,
+              router: this,
+            }).catch((err) => {
+              // we don't hard error during query updating
+              // as it's un-necessary and doesn't need to be fatal
+              // unless it is a fallback route and the props can't
+              // be loaded
+              if (isQueryUpdating) {
+                return {} as any
+              }
+              throw err
+            })
 
-      if (isQueryUpdating && data) {
+      if (isQueryUpdating) {
         data.json = self.__NEXT_DATA__.props
       }
       handleCancelled()
@@ -2002,26 +2015,31 @@ export default class Router implements BaseRouter {
       }
 
       if (data?.effect?.type === 'rewrite') {
-        route = removeTrailingSlash(data.effect.resolvedHref)
-        pathname = data.effect.resolvedHref
-        query = { ...query, ...data.effect.parsedAs.query }
-        resolvedAs = removeBasePath(
-          normalizeLocalePath(data.effect.parsedAs.pathname, this.locales)
-            .pathname
-        )
+        const resolvedRoute = removeTrailingSlash(data.effect.resolvedHref)
+        const pages = await this.pageLoader.getPageList()
 
-        // Check again the cache with the new destination.
-        existingInfo = this.components[route]
-        if (
-          routeProps.shallow &&
-          existingInfo &&
-          this.route === route &&
-          !hasMiddleware
-        ) {
-          // If we have a match with the current route due to rewrite,
-          // we can copy the existing information to the rewritten one.
-          // Then, we return the information along with the matched route.
-          return { ...existingInfo, route }
+        if (pages.includes(resolvedRoute)) {
+          route = resolvedRoute
+          pathname = data.effect.resolvedHref
+          query = { ...query, ...data.effect.parsedAs.query }
+          resolvedAs = removeBasePath(
+            normalizeLocalePath(data.effect.parsedAs.pathname, this.locales)
+              .pathname
+          )
+
+          // Check again the cache with the new destination.
+          existingInfo = this.components[route]
+          if (
+            routeProps.shallow &&
+            existingInfo &&
+            this.route === route &&
+            !hasMiddleware
+          ) {
+            // If we have a match with the current route due to rewrite,
+            // we can copy the existing information to the rewritten one.
+            // Then, we return the information along with the matched route.
+            return { ...existingInfo, route }
+          }
         }
       }
 
