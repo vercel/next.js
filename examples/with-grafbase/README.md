@@ -10,7 +10,7 @@ You can see a demo of this online at [https://nextjs-with-grafbase.vercel.app](h
 
 First deploy this to Grafbase to get your backend API URL and Key:
 
-[![Deploy to Grafbase](https://grafbase.com/button)](https://grafbase.com/new/configure?template=Next Example&source=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-grafbase)
+[![Deploy to Grafbase](https://grafbase.com/button)](https://grafbase.com/new/configure?template=NextExample&source=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-grafbase)
 
 Then deploy this example using [Vercel](https://vercel.com):
 
