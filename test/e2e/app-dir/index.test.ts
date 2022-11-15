@@ -1507,6 +1507,72 @@ describe('app dir', () => {
           ).toBe('100px')
         })
       })
+
+      describe('special entries', () => {
+        it('should include css imported in loading.js', async () => {
+          const html = await renderViaHTTP(next.url, '/loading-bug/hi')
+          // The link tag should be included together with loading
+          expect(html).toMatch(
+            /<link rel="stylesheet" href="(.+)\.css(\?ts=\d+)?"\/><h2>Loading...<\/h2>/
+          )
+        })
+
+        it('should include css imported in client template.js', async () => {
+          const browser = await webdriver(next.url, '/template/clientcomponent')
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('button')).fontSize`
+            )
+          ).toBe('100px')
+        })
+
+        it('should include css imported in server template.js', async () => {
+          const browser = await webdriver(next.url, '/template/servercomponent')
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('h1')).color`
+            )
+          ).toBe('rgb(255, 0, 0)')
+        })
+
+        it('should include css imported in client not-found.js', async () => {
+          const browser = await webdriver(
+            next.url,
+            '/not-found/clientcomponent'
+          )
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('h1')).color`
+            )
+          ).toBe('rgb(255, 0, 0)')
+        })
+
+        it('should include css imported in server not-found.js', async () => {
+          const browser = await webdriver(
+            next.url,
+            '/not-found/servercomponent'
+          )
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('h1')).color`
+            )
+          ).toBe('rgb(255, 0, 0)')
+        })
+
+        it('should include css imported in error.js', async () => {
+          const browser = await webdriver(next.url, '/error/client-component')
+          await browser.elementByCss('button').click()
+
+          // Wait for error page to render and CSS to be loaded
+          await new Promise((resolve) => setTimeout(resolve, 2000))
+
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('button')).fontSize`
+            )
+          ).toBe('50px')
+        })
+      })
     })
 
     describe('searchParams prop', () => {
@@ -2067,6 +2133,29 @@ describe('app dir', () => {
             .click()
             .waitForElementByCss('#about-page')
             .text()
+        ).toBe(`About page`)
+      })
+      it('should not do additional pushState when already on the page', async () => {
+        const browser = await webdriver(next.url, '/linking/about')
+        const goToLinkingPage = async () => {
+          expect(
+            await browser
+              .elementByCss('a[href="/linking"]')
+              .click()
+              .waitForElementByCss('#home-page')
+              .text()
+          ).toBe(`Home page`)
+        }
+
+        await goToLinkingPage()
+        await waitFor(1000)
+        await goToLinkingPage()
+        await waitFor(1000)
+        await goToLinkingPage()
+        await waitFor(1000)
+
+        expect(
+          await browser.back().waitForElementByCss('#about-page', 2000).text()
         ).toBe(`About page`)
       })
     })

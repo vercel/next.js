@@ -4,7 +4,7 @@ import { promisify } from 'util'
 import path, { join } from 'path'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
-import { check, fetchViaHTTP, normalizeRegEx } from 'next-test-utils'
+import { check, fetchViaHTTP, normalizeRegEx, waitFor } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 
 const glob = promisify(globOrig)
@@ -452,5 +452,17 @@ describe('app-dir static/dynamic handling', () => {
         )
       })
     }
+
+    it('should keep querystring on static page', async () => {
+      const browser = await webdriver(next.url, '/blog/tim?message=hello-world')
+      const checkUrl = async () =>
+        expect(await browser.url()).toBe(
+          next.url + '/blog/tim?message=hello-world'
+        )
+
+      checkUrl()
+      await waitFor(1000)
+      checkUrl()
+    })
   })
 })

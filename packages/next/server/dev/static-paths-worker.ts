@@ -22,9 +22,9 @@ if (process.env.NEXT_PREBUNDLED_REACT) {
 
 let workerWasUsed = false
 
-// expose AsyncLocalStorage on global for react usage
+// expose AsyncLocalStorage on globalThis for react usage
 const { AsyncLocalStorage } = require('async_hooks')
-;(global as any).AsyncLocalStorage = AsyncLocalStorage
+;(globalThis as any).AsyncLocalStorage = AsyncLocalStorage
 
 // we call getStaticPaths in a separate process to ensure
 // side-effects aren't relied on in dev that will break

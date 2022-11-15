@@ -1,6 +1,6 @@
 module.exports = {
   reactStrictMode: true,
   images: {
-    domains: ['zzte-003.sandbox.us02.dx.commercecloud.salesforce.com'],
+    domains: ['zzte-003.dx.commercecloud.salesforce.com'],
   },
 }
