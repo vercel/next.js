@@ -1156,12 +1156,12 @@ jobs:
             target: 'x86_64-apple-darwin'
             build: |
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi
-              turbo run build-native -- --release
+              turbo run build-native -- --release --target x86_64-apple-darwin
               strip -x packages/next-swc/native/next-swc.*.node
           - host: windows-latest
             build: |
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" "pnpm@${PNPM_VERSION}"
-              turbo run build-native -- --release
+              turbo run build-native -- --release --target x86_64-pc-windows-msvc
             target: 'x86_64-pc-windows-msvc'
           - host: windows-latest
             build: |
