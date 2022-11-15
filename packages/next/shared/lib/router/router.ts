@@ -2018,7 +2018,11 @@ export default class Router implements BaseRouter {
         const resolvedRoute = removeTrailingSlash(data.effect.resolvedHref)
         const pages = await this.pageLoader.getPageList()
 
-        if (pages.includes(resolvedRoute)) {
+        // during query updating the page must match although during
+        // client-transition a redirect that doesn't match a page
+        // can be returned and this should trigger a hard navigation
+        // which is valid for incremental migration
+        if (!isQueryUpdating || pages.includes(resolvedRoute)) {
           route = resolvedRoute
           pathname = data.effect.resolvedHref
           query = { ...query, ...data.effect.parsedAs.query }
