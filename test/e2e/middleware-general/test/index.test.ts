@@ -279,7 +279,7 @@ describe('Middleware Runtime', () => {
     })
 
     it('should have correct dynamic route params for middleware rewrite to dynamic route', async () => {
-      const browser = await webdriver(next.url, '/')
+      const browser = await webdriver(next.url, '/404')
       await check(
         () => browser.eval('next.router.isReady ? "yes" : "no"'),
         'yes'
@@ -306,7 +306,7 @@ describe('Middleware Runtime', () => {
     })
 
     it('should have correct route params for chained rewrite from middleware to config rewrite', async () => {
-      const browser = await webdriver(next.url, '/')
+      const browser = await webdriver(next.url, '/404')
       await check(
         () => browser.eval('next.router.isReady ? "yes" : "no"'),
         'yes'
@@ -336,7 +336,7 @@ describe('Middleware Runtime', () => {
     })
 
     it('should have correct route params for rewrite from config dynamic route', async () => {
-      const browser = await webdriver(next.url, '/')
+      const browser = await webdriver(next.url, '/404')
       await browser.eval('window.beforeNav = 1')
       await browser.eval('window.next.router.push("/rewrite-3")')
       await browser.waitForElementByCss('#blog')
