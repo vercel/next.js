@@ -1030,6 +1030,9 @@ jobs:
             turbo-${{ github.job }}-${{ github.ref_name }}-${{ steps.get-week.outputs.WEEK }}-
             turbo-${{ github.job }}-canary-${{ steps.get-week.outputs.WEEK }}-
 
+      - name: normalize versions
+        run: node normalize-version-bump.js
+
       # We use restore-key to pick latest cache.
       # We will not get exact match, but doc says
       # "If there are multiple partial matches for a restore key, the action returns the most recently created cache."
@@ -1153,17 +1156,17 @@ jobs:
             target: 'x86_64-apple-darwin'
             build: |
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi
-              turbo run build-native --cache-dir=".turbo" -- --release
+              turbo run build-native -- --release
               strip -x packages/next-swc/native/next-swc.*.node
           - host: windows-latest
             build: |
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" "pnpm@${PNPM_VERSION}"
-              turbo run build-native --cache-dir=".turbo" -- --release
+              turbo run build-native -- --release
             target: 'x86_64-pc-windows-msvc'
           - host: windows-latest
             build: |
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" "pnpm@${PNPM_VERSION}"
-              turbo run build-native-no-plugin --cache-dir=".turbo" -- --release --target i686-pc-windows-msvc
+              turbo run build-native-no-plugin -- --release --target i686-pc-windows-msvc
             target: 'i686-pc-windows-msvc'
           - host: ubuntu-latest
             target: 'x86_64-unknown-linux-gnu'
@@ -1175,7 +1178,7 @@ jobs:
               rustup target add x86_64-unknown-linux-gnu &&
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi &&
               unset CC_x86_64_unknown_linux_gnu && unset CC &&
-              turbo run build-native --cache-dir=".turbo" -- --release --target x86_64-unknown-linux-gnu &&
+              turbo run build-native -- --release --target x86_64-unknown-linux-gnu &&
               strip packages/next-swc/native/next-swc.*.node
           - host: ubuntu-latest
             target: 'x86_64-unknown-linux-musl'
@@ -1187,7 +1190,7 @@ jobs:
               rustup default "${RUST_TOOLCHAIN}" &&
               rustup target add x86_64-unknown-linux-musl &&
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi &&
-              turbo run build-native --cache-dir=".turbo" -- --release --target x86_64-unknown-linux-musl &&
+              turbo run build-native -- --release --target x86_64-unknown-linux-musl &&
               strip packages/next-swc/native/next-swc.*.node
           - host: macos-latest
             target: 'aarch64-apple-darwin'
@@ -1198,7 +1201,7 @@ jobs:
               SYSROOT=$(xcrun --sdk macosx --show-sdk-path);
               export CFLAGS="-isysroot $SYSROOT -isystem $SYSROOT";
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi
-              turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-apple-darwin
+              turbo run build-native -- --release --target aarch64-apple-darwin
               strip -x packages/next-swc/native/next-swc.*.node
           - host: ubuntu-latest
             target: 'aarch64-unknown-linux-gnu'
@@ -1211,7 +1214,7 @@ jobs:
               rustup target add aarch64-unknown-linux-gnu &&
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi &&
               export CC_aarch64_unknown_linux_gnu=/usr/aarch64-unknown-linux-gnu/bin/aarch64-unknown-linux-gnu-gcc &&
-              turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-unknown-linux-gnu &&
+              turbo run build-native -- --release --target aarch64-unknown-linux-gnu &&
               llvm-strip -x packages/next-swc/native/next-swc.*.node
           - host: ubuntu-latest
             target: 'armv7-unknown-linux-gnueabihf'
@@ -1220,7 +1223,7 @@ jobs:
               sudo apt-get install gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf -y
             build: |
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi
-              turbo run build-native-no-plugin --cache-dir=".turbo" -- --release --target armv7-unknown-linux-gnueabihf
+              turbo run build-native-no-plugin -- --release --target armv7-unknown-linux-gnueabihf
               arm-linux-gnueabihf-strip packages/next-swc/native/next-swc.*.node
           - host: ubuntu-latest
             target: aarch64-linux-android
@@ -1235,7 +1238,7 @@ jobs:
               chmod 777 "${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/lib64/clang/${CLANG_VERSION}/lib/linux/aarch64/libgcc.a"
               echo "INPUT(-lunwind)" > "${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/lib64/clang/${CLANG_VERSION}/lib/linux/aarch64/libgcc.a"
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi
-              turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-linux-android
+              turbo run build-native -- --release --target aarch64-linux-android
               ${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip packages/next-swc/native/next-swc.*.node
           - host: ubuntu-latest
             target: armv7-linux-androideabi
@@ -1250,7 +1253,7 @@ jobs:
               chmod 777 "${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/lib64/clang/${CLANG_VERSION}/lib/linux/arm/libgcc.a"
               echo "INPUT(-lunwind)" > "${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/lib64/clang/${CLANG_VERSION}/lib/linux/arm/libgcc.a"
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" "pnpm@${PNPM_VERSION}"
-              turbo run build-native-no-plugin --cache-dir=".turbo" -- --release --target armv7-linux-androideabi
+              turbo run build-native-no-plugin -- --release --target armv7-linux-androideabi
               ${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip packages/next-swc/native/next-swc.*.node
           - host: ubuntu-latest
             target: 'aarch64-unknown-linux-musl'
@@ -1263,17 +1266,21 @@ jobs:
               rustup toolchain install "${RUST_TOOLCHAIN}" &&
               rustup default "${RUST_TOOLCHAIN}" &&
               rustup target add aarch64-unknown-linux-musl &&
-              turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-unknown-linux-musl &&
+              turbo run build-native -- --release --target aarch64-unknown-linux-musl &&
               llvm-strip -x packages/next-swc/native/next-swc.*.node
           - host: windows-latest
             target: 'aarch64-pc-windows-msvc'
             build: |
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" "pnpm@${PNPM_VERSION}"
-              turbo run build-native-no-plugin --cache-dir=".turbo" -- --release --target aarch64-pc-windows-msvc --cargo-flags=--no-default-features
+              turbo run build-native-no-plugin -- --release --target aarch64-pc-windows-msvc --cargo-flags=--no-default-features
     if: ${{ needs.build.outputs.isRelease == 'true' }}
     needs: build
     name: stable - ${{ matrix.settings.target }} - node@16
     runs-on: ${{ matrix.settings.host }}
+    env:
+      TURBO_TEAM: 'vercel'
+      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+      TURBO_REMOTE_ONLY: 'true'
     steps:
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
@@ -1302,16 +1309,6 @@ jobs:
           key: next-swc-cargo-cache-${{ matrix.settings.target }}--${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             next-swc-cargo-cache-${{ matrix.settings.target }}
-      - name: Turbo Cache
-        id: turbo-cache
-        uses: actions/cache@v3
-        with:
-          path: .turbo
-          key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ matrix.settings.target }}-${{ needs.build.outputs.weekNum }}-${{ github.sha }}
-          restore-keys: |
-            turbo-${{ github.job }}-${{ github.ref_name }}-${{ matrix.settings.target }}
-            turbo-${{ github.job }}-${{ github.ref_name }}-${{ matrix.settings.target }}-${{ needs.build.outputs.weekNum }}-
-            turbo-${{ github.job }}-canary-${{ matrix.settings.target }}-${{ needs.build.outputs.weekNum }}-
 
       - name: Setup node
         uses: actions/setup-node@v3
@@ -1340,6 +1337,9 @@ jobs:
         with:
           path: ~/.cargo/git
           key: ${{ matrix.settings.target }}-cargo-index
+
+      - name: normalize versions
+        run: node normalize-version-bump.js
 
       - name: Setup toolchain
         run: ${{ matrix.settings.setup }}
@@ -1370,6 +1370,10 @@ jobs:
     needs: build
     name: stable - x86_64-unknown-freebsd - node@16
     runs-on: macos-12
+    env:
+      TURBO_TEAM: 'vercel'
+      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+      TURBO_REMOTE_ONLY: 'true'
     steps:
       - name: tune mac network
         run: sudo sysctl -w net.link.generic.system.hwcksum_tx=0 && sudo sysctl -w net.link.generic.system.hwcksum_rx=0
@@ -1393,7 +1397,7 @@ jobs:
           # Disable LTO, or the lld may crash with OOM
           CARGO_PROFILE_RELEASE_LTO: false
         with:
-          envs: DEBUG RUSTUP_HOME CARGO_HOME RUSTUP_IO_THREADS CARGO_PROFILE_RELEASE_LTO NAPI_CLI_VERSION TURBO_VERSION RUST_TOOLCHAIN PNPM_VERSION
+          envs: DEBUG RUSTUP_HOME CARGO_HOME RUSTUP_IO_THREADS CARGO_PROFILE_RELEASE_LTO NAPI_CLI_VERSION TURBO_VERSION RUST_TOOLCHAIN PNPM_VERSION TURBO_TEAM TURBO_REMOTE_ONLY TURBO_TOKEN
           usesh: true
           mem: 6000
           prepare: |
@@ -1414,6 +1418,7 @@ jobs:
             whoami
             env
             freebsd-version
+            node normalize-version-bump.js
             pnpm --filter=@next/swc run build-native-no-plugin --platform --release --target x86_64-unknown-freebsd
             rm -rf node_modules
             rm -rf packages/next-swc/target
@@ -1431,6 +1436,10 @@ jobs:
       matrix:
         target: [web, nodejs]
     runs-on: macos-latest
+    env:
+      TURBO_TEAM: 'vercel'
+      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+      TURBO_REMOTE_ONLY: 'true'
     steps:
       - uses: actions/cache@v3
         id: restore-build
@@ -1454,22 +1463,14 @@ jobs:
 
       - run: npm i -g turbo@${{ env.TURBO_VERSION }} pnpm@${PNPM_VERSION}
 
-      - name: Turbo cache
-        id: turbo-cache
-        uses: actions/cache@v3
-        with:
-          path: .turbo
-          key: turbo-${{ github.job }}-${{ matrix.target }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-${{ github.sha }}
-          restore-keys: |
-            turbo-${{ github.job }}-${{ matrix.target }}-
-            turbo-${{ github.job }}-${{ matrix.target }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-
-            turbo-${{ github.job }}-${{ matrix.target }}-canary-${{ needs.build.outputs.weekNum }}-
-
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
+      - name: normalize versions
+        run: node normalize-version-bump.js
+
       - name: Build
-        run: turbo run build-wasm --cache-dir=".turbo" -- --target ${{ matrix.target }}
+        run: turbo run build-wasm -- --target ${{ matrix.target }}
 
       - name: Add target to folder name
         run: '[[ -d "packages/next-swc/crates/wasm/pkg" ]] && mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-${{ matrix.target }} || ls packages/next-swc/crates/wasm'
@@ -1513,7 +1514,6 @@ jobs:
         id: turbo-cache
         uses: actions/cache@v3
         if: ${{needs.build.outputs.docsChange == 'nope'}}
-
         with:
           path: .turbo
           key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ steps.get-week.outputs.WEEK }}-${{ github.sha }}
