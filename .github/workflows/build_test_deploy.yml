@@ -1378,6 +1378,26 @@ jobs:
       - name: tune mac network
         run: sudo sysctl -w net.link.generic.system.hwcksum_tx=0 && sudo sysctl -w net.link.generic.system.hwcksum_rx=0
       - uses: actions/checkout@v3
+
+      - name: Setup node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+          check-latest: true
+
+      - run: npm i -g turbo@${{ env.TURBO_VERSION }} pnpm@${PNPM_VERSION}
+
+      # attempt pulling existing turbo cache, this must be done
+      # outside of the freeBSD vm as there isn't a turbo build
+      # for freeBSD currently
+      - run: node ./script/pull-freebsd-cache.js
+
+      - name: check build exists
+        run: if [ -f packages/next-swc/native/next-swc.freebsd-x64.node ]; then echo "::set-output name=BUILD_EXISTS::yes"; else echo "::set-output name=BUILD_EXISTS::no"; fi
+        id: build-exists
+
+      - run: echo ${{steps.build-exists.outputs.BUILD_EXISTS}}
+
       - name: Delete useless files
         run: |
           rm -rf bench
@@ -1388,6 +1408,7 @@ jobs:
       - name: Build
         id: build
         uses: vmactions/freebsd-vm@v0
+        if: ${{ steps.build-exists.outputs.BUILD_EXISTS == 'no' }}
         env:
           DEBUG: napi:*
           RUSTUP_HOME: /usr/local/rustup
@@ -1396,13 +1417,13 @@ jobs:
           # Disable LTO, or the lld may crash with OOM
           CARGO_PROFILE_RELEASE_LTO: false
         with:
-          envs: DEBUG RUSTUP_HOME CARGO_HOME RUSTUP_IO_THREADS CARGO_PROFILE_RELEASE_LTO NAPI_CLI_VERSION TURBO_VERSION RUST_TOOLCHAIN PNPM_VERSION TURBO_TEAM TURBO_REMOTE_ONLY TURBO_TOKEN
+          envs: DEBUG RUSTUP_HOME CARGO_HOME RUSTUP_IO_THREADS CARGO_PROFILE_RELEASE_LTO NAPI_CLI_VERSION RUST_TOOLCHAIN PNPM_VERSION
           usesh: true
           mem: 6000
           prepare: |
             pkg install -y curl node16
             curl -qL https://www.npmjs.com/install.sh | sh
-            npm i -g pnpm@${PNPM_VERSION} "@napi-rs/cli@${NAPI_CLI_VERSION}" turbo@${TURBO_VERSION}
+            npm i -g pnpm@${PNPM_VERSION} "@napi-rs/cli@${NAPI_CLI_VERSION}"
             curl https://sh.rustup.rs -sSf --output rustup.sh
             sh rustup.sh -y --profile minimal --default-toolchain stable
             export PATH="/usr/local/cargo/bin:$PATH"
@@ -1418,9 +1439,14 @@ jobs:
             env
             freebsd-version
             node scripts/normalize-version-bump.js
-            turbo run build-native-no-plugin -- --platform --release --target x86_64-unknown-freebsd
+            pnpm --filter=@next/swc run build-native-no-plugin --platform --release --target x86_64-unknown-freebsd
             rm -rf node_modules
             rm -rf packages/next-swc/target
+
+      - name: cache build
+        if: ${{ steps.build-exists.outputs.BUILD_EXISTS == 'no' }}
+        run: turbo run cache-build-native -- --platform --release --target x86_64-unknown-freebsd
+
       - name: Upload artifact
         uses: actions/upload-artifact@v3
         with:
