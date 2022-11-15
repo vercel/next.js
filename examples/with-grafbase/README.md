@@ -4,7 +4,7 @@ This example shows to use [Grafbase](https://grafbase.com) with Next.js. This ex
 
 ## Demo
 
-You can see a demo of this online at [https://nextjs-with-grafbase.vercel.app](https://nextjs-with-grafbase.vercel.app).
+You can see a demo of this online at [https://grafbase-with-nextjs-rsc.grafbase-vercel.dev](https://grafbase-with-nextjs-rsc.grafbase-vercel.dev).
 
 ## Deploy
 
