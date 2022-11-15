@@ -98,12 +98,27 @@ function parseGoogleFontName(css: string): Array<string> {
   return [...fontNames]
 }
 
+function formatName(str) {
+  return str
+    .replace(/(?:^\w|[A-Z]|\b\w)/g, function (word, index) {
+      return index === 0 ? word.toLowerCase() : word.toUpperCase()
+    })
+    .replace(/\s+/g, '')
+}
+
 function formatOverrideValue(val: number) {
   return Math.abs(val * 100).toFixed(2)
 }
 
-export function calculateOverrideValues(fontMetrics: any) {
-  let { category, ascent, descent, lineGap, unitsPerEm } = fontMetrics
+export function calculateOverrideValues(fontName: any) {
+  let { category } = googleFontsMetrics[fontName]
+  let {
+    ascent,
+    descent,
+    lineGap,
+    unitsPerEm,
+  } = require(`@capsizecss/metrics/${formatName(fontName)}`)
+
   const fallbackFont =
     category === 'serif' ? DEFAULT_SERIF_FONT : DEFAULT_SANS_SERIF_FONT
   ascent = formatOverrideValue(ascent / unitsPerEm)
@@ -118,15 +133,27 @@ export function calculateOverrideValues(fontMetrics: any) {
   }
 }
 
-export function calculateSizeAdjustValues(fontMetrics: any) {
-  let { category, ascent, descent, lineGap, unitsPerEm, azAvgWidth } =
-    fontMetrics
+export function calculateSizeAdjustValues(fontName: any) {
+  let { category } = googleFontsMetrics[fontName]
+  let {
+    ascent,
+    descent,
+    lineGap,
+    unitsPerEm,
+    xAvgLetterFrequency,
+  } = require(`@capsizecss/metrics/${formatName(fontName)}`)
   const fallbackFont =
     category === 'serif' ? DEFAULT_SERIF_FONT : DEFAULT_SANS_SERIF_FONT
+  const fallbackFontMetrics = require(`@capsizecss/metrics/${formatName(
+    fallbackFont.name
+  )}`)
 
-  const mainFontAvgWidth = azAvgWidth / unitsPerEm
-  const fallbackFontAvgWidth = fallbackFont.azAvgWidth / fallbackFont.unitsPerEm
-  let sizeAdjust = azAvgWidth ? mainFontAvgWidth / fallbackFontAvgWidth : 1
+  const mainFontAvgWidth = xAvgLetterFrequency / unitsPerEm
+  const fallbackFontAvgWidth =
+    fallbackFontMetrics.xAvgLetterFrequency / fallbackFontMetrics.unitsPerEm
+  let sizeAdjust = xAvgLetterFrequency
+    ? mainFontAvgWidth / fallbackFontAvgWidth
+    : 1
 
   ascent = formatOverrideValue(ascent / (unitsPerEm * sizeAdjust))
   descent = formatOverrideValue(descent / (unitsPerEm * sizeAdjust))
@@ -136,7 +163,7 @@ export function calculateSizeAdjustValues(fontMetrics: any) {
     ascent,
     descent,
     lineGap,
-    fallbackFont: fallbackFont.name,
+    fallbackFont: fallbackFontMetrics.familyName,
     sizeAdjust: formatOverrideValue(sizeAdjust),
   }
 }
@@ -144,9 +171,8 @@ export function calculateSizeAdjustValues(fontMetrics: any) {
 function calculateOverrideCSS(font: string, fontMetrics: any) {
   const fontName = font.trim()
 
-  const { ascent, descent, lineGap, fallbackFont } = calculateOverrideValues(
-    fontMetrics[fontName]
-  )
+  const { ascent, descent, lineGap, fallbackFont } =
+    calculateOverrideValues(fontName)
 
   return `
     @font-face {
@@ -163,7 +189,7 @@ function calculateSizeAdjustCSS(font: string, fontMetrics: any) {
   const fontName = font.trim()
 
   const { ascent, descent, lineGap, fallbackFont, sizeAdjust } =
-    calculateSizeAdjustValues(fontMetrics[fontName])
+    calculateSizeAdjustValues(fontName)
 
   return `
     @font-face {

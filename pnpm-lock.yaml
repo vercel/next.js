@@ -474,6 +474,7 @@ importers:
       '@babel/runtime': 7.15.4
       '@babel/traverse': 7.18.0
       '@babel/types': 7.18.0
+      '@capsizecss/metrics': 0.0.0-x-avg-char-width-20221107122037
       '@edge-runtime/primitives': 2.0.0
       '@hapi/accept': 5.0.2
       '@napi-rs/cli': 2.12.0
@@ -647,6 +648,7 @@ importers:
       webpack-sources3: npm:webpack-sources@3.2.3
       ws: 8.2.3
     dependencies:
+      '@capsizecss/metrics': 0.0.0-x-avg-char-width-20221107122037
       '@next/env': link:../next-env
       '@swc/helpers': 0.4.11
       caniuse-lite: 1.0.30001406
@@ -4248,6 +4250,10 @@ packages:
   /@bcoe/v8-coverage/0.2.3:
     resolution: {integrity: sha512-0hYQ8SB4Db5zvZB4axdMHGwEaQjkZzFjQiN9LVYvIFB2nSUHW9tYpxWriPrWDASIxiaXax83REcLxuSdnGPZtw==}
     dev: true
+
+  /@capsizecss/metrics/0.0.0-x-avg-char-width-20221107122037:
+    resolution: {integrity: sha512-dDYZfPVYTH/NwvGcVih9LtxC1iMCDQX2tEzHgmr4cXiyORYTqsFHr4BHCKV3tMSHxBUUUEbLbusnKqWRfpxOSA==}
+    dev: false
 
   /@csstools/postcss-color-function/1.1.0_postcss@8.4.14:
     resolution: {integrity: sha512-5D5ND/mZWcQoSfYnSPsXtuiFxhzmhxt6pcjrFLJyldj+p0ZN2vvRpYNX+lahFTtMhAYOa2WmkdGINr0yP0CvGA==}
