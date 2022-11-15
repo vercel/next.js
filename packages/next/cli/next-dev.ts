@@ -330,7 +330,7 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
         console.warn(
           `\n${chalk.bold.yellow(
             'Warning:'
-          )} Unsupported config foung; but continuing with custom Turbopack binary.\n`
+          )} Unsupported config found; but continuing with custom Turbopack binary.\n`
         )
       }
     }

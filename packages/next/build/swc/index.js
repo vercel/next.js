@@ -395,9 +395,9 @@ function loadNative(isCustomTurbopack = false) {
                 )}`
                 if (key === 'dir') {
                   args.push(value)
-                } else if (typeof value == 'boolean' && value === true) {
+                } else if (typeof value === 'boolean' && value === true) {
                   args.push(cli_key)
-                } else if (typeof value != 'boolean' && !!value) {
+                } else if (typeof value !== 'boolean' && !!value) {
                   args.push(cli_key, value)
                 }
               })
