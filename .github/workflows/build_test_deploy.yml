@@ -1387,6 +1387,16 @@ jobs:
 
       - run: npm i -g turbo@${{ env.TURBO_VERSION }} pnpm@${PNPM_VERSION}
 
+      - name: Delete useless files
+        run: |
+          rm -rf bench
+          rm -rf docs
+          rm -rf errors
+          rm -rf examples
+          rm -rf test
+
+      - run: node scripts/normalize-version-bump.js
+
       # attempt pulling existing turbo cache, this must be done
       # outside of the freeBSD vm as there isn't a turbo build
       # for freeBSD currently
@@ -1398,13 +1408,6 @@ jobs:
 
       - run: echo ${{steps.build-exists.outputs.BUILD_EXISTS}}
 
-      - name: Delete useless files
-        run: |
-          rm -rf bench
-          rm -rf docs
-          rm -rf errors
-          rm -rf examples
-          rm -rf test
       - name: Build
         id: build
         uses: vmactions/freebsd-vm@v0
@@ -1438,14 +1441,13 @@ jobs:
             whoami
             env
             freebsd-version
-            node scripts/normalize-version-bump.js
             pnpm --filter=@next/swc run build-native-no-plugin --platform --release --target x86_64-unknown-freebsd
             rm -rf node_modules
             rm -rf packages/next-swc/target
 
       - name: cache build
         if: ${{ steps.build-exists.outputs.BUILD_EXISTS == 'no' }}
-        run: turbo run cache-build-native -- --platform --release --target x86_64-unknown-freebsd
+        run: pnpm turbo run cache-build-native -- --platform --release --target x86_64-unknown-freebsd
 
       - name: Upload artifact
         uses: actions/upload-artifact@v3
