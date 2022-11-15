@@ -1031,7 +1031,7 @@ jobs:
             turbo-${{ github.job }}-canary-${{ steps.get-week.outputs.WEEK }}-
 
       - name: normalize versions
-        run: node normalize-version-bump.js
+        run: node scripts/normalize-version-bump.js
 
       # We use restore-key to pick latest cache.
       # We will not get exact match, but doc says
@@ -1339,7 +1339,7 @@ jobs:
           key: ${{ matrix.settings.target }}-cargo-index
 
       - name: normalize versions
-        run: node normalize-version-bump.js
+        run: node scripts/normalize-version-bump.js
 
       - name: Setup toolchain
         run: ${{ matrix.settings.setup }}
@@ -1418,7 +1418,7 @@ jobs:
             whoami
             env
             freebsd-version
-            node normalize-version-bump.js
+            node scripts/normalize-version-bump.js
             pnpm --filter=@next/swc run build-native-no-plugin --platform --release --target x86_64-unknown-freebsd
             rm -rf node_modules
             rm -rf packages/next-swc/target
@@ -1467,7 +1467,7 @@ jobs:
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
       - name: normalize versions
-        run: node normalize-version-bump.js
+        run: node scripts/normalize-version-bump.js
 
       - name: Build
         run: turbo run build-wasm -- --target ${{ matrix.target }}
