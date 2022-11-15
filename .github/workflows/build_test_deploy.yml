@@ -1031,6 +1031,7 @@ jobs:
             turbo-${{ github.job }}-canary-${{ steps.get-week.outputs.WEEK }}-
 
       - name: normalize versions
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         run: node scripts/normalize-version-bump.js
 
       # We use restore-key to pick latest cache.
@@ -1554,6 +1555,7 @@ jobs:
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
       - name: normalize versions
+        if: ${{needs.build.outputs.docsChange == 'nope'}}
         run: node scripts/normalize-version-bump.js
 
       - name: Build
