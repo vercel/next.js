@@ -2,7 +2,8 @@ import path from 'path'
 import cheerio from 'cheerio'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
-import { renderViaHTTP } from 'next-test-utils'
+import { renderViaHTTP, waitFor } from 'next-test-utils'
+import webdriver from 'next-webdriver'
 
 describe('app dir head', () => {
   if ((global as any).isNextDeploy) {
@@ -90,6 +91,27 @@ describe('app dir head', () => {
       expect(
         headTags.find((el) => el.attribs.src === '/another.js')
       ).toBeTruthy()
+    })
+
+    it('should apply head when navigating client-side', async () => {
+      const browser = await webdriver(next.url, '/')
+
+      const getTitle = () => browser.elementByCss('title').text()
+
+      expect(await getTitle()).toBe('hello from index')
+      await browser
+        .elementByCss('#to-blog')
+        .click()
+        .waitForElementByCss('#layout', 2000)
+      await waitFor(10000)
+      expect(await getTitle()).toBe('hello from blog layout')
+      await browser.back().waitForElementByCss('#to-blog', 2000)
+      expect(await getTitle()).toBe('hello from index')
+      await browser
+        .elementByCss('#to-blog-slug')
+        .click()
+        .waitForElementByCss('#layout', 2000)
+      expect(await getTitle()).toBe('hello from dynamic blog page post-1')
     })
   }
 
