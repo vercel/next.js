@@ -146,7 +146,7 @@ export function InnerLayoutRouter({
     // TODO-APP: verify if this can be null based on user code
     childProp.current !== null
   ) {
-    if (childNode && childNode.status === CacheStates.LAZYINITIALIZED) {
+    if (childNode && childNode.status === CacheStates.LAZY_INITIALIZED) {
       // @ts-expect-error TODO-APP: handle changing of the type
       childNode.status = CacheStates.READY
       // @ts-expect-error TODO-APP: handle changing of the type
@@ -181,7 +181,7 @@ export function InnerLayoutRouter({
      * Flight data fetch kicked off during render and put into the cache.
      */
     childNodes.set(path, {
-      status: CacheStates.DATAFETCH,
+      status: CacheStates.DATA_FETCH,
       data: fetchServerResponse(new URL(url, location.origin), refetchTree),
       subTreeData: null,
       parallelRoutes: new Map(),
