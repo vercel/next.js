@@ -24,10 +24,10 @@ impl Bundler for Parcel {
         npm::install(
             install_dir,
             &[
-                NpmPackage::new("parcel", "2.7.0"),
+                NpmPackage::new("parcel", "^2.8.0"),
                 // `process` would otherwise be auto-installed by Parcel. Do this in advance as
                 // to not influence the benchmark.
-                NpmPackage::new("process", "0.11.0"),
+                NpmPackage::new("process", "^0.11.10"),
             ],
         )
         .context("failed to install from npm")?;

@@ -25,13 +25,13 @@ impl Bundler for Webpack {
         npm::install(
             install_dir,
             &[
-                NpmPackage::new("@pmmmwh/react-refresh-webpack-plugin", "0.5.7"),
-                NpmPackage::new("@swc/core", "1.2.249"),
-                NpmPackage::new("react-refresh", "0.14.0"),
-                NpmPackage::new("swc-loader", "0.2.3"),
-                NpmPackage::new("webpack", "5.74.0"),
-                NpmPackage::new("webpack-cli", "4.10.0"),
-                NpmPackage::new("webpack-dev-server", "4.11.0"),
+                NpmPackage::new("@pmmmwh/react-refresh-webpack-plugin", "^0.5.7"),
+                NpmPackage::new("@swc/core", "^1.2.249"),
+                NpmPackage::new("react-refresh", "^0.14.0"),
+                NpmPackage::new("swc-loader", "^0.2.3"),
+                NpmPackage::new("webpack", "^5.75.0"),
+                NpmPackage::new("webpack-cli", "^4.10.0"),
+                NpmPackage::new("webpack-dev-server", "^4.11.0"),
             ],
         )
         .context("failed to install from npm")?;
