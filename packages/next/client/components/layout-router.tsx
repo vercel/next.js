@@ -170,7 +170,7 @@ export function InnerLayoutRouter({
   }
 
   // When childNode is not available during rendering client-side we need to fetch it from the server.
-  if (!childNode) {
+  if (!childNode || childNode.status === CacheStates.LAZY_INITIALIZED) {
     /**
      * Router state with refetch marker added
      */
@@ -184,7 +184,14 @@ export function InnerLayoutRouter({
       status: CacheStates.DATA_FETCH,
       data: fetchServerResponse(new URL(url, location.origin), refetchTree),
       subTreeData: null,
-      parallelRoutes: new Map(),
+      head:
+        childNode && childNode.status === CacheStates.LAZY_INITIALIZED
+          ? childNode.head
+          : undefined,
+      parallelRoutes:
+        childNode && childNode.status === CacheStates.LAZY_INITIALIZED
+          ? childNode.parallelRoutes
+          : new Map(),
     })
     // In the above case childNode was set on childNodes, so we have to get it from the cacheNodes again.
     childNode = childNodes.get(path)
