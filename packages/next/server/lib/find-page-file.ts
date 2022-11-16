@@ -68,5 +68,5 @@ export async function findPageFile(
 // client, or server components with allowed page file extension.
 // e.g. page.js, page.server.js, page.client.tsx, etc.
 export function isLayoutsLeafPage(filePath: string) {
-  return /[\\/]page\.?[jt]sx?$/.test(filePath)
+  return /(^page|\/page)\.?[jt]sx?$/.test(filePath)
 }
