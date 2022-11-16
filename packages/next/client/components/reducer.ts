@@ -1131,7 +1131,6 @@ function clientReducer(
 
       // Slices off the last segment (which is at -4) as it doesn't exist in the tree yet
       const flightSegmentPath = flightDataPath.slice(0, -4)
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const [treePatch, subTreeData, head] = flightDataPath.slice(-3)
 
       const newTree = applyRouterStatePatchToTree(
@@ -1343,8 +1342,7 @@ function clientReducer(
       const flightDataPath = flightData[0]
 
       // The one before last item is the router state tree patch
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const [treePatch, subTreeData, head] = flightDataPath.slice(-3)
+      const [treePatch, subTreeData] = flightDataPath.slice(-3)
 
       // TODO-APP: Verify if `null` can't be returned from user code.
       // If subTreeData is null the prefetch did not provide a component tree.
