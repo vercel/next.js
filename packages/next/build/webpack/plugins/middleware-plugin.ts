@@ -27,6 +27,7 @@ import {
 } from '../../analysis/get-page-static-info'
 import { Telemetry } from '../../../telemetry/storage'
 import { traceGlobals } from '../../../trace/shared'
+import { EVENT_BUILD_FEATURE_USAGE } from '../../../telemetry/events'
 
 export interface EdgeFunctionDefinition {
   env: string[]
@@ -682,9 +683,26 @@ function getExtractMetadata(params: {
         wasmBindings: new Map(),
         assetBindings: new Map(),
       }
+      let ogImageGenerationCount = 0
 
       for (const module of modules) {
         const buildInfo = getModuleBuildInfo(module)
+
+        /**
+         * Check if it uses the image generation feature.
+         */
+        if (!dev) {
+          const resource = module.resource
+          const hasOGImageGeneration =
+            resource &&
+            /[\\/]node_modules[\\/]@vercel[\\/]og[\\/]dist[\\/]index.js$/.test(
+              resource
+            )
+
+          if (hasOGImageGeneration) {
+            ogImageGenerationCount++
+          }
+        }
 
         /**
          * When building for production checks if the module is using `eval`
@@ -798,6 +816,13 @@ function getExtractMetadata(params: {
         }
       }
 
+      telemetry.record({
+        eventName: EVENT_BUILD_FEATURE_USAGE,
+        payload: {
+          featureName: 'vercelImageGeneration',
+          invocationCount: ogImageGenerationCount,
+        },
+      })
       metadataByEntry.set(entryName, entryMetadata)
     }
   }

@@ -460,7 +460,7 @@ export interface NextConfig extends Record<string, any> {
     relay?: {
       src: string
       artifactDirectory?: string
-      language?: 'typescript' | 'flow'
+      language?: 'typescript' | 'javascript' | 'flow'
     }
     removeConsole?:
       | boolean
@@ -491,6 +491,14 @@ export interface NextConfig extends Record<string, any> {
           sourceMap?: boolean
           autoLabel?: 'dev-only' | 'always' | 'never'
           labelFormat?: string
+          importMap?: {
+            [importName: string]: {
+              [exportName: string]: {
+                canonicalImport?: [string, string]
+                styledBaseImport?: [string, string]
+              }
+            }
+          }
         }
   }
 

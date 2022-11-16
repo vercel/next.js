@@ -85,13 +85,11 @@ export class FlightClientEntryPlugin {
       const recordModule = (modId: string, mod: any) => {
         const modResource = mod.resourceResolveData?.path || mod.resource
 
-        if (
-          mod.resourceResolveData?.context?.issuerLayer !==
-          WEBPACK_LAYERS.client
-        ) {
+        if (mod.layer !== WEBPACK_LAYERS.client) {
           return
         }
 
+        // Check mod resource to exclude the empty resource module like virtual module created by next-flight-client-entry-loader
         if (typeof modId !== 'undefined' && modResource) {
           // Note that this isn't that reliable as webpack is still possible to assign
           // additional queries to make sure there's no conflict even using the `named`

@@ -20,6 +20,7 @@ import {
   ACTION_REFRESH,
   ACTION_RESTORE,
   ACTION_SERVER_PATCH,
+  createHrefFromUrl,
   reducer,
 } from './reducer'
 import {
@@ -108,6 +109,37 @@ type AppRouterProps = {
   assetPrefix: string
 }
 
+function findHeadInCache(
+  cache: CacheNode,
+  parallelRoutes: FlightRouterState[1]
+): React.ReactNode {
+  const isLastItem = Object.keys(parallelRoutes).length === 0
+  if (isLastItem) {
+    return cache.head
+  }
+  for (const key in parallelRoutes) {
+    const [segment, childParallelRoutes] = parallelRoutes[key]
+    const childSegmentMap = cache.parallelRoutes.get(key)
+    if (!childSegmentMap) {
+      continue
+    }
+
+    const cacheKey = Array.isArray(segment) ? segment[1] : segment
+
+    const cacheNode = childSegmentMap.get(cacheKey)
+    if (!cacheNode) {
+      continue
+    }
+
+    const item = findHeadInCache(cacheNode, childParallelRoutes)
+    if (item) {
+      return item
+    }
+  }
+
+  return undefined
+}
+
 /**
  * The global router that wraps the application components.
  */
@@ -132,10 +164,12 @@ function Router({
       pushRef: { pendingPush: false, mpaNavigation: false },
       focusAndScrollRef: { apply: false },
       canonicalUrl:
-        initialCanonicalUrl +
-        // Hash is read as the initial value for canonicalUrl in the browser
-        // This is safe to do as canonicalUrl can't be rendered, it's only used to control the history updates the useEffect further down.
-        (typeof window !== 'undefined' ? window.location.hash : ''),
+        // location.href is read as the initial value for canonicalUrl in the browser
+        // This is safe to do as canonicalUrl can't be rendered, it's only used to control the history updates in the useEffect further down in this file.
+        typeof window !== 'undefined'
+          ? // window.location does not have the same type as URL but has all the fields createHrefFromUrl needs.
+            createHrefFromUrl(window.location as unknown as URL)
+          : initialCanonicalUrl,
     }
   }, [children, initialCanonicalUrl, initialTree])
   const [
@@ -143,6 +177,10 @@ function Router({
     dispatch,
     sync,
   ] = useReducerWithReduxDevtools(reducer, initialState)
+
+  const head = useMemo(() => {
+    return findHeadInCache(cache, tree[1])
+  }, [cache, tree])
 
   useEffect(() => {
     // Ensure initialParallelRoutes is cleaned up from memory once it's used.
@@ -178,7 +216,7 @@ function Router({
         previousTree,
         overrideCanonicalUrl,
         cache: {
-          status: CacheStates.LAZYINITIALIZED,
+          status: CacheStates.LAZY_INITIALIZED,
           data: null,
           subTreeData: null,
           parallelRoutes: new Map(),
@@ -204,7 +242,7 @@ function Router({
         forceOptimisticNavigation,
         navigateType,
         cache: {
-          status: CacheStates.LAZYINITIALIZED,
+          status: CacheStates.LAZY_INITIALIZED,
           data: null,
           subTreeData: null,
           parallelRoutes: new Map(),
@@ -266,7 +304,7 @@ function Router({
 
             // TODO-APP: revisit if this needs to be passed.
             cache: {
-              status: CacheStates.LAZYINITIALIZED,
+              status: CacheStates.LAZY_INITIALIZED,
               data: null,
               subTreeData: null,
               parallelRoutes: new Map(),
@@ -291,7 +329,10 @@ function Router({
     // __NA is used to identify if the history entry can be handled by the app-router.
     // __N is used to identify if the history entry can be handled by the old router.
     const historyState = { __NA: true, tree }
-    if (pushRef.pendingPush) {
+    if (
+      pushRef.pendingPush &&
+      createHrefFromUrl(new URL(window.location.href)) !== canonicalUrl
+    ) {
       // This intentionally mutates React state, pushRef is overwritten to ensure additional push/replace calls do not trigger an additional history entry.
       pushRef.pendingPush = false
 
@@ -351,6 +392,13 @@ function Router({
     }
   }, [onPopState])
 
+  const content = (
+    <>
+      {head || initialHead}
+      {cache.subTreeData}
+    </>
+  )
+
   return (
     <PathnameContext.Provider value={pathname}>
       <SearchParamsContext.Provider value={searchParams}>
@@ -372,15 +420,9 @@ function Router({
               }}
             >
               {HotReloader ? (
-                <HotReloader assetPrefix={assetPrefix}>
-                  {initialHead}
-                  {cache.subTreeData}
-                </HotReloader>
+                <HotReloader assetPrefix={assetPrefix}>{content}</HotReloader>
               ) : (
-                <>
-                  {initialHead}
-                  {cache.subTreeData}
-                </>
+                content
               )}
             </LayoutRouterContext.Provider>
           </AppRouterContext.Provider>
