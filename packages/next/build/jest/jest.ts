@@ -158,7 +158,7 @@ export default function nextJest(options: { dir?: string } = {}) {
            ...(transpiled ? [
           `/node_modules/(?!(${transpiled}))/`,
           `/node_modules/.pnpm/(?!(${transpiled.replace(/\//g, '\\+')})@)`,
-          ] : ['/node_modules/'])
+          ] : ['/node_modules/']),
           // CSS modules are mocked so they don't need to be transformed
           '^.+\\.module\\.(css|sass|scss)$',
 
