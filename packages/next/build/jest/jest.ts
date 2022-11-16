@@ -95,6 +95,9 @@ export default function nextJest(options: { dir?: string } = {}) {
         await lockfilePatchPromise.cur
       }
 
+      const transpiled = (
+        nextConfig?.experimental?.transpilePackages ?? []
+      ).join('|')
       return {
         ...resolvedJestConfig,
 
@@ -151,8 +154,10 @@ export default function nextJest(options: { dir?: string } = {}) {
         },
 
         transformIgnorePatterns: [
-          // To match Next.js behavior node_modules is not transformed
-          '/node_modules/',
+          // To match Next.js behavior node_modules is not transformed, only `transpiledPackages`
+          `/node_modules/(?!(${transpiled}))/`,
+          `/node_modules/.pnpm/(?!(${transpiled.replace(/\//g, '\\+')})@)`,
+
           // CSS modules are mocked so they don't need to be transformed
           '^.+\\.module\\.(css|sass|scss)$',
 
