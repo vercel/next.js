@@ -392,6 +392,13 @@ function Router({
     }
   }, [onPopState])
 
+  const content = (
+    <>
+      {head || initialHead}
+      {cache.subTreeData}
+    </>
+  )
+
   return (
     <PathnameContext.Provider value={pathname}>
       <SearchParamsContext.Provider value={searchParams}>
@@ -413,15 +420,9 @@ function Router({
               }}
             >
               {HotReloader ? (
-                <HotReloader assetPrefix={assetPrefix}>
-                  {head || initialHead}
-                  {cache.subTreeData}
-                </HotReloader>
+                <HotReloader assetPrefix={assetPrefix}>{content}</HotReloader>
               ) : (
-                <>
-                  {initialHead}
-                  {cache.subTreeData}
-                </>
+                content
               )}
             </LayoutRouterContext.Provider>
           </AppRouterContext.Provider>
