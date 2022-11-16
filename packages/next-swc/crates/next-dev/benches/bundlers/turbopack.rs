@@ -6,6 +6,7 @@ use std::{
 use anyhow::{anyhow, Context, Result};
 use regex::Regex;
 
+use super::RenderType;
 use crate::{
     bundlers::Bundler,
     util::{
@@ -17,22 +18,15 @@ use crate::{
 pub struct Turbopack {
     name: String,
     path: String,
-    has_server_rendered_html: bool,
-    has_interactivity: bool,
+    render_type: RenderType,
 }
 
 impl Turbopack {
-    pub fn new(
-        name: &str,
-        path: &str,
-        has_server_rendered_html: bool,
-        has_interactivity: bool,
-    ) -> Self {
+    pub fn new(name: &str, path: &str, render_type: RenderType) -> Self {
         Turbopack {
             name: name.to_owned(),
             path: path.to_owned(),
-            has_server_rendered_html,
-            has_interactivity,
+            render_type,
         }
     }
 }
@@ -46,12 +40,8 @@ impl Bundler for Turbopack {
         &self.path
     }
 
-    fn has_server_rendered_html(&self) -> bool {
-        self.has_server_rendered_html
-    }
-
-    fn has_interactivity(&self) -> bool {
-        self.has_interactivity
+    fn render_type(&self) -> RenderType {
+        self.render_type
     }
 
     fn prepare(&self, install_dir: &Path) -> Result<()> {
