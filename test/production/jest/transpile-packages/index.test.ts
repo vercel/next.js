@@ -9,7 +9,11 @@ describe('next/jest', () => {
     next = await createNext({
       files: {
         pages: new FileRef(join(__dirname, 'app/pages')),
-        'index.test.ts': new FileRef(join(__dirname, 'app/index.test.ts')),
+        'index.test.ts': `import capitalize from '@hashicorp/platform-util/text/capitalize'
+        it('should work', () => {
+          expect(capitalize('test')).toEqual('Test')
+        })
+        `,
         'jest.config.js': new FileRef(join(__dirname, 'app/jest.config.js')),
         'next.config.js': new FileRef(join(__dirname, 'app/next.config.js')),
       },
