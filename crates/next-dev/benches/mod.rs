@@ -8,18 +8,20 @@ use std::{
 use anyhow::{anyhow, Context, Result};
 use bundlers::get_bundlers;
 use criterion::{
-    criterion_group, criterion_main, measurement::WallTime, BenchmarkGroup, BenchmarkId, Criterion,
+    criterion_group, criterion_main,
+    measurement::{Measurement, WallTime},
+    BenchmarkGroup, BenchmarkId, Criterion,
 };
 use once_cell::sync::Lazy;
 use tokio::{
     runtime::Runtime,
     time::{sleep, timeout},
 };
-use util::{
-    build_test, create_browser, AsyncBencherExtension, PageGuard, PreparedApp, BINDING_NAME,
-};
+use turbo_tasks::util::FormatDuration;
+use util::{build_test, create_browser, AsyncBencherExtension, PreparedApp, BINDING_NAME};
 
 use self::util::resume_on_error;
+use crate::util::PageGuard;
 
 mod bundlers;
 mod util;
@@ -74,23 +76,28 @@ fn bench_startup_internal(mut g: BenchmarkGroup<WallTime>, hydration: bool) {
                     BenchmarkId::new(bundler.get_name(), format!("{} modules", module_count)),
                     &input,
                     |b, &(bundler, test_app)| {
-                        b.to_async(&runtime).try_iter_async(
-                            || async {
-                                PreparedApp::new(bundler, test_app.path().to_path_buf()).await
-                            },
-                            |app| async { Ok(app) },
-                            |mut app| async {
+                        let test_app = &**test_app;
+                        b.to_async(&runtime).try_iter_custom(|iters, m| async move {
+                            let mut value = m.zero();
+
+                            for _ in 0..iters {
+                                let mut app =
+                                    PreparedApp::new(bundler, test_app.path().to_path_buf())
+                                        .await?;
+                                let start = m.start();
                                 app.start_server()?;
                                 let mut guard = app.with_page(browser).await?;
                                 if wait_for_hydration {
                                     guard.wait_for_hydration().await?;
                                 }
+                                let duration = m.end(start);
+                                value = m.add(&value, &duration);
 
-                                // Defer the dropping of the guard to `teardown`.
-                                Ok(guard)
-                            },
-                            |_guard| async move {},
-                        );
+                                // Defer the dropping of the guard.
+                                drop(guard);
+                            }
+                            Ok(value)
+                        });
                     },
                 );
             }));
@@ -122,6 +129,9 @@ fn bench_hmr_to_commit(c: &mut Criterion) {
 }
 
 fn bench_hmr_internal(mut g: BenchmarkGroup<WallTime>, location: CodeLocation) {
+    // Only capture one sample for warmup
+    g.warm_up_time(Duration::from_millis(1));
+
     let runtime = Runtime::new().unwrap();
     let browser = &runtime.block_on(create_browser());
 
@@ -138,11 +148,12 @@ fn bench_hmr_internal(mut g: BenchmarkGroup<WallTime>, location: CodeLocation) {
                     BenchmarkId::new(bundler.get_name(), format!("{} modules", module_count)),
                     &input,
                     |b, &(bundler, test_app)| {
+                        let test_app = &**test_app;
                         fn add_code(
                             app_path: &Path,
                             code: &str,
                             location: CodeLocation,
-                        ) -> Result<()> {
+                        ) -> Result<impl FnOnce() -> Result<()>> {
                             let triangle_path = app_path.join("src/triangle.jsx");
                             let mut contents = fs::read_to_string(&triangle_path)?;
                             const INSERTED_CODE_COMMENT: &str = "// Inserted Code:\n";
@@ -181,19 +192,18 @@ fn bench_hmr_internal(mut g: BenchmarkGroup<WallTime>, location: CodeLocation) {
                                 }
                             }
 
-                            fs::write(&triangle_path, contents)?;
-                            Ok(())
+                            Ok(move || Ok(fs::write(&triangle_path, contents)?))
                         }
                         static CHANGE_TIMEOUT_MESSAGE: &str =
                             "update was not registered by bundler";
-                        async fn make_change<'a>(
-                            guard: &mut PageGuard<'a>,
+                        async fn make_change(
+                            guard: &mut PageGuard<'_>,
                             location: CodeLocation,
-                            timeout_duration: Duration,
-                        ) -> Result<()> {
+                            m: &WallTime,
+                        ) -> Result<Duration> {
                             let msg =
                                 format!("TURBOPACK_BENCH_CHANGE_{}", guard.app_mut().counter());
-                            add_code(
+                            let commit = add_code(
                                 guard.app().path(),
                                 &format!(
                                     "globalThis.{BINDING_NAME} && \
@@ -202,19 +212,31 @@ fn bench_hmr_internal(mut g: BenchmarkGroup<WallTime>, location: CodeLocation) {
                                 location,
                             )?;
 
-                            // Wait for the change introduced above to be reflected at runtime.
-                            // This expects HMR or automatic reloading to occur.
-                            timeout(timeout_duration, guard.wait_for_binding(&msg))
+                            let start = m.start();
+                            commit()?;
+
+                            // Wait for the change introduced above to be reflected at
+                            // runtime. This expects HMR or automatic reloading to occur.
+                            timeout(MAX_UPDATE_TIMEOUT, guard.wait_for_binding(&msg))
                                 .await
                                 .context(CHANGE_TIMEOUT_MESSAGE)??;
 
-                            Ok(())
+                            let duration = m.end(start);
+
+                            // TODO(sokra) triggering HMR updates too fast can have weird effects
+                            tokio::time::sleep(std::cmp::max(duration, Duration::from_millis(100)))
+                                .await;
+
+                            Ok(duration)
                         }
-                        b.to_async(Runtime::new().unwrap()).try_iter_async(
+                        b.to_async(&runtime).try_iter_async(
+                            &runtime,
                             || async {
-                                let mut app =
-                                    PreparedApp::new(bundler, test_app.path().to_path_buf())
-                                        .await?;
+                                let mut app = PreparedApp::new_without_copy(
+                                    bundler,
+                                    test_app.path().to_path_buf(),
+                                )
+                                .await?;
                                 app.start_server()?;
                                 let mut guard = app.with_page(browser).await?;
                                 if bundler.has_interactivity() {
@@ -230,21 +252,36 @@ fn bench_hmr_internal(mut g: BenchmarkGroup<WallTime>, location: CodeLocation) {
                                         "Unable to evaluate JavaScript in the page for HMR check \
                                          flag",
                                     )?;
-                                Ok(guard)
-                            },
-                            |mut guard| async move {
-                                // Make 5 changes to warm up.
-                                for _ in 0..5 {
-                                    let _ =
-                                        make_change(&mut guard, location, MAX_UPDATE_TIMEOUT).await;
-                                }
-                                Ok(guard)
-                            },
-                            |mut guard| async move {
-                                make_change(&mut guard, location, MAX_UPDATE_TIMEOUT).await?;
 
-                                // Defer the dropping of the guard to `teardown`.
+                                // TODO(alexkirsz) Turbopack takes a few ms to start listening on
+                                // HMR, and we don't send updates retroactively, so we need to wait
+                                // before starting to make changes.
+                                // This should not be required.
+                                tokio::time::sleep(Duration::from_millis(5000)).await;
+
+                                // Make a warmup change
+                                make_change(&mut guard, location, &WallTime).await?;
+
                                 Ok(guard)
+                            },
+                            |mut guard, iters, m, verbose| async move {
+                                let mut value = m.zero();
+                                for iter in 0..iters {
+                                    let duration = make_change(&mut guard, location, &m).await?;
+                                    value = m.add(&value, &duration);
+
+                                    let i: u64 = iter + 1;
+                                    if verbose && i != iters && i.count_ones() == 1 {
+                                        eprint!(
+                                            " [{:?} {:?}/{}]",
+                                            duration,
+                                            FormatDuration(value / (i as u32)),
+                                            i
+                                        );
+                                    }
+                                }
+
+                                Ok((guard, value))
                             },
                             |guard| async move {
                                 let hmr_is_happening = guard
@@ -321,41 +358,44 @@ fn bench_startup_cached_internal(mut g: BenchmarkGroup<WallTime>, hydration: boo
                     BenchmarkId::new(bundler.get_name(), format!("{} modules", module_count)),
                     &input,
                     |b, &(bundler, test_app)| {
-                        b.to_async(Runtime::new().unwrap()).try_iter_async(
-                            || async {
-                                // Run a complete build, shut down, and test running it again
-                                let mut app =
-                                    PreparedApp::new(bundler, test_app.path().to_path_buf())
-                                        .await?;
-                                app.start_server()?;
-                                let mut guard = app.with_page(browser).await?;
-                                if bundler.has_interactivity() {
-                                    guard.wait_for_hydration().await?;
-                                } else {
-                                    guard.page().wait_for_navigation().await?;
-                                }
+                        let test_app = &**test_app;
+                        b.to_async(&runtime).try_iter_custom(|iters, m| async move {
+                            // Run a complete build, shut down, and test running it again
+                            let mut app =
+                                PreparedApp::new(bundler, test_app.path().to_path_buf()).await?;
+                            app.start_server()?;
+                            let mut guard = app.with_page(browser).await?;
+                            if bundler.has_interactivity() {
+                                guard.wait_for_hydration().await?;
+                            } else {
+                                guard.page().wait_for_navigation().await?;
+                            }
 
-                                let mut app = guard.close_page().await?;
+                            let mut app = guard.close_page().await?;
 
-                                // Give it 4 seconds time to store the cache
-                                sleep(Duration::from_secs(4)).await;
+                            // Give it 4 seconds time to store the cache
+                            sleep(Duration::from_secs(4)).await;
 
-                                app.stop_server()?;
-                                Ok(app)
-                            },
-                            |app| async { Ok(app) },
-                            |mut app| async {
+                            app.stop_server()?;
+
+                            let mut value = m.zero();
+                            for _ in 0..iters {
+                                let start = m.start();
                                 app.start_server()?;
                                 let mut guard = app.with_page(browser).await?;
                                 if wait_for_hydration {
                                     guard.wait_for_hydration().await?;
                                 }
+                                let duration = m.end(start);
+                                value = m.add(&value, &duration);
 
-                                // Defer the dropping of the guard to `teardown`.
-                                Ok(guard)
-                            },
-                            |_guard| async move {},
-                        );
+                                app = guard.close_page().await?;
+                                app.stop_server()?;
+                            }
+
+                            drop(app);
+                            Ok(value)
+                        });
                     },
                 );
             }));
