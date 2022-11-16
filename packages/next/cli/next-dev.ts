@@ -184,7 +184,7 @@ const nextDev: cliCommand = async (argv) => {
       ) as NextConfig
 
       if (typeof rawNextConfig === 'function') {
-        rawNextConfig = rawNextConfig(PHASE_DEVELOPMENT_SERVER, {
+        rawNextConfig = (rawNextConfig as any)(PHASE_DEVELOPMENT_SERVER, {
           defaultConfig,
         })
       }
