@@ -170,15 +170,16 @@ export type AppInitialProps<P = any> = {
   pageProps: P
 }
 
-export type AppPropsType<
-  R extends NextRouter = NextRouter,
-  P = {}
-> = AppInitialProps<P> & {
-  Component: NextComponentType<NextPageContext, any, any>
-  router: R
-  __N_SSG?: boolean
-  __N_SSP?: boolean
-}
+export type AppPropsType<R extends NextRouter = NextRouter, P = {}> = Omit<
+  AppInitialProps,
+  keyof P
+> &
+  P & {
+    Component: NextComponentType<NextPageContext, any, any>
+    router: R
+    __N_SSG?: boolean
+    __N_SSP?: boolean
+  }
 
 export type DocumentContext = NextPageContext & {
   renderPage: RenderPage
