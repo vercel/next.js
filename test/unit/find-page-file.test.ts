@@ -48,13 +48,15 @@ describe('findPageFile', () => {
 describe('isLayoutsLeafPage', () => {
   it('should determine either server or client component page file as leaf node page', () => {
     expect(isLayoutsLeafPage('page.js')).toBe(true)
-    expect(isLayoutsLeafPage('./page.server.js')).toBe(true)
-    expect(isLayoutsLeafPage('./page.server.jsx')).toBe(true)
-    expect(isLayoutsLeafPage('./page.client.ts')).toBe(true)
-    expect(isLayoutsLeafPage('./page.client.tsx')).toBe(true)
+    expect(isLayoutsLeafPage('./page.js')).toBe(true)
+    expect(isLayoutsLeafPage('./page.jsx')).toBe(true)
+    expect(isLayoutsLeafPage('/page.ts')).toBe(true)
+    expect(isLayoutsLeafPage('/path/page.tsx')).toBe(true)
   })
 
   it('should determine other files under layout routes as non leaf node', () => {
+    expect(isLayoutsLeafPage('./not-a-page.js')).toBe(false)
+    expect(isLayoutsLeafPage('not-a-page.js')).toBe(false)
     expect(isLayoutsLeafPage('./page.component.jsx')).toBe(false)
     expect(isLayoutsLeafPage('layout.js')).toBe(false)
   })
