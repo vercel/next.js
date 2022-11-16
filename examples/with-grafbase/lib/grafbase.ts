@@ -7,6 +7,6 @@ export const grafbase = new GraphQLClient(
     headers: {
       'x-api-key': process.env.GRAFBASE_API_KEY as string,
     },
-  },
-  fetch
+    fetch,
+  }
 )
