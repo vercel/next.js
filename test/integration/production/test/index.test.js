@@ -44,6 +44,7 @@ describe('Production Usage', () => {
       stdout: true,
     }
     if (process.env.TEST_WASM) {
+      jest.setTimeout(120 * 1000)
       opts.env = {
         NODE_OPTIONS: '--no-addons',
       }
