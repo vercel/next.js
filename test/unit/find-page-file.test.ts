@@ -46,18 +46,22 @@ describe('findPageFile', () => {
 })
 
 describe('isLayoutsLeafPage', () => {
+  const pageExtensions = ['tsx', 'ts', 'jsx', 'js']
   it('should determine either server or client component page file as leaf node page', () => {
-    expect(isLayoutsLeafPage('page.js')).toBe(true)
-    expect(isLayoutsLeafPage('./page.js')).toBe(true)
-    expect(isLayoutsLeafPage('./page.jsx')).toBe(true)
-    expect(isLayoutsLeafPage('/page.ts')).toBe(true)
-    expect(isLayoutsLeafPage('/path/page.tsx')).toBe(true)
+    expect(isLayoutsLeafPage('page.js', pageExtensions)).toBe(true)
+    expect(isLayoutsLeafPage('./page.js', pageExtensions)).toBe(true)
+    expect(isLayoutsLeafPage('./page.jsx', pageExtensions)).toBe(true)
+    expect(isLayoutsLeafPage('/page.ts', pageExtensions)).toBe(true)
+    expect(isLayoutsLeafPage('/path/page.tsx', pageExtensions)).toBe(true)
   })
 
   it('should determine other files under layout routes as non leaf node', () => {
-    expect(isLayoutsLeafPage('./not-a-page.js')).toBe(false)
-    expect(isLayoutsLeafPage('not-a-page.js')).toBe(false)
-    expect(isLayoutsLeafPage('./page.component.jsx')).toBe(false)
-    expect(isLayoutsLeafPage('layout.js')).toBe(false)
+    expect(isLayoutsLeafPage('./not-a-page.js', pageExtensions)).toBe(false)
+    expect(isLayoutsLeafPage('not-a-page.js', pageExtensions)).toBe(false)
+    expect(isLayoutsLeafPage('./page.component.jsx', pageExtensions)).toBe(
+      false
+    )
+    expect(isLayoutsLeafPage('layout.js', pageExtensions)).toBe(false)
+    expect(isLayoutsLeafPage('page', pageExtensions)).toBe(false)
   })
 })
