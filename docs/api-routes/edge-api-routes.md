@@ -106,6 +106,25 @@ export default async function handler(req: NextRequest) {
 }
 ```
 
+### Configuring Regions (for deploying)
+
+You may want to restrict your edge function to specific regions when deploying so that you can colocate near your data sources ensuring lower response times which can be achieved as shown.
+
+Note: this config is available in `v12.3.2` of Next.js and up.
+
+```js
+import { NextResponse } from 'next/server'
+
+export const config = {
+  regions: ['sfo1', 'iad1'], // defaults to 'all'
+}
+
+export default async function handler(req: NextRequest) {
+  const myData = await getNearbyData()
+  return NextResponse.json(myData)
+}
+```
+
 ## Differences between API Routes
 
 Edge API Routes use the [Edge Runtime](/docs/api-reference/edge-runtime.md), whereas API Routes use the [Node.js runtime](/docs/advanced-features/react-18/switchable-runtime.md).
