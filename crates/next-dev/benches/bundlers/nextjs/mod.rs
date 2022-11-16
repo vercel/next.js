@@ -1,5 +1,5 @@
 use std::{
-    fmt::Display,
+    fs,
     path::Path,
     process::{Child, Command, Stdio},
 };
@@ -7,6 +7,7 @@ use std::{
 use anyhow::{anyhow, Context, Result};
 use regex::Regex;
 
+use super::RenderType;
 use crate::{
     bundlers::Bundler,
     util::{
@@ -19,18 +20,23 @@ use crate::{
 pub enum NextJsVersion {
     V11,
     V12,
+    V13,
 }
 
 #[derive(Debug)]
 pub struct NextJs {
     version: NextJsVersion,
     name: String,
+    path: String,
+    render_type: RenderType,
 }
 
 impl NextJs {
-    pub fn new(version: NextJsVersion) -> Self {
+    pub fn new(version: NextJsVersion, name: &str, path: &str, render_type: RenderType) -> Self {
         Self {
-            name: format!("{version} SSR"),
+            name: name.to_owned(),
+            path: path.to_owned(),
+            render_type,
             version,
         }
     }
@@ -42,15 +48,15 @@ impl Bundler for NextJs {
     }
 
     fn get_path(&self) -> &str {
-        "/page"
+        &self.path
+    }
+
+    fn render_type(&self) -> RenderType {
+        self.render_type
     }
 
     fn react_version(&self) -> &str {
         self.version.react_version()
-    }
-
-    fn has_server_rendered_html(&self) -> bool {
-        true
     }
 
     fn prepare(&self, install_dir: &Path) -> Result<()> {
@@ -59,6 +65,13 @@ impl Bundler for NextJs {
             &[NpmPackage::new("next", self.version.version())],
         )
         .context("failed to install `next` module")?;
+
+        if matches!(self.version, NextJsVersion::V13) {
+            fs::write(
+                install_dir.join("next.config.js"),
+                include_bytes!("next.config.js"),
+            )?;
+        }
         Ok(())
     }
 
@@ -101,21 +114,13 @@ impl Bundler for NextJs {
     }
 }
 
-impl Display for NextJsVersion {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            NextJsVersion::V11 => write!(f, "Next.js 11"),
-            NextJsVersion::V12 => write!(f, "Next.js 12"),
-        }
-    }
-}
-
 impl NextJsVersion {
     /// Returns the version of Next.js to install from npm.
     pub fn version(&self) -> &'static str {
         match self {
             NextJsVersion::V11 => "^11",
             NextJsVersion::V12 => "^12",
+            NextJsVersion::V13 => "^13",
         }
     }
 
@@ -125,6 +130,7 @@ impl NextJsVersion {
         match self {
             NextJsVersion::V11 => "^17.0.2",
             NextJsVersion::V12 => "^18.2.0",
+            NextJsVersion::V13 => "^18.2.0",
         }
     }
 }

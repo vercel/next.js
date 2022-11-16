@@ -16,6 +16,20 @@ mod turbopack;
 mod vite;
 mod webpack;
 
+#[derive(Debug, Clone, Copy)]
+pub enum RenderType {
+    /// App is completely rendered on client side, the initial HTML is empty.
+    ClientSideRendered,
+    /// App is intially rendered on server side, then hydrated on client side.
+    ServerSidePrerendered,
+    /// App is rendered on server side, but additional client side javascript
+    /// emits events on hydration and changes
+    ServerSideRenderedWithEvents,
+    /// App is rendered on server side, without any client side events.
+    #[allow(dead_code)]
+    ServerSideRenderedWithoutInteractivity,
+}
+
 pub trait Bundler {
     fn get_name(&self) -> &str;
     fn get_path(&self) -> &str {
@@ -24,15 +38,17 @@ pub trait Bundler {
     fn react_version(&self) -> &str {
         "^18.2.0"
     }
-    /// The initial HTML is enough to render the page even without JavaScript
-    /// loaded
-    fn has_server_rendered_html(&self) -> bool {
-        false
+    fn render_type(&self) -> RenderType {
+        RenderType::ClientSideRendered
     }
     /// There is a hydration done event emitted by client side JavaScript
-    fn has_interactivity(&self) -> bool {
-        true
+    fn has_hydration_event(&self) -> bool {
+        !matches!(
+            self.render_type(),
+            RenderType::ServerSideRenderedWithoutInteractivity
+        )
     }
+
     fn prepare(&self, _template_dir: &Path) -> Result<()> {
         Ok(())
     }
@@ -59,30 +75,59 @@ pub fn get_bundlers() -> Vec<Box<dyn Bundler>> {
     }
     let mut bundlers: Vec<Box<dyn Bundler>> = Vec::new();
     if turbopack {
-        bundlers.push(Box::new(Turbopack::new("Turbopack CSR", "/", false, true)));
+        bundlers.push(Box::new(Turbopack::new(
+            "Turbopack CSR",
+            "/",
+            RenderType::ClientSideRendered,
+        )));
         bundlers.push(Box::new(Turbopack::new(
             "Turbopack SSR",
             "/page",
-            true,
-            true,
+            RenderType::ServerSidePrerendered,
         )));
         bundlers.push(Box::new(Turbopack::new(
             "Turbopack RSC",
             "/app",
-            true,
-            false,
+            RenderType::ServerSideRenderedWithEvents,
         )));
         bundlers.push(Box::new(Turbopack::new(
             "Turbopack RCC",
             "/client",
-            true,
-            true,
+            RenderType::ServerSidePrerendered,
         )));
     }
 
     if others {
-        bundlers.push(Box::new(NextJs::new(NextJsVersion::V12)));
-        bundlers.push(Box::new(NextJs::new(NextJsVersion::V11)));
+        bundlers.push(Box::new(NextJs::new(
+            NextJsVersion::V13,
+            "Next.js 13 SSR",
+            "/page",
+            RenderType::ServerSidePrerendered,
+        )));
+        bundlers.push(Box::new(NextJs::new(
+            NextJsVersion::V13,
+            "Next.js 13 RSC",
+            "/app",
+            RenderType::ServerSideRenderedWithEvents,
+        )));
+        bundlers.push(Box::new(NextJs::new(
+            NextJsVersion::V13,
+            "Next.js 13 RCC",
+            "/client",
+            RenderType::ServerSidePrerendered,
+        )));
+        bundlers.push(Box::new(NextJs::new(
+            NextJsVersion::V12,
+            "Next.js 12 SSR",
+            "/page",
+            RenderType::ServerSidePrerendered,
+        )));
+        bundlers.push(Box::new(NextJs::new(
+            NextJsVersion::V11,
+            "Next.js 11 SSR",
+            "/page",
+            RenderType::ServerSidePrerendered,
+        )));
         bundlers.push(Box::new(Parcel {}));
         bundlers.push(Box::new(Vite::new()));
         bundlers.push(Box::new(Webpack {}));

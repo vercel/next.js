@@ -117,8 +117,14 @@ pub async fn create_browser() -> Browser {
 
 pub fn resume_on_error<F: FnOnce() + UnwindSafe>(f: F) {
     let runs_as_bench = std::env::args().find(|a| a == "--bench");
+    let ignore_errors = !matches!(
+        std::env::var("TURBOPACK_BENCH_IGNORE_ERRORS")
+            .ok()
+            .as_deref(),
+        None | Some("") | Some("no") | Some("false")
+    );
 
-    if runs_as_bench.is_some() {
+    if runs_as_bench.is_some() || ignore_errors {
         use std::panic::catch_unwind;
         // panics are already printed to the console, so no need to handle the result.
         let _ = catch_unwind(f);

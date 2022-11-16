@@ -73,6 +73,7 @@ impl TestAppBuilder {
         let mut queue = VecDeque::new();
         queue.push_back(src.join("triangle.jsx"));
         remaining_modules -= 1;
+        let mut is_root = true;
 
         while let Some(file) = queue.pop_front() {
             let leaf = remaining_modules == 0
@@ -148,6 +149,15 @@ export default React.memo(Triangle);
                     })
                     .collect::<Vec<_>>()
                 {
+                    let (extra_imports, extra) = if is_root {
+                        is_root = false;
+                        (
+                            "import Detector from \"./detector.jsx\";\n",
+                            "\n        <Detector />",
+                        )
+                    } else {
+                        ("", "")
+                    };
                     File::create(&file)
                         .with_context(|| format!("creating file with children {}", file.display()))?
                         .write_all(
@@ -156,7 +166,7 @@ export default React.memo(Triangle);
 {a}
 {b}
 {c}
-
+{extra_imports}
 function Container({{ style }}) {{
     return <>
         <g transform="translate(0 -2.16)   scale(0.5 0.5)">
@@ -167,7 +177,7 @@ function Container({{ style }}) {{
         </g>
         <g transform="translate(2.5 2.16)  scale(0.5 0.5)">
             {c_}
-        </g>
+        </g>{extra}
     </>;
 }}
 
@@ -190,9 +200,6 @@ import { createRoot } from "react-dom/client";
 import Triangle from "./triangle.jsx";
 
 function App() {
-    React.useEffect(() => {
-        globalThis.__turbopackBenchBinding && globalThis.__turbopackBenchBinding("Hydration done");
-    })
     return <svg height="100%" viewBox="-5 -4.33 10 8.66" style={{ }}>
         <Triangle style={{ fill: "white" }}/>
     </svg>
@@ -216,9 +223,6 @@ createRoot(root).render(<App />);
 import Triangle from "../triangle.jsx";
 
 export default function Page() {
-    React.useEffect(() => {
-        globalThis.__turbopackBenchBinding && globalThis.__turbopackBenchBinding("Hydration done");
-    })
     return <svg height="100%" viewBox="-5 -4.33 10 8.66" style={{ backgroundColor: "black" }}>
         <Triangle style={{ fill: "white" }}/>
     </svg>
@@ -234,9 +238,6 @@ export default function Page() {
 import Triangle from "../triangle.jsx";
 
 export default function Page() {
-    React.useEffect(() => {
-        globalThis.__turbopackBenchBinding && globalThis.__turbopackBenchBinding("Hydration done");
-    })
     return <svg height="100%" viewBox="-5 -4.33 10 8.66" style={{ backgroundColor: "black" }}>
         <Triangle style={{ fill: "white" }}/>
     </svg>
@@ -272,15 +273,32 @@ export default function Page() {
             .write_all(bootstrap_app_page.as_bytes())
             .context("writing bootstrap app page")?;
 
+        // The component is used to measure hydration and commit time for app/page.jsx
+        let detector_component = r#""use client";
+
+import React from "react";
+
+export default function Detector({ message }) {
+    React.useEffect(() => {
+        globalThis.__turbopackBenchBinding && globalThis.__turbopackBenchBinding("Hydration done");
+    });
+    React.useEffect(() => {
+        message && globalThis.__turbopackBenchBinding && globalThis.__turbopackBenchBinding(message);
+    }, [message]);
+    return null;
+}
+"#;
+        File::create(src.join("detector.jsx"))
+            .context("creating detector component")?
+            .write_all(detector_component.as_bytes())
+            .context("writing detector component")?;
+
         // The page is e. g. used by Next.js
         let bootstrap_app_client_page = r#""use client";
 import React from "react";
 import Triangle from "../../triangle.jsx";
 
 export default function Page() {
-    React.useEffect(() => {
-        globalThis.__turbopackBenchBinding && globalThis.__turbopackBenchBinding("Hydration done");
-    })
     return <svg height="100%" viewBox="-5 -4.33 10 8.66" style={{ backgroundColor: "black" }}>
         <Triangle style={{ fill: "white" }}/>
     </svg>

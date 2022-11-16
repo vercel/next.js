@@ -60,10 +60,7 @@ pub fn generate(summary_path: PathBuf) -> Result<()> {
                 .parse()?,
             // we want to use slope instead of mean when available since this is a better
             // estimation of the real performance values when iterations go to infinity
-            bench
-                .estimates
-                .slope
-                .unwrap_or_else(|| bench.estimates.mean),
+            bench.estimates.slope.unwrap_or(bench.estimates.mean),
         );
     }
 
