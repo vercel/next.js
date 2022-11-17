@@ -3,7 +3,7 @@ import { NextInstance } from 'test/lib/next-modes/base'
 import { join } from 'path'
 import { BrowserInterface } from '../../lib/browsers/base'
 import webdriver from 'next-webdriver'
-import { check, waitFor } from 'next-test-utils'
+import { check } from 'next-test-utils'
 
 describe('app-dir-prefetch-non-iso-url', () => {
   let next: NextInstance
