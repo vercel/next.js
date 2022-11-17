@@ -1459,7 +1459,7 @@ jobs:
 
   build-wasm:
     needs: build
-    if: ${{ needs.build.outputs.isRelease == 'true' }}
+    # if: ${{ needs.build.outputs.isRelease == 'true' }}
     strategy:
       matrix:
         target: [web, nodejs]
