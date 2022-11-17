@@ -54,6 +54,13 @@ impl Default for TestAppBuilder {
     }
 }
 
+fn write_file<P: AsRef<Path>>(name: &str, path: P, content: &[u8]) -> Result<()> {
+    File::create(path)
+        .with_context(|| format!("creating {name}"))?
+        .write_all(content)
+        .with_context(|| format!("writing {name}"))
+}
+
 impl TestAppBuilder {
     pub fn build(&self) -> Result<TestApp> {
         let target = if let Some(target) = self.target.clone() {
@@ -210,10 +217,7 @@ let root = document.createElement("main");
 document.body.appendChild(root);
 createRoot(root).render(<App />);
 "#;
-        File::create(src.join("index.jsx"))
-            .context("creating bootstrap file")?
-            .write_all(bootstrap.as_bytes())
-            .context("writing bootstrap file")?;
+        write_file("bootrap file", src.join("index.jsx"), bootstrap.as_bytes())?;
 
         let pages = src.join("pages");
         create_dir_all(&pages)?;
@@ -228,10 +232,11 @@ export default function Page() {
     </svg>
 }
 "#;
-        File::create(pages.join("page.jsx"))
-            .context("creating bootstrap page")?
-            .write_all(bootstrap_page.as_bytes())
-            .context("writing bootstrap page")?;
+        write_file(
+            "bootrap page",
+            pages.join("page.jsx"),
+            bootstrap_page.as_bytes(),
+        )?;
 
         // The page is e. g. used by Next.js
         let bootstrap_static_page = r#"import React from "react";
@@ -249,10 +254,11 @@ export function getStaticProps() {
     };
 }
 "#;
-        File::create(pages.join("static.jsx"))
-            .context("creating bootstrap static page")?
-            .write_all(bootstrap_static_page.as_bytes())
-            .context("writing bootstrap static page")?;
+        write_file(
+            "bootrap static page",
+            pages.join("static.jsx"),
+            bootstrap_static_page.as_bytes(),
+        )?;
 
         let app_dir = src.join("app");
         create_dir_all(app_dir.join("app"))?;
@@ -343,10 +349,11 @@ export default function Page() {
     </body>
 </html>
 "#;
-        File::create(path.join("index.html"))
-            .context("creating bootstrap html in root")?
-            .write_all(bootstrap_html.as_bytes())
-            .context("writing bootstrap html in root")?;
+        write_file(
+            "bootstrap html",
+            path.join("index.html"),
+            bootstrap_html.as_bytes(),
+        )?;
 
         // This HTML is used e. g. by webpack
         let bootstrap_html2 = r#"<!DOCTYPE html>
@@ -365,10 +372,27 @@ export default function Page() {
         let public = path.join("public");
         create_dir_all(&public).context("creating public dir")?;
 
-        File::create(public.join("index.html"))
-            .context("creating bootstrap html in public")?
-            .write_all(bootstrap_html2.as_bytes())
-            .context("writing bootstrap html in public")?;
+        write_file(
+            "bootstrap html",
+            public.join("index.html"),
+            bootstrap_html2.as_bytes(),
+        )?;
+
+        write_file(
+            "vite node.js server",
+            path.join("vite-server.mjs"),
+            include_bytes!("templates/vite-server.mjs"),
+        )?;
+        write_file(
+            "vite server entry",
+            path.join("src/vite-entry-server.jsx"),
+            include_bytes!("templates/vite-entry-server.jsx"),
+        )?;
+        write_file(
+            "vite client entry",
+            path.join("src/vite-entry-client.jsx"),
+            include_bytes!("templates/vite-entry-client.jsx"),
+        )?;
 
         if let Some(package_json) = &self.package_json {
             // These dependencies are needed

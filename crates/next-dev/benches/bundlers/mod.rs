@@ -129,7 +129,9 @@ pub fn get_bundlers() -> Vec<Box<dyn Bundler>> {
             RenderType::ServerSidePrerendered,
         )));
         bundlers.push(Box::new(Parcel {}));
-        bundlers.push(Box::new(Vite::new()));
+        bundlers.push(Box::new(Vite::new(false, false)));
+        bundlers.push(Box::new(Vite::new(true, false)));
+        bundlers.push(Box::new(Vite::new(false, true)));
         bundlers.push(Box::new(Webpack {}));
     }
 
