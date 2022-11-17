@@ -1,12 +1,4 @@
-import cxs from 'cxs/lite'
-
-// Using cxs/lite on both the server and client,
-// the styles will need to be rehydrated.
-if (typeof window !== 'undefined') {
-  const styleTag = document.getElementById('cxs-style')
-  const serverCss = styleTag.innerHTML
-  cxs.rehydrate(serverCss)
-}
+import cxs from 'cxs'
 
 const cx = {
   root: cxs({
