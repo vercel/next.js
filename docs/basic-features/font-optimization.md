@@ -63,6 +63,15 @@ export default function MyApp({ Component, pageProps }) {
 }
 ```
 
+You can specify multiple weights and/or styles by using an array:
+
+```js
+const roboto = Roboto({
+  weight: ['400', '700'],
+  style: ['normal', 'italic'],
+})
+```
+
 #### Apply the font in `<head>`
 
 You can also use the font without a wrapper and `className` by injecting it inside the `<head>` as follows:
@@ -154,6 +163,35 @@ export default function MyApp({ Component, pageProps }) {
     </main>
   )
 }
+```
+
+If you want to use multiple files for a single font family, `src` can be an array:
+
+```js
+const roboto = localFont({
+  src: [
+    {
+      path: './Roboto-Regular.woff2',
+      weight: '400',
+      style: 'normal',
+    },
+    {
+      path: './Roboto-Italic.woff2',
+      weight: '400',
+      style: 'italic',
+    },
+    {
+      path: './Roboto-Bold.woff2',
+      weight: '700',
+      style: 'normal',
+    },
+    {
+      path: './Roboto-BoldItalic.woff2',
+      weight: '700',
+      style: 'italic',
+    },
+  ],
+})
 ```
 
 View the [Font API Reference](/docs/api-reference/next/font.md#nextfontlocal) for more information.
