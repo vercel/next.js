@@ -3,7 +3,7 @@ import { NextInstance } from 'test/lib/next-modes/base'
 import { join } from 'path'
 import { BrowserInterface } from '../../lib/browsers/base'
 import webdriver from 'next-webdriver'
-import { waitFor } from 'next-test-utils'
+import { check, waitFor } from 'next-test-utils'
 
 describe('app-dir-prefetch-non-iso-url', () => {
   let next: NextInstance
@@ -24,12 +24,7 @@ describe('app-dir-prefetch-non-iso-url', () => {
     try {
       browser = await webdriver(next.appPort, '/')
       await browser.elementByCss('#to-iso').click()
-
-      const text = await browser.elementByCss('#page').text()
-
-      await waitFor(3000)
-
-      expect(text).toBe('/[slug]')
+      await check(() => browser.elementByCss('#page').text(), '/[slug]')
     } finally {
       if (browser) {
         await browser.close()
@@ -43,12 +38,7 @@ describe('app-dir-prefetch-non-iso-url', () => {
     try {
       browser = await webdriver(next.appPort, '/')
       await browser.elementByCss('#to-non-iso').click()
-
-      const text = await browser.elementByCss('#page').text()
-
-      await waitFor(3000)
-
-      expect(text).toBe('/[slug]')
+      await check(() => browser.elementByCss('#page').text(), '/[slug]')
     } finally {
       if (browser) {
         await browser.close()
