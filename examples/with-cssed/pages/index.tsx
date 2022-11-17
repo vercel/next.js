@@ -31,13 +31,14 @@ const styles = css`
 
 export default function Home() {
   const [isDark, setDark] = useState(false)
+
   return (
     <>
       <Head>
         <title>With cssed</title>
       </Head>
       <div
-        onClick={() => setDark(!isDark)}
+        onClick={() => setDark((prevState) => !prevState)}
         className={styles.box + ' ' + (isDark ? styles.dark : styles.light)}
       >
         Cssed demo
