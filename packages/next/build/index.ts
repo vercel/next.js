@@ -493,7 +493,7 @@ export default async function build(
           .traceAsyncFn(() =>
             recursiveReadDir(
               appDir,
-              new RegExp(`page\\.(?:${config.pageExtensions.join('|')})$`)
+              new RegExp(`^page\\.(?:${config.pageExtensions.join('|')})$`)
             )
           )
       }

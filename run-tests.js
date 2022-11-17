@@ -356,7 +356,13 @@ async function main() {
         } catch (err) {
           if (i < numRetries) {
             try {
-              const testDir = path.dirname(path.join(__dirname, test))
+              let testDir = path.dirname(path.join(__dirname, test))
+
+              // if test is nested in a test folder traverse up a dir to ensure
+              // we clean up relevant test files
+              if (testDir.endsWith('/test') || testDir.endsWith('\\test')) {
+                testDir = path.join(testDir, '../')
+              }
               console.log('Cleaning test files at', testDir)
               await exec(`git clean -fdx "${testDir}"`)
               await exec(`git checkout "${testDir}"`)

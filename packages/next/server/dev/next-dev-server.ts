@@ -405,7 +405,7 @@ export default class DevServer extends Server {
           })
 
           if (isAppPath) {
-            if (!isLayoutsLeafPage(fileName)) {
+            if (!isLayoutsLeafPage(fileName, this.nextConfig.pageExtensions)) {
               continue
             }
 
