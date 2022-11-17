@@ -33,7 +33,7 @@ To use the font in all your pages, add it to [`_app.js` file](https://nextjs.org
 import { Inter } from '@next/font/google'
 
 // If loading a variable font, you don't need to specify the font weight
-const inter = Inter()
+const inter = Inter({ subsets: ['latin'] })
 
 export default function MyApp({ Component, pageProps }) {
   return (
@@ -52,6 +52,7 @@ import { Roboto } from '@next/font/google'
 
 const roboto = Roboto({
   weight: '400',
+  subsets: ['latin'],
 })
 
 export default function MyApp({ Component, pageProps }) {
@@ -69,6 +70,7 @@ You can specify multiple weights and/or styles by using an array:
 const roboto = Roboto({
   weight: ['400', '700'],
   style: ['normal', 'italic'],
+  subsets: ['latin'],
 })
 ```
 
@@ -80,7 +82,7 @@ You can also use the font without a wrapper and `className` by injecting it insi
 // pages/_app.js
 import { Inter } from '@next/font/google'
 
-const inter = Inter()
+const inter = Inter({ subsets: ['latin'] })
 
 export default function MyApp({ Component, pageProps }) {
   return (
@@ -104,7 +106,7 @@ To use the font on a single page, add it to the specific page as shown below:
 // pages/index.js
 import { Inter } from '@next/font/google'
 
-const inter = Inter()
+const inter = Inter({ subsets: ['latin'] })
 
 export default function Home() {
   return (
