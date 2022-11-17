@@ -91,11 +91,25 @@ describe('@next/font/google loader', () => {
         },
         'https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,100..900,0..100,0..1;1,9..144,100..900,0..100,0..1&display=optional',
       ],
-
       [
         'Poppins',
         { weight: ['900', '400', '100'] },
         'https://fonts.googleapis.com/css2?family=Poppins:wght@100;400;900&display=optional',
+      ],
+      [
+        'Nabla',
+        {},
+        'https://fonts.googleapis.com/css2?family=Nabla&display=optional',
+      ],
+      [
+        'Nabla',
+        { axes: ['EDPT', 'EHLT'] },
+        'https://fonts.googleapis.com/css2?family=Nabla:EDPT,EHLT@0..200,0..24&display=optional',
+      ],
+      [
+        'Ballet',
+        {},
+        'https://fonts.googleapis.com/css2?family=Ballet&display=optional',
       ],
     ])('%s', async (functionName: string, data: any, url: string) => {
       fetch.mockResolvedValue({

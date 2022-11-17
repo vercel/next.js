@@ -229,6 +229,9 @@ export function getDefineEnv({
     'process.env.__NEXT_OPTIMISTIC_CLIENT_CACHE': JSON.stringify(
       config.experimental.optimisticClientCache
     ),
+    'process.env.__NEXT_MIDDLEWARE_PREFETCH': JSON.stringify(
+      config.experimental.middlewarePrefetch
+    ),
     'process.env.__NEXT_CROSS_ORIGIN': JSON.stringify(config.crossOrigin),
     'process.browser': JSON.stringify(isClient),
     'process.env.__NEXT_TEST_MODE': JSON.stringify(
