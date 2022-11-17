@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { graphql } from '../gql'
 import { grafbase } from '../lib/grafbase'
 
+export const revalidate = 0
+
 const GetAllPostsDocument = graphql(/* GraphQL */ `
   query GetAllPosts($first: Int!) {
     postCollection(first: $first) {
