@@ -1469,11 +1469,7 @@ jobs:
       TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
       TURBO_REMOTE_ONLY: 'true'
     steps:
-      - uses: actions/cache@v3
-        id: restore-build
-        with:
-          path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}
+      - uses: actions/checkout@v3
 
       - name: Setup node
         uses: actions/setup-node@v3
