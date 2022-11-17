@@ -183,6 +183,12 @@ const nextDev: cliCommand = async (argv) => {
         await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, undefined, true)
       ) as NextConfig
 
+      if (typeof rawNextConfig === 'function') {
+        rawNextConfig = (rawNextConfig as any)(PHASE_DEVELOPMENT_SERVER, {
+          defaultConfig,
+        })
+      }
+
       const checkUnsupportedCustomConfig = (
         configKey = '',
         parentUserConfig: any,

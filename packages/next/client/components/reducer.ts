@@ -164,7 +164,6 @@ function fillCacheWithNewSubTreeData(
   const existingChildCacheNode = existingChildSegmentMap.get(segmentForCache)
   let childCacheNode = childSegmentMap.get(segmentForCache)
 
-  // In case of last segment start the fetch at this level and don't copy further down.
   if (isLastEntry) {
     if (
       !childCacheNode ||
@@ -193,7 +192,7 @@ function fillCacheWithNewSubTreeData(
         childCacheNode,
         existingChildCacheNode,
         flightDataPath[2],
-        /* flightDataPath[4] */ undefined
+        flightDataPath[4]
       )
 
       childSegmentMap.set(segmentForCache, childCacheNode)
@@ -309,12 +308,20 @@ function fillCacheWithPrefetchedSubTreeData(
 
   if (isLastEntry) {
     if (!existingChildCacheNode) {
-      existingChildSegmentMap.set(segmentForCache, {
+      const childCacheNode: CacheNode = {
         status: CacheStates.READY,
         data: null,
         subTreeData: flightDataPath[3],
         parallelRoutes: new Map(),
-      })
+      }
+
+      fillLazyItemsTillLeafWithHead(
+        childCacheNode,
+        existingChildCacheNode,
+        flightDataPath[2],
+        flightDataPath[4]
+      )
+      existingChildSegmentMap.set(segmentForCache, childCacheNode)
     }
 
     return
@@ -997,7 +1004,6 @@ function clientReducer(
       const flightDataPath = flightData[0]
 
       // The one before last item is the router state tree patch
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const [treePatch, subTreeData, head] = flightDataPath.slice(-3)
 
       // Path without the last segment, router state, and the subTreeData
@@ -1027,6 +1033,7 @@ function clientReducer(
 
       if (flightDataPath.length === 3) {
         cache.subTreeData = subTreeData
+        fillLazyItemsTillLeafWithHead(cache, state.cache, treePatch, head)
       } else {
         // Copy subTreeData for the root node of the cache.
         cache.subTreeData = state.cache.subTreeData
@@ -1124,7 +1131,6 @@ function clientReducer(
 
       // Slices off the last segment (which is at -4) as it doesn't exist in the tree yet
       const flightSegmentPath = flightDataPath.slice(0, -4)
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const [treePatch, subTreeData, head] = flightDataPath.slice(-3)
 
       const newTree = applyRouterStatePatchToTree(
@@ -1152,6 +1158,7 @@ function clientReducer(
       // Root refresh
       if (flightDataPath.length === 3) {
         cache.subTreeData = subTreeData
+        fillLazyItemsTillLeafWithHead(cache, state.cache, treePatch, head)
       } else {
         // Copy subTreeData for the root node of the cache.
         cache.subTreeData = state.cache.subTreeData
@@ -1276,7 +1283,7 @@ function clientReducer(
       }
 
       // Given the path can only have two items the items are only the router state and subTreeData for the root.
-      const [treePatch, subTreeData] = flightDataPath
+      const [treePatch, subTreeData, head] = flightDataPath
       const newTree = applyRouterStatePatchToTree(
         // TODO-APP: remove ''
         [''],
@@ -1302,6 +1309,7 @@ function clientReducer(
 
       // Set subTreeData for the root node of the cache.
       cache.subTreeData = subTreeData
+      fillLazyItemsTillLeafWithHead(cache, state.cache, treePatch, head)
 
       return {
         // Set href, this doesn't reuse the state.canonicalUrl as because of concurrent rendering the href might change between dispatching and applying.
@@ -1334,8 +1342,7 @@ function clientReducer(
       const flightDataPath = flightData[0]
 
       // The one before last item is the router state tree patch
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const [treePatch, subTreeData, head] = flightDataPath.slice(-3)
+      const [treePatch, subTreeData] = flightDataPath.slice(-3)
 
       // TODO-APP: Verify if `null` can't be returned from user code.
       // If subTreeData is null the prefetch did not provide a component tree.
