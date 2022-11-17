@@ -45,7 +45,7 @@ interface IEntry {
       : `default: PageComponent`
   }
   config?: {}
-  generateStaticParams?: (params?: PageParams) => Promise<any[]>
+  generateStaticParams?: (params?: PageParams) => any[] | Promise<any[]>
   revalidate?: RevalidateRange<TEntry> | false
   dynamic?: 'auto' | 'force-dynamic' | 'error' | 'force-static'
   dynamicParams?: boolean

@@ -109,6 +109,37 @@ type AppRouterProps = {
   assetPrefix: string
 }
 
+function findHeadInCache(
+  cache: CacheNode,
+  parallelRoutes: FlightRouterState[1]
+): React.ReactNode {
+  const isLastItem = Object.keys(parallelRoutes).length === 0
+  if (isLastItem) {
+    return cache.head
+  }
+  for (const key in parallelRoutes) {
+    const [segment, childParallelRoutes] = parallelRoutes[key]
+    const childSegmentMap = cache.parallelRoutes.get(key)
+    if (!childSegmentMap) {
+      continue
+    }
+
+    const cacheKey = Array.isArray(segment) ? segment[1] : segment
+
+    const cacheNode = childSegmentMap.get(cacheKey)
+    if (!cacheNode) {
+      continue
+    }
+
+    const item = findHeadInCache(cacheNode, childParallelRoutes)
+    if (item) {
+      return item
+    }
+  }
+
+  return undefined
+}
+
 /**
  * The global router that wraps the application components.
  */
@@ -136,7 +167,8 @@ function Router({
         // location.href is read as the initial value for canonicalUrl in the browser
         // This is safe to do as canonicalUrl can't be rendered, it's only used to control the history updates in the useEffect further down in this file.
         typeof window !== 'undefined'
-          ? createHrefFromUrl(new URL(window.location.href))
+          ? // window.location does not have the same type as URL but has all the fields createHrefFromUrl needs.
+            createHrefFromUrl(window.location as unknown as URL)
           : initialCanonicalUrl,
     }
   }, [children, initialCanonicalUrl, initialTree])
@@ -145,6 +177,10 @@ function Router({
     dispatch,
     sync,
   ] = useReducerWithReduxDevtools(reducer, initialState)
+
+  const head = useMemo(() => {
+    return findHeadInCache(cache, tree[1])
+  }, [cache, tree])
 
   useEffect(() => {
     // Ensure initialParallelRoutes is cleaned up from memory once it's used.
@@ -180,7 +216,7 @@ function Router({
         previousTree,
         overrideCanonicalUrl,
         cache: {
-          status: CacheStates.LAZYINITIALIZED,
+          status: CacheStates.LAZY_INITIALIZED,
           data: null,
           subTreeData: null,
           parallelRoutes: new Map(),
@@ -206,7 +242,7 @@ function Router({
         forceOptimisticNavigation,
         navigateType,
         cache: {
-          status: CacheStates.LAZYINITIALIZED,
+          status: CacheStates.LAZY_INITIALIZED,
           data: null,
           subTreeData: null,
           parallelRoutes: new Map(),
@@ -268,7 +304,7 @@ function Router({
 
             // TODO-APP: revisit if this needs to be passed.
             cache: {
-              status: CacheStates.LAZYINITIALIZED,
+              status: CacheStates.LAZY_INITIALIZED,
               data: null,
               subTreeData: null,
               parallelRoutes: new Map(),
@@ -356,6 +392,13 @@ function Router({
     }
   }, [onPopState])
 
+  const content = (
+    <>
+      {head || initialHead}
+      {cache.subTreeData}
+    </>
+  )
+
   return (
     <PathnameContext.Provider value={pathname}>
       <SearchParamsContext.Provider value={searchParams}>
@@ -377,15 +420,9 @@ function Router({
               }}
             >
               {HotReloader ? (
-                <HotReloader assetPrefix={assetPrefix}>
-                  {initialHead}
-                  {cache.subTreeData}
-                </HotReloader>
+                <HotReloader assetPrefix={assetPrefix}>{content}</HotReloader>
               ) : (
-                <>
-                  {initialHead}
-                  {cache.subTreeData}
-                </>
+                content
               )}
             </LayoutRouterContext.Provider>
           </AppRouterContext.Provider>

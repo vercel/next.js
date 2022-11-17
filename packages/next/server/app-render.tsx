@@ -59,6 +59,24 @@ function preloadComponent(Component: any, props: any) {
   }
   try {
     let result = Component(props)
+    if (result && result.then) {
+      result = result
+        .then((res: any) => {
+          return { success: res }
+        })
+        .catch((err: Error) => {
+          return { error: err }
+        })
+      return async () => {
+        const res = await result
+        if (res.error) {
+          throw res.error
+        }
+        if (res.success) {
+          return res.success
+        }
+      }
+    }
     return function () {
       // We know what this component will render already.
       return result
@@ -498,10 +516,11 @@ export type FlightDataPath =
   // Looks somewhat like this
   | [
       // Holds full path to the segment.
-      ...FlightSegmentPath,
+      ...FlightSegmentPath[],
       /* segment of the rendered slice: */ Segment,
       /* treePatch */ FlightRouterState,
-      /* subTreeData: */ React.ReactNode | null // Can be null during prefetch if there's no loading component
+      /* subTreeData: */ React.ReactNode | null, // Can be null during prefetch if there's no loading component
+      /* head */ React.ReactNode | null
     ]
 
 /**
@@ -1363,6 +1382,7 @@ export async function renderToHTMLOrFlight(
         isFirst,
         flightRouterState,
         parentRendered,
+        rscPayloadHead,
       }: {
         createSegmentPath: CreateSegmentPath
         loaderTreeToFilter: LoaderTree
@@ -1370,6 +1390,7 @@ export async function renderToHTMLOrFlight(
         isFirst: boolean
         flightRouterState?: FlightRouterState
         parentRendered?: boolean
+        rscPayloadHead: React.ReactNode
       }): Promise<FlightDataPath> => {
         const [segment, parallelRoutes] = loaderTreeToFilter
         const parallelRoutesKeys = Object.keys(parallelRoutes)
@@ -1425,6 +1446,9 @@ export async function renderToHTMLOrFlight(
                     )
                   ).Component
                 ),
+            isPrefetch && !Boolean(loaderTreeToFilter[2].loading) ? null : (
+              <>{rscPayloadHead}</>
+            ),
           ]
         }
 
@@ -1446,6 +1470,7 @@ export async function renderToHTMLOrFlight(
               flightRouterState && flightRouterState[1][parallelRouteKey],
             parentRendered: parentRendered || renderComponentsOnThisLevel,
             isFirst: false,
+            rscPayloadHead,
           })
 
           if (typeof path[path.length - 1] !== 'string') {
@@ -1456,6 +1481,7 @@ export async function renderToHTMLOrFlight(
         return [actualSegment]
       }
 
+      const rscPayloadHead = await resolveHead(loaderTree, {})
       // Flight data that is going to be passed to the browser.
       // Currently a single item array but in the future multiple patches might be combined in a single request.
       const flightData: FlightData = [
@@ -1467,6 +1493,7 @@ export async function renderToHTMLOrFlight(
             parentParams: {},
             flightRouterState: providedFlightRouterState,
             isFirst: true,
+            rscPayloadHead,
           })
         ).slice(1),
       ]
