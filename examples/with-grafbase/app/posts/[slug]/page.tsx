@@ -1,8 +1,6 @@
 import { graphql } from '../../../gql'
 import { grafbase } from '../../../lib/grafbase'
 
-export const revalidate = 3600
-
 const GetPostBySlugDocument = graphql(/* GraphQL */ `
   query GetPostBySlug($slug: String!) {
     post(by: { slug: $slug }) {
