@@ -66,7 +66,7 @@ export async function findPageFile(
 // Determine if the file is leaf node page file under layouts,
 // The filename should start with 'page' and end with one of the allowed extensions
 export function isLayoutsLeafPage(filePath: string, pageExtensions: string[]) {
-  return new RegExp(`(^page|/page)\\.(?:${pageExtensions.join('|')})$`).test(
-    filePath
-  )
+  return new RegExp(
+    `(^page|[\\/]page)\\.(?:${pageExtensions.join('|')})$`
+  ).test(filePath)
 }
