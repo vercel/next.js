@@ -1054,6 +1054,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       ) &&
       (isSSG || hasServerProps)
 
+    // when we are handling a middleware prefetch and it doesn't
+    // resolve to a static data route we bail early to avoid
+    // unexpected SSR invocations
+    if (!isSSG && req.headers['x-middleware-prefetch']) {
+      res.setHeader('x-middleware-skip', '1')
+      res.body('{}').send()
+      return null
+    }
+
     if (isAppPath) {
       res.setHeader('vary', RSC_VARY_HEADER)
 
