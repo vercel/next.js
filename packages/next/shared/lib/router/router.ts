@@ -2097,13 +2097,13 @@ export default class Router implements BaseRouter {
             data?.json && !wasBailedPrefetch
               ? data
               : await fetchNextData({
-                  dataHref:
-                    data?.dataHref ||
-                    this.pageLoader.getDataHref({
-                      href: formatWithValidation({ pathname, query }),
-                      asPath: resolvedAs,
-                      locale,
-                    }),
+                  dataHref: data?.json
+                    ? data?.dataHref
+                    : this.pageLoader.getDataHref({
+                        href: formatWithValidation({ pathname, query }),
+                        asPath: resolvedAs,
+                        locale,
+                      }),
                   isServerRender: this.isSsr,
                   parseJSON: true,
                   inflightCache: wasBailedPrefetch ? {} : this.sdc,
@@ -2272,6 +2272,7 @@ export default class Router implements BaseRouter {
     let parsed = parseRelativeUrl(url)
 
     let { pathname, query } = parsed
+    const originalPathname = pathname
 
     if (process.env.__NEXT_I18N_SUPPORT) {
       if (options.locale === false) {
@@ -2320,10 +2321,13 @@ export default class Router implements BaseRouter {
       if (rewritesResult.externalDest) {
         return
       }
-      resolvedAs = removeLocale(
-        removeBasePath(rewritesResult.asPath),
-        this.locale
-      )
+
+      if (!isMiddlewareMatch) {
+        resolvedAs = removeLocale(
+          removeBasePath(rewritesResult.asPath),
+          this.locale
+        )
+      }
 
       if (rewritesResult.matchedPage && rewritesResult.resolvedHref) {
         // if this directly matches a page we need to update the href to
@@ -2365,7 +2369,10 @@ export default class Router implements BaseRouter {
             fetchData: () =>
               fetchNextData({
                 dataHref: this.pageLoader.getDataHref({
-                  href: formatWithValidation({ pathname, query }),
+                  href: formatWithValidation({
+                    pathname: originalPathname,
+                    query,
+                  }),
                   skipInterpolation: true,
                   asPath: resolvedAs,
                   locale,
@@ -2408,13 +2415,13 @@ export default class Router implements BaseRouter {
       this.pageLoader._isSsg(route).then((isSsg) => {
         return isSsg
           ? fetchNextData({
-              dataHref:
-                data?.dataHref ||
-                this.pageLoader.getDataHref({
-                  href: url,
-                  asPath: resolvedAs,
-                  locale: locale,
-                }),
+              dataHref: data?.json
+                ? data?.dataHref
+                : this.pageLoader.getDataHref({
+                    href: url,
+                    asPath: resolvedAs,
+                    locale: locale,
+                  }),
               isServerRender: false,
               parseJSON: true,
               inflightCache: this.sdc,
