@@ -127,8 +127,8 @@ export type ImageProps = Omit<
    */
   lazyRoot?: string
 } & (
-  | { width?: SafeNumber; height?: SafeNumber; fill?: never }
-  | { width?: never; height?: never; fill?: boolean }
+  | { fill?: never; width?: SafeNumber; height?: SafeNumber }
+  | { fill?: boolean; width?: never; height?: never }
 )
 
 type ImageElementProps = Omit<ImageProps, 'src' | 'alt' | 'loader'> & {
