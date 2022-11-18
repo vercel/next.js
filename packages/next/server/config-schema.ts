@@ -335,6 +335,9 @@ const configSchema = {
           minLength: 1,
           type: 'string',
         },
+        ouptutFileTracingIgnores: {
+          type: 'array',
+        },
         pageEnv: {
           type: 'boolean',
         },

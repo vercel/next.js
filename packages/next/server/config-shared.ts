@@ -121,6 +121,7 @@ export interface ExperimentalConfig {
   fullySpecified?: boolean
   urlImports?: NonNullable<webpack.Configuration['experiments']>['buildHttp']
   outputFileTracingRoot?: string
+  ouptutFileTracingIgnores?: string[]
   modularizeImports?: Record<
     string,
     {
