@@ -7,8 +7,8 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
     && apt-get -y install --no-install-recommends wget
 
 # Install Chrome (It will also install all dependencies for chrome - that is needed for playwright)
-# RUN wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-# RUN apt-get -y install --no-install-recommends ./google-chrome-stable_current_amd64.deb
+RUN wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+RUN apt-get -y install --no-install-recommends ./google-chrome-stable_current_amd64.deb
 
 # [Optional] Uncomment if you want to install an additional version of node using nvm
 # ARG EXTRA_NODE_VERSION=10
