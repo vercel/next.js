@@ -60,23 +60,12 @@ function preloadComponent(Component: any, props: any) {
   }
   try {
     let result = Component(props)
-    if (result && result.then) {
-      result = result
-        .then((res: any) => {
-          return { success: res }
-        })
-        .catch((err: Error) => {
-          return { error: err }
-        })
-      return async () => {
-        const res = await result
-        if (res.error) {
-          throw res.error
-        }
-        if (res.success) {
-          return res.success
-        }
-      }
+    if (result && typeof result.then === 'function') {
+      // Catch promise rejections to prevent unhandledRejection errors
+      result.then(
+        () => {},
+        () => {}
+      )
     }
     return function () {
       // We know what this component will render already.
