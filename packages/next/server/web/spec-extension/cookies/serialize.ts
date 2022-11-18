@@ -41,7 +41,11 @@ export function parseCookieString(cookie: string): Map<string, string> {
   for (const pair of cookie.split(/; */)) {
     if (!pair) continue
     const [key, value] = pair.split('=', 2)
-    map.set(key, decodeURIComponent(value ?? 'true'))
+    try {
+      map.set(key, decodeURIComponent(value ?? 'true'))
+    } catch (err) {
+      // ignore invalid encoded values
+    }
   }
 
   return map
