@@ -6,6 +6,7 @@ export interface StaticGenerationStore {
   revalidate?: number
   fetchRevalidate?: number
   isStaticGeneration?: boolean
+  forceStatic?: boolean
 }
 
 export let staticGenerationAsyncStorage:
