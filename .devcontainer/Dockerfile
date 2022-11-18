@@ -23,6 +23,3 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
 
 # Enable pnpm
 RUN corepack enable pnpm
-
-# Install playwright browsers
-RUN npx playwright install
