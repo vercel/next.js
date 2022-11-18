@@ -1055,9 +1055,11 @@ export default async function getBaseWebpackConfig(
   const crossOrigin = config.crossOrigin
   const looseEsmExternals = config.experimental?.esmExternals === 'loose'
 
-  const optOutBundlingPackages = EXTERNAL_PACKAGES.concat(
-    ...(config.experimental.serverComponentsExternalPackages || [])
-  )
+  const optOutBundlingPackages = config.experimental.appDir
+    ? EXTERNAL_PACKAGES.concat(
+        ...(config.experimental.serverComponentsExternalPackages || [])
+      )
+    : []
 
   let resolvedExternalPackageDirs: Map<string, string>
 
