@@ -18,6 +18,7 @@ import {
 import { useIntersection } from './use-intersection'
 import { getDomainLocale } from './get-domain-locale'
 import { addBasePath } from './add-base-path'
+import { getSegmentParam } from '../server/utils'
 
 type Url = string | UrlObject
 type RequiredKeys<T> = {
@@ -396,6 +397,31 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
 
     // We're in the app directory if there is no pages router.
     const isAppRouter = !pagesRouter
+
+    if (process.env.NODE_ENV !== 'production') {
+      if (
+        isAppRouter &&
+        typeof hrefProp === 'object' &&
+        typeof hrefProp.pathname === 'string' &&
+        hrefProp.query &&
+        typeof hrefProp.query === 'object'
+      ) {
+        const { pathname, query } = hrefProp
+
+        const dynamicSegments: string[] = pathname
+          .split('/')
+          .map((segment: string) => getSegmentParam(segment)?.param)
+          .filter(Boolean) as string[]
+
+        for (const dynamicSegment of dynamicSegments) {
+          if (query[dynamicSegment]) {
+            throw new Error(
+              `The \`/app\` router does not support \`href\` interpolation, found pathname \`${pathname}\` using query \`${dynamicSegment}\`. Read more: https://nextjs.org/docs/messages/app-dir-href-interpolation`
+            )
+          }
+        }
+      }
+    }
 
     const { href, as } = React.useMemo(() => {
       if (!pagesRouter) {
