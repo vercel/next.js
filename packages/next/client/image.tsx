@@ -374,6 +374,7 @@ const ImageElement = ({
   fill,
   placeholder,
   loading,
+  priority,
   srcString,
   config,
   unoptimized,
@@ -395,6 +396,8 @@ const ImageElement = ({
         width={widthInt}
         height={heightInt}
         decoding="async"
+        // https://web.dev/priority-hints/#increase-the-priority-of-the-lcp-image
+        fetchPriority={priority ? "high" : rest.fetchPriority}
         data-nimg={fill ? 'fill' : '1'}
         className={className}
         // @ts-ignore - TODO: upgrade to `@types/react@17`
