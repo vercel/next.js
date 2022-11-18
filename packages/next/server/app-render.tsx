@@ -43,6 +43,7 @@ import {
   NEXT_ROUTER_STATE_TREE,
   RSC,
 } from '../client/components/app-router-headers'
+import { type DynamicParamTypes, getSegmentParam } from './utils'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -443,7 +444,6 @@ function createServerComponentRenderer(
   }
 }
 
-type DynamicParamTypes = 'catchall' | 'optional-catchall' | 'dynamic'
 // c = catchall
 // oc = optional catchall
 // d = dynamic
@@ -537,37 +537,6 @@ export type ChildProp = {
    */
   current: React.ReactNode | null
   segment: Segment
-}
-
-/**
- * Parse dynamic route segment to type of parameter
- */
-function getSegmentParam(segment: string): {
-  param: string
-  type: DynamicParamTypes
-} | null {
-  if (segment.startsWith('[[...') && segment.endsWith(']]')) {
-    return {
-      type: 'optional-catchall',
-      param: segment.slice(5, -2),
-    }
-  }
-
-  if (segment.startsWith('[...') && segment.endsWith(']')) {
-    return {
-      type: 'catchall',
-      param: segment.slice(4, -1),
-    }
-  }
-
-  if (segment.startsWith('[') && segment.endsWith(']')) {
-    return {
-      type: 'dynamic',
-      param: segment.slice(1, -1),
-    }
-  }
-
-  return null
 }
 
 /**
