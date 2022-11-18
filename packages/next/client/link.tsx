@@ -375,7 +375,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       onClick,
       onMouseEnter: onMouseEnterProp,
       onTouchStart: onTouchStartProp,
-      legacyBehavior = false,
+      legacyBehavior = process.env.__NEXT_NEW_LINK_BEHAVIOR === false,
       ...restProps
     } = props
 
