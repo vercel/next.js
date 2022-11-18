@@ -37,11 +37,11 @@ npm install next@latest
 
 ```typescript
 // middleware.ts
-import { NextResponse } from 'next/server'
+import { NextMiddleware, NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 // This function can be marked `async` if using `await` inside
-export function middleware(request: NextRequest) {
+export const middleware: NextMiddleware = (request) => {
   return NextResponse.redirect(new URL('/about-2', request.url))
 }
 
@@ -121,10 +121,10 @@ Read more details on [path-to-regexp](https://github.com/pillarjs/path-to-regexp
 ```typescript
 // middleware.ts
 
-import { NextResponse } from 'next/server'
+import { NextMiddleware, NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-export function middleware(request: NextRequest) {
+export const middleware: NextMiddleware = (request) => {
   if (request.nextUrl.pathname.startsWith('/about')) {
     return NextResponse.rewrite(new URL('/about-2', request.url))
   }
@@ -156,10 +156,10 @@ Cookies are regular headers. On a `Request`, they are stored in the `Cookie` hea
 
 ```typescript
 // middleware.ts
-import { NextResponse } from 'next/server'
+import { NextMiddleware, NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-export function middleware(request: NextRequest) {
+export const middleware: NextMiddleware = (request) => {
   // Assume a "Cookie:nextjs=fast" header to be present on the incoming request
   // Getting cookies from the request using the `RequestCookies` API
   const cookie = request.cookies.get('nextjs')?.value
@@ -194,10 +194,10 @@ You can set request and response headers using the `NextResponse` API (setting _
 ```ts
 // middleware.ts
 
-import { NextResponse } from 'next/server'
+import { NextMiddleware, NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-export function middleware(request: NextRequest) {
+export const middleware: NextMiddleware = (request) => {
   // Clone the request headers and set a new header `x-hello-from-middleware1`
   const requestHeaders = new Headers(request.headers)
   requestHeaders.set('x-hello-from-middleware1', 'hello')
@@ -237,7 +237,7 @@ Once enabled, you can provide a response from middleware using the `Response` or
 
 ```ts
 // middleware.ts
-import { NextRequest, NextResponse } from 'next/server'
+import { NextMiddleware, NextRequest, NextResponse } from 'next/server'
 import { isAuthenticated } from '@lib/auth'
 
 // Limit the middleware to paths starting with `/api/`
@@ -245,7 +245,7 @@ export const config = {
   matcher: '/api/:function*',
 }
 
-export function middleware(request: NextRequest) {
+export const middleware: NextMiddleware = (request) => {
   // Call our authentication function to check the request
   if (!isAuthenticated(request)) {
     // Respond with JSON indicating an error message
