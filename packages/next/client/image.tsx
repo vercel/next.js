@@ -97,9 +97,6 @@ export type ImageProps = Omit<
 > & {
   src: string | StaticImport
   alt: string
-  width?: SafeNumber
-  height?: SafeNumber
-  fill?: boolean
   loader?: ImageLoader
   quality?: SafeNumber
   priority?: boolean
@@ -129,7 +126,10 @@ export type ImageProps = Omit<
    * @deprecated This prop does not do anything.
    */
   lazyRoot?: string
-}
+} & (
+  | { width?: SafeNumber; height?: SafeNumber; fill?: never }
+  | { width?: never; height?: never; fill?: boolean }
+)
 
 type ImageElementProps = Omit<ImageProps, 'src' | 'alt' | 'loader'> & {
   srcString: string
