@@ -31,7 +31,7 @@ profile = []
 
 [dependencies]
 anyhow = "1.0.47"
-clap = { version = "4.0.18", features = ["derive"] }
+clap = { version = "4.0.18", features = ["derive", "env"] }
 console-subscriber = { version = "0.1.6", optional = true }
 futures = "0.3.21"
 mime = "0.3.16"
