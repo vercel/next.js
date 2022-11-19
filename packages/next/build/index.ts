@@ -1857,6 +1857,7 @@ export default async function build(
                 ...(!hasSsrAmpPages
                   ? ['**/next/dist/compiled/@ampproject/toolbox-optimizer/**/*']
                   : []),
+                ...(config.experimental.outputFileTracingIgnores || []),
               ]
               const ignoreFn = (pathname: string) => {
                 return isMatch(pathname, ignores, { contains: true, dot: true })

@@ -7,8 +7,11 @@ export function staticGenerationBailout(reason: string) {
       ? staticGenerationAsyncStorage?.getStore()
       : staticGenerationAsyncStorage
 
+  if (staticGenerationStore?.forceStatic) {
+    return true
+  }
+
   if (staticGenerationStore?.isStaticGeneration) {
-    // TODO: honor the dynamic: 'force-static'
     if (staticGenerationStore) {
       // @ts-ignore
       staticGenerationStore.fetchRevalidate = false

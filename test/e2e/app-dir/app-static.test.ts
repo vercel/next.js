@@ -53,6 +53,12 @@ describe('app-dir static/dynamic handling', () => {
         'blog/tim/first-post.rsc',
         'dynamic-no-gen-params-ssr/[slug]/page.js',
         'dynamic-no-gen-params/[slug]/page.js',
+        'force-static/[slug]/page.js',
+        'force-static/first.html',
+        'force-static/first.rsc',
+        'force-static/page.js',
+        'force-static/second.html',
+        'force-static/second.rsc',
         'hooks/use-pathname/[slug]/page.js',
         'hooks/use-pathname/slug.html',
         'hooks/use-pathname/slug.rsc',
@@ -121,6 +127,16 @@ describe('app-dir static/dynamic handling', () => {
           initialRevalidateSeconds: false,
           srcRoute: '/hooks/use-pathname/[slug]',
         },
+        '/force-static/first': {
+          dataRoute: '/force-static/first.rsc',
+          initialRevalidateSeconds: false,
+          srcRoute: '/force-static/[slug]',
+        },
+        '/force-static/second': {
+          dataRoute: '/force-static/second.rsc',
+          initialRevalidateSeconds: false,
+          srcRoute: '/force-static/[slug]',
+        },
       })
       expect(manifest.dynamicRoutes).toEqual({
         '/blog/[author]/[slug]': {
@@ -141,9 +157,93 @@ describe('app-dir static/dynamic handling', () => {
           fallback: null,
           routeRegex: '^\\/hooks\\/use\\-pathname\\/([^\\/]+?)(?:\\/)?$',
         },
+        '/force-static/[slug]': {
+          dataRoute: '/force-static/[slug].rsc',
+          dataRouteRegex: '^\\/force\\-static\\/([^\\/]+?)\\.rsc$',
+          fallback: null,
+          routeRegex: '^\\/force\\-static\\/([^\\/]+?)(?:\\/)?$',
+        },
       })
     })
   }
+
+  it('should force SSR correctly for headers usage', async () => {
+    const res = await fetchViaHTTP(next.url, '/force-static', undefined, {
+      headers: {
+        Cookie: 'myCookie=cookieValue',
+        another: 'header',
+      },
+    })
+    expect(res.status).toBe(200)
+
+    const html = await res.text()
+    const $ = cheerio.load(html)
+
+    expect(JSON.parse($('#headers').text())).toIncludeAllMembers([
+      'cookie',
+      'another',
+    ])
+    expect(JSON.parse($('#cookies').text())).toEqual([
+      {
+        name: 'myCookie',
+        value: 'cookieValue',
+      },
+    ])
+
+    const firstTime = $('#now').text()
+
+    if (!(global as any).isNextDev) {
+      const res2 = await fetchViaHTTP(next.url, '/force-static')
+      expect(res2.status).toBe(200)
+
+      const $2 = cheerio.load(await res2.text())
+      expect(firstTime).not.toBe($2('#now').text())
+    }
+  })
+
+  it('should honor dynamic = "force-static" correctly', async () => {
+    const res = await fetchViaHTTP(next.url, '/force-static/first')
+    expect(res.status).toBe(200)
+
+    const html = await res.text()
+    const $ = cheerio.load(html)
+
+    expect(JSON.parse($('#params').text())).toEqual({ slug: 'first' })
+    expect(JSON.parse($('#headers').text())).toEqual([])
+    expect(JSON.parse($('#cookies').text())).toEqual([])
+
+    const firstTime = $('#now').text()
+
+    if (!(global as any).isNextDev) {
+      const res2 = await fetchViaHTTP(next.url, '/force-static/first')
+      expect(res2.status).toBe(200)
+
+      const $2 = cheerio.load(await res2.text())
+      expect(firstTime).toBe($2('#now').text())
+    }
+  })
+
+  it('should honor dynamic = "force-static" correctly (lazy)', async () => {
+    const res = await fetchViaHTTP(next.url, '/force-static/random')
+    expect(res.status).toBe(200)
+
+    const html = await res.text()
+    const $ = cheerio.load(html)
+
+    expect(JSON.parse($('#params').text())).toEqual({ slug: 'random' })
+    expect(JSON.parse($('#headers').text())).toEqual([])
+    expect(JSON.parse($('#cookies').text())).toEqual([])
+
+    const firstTime = $('#now').text()
+
+    if (!(global as any).isNextDev) {
+      const res2 = await fetchViaHTTP(next.url, '/force-static/random')
+      expect(res2.status).toBe(200)
+
+      const $2 = cheerio.load(await res2.text())
+      expect(firstTime).toBe($2('#now').text())
+    }
+  })
 
   it('should handle dynamicParams: false correctly', async () => {
     const validParams = ['tim', 'seb', 'styfle']
