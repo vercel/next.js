@@ -11,7 +11,11 @@
     "react-dom": "^18.2.0"
   },
   "devDependencies": {
-    "sass": "^1.32.8",
-    "@styled-jsx/plugin-sass": "^3.0.0"
+    "@styled-jsx/plugin-sass": "^4.0.2",
+    "@types/node": "^18.11.9",
+    "@types/react": "^18.0.25",
+    "@types/react-dom": "^18.0.9",
+    "sass": "^1.56.1",
+    "typescript": "^4.9.3"
   }
 }
