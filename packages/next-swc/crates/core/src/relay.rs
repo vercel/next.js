@@ -107,8 +107,10 @@ impl<'a> Relay<'a> {
 
         if let Some(artifact_directory) = &self.config.artifact_directory {
             Ok(self.root_dir.join(artifact_directory).join(filename))
-        } else if self.pages_dir.is_some()
-            && real_file_name.starts_with(self.pages_dir.as_ref().unwrap())
+        } else if self
+            .pages_dir
+            .as_ref()
+            .map_or(false, |pages_dir| real_file_name.starts_with(pages_dir))
         {
             Err(BuildRequirePathError::ArtifactDirectoryExpected {
                 file_name: real_file_name.display().to_string(),
