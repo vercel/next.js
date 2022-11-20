@@ -11,6 +11,7 @@ env:
   TURBO_VERSION: 1.6.3
   RUST_TOOLCHAIN: nightly-2022-11-04
   PNPM_VERSION: 7.3.0
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
 
 jobs:
   check-examples:
@@ -1280,13 +1281,12 @@ jobs:
             build: |
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" "pnpm@${PNPM_VERSION}"
               turbo run build-native-no-plugin -- --release --target aarch64-pc-windows-msvc --cargo-flags=--no-default-features
-    if: ${{ needs.build.outputs.isRelease == 'true' || (needs.build.outputs.swcChange == 'yup' && secrets.TURBO_TOKEN) }}
+    if: ${{ needs.build.outputs.isRelease == 'true' || (needs.build.outputs.swcChange == 'yup' && env.TURBO_TOKEN) }}
     needs: build
     name: stable - ${{ matrix.settings.target }} - node@16
     runs-on: ${{ matrix.settings.host }}
     env:
       TURBO_TEAM: 'vercel'
-      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
       TURBO_REMOTE_ONLY: 'true'
     steps:
       # https://github.com/actions/virtual-environments/issues/1187
@@ -1373,13 +1373,12 @@ jobs:
           path: packages/next-swc/native/next-swc.*.node
 
   build-native-freebsd:
-    if: ${{ needs.build.outputs.isRelease == 'true' || (needs.build.outputs.swcChange == 'yup' && secrets.TURBO_TOKEN) }}
+    if: ${{ needs.build.outputs.isRelease == 'true' || (needs.build.outputs.swcChange == 'yup' && env.TURBO_TOKEN) }}
     needs: build
     name: stable - x86_64-unknown-freebsd - node@16
     runs-on: macos-12
     env:
       TURBO_TEAM: 'vercel'
-      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
       TURBO_REMOTE_ONLY: 'true'
     steps:
       - name: tune mac network
@@ -1465,14 +1464,13 @@ jobs:
 
   build-wasm:
     needs: build
-    if: ${{ needs.build.outputs.isRelease == 'true' || (needs.build.outputs.swcChange == 'yup' && secrets.TURBO_TOKEN) }}
+    if: ${{ needs.build.outputs.isRelease == 'true' || (needs.build.outputs.swcChange == 'yup' && env.TURBO_TOKEN) }}
     strategy:
       matrix:
         target: [web, nodejs]
     runs-on: macos-latest
     env:
       TURBO_TEAM: 'vercel'
-      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
       TURBO_REMOTE_ONLY: 'true'
     steps:
       - uses: actions/checkout@v3
