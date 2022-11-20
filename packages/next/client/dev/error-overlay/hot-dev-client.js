@@ -367,8 +367,11 @@ function tryApplyUpdates(onBeforeHotUpdate, onHotUpdateSuccess) {
   module.hot
     .check(/* autoApply */ false)
     .then((updatedModules) => {
+      if (!updatedModules) {
+        return updatedModules
+      }
       if (typeof onBeforeHotUpdate === 'function') {
-        const hasUpdates = Boolean(updatedModules && updatedModules.length)
+        const hasUpdates = Boolean(updatedModules.length)
         onBeforeHotUpdate(hasUpdates)
       }
       return module.hot.apply()
