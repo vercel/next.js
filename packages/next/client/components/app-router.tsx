@@ -168,7 +168,7 @@ function Router({
         // This is safe to do as canonicalUrl can't be rendered, it's only used to control the history updates in the useEffect further down in this file.
         typeof window !== 'undefined'
           ? // window.location does not have the same type as URL but has all the fields createHrefFromUrl needs.
-            createHrefFromUrl(window.location as unknown as URL)
+            createHrefFromUrl(window.location)
           : initialCanonicalUrl,
     }
   }, [children, initialCanonicalUrl, initialTree])
