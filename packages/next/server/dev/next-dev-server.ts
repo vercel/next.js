@@ -277,12 +277,26 @@ export default class DevServer extends Server {
       const app = this.appDir ? [this.appDir] : []
       const directories = [...pages, ...app]
 
-      const files = this.pagesDir
-        ? getPossibleMiddlewareFilenames(
+      const files: string[] = []
+
+      if (this.pagesDir) {
+        files.push(
+          ...getPossibleMiddlewareFilenames(
             pathJoin(this.pagesDir, '..'),
             this.nextConfig.pageExtensions
           )
-        : []
+        )
+      }
+
+      if (this.appDir) {
+        files.push(
+          ...getPossibleMiddlewareFilenames(
+            pathJoin(this.appDir, '..'),
+            this.nextConfig.pageExtensions
+          )
+        )
+      }
+
       let nestedMiddleware: string[] = []
 
       const envFiles = [
@@ -766,6 +780,7 @@ export default class DevServer extends Server {
 
   protected async hasPage(pathname: string): Promise<boolean> {
     let normalizedPath: string
+
     try {
       normalizedPath = normalizePagePath(pathname)
     } catch (err) {
