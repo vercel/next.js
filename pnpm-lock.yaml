@@ -36,7 +36,7 @@ importers:
       '@svgr/webpack': 5.5.0
       '@swc/cli': 0.1.55
       '@swc/core': 1.2.203
-      '@swc/helpers': 0.4.11
+      '@swc/helpers': 0.4.14
       '@testing-library/react': 13.0.0
       '@types/cheerio': 0.22.16
       '@types/fs-extra': 8.1.0
@@ -199,7 +199,7 @@ importers:
       '@svgr/webpack': 5.5.0
       '@swc/cli': 0.1.55_@swc+core@1.2.203
       '@swc/core': 1.2.203
-      '@swc/helpers': 0.4.11
+      '@swc/helpers': 0.4.14
       '@testing-library/react': 13.0.0_biqbaboplfbrettd7655fr4n2y
       '@types/cheerio': 0.22.16
       '@types/fs-extra': 8.1.0
@@ -485,7 +485,7 @@ importers:
       '@next/react-refresh-utils': 13.0.5-canary.2
       '@next/swc': 13.0.5-canary.2
       '@segment/ajv-human-errors': 2.1.2
-      '@swc/helpers': 0.4.11
+      '@swc/helpers': 0.4.14
       '@taskr/clear': 1.1.0
       '@taskr/esnext': 1.1.0
       '@taskr/watch': 1.1.0
@@ -648,7 +648,7 @@ importers:
       ws: 8.2.3
     dependencies:
       '@next/env': link:../next-env
-      '@swc/helpers': 0.4.11
+      '@swc/helpers': 0.4.14
       caniuse-lite: 1.0.30001406
       postcss: 8.4.14
       styled-jsx: 5.1.0_uuaxwgga6hqycsez5ok7v2wg4i
@@ -6717,6 +6717,12 @@ packages:
 
   /@swc/helpers/0.4.11:
     resolution: {integrity: sha512-rEUrBSGIoSFuYxwBYtlUFMlE2CwGhmW+w9355/5oduSw8e5h2+Tj4UrAGNNgP9915++wj5vkQo0UuOBqOAq4nw==}
+    dependencies:
+      tslib: 2.4.0
+    dev: true
+
+  /@swc/helpers/0.4.14:
+    resolution: {integrity: sha512-4C7nX/dvpzB7za4Ql9K81xK3HPxCpHMgwTZVyf+9JQ6VUbn9jjZVN7/Nkdz/Ugzs2CSjqnL/UPXroiVBVHUWUw==}
     dependencies:
       tslib: 2.4.0
 
@@ -17352,6 +17358,7 @@ packages:
 
   /nan/2.15.0:
     resolution: {integrity: sha512-8ZtvEnA2c5aYCZYd1cvgdnU6cqwixRoYg70xPLWUws5ORTa/lnw+u4amixRS/Ac5U5mQVgp9pnlSUnbNWFaWZQ==}
+    requiresBuild: true
     dev: true
 
   /nanoid/3.1.30:
