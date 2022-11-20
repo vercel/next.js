@@ -83,6 +83,7 @@ export interface ExperimentalConfig {
   skipMiddlewareUrlNormalize?: boolean
   skipTrailingSlashRedirect?: boolean
   optimisticClientCache?: boolean
+  middlewarePrefetch?: 'strict' | 'flexible'
   legacyBrowsers?: boolean
   manualClientBasePath?: boolean
   newNextLinkBehavior?: boolean
@@ -120,6 +121,7 @@ export interface ExperimentalConfig {
   fullySpecified?: boolean
   urlImports?: NonNullable<webpack.Configuration['experiments']>['buildHttp']
   outputFileTracingRoot?: string
+  outputFileTracingIgnores?: string[]
   modularizeImports?: Record<
     string,
     {
@@ -460,7 +462,7 @@ export interface NextConfig extends Record<string, any> {
     relay?: {
       src: string
       artifactDirectory?: string
-      language?: 'typescript' | 'flow'
+      language?: 'typescript' | 'javascript' | 'flow'
     }
     removeConsole?:
       | boolean
@@ -563,6 +565,7 @@ export const defaultConfig: NextConfig = {
   swcMinify: true,
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   experimental: {
+    middlewarePrefetch: 'flexible',
     optimisticClientCache: true,
     runtime: undefined,
     manualClientBasePath: false,

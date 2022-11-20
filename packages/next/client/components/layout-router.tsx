@@ -146,7 +146,7 @@ export function InnerLayoutRouter({
     // TODO-APP: verify if this can be null based on user code
     childProp.current !== null
   ) {
-    if (childNode && childNode.status === CacheStates.LAZYINITIALIZED) {
+    if (childNode && childNode.status === CacheStates.LAZY_INITIALIZED) {
       // @ts-expect-error TODO-APP: handle changing of the type
       childNode.status = CacheStates.READY
       // @ts-expect-error TODO-APP: handle changing of the type
@@ -170,7 +170,7 @@ export function InnerLayoutRouter({
   }
 
   // When childNode is not available during rendering client-side we need to fetch it from the server.
-  if (!childNode) {
+  if (!childNode || childNode.status === CacheStates.LAZY_INITIALIZED) {
     /**
      * Router state with refetch marker added
      */
@@ -181,10 +181,17 @@ export function InnerLayoutRouter({
      * Flight data fetch kicked off during render and put into the cache.
      */
     childNodes.set(path, {
-      status: CacheStates.DATAFETCH,
+      status: CacheStates.DATA_FETCH,
       data: fetchServerResponse(new URL(url, location.origin), refetchTree),
       subTreeData: null,
-      parallelRoutes: new Map(),
+      head:
+        childNode && childNode.status === CacheStates.LAZY_INITIALIZED
+          ? childNode.head
+          : undefined,
+      parallelRoutes:
+        childNode && childNode.status === CacheStates.LAZY_INITIALIZED
+          ? childNode.parallelRoutes
+          : new Map(),
     })
     // In the above case childNode was set on childNodes, so we have to get it from the cacheNodes again.
     childNode = childNodes.get(path)

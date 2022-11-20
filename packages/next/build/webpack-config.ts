@@ -229,6 +229,9 @@ export function getDefineEnv({
     'process.env.__NEXT_OPTIMISTIC_CLIENT_CACHE': JSON.stringify(
       config.experimental.optimisticClientCache
     ),
+    'process.env.__NEXT_MIDDLEWARE_PREFETCH': JSON.stringify(
+      config.experimental.middlewarePrefetch
+    ),
     'process.env.__NEXT_CROSS_ORIGIN': JSON.stringify(config.crossOrigin),
     'process.browser': JSON.stringify(isClient),
     'process.env.__NEXT_TEST_MODE': JSON.stringify(
@@ -1990,13 +1993,15 @@ export default async function getBaseWebpackConfig(
       config.outputFileTracing &&
         (isNodeServer || isEdgeServer) &&
         !dev &&
-        new (require('./webpack/plugins/next-trace-entrypoints-plugin').TraceEntryPointsPlugin)(
+        new (require('./webpack/plugins/next-trace-entrypoints-plugin')
+          .TraceEntryPointsPlugin as typeof import('./webpack/plugins/next-trace-entrypoints-plugin').TraceEntryPointsPlugin)(
           {
             appDir: dir,
             esmExternals: config.experimental.esmExternals,
             outputFileTracingRoot: config.experimental.outputFileTracingRoot,
             appDirEnabled: hasAppDir,
             turbotrace: config.experimental.turbotrace,
+            traceIgnores: config.experimental.outputFileTracingIgnores || [],
           }
         ),
       // Moment.js is an extremely popular library that bundles large locale files

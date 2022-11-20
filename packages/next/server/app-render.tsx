@@ -43,6 +43,7 @@ import {
   NEXT_ROUTER_STATE_TREE,
   RSC,
 } from '../client/components/app-router-headers'
+import type { StaticGenerationStore } from '../client/components/static-generation-async-storage'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -59,6 +60,13 @@ function preloadComponent(Component: any, props: any) {
   }
   try {
     let result = Component(props)
+    if (result && typeof result.then === 'function') {
+      // Catch promise rejections to prevent unhandledRejection errors
+      result.then(
+        () => {},
+        () => {}
+      )
+    }
     return function () {
       // We know what this component will render already.
       return result
@@ -266,9 +274,13 @@ function patchFetch(ComponentMod: any) {
           (typeof fetchRevalidate === 'undefined' ||
             next.revalidate < fetchRevalidate)
         ) {
-          staticGenerationStore.fetchRevalidate = next.revalidate
+          const forceDynamic = staticGenerationStore.forceDynamic
 
-          if (next.revalidate === 0) {
+          if (!forceDynamic || next.revalidate !== 0) {
+            staticGenerationStore.fetchRevalidate = next.revalidate
+          }
+
+          if (!forceDynamic && next.revalidate === 0) {
             throw new DynamicServerError(
               `revalidate: ${next.revalidate} fetch ${input}${
                 pathname ? ` ${pathname}` : ''
@@ -498,10 +510,11 @@ export type FlightDataPath =
   // Looks somewhat like this
   | [
       // Holds full path to the segment.
-      ...FlightSegmentPath,
+      ...FlightSegmentPath[],
       /* segment of the rendered slice: */ Segment,
       /* treePatch */ FlightRouterState,
-      /* subTreeData: */ React.ReactNode | null // Can be null during prefetch if there's no loading component
+      /* subTreeData: */ React.ReactNode | null, // Can be null during prefetch if there's no loading component
+      /* head */ React.ReactNode | null
     ]
 
 /**
@@ -783,7 +796,7 @@ export async function renderToHTMLOrFlight(
 
   // we wrap the render in an AsyncLocalStorage context
   const wrappedRender = async () => {
-    const staticGenerationStore =
+    const staticGenerationStore: StaticGenerationStore =
       'getStore' in staticGenerationAsyncStorage
         ? staticGenerationAsyncStorage.getStore()
         : staticGenerationAsyncStorage
@@ -855,7 +868,13 @@ export async function renderToHTMLOrFlight(
       }
 
       const key = segmentParam.param
-      const value = pathParams[key]
+      let value = pathParams[key]
+
+      if (Array.isArray(value)) {
+        value = value.map((i) => encodeURIComponent(i))
+      } else if (typeof value === 'string') {
+        value = encodeURIComponent(value)
+      }
 
       if (!value) {
         // Handle case where optional catchall does not have a value, e.g. `/dashboard/[...slug]` when requesting `/dashboard`
@@ -1086,6 +1105,17 @@ export async function renderToHTMLOrFlight(
         : rootLayoutAtThisLevel
         ? [DefaultNotFound]
         : []
+
+      if (typeof layoutOrPageMod?.dynamic === 'string') {
+        // the nested most config wins so we only force-static
+        // if it's configured above any parent that configured
+        // otherwise
+        if (layoutOrPageMod.dynamic === 'force-static') {
+          staticGenerationStore.forceStatic = true
+        } else {
+          staticGenerationStore.forceStatic = false
+        }
+      }
 
       if (typeof layoutOrPageMod?.revalidate === 'number') {
         defaultRevalidate = layoutOrPageMod.revalidate
@@ -1363,6 +1393,7 @@ export async function renderToHTMLOrFlight(
         isFirst,
         flightRouterState,
         parentRendered,
+        rscPayloadHead,
       }: {
         createSegmentPath: CreateSegmentPath
         loaderTreeToFilter: LoaderTree
@@ -1370,6 +1401,7 @@ export async function renderToHTMLOrFlight(
         isFirst: boolean
         flightRouterState?: FlightRouterState
         parentRendered?: boolean
+        rscPayloadHead: React.ReactNode
       }): Promise<FlightDataPath> => {
         const [segment, parallelRoutes] = loaderTreeToFilter
         const parallelRoutesKeys = Object.keys(parallelRoutes)
@@ -1425,6 +1457,9 @@ export async function renderToHTMLOrFlight(
                     )
                   ).Component
                 ),
+            isPrefetch && !Boolean(loaderTreeToFilter[2].loading) ? null : (
+              <>{rscPayloadHead}</>
+            ),
           ]
         }
 
@@ -1446,6 +1481,7 @@ export async function renderToHTMLOrFlight(
               flightRouterState && flightRouterState[1][parallelRouteKey],
             parentRendered: parentRendered || renderComponentsOnThisLevel,
             isFirst: false,
+            rscPayloadHead,
           })
 
           if (typeof path[path.length - 1] !== 'string') {
@@ -1456,6 +1492,7 @@ export async function renderToHTMLOrFlight(
         return [actualSegment]
       }
 
+      const rscPayloadHead = await resolveHead(loaderTree, {})
       // Flight data that is going to be passed to the browser.
       // Currently a single item array but in the future multiple patches might be combined in a single request.
       const flightData: FlightData = [
@@ -1467,6 +1504,7 @@ export async function renderToHTMLOrFlight(
             parentParams: {},
             flightRouterState: providedFlightRouterState,
             isFirst: true,
+            rscPayloadHead,
           })
         ).slice(1),
       ]
