@@ -62,7 +62,7 @@ jobs:
       - run: echo "::set-output name=SWC_CHANGE::$(node scripts/run-for-change.js --type next-swc --exec echo 'yup')"
         id: swc-change
 
-      - run: echo "::set-output name=TURBO_TOKEN::$(echo ${TURBO_TOKEN-empty})"
+      - run: echo "::set-output name=TURBO_TOKEN::$(echo ${TURBO_TOKEN:-empty})"
         id: turbo-token
 
       - run: echo ${{steps.swc-change.outputs.SWC_CHANGE}}
