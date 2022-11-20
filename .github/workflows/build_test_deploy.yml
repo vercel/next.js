@@ -33,6 +33,7 @@ jobs:
     outputs:
       docsChange: ${{ steps.docs-change.outputs.DOCS_CHANGE }}
       isRelease: ${{ steps.check-release.outputs.IS_RELEASE }}
+      swcChange: ${{ steps.swc-change.outputs.SWC_CHANGE }}
       weekNum: ${{ steps.get-week.outputs.WEEK }}
     steps:
       - name: Setup node
@@ -55,6 +56,11 @@ jobs:
         id: docs-change
 
       - run: echo ${{steps.docs-change.outputs.DOCS_CHANGE}}
+
+      - run: echo "::set-output name=SWC_CHANGE::$(node scripts/run-for-change.js --type next-swc --exec echo 'yup')"
+        id: swc-change
+
+      - run: echo ${{steps.swc-change.outputs.SWC_CHANGE}}
 
       - run: npm i -g pnpm@${PNPM_VERSION}
 
@@ -1274,7 +1280,7 @@ jobs:
             build: |
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" "pnpm@${PNPM_VERSION}"
               turbo run build-native-no-plugin -- --release --target aarch64-pc-windows-msvc --cargo-flags=--no-default-features
-    if: ${{ needs.build.outputs.isRelease == 'true' }}
+    if: ${{ needs.build.outputs.isRelease == 'true' || (needs.build.outputs.swcChange == 'yup' && secrets.TURBO_TOKEN) }}
     needs: build
     name: stable - ${{ matrix.settings.target }} - node@16
     runs-on: ${{ matrix.settings.host }}
@@ -1367,7 +1373,7 @@ jobs:
           path: packages/next-swc/native/next-swc.*.node
 
   build-native-freebsd:
-    if: ${{ needs.build.outputs.isRelease == 'true' }}
+    if: ${{ needs.build.outputs.isRelease == 'true' || (needs.build.outputs.swcChange == 'yup' && secrets.TURBO_TOKEN) }}
     needs: build
     name: stable - x86_64-unknown-freebsd - node@16
     runs-on: macos-12
@@ -1459,7 +1465,7 @@ jobs:
 
   build-wasm:
     needs: build
-    if: ${{ needs.build.outputs.isRelease == 'true' }}
+    if: ${{ needs.build.outputs.isRelease == 'true' || (needs.build.outputs.swcChange == 'yup' && secrets.TURBO_TOKEN) }}
     strategy:
       matrix:
         target: [web, nodejs]
