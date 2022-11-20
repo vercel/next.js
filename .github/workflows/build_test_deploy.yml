@@ -30,10 +30,12 @@ jobs:
       # we build a dev binary for use in CI so skip downloading
       # canary next-swc binaries in the monorepo
       NEXT_SKIP_NATIVE_POSTINSTALL: 1
+      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
     outputs:
       docsChange: ${{ steps.docs-change.outputs.DOCS_CHANGE }}
       isRelease: ${{ steps.check-release.outputs.IS_RELEASE }}
       swcChange: ${{ steps.swc-change.outputs.SWC_CHANGE }}
+      turboToken: ${{ steps.turbo-token.outputs.TURBO_TOKEN }}
       weekNum: ${{ steps.get-week.outputs.WEEK }}
     steps:
       - name: Setup node
@@ -59,6 +61,9 @@ jobs:
 
       - run: echo "::set-output name=SWC_CHANGE::$(node scripts/run-for-change.js --type next-swc --exec echo 'yup')"
         id: swc-change
+
+      - run: echo "::set-output name=TURBO_TOKEN::$(echo ${TURBO_TOKEN-empty})"
+        id: turbo-token
 
       - run: echo ${{steps.swc-change.outputs.SWC_CHANGE}}
 
@@ -1280,7 +1285,7 @@ jobs:
             build: |
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" "pnpm@${PNPM_VERSION}"
               turbo run build-native-no-plugin -- --release --target aarch64-pc-windows-msvc --cargo-flags=--no-default-features
-    if: ${{ needs.build.outputs.isRelease == 'true' || (needs.build.outputs.swcChange == 'yup' && secrets.TURBO_TOKEN) }}
+    if: ${{ needs.build.outputs.isRelease == 'true' || (needs.build.outputs.swcChange == 'yup' && needs.build.outputs.turboToken != 'empty') }}
     needs: build
     name: stable - ${{ matrix.settings.target }} - node@16
     runs-on: ${{ matrix.settings.host }}
@@ -1373,7 +1378,7 @@ jobs:
           path: packages/next-swc/native/next-swc.*.node
 
   build-native-freebsd:
-    if: ${{ needs.build.outputs.isRelease == 'true' || (needs.build.outputs.swcChange == 'yup' && secrets.TURBO_TOKEN) }}
+    if: ${{ needs.build.outputs.isRelease == 'true' || (needs.build.outputs.swcChange == 'yup' && needs.build.outputs.turboToken != 'empty') }}
     needs: build
     name: stable - x86_64-unknown-freebsd - node@16
     runs-on: macos-12
@@ -1465,7 +1470,7 @@ jobs:
 
   build-wasm:
     needs: build
-    if: ${{ needs.build.outputs.isRelease == 'true' || (needs.build.outputs.swcChange == 'yup' && secrets.TURBO_TOKEN) }}
+    if: ${{ needs.build.outputs.isRelease == 'true' || (needs.build.outputs.swcChange == 'yup' && needs.build.outputs.turboToken != 'empty') }}
     strategy:
       matrix:
         target: [web, nodejs]
