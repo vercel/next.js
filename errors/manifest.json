@@ -763,8 +763,8 @@
           "path": "/errors/next-router-not-mounted.md"
         },
         {
-          "title": "app-dir-href-interpolation",
-          "path": "/errors/app-dir-href-interpolation.md"
+          "title": "app-dir-dynamic-href",
+          "path": "/errors/app-dir-dynamic-href.md"
         }
       ]
     }

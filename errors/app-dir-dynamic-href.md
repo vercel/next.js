@@ -1,8 +1,8 @@
-# `href` interpolation is not supported in the `/app` directory
+# Dynamic `href` is not supported in the `/app` directory
 
 #### Why This Error Occurred
 
-You have tried to use `href` interpolation with `next/link` in the `/app` directory. This is not supported.
+You have tried to use a dynamic `href` with `next/link` in the `/app` directory. This is not supported.
 
 #### Possible Ways to Fix It
 
