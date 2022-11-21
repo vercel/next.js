@@ -80,16 +80,19 @@ export class NextStartInstance extends NextInstance {
       })
     })
 
-    this._buildId = (
-      await fs.readFile(
-        path.join(
-          this.testDir,
-          this.nextConfig?.distDir || '.next',
-          'BUILD_ID'
-        ),
-        'utf8'
-      )
-    ).trim()
+    // There isn't a single buildId for monorepos so for the moment none is used.
+    this._buildId = this.apps?.length
+      ? ''
+      : (
+          await fs.readFile(
+            path.join(
+              this.testDir,
+              this.nextConfig?.distDir || '.next',
+              'BUILD_ID'
+            ),
+            'utf8'
+          )
+        ).trim()
 
     console.log('running', startArgs.join(' '))
 
