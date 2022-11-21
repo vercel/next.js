@@ -5,7 +5,7 @@ export default function HomePage() {
     <Link
       id="link"
       href={{
-        pathname: '/[slug]',
+        pathname: '/object/[slug]',
         query: { slug: '1' },
       }}
     >
