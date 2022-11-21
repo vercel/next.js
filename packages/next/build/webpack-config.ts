@@ -917,13 +917,6 @@ export default async function getBaseWebpackConfig(
         ? {
             // For react and react-dom, alias them dynamically for server layer
             // and others in the loaders configuration
-            'react-dom/client$': 'next/dist/compiled/react-dom/client',
-            'react-dom/server$': 'next/dist/compiled/react-dom/server',
-            'react-dom/server.browser$':
-              'next/dist/compiled/react-dom/server.browser',
-            'react/jsx-dev-runtime$':
-              'next/dist/compiled/react/jsx-dev-runtime',
-            'react/jsx-runtime$': 'next/dist/compiled/react/jsx-runtime',
           }
         : undefined),
 
@@ -1107,14 +1100,20 @@ export default async function getBaseWebpackConfig(
       }
 
       if (/^(react(?:$|\/)|react-dom(?:$|\/))/.test(request)) {
-        // override react-dom to server-rendering-stub for server
         if (
-          request === 'react-dom' &&
-          (layer === WEBPACK_LAYERS.client || layer === WEBPACK_LAYERS.server)
+          layer === WEBPACK_LAYERS.client ||
+          layer === WEBPACK_LAYERS.server
         ) {
-          request = 'react-dom/server-rendering-stub'
+          // override react-dom to server-rendering-stub for server
+          if (request === 'react-dom') {
+            request = 'react-dom/server-rendering-stub'
+          }
+
+          return `commonjs next/dist/compiled/${request}`
         }
-        return `commonjs ${hasAppDir ? 'next/dist/compiled/' : ''}${request}`
+
+        return `commonjs ${request}`
+        // return `commonjs ${hasAppDir ? 'next/dist/compiled/' : ''}${request}`
       }
 
       const notExternalModules =
@@ -1407,7 +1406,10 @@ export default async function getBaseWebpackConfig(
                       )
                     })
                 }
-              ),
+              ).then((r) => {
+                console.log(request, r)
+                return r
+              }),
           ],
     optimization: {
       emitOnErrors: !dev,
@@ -1744,6 +1746,16 @@ export default async function getBaseWebpackConfig(
                         // x-ref: https://github.com/facebook/react/pull/25436
                         'react-dom$':
                           'next/dist/compiled/react-dom/server-rendering-stub',
+                        'react-dom/client$':
+                          'next/dist/compiled/react-dom/client',
+                        'react-dom/server$':
+                          'next/dist/compiled/react-dom/server',
+                        'react-dom/server.browser$':
+                          'next/dist/compiled/react-dom/server.browser',
+                        'react/jsx-dev-runtime$':
+                          'next/dist/compiled/react/jsx-dev-runtime',
+                        'react/jsx-runtime$':
+                          'next/dist/compiled/react/jsx-runtime',
                       },
                     },
                   },
@@ -1755,23 +1767,36 @@ export default async function getBaseWebpackConfig(
                         react: 'next/dist/compiled/react',
                         'react-dom$':
                           'next/dist/compiled/react-dom/server-rendering-stub',
-                      },
-                    },
-                  },
-                  {
-                    test: codeCondition.test,
-                    resolve: {
-                      alias: {
-                        react: 'next/dist/compiled/react',
-                        'react-dom$': reactProductionProfiling
-                          ? 'next/dist/compiled/react-dom/cjs/react-dom.profiling.min'
-                          : 'next/dist/compiled/react-dom',
                         'react-dom/client$':
                           'next/dist/compiled/react-dom/client',
+                        'react-dom/server$':
+                          'next/dist/compiled/react-dom/server',
+                        'react-dom/server.browser$':
+                          'next/dist/compiled/react-dom/server.browser',
+                        'react/jsx-dev-runtime$':
+                          'next/dist/compiled/react/jsx-dev-runtime',
+                        'react/jsx-runtime$':
+                          'next/dist/compiled/react/jsx-runtime',
                       },
                     },
                   },
-                ],
+                  // isClient && appDir
+                  //   ? {
+                  //       test: codeCondition.test,
+                  //       include: [appDir],
+                  //       resolve: {
+                  //         alias: {
+                  //           react: 'next/dist/compiled/react',
+                  //           'react-dom$': reactProductionProfiling
+                  //             ? 'next/dist/compiled/react-dom/cjs/react-dom.profiling.min'
+                  //             : 'next/dist/compiled/react-dom',
+                  //           'react-dom/client$':
+                  //             'next/dist/compiled/react-dom/client',
+                  //         },
+                  //       },
+                  //     }
+                  //   : null,
+                ].filter(Boolean),
               },
             ]
           : []),

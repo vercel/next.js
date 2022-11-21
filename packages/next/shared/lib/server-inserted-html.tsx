@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useContext } from 'react'
+import React, { useContext } from 'next/dist/compiled/react'
 
 export type ServerInsertedHTMLHook = (callbacks: () => React.ReactNode) => void
 

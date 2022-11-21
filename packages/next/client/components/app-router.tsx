@@ -1,7 +1,13 @@
 'use client'
 
-import type { ReactNode } from 'react'
-import React, { useEffect, useMemo, useCallback } from 'react'
+import type { ReactNode } from 'next/dist/compiled/react'
+import type { FlightRouterState, FlightData } from '../../server/app-render'
+
+import React, {
+  useEffect,
+  useMemo,
+  useCallback,
+} from 'next/dist/compiled/react'
 import { createFromFetch } from 'next/dist/compiled/react-server-dom-webpack/client'
 import {
   AppRouterContext,
@@ -13,7 +19,6 @@ import type {
   CacheNode,
   AppRouterInstance,
 } from '../../shared/lib/app-router-context'
-import type { FlightRouterState, FlightData } from '../../server/app-render'
 import {
   ACTION_NAVIGATE,
   ACTION_PREFETCH,
@@ -28,7 +33,7 @@ import {
   // ParamsContext,
   PathnameContext,
   // LayoutSegmentsContext,
-} from '../../shared/lib/hooks-client-context'
+} from '../../shared/lib/app-hooks-client-context'
 import { useReducerWithReduxDevtools } from './use-reducer-with-devtools'
 import { ErrorBoundary, GlobalErrorComponent } from './error-boundary'
 import {

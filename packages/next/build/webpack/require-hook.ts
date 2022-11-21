@@ -45,31 +45,31 @@ export function loadRequireHook(aliases: [string, string][] = []) {
 }
 
 export function overrideBuiltInReactPackages() {
-  setRequireOverrides([
-    ['react', require.resolve('next/dist/compiled/react')],
-    [
-      'react/jsx-runtime',
-      require.resolve('next/dist/compiled/react/jsx-runtime'),
-    ],
-    [
-      'react/jsx-dev-runtime',
-      require.resolve('next/dist/compiled/react/jsx-dev-runtime'),
-    ],
-    [
-      'react-dom',
-      require.resolve('next/dist/compiled/react-dom/server-rendering-stub'),
-    ],
-    [
-      'react-dom/client',
-      require.resolve('next/dist/compiled/react-dom/client'),
-    ],
-    [
-      'react-dom/server',
-      require.resolve('next/dist/compiled/react-dom/server'),
-    ],
-    [
-      'react-dom/server.browser',
-      require.resolve('next/dist/compiled/react-dom/server.browser'),
-    ],
-  ])
+  // setRequireOverrides([
+  //   ['react', require.resolve('next/dist/compiled/react')],
+  //   [
+  //     'react/jsx-runtime',
+  //     require.resolve('next/dist/compiled/react/jsx-runtime'),
+  //   ],
+  //   [
+  //     'react/jsx-dev-runtime',
+  //     require.resolve('next/dist/compiled/react/jsx-dev-runtime'),
+  //   ],
+  //   [
+  //     'react-dom',
+  //     require.resolve('next/dist/compiled/react-dom/server-rendering-stub'),
+  //   ],
+  //   [
+  //     'react-dom/client',
+  //     require.resolve('next/dist/compiled/react-dom/client'),
+  //   ],
+  //   [
+  //     'react-dom/server',
+  //     require.resolve('next/dist/compiled/react-dom/server'),
+  //   ],
+  //   [
+  //     'react-dom/server.browser',
+  //     require.resolve('next/dist/compiled/react-dom/server.browser'),
+  //   ],
+  // ])
 }

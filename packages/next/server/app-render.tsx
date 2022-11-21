@@ -2,6 +2,11 @@ import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from 'http'
 import type { LoadComponentsReturnType } from './load-components'
 import type { ServerRuntime } from '../types'
 import type { FontLoaderManifest } from '../build/webpack/plugins/font-loader-manifest-plugin'
+import type {
+  FlightCSSManifest,
+  FlightManifest,
+} from '../build/webpack/plugins/flight-manifest-plugin'
+import type { ComponentsType } from '../build/webpack/loaders/next-app-loader'
 
 // Import builtin react directly to avoid require cache conflicts
 import React, { use } from 'next/dist/compiled/react'
@@ -24,18 +29,13 @@ import {
 } from './node-web-streams-helper'
 import { ESCAPE_REGEX, htmlEscapeJsonString } from './htmlescape'
 import { matchSegment } from '../client/components/match-segments'
-import {
-  FlightCSSManifest,
-  FlightManifest,
-} from '../build/webpack/plugins/flight-manifest-plugin'
 import { ServerInsertedHTMLContext } from '../shared/lib/server-inserted-html'
 import { stripInternalQueries } from './internal-utils'
-import type { ComponentsType } from '../build/webpack/loaders/next-app-loader'
 import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
 import { RequestCookies } from './web/spec-extension/cookies'
 import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
 import { NOT_FOUND_ERROR_CODE } from '../client/components/not-found'
-import { HeadManagerContext } from '../shared/lib/head-manager-context'
+import { HeadManagerContext } from '../shared/lib/app-head-manager-context'
 import { Writable } from 'stream'
 import stringHash from 'next/dist/compiled/string-hash'
 import {

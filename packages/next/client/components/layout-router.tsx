@@ -1,6 +1,11 @@
 'use client'
 
-import React, { useContext, useEffect, useRef, use } from 'react'
+import React, {
+  useContext,
+  useEffect,
+  useRef,
+  use,
+} from 'next/dist/compiled/react'
 import type {
   ChildProp,
   //Segment

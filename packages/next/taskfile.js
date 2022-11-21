@@ -1515,6 +1515,20 @@ export async function ncc_react(task, opts) {
 
   await task
     .source(join(reactDomDir, '*.{json,js}'))
+    // eslint-disable-next-line require-yield
+    .run({ every: true }, function* (file) {
+      const source = file.data.toString()
+      // We replace the module/chunk loading code with our own implementation in Next.js.
+      file.data = source
+        .replace(
+          /require\(["']react["']\)/g,
+          "require('next/dist/compiled/react')"
+        )
+        .replace(
+          /require\(["']react-dom["']\)/g,
+          "require('next/dist/compiled/react-dom')"
+        )
+    })
     .target(`compiled/react-dom`)
   await task.source(join(reactDomDir, 'LICENSE')).target(`compiled/react-dom`)
   await task
@@ -1523,10 +1537,19 @@ export async function ncc_react(task, opts) {
     .run({ every: true }, function* (file) {
       const source = file.data.toString()
       // We replace the module/chunk loading code with our own implementaion in Next.js.
-      file.data = source.replace(
-        /require\(["']scheduler["']\)/g,
-        'require("next/dist/compiled/scheduler")'
-      )
+      file.data = source
+        .replace(
+          /require\(["']scheduler["']\)/g,
+          'require("next/dist/compiled/scheduler")'
+        )
+        .replace(
+          /require\(["']react["']\)/g,
+          "require('next/dist/compiled/react')"
+        )
+        .replace(
+          /require\(["']react-dom["']\)/g,
+          "require('next/dist/compiled/react-dom')"
+        )
     })
     .target(`compiled/react-dom/cjs`)
 

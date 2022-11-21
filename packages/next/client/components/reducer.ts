@@ -1,4 +1,3 @@
-import { CacheNode, CacheStates } from '../../shared/lib/app-router-context'
 import type {
   FlightRouterState,
   FlightData,
@@ -6,6 +5,8 @@ import type {
   FlightSegmentPath,
   Segment,
 } from '../../server/app-render'
+
+import { CacheNode, CacheStates } from '../../shared/lib/app-router-context'
 import { matchSegment } from './match-segments'
 import { fetchServerResponse } from './app-router'
 
