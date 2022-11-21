@@ -279,23 +279,14 @@ export default class DevServer extends Server {
 
       const files: string[] = []
 
-      if (this.pagesDir) {
-        files.push(
-          ...getPossibleMiddlewareFilenames(
-            pathJoin(this.pagesDir, '..'),
-            this.nextConfig.pageExtensions
-          )
-        )
-      }
+      const hasSrcFolder = fs.existsSync(pathJoin(this.dir, 'src'))
 
-      if (this.appDir) {
-        files.push(
-          ...getPossibleMiddlewareFilenames(
-            pathJoin(this.appDir, '..'),
-            this.nextConfig.pageExtensions
-          )
+      files.push(
+        ...getPossibleMiddlewareFilenames(
+          pathJoin(this.dir, !hasSrcFolder ? '.' : './src'),
+          this.nextConfig.pageExtensions
         )
-      }
+      )
 
       let nestedMiddleware: string[] = []
 

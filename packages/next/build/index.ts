@@ -502,11 +502,13 @@ export default async function build(
         `^${MIDDLEWARE_FILENAME}\\.(?:${config.pageExtensions.join('|')})$`
       )
 
-      const rootPaths = pagesDir
-        ? (
-            await flatReaddir(join(pagesDir, '..'), middlewareDetectionRegExp)
-          ).map((absoluteFile) => absoluteFile.replace(dir, ''))
-        : []
+      const rootPaths = []
+
+      rootPaths.push(
+        ...(await flatReaddir(join(dir, '.'), middlewareDetectionRegExp)).map(
+          (absoluteFile) => absoluteFile.replace(dir, '')
+        )
+      )
 
       // needed for static exporting since we want to replace with HTML
       // files

@@ -247,9 +247,12 @@ export class NextInstance {
   }
   public async setup(): Promise<void> {}
   public async start(useDirArg: boolean = false): Promise<void> {}
+  public get isOpen(): boolean {
+    return !!this.childProcess
+  }
   public async stop(): Promise<void> {
     this.isStopping = true
-    if (this.childProcess) {
+    if (this.isOpen) {
       let exitResolve
       const exitPromise = new Promise((resolve) => {
         exitResolve = resolve
@@ -325,6 +328,11 @@ export class NextInstance {
   public async readFile(filename: string) {
     return fs.readFile(path.join(this.testDir, filename), 'utf8')
   }
+
+  public readDirectory(directoryName: string) {
+    return fs.readdir(path.join(this.testDir, directoryName))
+  }
+
   public async patchFile(filename: string, content: string) {
     const outputPath = path.join(this.testDir, filename)
     await fs.ensureDir(path.dirname(outputPath))
@@ -338,6 +346,13 @@ export class NextInstance {
   }
   public async deleteFile(filename: string) {
     return fs.remove(path.join(this.testDir, filename))
+  }
+
+  public async deleteDirectory(directoryName: string) {
+    return fs.rmSync(path.join(this.testDir, directoryName), {
+      recursive: true,
+      force: true,
+    })
   }
 
   public on(event: Event, cb: (...args: any[]) => any) {

@@ -380,6 +380,8 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
       const isServerComponent =
         isInsideAppDir && staticInfo.rsc !== RSC_MODULE_TYPES.client
 
+      console.log({ page })
+
       if (isMiddlewareFile(page)) {
         middlewareMatchers = staticInfo.middleware?.matchers ?? [
           { regexp: '.*' },

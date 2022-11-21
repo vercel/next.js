@@ -104,6 +104,13 @@ if (typeof afterAll === 'function') {
   })
 }
 
+export class ExistingNextInstanceError extends Error {
+  constructor() {
+    super('createNext called without destroying previous instance')
+    this.name = 'ExistingNextInstanceError'
+  }
+}
+
 /**
  * Sets up and manages a Next.js instance in the configured
  * test mode. The next instance will be isolated from the monorepo
@@ -114,7 +121,7 @@ export async function createNext(
 ): Promise<NextInstance> {
   try {
     if (nextInstance) {
-      throw new Error(`createNext called without destroying previous instance`)
+      throw new ExistingNextInstanceError()
     }
 
     if (testMode === 'dev') {
