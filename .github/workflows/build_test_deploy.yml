@@ -379,11 +379,11 @@ jobs:
       - run: node run-tests.js --type e2e --timings -g ${{ matrix.group }}/3
         name: Run test/e2e (dev)
         if: ${{needs.build.outputs.docsChange == 'nope'}}
-        # env:
+        env:
+          NEXT_TEST_MODE: dev
         #   RECORD_REPLAY_METADATA_TEST_RUN_TITLE: testDevE2E / Group ${{ matrix.group }} / Node ${{ matrix.node }}
         #   RECORD_ALL_CONTENT: 1
         #   RECORD_REPLAY: 1
-        #   NEXT_TEST_MODE: dev
         #   RECORD_REPLAY_TEST_METRICS: 1
         #   RECORD_REPLAY_WEBHOOK_URL: ${{ secrets.RECORD_REPLAY_WEBHOOK_URL }}
 
@@ -523,11 +523,11 @@ jobs:
       - run: node run-tests.js --type e2e --timings -g ${{ matrix.group }}/3
         name: Run test/e2e (production)
         if: ${{needs.build.outputs.docsChange == 'nope'}}
-        # env:
+        env:
+          NEXT_TEST_MODE: start
         # RECORD_REPLAY_METADATA_TEST_RUN_TITLE: testProdE2E / Group ${{ matrix.group }} / Node ${{ matrix.node }}
         # RECORD_ALL_CONTENT: 1
         # RECORD_REPLAY: 1
-        # NEXT_TEST_MODE: start
         # RECORD_REPLAY_TEST_METRICS: 1
         # RECORD_REPLAY_WEBHOOK_URL: ${{ secrets.RECORD_REPLAY_WEBHOOK_URL }}
 
