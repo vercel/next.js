@@ -509,13 +509,6 @@ export async function apiResolver(
       }
     ) => revalidate(urlPath, opts || {}, req, apiContext)
 
-    // TODO: remove in next minor (current v12.2)
-    apiRes.unstable_revalidate = () => {
-      throw new Error(
-        `"unstable_revalidate" has been renamed to "revalidate" see more info here: https://nextjs.org/docs/basic-features/data-fetching/incremental-static-regeneration#on-demand-revalidation`
-      )
-    }
-
     const resolver = interopDefault(resolverModule)
     let wasPiped = false
 
