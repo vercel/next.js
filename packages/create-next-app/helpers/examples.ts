@@ -103,7 +103,7 @@ export async function downloadAndExtractRepo(
     filter: (p) =>
       p.startsWith(
         `${name}-${branch.replace(/\//g, '-')}${
-          filePath ? `/${filePath}/` : ''
+          filePath ? `/${filePath}/` : '/'
         }`
       ),
   })
