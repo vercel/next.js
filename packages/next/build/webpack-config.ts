@@ -161,6 +161,9 @@ export function getDefineEnv({
     'process.env.__NEXT_ALLOW_MIDDLEWARE_RESPONSE_BODY': JSON.stringify(
       config.experimental.allowMiddlewareResponseBody
     ),
+    'process.env.__NEXT_MANUAL_TRAILING_SLASH': JSON.stringify(
+      config.experimental?.skipTrailingSlashRedirect
+    ),
     'process.env.__NEXT_CROSS_ORIGIN': JSON.stringify(config.crossOrigin),
     'process.browser': JSON.stringify(isClient),
     'process.env.__NEXT_TEST_MODE': JSON.stringify(
