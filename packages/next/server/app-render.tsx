@@ -42,6 +42,7 @@ import {
   NEXT_ROUTER_PREFETCH,
   NEXT_ROUTER_STATE_TREE,
   RSC,
+  FLIGHT_PARAMETERS,
 } from '../client/components/app-router-headers'
 import type { StaticGenerationStore } from '../client/components/static-generation-async-storage'
 
@@ -704,12 +705,6 @@ function getScriptNonceFromHeader(cspHeaderValue: string): string | undefined {
   return nonce
 }
 
-export const FLIGHT_PARAMETERS = [
-  [RSC],
-  [NEXT_ROUTER_STATE_TREE],
-  [NEXT_ROUTER_PREFETCH],
-] as const
-
 function headersWithoutFlight(headers: IncomingHttpHeaders) {
   const newHeaders = { ...headers }
   for (const param of FLIGHT_PARAMETERS) {
@@ -999,13 +994,17 @@ export async function renderToHTMLOrFlight(
         filePath,
         serverCSSForEntries
       )
-      const cacheBustingUrlSuffix = dev ? `?ts=${Date.now()}` : ''
 
       const styles = cssHrefs
         ? cssHrefs.map((href, index) => (
             <link
               rel="stylesheet"
-              href={`${assetPrefix}/_next/${href}${cacheBustingUrlSuffix}`}
+              // In dev, Safari will wrongly cache the resource if you preload it:
+              // - https://github.com/vercel/next.js/issues/5860
+              // - https://bugs.webkit.org/show_bug.cgi?id=187726
+              // We used to add a `?ts=` query for resources in `pages` to bypass it,
+              // but in this case it is fine as we don't need to preload the styles.
+              href={`${assetPrefix}/_next/${href}`}
               // @ts-ignore
               precedence={shouldPreload ? 'high' : undefined}
               key={index}
@@ -1324,10 +1323,6 @@ export async function renderToHTMLOrFlight(
 
       return {
         Component: () => {
-          // Add extra cache busting (DEV only) for https://github.com/vercel/next.js/issues/5860
-          // See also https://bugs.webkit.org/show_bug.cgi?id=187726
-          const cacheBustingUrlSuffix = dev ? `?ts=${Date.now()}` : ''
-
           return (
             <>
               {preloadedFontFiles.map((fontFile) => {
@@ -1347,7 +1342,12 @@ export async function renderToHTMLOrFlight(
                 ? stylesheets.map((href, index) => (
                     <link
                       rel="stylesheet"
-                      href={`${assetPrefix}/_next/${href}${cacheBustingUrlSuffix}`}
+                      // In dev, Safari will wrongly cache the resource if you preload it:
+                      // - https://github.com/vercel/next.js/issues/5860
+                      // - https://bugs.webkit.org/show_bug.cgi?id=187726
+                      // We used to add a `?ts=` query for resources in `pages` to bypass it,
+                      // but in this case it is fine as we don't need to preload the styles.
+                      href={`${assetPrefix}/_next/${href}`}
                       // `Precedence` is an opt-in signal for React to handle
                       // resource loading and deduplication, etc:
                       // https://github.com/facebook/react/pull/25060
