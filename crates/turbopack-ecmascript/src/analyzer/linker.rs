@@ -16,6 +16,8 @@ type LinkCacheValue = (
     Vec<Vec<(HashSet<Id>, Vec<(HashSet<Id>, JsValue)>)>>,
 );
 
+struct LinkCacheItem(bool, JsValue, (HashSet<Id>, HashSet<Id>));
+
 #[derive(Default)]
 pub struct LinkCache {
     data: HashMap<Id, LinkCacheValue>,
@@ -64,21 +66,21 @@ impl LinkCache {
         }
     }
 
-    fn get(
-        &self,
-        id: &Id,
-        cycle_stack: &HashSet<Id>,
-    ) -> Option<(bool, JsValue, (HashSet<Id>, HashSet<Id>))> {
+    fn get(&self, id: &Id, cycle_stack: &HashSet<Id>) -> Option<LinkCacheItem> {
         if let Some((bailing, data)) = self.data.get(id) {
             if let Some(bailing) = bailing {
-                return Some((true, bailing.clone(), (HashSet::new(), HashSet::new())));
+                return Some(LinkCacheItem(
+                    true,
+                    bailing.clone(),
+                    (HashSet::new(), HashSet::new()),
+                ));
             }
             for list in data[0..min(cycle_stack.len() + 1, data.len())].iter() {
                 for (key, list) in list.iter() {
                     if key.iter().all(|id| cycle_stack.contains(id)) {
                         for (non_circular, value) in list.iter() {
                             if non_circular.iter().all(|id| !cycle_stack.contains(id)) {
-                                return Some((
+                                return Some(LinkCacheItem(
                                     false,
                                     value.clone(),
                                     (key.clone(), non_circular.clone()),
@@ -185,7 +187,9 @@ where
                 } else {
                     total_nodes -= 1;
                     {
-                        if let Some((bailing, value, refs)) = cache.get(&var, &cycle_stack) {
+                        if let Some(LinkCacheItem(bailing, value, refs)) =
+                            cache.get(&var, &cycle_stack)
+                        {
                             replaced_references.0.extend(refs.0);
                             replaced_references.1.extend(refs.1);
                             total_nodes += value.total_nodes();

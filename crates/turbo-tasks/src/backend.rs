@@ -32,12 +32,15 @@ pub enum TaskType {
     Persistent(PersistentTaskType),
 }
 
+type TransientTaskRoot =
+    Box<dyn Fn() -> Pin<Box<dyn Future<Output = Result<RawVc>> + Send>> + Send + Sync>;
+
 pub enum TransientTaskType {
     /// A root task that will track dependencies and re-execute when
     /// dependencies change. Task will eventually settle to the correct
     /// execution.
     /// Always active. Automatically scheduled.
-    Root(Box<dyn Fn() -> Pin<Box<dyn Future<Output = Result<RawVc>> + Send>> + Send + Sync>),
+    Root(TransientTaskRoot),
 
     // TODO implement these strongly consistency
     /// A single root task execution. It won't track dependencies.

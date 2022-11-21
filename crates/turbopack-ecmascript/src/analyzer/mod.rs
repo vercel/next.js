@@ -28,6 +28,11 @@ pub mod imports;
 pub mod linker;
 pub mod well_known;
 
+type PinnedAsyncUntilSettledBox<'a, E> =
+    Pin<Box<dyn Future<Output = Result<(JsValue, bool), E>> + Send + 'a>>;
+
+type PinnedAsyncBox<'a, E> = Pin<Box<dyn Future<Output = Result<(JsValue, bool), E>> + 'a>>;
+
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum ObjectPart {
     KeyValue(JsValue, JsValue),
@@ -1190,7 +1195,7 @@ impl JsValue {
         fn visit_async_until_settled_box<'a, F, R, E>(
             value: JsValue,
             visitor: &'a mut F,
-        ) -> Pin<Box<dyn Future<Output = Result<(JsValue, bool), E>> + Send + 'a>>
+        ) -> PinnedAsyncUntilSettledBox<E>
         where
             R: 'a + Future<Output = Result<(JsValue, bool), E>> + Send,
             F: 'a + FnMut(JsValue) -> R + Send,
@@ -1224,10 +1229,7 @@ impl JsValue {
         R: 'a + Future<Output = Result<(Self, bool), E>>,
         F: 'a + FnMut(JsValue) -> R,
     {
-        fn visit_async_box<'a, F, R, E>(
-            value: JsValue,
-            visitor: &'a mut F,
-        ) -> Pin<Box<dyn Future<Output = Result<(JsValue, bool), E>> + 'a>>
+        fn visit_async_box<'a, F, R, E>(value: JsValue, visitor: &'a mut F) -> PinnedAsyncBox<E>
         where
             R: 'a + Future<Output = Result<(JsValue, bool), E>>,
             F: 'a + FnMut(JsValue) -> R,

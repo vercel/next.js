@@ -15,6 +15,8 @@ use crate::{
 
 type NativeTaskFuture = Pin<Box<dyn Future<Output = Result<RawVc>> + Send>>;
 type NativeTaskFn = Box<dyn Fn() -> NativeTaskFuture + Send + Sync>;
+type BoundNativeTaskFn =
+    Box<dyn (Fn(&Vec<TaskInput>) -> Result<NativeTaskFn>) + Send + Sync + 'static>;
 
 /// A native (rust) turbo-tasks function. It's used internally by
 /// `#[turbo_tasks::function]`.
@@ -25,7 +27,7 @@ pub struct NativeFunction {
     /// The functor that creates a functor from inputs. The inner functor
     /// handles the task execution.
     #[turbo_tasks(debug_ignore, trace_ignore)]
-    pub bind_fn: Box<dyn (Fn(&Vec<TaskInput>) -> Result<NativeTaskFn>) + Send + Sync + 'static>,
+    pub bind_fn: BoundNativeTaskFn,
     // TODO move to Task
     /// A counter that tracks total executions of that function
     #[turbo_tasks(debug_ignore, trace_ignore)]
