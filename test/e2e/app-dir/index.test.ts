@@ -2141,6 +2141,54 @@ describe('app dir', () => {
           expect(val1).toBe(val2)
         })
       })
+
+      describe('should support React fetch instrumentation', () => {
+        it('server component', async () => {
+          const browser = await webdriver(
+            next.url,
+            '/react-fetch/server-component'
+          )
+          const val1 = await browser.elementByCss('#value-1').text()
+          const val2 = await browser.elementByCss('#value-2').text()
+          expect(val1).toBe(val2)
+        })
+
+        it('server component client-navigation', async () => {
+          const browser = await webdriver(next.url, '/react-fetch')
+
+          await browser
+            .elementByCss('#to-server-component')
+            .click()
+            .waitForElementByCss('#value-1', 2000)
+          const val1 = await browser.elementByCss('#value-1').text()
+          const val2 = await browser.elementByCss('#value-2').text()
+          expect(val1).toBe(val2)
+        })
+
+        // TODO-APP: React doesn't have fetch deduping for client components yet.
+        it.skip('client component', async () => {
+          const browser = await webdriver(
+            next.url,
+            '/react-fetch/client-component'
+          )
+          const val1 = await browser.elementByCss('#value-1').text()
+          const val2 = await browser.elementByCss('#value-2').text()
+          expect(val1).toBe(val2)
+        })
+
+        // TODO-APP: React doesn't have fetch deduping for client components yet.
+        it.skip('client component client-navigation', async () => {
+          const browser = await webdriver(next.url, '/react-fetch')
+
+          await browser
+            .elementByCss('#to-client-component')
+            .click()
+            .waitForElementByCss('#value-1', 2000)
+          const val1 = await browser.elementByCss('#value-1').text()
+          const val2 = await browser.elementByCss('#value-2').text()
+          expect(val1).toBe(val2)
+        })
+      })
       it('should not share flight data between requests', async () => {
         const fetches = await Promise.all(
           [...new Array(5)].map(() =>

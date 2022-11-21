@@ -3,8 +3,8 @@ import { cache } from 'react'
 const getRandomMemoized = cache(() => Math.random())
 
 export default function Page() {
-  const val1 = getRandomMemoized(1)
-  const val2 = getRandomMemoized(1)
+  const val1 = getRandomMemoized()
+  const val2 = getRandomMemoized()
   return (
     <>
       <h1>React Cache Server Component</h1>
