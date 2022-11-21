@@ -1226,7 +1226,9 @@ export default class DevServer extends Server {
         res
           .body(
             JSON.stringify({
-              pages: this.sortedRoutes,
+              pages: this.sortedRoutes?.filter(
+                (route) => !this.appPathRoutes![route]
+              ),
             })
           )
           .send()
