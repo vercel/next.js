@@ -828,6 +828,7 @@ export default async function getBaseWebpackConfig(
   const customRootAliases: { [key: string]: string[] } = {}
 
   if (dev) {
+    const nextDist = 'next/dist/' + (isEdgeServer ? 'esm/' : '')
     customAppAliases[`${PAGES_DIR_ALIAS}/_app`] = [
       ...(pagesDir
         ? pageExtensions.reduce((prev, ext) => {
@@ -835,7 +836,7 @@ export default async function getBaseWebpackConfig(
             return prev
           }, [] as string[])
         : []),
-      'next/dist/pages/_app.js',
+      `${nextDist}pages/_app.js`,
     ]
     customAppAliases[`${PAGES_DIR_ALIAS}/_error`] = [
       ...(pagesDir
@@ -844,7 +845,7 @@ export default async function getBaseWebpackConfig(
             return prev
           }, [] as string[])
         : []),
-      'next/dist/pages/_error.js',
+      `${nextDist}pages/_error.js`,
     ]
     customDocumentAliases[`${PAGES_DIR_ALIAS}/_document`] = [
       ...(pagesDir
@@ -853,7 +854,7 @@ export default async function getBaseWebpackConfig(
             return prev
           }, [] as string[])
         : []),
-      'next/dist/pages/_document.js',
+      `${nextDist}pages/_document.js`,
     ]
   }
 
@@ -905,6 +906,10 @@ export default async function getBaseWebpackConfig(
               'next/dist/esm/shared/lib/head',
             [require.resolve('next/dist/shared/lib/dynamic')]:
               'next/dist/esm/shared/lib/dynamic',
+            [require.resolve('next/dist/pages/_document')]:
+              'next/dist/esm/pages/_document',
+            [require.resolve('next/dist/pages/_app')]:
+              'next/dist/esm/pages/_app',
           }
         : undefined),
 
