@@ -442,36 +442,6 @@ type DynamicParamTypes = 'catchall' | 'optional-catchall' | 'dynamic'
 // oc = optional catchall
 // d = dynamic
 export type DynamicParamTypesShort = 'c' | 'oc' | 'd'
-/**
- * Parse dynamic route segment to type of parameter
- */
-function getSegmentParam(segment: string): {
-  param: string
-  type: DynamicParamTypes
-} | null {
-  if (segment.startsWith('[[...') && segment.endsWith(']]')) {
-    return {
-      type: 'optional-catchall',
-      param: segment.slice(5, -2),
-    }
-  }
-
-  if (segment.startsWith('[...') && segment.endsWith(']')) {
-    return {
-      type: 'catchall',
-      param: segment.slice(4, -1),
-    }
-  }
-
-  if (segment.startsWith('[') && segment.endsWith(']')) {
-    return {
-      type: 'dynamic',
-      param: segment.slice(1, -1),
-    }
-  }
-
-  return null
-}
 
 /**
  * Shorten the dynamic param in order to make it smaller when transmitted to the browser.
@@ -561,6 +531,37 @@ export type ChildProp = {
    */
   current: React.ReactNode | null
   segment: Segment
+}
+
+/**
+ * Parse dynamic route segment to type of parameter
+ */
+function getSegmentParam(segment: string): {
+  param: string
+  type: DynamicParamTypes
+} | null {
+  if (segment.startsWith('[[...') && segment.endsWith(']]')) {
+    return {
+      type: 'optional-catchall',
+      param: segment.slice(5, -2),
+    }
+  }
+
+  if (segment.startsWith('[...') && segment.endsWith(']')) {
+    return {
+      type: 'catchall',
+      param: segment.slice(4, -1),
+    }
+  }
+
+  if (segment.startsWith('[') && segment.endsWith(']')) {
+    return {
+      type: 'dynamic',
+      param: segment.slice(1, -1),
+    }
+  }
+
+  return null
 }
 
 /**
