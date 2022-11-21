@@ -398,21 +398,27 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
     const isAppRouter = !pagesRouter
 
     if (process.env.NODE_ENV !== 'production') {
-      if (
-        isAppRouter &&
-        typeof hrefProp === 'object' &&
-        typeof hrefProp.pathname === 'string'
-      ) {
-        const { pathname } = hrefProp
+      if (isAppRouter) {
+        let href: string | undefined
+        if (typeof hrefProp === 'string') {
+          href = hrefProp
+        } else if (
+          typeof hrefProp === 'object' &&
+          typeof hrefProp.pathname === 'string'
+        ) {
+          href = hrefProp.pathname
+        }
 
-        const hasDynamicSegment = pathname
-          .split('/')
-          .some((segment) => segment.startsWith('[') && segment.endsWith(']'))
+        if (href) {
+          const hasDynamicSegment = href
+            .split('/')
+            .some((segment) => segment.startsWith('[') && segment.endsWith(']'))
 
-        if (hasDynamicSegment) {
-          throw new Error(
-            `Dynamic href \`${pathname}\` found while using the \`/app\` router, this is not supported. Read more: https://nextjs.org/docs/messages/app-dir-dynamic-href`
-          )
+          if (hasDynamicSegment) {
+            throw new Error(
+              `Dynamic href \`${href}\` found in <Link> while using the \`/app\` router, this is not supported. Read more: https://nextjs.org/docs/messages/app-dir-dynamic-href`
+            )
+          }
         }
       }
     }
