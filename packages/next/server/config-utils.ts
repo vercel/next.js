@@ -1,8 +1,7 @@
-import { init as initWebpack } from 'next/dist/compiled/webpack/webpack'
-
 let installed: boolean = false
 
 export function loadWebpackHook() {
+  const { init: initWebpack } = require('next/dist/compiled/webpack/webpack')
   if (installed) {
     return
   }

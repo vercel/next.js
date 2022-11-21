@@ -50,7 +50,6 @@ import {
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { findDir } from '../lib/find-pages-dir'
 import { format as formatUrl, UrlWithParsedQuery } from 'url'
-import compression from 'next/dist/compiled/compression'
 import { getPathMatch } from '../shared/lib/router/utils/path-match'
 import { createHeaderRoute, createRedirectRoute } from './server-route-utils'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
@@ -265,7 +264,7 @@ export default class NextNodeServer extends BaseServer {
   }
 
   private compression = this.nextConfig.compress
-    ? (compression() as ExpressMiddleware)
+    ? (require('next/dist/compiled/compression')() as ExpressMiddleware)
     : undefined
 
   protected loadEnvConfig({

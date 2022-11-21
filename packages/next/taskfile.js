@@ -98,6 +98,52 @@ export async function ncc_node_html_parser(task, opts) {
     .target('compiled/node-html-parser')
 }
 
+export async function ncc_next_server(task, opts) {
+  await task
+    .source(
+      opts.src ||
+        relative(__dirname, require.resolve('next/dist/server/next-server'))
+    )
+    .ncc({
+      bundleName: 'next-server',
+      // minify: false,
+      externals: {
+        ...externals,
+        sharp: 'sharp',
+        react: 'react',
+        'react-dom': 'react-dom',
+
+        'next/dist/compiled/compression': 'next/dist/compiled/compression',
+
+        critters: 'critters',
+
+        // 'next/dist/compiled/jest-worker': 'next/dist/compiled/jest-worker',
+
+        // 'next/dist/compiled/react': 'next/dist/compiled/react',
+        // '/next/dist/compiled/react(/*)/': 'next/dist/compiled/react$1',
+        // 'next/dist/compiled/react-dom': 'next/dist/compiled/react-dom',
+        // '/next/dist/compiled/react-dom(/.*)/': 'next/dist/compiled/react-dom$1',
+
+        // 'next/dist/compiled/undici': 'next/dist/compiled/undici',
+        // 'next/dist/compiled/node-fetch': 'next/dist/compiled/node-fetch',
+
+        // '/(.*)google-font-metrics.json/': '$1google-font-metrics.json',
+        '/(.*)next-config-validate.js/': '$1/next-config-validate.js',
+
+        '/(.*)server/web(.*)/': '$1server/web$2',
+        './web/sandbox': './web/sandbox',
+        'next/dist/compiled/edge-runtime': 'next/dist/compiled/edge-runtime',
+        '(.*)@edge-runtime/primitives': '$1@edge-runtime/primitives',
+
+        '/(.*)compiled/webpack(/.*)/': '$1webpack$2',
+        './image-optimizer': './image-optimizer',
+        '/(.*)@ampproject/toolbox-optimizer/':
+          '$1@ampproject/toolbox-optimizer',
+      },
+    })
+    .target('compiled/next-server')
+}
+
 // eslint-disable-next-line camelcase
 externals['@babel/runtime'] = 'next/dist/compiled/@babel/runtime'
 export async function copy_babel_runtime(task, opts) {
@@ -1947,6 +1993,7 @@ export async function ncc(task, opts) {
     .clear('compiled')
     .parallel(
       [
+        'ncc_next_server',
         'ncc_node_html_parser',
         'ncc_watchpack',
         'ncc_chalk',
