@@ -243,8 +243,7 @@ async function main() {
       const start = new Date().getTime()
       let outputChunks = []
 
-      const shouldRecordTestWithReplay =
-        false && process.env.RECORD_REPLAY && isRetry
+      const shouldRecordTestWithReplay = process.env.RECORD_REPLAY && isRetry
 
       const child = spawn(
         jestPath,
