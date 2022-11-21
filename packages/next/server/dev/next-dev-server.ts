@@ -17,7 +17,13 @@ import crypto from 'crypto'
 import fs from 'fs'
 import { Worker } from 'next/dist/compiled/jest-worker'
 import findUp from 'next/dist/compiled/find-up'
-import { join as pathJoin, relative, resolve as pathResolve, sep } from 'path'
+import {
+  join,
+  join as pathJoin,
+  relative,
+  resolve as pathResolve,
+  sep,
+} from 'path'
 import Watchpack from 'next/dist/compiled/watchpack'
 import { ampValidation } from '../../build/output'
 import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../../lib/constants'
@@ -277,12 +283,11 @@ export default class DevServer extends Server {
       const app = this.appDir ? [this.appDir] : []
       const directories = [...pages, ...app]
 
-      const files = this.pagesDir
-        ? getPossibleMiddlewareFilenames(
-            pathJoin(this.pagesDir, '..'),
-            this.nextConfig.pageExtensions
-          )
-        : []
+      const rootDir = this.pagesDir || this.appDir
+      const files = getPossibleMiddlewareFilenames(
+        pathJoin(rootDir!, '..'),
+        this.nextConfig.pageExtensions
+      )
       let nestedMiddleware: string[] = []
 
       const envFiles = [
@@ -294,7 +299,7 @@ export default class DevServer extends Server {
 
       files.push(...envFiles)
 
-      // tsconfig/jsonfig paths hot-reloading
+      // tsconfig/jsconfig paths hot-reloading
       const tsconfigPaths = [
         pathJoin(this.dir, 'tsconfig.json'),
         pathJoin(this.dir, 'jsconfig.json'),
@@ -577,7 +582,7 @@ export default class DevServer extends Server {
             new NestedMiddlewareError(
               nestedMiddleware,
               this.dir,
-              this.pagesDir!
+              (this.pagesDir || this.appDir)!
             ).message
           )
           nestedMiddleware = []
@@ -726,14 +731,15 @@ export default class DevServer extends Server {
     }
 
     const telemetry = new Telemetry({ distDir: this.distDir })
+    const isSrcDir = relative(
+      this.dir,
+      this.pagesDir || this.appDir || ''
+    ).startsWith('src')
     telemetry.record(
       eventCliSession(this.distDir, this.nextConfig, {
         webpackVersion: 5,
         cliCommand: 'dev',
-        isSrcDir:
-          (!!this.pagesDir &&
-            relative(this.dir, this.pagesDir).startsWith('src')) ||
-          (!!this.appDir && relative(this.dir, this.appDir).startsWith('src')),
+        isSrcDir,
         hasNowJson: !!(await findUp('now.json', { cwd: this.dir })),
         isCustomServer: this.isCustomServer,
         turboFlag: false,
