@@ -408,7 +408,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       ) {
         const { pathname, query } = hrefProp
 
-        const dynamicSegments: string[] = pathname
+        const dynamicSegments = pathname
           .split('/')
           .map((segment: string) => getSegmentParam(segment)?.param)
           .filter(Boolean) as string[]
