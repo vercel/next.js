@@ -43,6 +43,7 @@ import {
   NEXT_ROUTER_STATE_TREE,
   RSC,
 } from '../client/components/app-router-headers'
+import type { StaticGenerationStore } from '../client/components/static-generation-async-storage'
 import { type DynamicParamTypes, getSegmentParam } from './utils'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
@@ -274,9 +275,13 @@ function patchFetch(ComponentMod: any) {
           (typeof fetchRevalidate === 'undefined' ||
             next.revalidate < fetchRevalidate)
         ) {
-          staticGenerationStore.fetchRevalidate = next.revalidate
+          const forceDynamic = staticGenerationStore.forceDynamic
 
-          if (next.revalidate === 0) {
+          if (!forceDynamic || next.revalidate !== 0) {
+            staticGenerationStore.fetchRevalidate = next.revalidate
+          }
+
+          if (!forceDynamic && next.revalidate === 0) {
             throw new DynamicServerError(
               `revalidate: ${next.revalidate} fetch ${input}${
                 pathname ? ` ${pathname}` : ''
@@ -760,7 +765,7 @@ export async function renderToHTMLOrFlight(
 
   // we wrap the render in an AsyncLocalStorage context
   const wrappedRender = async () => {
-    const staticGenerationStore =
+    const staticGenerationStore: StaticGenerationStore =
       'getStore' in staticGenerationAsyncStorage
         ? staticGenerationAsyncStorage.getStore()
         : staticGenerationAsyncStorage
@@ -1069,6 +1074,17 @@ export async function renderToHTMLOrFlight(
         : rootLayoutAtThisLevel
         ? [DefaultNotFound]
         : []
+
+      if (typeof layoutOrPageMod?.dynamic === 'string') {
+        // the nested most config wins so we only force-static
+        // if it's configured above any parent that configured
+        // otherwise
+        if (layoutOrPageMod.dynamic === 'force-static') {
+          staticGenerationStore.forceStatic = true
+        } else {
+          staticGenerationStore.forceStatic = false
+        }
+      }
 
       if (typeof layoutOrPageMod?.revalidate === 'number') {
         defaultRevalidate = layoutOrPageMod.revalidate
