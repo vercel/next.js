@@ -42,6 +42,7 @@ import {
   NEXT_ROUTER_PREFETCH,
   NEXT_ROUTER_STATE_TREE,
   RSC,
+  FLIGHT_PARAMETERS,
 } from '../client/components/app-router-headers'
 import type { StaticGenerationStore } from '../client/components/static-generation-async-storage'
 
@@ -703,12 +704,6 @@ function getScriptNonceFromHeader(cspHeaderValue: string): string | undefined {
 
   return nonce
 }
-
-export const FLIGHT_PARAMETERS = [
-  [RSC],
-  [NEXT_ROUTER_STATE_TREE],
-  [NEXT_ROUTER_PREFETCH],
-] as const
 
 function headersWithoutFlight(headers: IncomingHttpHeaders) {
   const newHeaders = { ...headers }
