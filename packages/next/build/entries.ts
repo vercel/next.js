@@ -513,18 +513,26 @@ export function finalizeEntrypoint({
     }
   }
 
+  const isAppEntry =
+    hasAppDir &&
+    ([CLIENT_STATIC_FILES_RUNTIME_MAIN_APP].includes(name) ||
+      entry.import.includes('next-flight-client-entry-loader'))
+
   if (
     // Client special cases
-    name !== CLIENT_STATIC_FILES_RUNTIME_POLYFILLS &&
-    name !== CLIENT_STATIC_FILES_RUNTIME_MAIN &&
-    name !== CLIENT_STATIC_FILES_RUNTIME_MAIN_APP &&
-    name !== CLIENT_STATIC_FILES_RUNTIME_AMP &&
-    name !== CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH
+    ![
+      CLIENT_STATIC_FILES_RUNTIME_POLYFILLS,
+      CLIENT_STATIC_FILES_RUNTIME_MAIN,
+      CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
+      CLIENT_STATIC_FILES_RUNTIME_AMP,
+      CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
+    ].includes(name)
   ) {
     // TODO-APP: this is a temporary fix. @shuding is going to change the handling of server components
     if (hasAppDir && entry.import.includes('next-flight-client-entry-loader')) {
       return {
         dependOn: CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
+        layer: isAppEntry ? WEBPACK_LAYERS.appClient : undefined,
         ...entry,
       }
     }
@@ -534,6 +542,13 @@ export function finalizeEntrypoint({
         name.startsWith('pages/') && name !== 'pages/_app'
           ? 'pages/_app'
           : CLIENT_STATIC_FILES_RUNTIME_MAIN,
+      ...entry,
+    }
+  }
+
+  if (isAppEntry) {
+    return {
+      layer: WEBPACK_LAYERS.appClient,
       ...entry,
     }
   }
