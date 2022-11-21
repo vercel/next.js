@@ -8,12 +8,11 @@ use std::{
     hash::Hash,
     mem::{replace, take},
     pin::Pin,
-    sync::Mutex,
     time::Duration,
 };
 
 use anyhow::Result;
-use parking_lot::{RwLock, RwLockWriteGuard};
+use parking_lot::{Mutex, RwLock, RwLockWriteGuard};
 use tokio::task_local;
 use turbo_tasks::{
     backend::{CellMappings, PersistentTaskType},
@@ -425,7 +424,7 @@ impl Task {
 
     #[cfg(not(feature = "report_expensive"))]
     fn clear_dependencies(&self, backend: &MemoryBackend) {
-        let mut execution_data = self.execution_data.lock().unwrap();
+        let mut execution_data = self.execution_data.lock();
         let dependencies = take(&mut execution_data.dependencies);
         drop(execution_data);
 
@@ -440,7 +439,7 @@ impl Task {
 
         use turbo_tasks::util::FormatDuration;
         let start = Instant::now();
-        let mut execution_data = self.execution_data.lock().unwrap();
+        let mut execution_data = self.execution_data.lock();
         let dependencies = take(&mut execution_data.dependencies);
         drop(execution_data);
 
@@ -573,7 +572,7 @@ impl Task {
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> bool {
         DEPENDENCIES_TO_TRACK.with(|deps| {
-            let mut execution_data = self.execution_data.lock().unwrap();
+            let mut execution_data = self.execution_data.lock();
             if let Some(cell_mappings) = cell_mappings {
                 execution_data.cell_mappings = cell_mappings;
             }
@@ -1115,7 +1114,7 @@ impl Task {
     }
 
     pub(crate) fn take_cell_mappings(&self) -> CellMappings {
-        let mut execution_data = self.execution_data.lock().unwrap();
+        let mut execution_data = self.execution_data.lock();
         let mut cell_mappings = take(&mut execution_data.cell_mappings);
         for list in cell_mappings.by_type.values_mut() {
             list.0 = 0;
@@ -1134,11 +1133,7 @@ impl Task {
         match &self.ty {
             TaskType::Root(bound_fn) => bound_fn(),
             TaskType::Once(mutex) => {
-                let future = mutex
-                    .lock()
-                    .unwrap()
-                    .take()
-                    .expect("Task can only be executed once");
+                let future = mutex.lock().take().expect("Task can only be executed once");
                 // let task = self.clone();
                 Box::pin(future)
             }
@@ -1260,7 +1255,7 @@ impl Task {
             }
         }
         {
-            let execution_data = self.execution_data.lock().unwrap();
+            let execution_data = self.execution_data.lock();
             for dep in execution_data.dependencies.iter() {
                 match dep {
                     TaskDependency::TaskOutput(task) | TaskDependency::TaskCell(task, _) => {
