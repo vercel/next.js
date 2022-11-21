@@ -299,20 +299,6 @@ describe('app dir', () => {
       expect(html).toContain('hello from app/partial-match-[id]. ID is: 123')
     })
 
-    // This is a workaround to fix https://github.com/vercel/next.js/issues/5860
-    // TODO: remove this workaround when https://bugs.webkit.org/show_bug.cgi?id=187726 is fixed.
-    it('should use cache busting when loading css (dev only)', async () => {
-      const html = await renderViaHTTP(next.url, '/')
-      const $ = cheerio.load(html)
-      const links = $('link[rel=stylesheet]')
-      links.each((_, link) => {
-        const href = $(link).attr('href')
-        isDev
-          ? expect(href).toMatch(/\?ts=/)
-          : expect(href).not.toMatch(/\?ts=/)
-      })
-    })
-
     describe('rewrites', () => {
       // TODO-APP: rewrite url is broken
       it('should support rewrites on initial load', async () => {
@@ -1514,7 +1500,7 @@ describe('app dir', () => {
           const html = await renderViaHTTP(next.url, '/loading-bug/hi')
           // The link tag should be included together with loading
           expect(html).toMatch(
-            /<link rel="stylesheet" href="(.+)\.css(\?ts=\d+)?"\/><h2>Loading...<\/h2>/
+            /<link rel="stylesheet" href="(.+)\.css"\/><h2>Loading...<\/h2>/
           )
         })
 
@@ -1574,6 +1560,66 @@ describe('app dir', () => {
           ).toBe('50px')
         })
       })
+
+      if (isDev) {
+        describe('HMR', () => {
+          it('should support HMR for CSS imports in server components', async () => {
+            const filePath = 'app/css/css-page/style.css'
+            const origContent = await next.readFile(filePath)
+
+            // h1 should be red
+            const browser = await webdriver(next.url, '/css/css-page')
+            expect(
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('h1')).color`
+              )
+            ).toBe('rgb(255, 0, 0)')
+
+            try {
+              await next.patchFile(filePath, origContent.replace('red', 'blue'))
+
+              // Wait for HMR to trigger
+              await new Promise((resolve) => setTimeout(resolve, 2000))
+
+              expect(
+                await browser.eval(
+                  `window.getComputedStyle(document.querySelector('h1')).color`
+                )
+              ).toBe('rgb(0, 0, 255)')
+            } finally {
+              await next.patchFile(filePath, origContent)
+            }
+          })
+
+          it('should support HMR for CSS imports in client components', async () => {
+            const filePath = 'app/css/css-client/client-page.css'
+            const origContent = await next.readFile(filePath)
+
+            // h1 should be red
+            const browser = await webdriver(next.url, '/css/css-client')
+            expect(
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('h1')).color`
+              )
+            ).toBe('rgb(255, 0, 0)')
+
+            try {
+              await next.patchFile(filePath, origContent.replace('red', 'blue'))
+
+              // Wait for HMR to trigger
+              await new Promise((resolve) => setTimeout(resolve, 2000))
+
+              expect(
+                await browser.eval(
+                  `window.getComputedStyle(document.querySelector('h1')).color`
+                )
+              ).toBe('rgb(0, 0, 255)')
+            } finally {
+              await next.patchFile(filePath, origContent)
+            }
+          })
+        })
+      }
     })
 
     describe('searchParams prop', () => {
