@@ -4,7 +4,7 @@ import { getRedboxDescription, hasRedbox } from 'next-test-utils'
 import path from 'path'
 import webdriver from 'next-webdriver'
 
-describe('href-interpolation', () => {
+describe('dynamic-href', () => {
   const isDev = (global as any).isNextDev
   if ((global as any).isNextDeploy) {
     it('should skip next deploy for now', () => {})
@@ -15,7 +15,7 @@ describe('href-interpolation', () => {
 
   beforeAll(async () => {
     next = await createNext({
-      files: new FileRef(path.join(__dirname, 'href-interpolation')),
+      files: new FileRef(path.join(__dirname, 'dynamic-href')),
       dependencies: {
         react: 'experimental',
         'react-dom': 'experimental',
@@ -31,7 +31,7 @@ describe('href-interpolation', () => {
       // Error should show up
       expect(await hasRedbox(browser, true)).toBeTrue()
       expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
-        `"Error: The \`/app\` router does not support \`href\` interpolation, found pathname \`/[slug]\` using query \`slug\`. Read more: https://nextjs.org/docs/messages/app-dir-href-interpolation"`
+        `"Error: Dynamic href \`/[slug]\` found while using the \`/app\` router, this is not supported. Read more: https://nextjs.org/docs/messages/app-dir-dynamic-href"`
       )
 
       // Fix error
