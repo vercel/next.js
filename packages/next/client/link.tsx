@@ -18,7 +18,6 @@ import {
 import { useIntersection } from './use-intersection'
 import { getDomainLocale } from './get-domain-locale'
 import { addBasePath } from './add-base-path'
-import { getSegmentParam } from '../server/utils'
 
 type Url = string | UrlObject
 type RequiredKeys<T> = {
@@ -402,23 +401,18 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       if (
         isAppRouter &&
         typeof hrefProp === 'object' &&
-        typeof hrefProp.pathname === 'string' &&
-        hrefProp.query &&
-        typeof hrefProp.query === 'object'
+        typeof hrefProp.pathname === 'string'
       ) {
-        const { pathname, query } = hrefProp
+        const { pathname } = hrefProp
 
-        const dynamicSegments = pathname
+        const hasDynamicSegment = pathname
           .split('/')
-          .map((segment: string) => getSegmentParam(segment)?.param)
-          .filter(Boolean) as string[]
+          .some((segment) => segment.startsWith('[') && segment.endsWith(']'))
 
-        for (const dynamicSegment of dynamicSegments) {
-          if (query[dynamicSegment]) {
-            throw new Error(
-              `The \`/app\` router does not support \`href\` interpolation, found pathname \`${pathname}\` using query \`${dynamicSegment}\`. Read more: https://nextjs.org/docs/messages/app-dir-href-interpolation`
-            )
-          }
+        if (hasDynamicSegment) {
+          throw new Error(
+            `Dynamic href \`${pathname}\` found while using the \`/app\` router, this is not supported. Read more: https://nextjs.org/docs/messages/app-dir-dynamic-href`
+          )
         }
       }
     }
