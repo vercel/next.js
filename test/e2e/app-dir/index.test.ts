@@ -2096,6 +2096,51 @@ describe('app dir', () => {
     })
 
     describe('known bugs', () => {
+      describe('should support React cache', () => {
+        it('server component', async () => {
+          const browser = await webdriver(
+            next.url,
+            '/react-cache/server-component'
+          )
+          const val1 = await browser.elementByCss('#value-1').text()
+          const val2 = await browser.elementByCss('#value-2').text()
+          expect(val1).toBe(val2)
+        })
+
+        it('server component client-navigation', async () => {
+          const browser = await webdriver(next.url, '/react-cache')
+
+          await browser
+            .elementByCss('#to-server-component')
+            .click()
+            .waitForElementByCss('#value-1', 2000)
+          const val1 = await browser.elementByCss('#value-1').text()
+          const val2 = await browser.elementByCss('#value-2').text()
+          expect(val1).toBe(val2)
+        })
+
+        it('client component', async () => {
+          const browser = await webdriver(
+            next.url,
+            '/react-cache/client-component'
+          )
+          const val1 = await browser.elementByCss('#value-1').text()
+          const val2 = await browser.elementByCss('#value-2').text()
+          expect(val1).toBe(val2)
+        })
+
+        it('client component client-navigation', async () => {
+          const browser = await webdriver(next.url, '/react-cache')
+
+          await browser
+            .elementByCss('#to-client-component')
+            .click()
+            .waitForElementByCss('#value-1', 2000)
+          const val1 = await browser.elementByCss('#value-1').text()
+          const val2 = await browser.elementByCss('#value-2').text()
+          expect(val1).toBe(val2)
+        })
+      })
       it('should not share flight data between requests', async () => {
         const fetches = await Promise.all(
           [...new Array(5)].map(() =>
