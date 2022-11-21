@@ -19,6 +19,12 @@ You have tried to use a dynamic `href` with `next/link` in the `/app` directory.
 </Link>
 ```
 
+Or
+
+```jsx
+<Link href="/route/[slug]?slug=1">link</Link>
+```
+
 **After**
 
 ```jsx
