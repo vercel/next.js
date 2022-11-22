@@ -1,14 +1,8 @@
 import os from 'os'
 import path from 'path'
-import execa from 'execa'
 import fs from 'fs-extra'
-import childProcess from 'child_process'
 import { randomBytes } from 'crypto'
 import { FileRef } from 'e2e-utils'
-import type { InstallCommand, PackageJson } from './next-modes/base'
-
-const { linkPackages } =
-  require('../../.github/actions/next-stats-action/src/prepare/repo-setup')()
 
 type Files = FileRef | { [filename: string]: string | FileRef }
 
@@ -125,114 +119,4 @@ export async function initTemporalDirs(dirSuffix = '') {
   }
 
   return { installDir, tmpRepoDir }
-}
-
-export async function createTestDir({
-  packageJson,
-  dependencies,
-  installCommand,
-  dirSuffix = '',
-  packageLockPath = '',
-  apps,
-  packages,
-}: {
-  packageJson: PackageJson
-  dependencies: PackageJson['dependencies']
-  installCommand?: InstallCommand
-  dirSuffix?: string
-  packageLockPath?: string
-  apps?: string[]
-  packages?: string[]
-}): Promise<string> {
-  const { installDir, tmpRepoDir } = await initTemporalDirs(dirSuffix)
-  const packageJsons: [string, PackageJson][] = [['package.json', packageJson]]
-
-  let combinedDependencies = dependencies
-
-  const skipLocalDeps = (pkgJson: PackageJson) =>
-    !!(pkgJson && pkgJson.nextPrivateSkipLocalDeps)
-
-  // if (apps?.length || packages?.length) {
-  //   if (packageJson?.devDependencies.turbo) {
-  //     throw new Error(
-  //       `"turbo" needs to be a dev dependency of the root package.json when testing monorepos`
-  //     )
-  //   }
-
-  //   await writeInitialFiles()
-  // }
-
-  if (packageJsons.some(([, packageJson]) => !skipLocalDeps(packageJson))) {
-    const pkgPaths = await linkPackages(tmpRepoDir)
-
-    combinedDependencies = {
-      next: pkgPaths.get('next'),
-      ...Object.keys(dependencies).reduce((prev, pkg) => {
-        const pkgPath = pkgPaths.get(pkg)
-        prev[pkg] = pkgPath || dependencies[pkg]
-        return prev
-      }, {}),
-    }
-  }
-
-  for (const [dest, packageJson] of packageJsons) {
-    await fs.ensureDir(path.join(installDir, path.dirname(dest)))
-    await fs.writeFile(
-      path.join(installDir, dest),
-      JSON.stringify(
-        packageJson?.devDependencies?.turbo
-          ? // Don't modify the dependencies in the monorepo's package.json,
-            // since it won't include next or react
-            packageJson
-          : {
-              ...packageJson,
-              dependencies: {
-                ...packageJson?.dependencies,
-                ...(skipLocalDeps(packageJson)
-                  ? dependencies
-                  : combinedDependencies),
-              },
-              private: true,
-            },
-        null,
-        2
-      )
-    )
-  }
-
-  if (packageLockPath) {
-    await fs.copy(
-      packageLockPath,
-      path.join(installDir, path.basename(packageLockPath))
-    )
-  }
-  if (pnpmWorkspace) {
-    await fs.writeFile(
-      path.join(installDir, 'pnpm-workspace.yaml'),
-      pnpmWorkspace
-    )
-  }
-
-  if (installCommand) {
-    const installString =
-      typeof installCommand === 'function'
-        ? installCommand({ dependencies: combinedDependencies })
-        : installCommand
-
-    console.log('running install command', installString)
-
-    childProcess.execSync(installString, {
-      cwd: installDir,
-      stdio: ['ignore', 'inherit', 'inherit'],
-    })
-  } else {
-    await execa('pnpm', ['install', '--strict-peer-dependencies=false'], {
-      cwd: installDir,
-      stdio: ['ignore', 'inherit', 'inherit'],
-      env: process.env,
-    })
-  }
-
-  await fs.remove(tmpRepoDir)
-  return installDir
 }

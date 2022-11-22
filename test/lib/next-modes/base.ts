@@ -8,11 +8,10 @@ import { FileRef } from '../e2e-utils'
 import childProcess, { ChildProcess } from 'child_process'
 import {
   getFileContent,
-  createTestDir,
   writeInitialFiles,
   initTemporalDirs,
   FilterFn,
-} from '../create-test-dir'
+} from '../create-test-dir-utils'
 
 const { linkPackages } =
   require('../../../.github/actions/next-stats-action/src/prepare/repo-setup')()
