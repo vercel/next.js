@@ -1288,9 +1288,9 @@ describe('should set-up next', () => {
     expect(res.status).toBe(200)
     expect(await res.text()).toContain('index page')
 
-    // when not in next env should be compress: false
+    // when not in next env should be compress: true
     expect(
       await fs.readFileSync(join(next.testDir, 'standalone/server.js'), 'utf8')
-    ).toContain('"compress":false')
+    ).toContain('"compress":true')
   })
 })
