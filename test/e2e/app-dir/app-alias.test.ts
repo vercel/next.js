@@ -44,7 +44,7 @@ describe('app-dir alias handling', () => {
   })
 
   if (!(global as any).isNextDev) {
-    it.only('should generate app-build-manifest correctly', async () => {
+    it('should generate app-build-manifest correctly', async () => {
       // Remove other page CSS files:
       const manifest = await readJSON(
         path.join(next.testDir, '.next', 'app-build-manifest.json')
