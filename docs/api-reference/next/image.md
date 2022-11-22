@@ -16,6 +16,7 @@ description: Enable Image Optimization with the built-in Image component.
 
 | Version   | Changes                                                                                                                                                                                                                  |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `v13.0.1` | `ref` prop added.                                                                                                                                                                                                        |
 | `v13.0.0` | `<span>` wrapper removed. `layout`, `objectFit`, `objectPosition`, `lazyBoundary`, `lazyRoot` props removed. `alt` is required. `onLoadingComplete` receives reference to `img` element. Built-in loader config removed. |
 | `v12.3.0` | `remotePatterns` and `unoptimized` configuration is stable.                                                                                                                                                              |
 | `v12.2.0` | Experimental `remotePatterns` and experimental `unoptimized` configuration added. `layout="raw"` removed.                                                                                                                |
@@ -284,7 +285,6 @@ Other properties on the `<Image />` component will be passed to the underlying
 `img` element with the exception of the following:
 
 - `srcSet`. Use [Device Sizes](#device-sizes) instead.
-- `ref`. Use [`onLoadingComplete`](#onloadingcomplete) instead.
 - `decoding`. It is always `"async"`.
 
 ## Configuration Options
