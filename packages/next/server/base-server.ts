@@ -74,8 +74,11 @@ import { getHostname } from '../shared/lib/get-hostname'
 import { parseUrl as parseUrlUtil } from '../shared/lib/router/utils/parse-url'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
 import { MiddlewareMatcher } from '../build/analysis/get-page-static-info'
-import { RSC, RSC_VARY_HEADER } from '../client/components/app-router-headers'
-import { FLIGHT_PARAMETERS } from './app-render'
+import {
+  RSC,
+  RSC_VARY_HEADER,
+  FLIGHT_PARAMETERS,
+} from '../client/components/app-router-headers'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
