@@ -4,7 +4,7 @@ import { waitFor } from 'next-test-utils'
 import path from 'path'
 import webdriver from 'next-webdriver'
 
-describe('next-image', () => {
+describe('next-image-forward-ref', () => {
   let next: NextInstance
 
   const appDir = path.join(__dirname, 'app')
@@ -20,7 +20,7 @@ describe('next-image', () => {
   afterAll(() => next.destroy())
 
   it('allows framer-motion to animate opacity', async () => {
-    const browser = await webdriver(next.url, '/')
+    const browser = await webdriver(next.url, '/framer-motion')
     expect(
       Number(await browser.elementById('img').getComputedCss('opacity'))
     ).toBeCloseTo(1)

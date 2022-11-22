@@ -20,14 +20,11 @@ const MotionImage = motion(CustomImage)
 export default function Page() {
   const [clicked, setClicked] = useState(false)
   return (
-    <>
-      <h1>Framer demo</h1>
-      <MotionImage
-        onClick={() => setClicked(true)}
-        initial={{ opacity: 1 }}
-        animate={{ opacity: clicked ? 0 : 1 }}
-        transition={{ duration: 0.5 }}
-      />
-    </>
+    <MotionImage
+      onClick={() => setClicked(true)}
+      initial={{ opacity: 1 }}
+      animate={{ opacity: clicked ? 0 : 1 }}
+      transition={{ duration: 0.5 }}
+    />
   )
 }
