@@ -457,7 +457,11 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
   await Promise.all(Object.keys(pages).map(getEntryHandler(pages, 'pages')))
 
   if (nestedMiddleware.length > 0) {
-    throw new NestedMiddlewareError(nestedMiddleware, rootDir, pagesDir!)
+    throw new NestedMiddlewareError(
+      nestedMiddleware,
+      rootDir,
+      (appDir || pagesDir)!
+    )
   }
 
   return {
