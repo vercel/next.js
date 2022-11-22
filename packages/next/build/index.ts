@@ -11,7 +11,7 @@ import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import findUp from 'next/dist/compiled/find-up'
 import { nanoid } from 'next/dist/compiled/nanoid/index.cjs'
 import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
-import path, { join } from 'path'
+import path from 'path'
 import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
 import {
   STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR,
@@ -331,15 +331,16 @@ export default async function build(
         })
 
       const { pagesDir, appDir } = findPagesDir(dir, isAppDirEnabled)
+      const isSrcDir = path
+        .relative(dir, pagesDir || appDir || '')
+        .startsWith('src')
       const hasPublicDir = await fileExists(publicDir)
 
       telemetry.record(
         eventCliSession(dir, config, {
           webpackVersion: 5,
           cliCommand: 'build',
-          isSrcDir:
-            (!!pagesDir && path.relative(dir, pagesDir).startsWith('src')) ||
-            (!!appDir && path.relative(dir, appDir).startsWith('src')),
+          isSrcDir,
           hasNowJson: !!(await findUp('now.json', { cwd: dir })),
           isCustomServer: null,
           turboFlag: false,
@@ -502,11 +503,10 @@ export default async function build(
         `^${MIDDLEWARE_FILENAME}\\.(?:${config.pageExtensions.join('|')})$`
       )
 
-      const rootPaths = pagesDir
-        ? (
-            await flatReaddir(join(pagesDir, '..'), middlewareDetectionRegExp)
-          ).map((absoluteFile) => absoluteFile.replace(dir, ''))
-        : []
+      const rootDir = path.join((pagesDir || appDir)!, '..')
+      const rootPaths = (
+        await flatReaddir(rootDir, middlewareDetectionRegExp)
+      ).map((absoluteFile) => absoluteFile.replace(dir, ''))
 
       // needed for static exporting since we want to replace with HTML
       // files
@@ -1311,7 +1311,7 @@ export default async function build(
           config.experimental.gzipSize
         )
 
-        const middlewareManifest: MiddlewareManifest = require(join(
+        const middlewareManifest: MiddlewareManifest = require(path.join(
           distDir,
           SERVER_DIRECTORY,
           MIDDLEWARE_MANIFEST
@@ -1392,7 +1392,7 @@ export default async function build(
 
                 const staticInfo = pagePath
                   ? await getPageStaticInfo({
-                      pageFilePath: join(
+                      pageFilePath: path.join(
                         (pageType === 'pages' ? pagesDir : appDir) || '',
                         pagePath
                       ),
@@ -2060,7 +2060,7 @@ export default async function build(
         const cssFilePaths = await new Promise<string[]>((resolve, reject) => {
           globOrig(
             '**/*.css',
-            { cwd: join(distDir, 'static') },
+            { cwd: path.join(distDir, 'static') },
             (err, files) => {
               if (err) {
                 return reject(err)
@@ -2881,7 +2881,7 @@ export default async function build(
           .traceAsyncFn(async () => {
             await verifyPartytownSetup(
               dir,
-              join(distDir, CLIENT_STATIC_FILES_PATH)
+              path.join(distDir, CLIENT_STATIC_FILES_PATH)
             )
           })
       }
