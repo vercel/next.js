@@ -97,8 +97,6 @@ export function init(example = '') {
   it(`should compile and serve the index page correctly`, async () => {
     expect(await next.readFile('pnpm-lock.yaml')).toBeTruthy()
 
-    expect(next.cliOutput).toMatch(/Compiled successfully/)
-
     const res = await fetchViaHTTP(next.url, '/')
     expect(res.status).toBe(200)
     expect(await res.text()).toContain('<html')
