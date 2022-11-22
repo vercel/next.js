@@ -4,7 +4,7 @@ description: Display optimized images with no layout shift using the built-in `n
 
 # next/image
 
-<details>
+<details open>
   <summary><b>Examples</b></summary>
   <ul>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/image-component">Image Component</a></li>
@@ -34,8 +34,8 @@ description: Display optimized images with no layout shift using the built-in `n
 
 This API reference will help you understand how to use [props](#props) and [configuration options](#configuration-options) available for the Image Component. For features and usage, please see the [Image Component](/docs/basic-features/image-optimization.md) page.
 
-```jsx:app/page.js
-import Image from 'next/image';
+```jsx
+import Image from 'next/image'
 
 export default function Page() {
   return (
@@ -45,7 +45,7 @@ export default function Page() {
       height={500}
       alt="Picture of the author"
     />
-  );
+  )
 }
 ```
 
@@ -76,8 +76,8 @@ Here's a summary of the props available for the Image Component:
 
 The Image Component requires the following properties: `src`, `width`, `height`, and `alt`.
 
-```jsx:app/page.js
-import Image from 'next/image';
+```jsx
+import Image from 'next/image'
 
 export default function Page() {
   return (
@@ -89,7 +89,7 @@ export default function Page() {
         alt="Picture of the author"
       />
     </div>
-  );
+  )
 }
 ```
 
@@ -134,12 +134,12 @@ A custom function used to resolve image URLs.
 
 A `loader` is a function that returns a URL string for the image, it accepts the following parameters: `src`, `width`, `quality`.
 
-```jsx:app/page.js
-import Image from 'next/image';
+```jsx
+import Image from 'next/image'
 
 const imageLoader = ({ src, width, quality }) => {
-  return `https://example.com/${src}?w=${width}&q=${quality || 75}`;
-};
+  return `https://example.com/${src}?w=${width}&q=${quality || 75}`
+}
 
 export default function Page({ imageLoader }) {
   return (
@@ -150,8 +150,8 @@ export default function Page({ imageLoader }) {
       width={500}
       height={500}
     />
-  );
-};
+  )
+}
 ```
 
 #### `fill`
@@ -182,17 +182,17 @@ The `sizes` property serves two important purposes related to image performance:
 
 For example, if you know your styling will cause an image to be full-width on mobile devices, in a 2-column layout on tablets, and a 3-column layout on desktop displays, you should include a sizes property such as the following:
 
-```jsx:app/page.js
-import Image from 'next/image';
+```jsx
+import Image from 'next/image'
 
 export default function Page() {
-  <div className="grid-element">
+  ;<div className="grid-element">
     <Image
       src="/example.png"
       layout="fill"
       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
     />
-  </div>;
+  </div>
 }
 ```
 
@@ -358,7 +358,7 @@ In addition to props, you can configure the Image Component in `next.config.js`.
 
 To protect your application from malicious users, configuration is required in order to use external images. This ensures that only external images from your account can be served from the Next.js Image Optimization API. These external images can be configured with the `remotePatterns` property in your `next.config.js` file, as shown below:
 
-```jsx:next.config.js
+```jsx
 module.exports = {
   images: {
     remotePatterns: [
@@ -370,14 +370,14 @@ module.exports = {
       },
     ],
   },
-};
+}
 ```
 
 The example above will ensure the `src` property of `next/image` starts with `https://example.com/account123/`. Any other protocol, hostname, port, or unmatched path will respond with 400 Bad Request.
 
 Below is another example of the `remotePatterns` property in the `next.config.js` file:
 
-```jsx:next.config.js
+```jsx
 module.exports = {
   images: {
     remotePatterns: [
@@ -387,7 +387,7 @@ module.exports = {
       },
     ],
   },
-};
+}
 ```
 
 The example above will ensure the `src` property of `next/image` uses the `example.com` domain with any number of subdomains. E.g. `https://img1.example.com` or `https://me.avatar.example.com`. Any other protocol or unmatched hostname will respond with 400 Bad Request.
@@ -409,12 +409,12 @@ However, the `domains` configuration **does not support wildcard pattern** match
 
 Below is an example of the `domains` property in the `next.config.js` file:
 
-```jsx:next.config.js
+```jsx
 module.exports = {
   images: {
     domains: ['assets.example.com'],
   },
-};
+}
 ```
 
 ## Advanced Configuration Options
@@ -427,12 +427,12 @@ If you know the expected device widths of your users, you can specify a list of 
 
 If no configuration is provided, the default below is used.
 
-```jsx:next.config.js
+```jsx
 module.exports = {
   images: {
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
   },
-};
+}
 ```
 
 ### `imageSizes`
@@ -443,12 +443,12 @@ The reason there are two separate lists is that imageSizes is only used for imag
 
 If no configuration is provided, the default below is used.
 
-```jsx:next.config.js
+```jsx
 module.exports = {
   images: {
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   },
-};
+}
 ```
 
 ### `formats`
@@ -459,22 +459,22 @@ If the `Accept` head matches more than one of the configured formats, the first 
 
 If no configuration is provided, the default below is used.
 
-```jsx:next.config.js
+```jsx
 module.exports = {
   images: {
     formats: ['image/webp'],
   },
-};
+}
 ```
 
 You can enable AVIF support with the following configuration.
 
-```jsx:next.config.js
+```jsx
 module.exports = {
   images: {
     formats: ['image/avif', 'image/webp'],
   },
-};
+}
 ```
 
 **Good to know:**
@@ -526,12 +526,12 @@ In some cases, you may wish to disable this feature if it conflicts with other p
 
 You can disable static image imports inside your `next.config.js`:
 
-```jsx:next.config.js
+```jsx
 module.exports = {
   images: {
     disableStaticImages: true,
   },
-};
+}
 ```
 
 ### `dangerouslyAllowSVG` and `contentSecurityPolicy`
@@ -554,6 +554,15 @@ module.exports = {
 The default [loader](#loader) will automatically bypass Image Optimization for animated images and serve the image as-is.
 
 Auto-detection for animated files is best-effort and supports GIF, APNG, and WebP. If you want to explicitly bypass Image Optimization for a given animated image, use the [unoptimized](#unoptimized) prop.
+
+## Known Browser Bugs
+
+- [Safari 15](https://bugs.webkit.org/show_bug.cgi?id=243601) displays a gray border while loading. Possible solutions:
+  - Use CSS `@media not all and (min-resolution:.001dpcm) { img[loading="lazy"] { clip-path: inset(0.5px) } }`
+  - Use [`priority`](#priority) if the image is above the fold
+- [Firefox 67+](https://bugzilla.mozilla.org/show_bug.cgi?id=1556156) displays a white background while loading. Possible solutions:
+  - Enable [AVIF `formats`](#acceptable-formats)
+  - Use [`placeholder="blur"`](#placeholder)
 
 ## Related
 
