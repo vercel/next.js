@@ -9,6 +9,7 @@
  */
 
 import path from 'path'
+import { findDir } from '../lib/find-pages-dir'
 
 const DISALLOWED_SERVER_REACT_APIS: string[] = [
   'useState',
@@ -193,7 +194,7 @@ export function createTSPlugin(modules: {
   }
 
   function create(info: ts.server.PluginCreateInfo) {
-    const appDir = path.join(info.project.getCurrentDirectory(), 'app')
+    const appDir = findDir(info.project.getCurrentDirectory(), 'app')
     const isAppEntryFile = (filePath: string) => {
       return (
         filePath.startsWith(appDir) &&
