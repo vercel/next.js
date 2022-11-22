@@ -84,6 +84,7 @@ export interface ExperimentalConfig {
   skipTrailingSlashRedirect?: boolean
   optimisticClientCache?: boolean
   middlewarePrefetch?: 'strict' | 'flexible'
+  preCompiledNextServer?: boolean
   legacyBrowsers?: boolean
   manualClientBasePath?: boolean
   newNextLinkBehavior?: boolean
@@ -565,6 +566,7 @@ export const defaultConfig: NextConfig = {
   swcMinify: true,
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   experimental: {
+    preCompiledNextServer: false,
     middlewarePrefetch: 'flexible',
     optimisticClientCache: true,
     runtime: undefined,

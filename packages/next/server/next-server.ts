@@ -204,6 +204,7 @@ function getEdgeMatcher(
 
 export default class NextNodeServer extends BaseServer {
   private imageResponseCache?: ResponseCache
+  private compression?: any
 
   constructor(options: Options) {
     // Initialize super class
@@ -224,6 +225,10 @@ export default class NextNodeServer extends BaseServer {
     }
     if (this.renderOpts.nextScriptWorkers) {
       process.env.__NEXT_SCRIPT_WORKERS = JSON.stringify(true)
+    }
+
+    if (this.nextConfig.compress) {
+      this.compression = require('next/dist/compiled/compression')()
     }
 
     if (!this.minimalMode) {
@@ -262,10 +267,6 @@ export default class NextNodeServer extends BaseServer {
     // ensure options are set when loadConfig isn't called
     setHttpClientAndAgentOptions(this.nextConfig)
   }
-
-  private compression = this.nextConfig.compress
-    ? (require('next/dist/compiled/compression')() as ExpressMiddleware)
-    : undefined
 
   protected loadEnvConfig({
     dev,

@@ -117,12 +117,36 @@ export async function ncc_next_server(task, opts) {
 
         critters: 'critters',
 
-        // 'next/dist/compiled/jest-worker': 'next/dist/compiled/jest-worker',
+        'next/dist/compiled/jest-worker': 'next/dist/compiled/jest-worker',
 
-        // 'next/dist/compiled/react': 'next/dist/compiled/react',
-        // '/next/dist/compiled/react(/*)/': 'next/dist/compiled/react$1',
-        // 'next/dist/compiled/react-dom': 'next/dist/compiled/react-dom',
-        // '/next/dist/compiled/react-dom(/.*)/': 'next/dist/compiled/react-dom$1',
+        'next/dist/compiled/react': 'next/dist/compiled/react',
+        '/next/dist/compiled/react(/.+)/': 'next/dist/compiled/react$1',
+        'next/dist/compiled/react-dom': 'next/dist/compiled/react-dom',
+        '/next/dist/compiled/react-dom(/.+)/': 'next/dist/compiled/react-dom$1',
+
+        // react contexts must be external
+        '/(.*)server-inserted-html/':
+          'next/dist/shared/lib/server-inserted-html.js',
+
+        '/(.+/)router-context/': 'next/dist/shared/lib/router-context.js',
+
+        '/(.*)loadable-context/': 'next/dist/shared/lib/loadable-context.js',
+
+        '/(.*)image-config-context/':
+          'next/dist/shared/lib/image-config-context.js',
+
+        '/(.*)head-manager-context/':
+          'next/dist/shared/lib/head-manager-context.js',
+
+        '/(.*)app-router-context/':
+          'next/dist/shared/lib/app-router-context.js',
+
+        '/(.*)amp-context/': 'next/dist/shared/lib/amp-context.js',
+
+        '/(.*)hooks-client-context/':
+          'next/dist/shared/lib/hooks-client-context.js',
+
+        '/(.*)html-context/': 'next/dist/shared/lib/html-context.js',
 
         // 'next/dist/compiled/undici': 'next/dist/compiled/undici',
         // 'next/dist/compiled/node-fetch': 'next/dist/compiled/node-fetch',

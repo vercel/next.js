@@ -341,6 +341,9 @@ const configSchema = {
         pageEnv: {
           type: 'boolean',
         },
+        preCompiledNextServer: {
+          type: 'boolean',
+        },
         profiling: {
           type: 'boolean',
         },
