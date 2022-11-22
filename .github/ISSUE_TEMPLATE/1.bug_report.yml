@@ -23,7 +23,7 @@ body:
       required: true
   - type: dropdown
     attributes:
-      label: Which area of Next.js is affected (leave empty if unsure)?
+      label: Which area of Next.js is affected? (leave empty if unsure)
       multiple: true
       options:
         - App directory (appDir: true)
