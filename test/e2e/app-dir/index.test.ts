@@ -1602,13 +1602,13 @@ describe('app dir', () => {
               await next.patchFile(filePath, origContent.replace('red', 'blue'))
 
               // Wait for HMR to trigger
-              await new Promise((resolve) => setTimeout(resolve, 2000))
-
-              expect(
-                await browser.eval(
-                  `window.getComputedStyle(document.querySelector('h1')).color`
-                )
-              ).toBe('rgb(0, 0, 255)')
+              await check(
+                () =>
+                  browser.eval(
+                    `window.getComputedStyle(document.querySelector('h1')).color`
+                  ),
+                'rgb(0, 0, 255)'
+              )
             } finally {
               await next.patchFile(filePath, origContent)
             }
@@ -1629,14 +1629,13 @@ describe('app dir', () => {
             try {
               await next.patchFile(filePath, origContent.replace('red', 'blue'))
 
-              // Wait for HMR to trigger
-              await new Promise((resolve) => setTimeout(resolve, 2000))
-
-              expect(
-                await browser.eval(
-                  `window.getComputedStyle(document.querySelector('h1')).color`
-                )
-              ).toBe('rgb(0, 0, 255)')
+              await check(
+                () =>
+                  browser.eval(
+                    `window.getComputedStyle(document.querySelector('h1')).color`
+                  ),
+                'rgb(0, 0, 255)'
+              )
             } finally {
               await next.patchFile(filePath, origContent)
             }
@@ -1836,19 +1835,23 @@ describe('app dir', () => {
     describe('client pages', () => {
       it('should support global sass/scss inside client pages', async () => {
         const browser = await webdriver(next.url, '/css/sass-client/inner')
-        await waitFor(5000)
+
         // .sass
-        expect(
-          await browser.eval(
-            `window.getComputedStyle(document.querySelector('#sass-client-page')).color`
-          )
-        ).toBe('rgb(245, 222, 179)')
+        await check(
+          () =>
+            browser.eval(
+              `window.getComputedStyle(document.querySelector('#sass-client-page')).color`
+            ),
+          'rgb(245, 222, 179)'
+        )
         // .scss
-        expect(
-          await browser.eval(
-            `window.getComputedStyle(document.querySelector('#scss-client-page')).color`
-          )
-        ).toBe('rgb(255, 99, 71)')
+        await check(
+          () =>
+            browser.eval(
+              `window.getComputedStyle(document.querySelector('#scss-client-page')).color`
+            ),
+          'rgb(255, 99, 71)'
+        )
       })
 
       it('should support sass/scss modules inside client pages', async () => {
@@ -2165,6 +2168,99 @@ describe('app dir', () => {
     })
 
     describe('known bugs', () => {
+      describe('should support React cache', () => {
+        it('server component', async () => {
+          const browser = await webdriver(
+            next.url,
+            '/react-cache/server-component'
+          )
+          const val1 = await browser.elementByCss('#value-1').text()
+          const val2 = await browser.elementByCss('#value-2').text()
+          expect(val1).toBe(val2)
+        })
+
+        it('server component client-navigation', async () => {
+          const browser = await webdriver(next.url, '/react-cache')
+
+          await browser
+            .elementByCss('#to-server-component')
+            .click()
+            .waitForElementByCss('#value-1', 10000)
+          const val1 = await browser.elementByCss('#value-1').text()
+          const val2 = await browser.elementByCss('#value-2').text()
+          expect(val1).toBe(val2)
+        })
+
+        it('client component', async () => {
+          const browser = await webdriver(
+            next.url,
+            '/react-cache/client-component'
+          )
+          const val1 = await browser.elementByCss('#value-1').text()
+          const val2 = await browser.elementByCss('#value-2').text()
+          expect(val1).toBe(val2)
+        })
+
+        it('client component client-navigation', async () => {
+          const browser = await webdriver(next.url, '/react-cache')
+
+          await browser
+            .elementByCss('#to-client-component')
+            .click()
+            .waitForElementByCss('#value-1', 10000)
+          const val1 = await browser.elementByCss('#value-1').text()
+          const val2 = await browser.elementByCss('#value-2').text()
+          expect(val1).toBe(val2)
+        })
+      })
+
+      describe('should support React fetch instrumentation', () => {
+        it('server component', async () => {
+          const browser = await webdriver(
+            next.url,
+            '/react-fetch/server-component'
+          )
+          const val1 = await browser.elementByCss('#value-1').text()
+          const val2 = await browser.elementByCss('#value-2').text()
+          expect(val1).toBe(val2)
+        })
+
+        it('server component client-navigation', async () => {
+          const browser = await webdriver(next.url, '/react-fetch')
+
+          await browser
+            .elementByCss('#to-server-component')
+            .click()
+            .waitForElementByCss('#value-1', 10000)
+          const val1 = await browser.elementByCss('#value-1').text()
+          const val2 = await browser.elementByCss('#value-2').text()
+          expect(val1).toBe(val2)
+        })
+
+        // TODO-APP: React doesn't have fetch deduping for client components yet.
+        it.skip('client component', async () => {
+          const browser = await webdriver(
+            next.url,
+            '/react-fetch/client-component'
+          )
+          const val1 = await browser.elementByCss('#value-1').text()
+          const val2 = await browser.elementByCss('#value-2').text()
+          expect(val1).toBe(val2)
+        })
+
+        // TODO-APP: React doesn't have fetch deduping for client components yet.
+        it.skip('client component client-navigation', async () => {
+          const browser = await webdriver(next.url, '/react-fetch')
+
+          await browser
+            .elementByCss('#to-client-component')
+            .click()
+            .waitForElementByCss('#value-1', 10000)
+          const val1 = await browser.elementByCss('#value-1').text()
+          const val2 = await browser.elementByCss('#value-2').text()
+          expect(val1).toBe(val2)
+        })
+      })
       it('should not share flight data between requests', async () => {
         const fetches = await Promise.all(
           [...new Array(5)].map(() =>
