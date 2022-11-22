@@ -229,6 +229,9 @@ export function getDefineEnv({
     'process.env.__NEXT_OPTIMISTIC_CLIENT_CACHE': JSON.stringify(
       config.experimental.optimisticClientCache
     ),
+    'process.env.__NEXT_MIDDLEWARE_PREFETCH': JSON.stringify(
+      config.experimental.middlewarePrefetch
+    ),
     'process.env.__NEXT_CROSS_ORIGIN': JSON.stringify(config.crossOrigin),
     'process.browser': JSON.stringify(isClient),
     'process.env.__NEXT_TEST_MODE': JSON.stringify(
@@ -295,6 +298,9 @@ export function getDefineEnv({
     ),
     'process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE': JSON.stringify(
       config.experimental.skipMiddlewareUrlNormalize
+    ),
+    'process.env.__NEXT_MANUAL_TRAILING_SLASH': JSON.stringify(
+      config.experimental?.skipTrailingSlashRedirect
     ),
     'process.env.__NEXT_HAS_WEB_VITALS_ATTRIBUTION': JSON.stringify(
       config.experimental.webVitalsAttribution &&
@@ -579,6 +585,7 @@ export default async function getBaseWebpackConfig(
     target = COMPILER_NAMES.server,
     appDir,
     middlewareMatchers,
+    noMangling = false,
   }: {
     buildId: string
     config: NextConfigComplete
@@ -593,6 +600,7 @@ export default async function getBaseWebpackConfig(
     target?: string
     appDir?: string
     middlewareMatchers?: MiddlewareMatcher[]
+    noMangling?: boolean
   }
 ): Promise<webpack.Configuration> {
   const isClient = compilerType === COMPILER_NAMES.client
@@ -658,16 +666,6 @@ export default async function getBaseWebpackConfig(
       '`compiler` options in `next.config.js` will be ignored while using Babel https://nextjs.org/docs/messages/ignored-compiler-options'
     )
     loggedIgnoredCompilerOptions = true
-  }
-
-  if (!useSWCLoader && babelConfigFile && config.experimental.fontLoaders) {
-    Log.error(
-      `"experimental.fontLoaders" is enabled which requires SWC although Babel is being used due to custom babel config being present "${path.relative(
-        dir,
-        babelConfigFile
-      )}".\nSee more info here: https://nextjs.org/docs/messages/babel-font-loader-conflict`
-    )
-    process.exit(1)
   }
 
   const getBabelLoader = () => {
@@ -833,6 +831,7 @@ export default async function getBaseWebpackConfig(
   const customRootAliases: { [key: string]: string[] } = {}
 
   if (dev) {
+    const nextDist = 'next/dist/' + (isEdgeServer ? 'esm/' : '')
     customAppAliases[`${PAGES_DIR_ALIAS}/_app`] = [
       ...(pagesDir
         ? pageExtensions.reduce((prev, ext) => {
@@ -840,7 +839,7 @@ export default async function getBaseWebpackConfig(
             return prev
           }, [] as string[])
         : []),
-      'next/dist/pages/_app.js',
+      `${nextDist}pages/_app.js`,
     ]
     customAppAliases[`${PAGES_DIR_ALIAS}/_error`] = [
       ...(pagesDir
@@ -849,7 +848,7 @@ export default async function getBaseWebpackConfig(
             return prev
           }, [] as string[])
         : []),
-      'next/dist/pages/_error.js',
+      `${nextDist}pages/_error.js`,
     ]
     customDocumentAliases[`${PAGES_DIR_ALIAS}/_document`] = [
       ...(pagesDir
@@ -858,7 +857,7 @@ export default async function getBaseWebpackConfig(
             return prev
           }, [] as string[])
         : []),
-      'next/dist/pages/_document.js',
+      `${nextDist}pages/_document.js`,
     ]
   }
 
@@ -895,6 +894,25 @@ export default async function getBaseWebpackConfig(
             'next/dist/client': 'next/dist/esm/client',
             'next/dist/shared': 'next/dist/esm/shared',
             'next/dist/pages': 'next/dist/esm/pages',
+            'next/dist/lib': 'next/dist/esm/lib',
+
+            // Alias the usage of next public APIs
+            [require.resolve('next/dist/client/link')]:
+              'next/dist/esm/client/link',
+            [require.resolve('next/dist/client/image')]:
+              'next/dist/esm/client/image',
+            [require.resolve('next/dist/client/script')]:
+              'next/dist/esm/client/script',
+            [require.resolve('next/dist/client/router')]:
+              'next/dist/esm/client/router',
+            [require.resolve('next/dist/shared/lib/head')]:
+              'next/dist/esm/shared/lib/head',
+            [require.resolve('next/dist/shared/lib/dynamic')]:
+              'next/dist/esm/shared/lib/dynamic',
+            [require.resolve('next/dist/pages/_document')]:
+              'next/dist/esm/pages/_document',
+            [require.resolve('next/dist/pages/_app')]:
+              'next/dist/esm/pages/_app',
           }
         : undefined),
 
@@ -929,11 +947,7 @@ export default async function getBaseWebpackConfig(
       ...customRootAliases,
 
       ...(pagesDir ? { [PAGES_DIR_ALIAS]: pagesDir } : {}),
-      ...(appDir
-        ? {
-            [APP_DIR_ALIAS]: appDir,
-          }
-        : {}),
+      ...(appDir ? { [APP_DIR_ALIAS]: appDir } : {}),
       [ROOT_DIR_ALIAS]: dir,
       [DOT_NEXT_ALIAS]: distDir,
       ...(isClient || isEdgeServer ? getOptimizedAliases() : {}),
@@ -981,7 +995,7 @@ export default async function getBaseWebpackConfig(
     },
     mangle: {
       safari10: true,
-      ...(process.env.__NEXT_MANGLING_DEBUG
+      ...(process.env.__NEXT_MANGLING_DEBUG || noMangling
         ? {
             toplevel: true,
             module: true,
@@ -996,7 +1010,7 @@ export default async function getBaseWebpackConfig(
       comments: false,
       // Fixes usage of Emoji and certain Regex
       ascii_only: true,
-      ...(process.env.__NEXT_MANGLING_DEBUG
+      ...(process.env.__NEXT_MANGLING_DEBUG || noMangling
         ? {
             beautify: true,
           }
@@ -1140,7 +1154,7 @@ export default async function getBaseWebpackConfig(
         // Treat next internals as non-external for server layer
         layer === WEBPACK_LAYERS.server
           ? false
-          : /next[/\\]dist[/\\](shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic))/.test(
+          : /next[/\\]dist[/\\](esm[\\/])?(shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic))/.test(
               localRes
             )
 
@@ -1206,7 +1220,9 @@ export default async function getBaseWebpackConfig(
     const externalType = isEsm ? 'module' : 'commonjs'
 
     if (
-      /next[/\\]dist[/\\]shared[/\\](?!lib[/\\]router[/\\]router)/.test(res) ||
+      /next[/\\]dist[/\\](esm[\\/])?shared[/\\](?!lib[/\\]router[/\\]router)/.test(
+        res
+      ) ||
       /next[/\\]dist[/\\]compiled[/\\].*\.[mc]?js$/.test(res)
     ) {
       return `${externalType} ${request}`
@@ -1251,11 +1267,16 @@ export default async function getBaseWebpackConfig(
       }
     }
 
-    const shouldBeBundled = isResourceInPackages(
-      res,
-      config.experimental.transpilePackages,
-      resolvedExternalPackageDirs
-    )
+    // If a package is included in `transpilePackages`, we don't want to make it external.
+    // And also, if that resource is an ES module, we bundle it too because we can't
+    // rely on the require hook to alias `react` to our precompiled version.
+    const shouldBeBundled =
+      isResourceInPackages(
+        res,
+        config.experimental.transpilePackages,
+        resolvedExternalPackageDirs
+      ) ||
+      (isEsm && config.experimental.appDir)
 
     if (/node_modules[/\\].*\.[mc]?js$/.test(res)) {
       if (layer === WEBPACK_LAYERS.server) {
@@ -1631,7 +1652,7 @@ export default async function getBaseWebpackConfig(
                   return true
                 },
                 resolve: {
-                  conditionNames: ['react-server', 'node', 'require'],
+                  conditionNames: ['react-server', 'node', 'import', 'require'],
                   alias: {
                     // If missing the alias override here, the default alias will be used which aliases
                     // react to the direct file path, not the package name. In that case the condition
@@ -1753,7 +1774,9 @@ export default async function getBaseWebpackConfig(
                     resolve: {
                       alias: {
                         react: 'next/dist/compiled/react',
-                        'react-dom$': 'next/dist/compiled/react-dom',
+                        'react-dom$': reactProductionProfiling
+                          ? 'next/dist/compiled/react-dom/cjs/react-dom.profiling.min'
+                          : 'next/dist/compiled/react-dom',
                         'react-dom/client$':
                           'next/dist/compiled/react-dom/client',
                       },
@@ -1971,22 +1994,22 @@ export default async function getBaseWebpackConfig(
         new ReactLoadablePlugin({
           filename: REACT_LOADABLE_MANIFEST,
           pagesDir,
-          runtimeAsset: true
-            ? `server/${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`
-            : undefined,
+          runtimeAsset: `server/${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`,
           dev,
         }),
       (isClient || isEdgeServer) && new DropClientPage(),
       config.outputFileTracing &&
         (isNodeServer || isEdgeServer) &&
         !dev &&
-        new (require('./webpack/plugins/next-trace-entrypoints-plugin').TraceEntryPointsPlugin)(
+        new (require('./webpack/plugins/next-trace-entrypoints-plugin')
+          .TraceEntryPointsPlugin as typeof import('./webpack/plugins/next-trace-entrypoints-plugin').TraceEntryPointsPlugin)(
           {
             appDir: dir,
             esmExternals: config.experimental.esmExternals,
             outputFileTracingRoot: config.experimental.outputFileTracingRoot,
             appDirEnabled: hasAppDir,
             turbotrace: config.experimental.turbotrace,
+            traceIgnores: config.experimental.outputFileTracingIgnores || [],
           }
         ),
       // Moment.js is an extremely popular library that bundles large locale files
@@ -2240,6 +2263,7 @@ export default async function getBaseWebpackConfig(
   }
 
   const configVars = JSON.stringify({
+    appDir: config.experimental.appDir,
     crossOrigin: config.crossOrigin,
     pageExtensions: pageExtensions,
     trailingSlash: config.trailingSlash,

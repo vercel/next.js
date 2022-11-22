@@ -127,26 +127,31 @@ export function validateData(functionName: string, data: any): FontOptions {
 export function getUrl(
   fontFamily: string,
   axes: {
-    wght: string[]
-    ital: string[]
+    wght?: string[]
+    ital?: string[]
     variableAxes?: [string, string][]
   },
   display: string
 ) {
   // Variants are all combinations of weight and style, each variant will result in a separate font file
   const variants: Array<[string, string][]> = []
-  for (const wgth of axes.wght) {
-    if (axes.ital.length === 0) {
-      variants.push([['wght', wgth], ...(axes.variableAxes ?? [])])
-    } else {
-      for (const ital of axes.ital) {
-        variants.push([
-          ['ital', ital],
-          ['wght', wgth],
-          ...(axes.variableAxes ?? []),
-        ])
+  if (axes.wght) {
+    for (const wgth of axes.wght) {
+      if (!axes.ital) {
+        variants.push([['wght', wgth], ...(axes.variableAxes ?? [])])
+      } else {
+        for (const ital of axes.ital) {
+          variants.push([
+            ['ital', ital],
+            ['wght', wgth],
+            ...(axes.variableAxes ?? []),
+          ])
+        }
       }
     }
+  } else if (axes.variableAxes) {
+    // Variable fonts might not have a range of weights, just add optional variable axes in that case
+    variants.push([...axes.variableAxes])
   }
 
   // Google api requires the axes to be sorted, starting with lowercase words
@@ -163,13 +168,21 @@ export function getUrl(
     })
   }
 
-  return `https://fonts.googleapis.com/css2?family=${fontFamily.replace(
+  let url = `https://fonts.googleapis.com/css2?family=${fontFamily.replace(
     / /g,
     '+'
-  )}:${variants[0].map(([key]) => key).join(',')}@${variants
-    .map((variant) => variant.map(([, val]) => val).join(','))
-    .sort()
-    .join(';')}&display=${display}`
+  )}`
+
+  if (variants.length > 0) {
+    url = `${url}:${variants[0].map(([key]) => key).join(',')}@${variants
+      .map((variant) => variant.map(([, val]) => val).join(','))
+      .sort()
+      .join(';')}`
+  }
+
+  url = `${url}&display=${display}`
+
+  return url
 }
 
 export async function fetchCSSFromGoogleFonts(url: string, fontFamily: string) {
@@ -221,8 +234,8 @@ export function getFontAxes(
   styles: string[],
   selectedVariableAxes?: string[]
 ): {
-  wght: string[]
-  ital: string[]
+  wght?: string[]
+  ital?: string[]
   variableAxes?: [string, string][]
 } {
   const allAxes: Array<{ tag: string; min: number; max: number }> = (
@@ -230,7 +243,7 @@ export function getFontAxes(
   )[fontFamily].axes
   const hasItalic = styles.includes('italic')
   const hasNormal = styles.includes('normal')
-  const ital = hasItalic ? [...(hasNormal ? ['0'] : []), '1'] : []
+  const ital = hasItalic ? [...(hasNormal ? ['0'] : []), '1'] : undefined
 
   // Weights will always contain one element if it's a variable font
   if (weights[0] === 'variable') {
@@ -259,18 +272,21 @@ export function getFontAxes(
       })
     }
 
-    let weightAxis: string
-    const variableAxes: [string, string][] = []
+    let weightAxis: string | undefined
+    let variableAxes: [string, string][] | undefined
     for (const { tag, min, max } of allAxes) {
       if (tag === 'wght') {
         weightAxis = `${min}..${max}`
       } else if (selectedVariableAxes?.includes(tag)) {
+        if (!variableAxes) {
+          variableAxes = []
+        }
         variableAxes.push([tag, `${min}..${max}`])
       }
     }
 
     return {
-      wght: [weightAxis!],
+      wght: weightAxis ? [weightAxis] : undefined,
       ital,
       variableAxes,
     }

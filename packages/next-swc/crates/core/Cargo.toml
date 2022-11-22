@@ -20,9 +20,9 @@ regex = "1.5"
 serde = "1"
 serde_json = "1"
 swc_emotion = "0.28.2"
-styled_components = "0.52.2"
-styled_jsx = "0.29.2"
-modularize_imports = "0.25.2"
+styled_components = "0.52.5"
+styled_jsx = "0.29.5"
+modularize_imports = "0.25.5"
 tracing = { version = "0.1.37", features = ["release_max_level_info"] }
 
 swc_core = { features = [
@@ -42,9 +42,9 @@ swc_core = { features = [
   "ecma_parser_typescript",
   "cached",
   "base"
-], version = "0.40.40" }
+], version = "0.43.23" }
 
 [dev-dependencies]
-swc_core = { features = ["testing_transform"], version = "0.40.40" }
-testing = "0.31.13"
+swc_core = { features = ["testing_transform"], version = "0.43.23" }
+testing = "0.31.14"
 walkdir = "2.3.2"

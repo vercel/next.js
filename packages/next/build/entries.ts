@@ -207,7 +207,7 @@ export function getEdgeServerEntry(opts: {
     // The Edge bundle includes the server in its entrypoint, so it has to
     // be in the SSR layer — we later convert the page request to the RSC layer
     // via a webpack rule.
-    layer: WEBPACK_LAYERS.client,
+    layer: opts.appDirLoader ? WEBPACK_LAYERS.client : undefined,
   }
 }
 
@@ -457,7 +457,11 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
   await Promise.all(Object.keys(pages).map(getEntryHandler(pages, 'pages')))
 
   if (nestedMiddleware.length > 0) {
-    throw new NestedMiddlewareError(nestedMiddleware, rootDir, pagesDir!)
+    throw new NestedMiddlewareError(
+      nestedMiddleware,
+      rootDir,
+      (appDir || pagesDir)!
+    )
   }
 
   return {

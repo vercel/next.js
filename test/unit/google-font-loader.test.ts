@@ -91,11 +91,25 @@ describe('@next/font/google loader', () => {
         },
         'https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,100..900,0..100,0..1;1,9..144,100..900,0..100,0..1&display=optional',
       ],
-
       [
         'Poppins',
         { weight: ['900', '400', '100'] },
         'https://fonts.googleapis.com/css2?family=Poppins:wght@100;400;900&display=optional',
+      ],
+      [
+        'Nabla',
+        {},
+        'https://fonts.googleapis.com/css2?family=Nabla&display=optional',
+      ],
+      [
+        'Nabla',
+        { axes: ['EDPT', 'EHLT'] },
+        'https://fonts.googleapis.com/css2?family=Nabla:EDPT,EHLT@0..200,0..24&display=optional',
+      ],
+      [
+        'Ballet',
+        {},
+        'https://fonts.googleapis.com/css2?family=Ballet&display=optional',
       ],
     ])('%s', async (functionName: string, data: any, url: string) => {
       fetch.mockResolvedValue({
@@ -108,7 +122,8 @@ describe('@next/font/google loader', () => {
         config: { subsets: [] },
         emitFontFile: jest.fn(),
         resolve: jest.fn(),
-        fs: {} as any,
+        loaderContext: {} as any,
+        isDev: false,
         isServer: true,
         variableName: 'myFont',
       })
@@ -119,28 +134,6 @@ describe('@next/font/google loader', () => {
   })
 
   describe('Errors', () => {
-    test('Failed to fetch', async () => {
-      fetch.mockResolvedValue({
-        ok: false,
-      })
-
-      await expect(
-        loader({
-          functionName: 'Alkalami',
-          data: [{ weight: '400' }],
-          config: { subsets: [] },
-          emitFontFile: jest.fn(),
-          resolve: jest.fn(),
-          fs: {} as any,
-          isServer: true,
-          variableName: 'myFont',
-        })
-      ).rejects.toThrowErrorMatchingInlineSnapshot(`
-              "Failed to fetch font  \`Alkalami\`.
-              URL: https://fonts.googleapis.com/css2?family=Alkalami:wght@400&display=optional"
-            `)
-    })
-
     test('Missing function name', async () => {
       await expect(
         loader({
@@ -149,7 +142,8 @@ describe('@next/font/google loader', () => {
           config: { subsets: [] },
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
-          fs: {} as any,
+          loaderContext: {} as any,
+          isDev: false,
           isServer: true,
           variableName: 'myFont',
         })
@@ -166,7 +160,8 @@ describe('@next/font/google loader', () => {
           config: { subsets: [] },
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
-          fs: {} as any,
+          loaderContext: {} as any,
+          isDev: false,
           isServer: true,
           variableName: 'myFont',
         })
@@ -183,7 +178,8 @@ describe('@next/font/google loader', () => {
           config: { subsets: [] },
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
-          fs: {} as any,
+          loaderContext: {} as any,
+          isDev: false,
           isServer: true,
           variableName: 'myFont',
         })
@@ -201,7 +197,8 @@ describe('@next/font/google loader', () => {
           config: { subsets: [] },
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
-          fs: {} as any,
+          loaderContext: {} as any,
+          isDev: false,
           isServer: true,
           variableName: 'myFont',
         })
@@ -219,7 +216,8 @@ describe('@next/font/google loader', () => {
           config: { subsets: [] },
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
-          fs: {} as any,
+          loaderContext: {} as any,
+          isDev: false,
           isServer: true,
           variableName: 'myFont',
         })
@@ -237,7 +235,8 @@ describe('@next/font/google loader', () => {
           config: { subsets: [] },
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
-          fs: {} as any,
+          loaderContext: {} as any,
+          isDev: false,
           isServer: true,
           variableName: 'myFont',
         })
@@ -255,7 +254,8 @@ describe('@next/font/google loader', () => {
           config: { subsets: [] },
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
-          fs: {} as any,
+          loaderContext: {} as any,
+          isDev: false,
           isServer: true,
           variableName: 'myFont',
         })
@@ -272,7 +272,8 @@ describe('@next/font/google loader', () => {
           config: { subsets: [] },
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
-          fs: {} as any,
+          loaderContext: {} as any,
+          isDev: false,
           isServer: true,
           variableName: 'myFont',
         })
@@ -289,7 +290,8 @@ describe('@next/font/google loader', () => {
           config: { subsets: [] },
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
-          fs: {} as any,
+          loaderContext: {} as any,
+          isDev: false,
           isServer: true,
           variableName: 'myFont',
         })
@@ -307,7 +309,8 @@ describe('@next/font/google loader', () => {
           config: { subsets: [] },
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
-          fs: {} as any,
+          loaderContext: {} as any,
+          isDev: false,
           isServer: true,
           variableName: 'myFont',
         })
@@ -325,7 +328,8 @@ describe('@next/font/google loader', () => {
           config: { subsets: [] },
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
-          fs: {} as any,
+          loaderContext: {} as any,
+          isDev: false,
           isServer: true,
           variableName: 'myFont',
         })
@@ -379,7 +383,8 @@ describe('@next/font/google loader', () => {
       config: { subsets: [] },
       emitFontFile: jest.fn(),
       resolve: jest.fn(),
-      fs: {} as any,
+      loaderContext: {} as any,
+      isDev: false,
       isServer: true,
       variableName: 'myFont',
     })
