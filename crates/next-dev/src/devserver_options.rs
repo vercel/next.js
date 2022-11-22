@@ -48,6 +48,11 @@ pub struct DevServerOptions {
     #[cfg_attr(feature = "serializable", serde(default))]
     pub eager_compile: bool,
 
+    /// Display version of the binary. Noop if used in library mode.
+    #[cfg_attr(feature = "cli", clap(long))]
+    #[cfg_attr(feature = "serializable", serde(default))]
+    pub display_version: bool,
+
     /// Don't open the browser automatically when the dev server has started.
     #[cfg_attr(feature = "cli", clap(long))]
     #[cfg_attr(feature = "serializable", serde(default))]

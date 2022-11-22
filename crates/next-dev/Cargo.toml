@@ -75,3 +75,4 @@ nix = "0.25.0"
 
 [build-dependencies]
 turbo-tasks-build = { path = "../turbo-tasks-build" }
+vergen = { version = "7.3.2", default-features = false, features = ["cargo","git"] }
