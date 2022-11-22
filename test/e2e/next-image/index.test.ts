@@ -1,0 +1,36 @@
+import { createNext, FileRef } from 'e2e-utils'
+import { NextInstance } from 'test/lib/next-modes/base'
+import { waitFor } from 'next-test-utils'
+import path from 'path'
+import webdriver from 'next-webdriver'
+
+describe('next-image', () => {
+  let next: NextInstance
+
+  const appDir = path.join(__dirname, 'app')
+
+  beforeAll(async () => {
+    next = await createNext({
+      files: {
+        pages: new FileRef(path.join(appDir, 'pages')),
+        // 'next.config.js': new FileRef(path.join(appDir, 'next.config.js')),
+      },
+      dependencies: {
+        'framer-motion': '7.6.9',
+      },
+    })
+  })
+  afterAll(() => next.destroy())
+
+  it('allows framer-motion to animate opacity', async () => {
+    const browser = await webdriver(next.url, '/')
+    expect(
+      Number(await browser.elementById('img').getComputedCss('opacity'))
+    ).toBeCloseTo(1)
+    browser.elementById('img').click()
+    await waitFor(2000)
+    expect(
+      Number(await browser.elementById('img').getComputedCss('opacity'))
+    ).toBeCloseTo(0)
+  })
+})

@@ -20,7 +20,6 @@ describe('link-with-api-rewrite', () => {
 
   it('should perform hard navigation for rewritten urls', async () => {
     const browser = await webdriver(next.url, '/')
-
     try {
       // Click the link on the page, we expect that there will be a hard
       // navigation later (we do this be checking that the window global is
