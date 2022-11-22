@@ -1602,13 +1602,13 @@ describe('app dir', () => {
               await next.patchFile(filePath, origContent.replace('red', 'blue'))
 
               // Wait for HMR to trigger
-              await new Promise((resolve) => setTimeout(resolve, 2000))
-
-              expect(
-                await browser.eval(
-                  `window.getComputedStyle(document.querySelector('h1')).color`
-                )
-              ).toBe('rgb(0, 0, 255)')
+              await check(
+                () =>
+                  browser.eval(
+                    `window.getComputedStyle(document.querySelector('h1')).color`
+                  ),
+                'rgb(0, 0, 255)'
+              )
             } finally {
               await next.patchFile(filePath, origContent)
             }
@@ -1629,14 +1629,13 @@ describe('app dir', () => {
             try {
               await next.patchFile(filePath, origContent.replace('red', 'blue'))
 
-              // Wait for HMR to trigger
-              await new Promise((resolve) => setTimeout(resolve, 2000))
-
-              expect(
-                await browser.eval(
-                  `window.getComputedStyle(document.querySelector('h1')).color`
-                )
-              ).toBe('rgb(0, 0, 255)')
+              await check(
+                () =>
+                  browser.eval(
+                    `window.getComputedStyle(document.querySelector('h1')).color`
+                  ),
+                'rgb(0, 0, 255)'
+              )
             } finally {
               await next.patchFile(filePath, origContent)
             }
@@ -1836,19 +1835,23 @@ describe('app dir', () => {
     describe('client pages', () => {
       it('should support global sass/scss inside client pages', async () => {
         const browser = await webdriver(next.url, '/css/sass-client/inner')
-        await waitFor(5000)
+
         // .sass
-        expect(
-          await browser.eval(
-            `window.getComputedStyle(document.querySelector('#sass-client-page')).color`
-          )
-        ).toBe('rgb(245, 222, 179)')
+        await check(
+          () =>
+            browser.eval(
+              `window.getComputedStyle(document.querySelector('#sass-client-page')).color`
+            ),
+          'rgb(245, 222, 179)'
+        )
         // .scss
-        expect(
-          await browser.eval(
-            `window.getComputedStyle(document.querySelector('#scss-client-page')).color`
-          )
-        ).toBe('rgb(255, 99, 71)')
+        await check(
+          () =>
+            browser.eval(
+              `window.getComputedStyle(document.querySelector('#scss-client-page')).color`
+            ),
+          'rgb(255, 99, 71)'
+        )
       })
 
       it('should support sass/scss modules inside client pages', async () => {
