@@ -124,7 +124,7 @@ function tryApplyUpdates(
     return
   }
 
-  function handleApplyUpdates(err: any, updatedModules: any) {
+  function handleApplyUpdates(err: any, updatedModules: any[] | null) {
     if (err || RuntimeErrorHandler.hadRuntimeError || !updatedModules) {
       if (err) {
         console.warn(
@@ -144,7 +144,7 @@ function tryApplyUpdates(
       return
     }
 
-    const hasUpdates = Boolean(updatedModules.length)
+    const hasUpdates = Boolean(updatedModules?.length)
     if (typeof onHotUpdateSuccess === 'function') {
       // Maybe we want to do something.
       onHotUpdateSuccess(hasUpdates)
@@ -175,8 +175,8 @@ function tryApplyUpdates(
   // @ts-expect-error module.hot exists
   module.hot
     .check(/* autoApply */ false)
-    .then((updatedModules: any) => {
-      const hasUpdates = Boolean(updatedModules.length)
+    .then((updatedModules: any[] | null) => {
+      const hasUpdates = Boolean(updatedModules?.length)
       if (typeof onBeforeUpdate === 'function') {
         onBeforeUpdate(hasUpdates)
       }
