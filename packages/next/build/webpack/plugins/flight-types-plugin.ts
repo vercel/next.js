@@ -35,8 +35,8 @@ interface LayoutProps {
   params: any
 }
 
-type PageComponent = (props: PageProps) => React.ReactNode | Promise<React.ReactNode>
-type LayoutComponent = (props: LayoutProps) => React.ReactNode | Promise<React.ReactNode>
+export type PageComponent = (props: PageProps) => React.ReactNode | Promise<React.ReactNode>
+export type LayoutComponent = (props: LayoutProps) => React.ReactNode | Promise<React.ReactNode>
 
 interface IEntry {
   ${
