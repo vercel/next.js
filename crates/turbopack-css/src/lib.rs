@@ -13,6 +13,7 @@ pub(crate) mod parse;
 mod path_visitor;
 pub(crate) mod references;
 pub(crate) mod transform;
+pub(crate) mod util;
 
 use anyhow::Result;
 pub use asset::CssModuleAssetVc;

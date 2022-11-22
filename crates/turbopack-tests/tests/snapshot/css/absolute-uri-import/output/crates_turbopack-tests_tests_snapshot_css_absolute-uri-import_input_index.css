@@ -1,0 +1,22 @@
+/* chunk [workspace]/crates/turbopack-tests/tests/snapshot/css/absolute-uri-import/output/crates_turbopack-tests_tests_snapshot_css_absolute-uri-import_input_index.css */
+@import "https://example.com/stylesheet1.css";
+@import "https://example.com/withquote\".css";
+@import "https://example.com/stylesheet2.css";
+/* import([project]/crates/turbopack-tests/tests/snapshot/css/absolute-uri-import/input/other.css (css)) */
+
+/* [project]/crates/turbopack-tests/tests/snapshot/css/absolute-uri-import/input/other.css */
+.foo {
+  background-color: red;
+}
+
+/* import([project]/crates/turbopack-tests/tests/snapshot/css/absolute-uri-import/input/withduplicateurl.css (css)) */
+
+/* [project]/crates/turbopack-tests/tests/snapshot/css/absolute-uri-import/input/withduplicateurl.css */
+.bar {
+  background-color: green;
+}
+
+/* [project]/crates/turbopack-tests/tests/snapshot/css/absolute-uri-import/input/index.css */
+body {
+  background-color: blue;
+}

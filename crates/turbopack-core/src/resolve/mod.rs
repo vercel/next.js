@@ -696,20 +696,13 @@ pub async fn resolve(
             ResolveResult::unresolveable().into()
         }
         Request::Uri {
-            protocol: _,
-            remainder: _,
-        } => {
-            let issue: ResolvingIssueVc = ResolvingIssue {
-                request_type: "URI imports: not implemented yet".to_string(),
-                request,
-                context,
-                resolve_options: options,
-                error_message: Some("URI imports are not implemented yet".to_string()),
-            }
-            .into();
-            issue.as_issue().emit();
-            ResolveResult::unresolveable().into()
-        }
+            protocol,
+            remainder,
+        } => ResolveResult::Special(
+            SpecialType::OriginalReferenceTypeExternal(format!("{}{}", protocol, remainder)),
+            Vec::new(),
+        )
+        .into(),
         Request::Unknown { path } => {
             let issue: ResolvingIssueVc = ResolvingIssue {
                 request_type: format!("unknown import: `{}`", path),

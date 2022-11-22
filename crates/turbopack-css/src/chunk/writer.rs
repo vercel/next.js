@@ -1,46 +1,54 @@
 use std::{collections::VecDeque, fmt::Write};
 
-use turbo_tasks::ValueToString;
+use turbo_tasks::{primitives::StringVc, ValueToString};
 
+use super::CssImport;
 use crate::CssChunkItemContentVc;
 
 pub async fn expand_imports<T: Write>(
     writer: &mut WriterWithIndent<T>,
     content_vc: CssChunkItemContentVc,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<Vec<StringVc>> {
     let content = &*content_vc.await?;
     let mut stack = vec![(
         content_vc,
         content.imports.iter().cloned().collect::<VecDeque<_>>(),
         (0, "".to_string()),
     )];
+    let mut external_imports = vec![];
 
     while let Some((content_vc, imports, (indent, close))) = stack.last_mut() {
-        if let Some((import, imported_chunk_item)) = imports.pop_front() {
-            let (open, inner_indent, close) = import.await?.attributes.await?.print_block()?;
+        match imports.pop_front() {
+            Some(CssImport::Internal(import, imported_chunk_item)) => {
+                let (open, inner_indent, close) = import.await?.attributes.await?.print_block()?;
 
-            let id = &*imported_chunk_item.to_string().await?;
+                let id = &*imported_chunk_item.to_string().await?;
 
-            writeln!(writer, "/* import({}) */", id)?;
-            writeln!(writer, "{}", open)?;
-            let imported_content_vc = imported_chunk_item.content();
-            let imported_content = &*imported_content_vc.await?;
-            writer.push_indent(inner_indent)?;
-            stack.push((
-                imported_content_vc,
-                imported_content.imports.iter().cloned().collect(),
-                (inner_indent, close),
-            ));
-        } else {
-            let content = &*(*content_vc).await?;
-            writeln!(writer, "{}", content.inner_code)?;
-            writer.pop_indent(*indent)?;
-            writeln!(writer, "{}", close)?;
-            stack.pop();
+                writeln!(writer, "/* import({}) */", id)?;
+                writeln!(writer, "{}", open)?;
+                let imported_content_vc = imported_chunk_item.content();
+                let imported_content = &*imported_content_vc.await?;
+                writer.push_indent(inner_indent)?;
+                stack.push((
+                    imported_content_vc,
+                    imported_content.imports.iter().cloned().collect(),
+                    (inner_indent, close),
+                ));
+            }
+            Some(CssImport::External(url_vc)) => {
+                external_imports.push(url_vc);
+            }
+            None => {
+                let content = &*(*content_vc).await?;
+                writeln!(writer, "{}", content.inner_code)?;
+                writer.pop_indent(*indent)?;
+                writeln!(writer, "{}", close)?;
+                stack.pop();
+            }
         }
     }
 
-    Ok(())
+    Ok(external_imports)
 }
 
 pub struct WriterWithIndent<T: Write> {

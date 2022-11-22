@@ -8,12 +8,20 @@ use swc_core::{
 };
 use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
 use turbopack_core::{
-    chunk::{ChunkableAssetReference, ChunkableAssetReferenceVc},
+    chunk::{ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkingContextVc},
     reference::{AssetReference, AssetReferenceVc},
-    resolve::{origin::ResolveOriginVc, parse::RequestVc, ResolveResultVc},
+    resolve::{
+        origin::ResolveOriginVc,
+        parse::{Request, RequestVc},
+        ResolveResultVc,
+    },
 };
 
-use crate::references::{css_resolve, AstPathVc};
+use crate::{
+    chunk::CssImport,
+    code_gen::{CodeGenerateable, CodeGenerateableVc, CodeGeneration, CodeGenerationVc},
+    references::{css_resolve, AstPathVc},
+};
 
 #[turbo_tasks::value(into = "new")]
 pub struct ImportAttributes {
@@ -209,6 +217,34 @@ impl ValueToString for ImportAssetReference {
             "import(url) {}",
             self.request.to_string().await?,
         )))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl CodeGenerateable for ImportAssetReference {
+    #[turbo_tasks::function]
+    async fn code_generation(
+        self_vc: ImportAssetReferenceVc,
+        _context: ChunkingContextVc,
+    ) -> Result<CodeGenerationVc> {
+        let this = &*self_vc.await?;
+        let mut imports = vec![];
+        if let Request::Uri {
+            protocol,
+            remainder,
+        } = &*this.request.await?
+        {
+            imports.push(CssImport::External(StringVc::cell(format!(
+                "{}{}",
+                protocol, remainder
+            ))))
+        }
+
+        Ok(CodeGeneration {
+            visitors: vec![],
+            imports,
+        }
+        .into())
     }
 }
 

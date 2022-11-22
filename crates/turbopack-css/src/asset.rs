@@ -20,7 +20,7 @@ use turbopack_core::{
 use crate::{
     chunk::{
         CssChunkItem, CssChunkItemContent, CssChunkItemContentVc, CssChunkItemVc,
-        CssChunkPlaceable, CssChunkPlaceableVc, CssChunkVc,
+        CssChunkPlaceable, CssChunkPlaceableVc, CssChunkVc, CssImport,
     },
     code_gen::CodeGenerateableVc,
     parse::{parse, ParseResult, ParseResultVc},
@@ -170,7 +170,10 @@ impl CssChunkItem for ModuleChunkItem {
             if let Some(import) = ImportAssetReferenceVc::resolve_from(reference).await? {
                 for asset in &*import.resolve_reference().primary_assets().await? {
                     if let Some(placeable) = CssChunkPlaceableVc::resolve_from(asset).await? {
-                        imports.push((import, placeable.as_chunk_item(context)));
+                        imports.push(CssImport::Internal(
+                            import,
+                            placeable.as_chunk_item(context),
+                        ));
                     }
                 }
             }
@@ -189,6 +192,10 @@ impl CssChunkItem for ModuleChunkItem {
         let mut visitors = Vec::new();
         let mut root_visitors = Vec::new();
         for code_gen in code_gens {
+            for import in &code_gen.imports {
+                imports.push(import.clone());
+            }
+
             for (path, visitor) in code_gen.visitors.iter() {
                 if path.is_empty() {
                     root_visitors.push(&**visitor);

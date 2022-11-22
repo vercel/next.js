@@ -107,6 +107,10 @@ impl CodeGenerateable for UrlAssetReference {
             );
         }
 
-        Ok(CodeGeneration { visitors }.into())
+        Ok(CodeGeneration {
+            visitors,
+            imports: vec![],
+        }
+        .into())
     }
 }
