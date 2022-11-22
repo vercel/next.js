@@ -204,7 +204,7 @@ function getEdgeMatcher(
 
 export default class NextNodeServer extends BaseServer {
   private imageResponseCache?: ResponseCache
-  private compression?: any
+  private compression?: ExpressMiddleware
 
   constructor(options: Options) {
     // Initialize super class
