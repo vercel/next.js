@@ -16,7 +16,7 @@ const IndexPage = () => (
         </Link>
       </li>
       <li>
-        <CustomLink href="/about" id="about-link-module-main">
+        <CustomLink href="/about" id="about-link-module">
           about
         </CustomLink>
       </li>

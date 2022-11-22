@@ -82,7 +82,7 @@ describe('Multi Zones', () => {
 
     const browser = await webdriver(mainAppPort, '/')
     const aboutHref = await browser
-      .elementByCss('#about-link-module-main')
+      .elementByCss('#about-link-module')
       .getAttribute('href')
 
     expect(aboutHref).toBe('/about')
