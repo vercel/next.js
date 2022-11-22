@@ -4,14 +4,14 @@ export const requestIdleCallback =
     self.requestIdleCallback.bind(window)) ||
   function (cb: IdleRequestCallback): number {
     let start = Date.now()
-    return setTimeout(function () {
+    return self.setTimeout(function () {
       cb({
         didTimeout: false,
         timeRemaining: function () {
           return Math.max(0, 50 - (Date.now() - start))
         },
       })
-    }, 1) as unknown as number
+    }, 1)
   }
 
 export const cancelIdleCallback =

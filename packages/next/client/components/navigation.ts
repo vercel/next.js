@@ -70,15 +70,19 @@ class ReadonlyURLSearchParams {
  * Learn more about URLSearchParams here: https://developer.mozilla.org/en-US/docs/Web/API/URLSearchParams
  */
 export function useSearchParams() {
-  staticGenerationBailout('useSearchParams')
   const searchParams = useContext(SearchParamsContext)
+
+  const readonlySearchParams = useMemo(() => {
+    return new ReadonlyURLSearchParams(searchParams || new URLSearchParams())
+  }, [searchParams])
+
+  if (staticGenerationBailout('useSearchParams')) {
+    return readonlySearchParams
+  }
+
   if (!searchParams) {
     throw new Error('invariant expected search params to be mounted')
   }
-
-  const readonlySearchParams = useMemo(() => {
-    return new ReadonlyURLSearchParams(searchParams)
-  }, [searchParams])
 
   return readonlySearchParams
 }

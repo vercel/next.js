@@ -45,7 +45,9 @@ function readRecordValue<T>(thenable: Promise<T>): T {
   }
 }
 
-export function createHrefFromUrl(url: URL): string {
+export function createHrefFromUrl(
+  url: Pick<URL, 'pathname' | 'search' | 'hash'>
+): string {
   return url.pathname + url.search + url.hash
 }
 

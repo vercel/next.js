@@ -53,6 +53,9 @@ describe('isLayoutsLeafPage', () => {
     expect(isLayoutsLeafPage('./page.jsx', pageExtensions)).toBe(true)
     expect(isLayoutsLeafPage('/page.ts', pageExtensions)).toBe(true)
     expect(isLayoutsLeafPage('/path/page.tsx', pageExtensions)).toBe(true)
+    expect(isLayoutsLeafPage('\\path\\page.tsx', pageExtensions)).toBe(true)
+    expect(isLayoutsLeafPage('.\\page.jsx', pageExtensions)).toBe(true)
+    expect(isLayoutsLeafPage('\\page.js', pageExtensions)).toBe(true)
   })
 
   it('should determine other files under layout routes as non leaf node', () => {
