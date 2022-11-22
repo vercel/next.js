@@ -8,6 +8,10 @@ export default function Page(props) {
         to another
       </Link>
       <br />
+      <Link href="/another/" id="to-another-with-slash">
+        to another
+      </Link>
+      <br />
       <Link href="/blog/first" id="to-blog-first">
         to /blog/first
       </Link>

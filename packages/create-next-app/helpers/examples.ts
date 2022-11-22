@@ -102,7 +102,9 @@ export async function downloadAndExtractRepo(
     strip: filePath ? filePath.split('/').length + 1 : 1,
     filter: (p) =>
       p.startsWith(
-        `${name}-${branch.replace(/\//g, '-')}${filePath ? `/${filePath}` : ''}`
+        `${name}-${branch.replace(/\//g, '-')}${
+          filePath ? `/${filePath}/` : '/'
+        }`
       ),
   })
 
