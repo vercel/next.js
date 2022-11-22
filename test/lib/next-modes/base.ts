@@ -382,7 +382,7 @@ export class NextInstance {
     }
 
     await clean(this.testDir)
-    await this.writeInitialFiles(/* TODO */)
+    await this.writeInitialFiles(this.isMonorepo)
   }
 
   public async export(): Promise<{ exitCode?: number; cliOutput?: string }> {
@@ -448,7 +448,7 @@ export class NextInstance {
     require('console').log(`destroyed next instance`)
   }
 
-  protected isMonorepo() {
+  protected get isMonorepo() {
     return !!(this.apps?.length || this.packages?.length)
   }
 
