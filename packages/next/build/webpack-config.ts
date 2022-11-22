@@ -299,6 +299,9 @@ export function getDefineEnv({
     'process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE': JSON.stringify(
       config.experimental.skipMiddlewareUrlNormalize
     ),
+    'process.env.__NEXT_MANUAL_TRAILING_SLASH': JSON.stringify(
+      config.experimental?.skipTrailingSlashRedirect
+    ),
     'process.env.__NEXT_HAS_WEB_VITALS_ATTRIBUTION': JSON.stringify(
       config.experimental.webVitalsAttribution &&
         config.experimental.webVitalsAttribution.length > 0
@@ -828,6 +831,7 @@ export default async function getBaseWebpackConfig(
   const customRootAliases: { [key: string]: string[] } = {}
 
   if (dev) {
+    const nextDist = 'next/dist/' + (isEdgeServer ? 'esm/' : '')
     customAppAliases[`${PAGES_DIR_ALIAS}/_app`] = [
       ...(pagesDir
         ? pageExtensions.reduce((prev, ext) => {
@@ -835,7 +839,7 @@ export default async function getBaseWebpackConfig(
             return prev
           }, [] as string[])
         : []),
-      'next/dist/pages/_app.js',
+      `${nextDist}pages/_app.js`,
     ]
     customAppAliases[`${PAGES_DIR_ALIAS}/_error`] = [
       ...(pagesDir
@@ -844,7 +848,7 @@ export default async function getBaseWebpackConfig(
             return prev
           }, [] as string[])
         : []),
-      'next/dist/pages/_error.js',
+      `${nextDist}pages/_error.js`,
     ]
     customDocumentAliases[`${PAGES_DIR_ALIAS}/_document`] = [
       ...(pagesDir
@@ -853,7 +857,7 @@ export default async function getBaseWebpackConfig(
             return prev
           }, [] as string[])
         : []),
-      'next/dist/pages/_document.js',
+      `${nextDist}pages/_document.js`,
     ]
   }
 
@@ -908,6 +912,10 @@ export default async function getBaseWebpackConfig(
               'next/dist/esm/shared/lib/head',
             [require.resolve('next/dist/shared/lib/dynamic')]:
               'next/dist/esm/shared/lib/dynamic',
+            [require.resolve('next/dist/pages/_document')]:
+              'next/dist/esm/pages/_document',
+            [require.resolve('next/dist/pages/_app')]:
+              'next/dist/esm/pages/_app',
           }
         : undefined),
 
