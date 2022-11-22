@@ -124,6 +124,22 @@ describe('@next/font/google', () => {
         },
       })
     })
+
+    test('Variable font without weight range', async () => {
+      const html = await renderViaHTTP(
+        next.url,
+        '/variable-font-without-weight-range'
+      )
+      const $ = cheerio.load(html)
+
+      expect(JSON.parse($('#nabla').text())).toEqual({
+        className: expect.stringMatching(/__className_.{6}/),
+        style: {
+          fontFamily: expect.stringMatching(/^'__Nabla_.{6}'$/),
+          fontStyle: 'normal',
+        },
+      })
+    })
   })
 
   describe('computed styles', () => {

@@ -27,7 +27,7 @@ impl Default for RelayLanguageConfig {
 
 struct Relay<'a> {
     root_dir: PathBuf,
-    pages_dir: PathBuf,
+    pages_dir: Option<PathBuf>,
     file_name: FileName,
     config: &'a Config,
 }
@@ -107,7 +107,11 @@ impl<'a> Relay<'a> {
 
         if let Some(artifact_directory) = &self.config.artifact_directory {
             Ok(self.root_dir.join(artifact_directory).join(filename))
-        } else if real_file_name.starts_with(&self.pages_dir) {
+        } else if self
+            .pages_dir
+            .as_ref()
+            .map_or(false, |pages_dir| real_file_name.starts_with(pages_dir))
+        {
             Err(BuildRequirePathError::ArtifactDirectoryExpected {
                 file_name: real_file_name.display().to_string(),
             })
@@ -181,7 +185,7 @@ pub fn relay(config: &Config, file_name: FileName, pages_dir: Option<PathBuf>) -
     Relay {
         root_dir: std::env::current_dir().unwrap(),
         file_name,
-        pages_dir: pages_dir.unwrap_or_else(|| panic!("pages_dir is expected.")),
+        pages_dir,
         config,
     }
 }
