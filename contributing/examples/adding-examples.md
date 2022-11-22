@@ -13,6 +13,7 @@ When you add an example to the [examples](examples) directory, please follow the
 - CMS example directories should be prefixed with `cms-`
 - Example directories should not be prefixed with `with-`
 - Make sure linting passes (you can run `pnpm lint-fix`)
+- We recommend adding a test in the [`test/e2e/examples`](test/e2e/examples) directory for new examples. Make sure the test passes. You can run `pnpm testheadless test/e2e/examples/ -t "hello-world example"` to run the `hello-world` test suite, or `pnpm testheadless test/e2e/examples/ -t "hello-world example should compile and serve the index page correctly"` to run a specific test.
 
 Also, don’t forget to add a `README.md` file with the following format:
 
