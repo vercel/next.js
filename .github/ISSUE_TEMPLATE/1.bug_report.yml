@@ -45,18 +45,6 @@ body:
         - 'Turbopack (--turbo)'
         - TypeScript
         - Other
-  - type: textarea
-    attributes:
-      label: Describe the Bug
-      description: A clear and concise description of what the bug is.
-    validations:
-      required: true
-  - type: textarea
-    attributes:
-      label: Expected Behavior
-      description: A clear and concise description of what you expected to happen.
-    validations:
-      required: true
   - type: input
     attributes:
       label: Link to reproduction - Issues with a link to complete (but minimal) reproduction code will be addressed faster
@@ -67,6 +55,18 @@ body:
     attributes:
       label: To Reproduce
       description: Steps to reproduce the behavior, please provide a clear description of how to reproduce the issue, based on the linked minimal reproduction. Screenshots can be provided in the issue body below. If using code blocks, make sure that [syntax highlighting is correct](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/creating-and-highlighting-code-blocks#syntax-highlighting) and double check that the rendered preview is not broken.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Describe the Bug
+      description: A clear and concise description of what the bug is.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Expected Behavior
+      description: A clear and concise description of what you expected to happen.
     validations:
       required: true
   - type: markdown
