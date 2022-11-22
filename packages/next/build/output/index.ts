@@ -11,9 +11,9 @@ export function startedDevelopmentServer(appUrl: string, bindAddr: string) {
   consoleStore.setState({ appUrl, bindAddr })
 }
 
-let previousClient: webpack.Compiler | null = null
-let previousServer: webpack.Compiler | null = null
-let previousEdgeServer: webpack.Compiler | null = null
+let previousClient: WeakRef<webpack.Compiler> | null = null
+let previousServer: WeakRef<webpack.Compiler> | null = null
+let previousEdgeServer: WeakRef<webpack.Compiler> | null = null
 
 type CompilerDiagnostics = {
   modules: number
@@ -224,9 +224,9 @@ export function watchCompilers(
   edgeServer: webpack.Compiler
 ) {
   if (
-    previousClient === client &&
-    previousServer === server &&
-    previousEdgeServer === edgeServer
+    previousClient?.deref() === client &&
+    previousServer?.deref() === server &&
+    previousEdgeServer?.deref() === edgeServer
   ) {
     return
   }
@@ -318,9 +318,9 @@ export function watchCompilers(
     }
   })
 
-  previousClient = client
-  previousServer = server
-  previousEdgeServer = edgeServer
+  previousClient = new WeakRef(client)
+  previousServer = new WeakRef(server)
+  previousEdgeServer = new WeakRef(edgeServer)
 }
 
 export function reportTrigger(trigger: string) {
