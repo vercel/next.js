@@ -1,5 +1,4 @@
 {
-  "name": "nextjs-conf-pictures",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -13,7 +12,7 @@
     "cloudinary": "^1.32.0",
     "eslint-config-next": "^13.0.1",
     "framer-motion": "^7.6.4",
-    "next": "^13.0.4",
+    "next": "latest",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-hooks-global-state": "^2.0.0",
