@@ -65,8 +65,10 @@ describe('TypeScript Features', () => {
     })
 
     it('should handle edge api route and req cookies', async () => {
-      const data = await renderViaHTTP(appPort, '/api/edge')
-      expect(data).toEqual('ok')
+      const data = JSON.parse(await renderViaHTTP(appPort, '/api/edge'))
+
+      expect(data.RequestCookies).toBe(true)
+      expect(data.ResponseCookies).toBe(true)
     })
 
     // old behavior:
