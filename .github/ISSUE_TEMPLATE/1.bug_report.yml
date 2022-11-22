@@ -58,20 +58,24 @@ body:
       label: Which area of Next.js is affected (leave empty if unsure)?
       multiple: true
       options:
-        - @next/font
-        - App directory
+        - App directory (appDir: true)
         - CLI (create-next-app)
-        - ESLint
+        - Data fetching (gS(S)P, getInitialProps)
+        - Dynamic imports (next/dynamic)
+        - ESLint (eslint-config-next)
+        - Font optimization (@next/font)
         - Internationalzation (i18n)
-        - Middleware
-        - next/dynamic
-        - next/image
-        - next/jest
-        - next/script
-        - Routing
-        - Standalone mode (output: standalone)
-        - SWC (minify, transpilation)
-        - Turbopack
+        - Image optmization (next/image, next/legacy/image)
+        - Jest (next/jest)
+        - Middleware / Edge (API routes, runtime)
+        - Package manager (pnpm, Yarn PnP)
+        - Routing (next/router, next/navigation, Link)
+        - Script optimizatzion (next/script)
+        - Standalone mode (output: "standalone")
+        - SWC minifier (swcMinify: true)
+        - SWC transpilation
+        - Turbopack (--turbo)
+        - TypeScript
         - Other
   - type: markdown
     attributes:
