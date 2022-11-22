@@ -71,10 +71,10 @@ body:
         - Package manager (pnpm, Yarn PnP)
         - Routing (next/router, next/navigation, Link)
         - Script optimizatzion (next/script)
-        - Standalone mode (output: "standalone")
+        - 'Standalone mode (output: "standalone")'
         - SWC minifier (swcMinify: true)
         - SWC transpilation
-        - Turbopack (--turbo)
+        - 'Turbopack (--turbo)'
         - TypeScript
         - Other
   - type: markdown
