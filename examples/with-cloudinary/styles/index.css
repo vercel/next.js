@@ -1,0 +1,9 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@media not all and (min-resolution: 0.001dpcm) {
+  img[loading="lazy"] {
+    clip-path: inset(0.5px);
+  }
+}
