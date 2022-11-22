@@ -7,7 +7,6 @@ import { NextConfig } from 'next'
 import { FileRef } from '../e2e-utils'
 import childProcess, { ChildProcess } from 'child_process'
 import {
-  getFileContent,
   writeInitialFiles,
   initTemporalDirs,
   FilterFn,
@@ -104,39 +103,6 @@ export class NextInstance {
     }
 
     return writeInitialFiles(this.files, this.testDir)
-  }
-
-  protected async getPackageJsons() {
-    const packageJsons: [string, PackageJson][] = [
-      ['package.json', this.packageJson],
-    ]
-
-    if (this.isMonorepo) {
-      if (!this.packageJson?.devDependencies.turbo) {
-        throw new Error(
-          `"turbo" needs to be a dev dependency of the root package.json when testing monorepos`
-        )
-      }
-
-      const workspaces = [...this.apps, ...this.packages]
-
-      for (const app of workspaces) {
-        const pkgPath = path.join(app, 'package.json')
-        const packageJson = await getFileContent(this.files, pkgPath)
-
-        if (!packageJson) {
-          throw new Error(
-            `No package.json was found for the ${
-              this.apps.includes(app) ? 'app' : 'package'
-            }: "${app}" inside the monorepo`
-          )
-        }
-
-        packageJsons.push([pkgPath, JSON.parse(packageJson)])
-      }
-    }
-
-    return packageJsons
   }
 
   protected async setupTestDir(dependencies: PackageJson['dependencies']) {

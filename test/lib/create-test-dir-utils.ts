@@ -10,28 +10,6 @@ export type FilterFn =
   | ((src: string, dest: string, content?: string) => Promise<boolean>)
   | ((src: string, dest: string, content?: string) => boolean)
 
-const readFileOrNull = (filePath: string): Promise<string | null> =>
-  fs
-    .readFile(filePath, 'utf8')
-    .catch((err) => (err.code === 'ENOENT' ? null : Promise.reject(err)))
-
-export const getFileContent = async (
-  files: Files,
-  filename: string
-): Promise<string | undefined> => {
-  if (files instanceof FileRef) {
-    return readFileOrNull(path.join(files.fsPath, filename))
-  } else {
-    for (const file of Object.keys(files)) {
-      if (file === filename) {
-        const item = files[file]
-        return typeof item === 'string' ? item : readFileOrNull(item.fsPath)
-      }
-    }
-  }
-  return null
-}
-
 export async function writeInitialFiles(
   files: Files,
   testDir: string,
