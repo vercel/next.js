@@ -53,6 +53,15 @@ body:
       description: Steps to reproduce the behavior, please provide a clear description of how to reproduce the issue, based on the linked minimal reproduction. Screenshots can be provided in the issue body below. If using code blocks, make sure that [syntax highlighting is correct](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/creating-and-highlighting-code-blocks#syntax-highlighting) and double check that the rendered preview is not broken.
     validations:
       required: true
+  - type: markdown
+    attributes:
+      value: Before posting the issue go through the steps you've written down to make sure the steps provided are detailed and clear.
+  - type: markdown
+    attributes:
+      value: Contributors should be able to follow the steps provided in order to reproduce the bug.
+  - type: markdown
+    attributes:
+      value: These steps are used to add integration tests to ensure the same issue does not happen again. Thanks in advance!
   - type: dropdown
     attributes:
       label: Which area of Next.js is affected (leave empty if unsure)?
@@ -77,12 +86,3 @@ body:
         - 'Turbopack (--turbo)'
         - TypeScript
         - Other
-  - type: markdown
-    attributes:
-      value: Before posting the issue go through the steps you've written down to make sure the steps provided are detailed and clear.
-  - type: markdown
-    attributes:
-      value: Contributors should be able to follow the steps provided in order to reproduce the bug.
-  - type: markdown
-    attributes:
-      value: These steps are used to add integration tests to ensure the same issue does not happen again. Thanks in advance!
