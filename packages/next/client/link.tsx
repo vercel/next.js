@@ -398,7 +398,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
     const isAppRouter = !pagesRouter
 
     if (process.env.NODE_ENV !== 'production') {
-      if (isAppRouter) {
+      if (isAppRouter && !asProp) {
         let href: string | undefined
         if (typeof hrefProp === 'string') {
           href = hrefProp
