@@ -21,14 +21,30 @@ body:
       description: Please run `next info` in the root directory of your project and paste the results. You might need to use `npx --no-install next info` if next is not in the current PATH.
     validations:
       required: true
-  - type: input
+  - type: dropdown
     attributes:
-      label: What browser are you using? (if relevant)
-      description: 'Please specify the exact version. For example: Chrome 100.0.4878.0'
-  - type: input
-    attributes:
-      label: How are you deploying your application? (if relevant)
-      description: 'For example: next start, next export, Vercel, Other platform'
+      label: Which area of Next.js is affected (leave empty if unsure)?
+      multiple: true
+      options:
+        - App directory (appDir: true)
+        - CLI (create-next-app)
+        - Data fetching (gS(S)P, getInitialProps)
+        - Dynamic imports (next/dynamic)
+        - ESLint (eslint-config-next)
+        - Font optimization (@next/font)
+        - Internationalzation (i18n)
+        - Image optmization (next/image, next/legacy/image)
+        - Jest (next/jest)
+        - Middleware / Edge (API routes, runtime)
+        - Package manager (pnpm, Yarn PnP)
+        - Routing (next/router, next/navigation, Link)
+        - Script optimizatzion (next/script)
+        - 'Standalone mode (output: "standalone")'
+        - SWC minifier (swcMinify: true)
+        - SWC transpilation
+        - 'Turbopack (--turbo)'
+        - TypeScript
+        - Other
   - type: textarea
     attributes:
       label: Describe the Bug
@@ -62,27 +78,11 @@ body:
   - type: markdown
     attributes:
       value: These steps are used to add integration tests to ensure the same issue does not happen again. Thanks in advance!
-  - type: dropdown
+  - type: input
     attributes:
-      label: Which area of Next.js is affected (leave empty if unsure)?
-      multiple: true
-      options:
-        - App directory (appDir: true)
-        - CLI (create-next-app)
-        - Data fetching (gS(S)P, getInitialProps)
-        - Dynamic imports (next/dynamic)
-        - ESLint (eslint-config-next)
-        - Font optimization (@next/font)
-        - Internationalzation (i18n)
-        - Image optmization (next/image, next/legacy/image)
-        - Jest (next/jest)
-        - Middleware / Edge (API routes, runtime)
-        - Package manager (pnpm, Yarn PnP)
-        - Routing (next/router, next/navigation, Link)
-        - Script optimizatzion (next/script)
-        - 'Standalone mode (output: "standalone")'
-        - SWC minifier (swcMinify: true)
-        - SWC transpilation
-        - 'Turbopack (--turbo)'
-        - TypeScript
-        - Other
+      label: What browser are you using? (if relevant)
+      description: 'Please specify the exact version. For example: Chrome 100.0.4878.0'
+  - type: input
+    attributes:
+      label: How are you deploying your application? (if relevant)
+      description: 'For example: next start, next export, Vercel, Other platform'
