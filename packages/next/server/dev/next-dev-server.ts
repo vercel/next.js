@@ -277,12 +277,11 @@ export default class DevServer extends Server {
       const app = this.appDir ? [this.appDir] : []
       const directories = [...pages, ...app]
 
-      const files = this.pagesDir
-        ? getPossibleMiddlewareFilenames(
-            pathJoin(this.pagesDir, '..'),
-            this.nextConfig.pageExtensions
-          )
-        : []
+      const rootDir = this.pagesDir || this.appDir
+      const files = getPossibleMiddlewareFilenames(
+        pathJoin(rootDir!, '..'),
+        this.nextConfig.pageExtensions
+      )
       let nestedMiddleware: string[] = []
 
       const envFiles = [
@@ -294,7 +293,7 @@ export default class DevServer extends Server {
 
       files.push(...envFiles)
 
-      // tsconfig/jsonfig paths hot-reloading
+      // tsconfig/jsconfig paths hot-reloading
       const tsconfigPaths = [
         pathJoin(this.dir, 'tsconfig.json'),
         pathJoin(this.dir, 'jsconfig.json'),
@@ -322,6 +321,10 @@ export default class DevServer extends Server {
         const knownFiles = wp.getTimeInfoEntries()
         const appPaths: Record<string, string[]> = {}
         const edgeRoutesSet = new Set<string>()
+        const pageNameSet = new Set<string>()
+        const conflictingAppPagePaths = new Set<string>()
+        const appPageFilePaths = new Map<string, string>()
+        const pagesPageFilePaths = new Map<string, string>()
 
         let envChange = false
         let tsconfigChange = false
@@ -379,6 +382,7 @@ export default class DevServer extends Server {
             nextConfig: this.nextConfig,
             page: rootFile,
             isDev: true,
+            pageType: isAppPath ? 'app' : 'pages',
           })
 
           if (isMiddlewareFile(rootFile)) {
@@ -400,7 +404,7 @@ export default class DevServer extends Server {
           })
 
           if (isAppPath) {
-            if (!isLayoutsLeafPage(fileName)) {
+            if (!isLayoutsLeafPage(fileName, this.nextConfig.pageExtensions)) {
               continue
             }
 
@@ -417,6 +421,17 @@ export default class DevServer extends Server {
           } else {
             // /index is preserved for root folder
             pageName = pageName.replace(/\/index$/, '') || '/'
+          }
+
+          ;(isAppPath ? appPageFilePaths : pagesPageFilePaths).set(
+            pageName,
+            fileName
+          )
+
+          if (this.appDir && pageNameSet.has(pageName)) {
+            conflictingAppPagePaths.add(pageName)
+          } else {
+            pageNameSet.add(pageName)
           }
 
           /**
@@ -440,6 +455,20 @@ export default class DevServer extends Server {
               edgeRoutesSet.add(pageName)
             },
           })
+        }
+
+        const numConflicting = conflictingAppPagePaths.size
+        if (numConflicting > 0) {
+          Log.error(
+            `Conflicting app and page file${
+              numConflicting === 1 ? ' was' : 's were'
+            } found, please remove the conflicting files to continue:`
+          )
+          for (const p of conflictingAppPagePaths) {
+            const appPath = relative(this.dir, appPageFilePaths.get(p)!)
+            const pagesPath = relative(this.dir, pagesPageFilePaths.get(p)!)
+            Log.error(`  "${pagesPath}" - "${appPath}"`)
+          }
         }
 
         if (!this.usingTypeScript && enabledTypeScript) {
@@ -525,7 +554,6 @@ export default class DevServer extends Server {
                     distDir: this.distDir,
                     isClient,
                     hasRewrites,
-                    hasReactRoot: this.hotReloader?.hasReactRoot,
                     isNodeServer,
                     isEdgeServer,
                   })
@@ -548,7 +576,7 @@ export default class DevServer extends Server {
             new NestedMiddlewareError(
               nestedMiddleware,
               this.dir,
-              this.pagesDir!
+              (this.pagesDir || this.appDir)!
             ).message
           )
           nestedMiddleware = []
@@ -697,19 +725,25 @@ export default class DevServer extends Server {
     }
 
     const telemetry = new Telemetry({ distDir: this.distDir })
+    const isSrcDir = relative(
+      this.dir,
+      this.pagesDir || this.appDir || ''
+    ).startsWith('src')
     telemetry.record(
       eventCliSession(this.distDir, this.nextConfig, {
         webpackVersion: 5,
         cliCommand: 'dev',
-        isSrcDir:
-          (!!this.pagesDir &&
-            relative(this.dir, this.pagesDir).startsWith('src')) ||
-          (!!this.appDir && relative(this.dir, this.appDir).startsWith('src')),
+        isSrcDir,
         hasNowJson: !!(await findUp('now.json', { cwd: this.dir })),
         isCustomServer: this.isCustomServer,
+        turboFlag: false,
+        pagesDir: !!this.pagesDir,
+        appDir: !!this.appDir,
       })
     )
     // This is required by the tracing subsystem.
+    setGlobal('appDir', this.appDir)
+    setGlobal('pagesDir', this.pagesDir)
     setGlobal('telemetry', telemetry)
 
     process.on('unhandledRejection', (reason) => {
@@ -751,27 +785,33 @@ export default class DevServer extends Server {
       ).then(Boolean)
     }
 
-    // check appDir first if enabled
+    let appFile: string | null = null
+    let pagesFile: string | null = null
+
     if (this.appDir) {
-      const pageFile = await findPageFile(
+      appFile = await findPageFile(
         this.appDir,
-        normalizedPath,
+        normalizedPath + '/page',
         this.nextConfig.pageExtensions,
         true
       )
-      if (pageFile) return true
     }
 
     if (this.pagesDir) {
-      const pageFile = await findPageFile(
+      pagesFile = await findPageFile(
         this.pagesDir,
         normalizedPath,
         this.nextConfig.pageExtensions,
         false
       )
-      return !!pageFile
     }
-    return false
+    if (appFile && pagesFile) {
+      throw new Error(
+        `Conflicting app and page file found: "app${appFile}" and "pages${pagesFile}". Please remove one to continue.`
+      )
+    }
+
+    return Boolean(appFile || pagesFile)
   }
 
   protected async _beforeCatchAllRender(
@@ -1186,7 +1226,9 @@ export default class DevServer extends Server {
         res
           .body(
             JSON.stringify({
-              pages: this.sortedRoutes,
+              pages: this.sortedRoutes?.filter(
+                (route) => !this.appPathRoutes![route]
+              ),
             })
           )
           .send()

@@ -15,6 +15,7 @@ const nextBuild: cliCommand = (argv) => {
     '--profile': Boolean,
     '--debug': Boolean,
     '--no-lint': Boolean,
+    '--no-mangling': Boolean,
     // Aliases
     '-h': '--help',
     '-d': '--debug',
@@ -44,6 +45,7 @@ const nextBuild: cliCommand = (argv) => {
       Options
       --profile     Can be used to enable React Production Profiling
       --no-lint     Disable linting
+      --no-mangling Disable mangling
     `,
       0
     )
@@ -53,6 +55,11 @@ const nextBuild: cliCommand = (argv) => {
   }
   if (args['--no-lint']) {
     Log.warn('Linting is disabled')
+  }
+  if (args['--no-mangling']) {
+    Log.warn(
+      'Mangling is disabled. Note: This may affect performance and should only be used for debugging purposes'
+    )
   }
   const dir = getProjectDir(args._[0])
 
@@ -66,7 +73,8 @@ const nextBuild: cliCommand = (argv) => {
     null,
     args['--profile'],
     args['--debug'],
-    !args['--no-lint']
+    !args['--no-lint'],
+    args['--no-mangling']
   ).catch((err) => {
     console.error('')
     if (

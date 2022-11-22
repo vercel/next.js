@@ -1,12 +1,6 @@
 'use client'
 
-import React, {
-  useContext,
-  useEffect,
-  useRef,
-  // TODO-APP: change to React.use once it becomes stable
-  experimental_use as use,
-} from 'react'
+import React, { useContext, useEffect, useRef, use } from 'react'
 import type {
   ChildProp,
   //Segment
@@ -22,15 +16,16 @@ import type {
 } from '../../server/app-render'
 import type { ErrorComponent } from './error-boundary'
 import {
+  CacheStates,
   LayoutRouterContext,
   GlobalLayoutRouterContext,
   TemplateContext,
-  AppRouterContext,
 } from '../../shared/lib/app-router-context'
 import { fetchServerResponse } from './app-router'
 import { createInfinitePromise } from './infinite-promise'
 import { ErrorBoundary } from './error-boundary'
 import { matchSegment } from './match-segments'
+import { useRouter } from './navigation'
 
 /**
  * Add refetch marker to router state at the point of the current layout segment.
@@ -115,11 +110,13 @@ export function InnerLayoutRouter({
   path: string
   rootLayoutIncluded: boolean
 }) {
-  const {
-    changeByServerResponse,
-    tree: fullTree,
-    focusAndScrollRef,
-  } = useContext(GlobalLayoutRouterContext)
+  const context = useContext(GlobalLayoutRouterContext)
+  if (!context) {
+    throw new Error('invariant global layout router not mounted')
+  }
+
+  const { changeByServerResponse, tree: fullTree, focusAndScrollRef } = context
+
   const focusAndScrollElementRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -147,25 +144,33 @@ export function InnerLayoutRouter({
   if (
     childProp &&
     // TODO-APP: verify if this can be null based on user code
-    childProp.current !== null &&
-    !childNode /*&&
-    !childProp.partial*/
+    childProp.current !== null
   ) {
-    // Add the segment's subTreeData to the cache.
-    // This writes to the cache when there is no item in the cache yet. It never *overwrites* existing cache items which is why it's safe in concurrent mode.
-    childNodes.set(path, {
-      data: null,
-      subTreeData: childProp.current,
-      parallelRoutes: new Map(),
-    })
-    // Mutates the prop in order to clean up the memory associated with the subTreeData as it is now part of the cache.
-    childProp.current = null
-    // In the above case childNode was set on childNodes, so we have to get it from the cacheNodes again.
-    childNode = childNodes.get(path)
+    if (childNode && childNode.status === CacheStates.LAZY_INITIALIZED) {
+      // @ts-expect-error TODO-APP: handle changing of the type
+      childNode.status = CacheStates.READY
+      // @ts-expect-error TODO-APP: handle changing of the type
+      childNode.subTreeData = childProp.current
+      // Mutates the prop in order to clean up the memory associated with the subTreeData as it is now part of the cache.
+      childProp.current = null
+    } else {
+      // Add the segment's subTreeData to the cache.
+      // This writes to the cache when there is no item in the cache yet. It never *overwrites* existing cache items which is why it's safe in concurrent mode.
+      childNodes.set(path, {
+        status: CacheStates.READY,
+        data: null,
+        subTreeData: childProp.current,
+        parallelRoutes: new Map(),
+      })
+      // Mutates the prop in order to clean up the memory associated with the subTreeData as it is now part of the cache.
+      childProp.current = null
+      // In the above case childNode was set on childNodes, so we have to get it from the cacheNodes again.
+      childNode = childNodes.get(path)
+    }
   }
 
   // When childNode is not available during rendering client-side we need to fetch it from the server.
-  if (!childNode) {
+  if (!childNode || childNode.status === CacheStates.LAZY_INITIALIZED) {
     /**
      * Router state with refetch marker added
      */
@@ -176,9 +181,17 @@ export function InnerLayoutRouter({
      * Flight data fetch kicked off during render and put into the cache.
      */
     childNodes.set(path, {
+      status: CacheStates.DATA_FETCH,
       data: fetchServerResponse(new URL(url, location.origin), refetchTree),
       subTreeData: null,
-      parallelRoutes: new Map(),
+      head:
+        childNode && childNode.status === CacheStates.LAZY_INITIALIZED
+          ? childNode.head
+          : undefined,
+      parallelRoutes:
+        childNode && childNode.status === CacheStates.LAZY_INITIALIZED
+          ? childNode.parallelRoutes
+          : new Map(),
     })
     // In the above case childNode was set on childNodes, so we have to get it from the cacheNodes again.
     childNode = childNodes.get(path)
@@ -246,7 +259,9 @@ export function InnerLayoutRouter({
 
   // Ensure root layout is not wrapped in a div as the root layout renders `<html>`
   return rootLayoutIncluded ? (
-    <div ref={focusAndScrollElementRef}>{subtree}</div>
+    <div ref={focusAndScrollElementRef} data-nextjs-scroll-focus-boundary={''}>
+      {subtree}
+    </div>
   ) : (
     subtree
   )
@@ -259,15 +274,27 @@ export function InnerLayoutRouter({
 function LoadingBoundary({
   children,
   loading,
+  loadingStyles,
   hasLoading,
 }: {
   children: React.ReactNode
   loading?: React.ReactNode
+  loadingStyles?: React.ReactNode
   hasLoading: boolean
 }): JSX.Element {
   if (hasLoading) {
-    // @ts-expect-error TODO-APP: React.Suspense fallback type is wrong
-    return <React.Suspense fallback={loading}>{children}</React.Suspense>
+    return (
+      <React.Suspense
+        fallback={
+          <>
+            {loadingStyles}
+            {loading}
+          </>
+        }
+      >
+        {children}
+      </React.Suspense>
+    )
   }
 
   return <>{children}</>
@@ -279,7 +306,7 @@ interface RedirectBoundaryProps {
 }
 
 function HandleRedirect({ redirect }: { redirect: string }) {
-  const router = useContext(AppRouterContext)
+  const router = useRouter()
 
   useEffect(() => {
     router.replace(redirect, {})
@@ -316,7 +343,7 @@ class RedirectErrorBoundary extends React.Component<
 }
 
 function RedirectBoundary({ children }: { children: React.ReactNode }) {
-  const router = useContext(AppRouterContext)
+  const router = useRouter()
   return (
     <RedirectErrorBoundary router={router}>{children}</RedirectErrorBoundary>
   )
@@ -324,6 +351,7 @@ function RedirectBoundary({ children }: { children: React.ReactNode }) {
 
 interface NotFoundBoundaryProps {
   notFound?: React.ReactNode
+  notFoundStyles?: React.ReactNode
   children: React.ReactNode
 }
 
@@ -349,6 +377,7 @@ class NotFoundErrorBoundary extends React.Component<
       return (
         <>
           <meta name="robots" content="noindex" />
+          {this.props.notFoundStyles}
           {this.props.notFound}
         </>
       )
@@ -358,9 +387,13 @@ class NotFoundErrorBoundary extends React.Component<
   }
 }
 
-function NotFoundBoundary({ notFound, children }: NotFoundBoundaryProps) {
+function NotFoundBoundary({
+  notFound,
+  notFoundStyles,
+  children,
+}: NotFoundBoundaryProps) {
   return notFound ? (
-    <NotFoundErrorBoundary notFound={notFound}>
+    <NotFoundErrorBoundary notFound={notFound} notFoundStyles={notFoundStyles}>
       {children}
     </NotFoundErrorBoundary>
   ) : (
@@ -377,23 +410,36 @@ export default function OuterLayoutRouter({
   segmentPath,
   childProp,
   error,
+  errorStyles,
+  templateStyles,
   loading,
+  loadingStyles,
   hasLoading,
   template,
   notFound,
+  notFoundStyles,
   rootLayoutIncluded,
 }: {
   parallelRouterKey: string
   segmentPath: FlightSegmentPath
   childProp: ChildProp
   error: ErrorComponent
+  errorStyles: React.ReactNode | undefined
+  templateStyles: React.ReactNode | undefined
   template: React.ReactNode
   loading: React.ReactNode | undefined
+  loadingStyles: React.ReactNode | undefined
   hasLoading: boolean
   notFound: React.ReactNode | undefined
+  notFoundStyles: React.ReactNode | undefined
   rootLayoutIncluded: boolean
 }) {
-  const { childNodes, tree, url } = useContext(LayoutRouterContext)
+  const context = useContext(LayoutRouterContext)
+  if (!context) {
+    throw new Error('invariant expected layout router to be mounted')
+  }
+
+  const { childNodes, tree, url } = context
 
   // Get the current parallelRouter cache node
   let childNodesForParallelRouter = childNodes.get(parallelRouterKey)
@@ -439,9 +485,16 @@ export default function OuterLayoutRouter({
           <TemplateContext.Provider
             key={preservedSegment}
             value={
-              <ErrorBoundary errorComponent={error}>
-                <LoadingBoundary hasLoading={hasLoading} loading={loading}>
-                  <NotFoundBoundary notFound={notFound}>
+              <ErrorBoundary errorComponent={error} errorStyles={errorStyles}>
+                <LoadingBoundary
+                  hasLoading={hasLoading}
+                  loading={loading}
+                  loadingStyles={loadingStyles}
+                >
+                  <NotFoundBoundary
+                    notFound={notFound}
+                    notFoundStyles={notFoundStyles}
+                  >
                     <RedirectBoundary>
                       <InnerLayoutRouter
                         parallelRouterKey={parallelRouterKey}
@@ -464,7 +517,10 @@ export default function OuterLayoutRouter({
               </ErrorBoundary>
             }
           >
-            {template}
+            <>
+              {templateStyles}
+              {template}
+            </>
           </TemplateContext.Provider>
         )
       })}

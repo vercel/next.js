@@ -52,6 +52,9 @@ const configSchema = {
                   type: 'string',
                   minLength: 1,
                 },
+                importMap: {
+                  type: 'object',
+                },
               },
             },
           ] as any,
@@ -301,6 +304,11 @@ const configSchema = {
         manualClientBasePath: {
           type: 'boolean',
         },
+        middlewarePrefetch: {
+          // automatic typing doesn't like enum
+          enum: ['strict', 'flexible'] as any,
+          type: 'string',
+        },
         modularizeImports: {
           type: 'object',
         },
@@ -327,6 +335,9 @@ const configSchema = {
           minLength: 1,
           type: 'string',
         },
+        outputFileTracingIgnores: {
+          type: 'array',
+        },
         pageEnv: {
           type: 'boolean',
         },
@@ -343,6 +354,12 @@ const configSchema = {
           type: 'string',
         },
         serverComponentsExternalPackages: {
+          items: {
+            type: 'string',
+          },
+          type: 'array',
+        },
+        transpilePackages: {
           items: {
             type: 'string',
           },
@@ -426,6 +443,42 @@ const configSchema = {
             enum: ['CLS', 'FCP', 'FID', 'INP', 'LCP', 'TTFB'],
           } as any,
         },
+        mdxRs: {
+          type: 'boolean',
+        },
+        turbotrace: {
+          type: 'object',
+          properties: {
+            logLevel: {
+              type: 'string',
+              enum: [
+                'bug',
+                'fatal',
+                'error',
+                'warning',
+                'hint',
+                'note',
+                'suggestions',
+                'info',
+              ],
+            } as any,
+            logAll: {
+              type: 'boolean',
+            },
+            logDetail: {
+              type: 'boolean',
+            },
+            contextDirectory: {
+              type: 'string',
+            },
+            processCwd: {
+              type: 'string',
+            },
+            maxFiles: {
+              type: 'integer',
+            },
+          },
+        },
       },
       type: 'object',
     },
@@ -433,11 +486,6 @@ const configSchema = {
       isFunction: true,
       errorMessage: 'must be a function that returns a Promise',
     } as any,
-    future: {
-      additionalProperties: false,
-      properties: {},
-      type: 'object',
-    },
     generateBuildId: {
       isFunction: true,
       errorMessage: 'must be a function that returns a Promise',
@@ -577,6 +625,10 @@ const configSchema = {
         loader: {
           // automatic typing does not like enum
           enum: VALID_LOADERS as any,
+          type: 'string',
+        },
+        loaderFile: {
+          minLength: 1,
           type: 'string',
         },
         minimumCacheTTL: {

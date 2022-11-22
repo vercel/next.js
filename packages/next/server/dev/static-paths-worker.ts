@@ -16,11 +16,15 @@ import {
 type RuntimeConfig = any
 
 loadRequireHook()
-if (process.env.HAS_APP_DIR) {
+if (process.env.NEXT_PREBUNDLED_REACT) {
   overrideBuiltInReactPackages()
 }
 
 let workerWasUsed = false
+
+// expose AsyncLocalStorage on globalThis for react usage
+const { AsyncLocalStorage } = require('async_hooks')
+;(globalThis as any).AsyncLocalStorage = AsyncLocalStorage
 
 // we call getStaticPaths in a separate process to ensure
 // side-effects aren't relied on in dev that will break

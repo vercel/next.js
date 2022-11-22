@@ -9,11 +9,6 @@ describe('app-dir edge SSR', () => {
     return
   }
 
-  if (process.env.NEXT_TEST_REACT_VERSION === '^17') {
-    it('should skip for react v17', () => {})
-    return
-  }
-
   let next: NextInstance
 
   beforeAll(async () => {
@@ -32,7 +27,7 @@ describe('app-dir edge SSR', () => {
 
   it('should handle edge only routes', async () => {
     const appHtml = await renderViaHTTP(next.url, '/app-edge')
-    expect(appHtml).toContain('<p>app-edge-ssr</p>')
+    expect(appHtml).toContain('<p>Edge!</p>')
 
     const pageHtml = await renderViaHTTP(next.url, '/pages-edge')
     expect(pageHtml).toContain('<p>pages-edge-ssr</p>')
@@ -44,7 +39,7 @@ describe('app-dir edge SSR', () => {
       const content = await next.readFile(pageFile)
 
       // Update rendered content
-      const updatedContent = content.replace('app-edge-ssr', 'edge-hmr')
+      const updatedContent = content.replace('Edge!', 'edge-hmr')
       await next.patchFile(pageFile, updatedContent)
       await check(async () => {
         const html = await renderViaHTTP(next.url, '/app-edge')
@@ -56,7 +51,7 @@ describe('app-dir edge SSR', () => {
       await check(async () => {
         const html = await renderViaHTTP(next.url, '/app-edge')
         return html
-      }, /app-edge-ssr/)
+      }, /Edge!/)
     })
   }
 })

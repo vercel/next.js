@@ -83,6 +83,7 @@ export interface ExperimentalConfig {
   skipMiddlewareUrlNormalize?: boolean
   skipTrailingSlashRedirect?: boolean
   optimisticClientCache?: boolean
+  middlewarePrefetch?: 'strict' | 'flexible'
   legacyBrowsers?: boolean
   manualClientBasePath?: boolean
   newNextLinkBehavior?: boolean
@@ -120,6 +121,7 @@ export interface ExperimentalConfig {
   fullySpecified?: boolean
   urlImports?: NonNullable<webpack.Configuration['experiments']>['buildHttp']
   outputFileTracingRoot?: string
+  outputFileTracingIgnores?: string[]
   modularizeImports?: Record<
     string,
     {
@@ -159,9 +161,29 @@ export interface ExperimentalConfig {
   // A list of packages that should be treated as external in the RSC server build
   serverComponentsExternalPackages?: string[]
 
-  fontLoaders?: [{ loader: string; options?: any }]
+  // A list of packages that should always be transpiled and bundled in the server
+  transpilePackages?: string[]
+
+  fontLoaders?: Array<{ loader: string; options?: any }>
 
   webVitalsAttribution?: Array<typeof WEB_VITALS[number]>
+  turbotrace?: {
+    logLevel?:
+      | 'bug'
+      | 'fatal'
+      | 'error'
+      | 'warning'
+      | 'hint'
+      | 'note'
+      | 'suggestions'
+      | 'info'
+    logDetail?: boolean
+    logAll?: boolean
+    contextDirectory?: string
+    processCwd?: string
+    maxFiles?: number
+  }
+  mdxRs?: boolean
 }
 
 export type ExportPathMap = {
@@ -229,12 +251,6 @@ export interface NextConfig extends Record<string, any> {
    * @see [Redirects configuration documentation](https://nextjs.org/docs/api-reference/next.config.js/redirects)
    */
   redirects?: () => Promise<Redirect[]>
-
-  /**
-   * @deprecated This option has been removed as webpack 5 is now default
-   * @see [Next.js webpack 5 documentation](https://nextjs.org/docs/messages/webpack5) for upgrading guidance.
-   */
-  webpack5?: false
 
   /**
    * @see [Moment.js locales excluded by default](https://nextjs.org/docs/upgrading#momentjs-locales-excluded-by-default)
@@ -378,7 +394,7 @@ export interface NextConfig extends Record<string, any> {
    *
    * @see [React Strict Mode](https://nextjs.org/docs/api-reference/next.config.js/react-strict-mode)
    */
-  reactStrictMode?: boolean
+  reactStrictMode?: boolean | null
 
   /**
    * Add public (in browser) runtime configuration to your app
@@ -401,13 +417,6 @@ export interface NextConfig extends Record<string, any> {
    * @see [Disabling HTTP Keep-Alive](https://nextjs.org/docs/api-reference/next.config.js/disabling-http-keep-alive)
    */
   httpAgentOptions?: { keepAlive?: boolean }
-
-  future?: {
-    /**
-     * @deprecated This option has been removed as webpack 5 is now default
-     */
-    webpack5?: false
-  }
 
   /**
    * During a build, Next.js will automatically trace each page and its dependencies to determine all of the files
@@ -453,7 +462,7 @@ export interface NextConfig extends Record<string, any> {
     relay?: {
       src: string
       artifactDirectory?: string
-      language?: 'typescript' | 'flow'
+      language?: 'typescript' | 'javascript' | 'flow'
     }
     removeConsole?:
       | boolean
@@ -484,6 +493,14 @@ export interface NextConfig extends Record<string, any> {
           sourceMap?: boolean
           autoLabel?: 'dev-only' | 'always' | 'never'
           labelFormat?: string
+          importMap?: {
+            [importName: string]: {
+              [exportName: string]: {
+                canonicalImport?: [string, string]
+                styledBaseImport?: [string, string]
+              }
+            }
+          }
         }
   }
 
@@ -536,11 +553,10 @@ export const defaultConfig: NextConfig = {
   i18n: null,
   productionBrowserSourceMaps: false,
   optimizeFonts: true,
-  webpack5: undefined,
   excludeDefaultMomentLocales: true,
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},
-  reactStrictMode: false,
+  reactStrictMode: null,
   httpAgentOptions: {
     keepAlive: true,
   },
@@ -549,6 +565,7 @@ export const defaultConfig: NextConfig = {
   swcMinify: true,
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   experimental: {
+    middlewarePrefetch: 'flexible',
     optimisticClientCache: true,
     runtime: undefined,
     manualClientBasePath: false,
@@ -592,6 +609,7 @@ export const defaultConfig: NextConfig = {
     enableUndici: false,
     adjustFontFallbacks: false,
     adjustFontFallbacksWithSizeAdjust: false,
+    turbotrace: undefined,
   },
 }
 

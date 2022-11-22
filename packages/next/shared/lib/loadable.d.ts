@@ -9,7 +9,7 @@ declare namespace LoadableExport {
   }
 }
 
-// eslint-disable-next-line no-redeclare
+// eslint-disable-next-line @typescript-eslint/no-redeclare
 declare const LoadableExport: LoadableExport.ILoadable
 
 export = LoadableExport

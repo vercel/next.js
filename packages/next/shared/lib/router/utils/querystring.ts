@@ -16,7 +16,7 @@ export function searchParamsToUrlQuery(
   return query
 }
 
-function stringifyUrlQueryParam(param: string): string {
+function stringifyUrlQueryParam(param: unknown): string {
   if (
     typeof param === 'string' ||
     (typeof param === 'number' && !isNaN(param)) ||

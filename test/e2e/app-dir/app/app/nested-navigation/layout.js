@@ -1,4 +1,4 @@
-import { experimental_use as use } from 'react'
+import { use } from 'react'
 import { fetchCategories } from './getCategories'
 import React from 'react'
 import CategoryNav from './CategoryNav'

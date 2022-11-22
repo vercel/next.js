@@ -259,7 +259,7 @@ function Script(props: ScriptProps): JSX.Element | null {
   // For the app directory, we need React Float to preload these scripts.
   if (appDir) {
     // Before interactive scripts need to be loaded by Next.js' runtime instead
-    // of native <script> tags, becasue they no longer have `defer`.
+    // of native <script> tags, because they no longer have `defer`.
     if (strategy === 'beforeInteractive') {
       if (!src) {
         // For inlined scripts, we put the content in `children`.

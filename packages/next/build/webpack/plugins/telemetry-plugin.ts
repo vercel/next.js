@@ -24,6 +24,8 @@ export type Feature =
   | 'next/legacy/image'
   | 'next/script'
   | 'next/dynamic'
+  | '@next/font/google'
+  | '@next/font/local'
   | 'swcLoader'
   | 'swcMinify'
   | 'swcRelay'
@@ -34,6 +36,7 @@ export type Feature =
   | 'swcImportSource'
   | 'swcEmotion'
   | `swc/target/${SWC_TARGET_TRIPLE}`
+  | 'turbotrace'
 
 interface FeatureUsage {
   featureName: Feature
@@ -63,6 +66,10 @@ const FEATURE_MODULE_MAP: ReadonlyMap<Feature, string> = new Map([
   ['next/script', '/next/script.js'],
   ['next/dynamic', '/next/dynamic.js'],
 ])
+const FEATURE_MODULE_REGEXP_MAP: ReadonlyMap<Feature, RegExp> = new Map([
+  ['@next/font/google', /\/@next\/font\/google\/target.css?.+$/],
+  ['@next/font/local', /\/@next\/font\/local\/target.css?.+$/],
+])
 
 // List of build features used in webpack configuration
 const BUILD_FEATURES: Array<Feature> = [
@@ -88,6 +95,7 @@ const BUILD_FEATURES: Array<Feature> = [
   'swc/target/x86_64-unknown-linux-musl',
   'swc/target/aarch64-unknown-linux-musl',
   'swc/target/aarch64-pc-windows-msvc',
+  'turbotrace',
 ]
 
 const ELIMINATED_PACKAGES = new Set<string>()
@@ -99,8 +107,14 @@ function findFeatureInModule(module: Module): Feature | undefined {
   if (module.type !== 'javascript/auto') {
     return
   }
+  const normalizedIdentifier = module.identifier().replace(/\\/g, '/')
   for (const [feature, path] of FEATURE_MODULE_MAP) {
-    if (module.identifier().replace(/\\/g, '/').endsWith(path)) {
+    if (normalizedIdentifier.endsWith(path)) {
+      return feature
+    }
+  }
+  for (const [feature, regexp] of FEATURE_MODULE_REGEXP_MAP) {
+    if (regexp.test(normalizedIdentifier)) {
       return feature
     }
   }
@@ -145,6 +159,13 @@ export class TelemetryPlugin implements webpack.WebpackPluginInstance {
     }
 
     for (const featureName of FEATURE_MODULE_MAP.keys()) {
+      this.usageTracker.set(featureName, {
+        featureName,
+        invocationCount: 0,
+      })
+    }
+
+    for (const featureName of FEATURE_MODULE_REGEXP_MAP.keys()) {
       this.usageTracker.set(featureName, {
         featureName,
         invocationCount: 0,

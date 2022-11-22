@@ -1,6 +1,6 @@
 # With `App` layout example
 
-Shows how to use \_app.js to implement a global layout for all pages.
+Shows how to use `_app.tsx` to implement a global layout for all pages.
 
 ## Deploy your own
 

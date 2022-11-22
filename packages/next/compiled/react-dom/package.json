@@ -1,6 +1,6 @@
 {
   "name": "react-dom",
-  "version": "0.0.0-experimental-9cdf8a99e-20221018",
+  "version": "18.3.0-next-4bd245e9e-20221104",
   "description": "React package for working with the DOM.",
   "main": "index.js",
   "repository": {
@@ -18,10 +18,10 @@
   "homepage": "https://reactjs.org/",
   "dependencies": {
     "loose-envify": "^1.1.0",
-    "scheduler": "0.0.0-experimental-9cdf8a99e-20221018"
+    "scheduler": "0.24.0-next-4bd245e9e-20221104"
   },
   "peerDependencies": {
-    "react": "0.0.0-experimental-9cdf8a99e-20221018"
+    "react": "18.3.0-next-4bd245e9e-20221104"
   },
   "files": [
     "LICENSE",
@@ -32,12 +32,8 @@
     "server.js",
     "server.browser.js",
     "server.node.js",
-    "static.js",
-    "static.browser.js",
-    "static.node.js",
     "server-rendering-stub.js",
     "test-utils.js",
-    "unstable_testing.js",
     "unstable_server-external-runtime.js",
     "cjs/",
     "umd/"
@@ -53,23 +49,14 @@
     },
     "./server.browser": "./server.browser.js",
     "./server.node": "./server.node.js",
-    "./static": {
-      "deno": "./static.browser.js",
-      "worker": "./static.browser.js",
-      "browser": "./static.browser.js",
-      "default": "./static.node.js"
-    },
-    "./static.browser": "./static.browser.js",
-    "./static.node": "./static.node.js",
     "./server-rendering-stub": "./server-rendering-stub.js",
     "./profiling": "./profiling.js",
     "./test-utils": "./test-utils.js",
-    "./unstable_testing": "./unstable_testing.js",
+    "./unstable_server-external-runtime": "./unstable_server-external-runtime.js",
     "./package.json": "./package.json"
   },
   "browser": {
-    "./server.js": "./server.browser.js",
-    "./static.js": "./static.browser.js"
+    "./server.js": "./server.browser.js"
   },
   "browserify": {
     "transform": [
