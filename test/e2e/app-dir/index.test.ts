@@ -2182,7 +2182,7 @@ describe('app dir', () => {
           await browser
             .elementByCss('#to-server-component')
             .click()
-            .waitForElementByCss('#value-1', 2000)
+            .waitForElementByCss('#value-1', 10000)
           const val1 = await browser.elementByCss('#value-1').text()
           const val2 = await browser.elementByCss('#value-2').text()
           expect(val1).toBe(val2)
@@ -2204,7 +2204,7 @@ describe('app dir', () => {
           await browser
             .elementByCss('#to-client-component')
             .click()
-            .waitForElementByCss('#value-1', 2000)
+            .waitForElementByCss('#value-1', 10000)
           const val1 = await browser.elementByCss('#value-1').text()
           const val2 = await browser.elementByCss('#value-2').text()
           expect(val1).toBe(val2)
@@ -2228,7 +2228,7 @@ describe('app dir', () => {
           await browser
             .elementByCss('#to-server-component')
             .click()
-            .waitForElementByCss('#value-1', 2000)
+            .waitForElementByCss('#value-1', 10000)
           const val1 = await browser.elementByCss('#value-1').text()
           const val2 = await browser.elementByCss('#value-2').text()
           expect(val1).toBe(val2)
@@ -2252,7 +2252,7 @@ describe('app dir', () => {
           await browser
             .elementByCss('#to-client-component')
             .click()
-            .waitForElementByCss('#value-1', 2000)
+            .waitForElementByCss('#value-1', 10000)
           const val1 = await browser.elementByCss('#value-1').text()
           const val2 = await browser.elementByCss('#value-2').text()
           expect(val1).toBe(val2)
