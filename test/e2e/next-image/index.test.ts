@@ -11,10 +11,7 @@ describe('next-image', () => {
 
   beforeAll(async () => {
     next = await createNext({
-      files: {
-        pages: new FileRef(path.join(appDir, 'pages')),
-        // 'next.config.js': new FileRef(path.join(appDir, 'next.config.js')),
-      },
+      files: new FileRef(appDir),
       dependencies: {
         'framer-motion': '7.6.9',
       },

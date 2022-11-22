@@ -1,15 +1,16 @@
 import React, { useState } from 'react'
 import Image from 'next/image'
 import { motion } from 'framer-motion'
+import testPng from '../images/test.png'
 
 const CustomImage = React.forwardRef((props, ref) => (
   <Image
     ref={ref}
     id="img"
-    src="www.fillmurray.com/300/300"
+    src={testPng}
     width={300}
     height={300}
-    alt="Phill Murray"
+    alt="test img"
     {...props}
   />
 ))
