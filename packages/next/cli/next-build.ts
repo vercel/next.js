@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 import { existsSync } from 'fs'
 import arg from 'next/dist/compiled/arg/index.js'
-import { resolve } from 'path'
 import * as Log from '../build/output/log'
-import { cliCommand } from '../bin/next'
+import { cliCommand } from '../lib/commands'
 import build from '../build'
 import { printAndExit } from '../server/lib/utils'
+import isError from '../lib/is-error'
+import { getProjectDir } from '../lib/get-project-dir'
 
 const nextBuild: cliCommand = (argv) => {
   const validArgs: arg.Spec = {
@@ -14,6 +15,7 @@ const nextBuild: cliCommand = (argv) => {
     '--profile': Boolean,
     '--debug': Boolean,
     '--no-lint': Boolean,
+    '--no-mangling': Boolean,
     // Aliases
     '-h': '--help',
     '-d': '--debug',
@@ -23,7 +25,7 @@ const nextBuild: cliCommand = (argv) => {
   try {
     args = arg(validArgs, { argv })
   } catch (error) {
-    if (error.code === 'ARG_UNKNOWN_OPTION') {
+    if (isError(error) && error.code === 'ARG_UNKNOWN_OPTION') {
       return printAndExit(error.message, 1)
     }
     throw error
@@ -43,6 +45,7 @@ const nextBuild: cliCommand = (argv) => {
       Options
       --profile     Can be used to enable React Production Profiling
       --no-lint     Disable linting
+      --no-mangling Disable mangling
     `,
       0
     )
@@ -53,7 +56,12 @@ const nextBuild: cliCommand = (argv) => {
   if (args['--no-lint']) {
     Log.warn('Linting is disabled')
   }
-  const dir = resolve(args._[0] || '.')
+  if (args['--no-mangling']) {
+    Log.warn(
+      'Mangling is disabled. Note: This may affect performance and should only be used for debugging purposes'
+    )
+  }
+  const dir = getProjectDir(args._[0])
 
   // Check if the provided directory exists
   if (!existsSync(dir)) {
@@ -65,11 +73,22 @@ const nextBuild: cliCommand = (argv) => {
     null,
     args['--profile'],
     args['--debug'],
-    !args['--no-lint']
+    !args['--no-lint'],
+    args['--no-mangling']
   ).catch((err) => {
     console.error('')
-    console.error('> Build error occurred')
-    printAndExit(err)
+    if (
+      isError(err) &&
+      (err.code === 'INVALID_RESOLVE_ALIAS' ||
+        err.code === 'WEBPACK_ERRORS' ||
+        err.code === 'BUILD_OPTIMIZATION_FAILED' ||
+        err.code === 'EDGE_RUNTIME_UNSUPPORTED_API')
+    ) {
+      printAndExit(`> ${err.message}`)
+    } else {
+      console.error('> Build error occurred')
+      printAndExit(err)
+    }
   })
 }
 

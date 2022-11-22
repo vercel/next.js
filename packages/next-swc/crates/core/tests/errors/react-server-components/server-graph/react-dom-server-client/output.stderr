@@ -1,0 +1,12 @@
+
+  x NEXT_RSC_ERR_SERVER_IMPORT: react-dom/server
+   ,-[input.js:9:1]
+ 9 | import "react-dom/server"
+   : ^^^^^^^^^^^^^^^^^^^^^^^^^
+   `----
+
+  x NEXT_RSC_ERR_SERVER_IMPORT: react-dom/client
+    ,-[input.js:11:1]
+ 11 | import "react-dom/client"
+    : ^^^^^^^^^^^^^^^^^^^^^^^^^
+    `----

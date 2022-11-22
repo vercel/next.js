@@ -1,6 +1,5 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
 import { join } from 'path'
 import {
   killApp,
@@ -11,10 +10,7 @@ import {
   fetchViaHTTP,
 } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 2)
-
 const appDir = join(__dirname, '../')
-const nextConfig = join(appDir, 'next.config.js')
 
 let appPort
 let app
@@ -45,33 +41,6 @@ describe('Custom 404 Page for static site generation with dynamic routes', () =>
     })
 
     runTests('server')
-  })
-
-  describe('serverless mode', () => {
-    afterAll(async () => {
-      await fs.remove(nextConfig)
-      await killApp(app)
-    })
-
-    it('should build successfully', async () => {
-      await fs.writeFile(
-        nextConfig,
-        `
-        module.exports = { target: 'experimental-serverless-trace' }
-      `
-      )
-      const { code } = await nextBuild(appDir, [], {
-        stderr: true,
-        stdout: true,
-      })
-
-      expect(code).toBe(0)
-
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-
-    runTests('serverless')
   })
 
   describe('dev mode', () => {

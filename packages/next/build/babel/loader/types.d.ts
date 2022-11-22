@@ -1,8 +1,9 @@
-import { loader } from 'next/dist/compiled/webpack/webpack'
-import { Span } from '../../../telemetry/trace'
+import { webpack } from 'next/dist/compiled/webpack/webpack'
+import { Span } from '../../../trace'
 
-export interface NextJsLoaderContext extends loader.LoaderContext {
-  currentTraceSpan?: Span
+export interface NextJsLoaderContext extends webpack.LoaderContext<{}> {
+  currentTraceSpan: Span
+  target: string
 }
 
 export interface NextBabelLoaderOptions {

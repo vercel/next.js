@@ -11,8 +11,6 @@ import {
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 
-jest.setTimeout(1000 * 60 * 2)
-
 const appDir = join(__dirname, '../')
 
 let appPort
@@ -146,6 +144,18 @@ const runTests = () => {
     expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
       slug: '321',
     })
+
+    await browser.back().waitForElementByCss('#preview')
+
+    await browser
+      .elementByCss('#to-news-as-blog')
+      .click()
+      .waitForElementByCss('#news')
+
+    expect(await browser.elementByCss('#news').text()).toBe('news page')
+    expect(await browser.elementByCss('#asPath').text()).toBe('/blog')
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({})
   })
 }
 

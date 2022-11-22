@@ -10,8 +10,6 @@ import {
   renderViaHTTP,
 } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 5)
-
 let appDir = join(__dirname, '../')
 let server
 let appPort

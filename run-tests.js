@@ -1,62 +1,97 @@
+const os = require('os')
 const path = require('path')
 const _glob = require('glob')
-const fs = require('fs').promises
-const fetch = require('node-fetch')
+const fs = require('fs-extra')
+const nodeFetch = require('node-fetch')
+const vercelFetch = require('@vercel/fetch')
+const fetch = vercelFetch(nodeFetch)
 const { promisify } = require('util')
 const { Sema } = require('async-sema')
 const { spawn, exec: execOrig } = require('child_process')
-
+const { createNextInstall } = require('./test/lib/create-next-install')
 const glob = promisify(_glob)
 const exec = promisify(execOrig)
 
 const timings = []
-const NUM_RETRIES = 2
+const DEFAULT_NUM_RETRIES = os.platform() === 'win32' ? 2 : 1
 const DEFAULT_CONCURRENCY = 2
 const RESULTS_EXT = `.results.json`
 const isTestJob = !!process.env.NEXT_TEST_JOB
-const TIMINGS_API = `https://next-timings.jjsweb.site/api/timings`
+const TIMINGS_API = `https://api.github.com/gists/4500dd89ae2f5d70d9aaceb191f528d1`
+const TIMINGS_API_HEADERS = {
+  Accept: 'application/vnd.github.v3+json',
+}
 
-const UNIT_TEST_EXT = '.unit.test.js'
-const DEV_TEST_EXT = '.dev.test.js'
-const PROD_TEST_EXT = '.prod.test.js'
-
-const NON_CONCURRENT_TESTS = [
-  'test/integration/basic/test/index.test.js',
-  'test/acceptance/ReactRefresh.dev.test.js',
-  'test/acceptance/ReactRefreshLogBox.dev.test.js',
-  'test/acceptance/ReactRefreshRegression.dev.test.js',
-  'test/acceptance/ReactRefreshRequire.dev.test.js',
-]
+const testFilters = {
+  unit: 'unit/',
+  e2e: 'e2e/',
+  production: 'production/',
+  development: 'development/',
+}
 
 // which types we have configured to run separate
-const configuredTestTypes = [UNIT_TEST_EXT]
+const configuredTestTypes = Object.values(testFilters)
+
+const cleanUpAndExit = async (code) => {
+  if (process.env.NEXT_TEST_STARTER) {
+    await fs.remove(process.env.NEXT_TEST_STARTER)
+  }
+  console.log(`exiting with code ${code}`)
+
+  setTimeout(() => {
+    process.exit(code)
+  }, 1)
+}
+
+async function getTestTimings() {
+  const timingsRes = await fetch(TIMINGS_API, {
+    headers: {
+      ...TIMINGS_API_HEADERS,
+    },
+  })
+
+  if (!timingsRes.ok) {
+    throw new Error(`request status: ${timingsRes.status}`)
+  }
+  const timingsData = await timingsRes.json()
+  return JSON.parse(timingsData.files['test-timings.json'].content)
+}
 
 async function main() {
+  let numRetries = DEFAULT_NUM_RETRIES
   let concurrencyIdx = process.argv.indexOf('-c')
-  const concurrency =
-    parseInt(process.argv[concurrencyIdx + 1], 10) || DEFAULT_CONCURRENCY
+  let concurrency =
+    (concurrencyIdx > -1 && parseInt(process.argv[concurrencyIdx + 1], 10)) ||
+    DEFAULT_CONCURRENCY
 
-  const outputTimings = process.argv.indexOf('--timings') !== -1
-  const writeTimings = process.argv.indexOf('--write-timings') !== -1
-  const isAzure = process.argv.indexOf('--azure') !== -1
+  const hideOutput = !process.argv.includes('--debug')
+  const outputTimings = process.argv.includes('--timings')
+  const writeTimings = process.argv.includes('--write-timings')
   const groupIdx = process.argv.indexOf('-g')
   const groupArg = groupIdx !== -1 && process.argv[groupIdx + 1]
 
   const testTypeIdx = process.argv.indexOf('--type')
-  const testType = process.argv[testTypeIdx + 1]
-
+  const testType = testTypeIdx > -1 ? process.argv[testTypeIdx + 1] : undefined
   let filterTestsBy
 
   switch (testType) {
-    case 'unit':
-      filterTestsBy = UNIT_TEST_EXT
+    case 'unit': {
+      numRetries = 0
+      filterTestsBy = testFilters.unit
       break
-    case 'dev':
-      filterTestsBy = DEV_TEST_EXT
+    }
+    case 'development': {
+      filterTestsBy = testFilters.development
       break
-    case 'production':
-      filterTestsBy = PROD_TEST_EXT
+    }
+    case 'production': {
+      filterTestsBy = testFilters.production
       break
+    }
+    case 'e2e': {
+      filterTestsBy = testFilters.e2e
+      break
+    }
     case 'all':
       filterTestsBy = 'none'
       break
@@ -65,22 +100,23 @@ async function main() {
   }
 
   console.log('Running tests with concurrency:', concurrency)
-  let tests = process.argv.filter((arg) => arg.endsWith('.test.js'))
+
+  let tests = process.argv.filter((arg) => arg.match(/\.test\.(js|ts|tsx)/))
   let prevTimings
 
   if (tests.length === 0) {
     tests = (
-      await glob('**/*.test.js', {
+      await glob('**/*.test.{js,ts,tsx}', {
         nodir: true,
         cwd: path.join(__dirname, 'test'),
       })
     ).filter((test) => {
-      // only include the specified type
       if (filterTestsBy) {
-        return filterTestsBy === 'none' ? true : test.endsWith(filterTestsBy)
-        // include all except the separately configured types
+        // only include the specified type
+        return filterTestsBy === 'none' ? true : test.startsWith(filterTestsBy)
       } else {
-        return !configuredTestTypes.some((type) => test.endsWith(type))
+        // include all except the separately configured types
+        return !configuredTestTypes.some((type) => test.startsWith(type))
       }
     })
 
@@ -94,24 +130,18 @@ async function main() {
         } catch (_) {}
 
         if (!prevTimings) {
-          const timingsRes = await fetch(
-            `${TIMINGS_API}?which=${isAzure ? 'azure' : 'actions'}`
-          )
-
-          if (!timingsRes.ok) {
-            throw new Error(`request status: ${timingsRes.status}`)
-          }
-          prevTimings = await timingsRes.json()
+          prevTimings = await getTestTimings()
           console.log('Fetched previous timings data successfully')
 
           if (writeTimings) {
             await fs.writeFile(timingsFile, JSON.stringify(prevTimings))
             console.log('Wrote previous timings data to', timingsFile)
-            process.exit(0)
+            await cleanUpAndExit(0)
           }
         }
       } catch (err) {
         console.log(`Failed to fetch timings data`, err)
+        await cleanUpAndExit(1)
       }
     }
   }
@@ -130,10 +160,6 @@ async function main() {
     const groupParts = groupArg.split('/')
     const groupPos = parseInt(groupParts[0], 10)
     const groupTotal = parseInt(groupParts[1], 10)
-    const numPerGroup = Math.ceil(testNames.length / groupTotal)
-    let offset = groupPos === 1 ? 0 : (groupPos - 1) * numPerGroup - 1
-    // if there's an odd number of suites give the first group the extra
-    if (testNames.length % 2 !== 0 && groupPos !== 1) offset++
 
     if (prevTimings) {
       const groups = [[]]
@@ -168,25 +194,63 @@ async function main() {
         Math.round(groupTimes[curGroupIdx]) + 's'
       )
     } else {
-      testNames = testNames.splice(offset, numPerGroup)
+      const numPerGroup = Math.ceil(testNames.length / groupTotal)
+      let offset = (groupPos - 1) * numPerGroup
+      testNames = testNames.slice(offset, offset + numPerGroup)
     }
   }
+
+  if (testNames.length === 0) {
+    console.log('No tests found for', testType, 'exiting..')
+    return cleanUpAndExit(0)
+  }
+
   console.log('Running tests:', '\n', ...testNames.map((name) => `${name}\n`))
 
-  const sema = new Sema(concurrency, { capacity: testNames.length })
-  const jestPath = path.join(
-    path.dirname(require.resolve('jest-cli/package.json')),
-    'bin/jest.js'
-  )
-  const children = new Set()
+  const hasIsolatedTests = testNames.some((test) => {
+    return configuredTestTypes.some(
+      (type) => type !== testFilters.unit && test.startsWith(`test/${type}`)
+    )
+  })
 
-  const runTest = (test = '', usePolling) =>
+  if (
+    process.env.NEXT_TEST_MODE !== 'deploy' &&
+    ((testType && testType !== 'unit') || hasIsolatedTests)
+  ) {
+    // for isolated next tests: e2e, dev, prod we create
+    // a starter Next.js install to re-use to speed up tests
+    // to avoid having to run yarn each time
+    console.log('Creating Next.js install for isolated tests')
+    const reactVersion = process.env.NEXT_TEST_REACT_VERSION || 'latest'
+    const testStarter = await createNextInstall({
+      react: reactVersion,
+      'react-dom': reactVersion,
+    })
+    process.env.NEXT_TEST_STARTER = testStarter
+  }
+
+  const sema = new Sema(concurrency, { capacity: testNames.length })
+  const children = new Set()
+  const jestPath = path.join(
+    __dirname,
+    'node_modules',
+    '.bin',
+    `jest${process.platform === 'win32' ? '.CMD' : ''}`
+  )
+
+  const runTest = (test = '', isFinalRun, isRetry) =>
     new Promise((resolve, reject) => {
       const start = new Date().getTime()
+      let outputChunks = []
+
+      const shouldRecordTestWithReplay = process.env.RECORD_REPLAY && isRetry
+
       const child = spawn(
-        'node',
+        jestPath,
         [
-          jestPath,
+          ...(shouldRecordTestWithReplay
+            ? [`--config=jest.replay.config.js`]
+            : []),
           '--runInBand',
           '--forceExit',
           '--verbose',
@@ -196,117 +260,120 @@ async function main() {
           test,
         ],
         {
-          stdio: 'inherit',
+          stdio: ['ignore', 'pipe', 'pipe'],
           env: {
-            JEST_RETRY_TIMES: 0,
             ...process.env,
-            ...(isAzure
-              ? {
-                  HEADLESS: 'true',
-                  __POST_PROCESS_MIDDLEWARE_TIME_BUDGET: '50',
-                }
-              : {}),
-            ...(usePolling
+            RECORD_REPLAY: shouldRecordTestWithReplay,
+            // run tests in headless mode by default
+            HEADLESS: 'true',
+            TRACE_PLAYWRIGHT: 'true',
+            ...(isFinalRun
               ? {
                   // Events can be finicky in CI. This switches to a more
                   // reliable polling method.
-                  CHOKIDAR_USEPOLLING: 'true',
-                  CHOKIDAR_INTERVAL: 500,
+                  // CHOKIDAR_USEPOLLING: 'true',
+                  // CHOKIDAR_INTERVAL: 500,
+                  // WATCHPACK_POLLING: 500,
                 }
               : {}),
           },
         }
       )
+      const handleOutput = (type) => (chunk) => {
+        if (hideOutput && !isFinalRun) {
+          outputChunks.push({ type, chunk })
+        } else {
+          process.stderr.write(chunk)
+        }
+      }
+      child.stdout.on('data', handleOutput('stdout'))
+      child.stderr.on('data', handleOutput('stderr'))
+
       children.add(child)
-      child.on('exit', (code) => {
+
+      child.on('exit', async (code, signal) => {
         children.delete(child)
-        if (code) reject(new Error(`failed with code: ${code}`))
+        if (code !== 0 || signal !== null) {
+          if (hideOutput) {
+            // limit out to last 64kb so that we don't
+            // run out of log room in CI
+            outputChunks.forEach(({ type, chunk }) => {
+              if (type === 'stdout') {
+                process.stdout.write(chunk)
+              } else {
+                process.stderr.write(chunk)
+              }
+            })
+          }
+          return reject(
+            new Error(
+              code
+                ? `failed with code: ${code}`
+                : `failed with signal: ${signal}`
+            )
+          )
+        }
+        await fs
+          .remove(
+            path.join(
+              __dirname,
+              'test/traces',
+              path
+                .relative(path.join(__dirname, 'test'), test)
+                .replace(/\//g, '-')
+            )
+          )
+          .catch(() => {})
         resolve(new Date().getTime() - start)
       })
     })
 
-  const nonConcurrentTestNames = []
-
-  testNames = testNames.filter((testName) => {
-    if (NON_CONCURRENT_TESTS.includes(testName)) {
-      nonConcurrentTestNames.push(testName)
-      return false
-    }
-    return true
-  })
-
-  // run non-concurrent test names separately and before
-  // concurrent ones
-  for (const test of nonConcurrentTestNames) {
-    let passed = false
-
-    for (let i = 0; i < NUM_RETRIES + 1; i++) {
-      try {
-        const time = await runTest(test, i > 0)
-        timings.push({
-          file: test,
-          time,
-        })
-        passed = true
-        break
-      } catch (err) {
-        if (i < NUM_RETRIES) {
-          try {
-            const testDir = path.dirname(path.join(__dirname, test))
-            console.log('Cleaning test files at', testDir)
-            await exec(`git clean -fdx "${testDir}"`)
-            await exec(`git checkout "${testDir}"`)
-          } catch (err) {}
-        }
-      }
-    }
-    if (!passed) {
-      console.error(`${test} failed to pass within ${NUM_RETRIES} retries`)
-      children.forEach((child) => child.kill())
-
-      if (isTestJob) {
-        try {
-          const testsOutput = await fs.readFile(`${test}${RESULTS_EXT}`, 'utf8')
-          console.log(
-            `--test output start--`,
-            testsOutput,
-            `--test output end--`
-          )
-        } catch (err) {
-          console.log(`Failed to load test output`, err)
-        }
-      }
-      process.exit(1)
-    }
-  }
+  const directorySemas = new Map()
 
   await Promise.all(
     testNames.map(async (test) => {
+      const dirName = path.dirname(test)
+      let dirSema = directorySemas.get(dirName)
+      if (dirSema === undefined)
+        directorySemas.set(dirName, (dirSema = new Sema(1)))
+      await dirSema.acquire()
       await sema.acquire()
       let passed = false
 
-      for (let i = 0; i < NUM_RETRIES + 1; i++) {
+      for (let i = 0; i < numRetries + 1; i++) {
         try {
-          const time = await runTest(test, i > 0)
+          console.log(`Starting ${test} retry ${i}/${numRetries}`)
+          const time = await runTest(test, i === numRetries, i > 0)
           timings.push({
             file: test,
             time,
           })
           passed = true
+          console.log(
+            `Finished ${test} on retry ${i}/${numRetries} in ${time / 1000}s`
+          )
           break
         } catch (err) {
-          if (i < NUM_RETRIES) {
+          if (i < numRetries) {
             try {
-              const testDir = path.dirname(path.join(__dirname, test))
+              let testDir = path.dirname(path.join(__dirname, test))
+
+              // if test is nested in a test folder traverse up a dir to ensure
+              // we clean up relevant test files
+              if (testDir.endsWith('/test') || testDir.endsWith('\\test')) {
+                testDir = path.join(testDir, '../')
+              }
               console.log('Cleaning test files at', testDir)
               await exec(`git clean -fdx "${testDir}"`)
               await exec(`git checkout "${testDir}"`)
             } catch (err) {}
+          } else {
+            console.error(`${test} failed due to ${err}`)
           }
         }
       }
       if (!passed) {
-        console.error(`${test} failed to pass within ${NUM_RETRIES} retries`)
+        console.error(`${test} failed to pass within ${numRetries} retries`)
         children.forEach((child) => child.kill())
 
         if (isTestJob) {
@@ -324,9 +391,10 @@ async function main() {
             console.log(`Failed to load test output`, err)
           }
         }
-        process.exit(1)
+        cleanUpAndExit(1)
       }
       sema.release()
+      dirSema.release()
     })
   )
 
@@ -357,16 +425,32 @@ async function main() {
     // junitData += `</testsuites>`
     // console.log('output timing data to junit.xml')
 
-    if (prevTimings) {
+    if (prevTimings && process.env.TEST_TIMINGS_TOKEN) {
       try {
+        const newTimings = {
+          ...(await getTestTimings()),
+          ...curTimings,
+        }
+
+        for (const test of Object.keys(newTimings)) {
+          if (!(await fs.pathExists(path.join(__dirname, test)))) {
+            console.log('removing stale timing', test)
+            delete newTimings[test]
+          }
+        }
+
         const timingsRes = await fetch(TIMINGS_API, {
-          method: 'POST',
+          method: 'PATCH',
           headers: {
-            'content-type': 'application/json',
+            ...TIMINGS_API_HEADERS,
+            Authorization: `Bearer ${process.env.TEST_TIMINGS_TOKEN}`,
           },
           body: JSON.stringify({
-            timings: curTimings,
-            which: isAzure ? 'azure' : 'actions',
+            files: {
+              'test-timings.json': {
+                content: JSON.stringify(newTimings),
+              },
+            },
           }),
         })
 
@@ -382,6 +466,7 @@ async function main() {
       }
     }
   }
+  await cleanUpAndExit(0)
 }
 
 main().catch((err) => {

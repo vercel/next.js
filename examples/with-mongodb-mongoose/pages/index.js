@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import dbConnect from '../utils/dbConnect'
+import dbConnect from '../lib/dbConnect'
 import Pet from '../models/Pet'
 
 const Index = ({ pets }) => (
@@ -33,10 +33,10 @@ const Index = ({ pets }) => (
             </div>
 
             <div className="btn-container">
-              <Link href="/[id]/edit" as={`/${pet._id}/edit`}>
+              <Link href="/[id]/edit" as={`/${pet._id}/edit`} legacyBehavior>
                 <button className="btn edit">Edit</button>
               </Link>
-              <Link href="/[id]" as={`/${pet._id}`}>
+              <Link href="/[id]" as={`/${pet._id}`} legacyBehavior>
                 <button className="btn view">View</button>
               </Link>
             </div>

@@ -1,6 +1,6 @@
 const clientGlobs = [
   {
-    name: 'Client Bundles (main, webpack, commons)',
+    name: 'Client Bundles (main, webpack)',
     globs: [
       '.next/static/runtime/+(main|webpack)-*',
       '.next/static/chunks/!(polyfills*)',
@@ -12,33 +12,47 @@ const clientGlobs = [
   },
   {
     name: 'Client Pages',
-    globs: ['.next/static/*/pages/**/*', '.next/static/css/**/*'],
+    globs: ['.next/static/BUILD_ID/pages/**/*.js', '.next/static/css/**/*'],
   },
   {
     name: 'Client Build Manifests',
-    globs: ['.next/static/*/_buildManifest*'],
+    globs: ['.next/static/BUILD_ID/_buildManifest*'],
   },
   {
     name: 'Rendered Page Sizes',
     globs: ['fetched-pages/**/*.html'],
   },
+  {
+    name: 'Edge SSR bundle Size',
+    globs: [
+      '.next/server/pages/edge-ssr.js',
+      '.next/server/app/app-edge-ssr/page.js',
+    ],
+  },
+  {
+    name: 'Middleware size',
+    globs: [
+      '.next/server/middleware*.js',
+      '.next/server/edge-runtime-webpack.js',
+    ],
+  },
 ]
 
 const renames = [
   {
-    srcGlob: '.next/static/*/pages',
+    srcGlob: '.next/static/chunks/pages',
     dest: '.next/static/BUILD_ID/pages',
   },
   {
-    srcGlob: '.next/static/*/pages/**/*',
+    srcGlob: '.next/static/BUILD_ID/pages/**/*.js',
     removeHash: true,
   },
   {
-    srcGlob: '.next/static/runtime/*',
+    srcGlob: '.next/static/runtime/*.js',
     removeHash: true,
   },
   {
-    srcGlob: '.next/static/chunks/*',
+    srcGlob: '.next/static/chunks/*.js',
     removeHash: true,
   },
   {
@@ -52,18 +66,24 @@ module.exports = {
   commentReleaseHeading: 'Stats from current release',
   appBuildCommand: 'NEXT_TELEMETRY_DISABLED=1 yarn next build',
   appStartCommand: 'NEXT_TELEMETRY_DISABLED=1 yarn next start --port $PORT',
+  appDevCommand: 'NEXT_TELEMETRY_DISABLED=1 yarn next --port $PORT',
   mainRepo: 'vercel/next.js',
   mainBranch: 'canary',
   autoMergeMain: true,
   configs: [
     {
-      title: 'Default Server Mode',
+      title: 'Default Build',
       diff: 'onOutputChange',
       diffConfigFiles: [
         {
           path: 'next.config.js',
           content: `
             module.exports = {
+              experimental: {
+                appDir: true,
+                // remove after next stable release (current v12.3.1)
+                serverComponents: true,
+              },
               generateBuildId: () => 'BUILD_ID',
               webpack(config) {
                 config.optimization.minimize = false
@@ -80,7 +100,12 @@ module.exports = {
         {
           path: 'next.config.js',
           content: `
-            module.exports = {
+          module.exports = {
+              experimental: {
+                appDir: true,
+                // remove after next stable relase (current v12.3.1)
+                serverComponents: true,
+              },
               generateBuildId: () => 'BUILD_ID'
             }
           `,
@@ -93,86 +118,16 @@ module.exports = {
         'http://localhost:$PORT/link',
         'http://localhost:$PORT/withRouter',
       ],
-      pagesToBench: [
-        'http://localhost:$PORT/',
-        'http://localhost:$PORT/error-in-render',
-      ],
-      benchOptions: {
-        reqTimeout: 60,
-        concurrency: 50,
-        numRequests: 2500,
-      },
-    },
-    {
-      title: 'Serverless Mode',
-      diff: false,
-      renames,
-      configFiles: [
-        {
-          path: 'next.config.js',
-          content: `
-            module.exports = {
-              generateBuildId: () => 'BUILD_ID',
-              target: 'serverless'
-            }
-          `,
-        },
-      ],
-      filesToTrack: [
-        ...clientGlobs,
-        {
-          name: 'Serverless bundles',
-          globs: ['.next/serverless/pages/**/*'],
-        },
-      ],
-    },
-    {
-      title: 'Webpack 4 Mode',
-      diff: 'onOutputChange',
-      diffConfigFiles: [
-        {
-          path: 'next.config.js',
-          content: `
-            module.exports = {
-              generateBuildId: () => 'BUILD_ID',
-              webpack5: false,
-              webpack(config) {
-                config.optimization.minimize = false
-                config.optimization.minimizer = undefined
-                return config
-              }
-            }
-          `,
-        },
-      ],
-      renames,
-      configFiles: [
-        {
-          path: 'next.config.js',
-          content: `
-            module.exports = {
-              generateBuildId: () => 'BUILD_ID',
-              webpack5: false
-            }
-          `,
-        },
-      ],
-      filesToTrack: clientGlobs,
-      // will be output to fetched-pages/${pathname}.html
-      pagesToFetch: [
-        'http://localhost:$PORT/',
-        'http://localhost:$PORT/link',
-        'http://localhost:$PORT/withRouter',
-      ],
-      pagesToBench: [
-        'http://localhost:$PORT/',
-        'http://localhost:$PORT/error-in-render',
-      ],
-      benchOptions: {
-        reqTimeout: 60,
-        concurrency: 50,
-        numRequests: 2500,
-      },
+      // TODO: investigate replacing "ab" for this
+      // pagesToBench: [
+      //   'http://localhost:$PORT/',
+      //   'http://localhost:$PORT/error-in-render',
+      // ],
+      // benchOptions: {
+      //   reqTimeout: 60,
+      //   concurrency: 50,
+      //   numRequests: 2500,
+      // },
     },
   ],
 }

@@ -1,4 +1,8 @@
-const REGEXP_DIRECTORY_DUNDER = /[\\/]__[^\\/]+(?<![\\/]__(?:tests|mocks))__[\\/]/i
+import { TelemetryPlugin } from '../../build/webpack/plugins/telemetry-plugin'
+import type { SWC_TARGET_TRIPLE } from '../../build/webpack/plugins/telemetry-plugin'
+
+const REGEXP_DIRECTORY_DUNDER =
+  /[\\/]__[^\\/]+(?<![\\/]__(?:tests|mocks))__[\\/]/i
 const REGEXP_DIRECTORY_TESTS = /[\\/]__(tests|mocks)__[\\/]/i
 const REGEXP_FILE_TEST = /\.(?:spec|test)\.[^.]+$/i
 
@@ -11,9 +15,10 @@ type EventTypeCheckCompleted = {
   incremental?: boolean
 }
 
-export function eventTypeCheckCompleted(
-  event: EventTypeCheckCompleted
-): { eventName: string; payload: EventTypeCheckCompleted } {
+export function eventTypeCheckCompleted(event: EventTypeCheckCompleted): {
+  eventName: string
+  payload: EventTypeCheckCompleted
+} {
   return {
     eventName: EVENT_TYPE_CHECK_COMPLETED,
     payload: event,
@@ -30,11 +35,15 @@ export type EventLintCheckCompleted = {
   nextEslintPluginVersion?: string | null
   nextEslintPluginErrorsCount?: number
   nextEslintPluginWarningsCount?: number
+  nextRulesEnabled: {
+    [ruleName: `@next/next/${string}`]: 'off' | 'warn' | 'error'
+  }
 }
 
-export function eventLintCheckCompleted(
-  event: EventLintCheckCompleted
-): { eventName: string; payload: EventLintCheckCompleted } {
+export function eventLintCheckCompleted(event: EventLintCheckCompleted): {
+  eventName: string
+  payload: EventLintCheckCompleted
+} {
   return {
     eventName: EVENT_LINT_CHECK_COMPLETED,
     payload: event,
@@ -47,6 +56,7 @@ type EventBuildCompleted = {
   totalPageCount: number
   hasDunderPages: boolean
   hasTestPages: boolean
+  totalAppPagesCount?: number
 }
 
 export function eventBuildCompleted(
@@ -68,6 +78,7 @@ export function eventBuildCompleted(
         (path) =>
           REGEXP_DIRECTORY_TESTS.test(path) || REGEXP_FILE_TEST.test(path)
       ),
+      totalAppPagesCount: event.totalAppPagesCount,
     },
   }
 }
@@ -90,6 +101,12 @@ type EventBuildOptimized = {
   headersWithHasCount: number
   rewritesWithHasCount: number
   redirectsWithHasCount: number
+  middlewareCount: number
+  totalAppPagesCount?: number
+  staticAppPagesCount?: number
+  serverAppPagesCount?: number
+  edgeRuntimeAppCount?: number
+  edgeRuntimePagesCount?: number
 }
 
 export function eventBuildOptimize(
@@ -111,6 +128,72 @@ export function eventBuildOptimize(
         (path) =>
           REGEXP_DIRECTORY_TESTS.test(path) || REGEXP_FILE_TEST.test(path)
       ),
+      totalAppPagesCount: event.totalAppPagesCount,
+      staticAppPagesCount: event.staticAppPagesCount,
+      serverAppPagesCount: event.serverAppPagesCount,
+      edgeRuntimeAppCount: event.edgeRuntimeAppCount,
+      edgeRuntimePagesCount: event.edgeRuntimePagesCount,
     },
   }
+}
+
+export const EVENT_BUILD_FEATURE_USAGE = 'NEXT_BUILD_FEATURE_USAGE'
+export type EventBuildFeatureUsage = {
+  // NOTE: If you are adding features, make sure to update the `enum` field
+  // for `featureName` in https://github.com/vercel/next-telemetry/blob/master/events/v1/featureUsage.ts
+  // *before* you make changes here.
+  featureName:
+    | 'next/image'
+    | 'next/legacy/image'
+    | 'next/future/image'
+    | 'next/script'
+    | 'next/dynamic'
+    | '@next/font/google'
+    | '@next/font/local'
+    | 'experimental/optimizeCss'
+    | 'experimental/nextScriptWorkers'
+    | 'optimizeFonts'
+    | 'swcLoader'
+    | 'swcMinify'
+    | 'swcRelay'
+    | 'swcStyledComponents'
+    | 'swcReactRemoveProperties'
+    | 'swcExperimentalDecorators'
+    | 'swcRemoveConsole'
+    | 'swcImportSource'
+    | 'swcEmotion'
+    | `swc/target/${SWC_TARGET_TRIPLE}`
+    | 'turbotrace'
+    | 'build-lint'
+    | 'vercelImageGeneration'
+  invocationCount: number
+}
+export function eventBuildFeatureUsage(
+  telemetryPlugin: TelemetryPlugin
+): Array<{ eventName: string; payload: EventBuildFeatureUsage }> {
+  return telemetryPlugin.usages().map(({ featureName, invocationCount }) => ({
+    eventName: EVENT_BUILD_FEATURE_USAGE,
+    payload: {
+      featureName,
+      invocationCount,
+    },
+  }))
+}
+
+export const EVENT_NAME_PACKAGE_USED_IN_GET_SERVER_SIDE_PROPS =
+  'NEXT_PACKAGE_USED_IN_GET_SERVER_SIDE_PROPS'
+
+export type EventPackageUsedInGetServerSideProps = {
+  package: string
+}
+
+export function eventPackageUsedInGetServerSideProps(
+  telemetryPlugin: TelemetryPlugin
+): Array<{ eventName: string; payload: EventPackageUsedInGetServerSideProps }> {
+  return telemetryPlugin.packagesUsedInServerSideProps().map((packageName) => ({
+    eventName: EVENT_NAME_PACKAGE_USED_IN_GET_SERVER_SIDE_PROPS,
+    payload: {
+      package: packageName,
+    },
+  }))
 }

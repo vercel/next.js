@@ -2,7 +2,6 @@
 
 import webdriver from 'next-webdriver'
 import { join } from 'path'
-import fs from 'fs-extra'
 import {
   renderViaHTTP,
   findPort,
@@ -11,8 +10,6 @@ import {
   nextBuild,
   nextStart,
 } from 'next-test-utils'
-
-jest.setTimeout(1000 * 60 * 2)
 
 let app
 let appPort
@@ -78,8 +75,6 @@ function runTests() {
   })
 }
 
-const nextConfig = join(appDir, 'next.config.js')
-
 describe('Dynamic Routing', () => {
   describe('dev mode', () => {
     beforeAll(async () => {
@@ -93,32 +88,12 @@ describe('Dynamic Routing', () => {
 
   describe('production mode', () => {
     beforeAll(async () => {
-      await fs.remove(nextConfig)
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })
     afterAll(() => killApp(app))
 
-    runTests()
-  })
-
-  describe('SSR production mode', () => {
-    beforeAll(async () => {
-      await fs.writeFile(
-        nextConfig,
-        `
-        module.exports = {
-          target: 'serverless'
-        }
-      `
-      )
-
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
     runTests()
   })
 })

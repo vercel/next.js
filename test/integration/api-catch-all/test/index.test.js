@@ -1,5 +1,4 @@
 /* eslint-env jest */
-import fs from 'fs-extra'
 import { join } from 'path'
 import {
   killApp,
@@ -10,10 +9,7 @@ import {
   nextStart,
 } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 2)
-
 const appDir = join(__dirname, '../')
-const nextConfig = join(appDir, 'next.config.js')
 let appPort
 let app
 
@@ -31,6 +27,9 @@ function runTests() {
       redirect: 'manual',
     })
     expect(res.status).toBe(308)
+    const text = await res.text()
+    console.log('### ', text)
+    expect(text).toEqual('/api/users')
   })
 
   it('should return data when catch-all with index and trailing slash', async () => {
@@ -68,24 +67,6 @@ describe('API routes', () => {
       app = await nextStart(appDir, appPort)
     })
     afterAll(() => killApp(app))
-
-    runTests()
-  })
-
-  describe('Serverless support', () => {
-    beforeAll(async () => {
-      await fs.writeFile(
-        nextConfig,
-        `module.exports = { target: 'serverless' }`
-      )
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-      await fs.remove(nextConfig)
-    })
 
     runTests()
   })

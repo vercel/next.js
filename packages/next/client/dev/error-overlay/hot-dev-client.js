@@ -26,9 +26,15 @@
 // can be found here:
 // https://github.com/facebook/create-react-app/blob/v3.4.1/packages/react-dev-utils/webpackHotDevClient.js
 
-import * as DevOverlay from '@next/react-dev-overlay/lib/client'
+import {
+  register,
+  onBuildError,
+  onBuildOk,
+  onBeforeRefresh,
+  onRefresh,
+} from 'next/dist/compiled/@next/react-dev-overlay/dist/client'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
-import { addMessageListener } from './eventsource'
+import { addMessageListener, sendMessage } from './websocket'
 import formatWebpackMessages from './format-webpack-messages'
 
 // This alternative WebpackDevServer combines the functionality of:
@@ -40,20 +46,20 @@ import formatWebpackMessages from './format-webpack-messages'
 // that looks similar to our console output. The error overlay is inspired by:
 // https://github.com/glenjamin/webpack-hot-middleware
 
+window.__nextDevClientId = Math.round(Math.random() * 100 + Date.now())
+
 let hadRuntimeError = false
 let customHmrEventHandler
 export default function connect() {
-  DevOverlay.register()
+  register()
 
   addMessageListener((event) => {
-    // This is the heartbeat event
-    if (event.data === '\uD83D\uDC93') {
-      return
-    }
+    if (event.data.indexOf('action') === -1) return
+
     try {
       processMessage(event)
     } catch (ex) {
-      console.warn('Invalid HMR message: ' + event.data + '\n' + ex)
+      console.warn('Invalid HMR message: ' + event.data + '\n', ex)
     }
   })
 
@@ -85,17 +91,15 @@ function clearOutdatedErrors() {
 function handleSuccess() {
   clearOutdatedErrors()
 
-  const isHotUpdate = !isFirstCompilation
+  const isHotUpdate =
+    !isFirstCompilation ||
+    (window.__NEXT_DATA__.page !== '/_error' && isUpdateAvailable())
   isFirstCompilation = false
   hasCompileErrors = false
 
   // Attempt to apply hot updates or reload.
   if (isHotUpdate) {
-    tryApplyUpdates(function onSuccessfulHotUpdate(hasUpdates) {
-      // Only dismiss it when we're sure it's a hot update.
-      // Otherwise it would flicker right before the reload.
-      onFastRefresh(hasUpdates)
-    })
+    tryApplyUpdates(onBeforeFastRefresh, onFastRefresh)
   }
 }
 
@@ -115,7 +119,7 @@ function handleWarnings(warnings) {
     })
 
     if (typeof console !== 'undefined' && typeof console.warn === 'function') {
-      for (let i = 0; i < formatted.warnings.length; i++) {
+      for (let i = 0; i < formatted.warnings?.length; i++) {
         if (i === 5) {
           console.warn(
             'There were more warnings in other files.\n' +
@@ -132,11 +136,7 @@ function handleWarnings(warnings) {
 
   // Attempt to apply hot updates or reload.
   if (isHotUpdate) {
-    tryApplyUpdates(function onSuccessfulHotUpdate(hasUpdates) {
-      // Only dismiss it when we're sure it's a hot update.
-      // Otherwise it would flicker right before the reload.
-      onFastRefresh(hasUpdates)
-    })
+    tryApplyUpdates(onBeforeFastRefresh, onFastRefresh)
   }
 }
 
@@ -154,7 +154,7 @@ function handleErrors(errors) {
   })
 
   // Only show the first error.
-  DevOverlay.onBuildError(formatted.errors[0])
+  onBuildError(formatted.errors[0])
 
   // Also log them to the console.
   if (typeof console !== 'undefined' && typeof console.error === 'function') {
@@ -175,15 +175,34 @@ function handleErrors(errors) {
 
 let startLatency = undefined
 
-function onFastRefresh(hasUpdates) {
-  DevOverlay.onBuildOk()
+function onBeforeFastRefresh(hasUpdates) {
   if (hasUpdates) {
-    DevOverlay.onRefresh()
+    // Only trigger a pending state if we have updates to apply
+    // (cf. onFastRefresh)
+    onBeforeRefresh()
+  }
+}
+
+function onFastRefresh(hasUpdates) {
+  onBuildOk()
+  if (hasUpdates) {
+    // Only complete a pending state if we applied updates
+    // (cf. onBeforeFastRefresh)
+    onRefresh()
   }
 
   if (startLatency) {
-    const latency = Date.now() - startLatency
+    const endLatency = Date.now()
+    const latency = endLatency - startLatency
     console.log(`[Fast Refresh] done in ${latency}ms`)
+    sendMessage(
+      JSON.stringify({
+        event: 'client-hmr-latency',
+        id: window.__nextDevClientId,
+        startTime: startLatency,
+        endTime: endLatency,
+      })
+    )
     if (self.__NEXT_HMR_LATENCY_CB) {
       self.__NEXT_HMR_LATENCY_CB(latency)
     }
@@ -214,15 +233,39 @@ function processMessage(e) {
       const { errors, warnings } = obj
       const hasErrors = Boolean(errors && errors.length)
       if (hasErrors) {
+        sendMessage(
+          JSON.stringify({
+            event: 'client-error',
+            errorCount: errors.length,
+            clientId: window.__nextDevClientId,
+          })
+        )
         return handleErrors(errors)
       }
 
       const hasWarnings = Boolean(warnings && warnings.length)
       if (hasWarnings) {
+        sendMessage(
+          JSON.stringify({
+            event: 'client-warning',
+            warningCount: warnings.length,
+            clientId: window.__nextDevClientId,
+          })
+        )
         return handleWarnings(warnings)
       }
 
+      sendMessage(
+        JSON.stringify({
+          event: 'client-success',
+          clientId: window.__nextDevClientId,
+        })
+      )
       return handleSuccess()
+    }
+    case 'serverComponentChanges': {
+      // Server component changes don't apply to `pages`.
+      return
     }
     default: {
       if (customHmrEventHandler) {
@@ -261,7 +304,7 @@ function afterApplyUpdates(fn) {
 }
 
 // Attempt to update code on the fly, fall back to a hard reload.
-function tryApplyUpdates(onHotUpdateSuccess) {
+function tryApplyUpdates(onBeforeHotUpdate, onHotUpdateSuccess) {
   if (!module.hot) {
     // HotModuleReplacementPlugin is not in Webpack configuration.
     console.error('HotModuleReplacementPlugin is not in Webpack configuration.')
@@ -270,6 +313,7 @@ function tryApplyUpdates(onHotUpdateSuccess) {
   }
 
   if (!isUpdateAvailable() || !canApplyUpdates()) {
+    onBuildOk()
     return
   }
 
@@ -289,11 +333,11 @@ function tryApplyUpdates(onHotUpdateSuccess) {
           '[Fast Refresh] performing full reload because your application had an unrecoverable error'
         )
       }
-      window.location.reload()
+      performFullReload(err)
       return
     }
 
-    const hasUpdates = Boolean(updatedModules.length)
+    const hasUpdates = Boolean(updatedModules?.length)
     if (typeof onHotUpdateSuccess === 'function') {
       // Maybe we want to do something.
       onHotUpdateSuccess(hasUpdates)
@@ -301,8 +345,13 @@ function tryApplyUpdates(onHotUpdateSuccess) {
 
     if (isUpdateAvailable()) {
       // While we were updating, there was a new update! Do it again.
-      tryApplyUpdates(hasUpdates ? undefined : onHotUpdateSuccess)
+      // However, this time, don't trigger a pending refresh state.
+      tryApplyUpdates(
+        hasUpdates ? undefined : onBeforeHotUpdate,
+        hasUpdates ? onBuildOk : onHotUpdateSuccess
+      )
     } else {
+      onBuildOk()
       if (process.env.__NEXT_TEST_MODE) {
         afterApplyUpdates(() => {
           if (self.__NEXT_HMR_CB) {
@@ -315,12 +364,38 @@ function tryApplyUpdates(onHotUpdateSuccess) {
   }
 
   // https://webpack.js.org/api/hot-module-replacement/#check
-  module.hot.check(/* autoApply */ true).then(
-    (updatedModules) => {
-      handleApplyUpdates(null, updatedModules)
-    },
-    (err) => {
-      handleApplyUpdates(err, null)
-    }
+  module.hot
+    .check(/* autoApply */ false)
+    .then((updatedModules) => {
+      if (typeof onBeforeHotUpdate === 'function') {
+        const hasUpdates = Boolean(updatedModules?.length)
+        onBeforeHotUpdate(hasUpdates)
+      }
+      return module.hot.apply()
+    })
+    .then(
+      (updatedModules) => {
+        handleApplyUpdates(null, updatedModules)
+      },
+      (err) => {
+        handleApplyUpdates(err, null)
+      }
+    )
+}
+
+function performFullReload(err) {
+  const stackTrace =
+    err &&
+    ((err.stack && err.stack.split('\n').slice(0, 5).join('\n')) ||
+      err.message ||
+      err + '')
+
+  sendMessage(
+    JSON.stringify({
+      event: 'client-full-reload',
+      stackTrace,
+    })
   )
+
+  window.location.reload()
 }

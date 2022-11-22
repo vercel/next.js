@@ -1,20 +1,25 @@
 import { webpack } from 'next/dist/compiled/webpack/webpack'
+import { Span } from '../trace'
 
 export type CompilerResult = {
-  errors: string[]
-  warnings: string[]
+  errors: webpack.StatsError[]
+  warnings: webpack.StatsError[]
+  stats: webpack.Stats | undefined
 }
 
 function generateStats(
   result: CompilerResult,
   stat: webpack.Stats
 ): CompilerResult {
-  const { errors, warnings } = stat.toJson('errors-warnings')
-  if (errors.length > 0) {
+  const { errors, warnings } = stat.toJson({
+    preset: 'errors-warnings',
+    moduleTrace: true,
+  })
+  if (errors && errors.length > 0) {
     result.errors.push(...errors)
   }
 
-  if (warnings.length > 0) {
+  if (warnings && warnings.length > 0) {
     result.warnings.push(...warnings)
   }
 
@@ -25,49 +30,43 @@ function generateStats(
 // Webpack 4 does not have this close method so in order to be backwards compatible we check if it exists
 function closeCompiler(compiler: webpack.Compiler | webpack.MultiCompiler) {
   return new Promise<void>((resolve, reject) => {
-    if ('close' in compiler) {
-      // @ts-ignore Close only exists on the compiler in webpack 5
-      return compiler.close((err: any) => (err ? reject(err) : resolve()))
-    }
-
-    resolve()
+    // @ts-ignore Close only exists on the compiler in webpack 5
+    return compiler.close((err: any) => (err ? reject(err) : resolve()))
   })
 }
 
 export function runCompiler(
-  config: webpack.Configuration | webpack.Configuration[]
+  config: webpack.Configuration,
+  { runWebpackSpan }: { runWebpackSpan: Span }
 ): Promise<CompilerResult> {
   return new Promise((resolve, reject) => {
-    const compiler = webpack(config)
-    compiler.run(
-      (
-        err: Error,
-        statsOrMultiStats: { stats: webpack.Stats[] } | webpack.Stats
-      ) => {
-        closeCompiler(compiler).then(() => {
+    const compiler = webpack(config) as unknown as webpack.Compiler
+    compiler.run((err, stats) => {
+      const webpackCloseSpan = runWebpackSpan.traceChild('webpack-close', {
+        name: config.name,
+      })
+      webpackCloseSpan
+        .traceAsyncFn(() => closeCompiler(compiler))
+        .then(() => {
           if (err) {
-            const reason = err?.toString()
+            const reason = err.stack ?? err.toString()
             if (reason) {
-              return resolve({ errors: [reason], warnings: [] })
+              return resolve({
+                errors: [{ message: reason, details: (err as any).details }],
+                warnings: [],
+                stats,
+              })
             }
             return reject(err)
-          }
+          } else if (!stats) throw new Error('No Stats from webpack')
 
-          if ('stats' in statsOrMultiStats) {
-            const result: CompilerResult = statsOrMultiStats.stats.reduce(
-              generateStats,
-              { errors: [], warnings: [] }
+          const result = webpackCloseSpan
+            .traceChild('webpack-generate-error-stats')
+            .traceFn(() =>
+              generateStats({ errors: [], warnings: [], stats }, stats)
             )
-            return resolve(result)
-          }
-
-          const result = generateStats(
-            { errors: [], warnings: [] },
-            statsOrMultiStats
-          )
           return resolve(result)
         })
-      }
-    )
+    })
   })
 }

@@ -1,0 +1,50 @@
+[package]
+edition = "2018"
+name = "next-swc"
+version = "0.0.0"
+publish = false
+
+[features]
+plugin = [
+  "swc_core/plugin_transform_host_native"
+]
+
+[dependencies]
+chrono = "0.4"
+easy-error = "1.0.0"
+either = "1"
+fxhash = "0.2.1"
+once_cell = "1.13.0"
+pathdiff = "0.2.0"
+regex = "1.5"
+serde = "1"
+serde_json = "1"
+swc_emotion = "0.28.2"
+styled_components = "0.52.5"
+styled_jsx = "0.29.5"
+modularize_imports = "0.25.5"
+tracing = { version = "0.1.37", features = ["release_max_level_info"] }
+
+swc_core = { features = [
+  "common_concurrent",
+  "ecma_ast",
+  "ecma_visit",
+  "ecma_loader_node",
+  "ecma_loader_lru",
+  "ecma_utils",
+  "ecma_minifier",
+  "ecma_transforms",
+  "__ecma_transforms",
+  "ecma_transforms_react",
+  "ecma_transforms_typescript",
+  "ecma_transforms_optimization",
+  "ecma_parser",
+  "ecma_parser_typescript",
+  "cached",
+  "base"
+], version = "0.43.23" }
+
+[dev-dependencies]
+swc_core = { features = ["testing_transform"], version = "0.43.23" }
+testing = "0.31.14"
+walkdir = "2.3.2"

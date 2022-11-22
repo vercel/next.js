@@ -35,6 +35,7 @@ There are two required properties:
        }
      }
      ```
-1. `fallback`: this property is a [Boolean](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Boolean), specifying whether or not a fallback version of this page should be generated.
+1. `fallback`: this property can be a [Boolean](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Boolean), specifying whether or not a fallback version of this page should be generated, or a string `'blocking'` to wait for the generation:
    - Enabling `fallback` (via `true`) allows you to return a subset of all the possible paths that should be statically generated. At runtime, Next.js will statically generate the remaining paths the **first time they are requested**. Consecutive calls to the path will be served as-if it was statically generated at build-time. This reduces build times when dealing with thousands or millions of pages.
    - Disabling `fallback` (via `false`) requires you return the full collection of paths you would like to statically generate at build-time. At runtime, any path that was not generated at build-time **will 404**.
+   - If `fallback` is `'blocking'`, new paths not returned by getStaticPaths will wait for the HTML to be generated, identical to SSR (hence why blocking), and then be cached for future requests so it only happens once per path.

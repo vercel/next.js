@@ -1,0 +1,22 @@
+{
+  "formatVersion": "",
+  "tables": [
+    {
+      "name": "nextjs_with_xata_example",
+      "columns": [
+        {
+          "name": "title",
+          "type": "string"
+        },
+        {
+          "name": "description",
+          "type": "string"
+        },
+        {
+          "name": "url",
+          "type": "string"
+        }
+      ]
+    }
+  ]
+}

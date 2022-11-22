@@ -8,10 +8,7 @@ import {
   launchApp,
   killApp,
   renderViaHTTP,
-  File,
 } from 'next-test-utils'
-
-jest.setTimeout(1000 * 60 * 1)
 
 const appDir = join(__dirname, '..')
 let appPort
@@ -46,21 +43,6 @@ describe('Custom page extension', () => {
       app = await nextStart(appDir, appPort)
     })
     afterAll(() => killApp(app))
-    runTests()
-  })
-
-  describe('serverless mode', () => {
-    const nextConfig = new File(join(appDir, 'next.config.js'))
-    beforeAll(async () => {
-      nextConfig.replace('server', 'serverless')
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-      nextConfig.restore()
-    })
     runTests()
   })
 })

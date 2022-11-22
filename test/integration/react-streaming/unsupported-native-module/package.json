@@ -1,0 +1,8 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "yarn next dev",
+    "build": "yarn next build",
+    "start": "yarn next start"
+  }
+}

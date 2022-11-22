@@ -1,0 +1,6 @@
+
+  x `getStaticProps` is not allowed in Client Components.
+   ,-[input.js:1:1]
+ 1 | export function getStaticProps (){
+   :                 ^^^^^^^^^^^^^^
+   `----

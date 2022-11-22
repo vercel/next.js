@@ -1,4 +1,5 @@
 import { constants, promises } from 'fs'
+import isError from './is-error'
 
 export async function fileExists(
   fileName: string,
@@ -16,7 +17,10 @@ export async function fileExists(
     }
     return true
   } catch (err) {
-    if (err.code === 'ENOENT' || err.code === 'ENAMETOOLONG') {
+    if (
+      isError(err) &&
+      (err.code === 'ENOENT' || err.code === 'ENAMETOOLONG')
+    ) {
       return false
     }
     throw err

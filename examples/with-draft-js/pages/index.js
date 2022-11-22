@@ -7,6 +7,81 @@ import {
   convertFromRaw,
 } from 'draft-js'
 
+const initialData = {
+  blocks: [
+    {
+      key: '16d0k',
+      text: 'You can edit this text.',
+      type: 'unstyled',
+      depth: 0,
+      inlineStyleRanges: [{ offset: 0, length: 23, style: 'BOLD' }],
+      entityRanges: [],
+      data: {},
+    },
+    {
+      key: '98peq',
+      text: '',
+      type: 'unstyled',
+      depth: 0,
+      inlineStyleRanges: [],
+      entityRanges: [],
+      data: {},
+    },
+    {
+      key: 'ecmnc',
+      text: 'Luke Skywalker has vanished. In his absence, the sinister FIRST ORDER has risen from the ashes of the Empire and will not rest until Skywalker, the last Jedi, has been destroyed.',
+      type: 'unstyled',
+      depth: 0,
+      inlineStyleRanges: [
+        { offset: 0, length: 14, style: 'BOLD' },
+        { offset: 133, length: 9, style: 'BOLD' },
+      ],
+      entityRanges: [],
+      data: {},
+    },
+    {
+      key: 'fe2gn',
+      text: '',
+      type: 'unstyled',
+      depth: 0,
+      inlineStyleRanges: [],
+      entityRanges: [],
+      data: {},
+    },
+    {
+      key: '4481k',
+      text: 'With the support of the REPUBLIC, General Leia Organa leads a brave RESISTANCE. She is desperate to find her brother Luke and gain his help in restoring peace and justice to the galaxy.',
+      type: 'unstyled',
+      depth: 0,
+      inlineStyleRanges: [
+        { offset: 34, length: 19, style: 'BOLD' },
+        { offset: 117, length: 4, style: 'BOLD' },
+        { offset: 68, length: 10, style: 'ANYCUSTOMSTYLE' },
+      ],
+      entityRanges: [],
+      data: {},
+    },
+  ],
+  entityMap: {},
+}
+
+// Custom overrides for each style
+const styleMap = {
+  CODE: {
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    fontFamily: '"Inconsolata", "Menlo", "Consolas", monospace',
+    fontSize: 16,
+    padding: 4,
+  },
+  BOLD: {
+    color: '#395296',
+    fontWeight: 'bold',
+  },
+  ANYCUSTOMSTYLE: {
+    color: '#00e400',
+  },
+}
+
 export default class App extends Component {
   constructor(props) {
     super(props)
@@ -223,23 +298,6 @@ export default class App extends Component {
   }
 }
 
-// Custom overrides for each style
-const styleMap = {
-  CODE: {
-    backgroundColor: 'rgba(0, 0, 0, 0.05)',
-    fontFamily: '"Inconsolata", "Menlo", "Consolas", monospace',
-    fontSize: 16,
-    padding: 4,
-  },
-  BOLD: {
-    color: '#395296',
-    fontWeight: 'bold',
-  },
-  ANYCUSTOMSTYLE: {
-    color: '#00e400',
-  },
-}
-
 class ToolbarButton extends Component {
   constructor() {
     super()
@@ -284,64 +342,4 @@ const ToolBar = (props) => {
       ))}
     </div>
   )
-}
-
-const initialData = {
-  blocks: [
-    {
-      key: '16d0k',
-      text: 'You can edit this text.',
-      type: 'unstyled',
-      depth: 0,
-      inlineStyleRanges: [{ offset: 0, length: 23, style: 'BOLD' }],
-      entityRanges: [],
-      data: {},
-    },
-    {
-      key: '98peq',
-      text: '',
-      type: 'unstyled',
-      depth: 0,
-      inlineStyleRanges: [],
-      entityRanges: [],
-      data: {},
-    },
-    {
-      key: 'ecmnc',
-      text:
-        'Luke Skywalker has vanished. In his absence, the sinister FIRST ORDER has risen from the ashes of the Empire and will not rest until Skywalker, the last Jedi, has been destroyed.',
-      type: 'unstyled',
-      depth: 0,
-      inlineStyleRanges: [
-        { offset: 0, length: 14, style: 'BOLD' },
-        { offset: 133, length: 9, style: 'BOLD' },
-      ],
-      entityRanges: [],
-      data: {},
-    },
-    {
-      key: 'fe2gn',
-      text: '',
-      type: 'unstyled',
-      depth: 0,
-      inlineStyleRanges: [],
-      entityRanges: [],
-      data: {},
-    },
-    {
-      key: '4481k',
-      text:
-        'With the support of the REPUBLIC, General Leia Organa leads a brave RESISTANCE. She is desperate to find her brother Luke and gain his help in restoring peace and justice to the galaxy.',
-      type: 'unstyled',
-      depth: 0,
-      inlineStyleRanges: [
-        { offset: 34, length: 19, style: 'BOLD' },
-        { offset: 117, length: 4, style: 'BOLD' },
-        { offset: 68, length: 10, style: 'ANYCUSTOMSTYLE' },
-      ],
-      entityRanges: [],
-      data: {},
-    },
-  ],
-  entityMap: {},
 }

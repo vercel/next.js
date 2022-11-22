@@ -15,19 +15,15 @@ import {
   getPageFileFromPagesManifest,
   getPagesManifest,
   updatePagesManifest,
-  check,
 } from 'next-test-utils'
-
-jest.setTimeout(1000 * 60 * 2)
 
 const appDir = join(__dirname, '../')
 const pages500 = join(appDir, 'pages/500.js')
 const pagesApp = join(appDir, 'pages/_app.js')
 const pagesError = join(appDir, 'pages/_error.js')
-const nextConfig = join(appDir, 'next.config.js')
-const gip500Err = /`pages\/500` can not have getInitialProps\/getServerSideProps/
+const gip500Err =
+  /`pages\/500` can not have getInitialProps\/getServerSideProps/
 
-let nextConfigContent
 let appPort
 let app
 
@@ -87,30 +83,6 @@ describe('500 Page Support', () => {
     runTests('server')
   })
 
-  describe('serverless mode', () => {
-    beforeAll(async () => {
-      nextConfigContent = await fs.readFile(nextConfig, 'utf8')
-      await fs.writeFile(
-        nextConfig,
-        `
-        module.exports = {
-          target: 'serverless'
-        }
-      `
-      )
-      await fs.remove(join(appDir, '.next'))
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      await fs.writeFile(nextConfig, nextConfigContent)
-      await killApp(app)
-    })
-
-    runTests('serverless')
-  })
-
   it('does not build 500 statically with getInitialProps in _app', async () => {
     await fs.writeFile(
       pagesApp,
@@ -123,7 +95,11 @@ describe('500 Page Support', () => {
     `
     )
     await fs.remove(join(appDir, '.next'))
-    const { stderr, stdout: buildStdout, code } = await nextBuild(appDir, [], {
+    const {
+      stderr,
+      stdout: buildStdout,
+      code,
+    } = await nextBuild(appDir, [], {
       stderr: true,
       stdout: true,
     })
@@ -183,7 +159,11 @@ describe('500 Page Support', () => {
     `
     )
     await fs.remove(join(appDir, '.next'))
-    const { stderr, stdout: buildStdout, code } = await nextBuild(appDir, [], {
+    const {
+      stderr,
+      stdout: buildStdout,
+      code,
+    } = await nextBuild(appDir, [], {
       stderr: true,
       stdout: true,
     })
@@ -244,11 +224,6 @@ describe('500 Page Support', () => {
     try {
       const browser = await webdriver(appPort, '/err?hello=world')
       const initialTitle = await browser.eval('document.title')
-
-      await check(async () => {
-        const query = await browser.eval(`window.next.router.query`)
-        return query.hello === 'world' ? 'success' : 'not yet'
-      }, 'success')
 
       const currentTitle = await browser.eval('document.title')
 

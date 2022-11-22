@@ -8,15 +8,15 @@ type StyledJsxPlugin = [string, any] | string
 type StyledJsxBabelOptions =
   | {
       plugins?: StyledJsxPlugin[]
+      styleModule?: string
       'babel-test'?: boolean
     }
   | undefined
 
 // Resolve styled-jsx plugins
 function styledJsxOptions(options: StyledJsxBabelOptions) {
-  if (!options) {
-    return {}
-  }
+  options = options || {}
+  options.styleModule = 'styled-jsx/style'
 
   if (!Array.isArray(options.plugins)) {
     return options
@@ -93,10 +93,6 @@ export default (
     // In production/development this option is set to `false` so that webpack can handle import/export with tree-shaking
     modules: 'auto',
     exclude: ['transform-typeof-symbol'],
-    include: [
-      '@babel/plugin-proposal-optional-chaining',
-      '@babel/plugin-proposal-nullish-coalescing-operator',
-    ],
     ...options['preset-env'],
   }
 
@@ -113,7 +109,8 @@ export default (
     presetEnvConfig.targets = {
       // Targets the current process' version of Node. This requires apps be
       // built and deployed on the same version of Node.
-      node: 'current',
+      // This is the same as using "current" but explicit
+      node: process.versions.node,
     }
   }
 
@@ -157,6 +154,7 @@ export default (
         },
       ],
       require('next/dist/compiled/babel/plugin-syntax-dynamic-import'),
+      require('next/dist/compiled/babel/plugin-syntax-import-assertions'),
       require('./plugins/react-loadable-plugin'),
       [
         require('next/dist/compiled/babel/plugin-proposal-class-properties'),
@@ -176,7 +174,11 @@ export default (
           regenerator: true,
           useESModules: supportsESM && presetEnvConfig.modules !== 'commonjs',
           absoluteRuntime: isBabelLoader
-            ? dirname(require.resolve('@babel/runtime/package.json'))
+            ? dirname(
+                require.resolve(
+                  'next/dist/compiled/@babel/runtime/package.json'
+                )
+              )
             : undefined,
           ...options['transform-runtime'],
         },

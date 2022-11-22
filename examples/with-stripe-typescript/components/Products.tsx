@@ -1,5 +1,6 @@
-import products from '../data/products.json'
-import { useShoppingCart, formatCurrencyString } from 'use-shopping-cart'
+import products from '../data/products'
+import { formatCurrencyString } from 'use-shopping-cart'
+import { useShoppingCart } from 'use-shopping-cart'
 
 const Products = () => {
   const { addItem, removeItem } = useShoppingCart()
@@ -7,7 +8,7 @@ const Products = () => {
   return (
     <section className="products">
       {products.map((product) => (
-        <div key={product.sku} className="product">
+        <div key={product.id} className="product">
           <img src={product.image} alt={product.name} />
           <h2>{product.name}</h2>
           <p className="price">
@@ -18,13 +19,16 @@ const Products = () => {
           </p>
           <button
             className="cart-style-background"
-            onClick={() => addItem(product)}
+            onClick={() => {
+              console.log(product)
+              addItem(product)
+            }}
           >
             Add to cart
           </button>
           <button
             className="cart-style-background"
-            onClick={() => removeItem(product.sku)}
+            onClick={() => removeItem(product.id)}
           >
             Remove
           </button>

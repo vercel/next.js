@@ -1,0 +1,9 @@
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <title>XSS</title>
+</head>
+<body>
+  <p id="msg">safe</p>
+  <script>document.getElementById('msg').textContent='hacked'</script>
+</body>
+</html>

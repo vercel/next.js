@@ -1,6 +1,6 @@
 import nextConnect from 'next-connect'
 import auth from '../../middleware/auth'
-import { deleteUser, updateUserByUsername } from '../../lib/db'
+import { deleteUser, createUser, updateUserByUsername } from '../../lib/db'
 
 const handler = nextConnect()
 
@@ -12,6 +12,11 @@ handler
     // const { name, username, favoriteColor } = req.user
     // res.json({ user: { name, username, favoriteColor } })
     res.json({ user: req.user })
+  })
+  .post((req, res) => {
+    const { username, password, name } = req.body
+    createUser(req, { username, password, name })
+    res.status(200).json({ success: true, message: 'created new user' })
   })
   .use((req, res, next) => {
     // handlers after this (PUT, DELETE) all require an authenticated user

@@ -6,11 +6,10 @@ export default function Bird({ speed, factor, url, ...props }) {
   const { nodes, animations } = useGLTF(url)
   const { ref, mixer } = useAnimations(animations)
 
-  useEffect(() => void mixer.clipAction(animations[0], ref.current).play(), [
-    mixer,
-    animations,
-    ref,
-  ])
+  useEffect(
+    () => void mixer.clipAction(animations[0], ref.current).play(),
+    [mixer, animations, ref]
+  )
 
   useFrame((state, delta) => {
     ref.current.rotation.y +=

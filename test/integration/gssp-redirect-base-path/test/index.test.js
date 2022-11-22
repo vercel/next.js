@@ -1,5 +1,4 @@
 /* eslint-env jest */
-import http from 'http'
 import url from 'url'
 import fs from 'fs-extra'
 import webdriver from 'next-webdriver'
@@ -12,12 +11,9 @@ import {
   nextStart,
   fetchViaHTTP,
   check,
-  File,
 } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '..')
-const nextConfig = new File(join(appDir, 'next.config.js'))
 
 let app
 let appPort
@@ -52,9 +48,21 @@ const runTests = (isDev) => {
     )
     expect(res.status).toBe(307)
 
-    const { pathname } = url.parse(res.headers.get('location'))
+    const text = await res.text()
+    expect(text).toEqual(`/404`)
 
-    expect(pathname).toBe(`/404`)
+    const parsedUrl = url.parse(res.headers.get('location'))
+    expect(parsedUrl.pathname).toBe(`/404`)
+
+    const browser = await webdriver(appPort, `${basePath}`)
+    await browser.eval(`next.router.push('/gssp-blog/redirect-1-no-basepath-')`)
+    await check(
+      () => browser.eval('document.documentElement.innerHTML'),
+      /oops not found/
+    )
+
+    const parsedUrl2 = url.parse(await browser.eval('window.location.href'))
+    expect(parsedUrl2.pathname).toBe('/404')
   })
 
   it('should apply permanent redirect when visited directly for GSSP page', async () => {
@@ -67,6 +75,9 @@ const runTests = (isDev) => {
       }
     )
     expect(res.status).toBe(308)
+
+    const text = await res.text()
+    expect(text).toEqual(`${basePath}/404`)
 
     const { pathname } = url.parse(res.headers.get('location'))
 
@@ -85,6 +96,9 @@ const runTests = (isDev) => {
     )
     expect(res.status).toBe(301)
 
+    const text = await res.text()
+    expect(text).toEqual(`${basePath}/404`)
+
     const { pathname } = url.parse(res.headers.get('location'))
 
     expect(pathname).toBe(`${basePath}/404`)
@@ -102,6 +116,9 @@ const runTests = (isDev) => {
     )
     expect(res.status).toBe(303)
 
+    const text = await res.text()
+    expect(text).toEqual(`${basePath}/404`)
+
     const { pathname } = url.parse(res.headers.get('location'))
 
     expect(pathname).toBe(`${basePath}/404`)
@@ -112,8 +129,9 @@ const runTests = (isDev) => {
     const browser = await webdriver(
       appPort,
       `${basePath}/gsp-blog/redirect-dest-_gsp-blog_first`,
-      true,
-      true
+      {
+        retryWaitHydration: true,
+      }
     )
 
     await browser.waitForElementByCss('#gsp')
@@ -134,8 +152,9 @@ const runTests = (isDev) => {
       const browser = await webdriver(
         appPort,
         `${basePath}/gsp-blog/redirect-dest-_gsp-blog_first`,
-        true,
-        true
+        {
+          retryWaitHydration: true,
+        }
       )
 
       await browser.waitForElementByCss('#gsp')
@@ -158,8 +177,9 @@ const runTests = (isDev) => {
     const browser = await webdriver(
       appPort,
       `${basePath}/gsp-blog/redirect-dest-_`,
-      true,
-      true
+      {
+        retryWaitHydration: true,
+      }
     )
 
     await browser.waitForElementByCss('#index')
@@ -174,8 +194,9 @@ const runTests = (isDev) => {
       const browser = await webdriver(
         appPort,
         `${basePath}/gsp-blog/redirect-dest-_`,
-        true,
-        true
+        {
+          retryWaitHydration: true,
+        }
       )
 
       await browser.waitForElementByCss('#index')
@@ -190,8 +211,9 @@ const runTests = (isDev) => {
     const browser = await webdriver(
       appPort,
       `${basePath}/gsp-blog/redirect-dest-_missing`,
-      true,
-      true
+      {
+        retryWaitHydration: true,
+      }
     )
 
     await check(
@@ -200,7 +222,7 @@ const runTests = (isDev) => {
     )
 
     const initialHref = await browser.eval(() => window.initialHref)
-    expect(initialHref).toBe(null)
+    expect(initialHref).toBeFalsy()
 
     const curUrl = await browser.url()
     const { pathname } = url.parse(curUrl)
@@ -211,8 +233,9 @@ const runTests = (isDev) => {
     const browser = await webdriver(
       appPort,
       `${basePath}/gsp-blog/redirect-dest-external`,
-      true,
-      true
+      {
+        retryWaitHydration: true,
+      }
     )
 
     await check(
@@ -221,15 +244,16 @@ const runTests = (isDev) => {
     )
 
     const initialHref = await browser.eval(() => window.initialHref)
-    expect(initialHref).toBe(null)
+    expect(initialHref).toBeFalsy()
   })
 
   it('should apply redirect when fallback GSSP page is visited directly (external domain)', async () => {
     const browser = await webdriver(
       appPort,
       `${basePath}/gssp-blog/redirect-dest-external`,
-      true,
-      true
+      {
+        retryWaitHydration: true,
+      }
     )
 
     await check(
@@ -238,7 +262,7 @@ const runTests = (isDev) => {
     )
 
     const initialHref = await browser.eval(() => window.initialHref)
-    expect(initialHref).toBe(null)
+    expect(initialHref).toBeFalsy()
 
     const res = await fetchViaHTTP(
       appPort,
@@ -259,8 +283,9 @@ const runTests = (isDev) => {
     const browser = await webdriver(
       appPort,
       `${basePath}/gssp-blog/redirect-dest-_gssp-blog_first`,
-      true,
-      true
+      {
+        retryWaitHydration: true,
+      }
     )
 
     await browser.waitForElementByCss('#gssp')
@@ -274,7 +299,9 @@ const runTests = (isDev) => {
   })
 
   it('should apply redirect when GSSP page is navigated to client-side (internal normal)', async () => {
-    const browser = await webdriver(appPort, `${basePath}`, true, true)
+    const browser = await webdriver(appPort, `${basePath}`, {
+      retryWaitHydration: true,
+    })
 
     await browser.eval(`(function () {
       window.next.router.push('/gssp-blog/redirect-dest-_another')
@@ -287,7 +314,9 @@ const runTests = (isDev) => {
   })
 
   it('should apply redirect when GSSP page is navigated to client-side (external)', async () => {
-    const browser = await webdriver(appPort, `${basePath}`, true, true)
+    const browser = await webdriver(appPort, `${basePath}`, {
+      retryWaitHydration: true,
+    })
 
     await browser.eval(`(function () {
       window.next.router.push('/gssp-blog/redirect-dest-_gssp-blog_first')
@@ -304,7 +333,9 @@ const runTests = (isDev) => {
   })
 
   it('should apply redirect when GSP page is navigated to client-side (internal)', async () => {
-    const browser = await webdriver(appPort, `${basePath}`, true, true)
+    const browser = await webdriver(appPort, `${basePath}`, {
+      retryWaitHydration: true,
+    })
 
     await browser.eval(`(function () {
       window.next.router.push('/gsp-blog/redirect-dest-_another')
@@ -317,7 +348,9 @@ const runTests = (isDev) => {
   })
 
   it('should apply redirect when GSP page is navigated to client-side (external)', async () => {
-    const browser = await webdriver(appPort, `${basePath}`, true, true)
+    const browser = await webdriver(appPort, `${basePath}`, {
+      retryWaitHydration: true,
+    })
 
     await browser.eval(`(function () {
       window.next.router.push('/gsp-blog/redirect-dest-_gsp-blog_first')
@@ -337,8 +370,9 @@ const runTests = (isDev) => {
     const browser = await webdriver(
       appPort,
       `${basePath}/another?mark_as=root`,
-      true,
-      true
+      {
+        retryWaitHydration: true,
+      }
     )
 
     await browser.eval(`(function () {
@@ -364,8 +398,9 @@ const runTests = (isDev) => {
     const browser = await webdriver(
       appPort,
       `${basePath}/another?mark_as=root`,
-      true,
-      true
+      {
+        retryWaitHydration: true,
+      }
     )
 
     await browser.eval(`(function () {
@@ -391,8 +426,9 @@ const runTests = (isDev) => {
     const browser = await webdriver(
       appPort,
       `${basePath}/another?mark_as=root`,
-      true,
-      true
+      {
+        retryWaitHydration: true,
+      }
     )
 
     await browser.eval(`(function () {
@@ -418,8 +454,9 @@ const runTests = (isDev) => {
     const browser = await webdriver(
       appPort,
       `${basePath}/another?mark_as=root`,
-      true,
-      true
+      {
+        retryWaitHydration: true,
+      }
     )
 
     await browser.eval(`(function () {
@@ -461,124 +498,6 @@ describe('GS(S)P Redirect Support', () => {
       app = await nextStart(appDir, appPort)
     })
     afterAll(() => killApp(app))
-
-    runTests()
-  })
-
-  describe('serverless mode', () => {
-    let server
-
-    beforeAll(async () => {
-      nextConfig.write(
-        `module.exports = {
-          basePath: "${basePath}",
-        target: 'experimental-serverless-trace'
-      }`
-      )
-      await fs.remove(join(appDir, '.next'))
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      nextConfig.restore()
-      await killApp(app)
-
-      try {
-        server.close()
-      } catch (err) {
-        console.error('failed to close server', err)
-      }
-    })
-
-    it('should handle redirect in raw serverless mode correctly', async () => {
-      server = http.createServer(async (req, res) => {
-        try {
-          console.log(req.url)
-          if (req.url.includes('/gsp-blog')) {
-            await require(join(
-              appDir,
-              '.next/serverless/pages/gsp-blog/[post].js'
-            )).render(req, res)
-          } else {
-            await require(join(
-              appDir,
-              './.next/serverless/pages/gssp-blog/[post].js'
-            )).render(req, res)
-          }
-        } catch (err) {
-          console.error('failed to render', err)
-          res.statusCode = 500
-          res.end('error')
-        }
-      })
-      const port = await findPort()
-
-      await new Promise((resolve, reject) => {
-        server.listen(port, (err) => (err ? reject(err) : resolve()))
-      })
-      console.log(`Raw serverless server listening at port ${port}`)
-
-      const res1 = await fetchViaHTTP(
-        port,
-        '/gsp-blog/redirect-dest-_gsp-blog_first',
-        undefined,
-        {
-          redirect: 'manual',
-        }
-      )
-      expect(res1.status).toBe(307)
-      const parsed = url.parse(res1.headers.get('location'), true)
-      expect(parsed.pathname).toBe(`${basePath}/gsp-blog/first`)
-      expect(parsed.query).toEqual({})
-      expect(res1.headers.get('refresh')).toBe(null)
-
-      const res2 = await fetchViaHTTP(
-        port,
-        '/gsp-blog/redirect-permanent-dest-_gsp-blog_first',
-        undefined,
-        {
-          redirect: 'manual',
-        }
-      )
-      expect(res2.status).toBe(308)
-      expect(res2.headers.get('refresh')).toContain(
-        `url=${basePath}/gsp-blog/first`
-      )
-      const parsed2 = url.parse(res2.headers.get('location'), true)
-      expect(parsed2.pathname).toBe(`${basePath}/gsp-blog/first`)
-      expect(parsed2.query).toEqual({})
-
-      const res3 = await fetchViaHTTP(
-        port,
-        '/gssp-blog/redirect-dest-_gssp-blog_first',
-        undefined,
-        {
-          redirect: 'manual',
-        }
-      )
-      expect(res3.status).toBe(307)
-      expect(res3.headers.get('refresh')).toBe(null)
-      const parsed3 = url.parse(res3.headers.get('location'), true)
-      expect(parsed3.pathname).toBe(`${basePath}/gssp-blog/first`)
-      expect(parsed3.query).toEqual({})
-
-      const res4 = await fetchViaHTTP(
-        port,
-        '/gssp-blog/redirect-permanent-dest-_gssp-blog_first',
-        undefined,
-        {
-          redirect: 'manual',
-        }
-      )
-      expect(res4.status).toBe(308)
-      expect(res4.headers.get('refresh')).toContain(
-        `url=${basePath}/gssp-blog/first`
-      )
-      const parsed4 = url.parse(res4.headers.get('location'), true)
-      expect(parsed4.pathname).toBe(`${basePath}/gssp-blog/first`)
-      expect(parsed4.query).toEqual({})
-    })
 
     runTests()
   })

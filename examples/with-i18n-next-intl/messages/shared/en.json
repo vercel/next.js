@@ -2,6 +2,6 @@
   "Navigation": {
     "index": "Home",
     "about": "About",
-    "switchLocale": "Switch to {locale, select, de {German} en {English}}"
+    "switchLocale": "Switch to {locale, select, de {German} en {English} other {}}"
   }
 }

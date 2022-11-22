@@ -63,18 +63,14 @@ function Home() {
   return (
     <ul>
       <li>
-        <Link href="/post/abc">
-          <a>Go to pages/post/[pid].js</a>
-        </Link>
+        <Link href="/post/abc">Go to pages/post/[pid].js</Link>
       </li>
       <li>
-        <Link href="/post/abc?foo=bar">
-          <a>Also goes to pages/post/[pid].js</a>
-        </Link>
+        <Link href="/post/abc?foo=bar">Also goes to pages/post/[pid].js</Link>
       </li>
       <li>
         <Link href="/post/abc/a-comment">
-          <a>Go to pages/post/[pid]/[comment].js</a>
+          Go to pages/post/[pid]/[comment].js
         </Link>
       </li>
     </ul>
@@ -145,7 +141,7 @@ For more information on what to do next, we recommend the following sections:
 
 <div class="card">
   <a href="/docs/api-reference/next/link.md">
-    <b>Pages:</b>
+    <b>next/link:</b>
     <small>Enable client-side transitions with next/link.</small>
   </a>
 </div>

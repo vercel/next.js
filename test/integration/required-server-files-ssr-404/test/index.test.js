@@ -4,15 +4,13 @@ import http from 'http'
 import fs from 'fs-extra'
 import { join } from 'path'
 import cheerio from 'cheerio'
-import { nextServer } from 'next-test-utils'
+import { nextServer, waitFor } from 'next-test-utils'
 import {
   fetchViaHTTP,
   findPort,
   nextBuild,
   renderViaHTTP,
 } from 'next-test-utils'
-
-jest.setTimeout(1000 * 60 * 2)
 
 const appDir = join(__dirname, '..')
 let server
@@ -142,6 +140,7 @@ describe('Required Server Files', () => {
     expect($('#slug').text()).toBe('first')
     expect(data.hello).toBe('world')
 
+    await waitFor(2000)
     const html2 = await renderViaHTTP(appPort, '/fallback/first')
     const $2 = cheerio.load(html2)
     const data2 = JSON.parse($2('#props').text())
@@ -192,11 +191,16 @@ describe('Required Server Files', () => {
   })
 
   it('should render dynamic SSR page correctly with x-matched-path', async () => {
-    const html = await renderViaHTTP(appPort, '/some-other-path', undefined, {
-      headers: {
-        'x-matched-path': '/dynamic/[slug]?slug=first',
-      },
-    })
+    const html = await renderViaHTTP(
+      appPort,
+      '/some-other-path?slug=first',
+      undefined,
+      {
+        headers: {
+          'x-matched-path': '/dynamic/[slug]',
+        },
+      }
+    )
     const $ = cheerio.load(html)
     const data = JSON.parse($('#props').text())
 
@@ -204,11 +208,16 @@ describe('Required Server Files', () => {
     expect($('#slug').text()).toBe('first')
     expect(data.hello).toBe('world')
 
-    const html2 = await renderViaHTTP(appPort, '/some-other-path', undefined, {
-      headers: {
-        'x-matched-path': '/dynamic/[slug]?slug=second',
-      },
-    })
+    const html2 = await renderViaHTTP(
+      appPort,
+      '/some-other-path?slug=second',
+      undefined,
+      {
+        headers: {
+          'x-matched-path': '/dynamic/[slug]',
+        },
+      }
+    )
     const $2 = cheerio.load(html2)
     const data2 = JSON.parse($2('#props').text())
 
@@ -250,11 +259,11 @@ describe('Required Server Files', () => {
   it('should return data correctly with x-matched-path', async () => {
     const res = await fetchViaHTTP(
       appPort,
-      `/_next/data/${buildId}/dynamic/first.json`,
+      `/_next/data/${buildId}/dynamic/first.json?slug=first`,
       undefined,
       {
         headers: {
-          'x-matched-path': '/dynamic/[slug]?slug=first',
+          'x-matched-path': '/dynamic/[slug]',
         },
       }
     )
@@ -523,8 +532,8 @@ describe('Required Server Files', () => {
     expect($('#index').text()).toBe('index page')
   })
 
-  it('should match the root dyanmic page correctly', async () => {
-    const res = await fetchViaHTTP(appPort, '/index', undefined, {
+  it('should match the root dynamic page correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/slug-1', undefined, {
       headers: {
         'x-matched-path': '/[slug]',
       },

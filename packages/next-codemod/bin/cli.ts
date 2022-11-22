@@ -101,29 +101,36 @@ export function runTransform({ files, flags, transformer }) {
 
 const TRANSFORMER_INQUIRER_CHOICES = [
   {
-    name:
-      'name-default-component: Transforms anonymous components into named components to make sure they work with Fast Refresh',
+    name: 'name-default-component: Transforms anonymous components into named components to make sure they work with Fast Refresh',
     value: 'name-default-component',
   },
   {
-    name:
-      'add-missing-react-import: Transforms files that do not import `React` to include the import in order for the new React JSX transform',
+    name: 'add-missing-react-import: Transforms files that do not import `React` to include the import in order for the new React JSX transform',
     value: 'add-missing-react-import',
   },
   {
-    name:
-      'withamp-to-config: Transforms the withAmp HOC into Next.js 9 page configuration',
+    name: 'withamp-to-config: Transforms the withAmp HOC into Next.js 9 page configuration',
     value: 'withamp-to-config',
   },
   {
-    name:
-      'url-to-withrouter: Transforms the deprecated automatically injected url property on top level pages to using withRouter',
+    name: 'url-to-withrouter: Transforms the deprecated automatically injected url property on top level pages to using withRouter',
     value: 'url-to-withrouter',
   },
   {
-    name:
-      'cra-to-next (experimental): automatically migrates a Create React App project to Next.js',
+    name: 'cra-to-next (experimental): automatically migrates a Create React App project to Next.js',
     value: 'cra-to-next',
+  },
+  {
+    name: 'new-link: Ensures your <Link> usage is backwards compatible. Used in combination with experimental newNextLinkBehavior',
+    value: 'new-link',
+  },
+  {
+    name: 'next-image-to-legacy-image: safely migrate Next.js 10, 11, 12 applications importing `next/image` to the renamed `next/legacy/image` import in Next.js 13',
+    value: 'next-image-to-legacy-image',
+  },
+  {
+    name: 'next-image-experimental (experimental): dangerously migrates from `next/legacy/image` to the new `next/image` by adding inline styles and removing unused props',
+    value: 'next-image-experimental',
   },
 ]
 

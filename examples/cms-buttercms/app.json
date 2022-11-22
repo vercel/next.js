@@ -1,0 +1,18 @@
+{
+  "name": "ButterCMS NextJS Starter Project ",
+  "description": "Drop-in proof-of-concept NextJs app, fully integrated with your ButterCMS account.",
+  "repository": "https://github.com/ButterCMS/nextjs-starter-buttercms",
+  "logo": "https://cdn.buttercms.com/R3fbtvoRT2CqEQSmk8hb",
+  "keywords": ["Next.js", "buttercms", "cms", "blog"],
+  "buildpacks": [
+    {
+      "url": "heroku/nodejs"
+    }
+  ],
+  "env": {
+    "NEXT_PUBLIC_BUTTER_CMS_API_KEY": {
+      "description": "The API token of your ButterCMS account",
+      "value": ""
+    }
+  }
+}

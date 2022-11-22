@@ -1,8 +1,8 @@
 import { NodePath, PluginObj, types } from 'next/dist/compiled/babel/core'
 import commonjsPlugin from 'next/dist/compiled/babel/plugin-transform-modules-commonjs'
 
-// Rewrite imports using next/<something> to next-server/<something>
-export default function NextToNextServer(...args: any): PluginObj {
+// Handle module.exports in user code
+export default function CommonJSModulePlugin(...args: any): PluginObj {
   const commonjs = commonjsPlugin(...args)
   return {
     visitor: {

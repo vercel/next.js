@@ -2,64 +2,74 @@
 // this is in order for userland plugins to attach to the same webpack instance as next.js
 // the individual compiled modules are as defined for the compilation in bundles/webpack/packages/*
 
-const hookPropertyMap = new Map(
-  [
-    ['webpack', 'next/dist/compiled/webpack/webpack-lib'],
-    ['webpack/package', 'next/dist/compiled/webpack/package'],
-    ['webpack/package.json', 'next/dist/compiled/webpack/package'],
-    ['webpack/lib/webpack', 'next/dist/compiled/webpack/webpack-lib'],
-    ['webpack/lib/webpack.js', 'next/dist/compiled/webpack/webpack-lib'],
-    [
-      'webpack/lib/node/NodeEnvironmentPlugin',
-      'next/dist/compiled/webpack/NodeEnvironmentPlugin',
-    ],
-    [
-      'webpack/lib/node/NodeEnvironmentPlugin.js',
-      'next/dist/compiled/webpack/NodeEnvironmentPlugin',
-    ],
-    [
-      'webpack/lib/BasicEvaluatedExpression',
-      'next/dist/compiled/webpack/BasicEvaluatedExpression',
-    ],
-    [
-      'webpack/lib/BasicEvaluatedExpression.js',
-      'next/dist/compiled/webpack/BasicEvaluatedExpression',
-    ],
-    [
-      'webpack/lib/node/NodeTargetPlugin',
-      'next/dist/compiled/webpack/NodeTargetPlugin',
-    ],
-    [
-      'webpack/lib/node/NodeTargetPlugin.js',
-      'next/dist/compiled/webpack/NodeTargetPlugin',
-    ],
-    [
-      'webpack/lib/ModuleFilenameHelpers',
-      'next/dist/compiled/webpack/ModuleFilenameHelpers',
-    ],
-    [
-      'webpack/lib/ModuleFilenameHelpers.js',
-      'next/dist/compiled/webpack/ModuleFilenameHelpers',
-    ],
-    ['webpack/lib/GraphHelpers', 'next/dist/compiled/webpack/GraphHelpers'],
-    ['webpack/lib/GraphHelpers.js', 'next/dist/compiled/webpack/GraphHelpers'],
-    ['webpack/lib/NormalModule', 'next/dist/compiled/webpack/NormalModule'],
-    ['webpack-sources', 'next/dist/compiled/webpack/sources'],
-    ['webpack-sources/lib', 'next/dist/compiled/webpack/sources'],
-    ['webpack-sources/lib/index', 'next/dist/compiled/webpack/sources'],
-    ['webpack-sources/lib/index.js', 'next/dist/compiled/webpack/sources'],
-  ].map(([request, replacement]) => [request, require.resolve(replacement)])
-)
+const hookPropertyMap = new Map()
 
-const mod = require('module')
-const resolveFilename = mod._resolveFilename
-mod._resolveFilename = function (
-  request: string,
-  parent: any,
-  isMain: boolean,
-  options: any
-) {
-  const hookResolved = hookPropertyMap.get(request)
-  if (hookResolved) request = hookResolved
-  return resolveFilename.call(mod, request, parent, isMain, options)
+let initialized = false
+function setupResolve() {
+  if (initialized) {
+    return
+  }
+  initialized = true
+  const mod = require('module')
+  const resolveFilename = mod._resolveFilename
+  mod._resolveFilename = function (
+    request: string,
+    parent: any,
+    isMain: boolean,
+    options: any
+  ) {
+    const hookResolved = hookPropertyMap.get(request)
+    if (hookResolved) request = hookResolved
+    return resolveFilename.call(mod, request, parent, isMain, options)
+  }
+}
+
+export function setRequireOverrides(aliases: [string, string][]) {
+  for (const [key, value] of aliases) {
+    hookPropertyMap.set(key, value)
+  }
+}
+
+export function loadRequireHook(aliases: [string, string][] = []) {
+  const defaultAliases = [
+    ...aliases,
+    // Use `require.resolve` explicitly to make them statically analyzable
+    ['styled-jsx', require.resolve('styled-jsx')],
+    ['styled-jsx/style', require.resolve('styled-jsx/style')],
+    ['styled-jsx/style', require.resolve('styled-jsx/style')],
+  ] as [string, string][]
+
+  setRequireOverrides(defaultAliases)
+
+  setupResolve()
+}
+
+export function overrideBuiltInReactPackages() {
+  setRequireOverrides([
+    ['react', require.resolve('next/dist/compiled/react')],
+    [
+      'react/jsx-runtime',
+      require.resolve('next/dist/compiled/react/jsx-runtime'),
+    ],
+    [
+      'react/jsx-dev-runtime',
+      require.resolve('next/dist/compiled/react/jsx-dev-runtime'),
+    ],
+    [
+      'react-dom',
+      require.resolve('next/dist/compiled/react-dom/server-rendering-stub'),
+    ],
+    [
+      'react-dom/client',
+      require.resolve('next/dist/compiled/react-dom/client'),
+    ],
+    [
+      'react-dom/server',
+      require.resolve('next/dist/compiled/react-dom/server'),
+    ],
+    [
+      'react-dom/server.browser',
+      require.resolve('next/dist/compiled/react-dom/server.browser'),
+    ],
+  ])
 }

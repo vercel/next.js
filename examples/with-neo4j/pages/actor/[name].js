@@ -29,7 +29,7 @@ export default function Actor() {
             <h2>Information</h2>
             <div>
               <strong>Born: </strong>
-              {data.actor.born.low}
+              {data.actor.born}
             </div>
           </div>
           <div className="movies">
@@ -41,6 +41,7 @@ export default function Actor() {
                   as={{
                     pathname: `/movie/${encodeURIComponent(movie)}`,
                   }}
+                  legacyBehavior
                 >
                   <a>{movie}</a>
                 </Link>
@@ -50,7 +51,7 @@ export default function Actor() {
         </div>
 
         <div className="back">
-          <Link href="/">
+          <Link href="/" legacyBehavior>
             <a>🔙 Go Back</a>
           </Link>
         </div>

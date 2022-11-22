@@ -1,8 +1,9 @@
-import Chalk from 'chalk'
+import Chalk from 'next/dist/compiled/chalk'
 import { SimpleWebpackError } from './simpleWebpackError'
 
 const chalk = new Chalk.constructor({ enabled: true })
-const regexCssError = /^(?:CssSyntaxError|SyntaxError)\n\n\((\d+):(\d*)\) (.*)$/s
+const regexCssError =
+  /^(?:CssSyntaxError|SyntaxError)\n\n\((\d+):(\d*)\) (.*)$/s
 
 export function getCssError(
   fileName: string,
@@ -22,8 +23,8 @@ export function getCssError(
 
   const res = regexCssError.exec(err.message)
   if (res) {
-    const [, _lineNumer, _column, reason] = res
-    const lineNumber = Math.max(1, parseInt(_lineNumer, 10))
+    const [, _lineNumber, _column, reason] = res
+    const lineNumber = Math.max(1, parseInt(_lineNumber, 10))
     const column = Math.max(1, parseInt(_column, 10))
 
     return new SimpleWebpackError(

@@ -1,6 +1,8 @@
 # build output
 dist
 .next
+target
+packages/next/wasm/@next
 
 # dependencies
 node_modules
@@ -12,6 +14,7 @@ test/node_modules
 # logs & pids
 *.log
 pids
+*.cpuprofile
 
 # coverage
 .nyc_output
@@ -22,10 +25,12 @@ test/**/out*
 test/**/next-env.d.ts
 .DS_Store
 /e2e-tests
+test/tmp/**
 
 # Editors
 **/.idea
 **/.#*
+.nvmrc
 
 # examples
 examples/**/out
@@ -37,3 +42,7 @@ test-timings.json
 # Vercel
 .vercel
 .now
+
+# Cache
+*.tsbuildinfo
+.swc/

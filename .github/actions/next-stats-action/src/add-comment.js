@@ -20,7 +20,7 @@ const round = (num, places) => {
 
 const shortenLabel = (itemKey) =>
   itemKey.length > 24
-    ? `${itemKey.substr(0, 12)}..${itemKey.substr(itemKey.length - 12, 12)}`
+    ? `${itemKey.slice(0, 12)}..${itemKey.slice(-12)}`
     : itemKey
 
 const twoMB = 2 * 1024 * 1024

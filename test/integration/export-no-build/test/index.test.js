@@ -2,7 +2,6 @@
 import { nextExport } from 'next-test-utils'
 import { join } from 'path'
 const appDir = join(__dirname, '../')
-jest.setTimeout(1000 * 60 * 5)
 
 describe('next export without build', () => {
   it('should show error when there is no production build', async () => {

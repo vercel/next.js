@@ -1,4 +1,4 @@
-const config = { amp: true }
+export const config = { amp: true }
 
 const Page = () => {
   return (
@@ -9,4 +9,3 @@ const Page = () => {
 }
 
 export default Page
-export { config }

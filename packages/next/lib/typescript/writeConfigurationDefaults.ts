@@ -1,11 +1,13 @@
 import { promises as fs } from 'fs'
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 import * as CommentJson from 'next/dist/compiled/comment-json'
+import semver from 'next/dist/compiled/semver'
 import os from 'os'
+import type { CompilerOptions } from 'typescript'
 import { getTypeScriptConfiguration } from './getTypeScriptConfiguration'
 
 type DesiredCompilerOptionsShape = {
-  [key: string]:
+  [K in keyof CompilerOptions]:
     | { suggested: any }
     | {
         parsedValue?: any
@@ -28,13 +30,16 @@ function getDesiredCompilerOptions(
     strict: { suggested: false },
     forceConsistentCasingInFileNames: { suggested: true },
     noEmit: { suggested: true },
+    ...(semver.gte(ts.version, '4.4.2')
+      ? { incremental: { suggested: true } }
+      : undefined),
 
     // These values are required and cannot be changed by the user
     // Keep this in sync with the webpack config
     // 'parsedValue' matches the output value from ts.parseJsonConfigFileContent()
     esModuleInterop: {
       value: true,
-      reason: 'requirement for babel',
+      reason: 'requirement for SWC / babel',
     },
     module: {
       parsedValue: ts.ModuleKind.ESNext,
@@ -50,13 +55,22 @@ function getDesiredCompilerOptions(
     },
     moduleResolution: {
       parsedValue: ts.ModuleResolutionKind.NodeJs,
+      // All of these values work:
+      parsedValues: [
+        ts.ModuleResolutionKind.NodeJs,
+        // only newer TypeScript versions have this field, it
+        // will be filtered for new versions of TypeScript
+        (ts.ModuleResolutionKind as any).Node12,
+        ts.ModuleResolutionKind.Node16,
+        ts.ModuleResolutionKind.NodeNext,
+      ].filter((val) => typeof val !== 'undefined'),
       value: 'node',
       reason: 'to match webpack resolution',
     },
     resolveJsonModule: { value: true, reason: 'to match webpack resolution' },
     isolatedModules: {
       value: true,
-      reason: 'requirement for babel',
+      reason: 'requirement for SWC / Babel',
     },
     jsx: {
       parsedValue: ts.JsxEmit.Preserve,
@@ -88,17 +102,16 @@ export function getRequiredConfiguration(
 export async function writeConfigurationDefaults(
   ts: typeof import('typescript'),
   tsConfigPath: string,
-  isFirstTimeSetup: boolean
+  isFirstTimeSetup: boolean,
+  isAppDirEnabled: boolean
 ): Promise<void> {
   if (isFirstTimeSetup) {
     await fs.writeFile(tsConfigPath, '{}' + os.EOL)
   }
 
   const desiredCompilerOptions = getDesiredCompilerOptions(ts)
-  const {
-    options: tsOptions,
-    raw: rawConfig,
-  } = await getTypeScriptConfiguration(ts, tsConfigPath, true)
+  const { options: tsOptions, raw: rawConfig } =
+    await getTypeScriptConfiguration(ts, tsConfigPath, true)
 
   const userTsConfigContent = await fs.readFile(tsConfigPath, {
     encoding: 'utf8',
@@ -115,6 +128,9 @@ export async function writeConfigurationDefaults(
     const check = desiredCompilerOptions[optionKey]
     if ('suggested' in check) {
       if (!(optionKey in tsOptions)) {
+        if (!userTsConfig.compilerOptions) {
+          userTsConfig.compilerOptions = {}
+        }
         userTsConfig.compilerOptions[optionKey] = check.suggested
         suggestedActions.push(
           chalk.cyan(optionKey) + ' was set to ' + chalk.bold(check.suggested)
@@ -129,6 +145,9 @@ export async function writeConfigurationDefaults(
           ? check.parsedValue === ev
           : check.value === ev)
       ) {
+        if (!userTsConfig.compilerOptions) {
+          userTsConfig.compilerOptions = {}
+        }
         userTsConfig.compilerOptions[optionKey] = check.value
         requiredActions.push(
           chalk.cyan(optionKey) +
@@ -144,12 +163,49 @@ export async function writeConfigurationDefaults(
   }
 
   if (!('include' in rawConfig)) {
-    userTsConfig.include = ['next-env.d.ts', '**/*.ts', '**/*.tsx']
+    userTsConfig.include = isAppDirEnabled
+      ? ['next-env.d.ts', '.next/types/**/*.ts', '**/*.ts', '**/*.tsx']
+      : ['next-env.d.ts', '**/*.ts', '**/*.tsx']
     suggestedActions.push(
       chalk.cyan('include') +
         ' was set to ' +
-        chalk.bold(`['next-env.d.ts', '**/*.ts', '**/*.tsx']`)
+        chalk.bold(
+          isAppDirEnabled
+            ? `['next-env.d.ts', '.next/types/**/*.ts', '**/*.ts', '**/*.tsx']`
+            : `['next-env.d.ts', '**/*.ts', '**/*.tsx']`
+        )
     )
+  } else if (
+    isAppDirEnabled &&
+    !rawConfig.include.includes('.next/types/**/*.ts')
+  ) {
+    userTsConfig.include.push('.next/types/**/*.ts')
+    suggestedActions.push(
+      chalk.cyan('include') +
+        ' was updated to add ' +
+        chalk.bold(`'.next/types/**/*.ts'`)
+    )
+  }
+
+  // Enable the Next.js typescript plugin.
+  if (isAppDirEnabled) {
+    if (userTsConfig.compilerOptions) {
+      if (!('plugins' in userTsConfig.compilerOptions)) {
+        userTsConfig.compilerOptions.plugins = []
+      }
+      if (
+        !userTsConfig.compilerOptions.plugins.some(
+          (plugin: { name: string }) => plugin.name === 'next'
+        )
+      ) {
+        userTsConfig.compilerOptions.plugins.push({ name: 'next' })
+        suggestedActions.push(
+          chalk.cyan('plugins') +
+            ' was updated to add ' +
+            chalk.bold(`{ name: 'next' }`)
+        )
+      }
+    }
   }
 
   if (!('exclude' in rawConfig)) {

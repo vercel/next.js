@@ -1,5 +1,6 @@
 import fs from 'fs'
 import path from 'path'
+import * as Log from '../build/output/log'
 
 export const existsSync = (f: string): boolean => {
   try {
@@ -10,22 +11,53 @@ export const existsSync = (f: string): boolean => {
   }
 }
 
-export function findPagesDir(dir: string): string {
-  // prioritize ./pages over ./src/pages
-  let curDir = path.join(dir, 'pages')
+export function findDir(dir: string, name: 'pages' | 'app'): string | null {
+  // prioritize ./${name} over ./src/${name}
+  let curDir = path.join(dir, name)
   if (existsSync(curDir)) return curDir
 
-  curDir = path.join(dir, 'src/pages')
+  curDir = path.join(dir, 'src', name)
   if (existsSync(curDir)) return curDir
 
-  // Check one level up the tree to see if the pages directory might be there
-  if (existsSync(path.join(dir, '..', 'pages'))) {
+  return null
+}
+
+export function findPagesDir(
+  dir: string,
+  isAppDirEnabled: boolean
+): {
+  pagesDir: string | undefined
+  appDir: string | undefined
+} {
+  const pagesDir = findDir(dir, 'pages') || undefined
+  const appDir = findDir(dir, 'app') || undefined
+
+  if (isAppDirEnabled && appDir == null && pagesDir == null) {
     throw new Error(
-      '> No `pages` directory found. Did you mean to run `next` in the parent (`../`) directory?'
+      "> Couldn't find any `pages` or `app` directory. Please create one under the project root"
     )
   }
 
-  throw new Error(
-    "> Couldn't find a `pages` directory. Please create one under the project root"
-  )
+  if (!isAppDirEnabled) {
+    if (appDir != null && pagesDir == null) {
+      throw new Error(
+        '> The `app` dir is experimental. Please add `{experimental:{appDir: true}}` to your `next.config.js` to enable it'
+      )
+    }
+    if (appDir != null && pagesDir != null) {
+      Log.warn(
+        'The `app` dir is experimental. Please add `{experimental:{appDir: true}}` to your `next.config.js` to enable it'
+      )
+    }
+    if (pagesDir == null) {
+      throw new Error(
+        "> Couldn't find a `pages` directory. Please create one under the project root"
+      )
+    }
+  }
+
+  return {
+    pagesDir,
+    appDir: isAppDirEnabled ? appDir : undefined,
+  }
 }

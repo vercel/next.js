@@ -1,29 +1,10 @@
-type RequestIdleCallbackHandle = any
-type RequestIdleCallbackOptions = {
-  timeout: number
-}
-type RequestIdleCallbackDeadline = {
-  readonly didTimeout: boolean
-  timeRemaining: () => number
-}
-
-declare global {
-  interface Window {
-    requestIdleCallback: (
-      callback: (deadline: RequestIdleCallbackDeadline) => void,
-      opts?: RequestIdleCallbackOptions
-    ) => RequestIdleCallbackHandle
-    cancelIdleCallback: (id: RequestIdleCallbackHandle) => void
-  }
-}
-
 export const requestIdleCallback =
-  (typeof self !== 'undefined' && self.requestIdleCallback) ||
-  function (
-    cb: (deadline: RequestIdleCallbackDeadline) => void
-  ): NodeJS.Timeout {
+  (typeof self !== 'undefined' &&
+    self.requestIdleCallback &&
+    self.requestIdleCallback.bind(window)) ||
+  function (cb: IdleRequestCallback): number {
     let start = Date.now()
-    return setTimeout(function () {
+    return self.setTimeout(function () {
       cb({
         didTimeout: false,
         timeRemaining: function () {
@@ -34,7 +15,9 @@ export const requestIdleCallback =
   }
 
 export const cancelIdleCallback =
-  (typeof self !== 'undefined' && self.cancelIdleCallback) ||
-  function (id: RequestIdleCallbackHandle) {
+  (typeof self !== 'undefined' &&
+    self.cancelIdleCallback &&
+    self.cancelIdleCallback.bind(window)) ||
+  function (id: number) {
     return clearTimeout(id)
   }

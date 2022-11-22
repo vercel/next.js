@@ -3,7 +3,10 @@ export async function fetchGetJSON(url: string) {
     const data = await fetch(url).then((res) => res.json())
     return data
   } catch (err) {
-    throw new Error(err.message)
+    if (err instanceof Error) {
+      throw new Error(err.message)
+    }
+    throw err
   }
 }
 
@@ -25,6 +28,9 @@ export async function fetchPostJSON(url: string, data?: {}) {
     })
     return await response.json() // parses JSON response into native JavaScript objects
   } catch (err) {
-    throw new Error(err.message)
+    if (err instanceof Error) {
+      throw new Error(err.message)
+    }
+    throw err
   }
 }

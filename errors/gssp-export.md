@@ -4,7 +4,7 @@
 
 You attempted to statically export your application via `next export`, however, one or more of your pages uses `getServerSideProps`.
 
-The `getServerSideProps` lifecycle is not compatible with `next export`, so you'll need to use `next start` or a [serverless deployment](https://vercel.com).
+The `getServerSideProps` lifecycle is not compatible with `next export`, so you'll need to use `next start` when self hosting or deploy to a provider like [Vercel](https://vercel.com).
 
 #### Possible Ways to Fix It
 
@@ -34,5 +34,5 @@ The `getServerSideProps` lifecycle is not compatible with `next export`, so you'
 ### Useful Links
 
 - [Automatic Static Optimization](https://nextjs.org/docs/advanced-features/automatic-static-optimization)
-- [`getStaticProps` documentation](https://nextjs.org/docs/basic-features/data-fetching#getstaticprops-static-generation)
+- [`getStaticProps` documentation](https://nextjs.org/docs/basic-features/data-fetching/get-static-props)
 - [`exportPathMap` documentation](https://nextjs.org/docs/api-reference/next.config.js/exportPathMap)

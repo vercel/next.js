@@ -4,11 +4,7 @@ import { join } from 'path'
 import { nextBuild, getPageFileFromBuildManifest } from 'next-test-utils'
 import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 
-jest.setTimeout(1000 * 60 * 2)
-
 const appDir = join(__dirname, '../')
-const nextConfig = join(appDir, 'next.config.js')
-let nextConfigContent
 
 function runTests() {
   it('includes sourcemaps for all browser files', async () => {
@@ -48,27 +44,6 @@ describe('Production browser sourcemaps', () => {
   describe('Server support', () => {
     beforeAll(async () => {
       await nextBuild(appDir, [], {})
-    })
-
-    runTests()
-  })
-
-  describe('Serverless support', () => {
-    beforeAll(async () => {
-      nextConfigContent = await fs.readFile(nextConfig, 'utf8')
-      await fs.writeFile(
-        nextConfig,
-        `
-        module.exports = {
-          target: 'serverless',
-          productionBrowserSourceMaps: true
-        }
-      `
-      )
-      await nextBuild(appDir, [], {})
-    })
-    afterAll(async () => {
-      await fs.writeFile(nextConfig, nextConfigContent)
     })
 
     runTests()

@@ -1,5 +1,4 @@
 module.exports = {
-  // target: 'serverless',
   async rewrites() {
     // no-rewrites comment
     return {
@@ -12,6 +11,11 @@ module.exports = {
               },
             ]
           : []),
+        {
+          source: '/to-websocket',
+          destination:
+            'http://localhost:__EXTERNAL_PORT__/_next/webpack-hmr?page=/about',
+        },
         {
           source: '/to-nowhere',
           destination: 'http://localhost:12233',
@@ -198,11 +202,47 @@ module.exports = {
               key: 'post',
             },
           ],
-          destination: '/blog/:post',
+          destination: '/blog-catchall/:post',
+        },
+        {
+          source: '/missing-rewrite-1',
+          missing: [
+            {
+              type: 'header',
+              key: 'x-my-header',
+              value: '(?<myHeader>.*)',
+            },
+          ],
+          destination: '/with-params',
+        },
+        {
+          source: '/missing-rewrite-2',
+          missing: [
+            {
+              type: 'query',
+              key: 'my-query',
+            },
+          ],
+          destination: '/with-params',
+        },
+        {
+          source: '/missing-rewrite-3',
+          missing: [
+            {
+              type: 'cookie',
+              key: 'loggedIn',
+              value: '(?<loggedIn>true)',
+            },
+          ],
+          destination: '/with-params?authorized=1',
         },
         {
           source: '/blog/about',
           destination: '/hello',
+        },
+        {
+          source: '/overridden/:path*',
+          destination: '/overridden',
         },
       ],
       beforeFiles: [
@@ -219,6 +259,14 @@ module.exports = {
         {
           source: '/old-blog/:path*',
           destination: '/blog/:path*',
+        },
+        {
+          source: '/overridden',
+          destination: 'https://example.vercel.sh',
+        },
+        {
+          source: '/nfl/:path*',
+          destination: '/_sport/nfl/:path*',
         },
       ],
     }
@@ -376,6 +424,40 @@ module.exports = {
           },
         ],
         destination: '/another?host=1',
+        permanent: false,
+      },
+      {
+        source: '/:path/has-redirect-5',
+        has: [
+          {
+            type: 'header',
+            key: 'x-test-next',
+          },
+        ],
+        destination: '/somewhere',
+        permanent: false,
+      },
+      {
+        source: '/has-redirect-6',
+        has: [
+          {
+            type: 'host',
+            value: '(?<subdomain>.*)-test.example.com',
+          },
+        ],
+        destination: 'https://:subdomain.example.com/some-path/end?a=b',
+        permanent: false,
+      },
+      {
+        source: '/has-redirect-7',
+        has: [
+          {
+            type: 'query',
+            key: 'hello',
+            value: '(?<hello>.*)',
+          },
+        ],
+        destination: '/somewhere?value=:hello',
         permanent: false,
       },
     ]

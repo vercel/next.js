@@ -2,11 +2,11 @@
 
 #### Why This Error
 
-In your `next.config.js` file you provided an invalid config for the `i18n` field.
+In your `next.config.js` file you provided an invalid config for the `i18n` field. This could mean the limit for 100 locale items was exceeded.
 
 #### Possible Ways to Fix It
 
-Make sure your `i18n` field follows the allowed config shape and values:
+Make sure your `i18n` field follows the allowed config shape, limits, and values:
 
 ```js
 module.exports = {

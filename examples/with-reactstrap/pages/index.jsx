@@ -63,7 +63,7 @@ export default function Home() {
                   </CardText>
                   <Button
                     color="primary"
-                    href="https://github.com/vercel/next.js/tree/master/examples"
+                    href="https://github.com/vercel/next.js/tree/canary/examples"
                   >
                     More &rarr;
                   </Button>

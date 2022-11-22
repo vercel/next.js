@@ -29,17 +29,23 @@
 
 import RefreshRuntime from 'react-refresh/runtime'
 
+type ModuleHotStatus =
+  | 'idle'
+  | 'check'
+  | 'prepare'
+  | 'ready'
+  | 'dispose'
+  | 'apply'
+  | 'abort'
+  | 'fail'
+
+type ModuleHotStatusHandler = (status: ModuleHotStatus) => void
+
 declare const module: {
   hot: {
-    status: () =>
-      | 'idle'
-      | 'check'
-      | 'prepare'
-      | 'ready'
-      | 'dispose'
-      | 'apply'
-      | 'abort'
-      | 'fail'
+    status: () => ModuleHotStatus
+    addStatusHandler: (handler: ModuleHotStatusHandler) => void
+    removeStatusHandler: (handler: ModuleHotStatusHandler) => void
   }
 }
 
@@ -71,6 +77,25 @@ function registerExportsForReactRefresh(
     var typeID = moduleID + ' %exports% ' + key
     RefreshRuntime.register(exportValue, typeID)
   }
+}
+
+function getRefreshBoundarySignature(moduleExports: unknown): Array<unknown> {
+  var signature = []
+  signature.push(RefreshRuntime.getFamilyByType(moduleExports))
+  if (moduleExports == null || typeof moduleExports !== 'object') {
+    // Exit if we can't iterate over exports.
+    // (This is important for legacy environments.)
+    return signature
+  }
+  for (var key in moduleExports) {
+    if (isSafeExport(key)) {
+      continue
+    }
+    var exportValue = moduleExports[key]
+    signature.push(key)
+    signature.push(RefreshRuntime.getFamilyByType(exportValue))
+  }
+  return signature
 }
 
 function isReactRefreshBoundary(moduleExports: unknown): boolean {
@@ -113,54 +138,47 @@ function shouldInvalidateReactRefreshBoundary(
   return false
 }
 
-function getRefreshBoundarySignature(moduleExports: unknown): Array<unknown> {
-  var signature = []
-  signature.push(RefreshRuntime.getFamilyByType(moduleExports))
-  if (moduleExports == null || typeof moduleExports !== 'object') {
-    // Exit if we can't iterate over exports.
-    // (This is important for legacy environments.)
-    return signature
-  }
-  for (var key in moduleExports) {
-    if (isSafeExport(key)) {
-      continue
-    }
-    var exportValue = moduleExports[key]
-    signature.push(key)
-    signature.push(RefreshRuntime.getFamilyByType(exportValue))
-  }
-  return signature
-}
-
 var isUpdateScheduled: boolean = false
+// This function aggregates updates from multiple modules into a single React Refresh call.
 function scheduleUpdate() {
   if (isUpdateScheduled) {
     return
   }
+  isUpdateScheduled = true
 
-  function canApplyUpdate() {
-    return module.hot.status() === 'idle'
+  function canApplyUpdate(status: ModuleHotStatus) {
+    return status === 'idle'
   }
 
-  isUpdateScheduled = true
-  setTimeout(function () {
+  function applyUpdate() {
     isUpdateScheduled = false
-
-    // Only trigger refresh if the webpack HMR state is idle
-    if (canApplyUpdate()) {
-      try {
-        RefreshRuntime.performReactRefresh()
-      } catch (err) {
-        console.warn(
-          'Warning: Failed to re-render. We will retry on the next Fast Refresh event.\n' +
-            err
-        )
-      }
-      return
+    try {
+      RefreshRuntime.performReactRefresh()
+    } catch (err) {
+      console.warn(
+        'Warning: Failed to re-render. We will retry on the next Fast Refresh event.\n' +
+          err
+      )
     }
+  }
 
-    return scheduleUpdate()
-  }, 30)
+  if (canApplyUpdate(module.hot.status())) {
+    // Apply update on the next tick.
+    Promise.resolve().then(() => {
+      applyUpdate()
+    })
+    return
+  }
+
+  const statusHandler = (status) => {
+    if (canApplyUpdate(status)) {
+      module.hot.removeStatusHandler(statusHandler)
+      applyUpdate()
+    }
+  }
+
+  // Apply update once the HMR runtime's status is idle.
+  module.hot.addStatusHandler(statusHandler)
 }
 
 // Needs to be compatible with IE11
