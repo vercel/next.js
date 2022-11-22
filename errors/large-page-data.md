@@ -14,6 +14,9 @@ To inspect the props passed to your page, you can inspect the below element's co
 document.getElementById("__NEXT_DATA__").text
 ```
 
+Hint: if you have a large navigatio with a lot of `<Link/>` components, check if the prerender prop is set. When it is set to true, `getStaticProps` fetches all the data for all pages and puts it into `__NEXT_DATA__`.
+
 ### Useful Links
 
 - [Data Fetching Documentation](https://nextjs.org/docs/basic-features/data-fetching/overview)
+- [next/link prefetch](https://nextjs.org/docs/api-reference/next/link))
