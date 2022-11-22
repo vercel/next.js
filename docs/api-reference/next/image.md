@@ -112,7 +112,7 @@ This property is required **except** for [local images](/docs/basic-features/ima
 
 The `height` property represents the rendered height in pixels.
 
-This property is required **except** for [local images](/docs/optimizing/image.md#local-images) or images with the [`fill` property](#fill).
+This property is required **except** for [local images](/docs/basic-features/image-optimization.md#local-images) or images with the [`fill` property](#fill).
 
 #### `alt`
 
@@ -494,9 +494,9 @@ The cache status of an image can be determined by reading the value of the `x-ne
 - `STALE` - the path is in the cache but exceeded the revalidate time so it will be updated in the background.
 - `HIT` - the path is in the cache and has not exceeded the revalidate time.
 
-The expiration (or rather Max Age) is defined by either the [`minimumCacheTTL`](#minimum-cache-ttl) configuration or the upstream image `Cache-Control` header, whichever is larger. Specifically, the `max-age` value of the `Cache-Control` header is used. If both `s-maxage` and `max-age` are found, then `s-maxage` is preferred. The `max-age` is also passed-through to any downstream clients including CDNs and browsers.
+The expiration (or rather Max Age) is defined by either the [`minimumCacheTTL`](#minimumcachettl) configuration or the upstream image `Cache-Control` header, whichever is larger. Specifically, the `max-age` value of the `Cache-Control` header is used. If both `s-maxage` and `max-age` are found, then `s-maxage` is preferred. The `max-age` is also passed-through to any downstream clients including CDNs and browsers.
 
-- You can configure [`minimumCacheTTL`](#minimum-cache-ttl) to increase the cache duration when the upstream image does not include `Cache-Control` header or the value is very low.
+- You can configure [`minimumCacheTTL`](#minimumcachettl) to increase the cache duration when the upstream image does not include `Cache-Control` header or the value is very low.
 - You can configure [`deviceSizes`](#devicesizes) and [`imageSizes`](#imagesizes) to reduce the total number of possible generated images.
 - You can configure [formats](#formats) to disable multiple formats in favor of a single image format.
 
@@ -561,7 +561,7 @@ Auto-detection for animated files is best-effort and supports GIF, APNG, and Web
   - Use CSS `@media not all and (min-resolution:.001dpcm) { img[loading="lazy"] { clip-path: inset(0.5px) } }`
   - Use [`priority`](#priority) if the image is above the fold
 - [Firefox 67+](https://bugzilla.mozilla.org/show_bug.cgi?id=1556156) displays a white background while loading. Possible solutions:
-  - Enable [AVIF `formats`](#acceptable-formats)
+  - Enable [AVIF `formats`](#formats)
   - Use [`placeholder="blur"`](#placeholder)
 
 ## Related

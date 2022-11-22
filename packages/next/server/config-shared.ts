@@ -331,7 +331,7 @@ export interface NextConfig extends Record<string, any> {
   /** @see [Disabling x-powered-by](https://nextjs.org/docs/api-reference/next.config.js/disabling-x-powered-by) */
   poweredByHeader?: boolean
 
-  /** @see [Using the Image Component](https://nextjs.org/docs/basic-features/image-optimization#using-the-image-component) */
+  /** @see [Using the Image Component](https://nextjs.org/docs/basic-features/image-optimization#usage) */
   images?: ImageConfig
 
   /** Configure indicators in development environment */

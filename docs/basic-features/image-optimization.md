@@ -48,7 +48,7 @@ export default function Page() {
 
 ### Remote Images
 
-To use a remote image, the `src` property should be a URL string, which can be [relative](#loaders) or [absolute](/docs/api-reference/next/image.md#remotepatterns).
+To use a remote image, the `src` property should be a URL string, which can be [relative](/docs/api-reference/next/image.md#loader) or [absolute](/docs/api-reference/next/image.md#remotepatterns).
 
 Since Next.js does not have access to remote files during the build process, you'll need to provide the [`width`](/docs/api-reference/next/image.md#width), [`height`](/docs/api-reference/next/image.md#height) and optional [`blurDataURL`](/docs/api-reference/next/image.md#blurdataurl) props manually:
 

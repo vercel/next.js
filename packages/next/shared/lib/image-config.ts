@@ -53,7 +53,7 @@ type ImageFormat = 'image/avif' | 'image/webp'
  * @see [Image configuration options](https://nextjs.org/docs/api-reference/next/image#configuration-options)
  */
 export type ImageConfigComplete = {
-  /** @see [Device sizes documentation](https://nextjs.org/docs/api-reference/next/image#device-sizes) */
+  /** @see [Device sizes documentation](https://nextjs.org/docs/api-reference/next/image#devicesizes) */
   deviceSizes: number[]
 
   /** @see [Image sizing documentation](https://nextjs.org/docs/basic-features/image-optimization#image-sizing) */
@@ -73,22 +73,22 @@ export type ImageConfigComplete = {
    */
   domains: string[]
 
-  /** @see [Disable static image import configuration](https://nextjs.org/docs/api-reference/next/image#disable-static-imports) */
+  /** @see [Disable static image import configuration](https://nextjs.org/docs/api-reference/next/image#disablestaticimports) */
   disableStaticImages: boolean
 
   /** @see [Cache behavior](https://nextjs.org/docs/api-reference/next/image#caching-behavior) */
   minimumCacheTTL: number
 
-  /** @see [Acceptable formats](https://nextjs.org/docs/api-reference/next/image#acceptable-formats) */
+  /** @see [Formats](https://nextjs.org/docs/api-reference/next/image#formats) */
   formats: ImageFormat[]
 
-  /** @see [Dangerously Allow SVG](https://nextjs.org/docs/api-reference/next/image#dangerously-allow-svg) */
+  /** @see [Dangerously Allow SVG](https://nextjs.org/docs/api-reference/next/image#dangerouslyallowsvg-and-contentsecuritypolicy) */
   dangerouslyAllowSVG: boolean
 
-  /** @see [Dangerously Allow SVG](https://nextjs.org/docs/api-reference/next/image#dangerously-allow-svg) */
+  /** @see [Dangerously Allow SVG](https://nextjs.org/docs/api-reference/next/image#dangerouslyallowsvg-and-contentsecuritypolicy) */
   contentSecurityPolicy: string
 
-  /** @see [Remote Patterns](https://nextjs.org/docs/api-reference/next/image#remote-patterns) */
+  /** @see [Remote Patterns](https://nextjs.org/docs/api-reference/next/image#remotepatterns) */
   remotePatterns: RemotePattern[]
 
   /** @see [Unoptimized](https://nextjs.org/docs/api-reference/next/image#unoptimized) */

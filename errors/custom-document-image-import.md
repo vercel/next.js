@@ -44,4 +44,4 @@ module.exports = {
 - [Custom `Document`](https://nextjs.org/docs/advanced-features/custom-document)
 - [Custom `App`](https://nextjs.org/docs/advanced-features/custom-app)
 - [Static File Serving](https://nextjs.org/docs/basic-features/static-file-serving)
-- [Disable Static Image Imports](https://nextjs.org/docs/api-reference/next/image#disable-static-imports)
+- [Disable Static Image Imports](https://nextjs.org/docs/api-reference/next/image#disablestaticimports)
