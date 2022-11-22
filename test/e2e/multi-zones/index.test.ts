@@ -37,7 +37,7 @@ describe('Multi Zones', () => {
           name: 'main',
           private: true,
           scripts: {
-            dev: 'next dev',
+            dev: `next dev -p ${mainAppPort}`,
             build: 'next build',
             start: `next start -p ${mainAppPort}`,
           },
@@ -51,7 +51,7 @@ describe('Multi Zones', () => {
           name: 'docs',
           private: true,
           scripts: {
-            dev: 'next dev',
+            dev: `next dev -p ${docsAppPort}`,
             build: 'next build',
             start: `next start -p ${docsAppPort}`,
           },
