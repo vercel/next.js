@@ -7,7 +7,7 @@ export const EXTERNAL_PACKAGES = [
   'cypress',
   'eslint',
   'express',
-  'firebase-admin'
+  'firebase-admin',
   'jest',
   'mongodb',
   'next-mdx-remote',
