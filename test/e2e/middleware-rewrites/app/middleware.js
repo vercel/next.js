@@ -19,6 +19,11 @@ export async function middleware(request) {
     })
   }
 
+  if (url.pathname.includes('/rewrite-to-static')) {
+    request.nextUrl.pathname = '/static-ssg/post-1'
+    return NextResponse.rewrite(request.nextUrl)
+  }
+
   if (url.pathname.includes('/fallback-true-blog/rewritten')) {
     request.nextUrl.pathname = '/about'
     return NextResponse.rewrite(request.nextUrl)

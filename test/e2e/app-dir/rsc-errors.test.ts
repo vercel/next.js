@@ -104,7 +104,7 @@ describe('app dir - rsc errors', () => {
       '/server-with-errors/page-export'
     )
     expect(html).toContain(
-      'The default export is not a React Component in page: \\"/server-with-errors/page-export\\"'
+      'The default export is not a React Component in page:'
     )
   })
 

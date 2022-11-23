@@ -24,6 +24,19 @@ const TRACE_IGNORES = [
   '**/*/next/dist/bin/next',
 ]
 
+const NOT_TRACEABLE = [
+  '.wasm',
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.gif',
+  '.webp',
+  '.avif',
+  '.ico',
+  '.bmp',
+  '.svg',
+]
+
 const TURBO_TRACE_DEFAULT_MAX_FILES = 128
 
 function getModuleFromDependency(
@@ -92,7 +105,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
   private appDirEnabled?: boolean
   private tracingRoot: string
   private entryTraces: Map<string, Set<string>>
-  private excludeFiles: string[]
+  private traceIgnores: string[]
   private esmExternals?: NextConfigComplete['experimental']['esmExternals']
   private turbotrace?: NextConfigComplete['experimental']['turbotrace']
   private chunksToTrace: string[] = []
@@ -102,14 +115,14 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
   constructor({
     appDir,
     appDirEnabled,
-    excludeFiles,
+    traceIgnores,
     esmExternals,
     outputFileTracingRoot,
     turbotrace,
   }: {
     appDir: string
     appDirEnabled?: boolean
-    excludeFiles?: string[]
+    traceIgnores?: string[]
     outputFileTracingRoot?: string
     esmExternals?: NextConfigComplete['experimental']['esmExternals']
     turbotrace?: NextConfigComplete['experimental']['turbotrace']
@@ -118,7 +131,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
     this.entryTraces = new Map()
     this.esmExternals = esmExternals
     this.appDirEnabled = appDirEnabled
-    this.excludeFiles = excludeFiles || []
+    this.traceIgnores = traceIgnores || []
     this.tracingRoot = outputFileTracingRoot || appDir
     this.turbotrace = turbotrace
   }
@@ -137,7 +150,11 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
     await span.traceChild('create-trace-assets').traceAsyncFn(async () => {
       const entryFilesMap = new Map<any, Set<string>>()
       const chunksToTrace = new Set<string>()
-      const isTraceable = (file: string) => !file.endsWith('.wasm')
+
+      const isTraceable = (file: string) =>
+        !NOT_TRACEABLE.some((suffix) => {
+          return file.endsWith(suffix)
+        })
 
       for (const entrypoint of compilation.entrypoints.values()) {
         const entryFiles = new Set<string>()
@@ -174,7 +191,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
           return
         }
       }
-      const ignores = [...TRACE_IGNORES, ...this.excludeFiles]
+      const ignores = [...TRACE_IGNORES, ...this.traceIgnores]
 
       const ignoreFn = (path: string) => {
         return isMatch(path, ignores, { contains: true, dot: true })
@@ -463,7 +480,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
             let reasons: NodeFileTraceReasons
             const ignores = [
               ...TRACE_IGNORES,
-              ...this.excludeFiles,
+              ...this.traceIgnores,
               '**/node_modules/**',
             ]
             const ignoreFn = (path: string) => {
