@@ -42,6 +42,7 @@ import {
   NEXT_ROUTER_PREFETCH,
   NEXT_ROUTER_STATE_TREE,
   RSC,
+  FLIGHT_PARAMETERS,
 } from '../client/components/app-router-headers'
 import type { StaticGenerationStore } from '../client/components/static-generation-async-storage'
 
@@ -374,7 +375,7 @@ function useFlightResponse(
  * This is only used for renderToHTML, the Flight response does not need additional wrappers.
  */
 function createServerComponentRenderer(
-  ComponentToRender: React.ComponentType,
+  ComponentToRender: any,
   ComponentMod: {
     renderToReadableStream: any
     __next_app_webpack_require__?: any
@@ -703,12 +704,6 @@ function getScriptNonceFromHeader(cspHeaderValue: string): string | undefined {
 
   return nonce
 }
-
-export const FLIGHT_PARAMETERS = [
-  [RSC],
-  [NEXT_ROUTER_STATE_TREE],
-  [NEXT_ROUTER_PREFETCH],
-] as const
 
 function headersWithoutFlight(headers: IncomingHttpHeaders) {
   const newHeaders = { ...headers }
@@ -1447,21 +1442,21 @@ export async function renderToHTMLOrFlight(
             isPrefetch && !Boolean(loaderTreeToFilter[2].loading)
               ? null
               : // Create component tree using the slice of the loaderTree
-                React.createElement(
-                  (
-                    await createComponentTree(
-                      // This ensures flightRouterPath is valid and filters down the tree
-                      {
-                        createSegmentPath: (child) => {
-                          return createSegmentPath(child)
-                        },
-                        loaderTree: loaderTreeToFilter,
-                        parentParams: currentParams,
-                        firstItem: isFirst,
-                      }
-                    )
-                  ).Component
-                ),
+                // @ts-expect-error TODO-APP: fix async component type
+                React.createElement(async () => {
+                  const { Component } = await createComponentTree(
+                    // This ensures flightRouterPath is valid and filters down the tree
+                    {
+                      createSegmentPath: (child) => {
+                        return createSegmentPath(child)
+                      },
+                      loaderTree: loaderTreeToFilter,
+                      parentParams: currentParams,
+                      firstItem: isFirst,
+                    }
+                  )
+                  return <Component />
+                }),
             isPrefetch && !Boolean(loaderTreeToFilter[2].loading) ? null : (
               <>{rscPayloadHead}</>
             ),
@@ -1534,14 +1529,6 @@ export async function renderToHTMLOrFlight(
 
     // Below this line is handling for rendering to HTML.
 
-    // Create full component tree from root to leaf.
-    const { Component: ComponentTree } = await createComponentTree({
-      createSegmentPath: (child) => child,
-      loaderTree: loaderTree,
-      parentParams: {},
-      firstItem: true,
-    })
-
     // AppRouter is provided by next-app-loader
     const AppRouter =
       ComponentMod.AppRouter as typeof import('../client/components/app-router').default
@@ -1584,7 +1571,14 @@ export async function renderToHTMLOrFlight(
      * using Flight which can then be rendered to HTML.
      */
     const ServerComponentsRenderer = createServerComponentRenderer(
-      () => {
+      async () => {
+        // Create full component tree from root to leaf.
+        const { Component: ComponentTree } = await createComponentTree({
+          createSegmentPath: (child) => child,
+          loaderTree: loaderTree,
+          parentParams: {},
+          firstItem: true,
+        })
         const initialTree = createFlightRouterStateFromLoaderTree(loaderTree)
 
         return (
