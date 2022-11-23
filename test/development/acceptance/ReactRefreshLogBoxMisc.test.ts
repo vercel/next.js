@@ -4,7 +4,7 @@ import { NextInstance } from 'test/lib/next-modes/base'
 
 // TODO: re-enable these tests after figuring out what is causing
 // them to be so unreliable in CI
-describe.skip('ReactRefreshLogBox', () => {
+describe.skip('ReactRefreshLogBox misc', () => {
   let next: NextInstance
 
   beforeAll(async () => {

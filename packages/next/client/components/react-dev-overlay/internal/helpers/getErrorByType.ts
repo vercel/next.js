@@ -3,7 +3,6 @@ import {
   ACTION_UNHANDLED_REJECTION,
 } from '../error-overlay-reducer'
 import { SupportedErrorEvent } from '../container/Errors'
-import { getErrorSource } from './nodeStackFrames'
 import { getOriginalStackFrames, OriginalStackFrame } from './stack-frame'
 
 export type ReadyRuntimeError = {
@@ -26,7 +25,6 @@ export async function getErrorByType(
         error: event.reason,
         frames: await getOriginalStackFrames(
           event.frames,
-          getErrorSource(event.reason),
           event.reason.toString()
         ),
       }

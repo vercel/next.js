@@ -41,9 +41,10 @@ function getModuleById(
   id: string | undefined,
   compilation: webpack.Compilation
 ) {
-  return [...compilation.modules].find(
-    (searchModule) => getModuleId(compilation, searchModule) === id
-  )
+  return [...compilation.modules].find((searchModule) => {
+    const moduleId = getModuleId(compilation, searchModule)
+    return moduleId === id
+  })
 }
 
 function findModuleNotFoundFromError(errorMessage: string | undefined) {
@@ -124,33 +125,66 @@ export async function createOriginalStackFrame({
   line,
   column,
   source,
+  moduleId,
   modulePath,
   rootDirectory,
   frame,
   errorMessage,
-  compilation,
+  clientCompilation,
+  serverCompilation,
+  edgeCompilation,
 }: {
   line: number
   column: number | null
   source: any
+  moduleId?: string
   modulePath?: string
   rootDirectory: string
   frame: any
   errorMessage?: string
-  compilation?: webpack.Compilation
+  clientCompilation?: webpack.Compilation
+  serverCompilation?: webpack.Compilation
+  edgeCompilation?: webpack.Compilation
 }): Promise<OriginalStackFrameResponse | null> {
   const moduleNotFound = findModuleNotFoundFromError(errorMessage)
-  const result =
-    moduleNotFound && compilation
-      ? findOriginalSourcePositionAndContentFromCompilation(
-          modulePath,
-          moduleNotFound,
-          compilation
-        )
-      : await findOriginalSourcePositionAndContent(source, {
-          line,
-          column,
-        })
+  const result = await (async () => {
+    if (moduleNotFound) {
+      let moduleNotFoundResult = null
+
+      if (clientCompilation) {
+        moduleNotFoundResult =
+          findOriginalSourcePositionAndContentFromCompilation(
+            moduleId,
+            moduleNotFound,
+            clientCompilation
+          )
+      }
+
+      if (moduleNotFoundResult === null && serverCompilation) {
+        moduleNotFoundResult =
+          findOriginalSourcePositionAndContentFromCompilation(
+            moduleId,
+            moduleNotFound,
+            serverCompilation
+          )
+      }
+
+      if (moduleNotFoundResult === null && edgeCompilation) {
+        moduleNotFoundResult =
+          findOriginalSourcePositionAndContentFromCompilation(
+            moduleId,
+            moduleNotFound,
+            edgeCompilation
+          )
+      }
+
+      return moduleNotFoundResult
+    }
+    return await findOriginalSourcePositionAndContent(source, {
+      line,
+      column,
+    })
+  })()
 
   if (result === null) {
     return null
@@ -164,7 +198,7 @@ export async function createOriginalStackFrame({
 
   const filePath = path.resolve(
     rootDirectory,
-    modulePath || getSourcePath(sourcePosition.source)
+    getSourcePath(sourcePosition.source || modulePath)
   )
 
   const originalFrame: StackFrame = {
@@ -173,7 +207,11 @@ export async function createOriginalStackFrame({
       : sourcePosition.source,
     lineNumber: sourcePosition.line,
     column: sourcePosition.column,
-    methodName: frame.methodName, // TODO: resolve original method name (?)
+    methodName:
+      sourcePosition.name ||
+      // default is not a valid identifier in JS so webpack uses a custom variable when it's an unnamed default export
+      // Resolve it back to `default` for the method name if the source position didn't have the method.
+      frame.methodName.replace('__WEBPACK_DEFAULT_EXPORT__', 'default'),
     arguments: [],
   }
 
@@ -268,20 +306,43 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
         /^(webpack-internal:\/\/\/|file:\/\/)/,
         ''
       )
+      const modulePath = frame.file.replace(
+        /^(webpack-internal:\/\/\/|file:\/\/)(\(.*\)\/)?/,
+        ''
+      )
 
       let source: Source
-      const compilation =
-        frame.isEdgeServer === 'true'
-          ? options.edgeServerStats()?.compilation
-          : frame.isServer === 'true'
-          ? options.serverStats()?.compilation
-          : options.stats()?.compilation
+      const clientCompilation = options.stats()?.compilation
+      const serverCompilation = options.serverStats()?.compilation
+      const edgeCompilation = options.edgeServerStats()?.compilation
       try {
+        // Try Client Compilation first
+        // In `pages` the majority of modules can be resolved from there
+        // In `app` it depends on if it's a server / client component and when the code throws. E.g. during HTML rendering it's the server/edge compilation.
         source = await getSourceById(
           frame.file.startsWith('file:'),
           moduleId,
-          compilation
+          clientCompilation
         )
+        // Try Server Compilation
+        // In `pages` this could be something imported in getServerSideProps/getStaticProps as the code for those is tree-shaken.
+        // In `app` this finds server components and code that was imported from a server component. It also covers when client component code throws during HTML rendering.
+        if (source === null) {
+          source = await getSourceById(
+            frame.file.startsWith('file:'),
+            moduleId,
+            serverCompilation
+          )
+        }
+        // Try Edge Server Compilation
+        // Both cases are the same as Server Compilation, main difference is that it covers `runtime: 'edge'` pages/app routes.
+        if (source === null) {
+          source = await getSourceById(
+            frame.file.startsWith('file:'),
+            moduleId,
+            edgeCompilation
+          )
+        }
       } catch (err) {
         console.log('Failed to get source map:', err)
         res.statusCode = 500
@@ -310,10 +371,13 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
           column: frameColumn,
           source,
           frame,
-          modulePath: moduleId,
+          moduleId,
+          modulePath,
           rootDirectory: options.rootDirectory,
           errorMessage: frame.errorMessage,
-          compilation,
+          clientCompilation,
+          serverCompilation,
+          edgeCompilation,
         })
 
         if (originalStackFrameResponse === null) {

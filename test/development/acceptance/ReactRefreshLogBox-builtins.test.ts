@@ -2,7 +2,7 @@ import { sandbox } from './helpers'
 import { createNext } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 
-describe('ReactRefreshLogBox', () => {
+describe('ReactRefreshLogBox builtins', () => {
   let next: NextInstance
 
   beforeAll(async () => {
@@ -13,7 +13,6 @@ describe('ReactRefreshLogBox', () => {
   })
   afterAll(() => next.destroy())
 
-  // Module trace is only available with webpack 5
   test('Node.js builtins', async () => {
     const { session, cleanup } = await sandbox(
       next,

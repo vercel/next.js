@@ -1063,17 +1063,23 @@ export default class DevServer extends Server {
           )
 
           const src = getErrorSource(err as Error)
-          const compilation = (
-            src === COMPILER_NAMES.edgeServer
-              ? this.hotReloader?.edgeServerStats?.compilation
-              : this.hotReloader?.serverStats?.compilation
-          )!
 
-          const source = await getSourceById(
+          // Try to get source from server compilation
+          let source = await getSourceById(
             !!frame.file?.startsWith(sep) || !!frame.file?.startsWith('file:'),
             moduleId,
-            compilation
+            this.hotReloader?.serverStats?.compilation
           )
+
+          // If the source can't be found in the server compilation the edge compilation will be checked.
+          if (source === null) {
+            source = await getSourceById(
+              !!frame.file?.startsWith(sep) ||
+                !!frame.file?.startsWith('file:'),
+              moduleId,
+              this.hotReloader?.edgeServerStats?.compilation
+            )
+          }
 
           const originalFrame = await createOriginalStackFrame({
             line: frame.lineNumber!,
@@ -1083,7 +1089,8 @@ export default class DevServer extends Server {
             modulePath: moduleId,
             rootDirectory: this.dir,
             errorMessage: err.message,
-            compilation,
+            serverCompilation: this.hotReloader?.serverStats?.compilation,
+            edgeCompilation: this.hotReloader?.edgeServerStats?.compilation,
           })
 
           if (originalFrame) {
