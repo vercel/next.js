@@ -19,7 +19,7 @@ If you have questions about anything related to Next.js, you're always welcome t
 
 ## Automatic Setup
 
-We recommend creating a new Next.js app using `create-next-app`, which sets up everything automatically for you. To create a project, run:
+We recommend creating a new Next.js app using `create-next-app`, which sets up everything automatically for you. (You don't need to create an empty directory. `create-next-app` will make one for you.) To create a project, run:
 
 ```bash
 npx create-next-app@latest
