@@ -55,8 +55,8 @@ tracing = { version = "0.1.37", features = ["release_max_level_info"] }
 tracing-futures = "0.2.5"
 tracing-subscriber = "0.3.9"
 tracing-chrome = "0.5.0"
-next-dev = { git = "https://github.com/vercel/turbo.git", rev = "a9f36746cc4fa715c3527714e712b80ded988862", features = ["serializable"] }
-node-file-trace = { git = "https://github.com/vercel/turbo.git", rev = "a9f36746cc4fa715c3527714e712b80ded988862", default-features = false, features = ["node-api"] }
+next-dev = { git = "https://github.com/vercel/turbo.git", rev = "5f8536fd8c02707a7854053e350e3e3e666912c5", features = ["serializable"] }
+node-file-trace = { git = "https://github.com/vercel/turbo.git", rev = "5f8536fd8c02707a7854053e350e3e3e666912c5", default-features = false, features = ["node-api"] }
 mdxjs = { version = "0.1.1", features = ["serializable"] }
 # There are few build targets we can't use native-tls which default features rely on,
 # allow to specify alternative (rustls) instead via features.
