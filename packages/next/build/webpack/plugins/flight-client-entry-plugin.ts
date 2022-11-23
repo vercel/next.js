@@ -203,7 +203,9 @@ export class FlightClientEntryPlugin {
           : entryRequest
 
         // Replace file suffix as `.js` will be added.
-        const bundlePath = relativeRequest.replace(/\.(js|ts)x?$/, '')
+        const bundlePath = relativeRequest
+          .replace(/\.(js|ts)x?$/, '')
+          .replace(/^src[\\/]/, '')
 
         promises.push(
           this.injectClientEntryAndSSRModules({

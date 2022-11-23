@@ -2,9 +2,16 @@ import { useCallback, useEffect, useState } from 'react'
 import videojs from 'video.js'
 import 'videojs-youtube'
 
-const Player = (props) => {
-  const [videoEl, setVideoEl] = useState(null)
-  const onVideo = useCallback((el) => {
+interface PlayerProps {
+  techOrder: string[]
+  autoplay: boolean
+  controls: boolean
+  sources: { src: string; type: string }[]
+}
+
+export default function Player(props: PlayerProps) {
+  const [videoEl, setVideoEl] = useState<HTMLVideoElement | null>(null)
+  const onVideo = useCallback((el: HTMLVideoElement) => {
     setVideoEl(el)
   }, [])
 
@@ -25,5 +32,3 @@ const Player = (props) => {
     </>
   )
 }
-
-export default Player
