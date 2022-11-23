@@ -3,6 +3,8 @@ import type {
   ClientComponentImports,
   NextFlightClientEntryLoaderOptions,
 } from '../loaders/next-flight-client-entry-loader'
+import type { FlightCSSManifest } from './flight-manifest-plugin'
+
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { stringify } from 'querystring'
 import path from 'path'
@@ -19,7 +21,6 @@ import {
   EDGE_RUNTIME_WEBPACK,
   FLIGHT_SERVER_CSS_MANIFEST,
 } from '../../../shared/lib/constants'
-import { FlightCSSManifest } from './flight-manifest-plugin'
 import { ASYNC_CLIENT_MODULES } from './flight-manifest-plugin'
 import { isClientComponentModule, regexCSS } from '../loaders/utils'
 import { traverseModules } from '../utils'
@@ -36,9 +37,6 @@ export const injectedClientEntries = new Map()
 
 export const serverModuleIds = new Map<string, string | number>()
 export const edgeServerModuleIds = new Map<string, string | number>()
-
-// TODO-APP: move CSS manifest generation to the flight manifest plugin.
-const flightCSSManifest: FlightCSSManifest = {}
 
 export class FlightClientEntryPlugin {
   dev: boolean
@@ -111,6 +109,9 @@ export class FlightClientEntryPlugin {
         }
       }
 
+      edgeServerModuleIds.clear()
+      serverModuleIds.clear()
+
       traverseModules(compilation, (mod, _chunk, _chunkGroup, modId) => {
         recordModule(modId + '', mod)
       })
@@ -121,6 +122,9 @@ export class FlightClientEntryPlugin {
     const promises: Array<
       ReturnType<typeof this.injectClientEntryAndSSRModules>
     > = []
+    let flightCSSManifest: FlightCSSManifest = {}
+
+    injectedClientEntries.clear()
 
     // Loop over all the entry modules.
     function forEachEntryModule(
@@ -234,6 +238,7 @@ export class FlightClientEntryPlugin {
     // by the certain chunk.
     compilation.hooks.afterOptimizeModules.tap(PLUGIN_NAME, () => {
       const cssImportsForChunk: Record<string, string[]> = {}
+      flightCSSManifest = {}
 
       function collectModule(entryName: string, mod: any) {
         const resource = mod.resource
