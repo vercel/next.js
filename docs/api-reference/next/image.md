@@ -98,7 +98,7 @@ export default function Page() {
 Must be one of the following:
 
 1. A [locally imported](/docs/basic-features/image-optimization.md#local-images) image file. Or,
-2. A path string. This can be either an external URL or an internal path.
+2. A path string. This can be either an absolute external URL or an internal path depending on the [loader](#loader) prop.
 
 > **Good to know**: When using an external URL, you must add it to [remotePatterns](##remotepatterns) option in `next.config.js`.
 
@@ -132,7 +132,7 @@ The Image Component accepts a number of optional properties.
 
 A custom function used to resolve image URLs.
 
-A `loader` is a function that returns a URL string for the image, it accepts the following parameters: `src`, `width`, `quality`.
+A `loader` is a function that returns a URL string for the image, it accepts the following parameters: [`src`](#src), [`width`](#width), [`quality`](#quality).
 
 ```jsx
 import Image from 'next/image'
@@ -145,7 +145,7 @@ export default function Page({ imageLoader }) {
   return (
     <Image
       loader={imageLoader}
-      src="/me.png"
+      src="me.png"
       alt="Picture of the author"
       width={500}
       height={500}
@@ -162,8 +162,7 @@ fill={true} // {true} | {false}
 
 A boolean that causes the image to fill the parent element instead of setting [`width`](#width) and [`height`](#height).
 
-By default, the img element will automatically be assigned the `position: "absolute"` style.
-The parent element **must** assign `position: "relative"`, `position: "fixed"`, or `position: "absolute"` style.
+The parent element wrapping the `<Image>` **must** assign `position: "relative"`, `position: "fixed"`, or `position: "absolute"` style when using `fill`. By default, the img element will automatically be assigned the `position: "absolute"` style.
 
 The default image fit behavior will stretch the image to fit the container. You may prefer to set `object-fit: "contain"` for an image which is letterboxed to fit the container and preserve aspect ratio.
 
@@ -186,13 +185,15 @@ For example, if you know your styling will cause an image to be full-width on mo
 import Image from 'next/image'
 
 export default function Page() {
-  ;<div className="grid-element">
-    <Image
-      src="/example.png"
-      layout="fill"
-      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-    />
-  </div>
+  return (
+    <div className="grid-element">
+      <Image
+        fill
+        src="/example.png"
+        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+      />
+    </div>
+  )
 }
 ```
 
@@ -224,7 +225,7 @@ The `priority` property should only be used when the image is visible above the 
 #### `placeholder`
 
 ```js
-placeholder = 'empty' // {empty} | {blur}
+placeholder = 'empty' // "empty" | "blur"
 ```
 
 A placeholder to use while the image is loading. Possible values are `blur` or `empty`. Defaults to `empty`.
@@ -261,7 +262,7 @@ Also keep in mind that the required `width` and `height` props can interact with
 #### `onLoadingComplete`
 
 ```jsx
-<Image onLoadingComplete={callbackFn} />
+<Image onLoadingComplete={(img) => console.log(img.naturalWidth)} />
 ```
 
 A callback function that is invoked once the image is completely loaded and the [placeholder](#placeholder) has been removed.
@@ -271,7 +272,7 @@ The callback function will be called with one argument, a reference to the under
 #### `onLoad`
 
 ```jsx
-<Image onLoad={callbackFn} />
+<Image onLoad={(e) => console.log(e.target.naturalWidth)} />
 ```
 
 A callback function that is invoked when the image is loaded.
@@ -283,7 +284,7 @@ Instead, use [`onLoadingComplete`](#onloadingcomplete).
 #### `onError`
 
 ```jsx
-<Image onError={callbackFn} />
+<Image onError={(e) => console.error(e.target.id)} />
 ```
 
 A callback function that is invoked if the image fails to load.
@@ -303,7 +304,7 @@ the viewport.
 
 When `eager`, load the image immediately.
 
-Learn more about the [loading attribute](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#attr-loading)
+Learn more about the [`loading` attribute](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#attr-loading)
 
 #### `blurDataURL`
 
@@ -405,7 +406,7 @@ The `**` syntax does not work in the middle of the pattern.
 
 Similar to [`remotePatterns`](##remotepatterns), the `domains` configuration can be used to provide a list of allowed hostnames for external images.
 
-However, the `domains` configuration **does not support wildcard pattern** matching and it cannot restrict protocol, port, or pathname.
+However, the `domains` configuration **does not support wildcard pattern matching** and it cannot restrict protocol, port, or pathname.
 
 Below is an example of the `domains` property in the `next.config.js` file:
 
@@ -416,6 +417,29 @@ module.exports = {
   },
 }
 ```
+
+### Loader Configuration
+
+If you want to use a cloud provider to optimize images instead of using the Next.js built-in Image Optimization API, you can configure the `loaderFile` in your `next.config.js` like the following:
+
+```js
+module.exports = {
+  images: {
+    loader: 'custom',
+    loaderFile: './my/image/loader.js',
+  },
+}
+```
+
+This must point to a file relative to the root of your Next.js application. The file must export a default function that returns a string, for example:
+
+```js
+export default function myImageLoader({ src, width, quality }) {
+  return `https://example.com/${src}?w=${width}&q=${quality || 75}`
+}
+```
+
+Alternatively, you can use the [`loader` prop](#loader) to configure each instance of `next/image`.
 
 ## Advanced Configuration Options
 
