@@ -1,6 +1,6 @@
 /**
- * @license React
- * react-dom-server-legacy.browser.development.js
+* @license React
+ * react-dom-server.bun.development.js
  *
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
@@ -10,12 +10,8 @@
 
 'use strict';
 
-if (process.env.NODE_ENV !== "production") {
-  (function() {
-'use strict';
-
-var React = require('next/dist/compiled/react');
-var ReactDOM = require('next/dist/compiled/react-dom');
+var React = require('react');
+var ReactDOM = require('react-dom');
 
 var ReactVersion = '18.3.0-next-2655c9354-20221121';
 
@@ -79,14 +75,18 @@ function scheduleWork(callback) {
 }
 function beginWriting(destination) {}
 function writeChunk(destination, chunk) {
-  writeChunkAndReturn(destination, chunk);
+  if (chunk.length === 0) {
+    return;
+  }
+
+  destination.write(chunk);
 }
 function writeChunkAndReturn(destination, chunk) {
-  return destination.push(chunk);
+  return !!destination.write(chunk);
 }
 function completeWriting(destination) {}
 function close(destination) {
-  destination.push(null);
+  destination.end();
 }
 function stringToChunk(content) {
   return content;
@@ -98,8 +98,19 @@ function clonePrecomputedChunk(chunk) {
   return chunk;
 }
 function closeWithError(destination, error) {
-  // $FlowFixMe: This is an Error object or the destination accepts other types.
-  destination.destroy(error);
+  // $FlowFixMe[method-unbinding]
+  if (typeof destination.error === 'function') {
+    // $FlowFixMe: This is an Error object or the destination accepts other types.
+    destination.error(error);
+  } else {
+    // Earlier implementations doesn't support this method. In that environment you're
+    // supposed to throw from a promise returned but we don't return a promise in our
+    // approach. We could fork this implementation but this is environment is an edge
+    // case to begin with. It's even less common to run this in an older environment.
+    // Even then, this is not where errors are supposed to happen and they get reported
+    // to a global callback in addition to this anyway. So it's fine just to close this.
+    destination.close();
+  }
 }
 
 /*
@@ -2952,6 +2963,11 @@ function createFormatContext(insertionMode, selectedValue, noscriptTagInScope) {
     noscriptTagInScope: noscriptTagInScope
   };
 }
+
+function createRootFormatContext(namespaceURI) {
+  var insertionMode = namespaceURI === 'http://www.w3.org/2000/svg' ? SVG_MODE : namespaceURI === 'http://www.w3.org/1998/Math/MathML' ? MATHML_MODE : ROOT_HTML_MODE;
+  return createFormatContext(insertionMode, null, false);
+}
 function getChildFormatContext(parentContext, type, props) {
   switch (type) {
     case 'noscript':
@@ -5088,82 +5104,6 @@ function writeStyleResourceAttribute(destination, name, value) {
   writeChunk(destination, stringToChunk(escapeJSObjectForInstructionScripts(attributeValue)));
 }
 
-function createResponseState$1(generateStaticMarkup, identifierPrefix) {
-  var responseState = createResponseState(identifierPrefix, undefined);
-  return {
-    // Keep this in sync with ReactDOMServerFormatConfig
-    bootstrapChunks: responseState.bootstrapChunks,
-    startInlineScript: responseState.startInlineScript,
-    placeholderPrefix: responseState.placeholderPrefix,
-    segmentPrefix: responseState.segmentPrefix,
-    boundaryPrefix: responseState.boundaryPrefix,
-    idPrefix: responseState.idPrefix,
-    nextSuspenseID: responseState.nextSuspenseID,
-    sentCompleteSegmentFunction: responseState.sentCompleteSegmentFunction,
-    sentCompleteBoundaryFunction: responseState.sentCompleteBoundaryFunction,
-    sentClientRenderFunction: responseState.sentClientRenderFunction,
-    sentStyleInsertionFunction: responseState.sentStyleInsertionFunction,
-    // This is an extra field for the legacy renderer
-    generateStaticMarkup: generateStaticMarkup
-  };
-}
-function createRootFormatContext() {
-  return {
-    insertionMode: HTML_MODE,
-    // We skip the root mode because we don't want to emit the DOCTYPE in legacy mode.
-    selectedValue: null,
-    noscriptTagInScope: false
-  };
-}
-function pushTextInstance$1(target, text, responseState, textEmbedded) {
-  if (responseState.generateStaticMarkup) {
-    target.push(stringToChunk(escapeTextForBrowser(text)));
-    return false;
-  } else {
-    return pushTextInstance(target, text, responseState, textEmbedded);
-  }
-}
-function pushSegmentFinale$1(target, responseState, lastPushedText, textEmbedded) {
-  if (responseState.generateStaticMarkup) {
-    return;
-  } else {
-    return pushSegmentFinale(target, responseState, lastPushedText, textEmbedded);
-  }
-}
-function writeStartCompletedSuspenseBoundary$1(destination, responseState) {
-  if (responseState.generateStaticMarkup) {
-    // A completed boundary is done and doesn't need a representation in the HTML
-    // if we're not going to be hydrating it.
-    return true;
-  }
-
-  return writeStartCompletedSuspenseBoundary(destination);
-}
-function writeStartClientRenderedSuspenseBoundary$1(destination, responseState, // flushing these error arguments are not currently supported in this legacy streaming format.
-errorDigest, errorMessage, errorComponentStack) {
-  if (responseState.generateStaticMarkup) {
-    // A client rendered boundary is done and doesn't need a representation in the HTML
-    // since we'll never hydrate it. This is arguably an error in static generation.
-    return true;
-  }
-
-  return writeStartClientRenderedSuspenseBoundary(destination, responseState, errorDigest, errorMessage, errorComponentStack);
-}
-function writeEndCompletedSuspenseBoundary$1(destination, responseState) {
-  if (responseState.generateStaticMarkup) {
-    return true;
-  }
-
-  return writeEndCompletedSuspenseBoundary(destination);
-}
-function writeEndClientRenderedSuspenseBoundary$1(destination, responseState) {
-  if (responseState.generateStaticMarkup) {
-    return true;
-  }
-
-  return writeEndClientRenderedSuspenseBoundary(destination);
-}
-
 // ATTENTION
 // When adding new symbols to this file,
 // Please consider also adding to 'react-devtools-shared/src/backend/ReactSymbols'
@@ -5815,13 +5755,13 @@ var currentActiveSnapshot = null;
 
 function popNode(prev) {
   {
-    prev.context._currentValue2 = prev.parentValue;
+    prev.context._currentValue = prev.parentValue;
   }
 }
 
 function pushNode(next) {
   {
-    next.context._currentValue2 = next.value;
+    next.context._currentValue = next.value;
   }
 }
 
@@ -5939,15 +5879,15 @@ function pushProvider(context, nextValue) {
   var prevValue;
 
   {
-    prevValue = context._currentValue2;
-    context._currentValue2 = nextValue;
+    prevValue = context._currentValue;
+    context._currentValue = nextValue;
 
     {
-      if (context._currentRenderer2 !== undefined && context._currentRenderer2 !== null && context._currentRenderer2 !== rendererSigil) {
+      if (context._currentRenderer !== undefined && context._currentRenderer !== null && context._currentRenderer !== rendererSigil) {
         error('Detected multiple renderers concurrently rendering the ' + 'same context provider. This is currently unsupported.');
       }
 
-      context._currentRenderer2 = rendererSigil;
+      context._currentRenderer = rendererSigil;
     }
   }
 
@@ -5976,20 +5916,20 @@ function popProvider(context) {
   }
 
   {
-    var _value = prevSnapshot.parentValue;
+    var value = prevSnapshot.parentValue;
 
-    if (_value === REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED) {
-      prevSnapshot.context._currentValue2 = prevSnapshot.context._defaultValue;
+    if (value === REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED) {
+      prevSnapshot.context._currentValue = prevSnapshot.context._defaultValue;
     } else {
-      prevSnapshot.context._currentValue2 = _value;
+      prevSnapshot.context._currentValue = value;
     }
 
     {
-      if (context._currentRenderer2 !== undefined && context._currentRenderer2 !== null && context._currentRenderer2 !== rendererSigil) {
+      if (context._currentRenderer !== undefined && context._currentRenderer !== null && context._currentRenderer !== rendererSigil) {
         error('Detected multiple renderers concurrently rendering the ' + 'same context provider. This is currently unsupported.');
       }
 
-      context._currentRenderer2 = rendererSigil;
+      context._currentRenderer = rendererSigil;
     }
   }
 
@@ -5999,7 +5939,7 @@ function getActiveContext() {
   return currentActiveSnapshot;
 }
 function readContext(context) {
-  var value =  context._currentValue2;
+  var value =  context._currentValue ;
   return value;
 }
 
@@ -7578,7 +7518,7 @@ function renderSuspenseBoundary(request, task, props) {
   try {
     // We use the safe form because we don't handle suspending here. Only error handling.
     renderNode(request, task, content);
-    pushSegmentFinale$1(contentRootSegment.chunks, request.responseState, contentRootSegment.lastPushedText, contentRootSegment.textEmbedded);
+    pushSegmentFinale(contentRootSegment.chunks, request.responseState, contentRootSegment.lastPushedText, contentRootSegment.textEmbedded);
     contentRootSegment.status = COMPLETED;
 
     if (enableFloat) {
@@ -8222,13 +8162,13 @@ function renderNodeDestructiveImpl(request, task, prevThenableState, node) {
 
   if (typeof node === 'string') {
     var segment = task.blockedSegment;
-    segment.lastPushedText = pushTextInstance$1(task.blockedSegment.chunks, node, request.responseState, segment.lastPushedText);
+    segment.lastPushedText = pushTextInstance(task.blockedSegment.chunks, node, request.responseState, segment.lastPushedText);
     return;
   }
 
   if (typeof node === 'number') {
     var _segment = task.blockedSegment;
-    _segment.lastPushedText = pushTextInstance$1(task.blockedSegment.chunks, '' + node, request.responseState, _segment.lastPushedText);
+    _segment.lastPushedText = pushTextInstance(task.blockedSegment.chunks, '' + node, request.responseState, _segment.lastPushedText);
     return;
   }
 
@@ -8584,7 +8524,7 @@ function retryTask(request, task) {
     var prevThenableState = task.thenableState;
     task.thenableState = null;
     renderNodeDestructive(request, task, prevThenableState, task.node);
-    pushSegmentFinale$1(segment.chunks, request.responseState, segment.lastPushedText, segment.textEmbedded);
+    pushSegmentFinale(segment.chunks, request.responseState, segment.lastPushedText, segment.textEmbedded);
     task.abortSet.delete(task);
     segment.status = COMPLETED;
     finishedTask(request, task.blockedBoundary, segment);
@@ -8754,10 +8694,10 @@ function flushSegment(request, destination, segment) {
   if (boundary.forceClientRender) {
     // Emit a client rendered suspense boundary wrapper.
     // We never queue the inner boundary so we'll never emit its content or partial segments.
-    writeStartClientRenderedSuspenseBoundary$1(destination, request.responseState, boundary.errorDigest, boundary.errorMessage, boundary.errorComponentStack); // Flush the fallback.
+    writeStartClientRenderedSuspenseBoundary(destination, request.responseState, boundary.errorDigest, boundary.errorMessage, boundary.errorComponentStack); // Flush the fallback.
 
     flushSubtree(request, destination, segment);
-    return writeEndClientRenderedSuspenseBoundary$1(destination, request.responseState);
+    return writeEndClientRenderedSuspenseBoundary(destination, request.responseState);
   } else if (boundary.pendingTasks > 0) {
     // This boundary is still loading. Emit a pending suspense boundary wrapper.
     // Assign an ID to refer to the future content by.
@@ -8794,7 +8734,7 @@ function flushSegment(request, destination, segment) {
     } // We can inline this boundary's content as a complete boundary.
 
 
-    writeStartCompletedSuspenseBoundary$1(destination, request.responseState);
+    writeStartCompletedSuspenseBoundary(destination, request.responseState);
     var completedSegments = boundary.completedSegments;
 
     if (completedSegments.length !== 1) {
@@ -8803,7 +8743,7 @@ function flushSegment(request, destination, segment) {
 
     var contentSegment = completedSegments[0];
     flushSegment(request, destination, contentSegment);
-    return writeEndCompletedSuspenseBoundary$1(destination, request.responseState);
+    return writeEndCompletedSuspenseBoundary(destination, request.responseState);
   }
 }
 
@@ -9073,73 +9013,72 @@ function abort(request, reason) {
   }
 }
 
-function onError() {// Non-fatal errors are ignored.
-}
+function renderToReadableStream(children, options) {
+  return new Promise(function (resolve, reject) {
+    var onFatalError;
+    var onAllReady;
+    var allReady = new Promise(function (res, rej) {
+      onAllReady = res;
+      onFatalError = rej;
+    });
 
-function renderToStringImpl(children, options, generateStaticMarkup, abortReason) {
-  var didFatal = false;
-  var fatalError = null;
-  var result = '';
-  var destination = {
-    push: function (chunk) {
-      if (chunk !== null) {
-        result += chunk;
-      }
+    function onShellReady() {
+      var stream = new ReadableStream({
+        type: 'direct',
+        pull: function (controller) {
+          // $FlowIgnore
+          startFlowing(request, controller);
+        },
+        cancel: function (reason) {
+          abort(request);
+        }
+      }, // $FlowFixMe size() methods are not allowed on byte streams.
+      {
+        highWaterMark: 2048
+      }); // TODO: Move to sub-classing ReadableStream.
 
-      return true;
-    },
-    destroy: function (error) {
-      didFatal = true;
-      fatalError = error;
+      stream.allReady = allReady;
+      resolve(stream);
     }
-  };
-  var readyToStream = false;
 
-  function onShellReady() {
-    readyToStream = true;
-  }
+    function onShellError(error) {
+      // If the shell errors the caller of `renderToReadableStream` won't have access to `allReady`.
+      // However, `allReady` will be rejected by `onFatalError` as well.
+      // So we need to catch the duplicate, uncatchable fatal error in `allReady` to prevent a `UnhandledPromiseRejection`.
+      allReady.catch(function () {});
+      reject(error);
+    }
 
-  var request = createRequest(children, createResponseState$1(generateStaticMarkup, options ? options.identifierPrefix : undefined), createRootFormatContext(), Infinity, onError, undefined, onShellReady, undefined, undefined);
-  startWork(request); // If anything suspended and is still pending, we'll abort it before writing.
-  // That way we write only client-rendered boundaries from the start.
+    var request = createRequest(children, createResponseState(options ? options.identifierPrefix : undefined, options ? options.nonce : undefined, options ? options.bootstrapScriptContent : undefined, options ? options.bootstrapScripts : undefined, options ? options.bootstrapModules : undefined, options ? options.unstable_externalRuntimeSrc : undefined), createRootFormatContext(options ? options.namespaceURI : undefined), options ? options.progressiveChunkSize : undefined, options ? options.onError : undefined, onAllReady, onShellReady, onShellError, onFatalError);
 
-  abort(request, abortReason);
-  startFlowing(request, destination);
+    if (options && options.signal) {
+      var signal = options.signal;
 
-  if (didFatal && fatalError !== abortReason) {
-    throw fatalError;
-  }
+      if (signal.aborted) {
+        abort(request, signal.reason);
+      } else {
+        var listener = function () {
+          abort(request, signal.reason);
+          signal.removeEventListener('abort', listener);
+        };
 
-  if (!readyToStream) {
-    // Note: This error message is the one we use on the client. It doesn't
-    // really make sense here. But this is the legacy server renderer, anyway.
-    // We're going to delete it soon.
-    throw new Error('A component suspended while responding to synchronous input. This ' + 'will cause the UI to be replaced with a loading indicator. To fix, ' + 'updates that suspend should be wrapped with startTransition.');
-  }
+        signal.addEventListener('abort', listener);
+      }
+    }
 
-  return result;
-}
-
-function renderToString(children, options) {
-  return renderToStringImpl(children, options, false, 'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToReadableStream" which supports Suspense on the server');
-}
-
-function renderToStaticMarkup(children, options) {
-  return renderToStringImpl(children, options, true, 'The server used "renderToStaticMarkup" which does not support Suspense. If you intended to have the server wait for the suspended component please switch to "renderToReadableStream" which supports Suspense on the server');
+    startWork(request);
+  });
 }
 
 function renderToNodeStream() {
-  throw new Error('ReactDOMServer.renderToNodeStream(): The streaming API is not available ' + 'in the browser. Use ReactDOMServer.renderToString() instead.');
+  throw new Error('ReactDOMServer.renderToNodeStream(): The Node Stream API is not available ' + 'in Bun. Use ReactDOMServer.renderToReadableStream() instead.');
 }
 
 function renderToStaticNodeStream() {
-  throw new Error('ReactDOMServer.renderToStaticNodeStream(): The streaming API is not available ' + 'in the browser. Use ReactDOMServer.renderToStaticMarkup() instead.');
+  throw new Error('ReactDOMServer.renderToStaticNodeStream(): The Node Stream API is not available ' + 'in Bun. Use ReactDOMServer.renderToReadableStream() instead.');
 }
 
 exports.renderToNodeStream = renderToNodeStream;
-exports.renderToStaticMarkup = renderToStaticMarkup;
+exports.renderToReadableStream = renderToReadableStream;
 exports.renderToStaticNodeStream = renderToStaticNodeStream;
-exports.renderToString = renderToString;
 exports.version = ReactVersion;
-  })();
-}
