@@ -5,7 +5,6 @@ import path from 'path'
 import loaderUtils from 'next/dist/compiled/loader-utils3'
 import postcssFontLoaderPlugn from './postcss-font-loader'
 import { promisify } from 'util'
-import chalk from 'next/dist/compiled/chalk'
 import { CONFIG_FILES } from '../../../../shared/lib/constants'
 
 export default async function nextFontLoader(this: any) {
@@ -122,11 +121,6 @@ export default async function nextFontLoader(this: any) {
         fontFamilyHash,
       })
     } catch (err: any) {
-      err.stack = false
-      err.message = `Font loader error:\n${err.message}`
-      err.message += `
-
-${chalk.cyan(`Location: ${relativeFilePathFromRoot}`)}`
       callback(err)
     }
   })
