@@ -21,7 +21,7 @@ if (process.env.NODE_ENV !== "production") {
   (function() {
 'use strict';
 
-var React = __nccwpck_require__(522);
+var React = __nccwpck_require__(533);
 
 function createStringDecoder() {
   return new TextDecoder();
@@ -914,7 +914,7 @@ exports.createFromXHR = createFromXHR;
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  */
-var h=__nccwpck_require__(522),k={stream:!0};function m(a,b){return a?(a=a[b.id][b.name],b.async?{id:a.id,chunks:a.chunks,name:a.name,async:!0}:a):b}var n=new Map,p=new Map;function q(){}
+var h=__nccwpck_require__(533),k={stream:!0};function m(a,b){return a?(a=a[b.id][b.name],b.async?{id:a.id,chunks:a.chunks,name:a.name,async:!0}:a):b}var n=new Map,p=new Map;function q(){}
 function r(a){for(var b=a.chunks,c=[],d=0;d<b.length;d++){var e=b[d],f=n.get(e);if(void 0===f){f=globalThis.__next_chunk_load__(e);c.push(f);var l=n.set.bind(n,e,null);f.then(l,q);n.set(e,f)}else null!==f&&c.push(f)}if(a.async){if(b=p.get(a.id))return"fulfilled"===b.status?null:b;var g=Promise.all(c).then(function(){return globalThis.__next_require__(a.id)});g.then(function(a){g.status="fulfilled";g.value=a},function(a){g.status="rejected";g.reason=a});p.set(a.id,g);return g}return 0<c.length?Promise.all(c):null}
 var t=Symbol.for("react.element"),u=Symbol.for("react.lazy"),v=Symbol.for("react.default_value"),w=h.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED.ContextRegistry;function x(a){w[a]||(w[a]=h.createServerContext(a,v));return w[a]}function y(a,b,c,d){this.status=a;this.value=b;this.reason=c;this._response=d}y.prototype=Object.create(Promise.prototype);
 y.prototype.then=function(a,b){switch(this.status){case "resolved_model":z(this);break;case "resolved_module":B(this)}switch(this.status){case "fulfilled":a(this.value);break;case "pending":case "blocked":a&&(null===this.value&&(this.value=[]),this.value.push(a));b&&(null===this.reason&&(this.reason=[]),this.reason.push(b));break;default:b(this.reason)}};
@@ -949,10 +949,10 @@ if (process.env.NODE_ENV === 'production') {
 
 /***/ }),
 
-/***/ 522:
+/***/ 533:
 /***/ ((module) => {
 
-module.exports = require("react");
+module.exports = require("next/dist/compiled/react");
 
 /***/ })
 
