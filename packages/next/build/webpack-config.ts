@@ -908,6 +908,8 @@ export default async function getBaseWebpackConfig(
               'next/dist/esm/pages/_app',
             [require.resolve('next/dist/client/components/navigation')]:
               'next/dist/client/components/navigation',
+            [require.resolve('next/dist/client/components/headers')]:
+              'next/dist/client/components/headers',
           }
         : undefined),
 
