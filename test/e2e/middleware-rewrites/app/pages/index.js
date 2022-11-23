@@ -51,6 +51,14 @@ export default function Home() {
         Rewrite me to internal path
       </Link>
       <div />
+      <Link href="/rewrite-to-static" id="rewrite-to-static">
+        Rewrite me to static
+      </Link>
+      <div />
+      <Link href="/fallback-true-blog/rewritten" id="rewrite-to-ssr">
+        Rewrite me to /about (SSR)
+      </Link>
+      <div />
       <Link href="/ssg" id="normal-ssg-link">
         normal SSG link
       </Link>

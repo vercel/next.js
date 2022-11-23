@@ -277,12 +277,11 @@ export default class DevServer extends Server {
       const app = this.appDir ? [this.appDir] : []
       const directories = [...pages, ...app]
 
-      const files = this.pagesDir
-        ? getPossibleMiddlewareFilenames(
-            pathJoin(this.pagesDir, '..'),
-            this.nextConfig.pageExtensions
-          )
-        : []
+      const rootDir = this.pagesDir || this.appDir
+      const files = getPossibleMiddlewareFilenames(
+        pathJoin(rootDir!, '..'),
+        this.nextConfig.pageExtensions
+      )
       let nestedMiddleware: string[] = []
 
       const envFiles = [
@@ -294,7 +293,7 @@ export default class DevServer extends Server {
 
       files.push(...envFiles)
 
-      // tsconfig/jsonfig paths hot-reloading
+      // tsconfig/jsconfig paths hot-reloading
       const tsconfigPaths = [
         pathJoin(this.dir, 'tsconfig.json'),
         pathJoin(this.dir, 'jsconfig.json'),
@@ -405,7 +404,7 @@ export default class DevServer extends Server {
           })
 
           if (isAppPath) {
-            if (!isLayoutsLeafPage(fileName)) {
+            if (!isLayoutsLeafPage(fileName, this.nextConfig.pageExtensions)) {
               continue
             }
 
@@ -577,7 +576,7 @@ export default class DevServer extends Server {
             new NestedMiddlewareError(
               nestedMiddleware,
               this.dir,
-              this.pagesDir!
+              (this.pagesDir || this.appDir)!
             ).message
           )
           nestedMiddleware = []
@@ -726,14 +725,15 @@ export default class DevServer extends Server {
     }
 
     const telemetry = new Telemetry({ distDir: this.distDir })
+    const isSrcDir = relative(
+      this.dir,
+      this.pagesDir || this.appDir || ''
+    ).startsWith('src')
     telemetry.record(
       eventCliSession(this.distDir, this.nextConfig, {
         webpackVersion: 5,
         cliCommand: 'dev',
-        isSrcDir:
-          (!!this.pagesDir &&
-            relative(this.dir, this.pagesDir).startsWith('src')) ||
-          (!!this.appDir && relative(this.dir, this.appDir).startsWith('src')),
+        isSrcDir,
         hasNowJson: !!(await findUp('now.json', { cwd: this.dir })),
         isCustomServer: this.isCustomServer,
         turboFlag: false,
@@ -1226,7 +1226,9 @@ export default class DevServer extends Server {
         res
           .body(
             JSON.stringify({
-              pages: this.sortedRoutes,
+              pages: this.sortedRoutes?.filter(
+                (route) => !this.appPathRoutes![route]
+              ),
             })
           )
           .send()

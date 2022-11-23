@@ -37,7 +37,7 @@ Here's a summary of the props available for the Script Component:
 | Prop                    | Example                           | Values   | Required                              |
 | ----------------------- | --------------------------------- | -------- | ------------------------------------- |
 | [`src`](#src)           | `src="http://example.com/script"` | String   | Required unless inline script is used |
-| [`strategy`](#strategy) | `strategy="lazyOnload`            | String   | Optional                              |
+| [`strategy`](#strategy) | `strategy="lazyOnload"`           | String   | Optional                              |
 | [`onLoad`](#onload)     | `onLoad={onLoadFunc}`             | Function | Optional                              |
 | [`onReady`](#onReady)   | `onReady={onReadyFunc}`           | Function | Optional                              |
 | [`onError`](#onerror)   | `onError={onErrorFunc}`           | Function | Optional                              |

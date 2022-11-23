@@ -33,7 +33,7 @@ To use the font in all your pages, add it to [`_app.js` file](https://nextjs.org
 import { Inter } from '@next/font/google'
 
 // If loading a variable font, you don't need to specify the font weight
-const inter = Inter()
+const inter = Inter({ subsets: ['latin'] })
 
 export default function MyApp({ Component, pageProps }) {
   return (
@@ -52,6 +52,7 @@ import { Roboto } from '@next/font/google'
 
 const roboto = Roboto({
   weight: '400',
+  subsets: ['latin'],
 })
 
 export default function MyApp({ Component, pageProps }) {
@@ -63,6 +64,16 @@ export default function MyApp({ Component, pageProps }) {
 }
 ```
 
+You can specify multiple weights and/or styles by using an array:
+
+```js
+const roboto = Roboto({
+  weight: ['400', '700'],
+  style: ['normal', 'italic'],
+  subsets: ['latin'],
+})
+```
+
 #### Apply the font in `<head>`
 
 You can also use the font without a wrapper and `className` by injecting it inside the `<head>` as follows:
@@ -71,7 +82,7 @@ You can also use the font without a wrapper and `className` by injecting it insi
 // pages/_app.js
 import { Inter } from '@next/font/google'
 
-const inter = Inter()
+const inter = Inter({ subsets: ['latin'] })
 
 export default function MyApp({ Component, pageProps }) {
   return (
@@ -95,7 +106,7 @@ To use the font on a single page, add it to the specific page as shown below:
 // pages/index.js
 import { Inter } from '@next/font/google'
 
-const inter = Inter()
+const inter = Inter({ subsets: ['latin'] })
 
 export default function Home() {
   return (
@@ -156,6 +167,35 @@ export default function MyApp({ Component, pageProps }) {
 }
 ```
 
+If you want to use multiple files for a single font family, `src` can be an array:
+
+```js
+const roboto = localFont({
+  src: [
+    {
+      path: './Roboto-Regular.woff2',
+      weight: '400',
+      style: 'normal',
+    },
+    {
+      path: './Roboto-Italic.woff2',
+      weight: '400',
+      style: 'italic',
+    },
+    {
+      path: './Roboto-Bold.woff2',
+      weight: '700',
+      style: 'normal',
+    },
+    {
+      path: './Roboto-BoldItalic.woff2',
+      weight: '700',
+      style: 'italic',
+    },
+  ],
+})
+```
+
 View the [Font API Reference](/docs/api-reference/next/font.md#nextfontlocal) for more information.
 
 ## With Tailwind CSS
@@ -169,12 +209,13 @@ In the example below, we use the font `Inter` from `@next/font/google` (You can 
 import { Inter } from '@next/font/google'
 
 const inter = Inter({
+  subsets: ['latin'],
   variable: '--font-inter',
 })
 
 export default function MyApp({ Component, pageProps }) {
   return (
-    <main className={inter.variable}>
+    <main className={`${inter.variable} font-sans`}>
       <Component {...pageProps} />
     </main>
   )
@@ -189,7 +230,10 @@ const { fontFamily } = require('tailwindcss/defaultTheme')
 
 /** @type {import('tailwindcss').Config} \*/
 module.exports = {
-  content: ['./app/**/*.{js,ts,jsx,tsx}'],
+  content: [
+    './pages/**/*.{js,ts,jsx,tsx}',
+    './components/**/*.{js,ts,jsx,tsx}',
+  ],
   theme: {
     extend: {
       fontFamily: {

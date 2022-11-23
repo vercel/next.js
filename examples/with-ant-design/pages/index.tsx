@@ -12,7 +12,6 @@ import { SmileFilled } from '@ant-design/icons'
 import Link from 'next/link'
 
 const FormItem = Form.Item
-const Option = Select.Option
 
 const content = {
   marginTop: '100px',
@@ -61,14 +60,29 @@ export default function Home() {
           </FormItem>
 
           <FormItem label="Select">
-            <Select defaultValue="lucy" style={{ width: 192 }}>
-              <Option value="jack">jack</Option>
-              <Option value="lucy">lucy</Option>
-              <Option value="disabled" disabled>
-                disabled
-              </Option>
-              <Option value="yiminghe">yiminghe</Option>
-            </Select>
+            <Select
+              defaultValue="lucy"
+              style={{ width: 192 }}
+              options={[
+                {
+                  value: 'jack',
+                  label: 'Jack',
+                },
+                {
+                  value: 'lucy',
+                  label: 'Lucy',
+                },
+                {
+                  value: 'disabled',
+                  disabled: true,
+                  label: 'Disabled',
+                },
+                {
+                  value: 'Yiminghe',
+                  label: 'yiminghe',
+                },
+              ]}
+            />
           </FormItem>
 
           <FormItem label="DatePicker">
