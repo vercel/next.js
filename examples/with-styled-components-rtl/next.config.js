@@ -1,6 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  basePath: '/blog',
+  compiler: {
+    styledComponents: true,
+  },
 }
 
 module.exports = nextConfig
