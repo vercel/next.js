@@ -94,6 +94,9 @@ export function setHttpClientAndAgentOptions(config: {
 
 function setFontLoaderDefaults(config: NextConfigComplete) {
   try {
+    // eslint-disable-next-line import/no-extraneous-dependencies
+    require('@next/font/package.json')
+
     const googleFontLoader = {
       loader: '@next/font/google',
     }
