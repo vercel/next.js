@@ -3,6 +3,7 @@ import { useRouter } from 'next/router'
 
 export default function Post() {
   const router = useRouter()
+
   return (
     <div>
       <h3>Post #{router.query.id}</h3>
