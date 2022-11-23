@@ -865,6 +865,11 @@ export default async function build(
         )
 
       const manifestPath = path.join(distDir, SERVER_DIRECTORY, PAGES_MANIFEST)
+      const appManifestPath = path.join(
+        distDir,
+        SERVER_DIRECTORY,
+        APP_PATHS_MANIFEST
+      )
 
       const requiredServerFiles = nextBuildSpan
         .traceChild('generate-required-server-files')
@@ -882,6 +887,7 @@ export default async function build(
           files: [
             ROUTES_MANIFEST,
             path.relative(distDir, manifestPath),
+            path.relative(distDir, appManifestPath),
             BUILD_MANIFEST,
             PRERENDER_MANIFEST,
             path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
@@ -2046,6 +2052,7 @@ export default async function build(
               dir,
               distDir,
               pageKeys.pages,
+              pageKeys.app,
               outputFileTracingRoot,
               requiredServerFiles.config,
               middlewareManifest
@@ -2758,6 +2765,17 @@ export default async function build(
             path.relative(outputFileTracingRoot, distDir),
             SERVER_DIRECTORY,
             'pages'
+          ),
+          { overwrite: true }
+        )
+        await recursiveCopy(
+          path.join(distDir, SERVER_DIRECTORY, 'app'),
+          path.join(
+            distDir,
+            'standalone',
+            path.relative(outputFileTracingRoot, distDir),
+            SERVER_DIRECTORY,
+            'app'
           ),
           { overwrite: true }
         )
