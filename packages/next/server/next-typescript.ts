@@ -29,11 +29,14 @@ const DISALLOWED_SERVER_REACT_APIS: string[] = [
 
 const ALLOWED_EXPORTS = ['config', 'generateStaticParams']
 
+const ALLOWED_PAGE_PROPS = ['params', 'searchParams']
+
 const NEXT_TS_ERRORS = {
   INVALID_SERVER_API: 71001,
   INVALID_ENTRY_EXPORT: 71002,
   INVALID_OPTION_VALUE: 71003,
   MISPLACED_CLIENT_ENTRY: 71004,
+  INVALID_PAGE_PROP: 71005,
 }
 
 const API_DOCS: Record<
@@ -197,7 +200,13 @@ export function createTSPlugin(modules: {
     const isAppEntryFile = (filePath: string) => {
       return (
         filePath.startsWith(appDir) &&
-        /(page|layout)\.(mjs|js|jsx|ts|tsx)$/.test(path.basename(filePath))
+        /^(page|layout)\.(mjs|js|jsx|ts|tsx)$/.test(path.basename(filePath))
+      )
+    }
+    const isPageFile = (filePath: string) => {
+      return (
+        filePath.startsWith(appDir) &&
+        /^page\.(mjs|js|jsx|ts|tsx)$/.test(path.basename(filePath))
       )
     }
 
@@ -661,6 +670,44 @@ export function createTSPlugin(modules: {
                           length: value.getWidth(),
                         })
                       }
+                    }
+                  }
+                }
+              }
+            }
+          } else if (ts.isFunctionDeclaration(node)) {
+            let hasExportKeyword = false
+            let hasDefaultKeyword = false
+
+            if (node.modifiers) {
+              for (const modifier of node.modifiers) {
+                if (modifier.kind === ts.SyntaxKind.ExportKeyword) {
+                  hasExportKeyword = true
+                } else if (modifier.kind === ts.SyntaxKind.DefaultKeyword) {
+                  hasDefaultKeyword = true
+                }
+              }
+            }
+
+            // `export default function`
+            if (hasExportKeyword && hasDefaultKeyword) {
+              if (isPageFile(fileName)) {
+                const props = node.parameters?.[0]?.name
+                // For page entries (page.js), it can only have `params` and `searchParams`
+                // as the prop names.
+                if (props && ts.isObjectBindingPattern(props)) {
+                  for (const prop of (props as ts.ObjectBindingPattern)
+                    .elements) {
+                    const propName = prop.name.getText()
+                    if (!ALLOWED_PAGE_PROPS.includes(propName)) {
+                      prior.push({
+                        file: source,
+                        category: ts.DiagnosticCategory.Error,
+                        code: NEXT_TS_ERRORS.INVALID_PAGE_PROP,
+                        messageText: `"${propName}" is not a valid page property.`,
+                        start: prop.getStart(),
+                        length: prop.getWidth(),
+                      })
                     }
                   }
                 }
