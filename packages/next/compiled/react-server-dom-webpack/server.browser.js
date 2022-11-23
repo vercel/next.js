@@ -83,9 +83,15 @@ function writeChunk(destination, chunk) {
   }
 
   if (chunk.length > VIEW_SIZE) {
-    // this chunk may overflow a single view which implies it was not
+    {
+      if (precomputedChunkSet.has(chunk)) {
+        error('A large precomputed chunk was passed to writeChunk without being copied.' + ' Large chunks get enqueued directly and are not copied. This is incompatible with precomputed chunks because you cannot enqueue the same precomputed chunk twice.' + ' Use "cloneChunk" to make a copy of this large precomputed chunk before writing it. This is a bug in React.');
+      }
+    } // this chunk may overflow a single view which implies it was not
     // one that is cached by the streaming renderer. We will enqueu
     // it directly and expect it is not re-used
+
+
     if (writtenBytes > 0) {
       destination.enqueue(new Uint8Array(currentView.buffer, 0, writtenBytes));
       currentView = new Uint8Array(VIEW_SIZE);
@@ -140,8 +146,15 @@ var textEncoder = new TextEncoder();
 function stringToChunk(content) {
   return textEncoder.encode(content);
 }
+var precomputedChunkSet =  new Set() ;
 function stringToPrecomputedChunk(content) {
-  return textEncoder.encode(content);
+  var precomputedChunk = textEncoder.encode(content);
+
+  {
+    precomputedChunkSet.add(precomputedChunk);
+  }
+
+  return precomputedChunk;
 }
 function closeWithError(destination, error) {
   // $FlowFixMe[method-unbinding]
