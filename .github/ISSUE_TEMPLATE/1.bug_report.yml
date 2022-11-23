@@ -40,9 +40,9 @@ body:
         - Routing (next/router, next/navigation, next/link)
         - Script optimizatzion (next/script)
         - 'Standalone mode (output: "standalone")'
+        - Static HTML Export (next export)
         - SWC minifier (swcMinify: true)
         - SWC transpilation
-        - Static HTML Export (next export)
         - 'Turbopack (--turbo)'
         - TypeScript
         - Other
