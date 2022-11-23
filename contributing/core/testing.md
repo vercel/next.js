@@ -33,6 +33,21 @@ When the test runs it will open the browser that is in the background by default
 pnpm testonly test/integration/production/ -t "should allow etag header support"
 ```
 
+### Running E2E tests
+
+You will need `yarn` for running e2e tests.
+Installing `yarn` with `corepack` is causing issues with our setup so we recommend installing it with `pnpm`:
+
+```sh
+pnpm -g install yarn
+```
+
+Running e2e tests is very similar to running integration tests. Just cnahge the path to `test/e2e` like:
+
+```sh
+pnpm testheadless test/e2e/
+```
+
 ## Writing tests for Next.js
 
 ### Getting Started
