@@ -42,7 +42,7 @@ body:
         - 'Standalone mode (output: "standalone")'
         - SWC minifier (swcMinify: true)
         - SWC transpilation
-        - Static HTML Export (next/export)
+        - Static HTML Export (next export)
         - 'Turbopack (--turbo)'
         - TypeScript
         - Other
