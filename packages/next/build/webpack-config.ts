@@ -2019,6 +2019,7 @@ export default async function getBaseWebpackConfig(
             appDirEnabled: hasAppDir,
             turbotrace: config.experimental.turbotrace,
             traceIgnores: config.experimental.outputFileTracingIgnores || [],
+            isEdgeServer,
           }
         ),
       // Moment.js is an extremely popular library that bundles large locale files

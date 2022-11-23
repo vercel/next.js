@@ -111,6 +111,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
   private chunksToTrace: string[] = []
   private turbotraceOutputPath?: string
   private turbotraceFiles?: string[]
+  private isEdgeServer: boolean
 
   constructor({
     appDir,
@@ -119,6 +120,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
     esmExternals,
     outputFileTracingRoot,
     turbotrace,
+    isEdgeServer,
   }: {
     appDir: string
     appDirEnabled?: boolean
@@ -126,6 +128,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
     outputFileTracingRoot?: string
     esmExternals?: NextConfigComplete['experimental']['esmExternals']
     turbotrace?: NextConfigComplete['experimental']['turbotrace']
+    isEdgeServer: boolean
   }) {
     this.appDir = appDir
     this.entryTraces = new Map()
@@ -134,6 +137,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
     this.traceIgnores = traceIgnores || []
     this.tracingRoot = outputFileTracingRoot || appDir
     this.turbotrace = turbotrace
+    this.isEdgeServer = isEdgeServer
   }
 
   // Here we output all traced assets and webpack chunks to a
@@ -236,7 +240,9 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
       const parentFilesMap = getFilesMapFromReasons(fileList, reasons)
 
       for (const [entrypoint, entryFiles] of entryFilesMap) {
-        const traceOutputName = `../${entrypoint.name}.js.nft.json`
+        const traceOutputName = `${this.isEdgeServer ? '' : '../'}${
+          entrypoint.name
+        }.js.nft.json`
         const traceOutputPath = nodePath.dirname(
           nodePath.join(outputPath, traceOutputName)
         )
