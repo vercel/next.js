@@ -30,7 +30,7 @@ export function getNextFontError(
 
       let message = `An error occured in \`@next/font\`.`
 
-      // Using different versions of @next/font and next, add message that it's possibly be fixed by updating both
+      // Using different versions of @next/font and next, add message that it's possibly fixed by updating both
       if (nextFontVersion !== nextVersion) {
         message += `\n\nYou might be using incompatible version of \`@next/font\` (${nextFontVersion}) and \`next\` (${nextVersion}). Try updating both \`@next/font\` and \`next\`, if the error still persists it may be a bug.`
       }
