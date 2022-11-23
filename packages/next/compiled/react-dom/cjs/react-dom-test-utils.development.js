@@ -95,17 +95,16 @@ var HostText = 6;
 var HostResource = 26;
 var HostSingleton = 27;
 
-// Don't change these two values. They're used by React Dev Tools.
+// Don't change these values. They're used by React Dev Tools.
 var NoFlags =
 /*                      */
 0;
-
 var Placement =
 /*                    */
 2;
 var Hydrating =
 /*                    */
-2048;
+2048; // You can change the rest (and add more).
 
 var ReactCurrentOwner = ReactSharedInternals.ReactCurrentOwner;
 function getNearestMountedFiber(fiber) {
