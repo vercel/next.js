@@ -19,6 +19,7 @@ async fn main() -> Result<()> {
     let options = next_dev::devserver_options::DevServerOptions::parse();
 
     if options.display_version {
+        // Note: enabling git causes trouble with aarch64 linux builds with libz-sys
         println!(
             "Build Timestamp\t\t{:#?}",
             option_env!("VERGEN_BUILD_TIMESTAMP").unwrap_or_else(|| "N/A")
@@ -26,22 +27,6 @@ async fn main() -> Result<()> {
         println!(
             "Build Version\t\t{:#?}",
             option_env!("VERGEN_BUILD_SEMVER").unwrap_or_else(|| "N/A")
-        );
-        println!(
-            "Commit SHA\t\t{:#?}",
-            option_env!("VERGEN_GIT_SHA").unwrap_or_else(|| "N/A")
-        );
-        println!(
-            "Commit Date\t\t{:#?}",
-            option_env!("VERGEN_GIT_COMMIT_TIMESTAMP").unwrap_or_else(|| "N/A")
-        );
-        println!(
-            "Commit Branch\t\t{:#?}",
-            option_env!("VERGEN_GIT_BRANCH").unwrap_or_else(|| "N/A")
-        );
-        println!(
-            "Commit Message\t\t{:#?}",
-            option_env!("VERGEN_GIT_COMMIT_MESSAGE").unwrap_or_else(|| "N/A")
         );
         println!(
             "Cargo Target Triple\t{:#?}",
