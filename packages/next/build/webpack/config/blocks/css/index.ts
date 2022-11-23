@@ -10,7 +10,6 @@ import {
   getGlobalImportError,
   getGlobalModuleImportError,
   getLocalModuleImportError,
-  getFontLoaderDocumentImportError,
 } from './messages'
 import { getPostCssPlugins } from './plugins'
 import { nonNullable } from '../../../../../lib/non-nullable'
