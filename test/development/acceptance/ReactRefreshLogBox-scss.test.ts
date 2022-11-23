@@ -5,7 +5,7 @@ import { NextInstance } from 'test/lib/next-modes/base'
 
 // TODO: figure out why snapshots mismatch on GitHub actions
 // specifically but work in docker and locally
-describe.skip('ReactRefreshLogBox scss', () => {
+describe.skip('ReactRefreshLogBox', () => {
   let next: NextInstance
 
   beforeAll(async () => {

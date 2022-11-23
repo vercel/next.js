@@ -2,7 +2,7 @@ import { sandbox } from './helpers'
 import { createNext } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 
-describe('ReactRefreshLogBox app doc', () => {
+describe('ReactRefreshLogBox', () => {
   let next: NextInstance
 
   beforeAll(async () => {
