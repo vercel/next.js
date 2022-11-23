@@ -36,8 +36,8 @@ body:
         - Image optmization (next/image, next/legacy/image)
         - Jest (next/jest)
         - Middleware / Edge (API routes, runtime)
-        - Package manager (pnpm, Yarn PnP)
-        - Routing (next/router, next/navigation, Link)
+        - Package manager (npm, pnpm, Yarn)
+        - Routing (next/router, next/navigation, next/link)
         - Script optimizatzion (next/script)
         - 'Standalone mode (output: "standalone")'
         - SWC minifier (swcMinify: true)
