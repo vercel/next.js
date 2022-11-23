@@ -1,6 +1,5 @@
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
-import Image from 'next/image'
 
 const Header = dynamic(import('../components/Header'))
 
@@ -15,12 +14,6 @@ export default function Home() {
       <div>
         <Link href="/about">About us</Link>
       </div>
-      <Image
-        src="/static/nextjs.png"
-        alt="Next.js logo"
-        width={200}
-        height={160}
-      />
     </div>
   )
 }

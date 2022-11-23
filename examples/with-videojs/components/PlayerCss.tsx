@@ -1,6 +1,6 @@
 import 'videojs-youtube'
 
-const PlayerCSS = () => {
+export default function PlayerCSS() {
   return (
     <>
       <h1>The implementation below is without react functions</h1>
@@ -17,5 +17,3 @@ const PlayerCSS = () => {
     </>
   )
 }
-
-export default PlayerCSS
