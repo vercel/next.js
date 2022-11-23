@@ -7,6 +7,9 @@ export interface StaticGenerationStore {
   fetchRevalidate?: number
   isStaticGeneration?: boolean
   forceStatic?: boolean
+  incrementalCache?: import('../../server/lib/incremental-cache').IncrementalCache
+  pendingRevalidates?: Promise<any>[]
+  isRevalidate?: boolean
 }
 
 export let staticGenerationAsyncStorage:
