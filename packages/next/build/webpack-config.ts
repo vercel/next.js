@@ -867,6 +867,9 @@ export default async function getBaseWebpackConfig(
     [COMPILER_NAMES.edgeServer]: ['browser', 'module', 'main'],
   }
 
+  const reactDir = path.dirname(require.resolve('react/package.json'))
+  const reactDomDir = path.dirname(require.resolve('react-dom/package.json'))
+
   const resolveConfig = {
     // Disable .mjs for node_modules bundling
     extensions: isNodeServer
@@ -936,7 +939,13 @@ export default async function getBaseWebpackConfig(
               'next/dist/compiled/react/jsx-dev-runtime',
             'react/jsx-runtime$': 'next/dist/compiled/react/jsx-runtime',
           }
-        : undefined),
+        : {
+            react: reactDir,
+            'react-dom$': reactDomDir,
+            'react-dom/server$': `${reactDomDir}/server`,
+            'react-dom/server.browser$': `${reactDomDir}/server.browser`,
+            'react-dom/client$': `${reactDomDir}/client`,
+          }),
 
       'styled-jsx/style$': require.resolve(`styled-jsx/style`),
       'styled-jsx$': require.resolve(`styled-jsx`),
