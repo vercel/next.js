@@ -109,8 +109,11 @@ export class FlightClientEntryPlugin {
         }
       }
 
-      edgeServerModuleIds.clear()
-      serverModuleIds.clear()
+      if (this.isEdgeServer) {
+        edgeServerModuleIds.clear()
+      } else {
+        serverModuleIds.clear()
+      }
 
       traverseModules(compilation, (mod, _chunk, _chunkGroup, modId) => {
         recordModule(modId + '', mod)
@@ -123,8 +126,6 @@ export class FlightClientEntryPlugin {
       ReturnType<typeof this.injectClientEntryAndSSRModules>
     > = []
     let flightCSSManifest: FlightCSSManifest = {}
-
-    injectedClientEntries.clear()
 
     // Loop over all the entry modules.
     function forEachEntryModule(
