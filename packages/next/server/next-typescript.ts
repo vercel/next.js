@@ -200,13 +200,13 @@ export function createTSPlugin(modules: {
     const isAppEntryFile = (filePath: string) => {
       return (
         filePath.startsWith(appDir) &&
-        /(page|layout)\.(mjs|js|jsx|ts|tsx)$/.test(path.basename(filePath))
+        /[\\/](page|layout)\.(mjs|js|jsx|ts|tsx)$/.test(path.basename(filePath))
       )
     }
     const isPageFile = (filePath: string) => {
       return (
         filePath.startsWith(appDir) &&
-        /page\.(mjs|js|jsx|ts|tsx)$/.test(path.basename(filePath))
+        /[\\/]page\.(mjs|js|jsx|ts|tsx)$/.test(path.basename(filePath))
       )
     }
 
@@ -546,7 +546,6 @@ export function createTSPlugin(modules: {
 
         ts.forEachChild(source!, (node) => {
           if (ts.isImportDeclaration(node)) {
-            //
             if (!isClientEntry) {
               const importPath = node.moduleSpecifier.getText(source!)
               if (importPath === "'react'" || importPath === '"react"') {
