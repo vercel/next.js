@@ -42,7 +42,7 @@ Installing `yarn` with `corepack` is causing issues with our setup so we recomme
 pnpm -g install yarn
 ```
 
-Running e2e tests is very similar to running integration tests. Just cnahge the path to `test/e2e` like:
+e2e tests are located in `test/e2e`. You can run them like this:
 
 ```sh
 pnpm testheadless test/e2e/
