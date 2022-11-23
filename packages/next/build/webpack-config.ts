@@ -2298,6 +2298,7 @@ export default async function getBaseWebpackConfig(
     emotion: config.compiler?.emotion,
     modularizeImports: config.experimental?.modularizeImports,
     legacyBrowsers: config.experimental?.legacyBrowsers,
+    imageLoaderFile: config.images.loaderFile,
   })
 
   const cache: any = {
