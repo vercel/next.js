@@ -930,7 +930,7 @@ export async function renderToHTMLOrFlight(
 
       if (head) {
         const Head = await interopDefault(await head[0]())
-        return <Head params={currentParams} />
+        return <Head params={currentParams} searchParams={query} />
       }
 
       return null
