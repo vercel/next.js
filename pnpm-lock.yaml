@@ -636,7 +636,6 @@ importers:
       ua-parser-js: 0.7.28
       undici: 5.12.0
       unistore: 3.4.1
-      use-sync-external-store: 1.2.0
       util: 0.12.4
       uuid: 8.3.2
       vm-browserify: 1.1.2
@@ -652,7 +651,6 @@ importers:
       caniuse-lite: 1.0.30001406
       postcss: 8.4.14
       styled-jsx: 5.1.0_uuaxwgga6hqycsez5ok7v2wg4i
-      use-sync-external-store: 1.2.0_react@18.2.0
     devDependencies:
       '@ampproject/toolbox-optimizer': 2.8.3
       '@babel/code-frame': 7.12.11
@@ -23419,6 +23417,7 @@ packages:
       react: ^16.8.0 || ^17.0.0 || ^18.0.0
     dependencies:
       react: 18.2.0
+    dev: true
 
   /use/3.1.1:
     resolution: {integrity: sha512-cwESVXlO3url9YWlFW/TA9cshCEhtu7IKJ/p5soJ/gGpj7vbvFrAY/eIioQ6Dw23KjZhYgiIo8HOs1nQ2vr/oQ==}
