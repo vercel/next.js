@@ -887,7 +887,7 @@ export default async function build(
           files: [
             ROUTES_MANIFEST,
             path.relative(distDir, manifestPath),
-            ...(config.experimental.appDir
+            ...(isAppDirEnabled
               ? [path.relative(distDir, appManifestPath)]
               : []),
             BUILD_MANIFEST,
