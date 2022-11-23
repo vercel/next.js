@@ -1,26 +1,26 @@
-import { MotionConfig } from "framer-motion";
-import Image from "next/image";
-import { useRouter } from "next/router";
-import useKeypress from "react-use-keypress";
-import { ImageProps } from "../utils/imageType";
-import { useLastViewedPhoto } from "../utils/useLastViewedPhoto";
-import SharedModal from "./SharedModal";
+import { MotionConfig } from 'framer-motion'
+import Image from 'next/image'
+import { useRouter } from 'next/router'
+import useKeypress from 'react-use-keypress'
+import { ImageProps } from '../utils/imageType'
+import { useLastViewedPhoto } from '../utils/useLastViewedPhoto'
+import SharedModal from './SharedModal'
 
 export default function Carousel({
   images,
   index,
   currentPhoto,
 }: {
-  images: ImageProps[];
-  index: number;
-  currentPhoto: ImageProps;
+  images: ImageProps[]
+  index: number
+  currentPhoto: ImageProps
 }) {
-  const router = useRouter();
-  const [, setLastViewedPhoto] = useLastViewedPhoto();
+  const router = useRouter()
+  const [, setLastViewedPhoto] = useLastViewedPhoto()
 
   function closeModal() {
-    setLastViewedPhoto(currentPhoto.id);
-    router.push("/");
+    setLastViewedPhoto(currentPhoto.id)
+    router.push('/')
   }
 
   function changePhotoId(newVal: number) {
@@ -30,24 +30,24 @@ export default function Carousel({
       },
       undefined,
       { shallow: true }
-    );
+    )
   }
 
-  useKeypress("ArrowRight", () => {
+  useKeypress('ArrowRight', () => {
     if (index + 1 < images.length) {
-      changePhotoId(index + 1);
+      changePhotoId(index + 1)
     }
-  });
+  })
 
-  useKeypress("ArrowLeft", () => {
+  useKeypress('ArrowLeft', () => {
     if (index > 0) {
-      changePhotoId(index - 1);
+      changePhotoId(index - 1)
     }
-  });
+  })
 
-  useKeypress("Escape", () => {
-    closeModal();
-  });
+  useKeypress('Escape', () => {
+    closeModal()
+  })
 
   return (
     <MotionConfig
@@ -78,5 +78,5 @@ export default function Carousel({
         />
       </div>
     </MotionConfig>
-  );
+  )
 }

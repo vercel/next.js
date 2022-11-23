@@ -1,33 +1,33 @@
 /* eslint-disable react/no-unescaped-entities */
-import type { NextPage } from "next";
-import Head from "next/head";
-import Image from "next/image";
-import Link from "next/link";
-import { useRouter } from "next/router";
-import { useEffect } from "react";
-import Bridge from "../components/Bridge";
-import Logo from "../components/Logo";
-import Modal from "../components/Modal";
-import cloudinary from "../utils/cloudinary";
-import getBase64ImageUrl from "../utils/generateBlurPlaceholder";
-import { ImageProps } from "../utils/imageType";
-import { useLastViewedPhoto } from "../utils/useLastViewedPhoto";
+import type { NextPage } from 'next'
+import Head from 'next/head'
+import Image from 'next/image'
+import Link from 'next/link'
+import { useRouter } from 'next/router'
+import { useEffect } from 'react'
+import Bridge from '../components/Bridge'
+import Logo from '../components/Logo'
+import Modal from '../components/Modal'
+import cloudinary from '../utils/cloudinary'
+import getBase64ImageUrl from '../utils/generateBlurPlaceholder'
+import { ImageProps } from '../utils/imageType'
+import { useLastViewedPhoto } from '../utils/useLastViewedPhoto'
 
 const Home: NextPage = ({ photos }: { photos: ImageProps[] }) => {
-  const router = useRouter();
-  const { photoId } = router.query;
-  const [lastViewedPhoto, setLastViewedPhoto] = useLastViewedPhoto();
+  const router = useRouter()
+  const { photoId } = router.query
+  const [lastViewedPhoto, setLastViewedPhoto] = useLastViewedPhoto()
 
   useEffect(() => {
     // This effect keeps track of the last viewed photo in tshe modal to keep the index page in sync when the user navigates back
     if (lastViewedPhoto && !photoId) {
       document
         .querySelector(`#photo-${lastViewedPhoto}`)
-        .scrollIntoView({ block: "center" });
+        .scrollIntoView({ block: 'center' })
 
-      setLastViewedPhoto(null);
+      setLastViewedPhoto(null)
     }
-  }, [photoId, lastViewedPhoto, setLastViewedPhoto]);
+  }, [photoId, lastViewedPhoto, setLastViewedPhoto])
 
   return (
     <>
@@ -47,7 +47,7 @@ const Home: NextPage = ({ photos }: { photos: ImageProps[] }) => {
           <Modal
             images={photos}
             onClose={() => {
-              setLastViewedPhoto(photoId);
+              setLastViewedPhoto(photoId)
             }}
           />
         )}
@@ -76,7 +76,7 @@ const Home: NextPage = ({ photos }: { photos: ImageProps[] }) => {
                 rel="noopener noreferrer"
               >
                 Deploy your own
-              </a>{" "}
+              </a>{' '}
               image gallery using this template.
             </p>
           </div>
@@ -95,7 +95,7 @@ const Home: NextPage = ({ photos }: { photos: ImageProps[] }) => {
                 <Image
                   alt="Next.js Conf photo"
                   className="transform rounded-lg brightness-90 transition will-change-auto group-hover:brightness-110"
-                  style={{ transform: "translate3d(0, 0, 0)" }}
+                  style={{ transform: 'translate3d(0, 0, 0)' }}
                   placeholder="blur"
                   blurDataURL={blurDataUrl}
                   src={`https://res.cloudinary.com/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload/c_scale,w_720/${public_id}.${format}`}
@@ -108,7 +108,7 @@ const Home: NextPage = ({ photos }: { photos: ImageProps[] }) => {
         </div>
       </main>
       <footer className="p-6 text-center text-white/80 sm:p-12">
-        Thank you to{" "}
+        Thank you to{' '}
         <a
           href="https://edelsonphotography.com/"
           target="_blank"
@@ -117,7 +117,7 @@ const Home: NextPage = ({ photos }: { photos: ImageProps[] }) => {
         >
           Josh Edelson
         </a>
-        ,{" "}
+        ,{' '}
         <a
           href="https://www.newrevmedia.com/"
           target="_blank"
@@ -126,7 +126,7 @@ const Home: NextPage = ({ photos }: { photos: ImageProps[] }) => {
         >
           Jenny Morgan
         </a>
-        , and{" "}
+        , and{' '}
         <a
           href="https://www.garysextonphotography.com/"
           target="_blank"
@@ -134,25 +134,25 @@ const Home: NextPage = ({ photos }: { photos: ImageProps[] }) => {
           rel="noreferrer"
         >
           Gary Sexton
-        </a>{" "}
+        </a>{' '}
         for the pictures.
       </footer>
     </>
-  );
-};
+  )
+}
 
-export default Home;
+export default Home
 
 export async function getStaticProps() {
   const results = await cloudinary.v2.search
     .expression(`folder:${process.env.CLOUDINARY_FOLDER}/*`)
-    .sort_by("public_id", "desc")
+    .sort_by('public_id', 'desc')
     .max_results(400)
-    .execute();
+    .execute()
 
-  let reducedResults: ImageProps[] = [];
+  let reducedResults: ImageProps[] = []
 
-  let i = 0;
+  let i = 0
   for (let result of results.resources) {
     reducedResults.push({
       id: i,
@@ -161,13 +161,13 @@ export async function getStaticProps() {
       public_id: result.public_id,
       format: result.format,
       blurDataUrl: await getBase64ImageUrl(result),
-    });
-    i++;
+    })
+    i++
   }
 
   return {
     props: {
       photos: reducedResults,
     },
-  };
+  }
 }

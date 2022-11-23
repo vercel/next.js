@@ -1,31 +1,31 @@
-import { Dialog } from "@headlessui/react";
-import { motion, MotionConfig } from "framer-motion";
-import Image from "next/image";
-import { useRouter } from "next/router";
-import { useRef } from "react";
-import useKeypress from "react-use-keypress";
-import { ImageProps } from "../utils/imageType";
-import SharedModal from "./SharedModal";
+import { Dialog } from '@headlessui/react'
+import { motion, MotionConfig } from 'framer-motion'
+import Image from 'next/image'
+import { useRouter } from 'next/router'
+import { useRef } from 'react'
+import useKeypress from 'react-use-keypress'
+import { ImageProps } from '../utils/imageType'
+import SharedModal from './SharedModal'
 
 export default function Modal({
   images,
   onClose,
 }: {
-  images: ImageProps[];
-  onClose?: () => void;
+  images: ImageProps[]
+  onClose?: () => void
 }) {
-  let overlayRef = useRef();
-  const router = useRouter();
+  let overlayRef = useRef()
+  const router = useRouter()
 
-  const { photoId } = router.query;
-  let index = Number(photoId);
+  const { photoId } = router.query
+  let index = Number(photoId)
 
-  const currentPhoto = images.find((img) => img.id === index);
+  const currentPhoto = images.find((img) => img.id === index)
 
   function handleClose() {
-    router.push("/", undefined, { shallow: true });
+    router.push('/', undefined, { shallow: true })
 
-    onClose();
+    onClose()
   }
 
   function changePhotoId(newVal: number) {
@@ -35,20 +35,20 @@ export default function Modal({
       },
       `/p/${newVal}`,
       { shallow: true }
-    );
+    )
   }
 
-  useKeypress("ArrowRight", () => {
+  useKeypress('ArrowRight', () => {
     if (index + 1 < images.length) {
-      changePhotoId(index + 1);
+      changePhotoId(index + 1)
     }
-  });
+  })
 
-  useKeypress("ArrowLeft", () => {
+  useKeypress('ArrowLeft', () => {
     if (index > 0) {
-      changePhotoId(index - 1);
+      changePhotoId(index - 1)
     }
-  });
+  })
 
   return (
     <Dialog
@@ -89,5 +89,5 @@ export default function Modal({
         />
       </MotionConfig>
     </Dialog>
-  );
+  )
 }
