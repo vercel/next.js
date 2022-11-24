@@ -12,7 +12,7 @@ import {
   entries,
   EntryTypes,
 } from '../../../server/dev/on-demand-entry-handler'
-import { APP_DIR_ALIAS, WEBPACK_LAYERS } from '../../../lib/constants'
+import { WEBPACK_LAYERS } from '../../../lib/constants'
 import {
   APP_CLIENT_INTERNALS,
   COMPILER_NAMES,
