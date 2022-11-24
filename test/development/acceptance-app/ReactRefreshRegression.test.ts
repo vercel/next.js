@@ -3,6 +3,7 @@ import { sandbox } from './helpers'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import path from 'path'
+import browser from 'test/integration/export/test/browser'
 
 describe('ReactRefreshRegression app', () => {
   if (process.env.NEXT_TEST_REACT_VERSION === '^17') {
@@ -270,19 +271,15 @@ describe('ReactRefreshRegression app', () => {
 
   // https://github.com/vercel/next.js/issues/11504
   // TODO-APP: fix case where error is not resolved to source correctly.
-  test.skip('shows an overlay for a server-side error', async () => {
-    const { session, cleanup } = await sandbox(next)
+  test('shows an overlay for anonymous server-side error', async () => {
+    const { session, browser, cleanup } = await sandbox(next)
 
     await session.patch(
       'app/page.js',
-      `export default function () { throw new Error('pre boom'); }`
-    )
-
-    const didNotReload = await session.patch(
-      'app/page.js',
       `export default function () { throw new Error('boom'); }`
     )
-    expect(didNotReload).toBe(false)
+
+    await browser.refresh()
 
     expect(await session.hasRedbox(true)).toBe(true)
 
