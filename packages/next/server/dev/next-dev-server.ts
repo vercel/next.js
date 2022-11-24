@@ -1063,23 +1063,18 @@ export default class DevServer extends Server {
           )
 
           const src = getErrorSource(err as Error)
+          const isEdgeCompiler = src === COMPILER_NAMES.edgeServer
+          const compilation = (
+            isEdgeCompiler
+              ? this.hotReloader?.edgeServerStats?.compilation
+              : this.hotReloader?.serverStats?.compilation
+          )!
 
-          // Try to get source from server compilation
-          let source = await getSourceById(
+          const source = await getSourceById(
             !!frame.file?.startsWith(sep) || !!frame.file?.startsWith('file:'),
             moduleId,
-            this.hotReloader?.serverStats?.compilation
+            compilation
           )
-
-          // If the source can't be found in the server compilation the edge compilation will be checked.
-          if (source === null) {
-            source = await getSourceById(
-              !!frame.file?.startsWith(sep) ||
-                !!frame.file?.startsWith('file:'),
-              moduleId,
-              this.hotReloader?.edgeServerStats?.compilation
-            )
-          }
 
           const originalFrame = await createOriginalStackFrame({
             line: frame.lineNumber!,
@@ -1089,8 +1084,12 @@ export default class DevServer extends Server {
             modulePath: moduleId,
             rootDirectory: this.dir,
             errorMessage: err.message,
-            serverCompilation: this.hotReloader?.serverStats?.compilation,
-            edgeCompilation: this.hotReloader?.edgeServerStats?.compilation,
+            serverCompilation: isEdgeCompiler
+              ? undefined
+              : this.hotReloader?.serverStats?.compilation,
+            edgeCompilation: isEdgeCompiler
+              ? this.hotReloader?.edgeServerStats?.compilation
+              : undefined,
           })
 
           if (originalFrame) {
@@ -1100,7 +1099,7 @@ export default class DevServer extends Server {
             Log[type === 'warning' ? 'warn' : 'error'](
               `${file} (${lineNumber}:${column}) @ ${methodName}`
             )
-            if (src === COMPILER_NAMES.edgeServer) {
+            if (isEdgeCompiler) {
               err = err.message
             }
             if (type === 'warning') {

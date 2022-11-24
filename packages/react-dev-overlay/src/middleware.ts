@@ -288,8 +288,14 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
       const frame = query as unknown as StackFrame & {
         isEdgeServer: 'true' | 'false'
         isServer: 'true' | 'false'
+        isAppDirectory: 'true' | 'false'
         errorMessage: string | undefined
       }
+      const isAppDirectory = frame.isAppDirectory === 'true'
+      const isServerError = frame.isServer === 'true'
+      const isEdgeServerError = frame.isEdgeServer === 'true'
+      const isClientError = !isServerError && !isEdgeServerError
+
       if (
         !(
           (frame.file?.startsWith('webpack-internal:///') ||
@@ -311,23 +317,25 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
         ''
       )
 
-      let source: Source
+      let source: Source = null
       const clientCompilation = options.stats()?.compilation
       const serverCompilation = options.serverStats()?.compilation
       const edgeCompilation = options.edgeServerStats()?.compilation
       try {
-        // Try Client Compilation first
-        // In `pages` the majority of modules can be resolved from there
-        // In `app` it depends on if it's a server / client component and when the code throws. E.g. during HTML rendering it's the server/edge compilation.
-        source = await getSourceById(
-          frame.file.startsWith('file:'),
-          moduleId,
-          clientCompilation
-        )
+        if (isClientError || isAppDirectory) {
+          // Try Client Compilation first
+          // In `pages` we leverage `isClientError` to check
+          // In `app` it depends on if it's a server / client component and when the code throws. E.g. during HTML rendering it's the server/edge compilation.
+          source = await getSourceById(
+            frame.file.startsWith('file:'),
+            moduleId,
+            clientCompilation
+          )
+        }
         // Try Server Compilation
         // In `pages` this could be something imported in getServerSideProps/getStaticProps as the code for those is tree-shaken.
         // In `app` this finds server components and code that was imported from a server component. It also covers when client component code throws during HTML rendering.
-        if (source === null) {
+        if ((isServerError || isAppDirectory) && source === null) {
           source = await getSourceById(
             frame.file.startsWith('file:'),
             moduleId,
@@ -336,7 +344,7 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
         }
         // Try Edge Server Compilation
         // Both cases are the same as Server Compilation, main difference is that it covers `runtime: 'edge'` pages/app routes.
-        if (source === null) {
+        if ((isEdgeServerError || isAppDirectory) && source === null) {
           source = await getSourceById(
             frame.file.startsWith('file:'),
             moduleId,
@@ -375,9 +383,9 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
           modulePath,
           rootDirectory: options.rootDirectory,
           errorMessage: frame.errorMessage,
-          clientCompilation,
-          serverCompilation,
-          edgeCompilation,
+          clientCompilation: isClientError ? clientCompilation : undefined,
+          serverCompilation: isServerError ? serverCompilation : undefined,
+          edgeCompilation: isEdgeServerError ? edgeCompilation : undefined,
         })
 
         if (originalStackFrameResponse === null) {
