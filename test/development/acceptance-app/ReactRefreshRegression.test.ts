@@ -3,7 +3,6 @@ import { sandbox } from './helpers'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import path from 'path'
-import browser from 'test/integration/export/test/browser'
 
 describe('ReactRefreshRegression app', () => {
   if (process.env.NEXT_TEST_REACT_VERSION === '^17') {
