@@ -884,16 +884,6 @@ export default async function getBaseWebpackConfig(
       // let this alias hit before `next` alias.
       ...(isEdgeServer
         ? {
-            // app-router-context can not be ESM and CJS so force CJS
-            'next/dist/shared/lib/app-router-context': path.join(
-              __dirname,
-              '../dist/shared/lib/app-router-context.js'
-            ),
-            'next/dist/client/components': path.join(
-              __dirname,
-              '../client/components'
-            ),
-
             'next/dist/client': 'next/dist/esm/client',
             'next/dist/shared': 'next/dist/esm/shared',
             'next/dist/pages': 'next/dist/esm/pages',
@@ -916,6 +906,10 @@ export default async function getBaseWebpackConfig(
               'next/dist/esm/pages/_document',
             [require.resolve('next/dist/pages/_app')]:
               'next/dist/esm/pages/_app',
+            [require.resolve('next/dist/client/components/navigation')]:
+              'next/dist/client/components/navigation',
+            [require.resolve('next/dist/client/components/headers')]:
+              'next/dist/client/components/headers',
           }
         : undefined),
 
@@ -2304,6 +2298,7 @@ export default async function getBaseWebpackConfig(
     emotion: config.compiler?.emotion,
     modularizeImports: config.experimental?.modularizeImports,
     legacyBrowsers: config.experimental?.legacyBrowsers,
+    imageLoaderFile: config.images.loaderFile,
   })
 
   const cache: any = {
