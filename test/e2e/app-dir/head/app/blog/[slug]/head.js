@@ -1,8 +1,11 @@
-export default async function Head({ params }) {
+export default async function Head(props) {
+  const title =
+    props.searchParams?.title ||
+    `hello from dynamic blog page ${props.params.slug}`
   return (
     <>
-      <script async src="/hello3.js" data-slug={params.slug} />
-      <title>{`hello from dynamic blog page ${params.slug}`}</title>
+      <script async src="/hello3.js" data-slug={props.params.slug} />
+      <title>{title}</title>
     </>
   )
 }
