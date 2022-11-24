@@ -713,7 +713,7 @@ export default class DevServer extends Server {
     })
     await super.prepare()
     await this.addExportPathMapRoutes()
-    await this.hotReloader.start(true)
+    await this.hotReloader.start()
     await this.startWatcher()
     this.setDevReady!()
 
