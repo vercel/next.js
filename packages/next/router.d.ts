@@ -1,3 +1,3 @@
-import Router from './dist/client/router'
-export * from './dist/client/router'
+import Router from './dist/api/router'
+export * from './dist/api/router'
 export default Router

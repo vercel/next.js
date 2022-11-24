@@ -2093,6 +2093,8 @@ export async function compile(task, opts) {
       'pages_esm',
       'lib',
       'lib_esm',
+      'api',
+      'api_esm',
       'client',
       'client_esm',
       'telemetry',
@@ -2193,6 +2195,22 @@ export async function nextbuildjest(task, opts) {
     .swc('server', { dev: opts.dev, interopClientDefaultExport: true })
     .target('dist/build/jest')
   notify('Compiled build/jest files')
+}
+
+export async function api(task, opts) {
+  await task
+    .source(opts.src || 'api/**/*.+(js|ts|tsx)')
+    .swc('api', { dev: opts.dev, interopClientDefaultExport: true })
+    .target('dist/api')
+  notify('Compiled api files')
+}
+
+export async function api_esm(task, opts) {
+  await task
+    .source(opts.src || 'api/**/*.+(js|ts|tsx)')
+    .swc('api', { dev: opts.dev, esm: true })
+    .target('dist/esm/api')
+  notify('Compiled api files to ESM')
 }
 
 export async function client(task, opts) {

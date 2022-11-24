@@ -1,3 +1,3 @@
-import App from './dist/pages/_app'
-export * from './dist/pages/_app'
+import App from './dist/api/app'
+export * from './dist/api/app'
 export default App
