@@ -58,7 +58,7 @@ describe('Middleware development errors', () => {
       const output = stripAnsi(context.logs.output)
       expect(output).toMatch(
         new RegExp(
-          `error - \\(middleware\\)/middleware.js \\(\\d+:\\d+\\) @ Object.__WEBPACK_DEFAULT_EXPORT__ \\[as handler\\]\nerror - boom`,
+          `error - \\(middleware\\)/middleware.js \\(\\d+:\\d+\\) @ Object.default \\[as handler\\]\nerror - boom`,
           'm'
         )
       )
