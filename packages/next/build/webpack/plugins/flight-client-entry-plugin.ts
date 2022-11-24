@@ -379,23 +379,14 @@ export class FlightClientEntryPlugin {
         compilation.moduleGraph.getResolvedModule(dependencyToFilter)
       if (!mod) return
 
-      // Keep client imports as simple
-      // native or installed js module: -> raw request, e.g. next/head
-      // client js or css: -> user request
       const rawRequest = mod.rawRequest
-      // Request could be undefined or ''
-      if (!rawRequest) return
-
       const isCSS = regexCSS.test(rawRequest)
-      const isLocal =
-        !isCSS &&
-        !rawRequest.startsWith('.') &&
-        !rawRequest.startsWith('/') &&
-        !rawRequest.startsWith(APP_DIR_ALIAS)
 
-      const modRequest: string | undefined = isLocal
-        ? rawRequest
-        : mod.resourceResolveData?.path + mod.resourceResolveData?.query
+      // We have to always use the resolved request here to make sure the
+      // server and client are using the same module path (required by RSC), as
+      // the server compiler and client compiler have different resolve configs.
+      const modRequest: string | undefined =
+        mod.resourceResolveData?.path + mod.resourceResolveData?.query
 
       // Ensure module is not walked again if it's already been visited
       if (!visitedBySegment[entryRequest]) {
