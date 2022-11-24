@@ -30,7 +30,7 @@ async function run() {
     const client = github.getOctokit(process.env.GITHUB_TOKEN).rest
     const issueCommon = { ...repo, issue_number: issueNumber }
 
-    /** @param {string|null} link */
+    /** @param {string|null|undefined} link */
     async function hasRepro(link) {
       if (!link) return false
       try {
@@ -99,7 +99,7 @@ Upvoting issues to show your interest will help us prioritize and address them a
     const isVerifyCanaryChecked = body
       .toLowerCase()
       .includes(
-        '- [x] i verified that the issue exists in next.js canary release'
+        '- [x] I verified that the issue exists in the latest Next.js canary release'.toLowerCase()
       )
 
     if (!isVerifyCanaryChecked || newLabel.name === verifyCanaryLabel) {
