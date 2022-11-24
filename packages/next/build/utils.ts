@@ -1669,7 +1669,37 @@ export async function copyTracedFiles(
     }
   }
 
+  const edgeRuntimePages = new Set<string>(
+    Object.keys(middlewareManifest.functions)
+  )
+
+  for (const page of Object.values(middlewareManifest.functions)) {
+    for (const file of page.files) {
+      const originalPath = path.join(distDir, file)
+      const fileOutputPath = path.join(
+        outputPath,
+        path.relative(tracingRoot, distDir),
+        file
+      )
+      await fs.mkdir(path.dirname(fileOutputPath), { recursive: true })
+      await fs.copyFile(originalPath, fileOutputPath)
+    }
+    for (const file of [...(page.wasm ?? []), ...(page.assets ?? [])]) {
+      const originalPath = path.join(distDir, file.filePath)
+      const fileOutputPath = path.join(
+        outputPath,
+        path.relative(tracingRoot, distDir),
+        file.filePath
+      )
+      await fs.mkdir(path.dirname(fileOutputPath), { recursive: true })
+      await fs.copyFile(originalPath, fileOutputPath)
+    }
+  }
+
   for (const page of pageKeys) {
+    if (edgeRuntimePages.has(page)) {
+      continue
+    }
     const pageFile = path.join(
       distDir,
       'server',
@@ -1683,6 +1713,9 @@ export async function copyTracedFiles(
   }
   if (appPageKeys) {
     for (const page of appPageKeys) {
+      if (edgeRuntimePages.has(page)) {
+        continue
+      }
       const pageFile = path.join(distDir, 'server', 'app', `${page}`, 'page.js')
       const pageTraceFile = `${pageFile}.nft.json`
       await handleTraceFiles(pageTraceFile).catch((err) => {
@@ -1760,6 +1793,28 @@ server.listen(currentPort, (err) => {
 })`
   )
 }
+
+/*export async function copyFilesForMiddlewareAndEdgeFunctions(
+  distDir: string,
+  middlewareManifest: MiddlewareManifest,
+  edgeRuntimePages: string[]
+) {
+  const outputPath = path.join(distDir, 'standalone')
+  const assetsKeys = ['wasm', 'assets'] as const
+  const filesKeys = 'files'
+  const b = middlewareManifest.functions['hehe'][assetsKeys[0]]
+  for (const path of Object.keys(middlewareManifest.functions)) {
+    for (const assetsKey of assetsKeys) {
+      const assets = middlewareManifest.functions[path][assetsKey]
+      if (assets) {
+        for (const asset of assets) {
+
+        }
+      }
+    }
+  }
+} */
+
 export function isReservedPage(page: string) {
   return RESERVED_PAGE.test(page)
 }
