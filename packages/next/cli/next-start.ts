@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import os from 'os'
 import arg from 'next/dist/compiled/arg/index.js'
 import { startServer } from '../server/lib/start-server'
 import { getPort, printAndExit } from '../server/lib/utils'
@@ -7,6 +8,21 @@ import * as Log from '../build/output/log'
 import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
 import { cliCommand } from '../lib/commands'
+
+function networkHosts() {
+  const interfaces = os.networkInterfaces()
+  const hosts: string[] = []
+
+  Object.keys(interfaces).forEach((key) =>
+    interfaces[key]
+      ?.filter(({ family, address }) => {
+        return family === 'IPv4' && !address.includes('127.0.0.1')
+      })
+      .forEach(({ address }) => hosts.push(address))
+  )
+
+  return hosts
+}
 
 const nextStart: cliCommand = (argv) => {
   const validArgs: arg.Spec = {
@@ -80,7 +96,15 @@ const nextStart: cliCommand = (argv) => {
   })
     .then(async (app) => {
       const appUrl = `http://${app.hostname}:${app.port}`
-      Log.ready(`started server on ${host}:${app.port}, url: ${appUrl}`)
+
+      const networkUrl = networkHosts()
+        .map((networkHost) => `http://${networkHost}:${app.port}`)
+        .join(' ')
+
+      Log.ready(
+        `started server on ${host}:${app.port}, url: ${appUrl} (${networkUrl})`
+      )
+
       await app.prepare()
     })
     .catch((err) => {
