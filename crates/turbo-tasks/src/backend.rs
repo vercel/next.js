@@ -1,7 +1,7 @@
 use std::{
     any::Any,
     borrow::Cow,
-    collections::{HashMap, HashSet},
+    collections::HashSet,
     fmt::{Debug, Display},
     future::Future,
     pin::Pin,
@@ -14,11 +14,9 @@ use serde::{Deserialize, Serialize};
 
 pub use crate::id::BackendJobId;
 use crate::{
-    event::EventListener,
-    manager::TurboTasksBackendApi,
-    registry,
-    task_input::{SharedReference, SharedValue},
-    FunctionId, RawVc, ReadRef, TaskId, TaskIdProvider, TaskInput, TraitTypeId, ValueTypeId,
+    event::EventListener, manager::TurboTasksBackendApi, raw_vc::CellId, registry,
+    task_input::SharedReference, FunctionId, RawVc, ReadRef, TaskId, TaskIdProvider, TaskInput,
+    TraitTypeId,
 };
 
 /// Different Task types
@@ -107,26 +105,12 @@ impl PersistentTaskType {
     }
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct CellMappings {
-    // TODO use [SerializableMagicAny]
-    pub by_key: HashMap<(ValueTypeId, SharedValue), usize>,
-    pub by_type: HashMap<ValueTypeId, (usize, Vec<usize>)>,
-}
-
-impl CellMappings {
-    pub fn reset(&mut self) {
-        for list in self.by_type.values_mut() {
-            list.0 = 0;
-        }
-    }
-}
-
 pub struct TaskExecutionSpec {
-    pub cell_mappings: Option<CellMappings>,
     pub future: Pin<Box<dyn Future<Output = Result<RawVc>> + Send>>,
 }
 
+// TODO technically CellContent is already indexed by the ValueTypeId, so we
+// don't need to store it here
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct CellContent(pub Option<SharedReference>);
 
@@ -207,7 +191,6 @@ pub trait Backend: Sync + Send {
     fn task_execution_completed(
         &self,
         task: TaskId,
-        cell_mappings: Option<CellMappings>,
         duration: Duration,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> bool;
@@ -245,7 +228,7 @@ pub trait Backend: Sync + Send {
     fn try_read_task_cell(
         &self,
         task: TaskId,
-        index: usize,
+        index: CellId,
         reader: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<Result<CellContent, EventListener>>;
@@ -255,7 +238,7 @@ pub trait Backend: Sync + Send {
     fn try_read_task_cell_untracked(
         &self,
         task: TaskId,
-        index: usize,
+        index: CellId,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<Result<CellContent, EventListener>>;
 
@@ -264,7 +247,7 @@ pub trait Backend: Sync + Send {
     fn try_read_own_task_cell_untracked(
         &self,
         current_task: TaskId,
-        index: usize,
+        index: CellId,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<CellContent> {
         match self.try_read_task_cell_untracked(current_task, index, turbo_tasks)? {
@@ -276,7 +259,7 @@ pub trait Backend: Sync + Send {
     fn track_read_task_cell(
         &self,
         task: TaskId,
-        index: usize,
+        index: CellId,
         reader: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi,
     );
@@ -305,12 +288,10 @@ pub trait Backend: Sync + Send {
         turbo_tasks: &dyn TurboTasksBackendApi,
     );
 
-    fn get_fresh_cell(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi) -> usize;
-
     fn update_task_cell(
         &self,
         task: TaskId,
-        index: usize,
+        index: CellId,
         content: CellContent,
         turbo_tasks: &dyn TurboTasksBackendApi,
     );

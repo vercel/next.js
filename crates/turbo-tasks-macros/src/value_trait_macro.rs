@@ -217,13 +217,6 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                 Ok(Self { node: self.node.cell_local().await? })
             }
 
-            /// see [turbo_tasks::RawVc::keyed_cell_local]
-            pub async fn keyed_cell_local<
-                K: std::fmt::Debug + std::cmp::Eq + std::cmp::Ord + std::hash::Hash + turbo_tasks::Typed + turbo_tasks::TypedForInput + Send + Sync + 'static,
-            >(self, key: K) -> turbo_tasks::Result<Self> {
-                Ok(Self { node: self.node.keyed_cell_local(key).await? })
-            }
-
             pub async fn resolve_from(super_trait_vc: impl std::convert::Into<turbo_tasks::RawVc>) -> Result<Option<Self>, turbo_tasks::ResolveTypeError> {
                 let raw_vc: turbo_tasks::RawVc = super_trait_vc.into();
                 let raw_vc = raw_vc.resolve_trait(*#trait_type_id_ident).await?;

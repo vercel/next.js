@@ -332,18 +332,6 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             #cell_update_op
             #ref_ident { node: cell.into() }
         }
-
-        /// Places a value in a cell of the current task.
-        ///
-        /// Cell is selected by the provided `key`. `key` must not be used twice during the current task.
-        #cell_prefix fn keyed_cell<
-            K: std::fmt::Debug + std::cmp::Eq + std::cmp::Ord + std::hash::Hash + turbo_tasks::Typed + turbo_tasks::TypedForInput + Send + Sync + 'static,
-        >(key: K, content: #cell_arg_type) -> #ref_ident {
-            let cell = turbo_tasks::macro_helpers::find_cell_by_key(*#value_type_id_ident, key);
-            #cell_convert_content
-            #cell_update_op
-            #ref_ident { node: cell.into() }
-        }
     };
 
     let cell_struct = quote! {
@@ -353,16 +341,6 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         #cell_prefix fn cell(self) -> #ref_ident {
             let content = self;
             #ref_ident::cell(#cell_access_content)
-        }
-
-        /// Places a value in a cell of the current task.
-        ///
-        /// Cell is selected by the provided `key`. `key` must not be used twice during the current task.
-        #cell_prefix fn keyed_cell<
-            K: std::fmt::Debug + std::cmp::Eq + std::cmp::Ord + std::hash::Hash + turbo_tasks::Typed + turbo_tasks::TypedForInput + Send + Sync + 'static,
-        >(self, key: K) -> #ref_ident {
-            let content = self;
-            #ref_ident::keyed_cell(key, #cell_access_content)
         }
     };
 
@@ -637,13 +615,6 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             /// see [turbo_tasks::RawVc::cell_local]
             pub async fn cell_local(self) -> turbo_tasks::Result<Self> {
                 Ok(Self { node: self.node.cell_local().await? })
-            }
-
-            /// see [turbo_tasks::RawVc::keyed_cell_local]
-            pub async fn keyed_cell_local<
-                K: std::fmt::Debug + std::cmp::Eq + std::cmp::Ord + std::hash::Hash + turbo_tasks::Typed + turbo_tasks::TypedForInput + Send + Sync + 'static,
-            >(self, key: K) -> turbo_tasks::Result<Self> {
-                Ok(Self { node: self.node.keyed_cell_local(key).await? })
             }
 
             pub async fn resolve_from(super_trait_vc: impl std::convert::Into<turbo_tasks::RawVc>) -> Result<Option<Self>, turbo_tasks::ResolveTypeError> {

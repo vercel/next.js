@@ -76,7 +76,7 @@ pub use manager::{
 };
 pub use native_function::{NativeFunction, NativeFunctionVc};
 pub use nothing::{Nothing, NothingVc};
-pub use raw_vc::{CollectiblesFuture, RawVc, ReadRawVcFuture, ResolveTypeError};
+pub use raw_vc::{CellId, CollectiblesFuture, RawVc, ReadRawVcFuture, ResolveTypeError};
 pub use read_ref::ReadRef;
 pub use task_input::{FromTaskInput, SharedReference, SharedValue, TaskInput};
 pub use turbo_tasks_macros::{function, value, value_impl, value_trait};
@@ -89,11 +89,11 @@ pub use value_type::{
 pub mod macro_helpers {
     pub use once_cell::sync::{Lazy, OnceCell};
 
-    pub use super::manager::{find_cell_by_key, find_cell_by_type};
+    pub use super::manager::find_cell_by_type;
 }
 
 pub mod test_helpers {
-    pub use super::manager::with_turbo_tasks_for_testing;
+    pub use super::manager::{current_task_for_testing, with_turbo_tasks_for_testing};
 }
 
 pub fn register() {

@@ -14,12 +14,12 @@ use rustc_hash::FxHasher;
 use tokio::task::futures::TaskLocalFuture;
 use turbo_tasks::{
     backend::{
-        Backend, BackendJobId, CellContent, CellMappings, PersistentTaskType, TaskExecutionSpec,
+        Backend, BackendJobId, CellContent, PersistentTaskType, TaskExecutionSpec,
         TransientTaskType,
     },
     event::EventListener,
     util::{IdFactory, NoMoveVec},
-    RawVc, TaskId, TraitTypeId, TurboTasksBackendApi,
+    CellId, RawVc, TaskId, TraitTypeId, TurboTasksBackendApi,
 };
 
 use crate::{
@@ -219,9 +219,7 @@ impl Backend for MemoryBackend {
     ) -> Option<TaskExecutionSpec> {
         self.with_task(task, |task| {
             if task.execution_started(self, turbo_tasks) {
-                let cell_mappings = task.take_cell_mappings();
                 Some(TaskExecutionSpec {
-                    cell_mappings: Some(cell_mappings),
                     future: task.execute(turbo_tasks),
                 })
             } else {
@@ -244,12 +242,11 @@ impl Backend for MemoryBackend {
     fn task_execution_completed(
         &self,
         task: TaskId,
-        cell_mappings: Option<CellMappings>,
         duration: Duration,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> bool {
         self.with_task(task, |task| {
-            task.execution_completed(cell_mappings, duration, self, turbo_tasks)
+            task.execution_completed(duration, self, turbo_tasks)
         })
     }
 
@@ -299,7 +296,7 @@ impl Backend for MemoryBackend {
     fn try_read_task_cell(
         &self,
         task: TaskId,
-        index: usize,
+        index: CellId,
         reader: TaskId,
         _turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<Result<CellContent, EventListener>> {
@@ -318,7 +315,7 @@ impl Backend for MemoryBackend {
     fn try_read_task_cell_untracked(
         &self,
         task: TaskId,
-        index: usize,
+        index: CellId,
         _turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<Result<CellContent, EventListener>> {
         Ok(Ok(self.with_task(task, |task| {
@@ -329,7 +326,7 @@ impl Backend for MemoryBackend {
     fn track_read_task_cell(
         &self,
         task: TaskId,
-        index: usize,
+        index: CellId,
         reader: TaskId,
         _turbo_tasks: &dyn TurboTasksBackendApi,
     ) {
@@ -377,14 +374,10 @@ impl Backend for MemoryBackend {
         });
     }
 
-    fn get_fresh_cell(&self, task: TaskId, _turbo_tasks: &dyn TurboTasksBackendApi) -> usize {
-        self.with_task(task, |task| task.get_fresh_cell())
-    }
-
     fn update_task_cell(
         &self,
         task: TaskId,
-        index: usize,
+        index: CellId,
         content: CellContent,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) {

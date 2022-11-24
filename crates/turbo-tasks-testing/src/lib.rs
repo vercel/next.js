@@ -7,19 +7,19 @@ pub mod retry;
 
 use std::{
     borrow::Cow,
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     future::Future,
     mem::replace,
     sync::{Arc, Mutex, Weak},
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use turbo_tasks::{
     backend::CellContent,
     event::{Event, EventListener},
     registry,
-    test_helpers::with_turbo_tasks_for_testing,
-    RawVc, TaskId, TraitTypeId, TurboTasksApi, TurboTasksCallApi,
+    test_helpers::{current_task_for_testing, with_turbo_tasks_for_testing},
+    CellId, RawVc, TaskId, TraitTypeId, TurboTasksApi, TurboTasksCallApi,
 };
 
 enum Task {
@@ -30,7 +30,7 @@ enum Task {
 #[derive(Default)]
 pub struct VcStorage {
     this: Weak<Self>,
-    cells: Mutex<Vec<CellContent>>,
+    cells: Mutex<HashMap<(TaskId, CellId), CellContent>>,
     tasks: Mutex<Vec<Task>>,
 }
 
@@ -130,24 +130,34 @@ impl TurboTasksApi for VcStorage {
 
     fn try_read_task_cell(
         &self,
-        _task: TaskId,
-        index: usize,
+        task: TaskId,
+        index: CellId,
     ) -> Result<Result<CellContent, EventListener>> {
-        self.read_current_task_cell(index).map(Ok)
+        let map = self.cells.lock().unwrap();
+        if let Some(cell) = map.get(&(task, index)) {
+            Ok(Ok(cell.clone()))
+        } else {
+            Ok(Ok(CellContent::default()))
+        }
     }
 
     fn try_read_task_cell_untracked(
         &self,
         task: TaskId,
-        index: usize,
+        index: CellId,
     ) -> Result<Result<CellContent, EventListener>> {
-        self.try_read_task_cell(task, index)
+        let map = self.cells.lock().unwrap();
+        if let Some(cell) = map.get(&(task, index)) {
+            Ok(Ok(cell.clone()))
+        } else {
+            Ok(Ok(CellContent::default()))
+        }
     }
 
     fn try_read_own_task_cell_untracked(
         &self,
         _current_task: TaskId,
-        index: usize,
+        index: CellId,
     ) -> Result<CellContent> {
         self.read_current_task_cell(index)
     }
@@ -176,25 +186,21 @@ impl TurboTasksApi for VcStorage {
         unimplemented!()
     }
 
-    fn get_fresh_cell(&self, _task: TaskId) -> usize {
-        let mut cells = self.cells.lock().unwrap();
-        let i = cells.len();
-        cells.push(CellContent(None));
-        i
-    }
-
-    fn read_current_task_cell(&self, index: usize) -> Result<CellContent> {
-        if let Some(cell) = self.cells.lock().unwrap().get(index) {
+    fn read_current_task_cell(&self, index: CellId) -> Result<CellContent> {
+        let task = current_task_for_testing();
+        let map = self.cells.lock().unwrap();
+        if let Some(cell) = map.get(&(task, index)) {
             Ok(cell.clone())
         } else {
-            Err(anyhow!("non-existing cell"))
+            Ok(CellContent::default())
         }
     }
 
-    fn update_current_task_cell(&self, index: usize, content: CellContent) {
-        if let Some(cell) = self.cells.lock().unwrap().get_mut(index) {
-            *cell = content;
-        }
+    fn update_current_task_cell(&self, index: CellId, content: CellContent) {
+        let task = current_task_for_testing();
+        let mut map = self.cells.lock().unwrap();
+        let cell = map.entry((task, index)).or_default();
+        *cell = content;
     }
 }
 
@@ -205,7 +211,7 @@ impl VcStorage {
                 this: weak.clone(),
                 ..Default::default()
             }),
-            TaskId::from(0),
+            TaskId::from(usize::MAX),
             f,
         )
     }

@@ -10,14 +10,6 @@ pub struct Cell {
 }
 
 impl Cell {
-    pub fn new() -> Self {
-        Self {
-            content: CellContent(None),
-            updates: 0,
-            dependent_tasks: HashSet::new(),
-        }
-    }
-
     pub fn read_content(&mut self, reader: TaskId) -> CellContent {
         self.dependent_tasks.insert(reader);
         self.read_content_untracked()

@@ -2,8 +2,8 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    backend::{CellContent, CellMappings, PersistentTaskType},
-    RawVc, TaskId,
+    backend::{CellContent, PersistentTaskType},
+    CellId, RawVc, TaskId,
 };
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -22,8 +22,7 @@ impl Default for TaskCell {
 pub struct TaskData {
     pub children: Vec<TaskId>,
     pub dependencies: Vec<RawVc>,
-    pub cells: Vec<TaskCell>,
-    pub cell_mappings: Option<CellMappings>,
+    pub cells: Vec<(CellId, TaskCell)>,
     pub output: RawVc,
 }
 pub struct ReadTaskState {

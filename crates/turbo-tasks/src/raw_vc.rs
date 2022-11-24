@@ -18,15 +18,14 @@ use crate::{
     backend::CellContent,
     event::EventListener,
     manager::{
-        find_cell_by_key, find_cell_by_type, read_task_cell, read_task_cell_untracked,
-        read_task_output, read_task_output_untracked, CurrentCellRef, TurboTasksApi,
+        find_cell_by_type, read_task_cell, read_task_cell_untracked, read_task_output,
+        read_task_output_untracked, CurrentCellRef, TurboTasksApi,
     },
     primitives::{RawVcSet, RawVcSetVc},
-    registry::get_value_type,
+    registry::{self, get_value_type},
     turbo_tasks,
     value_type::ValueTraitVc,
-    CollectiblesSource, ReadRef, SharedReference, TaskId, TraitTypeId, Typed, TypedForInput,
-    ValueTypeId,
+    CollectiblesSource, ReadRef, SharedReference, TaskId, TraitTypeId, ValueTypeId,
 };
 
 #[derive(Error, Debug)]
@@ -42,9 +41,26 @@ pub enum ResolveTypeError {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub struct CellId {
+    pub type_id: ValueTypeId,
+    pub index: u32,
+}
+
+impl Display for CellId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}#{}",
+            registry::get_value_type(self.type_id).name,
+            self.index
+        )
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum RawVc {
     TaskOutput(TaskId),
-    TaskCell(TaskId, usize),
+    TaskCell(TaskId, CellId),
 }
 
 impl RawVc {
@@ -306,26 +322,6 @@ impl RawVc {
     /// recomputations in the graph (as once tasks doesn't reexecute)
     pub async fn cell_local(self) -> Result<RawVc> {
         self.cell_local_internal(find_cell_by_type).await
-    }
-
-    /// Like [RawVc::cell_local], but allows to specify a key for selecting the
-    /// cell.
-    pub async fn keyed_cell_local<
-        K: std::fmt::Debug
-            + std::cmp::Eq
-            + std::cmp::Ord
-            + std::hash::Hash
-            + Typed
-            + TypedForInput
-            + Send
-            + Sync
-            + 'static,
-    >(
-        self,
-        key: K,
-    ) -> Result<RawVc> {
-        self.cell_local_internal(|ty| find_cell_by_key(ty, key))
-            .await
     }
 
     pub fn get_task_id(&self) -> TaskId {

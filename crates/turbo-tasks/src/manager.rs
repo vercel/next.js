@@ -1,11 +1,9 @@
 use std::{
     borrow::Cow,
     cell::RefCell,
-    collections::HashSet,
-    fmt::Debug,
+    collections::{HashMap, HashSet},
     future::Future,
     hash::Hash,
-    mem::take,
     panic::AssertUnwindSafe,
     pin::Pin,
     sync::{
@@ -18,20 +16,21 @@ use std::{
 
 use anyhow::{anyhow, Result};
 use futures::FutureExt;
+use nohash_hasher::BuildNoHashHasher;
 use serde::{de::Visitor, Deserialize, Serialize};
 use tokio::{runtime::Handle, select, task_local};
 
 use crate::{
-    backend::{Backend, CellContent, CellMappings, PersistentTaskType, TransientTaskType},
+    backend::{Backend, CellContent, PersistentTaskType, TransientTaskType},
     event::{Event, EventListener},
     id::{BackendJobId, FunctionId, TraitTypeId},
     id_factory::IdFactory,
-    raw_vc::RawVc,
-    task_input::{SharedReference, SharedValue, TaskInput},
+    raw_vc::{CellId, RawVc},
+    task_input::{SharedReference, TaskInput},
     timed_future::{self, TimedFuture},
     trace::TraceRawVcs,
     util::FormatDuration,
-    Nothing, NothingVc, TaskId, Typed, TypedForInput, ValueTraitVc, ValueTypeId,
+    Nothing, NothingVc, TaskId, ValueTraitVc, ValueTypeId,
 };
 
 pub trait TurboTasksCallApi: Sync + Send {
@@ -78,7 +77,7 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
     fn try_read_task_cell(
         &self,
         task: TaskId,
-        index: usize,
+        index: CellId,
     ) -> Result<Result<CellContent, EventListener>>;
 
     /// INVALIDATION: Be careful with this, it will not track dependencies, so
@@ -86,7 +85,7 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
     fn try_read_task_cell_untracked(
         &self,
         task: TaskId,
-        index: usize,
+        index: CellId,
     ) -> Result<Result<CellContent, EventListener>>;
 
     fn try_read_task_collectibles(
@@ -104,12 +103,11 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
     fn try_read_own_task_cell_untracked(
         &self,
         current_task: TaskId,
-        index: usize,
+        index: CellId,
     ) -> Result<CellContent>;
 
-    fn get_fresh_cell(&self, task: TaskId) -> usize;
-    fn read_current_task_cell(&self, index: usize) -> Result<CellContent>;
-    fn update_current_task_cell(&self, index: usize, content: CellContent);
+    fn read_current_task_cell(&self, index: CellId) -> Result<CellContent>;
+    fn update_current_task_cell(&self, index: CellId, content: CellContent);
 }
 
 pub trait TaskIdProvider {
@@ -189,7 +187,7 @@ task_local! {
     /// The current TurboTasks instance
     static TURBO_TASKS: Arc<dyn TurboTasksApi>;
 
-    static PREVIOUS_CELLS: RefCell<CellMappings>;
+    static CELL_COUNTERS: RefCell<HashMap<ValueTypeId, u32, BuildNoHashHasher<ValueTypeId>>>;
 
     static CURRENT_TASK_ID: TaskId;
 
@@ -332,20 +330,12 @@ impl<B: Backend> TurboTasks<B> {
                 }
                 if let Some(execution) = this.backend.try_start_task_execution(task_id, &*this) {
                     // Setup thread locals
-                    let has_cell_mappings = execution.cell_mappings.is_some();
-
-                    let cell_mappings = RefCell::new(execution.cell_mappings.unwrap_or_default());
-                    let (result, duration, cell_mappings) = PREVIOUS_CELLS
-                        .scope(cell_mappings, async {
+                    let (result, duration) = CELL_COUNTERS
+                        .scope(Default::default(), async {
                             let (result, duration) =
                                 TimedFuture::new(AssertUnwindSafe(execution.future).catch_unwind())
                                     .await;
-                            let cell_mappings = if has_cell_mappings {
-                                Some(PREVIOUS_CELLS.with(|s| take(&mut *s.borrow_mut())))
-                            } else {
-                                None
-                            };
-                            (result, duration, cell_mappings)
+                            (result, duration)
                         })
                         .await;
                     if cfg!(feature = "log_function_stats") && duration.as_millis() > 1000 {
@@ -364,12 +354,9 @@ impl<B: Backend> TurboTasks<B> {
                     });
                     this.backend.task_execution_result(task_id, result, &*this);
                     this.notify_scheduled_tasks_internal();
-                    let reexecute = this.backend.task_execution_completed(
-                        task_id,
-                        cell_mappings,
-                        duration,
-                        &*this,
-                    );
+                    let reexecute = this
+                        .backend
+                        .task_execution_completed(task_id, duration, &*this);
                     if !reexecute {
                         break;
                     }
@@ -678,7 +665,7 @@ impl<B: Backend> TurboTasksApi for TurboTasks<B> {
     fn try_read_task_cell(
         &self,
         task: TaskId,
-        index: usize,
+        index: CellId,
     ) -> Result<Result<CellContent, EventListener>> {
         self.backend
             .try_read_task_cell(task, index, current_task("reading Vcs"), self)
@@ -687,7 +674,7 @@ impl<B: Backend> TurboTasksApi for TurboTasks<B> {
     fn try_read_task_cell_untracked(
         &self,
         task: TaskId,
-        index: usize,
+        index: CellId,
     ) -> Result<Result<CellContent, EventListener>> {
         self.backend.try_read_task_cell_untracked(task, index, self)
     }
@@ -695,7 +682,7 @@ impl<B: Backend> TurboTasksApi for TurboTasks<B> {
     fn try_read_own_task_cell_untracked(
         &self,
         current_task: TaskId,
-        index: usize,
+        index: CellId,
     ) -> Result<CellContent> {
         self.backend
             .try_read_own_task_cell_untracked(current_task, index, self)
@@ -743,16 +730,12 @@ impl<B: Backend> TurboTasksApi for TurboTasks<B> {
         }
     }
 
-    fn get_fresh_cell(&self, task: TaskId) -> usize {
-        self.backend.get_fresh_cell(task, self)
-    }
-
-    fn read_current_task_cell(&self, index: usize) -> Result<CellContent> {
+    fn read_current_task_cell(&self, index: CellId) -> Result<CellContent> {
         // INVALIDATION: don't need to track a dependency to itself
         self.try_read_own_task_cell_untracked(current_task("reading Vcs"), index)
     }
 
-    fn update_current_task_cell(&self, index: usize, content: CellContent) {
+    fn update_current_task_cell(&self, index: CellId, content: CellContent) {
         self.backend.update_task_cell(
             current_task("cellting turbo_tasks values"),
             index,
@@ -978,8 +961,12 @@ pub fn with_turbo_tasks_for_testing<T>(
 ) -> impl Future<Output = T> {
     TURBO_TASKS.scope(
         tt,
-        CURRENT_TASK_ID.scope(current_task, PREVIOUS_CELLS.scope(Default::default(), f)),
+        CURRENT_TASK_ID.scope(current_task, CELL_COUNTERS.scope(Default::default(), f)),
     )
+}
+
+pub fn current_task_for_testing() -> TaskId {
+    CURRENT_TASK_ID.with(|id| *id)
 }
 
 /// Get an [Invalidator] that can be used to invalidate the current [Task]
@@ -1049,7 +1036,7 @@ pub(crate) async fn read_task_output_untracked(
 pub(crate) async fn read_task_cell(
     this: &dyn TurboTasksApi,
     id: TaskId,
-    index: usize,
+    index: CellId,
 ) -> Result<CellContent> {
     loop {
         match this.try_read_task_cell(id, index)? {
@@ -1064,7 +1051,7 @@ pub(crate) async fn read_task_cell(
 pub(crate) async fn read_task_cell_untracked(
     this: &dyn TurboTasksApi,
     id: TaskId,
-    index: usize,
+    index: CellId,
 ) -> Result<CellContent> {
     loop {
         match this.try_read_task_cell_untracked(id, index)? {
@@ -1089,8 +1076,7 @@ pub(crate) async fn read_task_collectibles(
 
 pub struct CurrentCellRef {
     current_task: TaskId,
-    index: usize,
-    type_id: ValueTypeId,
+    index: CellId,
 }
 
 impl CurrentCellRef {
@@ -1110,7 +1096,10 @@ impl CurrentCellRef {
         if let Some(update) = update {
             tt.update_current_task_cell(
                 self.index,
-                CellContent(Some(SharedReference(Some(self.type_id), Arc::new(update)))),
+                CellContent(Some(SharedReference(
+                    Some(self.index.type_id),
+                    Arc::new(update),
+                ))),
             )
         }
     }
@@ -1131,7 +1120,7 @@ impl CurrentCellRef {
         tt.update_current_task_cell(
             self.index,
             CellContent(Some(SharedReference(
-                Some(self.type_id),
+                Some(self.index.type_id),
                 Arc::new(new_content),
             ))),
         )
@@ -1157,47 +1146,16 @@ impl From<CurrentCellRef> for RawVc {
     }
 }
 
-pub fn find_cell_by_key<
-    K: Debug + Eq + Ord + Hash + Typed + TypedForInput + Send + Sync + 'static,
->(
-    type_id: ValueTypeId,
-    key: K,
-) -> CurrentCellRef {
-    PREVIOUS_CELLS.with(|c| {
-        let current_task = current_task("cellting turbo_tasks values");
-        let mut map = c.borrow_mut();
-        let index = *map
-            .by_key
-            .entry((
-                type_id,
-                SharedValue(Some(K::get_value_type_id()), Arc::new(key)),
-            ))
-            .or_insert_with(|| with_turbo_tasks(|tt| tt.get_fresh_cell(current_task)));
-        CurrentCellRef {
-            current_task,
-            index,
-            type_id,
-        }
-    })
-}
-
 pub fn find_cell_by_type(type_id: ValueTypeId) -> CurrentCellRef {
-    PREVIOUS_CELLS.with(|cell| {
-        let current_task = current_task("cellting turbo_tasks values");
+    CELL_COUNTERS.with(|cell| {
+        let current_task = current_task("celling turbo_tasks values");
         let mut map = cell.borrow_mut();
-        let (ref mut current_index, ref mut list) = map.by_type.entry(type_id).or_default();
-        let index = if let Some(i) = list.get(*current_index) {
-            *i
-        } else {
-            let index = turbo_tasks().get_fresh_cell(current_task);
-            list.push(index);
-            index
-        };
+        let current_index = map.entry(type_id).or_default();
+        let index = *current_index;
         *current_index += 1;
         CurrentCellRef {
             current_task,
-            index,
-            type_id,
+            index: CellId { type_id, index },
         }
     })
 }

@@ -16,7 +16,7 @@ use flurry::{HashMap, HashMapRef};
 use serde::Serialize;
 use turbo_tasks::{
     backend::{
-        Backend, BackgroundJobId, CellContent, CellMappings, PersistentTaskType, TaskExecutionSpec,
+        Backend, BackgroundJobId, CellContent, PersistentTaskType, TaskExecutionSpec,
         TransientTaskType,
     },
     event::{Event, EventListener},
@@ -92,7 +92,7 @@ pub struct RocksDbBackend {
     // protects access to "task_cell", "task_state", "task_dependencies"
     mutex_task_dependencies: HashMap<TaskId, Mutex<()>>,
     transient_cells: HashMap<(TaskId, usize), Option<SharedReference>>,
-    transient_tasks: HashMap<TaskId, Mutex<(TransientTaskType, CellMappings)>>,
+    transient_tasks: HashMap<TaskId, Mutex<TransientTaskType>>,
     transient_task_children: flurry::HashSet<TaskId>,
     task_transient_cell_request: flurry::HashSet<TaskId>,
     task_id_forward_mapping: HashMap<TaskId, TaskId>,
@@ -474,16 +474,6 @@ impl RocksDbBackend {
         Ok(())
     }
 
-    fn try_get_fresh_cell(&self, task: TaskId) -> Result<usize> {
-        let db = self.database.as_ref().unwrap();
-        // Get and increment task_next_cell
-        let next_cell = db.task_next_cell.get(&task)?.unwrap_or_default();
-        let b = &mut db.batch();
-        db.task_next_cell.write(b, &task, &(next_cell + 1))?;
-        b.write()?;
-        Ok(next_cell)
-    }
-
     fn try_make_dirty(&self, b: &mut WriteBatch, task: TaskId) -> Result<()> {
         let db = self.database.as_ref().unwrap();
         // Update task clean flag
@@ -569,7 +559,7 @@ impl RocksDbBackend {
     fn try_update_task_cell(
         &self,
         task: TaskId,
-        index: usize,
+        index: CellId,
         content: CellContent,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<()> {
@@ -599,7 +589,6 @@ impl RocksDbBackend {
     fn try_task_execution_completed(
         &self,
         task: TaskId,
-        cell_mappings: Option<CellMappings>,
         result: Result<RawVc>,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<bool> {
@@ -622,10 +611,6 @@ impl RocksDbBackend {
             // (there didn't exist one yet)
             false
         };
-        // Write new cell mappings
-        if let Some(cell_mappings) = cell_mappings {
-            db.task_cell_mappings.write(b, &task, &cell_mappings)?;
-        }
         if change {
             // When result differs from old result:
             //   Invalidate all task_dependents
@@ -716,20 +701,13 @@ impl Backend for RocksDbBackend {
                         return None;
                     }
                 }
-                // Grab CellMappingsx
-                let cell_mappings = db
-                    .task_cell_mappings
-                    .get(&task)
-                    .unwrap_or_default()
-                    .unwrap_or_default();
                 self.in_progress_valid.pin().insert(task);
                 Some(TaskExecutionSpec {
-                    cell_mappings: Some(cell_mappings),
                     future: Box::pin(task_type.run(turbo_tasks.pin())),
                 })
             } else {
                 if let Some(mutex) = self.transient_tasks.pin().get(&task) {
-                    let (task_type, cell_mappings) = &mut *mutex.lock().unwrap();
+                    let task_type = &mut *mutex.lock().unwrap();
                     let future = match task_type {
                         TransientTaskType::Root(func) => (func)(),
                         TransientTaskType::Once(future) => std::mem::replace(
@@ -739,13 +717,8 @@ impl Backend for RocksDbBackend {
                             }),
                         ),
                     };
-                    // Grab CellMappingsx
-                    let cell_mappings = take(cell_mappings);
                     self.in_progress_valid.pin().insert(task);
-                    Some(TaskExecutionSpec {
-                        cell_mappings: Some(cell_mappings),
-                        future,
-                    })
+                    Some(TaskExecutionSpec { future })
                 } else {
                     None
                 }
@@ -756,14 +729,13 @@ impl Backend for RocksDbBackend {
     fn task_execution_completed(
         &self,
         task: TaskId,
-        cell_mappings: Option<CellMappings>,
         result: Result<RawVc>,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> bool {
         #[cfg(feature = "log_backend")]
         println!("RB task_execution_completed({})", task);
         self.with_task_id_mapping(turbo_tasks, || {
-            self.try_task_execution_completed(task, cell_mappings, result, turbo_tasks)
+            self.try_task_execution_completed(task, result, turbo_tasks)
                 .unwrap()
         })
     }
@@ -864,7 +836,7 @@ impl Backend for RocksDbBackend {
     fn try_read_task_cell(
         &self,
         task: TaskId,
-        index: usize,
+        index: CellId,
         reader: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<Result<CellContent, EventListener>> {
@@ -888,7 +860,7 @@ impl Backend for RocksDbBackend {
     unsafe fn try_read_task_cell_untracked(
         &self,
         task: TaskId,
-        index: usize,
+        index: CellId,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<Result<CellContent, EventListener>> {
         #[cfg(feature = "log_backend")]
@@ -946,7 +918,7 @@ impl Backend for RocksDbBackend {
     fn track_read_task_cell(
         &self,
         task: TaskId,
-        index: usize,
+        index: CellId,
         reader: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) {
@@ -965,14 +937,10 @@ impl Backend for RocksDbBackend {
         });
     }
 
-    fn get_fresh_cell(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi) -> usize {
-        self.with_task_id_mapping(turbo_tasks, || self.try_get_fresh_cell(task).unwrap())
-    }
-
     fn update_task_cell(
         &self,
         task: TaskId,
-        index: usize,
+        index: CellId,
         content: CellContent,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) {
@@ -1007,9 +975,7 @@ impl Backend for RocksDbBackend {
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> TaskId {
         let id = turbo_tasks.get_fresh_task_id();
-        self.transient_tasks
-            .pin()
-            .insert(id, Mutex::new((task_type, CellMappings::default())));
+        self.transient_tasks.pin().insert(id, Mutex::new(task_type));
         id
     }
 }
@@ -1179,8 +1145,14 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec![task1, task2]
         );
-        let cell = b.get_fresh_cell(task1, &*turbo_tasks);
-        b.update_task_cell(task1, cell, content.clone(), &*turbo_tasks);
+        let cell = 0;
+        b.update_task_cell(
+            task1,
+            Completion::get_value_type_id(),
+            cell,
+            content.clone(),
+            &*turbo_tasks,
+        );
         let read = b.try_read_task_cell(task1, cell, task2, &*turbo_tasks);
         read.unwrap().unwrap().cast::<Completion>().unwrap();
         assert_eq!(
@@ -1194,7 +1166,13 @@ mod tests {
         );
 
         // updating a cell should notify
-        b.update_task_cell(task1, cell, content, &*turbo_tasks);
+        b.update_task_cell(
+            task1,
+            Completion::get_value_type_id(),
+            cell,
+            content,
+            &*turbo_tasks,
+        );
         assert_eq!(
             turbo_tasks
                 .notified_tasks

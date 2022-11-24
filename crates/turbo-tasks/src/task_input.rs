@@ -19,7 +19,7 @@ use crate::{
     registry, turbo_tasks,
     value::{TransientInstance, TransientValue, Value},
     value_type::TypedForInput,
-    RawVc, TaskId, TraitType, Typed, ValueTypeId,
+    CellId, RawVc, TaskId, TraitType, Typed, ValueTypeId,
 };
 
 #[derive(Clone)]
@@ -325,7 +325,7 @@ impl<'de> Deserialize<'de> for SharedValue {
 #[derive(Debug, Hash, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum TaskInput {
     TaskOutput(TaskId),
-    TaskCell(TaskId, usize),
+    TaskCell(TaskId, CellId),
     List(Vec<TaskInput>),
     String(String),
     Bool(bool),

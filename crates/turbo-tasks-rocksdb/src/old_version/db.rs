@@ -2,12 +2,13 @@ use std::fmt::Debug;
 
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    backend::{PersistentTaskType, CellMappings},
-    without_task_id_mapping, RawVc, SharedReference, TaskId,
+    backend::PersistentTaskType, without_task_id_mapping, RawVc, SharedReference, TaskId,
 };
 
-use crate::sortable_index::SortableIndex;
-use crate::table::{database, table};
+use crate::{
+    sortable_index::SortableIndex,
+    table::{database, table},
+};
 
 #[derive(Serialize, Deserialize)]
 pub struct SessionKey {
@@ -105,9 +106,6 @@ table!(task_state, (TaskId) => (TaskFreshness, Option<TaskOutput>), merge(
     without_task_id_mapping
 ), prefix(full));
 
-// This stores the mappings of the cellted data to cell indicies
-table!(task_cell_mappings, (TaskId) => (CellMappings), prefix(full));
-
 // This stores the dependencies of a task.
 // When processing this from a RawVc, flag all listed tasks as dirty.
 table!(task_dependencies, [TaskId] <=> [RawVc], prefix(u8));
@@ -176,7 +174,6 @@ database!(
     task_cell,
     task_state,
     task_next_cell,
-    task_cell_mappings,
     task_dependencies,
     task_children,
     task_generations,

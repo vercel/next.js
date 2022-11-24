@@ -1,6 +1,6 @@
 use std::{
     borrow::Cow,
-    collections::{BinaryHeap, HashSet},
+    collections::{BinaryHeap, HashMap, HashSet},
     fmt::Debug,
     future::Future,
     mem::{replace, take},
@@ -16,7 +16,7 @@ use anyhow::{anyhow, Result};
 use concurrent_queue::ConcurrentQueue;
 use turbo_tasks::{
     backend::{
-        Backend, BackendJobId, CellContent, CellMappings, PersistentTaskType, TaskExecutionSpec,
+        Backend, BackendJobId, CellContent, PersistentTaskType, TaskExecutionSpec,
         TransientTaskType,
     },
     event::{Event, EventListener},
@@ -25,7 +25,7 @@ use turbo_tasks::{
         PersistedGraphApi, ReadTaskState, TaskCell, TaskData,
     },
     util::{IdFactory, NoMoveVec, SharedError},
-    RawVc, TaskId, TraitTypeId, TurboTasksBackendApi,
+    CellId, RawVc, TaskId, TraitTypeId, TurboTasksBackendApi,
 };
 
 type RootTaskFn =
@@ -67,8 +67,7 @@ struct MemoryTaskState {
     need_persist: bool,
     has_changes: bool,
     freshness: TaskFreshness,
-    cells: Vec<(TaskCell, HashSet<TaskId>)>,
-    cell_mappings: Option<CellMappings>,
+    cells: HashMap<CellId, (TaskCell, HashSet<TaskId>)>,
     output: Option<Result<RawVc, SharedError>>,
     output_dependent: HashSet<TaskId>,
     dependencies: HashSet<RawVc>,
@@ -84,7 +83,6 @@ impl MemoryTaskState {
             need_persist: Default::default(),
             has_changes: Default::default(),
             cells: Default::default(),
-            cell_mappings: Default::default(),
             output: Default::default(),
             output_dependent: Default::default(),
             dependencies: Default::default(),
@@ -271,9 +269,8 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
                     cells: data
                         .cells
                         .into_iter()
-                        .map(|s| (s, HashSet::new()))
+                        .map(|(k, s)| (k, (s, HashSet::new())))
                         .collect(),
-                    cell_mappings: data.cell_mappings,
                     output: Some(Ok(data.output)),
                     output_dependent: HashSet::new(),
                     dependencies: data.dependencies.into_iter().collect(),
@@ -759,7 +756,6 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
                                 ref children,
                                 ref dependencies,
                                 ref cells,
-                                ref cell_mappings,
                                 ..
                             }),
                         ..
@@ -794,8 +790,10 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
                                         let data = TaskData {
                                             children: children.iter().cloned().collect(),
                                             dependencies: dependencies.iter().cloned().collect(),
-                                            cells: cells.iter().map(|(s, _)| s.clone()).collect(),
-                                            cell_mappings: cell_mappings.clone(),
+                                            cells: cells
+                                                .iter()
+                                                .map(|(k, (s, _))| (*k, s.clone()))
+                                                .collect(),
                                             output: *output,
                                         };
                                         let externally_active =
@@ -1045,8 +1043,6 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         mem_state.freshness = TaskFreshness::NeverExecuted;
         let deps = take(&mut mem_state.dependencies);
         let children = take(&mut mem_state.children);
-        let mut cell_mappings = mem_state.cell_mappings.take().unwrap_or_default();
-        cell_mappings.reset();
         drop(state);
         for dep in deps {
             let (mut state, _) = self.mem_state_mut(dep.get_task_id(), turbo_tasks);
@@ -1056,7 +1052,7 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
                     mem_state.output_dependent.remove(&task);
                 }
                 RawVc::TaskCell(_, i) => {
-                    if let Some((_, dependent)) = mem_state.cells.get_mut(i) {
+                    if let Some((_, dependent)) = mem_state.cells.get_mut(&i) {
                         dependent.remove(&task);
                     }
                 }
@@ -1076,10 +1072,7 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
                 )
             }
         };
-        Some(TaskExecutionSpec {
-            future,
-            cell_mappings: Some(cell_mappings),
-        })
+        Some(TaskExecutionSpec { future })
     }
 
     fn task_execution_result(
@@ -1118,7 +1111,6 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
     fn task_execution_completed(
         &self,
         task: TaskId,
-        cell_mappings: Option<CellMappings>,
         duration: Duration,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> bool {
@@ -1137,7 +1129,6 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
             ..
         } = *state;
         let mem_state = memory.as_mut().unwrap();
-        mem_state.cell_mappings = cell_mappings;
         if mem_state.freshness == TaskFreshness::Dirty {
             return true;
         }
@@ -1305,7 +1296,7 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
     fn try_read_task_cell(
         &self,
         task: TaskId,
-        index: usize,
+        index: CellId,
         reader: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<Result<CellContent, EventListener>> {
@@ -1327,7 +1318,7 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
             println!("waiting (fresh task) {} waits on {}", reader, task);
             return Ok(Err(mem_state.event_cells.listen()));
         }
-        if let Some((cell, dependent)) = mem_state.cells.get_mut(index) {
+        if let Some((cell, dependent)) = mem_state.cells.get_mut(&index) {
             match cell {
                 TaskCell::Content(content) => {
                     let content = content.clone();
@@ -1371,7 +1362,7 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
     fn try_read_task_cell_untracked(
         &self,
         task: TaskId,
-        index: usize,
+        index: CellId,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<Result<CellContent, EventListener>> {
         let (mut state, _) = self.mem_state_mut(task, turbo_tasks);
@@ -1383,7 +1374,7 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         let mem_state = memory.as_mut().unwrap();
         let (cell, _) = mem_state
             .cells
-            .get(index)
+            .get(&index)
             .ok_or_else(|| anyhow!("Cannot read non-existing cell"))?;
         match cell {
             TaskCell::Content(content) => {
@@ -1409,12 +1400,12 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
     fn try_read_own_task_cell_untracked(
         &self,
         task: TaskId,
-        index: usize,
+        index: CellId,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<CellContent> {
         let (state, _) = self.mem_state_mut(task, turbo_tasks);
         let mem_state = state.memory.as_ref().unwrap();
-        if let Some((cell, _)) = mem_state.cells.get(index) {
+        if let Some((cell, _)) = mem_state.cells.get(&index) {
             match cell {
                 TaskCell::Content(content) => Ok(content.clone()),
                 TaskCell::NeedComputation => Ok(CellContent(None)),
@@ -1427,13 +1418,13 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
     fn track_read_task_cell(
         &self,
         task: TaskId,
-        index: usize,
+        index: CellId,
         reader: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) {
         let (mut state, _) = self.mem_state_mut(task, turbo_tasks);
         let mem_state = state.memory.as_mut().unwrap();
-        if let Some((_, dependent)) = mem_state.cells.get_mut(index) {
+        if let Some((_, dependent)) = mem_state.cells.get_mut(&index) {
             let need_dependency = dependent.insert(reader);
             drop(state);
             if need_dependency {
@@ -1474,24 +1465,10 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         todo!()
     }
 
-    fn get_fresh_cell(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi) -> usize {
-        let (mut state, task_info) = self.mem_state_mut(task, turbo_tasks);
-        if let TaskType::Persistent(_) = task_info.task_type {
-            let mem_state = state.memory.as_mut().unwrap();
-            let index = mem_state.cells.len();
-            mem_state
-                .cells
-                .push((TaskCell::Content(CellContent(None)), HashSet::new()));
-            index
-        } else {
-            panic!("Only Persistent Tasks can store data")
-        }
-    }
-
     fn update_task_cell(
         &self,
         task: TaskId,
-        index: usize,
+        index: CellId,
         content: CellContent,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) {
@@ -1503,11 +1480,7 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         } = *state;
         let mem_state = memory.as_mut().unwrap();
         mem_state.has_changes = true;
-        let (cell, dependent) = mem_state
-            .cells
-            .get_mut(index)
-            .ok_or_else(|| anyhow!("Cannot update non-existing cell"))
-            .unwrap();
+        let (cell, dependent) = mem_state.cells.entry(index).or_default();
         *cell = TaskCell::Content(content);
         mem_state.event_cells.notify(usize::MAX);
         let is_persisted = persisted.is_some();

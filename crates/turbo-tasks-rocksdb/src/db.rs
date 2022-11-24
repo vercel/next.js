@@ -2,7 +2,7 @@ use std::ops::Add;
 
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    backend::{CellMappings, PersistentTaskType},
+    backend::PersistentTaskType,
     persisted_graph::{TaskCell, TaskData},
     without_task_id_mapping, RawVc,
 };
@@ -197,7 +197,6 @@ impl Add for TaskStateChange {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PartialTaskData {
     pub cells: Vec<TaskCell>,
-    pub cell_mappings: Option<CellMappings>,
     pub output: RawVc,
 }
 

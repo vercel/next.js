@@ -17,10 +17,6 @@ pub trait OptimizableChunk {
     fn get_optimizer(&self) -> ChunkOptimizerVc;
 }
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, PartialOrd, Ord, Hash)]
-struct OptimizerKey(Option<ChunkOptimizerVc>);
-
 #[turbo_tasks::function]
 pub async fn optimize(chunks: ChunksVc, chunk_group: ChunkGroupVc) -> Result<ChunksVc> {
     let chunks = chunks.await?;
@@ -46,7 +42,8 @@ pub async fn optimize(chunks: ChunksVc, chunk_group: ChunkGroupVc) -> Result<Chu
     let optimized_chunks = by_optimizer
         .into_iter()
         .map(|(optimizer, chunks)| async move {
-            let chunks = ChunksVc::keyed_cell(OptimizerKey(optimizer), chunks);
+            // TODO keyed cell: this would benefit from keying the cell by optimizer
+            let chunks = ChunksVc::cell(chunks);
             Ok(if let Some(optimizer) = optimizer {
                 optimizer.optimize(chunks, chunk_group).await?
             } else {
@@ -69,13 +66,10 @@ pub struct ContainmentTree {
     pub children: Vec<ContainmentTree>,
 }
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, PartialOrd, Ord, Hash)]
-struct ChunksKey(FileSystemPathVc);
-
-#[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, PartialOrd, Ord, Hash)]
-struct OrphanChunkKey(ChunkVc);
+#[turbo_tasks::function]
+fn orphan_chunk(chunk: ChunkVc) -> ChunksVc {
+    ChunksVc::cell(vec![chunk])
+}
 
 impl ContainmentTree {
     async fn build(
@@ -182,10 +176,8 @@ impl ContainmentTree {
                 .into_iter()
                 .map(node_to_common_parent_tree)
                 .collect();
-            let chunks = Some(ChunksVc::keyed_cell(
-                ChunksKey(node.path),
-                take(&mut node.chunks),
-            ));
+            // TODO keyed cell: this would benefit from keying the cell by node.path
+            let chunks = Some(ChunksVc::cell(take(&mut node.chunks)));
             ContainmentTree {
                 path: Some(node.path),
                 chunks,
@@ -202,7 +194,7 @@ impl ContainmentTree {
                 .map(node_to_common_parent_tree)
                 .chain(orphan_chunks.into_iter().map(|chunk| ContainmentTree {
                     path: None,
-                    chunks: Some(ChunksVc::keyed_cell(OrphanChunkKey(chunk), vec![chunk])),
+                    chunks: Some(orphan_chunk(chunk)),
                     children: Vec::new(),
                 }))
                 .collect::<Vec<_>>()
@@ -239,10 +231,6 @@ impl ContainmentTree {
         })
     }
 }
-
-#[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, PartialOrd, Ord, Hash)]
-struct ChunksFlattenKey(Option<FileSystemPathVc>);
 
 #[turbo_tasks::value(transparent)]
 struct ListsOfChunks(Vec<ChunksVc>);
@@ -285,7 +273,8 @@ pub async fn optimize_by_common_parent(
             .map(|tree| optimize_tree(tree, optimize))
             .collect::<Vec<_>>();
         let children = if !children.is_empty() {
-            let lists = ListsOfChunksVc::keyed_cell(ChunksFlattenKey(tree.path), children);
+            // TODO keyed cell: this would benefit from keying the cell by tree.path
+            let lists = ListsOfChunksVc::cell(children);
             Some(flatten_chunks(lists))
         } else {
             None
