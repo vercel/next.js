@@ -2223,14 +2223,22 @@ export async function nextbuildstatic(task, opts) {
 export async function pages_app(task, opts) {
   await task
     .source('pages/_app.tsx')
-    .swc('client', { dev: opts.dev, keepImportAssertions: true })
+    .swc('client', {
+      dev: opts.dev,
+      keepImportAssertions: true,
+      interopClientDefaultExport: true,
+    })
     .target('dist/pages')
 }
 
 export async function pages_error(task, opts) {
   await task
     .source('pages/_error.tsx')
-    .swc('client', { dev: opts.dev, keepImportAssertions: true })
+    .swc('client', {
+      dev: opts.dev,
+      keepImportAssertions: true,
+      interopClientDefaultExport: true,
+    })
     .target('dist/pages')
 }
 

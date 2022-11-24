@@ -10,7 +10,6 @@ import {
   getGlobalImportError,
   getGlobalModuleImportError,
   getLocalModuleImportError,
-  getFontLoaderDocumentImportError,
 } from './messages'
 import { getPostCssPlugins } from './plugins'
 import { nonNullable } from '../../../../../lib/non-nullable'
@@ -191,25 +190,6 @@ export const css = curry(async function css(
 
   // Font loaders cannot be imported in _document.
   fontLoaders?.forEach(([fontLoaderPath, fontLoaderOptions]) => {
-    fns.push(
-      loader({
-        oneOf: [
-          markRemovable({
-            test: fontLoaderPath,
-            // Use a loose regex so we don't have to crawl the file system to
-            // find the real file name (if present).
-            issuer: /pages[\\/]_document\./,
-            use: {
-              loader: 'error-loader',
-              options: {
-                reason: getFontLoaderDocumentImportError(),
-              },
-            },
-          }),
-        ],
-      })
-    )
-
     // Matches the resolved font loaders noop files to run next-font-loader
     fns.push(
       loader({
