@@ -1794,27 +1794,6 @@ server.listen(currentPort, (err) => {
   )
 }
 
-/*export async function copyFilesForMiddlewareAndEdgeFunctions(
-  distDir: string,
-  middlewareManifest: MiddlewareManifest,
-  edgeRuntimePages: string[]
-) {
-  const outputPath = path.join(distDir, 'standalone')
-  const assetsKeys = ['wasm', 'assets'] as const
-  const filesKeys = 'files'
-  const b = middlewareManifest.functions['hehe'][assetsKeys[0]]
-  for (const path of Object.keys(middlewareManifest.functions)) {
-    for (const assetsKey of assetsKeys) {
-      const assets = middlewareManifest.functions[path][assetsKey]
-      if (assets) {
-        for (const asset of assets) {
-
-        }
-      }
-    }
-  }
-} */
-
 export function isReservedPage(page: string) {
   return RESERVED_PAGE.test(page)
 }
