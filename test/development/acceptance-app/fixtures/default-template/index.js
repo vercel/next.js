@@ -1,8 +1,1 @@
-import Comp from 'b'
-export default function Oops() {
-  return (
-    <div>
-      <Comp>lol</Comp>
-    </div>
-  )
-}
+export default () => 'new sandbox'
