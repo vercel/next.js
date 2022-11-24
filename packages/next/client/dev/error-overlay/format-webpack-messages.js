@@ -171,19 +171,10 @@ function formatMessage(message, verbose, importTraceNote) {
 
 function formatWebpackMessages(json, verbose) {
   const formattedErrors = json.errors.map(function (message) {
-    let importTraceNote
-
-    if (
-      message &&
-      message.message &&
-      /Font loader error:/.test(message.message)
-    ) {
-      return message.message.slice(
-        message.message.indexOf('Font loader error:')
-      )
-    }
-
-    return formatMessage(message, verbose, importTraceNote)
+    const isUnknownNextFontError = message.message.includes(
+      'An error occured in `@next/font`.'
+    )
+    return formatMessage(message, isUnknownNextFontError || verbose)
   })
   const formattedWarnings = json.warnings.map(function (message) {
     return formatMessage(message, verbose)
