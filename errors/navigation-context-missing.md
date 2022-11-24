@@ -2,7 +2,7 @@
 
 #### Why This Error Occurred
 
-This can happen when you have components that are shared between `pages/` and `app/` or were trying to use the `next/navigation` hooks outside the `app/` directory. Situations where you also render components outside a Next.js application (like in unit tests) can also trigger this error.
+This can happen when you have components that are shared between `pages/` and `app/` or were trying to use the `next/navigation` hooks outside the `app/` directory. Situations where you render components outside a Next.js application (like in unit tests) can also trigger this error.
 
 The following hooks can be affected by missing contexts:
 
