@@ -1,15 +1,15 @@
-use std::{hash::Hash, sync::Mutex};
+use std::{
+    hash::Hash,
+    sync::{Arc, Mutex},
+};
 
-use flurry::{HashMap, HashMapRef, TryInsertError};
+use dashmap::{mapref::entry::Entry, DashMap};
 
-pub struct OnceConcurrentlyMap<
-    K: ?Sized + Hash + Eq + Ord + Send + Sync + 'static,
-    V: Clone + Send + Sync,
-> {
-    inner: HashMap<&'static K, Mutex<Option<V>>>,
+pub struct OnceConcurrentlyMap<K: Hash + Eq + Ord + Send + Sync + 'static, V: Clone + Send + Sync> {
+    inner: DashMap<&'static K, Arc<Mutex<Option<V>>>>,
 }
 
-impl<K: ?Sized + Hash + Eq + Ord + Send + Sync, V: Clone + Send + Sync> Default
+impl<K: Hash + Eq + Ord + Send + Sync, V: Clone + Send + Sync> Default
     for OnceConcurrentlyMap<K, V>
 {
     fn default() -> Self {
@@ -17,21 +17,21 @@ impl<K: ?Sized + Hash + Eq + Ord + Send + Sync, V: Clone + Send + Sync> Default
     }
 }
 
-impl<K: ?Sized + Hash + Eq + Ord + Send + Sync, V: Clone + Send + Sync> OnceConcurrentlyMap<K, V> {
+impl<K: Hash + Eq + Ord + Send + Sync, V: Clone + Send + Sync> OnceConcurrentlyMap<K, V> {
     pub fn new() -> Self {
         Self {
-            inner: HashMap::new(),
+            inner: DashMap::new(),
         }
     }
 
     pub fn action(&self, key: &K, func: impl FnOnce() -> V) -> V {
-        let inner = self.inner.pin();
-
-        let mutex = Mutex::new(None);
-        let temp = TemporarilyInserted { inner: &inner, key };
-        let mutex = match temp.try_insert(mutex) {
-            Ok(mutex) => mutex,
-            Err(e) => e.current,
+        let temp = TemporarilyInserted {
+            inner: &self.inner,
+            key,
+        };
+        let mutex = match temp.entry() {
+            Entry::Occupied(e) => e.get().clone(),
+            Entry::Vacant(e) => e.insert(Arc::new(Mutex::new(None))).clone(),
         };
         let mut guard = mutex.lock().unwrap();
         if let Some(value) = &*guard {
@@ -42,33 +42,25 @@ impl<K: ?Sized + Hash + Eq + Ord + Send + Sync, V: Clone + Send + Sync> OnceConc
         let value = func();
         *guard = Some(value.clone());
         drop(guard);
+        drop(temp);
         value
     }
 }
 
-struct TemporarilyInserted<
-    'a,
-    'map,
-    K: 'static + ?Sized + Hash + Eq + Ord + Send + Sync,
-    V: Send + Sync,
-> {
-    inner: &'a HashMapRef<'map, &'static K, V>,
+struct TemporarilyInserted<'a, K: 'static + Hash + Eq + Ord + Send + Sync, V: Send + Sync> {
+    inner: &'a DashMap<&'static K, V>,
     key: &'a K,
 }
 
-impl<'a, 'map, K: ?Sized + Hash + Eq + Ord + Send + Sync, V: Send + Sync>
-    TemporarilyInserted<'a, 'map, K, V>
-{
-    fn try_insert(&self, value: V) -> Result<&'_ V, TryInsertError<'_, V>> {
+impl<'a, K: Hash + Eq + Ord + Send + Sync, V: Send + Sync> TemporarilyInserted<'a, K, V> {
+    fn entry(&self) -> Entry<'a, &'static K, V> {
         // SAFETY: We remove the value again after this function is done
         let static_key: &'static K = unsafe { std::mem::transmute(self.key) };
-        self.inner.try_insert(static_key, value)
+        self.inner.entry(static_key)
     }
 }
 
-impl<'a, 'map, K: ?Sized + Hash + Eq + Ord + Send + Sync, V: Send + Sync> Drop
-    for TemporarilyInserted<'a, 'map, K, V>
-{
+impl<'a, K: Hash + Eq + Ord + Send + Sync, V: Send + Sync> Drop for TemporarilyInserted<'a, K, V> {
     fn drop(&mut self) {
         let static_key: &'static K = unsafe { std::mem::transmute(self.key) };
         self.inner.remove(&static_key);
@@ -79,7 +71,7 @@ pub struct SafeOnceConcurrentlyMap<
     K: Clone + Hash + Eq + Ord + Send + Sync + 'static,
     V: Clone + Send + Sync,
 > {
-    inner: HashMap<K, Mutex<Option<V>>>,
+    inner: DashMap<K, Arc<Mutex<Option<V>>>>,
 }
 
 impl<K: Clone + Hash + Eq + Ord + Send + Sync, V: Clone + Send + Sync> Default
@@ -95,18 +87,18 @@ impl<K: Clone + Hash + Eq + Ord + Send + Sync, V: Clone + Send + Sync>
 {
     pub fn new() -> Self {
         Self {
-            inner: HashMap::new(),
+            inner: DashMap::new(),
         }
     }
 
     pub fn action(&self, key: &K, func: impl FnOnce() -> V) -> V {
-        let inner = self.inner.pin();
-
-        let mutex = Mutex::new(None);
-        let temp = SafeTemporarilyInserted { inner: &inner, key };
-        let mutex = match temp.try_insert(mutex) {
-            Ok(mutex) => mutex,
-            Err(e) => e.current,
+        let temp = SafeTemporarilyInserted {
+            inner: &self.inner,
+            key,
+        };
+        let mutex = match temp.entry() {
+            Entry::Occupied(e) => e.get().clone(),
+            Entry::Vacant(e) => e.insert(Arc::new(Mutex::new(None))).clone(),
         };
         let mut guard = mutex.lock().unwrap();
         if let Some(value) = &*guard {
@@ -117,31 +109,31 @@ impl<K: Clone + Hash + Eq + Ord + Send + Sync, V: Clone + Send + Sync>
         let value = func();
         *guard = Some(value.clone());
         drop(guard);
+        drop(temp);
         value
     }
 }
 
 struct SafeTemporarilyInserted<
     'a,
-    'map,
     K: 'static + Clone + Hash + Eq + Ord + Send + Sync,
     V: Send + Sync,
 > {
-    inner: &'a HashMapRef<'map, K, V>,
+    inner: &'a DashMap<K, V>,
     key: &'a K,
 }
 
-impl<'a, 'map, K: Clone + Hash + Eq + Ord + Send + Sync, V: Send + Sync>
-    SafeTemporarilyInserted<'a, 'map, K, V>
+impl<'a, K: Clone + Hash + Eq + Ord + Send + Sync, V: Send + Sync>
+    SafeTemporarilyInserted<'a, K, V>
 {
-    fn try_insert(&self, value: V) -> Result<&'_ V, TryInsertError<'_, V>> {
+    fn entry(&self) -> Entry<'_, K, V> {
         // SAFETY: We remove the value again after this function is done
-        self.inner.try_insert(self.key.clone(), value)
+        self.inner.entry(self.key.clone())
     }
 }
 
-impl<'a, 'map, K: Clone + Hash + Eq + Ord + Send + Sync, V: Send + Sync> Drop
-    for SafeTemporarilyInserted<'a, 'map, K, V>
+impl<'a, K: Clone + Hash + Eq + Ord + Send + Sync, V: Send + Sync> Drop
+    for SafeTemporarilyInserted<'a, K, V>
 {
     fn drop(&mut self) {
         self.inner.remove(self.key);

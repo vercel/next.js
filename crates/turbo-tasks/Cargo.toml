@@ -19,9 +19,9 @@ hanging_detection = []
 any_key = "0.1.1"
 anyhow = "1.0.47"
 bitflags = "1.3.2"
+dashmap = "5.4.0"
 erased-serde = "0.3.20"
 event-listener = "2.5.3"
-flurry = "0.4.0"
 futures = "0.3.21"
 indexmap = { workspace = true, features = ["serde"] }
 mopa = "0.2.0"
