@@ -25,7 +25,7 @@ describe('next-image-forward-ref', () => {
       Number(await browser.elementById('img').getComputedCss('opacity'))
     ).toBeCloseTo(1)
     browser.elementById('img').click()
-    await waitFor(2000)
+    await waitFor(1000)
     expect(
       Number(await browser.elementById('img').getComputedCss('opacity'))
     ).toBeCloseTo(0)
