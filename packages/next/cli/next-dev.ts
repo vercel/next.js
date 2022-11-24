@@ -13,6 +13,7 @@ import path from 'path'
 import type { NextConfig } from '../types'
 import type { NextConfigComplete } from '../server/config-shared'
 import { traceGlobals } from '../trace/shared'
+import { getNetworkHost } from '../lib/get-network-hosts'
 
 let isTurboSession = false
 let sessionStopHandled = false
@@ -419,7 +420,12 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
     startServer(devServerOptions)
       .then(async (app) => {
         const appUrl = `http://${app.hostname}:${app.port}`
-        startedDevelopmentServer(appUrl, `${host || '0.0.0.0'}:${app.port}`)
+        const networkUrl = `http://${getNetworkHost()}:${app.port}`
+
+        startedDevelopmentServer(
+          `${appUrl} (${networkUrl})`,
+          `${host || '0.0.0.0'}:${app.port}`
+        )
         // Start preflight after server is listening and ignore errors:
         preflight().catch(() => {})
         // Finalize server bootup:
