@@ -981,16 +981,16 @@ export async function buildStaticPaths({
         ) {
           paramValue = []
         }
+
         if (
           (repeat && !Array.isArray(paramValue)) ||
+          (repeat &&
+            Array.isArray(paramValue) &&
+            !paramValue.every((param) => typeof param === 'string')) ||
           (!repeat && typeof paramValue !== 'string')
         ) {
-          throw new Error(
+          throw new TypeError(
             `A required parameter (${validParamKey}) was not provided as ${
-              repeat ? 'an array' : 'a string'
-            } in ${
-              appDir ? 'generateStaticParams' : 'getStaticPaths'
-            } for ${page}`
           )
         }
         let replaced = `[${repeat ? '...' : ''}${validParamKey}]`
