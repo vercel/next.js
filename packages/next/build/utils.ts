@@ -1669,10 +1669,6 @@ export async function copyTracedFiles(
     }
   }
 
-  const edgeRuntimePages = new Set<string>(
-    Object.keys(middlewareManifest.functions)
-  )
-
   for (const page of Object.values(middlewareManifest.functions)) {
     for (const file of page.files) {
       const originalPath = path.join(distDir, file)
@@ -1697,7 +1693,7 @@ export async function copyTracedFiles(
   }
 
   for (const page of pageKeys) {
-    if (edgeRuntimePages.has(page)) {
+    if (middlewareManifest.functions.hasOwnProperty(page)) {
       continue
     }
     const pageFile = path.join(
@@ -1713,7 +1709,7 @@ export async function copyTracedFiles(
   }
   if (appPageKeys) {
     for (const page of appPageKeys) {
-      if (edgeRuntimePages.has(page)) {
+      if (middlewareManifest.functions.hasOwnProperty(page)) {
         continue
       }
       const pageFile = path.join(distDir, 'server', 'app', `${page}`, 'page.js')
