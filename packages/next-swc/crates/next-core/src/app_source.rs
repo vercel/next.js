@@ -255,7 +255,7 @@ pub async fn create_app_source(
     let server_runtime_entries =
         vec![ProcessEnvAssetVc::new(project_root, env).as_ecmascript_chunk_placeable()];
 
-    let fallback_page = get_fallback_page(project_root, server_root, browserslist_query);
+    let fallback_page = get_fallback_page(project_root, server_root, env, browserslist_query);
 
     Ok(create_app_source_for_directory(
         context_ssr,

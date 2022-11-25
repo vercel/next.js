@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use anyhow::{bail, Result};
 use turbo_tasks::Value;
+use turbo_tasks_env::ProcessEnvVc;
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack::{
     ecmascript::EcmascriptModuleAssetVc, transition::TransitionsByNameVc, ModuleAssetContextVc,
@@ -17,7 +18,7 @@ use crate::{
     embed_js::attached_next_js_package_path,
     next_client::context::{
         get_client_chunking_context, get_client_environment, get_client_module_options_context,
-        get_client_resolve_options_context, ContextType,
+        get_client_resolve_options_context, get_client_runtime_entries, ContextType,
     },
     next_import_map::insert_next_shared_aliases,
     runtime::resolve_runtime_request,
@@ -27,13 +28,15 @@ use crate::{
 pub async fn get_fallback_page(
     project_root: FileSystemPathVc,
     dev_server_root: FileSystemPathVc,
+    env: ProcessEnvVc,
     browserslist_query: &str,
 ) -> Result<DevHtmlAssetVc> {
-    let ty = Value::new(ContextType::Other);
+    let ty = Value::new(ContextType::Fallback);
     let environment = get_client_environment(browserslist_query);
     let resolve_options_context = get_client_resolve_options_context(project_root, ty);
     let module_options_context = get_client_module_options_context(project_root, environment, ty);
     let chunking_context = get_client_chunking_context(project_root, dev_server_root, ty);
+    let entries = get_client_runtime_entries(project_root, env, ty);
 
     let mut import_map = ImportMap::empty();
     insert_next_shared_aliases(&mut import_map, attached_next_js_package_path(project_root));
@@ -45,6 +48,8 @@ pub async fn get_fallback_page(
         resolve_options_context.with_extended_import_map(import_map.cell()),
     )
     .into();
+
+    let runtime_entries = entries.resolve_entries(context);
 
     let fallback_chunk = resolve_runtime_request(
         PlainResolveOriginVc::new(context, project_root).into(),
@@ -59,7 +64,7 @@ pub async fn get_fallback_page(
         bail!("fallback runtime entry is not an ecmascript module");
     };
 
-    let chunk = module.as_evaluated_chunk(chunking_context, None);
+    let chunk = module.as_evaluated_chunk(chunking_context, Some(runtime_entries));
 
     Ok(DevHtmlAssetVc::new(
         dev_server_root.join("fallback.html"),

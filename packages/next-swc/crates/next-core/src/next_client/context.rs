@@ -55,6 +55,7 @@ pub fn get_client_environment(browserslist_query: &str) -> EnvironmentVc {
 pub enum ContextType {
     Pages { pages_dir: FileSystemPathVc },
     App { app_dir: FileSystemPathVc },
+    Fallback,
     Other,
 }
 
@@ -167,7 +168,7 @@ pub fn get_client_chunking_context(
             ContextType::Pages { .. } | ContextType::App { .. } => {
                 server_root.join("/_next/static/chunks")
             }
-            ContextType::Other => server_root.join("/_chunks"),
+            ContextType::Fallback | ContextType::Other => server_root.join("/_chunks"),
         },
         get_client_assets_path(server_root, ty),
     )
@@ -184,7 +185,7 @@ pub fn get_client_assets_path(
         ContextType::Pages { .. } | ContextType::App { .. } => {
             server_root.join("/_next/static/assets")
         }
-        ContextType::Other => server_root.join("/_assets"),
+        ContextType::Fallback | ContextType::Other => server_root.join("/_assets"),
     }
 }
 

@@ -113,7 +113,7 @@ pub async fn create_server_rendered_source(
     let server_runtime_entries =
         vec![ProcessEnvAssetVc::new(project_path, env).as_ecmascript_chunk_placeable()];
 
-    let fallback_page = get_fallback_page(project_path, server_root, browserslist_query);
+    let fallback_page = get_fallback_page(project_path, server_root, env, browserslist_query);
 
     let server_rendered_source = create_server_rendered_source_for_directory(
         project_path,
