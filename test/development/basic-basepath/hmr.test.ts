@@ -536,12 +536,7 @@ describe('basic HMR', () => {
 
         expect(await hasRedbox(browser)).toBe(true)
         // TODO: Replace this when webpack 5 is the default
-        expect(
-          (await getRedboxHeader(browser)).replace(
-            '__WEBPACK_DEFAULT_EXPORT__',
-            'Unknown'
-          )
-        ).toMatch(
+        expect(await getRedboxHeader(browser)).toMatch(
           `Objects are not valid as a React child (found: ${
             isReact17 ? '/search/' : '[object RegExp]'
           }). If you meant to render a collection of children, use an array instead.`
