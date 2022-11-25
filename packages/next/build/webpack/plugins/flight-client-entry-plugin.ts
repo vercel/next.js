@@ -38,6 +38,9 @@ export const injectedClientEntries = new Map()
 export const serverModuleIds = new Map<string, string | number>()
 export const edgeServerModuleIds = new Map<string, string | number>()
 
+let serverCSSManifest: FlightCSSManifest = {}
+let edgeServerCSSManifest: FlightCSSManifest = {}
+
 export class FlightClientEntryPlugin {
   dev: boolean
   appDir: string
@@ -125,7 +128,6 @@ export class FlightClientEntryPlugin {
     const promises: Array<
       ReturnType<typeof this.injectClientEntryAndSSRModules>
     > = []
-    let flightCSSManifest: FlightCSSManifest = {}
 
     // Loop over all the entry modules.
     function forEachEntryModule(
@@ -239,7 +241,15 @@ export class FlightClientEntryPlugin {
     // by the certain chunk.
     compilation.hooks.afterOptimizeModules.tap(PLUGIN_NAME, () => {
       const cssImportsForChunk: Record<string, string[]> = {}
-      flightCSSManifest = {}
+      if (this.isEdgeServer) {
+        edgeServerCSSManifest = {}
+      } else {
+        serverCSSManifest = {}
+      }
+
+      let cssManifest = this.isEdgeServer
+        ? edgeServerCSSManifest
+        : serverCSSManifest
 
       function collectModule(entryName: string, mod: any) {
         const resource = mod.resource
@@ -278,10 +288,10 @@ export class FlightClientEntryPlugin {
           }
 
           const entryCSSInfo: Record<string, string[]> =
-            flightCSSManifest.__entry_css__ || {}
+            cssManifest.__entry_css__ || {}
           entryCSSInfo[entryName] = cssImportsForChunk[entryName]
 
-          Object.assign(flightCSSManifest, {
+          Object.assign(cssManifest, {
             __entry_css__: entryCSSInfo,
           })
         })
@@ -326,7 +336,7 @@ export class FlightClientEntryPlugin {
               clientEntryDependencyMap,
             })
 
-          Object.assign(flightCSSManifest, cssImports)
+          Object.assign(cssManifest, cssImports)
         }
       })
     })
@@ -339,7 +349,14 @@ export class FlightClientEntryPlugin {
         stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH,
       },
       (assets: webpack.Compilation['assets']) => {
-        const manifest = JSON.stringify(flightCSSManifest)
+        const manifest = JSON.stringify({
+          ...serverCSSManifest,
+          ...edgeServerCSSManifest,
+          __entry_css__: {
+            ...serverCSSManifest.__entry_css__,
+            ...edgeServerCSSManifest.__entry_css__,
+          },
+        })
         assets[FLIGHT_SERVER_CSS_MANIFEST + '.json'] = new sources.RawSource(
           manifest
         ) as unknown as webpack.sources.RawSource
