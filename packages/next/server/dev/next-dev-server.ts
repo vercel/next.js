@@ -1053,12 +1053,17 @@ export default class DevServer extends Server {
           ({ file }) =>
             !file?.startsWith('eval') &&
             !file?.includes('web/adapter') &&
-            !file?.includes('sandbox/context')
+            !file?.includes('sandbox/context') &&
+            !file?.includes('<anonymous>')
         )!
 
         if (frame.lineNumber && frame?.file) {
           const moduleId = frame.file!.replace(
             /^(webpack-internal:\/\/\/|file:\/\/)/,
+            ''
+          )
+          const modulePath = frame.file.replace(
+            /^(webpack-internal:\/\/\/|file:\/\/)(\(.*\)\/)?/,
             ''
           )
 
@@ -1081,7 +1086,8 @@ export default class DevServer extends Server {
             column: frame.column,
             source,
             frame,
-            modulePath: moduleId,
+            moduleId,
+            modulePath,
             rootDirectory: this.dir,
             errorMessage: err.message,
             serverCompilation: isEdgeCompiler

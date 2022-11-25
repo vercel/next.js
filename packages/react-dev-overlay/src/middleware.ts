@@ -113,11 +113,11 @@ async function findOriginalSourcePositionAndContent(
 }
 
 function findOriginalSourcePositionAndContentFromCompilation(
-  modulePath: string | undefined,
+  moduleId: string | undefined,
   importedModule: string,
   compilation: webpack.Compilation
 ) {
-  const module = getModuleById(modulePath, compilation)
+  const module = getModuleById(moduleId, compilation)
   return module?.buildInfo?.importLocByPath?.get(importedModule) ?? null
 }
 
