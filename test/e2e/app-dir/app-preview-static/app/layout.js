@@ -1,9 +1,10 @@
-export default function Layout({ children }) {
+export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <head>
-        <title>my static blog</title>
+        <title>static with previewData</title>
       </head>
+
       <body>{children}</body>
     </html>
   )
