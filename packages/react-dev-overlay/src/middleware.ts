@@ -198,7 +198,12 @@ export async function createOriginalStackFrame({
 
   const filePath = path.resolve(
     rootDirectory,
-    getSourcePath(sourcePosition.source || modulePath)
+    getSourcePath(
+      // When path is loader path the modulePath is generally better.
+      (sourcePosition.source.includes('|')
+        ? modulePath
+        : sourcePosition.source) || modulePath
+    )
   )
 
   const originalFrame: StackFrame = {
