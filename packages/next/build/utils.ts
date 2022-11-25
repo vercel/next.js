@@ -1598,6 +1598,7 @@ export async function copyTracedFiles(
   dir: string,
   distDir: string,
   pageKeys: ReadonlyArray<string>,
+  appPageKeys: readonly string[] | undefined,
   tracingRoot: string,
   serverConfig: { [key: string]: any },
   middlewareManifest: MiddlewareManifest
@@ -1679,6 +1680,15 @@ export async function copyTracedFiles(
     await handleTraceFiles(pageTraceFile).catch((err) => {
       Log.warn(`Failed to copy traced files for ${pageFile}`, err)
     })
+  }
+  if (appPageKeys) {
+    for (const page of appPageKeys) {
+      const pageFile = path.join(distDir, 'server', 'app', `${page}`, 'page.js')
+      const pageTraceFile = `${pageFile}.nft.json`
+      await handleTraceFiles(pageTraceFile).catch((err) => {
+        Log.warn(`Failed to copy traced files for ${pageFile}`, err)
+      })
+    }
   }
   await handleTraceFiles(path.join(distDir, 'next-server.js.nft.json'))
   const serverOutputPath = path.join(
@@ -1774,13 +1784,17 @@ export function getPossibleMiddlewareFilenames(
 }
 
 export class NestedMiddlewareError extends Error {
-  constructor(nestedFileNames: string[], mainDir: string, pagesDir: string) {
+  constructor(
+    nestedFileNames: string[],
+    mainDir: string,
+    pagesOrAppDir: string
+  ) {
     super(
       `Nested Middleware is not allowed, found:\n` +
         `${nestedFileNames.map((file) => `pages${file}`).join('\n')}\n` +
         `Please move your code to a single file at ${path.join(
           path.posix.sep,
-          path.relative(mainDir, path.resolve(pagesDir, '..')),
+          path.relative(mainDir, path.resolve(pagesOrAppDir, '..')),
           'middleware'
         )} instead.\n` +
         `Read More - https://nextjs.org/docs/messages/nested-middleware`
