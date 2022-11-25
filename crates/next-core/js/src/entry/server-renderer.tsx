@@ -118,6 +118,7 @@ async function runOperation(
       imageSizes: [],
       loader: "default",
       path: "",
+      loaderFile: "",
       domains: [],
       disableStaticImages: false,
       minimumCacheTTL: 0,

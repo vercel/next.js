@@ -17,7 +17,7 @@ globalThis.__next_require__ = (data) => {
 };
 globalThis.__next_chunk_load__ = __turbopack_load__;
 
-process.env.__NEXT_NEW_LINK_BEHAVIOR = true;
+process.env.__NEXT_NEW_LINK_BEHAVIOR = "true";
 
 const appElement = document;
 
@@ -51,7 +51,7 @@ function nextServerDataCallback(
   return 0;
 }
 
-function nextServerDataRegisterWriter(ctr) {
+function nextServerDataRegisterWriter(ctr: ReadableStreamDefaultController) {
   if (initialServerDataBuffer) {
     initialServerDataBuffer.forEach((val) => {
       ctr.enqueue(encoder.encode(val));
@@ -136,7 +136,10 @@ function hydrate() {
 
   const isError = document.documentElement.id === "__next_error__";
   if (isError) {
-    const reactRoot = ReactDOMClient.createRoot(appElement);
+    // cast necessary because of a typing bug
+    const reactRoot = ReactDOMClient.createRoot(
+      appElement as unknown as DocumentFragment
+    );
     reactRoot.render(reactEl);
   } else {
     React.startTransition(() => {

@@ -4,6 +4,7 @@ import type { Issue } from "@vercel/turbopack-runtime/types/protocol";
 
 export const TYPE_BUILD_OK = "build-ok";
 export const TYPE_TURBOPACK_ERROR = "turbopack-error";
+export const TYPE_BEFORE_REFRESH = "before-fast-refresh";
 export const TYPE_REFRESH = "fast-refresh";
 export const TYPE_UNHANDLED_ERROR = "unhandled-error";
 export const TYPE_UNHANDLED_REJECTION = "unhandled-rejection";
@@ -13,6 +14,7 @@ export type TurbopackError = {
   type: typeof TYPE_TURBOPACK_ERROR;
   issue: Issue;
 };
+export type BeforeFastRefresh = { type: typeof TYPE_BEFORE_REFRESH };
 export type FastRefresh = { type: typeof TYPE_REFRESH };
 export type UnhandledError = {
   type: typeof TYPE_UNHANDLED_ERROR;
@@ -27,6 +29,7 @@ export type UnhandledRejection = {
 export type BusEvent =
   | BuildOk
   | TurbopackError
+  | BeforeFastRefresh
   | FastRefresh
   | UnhandledError
   | UnhandledRejection;

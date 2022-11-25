@@ -11,6 +11,10 @@ declare global {
     | [isBootStrap: 0]
     | [isNotBootstrap: 1, responsePartial: string]
   )[];
+  var next: {
+    version: string;
+    appDir: boolean;
+  };
 }
 
 export {};

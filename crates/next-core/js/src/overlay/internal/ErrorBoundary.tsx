@@ -33,19 +33,24 @@ class ErrorBoundary extends React.PureComponent<
 
   render() {
     // The component has to be unmounted or else it would continue to error
-    return this.state.error ||
-      (this.props.globalOverlay && this.props.isMounted) ? (
+    if (
+      this.state.error ||
+      (this.props.globalOverlay && this.props.isMounted)
+    ) {
       // When the overlay is global for the application and it wraps a component rendering `<html>`
       // we have to render the html shell otherwise the shadow root will not be able to attach
-      this.props.globalOverlay ? (
-        <html>
-          <head></head>
-          <body></body>
-        </html>
-      ) : null
-    ) : (
-      this.props.children
-    );
+      if (this.props.globalOverlay) {
+        return (
+          <html>
+            <body></body>
+          </html>
+        );
+      }
+
+      return null;
+    }
+
+    return this.props.children;
   }
 }
 
