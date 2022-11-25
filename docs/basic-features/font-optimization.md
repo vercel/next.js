@@ -26,6 +26,12 @@ Automatically self-host any Google Font. Fonts are included in the deployment an
 
 Import the font you would like to use from `@next/font/google` as a function. We recommend using [**variable fonts**](https://fonts.google.com/variablefonts) for the best performance and flexibility.
 
+> The names of the exported functions are the same as the font names, spaces are replaced with underscores.
+>
+> For example, if you'd like to use [ABeeZee](https://fonts.google.com/specimen/ABeeZee) and [Roboto Flex](https://fonts.google.com/specimen/Roboto+Flex):
+>
+> `import { ABeeZee, Roboto_Flex } from '@next/font/google'`
+
 To use the font in all your pages, add it to [`_app.js` file](https://nextjs.org/docs/advanced-features/custom-app) under `/pages` as shown below:
 
 ```js
