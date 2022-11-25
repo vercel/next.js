@@ -4,19 +4,9 @@ description: Next.js will automatically use HTTP Keep-Alive by default. Learn mo
 
 # Disabling HTTP Keep-Alive
 
-Next.js automatically polyfills [node-fetch](/docs/basic-features/supported-browsers-features#polyfills) and enables [HTTP Keep-Alive](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Keep-Alive) by default. You may want to disable HTTP Keep-Alive for certain `fetch()` calls or globally.
+Next.js automatically polyfills `fetch()` in the Node.js environment with [node-fetch](/docs/basic-features/supported-browsers-features#polyfills) and enables [HTTP Keep-Alive](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Keep-Alive) by default. 
 
-For a single `fetch()` call, you can add the agent option:
-
-```js
-import { Agent } from 'https'
-
-const url = 'https://example.com'
-const agent = new Agent({ keepAlive: false })
-fetch(url, { agent })
-```
-
-To override all `fetch()` calls globally, you can use `next.config.js`:
+To disable HTTP Kee-Alive for all `fetch()` calls on the server-side, open `next.config.js` and add the `httpAgentOptions` config:
 
 ```js
 module.exports = {
