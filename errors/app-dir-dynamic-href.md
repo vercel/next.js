@@ -2,7 +2,7 @@
 
 #### Why This Error Occurred
 
-You have tried to use a dynamic `href` with `next/link` in the `/app` directory. This is not supported.
+You have tried to use a dynamic `href` with `next/link` in the `app` directory. This is not supported as the new client-side router no longer uses a mapping of dynamic routes -> url, instead it always leverages the url.
 
 #### Possible Ways to Fix It
 
