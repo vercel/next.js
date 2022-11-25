@@ -1,1 +1,3 @@
-export type ChunkGroup = Array<{ path: string; chunkId: string }>;
+import { ChunkPath } from "@vercel/turbopack-runtime/types";
+
+export type ChunkGroup = ChunkPath[];

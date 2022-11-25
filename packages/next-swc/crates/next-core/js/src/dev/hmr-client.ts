@@ -13,7 +13,12 @@ import type {
 
 import stripAnsi from "@vercel/turbopack-next/compiled/strip-ansi";
 
-import { onBuildOk, onRefresh, onTurbopackError } from "../overlay/client";
+import {
+  onBeforeRefresh,
+  onBuildOk,
+  onRefresh,
+  onTurbopackError,
+} from "../overlay/client";
 import { addEventListener, sendMessage } from "./websocket";
 import { ModuleId } from "@vercel/turbopack-runtime/types";
 import { HmrUpdateEntry } from "@vercel/turbopack-runtime/types/protocol";
@@ -232,15 +237,16 @@ function handleSocketMessage(msg: ServerMessage) {
 
   if (hasErrors) return;
 
-  if (chunksWithErrors.size === 0) {
-    onBuildOk();
-  }
-
   if (aggregatedMsg.type !== "issues") {
+    onBeforeRefresh();
     triggerUpdate(aggregatedMsg);
     if (chunksWithErrors.size === 0) {
       onRefresh();
     }
+  }
+
+  if (chunksWithErrors.size === 0) {
+    onBuildOk();
   }
 }
 

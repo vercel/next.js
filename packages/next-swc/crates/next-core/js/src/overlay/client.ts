@@ -89,6 +89,10 @@ function onTurbopackError(issue: Issue) {
   Bus.emit({ type: Bus.TYPE_TURBOPACK_ERROR, issue });
 }
 
+function onBeforeRefresh() {
+  Bus.emit({ type: Bus.TYPE_BEFORE_REFRESH });
+}
+
 function onRefresh() {
   Bus.emit({ type: Bus.TYPE_REFRESH });
 }
@@ -96,4 +100,11 @@ function onRefresh() {
 export { getErrorByType } from "./internal/helpers/getErrorByType";
 export { getServerError } from "./internal/helpers/nodeStackFrames";
 export { default as ReactDevOverlay } from "./internal/ReactDevOverlay";
-export { onBuildOk, onTurbopackError, register, unregister, onRefresh };
+export {
+  onBuildOk,
+  onTurbopackError,
+  register,
+  unregister,
+  onBeforeRefresh,
+  onRefresh,
+};
