@@ -59,6 +59,7 @@ pub fn get_next_client_import_map(
                 request_to_import_mapping(app_dir, "next/dist/compiled/react-dom/*"),
             );
         }
+        ContextType::Fallback => {}
         ContextType::Other => {}
     }
     import_map.cell()
@@ -86,6 +87,7 @@ pub fn get_next_client_fallback_import_map(ty: Value<ContextType>) -> ImportMapV
                 );
             }
         }
+        ContextType::Fallback => {}
         ContextType::Other => {}
     }
 
