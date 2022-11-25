@@ -22,6 +22,6 @@
     "@types/fontkit": "2.0.0",
     "@vercel/ncc": "0.34.0",
     "fontkit": "2.0.2",
-    "rmrec": "1.1.1"
+    "rmrec": "1.2.7"
   }
 }

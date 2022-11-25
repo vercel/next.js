@@ -41,6 +41,6 @@
     }
   },
   "devDependencies": {
-    "rmrec": "1.1.1"
+    "rmrec": "1.2.7"
   }
 }

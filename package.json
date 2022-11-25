@@ -209,7 +209,7 @@
     "wait-port": "0.2.2",
     "webpack": "5.74.0",
     "webpack-bundle-analyzer": "4.7.0",
-    "rmrec": "1.1.1"
+    "rmrec": "1.2.7"
   },
   "resolutions": {
     "browserslist": "4.20.2",

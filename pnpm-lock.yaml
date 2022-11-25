@@ -157,7 +157,7 @@ importers:
       release: 6.3.1
       request-promise-core: 1.1.2
       resolve-from: 5.0.0
-      rmrec: 1.1.1
+      rmrec: 1.2.7
       sass: 1.54.0
       seedrandom: 3.0.5
       selenium-webdriver: 4.0.0-beta.4
@@ -321,7 +321,7 @@ importers:
       release: 6.3.1
       request-promise-core: 1.1.2_request@2.88.2
       resolve-from: 5.0.0
-      rmrec: 1.1.1
+      rmrec: 1.2.7
       sass: 1.54.0
       seedrandom: 3.0.5
       selenium-webdriver: 4.0.0-beta.4
@@ -448,12 +448,12 @@ importers:
       '@types/fontkit': 2.0.0
       '@vercel/ncc': 0.34.0
       fontkit: 2.0.2
-      rmrec: 1.1.1
+      rmrec: 1.2.7
     devDependencies:
       '@types/fontkit': 2.0.0
       '@vercel/ncc': 0.34.0
       fontkit: 2.0.2
-      rmrec: 1.1.1
+      rmrec: 1.2.7
 
   packages/next:
     specifiers:
@@ -927,7 +927,7 @@ importers:
       css.escape: 1.5.1
       data-uri-to-buffer: 3.0.1
       platform: 1.3.6
-      rmrec: 1.1.1
+      rmrec: 1.2.7
       shell-quote: 1.7.3
       source-map: 0.8.0-beta.0
       stacktrace-parser: 0.1.10
@@ -945,16 +945,16 @@ importers:
       stacktrace-parser: 0.1.10
       strip-ansi: 6.0.1
     devDependencies:
-      rmrec: 1.1.1
+      rmrec: 1.2.7
 
   packages/react-refresh-utils:
     specifiers:
       react-refresh: 0.12.0
-      rmrec: 1.1.1
+      rmrec: 1.2.7
       webpack: ^4 || ^5
     devDependencies:
       react-refresh: 0.12.0
-      rmrec: 1.1.1
+      rmrec: 1.2.7
       webpack: 5.74.0
 
 packages:
@@ -21032,8 +21032,8 @@ packages:
       inherits: 2.0.4
     dev: true
 
-  /rmrec/1.1.1:
-    resolution: {integrity: sha512-Q9SkTzLYXyoVVhUiL9k78aqDF7Rcg5FfJ+M6JeG3pgBXy3Vd/YurnWtVptHoD97G1aK2tikrSjaFE9ng7Fud3A==}
+  /rmrec/1.2.7:
+    resolution: {integrity: sha512-eEQ657WvItsHAxXoWY8WKCvwv8L9gsr0Kv1Ea/scVqaZOmLQjwDcY3V8n9uZzD2CNzIgsUP8eowhIF848uoRIA==}
     hasBin: true
     dev: true
 

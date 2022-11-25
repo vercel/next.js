@@ -28,6 +28,6 @@
   "devDependencies": {
     "react-refresh": "0.12.0",
     "webpack": "^4 || ^5",
-    "rmrec": "1.1.1"
+    "rmrec": "1.2.7"
   }
 }
