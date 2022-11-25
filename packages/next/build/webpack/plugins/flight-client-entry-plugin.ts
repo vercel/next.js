@@ -12,7 +12,7 @@ import {
   entries,
   EntryTypes,
 } from '../../../server/dev/on-demand-entry-handler'
-import { APP_DIR_ALIAS, WEBPACK_LAYERS } from '../../../lib/constants'
+import { WEBPACK_LAYERS } from '../../../lib/constants'
 import {
   APP_CLIENT_INTERNALS,
   COMPILER_NAMES,
@@ -85,13 +85,11 @@ export class FlightClientEntryPlugin {
       const recordModule = (modId: string, mod: any) => {
         const modResource = mod.resourceResolveData?.path || mod.resource
 
-        if (
-          mod.resourceResolveData?.context?.issuerLayer !==
-          WEBPACK_LAYERS.client
-        ) {
+        if (mod.layer !== WEBPACK_LAYERS.client) {
           return
         }
 
+        // Check mod resource to exclude the empty resource module like virtual module created by next-flight-client-entry-loader
         if (typeof modId !== 'undefined' && modResource) {
           // Note that this isn't that reliable as webpack is still possible to assign
           // additional queries to make sure there's no conflict even using the `named`
@@ -205,7 +203,9 @@ export class FlightClientEntryPlugin {
           : entryRequest
 
         // Replace file suffix as `.js` will be added.
-        const bundlePath = relativeRequest.replace(/\.(js|ts)x?$/, '')
+        const bundlePath = relativeRequest
+          .replace(/\.(js|ts)x?$/, '')
+          .replace(/^src[\\/]/, '')
 
         promises.push(
           this.injectClientEntryAndSSRModules({
@@ -379,23 +379,14 @@ export class FlightClientEntryPlugin {
         compilation.moduleGraph.getResolvedModule(dependencyToFilter)
       if (!mod) return
 
-      // Keep client imports as simple
-      // native or installed js module: -> raw request, e.g. next/head
-      // client js or css: -> user request
       const rawRequest = mod.rawRequest
-      // Request could be undefined or ''
-      if (!rawRequest) return
-
       const isCSS = regexCSS.test(rawRequest)
-      const isLocal =
-        !isCSS &&
-        !rawRequest.startsWith('.') &&
-        !rawRequest.startsWith('/') &&
-        !rawRequest.startsWith(APP_DIR_ALIAS)
 
-      const modRequest: string | undefined = isLocal
-        ? rawRequest
-        : mod.resourceResolveData?.path + mod.resourceResolveData?.query
+      // We have to always use the resolved request here to make sure the
+      // server and client are using the same module path (required by RSC), as
+      // the server compiler and client compiler have different resolve configs.
+      const modRequest: string | undefined =
+        mod.resourceResolveData?.path + mod.resourceResolveData?.query
 
       // Ensure module is not walked again if it's already been visited
       if (!visitedBySegment[entryRequest]) {

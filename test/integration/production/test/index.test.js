@@ -36,6 +36,10 @@ let app
 
 const context = {}
 
+if (process.env.TEST_WASM) {
+  jest.setTimeout(120 * 1000)
+}
+
 describe('Production Usage', () => {
   let output = ''
   beforeAll(async () => {

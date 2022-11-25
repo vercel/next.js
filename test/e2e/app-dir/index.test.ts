@@ -1,17 +1,22 @@
+import os from 'os'
 import { createNext, FileRef } from 'e2e-utils'
 import crypto from 'crypto'
 import { NextInstance } from 'test/lib/next-modes/base'
 import {
   check,
   fetchViaHTTP,
+  findPort,
   getRedboxHeader,
   hasRedbox,
+  initNextServerScript,
+  killApp,
   renderViaHTTP,
   waitFor,
 } from 'next-test-utils'
 import path from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
+import fs from 'fs-extra'
 
 describe('app dir', () => {
   const isDev = (global as any).isNextDev
@@ -297,20 +302,6 @@ describe('app dir', () => {
     it.skip('should match partial parameters', async () => {
       const html = await renderViaHTTP(next.url, '/partial-match-123')
       expect(html).toContain('hello from app/partial-match-[id]. ID is: 123')
-    })
-
-    // This is a workaround to fix https://github.com/vercel/next.js/issues/5860
-    // TODO: remove this workaround when https://bugs.webkit.org/show_bug.cgi?id=187726 is fixed.
-    it('should use cache busting when loading css (dev only)', async () => {
-      const html = await renderViaHTTP(next.url, '/')
-      const $ = cheerio.load(html)
-      const links = $('link[rel=stylesheet]')
-      links.each((_, link) => {
-        const href = $(link).attr('href')
-        isDev
-          ? expect(href).toMatch(/\?ts=/)
-          : expect(href).not.toMatch(/\?ts=/)
-      })
     })
 
     describe('rewrites', () => {
@@ -615,6 +606,29 @@ describe('app dir', () => {
           await browser.close()
         }
       })
+
+      it('should navigate to pages dynamic route from pages page if it overlaps with an app page', async () => {
+        const browser = await webdriver(
+          next.url,
+          '/dynamic-pages-route-app-overlap'
+        )
+
+        try {
+          // Click the link.
+          await browser.elementById('pages-link').click()
+          expect(await browser.waitForElementByCss('#pages-text').text()).toBe(
+            'hello from pages/dynamic-pages-route-app-overlap/[slug]'
+          )
+
+          // When refreshing the browser, the app page should be rendered
+          await browser.refresh()
+          expect(await browser.waitForElementByCss('#app-text').text()).toBe(
+            'hello from app/dynamic-pages-route-app-overlap/app-dir/page'
+          )
+        } finally {
+          await browser.close()
+        }
+      })
     })
 
     describe('server components', () => {
@@ -726,6 +740,7 @@ describe('app dir', () => {
           const html = await renderViaHTTP(next.url, `/catch-all/${route}`)
           const $ = cheerio.load(html)
           expect($('#text').attr('data-params')).toBe(route)
+          expect($('#not-a-page').text()).toBe('Not a page')
 
           // Components under catch-all should not be treated as route that errors during build.
           // They should be rendered properly when imported in page route.
@@ -1513,7 +1528,7 @@ describe('app dir', () => {
           const html = await renderViaHTTP(next.url, '/loading-bug/hi')
           // The link tag should be included together with loading
           expect(html).toMatch(
-            /<link rel="stylesheet" href="(.+)\.css(\?ts=\d+)?"\/><h2>Loading...<\/h2>/
+            /<link rel="stylesheet" href="(.+)\.css"\/><h2>Loading...<\/h2>/
           )
         })
 
@@ -1573,6 +1588,65 @@ describe('app dir', () => {
           ).toBe('50px')
         })
       })
+
+      if (isDev) {
+        describe('HMR', () => {
+          it('should support HMR for CSS imports in server components', async () => {
+            const filePath = 'app/css/css-page/style.css'
+            const origContent = await next.readFile(filePath)
+
+            // h1 should be red
+            const browser = await webdriver(next.url, '/css/css-page')
+            expect(
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('h1')).color`
+              )
+            ).toBe('rgb(255, 0, 0)')
+
+            try {
+              await next.patchFile(filePath, origContent.replace('red', 'blue'))
+
+              // Wait for HMR to trigger
+              await check(
+                () =>
+                  browser.eval(
+                    `window.getComputedStyle(document.querySelector('h1')).color`
+                  ),
+                'rgb(0, 0, 255)'
+              )
+            } finally {
+              await next.patchFile(filePath, origContent)
+            }
+          })
+
+          it('should support HMR for CSS imports in client components', async () => {
+            const filePath = 'app/css/css-client/client-page.css'
+            const origContent = await next.readFile(filePath)
+
+            // h1 should be red
+            const browser = await webdriver(next.url, '/css/css-client')
+            expect(
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('h1')).color`
+              )
+            ).toBe('rgb(255, 0, 0)')
+
+            try {
+              await next.patchFile(filePath, origContent.replace('red', 'blue'))
+
+              await check(
+                () =>
+                  browser.eval(
+                    `window.getComputedStyle(document.querySelector('h1')).color`
+                  ),
+                'rgb(0, 0, 255)'
+              )
+            } finally {
+              await next.patchFile(filePath, origContent)
+            }
+          })
+        })
+      }
     })
 
     describe('searchParams prop', () => {
@@ -1766,19 +1840,23 @@ describe('app dir', () => {
     describe('client pages', () => {
       it('should support global sass/scss inside client pages', async () => {
         const browser = await webdriver(next.url, '/css/sass-client/inner')
-        await waitFor(5000)
+
         // .sass
-        expect(
-          await browser.eval(
-            `window.getComputedStyle(document.querySelector('#sass-client-page')).color`
-          )
-        ).toBe('rgb(245, 222, 179)')
+        await check(
+          () =>
+            browser.eval(
+              `window.getComputedStyle(document.querySelector('#sass-client-page')).color`
+            ),
+          'rgb(245, 222, 179)'
+        )
         // .scss
-        expect(
-          await browser.eval(
-            `window.getComputedStyle(document.querySelector('#scss-client-page')).color`
-          )
-        ).toBe('rgb(255, 99, 71)')
+        await check(
+          () =>
+            browser.eval(
+              `window.getComputedStyle(document.querySelector('#scss-client-page')).color`
+            ),
+          'rgb(255, 99, 71)'
+        )
       })
 
       it('should support sass/scss modules inside client pages', async () => {
@@ -2095,6 +2173,99 @@ describe('app dir', () => {
     })
 
     describe('known bugs', () => {
+      describe('should support React cache', () => {
+        it('server component', async () => {
+          const browser = await webdriver(
+            next.url,
+            '/react-cache/server-component'
+          )
+          const val1 = await browser.elementByCss('#value-1').text()
+          const val2 = await browser.elementByCss('#value-2').text()
+          expect(val1).toBe(val2)
+        })
+
+        it('server component client-navigation', async () => {
+          const browser = await webdriver(next.url, '/react-cache')
+
+          await browser
+            .elementByCss('#to-server-component')
+            .click()
+            .waitForElementByCss('#value-1', 10000)
+          const val1 = await browser.elementByCss('#value-1').text()
+          const val2 = await browser.elementByCss('#value-2').text()
+          expect(val1).toBe(val2)
+        })
+
+        it('client component', async () => {
+          const browser = await webdriver(
+            next.url,
+            '/react-cache/client-component'
+          )
+          const val1 = await browser.elementByCss('#value-1').text()
+          const val2 = await browser.elementByCss('#value-2').text()
+          expect(val1).toBe(val2)
+        })
+
+        it('client component client-navigation', async () => {
+          const browser = await webdriver(next.url, '/react-cache')
+
+          await browser
+            .elementByCss('#to-client-component')
+            .click()
+            .waitForElementByCss('#value-1', 10000)
+          const val1 = await browser.elementByCss('#value-1').text()
+          const val2 = await browser.elementByCss('#value-2').text()
+          expect(val1).toBe(val2)
+        })
+      })
+
+      describe('should support React fetch instrumentation', () => {
+        it('server component', async () => {
+          const browser = await webdriver(
+            next.url,
+            '/react-fetch/server-component'
+          )
+          const val1 = await browser.elementByCss('#value-1').text()
+          const val2 = await browser.elementByCss('#value-2').text()
+          expect(val1).toBe(val2)
+        })
+
+        it('server component client-navigation', async () => {
+          const browser = await webdriver(next.url, '/react-fetch')
+
+          await browser
+            .elementByCss('#to-server-component')
+            .click()
+            .waitForElementByCss('#value-1', 10000)
+          const val1 = await browser.elementByCss('#value-1').text()
+          const val2 = await browser.elementByCss('#value-2').text()
+          expect(val1).toBe(val2)
+        })
+
+        // TODO-APP: React doesn't have fetch deduping for client components yet.
+        it.skip('client component', async () => {
+          const browser = await webdriver(
+            next.url,
+            '/react-fetch/client-component'
+          )
+          const val1 = await browser.elementByCss('#value-1').text()
+          const val2 = await browser.elementByCss('#value-2').text()
+          expect(val1).toBe(val2)
+        })
+
+        // TODO-APP: React doesn't have fetch deduping for client components yet.
+        it.skip('client component client-navigation', async () => {
+          const browser = await webdriver(next.url, '/react-fetch')
+
+          await browser
+            .elementByCss('#to-client-component')
+            .click()
+            .waitForElementByCss('#value-1', 10000)
+          const val1 = await browser.elementByCss('#value-1').text()
+          const val2 = await browser.elementByCss('#value-2').text()
+          expect(val1).toBe(val2)
+        })
+      })
       it('should not share flight data between requests', async () => {
         const fetches = await Promise.all(
           [...new Array(5)].map(() =>
@@ -2133,6 +2304,29 @@ describe('app dir', () => {
             .click()
             .waitForElementByCss('#about-page')
             .text()
+        ).toBe(`About page`)
+      })
+      it('should not do additional pushState when already on the page', async () => {
+        const browser = await webdriver(next.url, '/linking/about')
+        const goToLinkingPage = async () => {
+          expect(
+            await browser
+              .elementByCss('a[href="/linking"]')
+              .click()
+              .waitForElementByCss('#home-page')
+              .text()
+          ).toBe(`Home page`)
+        }
+
+        await goToLinkingPage()
+        await waitFor(1000)
+        await goToLinkingPage()
+        await waitFor(1000)
+        await goToLinkingPage()
+        await waitFor(1000)
+
+        expect(
+          await browser.back().waitForElementByCss('#about-page', 2000).text()
         ).toBe(`About page`)
       })
     })
@@ -2365,4 +2559,44 @@ describe('app dir', () => {
   }
 
   runTests()
+
+  if ((global as any).isNextStart) {
+    it('should work correctly with output standalone', async () => {
+      const tmpFolder = path.join(os.tmpdir(), 'next-standalone-' + Date.now())
+      await fs.move(path.join(next.testDir, '.next/standalone'), tmpFolder)
+      let server
+
+      try {
+        const testServer = path.join(tmpFolder, 'server.js')
+        const appPort = await findPort()
+        server = await initNextServerScript(
+          testServer,
+          /Listening on/,
+          {
+            ...process.env,
+            PORT: appPort,
+          },
+          undefined,
+          {
+            cwd: tmpFolder,
+          }
+        )
+
+        for (const testPath of [
+          '/',
+          '/api/hello',
+          '/blog/first',
+          '/dashboard',
+          '/dashboard/deployments/123',
+          '/catch-all/first',
+        ]) {
+          const res = await fetchViaHTTP(appPort, testPath)
+          expect(res.status).toBe(200)
+        }
+      } finally {
+        if (server) await killApp(server)
+        await fs.remove(tmpFolder)
+      }
+    })
+  }
 })

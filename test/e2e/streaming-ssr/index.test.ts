@@ -2,6 +2,7 @@ import { join } from 'path'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import {
+  check,
   fetchViaHTTP,
   findPort,
   initNextServerScript,
@@ -16,7 +17,7 @@ const react18Deps = {
 
 const isNextProd = !(global as any).isNextDev && !(global as any).isNextDeploy
 
-describe('react 18 streaming SSR with custom next configs', () => {
+describe('streaming SSR with custom next configs', () => {
   let next: NextInstance
 
   beforeAll(async () => {
@@ -65,14 +66,46 @@ describe('react 18 streaming SSR with custom next configs', () => {
     expect(html).toContain('home')
   })
 
+  it('should render next/router correctly in edge runtime', async () => {
+    const html = await renderViaHTTP(next.url, '/router')
+    expect(html).toContain('link')
+  })
+
   it('should render multi-byte characters correctly in streaming', async () => {
     const html = await renderViaHTTP(next.url, '/multi-byte')
     expect(html).toContain('マルチバイト'.repeat(28))
   })
+
+  if ((global as any).isNextDev) {
+    it('should work with custom document', async () => {
+      await next.patchFile(
+        'pages/_document.js',
+        `
+        import { Html, Head, Main, NextScript } from 'next/document'
+
+        export default function Document() {
+          return (
+            <Html>
+              <Head />
+              <body>
+                <Main />
+                <NextScript />
+              </body>
+            </Html>
+          )
+        }
+      `
+      )
+      await check(async () => {
+        return await renderViaHTTP(next.url, '/')
+      }, /index/)
+      await next.deleteFile('pages/_document.js')
+    })
+  }
 })
 
 if (isNextProd) {
-  describe('react 18 streaming SSR with custom server', () => {
+  describe('streaming SSR with custom server', () => {
     let next
     let server
     let appPort

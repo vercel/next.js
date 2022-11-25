@@ -3,6 +3,7 @@ import { NextInstance } from 'test/lib/next-modes/base'
 import { renderViaHTTP } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import path from 'path'
+import { readJSON } from 'fs-extra'
 
 describe('app-dir alias handling', () => {
   if ((global as any).isNextDeploy) {
@@ -22,6 +23,9 @@ describe('app-dir alias handling', () => {
         '@types/react': 'latest',
         '@types/node': 'latest',
       },
+      packageJson: {
+        type: 'module',
+      },
     })
   })
   afterAll(() => next.destroy())
@@ -38,4 +42,15 @@ describe('app-dir alias handling', () => {
       .getComputedCss('font-size')
     expect(fontSize).toBe('50px')
   })
+
+  if (!(global as any).isNextDev) {
+    it('should generate app-build-manifest correctly', async () => {
+      // Remove other page CSS files:
+      const manifest = await readJSON(
+        path.join(next.testDir, '.next', 'app-build-manifest.json')
+      )
+
+      expect(manifest.pages).not.toBeEmptyObject()
+    })
+  }
 })

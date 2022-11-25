@@ -11,7 +11,7 @@ import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import findUp from 'next/dist/compiled/find-up'
 import { nanoid } from 'next/dist/compiled/nanoid/index.cjs'
 import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
-import path, { join } from 'path'
+import path from 'path'
 import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
 import {
   STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR,
@@ -61,6 +61,9 @@ import {
   FONT_LOADER_MANIFEST,
   CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
   APP_CLIENT_INTERNALS,
+  SUBRESOURCE_INTEGRITY_MANIFEST,
+  MIDDLEWARE_BUILD_MANIFEST,
+  MIDDLEWARE_REACT_LOADABLE_MANIFEST,
 } from '../shared/lib/constants'
 import { getSortedRoutes, isDynamicRoute } from '../shared/lib/router/utils'
 import { __ApiPreviewProps } from '../server/api-utils'
@@ -331,15 +334,16 @@ export default async function build(
         })
 
       const { pagesDir, appDir } = findPagesDir(dir, isAppDirEnabled)
+      const isSrcDir = path
+        .relative(dir, pagesDir || appDir || '')
+        .startsWith('src')
       const hasPublicDir = await fileExists(publicDir)
 
       telemetry.record(
         eventCliSession(dir, config, {
           webpackVersion: 5,
           cliCommand: 'build',
-          isSrcDir:
-            (!!pagesDir && path.relative(dir, pagesDir).startsWith('src')) ||
-            (!!appDir && path.relative(dir, appDir).startsWith('src')),
+          isSrcDir,
           hasNowJson: !!(await findUp('now.json', { cwd: dir })),
           isCustomServer: null,
           turboFlag: false,
@@ -493,7 +497,7 @@ export default async function build(
           .traceAsyncFn(() =>
             recursiveReadDir(
               appDir,
-              new RegExp(`page\\.(?:${config.pageExtensions.join('|')})$`)
+              new RegExp(`^page\\.(?:${config.pageExtensions.join('|')})$`)
             )
           )
       }
@@ -502,11 +506,10 @@ export default async function build(
         `^${MIDDLEWARE_FILENAME}\\.(?:${config.pageExtensions.join('|')})$`
       )
 
-      const rootPaths = pagesDir
-        ? (
-            await flatReaddir(join(pagesDir, '..'), middlewareDetectionRegExp)
-          ).map((absoluteFile) => absoluteFile.replace(dir, ''))
-        : []
+      const rootDir = path.join((pagesDir || appDir)!, '..')
+      const rootPaths = (
+        await flatReaddir(rootDir, middlewareDetectionRegExp)
+      ).map((absoluteFile) => absoluteFile.replace(dir, ''))
 
       // needed for static exporting since we want to replace with HTML
       // files
@@ -597,6 +600,7 @@ export default async function build(
           appPageKeys.push(normalizedAppPageKey)
         }
       }
+      const totalAppPagesCount = appPageKeys.length
 
       const pageKeys = {
         pages: pagesPageKeys,
@@ -864,6 +868,11 @@ export default async function build(
         )
 
       const manifestPath = path.join(distDir, SERVER_DIRECTORY, PAGES_MANIFEST)
+      const appManifestPath = path.join(
+        distDir,
+        SERVER_DIRECTORY,
+        APP_PATHS_MANIFEST
+      )
 
       const requiredServerFiles = nextBuildSpan
         .traceChild('generate-required-server-files')
@@ -884,8 +893,26 @@ export default async function build(
             BUILD_MANIFEST,
             PRERENDER_MANIFEST,
             path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
+            path.join(SERVER_DIRECTORY, MIDDLEWARE_BUILD_MANIFEST + '.js'),
+            path.join(
+              SERVER_DIRECTORY,
+              MIDDLEWARE_REACT_LOADABLE_MANIFEST + '.js'
+            ),
             ...(appDir
               ? [
+                  ...(config.experimental.sri
+                    ? [
+                        path.join(
+                          SERVER_DIRECTORY,
+                          SUBRESOURCE_INTEGRITY_MANIFEST + '.js'
+                        ),
+                        path.join(
+                          SERVER_DIRECTORY,
+                          SUBRESOURCE_INTEGRITY_MANIFEST + '.json'
+                        ),
+                      ]
+                    : []),
+                  path.relative(distDir, appManifestPath),
                   path.join(SERVER_DIRECTORY, FLIGHT_MANIFEST + '.js'),
                   path.join(SERVER_DIRECTORY, FLIGHT_MANIFEST + '.json'),
                   path.join(
@@ -1097,6 +1124,7 @@ export default async function build(
         telemetry.record(
           eventBuildCompleted(pagesPaths, {
             durationInSeconds: webpackBuildEnd[0],
+            totalAppPagesCount,
           })
         )
 
@@ -1121,6 +1149,10 @@ export default async function build(
       const buildManifestPath = path.join(distDir, BUILD_MANIFEST)
       const appBuildManifestPath = path.join(distDir, APP_BUILD_MANIFEST)
 
+      let staticAppPagesCount = 0
+      let serverAppPagesCount = 0
+      let edgeRuntimeAppCount = 0
+      let edgeRuntimePagesCount = 0
       const ssgPages = new Set<string>()
       const ssgStaticFallbackPages = new Set<string>()
       const ssgBlockingFallbackPages = new Set<string>()
@@ -1300,6 +1332,18 @@ export default async function build(
           config.experimental.gzipSize
         )
 
+        const middlewareManifest: MiddlewareManifest = require(path.join(
+          distDir,
+          SERVER_DIRECTORY,
+          MIDDLEWARE_MANIFEST
+        ))
+
+        for (const key of Object.keys(middlewareManifest?.functions)) {
+          if (key.startsWith('/api')) {
+            edgeRuntimePagesCount++
+          }
+        }
+
         await Promise.all(
           Object.entries(pageKeys)
             .reduce<Array<{ pageType: keyof typeof pageKeys; page: string }>>(
@@ -1369,7 +1413,7 @@ export default async function build(
 
                 const staticInfo = pagePath
                   ? await getPageStaticInfo({
-                      pageFilePath: join(
+                      pageFilePath: path.join(
                         (pageType === 'pages' ? pagesDir : appDir) || '',
                         pagePath
                       ),
@@ -1388,15 +1432,16 @@ export default async function build(
                     let edgeInfo: any
 
                     if (pageRuntime === SERVER_RUNTIME.edge) {
-                      const manifest = require(join(
-                        distDir,
-                        SERVER_DIRECTORY,
-                        MIDDLEWARE_MANIFEST
-                      ))
+                      if (pageType === 'app') {
+                        edgeRuntimeAppCount++
+                      } else {
+                        edgeRuntimePagesCount++
+                      }
+
                       const manifestKey =
                         pageType === 'pages' ? page : originalAppPath || ''
 
-                      edgeInfo = manifest.functions[manifestKey]
+                      edgeInfo = middlewareManifest.functions[manifestKey]
                     }
 
                     let isPageStaticSpan =
@@ -1578,6 +1623,14 @@ export default async function build(
                     )
                       throw err
                     invalidPages.add(page)
+                  }
+                }
+
+                if (pageType === 'app') {
+                  if (isSsg || isStatic) {
+                    staticAppPagesCount++
+                  } else {
+                    serverAppPagesCount++
                   }
                 }
 
@@ -1830,6 +1883,7 @@ export default async function build(
                 ...(!hasSsrAmpPages
                   ? ['**/next/dist/compiled/@ampproject/toolbox-optimizer/**/*']
                   : []),
+                ...(config.experimental.outputFileTracingIgnores || []),
               ]
               const ignoreFn = (pathname: string) => {
                 return isMatch(pathname, ignores, { contains: true, dot: true })
@@ -1954,7 +2008,7 @@ export default async function build(
         const cssFilePaths = await new Promise<string[]>((resolve, reject) => {
           globOrig(
             '**/*.css',
-            { cwd: join(distDir, 'static') },
+            { cwd: path.join(distDir, 'static') },
             (err, files) => {
               if (err) {
                 return reject(err)
@@ -2018,6 +2072,7 @@ export default async function build(
               dir,
               distDir,
               pageKeys.pages,
+              pageKeys.app,
               outputFileTracingRoot,
               requiredServerFiles.config,
               middlewareManifest
@@ -2589,6 +2644,11 @@ export default async function build(
             .length,
           redirectsWithHasCount: redirects.filter((r: any) => !!r.has).length,
           middlewareCount: Object.keys(rootPaths).length > 0 ? 1 : 0,
+          totalAppPagesCount,
+          staticAppPagesCount,
+          serverAppPagesCount,
+          edgeRuntimeAppCount,
+          edgeRuntimePagesCount,
         })
       )
 
@@ -2717,17 +2777,32 @@ export default async function build(
           })
           await promises.copyFile(filePath, outputPath)
         }
-        await recursiveCopy(
-          path.join(distDir, SERVER_DIRECTORY, 'pages'),
-          path.join(
-            distDir,
-            'standalone',
-            path.relative(outputFileTracingRoot, distDir),
-            SERVER_DIRECTORY,
-            'pages'
-          ),
-          { overwrite: true }
-        )
+        if (pagesDir) {
+          await recursiveCopy(
+            path.join(distDir, SERVER_DIRECTORY, 'pages'),
+            path.join(
+              distDir,
+              'standalone',
+              path.relative(outputFileTracingRoot, distDir),
+              SERVER_DIRECTORY,
+              'pages'
+            ),
+            { overwrite: true }
+          )
+        }
+        if (appDir) {
+          await recursiveCopy(
+            path.join(distDir, SERVER_DIRECTORY, 'app'),
+            path.join(
+              distDir,
+              'standalone',
+              path.relative(outputFileTracingRoot, distDir),
+              SERVER_DIRECTORY,
+              'app'
+            ),
+            { overwrite: true }
+          )
+        }
       }
 
       staticPages.forEach((pg) => allStaticPages.add(pg))
@@ -2770,7 +2845,7 @@ export default async function build(
           .traceAsyncFn(async () => {
             await verifyPartytownSetup(
               dir,
-              join(distDir, CLIENT_STATIC_FILES_PATH)
+              path.join(distDir, CLIENT_STATIC_FILES_PATH)
             )
           })
       }

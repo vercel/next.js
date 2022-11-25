@@ -119,7 +119,7 @@ function handleWarnings(warnings) {
     })
 
     if (typeof console !== 'undefined' && typeof console.warn === 'function') {
-      for (let i = 0; i < formatted.warnings.length; i++) {
+      for (let i = 0; i < formatted.warnings?.length; i++) {
         if (i === 5) {
           console.warn(
             'There were more warnings in other files.\n' +
@@ -337,7 +337,7 @@ function tryApplyUpdates(onBeforeHotUpdate, onHotUpdateSuccess) {
       return
     }
 
-    const hasUpdates = Boolean(updatedModules.length)
+    const hasUpdates = Boolean(updatedModules?.length)
     if (typeof onHotUpdateSuccess === 'function') {
       // Maybe we want to do something.
       onHotUpdateSuccess(hasUpdates)
@@ -368,7 +368,7 @@ function tryApplyUpdates(onBeforeHotUpdate, onHotUpdateSuccess) {
     .check(/* autoApply */ false)
     .then((updatedModules) => {
       if (typeof onBeforeHotUpdate === 'function') {
-        const hasUpdates = Boolean(updatedModules.length)
+        const hasUpdates = Boolean(updatedModules?.length)
         onBeforeHotUpdate(hasUpdates)
       }
       return module.hot.apply()
