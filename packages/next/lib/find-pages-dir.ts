@@ -41,12 +41,12 @@ export function findPagesDir(
   if (!isAppDirEnabled) {
     if (appDir != null && pagesDir == null) {
       throw new Error(
-        '> The `app` dir is experimental. Please add `{experimental:{appDir: true}}` to your `next.config.js` to enable it'
+        '> The `app` directory is experimental. To enable, add `appDir: true` to your `next.config.js` configuration under `experimental`. See https://nextjs.org/docs/messages/experimental-app-dir-config'
       )
     }
     if (appDir != null && pagesDir != null) {
       Log.warn(
-        'The `app` dir is experimental. Please add `{experimental:{appDir: true}}` to your `next.config.js` to enable it'
+        'The `app` directory is experimental. To enable, add `appDir: true` to your `next.config.js` configuration under `experimental`. See https://nextjs.org/docs/messages/experimental-app-dir-config'
       )
     }
     if (pagesDir == null) {

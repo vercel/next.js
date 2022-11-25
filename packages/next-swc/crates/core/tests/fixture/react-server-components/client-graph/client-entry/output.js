@@ -3,7 +3,6 @@
 // This is a comment.
 "foo";
 import "fs";
-"use client";
 "bar";
 // This is a comment.
 1 + 1;

@@ -6,7 +6,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "next": "9.4.1",
+    "next": "latest",
     "next-redux-wrapper": "^7.0.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

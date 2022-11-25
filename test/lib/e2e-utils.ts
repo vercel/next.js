@@ -4,6 +4,7 @@ import { NextInstance, NextInstanceOpts } from './next-modes/base'
 import { NextDevInstance } from './next-modes/next-dev'
 import { NextStartInstance } from './next-modes/next-start'
 import { NextDeployInstance } from './next-modes/next-deploy'
+import { shouldRunTurboDevTest } from './next-test-utils'
 
 // increase timeout to account for yarn install time
 jest.setTimeout(240 * 1000)
@@ -117,15 +118,28 @@ export async function createNext(
       throw new Error(`createNext called without destroying previous instance`)
     }
 
+    const useTurbo = !!process.env.TEST_WASM
+      ? false
+      : opts?.turbo ?? shouldRunTurboDevTest()
+
     if (testMode === 'dev') {
       // next dev
-      nextInstance = new NextDevInstance(opts)
+      nextInstance = new NextDevInstance({
+        ...opts,
+        turbo: useTurbo,
+      })
     } else if (testMode === 'deploy') {
       // Vercel
-      nextInstance = new NextDeployInstance(opts)
+      nextInstance = new NextDeployInstance({
+        ...opts,
+        turbo: false,
+      })
     } else {
       // next build + next start
-      nextInstance = new NextStartInstance(opts)
+      nextInstance = new NextStartInstance({
+        ...opts,
+        turbo: false,
+      })
     }
 
     nextInstance.on('destroy', () => {

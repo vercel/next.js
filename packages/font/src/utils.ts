@@ -55,3 +55,9 @@ export function calculateFallbackFontValues(
     sizeAdjust: formatOverrideValue(sizeAdjust),
   }
 }
+
+export function nextFontError(message: string): never {
+  const err = new Error(message)
+  err.name = 'NextFontError'
+  throw err
+}
