@@ -410,6 +410,9 @@ function loadNative(isCustomTurbopack = false) {
                   ...process.env,
                 },
               })
+              child.on('message', (message) => {
+                console.log(message)
+              })
               child.on('close', (code) => {
                 if (code !== 0) {
                   reject({

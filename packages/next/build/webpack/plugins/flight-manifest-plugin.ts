@@ -274,7 +274,10 @@ export class FlightManifestPlugin {
         moduleExportedKeys.forEach((name) => {
           // If the chunk is from `app/` chunkGroup, use it first.
           // This make sure not to load the overlapped chunk from `pages/` chunkGroup
-          if (!moduleExports[name] || chunkGroup.name?.startsWith('app/')) {
+          if (
+            !moduleExports[name] ||
+            (chunkGroup.name && /^app[\\/]/.test(chunkGroup.name))
+          ) {
             const requiredChunks = getAppPathRequiredChunks()
 
             moduleExports[name] = {

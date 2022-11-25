@@ -3,9 +3,7 @@ import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { relative } from 'path'
 import { SimpleWebpackError } from './simpleWebpackError'
 
-export function formatRSCErrorMessage(
-  message: string
-): null | [string, string] {
+function formatRSCErrorMessage(message: string): null | [string, string] {
   if (message && /NEXT_RSC_ERR_/.test(message)) {
     let formattedMessage = message
     let formattedVerboseMessage = ''
@@ -15,6 +13,9 @@ export function formatRSCErrorMessage(
     const NEXT_RSC_ERR_REACT_API = /.+NEXT_RSC_ERR_REACT_API: (.*?)\n/s
     const NEXT_RSC_ERR_SERVER_IMPORT = /.+NEXT_RSC_ERR_SERVER_IMPORT: (.*?)\n/s
     const NEXT_RSC_ERR_CLIENT_IMPORT = /.+NEXT_RSC_ERR_CLIENT_IMPORT: (.*?)\n/s
+    const NEXT_RSC_ERR_CLIENT_DIRECTIVE = /.+NEXT_RSC_ERR_CLIENT_DIRECTIVE\n/s
+    const NEXT_RSC_ERR_CLIENT_DIRECTIVE_PAREN =
+      /.+NEXT_RSC_ERR_CLIENT_DIRECTIVE_PAREN\n/s
 
     if (NEXT_RSC_ERR_REACT_API.test(message)) {
       formattedMessage = message.replace(
@@ -49,6 +50,18 @@ export function formatRSCErrorMessage(
       )
       formattedVerboseMessage =
         '\n\nOne of these is marked as a client entry with "use client":\n'
+    } else if (NEXT_RSC_ERR_CLIENT_DIRECTIVE.test(message)) {
+      formattedMessage = message.replace(
+        NEXT_RSC_ERR_CLIENT_DIRECTIVE,
+        `\n\nThe "use client" directive must be placed before other expressions. Move it to the top of the file to resolve this issue.\n\n`
+      )
+      formattedVerboseMessage = '\n\nImport path:\n'
+    } else if (NEXT_RSC_ERR_CLIENT_DIRECTIVE_PAREN.test(message)) {
+      formattedMessage = message.replace(
+        NEXT_RSC_ERR_CLIENT_DIRECTIVE_PAREN,
+        `\n\n"use client" must be a directive, and placed before other expressions. Remove the parentheses and move it to the top of the file to resolve this issue.\n\n`
+      )
+      formattedVerboseMessage = '\n\nImport path:\n'
     }
 
     return [formattedMessage, formattedVerboseMessage]
@@ -73,6 +86,7 @@ export function getRscError(
   // https://cs.github.com/webpack/webpack/blob/9fcaa243573005d6fdece9a3f8d89a0e8b399613/lib/stats/DefaultStatsFactoryPlugin.js#L414
   const visitedModules = new Set()
   const moduleTrace = []
+
   let current = module
   while (current) {
     if (visitedModules.has(current)) break

@@ -13,6 +13,7 @@ import {
   getUrl,
   validateData,
 } from './utils'
+import { nextFontError } from '../utils'
 
 const cssCache = new Map<string, Promise<string>>()
 const fontCache = new Map<string, any>()
@@ -104,7 +105,7 @@ const downloadGoogleFonts: FontLoader = async ({
       cssCache.delete(url)
     }
     if (fontFaceDeclarations === null) {
-      throw new Error(`Failed to fetch \`${fontFamily}\` from Google Fonts.`)
+      nextFontError(`Failed to fetch \`${fontFamily}\` from Google Fonts.`)
     }
 
     // CSS Variables may be set on a body tag, ignore them to keep the CSS module pure
@@ -151,9 +152,7 @@ const downloadGoogleFonts: FontLoader = async ({
           fontCache.delete(googleFontFileUrl)
         }
         if (fontFileBuffer === null) {
-          throw new Error(
-            `Failed to fetch \`${fontFamily}\` from Google Fonts.`
-          )
+          nextFontError(`Failed to fetch \`${fontFamily}\` from Google Fonts.`)
         }
 
         const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(googleFontFileUrl)![1]

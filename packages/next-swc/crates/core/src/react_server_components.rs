@@ -84,33 +84,60 @@ impl<C: Comments> ReactServerComponents<C> {
         let _ = &module.body.retain(|item| {
             match item {
                 ModuleItem::Stmt(stmt) => {
-                    if !finished_directives {
-                        if !stmt.is_expr() {
-                            // Not an expression.
-                            finished_directives = true;
-                        }
+                    if !stmt.is_expr() {
+                        // Not an expression.
+                        finished_directives = true;
+                    }
 
-                        match stmt.as_expr() {
-                            Some(expr_stmt) => {
-                                match &*expr_stmt.expr {
-                                    Expr::Lit(Lit::Str(Str { value, .. })) => {
-                                        if &**value == "use client" {
+                    match stmt.as_expr() {
+                        Some(expr_stmt) => {
+                            match &*expr_stmt.expr {
+                                Expr::Lit(Lit::Str(Str { value, .. })) => {
+                                    if &**value == "use client" {
+                                        if !finished_directives {
                                             is_client_entry = true;
-
-                                            // Remove the directive.
-                                            return false;
+                                        } else {
+                                            HANDLER.with(|handler| {
+                                                handler
+                                                    .struct_span_err(
+                                                        expr_stmt.span,
+                                                        "NEXT_RSC_ERR_CLIENT_DIRECTIVE",
+                                                    )
+                                                    .emit()
+                                            })
                                         }
-                                    }
-                                    _ => {
-                                        // Other expression types.
-                                        finished_directives = true;
+
+                                        // Remove the directive.
+                                        return false;
                                     }
                                 }
+                                // Match `ParenthesisExpression` which is some formartting tools
+                                // usually do: ('use client'). In these case we need to throw
+                                // an exception because they are not valid directives.
+                                Expr::Paren(ParenExpr { expr, .. }) => {
+                                    finished_directives = true;
+                                    if let Expr::Lit(Lit::Str(Str { value, .. })) = &**expr {
+                                        if &**value == "use client" {
+                                            HANDLER.with(|handler| {
+                                                handler
+                                                    .struct_span_err(
+                                                        expr_stmt.span,
+                                                        "NEXT_RSC_ERR_CLIENT_DIRECTIVE_PAREN",
+                                                    )
+                                                    .emit()
+                                            })
+                                        }
+                                    }
+                                }
+                                _ => {
+                                    // Other expression types.
+                                    finished_directives = true;
+                                }
                             }
-                            None => {
-                                // Not an expression.
-                                finished_directives = true;
-                            }
+                        }
+                        None => {
+                            // Not an expression.
+                            finished_directives = true;
                         }
                     }
                 }
