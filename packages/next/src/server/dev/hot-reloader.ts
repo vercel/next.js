@@ -10,9 +10,10 @@ import {
   createEntrypoints,
   createPagesMapping,
   finalizeEntrypoint,
+  getAppEntry,
   getClientEntry,
   getEdgeServerEntry,
-  getAppEntry,
+  getServerlessEntry,
   runDependingOnPageType,
 } from '../../build/entries'
 import { watchCompilers } from '../../build/output'
@@ -721,7 +722,11 @@ export default class HotReloader {
                         isDev: true,
                         tsconfigPath: this.config.typescript.tsconfigPath,
                       })
-                    : relativeRequest,
+                    : getServerlessEntry({
+                        page,
+                        pagePath: relativeRequest,
+                        pageFilePath: entryData.absolutePagePath,
+                      }),
                   hasAppDir,
                 })
               },

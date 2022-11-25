@@ -1616,6 +1616,7 @@ export default async function getBaseWebpackConfig(
         'next-client-pages-loader',
         'next-image-loader',
         'next-serverless-loader',
+        'next-serverless-isomorphic-loader',
         'next-style-loader',
         'next-flight-loader',
         'next-flight-client-entry-loader',

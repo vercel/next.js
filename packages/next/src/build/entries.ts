@@ -9,6 +9,7 @@ import type {
 } from './analysis/get-page-static-info'
 import type { LoadedEnvFiles } from '@next/env'
 import chalk from 'next/dist/compiled/chalk'
+import { hasEdgeSignature } from 'next/dist/compiled/@edge-runtime/feature-detector'
 import { posix, join } from 'path'
 import { stringify } from 'querystring'
 import {
@@ -44,6 +45,7 @@ import { ServerRuntime } from '../../types'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { encodeMatchers } from './webpack/loaders/next-middleware-loader'
 import { EdgeFunctionLoaderOptions } from './webpack/loaders/next-edge-function-loader'
+import { ServerlessIsomorphicLoaderOptions } from './webpack/loaders/next-serverless-isomorphic-loader'
 
 type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never
 
@@ -209,6 +211,20 @@ export function getEdgeServerEntry(opts: {
     // via a webpack rule.
     layer: opts.appDirLoader ? WEBPACK_LAYERS.client : undefined,
   }
+}
+
+export function getServerlessEntry(opts: {
+  page: string
+  pagePath: string
+  pageFilePath: string
+}) {
+  const { page, pageFilePath } = opts
+  if (isAPIRoute(page) && hasEdgeSignature(pageFilePath)) {
+    return `next-serverless-isomorphic-loader?${stringify(
+      opts as ServerlessIsomorphicLoaderOptions
+    )}!`
+  }
+  return [opts.pagePath]
 }
 
 export function getAppEntry(opts: {
@@ -412,7 +428,11 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
               pageExtensions,
             })
           } else {
-            server[serverBundlePath] = [mappings[page]]
+            server[serverBundlePath] = getServerlessEntry({
+              page,
+              pageFilePath,
+              pagePath: mappings[page],
+            })
           }
         },
         onEdgeServer: () => {

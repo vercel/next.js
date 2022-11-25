@@ -150,6 +150,9 @@ export async function ncc_next_server(task, opts) {
         '/(.*)server/web(.*)/': '$1server/web$2',
         './web/sandbox': './web/sandbox',
         'next/dist/compiled/edge-runtime': 'next/dist/compiled/edge-runtime',
+        '(.*)@edge-runtime/feature-detector':
+          '$1@edge-runtime/feature-detector',
+        '(.*)@edge-runtime/node-utils': '$1@edge-runtime/node-utils',
         '(.*)@edge-runtime/primitives': '$1@edge-runtime/primitives',
 
         '/(.*)compiled/webpack(/.*)/': '$1webpack$2',
@@ -388,6 +391,50 @@ export async function ncc_edge_runtime_primitives() {
   await fs.copy(
     require.resolve('@edge-runtime/primitives'),
     join(dest, 'index.js')
+  )
+}
+
+// eslint-disable-next-line camelcase
+externals['@edge-runtime/feature-detector'] =
+  'next/dist/compiled/@edge-runtime/feature-detector'
+export async function ncc_edge_runtime_feature_detector(task, opts) {
+  const dest = 'src/compiled/@edge-runtime/feature-detector'
+  await task
+    .source(
+      relative(__dirname, require.resolve('@edge-runtime/feature-detector'))
+    )
+    .ncc({ packageName: '@edge-runtime/feature-detector', externals })
+    .target(dest)
+  await fs.copy(
+    require.resolve('@edge-runtime/feature-detector/dist/index.d.ts'),
+    join(dest, 'index.d.ts')
+  )
+}
+
+// eslint-disable-next-line camelcase
+externals['@edge-runtime/node-utils'] =
+  'next/dist/compiled/@edge-runtime/node-utils'
+export async function ncc_edge_runtime_node_utils(task, opts) {
+  // `@edge-runtime/node-utils` is precompiled and pre-bundled
+  // so we vendor the package as it is.
+  const dest = 'src/compiled/@edge-runtime/node-utils'
+  const pkg = await fs.readJson(
+    require.resolve('@edge-runtime/node-utils/package.json')
+  )
+  await fs.remove(dest)
+  await fs.outputJson(join(dest, 'package.json'), {
+    name: '@edge-runtime/node-utils',
+    version: pkg.version,
+    main: './index.js',
+    license: pkg.license,
+  })
+  await fs.copy(
+    require.resolve('@edge-runtime/node-utils'),
+    join(dest, 'index.js')
+  )
+  await fs.copy(
+    require.resolve('@edge-runtime/node-utils/dist/index.d.ts'),
+    join(dest, 'index.d.ts')
   )
 }
 
@@ -2104,6 +2151,8 @@ export async function ncc(task, opts) {
       'copy_react_is',
       'ncc_sass_loader',
       'ncc_jest_worker',
+      'ncc_edge_runtime_node_utils',
+      'ncc_edge_runtime_feature_detector',
       'ncc_edge_runtime_primitives',
       'ncc_edge_runtime',
     ],
