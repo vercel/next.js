@@ -66,7 +66,7 @@ function formatRSCErrorMessage(message: string): null | [string, string] {
     } else if (NEXT_RSC_ERR_INVALID_API.test(message)) {
       formattedMessage = message.replace(
         NEXT_RSC_ERR_INVALID_API,
-        `\n\n"$1" is not support in app/. Read more: https://beta.nextjs.org/docs/data-fetching/fundamentals\n\n`
+        `\n\n"$1" is not supported in app/. Read more: https://beta.nextjs.org/docs/data-fetching/fundamentals\n\n`
       )
       formattedVerboseMessage = '\n\nFile path:\n'
     }
