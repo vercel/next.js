@@ -90,14 +90,6 @@ describe('app dir - rsc errors', () => {
     )
   })
 
-  it('should not transform css-in-js such as styled-jsx in server components', async () => {
-    const html = await renderViaHTTP(next.url, '/not-transform/styled-jsx')
-
-    expect(html).toMatch(
-      /<style>\s*\.this-wont-be-transformed\s*\{\s*color:\s*purple;\s*\}\s*<\/style>/
-    )
-  })
-
   it('should error when page component export is not valid', async () => {
     const html = await renderViaHTTP(
       next.url,
