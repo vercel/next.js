@@ -26,6 +26,12 @@ yarn create next-app --example with-docker-compose with-docker-compose-app
 pnpm create next-app --example with-docker-compose with-docker-compose-app
 ```
 
+Optionally, after the installation is complete:
+
+- Run `cd next-app`, then run `npm install` or `yarn install` or `pnpm install` to generate a lockfile.
+
+It is recommended to commit a lockfile to version control. Although the example will work without one, build errors are more likely to occur when using the latest version of all dependencies. This way, we're always using a known good configuration to develop and run in production.
+
 ## Prerequisites
 
 Install [Docker Desktop](https://docs.docker.com/get-docker) for Mac, Windows, or Linux. Docker Desktop includes Docker Compose as part of the installation.
