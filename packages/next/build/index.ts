@@ -2777,19 +2777,17 @@ export default async function build(
           })
           await promises.copyFile(filePath, outputPath)
         }
-        if (pagesDir) {
-          await recursiveCopy(
-            path.join(distDir, SERVER_DIRECTORY, 'pages'),
-            path.join(
-              distDir,
-              'standalone',
-              path.relative(outputFileTracingRoot, distDir),
-              SERVER_DIRECTORY,
-              'pages'
-            ),
-            { overwrite: true }
-          )
-        }
+        await recursiveCopy(
+          path.join(distDir, SERVER_DIRECTORY, 'pages'),
+          path.join(
+            distDir,
+            'standalone',
+            path.relative(outputFileTracingRoot, distDir),
+            SERVER_DIRECTORY,
+            'pages'
+          ),
+          { overwrite: true }
+        )
         if (appDir) {
           await recursiveCopy(
             path.join(distDir, SERVER_DIRECTORY, 'app'),
