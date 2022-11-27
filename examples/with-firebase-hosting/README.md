@@ -74,7 +74,7 @@ The crucial files for the setup:
 - `firebase.json`
 - `firebaseFunctions.js`
 - `src/next.config.js`
-- In `package.json`: `firebase-*` packages.
+- In `package.json`: `firebase-*` packages, `private` property defining the entry point as `firebaseFunctions.js`
 
 ## References
 
