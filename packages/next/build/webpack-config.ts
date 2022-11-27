@@ -1151,13 +1151,13 @@ export default async function getBaseWebpackConfig(
 
     const isLocalCallback = (localRes: string) => {
       // Makes sure dist/shared and dist/server are not bundled
-      // we need to process shared `router/router` and `dynamic`,
-      // so that the DefinePlugin can inject process.env values
+      // we need to process shared `router/router`, `head` and `dynamic`,
+      // so that the DefinePlugin can inject process.env values.
       const isNextExternal =
         // Treat next internals as non-external for server layer
         layer === WEBPACK_LAYERS.server
           ? false
-          : /next[/\\]dist[/\\](esm[\\/])?(shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic))/.test(
+          : /next[/\\]dist[/\\](esm[\\/])?(shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic|head))/.test(
               localRes
             )
 
