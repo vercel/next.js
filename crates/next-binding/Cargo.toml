@@ -1,0 +1,132 @@
+[package]
+name = "next-binding"
+version = "0.1.0"
+edition = "2021"
+license = "MPL-2.0"
+autobenches = false
+
+[lib]
+bench = false
+
+[features]
+__swc = []
+__swc_core = [
+  "__swc",
+]
+__swc_core_next_core = [
+  "__swc_core",
+  "swc_core/common_concurrent",
+  "swc_core/ecma_ast",
+  "swc_core/ecma_visit",
+  "swc_core/ecma_loader_node",
+  "swc_core/ecma_loader_lru",
+  "swc_core/ecma_utils",
+  "swc_core/ecma_minifier",
+  "swc_core/ecma_transforms",
+  "swc_core/ecma_transforms_react",
+  "swc_core/ecma_transforms_typescript",
+  "swc_core/ecma_transforms_optimization",
+  "swc_core/ecma_parser",
+  "swc_core/ecma_parser_typescript",
+  "swc_core/cached",
+  "swc_core/base"
+]
+
+__swc_core_binding_napi = [
+  "__swc_core",
+  "swc_core/allocator_node",
+  "swc_core/base_concurrent",
+  "swc_core/base_node",
+  "swc_core/common_concurrent",
+  "swc_core/ecma_ast",
+  "swc_core/ecma_loader_node",
+  "swc_core/ecma_loader_lru",
+  "swc_core/bundler",
+  "swc_core/bundler_concurrent",
+  "swc_core/ecma_codegen",
+  "swc_core/ecma_minifier",
+  "swc_core/ecma_parser",
+  "swc_core/ecma_parser_typescript",
+  "swc_core/ecma_transforms",
+  "swc_core/ecma_transforms_optimization",
+  "swc_core/ecma_transforms_react",
+  "swc_core/ecma_transforms_typescript",
+  "swc_core/ecma_utils",
+  "swc_core/ecma_visit",
+]
+__swc_core_binding_napi_plugin = [
+  "swc_core/plugin_transform_host_native"
+]
+
+__swc_core_binding_wasm = [
+  "__swc_core",
+  "swc_core/common_concurrent",
+  "swc_core/binding_macro_wasm",
+  "swc_core/ecma_codegen",
+  "swc_core/ecma_minifier",
+  "swc_core/ecma_transforms",
+  "swc_core/ecma_transforms_typescript",
+  "swc_core/ecma_transforms_optimization",
+  "swc_core/ecma_transforms_react",
+  "swc_core/ecma_parser",
+  "swc_core/ecma_parser_typescript",
+  "swc_core/ecma_utils",
+  "swc_core/ecma_visit"
+]
+__swc_core_binding_wasm_plugin = [
+  "swc_core/plugin_transform_host_js"
+]
+
+__swc_core_testing_transform = [
+  "swc_core/testing_transform"
+]
+
+__turbo = []
+__feature_next_dev_server = [
+  "__turbo",
+  "next-dev/serializable"
+]
+__feature_node_file_trace = [
+  "__turbo",
+  "node-file-trace/node-api"
+]
+
+__features = []
+__feature_mdx_rs = [ "__features", "mdxjs/serializable"]
+
+__swc_custom_transform = []
+__swc_transform_styled_components = [
+  "__swc",
+  "__swc_custom_transform",
+  "styled_components"
+]
+__swc_transform_styled_jsx = [
+  "__swc",
+  "__swc_custom_transform",
+  "styled_jsx"
+]
+__swc_transform_emotion = [
+  "__swc",
+  "__swc_custom_transform",
+  "swc_emotion"
+]
+__swc_transform_modularize_imports = [
+  "__swc",
+  "__swc_custom_transform",
+  "modularize_imports"
+]
+__swc_testing = [
+  "__swc",
+  "testing"
+]
+
+[dependencies]
+swc_core = { optional = true, workspace = true }
+mdxjs = { optional = true, workspace = true }
+next-dev = { optional = true, workspace = true }
+node-file-trace = { optional = true, workspace = true }
+styled_components = { optional = true,workspace = true }
+styled_jsx = { optional = true,workspace = true}
+swc_emotion = { optional = true,workspace = true}
+testing = {optional = true, workspace = true}
+modularize_imports = { optional = true,workspace = true}
