@@ -19,5 +19,7 @@ bench = false
 [dependencies]
 anyhow = "1.0.47"
 clap = { version = "4.0.18", features = ["derive"] }
+indoc = "1.0"
+pathdiff = "0.2.1"
 serde_json = "1.0.85"
 tempfile = "3.3.0"

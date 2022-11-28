@@ -67,7 +67,6 @@ pub struct PreparedApp<'a> {
     bundler: &'a dyn Bundler,
     server: Option<(Child, String)>,
     test_dir: PreparedDir,
-    counter: usize,
 }
 
 impl<'a> PreparedApp<'a> {
@@ -81,7 +80,6 @@ impl<'a> PreparedApp<'a> {
             bundler,
             server: None,
             test_dir: PreparedDir::TempDir(test_dir),
-            counter: 0,
         })
     }
 
@@ -93,13 +91,7 @@ impl<'a> PreparedApp<'a> {
             bundler,
             server: None,
             test_dir: PreparedDir::Path(template_dir),
-            counter: 0,
         })
-    }
-
-    pub fn counter(&mut self) -> usize {
-        self.counter += 1;
-        self.counter
     }
 
     pub fn start_server(&mut self) -> Result<()> {
