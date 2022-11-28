@@ -653,13 +653,13 @@ export async function getRedboxHeader(browser) {
       evaluate(browser, () => {
         const portal = [].slice
           .call(document.querySelectorAll('nextjs-portal'))
-          .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header'))
+          .find((p) =>
+            p.shadowRoot.querySelector('[data-nextjs-dialog-header]')
+          )
         const root = portal.shadowRoot
-        return root
-          .querySelector('[data-nextjs-dialog-header]')
-          .innerText.replace(/__WEBPACK_DEFAULT_EXPORT__/, 'Unknown')
+        return root.querySelector('[data-nextjs-dialog-header]').innerText
       }),
-    3000,
+    10000,
     500,
     'getRedboxHeader'
   )
@@ -677,11 +677,11 @@ export async function getRedboxSource(browser) {
             )
           )
         const root = portal.shadowRoot
-        return root
-          .querySelector('[data-nextjs-codeframe], [data-nextjs-terminal]')
-          .innerText.replace(/__WEBPACK_DEFAULT_EXPORT__/, 'Unknown')
+        return root.querySelector(
+          '[data-nextjs-codeframe], [data-nextjs-terminal]'
+        ).innerText
       }),
-    3000,
+    10000,
     500,
     'getRedboxSource'
   )
@@ -697,9 +697,7 @@ export async function getRedboxDescription(browser) {
             p.shadowRoot.querySelector('[data-nextjs-dialog-header]')
           )
         const root = portal.shadowRoot
-        return root
-          .querySelector('#nextjs__container_errors_desc')
-          .innerText.replace(/__WEBPACK_DEFAULT_EXPORT__/, 'Unknown')
+        return root.querySelector('#nextjs__container_errors_desc').innerText
       }),
     3000,
     500,

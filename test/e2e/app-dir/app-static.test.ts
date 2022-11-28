@@ -51,6 +51,9 @@ describe('app-dir static/dynamic handling', () => {
         'blog/tim.rsc',
         'blog/tim/first-post.html',
         'blog/tim/first-post.rsc',
+        'dynamic-error.html',
+        'dynamic-error.rsc',
+        'dynamic-error/page.js',
         'dynamic-no-gen-params-ssr/[slug]/page.js',
         'dynamic-no-gen-params/[slug]/page.js',
         'force-static/[slug]/page.js',
@@ -106,6 +109,11 @@ describe('app-dir static/dynamic handling', () => {
           initialRevalidateSeconds: false,
           srcRoute: '/blog/[author]/[slug]',
           dataRoute: '/blog/tim/first-post.rsc',
+        },
+        '/dynamic-error': {
+          dataRoute: '/dynamic-error.rsc',
+          initialRevalidateSeconds: false,
+          srcRoute: '/dynamic-error',
         },
         '/blog/seb/second-post': {
           initialRevalidateSeconds: false,
