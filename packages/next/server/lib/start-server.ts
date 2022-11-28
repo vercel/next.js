@@ -2,6 +2,7 @@ import type { NextServerOptions, NextServer, RequestHandler } from '../next'
 import { warn } from '../../build/output/log'
 import http from 'http'
 import next from '../next'
+import { isIPv6 } from 'net'
 
 interface StartServerOptions extends NextServerOptions {
   allowRetry?: boolean
@@ -52,6 +53,10 @@ export function startServer(opts: StartServerOptions) {
       const hostname =
         !opts.hostname || opts.hostname === '0.0.0.0'
           ? 'localhost'
+          : isIPv6(opts.hostname)
+          ? opts.hostname === '::'
+            ? `[${opts.hostname}1]`
+            : `[${opts.hostname}]`
           : opts.hostname
 
       const app = next({
