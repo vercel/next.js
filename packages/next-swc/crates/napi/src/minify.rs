@@ -31,7 +31,7 @@ use fxhash::FxHashMap;
 use napi::bindgen_prelude::*;
 use serde::Deserialize;
 use swc_core::{
-    base::{config::JsMinifyOptions, try_with_handler, TransformOutput},
+    base::{try_with_handler, TransformOutput},
     common::{errors::ColorConfig, sync::Lrc, FileName, SourceFile, SourceMap, GLOBALS},
 };
 
@@ -88,13 +88,7 @@ impl Task for MinifyTask {
                 GLOBALS.set(&Default::default(), || {
                     let fm = self.code.to_file(self.c.cm.clone());
 
-                    self.c.minify(
-                        fm,
-                        handler,
-                        &JsMinifyOptions {
-                            ..self.opts.clone()
-                        },
-                    )
+                    self.c.minify(fm, handler, &self.opts)
                 })
             },
         )

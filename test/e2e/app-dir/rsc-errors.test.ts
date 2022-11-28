@@ -3,7 +3,7 @@ import { check, fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 
-describe('app dir - rsc basics', () => {
+describe('app dir - rsc errors', () => {
   let next: NextInstance
 
   const { isNextDeploy, isNextDev } = global as any
@@ -52,7 +52,7 @@ describe('app dir - rsc basics', () => {
 
     expect(res.status).toBe(500)
     expect(await res.text()).toContain(
-      '`getServerSideProps` is not allowed in Client Components'
+      '"getServerSideProps\\" is not supported in app/'
     )
   })
 
@@ -79,7 +79,7 @@ describe('app dir - rsc basics', () => {
 
     expect(res.status).toBe(500)
     expect(await res.text()).toContain(
-      '`getStaticProps` is not allowed in Client Components'
+      '"getStaticProps\\" is not supported in app/'
     )
   })
 
@@ -96,7 +96,26 @@ describe('app dir - rsc basics', () => {
       '/server-with-errors/page-export'
     )
     expect(html).toContain(
-      'The default export is not a React Component in page: \\"/server-with-errors/page-export\\"'
+      'The default export is not a React Component in page:'
+    )
+  })
+
+  it('should throw an error when "use client" is on the top level but after other expressions', async () => {
+    const pageFile = 'app/swc/use-client/page.js'
+    const content = await next.readFile(pageFile)
+    const uncomment = content.replace("// 'use client'", "'use client'")
+    await next.patchFile(pageFile, uncomment)
+    const res = await fetchViaHTTP(next.url, '/swc/use-client')
+    await next.patchFile(pageFile, content)
+
+    await check(async () => {
+      const { status } = await fetchViaHTTP(next.url, '/swc/use-client')
+      return status
+    }, /200/)
+
+    expect(res.status).toBe(500)
+    expect(await res.text()).toContain(
+      'directive must be placed before other expressions'
     )
   })
 })

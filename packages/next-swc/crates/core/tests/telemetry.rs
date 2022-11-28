@@ -8,7 +8,7 @@ use once_cell::sync::Lazy;
 
 use swc_core::{
     base::{try_with_handler, Compiler},
-    common::{FileName, FilePathMapping, SourceMap, GLOBALS},
+    common::{comments::SingleThreadedComments, FileName, FilePathMapping, SourceMap, GLOBALS},
     ecma::transforms::base::pass::noop,
 };
 
@@ -42,13 +42,15 @@ export function getServerSideProps() {
     assert!(
         try_with_handler(COMPILER.cm.clone(), Default::default(), |handler| {
             GLOBALS.set(&Default::default(), || {
+                let comments = SingleThreadedComments::default();
                 COMPILER.process_js_with_custom_pass(
                     fm,
                     None,
                     handler,
                     &Default::default(),
-                    |_, _| next_ssg(eliminated_packages.clone()),
-                    |_, _| noop(),
+                    comments,
+                    |_| next_ssg(eliminated_packages.clone()),
+                    |_| noop(),
                 )
             })
         })

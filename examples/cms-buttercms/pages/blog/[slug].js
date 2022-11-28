@@ -55,14 +55,10 @@ export default function BlogPost({ post, categories }) {
                 <h2>{post.title}</h2>
                 <ul className="breadcrumb-nav">
                   <li>
-                    <Link href="/">
-                      <a>Home</a>
-                    </Link>
+                    <Link href="/">Home</Link>
                   </li>
                   <li>
-                    <Link href="/blog">
-                      <a>Blog</a>
-                    </Link>
+                    <Link href="/blog">Blog</Link>
                   </li>
                   <li>{post.title}</li>
                 </ul>
@@ -92,9 +88,7 @@ export default function BlogPost({ post, categories }) {
                     {post.tags.map((tag) => (
                       <li key={tag.slug}>
                         <Link href={`/blog/tag/${tag.slug}`}>
-                          <a>
-                            <i className="lni lni-tag"></i> {tag.name}
-                          </a>
+                          <i className="lni lni-tag"></i> {tag.name}
                         </Link>
                       </li>
                     ))}

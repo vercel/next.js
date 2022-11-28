@@ -10,6 +10,11 @@ import { waitUntilSymbol } from './spec-extension/fetch-event'
 import { NextURL } from './next-url'
 import { stripInternalSearchParams } from '../internal-utils'
 import { normalizeRscPath } from '../../shared/lib/router/utils/app-paths'
+import {
+  NEXT_ROUTER_PREFETCH,
+  NEXT_ROUTER_STATE_TREE,
+  RSC,
+} from '../../client/components/app-router-headers'
 
 class NextRequestHint extends NextRequest {
   sourcePage: string
@@ -37,9 +42,9 @@ class NextRequestHint extends NextRequest {
 }
 
 const FLIGHT_PARAMETERS = [
-  '__rsc__',
-  '__next_router_state_tree__',
-  '__next_router_prefetch__',
+  [RSC],
+  [NEXT_ROUTER_STATE_TREE],
+  [NEXT_ROUTER_PREFETCH],
 ] as const
 
 export async function adapter(params: {
@@ -71,7 +76,7 @@ export async function adapter(params: {
   // Parameters should only be stripped for middleware
   if (!isEdgeRendering) {
     for (const param of FLIGHT_PARAMETERS) {
-      requestHeaders.delete(param)
+      requestHeaders.delete(param.toString().toLowerCase())
     }
   }
 

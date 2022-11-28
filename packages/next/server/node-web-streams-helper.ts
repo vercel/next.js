@@ -1,6 +1,9 @@
 import type { FlightRouterState } from './app-render'
 import { nonNullable } from '../lib/non-nullable'
 
+const queueTask =
+  process.env.NEXT_RUNTIME === 'edge' ? globalThis.setTimeout : setImmediate
+
 export type ReactReadableStream = ReadableStream<Uint8Array> & {
   allReady?: Promise<void> | undefined
 }
@@ -149,21 +152,43 @@ export function renderToInitialStream({
   return ReactDOMServer.renderToReadableStream(element, streamOptions)
 }
 
-export function createHeadInjectionTransformStream(
-  inject: () => Promise<string>
+function createHeadInsertionTransformStream(
+  insert: () => Promise<string>
 ): TransformStream<Uint8Array, Uint8Array> {
-  let injected = false
+  let inserted = false
+  let freezing = false
+
   return new TransformStream({
     async transform(chunk, controller) {
-      const content = decodeText(chunk)
-      let index
-      if (!injected && (index = content.indexOf('</head')) !== -1) {
-        injected = true
-        const injectedContent =
-          content.slice(0, index) + (await inject()) + content.slice(index)
-        controller.enqueue(encodeText(injectedContent))
-      } else {
+      // While react is flushing chunks, we don't apply insertions
+      if (freezing) {
         controller.enqueue(chunk)
+        return
+      }
+
+      const insertion = await insert()
+      if (inserted) {
+        controller.enqueue(encodeText(insertion))
+        controller.enqueue(chunk)
+        freezing = true
+      } else {
+        const content = decodeText(chunk)
+        const index = content.indexOf('</head>')
+        if (index !== -1) {
+          const insertedHeadContent =
+            content.slice(0, index) + insertion + content.slice(index)
+          controller.enqueue(encodeText(insertedHeadContent))
+          freezing = true
+          inserted = true
+        }
+      }
+
+      if (!inserted) {
+        controller.enqueue(chunk)
+      } else {
+        queueTask(() => {
+          freezing = false
+        })
       }
     },
   })
@@ -333,7 +358,7 @@ export async function continueFromInitialStream(
     suffixUnclosed != null ? createDeferredSuffixStream(suffixUnclosed) : null,
     dataStream ? createInlineDataStream(dataStream) : null,
     suffixUnclosed != null ? createSuffixStream(closeTag) : null,
-    createHeadInjectionTransformStream(async () => {
+    createHeadInsertionTransformStream(async () => {
       // TODO-APP: Insert server side html to end of head in app layout rendering, to avoid
       // hydration errors. Remove this once it's ready to be handled by react itself.
       const serverInsertedHTML =

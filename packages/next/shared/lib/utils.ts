@@ -269,11 +269,6 @@ export type NextApiResponse<T = any> = ServerResponse & {
    */
   clearPreviewData: (options?: { path?: string }) => NextApiResponse<T>
 
-  /**
-   * @deprecated `unstable_revalidate` has been renamed to `revalidate`
-   */
-  unstable_revalidate: () => void
-
   revalidate: (
     urlPath: string,
     opts?: {
@@ -399,19 +394,6 @@ export async function loadGetInitialProps<
 
   return props
 }
-
-let warnOnce = (_: string) => {}
-if (process.env.NODE_ENV !== 'production') {
-  const warnings = new Set<string>()
-  warnOnce = (msg: string) => {
-    if (!warnings.has(msg)) {
-      console.warn(msg)
-    }
-    warnings.add(msg)
-  }
-}
-
-export { warnOnce }
 
 export const SP = typeof performance !== 'undefined'
 export const ST =

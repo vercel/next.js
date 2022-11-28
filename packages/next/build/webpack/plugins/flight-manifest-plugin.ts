@@ -96,12 +96,12 @@ export class FlightManifestPlugin {
       PLUGIN_NAME,
       (compilation, { normalModuleFactory }) => {
         compilation.dependencyFactories.set(
-          (webpack as any).dependencies.ModuleDependency,
+          webpack.dependencies.ModuleDependency,
           normalModuleFactory
         )
         compilation.dependencyTemplates.set(
-          (webpack as any).dependencies.ModuleDependency,
-          new (webpack as any).dependencies.NullDependency.Template()
+          webpack.dependencies.ModuleDependency,
+          new webpack.dependencies.NullDependency.Template()
         )
       }
     )
@@ -186,15 +186,13 @@ export class FlightManifestPlugin {
           context,
           mod.resourceResolveData?.path || resource
         )
-        // if (resource.includes('script'))
-        //   console.log('ssrNamedModuleId', ssrNamedModuleId, modId)
+
         if (!ssrNamedModuleId.startsWith('.'))
-          // TODO use getModuleId instead
           ssrNamedModuleId = `./${ssrNamedModuleId.replace(/\\/g, '/')}`
 
         if (isCSSModule) {
+          const chunks = [...chunk.files].filter((f) => f.endsWith('.css'))
           if (!manifest[resource]) {
-            const chunks = [...chunk.files].filter((f) => f.endsWith('.css'))
             manifest[resource] = {
               default: {
                 id,
@@ -202,6 +200,13 @@ export class FlightManifestPlugin {
                 chunks,
               },
             }
+          } else {
+            // It is possible that there are multiple modules with the same resource,
+            // e.g. extracted by mini-css-extract-plugin. In that case we need to
+            // merge the chunks.
+            manifest[resource].default.chunks = [
+              ...new Set([...manifest[resource].default.chunks, ...chunks]),
+            ]
           }
 
           if (chunkGroup.name) {
@@ -269,7 +274,10 @@ export class FlightManifestPlugin {
         moduleExportedKeys.forEach((name) => {
           // If the chunk is from `app/` chunkGroup, use it first.
           // This make sure not to load the overlapped chunk from `pages/` chunkGroup
-          if (!moduleExports[name] || chunkGroup.name?.startsWith('app/')) {
+          if (
+            !moduleExports[name] ||
+            (chunkGroup.name && /^app[\\/]/.test(chunkGroup.name))
+          ) {
             const requiredChunks = getAppPathRequiredChunks()
 
             moduleExports[name] = {

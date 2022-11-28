@@ -18,7 +18,7 @@ var React = require('react');
 var ReactDOM = require('react-dom');
 var stream = require('stream');
 
-var ReactVersion = '18.3.0-experimental-1d3fc9c9c-20221023';
+var ReactVersion = '18.3.0-next-2655c9354-20221121';
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -94,6 +94,9 @@ function stringToChunk(content) {
 }
 function stringToPrecomputedChunk(content) {
   return content;
+}
+function clonePrecomputedChunk(chunk) {
+  return chunk;
 }
 function closeWithError(destination, error) {
   // $FlowFixMe: This is an Error object or the destination accepts other types.
@@ -303,10 +306,6 @@ var reservedProps = ['children', 'dangerouslySetInnerHTML', // TODO: This preven
 // elements (not just inputs). Now that ReactDOMInput assigns to the
 // defaultValue property -- do we need this?
 'defaultValue', 'defaultChecked', 'innerHTML', 'suppressContentEditableWarning', 'suppressHydrationWarning', 'style'];
-
-{
-  reservedProps.push('innerText', 'textContent');
-}
 
 reservedProps.forEach(function (name) {
   // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
@@ -2091,6 +2090,7 @@ function createResources() {
     headsMap: new Map(),
     // cleared on flush
     charset: null,
+    bases: new Set(),
     preconnects: new Set(),
     fontPreloads: new Set(),
     // usedImagePreloads: new Set(),
@@ -2552,11 +2552,33 @@ function resourcesFromElement(type, props) {
               resources.headResources.add(_resource2);
             }
           }
-
-          return true;
         }
 
-        return false;
+        return true;
+      }
+
+    case 'base':
+      {
+        var target = props.target,
+            href = props.href; // We mirror the key construction on the client since we will likely unify
+        // this code in the future to better guarantee key semantics are identical
+        // in both environments
+
+        var _key2 = 'base';
+        _key2 += typeof href === 'string' ? "[href=\"" + href + "\"]" : ':not([href])';
+        _key2 += typeof target === 'string' ? "[target=\"" + target + "\"]" : ':not([target])';
+
+        if (!resources.headsMap.has(_key2)) {
+          var _resource3 = {
+            type: 'base',
+            props: assign({}, props),
+            flushed: false
+          };
+          resources.headsMap.set(_key2, _resource3);
+          resources.bases.add(_resource3);
+        }
+
+        return true;
       }
   }
 
@@ -2612,26 +2634,26 @@ function resourcesFromLink(props) {
         } else {
           // We are able to convert this link element to a resource exclusively. We construct the relevant Resource
           // and return true indicating that this link was fully consumed.
-          var _resource3 = resources.stylesMap.get(href);
+          var _resource4 = resources.stylesMap.get(href);
 
-          if (_resource3) {
+          if (_resource4) {
             {
               var resourceProps = stylePropsFromRawProps(href, precedence, props);
-              adoptPreloadPropsForStyleProps(resourceProps, _resource3.hint.props);
-              validateStyleResourceDifference(_resource3.props, resourceProps);
+              adoptPreloadPropsForStyleProps(resourceProps, _resource4.hint.props);
+              validateStyleResourceDifference(_resource4.props, resourceProps);
             }
           } else {
             var _resourceProps = stylePropsFromRawProps(href, precedence, props);
 
-            _resource3 = createStyleResource( // $FlowFixMe[incompatible-call] found when upgrading Flow
+            _resource4 = createStyleResource( // $FlowFixMe[incompatible-call] found when upgrading Flow
             currentResources, href, precedence, _resourceProps);
-            resources.usedStylePreloads.add(_resource3.hint);
+            resources.usedStylePreloads.add(_resource4.hint);
           }
 
           if (resources.boundaryResources) {
-            resources.boundaryResources.add(_resource3);
+            resources.boundaryResources.add(_resource4);
           } else {
-            _resource3.set.add(_resource3);
+            _resource4.set.add(_resource4);
           }
 
           return true;
@@ -2651,33 +2673,33 @@ function resourcesFromLink(props) {
                 validateLinkPropsForPreloadResource(props);
               }
 
-              var _resource4 = resources.preloadsMap.get(href);
+              var _resource5 = resources.preloadsMap.get(href);
 
-              if (_resource4) {
+              if (_resource5) {
                 {
-                  var originallyImplicit = _resource4._dev_implicit_construction === true;
+                  var originallyImplicit = _resource5._dev_implicit_construction === true;
                   var latestProps = preloadPropsFromRawProps(href, as, props);
-                  validatePreloadResourceDifference(_resource4.props, originallyImplicit, latestProps, false);
+                  validatePreloadResourceDifference(_resource5.props, originallyImplicit, latestProps, false);
                 }
               } else {
-                _resource4 = createPreloadResource(resources, href, as, preloadPropsFromRawProps(href, as, props));
+                _resource5 = createPreloadResource(resources, href, as, preloadPropsFromRawProps(href, as, props));
 
                 switch (as) {
                   case 'script':
                     {
-                      resources.explicitScriptPreloads.add(_resource4);
+                      resources.explicitScriptPreloads.add(_resource5);
                       break;
                     }
 
                   case 'style':
                     {
-                      resources.explicitStylePreloads.add(_resource4);
+                      resources.explicitStylePreloads.add(_resource5);
                       break;
                     }
 
                   case 'font':
                     {
-                      resources.fontPreloads.add(_resource4);
+                      resources.fontPreloads.add(_resource5);
                       break;
                     }
                 }
@@ -2692,7 +2714,11 @@ function resourcesFromLink(props) {
   }
 
   if (props.onLoad || props.onError) {
-    return false;
+    // When a link has these props we can't treat it is a Resource but if we rendered it on the
+    // server it would look like a Resource in the rendered html (the onLoad/onError aren't emitted)
+    // Instead we expect the client to insert them rather than hydrate them which also guarantees
+    // that the onLoad and onError won't fire before the event handlers are attached
+    return true;
   }
 
   var sizes = typeof props.sizes === 'string' ? props.sizes : '';
@@ -2920,52 +2946,56 @@ var HTML_TABLE_ROW_MODE = 6;
 var HTML_COLGROUP_MODE = 7; // We have a greater than HTML_TABLE_MODE check elsewhere. If you add more cases here, make sure it
 // still makes sense
 
-function createFormatContext(insertionMode, selectedValue) {
+function createFormatContext(insertionMode, selectedValue, noscriptTagInScope) {
   return {
     insertionMode: insertionMode,
-    selectedValue: selectedValue
+    selectedValue: selectedValue,
+    noscriptTagInScope: noscriptTagInScope
   };
 }
 function getChildFormatContext(parentContext, type, props) {
   switch (type) {
+    case 'noscript':
+      return createFormatContext(HTML_MODE, null, true);
+
     case 'select':
-      return createFormatContext(HTML_MODE, props.value != null ? props.value : props.defaultValue);
+      return createFormatContext(HTML_MODE, props.value != null ? props.value : props.defaultValue, parentContext.noscriptTagInScope);
 
     case 'svg':
-      return createFormatContext(SVG_MODE, null);
+      return createFormatContext(SVG_MODE, null, parentContext.noscriptTagInScope);
 
     case 'math':
-      return createFormatContext(MATHML_MODE, null);
+      return createFormatContext(MATHML_MODE, null, parentContext.noscriptTagInScope);
 
     case 'foreignObject':
-      return createFormatContext(HTML_MODE, null);
+      return createFormatContext(HTML_MODE, null, parentContext.noscriptTagInScope);
     // Table parents are special in that their children can only be created at all if they're
     // wrapped in a table parent. So we need to encode that we're entering this mode.
 
     case 'table':
-      return createFormatContext(HTML_TABLE_MODE, null);
+      return createFormatContext(HTML_TABLE_MODE, null, parentContext.noscriptTagInScope);
 
     case 'thead':
     case 'tbody':
     case 'tfoot':
-      return createFormatContext(HTML_TABLE_BODY_MODE, null);
+      return createFormatContext(HTML_TABLE_BODY_MODE, null, parentContext.noscriptTagInScope);
 
     case 'colgroup':
-      return createFormatContext(HTML_COLGROUP_MODE, null);
+      return createFormatContext(HTML_COLGROUP_MODE, null, parentContext.noscriptTagInScope);
 
     case 'tr':
-      return createFormatContext(HTML_TABLE_ROW_MODE, null);
+      return createFormatContext(HTML_TABLE_ROW_MODE, null, parentContext.noscriptTagInScope);
   }
 
   if (parentContext.insertionMode >= HTML_TABLE_MODE) {
     // Whatever tag this was, it wasn't a table parent or other special parent, so we must have
     // entered plain HTML again.
-    return createFormatContext(HTML_MODE, null);
+    return createFormatContext(HTML_MODE, null, parentContext.noscriptTagInScope);
   }
 
   if (parentContext.insertionMode === ROOT_HTML_MODE) {
     // We've emitted the root and is now in plain HTML mode.
-    return createFormatContext(HTML_MODE, null);
+    return createFormatContext(HTML_MODE, null, parentContext.noscriptTagInScope);
   }
 
   return parentContext;
@@ -3645,8 +3675,24 @@ function pushStartTextArea(target, props, responseState) {
   return null;
 }
 
-function pushMeta(target, props, responseState, textEmbedded) {
-  if ( resourcesFromElement('meta', props)) {
+function pushBase(target, props, responseState, textEmbedded, noscriptTagInScope) {
+  if ( !noscriptTagInScope && resourcesFromElement('base', props)) {
+    if (textEmbedded) {
+      // This link follows text but we aren't writing a tag. while not as efficient as possible we need
+      // to be safe and assume text will follow by inserting a textSeparator
+      target.push(textSeparator);
+    } // We have converted this link exclusively to a resource and no longer
+    // need to emit it
+
+
+    return null;
+  }
+
+  return pushSelfClosing(target, props, 'base', responseState);
+}
+
+function pushMeta(target, props, responseState, textEmbedded, noscriptTagInScope) {
+  if ( !noscriptTagInScope && resourcesFromElement('meta', props)) {
     if (textEmbedded) {
       // This link follows text but we aren't writing a tag. while not as efficient as possible we need
       // to be safe and assume text will follow by inserting a textSeparator
@@ -3661,8 +3707,8 @@ function pushMeta(target, props, responseState, textEmbedded) {
   return pushSelfClosing(target, props, 'meta', responseState);
 }
 
-function pushLink(target, props, responseState, textEmbedded) {
-  if ( resourcesFromLink(props)) {
+function pushLink(target, props, responseState, textEmbedded, noscriptTagInScope) {
+  if ( !noscriptTagInScope && resourcesFromLink(props)) {
     if (textEmbedded) {
       // This link follows text but we aren't writing a tag. while not as efficient as possible we need
       // to be safe and assume text will follow by inserting a textSeparator
@@ -3771,7 +3817,7 @@ function pushStartMenuItem(target, props, responseState) {
   return null;
 }
 
-function pushTitle(target, props, responseState) {
+function pushTitle(target, props, responseState, insertionMode, noscriptTagInScope) {
   {
     var children = props.children;
     var childForValidation = Array.isArray(children) && children.length < 2 ? children[0] || null : children;
@@ -3785,7 +3831,8 @@ function pushTitle(target, props, responseState) {
     }
   }
 
-  if ( resourcesFromElement('title', props)) {
+  if ( // title is valid in SVG so we avoid resour
+  insertionMode !== SVG_MODE && !noscriptTagInScope && resourcesFromElement('title', props)) {
     // We have converted this link exclusively to a resource and no longer
     // need to emit it
     return null;
@@ -3850,8 +3897,8 @@ function pushStartHtml(target, preamble, props, tag, responseState, formatContex
   return pushStartGenericElement(target, props, tag, responseState);
 }
 
-function pushScript(target, props, responseState, textEmbedded) {
-  if ( resourcesFromScript(props)) {
+function pushScript(target, props, responseState, textEmbedded, noscriptTagInScope) {
+  if ( !noscriptTagInScope && resourcesFromScript(props)) {
     if (textEmbedded) {
       // This link follows text but we aren't writing a tag. while not as efficient as possible we need
       // to be safe and assume text will follow by inserting a textSeparator
@@ -3968,27 +4015,6 @@ function pushStartCustomElement(target, props, tag, responseState) {
 
       if (propValue == null) {
         continue;
-      }
-
-      if ( (typeof propValue === 'function' || typeof propValue === 'object')) {
-        // It is normal to render functions and objects on custom elements when
-        // client rendering, but when server rendering the output isn't useful,
-        // so skip it.
-        continue;
-      }
-
-      if ( propValue === false) {
-        continue;
-      }
-
-      if ( propValue === true) {
-        propValue = '';
-      }
-
-      if ( propKey === 'className') {
-        // className gets rendered as class on the client, so it should be
-        // rendered as class on the server.
-        propKey = 'class';
       }
 
       switch (propKey) {
@@ -4157,16 +4183,19 @@ function pushStartInstance(target, preamble, type, props, responseState, formatC
       return pushStartMenuItem(target, props, responseState);
 
     case 'title':
-      return  pushTitle(target, props, responseState) ;
+      return  pushTitle(target, props, responseState, formatContext.insertionMode, formatContext.noscriptTagInScope) ;
 
     case 'link':
-      return pushLink(target, props, responseState, textEmbedded);
+      return pushLink(target, props, responseState, textEmbedded, formatContext.noscriptTagInScope);
 
     case 'script':
-      return  pushScript(target, props, responseState, textEmbedded) ;
+      return  pushScript(target, props, responseState, textEmbedded, formatContext.noscriptTagInScope) ;
 
     case 'meta':
-      return pushMeta(target, props, responseState, textEmbedded);
+      return pushMeta(target, props, responseState, textEmbedded, formatContext.noscriptTagInScope);
+
+    case 'base':
+      return pushBase(target, props, responseState, textEmbedded, formatContext.noscriptTagInScope);
     // Newline eating tags
 
     case 'listing':
@@ -4177,7 +4206,6 @@ function pushStartInstance(target, preamble, type, props, responseState, formatC
     // Omitted close tags
 
     case 'area':
-    case 'base':
     case 'br':
     case 'col':
     case 'embed':
@@ -4548,7 +4576,7 @@ function writeCompletedBoundaryInstruction(destination, responseState, boundaryI
     if (!responseState.sentCompleteBoundaryFunction) {
       responseState.sentCompleteBoundaryFunction = true;
       responseState.sentStyleInsertionFunction = true;
-      writeChunk(destination, completeBoundaryWithStylesScript1FullBoth);
+      writeChunk(destination, clonePrecomputedChunk(completeBoundaryWithStylesScript1FullBoth));
     } else if (!responseState.sentStyleInsertionFunction) {
       responseState.sentStyleInsertionFunction = true;
       writeChunk(destination, completeBoundaryWithStylesScript1FullPartial);
@@ -4692,6 +4720,7 @@ function writeInitialResources(destination, resources, responseState) {
 
   var target = [];
   var charset = resources.charset,
+      bases = resources.bases,
       preconnects = resources.preconnects,
       fontPreloads = resources.fontPreloads,
       precedences = resources.precedences,
@@ -4708,6 +4737,11 @@ function writeInitialResources(destination, resources, responseState) {
     resources.charset = null;
   }
 
+  bases.forEach(function (r) {
+    pushSelfClosing(target, r.props, 'base', responseState);
+    r.flushed = true;
+  });
+  bases.clear();
   preconnects.forEach(function (r) {
     // font preload Resources should not already be flushed so we elide this check
     pushLinkImpl(target, r.props, responseState);
@@ -5078,7 +5112,8 @@ function createRootFormatContext() {
   return {
     insertionMode: HTML_MODE,
     // We skip the root mode because we don't want to emit the DOCTYPE in legacy mode.
-    selectedValue: null
+    selectedValue: null,
+    noscriptTagInScope: false
   };
 }
 function pushTextInstance$1(target, text, responseState, textEmbedded) {
@@ -5153,7 +5188,6 @@ var REACT_OFFSCREEN_TYPE = Symbol.for('react.offscreen');
 var REACT_LEGACY_HIDDEN_TYPE = Symbol.for('react.legacy_hidden');
 var REACT_CACHE_TYPE = Symbol.for('react.cache');
 var REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED = Symbol.for('react.default_value');
-var REACT_MEMO_CACHE_SENTINEL = Symbol.for('react.memo_cache_sentinel');
 var MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 var FAUX_ITERATOR_SYMBOL = '@@iterator';
 function getIteratorFn(maybeIterable) {
@@ -6574,68 +6608,114 @@ function clz32Fallback(x) {
 // changes to one module should be reflected in the others.
 // TODO: Rename this module and the corresponding Fiber one to "Thenable"
 // instead of "Wakeable". Or some other more appropriate name.
-// TODO: Sparse arrays are bad for performance.
+// An error that is thrown (e.g. by `use`) to trigger Suspense. If we
+// detect this is caught by userspace, we'll log a warning in development.
+var SuspenseException = new Error("Suspense Exception: This is not a real error! It's an implementation " + 'detail of `use` to interrupt the current render. You must either ' + 'rethrow it immediately, or move the `use` call outside of the ' + '`try/catch` block. Capturing without rethrowing will lead to ' + 'unexpected behavior.\n\n' + 'To handle async errors, wrap your component in an error boundary, or ' + "call the promise's `.catch` method and pass the result to `use`");
 function createThenableState() {
   // The ThenableState is created the first time a component suspends. If it
   // suspends again, we'll reuse the same state.
   return [];
 }
+
+function noop() {}
+
 function trackUsedThenable(thenableState, thenable, index) {
-  thenableState[index] = thenable; // We use an expando to track the status and result of a thenable so that we
+  var previous = thenableState[index];
+
+  if (previous === undefined) {
+    thenableState.push(thenable);
+  } else {
+    if (previous !== thenable) {
+      // Reuse the previous thenable, and drop the new one. We can assume
+      // they represent the same value, because components are idempotent.
+      // Avoid an unhandled rejection errors for the Promises that we'll
+      // intentionally ignore.
+      thenable.then(noop, noop);
+      thenable = previous;
+    }
+  } // We use an expando to track the status and result of a thenable so that we
   // can synchronously unwrap the value. Think of this as an extension of the
   // Promise API, or a custom interface that is a superset of Thenable.
   //
   // If the thenable doesn't have a status, set it to "pending" and attach
   // a listener that will update its status and result when it resolves.
 
+
   switch (thenable.status) {
     case 'fulfilled':
+      {
+        var fulfilledValue = thenable.value;
+        return fulfilledValue;
+      }
+
     case 'rejected':
-      // A thenable that already resolved shouldn't have been thrown, so this is
-      // unexpected. Suggests a mistake in a userspace data library. Don't track
-      // this thenable, because if we keep trying it will likely infinite loop
-      // without ever resolving.
-      // TODO: Log a warning?
-      break;
+      {
+        var rejectedError = thenable.reason;
+        throw rejectedError;
+      }
 
     default:
       {
-        if (typeof thenable.status === 'string') {
-          // Only instrument the thenable if the status if not defined. If
-          // it's defined, but an unknown value, assume it's been instrumented by
-          // some custom userspace implementation. We treat it as "pending".
-          break;
-        }
+        if (typeof thenable.status === 'string') ; else {
+          var pendingThenable = thenable;
+          pendingThenable.status = 'pending';
+          pendingThenable.then(function (fulfilledValue) {
+            if (thenable.status === 'pending') {
+              var fulfilledThenable = thenable;
+              fulfilledThenable.status = 'fulfilled';
+              fulfilledThenable.value = fulfilledValue;
+            }
+          }, function (error) {
+            if (thenable.status === 'pending') {
+              var rejectedThenable = thenable;
+              rejectedThenable.status = 'rejected';
+              rejectedThenable.reason = error;
+            }
+          }); // Check one more time in case the thenable resolved synchronously
 
-        var pendingThenable = thenable;
-        pendingThenable.status = 'pending';
-        pendingThenable.then(function (fulfilledValue) {
-          if (thenable.status === 'pending') {
-            var fulfilledThenable = thenable;
-            fulfilledThenable.status = 'fulfilled';
-            fulfilledThenable.value = fulfilledValue;
+          switch (thenable.status) {
+            case 'fulfilled':
+              {
+                var fulfilledThenable = thenable;
+                return fulfilledThenable.value;
+              }
+
+            case 'rejected':
+              {
+                var rejectedThenable = thenable;
+                throw rejectedThenable.reason;
+              }
           }
-        }, function (error) {
-          if (thenable.status === 'pending') {
-            var rejectedThenable = thenable;
-            rejectedThenable.status = 'rejected';
-            rejectedThenable.reason = error;
-          }
-        });
-        break;
+        } // Suspend.
+        //
+        // Throwing here is an implementation detail that allows us to unwind the
+        // call stack. But we shouldn't allow it to leak into userspace. Throw an
+        // opaque placeholder value instead of the actual thenable. If it doesn't
+        // get captured by the work loop, log a warning, because that means
+        // something in userspace must have caught it.
+
+
+        suspendedThenable = thenable;
+        throw SuspenseException;
       }
   }
-}
-function getPreviouslyUsedThenableAtIndex(thenableState, index) {
-  if (thenableState !== null) {
-    var thenable = thenableState[index];
+} // This is used to track the actual thenable that suspended so it can be
+// passed to the rest of the Suspense implementation — which, for historical
+// reasons, expects to receive a thenable.
 
-    if (thenable !== undefined) {
-      return thenable;
-    }
+var suspendedThenable = null;
+function getSuspendedThenable() {
+  // This is called right after `use` suspends by throwing an exception. `use`
+  // throws an opaque value instead of the thenable itself so that it can't be
+  // caught in userspace. Then the work loop accesses the actual thenable using
+  // this function.
+  if (suspendedThenable === null) {
+    throw new Error('Expected a suspended thenable. This is a bug in React. Please file ' + 'an issue.');
   }
 
-  return null;
+  var thenable = suspendedThenable;
+  suspendedThenable = null;
+  return thenable;
 }
 
 /**
@@ -7045,15 +7125,6 @@ function useCallback(callback, deps) {
     return callback;
   }, deps);
 }
-
-function throwOnUseEventCall() {
-  throw new Error("A function wrapped in useEvent can't be called during rendering.");
-}
-
-function useEvent(callback) {
-  // $FlowIgnore[incompatible-return]
-  return throwOnUseEventCall;
-} // TODO Decide on how to implement this hook for server rendering.
 // If a mutation occurs during render, consider triggering a Suspense boundary
 // and falling back to client rendering.
 
@@ -7105,72 +7176,13 @@ function use(usable) {
       var thenable = usable; // Track the position of the thenable within this fiber.
 
       var index = thenableIndexCounter;
-      thenableIndexCounter += 1; // TODO: Unify this switch statement with the one in trackUsedThenable.
+      thenableIndexCounter += 1;
 
-      switch (thenable.status) {
-        case 'fulfilled':
-          {
-            var fulfilledValue = thenable.value;
-            return fulfilledValue;
-          }
-
-        case 'rejected':
-          {
-            var rejectedError = thenable.reason;
-            throw rejectedError;
-          }
-
-        default:
-          {
-            var prevThenableAtIndex = getPreviouslyUsedThenableAtIndex(thenableState, index);
-
-            if (prevThenableAtIndex !== null) {
-              if (thenable !== prevThenableAtIndex) {
-                // Avoid an unhandled rejection errors for the Promises that we'll
-                // intentionally ignore.
-                thenable.then(noop, noop);
-              }
-
-              switch (prevThenableAtIndex.status) {
-                case 'fulfilled':
-                  {
-                    var _fulfilledValue = prevThenableAtIndex.value;
-                    return _fulfilledValue;
-                  }
-
-                case 'rejected':
-                  {
-                    var _rejectedError = prevThenableAtIndex.reason;
-                    throw _rejectedError;
-                  }
-
-                default:
-                  {
-                    // The thenable still hasn't resolved. Suspend with the same
-                    // thenable as last time to avoid redundant listeners.
-                    throw prevThenableAtIndex;
-                  }
-              }
-            } else {
-              // This is the first time something has been used at this index.
-              // Stash the thenable at the current index so we can reuse it during
-              // the next attempt.
-              if (thenableState === null) {
-                thenableState = createThenableState();
-              }
-
-              trackUsedThenable(thenableState, thenable, index); // Suspend.
-              // TODO: Throwing here is an implementation detail that allows us to
-              // unwind the call stack. But we shouldn't allow it to leak into
-              // userspace. Throw an opaque placeholder value instead of the
-              // actual thenable. If it doesn't get captured by the work loop, log
-              // a warning, because that means something in userspace must have
-              // caught it.
-
-              throw thenable;
-            }
-          }
+      if (thenableState === null) {
+        thenableState = createThenableState();
       }
+
+      return trackUsedThenable(thenableState, thenable, index);
     } else if (usable.$$typeof === REACT_CONTEXT_TYPE || usable.$$typeof === REACT_SERVER_CONTEXT_TYPE) {
       var context = usable;
       return readContext$1(context);
@@ -7189,17 +7201,7 @@ function useCacheRefresh() {
   return unsupportedRefresh;
 }
 
-function useMemoCache(size) {
-  var data = new Array(size);
-
-  for (var i = 0; i < size; i++) {
-    data[i] = REACT_MEMO_CACHE_SENTINEL;
-  }
-
-  return data;
-}
-
-function noop() {}
+function noop$1() {}
 
 var HooksDispatcher = {
   readContext: readContext$1,
@@ -7208,15 +7210,15 @@ var HooksDispatcher = {
   useReducer: useReducer,
   useRef: useRef,
   useState: useState,
-  useInsertionEffect: noop,
+  useInsertionEffect: noop$1,
   useLayoutEffect: useLayoutEffect,
   useCallback: useCallback,
   // useImperativeHandle is not run in the server environment
-  useImperativeHandle: noop,
+  useImperativeHandle: noop$1,
   // Effects are not run in the server environment.
-  useEffect: noop,
+  useEffect: noop$1,
   // Debugging effect
-  useDebugValue: noop,
+  useDebugValue: noop$1,
   useDeferredValue: useDeferredValue,
   useTransition: useTransition,
   useId: useId,
@@ -7227,14 +7229,6 @@ var HooksDispatcher = {
 
 {
   HooksDispatcher.useCacheRefresh = useCacheRefresh;
-}
-
-{
-  HooksDispatcher.useEvent = useEvent;
-}
-
-{
-  HooksDispatcher.useMemoCache = useMemoCache;
 }
 
 {
@@ -7323,7 +7317,7 @@ function defaultErrorHandler(error) {
   return null;
 }
 
-function noop$1() {}
+function noop$2() {}
 
 function createRequest(children, responseState, rootFormatContext, progressiveChunkSize, onError, onAllReady, onShellReady, onShellError, onFatalError) {
   var pingedTasks = [];
@@ -7348,10 +7342,10 @@ function createRequest(children, responseState, rootFormatContext, progressiveCh
     preamble: [],
     postamble: [],
     onError: onError === undefined ? defaultErrorHandler : onError,
-    onAllReady: onAllReady === undefined ? noop$1 : onAllReady,
-    onShellReady: onShellReady === undefined ? noop$1 : onShellReady,
-    onShellError: onShellError === undefined ? noop$1 : onShellError,
-    onFatalError: onFatalError === undefined ? noop$1 : onFatalError
+    onAllReady: onAllReady === undefined ? noop$2 : onAllReady,
+    onShellReady: onShellReady === undefined ? noop$2 : onShellReady,
+    onShellError: onShellError === undefined ? noop$2 : onShellError,
+    onFatalError: onFatalError === undefined ? noop$2 : onFatalError
   }; // This segment represents the root fallback.
 
   var rootSegment = createPendingSegment(request, 0, null, rootFormatContext, // Root segments are never embedded in Text on either edge
@@ -7719,6 +7713,7 @@ var didWarnAboutModulePatternComponent = {};
 var didWarnAboutContextTypeOnFunctionComponent = {};
 var didWarnAboutGetDerivedStateOnFunctionComponent = {};
 var didWarnAboutReassigningProps = false;
+var didWarnAboutDefaultPropsOnFunctionComponent = {};
 var didWarnAboutGenerators = false;
 var didWarnAboutMaps = false;
 var hasWarnedAboutUsingContextAsConsumer = false; // This would typically be a function component but we still support module pattern
@@ -7811,6 +7806,16 @@ function validateFunctionComponentInDev(Component) {
     if (Component) {
       if (Component.childContextTypes) {
         error('%s(...): childContextTypes cannot be defined on a function component.', Component.displayName || Component.name || 'Component');
+      }
+    }
+
+    if ( Component.defaultProps !== undefined) {
+      var componentName = getComponentNameFromType(Component) || 'Unknown';
+
+      if (!didWarnAboutDefaultPropsOnFunctionComponent[componentName]) {
+        error('%s: Support for defaultProps will be removed from function components ' + 'in a future major release. Use JavaScript default parameters instead.', componentName);
+
+        didWarnAboutDefaultPropsOnFunctionComponent[componentName] = true;
       }
     }
 
@@ -8294,12 +8299,19 @@ function renderNode(request, task, node) {
 
   try {
     return renderNodeDestructive(request, task, null, node);
-  } catch (x) {
+  } catch (thrownValue) {
     resetHooksState();
+    var x = thrownValue === SuspenseException ? // This is a special type of exception used for Suspense. For historical
+    // reasons, the rest of the Suspense implementation expects the thrown
+    // value to be a thenable, because before `use` existed that was the
+    // (unstable) API for suspending. This implementation detail can change
+    // later, once we deprecate the old API in favor of `use`.
+    getSuspendedThenable() : thrownValue; // $FlowFixMe[method-unbinding]
 
     if (typeof x === 'object' && x !== null && typeof x.then === 'function') {
+      var wakeable = x;
       var thenableState = getThenableStateAfterSuspending();
-      spawnNewSuspendedTask(request, task, thenableState, x); // Restore the context. We assume that this will be restored by the inner
+      spawnNewSuspendedTask(request, task, thenableState, wakeable); // Restore the context. We assume that this will be restored by the inner
       // functions in case nothing throws so we don't use "finally" here.
 
       task.blockedSegment.formatContext = previousFormatContext;
@@ -8475,7 +8487,7 @@ function finishedTask(request, boundary, segment) {
 
     if (request.pendingRootTasks === 0) {
       // We have completed the shell so the shell can't error anymore.
-      request.onShellError = noop$1;
+      request.onShellError = noop$2;
       var onShellReady = request.onShellReady;
       onShellReady();
     }
@@ -8577,8 +8589,14 @@ function retryTask(request, task) {
     task.abortSet.delete(task);
     segment.status = COMPLETED;
     finishedTask(request, task.blockedBoundary, segment);
-  } catch (x) {
+  } catch (thrownValue) {
     resetHooksState();
+    var x = thrownValue === SuspenseException ? // This is a special type of exception used for Suspense. For historical
+    // reasons, the rest of the Suspense implementation expects the thrown
+    // value to be a thenable, because before `use` existed that was the
+    // (unstable) API for suspending. This implementation detail can change
+    // later, once we deprecate the old API in favor of `use`.
+    getSuspendedThenable() : thrownValue; // $FlowFixMe[method-unbinding]
 
     if (typeof x === 'object' && x !== null && typeof x.then === 'function') {
       // Something suspended again, let's pick it back up later.

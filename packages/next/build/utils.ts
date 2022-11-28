@@ -52,11 +52,16 @@ import {
   loadRequireHook,
   overrideBuiltInReactPackages,
 } from './webpack/require-hook'
+import { AssetBinding } from './webpack/loaders/get-module-build-info'
 
 loadRequireHook()
 if (process.env.NEXT_PREBUNDLED_REACT) {
   overrideBuiltInReactPackages()
 }
+
+// expose AsyncLocalStorage on global for react usage
+const { AsyncLocalStorage } = require('async_hooks')
+;(globalThis as any).AsyncLocalStorage = AsyncLocalStorage
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -827,6 +832,7 @@ export async function buildStaticPaths({
   configFileName,
   locales,
   defaultLocale,
+  appDir,
 }: {
   page: string
   getStaticPaths?: GetStaticPaths
@@ -834,6 +840,7 @@ export async function buildStaticPaths({
   configFileName: string
   locales?: string[]
   defaultLocale?: string
+  appDir?: boolean
 }): Promise<
   Omit<UnwrapPromise<ReturnType<GetStaticPaths>>, 'paths'> & {
     paths: string[]
@@ -981,7 +988,9 @@ export async function buildStaticPaths({
           throw new Error(
             `A required parameter (${validParamKey}) was not provided as ${
               repeat ? 'an array' : 'a string'
-            } in getStaticPaths for ${page}`
+            } in ${
+              appDir ? 'generateStaticParams' : 'getStaticPaths'
+            } for ${page}`
           )
         }
         let replaced = `[${repeat ? '...' : ''}${validParamKey}]`
@@ -1086,7 +1095,9 @@ export const collectGenerateParams = async (
 ): Promise<GenerateParams> => {
   if (!Array.isArray(segment)) return generateParams
   const isLayout = !!segment[2]?.layout
-  const mod = await (isLayout ? segment[2]?.layout?.() : segment[2]?.page?.())
+  const mod = await (isLayout
+    ? segment[2]?.layout?.[0]?.()
+    : segment[2]?.page?.[0]?.())
   const config = collectAppConfig(mod)
 
   const result = {
@@ -1192,6 +1203,7 @@ export async function buildAppStaticPaths({
       },
       page,
       configFileName,
+      appDir: true,
     })
   }
 }
@@ -1259,7 +1271,13 @@ export async function isPageStatic({
         const runtime = await getRuntimeContext({
           paths: edgeInfo.files.map((file: string) => path.join(distDir, file)),
           env: edgeInfo.env,
-          edgeFunctionEntry: edgeInfo,
+          edgeFunctionEntry: {
+            ...edgeInfo,
+            wasm: (edgeInfo.wasm ?? []).map((binding: AssetBinding) => ({
+              ...binding,
+              filePath: path.join(distDir, binding.filePath),
+            })),
+          },
           name: edgeInfo.name,
           useCache: true,
           distDir,
@@ -1432,7 +1450,7 @@ export async function isPageStatic({
         }))
       }
 
-      const isNextImageImported = (global as any).__NEXT_IMAGE_IMPORTED
+      const isNextImageImported = (globalThis as any).__NEXT_IMAGE_IMPORTED
       const config: PageConfig = componentsResult.pageConfig
       return {
         isStatic: !hasStaticProps && !hasGetInitialProps && !hasServerProps,
@@ -1580,6 +1598,7 @@ export async function copyTracedFiles(
   dir: string,
   distDir: string,
   pageKeys: ReadonlyArray<string>,
+  appPageKeys: readonly string[] | undefined,
   tracingRoot: string,
   serverConfig: { [key: string]: any },
   middlewareManifest: MiddlewareManifest
@@ -1658,7 +1677,18 @@ export async function copyTracedFiles(
       `${normalizePagePath(page)}.js`
     )
     const pageTraceFile = `${pageFile}.nft.json`
-    await handleTraceFiles(pageTraceFile)
+    await handleTraceFiles(pageTraceFile).catch((err) => {
+      Log.warn(`Failed to copy traced files for ${pageFile}`, err)
+    })
+  }
+  if (appPageKeys) {
+    for (const page of appPageKeys) {
+      const pageFile = path.join(distDir, 'server', 'app', `${page}`, 'page.js')
+      const pageTraceFile = `${pageFile}.nft.json`
+      await handleTraceFiles(pageTraceFile).catch((err) => {
+        Log.warn(`Failed to copy traced files for ${pageFile}`, err)
+      })
+    }
   }
   await handleTraceFiles(path.join(distDir, 'next-server.js.nft.json'))
   const serverOutputPath = path.join(
@@ -1754,13 +1784,17 @@ export function getPossibleMiddlewareFilenames(
 }
 
 export class NestedMiddlewareError extends Error {
-  constructor(nestedFileNames: string[], mainDir: string, pagesDir: string) {
+  constructor(
+    nestedFileNames: string[],
+    mainDir: string,
+    pagesOrAppDir: string
+  ) {
     super(
       `Nested Middleware is not allowed, found:\n` +
         `${nestedFileNames.map((file) => `pages${file}`).join('\n')}\n` +
         `Please move your code to a single file at ${path.join(
           path.posix.sep,
-          path.relative(mainDir, path.resolve(pagesDir, '..')),
+          path.relative(mainDir, path.resolve(pagesOrAppDir, '..')),
           'middleware'
         )} instead.\n` +
         `Read More - https://nextjs.org/docs/messages/nested-middleware`

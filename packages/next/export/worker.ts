@@ -37,7 +37,7 @@ loadRequireHook()
 
 const envConfig = require('../shared/lib/runtime-config')
 
-;(global as any).__NEXT_DATA__ = {
+;(globalThis as any).__NEXT_DATA__ = {
   nextExport: true,
 }
 
@@ -99,6 +99,10 @@ interface RenderOpts {
   trailingSlash?: boolean
   supportsDynamicHTML?: boolean
 }
+
+// expose AsyncLocalStorage on globalThis for react usage
+const { AsyncLocalStorage } = require('async_hooks')
+;(globalThis as any).AsyncLocalStorage = AsyncLocalStorage
 
 export default async function exportPage({
   parentSpanId,
@@ -324,17 +328,15 @@ export default async function exportPage({
           const revalidate = (curRenderOpts as any).revalidate
           results.fromBuildExportRevalidate = revalidate
 
-          if (isDynamicError) {
-            throw new Error(
-              `Page with dynamic = "error" encountered dynamic data method ${path}.`
-            )
-          }
-
           if (revalidate !== 0) {
             await promises.writeFile(htmlFilepath, html ?? '', 'utf8')
             await promises.writeFile(
               htmlFilepath.replace(/\.html$/, '.rsc'),
               flightData
+            )
+          } else if (isDynamicError) {
+            throw new Error(
+              `Page with dynamic = "error" encountered dynamic data method ${path}.`
             )
           }
         } catch (err: any) {

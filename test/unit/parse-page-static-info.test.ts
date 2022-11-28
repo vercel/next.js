@@ -14,6 +14,7 @@ describe('parse page static info', () => {
     const { runtime, ssr, ssg } = await getPageStaticInfo({
       pageFilePath: join(fixtureDir, 'page-runtime/nodejs-ssr.js'),
       nextConfig: createNextConfig(),
+      pageType: 'pages',
     })
     expect(runtime).toBe('nodejs')
     expect(ssr).toBe(true)
@@ -24,6 +25,7 @@ describe('parse page static info', () => {
     const { runtime, ssr, ssg } = await getPageStaticInfo({
       pageFilePath: join(fixtureDir, 'page-runtime/nodejs.js'),
       nextConfig: createNextConfig(),
+      pageType: 'pages',
     })
     expect(runtime).toBe(undefined)
     expect(ssr).toBe(false)
@@ -34,6 +36,7 @@ describe('parse page static info', () => {
     const { runtime } = await getPageStaticInfo({
       pageFilePath: join(fixtureDir, 'page-runtime/edge.js'),
       nextConfig: createNextConfig(),
+      pageType: 'pages',
     })
     expect(runtime).toBe('experimental-edge')
   })
@@ -42,6 +45,7 @@ describe('parse page static info', () => {
     const { runtime } = await getPageStaticInfo({
       pageFilePath: join(fixtureDir, 'page-runtime/static.js'),
       nextConfig: createNextConfig(),
+      pageType: 'pages',
     })
     expect(runtime).toBe(undefined)
   })
@@ -50,6 +54,7 @@ describe('parse page static info', () => {
     const { ssr, ssg } = await getPageStaticInfo({
       pageFilePath: join(fixtureDir, 'page-runtime/ssr-variable-gssp.js'),
       nextConfig: createNextConfig(),
+      pageType: 'pages',
     })
     expect(ssr).toBe(true)
     expect(ssg).toBe(false)
@@ -61,6 +66,7 @@ describe('fallback to the global runtime configuration', () => {
     const { runtime, ssr, ssg } = await getPageStaticInfo({
       pageFilePath: join(fixtureDir, 'page-runtime/fallback-with-gsp.js'),
       nextConfig: createNextConfig('experimental-edge'),
+      pageType: 'pages',
     })
     expect(runtime).toBe('experimental-edge')
     expect(ssr).toBe(false)
@@ -71,9 +77,21 @@ describe('fallback to the global runtime configuration', () => {
     const { runtime, ssr, ssg } = await getPageStaticInfo({
       pageFilePath: join(fixtureDir, 'page-runtime/fallback-re-export-gsp.js'),
       nextConfig: createNextConfig('experimental-edge'),
+      pageType: 'pages',
     })
     expect(runtime).toBe('experimental-edge')
     expect(ssr).toBe(false)
     expect(ssg).toBe(true)
+  })
+
+  it('should always fallback to the global runtime for app', async () => {
+    const { runtime, ssr, ssg } = await getPageStaticInfo({
+      pageFilePath: join(fixtureDir, 'page-runtime/static.js'),
+      nextConfig: createNextConfig('experimental-edge'),
+      pageType: 'app',
+    })
+    expect(runtime).toBe('experimental-edge')
+    expect(ssr).toBe(false)
+    expect(ssg).toBe(false)
   })
 })

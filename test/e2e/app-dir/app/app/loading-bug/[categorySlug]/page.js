@@ -1,5 +1,5 @@
 // @ts-ignore
-import { experimental_use as use } from 'react'
+import { use } from 'react'
 
 const fetchCategory = async (categorySlug) => {
   // artificial delay

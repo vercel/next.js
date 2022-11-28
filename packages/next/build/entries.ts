@@ -207,7 +207,7 @@ export function getEdgeServerEntry(opts: {
     // The Edge bundle includes the server in its entrypoint, so it has to
     // be in the SSR layer — we later convert the page request to the RSC layer
     // via a webpack rule.
-    layer: WEBPACK_LAYERS.client,
+    layer: opts.appDirLoader ? WEBPACK_LAYERS.client : undefined,
   }
 }
 
@@ -374,6 +374,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
         pageFilePath,
         isDev,
         page,
+        pageType: isInsideAppDir ? 'app' : 'pages',
       })
 
       const isServerComponent =
@@ -456,7 +457,11 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
   await Promise.all(Object.keys(pages).map(getEntryHandler(pages, 'pages')))
 
   if (nestedMiddleware.length > 0) {
-    throw new NestedMiddlewareError(nestedMiddleware, rootDir, pagesDir!)
+    throw new NestedMiddlewareError(
+      nestedMiddleware,
+      rootDir,
+      (appDir || pagesDir)!
+    )
   }
 
   return {
@@ -521,7 +526,7 @@ export function finalizeEntrypoint({
     name !== CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH
   ) {
     // TODO-APP: this is a temporary fix. @shuding is going to change the handling of server components
-    if (hasAppDir && entry.import.includes('flight')) {
+    if (hasAppDir && entry.import.includes('next-flight-client-entry-loader')) {
       return {
         dependOn: CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
         ...entry,

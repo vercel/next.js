@@ -66,7 +66,7 @@ module.exports = function (task) {
         env: {
           targets: {
             // follow the version defined in packages/next/package.json#engine
-            node: '14.0.0',
+            node: '14.6.0',
           },
         },
         jsc: {
@@ -117,7 +117,12 @@ module.exports = function (task) {
       // Make sure the output content keeps the `"use client"` directive.
       // TODO: Remove this once SWC fixes the issue.
       if (/^['"]use client['"]/.test(source)) {
-        output.code = '"use client";\n' + output.code
+        output.code =
+          '"use client";\n' +
+          output.code
+            .split('\n')
+            .map((l) => (/^['"]use client['"]/.test(l) ? '' : l))
+            .join('\n')
       }
 
       // Replace `.ts|.tsx` with `.js` in files with an extension

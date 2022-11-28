@@ -42,14 +42,8 @@ const postcssFontLoaderPlugn = ({
             continue
           }
 
-          const currentFamily = normalizeFamily(familyNode.value)
-
           if (!fontFamily) {
-            fontFamily = currentFamily
-          } else if (fontFamily !== currentFamily) {
-            throw new Error(
-              `Font family mismatch, expected ${fontFamily} but got ${currentFamily}`
-            )
+            fontFamily = normalizeFamily(familyNode.value)
           }
 
           familyNode.value = formatFamily(fontFamily)
@@ -57,7 +51,7 @@ const postcssFontLoaderPlugn = ({
       }
 
       if (!fontFamily) {
-        throw new Error('Font loaders must have exactly one font family')
+        throw new Error("Font loaders must return one or more @font-face's")
       }
 
       // Add fallback font with override values

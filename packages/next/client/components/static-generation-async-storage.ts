@@ -6,13 +6,15 @@ export interface StaticGenerationStore {
   revalidate?: number
   fetchRevalidate?: number
   isStaticGeneration?: boolean
+  forceStatic?: boolean
 }
 
 export let staticGenerationAsyncStorage:
   | AsyncLocalStorage<StaticGenerationStore>
   | StaticGenerationStore = {}
 
-if (process.env.NEXT_RUNTIME !== 'edge' && typeof window === 'undefined') {
-  staticGenerationAsyncStorage =
-    new (require('async_hooks').AsyncLocalStorage)()
+// @ts-expect-error we provide this on globalThis in
+// the edge and node runtime
+if (globalThis.AsyncLocalStorage) {
+  staticGenerationAsyncStorage = new (globalThis as any).AsyncLocalStorage()
 }

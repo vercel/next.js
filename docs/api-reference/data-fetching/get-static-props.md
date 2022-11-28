@@ -18,6 +18,10 @@ description: API reference for `getStaticProps`. Learn how to use `getStaticProp
 
 </details>
 
+> **Note**: Next.js 13 introduces the `app/` directory (beta). This new directory has support for [colocated data fetching](https://beta.nextjs.org/docs/data-fetching/fundamentals) at the component level, using the new React `use` hook and an extended `fetch` Web API.
+>
+> [Learn more about incrementally adopting `app/`](https://beta.nextjs.org/docs/upgrade-guide).
+
 Exporting a function called `getStaticProps` will pre-render a page at build time using the props returned from the function:
 
 ```jsx

@@ -17,6 +17,7 @@ import { writeConfigurationDefaults } from './typescript/writeConfigurationDefau
 import { installDependencies } from './install-dependencies'
 import { isCI } from '../telemetry/ci-info'
 import { missingDepsError } from './typescript/missingDependencyError'
+import { writeVscodeConfigurations } from './typescript/writeVscodeConfigurations'
 
 const requiredPackages = [
   {
@@ -102,8 +103,9 @@ export async function verifyTypeScriptSetup({
     }
 
     // Load TypeScript after we're sure it exists:
+    const tsPath = deps.resolved.get('typescript')!
     const ts = (await Promise.resolve(
-      require(deps.resolved.get('typescript')!)
+      require(tsPath)
     )) as typeof import('typescript')
 
     if (semver.lt(ts.version, '4.3.2')) {
@@ -122,6 +124,10 @@ export async function verifyTypeScriptSetup({
     // Write out the necessary `next-env.d.ts` file to correctly register
     // Next.js' types:
     await writeAppTypeDeclarations(dir, !disableStaticImages)
+
+    if (isAppDirEnabled) {
+      await writeVscodeConfigurations(dir, tsPath)
+    }
 
     let result
     if (typeCheckPreflight) {

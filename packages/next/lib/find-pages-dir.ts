@@ -1,5 +1,6 @@
 import fs from 'fs'
 import path from 'path'
+import * as Log from '../build/output/log'
 
 export const existsSync = (f: string): boolean => {
   try {
@@ -29,21 +30,25 @@ export function findPagesDir(
   appDir: string | undefined
 } {
   const pagesDir = findDir(dir, 'pages') || undefined
-  let appDir: undefined | string
+  const appDir = findDir(dir, 'app') || undefined
 
-  if (isAppDirEnabled) {
-    appDir = findDir(dir, 'app') || undefined
-  }
-  const hasAppDir =
-    !!appDir && fs.existsSync(appDir) && fs.statSync(appDir).isDirectory()
-
-  if (hasAppDir && appDir == null && pagesDir == null) {
+  if (isAppDirEnabled && appDir == null && pagesDir == null) {
     throw new Error(
       "> Couldn't find any `pages` or `app` directory. Please create one under the project root"
     )
   }
 
   if (!isAppDirEnabled) {
+    if (appDir != null && pagesDir == null) {
+      throw new Error(
+        '> The `app` directory is experimental. To enable, add `appDir: true` to your `next.config.js` configuration under `experimental`. See https://nextjs.org/docs/messages/experimental-app-dir-config'
+      )
+    }
+    if (appDir != null && pagesDir != null) {
+      Log.warn(
+        'The `app` directory is experimental. To enable, add `appDir: true` to your `next.config.js` configuration under `experimental`. See https://nextjs.org/docs/messages/experimental-app-dir-config'
+      )
+    }
     if (pagesDir == null) {
       throw new Error(
         "> Couldn't find a `pages` directory. Please create one under the project root"
@@ -53,6 +58,6 @@ export function findPagesDir(
 
   return {
     pagesDir,
-    appDir,
+    appDir: isAppDirEnabled ? appDir : undefined,
   }
 }

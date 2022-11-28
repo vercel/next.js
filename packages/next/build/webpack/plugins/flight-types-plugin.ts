@@ -27,16 +27,16 @@ check<IEntry, TEntry>(entry)
 
 type PageParams = Record<string, string>
 interface PageProps {
-  params?: PageParams
-  searchParams?: Record<string, string | string[]>
+  params: any
+  searchParams?: any
 }
 interface LayoutProps {
   children: React.ReactNode
-  params?: PageParams
+  params: any
 }
 
-type PageComponent = (props: PageProps) => React.ReactNode | null
-type LayoutComponent = (props: LayoutProps) => React.ReactNode | null
+export type PageComponent = (props: PageProps) => React.ReactNode | Promise<React.ReactNode>
+export type LayoutComponent = (props: LayoutProps) => React.ReactNode | Promise<React.ReactNode>
 
 interface IEntry {
   ${
@@ -45,8 +45,7 @@ interface IEntry {
       : `default: PageComponent`
   }
   config?: {}
-  Head?: any
-  generateStaticParams?: (params?: PageParams) => Promise<any[]>
+  generateStaticParams?: (params?: PageParams) => any[] | Promise<any[]>
   revalidate?: RevalidateRange<TEntry> | false
   dynamic?: 'auto' | 'force-dynamic' | 'error' | 'force-static'
   dynamicParams?: boolean

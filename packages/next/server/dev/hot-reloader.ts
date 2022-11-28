@@ -163,7 +163,6 @@ export default class HotReloader {
   private webpackHotMiddleware?: WebpackHotMiddleware
   private config: NextConfigComplete
   public hasServerComponents: boolean
-  public hasReactRoot: boolean
   public clientStats: webpack.Stats | null
   public serverStats: webpack.Stats | null
   public edgeServerStats: webpack.Stats | null
@@ -216,8 +215,7 @@ export default class HotReloader {
     this.serverPrevDocumentHash = null
 
     this.config = config
-    this.hasReactRoot = !!process.env.__NEXT_REACT_ROOT
-    this.hasServerComponents = this.hasReactRoot && !!this.appDir
+    this.hasServerComponents = !!this.appDir
     this.previewProps = previewProps
     this.rewrites = rewrites
     this.hotReloaderSpan = trace('hot-reloader', undefined, {
@@ -456,7 +454,6 @@ export default class HotReloader {
         dev: true,
         buildId: this.buildId,
         config: this.config,
-        hasReactRoot: this.hasReactRoot,
         pagesDir: this.pagesDir,
         rewrites: this.rewrites,
         runWebpackSpan: this.hotReloaderSpan,
@@ -521,7 +518,6 @@ export default class HotReloader {
           pageExtensions: this.config.pageExtensions,
         })
       ).client,
-      hasReactRoot: this.hasReactRoot,
     })
     const fallbackCompiler = webpack(fallbackConfig)
 
@@ -541,20 +537,19 @@ export default class HotReloader {
     })
   }
 
-  public async start(initial?: boolean): Promise<void> {
+  public async start(): Promise<void> {
     const startSpan = this.hotReloaderSpan.traceChild('start')
     startSpan.stop() // Stop immediately to create an artificial parent span
 
-    if (initial) {
-      await this.clean(startSpan)
-      // Ensure distDir exists before writing package.json
-      await fs.mkdir(this.distDir, { recursive: true })
+    await this.clean(startSpan)
+    // Ensure distDir exists before writing package.json
+    await fs.mkdir(this.distDir, { recursive: true })
 
-      const distPackageJsonPath = join(this.distDir, 'package.json')
-      // Ensure commonjs handling is used for files in the distDir (generally .next)
-      // Files outside of the distDir can be "type": "module"
-      await fs.writeFile(distPackageJsonPath, '{"type": "commonjs"}')
-    }
+    const distPackageJsonPath = join(this.distDir, 'package.json')
+    // Ensure commonjs handling is used for files in the distDir (generally .next)
+    // Files outside of the distDir can be "type": "module"
+    await fs.writeFile(distPackageJsonPath, '{"type": "commonjs"}')
+
     this.activeConfigs = await this.getWebpackConfig(startSpan)
 
     for (const config of this.activeConfigs) {
@@ -600,6 +595,7 @@ export default class HotReloader {
                   pageFilePath: entryData.absolutePagePath,
                   nextConfig: this.config,
                   isDev: true,
+                  pageType: isAppPath ? 'app' : 'pages',
                 })
               : {}
             const isServerComponent =
@@ -1027,12 +1023,6 @@ export default class HotReloader {
         edgeServerStats: () => this.edgeServerStats,
       }),
     ]
-
-    // trigger invalidation to ensure any previous callbacks
-    // are handled in the on-demand-entry-handler
-    if (!initial) {
-      this.invalidate()
-    }
   }
 
   public invalidate() {
