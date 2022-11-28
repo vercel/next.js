@@ -133,7 +133,9 @@ pub fn transform(s: JsValue, opts: JsValue) -> js_sys::Promise {
 pub fn parse_sync(s: JsString, opts: JsValue) -> Result<JsValue, JsValue> {
     console_error_panic_hook::set_once();
 
-    let c = next_binding::swc::core::base::Compiler::new(Arc::new(SourceMap::new(FilePathMapping::empty())));
+    let c = next_binding::swc::core::base::Compiler::new(Arc::new(SourceMap::new(
+        FilePathMapping::empty(),
+    )));
     let opts: ParseOptions = serde_wasm_bindgen::from_value(opts)?;
 
     try_with_handler(

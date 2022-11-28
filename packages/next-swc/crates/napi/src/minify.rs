@@ -29,11 +29,11 @@ use std::sync::Arc;
 
 use fxhash::FxHashMap;
 use napi::bindgen_prelude::*;
-use serde::Deserialize;
 use next_binding::swc::core::{
     base::{try_with_handler, TransformOutput},
     common::{errors::ColorConfig, sync::Lrc, FileName, SourceFile, SourceMap, GLOBALS},
 };
+use serde::Deserialize;
 
 use crate::{get_compiler, util::MapErr};
 

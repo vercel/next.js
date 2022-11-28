@@ -24,8 +24,9 @@ impl Task for ParseTask {
 
     fn compute(&mut self) -> napi::Result<Self::Output> {
         GLOBALS.set(&Default::default(), || {
-            let c =
-                next_binding::swc::core::base::Compiler::new(Arc::new(SourceMap::new(FilePathMapping::empty())));
+            let c = next_binding::swc::core::base::Compiler::new(Arc::new(SourceMap::new(
+                FilePathMapping::empty(),
+            )));
 
             let options: ParseOptions = serde_json::from_slice(self.options.as_ref())?;
             let comments = c.comments().clone();

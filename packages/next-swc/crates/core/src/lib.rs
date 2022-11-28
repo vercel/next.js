@@ -162,19 +162,23 @@ where
             _ => Either::Right(noop()),
         },
         if opts.styled_jsx {
-            Either::Left(next_binding::swc::custom_transform::styled_jsx::visitor::styled_jsx(
-                cm.clone(),
-                file.name.clone(),
-            ))
+            Either::Left(
+                next_binding::swc::custom_transform::styled_jsx::visitor::styled_jsx(
+                    cm.clone(),
+                    file.name.clone(),
+                ),
+            )
         } else {
             Either::Right(noop())
         },
         match &opts.styled_components {
-            Some(config) => Either::Left(next_binding::swc::custom_transform::styled_components::styled_components(
-                file.name.clone(),
-                file.src_hash,
-                config.clone(),
-            )),
+            Some(config) => Either::Left(
+                next_binding::swc::custom_transform::styled_components::styled_components(
+                    file.name.clone(),
+                    file.src_hash,
+                    config.clone(),
+                )
+            ),
             None => Either::Right(noop()),
         },
         Optional::new(
@@ -216,12 +220,14 @@ where
                 }
                 if let FileName::Real(path) = &file.name {
                     path.to_str().map(|_| {
-                        Either::Left(next_binding::swc::custom_transform::emotion::EmotionTransformer::new(
-                            config.clone(),
-                            path,
-                            cm,
-                            comments,
-                        ))
+                        Either::Left(
+                            next_binding::swc::custom_transform::emotion::EmotionTransformer::new(
+                                config.clone(),
+                                path,
+                                cm,
+                                comments,
+                            ),
+                        )
                     })
                 } else {
                     None
@@ -229,7 +235,11 @@ where
             })
             .unwrap_or_else(|| Either::Right(noop())),
         match &opts.modularize_imports {
-            Some(config) => Either::Left(next_binding::swc::custom_transform::modularize_imports::modularize_imports(config.clone())),
+            Some(config) => Either::Left(
+                next_binding::swc::custom_transform::modularize_imports::modularize_imports(
+                    config.clone()
+                )
+            ),
             None => Either::Right(noop()),
         },
         match &opts.font_loaders {

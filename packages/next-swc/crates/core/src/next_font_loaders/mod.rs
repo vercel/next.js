@@ -1,5 +1,4 @@
 use fxhash::FxHashSet;
-use serde::Deserialize;
 use next_binding::swc::core::{
     common::{collections::AHashMap, BytePos, Spanned},
     ecma::{
@@ -8,6 +7,7 @@ use next_binding::swc::core::{
     },
     ecma::{ast::ModuleItem, atoms::JsWord},
 };
+use serde::Deserialize;
 
 mod find_functions_outside_module_scope;
 mod font_functions_collector;
