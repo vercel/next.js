@@ -11,7 +11,9 @@ To update to Next.js version 13, run the following command using your preferred 
 ```bash
 npm i next@latest react@latest react-dom@latest eslint-config-next@latest
 # or
-yarn upgrade next react react-dom eslint-config-next --latest
+yarn upgrade next react react-dom eslint-config-next --latest (yarn classic)
+# or 
+yarn up next react react-dom eslint-config-next (yarn berry)
 # or
 pnpm up next react react-dom eslint-config-next --latest
 ```
