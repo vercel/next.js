@@ -61,6 +61,9 @@ import {
   FONT_LOADER_MANIFEST,
   CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
   APP_CLIENT_INTERNALS,
+  SUBRESOURCE_INTEGRITY_MANIFEST,
+  MIDDLEWARE_BUILD_MANIFEST,
+  MIDDLEWARE_REACT_LOADABLE_MANIFEST,
 } from '../shared/lib/constants'
 import { getSortedRoutes, isDynamicRoute } from '../shared/lib/router/utils'
 import { __ApiPreviewProps } from '../server/api-utils'
@@ -865,6 +868,11 @@ export default async function build(
         )
 
       const manifestPath = path.join(distDir, SERVER_DIRECTORY, PAGES_MANIFEST)
+      const appManifestPath = path.join(
+        distDir,
+        SERVER_DIRECTORY,
+        APP_PATHS_MANIFEST
+      )
 
       const requiredServerFiles = nextBuildSpan
         .traceChild('generate-required-server-files')
@@ -885,8 +893,26 @@ export default async function build(
             BUILD_MANIFEST,
             PRERENDER_MANIFEST,
             path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
+            path.join(SERVER_DIRECTORY, MIDDLEWARE_BUILD_MANIFEST + '.js'),
+            path.join(
+              SERVER_DIRECTORY,
+              MIDDLEWARE_REACT_LOADABLE_MANIFEST + '.js'
+            ),
             ...(appDir
               ? [
+                  ...(config.experimental.sri
+                    ? [
+                        path.join(
+                          SERVER_DIRECTORY,
+                          SUBRESOURCE_INTEGRITY_MANIFEST + '.js'
+                        ),
+                        path.join(
+                          SERVER_DIRECTORY,
+                          SUBRESOURCE_INTEGRITY_MANIFEST + '.json'
+                        ),
+                      ]
+                    : []),
+                  path.relative(distDir, appManifestPath),
                   path.join(SERVER_DIRECTORY, FLIGHT_MANIFEST + '.js'),
                   path.join(SERVER_DIRECTORY, FLIGHT_MANIFEST + '.json'),
                   path.join(
@@ -2046,6 +2072,7 @@ export default async function build(
               dir,
               distDir,
               pageKeys.pages,
+              pageKeys.app,
               outputFileTracingRoot,
               requiredServerFiles.config,
               middlewareManifest
@@ -2761,6 +2788,19 @@ export default async function build(
           ),
           { overwrite: true }
         )
+        if (appDir) {
+          await recursiveCopy(
+            path.join(distDir, SERVER_DIRECTORY, 'app'),
+            path.join(
+              distDir,
+              'standalone',
+              path.relative(outputFileTracingRoot, distDir),
+              SERVER_DIRECTORY,
+              'app'
+            ),
+            { overwrite: true }
+          )
+        }
       }
 
       staticPages.forEach((pg) => allStaticPages.add(pg))
