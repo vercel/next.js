@@ -32,7 +32,7 @@ describe('app dir head', () => {
     })
     afterAll(() => next.destroy())
 
-    it('shoud pass searchParams as prop', async () => {
+    it('should pass searchParams as prop', async () => {
       const html = await renderViaHTTP(next.url, '/blog/post-1?title=Moien')
       expect(html).toContain('<title>Moien</title>')
     })
