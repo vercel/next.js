@@ -52,7 +52,7 @@ describe('app dir - rsc errors', () => {
 
     expect(res.status).toBe(500)
     expect(await res.text()).toContain(
-      '`getServerSideProps` is not allowed in Client Components'
+      '"getServerSideProps\\" is not supported in app/'
     )
   })
 
@@ -79,7 +79,7 @@ describe('app dir - rsc errors', () => {
 
     expect(res.status).toBe(500)
     expect(await res.text()).toContain(
-      '`getStaticProps` is not allowed in Client Components'
+      '"getStaticProps\\" is not supported in app/'
     )
   })
 
