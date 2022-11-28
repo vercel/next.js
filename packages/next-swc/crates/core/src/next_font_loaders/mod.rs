@@ -1,6 +1,6 @@
 use fxhash::FxHashSet;
 use serde::Deserialize;
-use swc_core::{
+use next_binding::swc::core::{
     common::{collections::AHashMap, BytePos, Spanned},
     ecma::{
         ast::Id,
