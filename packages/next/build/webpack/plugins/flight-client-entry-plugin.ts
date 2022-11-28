@@ -119,7 +119,7 @@ export class FlightClientEntryPlugin {
       }
 
       traverseModules(compilation, (mod, _chunk, _chunkGroup, modId) => {
-        recordModule(modId + '', mod)
+        recordModule(String(modId), mod)
       })
     })
   }
