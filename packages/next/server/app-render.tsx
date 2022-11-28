@@ -375,7 +375,7 @@ function useFlightResponse(
  * This is only used for renderToHTML, the Flight response does not need additional wrappers.
  */
 function createServerComponentRenderer(
-  ComponentToRender: React.ComponentType,
+  ComponentToRender: any,
   ComponentMod: {
     renderToReadableStream: any
     __next_app_webpack_require__?: any
@@ -1127,20 +1127,6 @@ export async function renderToHTMLOrFlight(
         }
       }
 
-      // TODO-APP: move these errors to the loader instead?
-      // we will also need a migration doc here to link to
-      if (typeof layoutOrPageMod?.getServerSideProps === 'function') {
-        throw new Error(
-          `getServerSideProps is not supported in app/, detected in ${segment}`
-        )
-      }
-
-      if (typeof layoutOrPageMod?.getStaticProps === 'function') {
-        throw new Error(
-          `getStaticProps is not supported in app/, detected in ${segment}`
-        )
-      }
-
       /**
        * The React Component to render.
        */
@@ -1442,21 +1428,21 @@ export async function renderToHTMLOrFlight(
             isPrefetch && !Boolean(loaderTreeToFilter[2].loading)
               ? null
               : // Create component tree using the slice of the loaderTree
-                React.createElement(
-                  (
-                    await createComponentTree(
-                      // This ensures flightRouterPath is valid and filters down the tree
-                      {
-                        createSegmentPath: (child) => {
-                          return createSegmentPath(child)
-                        },
-                        loaderTree: loaderTreeToFilter,
-                        parentParams: currentParams,
-                        firstItem: isFirst,
-                      }
-                    )
-                  ).Component
-                ),
+                // @ts-expect-error TODO-APP: fix async component type
+                React.createElement(async () => {
+                  const { Component } = await createComponentTree(
+                    // This ensures flightRouterPath is valid and filters down the tree
+                    {
+                      createSegmentPath: (child) => {
+                        return createSegmentPath(child)
+                      },
+                      loaderTree: loaderTreeToFilter,
+                      parentParams: currentParams,
+                      firstItem: isFirst,
+                    }
+                  )
+                  return <Component />
+                }),
             isPrefetch && !Boolean(loaderTreeToFilter[2].loading) ? null : (
               <>{rscPayloadHead}</>
             ),
@@ -1529,14 +1515,6 @@ export async function renderToHTMLOrFlight(
 
     // Below this line is handling for rendering to HTML.
 
-    // Create full component tree from root to leaf.
-    const { Component: ComponentTree } = await createComponentTree({
-      createSegmentPath: (child) => child,
-      loaderTree: loaderTree,
-      parentParams: {},
-      firstItem: true,
-    })
-
     // AppRouter is provided by next-app-loader
     const AppRouter =
       ComponentMod.AppRouter as typeof import('../client/components/app-router').default
@@ -1579,7 +1557,14 @@ export async function renderToHTMLOrFlight(
      * using Flight which can then be rendered to HTML.
      */
     const ServerComponentsRenderer = createServerComponentRenderer(
-      () => {
+      async () => {
+        // Create full component tree from root to leaf.
+        const { Component: ComponentTree } = await createComponentTree({
+          createSegmentPath: (child) => child,
+          loaderTree: loaderTree,
+          parentParams: {},
+          firstItem: true,
+        })
         const initialTree = createFlightRouterStateFromLoaderTree(loaderTree)
 
         return (

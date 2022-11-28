@@ -115,7 +115,7 @@ exports[`ReactRefreshLogBox app stuck error 1`] = `
 `;
 
 exports[`ReactRefreshLogBox app syntax > runtime error 1`] = `
-"index.js (6:16) @ eval
+"index.js (6:16) @ Error
 
   4 | setInterval(() => {
   5 |   i++
