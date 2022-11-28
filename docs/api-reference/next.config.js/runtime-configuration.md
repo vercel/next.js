@@ -6,6 +6,8 @@ description: Add client and server runtime configuration to your Next.js app.
 
 > Generally you'll want to use [build-time environment variables](/docs/basic-features/environment-variables.md) to provide your configuration. The reason for this is that runtime configuration adds rendering / initialization overhead and is incompatible with [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md).
 
+> This feature is [now considered legacy and does not work with Output File Tracing](/docs/advanced-features/output-file-tracing#automatically-copying-traced-files).
+
 To add runtime configuration to your app open `next.config.js` and add the `publicRuntimeConfig` and `serverRuntimeConfig` configs:
 
 ```js
