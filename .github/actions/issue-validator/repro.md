@@ -4,7 +4,7 @@ We cannot recreate the issue with the provided information. **Please add a repro
 
 To be able to investigate, we need access to a reproduction to identify what triggered the issue. We prefer a link to a public GitHub repository ([template](https://github.com/vercel/next.js/tree/canary/examples/reproduction-template)), but you can also use a tool like [CodeSandbox](https://codesandbox.io/s/github/vercel/next.js/tree/canary/examples/reproduction-template) or [StackBlitz](https://stackblitz.com/fork/github/vercel/next.js/tree/canary/examples/reproduction-template).
 
-To make sure the issue is resolved as quickly as possible, please make sure that the reproduction is as **minimal** as possible. This means that you should **remove** all **unnecessary code, files, and dependencies** that do not contribute to the issue.
+To make sure the issue is resolved as quickly as possible, please make sure that the reproduction is as **minimal** as possible. This means that you should **remove unnecessary code, files, and dependencies** that do not contribute to the issue.
 
 Please test your reproduction against the latest version of Next.js (`next@canary`) to make sure your issue has not already been fixed.
 
