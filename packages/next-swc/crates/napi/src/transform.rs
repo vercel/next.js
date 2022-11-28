@@ -73,7 +73,7 @@ impl Task for TransformTask {
                 try_with_handler(
                     self.c.cm.clone(),
                     swc_core::base::HandlerOpts {
-                        color: ColorConfig::Never,
+                        color: ColorConfig::Always,
                         skip_filename: true,
                     },
                     |handler| {

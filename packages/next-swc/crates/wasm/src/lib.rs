@@ -69,7 +69,7 @@ pub fn transform_sync(s: JsValue, opts: JsValue) -> Result<JsValue, JsValue> {
     let out = try_with_handler(
         c.cm.clone(),
         swc_core::base::HandlerOpts {
-            color: ColorConfig::Never,
+            color: ColorConfig::Always,
             skip_filename: false,
         },
         |handler| {
