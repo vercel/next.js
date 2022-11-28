@@ -765,6 +765,10 @@
         {
           "title": "experimental-app-dir-config",
           "path": "/errors/experimental-app-dir-config.md"
+        },
+        {
+          "title": "app-dir-dynamic-href",
+          "path": "/errors/app-dir-dynamic-href.md"
         }
       ]
     }
