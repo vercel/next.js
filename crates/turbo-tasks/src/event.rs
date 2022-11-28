@@ -1,6 +1,7 @@
 use std::{
     fmt::{Debug, Formatter},
     future::Future,
+    mem::replace,
     pin::Pin,
 };
 #[cfg(feature = "hanging_detection")]
@@ -31,6 +32,13 @@ impl Event {
             listener: self.event.listen(),
         }
     }
+
+    /// pulls out the event listener, leaving a new, empty event in its place.
+    pub fn take(&mut self) -> Self {
+        Self {
+            event: replace(&mut self.event, event_listener::Event::new()),
+        }
+    }
 }
 
 #[cfg(feature = "hanging_detection")]
@@ -50,6 +58,14 @@ impl Event {
             description: self.description.clone(),
             future: Some(timeout(Duration::from_secs(10), self.event.listen())),
             duration: Duration::from_secs(10),
+        }
+    }
+
+    /// pulls out the event listener, leaving a new, empty event in its place.
+    pub fn take(&mut self) -> Event {
+        Self {
+            description: self.description.clone(),
+            event: replace(&mut self.event, event_listener::Event::new()),
         }
     }
 }
