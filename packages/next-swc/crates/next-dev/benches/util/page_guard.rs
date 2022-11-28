@@ -44,22 +44,10 @@ impl<'a> PageGuard<'a> {
         }
     }
 
-    /// Returns a reference to the app.
-    pub fn app(&self) -> &PreparedApp<'a> {
-        // Invariant: app is always Some while the guard is alive.
-        self.app.as_ref().unwrap()
-    }
-
     /// Returns a reference to the page.
     pub fn page(&self) -> &Page {
         // Invariant: page is always Some while the guard is alive.
         self.page.as_ref().unwrap()
-    }
-
-    /// Returns a mutable reference to the app.
-    pub fn app_mut(&mut self) -> &mut PreparedApp<'a> {
-        // Invariant: app is always Some while the guard is alive.
-        self.app.as_mut().unwrap()
     }
 
     /// Closes the page, returns the app.

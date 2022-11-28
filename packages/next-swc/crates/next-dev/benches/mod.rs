@@ -2,6 +2,10 @@ use std::{
     fs::{self},
     panic::AssertUnwindSafe,
     path::Path,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    },
     time::Duration,
 };
 
@@ -18,7 +22,12 @@ use tokio::{
     time::{sleep, timeout},
 };
 use turbo_tasks::util::FormatDuration;
-use util::{build_test, create_browser, AsyncBencherExtension, PreparedApp, BINDING_NAME};
+use util::{
+    build_test, create_browser,
+    env::{read_env, read_env_bool, read_env_list},
+    module_picker::ModulePicker,
+    AsyncBencherExtension, PreparedApp, BINDING_NAME,
+};
 
 use self::{bundlers::RenderType, util::resume_on_error};
 use crate::{bundlers::Bundler, util::PageGuard};
@@ -138,6 +147,7 @@ fn bench_hmr_internal(mut g: BenchmarkGroup<WallTime>, location: CodeLocation) {
 
     let runtime = Runtime::new().unwrap();
     let browser = Lazy::new(|| runtime.block_on(create_browser()));
+    let hmr_warmup = read_env("TURBOPACK_BENCH_HMR_WARMUP", 10).unwrap();
 
     for bundler in get_bundlers() {
         if matches!(
@@ -153,105 +163,19 @@ fn bench_hmr_internal(mut g: BenchmarkGroup<WallTime>, location: CodeLocation) {
         for module_count in get_module_counts() {
             let test_app = Lazy::new(|| build_test(module_count, bundler.as_ref()));
             let input = (bundler.as_ref(), &test_app);
+            let module_picker =
+                Lazy::new(|| Arc::new(ModulePicker::new(test_app.modules().to_vec())));
+
             resume_on_error(AssertUnwindSafe(|| {
                 g.bench_with_input(
                     BenchmarkId::new(bundler.get_name(), format!("{} modules", module_count)),
                     &input,
                     |b, &(bundler, test_app)| {
                         let test_app = &**test_app;
+                        let modules = test_app.modules();
+                        let module_picker = &*module_picker;
                         let browser = &*browser;
-                        fn add_code(
-                            bundler: &dyn Bundler,
-                            app_path: &Path,
-                            msg: &str,
-                            location: CodeLocation,
-                        ) -> Result<impl FnOnce() -> Result<()>> {
-                            let triangle_path = app_path.join("src/triangle.jsx");
-                            let mut contents = fs::read_to_string(&triangle_path)?;
-                            const INSERTED_CODE_COMMENT: &str = "// Inserted Code:\n";
-                            const COMPONENT_START: &str = "function Container({ style }) {\n";
-                            const DETECTOR_START: &str = "<Detector ";
-                            const DETECTOR_END: &str = "/>";
-                            match (location, bundler.render_type()) {
-                                (CodeLocation::Effect, _) => {
-                                    let a = contents
-                                        .find(DETECTOR_START)
-                                        .ok_or_else(|| anyhow!("unable to find detector start"))?;
-                                    let b = a + contents[a..]
-                                        .find(DETECTOR_END)
-                                        .ok_or_else(|| anyhow!("unable to find detector end"))?;
-                                    contents.replace_range(
-                                        a..b,
-                                        &format!("{DETECTOR_START}message=\"{msg}\" "),
-                                    );
-                                }
-                                (
-                                    CodeLocation::Evaluation,
-                                    RenderType::ClientSideRendered
-                                    | RenderType::ServerSidePrerendered,
-                                ) => {
-                                    let b = contents
-                                        .find(COMPONENT_START)
-                                        .ok_or_else(|| anyhow!("unable to find component start"))?;
-                                    let code = format!(
-                                        "globalThis.{BINDING_NAME} && \
-                                         globalThis.{BINDING_NAME}('{msg}');"
-                                    );
-                                    if let Some(a) = contents.find(INSERTED_CODE_COMMENT) {
-                                        contents.replace_range(
-                                            a..b,
-                                            &format!("{INSERTED_CODE_COMMENT}{code}\n"),
-                                        );
-                                    } else {
-                                        contents.insert_str(
-                                            b,
-                                            &format!("{INSERTED_CODE_COMMENT}{code}\n"),
-                                        );
-                                    }
-                                }
-                                (
-                                    CodeLocation::Evaluation,
-                                    RenderType::ServerSideRenderedWithEvents
-                                    | RenderType::ServerSideRenderedWithoutInteractivity,
-                                ) => {
-                                    panic!(
-                                        "evaluation can't be measured for bundlers which evaluate \
-                                         on server side"
-                                    );
-                                }
-                            }
 
-                            Ok(move || Ok(fs::write(&triangle_path, contents)?))
-                        }
-                        static CHANGE_TIMEOUT_MESSAGE: &str =
-                            "update was not registered by bundler";
-                        async fn make_change(
-                            bundler: &dyn Bundler,
-                            guard: &mut PageGuard<'_>,
-                            location: CodeLocation,
-                            m: &WallTime,
-                        ) -> Result<Duration> {
-                            let msg =
-                                format!("TURBOPACK_BENCH_CHANGE_{}", guard.app_mut().counter());
-                            let commit = add_code(bundler, guard.app().path(), &msg, location)?;
-
-                            let start = m.start();
-                            commit()?;
-
-                            // Wait for the change introduced above to be reflected at
-                            // runtime. This expects HMR or automatic reloading to occur.
-                            timeout(MAX_UPDATE_TIMEOUT, guard.wait_for_binding(&msg))
-                                .await
-                                .context(CHANGE_TIMEOUT_MESSAGE)??;
-
-                            let duration = m.end(start);
-
-                            // TODO(sokra) triggering HMR updates too fast can have weird effects
-                            tokio::time::sleep(std::cmp::max(duration, Duration::from_millis(100)))
-                                .await;
-
-                            Ok(duration)
-                        }
                         b.to_async(&runtime).try_iter_async(
                             &runtime,
                             || async {
@@ -276,36 +200,81 @@ fn bench_hmr_internal(mut g: BenchmarkGroup<WallTime>, location: CodeLocation) {
                                          flag",
                                     )?;
 
-                                // TODO(alexkirsz) Turbopack takes a few ms to start listening on
-                                // HMR, and we don't send updates retroactively, so we need to wait
-                                // before starting to make changes.
-                                // This should not be required.
-                                tokio::time::sleep(Duration::from_millis(5000)).await;
-
-                                // Make a warmup change
-                                make_change(bundler, &mut guard, location, &WallTime).await?;
-
-                                Ok(guard)
-                            },
-                            |mut guard, iters, m, verbose| async move {
-                                let mut value = m.zero();
-                                for iter in 0..iters {
-                                    let duration =
-                                        make_change(bundler, &mut guard, location, &m).await?;
-                                    value = m.add(&value, &duration);
-
-                                    let i: u64 = iter + 1;
-                                    if verbose && i != iters && i.count_ones() == 1 {
-                                        eprint!(
-                                            " [{:?} {:?}/{}]",
-                                            duration,
-                                            FormatDuration(value / (i as u32)),
-                                            i
-                                        );
+                                // There's a possible race condition between hydration and
+                                // connection to the HMR server. We attempt to make updates with an
+                                // exponential backoff until one succeeds.
+                                let mut exponential_duration = Duration::from_millis(100);
+                                loop {
+                                    match make_change(
+                                        &modules[0].0,
+                                        bundler,
+                                        &mut guard,
+                                        location,
+                                        exponential_duration,
+                                        &WallTime,
+                                    )
+                                    .await
+                                    {
+                                        Ok(_) => {
+                                            break;
+                                        }
+                                        Err(e) => {
+                                            exponential_duration *= 2;
+                                            if exponential_duration > MAX_UPDATE_TIMEOUT {
+                                                return Err(
+                                                    e.context("failed to make warmup change")
+                                                );
+                                            }
+                                        }
                                     }
                                 }
 
-                                Ok((guard, value))
+                                // Once we know the HMR server is connected, we make a few warmup
+                                // changes.
+                                for _ in 0..hmr_warmup {
+                                    make_change(
+                                        &modules[0].0,
+                                        bundler,
+                                        &mut guard,
+                                        location,
+                                        MAX_UPDATE_TIMEOUT,
+                                        &WallTime,
+                                    )
+                                    .await?;
+                                }
+
+                                Ok(guard)
+                            },
+                            |mut guard, iters, m, verbose| {
+                                let module_picker = Arc::clone(module_picker);
+                                async move {
+                                    let mut value = m.zero();
+                                    for iter in 0..iters {
+                                        let module = module_picker.pick();
+                                        let duration = make_change(
+                                            module,
+                                            bundler,
+                                            &mut guard,
+                                            location,
+                                            MAX_UPDATE_TIMEOUT,
+                                            &m,
+                                        )
+                                        .await?;
+                                        value = m.add(&value, &duration);
+
+                                        let i: u64 = iter + 1;
+                                        if verbose && i != iters && i.count_ones() == 1 {
+                                            eprint!(
+                                                " [{:?} {:?}/{}]",
+                                                duration,
+                                                FormatDuration(value / (i as u32)),
+                                                i
+                                            );
+                                        }
+                                    }
+
+                                    Ok((guard, value))
+                                }
                             },
                             |guard| async move {
                                 let hmr_is_happening = guard
@@ -325,6 +294,92 @@ fn bench_hmr_internal(mut g: BenchmarkGroup<WallTime>, location: CodeLocation) {
     }
 }
 
+fn insert_code(
+    path: &Path,
+    bundler: &dyn Bundler,
+    message: &str,
+    location: CodeLocation,
+) -> Result<impl FnOnce() -> Result<()>> {
+    let mut contents = fs::read_to_string(path)?;
+
+    const PRAGMA_EVAL_START: &str = "/* @turbopack-bench:eval-start */";
+    const PRAGMA_EVAL_END: &str = "/* @turbopack-bench:eval-end */";
+
+    let eval_start = contents
+        .find(PRAGMA_EVAL_START)
+        .ok_or_else(|| anyhow!("unable to find effect start pragma in {}", contents))?;
+    let eval_end = contents
+        .find(PRAGMA_EVAL_END)
+        .ok_or_else(|| anyhow!("unable to find effect end pragma in {}", contents))?;
+
+    match (location, bundler.render_type()) {
+        (CodeLocation::Effect, _) => {
+            contents.replace_range(
+                eval_start + PRAGMA_EVAL_START.len()..eval_end,
+                &format!("\nEFFECT_PROPS.message = \"{message}\";\n"),
+            );
+        }
+        (
+            CodeLocation::Evaluation,
+            RenderType::ClientSideRendered | RenderType::ServerSidePrerendered,
+        ) => {
+            let code = format!(
+                "\nglobalThis.{BINDING_NAME} && globalThis.{BINDING_NAME}(\"{message}\");\n"
+            );
+            contents.replace_range(eval_start + PRAGMA_EVAL_START.len()..eval_end, &code);
+        }
+        (
+            CodeLocation::Evaluation,
+            RenderType::ServerSideRenderedWithEvents
+            | RenderType::ServerSideRenderedWithoutInteractivity,
+        ) => {
+            panic!("evaluation can't be measured for bundlers which evaluate on server side");
+        }
+    }
+
+    let path = path.to_owned();
+    Ok(move || Ok(fs::write(&path, contents)?))
+}
+
+static CHANGE_TIMEOUT_MESSAGE: &str = "update was not registered by bundler";
+
+async fn make_change<'a>(
+    module: &Path,
+    bundler: &dyn Bundler,
+    guard: &mut PageGuard<'a>,
+    location: CodeLocation,
+    timeout_duration: Duration,
+    measurement: &WallTime,
+) -> Result<Duration> {
+    static CHANGE_COUNTER: AtomicUsize = AtomicUsize::new(0);
+
+    let msg = format!(
+        "TURBOPACK_BENCH_CHANGE_{}",
+        CHANGE_COUNTER.fetch_add(1, Ordering::Relaxed)
+    );
+
+    // Keep the IO out of the measurement.
+    let commit = insert_code(module, bundler, &msg, location)?;
+
+    let start = measurement.start();
+
+    commit()?;
+
+    // Wait for the change introduced above to be reflected at runtime.
+    // This expects HMR or automatic reloading to occur.
+    timeout(timeout_duration, guard.wait_for_binding(&msg))
+        .await
+        .context(CHANGE_TIMEOUT_MESSAGE)??;
+
+    let duration = measurement.end(start);
+
+    if cfg!(target_os = "linux") {
+        // TODO(sokra) triggering HMR updates too fast can have weird effects on Linux
+        tokio::time::sleep(std::cmp::max(duration, Duration::from_millis(100))).await;
+    }
+    Ok(duration)
+}
+
 fn bench_startup_cached(c: &mut Criterion) {
     let mut g = c.benchmark_group("bench_startup_cached");
     g.sample_size(10);
@@ -342,11 +397,7 @@ fn bench_hydration_cached(c: &mut Criterion) {
 }
 
 fn bench_startup_cached_internal(mut g: BenchmarkGroup<WallTime>, hydration: bool) {
-    let config = std::env::var("TURBOPACK_BENCH_CACHED").ok();
-    if matches!(
-        config.as_deref(),
-        None | Some("") | Some("no") | Some("false")
-    ) {
+    if !read_env_bool("TURBOPACK_BENCH_CACHED") {
         return;
     }
 
@@ -432,16 +483,7 @@ fn bench_startup_cached_internal(mut g: BenchmarkGroup<WallTime>, hydration: boo
 }
 
 fn get_module_counts() -> Vec<usize> {
-    let config = std::env::var("TURBOPACK_BENCH_COUNTS").ok();
-    match config.as_deref() {
-        None | Some("") => {
-            vec![1_000]
-        }
-        Some(config) => config
-            .split(',')
-            .map(|s| s.parse().expect("Invalid value for TURBOPACK_BENCH_COUNTS"))
-            .collect(),
-    }
+    read_env_list("TURBOPACK_BENCH_COUNTS", vec![1_000usize]).unwrap()
 }
 
 criterion_group!(

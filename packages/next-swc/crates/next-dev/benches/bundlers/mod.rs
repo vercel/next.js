@@ -9,6 +9,7 @@ use self::{
     vite::Vite,
     webpack::Webpack,
 };
+use crate::util::env::read_env;
 
 mod nextjs;
 mod parcel;
@@ -59,16 +60,16 @@ pub trait Bundler {
 }
 
 pub fn get_bundlers() -> Vec<Box<dyn Bundler>> {
-    let config = std::env::var("TURBOPACK_BENCH_BUNDLERS").ok();
+    let config: String = read_env("TURBOPACK_BENCH_BUNDLERS", String::from("turbopack")).unwrap();
     let mut turbopack = false;
     let mut others = false;
-    match config.as_deref() {
-        Some("all") => {
+    match config.as_ref() {
+        "all" => {
             turbopack = true;
             others = true
         }
-        Some("others") => others = true,
-        None | Some("") => {
+        "others" => others = true,
+        "turbopack" => {
             turbopack = true;
         }
         _ => panic!("Invalid value for TURBOPACK_BENCH_BUNDLERS"),

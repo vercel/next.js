@@ -19,10 +19,15 @@ use regex::Regex;
 use tungstenite::{error::ProtocolError::ResetWithoutClosingHandshake, Error::Protocol};
 use turbo_tasks::util::FormatDuration;
 use turbo_tasks_testing::retry::{retry, retry_async};
-use turbopack_create_test_app::test_app_builder::{PackageJsonConfig, TestApp, TestAppBuilder};
+use turbopack_create_test_app::test_app_builder::{
+    EffectMode, PackageJsonConfig, TestApp, TestAppBuilder,
+};
 
-use crate::bundlers::Bundler;
+use self::env::read_env_bool;
+use crate::bundlers::{Bundler, RenderType};
 
+pub mod env;
+pub mod module_picker;
 pub mod npm;
 mod page_guard;
 mod prepared_app;
@@ -53,6 +58,10 @@ pub fn build_test(module_count: usize, bundler: &dyn Bundler) -> TestApp {
         package_json: Some(PackageJsonConfig {
             react_version: bundler.react_version().to_string(),
         }),
+        effect_mode: match bundler.render_type() {
+            RenderType::ServerSideRenderedWithEvents => EffectMode::Component,
+            _ => EffectMode::Hook,
+        },
         ..Default::default()
     }
     .build()
@@ -76,14 +85,8 @@ pub fn build_test(module_count: usize, bundler: &dyn Bundler) -> TestApp {
 }
 
 pub async fn create_browser() -> Browser {
-    let with_head = !matches!(
-        std::env::var("TURBOPACK_BENCH_HEAD").ok().as_deref(),
-        None | Some("") | Some("no") | Some("false")
-    );
-    let with_devtools = !matches!(
-        std::env::var("TURBOPACK_BENCH_DEVTOOLS").ok().as_deref(),
-        None | Some("") | Some("no") | Some("false")
-    );
+    let with_head = read_env_bool("TURBOPACK_BENCH_WITH_HEAD");
+    let with_devtools = read_env_bool("TURBOPACK_BENCH_DEVTOOLS");
     let mut builder = BrowserConfig::builder();
     if with_head {
         builder = builder.with_head();
@@ -117,12 +120,7 @@ pub async fn create_browser() -> Browser {
 
 pub fn resume_on_error<F: FnOnce() + UnwindSafe>(f: F) {
     let runs_as_bench = std::env::args().find(|a| a == "--bench");
-    let ignore_errors = !matches!(
-        std::env::var("TURBOPACK_BENCH_IGNORE_ERRORS")
-            .ok()
-            .as_deref(),
-        None | Some("") | Some("no") | Some("false")
-    );
+    let ignore_errors = read_env_bool("TURBOPACK_BENCH_IGNORE_ERRORS");
 
     if runs_as_bench.is_some() || ignore_errors {
         use std::panic::catch_unwind;
@@ -160,10 +158,7 @@ impl<'a, 'b, A: AsyncExecutor> AsyncBencherExtension<A> for AsyncBencher<'a, 'b,
         R: Fn(u64, WallTime) -> F,
         F: Future<Output = Result<Duration>>,
     {
-        let log_progress = !matches!(
-            std::env::var("TURBOPACK_BENCH_PROGRESS").ok().as_deref(),
-            None | Some("") | Some("no") | Some("false")
-        );
+        let log_progress = read_env_bool("TURBOPACK_BENCH_PROGRESS");
 
         let routine = &routine;
         self.iter_custom(|iters| async move {
@@ -190,10 +185,7 @@ impl<'a, 'b, A: AsyncExecutor> AsyncBencherExtension<A> for AsyncBencher<'a, 'b,
         T: Fn(I) -> TF,
         TF: Future<Output = ()>,
     {
-        let log_progress = !matches!(
-            std::env::var("TURBOPACK_BENCH_PROGRESS").ok().as_deref(),
-            None | Some("") | Some("no") | Some("false")
-        );
+        let log_progress = read_env_bool("TURBOPACK_BENCH_PROGRESS");
 
         let setup = &setup;
         let routine = &routine;
