@@ -22,7 +22,7 @@ export default Avatar
 
 This folder is also useful for `robots.txt`, `favicon.ico`, Google Site Verification, and any other static files (including `.html`)!
 
-> **Note**: Don't name the `public` directory anything else. The name cannot be changed and is the only directory used to serve static assets.
+> **Note**: Be sure the directory is named `public`. The name cannot be changed and is the only directory used to serve static assets.
 
 > **Note**: Be sure to not have a static file with the same name as a file in the `pages/` directory, as this will result in an error.
 >

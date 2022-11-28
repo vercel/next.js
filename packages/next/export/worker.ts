@@ -328,17 +328,15 @@ export default async function exportPage({
           const revalidate = (curRenderOpts as any).revalidate
           results.fromBuildExportRevalidate = revalidate
 
-          if (isDynamicError) {
-            throw new Error(
-              `Page with dynamic = "error" encountered dynamic data method ${path}.`
-            )
-          }
-
           if (revalidate !== 0) {
             await promises.writeFile(htmlFilepath, html ?? '', 'utf8')
             await promises.writeFile(
               htmlFilepath.replace(/\.html$/, '.rsc'),
               flightData
+            )
+          } else if (isDynamicError) {
+            throw new Error(
+              `Page with dynamic = "error" encountered dynamic data method ${path}.`
             )
           }
         } catch (err: any) {

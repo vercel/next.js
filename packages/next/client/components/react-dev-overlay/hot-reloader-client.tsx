@@ -124,7 +124,7 @@ function tryApplyUpdates(
     return
   }
 
-  function handleApplyUpdates(err: any, updatedModules: any) {
+  function handleApplyUpdates(err: any, updatedModules: any[] | null) {
     if (err || RuntimeErrorHandler.hadRuntimeError || !updatedModules) {
       if (err) {
         console.warn(
@@ -175,9 +175,13 @@ function tryApplyUpdates(
   // @ts-expect-error module.hot exists
   module.hot
     .check(/* autoApply */ false)
-    .then((updatedModules: any) => {
-      const hasUpdates = Boolean(updatedModules.length)
+    .then((updatedModules: any[] | null) => {
+      if (!updatedModules) {
+        return null
+      }
+
       if (typeof onBeforeUpdate === 'function') {
+        const hasUpdates = Boolean(updatedModules.length)
         onBeforeUpdate(hasUpdates)
       }
       // https://webpack.js.org/api/hot-module-replacement/#apply
@@ -185,7 +189,7 @@ function tryApplyUpdates(
       return module.hot.apply()
     })
     .then(
-      (updatedModules: any) => {
+      (updatedModules: any[] | null) => {
         handleApplyUpdates(null, updatedModules)
       },
       (err: any) => {

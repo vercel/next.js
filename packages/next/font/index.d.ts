@@ -1,9 +1,3 @@
-export type FontModule = {
-  className: string
-  variable?: string
-  style: { fontFamily: string; fontWeight?: number; fontStyle?: string }
-}
-
 export type AdjustFontFallback = {
   fallbackFont: string
   ascentOverride?: string

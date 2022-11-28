@@ -95,7 +95,7 @@ export const config = {
 }
 
 export default async function handler(req: NextRequest) {
-  const authorization = req.cookies.get('authorization')
+  const authorization = req.cookies.get('authorization')?.value
   return fetch('https://backend-api.com/api/protected', {
     method: req.method,
     headers: {
@@ -103,6 +103,25 @@ export default async function handler(req: NextRequest) {
     },
     redirect: 'manual',
   })
+}
+```
+
+### Configuring Regions (for deploying)
+
+You may want to restrict your edge function to specific regions when deploying so that you can colocate near your data sources ensuring lower response times which can be achieved as shown.
+
+Note: this config is available in `v12.3.2` of Next.js and up.
+
+```js
+import { NextResponse } from 'next/server'
+
+export const config = {
+  regions: ['sfo1', 'iad1'], // defaults to 'all'
+}
+
+export default async function handler(req: NextRequest) {
+  const myData = await getNearbyData()
+  return NextResponse.json(myData)
 }
 ```
 
