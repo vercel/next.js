@@ -389,7 +389,7 @@ export async function ncc_next__react_dev_overlay(task, opts) {
       precompiled: false,
       packageName: '@next/react-dev-overlay',
       externals: overlayExternals,
-      target: 'es5',
+      target: 'es2018',
     })
     .target('dist/compiled/@next/react-dev-overlay/dist')
 
