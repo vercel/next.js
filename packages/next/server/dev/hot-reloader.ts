@@ -357,16 +357,33 @@ export default class HotReloader {
               break
             }
             case 'client-full-reload': {
+              const { event, stackTrace, hadRuntimeError } = payload
+
               traceChild = {
-                name: payload.event,
-                attrs: { stackTrace: payload.stackTrace ?? '' },
+                name: event,
+                attrs: { stackTrace: stackTrace ?? '' },
               }
+
+              if (hadRuntimeError) {
+                Log.warn(
+                  `Fast Refresh had to perform a full reload due to a runtime error.`
+                )
+                break
+              }
+
+              let fileMessage = ''
+              if (stackTrace) {
+                const file = /Aborted because (.+) is not accepted/.exec(
+                  stackTrace
+                )?.[1]
+                if (file) {
+                  fileMessage = ` when ${file} changed`
+                }
+              }
+
               Log.warn(
-                'Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/basic-features/fast-refresh#how-it-works'
+                `Fast Refresh had to perform a full reload${fileMessage}. Read more: https://nextjs.org/docs/messages/fast-refresh-reload`
               )
-              if (payload.stackTrace) {
-                console.warn(payload.stackTrace)
-              }
               break
             }
             default: {
