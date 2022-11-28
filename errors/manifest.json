@@ -769,6 +769,10 @@
         {
           "title": "app-dir-dynamic-href",
           "path": "/errors/app-dir-dynamic-href.md"
+        },
+        {
+          "title": "fast-refresh-reload",
+          "path": "/errors/fast-refresh-reload.md"
         }
       ]
     }
