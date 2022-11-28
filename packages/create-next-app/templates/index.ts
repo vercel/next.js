@@ -62,7 +62,7 @@ export const installTemplate = async ({
   /**
    * Default dependencies.
    */
-  const dependencies = ['react', 'react-dom', 'next']
+  const dependencies = ['react', 'react-dom', 'next', '@next/font']
   /**
    * TypeScript projects will have type definitions and other devDependencies.
    */
@@ -99,6 +99,7 @@ export const installTemplate = async ({
    */
   console.log('\nInitializing project with template:', template, '\n')
   const templatePath = path.join(__dirname, template, mode)
+  console.log(templatePath)
   await cpy('**', root, {
     parents: true,
     cwd: templatePath,
