@@ -99,7 +99,6 @@ export const installTemplate = async ({
    */
   console.log('\nInitializing project with template:', template, '\n')
   const templatePath = path.join(__dirname, template, mode)
-  console.log(templatePath)
   await cpy('**', root, {
     parents: true,
     cwd: templatePath,
