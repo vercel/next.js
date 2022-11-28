@@ -1,6 +1,6 @@
 use crate::util::MapErr;
 use napi::bindgen_prelude::*;
-use next_dev::{devserver_options::DevServerOptions, start_server};
+use next_binding::turbo::dev_server::{devserver_options::DevServerOptions, start_server};
 
 #[napi]
 pub async fn start_turbo_dev(options: Buffer) -> napi::Result<()> {
