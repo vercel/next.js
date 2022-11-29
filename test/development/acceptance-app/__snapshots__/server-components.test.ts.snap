@@ -1,0 +1,42 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Error Overlay for server components should show error when React.createContext is called 1`] = `
+" 1 of 1 unhandled error
+Server Error
+
+TypeError: react.createContext is not a function
+
+This error happened while generating the page. Any console logs will be displayed in the terminal window.
+
+null"
+`;
+
+exports[`Error Overlay for server components should show error when class component is called 1`] = `
+" 1 of 1 unhandled error
+Server Error
+
+TypeError: Class extends value undefined is not a constructor or null
+
+This error happened while generating the page. Any console logs will be displayed in the terminal window.
+
+app/class-component.js (3:44) @ React
+
+  1 | 
+  2 | import React from 'react'
+> 3 | export default class Comp extends React.Component {
+    |                                  ^
+  4 |   render() {
+  5 |       return <h1>Class Component</h1>
+  6 |   }"
+`;
+
+exports[`Error Overlay for server components should show error when class component is called from npm package 1`] = `
+" 1 of 1 unhandled error
+Server Error
+
+TypeError: Super expression must either be null or a function
+
+This error happened while generating the page. Any console logs will be displayed in the terminal window.
+
+null"
+`;

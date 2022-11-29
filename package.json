@@ -14,7 +14,7 @@
     "dev": "turbo run dev --parallel",
     "test-types": "pnpm tsc",
     "test-unit": "pnpm jest test/unit/",
-    "test-dev": "cross-env NEXT_TEST_MODE=dev pnpm testheadless",
+    "test-dev": "cross-env NEXT_TEST_MODE=dev pnpm testonly",
     "test-start": "cross-env NEXT_TEST_MODE=start pnpm testheadless",
     "test-deploy": "cross-env NEXT_TEST_MODE=deploy pnpm testheadless",
     "test": "cross-env HEADLESS=true pnpm testonly",
