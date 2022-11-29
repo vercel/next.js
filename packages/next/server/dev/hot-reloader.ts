@@ -182,6 +182,7 @@ export default class HotReloader {
   public activeConfigs?: Array<
     UnwrapPromise<ReturnType<typeof getBaseWebpackConfig>>
   >
+  private firstTimeCall = true;
 
   constructor(
     dir: string,
@@ -308,6 +309,10 @@ export default class HotReloader {
 
         try {
           const payload = JSON.parse(data)
+          if (payload.event === 'client-full-reload' && this.firstTimeCall) {
+            payload.event = ''
+            this.firstTimeCall = false
+          }
 
           let traceChild:
             | {
