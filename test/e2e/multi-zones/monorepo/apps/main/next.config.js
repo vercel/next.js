@@ -1,6 +1,9 @@
 const { DOCS_URL } = process.env
 
 module.exports = {
+  experimental: {
+    transpilePackages: ['@acme/ui'],
+  },
   async rewrites() {
     return [
       /**

@@ -4,17 +4,10 @@
   "sideEffects": false,
   "type": "module",
   "exports": {
-    "./link": "./link.js"
-  },
-  "typesVersions": {
-    "*": {
-      "*": [
-        "./*.d.ts"
-      ]
-    }
+    "./link": "./src/link.js"
   },
   "files": [
-    "dist"
+    "src"
   ],
   "peerDependencies": {
     "next": "*",

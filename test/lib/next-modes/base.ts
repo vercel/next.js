@@ -125,6 +125,9 @@ export class NextInstance {
         )
       }
 
+      // For monorepos we need to write all the package.json's before installing deps, which
+      // requires iterating over the files, so the files are written to the tmp directory earlier
+      // and we'll find the package.json's in the process.
       await this.writeInitialFiles(true, async (src, dest, content) => {
         const packageJson = JSON.parse(
           content || (await fs.readFile(src, 'utf8'))

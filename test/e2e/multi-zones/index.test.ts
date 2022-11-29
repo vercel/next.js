@@ -32,7 +32,7 @@ describe('Multi Zones', () => {
           path.join(__dirname, 'monorepo/pnpm-workspace.yaml')
         ),
         'turbo.json': new FileRef(path.join(__dirname, 'monorepo/turbo.json')),
-        'apps/main/.env': `DOCS_URL=https://localhost:${docsAppPort}`,
+        'apps/main/.env': `DOCS_URL=http://localhost:${docsAppPort}`,
         'apps/main/package.json': JSON.stringify({
           name: 'main',
           private: true,
