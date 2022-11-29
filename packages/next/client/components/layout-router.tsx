@@ -117,6 +117,9 @@ export function InnerLayoutRouter({
 
   const { changeByServerResponse, tree: fullTree, focusAndScrollRef } = context
 
+  const router = useRouter()
+  const refScroll = useRef(null)
+
   const focusAndScrollElementRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -128,13 +131,39 @@ export function InnerLayoutRouter({
       focusAndScrollElementRef.current.focus()
       // Only scroll into viewport when the layout is not visible currently.
       if (!topOfElementInViewport(focusAndScrollElementRef.current)) {
-        const htmlElement = document.documentElement
-        const existing = htmlElement.style.scrollBehavior
-        htmlElement.style.scrollBehavior = 'auto'
         focusAndScrollElementRef.current.scrollIntoView()
-        htmlElement.style.scrollBehavior = existing
       }
     }
+
+    /**
+     * 1. The route change starts
+     * Switch the scroll behavior to 'auto'
+     * Scroll immediately to the top and hold the value until the route change finishes.
+     */
+    const handleRouteChangeStart = () => {
+      refScroll.current = document.documentElement.style.scrollBehavior;
+      document.documentElement.style.scrollBehavior = 'auto';
+    }
+
+    /**
+     * 2. The route change finishes
+     * Switch back to the default value specified in global css for the html element.
+     * For smooth-scrolling smooth, the behavior is 'smooth'. Hash changes are no route
+     * changes; the result is smooth scrolling on hash changes.
+     */
+    const handleRouteChangeComplete = () => {
+      document.documentElement.style.scrollBehavior = refScroll.current;
+    }
+
+    // Subscribe to routeChangeStart, routeChangeComplete events
+    router.events.on('routeChangeStart', handleRouteChangeStart);
+    router.events.on('routeChangeComplete', handleRouteChangeComplete);
+
+    return () => {
+      router.events.off('routeChangeStart', handleRouteChangeStart);
+      router.events.off('routeChangeComplete', handleRouteChangeComplete);
+    };
+
   }, [focusAndScrollRef])
 
   // Read segment path from the parallel router cache node.

@@ -523,6 +523,7 @@ function renderReactElement(
 
 function Root({
   callbacks,
+  router,
   children,
 }: React.PropsWithChildren<{
   callbacks: Array<() => void>
@@ -533,10 +534,43 @@ function Root({
     () => callbacks.forEach((callback) => callback()),
     [callbacks]
   )
+
+  const refScroll = React.useRef(null)
+
   // We should ask to measure the Web Vitals after rendering completes so we
   // don't cause any hydration delay:
   React.useEffect(() => {
     measureWebVitals(onPerfEntry)
+    
+    /**
+     * 1. The route change starts
+     * Switch the scroll behavior to 'auto'
+     * Scroll immediately to the top and hold the value until the route change finishes.
+     */
+    const handleRouteChangeStart = () => {
+      refScroll.current = document.documentElement.style.scrollBehavior;
+      document.documentElement.style.scrollBehavior = 'auto';
+    }
+
+    /**
+     * 2. The route change finishes
+     * Switch back to the default value specified in global css for the html element.
+     * For smooth-scrolling smooth, the behavior is 'smooth'. Hash changes are no route
+     * changes; the result is smooth scrolling on hash changes.
+     */
+     const handleRouteChangeComplete = () => {
+      document.documentElement.style.scrollBehavior = refScroll.current;
+    }
+    
+    // Subscribe to routeChangeStart, routeChangeComplete events
+    router.events.on('routeChangeStart', handleRouteChangeStart);
+    router.events.on('routeChangeComplete', handleRouteChangeComplete);
+
+    return () => {
+      router.events.off('routeChangeStart', handleRouteChangeStart);
+      router.events.off('routeChangeComplete', handleRouteChangeComplete);
+    };
+    
   }, [])
 
   if (process.env.__NEXT_TEST_MODE) {
@@ -692,13 +726,8 @@ function doRender(input: RenderRouteInfo): Promise<any> {
         el.parentNode!.removeChild(el)
       })
     }
-
     if (input.scroll) {
-      const htmlElement = document.documentElement
-      const existing = htmlElement.style.scrollBehavior
-      htmlElement.style.scrollBehavior = 'auto'
-      window.scrollTo(input.scroll.x, input.scroll.y)
-      htmlElement.style.scrollBehavior = existing
+      window.scrollTo(input.scroll.x, input.scroll.y);
     }
   }
 
@@ -722,7 +751,7 @@ function doRender(input: RenderRouteInfo): Promise<any> {
 
   // We catch runtime errors using componentDidCatch which will trigger renderError
   renderReactElement(appElement!, (callback) => (
-    <Root callbacks={[callback, onRootCommit]}>
+    <Root router={router} callbacks={[callback, onRootCommit]}>
       {process.env.__NEXT_STRICT_MODE ? (
         <React.StrictMode>{elem}</React.StrictMode>
       ) : (

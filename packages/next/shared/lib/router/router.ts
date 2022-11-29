@@ -655,14 +655,6 @@ interface FetchNextDataParams {
   unstable_skipClientCache?: boolean
 }
 
-function handleSmoothScroll(fn: () => void) {
-  const htmlElement = document.documentElement
-  const existing = htmlElement.style.scrollBehavior
-  htmlElement.style.scrollBehavior = 'auto'
-  fn()
-  htmlElement.style.scrollBehavior = existing
-}
-
 function tryToParseAsJSON(text: string) {
   try {
     return JSON.parse(text)
@@ -2228,7 +2220,7 @@ export default class Router implements BaseRouter {
     // Scroll to top if the hash is just `#` with no value or `#top`
     // To mirror browsers
     if (hash === '' || hash === 'top') {
-      handleSmoothScroll(() => window.scrollTo(0, 0))
+      window.scrollTo(0, 0)
       return
     }
 
@@ -2237,14 +2229,14 @@ export default class Router implements BaseRouter {
     // First we check if the element by id is found
     const idEl = document.getElementById(rawHash)
     if (idEl) {
-      handleSmoothScroll(() => idEl.scrollIntoView())
+      idEl.scrollIntoView()
       return
     }
     // If there's no element with the id, we check the `name` property
     // To mirror browsers
     const nameEl = document.getElementsByName(rawHash)[0]
     if (nameEl) {
-      handleSmoothScroll(() => nameEl.scrollIntoView())
+      nameEl.scrollIntoView()
     }
   }
 
