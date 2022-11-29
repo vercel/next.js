@@ -17,7 +17,7 @@ if (process.env.NODE_ENV !== "production") {
 var React = require('react');
 var ReactDOM = require('react-dom');
 
-var ReactVersion = '18.3.0-next-4bd245e9e-20221104';
+var ReactVersion = '18.3.0-next-2655c9354-20221121';
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -93,6 +93,9 @@ function stringToChunk(content) {
 }
 function stringToPrecomputedChunk(content) {
   return content;
+}
+function clonePrecomputedChunk(chunk) {
+  return chunk;
 }
 function closeWithError(destination, error) {
   // $FlowFixMe: This is an Error object or the destination accepts other types.
@@ -4572,7 +4575,7 @@ function writeCompletedBoundaryInstruction(destination, responseState, boundaryI
     if (!responseState.sentCompleteBoundaryFunction) {
       responseState.sentCompleteBoundaryFunction = true;
       responseState.sentStyleInsertionFunction = true;
-      writeChunk(destination, completeBoundaryWithStylesScript1FullBoth);
+      writeChunk(destination, clonePrecomputedChunk(completeBoundaryWithStylesScript1FullBoth));
     } else if (!responseState.sentStyleInsertionFunction) {
       responseState.sentStyleInsertionFunction = true;
       writeChunk(destination, completeBoundaryWithStylesScript1FullPartial);
@@ -7709,6 +7712,7 @@ var didWarnAboutModulePatternComponent = {};
 var didWarnAboutContextTypeOnFunctionComponent = {};
 var didWarnAboutGetDerivedStateOnFunctionComponent = {};
 var didWarnAboutReassigningProps = false;
+var didWarnAboutDefaultPropsOnFunctionComponent = {};
 var didWarnAboutGenerators = false;
 var didWarnAboutMaps = false;
 var hasWarnedAboutUsingContextAsConsumer = false; // This would typically be a function component but we still support module pattern
@@ -7801,6 +7805,16 @@ function validateFunctionComponentInDev(Component) {
     if (Component) {
       if (Component.childContextTypes) {
         error('%s(...): childContextTypes cannot be defined on a function component.', Component.displayName || Component.name || 'Component');
+      }
+    }
+
+    if ( Component.defaultProps !== undefined) {
+      var componentName = getComponentNameFromType(Component) || 'Unknown';
+
+      if (!didWarnAboutDefaultPropsOnFunctionComponent[componentName]) {
+        error('%s: Support for defaultProps will be removed from function components ' + 'in a future major release. Use JavaScript default parameters instead.', componentName);
+
+        didWarnAboutDefaultPropsOnFunctionComponent[componentName] = true;
       }
     }
 
