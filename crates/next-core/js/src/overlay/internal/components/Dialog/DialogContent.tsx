@@ -1,18 +1,35 @@
 import * as React from "react";
 
-export type DialogContentProps = React.PropsWithChildren & {
-  className?: string;
-};
+import { clsx } from "../../helpers/clsx";
+import { noop as css } from "../../helpers/noop-template";
 
-const DialogContent: React.FC<DialogContentProps> = function DialogContent({
-  children,
+export type DialogContentProps = {
+  className?: string;
+  children?: React.ReactNode;
+} & React.HTMLProps<HTMLDivElement>;
+
+export function DialogContent({
   className,
-}) {
+  children,
+  ...rest
+}: DialogContentProps) {
   return (
-    <div data-nextjs-dialog-content className={className}>
+    <div className={clsx("dialog-content", className)} {...rest}>
       {children}
     </div>
   );
-};
+}
 
-export { DialogContent };
+export const styles = css`
+  .dialog-content {
+    display: flex;
+    flex-direction: column;
+
+    overflow-y: hidden;
+    border: none;
+    margin: 0;
+    padding: 0;
+
+    height: 100%;
+  }
+`;

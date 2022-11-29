@@ -6,10 +6,7 @@ export type ShadowPortalProps = {
   globalOverlay?: boolean;
 };
 
-export const ShadowPortal: React.FC<ShadowPortalProps> = function Portal({
-  children,
-  globalOverlay,
-}) {
+export function ShadowPortal({ children, globalOverlay }: ShadowPortalProps) {
   const mountNode = React.useRef<HTMLDivElement | null>(null);
   const portalNode = React.useRef<HTMLElement | null>(null);
   const shadowNode = React.useRef<ShadowRoot | null>(null);
@@ -35,4 +32,4 @@ export const ShadowPortal: React.FC<ShadowPortalProps> = function Portal({
   ) : globalOverlay ? null : (
     <span ref={mountNode} />
   );
-};
+}

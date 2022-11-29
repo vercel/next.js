@@ -1,14 +1,10 @@
 import { noop as css } from "../../helpers/noop-template";
 
 const styles = css`
-  [data-nextjs-dialog-left-right] {
-    display: flex;
-    flex-direction: row;
-    align-content: center;
-    align-items: center;
-    justify-content: space-between;
-  }
-  [data-nextjs-dialog-left-right] > nav > button {
+  .dialog-left-right > button {
+    --bg-alpha: 0.1;
+    --fg-alpha: 1;
+
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -17,44 +13,44 @@ const styles = css`
     height: calc(var(--size-gap-double) + var(--size-gap));
     font-size: 0;
     border: none;
-    background-color: rgba(255, 85, 85, 0.1);
-    color: var(--color-ansi-red);
+
+    background-color: hsla(var(--color-base), var(--bg-alpha));
+    color: hsla(var(--color-base), var(--fg-alpha));
+
     cursor: pointer;
     transition: background-color 0.25s ease;
   }
-  [data-nextjs-dialog-left-right] > nav > button > svg {
-    width: auto;
-    height: calc(var(--size-gap) + var(--size-gap-half));
+
+  .dialog-left-right[data-severity="error"] > button {
+    --color-base: var(--color-error-bright-hsl);
   }
-  [data-nextjs-dialog-left-right] > nav > button:hover {
-    background-color: rgba(255, 85, 85, 0.2);
+
+  .dialog-left-right[data-severity="warning"] > button {
+    --color-base: var(--color-warning-bright-hsl);
   }
-  [data-nextjs-dialog-left-right] > nav > button:disabled {
-    background-color: rgba(255, 85, 85, 0.1);
-    color: rgba(255, 85, 85, 0.4);
+
+  .dialog-left-right > button:hover {
+    --bg-alpha: 0.2;
+  }
+
+  .dialog-left-right > button:disabled {
+    --bg-alpha: 0.1;
+    --fg-alpha: 0.4;
     cursor: not-allowed;
   }
 
-  [data-nextjs-dialog-left-right] > nav > button:first-of-type {
+  .dialog-left-right > button:first-of-type {
     border-radius: var(--size-gap-half) 0 0 var(--size-gap-half);
     margin-right: 1px;
   }
-  [data-nextjs-dialog-left-right] > nav > button:last-of-type {
+
+  .dialog-left-right > button:last-of-type {
     border-radius: 0 var(--size-gap-half) var(--size-gap-half) 0;
   }
 
-  [data-nextjs-dialog-left-right] > button:last-of-type {
-    border: 0;
-    padding: 0;
-
-    background-color: transparent;
-    appearance: none;
-
-    opacity: 0.4;
-    transition: opacity 0.25s ease;
-  }
-  [data-nextjs-dialog-left-right] > button:last-of-type:hover {
-    opacity: 0.7;
+  .dialog-left-right > button > svg {
+    width: auto;
+    height: var(--size-icon-small);
   }
 `;
 

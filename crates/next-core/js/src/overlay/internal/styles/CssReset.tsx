@@ -1,4 +1,3 @@
-import * as React from "react";
 import { noop as css } from "../helpers/noop-template";
 
 export function CssReset() {
@@ -47,10 +46,7 @@ export function CssReset() {
 
         :host {
           margin: 0;
-          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-            "Helvetica Neue", Arial, "Noto Sans", sans-serif,
-            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol",
-            "Noto Color Emoji";
+          font-family: var(--font-sans);
           font-size: 16px;
           font-weight: 400;
           line-height: 1.5;

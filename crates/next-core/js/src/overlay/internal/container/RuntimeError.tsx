@@ -2,15 +2,17 @@ import * as React from "react";
 import { StackFrame } from "@vercel/turbopack-next/compiled/stacktrace-parser";
 
 import { CodeFrame } from "../components/CodeFrame";
-import { ReadyRuntimeError } from "../helpers/getErrorByType";
+import { DialogBody, DialogBodyProps } from "../components/Dialog";
+import { LeftRightDialogHeader } from "../components/LeftRightDialogHeader";
+import { clsx } from "../helpers/clsx";
+import { getErrorSource } from "../helpers/nodeStackFrames";
 import { noop as css } from "../helpers/noop-template";
+import { ReadyRuntimeError } from "../helpers/getErrorByType";
 import { getFrameSource, OriginalStackFrame } from "../helpers/stack-frame";
+import { usePagination } from "../hooks/usePagination";
+import { ExternalLink } from "../icons";
 
-export type RuntimeErrorProps = { error: ReadyRuntimeError };
-
-const CallStackFrame: React.FC<{
-  frame: OriginalStackFrame;
-}> = function CallStackFrame({ frame }) {
+function CallStackFrame({ frame }: { frame: OriginalStackFrame }) {
   // TODO: ability to expand resolved frames
   // TODO: render error or external indicator
 
@@ -40,10 +42,8 @@ const CallStackFrame: React.FC<{
   }, [hasSource, f]);
 
   return (
-    <div data-nextjs-call-stack-frame>
-      <h6 data-nextjs-frame-expanded={Boolean(frame.expanded)}>
-        {f.methodName}
-      </h6>
+    <li className="call-stack-frame" data-expanded={Boolean(frame.expanded)}>
+      <h6>{f.methodName}</h6>
       <div
         data-has-source={hasSource ? "true" : undefined}
         tabIndex={hasSource ? 10 : undefined}
@@ -52,27 +52,15 @@ const CallStackFrame: React.FC<{
         title={hasSource ? "Click to open in your editor" : undefined}
       >
         <span>{getFrameSource(f)}</span>
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-          <polyline points="15 3 21 3 21 9"></polyline>
-          <line x1="10" y1="14" x2="21" y2="3"></line>
-        </svg>
+        <ExternalLink />
       </div>
-    </div>
+    </li>
   );
-};
+}
 
-const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
-  error,
-}) {
+export type RuntimeErrorProps = { error: ReadyRuntimeError };
+
+export function RuntimeError({ error }: RuntimeErrorProps) {
   const firstFirstPartyFrameIndex = React.useMemo<number>(() => {
     return error.frames.findIndex(
       (entry) =>
@@ -124,77 +112,200 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
   ]);
 
   return (
-    <React.Fragment>
+    <>
       {firstFrame ? (
-        <React.Fragment>
+        <>
           <h5>Source</h5>
-          {leadingFrames.map((frame, index) => (
-            <CallStackFrame
-              key={`leading-frame-${index}-${all}`}
-              frame={frame}
-            />
-          ))}
+          <ul className="call-stack-frames">
+            {leadingFrames.map((frame, index) => (
+              <CallStackFrame
+                key={`leading-frame-${index}-${all}`}
+                frame={frame}
+              />
+            ))}
+          </ul>
           <CodeFrame
             stackFrame={firstFrame.originalStackFrame!}
             codeFrame={firstFrame.originalCodeFrame!}
           />
-        </React.Fragment>
+        </>
       ) : undefined}
       {visibleCallStackFrames.length ? (
-        <React.Fragment>
+        <>
           <h5>Call Stack</h5>
-          {visibleCallStackFrames.map((frame, index) => (
-            <CallStackFrame key={`call-stack-${index}-${all}`} frame={frame} />
-          ))}
-        </React.Fragment>
+          <ul className="call-stack-frames">
+            {visibleCallStackFrames.map((frame, index) => (
+              <CallStackFrame
+                key={`call-stack-${index}-${all}`}
+                frame={frame}
+              />
+            ))}
+          </ul>
+        </>
       ) : undefined}
       {canShowMore ? (
-        <React.Fragment>
+        <>
           <button
             tabIndex={10}
-            data-nextjs-data-runtime-error-collapsed-action
             type="button"
             onClick={toggleAll}
+            className="runtime-error-collapsed-action"
           >
             {all ? "Hide" : "Show"} collapsed frames
           </button>
-        </React.Fragment>
+        </>
       ) : undefined}
-    </React.Fragment>
+    </>
   );
+}
+
+function HotlinkedText(props: { text: string }) {
+  const { text } = props;
+
+  const linkRegex = /https?:\/\/[^\s/$.?#].[^\s"]*/i;
+  return (
+    <>
+      {linkRegex.test(text)
+        ? text.split(" ").map((word, index, array) => {
+            if (linkRegex.test(word)) {
+              return (
+                <React.Fragment key={`link-${index}`}>
+                  <a href={word}>{word}</a>
+                  {index === array.length - 1 ? "" : " "}
+                </React.Fragment>
+              );
+            }
+            return index === array.length - 1 ? (
+              <React.Fragment key={`text-${index}`}>{word}</React.Fragment>
+            ) : (
+              <React.Fragment key={`text-${index}`}>{word} </React.Fragment>
+            );
+          })
+        : text}
+    </>
+  );
+}
+
+type RuntimeErrorsDialogBodyProps = {
+  isLoading: boolean;
+  readyErrors: ReadyRuntimeError[];
+  "data-hidden"?: boolean;
 };
 
+export function RuntimeErrorsDialogBody({
+  isLoading,
+  readyErrors,
+  "data-hidden": hidden = false,
+  className,
+  ...rest
+}: RuntimeErrorsDialogBodyProps & Omit<DialogBodyProps, "children">) {
+  const [activeError, { previous, next }, activeIdx] =
+    usePagination(readyErrors);
+
+  if (isLoading) {
+    return (
+      <DialogBody
+        {...rest}
+        data-hidden={hidden}
+        className={clsx("runtime-errors", className)}
+      >
+        <h1 id="errors_label">Resolving Source Maps...</h1>
+      </DialogBody>
+    );
+  }
+
+  if (readyErrors.length < 1 || activeError == null) {
+    return (
+      <DialogBody
+        {...rest}
+        data-hidden={hidden}
+        className={clsx("runtime-errors", className)}
+      />
+    );
+  }
+
+  const isServerError = ["server", "edge-server"].includes(
+    getErrorSource(activeError.error) || ""
+  );
+
+  return (
+    <DialogBody
+      {...rest}
+      data-hidden={hidden}
+      className={clsx("runtime-errors", className)}
+    >
+      <div className="title-pagination">
+        <h1 id="errors_label">
+          {isServerError ? "Server Error" : "Unhandled Runtime Error"}
+        </h1>
+        <LeftRightDialogHeader
+          hidden={hidden}
+          previous={activeIdx > 0 ? previous : null}
+          next={activeIdx < readyErrors.length - 1 ? next : null}
+          severity="error"
+        >
+          <small>
+            <span>{activeIdx + 1}</span> of <span>{readyErrors.length}</span>
+          </small>
+        </LeftRightDialogHeader>
+      </div>
+      <h2 id="errors_desc" data-severity="error">
+        {activeError.error.name}:{" "}
+        <HotlinkedText text={activeError.error.message} />
+      </h2>
+      {isServerError ? (
+        <div>
+          <small>
+            This error happened while generating the page. Any console logs will
+            be displayed in the terminal window.
+          </small>
+        </div>
+      ) : undefined}
+      <RuntimeError key={activeError.id.toString()} error={activeError} />
+    </DialogBody>
+  );
+}
+
 export const styles = css`
-  button[data-nextjs-data-runtime-error-collapsed-action] {
+  button.runtime-error-collapsed-action {
     background: none;
     border: none;
     padding: 0;
     font-size: var(--size-font-small);
     line-height: var(--size-font-bigger);
-    color: var(--color-accents-3);
+    color: var(--color-text-dim);
   }
 
-  [data-nextjs-call-stack-frame]:not(:last-child) {
+  .call-stack-frames {
+    list-style: none;
+    padding-left: calc(var(--size-gap) + var(--size-gap-half));
+    overflow-y: scroll;
+  }
+
+  .call-stack-frame:not(:last-child) {
     margin-bottom: var(--size-gap-double);
   }
 
-  [data-nextjs-call-stack-frame] > h6 {
+  .call-stack-frame > h6 {
     margin-top: 0;
-    margin-bottom: var(--size-gap);
-    font-family: var(--font-stack-monospace);
-    color: #222;
-  }
-  [data-nextjs-call-stack-frame] > h6[data-nextjs-frame-expanded="false"] {
+    margin-bottom: 0;
+    font-family: var(--font-mono);
     color: #666;
   }
-  [data-nextjs-call-stack-frame] > div {
+
+  .call-stack-frame[data-expanded="true"] > h6 {
+    color: #222;
+  }
+
+  .call-stack-frame > div {
     display: flex;
     align-items: center;
     padding-left: calc(var(--size-gap) + var(--size-gap-half));
     font-size: var(--size-font-small);
     color: #999;
   }
-  [data-nextjs-call-stack-frame] > div > svg {
+
+  .call-stack-frame > div > svg {
     width: auto;
     height: var(--size-font-small);
     margin-left: var(--size-gap);
@@ -202,15 +313,15 @@ export const styles = css`
     display: none;
   }
 
-  [data-nextjs-call-stack-frame] > div[data-has-source] {
+  .call-stack-frame > div[data-has-source] {
     cursor: pointer;
   }
-  [data-nextjs-call-stack-frame] > div[data-has-source]:hover {
+
+  .call-stack-frame > div[data-has-source]:hover {
     text-decoration: underline dotted;
   }
-  [data-nextjs-call-stack-frame] > div[data-has-source] > svg {
+
+  .call-stack-frame > div[data-has-source] > svg {
     display: unset;
   }
 `;
-
-export { RuntimeError };
