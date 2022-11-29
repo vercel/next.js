@@ -81,11 +81,8 @@ const nextStart: cliCommand = (argv) => {
   })
     .then(async (app) => {
       const appUrl = `http://${app.hostname}:${app.port}`
-      Log.ready(
-        `started server on ${isIPv6(host) ? `[${host}]` : host}:${
-          app.port
-        }, url: ${appUrl}`
-      )
+      const hostname = isIPv6(host) ? `[${host}]` : host
+      Log.ready(`started server on ${hostname}:${app.port}, url: ${appUrl}`)
       await app.prepare()
     })
     .catch((err) => {
