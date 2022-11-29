@@ -22,8 +22,8 @@ use next_core::{
 };
 use owo_colors::OwoColorize;
 use turbo_tasks::{
-    primitives::StringsVc, util::FormatDuration, RawVc, TransientInstance, TransientValue,
-    TurboTasks, Value,
+    primitives::StringsVc, util::FormatDuration, RawVc, StatsType, TransientInstance,
+    TransientValue, TurboTasks, TurboTasksBackendApi, Value,
 };
 use turbo_tasks_fs::{DiskFileSystemVc, FileSystemVc};
 use turbo_tasks_memory::MemoryBackend;
@@ -378,6 +378,13 @@ pub async fn start_server(options: &DevServerOptions) -> Result<()> {
     };
 
     let tt = TurboTasks::new(MemoryBackend::new());
+
+    let stats_type = match options.full_stats {
+        true => StatsType::Full,
+        false => StatsType::Essential,
+    };
+    tt.set_stats_type(stats_type);
+
     let tt_clone = tt.clone();
 
     #[allow(unused_mut)]
