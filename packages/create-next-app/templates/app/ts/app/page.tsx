@@ -32,12 +32,13 @@ export default function Home() {
             className={spaceMono.className}
             href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
             target="_blank"
-            rel="noopener"
+            rel="noopener noreferrer"
           >
             By{' '}
             <Image
               src="/vercel.svg"
               alt="Vercel Logo"
+              className={styles.vercelLogo}
               width={100}
               height={24}
               priority
@@ -65,7 +66,7 @@ export default function Home() {
           href="https://beta.nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
           className={styles.card}
           target="_blank"
-          rel="noopener"
+          rel="noopener noreferrer"
         >
           <h2 className={inter.className}>
             Docs <span>-&gt;</span>
@@ -79,7 +80,7 @@ export default function Home() {
           href="https://vercel.com/templates/next.js/app-directory?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
           className={styles.card}
           target="_blank"
-          rel="noopener"
+          rel="noopener noreferrer"
         >
           <h2 className={inter.className}>
             Examples <span>-&gt;</span>
@@ -93,7 +94,7 @@ export default function Home() {
           href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
           className={styles.card}
           target="_blank"
-          rel="noopener"
+          rel="noopener noreferrer"
         >
           <h2 className={inter.className}>
             Deploy <span>-&gt;</span>
