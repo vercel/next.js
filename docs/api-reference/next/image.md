@@ -40,9 +40,30 @@ This `next/image` component uses browser native [lazy loading](https://caniuse.c
 
 ## Known Browser Bugs
 
-- [Safari 15](https://bugs.webkit.org/show_bug.cgi?id=243601) displays a gray border while loading. Possible solutions:
-  - Use CSS `@media not all and (min-resolution:.001dpcm) { img[loading="lazy"] { clip-path: inset(0.5px) } }`
+- [Safari 15+](https://bugs.webkit.org/show_bug.cgi?id=243601) displays a gray border while loading. Possible solutions:
+
+  - Use CSS
+
+  ```
+  /* For Safari from v10.1 to v15.6 */
+  @media not all and (min-resolution: 0.001dpcm) {
+    img[loading="lazy"] {
+      clip-path: inset(.5px);
+    }
+  }
+  /* For Safari v16.0+ */
+  @media (min-resolution: 0.001dpcm) {
+    @supports (-webkit-appearance: none) and (stroke-color: transparent) {
+      img[loading="lazy"] {
+        clip-path: inset(.5px);
+      }
+    }
+  }
+
+  ```
+
   - Use [`priority`](#priority) if the image is above the fold
+
 - [Firefox 67+](https://bugzilla.mozilla.org/show_bug.cgi?id=1556156) displays a white background while loading. Possible solutions:
   - Enable [AVIF `formats`](#acceptable-formats)
   - Use [`placeholder="blur"`](#placeholder)
