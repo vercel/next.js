@@ -367,6 +367,10 @@ function tryApplyUpdates(onBeforeHotUpdate, onHotUpdateSuccess) {
   module.hot
     .check(/* autoApply */ false)
     .then((updatedModules) => {
+      if (!updatedModules) {
+        return null
+      }
+
       if (typeof onBeforeHotUpdate === 'function') {
         const hasUpdates = Boolean(updatedModules.length)
         onBeforeHotUpdate(hasUpdates)
@@ -394,6 +398,7 @@ function performFullReload(err) {
     JSON.stringify({
       event: 'client-full-reload',
       stackTrace,
+      hadRuntimeError: !!hadRuntimeError,
     })
   )
 

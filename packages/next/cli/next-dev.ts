@@ -183,6 +183,12 @@ const nextDev: cliCommand = async (argv) => {
         await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, undefined, true)
       ) as NextConfig
 
+      if (typeof rawNextConfig === 'function') {
+        rawNextConfig = (rawNextConfig as any)(PHASE_DEVELOPMENT_SERVER, {
+          defaultConfig,
+        })
+      }
+
       const checkUnsupportedCustomConfig = (
         configKey = '',
         parentUserConfig: any,
@@ -374,9 +380,9 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
         eventCliSession(distDir, rawNextConfig as NextConfigComplete, {
           webpackVersion: 5,
           cliCommand: 'dev',
-          isSrcDir:
-            (!!pagesDir && path.relative(dir, pagesDir).startsWith('src')) ||
-            (!!appDir && path.relative(dir, appDir).startsWith('src')),
+          isSrcDir: path
+            .relative(dir, pagesDir || appDir || '')
+            .startsWith('src'),
           hasNowJson: !!(await findUp('now.json', { cwd: dir })),
           isCustomServer: false,
           turboFlag: true,

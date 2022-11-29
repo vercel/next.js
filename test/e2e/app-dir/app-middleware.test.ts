@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import { NextInstance } from 'test/lib/next-modes/base'
-import { fetchViaHTTP } from 'next-test-utils'
+import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
 import { createNext, FileRef } from 'e2e-utils'
 import cheerio from 'cheerio'
 import path from 'path'
@@ -18,10 +18,6 @@ describe('app-dir with middleware', () => {
   beforeAll(async () => {
     next = await createNext({
       files: new FileRef(path.join(__dirname, 'app-middleware')),
-      dependencies: {
-        react: 'experimental',
-        'react-dom': 'experimental',
-      },
     })
   })
 
@@ -120,5 +116,43 @@ describe('app-dir with middleware', () => {
       expect(res.headers.get('x-middleware-request-x-from-client2')).toBeNull()
       expect(res.headers.get('x-middleware-request-x-from-client3')).toBeNull()
     })
+  })
+})
+
+describe('app dir middleware without pages dir', () => {
+  if ((global as any).isNextDeploy) {
+    it('should skip next deploy for now', () => {})
+    return
+  }
+
+  let next: NextInstance
+
+  afterAll(() => next.destroy())
+  beforeAll(async () => {
+    next = await createNext({
+      files: {
+        app: new FileRef(path.join(__dirname, 'app-middleware/app')),
+        'next.config.js': new FileRef(
+          path.join(__dirname, 'app-middleware/next.config.js')
+        ),
+        'middleware.js': `
+          import { NextResponse } from 'next/server'
+
+          export async function middleware(request) {
+            return new NextResponse('redirected')
+          }
+
+          export const config = {
+            matcher: '/headers'
+          }
+        `,
+      },
+    })
+  })
+
+  it(`Updates headers`, async () => {
+    const html = await renderViaHTTP(next.url, '/headers')
+
+    expect(html).toContain('redirected')
   })
 })

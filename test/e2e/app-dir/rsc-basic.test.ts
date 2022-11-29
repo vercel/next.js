@@ -273,8 +273,20 @@ describe('app dir - rsc basics', () => {
     expect(content).toContain('bar.server.js:')
   })
 
-  it('should render initial styles of css-in-js in SSR correctly', async () => {
+  it('should render initial styles of css-in-js in nodejs SSR correctly', async () => {
     const html = await renderViaHTTP(next.url, '/css-in-js')
+    const head = getNodeBySelector(html, 'head').html()
+
+    // from styled-jsx
+    expect(head).toMatch(/{color:(\s*)purple;?}/) // styled-jsx/style
+    expect(head).toMatch(/{color:(\s*)hotpink;?}/) // styled-jsx/css
+
+    // from styled-components
+    expect(head).toMatch(/{color:(\s*)blue;?}/)
+  })
+
+  it('should render initial styles of css-in-js in edge SSR correctly', async () => {
+    const html = await renderViaHTTP(next.url, '/css-in-js/edge')
     const head = getNodeBySelector(html, 'head').html()
 
     // from styled-jsx

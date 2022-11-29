@@ -304,6 +304,11 @@ const configSchema = {
         manualClientBasePath: {
           type: 'boolean',
         },
+        middlewarePrefetch: {
+          // automatic typing doesn't like enum
+          enum: ['strict', 'flexible'] as any,
+          type: 'string',
+        },
         modularizeImports: {
           type: 'object',
         },
@@ -329,6 +334,9 @@ const configSchema = {
         outputFileTracingRoot: {
           minLength: 1,
           type: 'string',
+        },
+        outputFileTracingIgnores: {
+          type: 'array',
         },
         pageEnv: {
           type: 'boolean',
