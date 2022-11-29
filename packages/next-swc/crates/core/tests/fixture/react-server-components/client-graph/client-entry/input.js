@@ -16,8 +16,6 @@
 
 import "fs"
 
-"use client";
-
 "bar";
 
 // This is a comment.

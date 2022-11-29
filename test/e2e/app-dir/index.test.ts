@@ -1,17 +1,22 @@
+import os from 'os'
 import { createNext, FileRef } from 'e2e-utils'
 import crypto from 'crypto'
 import { NextInstance } from 'test/lib/next-modes/base'
 import {
   check,
   fetchViaHTTP,
+  findPort,
   getRedboxHeader,
   hasRedbox,
+  initNextServerScript,
+  killApp,
   renderViaHTTP,
   waitFor,
 } from 'next-test-utils'
 import path from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
+import fs from 'fs-extra'
 
 describe('app dir', () => {
   const isDev = (global as any).isNextDev
@@ -377,6 +382,49 @@ describe('app dir', () => {
         }
       }
     )
+    ;(isDev ? describe : describe.skip)('HMR', () => {
+      it('should HMR correctly for client component', async () => {
+        const filePath = 'app/client-component-route/page.js'
+        const origContent = await next.readFile(filePath)
+
+        try {
+          const browser = await webdriver(next.url, '/client-component-route')
+
+          const ssrInitial = await renderViaHTTP(
+            next.url,
+            '/client-component-route'
+          )
+
+          expect(ssrInitial).toContain('hello from app/client-component-route')
+
+          expect(await browser.elementByCss('p').text()).toContain(
+            'hello from app/client-component-route'
+          )
+
+          await next.patchFile(
+            filePath,
+            origContent.replace('hello from', 'swapped from')
+          )
+
+          await check(() => browser.elementByCss('p').text(), /swapped from/)
+
+          const ssrUpdated = await renderViaHTTP(
+            next.url,
+            '/client-component-route'
+          )
+          expect(ssrUpdated).toContain('swapped from')
+
+          await next.patchFile(filePath, origContent)
+
+          await check(() => browser.elementByCss('p').text(), /hello from/)
+          expect(
+            await renderViaHTTP(next.url, '/client-component-route')
+          ).toContain('hello from')
+        } finally {
+          await next.patchFile(filePath, origContent)
+        }
+      })
+    })
 
     it('should handle hash in initial url', async () => {
       const browser = await webdriver(next.url, '/dashboard#abc')
@@ -1327,52 +1375,6 @@ describe('app dir', () => {
           })
         })
       })
-
-      if (isDev) {
-        it('should HMR correctly for client component', async () => {
-          const filePath = 'app/client-component-route/page.js'
-          const origContent = await next.readFile(filePath)
-
-          try {
-            const browser = await webdriver(next.url, '/client-component-route')
-
-            const ssrInitial = await renderViaHTTP(
-              next.url,
-              '/client-component-route'
-            )
-
-            expect(ssrInitial).toContain(
-              'hello from app/client-component-route'
-            )
-
-            expect(await browser.elementByCss('p').text()).toContain(
-              'hello from app/client-component-route'
-            )
-
-            await next.patchFile(
-              filePath,
-              origContent.replace('hello from', 'swapped from')
-            )
-
-            await check(() => browser.elementByCss('p').text(), /swapped from/)
-
-            const ssrUpdated = await renderViaHTTP(
-              next.url,
-              '/client-component-route'
-            )
-            expect(ssrUpdated).toContain('swapped from')
-
-            await next.patchFile(filePath, origContent)
-
-            await check(() => browser.elementByCss('p').text(), /hello from/)
-            expect(
-              await renderViaHTTP(next.url, '/client-component-route')
-            ).toContain('hello from')
-          } finally {
-            await next.patchFile(filePath, origContent)
-          }
-        })
-      }
     })
 
     describe('css support', () => {
@@ -2554,4 +2556,44 @@ describe('app dir', () => {
   }
 
   runTests()
+
+  if ((global as any).isNextStart) {
+    it('should work correctly with output standalone', async () => {
+      const tmpFolder = path.join(os.tmpdir(), 'next-standalone-' + Date.now())
+      await fs.move(path.join(next.testDir, '.next/standalone'), tmpFolder)
+      let server
+
+      try {
+        const testServer = path.join(tmpFolder, 'server.js')
+        const appPort = await findPort()
+        server = await initNextServerScript(
+          testServer,
+          /Listening on/,
+          {
+            ...process.env,
+            PORT: appPort,
+          },
+          undefined,
+          {
+            cwd: tmpFolder,
+          }
+        )
+
+        for (const testPath of [
+          '/',
+          '/api/hello',
+          '/blog/first',
+          '/dashboard',
+          '/dashboard/deployments/123',
+          '/catch-all/first',
+        ]) {
+          const res = await fetchViaHTTP(appPort, testPath)
+          expect(res.status).toBe(200)
+        }
+      } finally {
+        if (server) await killApp(server)
+        await fs.remove(tmpFolder)
+      }
+    })
+  }
 })

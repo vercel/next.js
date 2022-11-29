@@ -713,7 +713,7 @@ export default class DevServer extends Server {
     })
     await super.prepare()
     await this.addExportPathMapRoutes()
-    await this.hotReloader.start(true)
+    await this.hotReloader.start()
     await this.startWatcher()
     this.setDevReady!()
 
@@ -1053,7 +1053,8 @@ export default class DevServer extends Server {
           ({ file }) =>
             !file?.startsWith('eval') &&
             !file?.includes('web/adapter') &&
-            !file?.includes('sandbox/context')
+            !file?.includes('sandbox/context') &&
+            !file?.includes('<anonymous>')
         )!
 
         if (frame.lineNumber && frame?.file) {
@@ -1061,10 +1062,15 @@ export default class DevServer extends Server {
             /^(webpack-internal:\/\/\/|file:\/\/)/,
             ''
           )
+          const modulePath = frame.file.replace(
+            /^(webpack-internal:\/\/\/|file:\/\/)(\(.*\)\/)?/,
+            ''
+          )
 
           const src = getErrorSource(err as Error)
+          const isEdgeCompiler = src === COMPILER_NAMES.edgeServer
           const compilation = (
-            src === COMPILER_NAMES.edgeServer
+            isEdgeCompiler
               ? this.hotReloader?.edgeServerStats?.compilation
               : this.hotReloader?.serverStats?.compilation
           )!
@@ -1080,10 +1086,16 @@ export default class DevServer extends Server {
             column: frame.column,
             source,
             frame,
-            modulePath: moduleId,
+            moduleId,
+            modulePath,
             rootDirectory: this.dir,
             errorMessage: err.message,
-            compilation,
+            serverCompilation: isEdgeCompiler
+              ? undefined
+              : this.hotReloader?.serverStats?.compilation,
+            edgeCompilation: isEdgeCompiler
+              ? this.hotReloader?.edgeServerStats?.compilation
+              : undefined,
           })
 
           if (originalFrame) {
@@ -1093,7 +1105,7 @@ export default class DevServer extends Server {
             Log[type === 'warning' ? 'warn' : 'error'](
               `${file} (${lineNumber}:${column}) @ ${methodName}`
             )
-            if (src === COMPILER_NAMES.edgeServer) {
+            if (isEdgeCompiler) {
               err = err.message
             }
             if (type === 'warning') {
