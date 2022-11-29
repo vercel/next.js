@@ -112,12 +112,6 @@ export class FlightClientEntryPlugin {
         }
       }
 
-      if (this.isEdgeServer) {
-        edgeServerModuleIds.clear()
-      } else {
-        serverModuleIds.clear()
-      }
-
       traverseModules(compilation, (mod, _chunk, _chunkGroup, modId) => {
         recordModule(String(modId), mod)
       })
