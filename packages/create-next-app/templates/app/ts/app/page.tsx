@@ -78,6 +78,8 @@ export default function Home() {
         <a
           href="https://vercel.com/templates/next.js/app-directory?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
           className={styles.card}
+          target="_blank"
+          rel="noopener"
         >
           <h2 className={inter.className}>
             Examples <span>-&gt;</span>
@@ -89,9 +91,9 @@ export default function Home() {
 
         <a
           href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
           className={styles.card}
+          target="_blank"
+          rel="noopener"
         >
           <h2 className={inter.className}>
             Deploy <span>-&gt;</span>
