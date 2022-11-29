@@ -11,17 +11,17 @@
   display: inherit;
   justify-content: inherit;
   align-items: inherit;
-  text-align: center;
   font-size: 0.9rem;
   max-width: var(--max-width);
   width: 100%;
+  z-index: 10;
 }
 
 .description a {
   display: flex;
   align-items: center;
   justify-content: center;
-  line-height: 1.5rem;
+  gap: 0.5rem;
 }
 
 .description p {
@@ -31,7 +31,6 @@
   background-color: rgba(var(--callout-rgb), 0.5);
   border: 1px solid rgba(var(--callout-border-rgb), 0.3);
   border-radius: var(--border-radius);
-  z-index: 1;
 }
 
 .code {
@@ -56,7 +55,6 @@
 
 .card span {
   display: inline-block;
-  transform: translateX(0);
   transition: transform 200ms;
 }
 
@@ -69,25 +67,17 @@
   margin: 0;
   opacity: 0.6;
   font-size: 0.9rem;
-  line-height: 125%;
+  line-height: 1.25;
   max-width: 32ch;
   letter-spacing: -0.01em;
-}
-
-.vercel-logo {
-  height: 1.5rem;
-  margin-left: 0.5rem;
 }
 
 .center {
   display: flex;
   justify-content: center;
   align-items: center;
-  box-sizing: content-box;
   position: relative;
-  width: 100vw;
   padding: 4rem 0;
-  flex-grow: 1;
 }
 
 .center::before {
@@ -162,7 +152,7 @@
     rgba(var(--tile-end-rgb), 1)
   );
   background-clip: content-box;
-  z-index: 0;
+  z-index: -1;
 }
 
 /* Enable hover only on non-touch devices */
@@ -174,13 +164,16 @@
 
   .card:hover span {
     transform: translateX(4px);
-    transition: transform 200ms;
   }
 }
 
 @media (prefers-reduced-motion) {
   .thirteen::before {
     animation: none;
+  }
+
+  .card:hover span {
+    transform: none;
   }
 }
 
@@ -192,7 +185,6 @@
 
   .grid {
     grid-template-columns: 1fr;
-    flex-direction: column;
     margin-bottom: 120px;
     max-width: 320px;
     text-align: center;
@@ -204,7 +196,7 @@
   }
 
   .card h2 {
-    margin: 0 0 0.5rem 0;
+    margin-bottom: 0.5rem;
   }
 
   .center {
@@ -213,7 +205,6 @@
 
   .center::before {
     transform: none;
-    width: 100vw;
     height: 300px;
   }
 
@@ -233,7 +224,7 @@
     align-items: center;
     justify-content: center;
     inset: 0 0 auto;
-    width: 100vw;
+    width: 100%;
     padding: 2rem 1rem 1.4rem;
     border-radius: 0;
     border: none;
@@ -277,7 +268,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  .vercel-logo img {
+  .vercelLogo {
     filter: invert(1);
   }
 

@@ -21,7 +21,7 @@ const spaceMono = Space_Mono({
 
 export default function Home() {
   return (
-    <div className={styles.content}>
+    <main className={styles.content}>
       <div className={styles.description}>
         <p className={spaceMono.className}>
           Get started by editing&nbsp;
@@ -35,29 +35,26 @@ export default function Home() {
             rel="noopener noreferrer"
           >
             By{' '}
-            <span className={styles['vercel-logo']}>
-              <Image
-                src="/vercel.svg"
-                alt="Vercel Logo"
-                width={100}
-                height={24}
-                priority
-              />
-            </span>
+            <Image
+              src="/vercel.svg"
+              alt="Vercel Logo"
+              width={100}
+              height={24}
+              priority
+            />
           </a>
         </div>
       </div>
 
       <div className={styles.center}>
-        <div className={styles.logo}>
-          <Image
-            src="/next.svg"
-            alt="Next.js Logo"
-            width={180}
-            height={37}
-            priority
-          />
-        </div>
+        <Image
+          className={styles.logo}
+          src="/next.svg"
+          alt="Next.js Logo"
+          width={180}
+          height={37}
+          priority
+        />
         <div className={styles.thirteen}>
           <Image src="/thirteen.svg" alt="13" width={40} height={31} priority />
         </div>
@@ -116,6 +113,6 @@ export default function Home() {
           </p>
         </a>
       </div>
-    </div>
+    </main>
   )
 }
