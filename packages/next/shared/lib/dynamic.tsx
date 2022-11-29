@@ -1,11 +1,20 @@
 import React, { Suspense } from 'react'
 import Loadable from './loadable'
 
-const isServerSide = typeof window === 'undefined'
+export const NEXT_DYNAMIC_NO_SSR_CODE = 'DYNAMIC_SERVER_USAGE'
+export class NextDynamicNoSSRError extends Error {
+  digest: typeof NEXT_DYNAMIC_NO_SSR_CODE = NEXT_DYNAMIC_NO_SSR_CODE
 
-export type LoaderComponent<P = {}> = Promise<
-  React.ComponentType<P> | { default: React.ComponentType<P> }
->
+  constructor() {
+    super('next/dynamic with noSSR on server')
+  }
+}
+
+export type LoaderComponent<P = {}> = Promise<{
+  default: React.ComponentType<P>
+}>
+
+type LazyComponentLoader<P = {}> = () => LoaderComponent<P>
 
 export type Loader<P = {}> = (() => LoaderComponent<P>) | LoaderComponent<P>
 
@@ -51,23 +60,21 @@ export function noSSR<P = {}>(
   delete loadableOptions.webpack
   delete loadableOptions.modules
 
-  const NoSSRComponent = React.lazy(
-    (isServerSide
-      ? async () => ({ default: () => null })
-      : loadableOptions.loader) as () => Promise<{
-      default: React.ComponentType<P>
-    }>
-  )
+  const NoSSRComponent =
+    typeof window === 'undefined'
+      ? ((() => {
+          throw new NextDynamicNoSSRError()
+        }) as React.FunctionComponent<P>)
+      : React.lazy(loadableOptions.loader as LazyComponentLoader<P>)
 
   const Loading = loadableOptions.loading!
+  const fallback = (
+    <Loading error={null} isLoading pastDelay={false} timedOut={false} />
+  )
 
   return () => (
-    <Suspense
-      fallback={
-        <Loading error={null} isLoading pastDelay={false} timedOut={false} />
-      }
-    >
-      {/* @ts-ignore */}
+    <Suspense fallback={fallback}>
+      {/* @ts-ignore TODO: fix typing */}
       <NoSSRComponent />
     </Suspense>
   )

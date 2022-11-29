@@ -24,6 +24,7 @@ import { createInfinitePromise } from './infinite-promise'
 import { ErrorBoundary } from './error-boundary'
 import { matchSegment } from './match-segments'
 import { useRouter } from './navigation'
+import { NEXT_DYNAMIC_NO_SSR_CODE } from '../../shared/lib/dynamic'
 
 /**
  * Add refetch marker to router state at the point of the current layout segment.
@@ -373,6 +374,34 @@ class RedirectErrorBoundary extends React.Component<
   }
 }
 
+class DynamicErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { noSSR: boolean }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props)
+    this.state = { noSSR: false }
+  }
+  static getDerivedStateFromError(error: any) {
+    if (error.digest === NEXT_DYNAMIC_NO_SSR_CODE) {
+      return { noSSR: true }
+    }
+    // Re-throw if error is not for dynamic
+    throw error
+  }
+
+  render() {
+    if (this.state.noSSR) {
+      return null
+    }
+    return this.props.children
+  }
+}
+
+function DynamicBoundary({ children }: { children: React.ReactNode }) {
+  return <DynamicErrorBoundary>{children}</DynamicErrorBoundary>
+}
+
 function RedirectBoundary({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   return (
@@ -527,21 +556,23 @@ export default function OuterLayoutRouter({
                     notFoundStyles={notFoundStyles}
                   >
                     <RedirectBoundary>
-                      <InnerLayoutRouter
-                        parallelRouterKey={parallelRouterKey}
-                        url={url}
-                        tree={tree}
-                        childNodes={childNodesForParallelRouter!}
-                        childProp={
-                          childPropSegment === preservedSegment
-                            ? childProp
-                            : null
-                        }
-                        segmentPath={segmentPath}
-                        path={preservedSegment}
-                        isActive={currentChildSegment === preservedSegment}
-                        rootLayoutIncluded={rootLayoutIncluded}
-                      />
+                      <DynamicBoundary>
+                        <InnerLayoutRouter
+                          parallelRouterKey={parallelRouterKey}
+                          url={url}
+                          tree={tree}
+                          childNodes={childNodesForParallelRouter!}
+                          childProp={
+                            childPropSegment === preservedSegment
+                              ? childProp
+                              : null
+                          }
+                          segmentPath={segmentPath}
+                          path={preservedSegment}
+                          isActive={currentChildSegment === preservedSegment}
+                          rootLayoutIncluded={rootLayoutIncluded}
+                        />
+                      </DynamicBoundary>
                     </RedirectBoundary>
                   </NotFoundBoundary>
                 </LoadingBoundary>

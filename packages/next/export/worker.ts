@@ -33,6 +33,7 @@ import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
 import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
 import { NOT_FOUND_ERROR_CODE } from '../client/components/not-found'
 import { IncrementalCache } from '../server/lib/incremental-cache'
+import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/dynamic'
 
 loadRequireHook()
 
@@ -370,6 +371,7 @@ export default async function exportPage({
           if (
             err.digest !== DYNAMIC_ERROR_CODE &&
             err.digest !== NOT_FOUND_ERROR_CODE &&
+            err.digest !== NEXT_DYNAMIC_NO_SSR_CODE &&
             !err.digest?.startsWith(REDIRECT_ERROR_CODE)
           ) {
             throw err

@@ -45,6 +45,7 @@ import {
   FLIGHT_PARAMETERS,
 } from '../client/components/app-router-headers'
 import type { StaticGenerationStore } from '../client/components/static-generation-async-storage'
+import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/dynamic'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -218,6 +219,7 @@ function createErrorHandler(
     if (
       err.digest === DYNAMIC_ERROR_CODE ||
       err.digest === NOT_FOUND_ERROR_CODE ||
+      err.digest === NEXT_DYNAMIC_NO_SSR_CODE ||
       err.digest?.startsWith(REDIRECT_ERROR_CODE)
     ) {
       return err.digest
