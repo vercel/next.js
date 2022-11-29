@@ -75,7 +75,7 @@
     ]
   },
   "dependencies": {
-    "@capsizecss/metrics": "0.0.0-x-avg-char-width-20221107122037",
+    "@capsizecss/metrics": "0.0.0-x-avg-char-width-20221118004523",
     "@next/env": "13.0.6-canary.2",
     "@swc/helpers": "0.4.14",
     "caniuse-lite": "^1.0.30001406",

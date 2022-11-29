@@ -4,7 +4,6 @@ import {
   DEFAULT_SERIF_FONT,
   DEFAULT_SANS_SERIF_FONT,
 } from '../shared/lib/constants'
-const googleFontsMetrics = require('./google-font-metrics.json')
 const https = require('https')
 
 const CHROME_UA =
@@ -111,12 +110,12 @@ function formatOverrideValue(val: number) {
 }
 
 export function calculateOverrideValues(fontName: any) {
-  let { category } = googleFontsMetrics[fontName]
   let {
     ascent,
     descent,
     lineGap,
     unitsPerEm,
+    category,
   } = require(`@capsizecss/metrics/${formatName(fontName)}`)
 
   const fallbackFont =
@@ -134,13 +133,13 @@ export function calculateOverrideValues(fontName: any) {
 }
 
 export function calculateSizeAdjustValues(fontName: any) {
-  let { category } = googleFontsMetrics[fontName]
   let {
     ascent,
     descent,
     lineGap,
     unitsPerEm,
     xAvgLetterFrequency,
+    category,
   } = require(`@capsizecss/metrics/${formatName(fontName)}`)
   const fallbackFont =
     category === 'serif' ? DEFAULT_SERIF_FONT : DEFAULT_SANS_SERIF_FONT
@@ -168,7 +167,7 @@ export function calculateSizeAdjustValues(fontName: any) {
   }
 }
 
-function calculateOverrideCSS(font: string, fontMetrics: any) {
+function calculateOverrideCSS(font: string) {
   const fontName = font.trim()
 
   const { ascent, descent, lineGap, fallbackFont } =
@@ -185,7 +184,7 @@ function calculateOverrideCSS(font: string, fontMetrics: any) {
   `
 }
 
-function calculateSizeAdjustCSS(font: string, fontMetrics: any) {
+function calculateSizeAdjustCSS(font: string) {
   const fontName = font.trim()
 
   const { ascent, descent, lineGap, fallbackFont, sizeAdjust } =
@@ -216,10 +215,9 @@ export function getFontOverrideCss(
 
   try {
     const fontNames = parseGoogleFontName(css)
-    const fontMetrics = googleFontsMetrics
 
     const fontCss = fontNames.reduce((cssStr, fontName) => {
-      cssStr += calcFn(fontName, fontMetrics)
+      cssStr += calcFn(fontName)
       return cssStr
     }, '')
 
