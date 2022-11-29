@@ -45,21 +45,20 @@ This `next/image` component uses browser native [lazy loading](https://caniuse.c
   - Use CSS
 
   ```
-  /* For Safari from v10.1 to v15.6 */
+  /* Safari v10.1 to v15.6 */
   @media not all and (min-resolution: 0.001dpcm) {
     img[loading="lazy"] {
-      clip-path: inset(.5px);
+      clip-path: inset(0.5px);
     }
   }
-  /* For Safari v16.0+ */
+  /* Safari v16.0+ */
   @media (min-resolution: 0.001dpcm) {
     @supports (-webkit-appearance: none) and (stroke-color: transparent) {
       img[loading="lazy"] {
-        clip-path: inset(.5px);
+        clip-path: inset(0.5px);
       }
     }
   }
-
   ```
 
   - Use [`priority`](#priority) if the image is above the fold
