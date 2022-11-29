@@ -26,7 +26,7 @@ mime = "0.3.16"
 notify = "4.0.17"
 serde = { version = "1.0.136", features = ["rc"] }
 serde_json = "1.0.85"
-tokio = "1.11.0"
+tokio = "1.21.2"
 turbo-tasks = { path = "../turbo-tasks" }
 turbo-tasks-hash = { path = "../turbo-tasks-hash" }
 

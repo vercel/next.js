@@ -18,14 +18,14 @@ nohash-hasher = "0.2.0"
 num_cpus = "1.13.1"
 parking_lot = "0.12.1"
 rustc-hash = "1.1.0"
-tokio = "1.11.0"
+tokio = "1.21.2"
 turbo-tasks = { path = "../turbo-tasks" }
 turbo-tasks-hash = { path = "../turbo-tasks-hash" }
 
 [dev-dependencies]
 criterion = { version = "0.3.5", features = ["async_tokio"] }
 serde = "1.0.136"
-tokio = { version = "1.11.0", features = ["full"] }
+tokio = { version = "1.21.2", features = ["full"] }
 turbo-tasks-testing = { path = "../turbo-tasks-testing" }
 
 [build-dependencies]

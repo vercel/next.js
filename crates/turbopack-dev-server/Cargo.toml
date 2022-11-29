@@ -24,7 +24,7 @@ pin-project-lite = "0.2.9"
 serde = "1.0.136"
 serde_json = "1.0.85"
 serde_qs = "0.10.1"
-tokio = "1.11.0"
+tokio = "1.21.2"
 tokio-stream = "0.1.9"
 turbo-tasks = { path = "../turbo-tasks" }
 turbo-tasks-fs = { path = "../turbo-tasks-fs" }

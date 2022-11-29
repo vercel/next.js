@@ -24,7 +24,7 @@ serde_json = { version = "1.0.85", features = ["preserve_order"] }
 serde_regex = "1.1.0"
 sourcemap = "6.0.2"
 swc_core = { workspace = true, features = ["ecma_preset_env", "common"] }
-tokio = "1.11.0"
+tokio = "1.21.2"
 turbo-tasks = { path = "../turbo-tasks" }
 turbo-tasks-env = { path = "../turbo-tasks-env" }
 turbo-tasks-fs = { path = "../turbo-tasks-fs" }

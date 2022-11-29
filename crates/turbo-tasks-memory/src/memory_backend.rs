@@ -90,11 +90,12 @@ impl MemoryBackend {
         &self,
         id: TaskId,
         strongly_consistent: bool,
+        note: impl Fn() -> String + Sync + Send + 'static,
         turbo_tasks: &dyn TurboTasksBackendApi,
         func: F,
     ) -> Result<Result<T, EventListener>> {
         self.with_task(id, |task| {
-            task.get_or_wait_output(strongly_consistent, func, self, turbo_tasks)
+            task.get_or_wait_output(strongly_consistent, func, note, self, turbo_tasks)
         })
     }
 
@@ -260,10 +261,16 @@ impl Backend for MemoryBackend {
         if task == reader {
             bail!("reading it's own output is not possible");
         }
-        self.try_get_output(task, strongly_consistent, turbo_tasks, |output| {
-            Task::add_dependency_to_current(TaskDependency::TaskOutput(task));
-            output.read(reader)
-        })
+        self.try_get_output(
+            task,
+            strongly_consistent,
+            move || format!("reading task output from {reader}"),
+            turbo_tasks,
+            |output| {
+                Task::add_dependency_to_current(TaskDependency::TaskOutput(task));
+                output.read(reader)
+            },
+        )
     }
 
     fn try_read_task_output_untracked(
@@ -272,9 +279,13 @@ impl Backend for MemoryBackend {
         strongly_consistent: bool,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<Result<RawVc, EventListener>> {
-        self.try_get_output(task, strongly_consistent, turbo_tasks, |output| {
-            output.read_untracked()
-        })
+        self.try_get_output(
+            task,
+            strongly_consistent,
+            || "reading task output untracked".to_string(),
+            turbo_tasks,
+            |output| output.read_untracked(),
+        )
     }
 
     fn track_read_task_output(

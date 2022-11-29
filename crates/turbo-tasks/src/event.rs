@@ -33,6 +33,16 @@ impl Event {
         }
     }
 
+    /// see [event_listener::Event]::listen
+    pub fn listen_with_note(
+        &self,
+        _note: impl Fn() -> String + Sync + Send + 'static,
+    ) -> EventListener {
+        EventListener {
+            listener: self.event.listen(),
+        }
+    }
+
     /// pulls out the event listener, leaving a new, empty event in its place.
     pub fn take(&mut self) -> Self {
         Self {
@@ -56,7 +66,27 @@ impl Event {
     pub fn listen(&self) -> EventListener {
         EventListener {
             description: self.description.clone(),
-            future: Some(timeout(Duration::from_secs(10), self.event.listen())),
+            note: Arc::new(|| String::new()),
+            future: Some(Box::pin(timeout(
+                Duration::from_secs(10),
+                self.event.listen(),
+            ))),
+            duration: Duration::from_secs(10),
+        }
+    }
+
+    /// see [event_listener::Event]::listen
+    pub fn listen_with_note(
+        &self,
+        note: impl Fn() -> String + Sync + Send + 'static,
+    ) -> EventListener {
+        EventListener {
+            description: self.description.clone(),
+            note: Arc::new(note),
+            future: Some(Box::pin(timeout(
+                Duration::from_secs(10),
+                self.event.listen(),
+            ))),
             duration: Duration::from_secs(10),
         }
     }
@@ -113,16 +143,23 @@ impl Future for EventListener {
 #[cfg(feature = "hanging_detection")]
 pub struct EventListener {
     description: Arc<dyn Fn() -> String + Sync + Send>,
-    future: Option<Timeout<event_listener::EventListener>>,
+    note: Arc<dyn Fn() -> String + Sync + Send>,
+    // Timeout need to stay pinned while polling and also while it's dropped.
+    // So it's important to put it into a pinned Box to be able to take it out of the Option.
+    future: Option<Pin<Box<Timeout<event_listener::EventListener>>>>,
     duration: Duration,
 }
 
 #[cfg(feature = "hanging_detection")]
 impl Debug for EventListener {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("EventListener")
-            .field(&(self.description)())
-            .finish()
+        let mut t = f.debug_tuple("EventListener");
+        t.field(&(self.description)());
+        let note = (self.note)();
+        if !note.is_empty() {
+            t.field(&note);
+        }
+        t.finish()
     }
 }
 
@@ -131,29 +168,32 @@ impl Future for EventListener {
     type Output = ();
 
     fn poll(
-        self: std::pin::Pin<&mut Self>,
+        mut self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Self::Output> {
-        let this = unsafe { self.get_unchecked_mut() };
-        while let Some(future) = this.future.as_mut() {
-            // SAFETY: future is never moved as it's part of the pinned `self`
-            match ready!(unsafe { Pin::new_unchecked(future) }.poll(cx)) {
+        while let Some(future) = self.future.as_mut() {
+            match ready!(future.as_mut().poll(cx)) {
                 Ok(_) => {
-                    this.future = None;
+                    self.future = None;
                     return Poll::Ready(());
                 }
                 Err(_) => {
                     use crate::util::FormatDuration;
                     eprintln!(
                         "{:?} is potentially hanging (waiting for {})",
-                        this,
-                        FormatDuration(this.duration)
+                        self,
+                        FormatDuration(self.duration)
                     );
-                    this.duration *= 2;
-                    this.future = Some(timeout(
-                        this.duration,
-                        this.future.take().unwrap().into_inner(),
-                    ));
+                    self.duration *= 2;
+                    // SAFETY: Taking from Option is safe because the value is inside of a pinned
+                    // Box. Pinning must continue until dropped.
+                    let future = self.future.take().unwrap();
+                    self.future = Some(Box::pin(timeout(
+                        self.duration,
+                        // SAFETY: We can move the inner future since it's an EventListener and
+                        // that is Unpin.
+                        unsafe { Pin::into_inner_unchecked(future) }.into_inner(),
+                    )));
                 }
             }
         }

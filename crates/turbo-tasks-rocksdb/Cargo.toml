@@ -14,7 +14,7 @@ bench = false
 [dependencies]
 anyhow = "1.0.47"
 lazy_static = "1.4.0"
-tokio = "1.11.0"
+tokio = "1.21.2"
 turbo-tasks = { path = "../turbo-tasks" }
 # https://github.com/rust-rocksdb/rust-rocksdb/issues/609
 # disable "bzip2" feature

@@ -26,7 +26,7 @@ serde_regex = "1.1.0"
 styled_components = {workspace = true }
 styled_jsx = {workspace = true}
 swc_emotion = {workspace = true}
-tokio = "1.11.0"
+tokio = "1.21.2"
 tracing = "0.1.37"
 turbo-tasks = { path = "../turbo-tasks" }
 turbo-tasks-fs = { path = "../turbo-tasks-fs" }

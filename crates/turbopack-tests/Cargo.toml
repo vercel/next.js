@@ -19,7 +19,7 @@ serde = "1.0.136"
 serde_json = "1.0.85"
 similar = "2.2.0"
 test-generator = "0.3.0"
-tokio = "1.11.0"
+tokio = "1.21.2"
 turbo-tasks = { path = "../turbo-tasks" }
 turbo-tasks-env = { path = "../turbo-tasks-env" }
 turbo-tasks-fs = { path = "../turbo-tasks-fs" }
