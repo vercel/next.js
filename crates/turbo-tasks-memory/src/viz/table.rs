@@ -1,4 +1,4 @@
-use turbo_tasks::util::FormatDuration;
+use turbo_tasks::{util::FormatDuration, StatsType};
 
 use super::*;
 
@@ -9,7 +9,17 @@ pub fn wrap_html(table_html: &str) -> String {
 <head>
   <meta charset=\"utf-8\">
   <title>turbo-tasks table</title>
-  <style>{style}</style>
+  <style>
+    {style}
+
+    .full-stats-disclaimer {{
+        font-size: 0.8rem;
+        opacity: 0.6;
+        font-style: italic;
+        margin: 0;
+        padding: 0.8rem 1rem;
+    }}
+  </style>
 </head>
 <body>
   {table_html}
@@ -23,9 +33,12 @@ document.addEventListener("click",function(b){try{var p=function(a){return v&&a.
     )
 }
 
-pub fn create_table(root: GroupTree) -> String {
+pub fn create_table(root: GroupTree, stats_type: StatsType) -> String {
     let max_values = get_max_values(&root);
     let mut out = String::new();
+    if !stats_type.is_full() {
+        out += r#"<p class="full-stats-disclaimer">Full stats collection is disabled. Run with --full-stats to enable it.</p>"#;
+    }
     out += r#"<table class="sortable"><thead><tr>"#;
     out += r#"<th>function</th>"#;
     out += r#"<th>initial executions</th>"#;
@@ -49,8 +62,8 @@ pub fn create_table(root: GroupTree) -> String {
         out: &mut String,
         max_values: &MaxValues,
         depth: u32,
-        parent: Option<&(TaskType, TaskStats)>,
-        (ty, stats): &(TaskType, TaskStats),
+        parent: Option<&(TaskType, ExportedTaskStats)>,
+        (ty, stats): &(TaskType, ExportedTaskStats),
     ) -> Result<(), std::fmt::Error> {
         *out += r#"<tr>"#;
         let name = ty.to_string();
@@ -72,24 +85,39 @@ pub fn create_table(root: GroupTree) -> String {
             as_frac_color(stats.active_count, max_values.active_count),
             stats.active_count
         )?;
+        let (executions_label, executions_color) =
+            if let Some((executions, max_updates)) = stats.executions.zip(max_values.updates) {
+                (
+                    executions.saturating_sub(stats.count as u32).to_string(),
+                    as_frac_color(
+                        executions.saturating_sub(stats.count as u32),
+                        max_updates as u32,
+                    ),
+                )
+            } else {
+                ("N/A".to_string(), "white".to_string())
+            };
         write!(
             out,
             "<td bgcolor=\"{}\">{}</td>",
-            as_frac_color(
-                stats.executions.saturating_sub(stats.count),
-                max_values.updates
-            ),
-            stats.executions.saturating_sub(stats.count)
+            executions_color, executions_label
         )?;
+        let (total_duration_micros, total_duration_label, total_duration_color) =
+            if let Some((total_duration, max_total_duration)) =
+                stats.total_duration.zip(max_values.total_duration)
+            {
+                (
+                    format!("{}", total_duration.as_micros()),
+                    FormatDuration(total_duration).to_string(),
+                    as_frac_color(total_duration.as_millis(), max_total_duration.as_millis()),
+                )
+            } else {
+                (String::new(), "N/A".to_string(), "white".to_string())
+            };
         write!(
             out,
             "<td bgcolor=\"{}\" data-sort=\"{}\">{}</td>",
-            as_frac_color(
-                stats.total_duration.as_millis(),
-                max_values.total_duration.as_millis(),
-            ),
-            stats.total_duration.as_micros(),
-            FormatDuration(stats.total_duration)
+            total_duration_color, total_duration_micros, total_duration_label
         )?;
         write!(
             out,
@@ -111,15 +139,27 @@ pub fn create_table(root: GroupTree) -> String {
             stats.total_update_duration.as_micros(),
             FormatDuration(stats.total_update_duration)
         )?;
+        let (avg_duration_micros, avg_duration_label, avg_duration_color) =
+            if let Some(((total_duration, executions), max_avg_duration)) = stats
+                .total_duration
+                .zip(stats.executions)
+                .zip(max_values.avg_duration)
+            {
+                (
+                    format!("{}", (total_duration / (executions as u32)).as_micros()),
+                    FormatDuration(total_duration / (executions as u32)).to_string(),
+                    as_frac_color(
+                        total_duration.as_micros() / (executions as u128),
+                        max_avg_duration.as_micros(),
+                    ),
+                )
+            } else {
+                (String::new(), "N/A".to_string(), "white".to_string())
+            };
         write!(
             out,
             "<td bgcolor=\"{}\" data-sort=\"{}\">{}</td>",
-            as_frac_color(
-                stats.total_duration.as_micros() / (stats.executions as u128),
-                max_values.avg_duration.as_micros()
-            ),
-            (stats.total_duration / (stats.executions as u32)).as_micros(),
-            FormatDuration(stats.total_duration / (stats.executions as u32))
+            avg_duration_color, avg_duration_micros, avg_duration_label
         )?;
         write!(
             out,

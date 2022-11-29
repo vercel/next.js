@@ -38,7 +38,7 @@ pub fn add_duration(duration: Duration) {
 }
 
 impl<T, F: Future<Output = T>> Future for TimedFuture<T, F> {
-    type Output = (T, Duration);
+    type Output = (T, Duration, Instant);
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let this = self.project();
@@ -47,7 +47,11 @@ impl<T, F: Future<Output = T>> Future for TimedFuture<T, F> {
         let elapsed = start.elapsed();
         *this.duration += elapsed;
         match result {
-            Poll::Ready(r) => Poll::Ready((r, *this.duration + *this.cell.lock().unwrap())),
+            Poll::Ready(r) => Poll::Ready((
+                r,
+                *this.duration + *this.cell.lock().unwrap(),
+                start + elapsed,
+            )),
             Poll::Pending => Poll::Pending,
         }
     }

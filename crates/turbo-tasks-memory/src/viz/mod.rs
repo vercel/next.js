@@ -11,7 +11,7 @@ use std::{
 
 use turbo_tasks_hash::hash_xxh3_hash64;
 
-use crate::stats::{GroupTree, ReferenceStats, ReferenceType, TaskStats, TaskType};
+use crate::stats::{ExportedTaskStats, GroupTree, ReferenceStats, ReferenceType, TaskType};
 
 fn escape_in_template_str(s: &str) -> String {
     s.replace('\\', "\\\\")
@@ -29,14 +29,14 @@ fn get_id<'a>(ty: &'a TaskType, ids: &mut HashMap<&'a TaskType, usize>) -> usize
 }
 
 struct MaxValues {
-    pub total_duration: Duration,
+    pub total_duration: Option<Duration>,
     pub total_current_duration: Duration,
     pub total_update_duration: Duration,
-    pub avg_duration: Duration,
+    pub avg_duration: Option<Duration>,
     pub max_duration: Duration,
     pub count: usize,
     pub active_count: usize,
-    pub updates: usize,
+    pub updates: Option<usize>,
     pub roots: usize,
     /// stored as scopes * 100
     pub scopes: usize,
@@ -49,7 +49,7 @@ fn get_max_values(node: &GroupTree) -> MaxValues {
     get_max_values_internal(0, node)
 }
 
-pub fn get_avg_dependencies_count_times_100(stats: &TaskStats) -> usize {
+pub fn get_avg_dependencies_count_times_100(stats: &ExportedTaskStats) -> usize {
     stats
         .references
         .iter()
@@ -61,27 +61,41 @@ pub fn get_avg_dependencies_count_times_100(stats: &TaskStats) -> usize {
 }
 
 fn get_max_values_internal(depth: u32, node: &GroupTree) -> MaxValues {
-    let mut max_total_duration = Duration::ZERO;
+    let mut max_total_duration = None;
     let mut max_total_current_duration = Duration::ZERO;
     let mut max_total_update_duration = Duration::ZERO;
-    let mut max_avg_duration = Duration::ZERO;
+    let mut max_avg_duration = None;
     let mut max_max_duration = Duration::ZERO;
     let mut max_count = 0;
     let mut max_active_count = 0;
-    let mut max_updates = 0;
+    let mut max_updates = None;
     let mut max_roots = 0;
     let mut max_scopes = 0;
     let mut max_dependencies = 0;
     let mut max_depth = 0;
     for (_, ref s) in node.task_types.iter().chain(node.primary.iter()) {
-        max_total_duration = max(max_total_duration, s.total_duration);
+        if let Some(total_duration) = s.total_duration {
+            max_total_duration = max_total_duration
+                .map(|max_total_duration| max(max_total_duration, total_duration))
+                .or(Some(total_duration));
+        }
         max_total_current_duration = max(max_total_current_duration, s.total_current_duration);
         max_total_update_duration = max(max_total_update_duration, s.total_update_duration);
-        max_avg_duration = max(max_avg_duration, s.total_duration / s.executions as u32);
+        if let Some((total_duration, executions)) = s.total_duration.zip(s.executions) {
+            let avg_duration = total_duration / executions as u32;
+            max_avg_duration = max_avg_duration
+                .map(|max_avg_duration| max(max_avg_duration, avg_duration))
+                .or(Some(avg_duration));
+        }
         max_max_duration = max(max_max_duration, s.max_duration);
         max_count = max(max_count, s.count);
         max_active_count = max(max_active_count, s.active_count);
-        max_updates = max(max_updates, s.executions.saturating_sub(s.count));
+        if let Some(executions) = s.executions {
+            let updates = (executions as usize).saturating_sub(s.count);
+            max_updates = max_updates
+                .map(|max_updates| max(max_updates, updates))
+                .or(Some(updates));
+        }
         max_roots = max(max_roots, s.roots);
         max_scopes = max(max_scopes, 100 * s.scopes / s.count);
         max_dependencies = max(max_dependencies, get_avg_dependencies_count_times_100(s));
@@ -109,14 +123,16 @@ fn get_max_values_internal(depth: u32, node: &GroupTree) -> MaxValues {
             dependencies,
             depth: inner_depth,
         } = get_max_values_internal(depth + 1, child);
-        max_total_duration = max(max_total_duration, total_duration);
+        max_total_duration = max_total_duration
+            .zip(total_duration)
+            .map(|(a, b)| max(a, b));
         max_total_current_duration = max(max_total_current_duration, total_current_duration);
         max_total_update_duration = max(max_total_update_duration, total_update_duration);
-        max_avg_duration = max(max_avg_duration, avg_duration);
+        max_avg_duration = max_avg_duration.zip(avg_duration).map(|(a, b)| max(a, b));
         max_max_duration = max(max_max_duration, max_duration);
         max_count = max(max_count, count);
         max_active_count = max(max_active_count, active_count);
-        max_updates = max(max_updates, updates);
+        max_updates = max_updates.zip(updates).map(|(a, b)| max(a, b));
         max_roots = max(max_roots, roots);
         max_scopes = max(max_scopes, scopes);
         max_dependencies = max(max_dependencies, dependencies);

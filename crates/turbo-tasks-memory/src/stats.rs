@@ -57,28 +57,28 @@ pub enum ReferenceType {
 }
 
 #[derive(Clone, Debug)]
-pub struct TaskStats {
+pub struct ExportedTaskStats {
     pub count: usize,
     pub active_count: usize,
-    pub executions: usize,
+    pub executions: Option<u32>,
     pub roots: usize,
     pub scopes: usize,
-    pub total_duration: Duration,
+    pub total_duration: Option<Duration>,
     pub total_current_duration: Duration,
     pub total_update_duration: Duration,
     pub max_duration: Duration,
     pub references: HashMap<(ReferenceType, TaskType), ReferenceStats>,
 }
 
-impl Default for TaskStats {
+impl Default for ExportedTaskStats {
     fn default() -> Self {
         Self {
             count: 0,
             active_count: 0,
-            executions: 0,
+            executions: None,
             roots: 0,
             scopes: 0,
-            total_duration: Duration::ZERO,
+            total_duration: None,
             total_current_duration: Duration::ZERO,
             total_update_duration: Duration::ZERO,
             max_duration: Duration::ZERO,
@@ -88,7 +88,7 @@ impl Default for TaskStats {
 }
 
 pub struct Stats {
-    tasks: HashMap<TaskType, TaskStats>,
+    tasks: HashMap<TaskType, ExportedTaskStats>,
 }
 
 impl Default for Stats {
@@ -105,7 +105,11 @@ impl Stats {
     }
 
     pub fn add(&mut self, backend: &MemoryBackend, task: &Task) {
-        self.add_conditional(backend, task, |_, info| info.executions > 0)
+        self.add_conditional(backend, task, |_, info| {
+            info.executions
+                .map(|executions| executions > 0)
+                .unwrap_or(true)
+        })
     }
 
     pub fn add_conditional(
@@ -132,13 +136,17 @@ impl Stats {
         if active {
             stats.active_count += 1
         }
-        stats.total_duration += total_duration;
+        if let Some(total_duration) = total_duration {
+            *stats.total_duration.get_or_insert(Duration::ZERO) += total_duration;
+        }
         stats.total_current_duration += last_duration;
-        if executions > 1 {
+        if executions.map(|executions| executions > 1).unwrap_or(true) {
             stats.total_update_duration += last_duration;
         }
         stats.max_duration = max(stats.max_duration, last_duration);
-        stats.executions += executions as usize;
+        if let Some(executions) = executions {
+            *stats.executions.get_or_insert(0) += executions;
+        }
         if root_scoped {
             stats.roots += 1;
         }
@@ -179,7 +187,7 @@ impl Stats {
         })
     }
 
-    pub fn merge(&mut self, mut select: impl FnMut(&TaskType, &TaskStats) -> bool) {
+    pub fn merge(&mut self, mut select: impl FnMut(&TaskType, &ExportedTaskStats) -> bool) {
         let merged: HashMap<_, _> = self
             .tasks
             .drain_filter(|ty, stats| select(ty, stats))
@@ -188,7 +196,7 @@ impl Stats {
         for stats in self.tasks.values_mut() {
             fn merge_refs(
                 refs: HashMap<(ReferenceType, TaskType), ReferenceStats>,
-                merged: &HashMap<TaskType, TaskStats>,
+                merged: &HashMap<TaskType, ExportedTaskStats>,
             ) -> HashMap<(ReferenceType, TaskType), ReferenceStats> {
                 refs.into_iter()
                     .flat_map(|((ref_ty, ty), stats)| {
@@ -296,7 +304,7 @@ impl Stats {
         }
 
         fn into_group<'a>(
-            tasks: &HashMap<TaskType, TaskStats>,
+            tasks: &HashMap<TaskType, ExportedTaskStats>,
             children: &HashMap<Option<&'a TaskType>, Vec<&'a TaskType>>,
             ty: Option<&'a TaskType>,
         ) -> GroupTree {
@@ -327,7 +335,7 @@ impl Stats {
 
 #[derive(Debug)]
 pub struct GroupTree {
-    pub primary: Option<(TaskType, TaskStats)>,
+    pub primary: Option<(TaskType, ExportedTaskStats)>,
     pub children: Vec<GroupTree>,
-    pub task_types: Vec<(TaskType, TaskStats)>,
+    pub task_types: Vec<(TaskType, ExportedTaskStats)>,
 }

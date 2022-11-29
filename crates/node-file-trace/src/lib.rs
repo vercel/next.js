@@ -22,7 +22,7 @@ use turbo_tasks::{
     backend::Backend,
     primitives::{OptionStringVc, StringsVc},
     util::FormatDuration,
-    NothingVc, TaskId, TransientInstance, TransientValue, TurboTasks, Value,
+    NothingVc, TaskId, TransientInstance, TransientValue, TurboTasks, TurboTasksBackendApi, Value,
 };
 use turbo_tasks_fs::{
     glob::GlobVc, DirectoryEntry, DiskFileSystemVc, FileSystemVc, ReadGlobResultVc,
@@ -393,7 +393,8 @@ pub async fn start(args: Arc<Args>) -> Result<Vec<String>> {
                 stats.add_id(b, root_task);
                 // stats.merge_resolve();
                 let tree = stats.treeify(ReferenceType::Child);
-                let graph = viz::graph::visualize_stats_tree(tree, ReferenceType::Child);
+                let graph =
+                    viz::graph::visualize_stats_tree(tree, ReferenceType::Child, tt.stats_type());
                 fs::write("graph.html", viz::graph::wrap_html(&graph)).unwrap();
                 println!("graph.html written");
             }

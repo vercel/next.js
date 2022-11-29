@@ -9,7 +9,7 @@ use std::{
         atomic::{AtomicU32, AtomicUsize, Ordering},
         Mutex, MutexGuard,
     },
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use anyhow::{anyhow, Result};
@@ -1108,6 +1108,7 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         &self,
         task: TaskId,
         duration: Duration,
+        _instant: Instant,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> bool {
         #[cfg(feature = "log_running_tasks")]
