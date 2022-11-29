@@ -30,8 +30,7 @@ async function run() {
 
     /** @type {Label} */
     const newLabel = payload.label
-    const { number: issueNumber } = issue
-    const bodyLowerCase = issue.body.toLowerCase()
+    const { body, number: issueNumber } = issue
     const client = github.getOctokit(process.env.GITHUB_TOKEN).rest
     const issueCommon = { ...repo, issue_number: issueNumber }
 
@@ -51,9 +50,7 @@ async function run() {
     }
 
     const hasValidRepro = await hasRepro(
-      bodyLowerCase.match(
-        /will be addressed faster\n\n(.*)\n\n### To Reproduce/i
-      )?.[1]
+      body.match(/will be addressed faster\n\n(.*)\n\n### To Reproduce/i)?.[1]
     )
 
     if (!hasValidRepro || newLabel.name === addReproductionLabel) {
@@ -66,7 +63,7 @@ async function run() {
       )
     }
 
-    const isVerifyCanaryChecked = bodyLowerCase.match(
+    const isVerifyCanaryChecked = body.match(
       /- \[x\] I verified that the issue exists in the latest Next.js canary release/i
     )
 
