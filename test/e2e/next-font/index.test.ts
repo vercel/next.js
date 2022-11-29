@@ -405,7 +405,7 @@ describe('@next/font/google', () => {
         const descentOverride = await browser.eval(
           'Array.from(document.fonts.values()).find(font => font.family.includes("myFont2_Fallback")).descentOverride'
         )
-        expect(descentOverride).toBe('51.94%')
+        expect(descentOverride).toBe('52%')
 
         const lineGapOverride = await browser.eval(
           'Array.from(document.fonts.values()).find(font => font.family.includes("myFont2_Fallback")).lineGapOverride'
@@ -429,7 +429,7 @@ describe('@next/font/google', () => {
         const descentOverride = await browser.eval(
           'Array.from(document.fonts.values()).find(font => font.family.includes("myFont1_Fallback")).descentOverride'
         )
-        expect(descentOverride).toBe('22.09%')
+        expect(descentOverride).toBe('22.08%')
 
         const lineGapOverride = await browser.eval(
           'Array.from(document.fonts.values()).find(font => font.family.includes("myFont1_Fallback")).lineGapOverride'
@@ -522,7 +522,7 @@ describe('@next/font/google', () => {
         const ascentOverride = await browser.eval(
           'Array.from(document.fonts.values()).find(font => font.family.includes("Indie_Flower_Fallback")).ascentOverride'
         )
-        expect(ascentOverride).toBe('103.26%')
+        expect(ascentOverride).toBe('103.37%')
 
         const descentOverride = await browser.eval(
           'Array.from(document.fonts.values()).find(font => font.family.includes("Indie_Flower_Fallback")).descentOverride'
@@ -546,7 +546,7 @@ describe('@next/font/google', () => {
         const ascentOverride = await browser.eval(
           'Array.from(document.fonts.values()).find(font => font.family.includes("Fraunces_Fallback")).ascentOverride'
         )
-        expect(ascentOverride).toBe('84.71%')
+        expect(ascentOverride).toBe('84.7%')
 
         const descentOverride = await browser.eval(
           'Array.from(document.fonts.values()).find(font => font.family.includes("Fraunces_Fallback")).descentOverride'
