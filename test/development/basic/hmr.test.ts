@@ -778,10 +778,11 @@ describe('basic HMR', () => {
         next.appPort,
         `/hmr/anonymous-page-function`
       )
+      const cliWarning =
+        'Fast Refresh had to perform a full reload when ./pages/hmr/anonymous-page-function.js changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload'
+
       expect(await browser.elementByCss('p').text()).toBe('hello world')
-      expect(next.cliOutput.slice(start)).not.toContain(
-        'Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/basic-features/fast-refresh#how-it-works'
-      )
+      expect(next.cliOutput.slice(start)).not.toContain(cliWarning)
 
       const currentFileContent = await next.readFile(
         './pages/hmr/anonymous-page-function.js'
@@ -799,13 +800,8 @@ describe('basic HMR', () => {
         'hello world!!!'
       )
 
-      // CLI warning and stacktrace
-      expect(next.cliOutput.slice(start)).toContain(
-        'Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/basic-features/fast-refresh#how-it-works'
-      )
-      expect(next.cliOutput.slice(start)).toContain(
-        'Error: Aborted because ./pages/hmr/anonymous-page-function.js is not accepted'
-      )
+      // CLI warning
+      expect(next.cliOutput.slice(start)).toContain(cliWarning)
 
       // Browser warning
       const browserLogs = await browser.log()
@@ -821,13 +817,14 @@ describe('basic HMR', () => {
     it('should warn about full reload in cli output - runtime-error', async () => {
       const start = next.cliOutput.length
       const browser = await webdriver(next.appPort, `/hmr/runtime-error`)
+      const cliWarning =
+        'Fast Refresh had to perform a full reload due to a runtime error.'
+
       await check(
         () => getRedboxHeader(browser),
         /ReferenceError: whoops is not defined/
       )
-      expect(next.cliOutput.slice(start)).not.toContain(
-        'Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/basic-features/fast-refresh#how-it-works'
-      )
+      expect(next.cliOutput.slice(start)).not.toContain(cliWarning)
 
       const currentFileContent = await next.readFile(
         './pages/hmr/runtime-error.js'
@@ -842,13 +839,8 @@ describe('basic HMR', () => {
         'whoops'
       )
 
-      // CLI warning and stacktrace
-      expect(next.cliOutput.slice(start)).toContain(
-        'Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/basic-features/fast-refresh#how-it-works'
-      )
-      expect(next.cliOutput.slice(start)).not.toContain(
-        'Error: Aborted because ./pages/runtime-error.js is not accepted'
-      )
+      // CLI warning
+      expect(next.cliOutput.slice(start)).toContain(cliWarning)
 
       // Browser warning
       const browserLogs = await browser.log()
