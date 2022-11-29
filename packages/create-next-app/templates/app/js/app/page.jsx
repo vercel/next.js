@@ -83,7 +83,7 @@ export default function Home() {
           rel="noopener noreferrer"
         >
           <h2 className={inter.className}>
-            Examples <span>-&gt;</span>
+            Templates <span>-&gt;</span>
           </h2>
           <p className={spaceGrotesk.className}>
             Explore the Next.js 13 playground.
