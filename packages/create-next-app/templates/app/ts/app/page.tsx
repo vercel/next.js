@@ -25,14 +25,14 @@ export default function Home() {
       <div className={styles.description}>
         <p className={spaceMono.className}>
           Get started by editing&nbsp;
-          <code className={styles.code}>pages/index.js</code>
+          <code className={styles.code}>app/page.tsx</code>
         </p>
         <div>
           <a
             className={spaceMono.className}
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
+            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
             target="_blank"
-            rel="noopener noreferrer"
+            rel="noopener"
           >
             By{' '}
             <Image
@@ -62,8 +62,10 @@ export default function Home() {
 
       <div className={styles.grid}>
         <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
+          href="https://beta.nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
           className={styles.card}
+          target="_blank"
+          rel="noopener"
         >
           <h2 className={inter.className}>
             Docs <span>-&gt;</span>
@@ -74,33 +76,19 @@ export default function Home() {
         </a>
 
         <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
+          href="https://vercel.com/templates/next.js/app-directory?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
           className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
         >
           <h2 className={inter.className}>
-            Learn <span>-&gt;</span>
+            Examples <span>-&gt;</span>
           </h2>
           <p className={spaceGrotesk.className}>
-            Learn about Next.js in an interactive course with quizzes!
+            Explore the Next.js 13 playground.
           </p>
         </a>
 
         <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-          className={styles.card}
-        >
-          <h2 className={inter.className}>
-            Templates <span>-&gt;</span>
-          </h2>
-          <p className={spaceGrotesk.className}>
-            Discover and deploy boilerplate example Next.js projects.
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
+          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
           target="_blank"
           rel="noopener noreferrer"
           className={styles.card}

@@ -14,7 +14,7 @@
   font-size: 0.9rem;
   max-width: var(--max-width);
   width: 100%;
-  z-index: 10;
+  z-index: 2;
 }
 
 .description a {
@@ -40,7 +40,7 @@
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(25%, auto));
+  grid-template-columns: repeat(3, minmax(33%, auto));
   width: var(--max-width);
   max-width: 100%;
 }
@@ -60,7 +60,7 @@
 
 .card h2 {
   font-weight: 600;
-  margin: 0 0 0.7rem 0;
+  margin-bottom: 0.7rem;
 }
 
 .card p {
@@ -124,15 +124,11 @@
   box-shadow: 0px 2px 8px -1px #0000001a;
 }
 
-.thirteen img {
-  z-index: 1;
-}
-
 /* Conic Gradient Animation */
 .thirteen::before {
   content: '';
   position: absolute;
-  animation: 6s rotate 1s linear infinite;
+  animation: 6s rotate linear infinite;
   z-index: -1;
   width: 200%;
   height: 200%;
@@ -177,8 +173,8 @@
   }
 }
 
-/* Mobile */
-@media (max-width: 700px) {
+/* Mobile and Tablet */
+@media (max-width: 1023px) {
   .content {
     padding: 4rem;
   }
@@ -191,8 +187,7 @@
   }
 
   .card {
-    padding-left: 40px;
-    padding-right: 40px;
+    padding: 1rem 2.5rem;
   }
 
   .card h2 {
@@ -217,9 +212,6 @@
 
   .description p {
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -244,8 +236,7 @@
     justify-content: center;
     position: fixed;
     pointer-events: none;
-    left: 0;
-    bottom: 0;
+    inset: auto 0 0;
     padding: 2rem;
     height: 200px;
     width: 100%;
@@ -255,15 +246,6 @@
       rgb(var(--background-end-rgb)) 40%
     );
     z-index: 1;
-  }
-}
-
-/* Tablet and Smaller Desktop */
-@media (min-width: 701px) and (max-width: 1120px) {
-  .grid {
-    gap: 0;
-    grid-template-columns: repeat(2, 50%);
-    width: 100%;
   }
 }
 
