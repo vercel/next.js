@@ -81,7 +81,7 @@ body:
       value: These steps are used to add integration tests to ensure the same issue does not happen again. Thanks in advance!
   - type: input
     attributes:
-      label: What browser are you using? (if relevant)
+      label: Which browser are you using? (if relevant)
       description: 'Please specify the exact version. For example: Chrome 100.0.4878.0'
   - type: input
     attributes:
