@@ -526,7 +526,8 @@ function Root({
   router,
   children,
 }: React.PropsWithChildren<{
-  callbacks: Array<() => void>
+  callbacks: Array<() => void>,
+  router: Router
 }>): React.ReactElement {
   // We use `useLayoutEffect` to guarantee the callbacks are executed
   // as soon as React flushes the update
@@ -751,7 +752,7 @@ function doRender(input: RenderRouteInfo): Promise<any> {
 
   // We catch runtime errors using componentDidCatch which will trigger renderError
   renderReactElement(appElement!, (callback) => (
-    <Root router={router} callbacks={[callback, onRootCommit]}>
+    <Root callbacks={[callback, onRootCommit]} router={router}>
       {process.env.__NEXT_STRICT_MODE ? (
         <React.StrictMode>{elem}</React.StrictMode>
       ) : (
