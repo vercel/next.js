@@ -7,9 +7,10 @@ import {
   fetchViaHTTP,
   findPort,
   getRedboxHeader,
-  hasRedbox,
+  hasErrorToast,
   initNextServerScript,
   killApp,
+  openErrorToast,
   renderViaHTTP,
   waitFor,
 } from 'next-test-utils'
@@ -2063,7 +2064,8 @@ describe('app dir', () => {
         await browser.elementByCss('#error-trigger-button').click()
 
         if (isDev) {
-          expect(await hasRedbox(browser)).toBe(true)
+          expect(await hasErrorToast(browser, true)).toBe(true)
+          await openErrorToast(browser)
           expect(await getRedboxHeader(browser)).toMatch(/this is a test/)
         } else {
           await browser
@@ -2113,12 +2115,11 @@ describe('app dir', () => {
           '/error/global-error-boundary'
         )
         await browser.elementByCss('#error-trigger-button').click()
-        // .waitForElementByCss('body')
 
         if (isDev) {
-          expect(await hasRedbox(browser)).toBe(true)
-          console.log('getRedboxHeader', await getRedboxHeader(browser))
-          // expect(await getRedboxHeader(browser)).toMatch(/An error occurred: this is a test/)
+          expect(await hasErrorToast(browser, true)).toBe(true)
+          await openErrorToast(browser)
+          expect(await getRedboxHeader(browser)).toMatch(/this is a test/)
         } else {
           expect(
             await browser
