@@ -29,7 +29,7 @@ export default function Home() {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
-      <main className={styles.content}>
+      <main className={styles.main}>
         <div className={styles.description}>
           <p className={spaceMono.className}>
             Get started by editing&nbsp;

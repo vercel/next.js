@@ -21,7 +21,7 @@ const spaceMono = Space_Mono({
 
 export default function Home() {
   return (
-    <main className={styles.content}>
+    <main className={styles.main}>
       <div className={styles.description}>
         <p className={spaceMono.className}>
           Get started by editing&nbsp;
