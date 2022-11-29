@@ -7,10 +7,10 @@ import { styles as overlay } from "../components/Overlay";
 import { styles as tabs } from "../components/Tabs";
 import { styles as terminal } from "../components/Terminal";
 import { styles as toast } from "../components/Toast";
-import { styles as buildErrorStyles } from "../container/BuildError";
 import { styles as containerErrorStyles } from "../container/Errors";
 import { styles as containerErrorToastStyles } from "../container/ErrorsToast";
 import { styles as containerRuntimeErrorStyles } from "../container/RuntimeError";
+import { styles as containerTurbopackIssueStyles } from "../container/TurbopackIssue";
 import { noop as css } from "../helpers/noop-template";
 
 export function ComponentStyles() {
@@ -25,10 +25,10 @@ export function ComponentStyles() {
         ${terminal}
         ${tabs}
 
-        ${buildErrorStyles}
         ${containerErrorStyles}
         ${containerErrorToastStyles}
         ${containerRuntimeErrorStyles}
+        ${containerTurbopackIssueStyles}
       `}
     </style>
   );

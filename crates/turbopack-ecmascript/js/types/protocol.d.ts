@@ -71,9 +71,12 @@ export type Issue = {
   severity: IssueSeverity;
   context: string;
   category: string;
+
   title: string;
   description: string;
+  detail: string;
   documentation_link: string;
+
   source: IssueSource | null;
   sub_issues: Issue[];
   formatted: string;

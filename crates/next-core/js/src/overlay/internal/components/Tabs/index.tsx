@@ -19,7 +19,6 @@ type TabRefs = Record<string, HTMLElement | undefined>;
 
 type TabsContextType = {
   selectedId: string;
-  tabRefs: Readonly<TabRefs>;
   registerTabRef: (id: string, el: HTMLElement | null) => void;
   onSelectTab: (id: string) => void;
 };
@@ -69,6 +68,8 @@ export function Tabs({
       setTimeout(() => {
         tab.focus();
       }, 0);
+
+      onSelectTabUnchecked(id);
     },
     [selectedId, onSelectTabUnchecked]
   );
@@ -108,7 +109,6 @@ export function Tabs({
   return (
     <TabsProvider
       selectedId={selectedId}
-      tabRefs={tabRefs.current}
       registerTabRef={registerTabRef}
       onSelectTab={onSelectTab}
     >

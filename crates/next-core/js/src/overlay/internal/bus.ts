@@ -3,16 +3,16 @@ import { StackFrame } from "stacktrace-parser";
 import type { Issue } from "@vercel/turbopack-runtime/types/protocol";
 
 export const TYPE_BUILD_OK = "build-ok";
-export const TYPE_TURBOPACK_ERROR = "turbopack-error";
+export const TYPE_TURBOPACK_ISSUES = "turbopack-error";
 export const TYPE_BEFORE_REFRESH = "before-fast-refresh";
 export const TYPE_REFRESH = "fast-refresh";
 export const TYPE_UNHANDLED_ERROR = "unhandled-error";
 export const TYPE_UNHANDLED_REJECTION = "unhandled-rejection";
 
 export type BuildOk = { type: typeof TYPE_BUILD_OK };
-export type TurbopackError = {
-  type: typeof TYPE_TURBOPACK_ERROR;
-  issue: Issue;
+export type TurbopackIssues = {
+  type: typeof TYPE_TURBOPACK_ISSUES;
+  issues: Issue[];
 };
 export type BeforeFastRefresh = { type: typeof TYPE_BEFORE_REFRESH };
 export type FastRefresh = { type: typeof TYPE_REFRESH };
@@ -28,7 +28,7 @@ export type UnhandledRejection = {
 };
 export type BusEvent =
   | BuildOk
-  | TurbopackError
+  | TurbopackIssues
   | BeforeFastRefresh
   | FastRefresh
   | UnhandledError

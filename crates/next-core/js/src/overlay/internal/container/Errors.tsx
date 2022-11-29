@@ -1,5 +1,7 @@
 import * as React from "react";
 
+import { Issue } from "@vercel/turbopack-runtime/types/protocol";
+
 import {
   TYPE_UNHANDLED_ERROR,
   TYPE_UNHANDLED_REJECTION,
@@ -18,8 +20,9 @@ import { Tab, TabPanel, Tabs } from "../components/Tabs";
 import { getErrorByType, ReadyRuntimeError } from "../helpers/getErrorByType";
 import { getErrorSource } from "../helpers/nodeStackFrames";
 import { noop as css } from "../helpers/noop-template";
-import { AlertOctagon } from "../icons";
+import { AlertOctagon, PackageX } from "../icons";
 import { RuntimeErrorsDialogBody } from "./RuntimeError";
+import { TurbopackIssuesDialogBody } from "../container/TurbopackIssue";
 import { ErrorsToast } from "../container/ErrorsToast";
 
 export type SupportedErrorEvent = {
@@ -27,6 +30,7 @@ export type SupportedErrorEvent = {
   event: UnhandledError | UnhandledRejection;
 };
 export type ErrorsProps = {
+  issues: Issue[];
   errors: SupportedErrorEvent[];
 };
 
@@ -82,9 +86,7 @@ function useResolvedErrors(
     return [ready, next];
   }, [errors, lookups]);
 
-  const isLoading = React.useMemo<boolean>(() => {
-    return readyErrors.length < 1 && errors.length > 1;
-  }, [errors.length, readyErrors.length]);
+  const isLoading = readyErrors.length === 0 && errors.length > 1;
 
   React.useEffect(() => {
     if (nextError == null) {
@@ -114,7 +116,7 @@ function useResolvedErrors(
   // Reset component state when there are no errors to be displayed.
   // This should never happen, but let's handle it.
   React.useEffect(() => {
-    if (errors.length < 1) {
+    if (errors.length === 0) {
       setLookups({});
     }
   }, [errors.length]);
@@ -123,23 +125,17 @@ function useResolvedErrors(
 }
 
 const enum TabId {
+  TurbopackIssues = "turbopack-issues",
   RuntimeErrors = "runtime-errors",
 }
 
-export function Errors({ errors }: ErrorsProps) {
-  const [displayState, setDisplayState] = React.useState<
+export function Errors({ issues, errors }: ErrorsProps) {
+  // eslint-disable-next-line prefer-const
+  let [displayState, setDisplayState] = React.useState<
     "minimized" | "fullscreen" | "hidden"
   >("fullscreen");
 
   const [readyErrors, isLoading] = useResolvedErrors(errors);
-
-  // Reset component state when there are no errors to be displayed.
-  // This should never happen, but let's handle it.
-  React.useEffect(() => {
-    if (errors.length < 1) {
-      setDisplayState("hidden");
-    }
-  }, [errors.length]);
 
   const minimize = React.useCallback((e?: MouseEvent | TouchEvent) => {
     e?.preventDefault();
@@ -157,18 +153,37 @@ export function Errors({ errors }: ErrorsProps) {
     []
   );
 
-  const hasErrors = errors.length > 0;
+  const hasIssues = issues.length !== 0;
+  const hasIssueWithError = issues.some((issue) =>
+    ["bug", "fatal", "error"].includes(issue.severity)
+  );
+
+  const hasErrors = errors.length !== 0;
   const hasServerError = readyErrors.some((err) =>
     ["server", "edge-server"].includes(getErrorSource(err.error) || "")
   );
-  const isClosable = !isLoading && !hasServerError;
+  const isClosable = !isLoading && !hasIssueWithError && !hasServerError;
 
-  const defaultTab = TabId.RuntimeErrors;
+  const defaultTab =
+    hasIssueWithError || !hasErrors
+      ? TabId.TurbopackIssues
+      : TabId.RuntimeErrors;
+
   const [selectedTab, setSelectedTab] = React.useState<string>(defaultTab);
+
+  React.useEffect(() => {
+    if (defaultTab === TabId.TurbopackIssues) {
+      setSelectedTab(TabId.TurbopackIssues);
+    }
+  }, [defaultTab]);
+
+  if (!isClosable) {
+    displayState = "fullscreen";
+  }
 
   // This component shouldn't be rendered with no errors, but if it is, let's
   // handle it gracefully by rendering nothing.
-  if (errors.length < 1) {
+  if (!hasErrors && !hasIssues) {
     return null;
   }
 
@@ -179,7 +194,7 @@ export function Errors({ errors }: ErrorsProps) {
   if (displayState === "minimized") {
     return (
       <ErrorsToast
-        errorCount={readyErrors.length}
+        errorCount={readyErrors.length + issues.length}
         onClick={fullscreen}
         onClose={hide}
       />
@@ -202,15 +217,40 @@ export function Errors({ errors }: ErrorsProps) {
           close={isClosable ? minimize : undefined}
         >
           <DialogHeaderTabList>
+            {hasIssues && (
+              <Tab
+                id={TabId.TurbopackIssues}
+                next={hasErrors ? TabId.RuntimeErrors : undefined}
+                data-severity={hasIssueWithError ? "error" : "warning"}
+              >
+                <PackageX />
+                {issues.length} Turbopack Issue{issues.length > 1 ? "s" : ""}
+              </Tab>
+            )}
             {hasErrors && (
-              <Tab id={TabId.RuntimeErrors} data-severity="error">
+              <Tab
+                id={TabId.RuntimeErrors}
+                prev={hasIssues ? TabId.TurbopackIssues : undefined}
+                data-severity="error"
+              >
                 <AlertOctagon />
-                {isLoading ? "Loading" : readyErrors.length} Runtime Errors
-                {isLoading ? "..." : null}
+                {isLoading
+                  ? "Loading Runtime Errors ..."
+                  : `${readyErrors.length} Runtime Error${
+                      readyErrors.length > 1 ? "s" : ""
+                    }`}
               </Tab>
             )}
           </DialogHeaderTabList>
         </DialogHeader>
+        {hasIssues && (
+          <TabPanel
+            as={TurbopackIssuesDialogBody}
+            id={TabId.TurbopackIssues}
+            issues={issues}
+            className="errors-body"
+          />
+        )}
         {hasErrors && (
           <TabPanel
             as={RuntimeErrorsDialogBody}
