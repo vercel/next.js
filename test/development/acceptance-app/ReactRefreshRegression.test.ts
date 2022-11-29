@@ -280,7 +280,8 @@ describe('ReactRefreshRegression app', () => {
 
     await browser.refresh()
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasErrorToast(true)).toBe(true)
+    await session.openErrorToast()
 
     const source = await session.getRedboxSource()
     expect(source.split(/\r?\n/g).slice(2).join('\n')).toMatchInlineSnapshot(`
@@ -301,7 +302,8 @@ describe('ReactRefreshRegression app', () => {
 
     await browser.refresh()
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasErrorToast(true)).toBe(true)
+    await session.openErrorToast()
 
     const source = await session.getRedboxSource()
     expect(source.split(/\r?\n/g).slice(2).join('\n')).toMatchInlineSnapshot(`
@@ -323,7 +325,8 @@ describe('ReactRefreshRegression app', () => {
 
     await browser.refresh()
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasErrorToast(true)).toBe(true)
+    await session.openErrorToast()
 
     const source = await session.getRedboxSource()
     expect(source.split(/\r?\n/g).slice(2).join('\n')).toMatchInlineSnapshot(`
