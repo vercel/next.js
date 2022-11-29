@@ -144,7 +144,7 @@ function tryApplyUpdates(
       return
     }
 
-    const hasUpdates = Boolean(updatedModules?.length)
+    const hasUpdates = Boolean(updatedModules.length)
     if (typeof onHotUpdateSuccess === 'function') {
       // Maybe we want to do something.
       onHotUpdateSuccess(hasUpdates)
@@ -176,8 +176,12 @@ function tryApplyUpdates(
   module.hot
     .check(/* autoApply */ false)
     .then((updatedModules: any[] | null) => {
-      const hasUpdates = Boolean(updatedModules?.length)
+      if (!updatedModules) {
+        return null
+      }
+
       if (typeof onBeforeUpdate === 'function') {
+        const hasUpdates = Boolean(updatedModules.length)
         onBeforeUpdate(hasUpdates)
       }
       // https://webpack.js.org/api/hot-module-replacement/#apply
@@ -185,7 +189,7 @@ function tryApplyUpdates(
       return module.hot.apply()
     })
     .then(
-      (updatedModules: any) => {
+      (updatedModules: any[] | null) => {
         handleApplyUpdates(null, updatedModules)
       },
       (err: any) => {

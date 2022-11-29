@@ -410,7 +410,7 @@ importers:
 
   packages/eslint-config-next:
     specifiers:
-      '@next/eslint-plugin-next': 13.0.6-canary.0
+      '@next/eslint-plugin-next': 13.0.6-canary.2
       '@rushstack/eslint-patch': ^1.1.3
       '@typescript-eslint/parser': ^5.42.0
       eslint-import-resolver-node: ^0.3.6
@@ -478,12 +478,12 @@ importers:
       '@hapi/accept': 5.0.2
       '@napi-rs/cli': 2.12.0
       '@napi-rs/triples': 1.1.0
-      '@next/env': 13.0.6-canary.0
-      '@next/polyfill-module': 13.0.6-canary.0
-      '@next/polyfill-nomodule': 13.0.6-canary.0
-      '@next/react-dev-overlay': 13.0.6-canary.0
-      '@next/react-refresh-utils': 13.0.6-canary.0
-      '@next/swc': 13.0.6-canary.0
+      '@next/env': 13.0.6-canary.2
+      '@next/polyfill-module': 13.0.6-canary.2
+      '@next/polyfill-nomodule': 13.0.6-canary.2
+      '@next/react-dev-overlay': 13.0.6-canary.2
+      '@next/react-refresh-utils': 13.0.6-canary.2
+      '@next/swc': 13.0.6-canary.2
       '@segment/ajv-human-errors': 2.1.2
       '@swc/helpers': 0.4.14
       '@taskr/clear': 1.1.0
@@ -634,7 +634,7 @@ importers:
       timers-browserify: 2.0.12
       tty-browserify: 0.0.1
       ua-parser-js: 0.7.28
-      undici: 5.12.0
+      undici: 5.13.0
       unistore: 3.4.1
       util: 0.12.4
       uuid: 8.3.2
@@ -828,7 +828,7 @@ importers:
       timers-browserify: 2.0.12
       tty-browserify: 0.0.1
       ua-parser-js: 0.7.28
-      undici: 5.12.0
+      undici: 5.13.0
       unistore: 3.4.1_react@18.2.0
       util: 0.12.4
       uuid: 8.3.2
@@ -23025,8 +23025,8 @@ packages:
     engines: {node: '>=0.10.0'}
     dev: true
 
-  /undici/5.12.0:
-    resolution: {integrity: sha512-zMLamCG62PGjd9HHMpo05bSLvvwWOZgGeiWlN/vlqu3+lRo3elxktVGEyLMX+IO7c2eflLjcW74AlkhEZm15mg==}
+  /undici/5.13.0:
+    resolution: {integrity: sha512-UDZKtwb2k7KRsK4SdXWG7ErXiL7yTGgLWvk2AXO1JMjgjh404nFo6tWSCM2xMpJwMPx3J8i/vfqEh1zOqvj82Q==}
     engines: {node: '>=12.18'}
     dependencies:
       busboy: 1.6.0
