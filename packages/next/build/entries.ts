@@ -517,9 +517,9 @@ export function finalizeEntrypoint({
     }
   }
 
-  const isAppEntry =
+  const isAppLayer =
     hasAppDir &&
-    ([CLIENT_STATIC_FILES_RUNTIME_MAIN_APP].includes(name) ||
+    (name === CLIENT_STATIC_FILES_RUNTIME_MAIN_APP ||
       entry.import.includes('next-flight-client-entry-loader'))
 
   if (
@@ -533,10 +533,10 @@ export function finalizeEntrypoint({
     ].includes(name)
   ) {
     // TODO-APP: this is a temporary fix. @shuding is going to change the handling of server components
-    if (hasAppDir && entry.import.includes('next-flight-client-entry-loader')) {
+    if (isAppLayer) {
       return {
         dependOn: CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
-        layer: isAppEntry ? WEBPACK_LAYERS.appClient : undefined,
+        layer: WEBPACK_LAYERS.appClient,
         ...entry,
       }
     }
@@ -550,7 +550,7 @@ export function finalizeEntrypoint({
     }
   }
 
-  if (isAppEntry) {
+  if (isAppLayer) {
     return {
       layer: WEBPACK_LAYERS.appClient,
       ...entry,
