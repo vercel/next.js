@@ -26,26 +26,26 @@ body:
       label: Which area of Next.js is affected? (leave empty if unsure)
       multiple: true
       options:
-        - App directory (appDir: true)
-        - CLI (create-next-app)
-        - Data fetching (gS(S)P, getInitialProps)
-        - Dynamic imports (next/dynamic)
-        - ESLint (eslint-config-next)
-        - Font optimization (@next/font)
-        - Internationalzation (i18n)
-        - Image optmization (next/image, next/legacy/image)
-        - Jest (next/jest)
-        - Middleware / Edge (API routes, runtime)
-        - Package manager (npm, pnpm, Yarn)
-        - Routing (next/router, next/navigation, next/link)
-        - Script optimizatzion (next/script)
+        - 'App directory (appDir: true)'
+        - 'CLI (create-next-app)'
+        - 'Data fetching (gS(S)P, getInitialProps)'
+        - 'Dynamic imports (next/dynamic)'
+        - 'ESLint (eslint-config-next)'
+        - 'Font optimization (@next/font)'
+        - 'Internationalzation (i18n)'
+        - 'Image optmization (next/image, next/legacy/image)'
+        - 'Jest (next/jest)'
+        - 'Middleware / Edge (API routes, runtime)'
+        - 'Package manager (npm, pnpm, Yarn)'
+        - 'Routing (next/router, next/navigation, next/link)'
+        - 'Script optimizatzion (next/script)'
         - 'Standalone mode (output: "standalone")'
-        - Static HTML Export (next export)
-        - SWC minifier (swcMinify: true)
-        - SWC transpilation
+        - 'Static HTML Export (next export)'
+        - 'SWC minifier (swcMinify: true)'
+        - 'SWC transpilation'
         - 'Turbopack (--turbo)'
-        - TypeScript
-        - Other
+        - 'TypeScript'
+        - 'Other'
   - type: input
     attributes:
       label: Link to reproduction - Issues with a link to complete (but minimal) reproduction code will be addressed faster
