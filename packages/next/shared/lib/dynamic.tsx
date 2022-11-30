@@ -1,22 +1,14 @@
 import React, { Suspense } from 'react'
 import Loadable from './loadable'
-
-export const NEXT_DYNAMIC_NO_SSR_CODE = 'DYNAMIC_SERVER_USAGE'
-export class NextDynamicNoSSRError extends Error {
-  digest: typeof NEXT_DYNAMIC_NO_SSR_CODE = NEXT_DYNAMIC_NO_SSR_CODE
-
-  constructor() {
-    super('next/dynamic with noSSR on server')
-  }
-}
+import DynamicBoundary, {
+  NEXT_DYNAMIC_NO_SSR_CODE,
+} from './dynamic-error-boundary'
 
 export type LoaderComponent<P = {}> = Promise<{
   default: React.ComponentType<P>
 }>
 
-type LazyComponentLoader<P = {}> = () => LoaderComponent<P>
-
-export type Loader<P = {}> = (() => LoaderComponent<P>) | LoaderComponent<P>
+export type Loader<P = {}> = () => LoaderComponent<P>
 
 export type LoaderMap = { [module: string]: () => Loader<any> }
 
@@ -52,6 +44,12 @@ export type LoadableFn<P = {}> = (
 
 export type LoadableComponent<P = {}> = React.ComponentType<P>
 
+function DynamicThrownOnServer() {
+  const error = new Error('next/dynamic with noSSR on server')
+  ;(error as any).digest = NEXT_DYNAMIC_NO_SSR_CODE
+  throw error
+}
+
 export function noSSR<P = {}>(
   _LoadableInitializer: LoadableFn<P>,
   loadableOptions: DynamicOptions<P>
@@ -60,12 +58,12 @@ export function noSSR<P = {}>(
   delete loadableOptions.webpack
   delete loadableOptions.modules
 
-  const NoSSRComponent =
+  const loader =
     typeof window === 'undefined'
-      ? ((() => {
-          throw new NextDynamicNoSSRError()
-        }) as React.FunctionComponent<P>)
-      : React.lazy(loadableOptions.loader as LazyComponentLoader<P>)
+      ? async () => ({ default: DynamicThrownOnServer })
+      : loadableOptions.loader
+
+  const NoSSRComponent = React.lazy<React.ComponentType>(loader as Loader)
 
   const Loading = loadableOptions.loading!
   const fallback = (
@@ -74,8 +72,9 @@ export function noSSR<P = {}>(
 
   return () => (
     <Suspense fallback={fallback}>
-      {/* @ts-ignore TODO: fix typing */}
-      <NoSSRComponent />
+      <DynamicBoundary>
+        <NoSSRComponent />
+      </DynamicBoundary>
     </Suspense>
   )
 }

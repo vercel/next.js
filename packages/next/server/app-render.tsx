@@ -35,6 +35,7 @@ import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
 import { RequestCookies } from './web/spec-extension/cookies'
 import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
 import { NOT_FOUND_ERROR_CODE } from '../client/components/not-found'
+import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/dynamic-error-boundary'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import { Writable } from 'stream'
 import stringHash from 'next/dist/compiled/string-hash'
@@ -45,7 +46,6 @@ import {
   FLIGHT_PARAMETERS,
 } from '../client/components/app-router-headers'
 import type { StaticGenerationStore } from '../client/components/static-generation-async-storage'
-import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/dynamic'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 

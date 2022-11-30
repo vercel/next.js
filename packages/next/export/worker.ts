@@ -33,7 +33,7 @@ import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
 import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
 import { NOT_FOUND_ERROR_CODE } from '../client/components/not-found'
 import { IncrementalCache } from '../server/lib/incremental-cache'
-import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/dynamic'
+import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/dynamic-error-boundary'
 
 loadRequireHook()
 
@@ -422,14 +422,21 @@ export default async function exportPage({
         if (optimizeCss) {
           process.env.__NEXT_OPTIMIZE_CSS = JSON.stringify(true)
         }
-        renderResult = await renderMethod(
-          req,
-          res,
-          page,
-          query,
-          // @ts-ignore
-          curRenderOpts
-        )
+        try {
+          renderResult = await renderMethod(
+            req,
+            res,
+            page,
+            query,
+            // @ts-ignore
+            curRenderOpts
+          )
+        } catch (err: any) {
+          console.log('page static', err)
+          if (err.digest !== NEXT_DYNAMIC_NO_SSR_CODE) {
+            throw err
+          }
+        }
       }
 
       results.ssgNotFound = (curRenderOpts as any).isNotFound

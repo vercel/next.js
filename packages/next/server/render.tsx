@@ -89,7 +89,7 @@ import {
 } from '../shared/lib/router/adapters'
 import { AppRouterContext } from '../shared/lib/app-router-context'
 import { SearchParamsContext } from '../shared/lib/hooks-client-context'
-import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/dynamic'
+import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/dynamic-error-boundary'
 
 let tryGetPreviewData: typeof import('./api-utils/node').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn

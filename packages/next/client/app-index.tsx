@@ -7,7 +7,7 @@ import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-we
 
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import { GlobalLayoutRouterContext } from '../shared/lib/app-router-context'
-import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/dynamic'
+import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/dynamic-error-boundary'
 
 /// <reference types="react-dom/experimental" />
 
@@ -191,13 +191,7 @@ export function hydrate() {
     if (rootLayoutMissingTagsError) {
       const reactRootElement = document.createElement('div')
       document.body.appendChild(reactRootElement)
-      const reactRoot = (ReactDOMClient as any).createRoot(reactRootElement, {
-        onRecoverableError(err: any) {
-          // Skip certain custom errors which are not expected to throw on client
-          if (err.digest === NEXT_DYNAMIC_NO_SSR_CODE) return
-          throw err
-        },
-      })
+      const reactRoot = (ReactDOMClient as any).createRoot(reactRootElement)
 
       reactRoot.render(
         <GlobalLayoutRouterContext.Provider
