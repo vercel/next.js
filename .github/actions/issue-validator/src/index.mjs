@@ -24,9 +24,8 @@ const __dirname =
  * }} Label
  *
  * @typedef {{
- *  labels: Label[]
  *  pull_request: any
- *  issue?: {body: string, number: number}
+ *  issue?: {body: string, number: number, labels: Label[]}
  *  label: Label
  * }} Payload
  *
@@ -48,7 +47,7 @@ async function run() {
 
     if (pull_request || !issue?.body || !process.env.GITHUB_TOKEN) return
 
-    const labels = payload.labels.map((l) => l.name)
+    const labels = issue.labels.map((l) => l.name)
     const isBugReport =
       labels.includes(bugLabel) || newLabel === bugLabel || !labels.length
 
