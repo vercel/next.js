@@ -48,6 +48,14 @@ Common causes with css-in-js libraries:
 - When using other css-in-js libraries
   - Similar to Styled Components / Emotion css-in-js libraries generally need configuration specified in their examples in the [examples directory](https://github.com/vercel/next.js/tree/canary/examples)
 
+Common causes on iOS:
+
+- iOS attempts to detect phone numbers, email addressees and other data in text content and convert them into links, which can [lead to hydration mismatches](https://github.com/vercel/next.js/issues/38290). This can be disabled with the following `meta` tag:
+
+```
+<meta name="format-detection" content="telephone=no, date=no, email=no, address=no" />
+```
+
 ### Useful Links
 
 - [React Hydration Documentation](https://reactjs.org/docs/react-dom.html#hydrate)
