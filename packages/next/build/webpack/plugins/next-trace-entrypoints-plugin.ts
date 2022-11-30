@@ -182,7 +182,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
 
       // startTrace existed and callable
       if (this.turbotrace) {
-        let binding = (await loadBindings()) as any
+        let binding = await loadBindings()
         if (
           !binding?.isWasm &&
           typeof binding.turbo.startTrace === 'function'
@@ -402,7 +402,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
             })
             // startTrace existed and callable
             if (this.turbotrace) {
-              let binding = (await loadBindings()) as any
+              let binding = await loadBindings()
               if (
                 !binding?.isWasm &&
                 typeof binding.turbo.startTrace === 'function'
@@ -807,7 +807,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
           'after-emit-turbo-trace'
         )
         await turbotraceAfterEmitSpan.traceAsyncFn(async () => {
-          let binding = (await loadBindings()) as any
+          let binding = await loadBindings()
           if (
             !binding?.isWasm &&
             typeof binding.turbo.startTrace === 'function'

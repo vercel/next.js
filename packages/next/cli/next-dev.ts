@@ -396,7 +396,7 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
     // eslint-disable-next-line no-shadow
     const packagePath = findUp.sync('package.json', { cwd: dir })
 
-    let bindings: any = await loadBindings()
+    let bindings = await loadBindings()
     let server = bindings.turbo.startDev({
       ...devServerOptions,
       showAll: args['--show-all'] ?? false,
@@ -409,6 +409,7 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
           : undefined),
       serverComponentsExternalPackages:
         rawNextConfig.experimental?.serverComponentsExternalPackages,
+      reactStrictMode: rawNextConfig.reactStrictMode,
     })
     // Start preflight after server is listening and ignore errors:
     preflight().catch(() => {})

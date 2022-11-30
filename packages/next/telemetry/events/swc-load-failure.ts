@@ -18,7 +18,7 @@ export type EventSwcLoadFailure = {
 }
 
 export async function eventSwcLoadFailure(
-  event?: EventSwcLoadFailure['payload']
+  event?: Pick<EventSwcLoadFailure['payload'], 'wasm'>
 ): Promise<void> {
   const telemetry: Telemetry = traceGlobals.get('telemetry')
   // can't continue if telemetry isn't set

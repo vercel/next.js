@@ -1698,7 +1698,7 @@ export default async function build(
       if (config.outputFileTracing) {
         let nodeFileTrace: any
         if (config.experimental.turbotrace) {
-          let binding = (await loadBindings()) as any
+          let binding = await loadBindings()
           if (!binding?.isWasm) {
             nodeFileTrace = binding.turbo?.startTrace
           }
