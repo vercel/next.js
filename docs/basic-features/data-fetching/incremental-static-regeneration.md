@@ -27,6 +27,8 @@ description: 'Learn how to create or update static pages at runtime with Increme
 
 Next.js allows you to create or update static pages _after_ you’ve built your site. Incremental Static Regeneration (ISR) enables you to use static-generation on a per-page basis, **without needing to rebuild the entire site**. With ISR, you can retain the benefits of static while scaling to millions of pages.
 
+> Note: It is not currently possible to use [Edge API Routes](https://nextjs.org/docs/api-routes/edge-api-routes) with ISR.
+
 To use ISR, add the `revalidate` prop to `getStaticProps`:
 
 ```jsx
