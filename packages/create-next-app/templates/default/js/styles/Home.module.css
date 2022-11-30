@@ -11,10 +11,11 @@
   display: inherit;
   justify-content: inherit;
   align-items: inherit;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   max-width: var(--max-width);
   width: 100%;
   z-index: 2;
+  font-family: var(--font-mono);
 }
 
 .description a {
@@ -27,7 +28,7 @@
 .description p {
   position: relative;
   margin: 0;
-  padding: 0.8rem 1rem 0.9rem;
+  padding: 1rem;
   background-color: rgba(var(--callout-rgb), 0.5);
   border: 1px solid rgba(var(--callout-border-rgb), 0.3);
   border-radius: var(--border-radius);
@@ -66,10 +67,11 @@
 .card p {
   margin: 0;
   opacity: 0.6;
-  font-size: 0.9rem;
-  line-height: 1.25;
-  max-width: 32ch;
-  letter-spacing: -0.01em;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  max-width: 30ch;
+  word-spacing: -0.1rem;
+  font-family: var(--font-mono);
 }
 
 .center {
