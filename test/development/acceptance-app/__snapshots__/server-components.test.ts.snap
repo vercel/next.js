@@ -40,3 +40,14 @@ This error happened while generating the page. Any console logs will be displaye
 
 null"
 `;
+
+exports[`Error Overlay for server components should show error when class component is called from npm package without babel 1`] = `
+" 1 of 1 unhandled error
+Server Error
+
+TypeError: Class extends value undefined is not a constructor or null
+
+This error happened while generating the page. Any console logs will be displayed in the terminal window.
+
+null"
+`;

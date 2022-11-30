@@ -196,4 +196,52 @@ exports.default = Comp;
 
     await cleanup()
   })
+
+  test('should show error when class component is called from npm package without babel', async () => {
+    const { session, browser, cleanup } = await sandbox(
+      next,
+      new Map([
+        [
+          'node_modules/my-package/index.js',
+          `
+          const React = require('react')
+          module.exports = class Comp extends React.Component {
+            render() {
+                return <h1>Class Component</h1>
+            }
+          }
+        `,
+        ],
+        [
+          'node_modules/my-package/package.json',
+          `
+          {
+            "name": "my-package",
+            "version": "0.0.1"
+          }
+        `,
+        ],
+        [
+          'app/page.js',
+          `
+        import Comp from 'my-package'
+        export default function Page() {
+          return (
+            <>
+                <Comp />
+            </>
+          )
+        }`,
+        ],
+      ])
+    )
+
+    // TODO-APP: currently requires a full reload because moving from a client component to a server component isn't causing a Fast Refresh yet.
+    await browser.refresh()
+
+    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.getRedboxSource(true)).toMatchSnapshot()
+
+    await cleanup()
+  })
 })
