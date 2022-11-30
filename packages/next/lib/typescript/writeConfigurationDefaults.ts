@@ -3,6 +3,7 @@ import chalk from 'next/dist/compiled/chalk'
 import * as CommentJson from 'next/dist/compiled/comment-json'
 import semver from 'next/dist/compiled/semver'
 import os from 'os'
+import * as Log from '../../build/output/log'
 import type { CompilerOptions } from 'typescript'
 import { getTypeScriptConfiguration } from './getTypeScriptConfiguration'
 
@@ -112,6 +113,18 @@ export async function writeConfigurationDefaults(
   const desiredCompilerOptions = getDesiredCompilerOptions(ts)
   const { options: tsOptions, raw: rawConfig } =
     await getTypeScriptConfiguration(ts, tsConfigPath, true)
+
+  if (tsOptions.target && tsOptions.target !== ts.ScriptTarget.ES5) {
+    Log.warn(
+      `The ${chalk.bold('target')} option in your ${chalk.bold(
+        'tsconfig.json'
+      )} is changed from the default '${chalk.bold('es5')}' to '${chalk.bold(
+        ts.ScriptTarget[tsOptions.target]
+      )}',` +
+        ` which has no effect. Please use a Browserslist configuration instead.` +
+        ` Read more: https://nextjs.org/docs/messages/tsconfig-target-option`
+    )
+  }
 
   const userTsConfigContent = await fs.readFile(tsConfigPath, {
     encoding: 'utf8',
