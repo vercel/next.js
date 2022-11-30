@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     fmt::{Debug, Display},
     hash::Hash,
     mem::take,
@@ -7,6 +7,7 @@ use std::{
     sync::atomic::{AtomicIsize, AtomicUsize, Ordering},
 };
 
+use auto_hash_map::{AutoMap, AutoSet};
 use nohash_hasher::BuildNoHashHasher;
 use parking_lot::Mutex;
 use turbo_tasks::{
@@ -136,7 +137,7 @@ pub struct TaskScopeState {
     active: isize,
     /// When not active, this list contains all dirty tasks.
     /// When the scope becomes active, these need to be scheduled.
-    dirty_tasks: HashSet<TaskId>,
+    dirty_tasks: AutoSet<TaskId>,
     /// All child scopes, when the scope becomes active, child scopes need to
     /// become active too
     children: CountHashSet<TaskScopeId, BuildNoHashHasher<TaskScopeId>>,
@@ -149,9 +150,9 @@ pub struct TaskScopeState {
     parents: CountHashSet<TaskScopeId, BuildNoHashHasher<TaskScopeId>>,
     /// Tasks that have read children
     /// When they change these tasks are invalidated
-    dependent_tasks: HashSet<TaskId>,
+    dependent_tasks: AutoSet<TaskId>,
     /// Emitted collectibles with count and dependent_tasks by trait type
-    collectibles: HashMap<TraitTypeId, (CountHashSet<RawVc>, HashSet<TaskId>)>,
+    collectibles: AutoMap<TraitTypeId, (CountHashSet<RawVc>, AutoSet<TaskId>)>,
 }
 
 impl TaskScope {
@@ -166,10 +167,10 @@ impl TaskScope {
                 #[cfg(feature = "print_scope_updates")]
                 id,
                 active: 0,
-                dirty_tasks: HashSet::new(),
+                dirty_tasks: AutoSet::new(),
                 children: CountHashSet::new(),
-                collectibles: HashMap::new(),
-                dependent_tasks: HashSet::new(),
+                collectibles: AutoMap::new(),
+                dependent_tasks: AutoSet::new(),
                 event: Event::new(|| {
                     #[cfg(feature = "print_scope_updates")]
                     return format!("TaskScope({id})::event");
@@ -193,10 +194,10 @@ impl TaskScope {
                 #[cfg(feature = "print_scope_updates")]
                 id,
                 active: 1,
-                dirty_tasks: HashSet::new(),
+                dirty_tasks: AutoSet::new(),
                 children: CountHashSet::new(),
-                collectibles: HashMap::new(),
-                dependent_tasks: HashSet::new(),
+                collectibles: AutoMap::new(),
+                dependent_tasks: AutoSet::new(),
                 event: Event::new(|| {
                     #[cfg(feature = "print_scope_updates")]
                     return format!("TaskScope({id})::event");
@@ -324,7 +325,7 @@ impl TaskScope {
         trait_id: TraitTypeId,
         reader: TaskId,
         backend: &MemoryBackend,
-    ) -> HashSet<RawVc> {
+    ) -> AutoSet<RawVc> {
         let collectibles = self.read_collectibles_recursive(
             self_id,
             trait_id,
@@ -332,7 +333,7 @@ impl TaskScope {
             backend,
             &mut HashMap::with_hasher(BuildNoHashHasher::default()),
         );
-        HashSet::from_iter(collectibles.iter().copied())
+        AutoSet::from_iter(collectibles.iter().copied())
     }
 
     fn read_collectibles_recursive(
@@ -393,14 +394,14 @@ impl TaskScope {
 }
 
 pub struct ScopeChildChangeEffect {
-    pub notify: HashSet<TaskId>,
+    pub notify: AutoSet<TaskId>,
     pub active: bool,
     /// `true` when the child to parent relationship needs to be updated
     pub parent: bool,
 }
 
 pub struct ScopeCollectibleChangeEffect {
-    pub notify: HashSet<TaskId>,
+    pub notify: AutoSet<TaskId>,
 }
 
 impl TaskScopeState {
@@ -578,7 +579,7 @@ impl TaskScopeState {
         }
     }
 
-    pub fn take_dependent_tasks(&mut self) -> HashSet<TaskId> {
+    pub fn take_dependent_tasks(&mut self) -> AutoSet<TaskId> {
         take(&mut self.dependent_tasks)
     }
 }

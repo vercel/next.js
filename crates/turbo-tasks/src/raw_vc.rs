@@ -1,6 +1,5 @@
 use std::{
     any::Any,
-    collections::HashSet,
     fmt::{Debug, Display},
     future::{Future, IntoFuture},
     hash::Hash,
@@ -11,6 +10,7 @@ use std::{
 };
 
 use anyhow::{anyhow, Result};
+use auto_hash_map::AutoSet;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -506,13 +506,13 @@ pub struct ReadCollectiblesError {
 
 pub struct CollectiblesFuture<T: ValueTraitVc> {
     turbo_tasks: Arc<dyn TurboTasksApi>,
-    inner: ReadRawVcFuture<RawVcSet, HashSet<RawVc>>,
+    inner: ReadRawVcFuture<RawVcSet, AutoSet<RawVc>>,
     take: bool,
     phantom: PhantomData<fn() -> T>,
 }
 
 impl<T: ValueTraitVc> Future for CollectiblesFuture<T> {
-    type Output = Result<HashSet<T>>;
+    type Output = Result<AutoSet<T>>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
         // SAFETY: we are not moving `this`

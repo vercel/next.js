@@ -1,5 +1,6 @@
 use std::fmt::{Debug, Display};
 
+use auto_hash_map::{AutoMap, AutoSet};
 pub use turbo_tasks_macros::ValueDebugFormat;
 
 use crate::{self as turbo_tasks};
@@ -126,6 +127,33 @@ where
     }
 }
 
+impl<K> ValueDebugFormat for AutoSet<K>
+where
+    K: ValueDebugFormat,
+{
+    fn value_debug_format(&self) -> ValueDebugFormatString {
+        let values = self
+            .iter()
+            .map(|item| item.value_debug_format())
+            .collect::<Vec<_>>();
+
+        ValueDebugFormatString::Async(Box::pin(async move {
+            let mut values_string = Vec::with_capacity(values.len());
+            for item in values {
+                match item {
+                    ValueDebugFormatString::Sync(string) => {
+                        values_string.push(PassthroughDebug::new_string(string));
+                    }
+                    ValueDebugFormatString::Async(future) => {
+                        values_string.push(PassthroughDebug::new_string(future.await?));
+                    }
+                }
+            }
+            Ok(format!("{:#?}", values_string))
+        }))
+    }
+}
+
 impl<K, V> ValueDebugFormat for std::collections::HashMap<K, V>
 where
     K: Debug,
@@ -139,6 +167,34 @@ where
 
         ValueDebugFormatString::Async(Box::pin(async move {
             let mut values_string = std::collections::HashMap::new();
+            for (key, value) in values {
+                match value {
+                    ValueDebugFormatString::Sync(string) => {
+                        values_string.insert(key, PassthroughDebug::new_string(string));
+                    }
+                    ValueDebugFormatString::Async(future) => {
+                        values_string.insert(key, PassthroughDebug::new_string(future.await?));
+                    }
+                }
+            }
+            Ok(format!("{:#?}", values_string))
+        }))
+    }
+}
+
+impl<K, V> ValueDebugFormat for AutoMap<K, V>
+where
+    K: Debug,
+    V: ValueDebugFormat,
+{
+    fn value_debug_format(&self) -> ValueDebugFormatString {
+        let values = self
+            .iter()
+            .map(|(key, value)| (format!("{:#?}", key), value.value_debug_format()))
+            .collect::<Vec<_>>();
+
+        ValueDebugFormatString::Async(Box::pin(async move {
+            let mut values_string = AutoMap::new();
             for (key, value) in values {
                 match value {
                     ValueDebugFormatString::Sync(string) => {

@@ -1,16 +1,28 @@
 use std::{
-    collections::{
-        hash_map::{Entry, IntoIter, Iter, RandomState},
-        HashMap,
-    },
+    collections::hash_map::RandomState,
+    fmt::{Debug, Formatter},
     hash::{BuildHasher, Hash},
     iter::FilterMap,
 };
 
-#[derive(Clone, Debug)]
+use auto_hash_map::{
+    map::{Entry, IntoIter, Iter},
+    AutoMap,
+};
+
+#[derive(Clone)]
 pub struct CountHashSet<T, H = RandomState> {
-    inner: HashMap<T, isize, H>,
+    inner: AutoMap<T, isize, H>,
     negative_entries: usize,
+}
+
+impl<T: Debug, H> Debug for CountHashSet<T, H> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CountHashSet")
+            .field("inner", &self.inner)
+            .field("negative_entries", &self.negative_entries)
+            .finish()
+    }
 }
 
 impl<T: Eq + Hash, H: BuildHasher + Default, const N: usize> From<[T; N]> for CountHashSet<T, H> {
@@ -48,7 +60,7 @@ impl<T, H> CountHashSet<T, H> {
     }
 }
 
-impl<T: Eq + Hash, H: BuildHasher> CountHashSet<T, H> {
+impl<T: Eq + Hash, H: BuildHasher + Default> CountHashSet<T, H> {
     /// Returns true, when the value has become visible from outside
     pub fn add_count(&mut self, item: T, count: usize) -> bool {
         match self.inner.entry(item) {

@@ -29,6 +29,7 @@ use std::{
 };
 
 use anyhow::{anyhow, bail, Context, Result};
+use auto_hash_map::AutoMap;
 use bitflags::bitflags;
 use glob::GlobVc;
 use invalidator_map::InvalidatorMap;
@@ -1545,12 +1546,12 @@ impl From<&DirectoryEntry> for FileSystemEntryType {
 #[turbo_tasks::value]
 #[derive(Debug)]
 pub enum DirectoryContent {
-    Entries(HashMap<String, DirectoryEntry>),
+    Entries(AutoMap<String, DirectoryEntry>),
     NotFound,
 }
 
 impl DirectoryContentVc {
-    pub fn new(entries: HashMap<String, DirectoryEntry>) -> Self {
+    pub fn new(entries: AutoMap<String, DirectoryEntry>) -> Self {
         Self::cell(DirectoryContent::Entries(entries))
     }
 

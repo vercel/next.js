@@ -1,17 +1,17 @@
 use std::{
     borrow::Cow,
-    collections::HashSet,
     fmt::{Debug, Display},
 };
 
 use anyhow::{anyhow, Error, Result};
+use auto_hash_map::AutoSet;
 use turbo_tasks::{util::SharedError, RawVc, TaskId, TurboTasksBackendApi};
 
 #[derive(Default, Debug)]
 pub struct Output {
     pub(crate) content: OutputContent,
     updates: u32,
-    pub(crate) dependent_tasks: HashSet<TaskId>,
+    pub(crate) dependent_tasks: AutoSet<TaskId>,
 }
 
 #[derive(Clone, Debug)]

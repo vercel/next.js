@@ -18,6 +18,7 @@ hanging_detection = []
 [dependencies]
 any_key = "0.1.1"
 anyhow = "1.0.47"
+auto-hash-map = { path = "../auto-hash-map" }
 bitflags = "1.3.2"
 dashmap = "5.4.0"
 erased-serde = "0.3.20"

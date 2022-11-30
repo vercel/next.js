@@ -1,6 +1,5 @@
-use std::collections::HashMap;
-
 use anyhow::{bail, Result};
+use auto_hash_map::AutoMap;
 use turbo_tasks::{primitives::StringVc, CompletionVc, ValueToString, ValueToStringVc};
 
 use crate::{
@@ -119,7 +118,7 @@ impl FileSystem for AttachedFileSystem {
             DirectoryContent::NotFound => return Ok(DirectoryContentVc::not_found()),
         };
 
-        let mut converted_entries = HashMap::with_capacity(entries.len());
+        let mut converted_entries = AutoMap::with_capacity(entries.len());
         for (name, entry) in entries {
             use DirectoryEntry::*;
 

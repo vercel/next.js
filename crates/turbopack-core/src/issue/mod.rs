@@ -6,13 +6,13 @@ pub mod unsupported_module;
 
 use std::{
     cmp::Ordering,
-    collections::HashSet,
     fmt::{Display, Formatter},
     future::IntoFuture,
     sync::Arc,
 };
 
 use anyhow::Result;
+use auto_hash_map::AutoSet;
 use futures::FutureExt;
 use turbo_tasks::{
     emit,
@@ -180,7 +180,7 @@ impl IssueProcessingPath for RootIssueProcessingPath {
 #[turbo_tasks::value]
 struct ItemIssueProcessingPath(
     Option<IssueProcessingPathItemVc>,
-    HashSet<IssueProcessingPathVc>,
+    AutoSet<IssueProcessingPathVc>,
 );
 
 #[turbo_tasks::value_impl]
@@ -335,7 +335,7 @@ pub struct Issues(Vec<IssueVc>);
 #[derive(Debug)]
 #[turbo_tasks::value]
 pub struct CapturedIssues {
-    issues: HashSet<IssueVc>,
+    issues: AutoSet<IssueVc>,
     #[cfg(feature = "issue_path")]
     processing_path: ItemIssueProcessingPathVc,
 }

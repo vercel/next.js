@@ -2,7 +2,7 @@ use std::{
     borrow::Cow,
     cell::RefCell,
     cmp::Ordering,
-    collections::{HashMap, HashSet, VecDeque},
+    collections::VecDeque,
     fmt::{self, Debug, Display, Formatter, Write},
     future::Future,
     hash::Hash,
@@ -12,6 +12,7 @@ use std::{
 };
 
 use anyhow::Result;
+use auto_hash_map::{AutoMap, AutoSet};
 use parking_lot::{Mutex, RwLock, RwLockWriteGuard};
 use tokio::task_local;
 use turbo_tasks::{
@@ -41,7 +42,7 @@ pub enum TaskDependency {
 task_local! {
     /// Vc/Scopes that are read during task execution
     /// These will be stored as dependencies when the execution has finished
-    pub(crate) static DEPENDENCIES_TO_TRACK: RefCell<HashSet<TaskDependency>>;
+    pub(crate) static DEPENDENCIES_TO_TRACK: RefCell<AutoSet<TaskDependency>>;
 }
 
 type OnceTaskFn = Mutex<Option<Pin<Box<dyn Future<Output = Result<RawVc>> + Send + 'static>>>>;
@@ -134,14 +135,13 @@ struct TaskState {
     state_type: TaskStateType,
 
     /// Children are only modified from execution
-    children: HashSet<TaskId>,
+    children: AutoSet<TaskId>,
 
     /// Collectibles are only modified from execution
     collectibles: MaybeCollectibles,
 
     output: Output,
-    // TODO use AutoMap here
-    cells: HashMap<ValueTypeId, Vec<Cell>>,
+    cells: AutoMap<ValueTypeId, Vec<Cell>>,
 
     // Stats:
     stats: TaskStats,
@@ -191,8 +191,8 @@ struct MaybeCollectibles {
 /// The collectibles of a task.
 #[derive(Default)]
 struct Collectibles {
-    emitted: HashSet<(TraitTypeId, RawVc)>,
-    unemitted: HashSet<(TraitTypeId, RawVc)>,
+    emitted: AutoSet<(TraitTypeId, RawVc)>,
+    unemitted: AutoSet<(TraitTypeId, RawVc)>,
 }
 
 impl MaybeCollectibles {
@@ -238,7 +238,7 @@ enum TaskStateType {
         /// there might affect this task.
         ///
         /// This back-edge is [Cell] `dependent_tasks`, which is a weak edge.
-        dependencies: HashSet<TaskDependency>,
+        dependencies: AutoSet<TaskDependency>,
     },
 
     /// Execution is invalid, but not yet scheduled
@@ -403,14 +403,14 @@ impl Task {
     }
 
     #[cfg(not(feature = "report_expensive"))]
-    fn clear_dependencies(&self, dependencies: HashSet<TaskDependency>, backend: &MemoryBackend) {
+    fn clear_dependencies(&self, dependencies: AutoSet<TaskDependency>, backend: &MemoryBackend) {
         for dep in dependencies.into_iter() {
             Task::remove_dependency(dep, self.id, backend);
         }
     }
 
     #[cfg(feature = "report_expensive")]
-    fn clear_dependencies(&self, dependencies: HashSet<TaskDependency>, backend: &MemoryBackend) {
+    fn clear_dependencies(&self, dependencies: AutoSet<TaskDependency>, backend: &MemoryBackend) {
         use std::time::Instant;
 
         use turbo_tasks::util::FormatDuration;
@@ -477,7 +477,7 @@ impl Task {
                     let unemitted = collectibles.unemitted;
                     state.scopes.iter().for_each(|id| {
                         backend.with_scope(id, |scope| {
-                            let mut tasks = HashSet::new();
+                            let mut tasks = AutoSet::new();
                             {
                                 let mut state = scope.state.lock();
                                 emitted
@@ -607,7 +607,7 @@ impl Task {
         }
 
         let id = self.id;
-        let mut clear_dependencies = HashSet::new();
+        let mut clear_dependencies = AutoSet::new();
         {
             let mut state = self.state.write();
             match state.state_type {
@@ -799,7 +799,7 @@ impl Task {
             }
 
             if let Some(collectibles) = state.collectibles.as_ref() {
-                let mut tasks = HashSet::new();
+                let mut tasks = AutoSet::new();
                 {
                     let mut scope_state = scope.state.lock();
                     collectibles
@@ -845,7 +845,7 @@ impl Task {
             scope.decrement_tasks();
 
             if let Some(collectibles) = state.collectibles.as_ref() {
-                let mut tasks = HashSet::new();
+                let mut tasks = AutoSet::new();
                 {
                     let mut scope_state = scope.state.lock();
                     collectibles
@@ -991,7 +991,7 @@ impl Task {
                 self.ty
             );
             let mut active_counter = 0isize;
-            let mut tasks = HashSet::new();
+            let mut tasks = AutoSet::new();
             let mut scopes_to_add_as_parent = Vec::new();
             let mut scopes_to_remove_as_parent = Vec::new();
             for (scope_id, count) in scopes.iter() {
@@ -1439,7 +1439,7 @@ impl Task {
         trait_id: TraitTypeId,
         backend: &MemoryBackend,
         turbo_tasks: &dyn TurboTasksBackendApi,
-    ) -> Result<Result<HashSet<RawVc>, EventListener>> {
+    ) -> Result<Result<AutoSet<RawVc>, EventListener>> {
         let mut state = self.state.write();
         state = self.ensure_root_scoped(state, backend, turbo_tasks);
         // We need to wait for all foreground jobs to be finished as there could be
@@ -1470,7 +1470,7 @@ impl Task {
     ) {
         let mut state = self.state.write();
         if state.collectibles.emit(trait_type, collectible) {
-            let mut tasks = HashSet::new();
+            let mut tasks = AutoSet::new();
             state
                 .scopes
                 .iter()
@@ -1495,7 +1495,7 @@ impl Task {
     ) {
         let mut state = self.state.write();
         if state.collectibles.unemit(trait_type, collectible) {
-            let mut tasks = HashSet::new();
+            let mut tasks = AutoSet::new();
             state
                 .scopes
                 .iter()

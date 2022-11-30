@@ -11,6 +11,7 @@ bench = false
 
 [dependencies]
 anyhow = "1.0.47"
+auto-hash-map = { path = "../auto-hash-map" }
 lazy_static = "1.4.0"
 tokio = "1.21.2"
 turbo-tasks = { path = "../turbo-tasks" }

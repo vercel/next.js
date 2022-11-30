@@ -11,6 +11,7 @@ bench = false
 
 [dependencies]
 anyhow = "1.0.47"
+auto-hash-map = { path = "../auto-hash-map" }
 concurrent-queue = "1.2.2"
 dashmap = "5.4.0"
 lazy_static = "1.4.0"

@@ -7,13 +7,14 @@ pub mod retry;
 
 use std::{
     borrow::Cow,
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     future::Future,
     mem::replace,
     sync::{Arc, Mutex, Weak},
 };
 
 use anyhow::Result;
+use auto_hash_map::AutoSet;
 use turbo_tasks::{
     backend::CellContent,
     event::{Event, EventListener},
@@ -173,7 +174,7 @@ impl TurboTasksApi for VcStorage {
     fn unemit_collectibles(
         &self,
         _trait_type: turbo_tasks::TraitTypeId,
-        _collectibles: &HashSet<RawVc>,
+        _collectibles: &AutoSet<RawVc>,
     ) {
         unimplemented!()
     }
@@ -182,7 +183,7 @@ impl TurboTasksApi for VcStorage {
         &self,
         _task: TaskId,
         _trait_id: TraitTypeId,
-    ) -> Result<Result<HashSet<RawVc>, EventListener>> {
+    ) -> Result<Result<AutoSet<RawVc>, EventListener>> {
         unimplemented!()
     }
 
