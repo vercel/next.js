@@ -1,10 +1,10 @@
-import { useRouter as usePagesRouter } from 'next/router'
+import { useRouter as usePagesRouter } from 'next/compat/router'
 import {
   usePathname,
   useRouter as useAppRouter,
   useSearchParams,
 } from 'next/compat/navigation'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 
 export const RouterHooksFixtures = () => {
   const pagesRouter = usePagesRouter()
@@ -12,21 +12,26 @@ export const RouterHooksFixtures = () => {
   const searchParams = useSearchParams()
   const pathname = usePathname()
 
+  const isReady = useMemo(
+    () => !pagesRouter || pagesRouter.isReady,
+    [pagesRouter]
+  )
+
   const [value, setValue] = useState(null)
   useEffect(() => {
-    if (!pagesRouter.isReady) {
+    if (!isReady) {
       return
     }
 
-    setValue(searchParams.get('key'))
-  }, [pagesRouter.isReady, searchParams])
+    setValue(searchParams?.get('key') ?? null)
+  }, [isReady, searchParams])
 
   const onClick = () => {
-    appRouter.push('/adapter-hooks/pushed')
+    appRouter.push('/compat-hooks/pushed')
   }
 
   return (
-    <div id={pagesRouter.isReady ? 'router-ready' : 'router-not-ready'}>
+    <div id={isReady ? 'router-ready' : 'router-not-ready'}>
       <div id="key-value">{value}</div>
       <div id="pathname">{pathname}</div>
       <button type="button" onClick={onClick}>

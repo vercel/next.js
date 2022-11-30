@@ -4,6 +4,7 @@ import { NextInstance } from 'test/lib/next-modes/base'
 import {
   check,
   fetchViaHTTP,
+  getRedboxDescription,
   getRedboxHeader,
   hasRedbox,
   renderViaHTTP,
@@ -979,6 +980,22 @@ describe('app dir', () => {
             await browser.close()
           }
         })
+
+        if (isDev) {
+          it('should throw an error when used in app/', async () => {
+            const browser = await webdriver(next.url, '/router')
+
+            try {
+              expect(await hasRedbox(browser, true)).toBeTrue()
+
+              expect(await getRedboxDescription(browser)).toContain(
+                'NextRouter was not mounted. https://nextjs.org/docs/messages/next-router-not-mounted'
+              )
+            } finally {
+              await browser.close()
+            }
+          })
+        }
       })
 
       describe('hooks', () => {
@@ -1040,7 +1057,7 @@ describe('app dir', () => {
           })
         })
 
-        describe('headers function', () => {
+        describe('headers', () => {
           it('should have access to incoming headers in a server component', async () => {
             // Check to see that we can't see the header when it's not present.
             let html = await renderViaHTTP(
@@ -1077,7 +1094,7 @@ describe('app dir', () => {
           })
         })
 
-        describe('previewData function', () => {
+        describe('previewData', () => {
           it('should return no preview data when there is none', async () => {
             const browser = await webdriver(next.url, '/hooks/use-preview-data')
 
@@ -1171,44 +1188,41 @@ describe('app dir', () => {
       })
     })
 
-    describe('client components', () => {
-      describe('hooks', () => {
-        describe('from pages', () => {
-          it.each([
-            { pathname: '/adapter-hooks/static' },
-            { pathname: '/adapter-hooks/1' },
-            { pathname: '/adapter-hooks/2' },
-            { pathname: '/adapter-hooks/1/account' },
-            { pathname: '/adapter-hooks/static', keyValue: 'value' },
-            { pathname: '/adapter-hooks/1', keyValue: 'value' },
-            { pathname: '/adapter-hooks/2', keyValue: 'value' },
-            { pathname: '/adapter-hooks/1/account', keyValue: 'value' },
-          ])(
-            'should have the correct hooks',
-            async ({ pathname, keyValue = '' }) => {
-              const browser = await webdriver(
-                next.url,
-                pathname + (keyValue ? `?key=${keyValue}` : '')
-              )
-
-              try {
-                await browser.waitForElementByCss('#router-ready')
-                expect(await browser.elementById('key-value').text()).toBe(
-                  keyValue
-                )
-                expect(await browser.elementById('pathname').text()).toBe(
-                  pathname
-                )
-
-                await browser.elementByCss('button').click()
-                await browser.waitForElementByCss('#pushed')
-              } finally {
-                await browser.close()
-              }
-            }
+    describe('next/compat/navigation', () => {
+      it.each([
+        { pathname: '/compat-hooks/app' },
+        { pathname: '/compat-hooks/static' },
+        { pathname: '/compat-hooks/1' },
+        { pathname: '/compat-hooks/2' },
+        { pathname: '/compat-hooks/1/account' },
+        { pathname: '/compat-hooks/static', keyValue: 'value' },
+        { pathname: '/compat-hooks/1', keyValue: 'value' },
+        { pathname: '/compat-hooks/2', keyValue: 'value' },
+        { pathname: '/compat-hooks/1/account', keyValue: 'value' },
+      ])(
+        'should have the correct hooks',
+        async ({ pathname, keyValue = '' }) => {
+          const browser = await webdriver(
+            next.url,
+            pathname + (keyValue ? `?key=${keyValue}` : '')
           )
-        })
 
+          try {
+            await browser.waitForElementByCss('#router-ready')
+            expect(await browser.elementById('key-value').text()).toBe(keyValue)
+            expect(await browser.elementById('pathname').text()).toBe(pathname)
+
+            await browser.elementByCss('button').click()
+            await browser.waitForElementByCss('#pushed')
+          } finally {
+            await browser.close()
+          }
+        }
+      )
+    })
+
+    describe('client components', () => {
+      describe('next/navigation', () => {
         describe('usePathname', () => {
           it('should have the correct pathname', async () => {
             const html = await renderViaHTTP(next.url, '/hooks/use-pathname')
@@ -1259,7 +1273,7 @@ describe('app dir', () => {
           }
         })
 
-        describe('useRouter', () => {
+        describe('next/router', () => {
           it('should allow access to the router', async () => {
             const browser = await webdriver(next.url, '/hooks/use-router')
 
