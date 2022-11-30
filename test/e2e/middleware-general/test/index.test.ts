@@ -243,7 +243,11 @@ describe('Middleware Runtime', () => {
     })
 
     it('should have correct dynamic route params on client-transition to dynamic route', async () => {
-      const browser = await webdriver(next.url, '/')
+      const browser = await webdriver(next.url, '/404')
+      await check(
+        () => browser.eval('next.router.isReady ? "yes" : "nope"'),
+        'yes'
+      )
       await browser.eval('window.beforeNav = 1')
       await browser.eval('window.next.router.push("/blog/first")')
       await browser.waitForElementByCss('#blog')
@@ -357,7 +361,11 @@ describe('Middleware Runtime', () => {
     })
 
     it('should have correct route params for rewrite from config non-dynamic route', async () => {
-      const browser = await webdriver(next.url, '/')
+      const browser = await webdriver(next.url, '/404')
+      await check(
+        () => browser.eval('next.router.isReady ? "yes" : "nope"'),
+        'yes'
+      )
       await browser.eval('window.beforeNav = 1')
       await browser.eval('window.next.router.push("/rewrite-1")')
 
@@ -393,7 +401,11 @@ describe('Middleware Runtime', () => {
       expect(res.status).toBe(200)
       expect(await res.text()).toContain('Hello World')
 
-      const browser = await webdriver(next.url, `/`)
+      const browser = await webdriver(next.url, `/404`)
+      await check(
+        () => browser.eval('next.router.isReady ? "yes" : "nope"'),
+        'yes'
+      )
       await browser.eval('window.beforeNav = 1')
       await browser.eval(`next.router.push('/rewrite-1')`)
       await check(async () => {

@@ -28,6 +28,7 @@ import {
 import { Telemetry } from '../../../telemetry/storage'
 import { traceGlobals } from '../../../trace/shared'
 import { EVENT_BUILD_FEATURE_USAGE } from '../../../telemetry/events'
+import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
 
 export interface EdgeFunctionDefinition {
   env: string[]
@@ -160,9 +161,12 @@ function getCreateAssets(params: {
         continue
       }
 
-      const { namedRegex } = getNamedMiddlewareRegex(page, {
-        catchAll: !metadata.edgeSSR && !metadata.edgeApiFunction,
-      })
+      const { namedRegex } = getNamedMiddlewareRegex(
+        metadata.edgeSSR?.isAppDir ? normalizeAppPath(page) : page,
+        {
+          catchAll: !metadata.edgeSSR && !metadata.edgeApiFunction,
+        }
+      )
       const matchers = metadata?.edgeMiddleware?.matchers ?? [
         { regexp: namedRegex },
       ]

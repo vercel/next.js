@@ -22,6 +22,7 @@ export async function sandbox(
   await next.start()
   const browser = await webdriver(next.appPort, '/')
   return {
+    browser,
     session: {
       async write(filename, content) {
         // Update the file on filesystem

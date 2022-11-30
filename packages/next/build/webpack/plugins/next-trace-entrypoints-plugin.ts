@@ -24,6 +24,19 @@ const TRACE_IGNORES = [
   '**/*/next/dist/bin/next',
 ]
 
+const NOT_TRACEABLE = [
+  '.wasm',
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.gif',
+  '.webp',
+  '.avif',
+  '.ico',
+  '.bmp',
+  '.svg',
+]
+
 const TURBO_TRACE_DEFAULT_MAX_FILES = 128
 
 function getModuleFromDependency(
@@ -137,7 +150,11 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
     await span.traceChild('create-trace-assets').traceAsyncFn(async () => {
       const entryFilesMap = new Map<any, Set<string>>()
       const chunksToTrace = new Set<string>()
-      const isTraceable = (file: string) => !file.endsWith('.wasm')
+
+      const isTraceable = (file: string) =>
+        !NOT_TRACEABLE.some((suffix) => {
+          return file.endsWith(suffix)
+        })
 
       for (const entrypoint of compilation.entrypoints.values()) {
         const entryFiles = new Set<string>()
