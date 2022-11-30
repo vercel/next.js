@@ -1,4 +1,0 @@
-{
-  "browser": "./browser.js",
-  "main": "./server.js"
-}
