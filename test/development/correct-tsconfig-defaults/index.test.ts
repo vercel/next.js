@@ -63,4 +63,37 @@ describe('correct tsconfig.json defaults', () => {
       await next.stop()
     }
   })
+
+  it('should not warn if `target` is unchanged', async () => {
+    try {
+      expect(
+        await next.readFile('tsconfig.json').catch(() => false)
+      ).toBeTruthy()
+
+      await next.start()
+
+      expect(next.cliOutput).not.toContain('tsconfig-target-option')
+    } finally {
+      await next.stop()
+    }
+  })
+
+  it('should warn if `target` is changed', async () => {
+    try {
+      expect(
+        await next.readFile('tsconfig.json').catch(() => false)
+      ).toBeTruthy()
+
+      // Change target option to a non-default value
+      const tsconfig = JSON.parse(await next.readFile('tsconfig.json'))
+      tsconfig.compilerOptions.target = 'ES2022'
+      await next.patchFile('tsconfig.json', JSON.stringify(tsconfig))
+
+      await next.start()
+
+      expect(next.cliOutput).toContain('tsconfig-target-option')
+    } finally {
+      await next.stop()
+    }
+  })
 })
