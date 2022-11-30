@@ -1,11 +1,14 @@
 // @ts-check
+// @ts-expect-error
 import * as github from '@actions/github'
+// @ts-expect-error
 import * as core from '@actions/core'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 const verifyCanaryLabel = 'please verify canary'
 const addReproductionLabel = 'please add a complete reproduction'
+const bugLabel = 'template: bug'
 const __dirname =
   '/home/runner/work/next.js/next.js/.github/actions/issue-validator'
 
@@ -19,20 +22,42 @@ const __dirname =
  *  color :string
  *  default :boolean
  * }} Label
+ *
+ * @typedef {{
+ *  labels: Label[]
+ *  pull_request: any
+ *  issue?: {body: string, number: number}
+ *  label: Label
+ * }} Payload
+ *
+ * @typedef {{
+ *  payload: Payload
+ *  repo: any
+ * }} Context
  */
 
 async function run() {
   try {
+    /** @type {Context} */
     const { payload, repo } = github.context
-    const { issue, pull_request } = payload
+    const {
+      issue,
+      pull_request,
+      label: { name: newLabel },
+    } = payload
 
     if (pull_request || !issue?.body || !process.env.GITHUB_TOKEN) return
 
-    /** @type {Label} */
-    const newLabel = payload.label
-    const { body, number: issueNumber } = issue
-    const client = github.getOctokit(process.env.GITHUB_TOKEN).rest
-    const issueCommon = { ...repo, issue_number: issueNumber }
+    const labels = payload.labels.map((l) => l.name)
+    const isBugReport =
+      labels.includes(bugLabel) || newLabel === bugLabel || !labels.length
+
+    if (
+      !(isBugReport && issue.number > 43554) &&
+      ![verifyCanaryLabel, addReproductionLabel].includes(newLabel)
+    ) {
+      return core.info('Not a bug report or not manually labeled')
+    }
 
     /** @param {string|null|undefined} link */
     async function hasRepro(link) {
@@ -49,29 +74,50 @@ async function run() {
       return response.ok
     }
 
-    const hasValidRepro = await hasRepro(
-      body.match(/will be addressed faster\n\n(.*)\n\n### To Reproduce/i)?.[1]
-    )
+    const hasValidRepro =
+      isBugReport &&
+      (await hasRepro(
+        issue.body.match(
+          /will be addressed faster\n\n(.*)\n\n### To Reproduce/i
+        )?.[1]
+      ))
 
-    if (!hasValidRepro || newLabel.name === addReproductionLabel) {
-      await client.issues.createComment({
-        ...issueCommon,
-        body: readFileSync(join(__dirname, 'repro.md'), 'utf8'),
-      })
+    const client = github.getOctokit(process.env.GITHUB_TOKEN).rest
+    const issueCommon = { ...repo, issue_number: issue.number }
+
+    if (newLabel === addReproductionLabel || !hasValidRepro) {
+      await Promise.all([
+        client.issues.addLabels({
+          ...issueCommon,
+          labels: [addReproductionLabel],
+        }),
+        client.issues.createComment({
+          ...issueCommon,
+          body: readFileSync(join(__dirname, 'repro.md'), 'utf8'),
+        }),
+      ])
       return core.info(
         'Commented on issue, because it did not have a sufficient reproduction.'
       )
     }
 
-    const isVerifyCanaryChecked = body.match(
-      /- \[x\] I verified that the issue exists in the latest Next.js canary release/i
-    )
+    const isVerifyCanaryChecked =
+      isBugReport &&
+      issue.body.match(
+        /- \[x\] I verified that the issue exists in the latest Next.js canary release/i
+      )
 
-    if (!isVerifyCanaryChecked || newLabel.name === verifyCanaryLabel) {
-      await client.issues.createComment({
-        ...issueCommon,
-        body: readFileSync(join(__dirname, 'canary.md'), 'utf8'),
-      })
+    if (newLabel === verifyCanaryLabel || !isVerifyCanaryChecked) {
+      await Promise.all([
+        client.issues.addLabels({
+          ...issueCommon,
+          labels: [verifyCanaryLabel],
+        }),
+        client.issues.createComment({
+          ...issueCommon,
+          body: readFileSync(join(__dirname, 'canary.md'), 'utf8'),
+        }),
+      ])
       return core.info(
         'Commented on issue, because it was not verified against canary.'
       )
