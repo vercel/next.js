@@ -1,35 +1,19 @@
 import Image from 'next/image'
-import { Inter, Space_Grotesk, Space_Mono } from '@next/font/google'
+import { Inter } from '@next/font/google'
 import styles from './page.module.css'
 
-const inter = Inter({
-  subsets: ['latin'],
-  fallback: ['system-ui', '-apple-system', 'Arial', 'sans-serif'],
-})
-
-const spaceGrotesk = Space_Grotesk({
-  subsets: ['latin'],
-  fallback: ['system-ui', '-apple-system', 'Arial', 'sans-serif'],
-})
-
-const spaceMono = Space_Mono({
-  weight: ['400', '700'],
-  subsets: ['latin'],
-  variable: '--font-mono',
-  fallback: ['ui-monospace', 'monospace'],
-})
+const inter = Inter({ subsets: ['latin'] })
 
 export default function Home() {
   return (
     <main className={styles.main}>
       <div className={styles.description}>
-        <p className={spaceMono.className}>
+        <p>
           Get started by editing&nbsp;
           <code className={styles.code}>app/page.jsx</code>
         </p>
         <div>
           <a
-            className={spaceMono.className}
             href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
             target="_blank"
             rel="noopener noreferrer"
@@ -71,13 +55,11 @@ export default function Home() {
           <h2 className={inter.className}>
             Docs <span>-&gt;</span>
           </h2>
-          <p className={spaceGrotesk.className}>
-            Find in-depth information about Next.js features and API.
-          </p>
+          <p>Find in-depth information about Next.js features and API.</p>
         </a>
 
         <a
-          href="https://vercel.com/templates?framework=next.js?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
+          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
           className={styles.card}
           target="_blank"
           rel="noopener noreferrer"
@@ -85,9 +67,7 @@ export default function Home() {
           <h2 className={inter.className}>
             Templates <span>-&gt;</span>
           </h2>
-          <p className={spaceGrotesk.className}>
-            Explore the Next.js 13 playground.
-          </p>
+          <p>Explore the Next.js 13 playground.</p>
         </a>
 
         <a
@@ -99,7 +79,7 @@ export default function Home() {
           <h2 className={inter.className}>
             Deploy <span>-&gt;</span>
           </h2>
-          <p className={spaceGrotesk.className}>
+          <p>
             Instantly deploy your Next.js site to a shareable URL with Vercel.
           </p>
         </a>
