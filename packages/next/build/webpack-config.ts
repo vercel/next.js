@@ -1151,15 +1151,16 @@ export default async function getBaseWebpackConfig(
 
     const isLocalCallback = (localRes: string) => {
       // Makes sure dist/shared and dist/server are not bundled
-      // we need to process shared `router/router` and `dynamic`,
-      // so that the DefinePlugin can inject process.env values
+      // we need to process shared `router/router`, `head` and `dynamic`,
+      // so that the DefinePlugin can inject process.env values.
+
+      // Treat next internals as non-external for server layer
+      if (layer === WEBPACK_LAYERS.server) return
+
       const isNextExternal =
-        // Treat next internals as non-external for server layer
-        layer === WEBPACK_LAYERS.server
-          ? false
-          : /next[/\\]dist[/\\](esm[\\/])?(shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic))/.test(
-              localRes
-            )
+        /next[/\\]dist[/\\](esm[\\/])?(shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic|head[^-]))/.test(
+          localRes
+        )
 
       if (isNextExternal) {
         // Generate Next.js external import
@@ -1176,10 +1177,6 @@ export default async function getBaseWebpackConfig(
             .replace(/\\/g, '/')
         )
         return `commonjs ${externalRequest}`
-      } else if (layer !== WEBPACK_LAYERS.client) {
-        // We don't want to retry local requests
-        // with other preferEsm options
-        return
       }
     }
 
