@@ -4,7 +4,7 @@ import {
   getRedboxSource,
   hasErrorToast,
   hasRedbox,
-  openErrorToast,
+  waitForAndOpenRuntimeError,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { NextInstance } from 'test/lib/next-modes/base'
@@ -105,8 +105,8 @@ export async function sandbox(
       async hasErrorToast(expected = false) {
         return hasErrorToast(browser, expected)
       },
-      async openErrorToast() {
-        return openErrorToast(browser)
+      async waitForAndOpenRuntimeError() {
+        await waitForAndOpenRuntimeError(browser)
       },
       async getRedboxDescription() {
         return getRedboxDescription(browser)

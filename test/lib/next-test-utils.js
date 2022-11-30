@@ -661,14 +661,8 @@ export async function hasErrorToast(browser, expected = true) {
   return false
 }
 
-export async function openErrorToast(browser) {
-  await evaluate(browser, () => {
-    const portal = [].slice
-      .call(document.querySelectorAll('nextjs-portal'))
-      .find((p) => p.shadowRoot.querySelector('[data-nextjs-toast]'))
-    const root = portal.shadowRoot
-    root.querySelector('[data-nextjs-toast]').click()
-  })
+export async function waitForAndOpenRuntimeError(browser) {
+  return browser.waitForElementByCss('[data-nextjs-toast]').click()
 }
 
 export async function getRedboxHeader(browser) {

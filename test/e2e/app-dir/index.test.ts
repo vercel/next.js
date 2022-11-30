@@ -7,12 +7,11 @@ import {
   fetchViaHTTP,
   findPort,
   getRedboxHeader,
-  hasErrorToast,
   initNextServerScript,
   killApp,
-  openErrorToast,
   renderViaHTTP,
   waitFor,
+  waitForAndOpenRuntimeError,
 } from 'next-test-utils'
 import path from 'path'
 import cheerio from 'cheerio'
@@ -2061,8 +2060,7 @@ describe('app dir', () => {
         await browser.elementByCss('#error-trigger-button').click()
 
         if (isDev) {
-          expect(await hasErrorToast(browser, true)).toBe(true)
-          await openErrorToast(browser)
+          await waitForAndOpenRuntimeError(browser)
           expect(await getRedboxHeader(browser)).toMatch(/this is a test/)
         } else {
           await browser
@@ -2114,8 +2112,7 @@ describe('app dir', () => {
         await browser.elementByCss('#error-trigger-button').click()
 
         if (isDev) {
-          expect(await hasErrorToast(browser, true)).toBe(true)
-          await openErrorToast(browser)
+          await waitForAndOpenRuntimeError(browser)
           expect(await getRedboxHeader(browser)).toMatch(/this is a test/)
         } else {
           expect(
