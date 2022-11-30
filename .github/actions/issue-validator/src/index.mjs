@@ -53,9 +53,15 @@ async function run() {
 
     if (
       !(isBugReport && issue.number > 43554) &&
-      ![verifyCanaryLabel, addReproductionLabel].includes(newLabel)
+      ![verifyCanaryLabel, addReproductionLabel].includes(newLabel) &&
+      !(
+        labels.includes(verifyCanaryLabel) ||
+        labels.includes(addReproductionLabel)
+      )
     ) {
-      return core.info('Not a bug report or not manually labeled')
+      return core.info(
+        'Not a bug report or not manually labeled or already labeled.'
+      )
     }
 
     /** @param {string|null|undefined} link */
