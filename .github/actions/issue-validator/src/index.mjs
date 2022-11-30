@@ -8,7 +8,7 @@ import { join } from 'node:path'
 
 const verifyCanaryLabel = 'please verify canary'
 const addReproductionLabel = 'please add a complete reproduction'
-const bugLabel = 'template: bug'
+// const bugLabel = 'template: bug'
 const __dirname =
   '/home/runner/work/next.js/next.js/.github/actions/issue-validator'
 
@@ -48,11 +48,11 @@ async function run() {
     if (pull_request || !issue?.body || !process.env.GITHUB_TOKEN) return
 
     const labels = issue.labels.map((l) => l.name)
-    const isBugReport =
-      labels.includes(bugLabel) || newLabel === bugLabel || !labels.length
+    // const isBugReport =
+    //   labels.includes(bugLabel) || newLabel === bugLabel || !labels.length
 
     if (
-      !(isBugReport && issue.number > 43554) &&
+      // !(isBugReport && issue.number > 43554) &&
       ![verifyCanaryLabel, addReproductionLabel].includes(newLabel) &&
       !(
         labels.includes(verifyCanaryLabel) ||
@@ -64,33 +64,36 @@ async function run() {
       )
     }
 
-    /** @param {string|null|undefined} link */
-    async function hasRepro(link) {
-      if (!link) return false
-      try {
-        const url = new URL(link)
-        if (['example.com'].includes(url.hostname)) {
-          return false
-        }
-      } catch {
-        return false
-      }
-      const response = await fetch(link)
-      return response.ok
-    }
+    // /** @param {string|null|undefined} link */
+    // async function hasRepro(link) {
+    //   if (!link) return false
+    //   try {
+    //     const url = new URL(link)
+    //     if (['example.com'].includes(url.hostname)) {
+    //       return false
+    //     }
+    //   } catch {
+    //     return false
+    //   }
+    //   const response = await fetch(link)
+    //   return response.ok
+    // }
 
-    const hasValidRepro =
-      isBugReport &&
-      (await hasRepro(
-        issue.body.match(
-          /will be addressed faster\n\n(.*)\n\n### To Reproduce/i
-        )?.[1]
-      ))
+    // const hasValidRepro =
+    //   isBugReport &&
+    //   (await hasRepro(
+    //     issue.body.match(
+    //       /will be addressed faster\n\n(.*)\n\n### To Reproduce/i
+    //     )?.[1]
+    //   ))
 
     const client = github.getOctokit(process.env.GITHUB_TOKEN).rest
     const issueCommon = { ...repo, issue_number: issue.number }
 
-    if (newLabel === addReproductionLabel || !hasValidRepro) {
+    if (
+      newLabel === addReproductionLabel
+      // || !hasValidRepro
+    ) {
       await Promise.all([
         client.issues.addLabels({
           ...issueCommon,
@@ -106,13 +109,16 @@ async function run() {
       )
     }
 
-    const isVerifyCanaryChecked =
-      isBugReport &&
-      issue.body.match(
-        /- \[x\] I verified that the issue exists in the latest Next.js canary release/i
-      )
+    // const isVerifyCanaryChecked =
+    //   isBugReport &&
+    //   issue.body.match(
+    //     /- \[x\] I verified that the issue exists in the latest Next.js canary release/i
+    //   )
 
-    if (newLabel === verifyCanaryLabel || !isVerifyCanaryChecked) {
+    if (
+      newLabel === verifyCanaryLabel
+      // || !isVerifyCanaryChecked
+    ) {
       await Promise.all([
         client.issues.addLabels({
           ...issueCommon,
