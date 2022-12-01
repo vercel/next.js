@@ -8,6 +8,7 @@ on:
 
 jobs:
   triage:
+    if: '${{ github.event.label.name == "template: bug" }}'
     name: Triage
     runs-on: ubuntu-latest
     steps:
