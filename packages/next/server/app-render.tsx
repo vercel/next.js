@@ -1575,6 +1575,7 @@ export async function renderToHTMLOrFlight(
             initialCanonicalUrl={initialCanonicalUrl}
             initialTree={initialTree}
             initialHead={initialHead}
+            forceStatic={staticGenerationStore.forceStatic}
           >
             <ComponentTree />
           </AppRouter>
