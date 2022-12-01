@@ -66,6 +66,13 @@ describe('app-dir static/dynamic handling', () => {
         'hooks/use-pathname/slug.html',
         'hooks/use-pathname/slug.rsc',
         'hooks/use-search-params/[slug]/page.js',
+        'ssg-preview.html',
+        'ssg-preview.rsc',
+        'ssg-preview/[[...route]]/page.js',
+        'ssg-preview/test-2.html',
+        'ssg-preview/test-2.rsc',
+        'ssg-preview/test.html',
+        'ssg-preview/test.rsc',
         'ssr-auto/cache-no-store/page.js',
         'ssr-auto/fetch-revalidate-zero/page.js',
         'ssr-forced/page.js',
@@ -145,6 +152,21 @@ describe('app-dir static/dynamic handling', () => {
           initialRevalidateSeconds: false,
           srcRoute: '/force-static/[slug]',
         },
+        '/ssg-preview': {
+          dataRoute: '/ssg-preview.rsc',
+          initialRevalidateSeconds: false,
+          srcRoute: '/ssg-preview/[[...route]]',
+        },
+        '/ssg-preview/test': {
+          dataRoute: '/ssg-preview/test.rsc',
+          initialRevalidateSeconds: false,
+          srcRoute: '/ssg-preview/[[...route]]',
+        },
+        '/ssg-preview/test-2': {
+          dataRoute: '/ssg-preview/test-2.rsc',
+          initialRevalidateSeconds: false,
+          srcRoute: '/ssg-preview/[[...route]]',
+        },
       })
       expect(manifest.dynamicRoutes).toEqual({
         '/blog/[author]/[slug]': {
@@ -171,9 +193,25 @@ describe('app-dir static/dynamic handling', () => {
           fallback: null,
           routeRegex: '^\\/force\\-static\\/([^\\/]+?)(?:\\/)?$',
         },
+        '/ssg-preview/[[...route]]': {
+          dataRoute: '/ssg-preview/[[...route]].rsc',
+          dataRouteRegex: '^\\/ssg\\-preview(?:\\/(.+?))?\\.rsc$',
+          fallback: null,
+          routeRegex: '^\\/ssg\\-preview(?:\\/(.+?))?(?:\\/)?$',
+        },
       })
     })
   }
+
+  it('Should not throw Dynamic Server Usage error when using generateStaticParams with previewData', async () => {
+    const browserOnIndexPage = await webdriver(next.url, '/ssg-preview')
+
+    const content = await browserOnIndexPage
+      .elementByCss('#preview-data')
+      .text()
+
+    expect(content).toContain('previewData')
+  })
 
   it('should force SSR correctly for headers usage', async () => {
     const res = await fetchViaHTTP(next.url, '/force-static', undefined, {
