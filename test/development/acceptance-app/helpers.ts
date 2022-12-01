@@ -2,7 +2,9 @@ import {
   getRedboxDescription,
   getRedboxHeader,
   getRedboxSource,
+  hasErrorToast,
   hasRedbox,
+  waitForAndOpenRuntimeError,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { NextInstance } from 'test/lib/next-modes/base'
@@ -22,6 +24,7 @@ export async function sandbox(
   await next.start()
   const browser = await webdriver(next.appPort, '/')
   return {
+    browser,
     session: {
       async write(filename, content) {
         // Update the file on filesystem
@@ -98,6 +101,12 @@ export async function sandbox(
       },
       async hasRedbox(expected = false) {
         return hasRedbox(browser, expected)
+      },
+      async hasErrorToast(expected = false) {
+        return hasErrorToast(browser, expected)
+      },
+      async waitForAndOpenRuntimeError() {
+        await waitForAndOpenRuntimeError(browser)
       },
       async getRedboxDescription() {
         return getRedboxDescription(browser)

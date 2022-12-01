@@ -113,6 +113,11 @@ describe('app dir head', () => {
         .waitForElementByCss('#layout', 2000)
       expect(await getTitle()).toBe('hello from dynamic blog page post-1')
     })
+
+    it('should treat next/head as client components but not apply', async () => {
+      const html = await renderViaHTTP(next.url, '/next-head')
+      expect(html).not.toMatch(/<title>legacy-head<\/title>/)
+    })
   }
 
   runTests()

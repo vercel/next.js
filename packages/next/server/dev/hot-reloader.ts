@@ -357,16 +357,33 @@ export default class HotReloader {
               break
             }
             case 'client-full-reload': {
+              const { event, stackTrace, hadRuntimeError } = payload
+
               traceChild = {
-                name: payload.event,
-                attrs: { stackTrace: payload.stackTrace ?? '' },
+                name: event,
+                attrs: { stackTrace: stackTrace ?? '' },
               }
+
+              if (hadRuntimeError) {
+                Log.warn(
+                  `Fast Refresh had to perform a full reload due to a runtime error.`
+                )
+                break
+              }
+
+              let fileMessage = ''
+              if (stackTrace) {
+                const file = /Aborted because (.+) is not accepted/.exec(
+                  stackTrace
+                )?.[1]
+                if (file) {
+                  fileMessage = ` when ${file} changed`
+                }
+              }
+
               Log.warn(
-                'Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/basic-features/fast-refresh#how-it-works'
+                `Fast Refresh had to perform a full reload${fileMessage}. Read more: https://nextjs.org/docs/messages/fast-refresh-reload`
               )
-              if (payload.stackTrace) {
-                console.warn(payload.stackTrace)
-              }
               break
             }
             default: {
@@ -537,20 +554,19 @@ export default class HotReloader {
     })
   }
 
-  public async start(initial?: boolean): Promise<void> {
+  public async start(): Promise<void> {
     const startSpan = this.hotReloaderSpan.traceChild('start')
     startSpan.stop() // Stop immediately to create an artificial parent span
 
-    if (initial) {
-      await this.clean(startSpan)
-      // Ensure distDir exists before writing package.json
-      await fs.mkdir(this.distDir, { recursive: true })
+    await this.clean(startSpan)
+    // Ensure distDir exists before writing package.json
+    await fs.mkdir(this.distDir, { recursive: true })
 
-      const distPackageJsonPath = join(this.distDir, 'package.json')
-      // Ensure commonjs handling is used for files in the distDir (generally .next)
-      // Files outside of the distDir can be "type": "module"
-      await fs.writeFile(distPackageJsonPath, '{"type": "commonjs"}')
-    }
+    const distPackageJsonPath = join(this.distDir, 'package.json')
+    // Ensure commonjs handling is used for files in the distDir (generally .next)
+    // Files outside of the distDir can be "type": "module"
+    await fs.writeFile(distPackageJsonPath, '{"type": "commonjs"}')
+
     this.activeConfigs = await this.getWebpackConfig(startSpan)
 
     for (const config of this.activeConfigs) {
@@ -1024,12 +1040,6 @@ export default class HotReloader {
         edgeServerStats: () => this.edgeServerStats,
       }),
     ]
-
-    // trigger invalidation to ensure any previous callbacks
-    // are handled in the on-demand-entry-handler
-    if (!initial) {
-      this.invalidate()
-    }
   }
 
   public invalidate() {
