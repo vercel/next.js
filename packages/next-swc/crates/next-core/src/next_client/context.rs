@@ -25,7 +25,7 @@ use turbopack_env::ProcessEnvAssetVc;
 
 use crate::{
     embed_js::attached_next_js_package_path,
-    env::filter_for_client,
+    env::env_for_js,
     next_client::runtime_entry::{RuntimeEntriesVc, RuntimeEntry},
     next_import_map::{
         get_next_client_fallback_import_map, get_next_client_import_map,
@@ -202,7 +202,7 @@ pub async fn get_client_runtime_entries(
             .as_request();
 
     let mut runtime_entries = vec![RuntimeEntry::Ecmascript(
-        ProcessEnvAssetVc::new(project_root, filter_for_client(env)).into(),
+        ProcessEnvAssetVc::new(project_root, env_for_js(env, true)).into(),
     )
     .cell()];
 

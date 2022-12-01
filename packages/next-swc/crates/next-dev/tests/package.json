@@ -1,8 +1,8 @@
 {
   "private": true,
   "devDependencies": {
-    "expect": "^24.5.0",
-    "jest-circus-browser": "^1.0.7",
+    "@turbo/pack-test-harness": "*",
+    "next": "13.0.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-test-renderer": "^18.2.0",
