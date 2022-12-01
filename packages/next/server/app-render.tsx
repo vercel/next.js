@@ -35,6 +35,7 @@ import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
 import { RequestCookies } from './web/spec-extension/cookies'
 import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
 import { NOT_FOUND_ERROR_CODE } from '../client/components/not-found'
+import { BAILOUT_TO_CLIENT_RENDERING_ERROR_CODE } from '../client/components/bailout-to-client-rendering'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import { Writable } from 'stream'
 import stringHash from 'next/dist/compiled/string-hash'
@@ -215,7 +216,8 @@ function createErrorHandler(
     if (
       err.digest === DYNAMIC_ERROR_CODE ||
       err.digest === NOT_FOUND_ERROR_CODE ||
-      err.digest?.startsWith(REDIRECT_ERROR_CODE)
+      err.digest?.startsWith(REDIRECT_ERROR_CODE) ||
+      err.digest === BAILOUT_TO_CLIENT_RENDERING_ERROR_CODE
     ) {
       return err.digest
     }
