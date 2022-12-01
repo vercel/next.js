@@ -93,3 +93,35 @@ export default function HomePage() {
   )
 }
 ```
+
+The additional `paths` are reletive to the `baseUrl`. For example:
+
+```json
+// tsconfig.json or jsconfig.json
+{
+  "compilerOptions": {
+    "baseUrl": "src/components/",
+    "paths": {
+      "@styles/*": ["../styles/*"],
+      "~/*": ["../*"],
+      "/*": ["../../*"]
+    },
+  }
+}
+```
+
+```jsx
+// pages/index.js
+import Button from 'button';
+import '@styles/styles.css';
+import Helper from '~/util/helper';
+
+export default function HomePage() {
+  return (
+    <Helper>
+      <h1>Hello World</h1>
+      <Button />
+    </Helper>
+  )
+}
+```
