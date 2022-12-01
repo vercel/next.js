@@ -18,7 +18,7 @@ use anyhow::{anyhow, Context, Result};
 use devserver_options::DevServerOptions;
 use next_core::{
     create_app_source, create_server_rendered_source, create_web_entry_source, env::load_env,
-    source_map::NextSourceMapTraceContentSourceVc,
+    next_image::NextImageContentSourceVc, source_map::NextSourceMapTraceContentSourceVc,
 };
 use owo_colors::OwoColorize;
 use turbo_tasks::{
@@ -33,17 +33,23 @@ use turbopack_dev_server::{
     fs::DevServerFileSystemVc,
     introspect::IntrospectionSource,
     source::{
-        combined::CombinedContentSource, router::RouterContentSource,
+        combined::CombinedContentSourceVc, router::RouterContentSource,
         static_assets::StaticAssetsContentSourceVc, ContentSourceVc,
     },
     DevServer,
 };
 
+#[derive(Clone)]
+pub enum EntryRequest {
+    Relative(String),
+    Module(String, String),
+}
+
 pub struct NextDevServerBuilder {
     turbo_tasks: Arc<TurboTasks<MemoryBackend>>,
     project_dir: String,
     root_dir: String,
-    entry_requests: Vec<String>,
+    entry_requests: Vec<EntryRequest>,
     server_component_externals: Vec<String>,
     eager_compile: bool,
     hostname: Option<IpAddr>,
@@ -80,7 +86,7 @@ impl NextDevServerBuilder {
         }
     }
 
-    pub fn entry_request(mut self, entry_asset_path: String) -> NextDevServerBuilder {
+    pub fn entry_request(mut self, entry_asset_path: EntryRequest) -> NextDevServerBuilder {
         self.entry_requests.push(entry_asset_path);
         self
     }
@@ -135,7 +141,6 @@ impl NextDevServerBuilder {
 
         let project_dir = self.project_dir;
         let root_dir = self.root_dir;
-        let entry_requests = self.entry_requests;
         let server_component_externals = self.server_component_externals;
         let eager_compile = self.eager_compile;
         let show_all = self.show_all;
@@ -147,6 +152,7 @@ impl NextDevServerBuilder {
             log_detail,
             log_level: self.log_level,
         };
+        let entry_requests = Arc::new(self.entry_requests.clone());
         let console_ui = Arc::new(ConsoleUi::new(log_options));
         let console_ui_to_dev_server = console_ui.clone();
 
@@ -160,7 +166,7 @@ impl NextDevServerBuilder {
             source(
                 root_dir.clone(),
                 project_dir.clone(),
-                entry_requests.clone(),
+                entry_requests.clone().into(),
                 eager_compile,
                 turbo_tasks.clone().into(),
                 console_ui.clone().into(),
@@ -257,7 +263,7 @@ async fn output_fs(project_dir: &str, console_ui: ConsoleUiVc) -> Result<FileSys
 async fn source(
     root_dir: String,
     project_dir: String,
-    entry_requests: Vec<String>,
+    entry_requests: TransientInstance<Vec<EntryRequest>>,
     eager_compile: bool,
     turbo_tasks: TransientInstance<TurboTasks<MemoryBackend>>,
     console_ui: TransientInstance<ConsoleUi>,
@@ -279,13 +285,19 @@ async fn source(
 
     let dev_server_fs = DevServerFileSystemVc::new().as_file_system();
     let dev_server_root = dev_server_fs.root();
+    let entry_requests = entry_requests
+        .iter()
+        .map(|r| match r {
+            EntryRequest::Relative(p) => RequestVc::relative(Value::new(p.clone().into()), false),
+            EntryRequest::Module(m, p) => {
+                RequestVc::module(m.clone(), Value::new(p.clone().into()))
+            }
+        })
+        .collect();
 
     let web_source = create_web_entry_source(
         project_path,
-        entry_requests
-            .iter()
-            .map(|a| RequestVc::relative(Value::new(a.to_string().into()), false))
-            .collect(),
+        entry_requests,
         dev_server_root,
         env,
         eager_compile,
@@ -313,16 +325,19 @@ async fn source(
     .into();
     let static_source =
         StaticAssetsContentSourceVc::new(String::new(), project_path.join("public")).into();
-    let main_source = CombinedContentSource {
-        sources: vec![static_source, app_source, rendered_source, web_source],
-    }
-    .cell();
+    let main_source =
+        CombinedContentSourceVc::new(vec![static_source, app_source, rendered_source, web_source]);
     let introspect = IntrospectionSource {
         roots: HashSet::from([main_source.into()]),
     }
     .cell()
     .into();
-    let source_map_trace = NextSourceMapTraceContentSourceVc::new(main_source.into()).into();
+    let main_source = main_source.into();
+    let source_map_trace = NextSourceMapTraceContentSourceVc::new(main_source).into();
+    let img_source = NextImageContentSourceVc::new(
+        CombinedContentSourceVc::new(vec![static_source, rendered_source]).into(),
+    )
+    .into();
     let source = RouterContentSource {
         routes: vec![
             ("__turbopack__/".to_string(), introspect),
@@ -331,8 +346,10 @@ async fn source(
                 "__nextjs_original-stack-frame".to_string(),
                 source_map_trace,
             ),
+            // TODO: Load path from next.config.js
+            ("_next/image".to_string(), img_source),
         ],
-        fallback: main_source.into(),
+        fallback: main_source,
     }
     .cell()
     .into();
@@ -389,7 +406,7 @@ pub async fn start_server(options: &DevServerOptions) -> Result<()> {
 
     #[allow(unused_mut)]
     let mut server = NextDevServerBuilder::new(tt, dir, root_dir)
-        .entry_request("src/index".into())
+        .entry_request(EntryRequest::Relative("src/index".into()))
         .eager_compile(options.eager_compile)
         .hostname(options.hostname)
         .port(options.port)

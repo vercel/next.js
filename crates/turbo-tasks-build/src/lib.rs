@@ -373,7 +373,8 @@ impl<'a> RegisterContext<'a> {
         let entry = self.values.get_mut(&key);
         if entry.is_none() {
             panic!(
-                "failed to add value trait {} to {} in {}",
+                "failed to add value trait {} to {} in {}. Did you try to implement a trait on a \
+                 Vc instead of its value?",
                 trait_ident,
                 ident,
                 self.file_path.display()

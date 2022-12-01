@@ -8,6 +8,7 @@ pub mod env;
 mod fallback;
 pub mod next_client;
 mod next_client_component;
+pub mod next_image;
 mod next_import_map;
 pub mod next_server;
 pub mod react_refresh;

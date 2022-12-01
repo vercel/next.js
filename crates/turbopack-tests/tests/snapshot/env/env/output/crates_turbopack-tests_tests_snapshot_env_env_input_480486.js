@@ -2,10 +2,10 @@
 
 "[project]/crates/turbopack-tests/tests/snapshot/env/env/input/.env/.env.js": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, g: global, __dirname }) => (() => {
 
-const env = process.env;
+const env = process.env = {...process.env};
 
-env["FOO"] = "foo";
-env["FOOBAR"] = "foobar";
+env["FOO"] = foo;
+env["FOOBAR"] = foobar;
 
 })()),
 "[project]/crates/turbopack-tests/tests/snapshot/env/env/input/index.js (ecmascript)": (function({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, g: global, __dirname, m: module, e: exports }) { !function() {

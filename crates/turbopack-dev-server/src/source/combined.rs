@@ -15,6 +15,12 @@ pub struct CombinedContentSource {
     pub sources: Vec<ContentSourceVc>,
 }
 
+impl CombinedContentSourceVc {
+    pub fn new(sources: Vec<ContentSourceVc>) -> Self {
+        CombinedContentSource { sources }.cell()
+    }
+}
+
 #[turbo_tasks::value_impl]
 impl ContentSource for CombinedContentSource {
     #[turbo_tasks::function]

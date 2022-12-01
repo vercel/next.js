@@ -1,4 +1,4 @@
-use std::env;
+use std::{env, sync::MutexGuard};
 
 use anyhow::{anyhow, Context, Result};
 use indexmap::IndexMap;
@@ -41,14 +41,14 @@ impl ProcessEnv for DotenvProcessEnv {
             let res;
             let vars;
             {
-                let _lock = GLOBAL_ENV_LOCK.lock().unwrap();
+                let lock = GLOBAL_ENV_LOCK.lock().unwrap();
 
                 // Unfortunately, dotenvy only looks up variable references from the global env.
                 // So we must mutate while we process. Afterwards, we can restore the initial
                 // state.
                 let initial = env::vars().collect();
 
-                restore_env(&initial, prior);
+                restore_env(&initial, prior, &lock);
 
                 // from_read will load parse and evalute the Read, and set variables
                 // into the global env. If a later dotenv defines an already defined
@@ -56,7 +56,7 @@ impl ProcessEnv for DotenvProcessEnv {
                 res = dotenvy::from_read(f.read());
 
                 vars = env::vars().collect();
-                restore_env(&vars, &initial);
+                restore_env(&vars, &initial, &lock);
             }
 
             if res.is_err() {
@@ -74,7 +74,11 @@ impl ProcessEnv for DotenvProcessEnv {
 }
 
 /// Restores the global env variables to mirror `to`.
-fn restore_env(from: &IndexMap<String, String>, to: &IndexMap<String, String>) {
+fn restore_env(
+    from: &IndexMap<String, String>,
+    to: &IndexMap<String, String>,
+    _lock: &MutexGuard<()>,
+) {
     for key in from.keys() {
         if !to.contains_key(key) {
             env::remove_var(key);

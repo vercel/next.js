@@ -13,10 +13,12 @@
 #![feature(min_specialization)]
 
 mod asset;
+mod embeddable;
 mod issue;
 mod try_env;
 
 pub use asset::{ProcessEnvAsset, ProcessEnvAssetVc};
+pub use embeddable::EmbeddableProcessEnvVc;
 pub use issue::{ProcessEnvIssue, ProcessEnvIssueVc};
 pub use try_env::TryDotenvProcessEnvVc;
 

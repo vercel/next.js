@@ -48,6 +48,7 @@ use crate::{
         next_layout_entry_transition::NextLayoutEntryTransition, LayoutSegment, LayoutSegmentsVc,
     },
     embed_js::{next_js_file, wrap_with_next_js_fs},
+    env::env_for_js,
     fallback::get_fallback_page,
     next_client::{
         context::{
@@ -252,8 +253,8 @@ pub async fn create_app_source(
         externals,
     );
 
-    let server_runtime_entries =
-        vec![ProcessEnvAssetVc::new(project_root, env).as_ecmascript_chunk_placeable()];
+    let server_runtime_entries = vec![ProcessEnvAssetVc::new(project_root, env_for_js(env, false))
+        .as_ecmascript_chunk_placeable()];
 
     let fallback_page = get_fallback_page(project_root, server_root, env, browserslist_query);
 

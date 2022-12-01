@@ -118,16 +118,18 @@ impl EcmascriptChunkItem for ProcessEnvChunkItem {
         let asset = self.inner.await?;
         let env = asset.env.read_all().await?;
 
-        // TODO this is not completely correct as env vars need to ignore casing
-        // So `process.env.path === process.env.PATH === process.env.PaTh`
-        let mut code = "const env = process.env;\n\n".to_string();
+        // TODO: In SSR, we use the native process.env, which can only contain string
+        // values. We need to inject literal values (to emulate webpack's
+        // DefinePlugin), so create a new regular object out of the old env.
+        let mut code = "const env = process.env = {...process.env};\n\n".to_string();
+
         for (name, val) in &*env {
-            writeln!(
-                code,
-                "env[{}] = {};",
-                stringify_str(name),
-                stringify_str(val),
-            )?;
+            // It's assumed the env has passed through an EmbeddableProcessEnv, so the value
+            // is ready to be directly embedded. Values _after_ an embeddable
+            // env can be used to inject live code into the output.
+            // TODO this is not completely correct as env vars need to ignore casing
+            // So `process.env.path === process.env.PATH === process.env.PaTh`
+            writeln!(code, "env[{}] = {};", stringify_str(name), val)?;
         }
 
         Ok(EcmascriptChunkItemContent {
