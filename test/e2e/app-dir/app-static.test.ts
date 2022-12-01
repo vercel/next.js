@@ -605,40 +605,43 @@ describe('app-dir static/dynamic handling', () => {
         })
       }
     })
-    describe('server response', () => {
-      it('should bailout to client rendering - without suspense boundary', async () => {
-        const res = await fetchViaHTTP(next.url, '/hooks/use-search-params')
-        const html = await res.text()
-        expect(html).toInclude('<html id="__next_error__">')
+    // Don't run these tests in dev mode since they won't be statically generated
+    if (!isDev) {
+      describe('server response', () => {
+        it('should bailout to client rendering - without suspense boundary', async () => {
+          const res = await fetchViaHTTP(next.url, '/hooks/use-search-params')
+          const html = await res.text()
+          expect(html).toInclude('<html id="__next_error__">')
+        })
+
+        it('should bailout to client rendering - with suspense boundary', async () => {
+          const res = await fetchViaHTTP(
+            next.url,
+            '/hooks/use-search-params/with-suspense'
+          )
+          const html = await res.text()
+          expect(html).toInclude('<p>search params suspense</p>')
+        })
+
+        it('should have empty search params on force-static', async () => {
+          const res = await fetchViaHTTP(
+            next.url,
+            '/hooks/use-search-params/force-static?first=value&second=other&third'
+          )
+          const html = await res.text()
+
+          // Shouild not bail out to client rendering
+          expect(html).not.toInclude('<p>search params suspense</p>')
+
+          // Use empty search params instead
+          const $ = cheerio.load(html)
+          expect($('#params-first').text()).toBe('N/A')
+          expect($('#params-second').text()).toBe('N/A')
+          expect($('#params-third').text()).toBe('N/A')
+          expect($('#params-not-real').text()).toBe('N/A')
+        })
       })
-
-      it('should bailout to client rendering - with suspense boundary', async () => {
-        const res = await fetchViaHTTP(
-          next.url,
-          '/hooks/use-search-params/with-suspense'
-        )
-        const html = await res.text()
-        expect(html).toInclude('<p>search params suspense</p>')
-      })
-
-      it('should have empty search params on force-static', async () => {
-        const res = await fetchViaHTTP(
-          next.url,
-          '/hooks/use-search-params/force-static?first=value&second=other&third'
-        )
-        const html = await res.text()
-
-        // Shouild not bail out to client rendering
-        expect(html).not.toInclude('<p>search params suspense</p>')
-
-        // Use empty search params instead
-        const $ = cheerio.load(html)
-        expect($('#params-first').text()).toBe('N/A')
-        expect($('#params-second').text()).toBe('N/A')
-        expect($('#params-third').text()).toBe('N/A')
-        expect($('#params-not-real').text()).toBe('N/A')
-      })
-    })
+    }
   })
 
   // TODO: needs updating as usePathname should not bail
