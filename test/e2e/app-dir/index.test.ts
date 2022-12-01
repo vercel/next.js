@@ -7,11 +7,11 @@ import {
   fetchViaHTTP,
   findPort,
   getRedboxHeader,
-  hasRedbox,
   initNextServerScript,
   killApp,
   renderViaHTTP,
   waitFor,
+  waitForAndOpenRuntimeError,
 } from 'next-test-utils'
 import path from 'path'
 import cheerio from 'cheerio'
@@ -2060,7 +2060,7 @@ describe('app dir', () => {
         await browser.elementByCss('#error-trigger-button').click()
 
         if (isDev) {
-          expect(await hasRedbox(browser)).toBe(true)
+          await waitForAndOpenRuntimeError(browser)
           expect(await getRedboxHeader(browser)).toMatch(/this is a test/)
         } else {
           await browser
@@ -2110,12 +2110,10 @@ describe('app dir', () => {
           '/error/global-error-boundary'
         )
         await browser.elementByCss('#error-trigger-button').click()
-        // .waitForElementByCss('body')
 
         if (isDev) {
-          expect(await hasRedbox(browser)).toBe(true)
-          console.log('getRedboxHeader', await getRedboxHeader(browser))
-          // expect(await getRedboxHeader(browser)).toMatch(/An error occurred: this is a test/)
+          await waitForAndOpenRuntimeError(browser)
+          expect(await getRedboxHeader(browser)).toMatch(/this is a test/)
         } else {
           expect(
             await browser

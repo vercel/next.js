@@ -280,7 +280,7 @@ describe('ReactRefreshRegression app', () => {
 
     await browser.refresh()
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    await session.waitForAndOpenRuntimeError()
 
     const source = await session.getRedboxSource()
     expect(source.split(/\r?\n/g).slice(2).join('\n')).toMatchInlineSnapshot(`
@@ -301,7 +301,7 @@ describe('ReactRefreshRegression app', () => {
 
     await browser.refresh()
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    await session.waitForAndOpenRuntimeError()
 
     const source = await session.getRedboxSource()
     expect(source.split(/\r?\n/g).slice(2).join('\n')).toMatchInlineSnapshot(`
@@ -323,7 +323,7 @@ describe('ReactRefreshRegression app', () => {
 
     await browser.refresh()
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    await session.waitForAndOpenRuntimeError()
 
     const source = await session.getRedboxSource()
     expect(source.split(/\r?\n/g).slice(2).join('\n')).toMatchInlineSnapshot(`
