@@ -77,7 +77,8 @@ export function useSearchParams() {
   }, [searchParams])
 
   if (bailoutToClientRendering('useSearchParams')) {
-    return readonlySearchParams
+    // dynamic = 'force-static', return empty search params
+    return new ReadonlyURLSearchParams(new URLSearchParams())
   }
 
   if (!searchParams) {
