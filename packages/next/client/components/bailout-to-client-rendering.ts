@@ -9,6 +9,10 @@ export function bailoutToClientRendering(reason: string) {
       ? staticGenerationAsyncStorage?.getStore()
       : staticGenerationAsyncStorage
 
+  if (staticGenerationStore?.forceStatic) {
+    return true
+  }
+
   if (staticGenerationStore?.isStaticGeneration) {
     const error = new Error(reason)
     ;(error as any).digest = BAILOUT_TO_CLIENT_RENDERING_ERROR_CODE
